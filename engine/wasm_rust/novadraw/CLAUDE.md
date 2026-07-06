@@ -70,9 +70,7 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 
 ### Milestone 与路线图
 
-- **Milestone 编号 SSOT（M1-M10）**：`agent/draw2d-core-milestones.yaml`（机器可读，承载契约 + probes + 依赖）
 - **Draw2D API 语义覆盖账本**：`doc/01-architecture/draw2d_api_coverage.md`（API family、语义契约、Novadraw 合理变体、M1-M10 映射）
-- **当前进度快照 + 阻塞项**：`agent/goal-roadmap.md`（每完成一个 milestone 更新）
 - **产品交付清单**：`doc/06-roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）
 - **Demo + 验证矩阵**：`doc/06-roadmap/demo-matrix.md`（每个 milestone 配套 demo + 截图断言策略 + GEF 层探索附录）
 
@@ -124,7 +122,8 @@ draw2d/GEF 的核心设计哲学：
 
 ### 思维原则
 
-运用第一性原理思考，拒绝经验主义和路径盲从。不要假设我完全清楚目标，保持审慎。若目标模糊请停下讨论，若目标清晰但路径非最优，请直接建议更短、更低成本的办法。
+运用第一性原理思考，拒绝经验主义和路径盲从。不要假设我完全清楚目标，保持审慎。若目标模糊请停下讨论，若目标清晰但路径非最优，请直接建议更短、更低成本的办法。可以采用苏格拉底提问法和奥卡姆剃刀原理。
+
 
 ### 回答格式
 
