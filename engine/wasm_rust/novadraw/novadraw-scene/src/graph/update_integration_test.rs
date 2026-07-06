@@ -446,6 +446,40 @@ fn test_perform_update_uses_damage_region() {
 }
 
 #[test]
+fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
+    let (mut scene, mut update_manager) = new_scene();
+    let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+    let coordinate_root_id = scene.add_child_to(
+        contents_id,
+        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0).with_local_coordinates(true)),
+    );
+    let child_id = scene.add_child_to(
+        coordinate_root_id,
+        Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
+    );
+
+    assert!(scene.set_bounds_with_update(
+        &mut update_manager,
+        coordinate_root_id,
+        70.0,
+        55.0,
+        80.0,
+        60.0,
+    ));
+
+    assert_eq!(
+        scene.get_block(child_id).unwrap().figure_bounds(),
+        Rectangle::new(10.0, 15.0, 20.0, 10.0)
+    );
+
+    let canvas = scene.perform_update(&mut update_manager);
+    assert_eq!(
+        canvas.damage().union,
+        Some(Rectangle::new(50.0, 40.0, 100.0, 75.0))
+    );
+}
+
+#[test]
 fn test_batch_construction_no_updates() {
     let (mut scene, update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));

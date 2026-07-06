@@ -1409,6 +1409,80 @@ impl FigureGraph {
         }
     }
 
+    /// 设置节点 bounds 并进入 Draw2D 等价的更新链路。
+    ///
+    /// 对应 draw2d: Figure#setBounds(Rectangle)
+    ///
+    /// 与低层 [`Self::set_bounds`] 的区别：
+    ///
+    /// - 移动或 resize 前，按 `erase()` 语义把旧 bounds 转到 parent 坐标域并请求 parent repaint；
+    /// - 移动后，请求当前 Figure repaint；
+    /// - resize 时，同时使当前 Figure 的 validation 失效。
+    ///
+    /// 布局与批量构建仍可使用低层 `set_bounds`；交互式移动、拖拽和运行时 resize
+    /// 应使用此方法，确保旧区域曝光、当前区域重绘和坐标根移动使用同一 damage 协议。
+    pub fn set_bounds_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        block_id: BlockId,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> bool {
+        let Some(block) = self.blocks.get(block_id) else {
+            return false;
+        };
+        let old_bounds = block.figure_bounds();
+        let resize = width != old_bounds.width || height != old_bounds.height;
+        let translate = x != old_bounds.x || y != old_bounds.y;
+        if !resize && !translate {
+            return false;
+        }
+        let parent_id = block.parent;
+        let visible = self.is_effectively_visible(block_id);
+
+        if visible {
+            self.erase(update_manager, block_id, old_bounds, parent_id);
+        }
+
+        self.set_bounds(block_id, x, y, width, height);
+
+        if resize {
+            self.mark_invalid(update_manager, block_id);
+            let new_bounds = Rectangle::new(x, y, width, height);
+            self.emit_figure_event(FigureEvent::FigureMoved {
+                block_id,
+                old_bounds,
+                new_bounds,
+            });
+        }
+
+        if visible {
+            self.repaint(update_manager, block_id, None);
+        }
+
+        true
+    }
+
+    fn erase(
+        &self,
+        update_manager: &mut dyn UpdateManager,
+        block_id: BlockId,
+        mut old_bounds: Rectangle,
+        parent_id: Option<BlockId>,
+    ) {
+        let Some(parent_id) = parent_id else {
+            return;
+        };
+        if !self.blocks.contains_key(block_id) || !self.blocks.contains_key(parent_id) {
+            return;
+        }
+
+        self.translate_to_parent(parent_id, &mut old_bounds);
+        update_manager.add_dirty_region(parent_id, old_bounds);
+    }
+
     /// 坐标转换：沿父链应用 translateToParent 协议
     ///
     /// 对应 draw2d: translateToAbsolute(Translatable)
