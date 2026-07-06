@@ -1,8 +1,8 @@
 # Draw2D API 语义覆盖清单
 
-本文档记录 draw2d API 到 Novadraw 的语义覆盖关系，用作架构 delta 发现、milestone 验收补充和缺口治理的覆盖账本。
+本文档记录 draw2d API 到 Novadraw 的语义覆盖关系，用作架构设计、功能迭代和验收补充的覆盖账本。
 
-它不是 Java API 迁移待办，也不是 milestone 编号源。Milestone 编号仍以 `agent/draw2d-core-milestones.yaml` 为唯一来源。
+它不是 Java API 迁移待办，也不是进度管理或任务编排文件。
 
 ## 使用原则
 
@@ -92,7 +92,7 @@
 
 ## API Family ID 约定
 
-`agent/draw2d-core-milestones.yaml` 使用下列 ID 引用本文档中的 API family。后续新增 delta 时，`api_semantics` 应优先引用这些 ID。
+下列 ID 用于稳定引用本文档中的 API family。后续设计、实现、测试和验收说明应优先使用这些 ID，避免同一语义被重复命名。
 
 | Family ID | 对应 API 家族 | 语义边界 |
 |---|---|---|
@@ -134,7 +134,7 @@
 
 ## Milestone 到 API 语义映射
 
-Milestone 编号仍以 `agent/draw2d-core-milestones.yaml` 为唯一来源。本文只提供人工可读映射，机器可读字段在 YAML 的 `api_semantics.primary` 和 `api_semantics.secondary`。
+本文只提供人工可读的阶段映射，用于理解不同能力组之间的语义依赖；具体交付节奏以当前开发计划为准。
 
 | Milestone | 主 API 语义 | 次级关联 | 推进时必须检查 |
 |---|---|---|---|
@@ -365,12 +365,12 @@ Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`
 
 ## Milestone 推进检查规则
 
-每次推进 M1-M10 的 architecture 或 parity delta 时，必须执行以下检查：
+每次推进 M1-M10 相关功能或架构改动时，必须执行以下检查：
 
-1. 在 delta 中列出受影响的 `api_semantics` family ID。
+1. 列出受影响的 API family ID。
 2. 对照本文件确认 draw2d 语义契约是否仍完整。
-3. 如果契约不完整，必须新增 probe、测试、demo 断言或 backlog debt，不能只更新 milestone 状态。
-4. milestone 进入 `behavior_verified` 前，必须检查其 `api_semantics.primary` 已经有可重复验证证据。
+3. 如果契约不完整，必须新增 probe、测试、demo 断言或后续债务记录，不能只更新状态描述。
+4. milestone 进入 `behavior_verified` 前，必须检查其主 API 语义已经有可重复验证证据。
 5. milestone 进入 `complete` 前，必须确认主 API 语义、次级关联、文档和债务记录已对齐。
 6. M1-M5 的完成判定只覆盖 active core Figure surface；M8/M10 才能把 Viewport 或 deferred builtin Figure 计入自身完成度。
 
@@ -668,10 +668,4 @@ P2 能力和 GEF 层 API 只作为后续对照，不进入当前 draw2d core 主
 
 ## 后续落地方式
 
-建议后续把本文档中的 family 逐步同步到机器可读治理文件，例如：
-
-- `agent/draw2d-core-milestones.yaml`：只记录 milestone 协议和 probes。
-- `agent/backlog/*.yaml`：记录从覆盖缺口拆出的最小 architecture delta。
-- `doc/06-roadmap/*`：记录产品交付与 demo 验证矩阵。
-
-本文档保持为人工可读的 draw2d 语义覆盖账本，避免与 milestone SSOT 抢职责。
+本文档保持为人工可读的 draw2d 语义覆盖账本。后续功能迭代应从这里选取受影响的 API family，补齐对应的运行时代码、测试、demo 或视觉验证；产品交付与 demo 验证矩阵继续放在 `doc/06-roadmap/` 下维护。
