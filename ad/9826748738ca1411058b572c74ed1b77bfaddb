@@ -1,0 +1,30 @@
+engine/wasm_rust/novadraw/doc/06-roadmap/product-deliverables.md
+  s_b33496daf42792::t_5bbbfc3a13938f 5-6,8,10-11,27,335-336,341
+engine/wasm_rust/novadraw/doc/06-roadmap/00-index.md
+  s_b33496daf42792::t_4be8319a1a3f41 3,5,9,15,17,21
+engine/wasm_rust/novadraw/doc/06-roadmap/demo-matrix.md
+  s_b33496daf42792::t_e3de29ff56165e 5,10,14,18,22,42,47,73-74
+engine/wasm_rust/novadraw/doc/理想架构设计.md
+  s_b33496daf42792::t_f02baa6c5972a0 3094
+engine/wasm_rust/novadraw/doc/00-index.md
+  s_b33496daf42792::t_1d35e61ca1b955 133-134
+  s_b33496daf42792::t_b751c90fe6ef16 129-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "ad9826748738ca1411058b572c74ed1b77bfaddb",
+  "prompts": {},
+  "sessions": {
+    "s_b33496daf42792": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a4ba754620ed3d207523e1a",
+        "model": "gpt-5.4__dev"
+      },
+      "human_author": "yezhang <yezhang989@163.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
