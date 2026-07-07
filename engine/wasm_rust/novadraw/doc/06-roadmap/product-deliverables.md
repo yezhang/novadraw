@@ -2,13 +2,13 @@
 
 > 本文档承载每个 draw2d 核心 milestone 下要交付的**产品策略层清单**（具体图元数、布局数、边框数等）。
 >
-> **编号唯一来源**：`agent/draw2d-core-milestones.yaml`，本文不发明独立编号。
-> **完成判据**：协议层契约（YAML `contracts` + `probes`）+ 产品层清单（本文）+ Demo 验证（`demo-matrix.md`）三者齐过。
+> **编号约定**：本文统一使用 `M1-M10`，并与 `doc/01-architecture/draw2d_api_coverage.md` 中的 milestone 映射保持一致。
+> **完成判据**：API 语义覆盖（`draw2d_api_coverage.md`）+ 产品层清单（本文）+ Demo 验证（`demo-matrix.md`）三者齐过。
 
-## 与 YAML milestone 的挂接关系
+## 与 milestone 的挂接关系
 
-| YAML | YAML 标题（协议层） | 本文章节 | 产品策略要点 |
-|------|---------------------|----------|--------------|
+| Milestone | 标题（协议层） | 本文章节 | 产品策略要点 |
+|------|----------------|----------|--------------|
 | M1 | 几何与 Graphics 基础 | [§M1](#m1-几何与-graphics-基础) | 几何类型 + Graphics 状态栈 |
 | M2 | Figure 树与盒模型 | [§M2](#m2-figure-树与盒模型) | 5 基础图元 + 三段式 paint |
 | M3 | 绘制遍历与裁剪闭环 | [§M3](#m3-绘制遍历与裁剪闭环) | 嵌套裁剪 + paint/hit-test 一致性 |
@@ -24,7 +24,7 @@
 
 ## M1 几何与 Graphics 基础
 
-**协议层要求**：见 YAML M1 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M1 相关 family。本文只列产品层清单。
 
 ### 几何类型清单
 
@@ -332,14 +332,13 @@
 
 ### 本文不持有的内容
 
-- 协议层契约（在 YAML `contracts` 字段）
-- 验证项（在 YAML `probes` 字段）
-- 当前状态（在 `agent/goal-roadmap.md`）
+- API 语义覆盖（在 `draw2d_api_coverage.md`）
+- 细粒度验证项（在相关测试与 `demo-matrix.md`）
 - Demo 名称与验证策略（在 `demo-matrix.md`）
 
 ### 不在 draw2d 核心的能力（明确排除）
 
-以下能力**不挂在 M1-M10 任何 milestone 下**，按 YAML `excluded_gef_capabilities`：
+以下能力**不挂在 M1-M10 任何 milestone 下**，按当前路线图边界明确排除：
 
 - EditPart / EditPolicy / Tool / Command / Request / Viewer
 - Palette / Selection provider

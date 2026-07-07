@@ -126,12 +126,12 @@ doc/
 
 | 文档 | 主题 | 关键内容 |
 |------|------|----------|
-| `06-roadmap/00-index.md` | 路线图三方职能边界 | YAML（协议）/ doc（产品+demo）/ agent（状态）三方文件分工 |
-| `06-roadmap/product-deliverables.md` | 产品交付清单 | 每个 YAML milestone 下要交付的图元/布局/边框等策略层清单 |
+| `06-roadmap/00-index.md` | 路线图文档边界 | 语义账本 / 产品清单 / demo 验证三类文档的分工 |
+| `06-roadmap/product-deliverables.md` | 产品交付清单 | 每个 milestone 下要交付的图元/布局/边框等策略层清单 |
 | `06-roadmap/demo-matrix.md` | Demo 与验证矩阵 | 每个 milestone 配套的 demo + 截图断言/帧率断言策略 + GEF 层探索附录 |
 
-> 路线图编号唯一来源：`agent/draw2d-core-milestones.yaml`，doc 内不发明独立编号。
-> 当前进度快照见 `agent/goal-roadmap.md`。
+> 路线图统一使用 `M1-M10` 编号；相关产品清单与验证矩阵集中维护在 `doc/06-roadmap/`。
+> API 语义覆盖与 milestone 对应关系见 `doc/01-architecture/draw2d_api_coverage.md`。
 
 ### 7. 历史文档
 

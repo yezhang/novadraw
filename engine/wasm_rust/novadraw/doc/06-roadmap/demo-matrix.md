@@ -2,24 +2,24 @@
 
 > 本文档承载每个 draw2d 核心 milestone **配套的 demo + 验证策略**。
 >
-> **编号唯一来源**：`agent/draw2d-core-milestones.yaml`，本文不发明独立编号。
+> **编号约定**：本文统一使用 `M1-M10`，并与 `doc/01-architecture/draw2d_api_coverage.md` 中的 milestone 映射保持一致。
 > **与 product-deliverables.md 的关系**：产品清单回答 *what to ship*，本文回答 *how to verify*。
 
 ## 验证分层
 
-每个 milestone 完成（YAML `complete` 状态）必须三层验证齐过：
+每个 milestone 完成必须三层验证齐过：
 
 | 层 | 来源 | 度量 |
 |----|------|------|
-| **契约层** | YAML `probes` | 单元测试、契约属性测试 |
+| **契约层** | `draw2d_api_coverage.md` 中的语义覆盖检查点 | 单元测试、契约属性测试 |
 | **产品层** | `product-deliverables.md` 清单 | 类型/能力存在性测试 |
 | **端到端层** | 本文 demo + 验证策略 | demo 截图断言 / 帧率断言 / 集成测试 |
 
-YAML 状态 `behavior_verified` 需要前两层过；`complete` 需要三层全过。
+建议把里程碑收敛按两级判断：核心行为已验证时至少通过前两层；标记完成时三层全过。
 
 ## Demo 矩阵
 
-| YAML | Demo 名称 | 路径 | 验证策略 | 测试增量预期 |
+| Milestone | Demo 名称 | 路径 | 验证策略 | 测试增量预期 |
 |------|-----------|------|----------|--------------|
 | M1 | 无独立 demo | — | 仅类型单测 + Graphics 状态栈嵌套测试 | +30 |
 | M2 | `shapes-demo` | `apps/shapes-demo` | 5 图元 + 三段式 paint 分层可视化 + 截图断言 | +60 |
@@ -39,14 +39,12 @@ YAML 状态 `behavior_verified` 需要前两层过；`complete` 需要三层全�
 ### 截图断言
 
 - 工具：`--screenshot` 参数（见 CLAUDE.md）
-- 工作流入口：`./agent/workflow-verify.sh --visual`
-- 清单：`agent/visual-regression.yaml`
-- 执行器：`agent/visual-verify.rb`
+- 工作流入口：按各 demo 的 `--screenshot` 输出与集成测试组合执行
 - 报告：`target/visual-verification/report.md`
 - AI 审查请求：`target/visual-verification/ai-review-request.md`
 - 背景色 RGB(238, 238, 238)，图形颜色禁止与此重复
 
-截图断言分为 6 层：Unit Contract Tests、RenderCommand Snapshot、Screenshot Capture、Pixel / Semantic Check、AI Visual Review、Visual Report。详细规则见 `agent/visual-verification.md`。
+截图断言分为 6 层：Unit Contract Tests、RenderCommand Snapshot、Screenshot Capture、Pixel / Semantic Check、AI Visual Review、Visual Report。
 
 ### 帧率断言
 
@@ -72,8 +70,8 @@ YAML 状态 `behavior_verified` 需要前两层过；`complete` 需要三层全�
 每个 demo 完成时：
 
 1. 在本文对应行追加 ✅ 标记
-2. 同步更新 `agent/goal-roadmap.md` 状态快照
-3. 同步更新 YAML 对应 milestone 的 `status`（按 5 状态机推进）
+2. 视需要在相关 milestone 标题后追加进展标记
+3. 同步补齐对应测试与截图证据
 
 ## Demo 完成清单（勾选区）
 
