@@ -1316,6 +1316,16 @@ impl FigureGraph {
     /// }
     /// ```
     pub fn prim_translate(&mut self, block_id: BlockId, dx: f64, dy: f64) {
+        self.prim_translate_internal(block_id, dx, dy, true);
+    }
+
+    fn prim_translate_internal(
+        &mut self,
+        block_id: BlockId,
+        dx: f64,
+        dy: f64,
+        emit_root_events: bool,
+    ) {
         // 使用显式栈实现迭代式深度优先遍历
         let mut stack = vec![block_id];
 
@@ -1349,19 +1359,23 @@ impl FigureGraph {
             };
 
             self.notify_block_changed(id);
-            self.emit_figure_event(FigureEvent::FigureMoved {
-                block_id: id,
-                old_bounds,
-                new_bounds,
-            });
-
-            // 检查是否使用本地坐标模式
-            if use_local_coordinates {
-                self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
+            if emit_root_events || id != block_id {
+                self.emit_figure_event(FigureEvent::FigureMoved {
                     block_id: id,
                     old_bounds,
                     new_bounds,
                 });
+            }
+
+            // 检查是否使用本地坐标模式
+            if use_local_coordinates {
+                if emit_root_events || id != block_id {
+                    self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
+                        block_id: id,
+                        old_bounds,
+                        new_bounds,
+                    });
+                }
                 continue;
             }
 
@@ -1383,29 +1397,48 @@ impl FigureGraph {
     /// 注意：所有子节点传播操作必须使用迭代实现，禁止递归
     #[allow(clippy::collapsible_if)]
     pub fn set_bounds(&mut self, block_id: BlockId, x: f64, y: f64, width: f64, height: f64) {
-        let (dx, dy, needs_width_height_update) = {
+        let (old_bounds, use_local_coordinates) = {
             if let Some(block) = self.blocks.get(block_id) {
-                let old_bounds = block.figure.bounds();
-                let dx = x - old_bounds.x;
-                let dy = y - old_bounds.y;
-                let needs_width_height_update =
-                    width != old_bounds.width || height != old_bounds.height;
-                (dx, dy, needs_width_height_update)
+                (block.figure.bounds(), block.figure.use_local_coordinates())
             } else {
                 return;
             }
         };
+        let dx = x - old_bounds.x;
+        let dy = y - old_bounds.y;
+        let resize = width != old_bounds.width || height != old_bounds.height;
+        let translate = dx != 0.0 || dy != 0.0;
+        if !resize && !translate {
+            return;
+        }
 
         // 1. 传播位置偏移到所有子节点（使用栈迭代）
-        if dx != 0.0 || dy != 0.0 {
-            self.prim_translate(block_id, dx, dy);
+        if translate {
+            self.prim_translate_internal(block_id, dx, dy, false);
         }
 
         // 2. 更新自身的宽高（x, y 已由 prim_translate 更新）
-        if needs_width_height_update {
+        if resize {
             if let Some(block) = self.blocks.get_mut(block_id) {
                 block.figure.set_bounds(x, y, width, height);
             }
+        }
+
+        if !translate {
+            self.notify_block_changed(block_id);
+        }
+        let new_bounds = Rectangle::new(x, y, width, height);
+        self.emit_figure_event(FigureEvent::FigureMoved {
+            block_id,
+            old_bounds,
+            new_bounds,
+        });
+        if translate && use_local_coordinates {
+            self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
+                block_id,
+                old_bounds,
+                new_bounds,
+            });
         }
     }
 
@@ -1450,12 +1483,6 @@ impl FigureGraph {
 
         if resize {
             self.mark_invalid(update_manager, block_id);
-            let new_bounds = Rectangle::new(x, y, width, height);
-            self.emit_figure_event(FigureEvent::FigureMoved {
-                block_id,
-                old_bounds,
-                new_bounds,
-            });
         }
 
         if visible {
