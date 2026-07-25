@@ -10,7 +10,7 @@
 |-----|------|--------|----------|
 | **shape-app** | 图形类型 | 8 | `cargo run -p shape-app` |
 | **style-app** | 视觉属性 | 7 | `cargo run -p style-app` |
-| **transform-app** | 坐标变换 + 坐标域 | 10 | `cargo run -p transform-app` |
+| **transform-app** | M4 坐标域闭环 | 4 | `cargo run -p transform-app` |
 | **viewport-app** | Viewport Figure 树语义 | 4 | `cargo run -p viewport-app` |
 | **clip-app** | 裁剪机制 | 10 | `cargo run -p clip-app` |
 | **layout-app** | 布局管理 | 8 | `cargo run -p layout-app` |
@@ -29,7 +29,7 @@
 |------|-----|----------|
 | 图形类型 | shape-app | Rectangle, Ellipse, RoundedRect, Polyline, Triangle, Z-Order, Parent-Child |
 | 视觉属性 | style-app | Fill color, Stroke (width/color/cap/join), Alpha, LineJoin, Stroke vs Border |
-| 坐标变换 | transform-app | translate, scale, rotate, 传播, local_coords, 动态 prim_translate |
+| 坐标域 | transform-app | 嵌套坐标根、absolute/relative 往返、坐标根移动、事件点降域 |
 | 视口 | viewport-app | ViewportFigure, content 裁剪, origin, zoom, 嵌套 viewport |
 | 裁剪 | clip-app | basic, nested, multi_layer, circle, path, transparent, animation |
 | 布局 | layout-app | XYLayout, FillLayout, FlowLayout, BorderLayout, 嵌套, 约束更新 |

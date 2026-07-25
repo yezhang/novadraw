@@ -1,49 +1,24 @@
-# Transform App - 坐标变换验证
+# Transform App - M4 坐标域验证
 
-## 功能说明
+`transform-app` 是 M4 坐标域与变换闭环的端到端验证入口。它只验证
+Draw2D Figure 父链坐标协议，不承载通用矩阵动画或 M8 Viewport 能力。
 
-验证 Draw2D 坐标变换系统，包括平移、缩放、旋转等变换操作，以及变换在父子层级中的传播机制。
-
-## 运行方式
+## 运行
 
 ```bash
 cargo run -p transform-app
+cargo run -p transform-app -- --screenshot-all
+cargo run -p transform-app -- --screenshot=2
 ```
 
-## 场景说明
+## 场景
 
 | 场景 | 名称 | 验证内容 |
-|------|------|----------|
-| 0 | 平移验证 | 矩形的平移操作 |
-| 1 | 缩放(中心) | 以中心点为基准的缩放 |
-| 2 | 缩放(基准点) | 以任意点为基准的缩放 |
-| 3 | 旋转变换 | 围绕中心点的旋转 |
-| 4 | 变换传播 | 父子层级间的变换继承 |
-| 5 | 局部坐标 | 本地坐标模式的使用 |
-| 6 | 变换组合 | 多重变换的组合效果 |
-| 7 | 缩放动画 | 动态缩放效果 |
-| 8 | 旋转动画 | 动态旋转效果 |
-| 9 | 屏幕到世界 | 坐标转换机制 |
+|---|---|---|
+| 0 | `nested_coordinate_roots` | 两层坐标根与 border insets 的渲染位置 |
+| 1 | `coordinate_roundtrip_overlay` | local → absolute → local 往返；红色绝对域描边应与白色本地域描边重合 |
+| 2 | `coordinate_root_move` | 坐标根移动和 resize 后，子 bounds 保持局部值不变；灰框标记旧区域 |
+| 3 | `event_point_reduction` | 点击红色目标后出现选中框，验证入口域命中与 target 域事件点一致 |
 
-## 操作说明
-
-- 按数字键 `0`-`9` 切换场景
-- 按 `ESC` 退出程序
-
-## 核心概念
-
-### 变换类型
-
-1. **平移 (Translate)**: 沿 X/Y 轴移动图形
-2. **缩放 (Scale)**: 按比例放大或缩小
-3. **旋转 (Rotate)**: 围绕指定点旋转
-
-### 变换传播
-
-当父元素应用变换时，子元素会继承该变换，实现层级化的变换效果。
-
-## 依赖模块
-
-- `novadraw-scene`: 场景图和 Figure 接口
-- `novadraw-math`: 数学运算（向量、矩阵）
-- `novadraw-render`: Vello 渲染后端
+对应自动契约测试位于
+`novadraw-scene/tests/m4_coordinate_contract.rs`。

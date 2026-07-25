@@ -1,282 +1,321 @@
-//! Transform App - 坐标变换验证
-//!
-//! 验证平移、缩放、旋转变换的正确性。
+//! M4 坐标域与变换闭环验证。
 
-use novadraw_apps::run_demo_app;
+use novadraw::{
+    Bounded, Color, LineBorder, MouseEvent, NdCanvas, NovadrawContext, Point, Rectangle,
+    RectangleFigure, SceneUpdateManager, Shape, Updatable,
+    command::{LineCap, LineJoin},
+};
+use novadraw_apps::{
+    run_demo_app, run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot,
+};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
+const BACKGROUND: Color = Color {
+    r: 0.933,
+    g: 0.933,
+    b: 0.933,
+    a: 1.0,
+};
+const OUTER_COLOR: Color = Color {
+    r: 0.36,
+    g: 0.61,
+    b: 0.84,
+    a: 1.0,
+};
+const INNER_COLOR: Color = Color {
+    r: 0.95,
+    g: 0.67,
+    b: 0.24,
+    a: 1.0,
+};
+const CHILD_COLOR: Color = Color {
+    r: 0.33,
+    g: 0.73,
+    b: 0.53,
+    a: 1.0,
+};
+const TARGET_COLOR: Color = Color {
+    r: 0.86,
+    g: 0.32,
+    b: 0.32,
+    a: 1.0,
+};
+const OLD_BOUNDS_COLOR: Color = Color {
+    r: 0.55,
+    g: 0.55,
+    b: 0.55,
+    a: 1.0,
+};
+const BORDER_WIDTH: f64 = 3.0;
 
-fn create_scene_0_translate() -> novadraw::FigureGraph {
+fn background() -> RectangleFigure {
+    RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, BACKGROUND)
+}
+
+fn coordinate_root(x: f64, y: f64, width: f64, height: f64, color: Color) -> RectangleFigure {
+    RectangleFigure::new_with_color(x, y, width, height, color)
+        .with_local_coordinates(true)
+        .with_border(LineBorder::new(Color::BLACK, BORDER_WIDTH).with_insets(8.0, 12.0, 8.0, 12.0))
+}
+
+fn add_nested_roots(
+    scene: &mut novadraw::FigureGraph,
+    contents: novadraw::BlockId,
+) -> (novadraw::BlockId, novadraw::BlockId) {
+    let outer = scene.add_child_to(
+        contents,
+        Box::new(coordinate_root(120.0, 90.0, 520.0, 400.0, OUTER_COLOR)),
+    );
+    let inner = scene.add_child_to(
+        outer,
+        Box::new(coordinate_root(70.0, 60.0, 330.0, 240.0, INNER_COLOR)),
+    );
+    (outer, inner)
+}
+
+fn create_nested_coordinate_roots() -> novadraw::FigureGraph {
     let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let contents = scene.set_contents(Box::new(background()));
+    let (_, inner) = add_nested_roots(&mut scene, contents);
+    scene.add_child_to(
+        inner,
+        Box::new(RectangleFigure::new_with_color(
+            45.0,
+            40.0,
+            150.0,
+            100.0,
+            CHILD_COLOR,
+        )),
+    );
+    scene
+}
 
-    let rect = novadraw::RectangleFigure::new_with_color(
-        300.0,
+fn create_coordinate_roundtrip_overlay() -> novadraw::FigureGraph {
+    let mut scene = novadraw::FigureGraph::new();
+    let contents = scene.set_contents(Box::new(background()));
+    let (_, inner) = add_nested_roots(&mut scene, contents);
+    let local_bounds = Rectangle::new(45.0, 40.0, 150.0, 100.0);
+    let child = scene.add_child_to(
+        inner,
+        Box::new(
+            RectangleFigure::from_bounds(local_bounds).with_stroke(Color::WHITE, BORDER_WIDTH),
+        ),
+    );
+
+    let mut absolute_bounds = local_bounds;
+    scene.translate_to_absolute_mut(child, &mut absolute_bounds);
+    let mut roundtrip = absolute_bounds;
+    scene.translate_to_relative(child, &mut roundtrip);
+    assert_eq!(roundtrip, local_bounds);
+
+    scene.add_child_to(
+        contents,
+        Box::new(
+            RectangleFigure::new_with_color(
+                absolute_bounds.x,
+                absolute_bounds.y,
+                absolute_bounds.width,
+                absolute_bounds.height,
+                Color::rgba(0.0, 0.0, 0.0, 0.0),
+            )
+            .with_stroke(TARGET_COLOR, BORDER_WIDTH),
+        ),
+    );
+    scene
+}
+
+fn create_coordinate_root_move() -> novadraw::FigureGraph {
+    let mut scene = novadraw::FigureGraph::new();
+    let contents = scene.set_contents(Box::new(background()));
+    scene.add_child_to(
+        contents,
+        Box::new(
+            RectangleFigure::new_with_color(
+                120.0,
+                100.0,
+                300.0,
+                230.0,
+                Color::rgba(0.0, 0.0, 0.0, 0.0),
+            )
+            .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH),
+        ),
+    );
+    let coordinate_root = scene.add_child_to(
+        contents,
+        Box::new(coordinate_root(120.0, 100.0, 300.0, 230.0, OUTER_COLOR)),
+    );
+    scene.add_child_to(
+        coordinate_root,
+        Box::new(RectangleFigure::new_with_color(
+            35.0,
+            35.0,
+            120.0,
+            80.0,
+            CHILD_COLOR,
+        )),
+    );
+
+    let mut update_manager = SceneUpdateManager::new();
+    scene.set_bounds_with_update(
+        &mut update_manager,
+        coordinate_root,
+        330.0,
+        220.0,
+        340.0,
         250.0,
-        200.0,
-        100.0,
-        novadraw::Color::rgba(0.2, 0.6, 0.9, 1.0),
     );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    let h_line = novadraw::RectangleFigure::new_with_color(
-        0.0,
-        300.0,
-        WINDOW_WIDTH,
-        2.0,
-        novadraw::Color::rgba(0.5, 0.5, 0.5, 1.0),
-    );
-    let v_line = novadraw::RectangleFigure::new_with_color(
-        400.0,
-        0.0,
-        2.0,
-        WINDOW_HEIGHT,
-        novadraw::Color::rgba(0.5, 0.5, 0.5, 1.0),
-    );
-    let _h = scene.add_child_to(container_id, Box::new(h_line));
-    let _v = scene.add_child_to(container_id, Box::new(v_line));
-
     scene
 }
 
-fn create_scene_1_scale_center() -> novadraw::FigureGraph {
+#[derive(Clone)]
+struct TargetDomainFigure {
+    bounds: Rectangle,
+}
+
+impl Bounded for TargetDomainFigure {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "TargetDomainFigure"
+    }
+}
+
+impl Updatable for TargetDomainFigure {
+    fn validate(&mut self) {}
+}
+
+impl Shape for TargetDomainFigure {
+    fn stroke_color(&self) -> Option<Color> {
+        Some(Color::WHITE)
+    }
+
+    fn stroke_width(&self) -> f64 {
+        BORDER_WIDTH
+    }
+
+    fn fill_color(&self) -> Option<Color> {
+        Some(TARGET_COLOR)
+    }
+
+    fn line_cap(&self) -> LineCap {
+        LineCap::default()
+    }
+
+    fn line_join(&self) -> LineJoin {
+        LineJoin::default()
+    }
+
+    fn fill_shape(&self, gc: &mut NdCanvas) {
+        let bounds = self.bounds;
+        gc.fill_rect(
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            TARGET_COLOR,
+        );
+    }
+
+    fn outline_shape(&self, gc: &mut NdCanvas) {
+        let bounds = self.bounds;
+        gc.stroke_rect(
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            Color::WHITE,
+            BORDER_WIDTH,
+            LineCap::default(),
+            LineJoin::default(),
+        );
+    }
+
+    fn wants_mouse_events(&self) -> bool {
+        true
+    }
+
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        let point = Point::new(event.x, event.y);
+        if self.bounds.contains(point) {
+            ctx.select_target();
+            return true;
+        }
+        false
+    }
+}
+
+fn create_event_point_reduction() -> novadraw::FigureGraph {
     let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        300.0,
-        200.0,
-        200.0,
-        200.0,
-        novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
+    let contents = scene.set_contents(Box::new(background()));
+    let (_, inner) = add_nested_roots(&mut scene, contents);
+    scene.add_child_to(
+        inner,
+        Box::new(TargetDomainFigure {
+            bounds: Rectangle::new(55.0, 50.0, 180.0, 110.0),
+        }),
     );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    let center = novadraw::EllipseFigure::new_with_color(
-        390.0,
-        290.0,
-        20.0,
-        20.0,
-        novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0),
-    );
-    let _center = scene.add_child_to(container_id, Box::new(center));
-
     scene
 }
 
-fn create_scene_2_scale_anchor() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
 
-    let rect = novadraw::RectangleFigure::new_with_color(
-        100.0,
-        100.0,
-        150.0,
-        100.0,
-        novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    let anchor = novadraw::EllipseFigure::new_with_color(
-        90.0,
-        90.0,
-        20.0,
-        20.0,
-        novadraw::Color::rgba(1.0, 0.0, 1.0, 1.0),
-    );
-    let _anchor = scene.add_child_to(container_id, Box::new(anchor));
-
-    scene
-}
-
-fn create_scene_3_rotate() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let center = novadraw::EllipseFigure::new_with_color(
-        390.0,
-        290.0,
-        20.0,
-        20.0,
-        novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0),
-    );
-    let _center = scene.add_child_to(container_id, Box::new(center));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        300.0,
-        150.0,
-        200.0,
-        100.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    scene
-}
-
-fn create_scene_4_transform_propagation() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let parent = novadraw::RectangleFigure::new_with_color(
-        200.0,
-        150.0,
-        400.0,
-        300.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
-    );
-    let parent_id = scene.add_child_to(container_id, Box::new(parent));
-
-    let child = novadraw::RectangleFigure::new_with_color(
-        250.0,
-        200.0,
-        100.0,
-        80.0,
-        novadraw::Color::rgba(0.2, 0.8, 0.4, 1.0),
-    );
-    let _child_id = scene.add_child_to(parent_id, Box::new(child));
-
-    let grandchild = novadraw::RectangleFigure::new_with_color(
-        280.0,
-        230.0,
-        50.0,
-        40.0,
-        novadraw::Color::rgba(0.8, 0.2, 0.6, 1.0),
-    );
-    let _grandchild_id = scene.add_child_to(parent_id, Box::new(grandchild));
-
-    scene
-}
-
-fn create_scene_5_local_coords() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let parent = novadraw::RectangleFigure::new_with_color(
-        100.0,
-        100.0,
-        300.0,
-        200.0,
-        novadraw::Color::rgba(0.6, 0.3, 0.8, 1.0),
-    )
-    .with_local_coordinates(true);
-    let parent_id = scene.add_child_to(container_id, Box::new(parent));
-
-    let child = novadraw::RectangleFigure::new_with_color(
-        20.0,
-        20.0,
-        100.0,
-        60.0,
-        novadraw::Color::rgba(0.3, 0.8, 0.7, 1.0),
-    );
-    let _child_id = scene.add_child_to(parent_id, Box::new(child));
-
-    scene
-}
-
-fn create_scene_6_transform_matrix() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        250.0,
-        200.0,
-        300.0,
-        150.0,
-        novadraw::Color::rgba(0.2, 0.5, 0.9, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    scene
-}
-
-fn create_scene_7_scale_animation() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        300.0,
-        200.0,
-        200.0,
-        200.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.4, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    scene
-}
-
-fn create_scene_8_rotate_animation() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        300.0,
-        200.0,
-        200.0,
-        100.0,
-        novadraw::Color::rgba(0.4, 0.9, 0.2, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    scene
-}
-
-fn create_scene_9_viewport_to_content() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
-
-    let rect = novadraw::RectangleFigure::new_with_color(
-        200.0,
-        150.0,
-        400.0,
-        300.0,
-        novadraw::Color::rgba(0.8, 0.6, 0.2, 1.0),
-    );
-    let _rect_id = scene.add_child_to(container_id, Box::new(rect));
-
-    scene
+fn scenes() -> Vec<SceneEntry> {
+    vec![
+        (
+            "nested_coordinate_roots",
+            Box::new(create_nested_coordinate_roots),
+        ),
+        (
+            "coordinate_roundtrip_overlay",
+            Box::new(create_coordinate_roundtrip_overlay),
+        ),
+        (
+            "coordinate_root_move",
+            Box::new(create_coordinate_root_move),
+        ),
+        (
+            "event_point_reduction",
+            Box::new(create_event_point_reduction),
+        ),
+    ]
 }
 
 fn main() {
-    run_demo_app(
-        "Transform App - 坐标变换验证 (按数字键 0-9 切换场景)",
-        "transform-app",
-        vec![
-            ("translate", Box::new(create_scene_0_translate)),
-            ("scale_center", Box::new(create_scene_1_scale_center)),
-            ("scale_anchor", Box::new(create_scene_2_scale_anchor)),
-            ("rotate", Box::new(create_scene_3_rotate)),
-            (
-                "transform_propagation",
-                Box::new(create_scene_4_transform_propagation),
-            ),
-            ("local_coords", Box::new(create_scene_5_local_coords)),
-            (
-                "transform_matrix",
-                Box::new(create_scene_6_transform_matrix),
-            ),
-            ("scale_animation", Box::new(create_scene_7_scale_animation)),
-            (
-                "rotate_animation",
-                Box::new(create_scene_8_rotate_animation),
-            ),
-            (
-                "viewport_to_content",
-                Box::new(create_scene_9_viewport_to_content),
-            ),
-        ],
-    )
-    .expect("Failed to run app");
+    let title = "M4 Coordinates - 0-3 切换场景，场景 3 点击红色目标";
+    let app_name = "transform-app";
+    let args: Vec<String> = std::env::args().collect();
+
+    match args.get(1).map(String::as_str) {
+        None => run_demo_app(title, app_name, scenes()).expect("failed to run transform-app"),
+        Some("--screenshot-all") => {
+            run_demo_app_with_screenshot(title, app_name, scenes(), true)
+                .expect("failed to capture transform-app scenes");
+        }
+        Some(arg) if arg.starts_with("--screenshot=") => {
+            let index = arg
+                .strip_prefix("--screenshot=")
+                .and_then(|value| value.parse::<usize>().ok())
+                .filter(|index| *index < scenes().len())
+                .unwrap_or_else(|| {
+                    eprintln!("场景索引必须在 0..{} 范围内", scenes().len());
+                    std::process::exit(2);
+                });
+            run_demo_app_with_scene_screenshot(title, app_name, scenes(), index)
+                .expect("failed to capture transform-app scene");
+        }
+        Some("--help" | "-h") => {
+            println!("cargo run -p transform-app -- [--screenshot-all|--screenshot=N]");
+        }
+        Some(arg) => {
+            eprintln!("未知参数: {arg}");
+            std::process::exit(2);
+        }
+    }
 }
