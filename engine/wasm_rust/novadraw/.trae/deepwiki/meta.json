@@ -9,165 +9,140 @@
         "generate_type": "full"
       },
       "catalogs": {
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md": {
-          "content_hash": "4e0b0e970a00df329f5dfaced728358446d6e737e134d8ec22db69b52e80b024",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md",
-          "chapter_number": "4.3"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md": {
-          "content_hash": "a813fb337b9397db5a1358b1aa6b7bb506babe078f7df456a1de4cff65422464",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md",
-          "chapter_number": "3.3"
-        },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染命令与上下文：RenderContext 与 DisplayList.md": {
           "content_hash": "b81e2a1f56ccd48337ece63415f8efa5213f1e7d7844182e5226b8d3d950cb61",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染命令与上下文：RenderContext 与 DisplayList.md",
           "chapter_number": "6.4"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md": {
-          "content_hash": "3903c79b8d7442c9e3899752b484e7fa5b6d47826a218d594c9024b1e8486c64",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md",
-          "chapter_number": "10.2"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md": {
-          "content_hash": "a4eb5dfad2d24a36d84243f158ddeee70b6a09d002cc0946e4d5374859373361",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md",
-          "chapter_number": "3"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md": {
-          "content_hash": "2875293d264114e7a3142f18e69a6f122b05ebea3caf8e75d1c636a20b039727",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md",
-          "chapter_number": "10"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/项目愿景与起源.md": {
           "content_hash": "138538d9e9e6c2ea497ed5faea9b3f1a567eff551f561a0804b8aed656533d48",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/项目愿景与起源.md",
           "chapter_number": "1.1"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md": {
-          "content_hash": "337290bcabe9f306c97e41bdefcaa0c15a9d77aee4f884d4199e28adca737446",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md",
-          "chapter_number": "6.1"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md": {
-          "content_hash": "818d719f9b7b3fa519a642d97d7f65306aa291bdc69d8ca0f7c3d2bfe1d54b7b",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md",
-          "chapter_number": "8.2"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md": {
-          "content_hash": "10594170cc12da89f9ae3d6f02b889fd29d5eb121e4abe1a83f49f7318128403",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md",
-          "chapter_number": "8.1"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md": {
-          "content_hash": "9a75ea6709f9405c43f265b6b330b94e7773358b65b0e8fd9313795466bc6272",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md",
-          "chapter_number": "7.4"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md": {
-          "content_hash": "28976b632ff72395220ab4da0b72ec2cdd2fcfe9f4a5c29914746f7f6e948c74",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md",
-          "chapter_number": "5"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md": {
-          "content_hash": "6c0c9acbb780caafdbcea0cbb953abb9b8a6835be11aa48324244d0c981ca15a",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md",
-          "chapter_number": "1"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md": {
-          "content_hash": "1320311446744ee6f23646e6c2b8db9f7bc86834ee2d192c65d7f49dd48935dc",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md",
-          "chapter_number": "2"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md": {
-          "content_hash": "19673ead4a8d8096c20e7edc02f075b93968760a4fc8e209cbe08cadfde5375e",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md",
-          "chapter_number": "2.3"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md": {
-          "content_hash": "d28391bb40c6d84235a74bb2a25705dd41fd78afdc7efd98044622c45ca45a32",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md",
-          "chapter_number": "7.1"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md": {
-          "content_hash": "b92eb25c8fc9f4e6299fb32438122e95be3b35c8536d975bed7a15912e768c31",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md",
-          "chapter_number": "5.1"
-        },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/边框装饰系统.md": {
           "content_hash": "09ab22df1c1a2758924e77cbee2a1b63460d17a056edc30be3063e2674515ebf",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/边框装饰系统.md",
           "chapter_number": "5.3"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md": {
-          "content_hash": "19a22f878c38f1649bea14a9a67e9649b1d94c2e7ba084fadd25bdd9a0d6a324",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md",
-          "chapter_number": "3.1"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md": {
+          "content_hash": "2875293d264114e7a3142f18e69a6f122b05ebea3caf8e75d1c636a20b039727",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md",
+          "chapter_number": "10"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md": {
-          "content_hash": "5d47eeca7356640681c96134b5b7f0d71008410ef2616b56d3336b19fb17e8f2",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md",
-          "chapter_number": "8"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md": {
-          "content_hash": "79a397686fed1edc81b18900fce80a494da617aa5e9238e9cfeee8c3365aa18f",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md",
-          "chapter_number": "1.2"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md": {
-          "content_hash": "f3ebbeccececd5aa3e1b02f379cf77cc7d4698824fe63aa9b3628603ca9ab4bc",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md",
-          "chapter_number": "7.3"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md": {
-          "content_hash": "9b5adbd8f120f4b05c32969be4353e1dc5b93c497f53314c353461a21004481f",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md",
-          "chapter_number": "9"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md": {
+          "content_hash": "fc72d49a35d37426ee12840d1484c1459ec08133936b42d77e464ecc333b9885",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md",
+          "chapter_number": "6.3"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/坐标系统与盒子模型.md": {
           "content_hash": "715183e166b87aedc918531bf6e91c13dafda5ad5874b5a97dfb6bfa3af8ffc9",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/坐标系统与盒子模型.md",
           "chapter_number": "4.4"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md": {
-          "content_hash": "277e0f1d4e0c55fc4ea40e4dd558d605c2e254dc8729fad5a51d5fb06cfdb550",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md",
-          "chapter_number": "10.3"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md": {
+          "content_hash": "5d47eeca7356640681c96134b5b7f0d71008410ef2616b56d3336b19fb17e8f2",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md",
+          "chapter_number": "8"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md": {
+          "content_hash": "3903c79b8d7442c9e3899752b484e7fa5b6d47826a218d594c9024b1e8486c64",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md",
+          "chapter_number": "10.2"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md": {
+          "content_hash": "8e6032a3b0836c79d3451d52e39543609e181d0c7ab32b68f76d7a089b7cca15",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md",
+          "chapter_number": "10.1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md": {
+          "content_hash": "88adf84096773c7800fcac1f1aa973eca96fde59f0ee36983bd7bf1f15d3c17f",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md",
+          "chapter_number": "2.1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md": {
+          "content_hash": "9a75ea6709f9405c43f265b6b330b94e7773358b65b0e8fd9313795466bc6272",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md",
+          "chapter_number": "7.4"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md": {
+          "content_hash": "337290bcabe9f306c97e41bdefcaa0c15a9d77aee4f884d4199e28adca737446",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md",
+          "chapter_number": "6.1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md": {
+          "content_hash": "b92eb25c8fc9f4e6299fb32438122e95be3b35c8536d975bed7a15912e768c31",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md",
+          "chapter_number": "5.1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md": {
+          "content_hash": "79a397686fed1edc81b18900fce80a494da617aa5e9238e9cfeee8c3365aa18f",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md",
+          "chapter_number": "1.2"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md": {
+          "content_hash": "2069d1073ca8051a7e9ddd4c25b9a647592dabd5abd4d73053b538a5a1546b78",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md",
+          "chapter_number": "1.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md": {
+          "content_hash": "a4eb5dfad2d24a36d84243f158ddeee70b6a09d002cc0946e4d5374859373361",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md",
+          "chapter_number": "3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md": {
+          "content_hash": "b2a3073915b33b5e6a458fe9cbe79723c8f4fb5de19977f698d77492d66fcd04",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md",
+          "chapter_number": "3.2"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md": {
+          "content_hash": "890c8d2e95cb3154de5e7211efcf51ae48e2156895edb6bb36a055a04c849988",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md",
+          "chapter_number": "2.2"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md": {
+          "content_hash": "28976b632ff72395220ab4da0b72ec2cdd2fcfe9f4a5c29914746f7f6e948c74",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md",
+          "chapter_number": "5"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/更新管理器：UpdateManager 的设计与流水线.md": {
           "content_hash": "6fbd67eeeeed02c31cc0b67fce15fff39d2e3c50dffbfa873c35266f29b0461d",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/更新管理器：UpdateManager 的设计与流水线.md",
           "chapter_number": "6.2"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md": {
-          "content_hash": "7954b3cb79e3a494cd8d65932b7aace6a5f5779562bb9b2f3fd63fa997421db0",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md",
-          "chapter_number": "4.1"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md": {
-          "content_hash": "3de51d85ff8f7a68fcd5bf553484391211baa2ad17cbf8ac003729d26da500ec",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md",
-          "chapter_number": "5.4"
-        },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md": {
-          "content_hash": "c4402edd5b0b523f28952f1a1d888fe3942b5ea73cad049571d00a1e848e834d",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md",
-          "chapter_number": "4"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md": {
+          "content_hash": "",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md",
+          "chapter_number": "4.2"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统.md": {
           "content_hash": "3c7ff4c461fd6a3d5a5920960cbe5cf6d297ade120cf51cc215b029a06389405",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统.md",
           "chapter_number": "7"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md": {
-          "content_hash": "d8d893cc0e43697321b17be9d9e6c4723bbdda406f535e9ce4926fed65fb7b96",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md",
-          "chapter_number": "7.2"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md": {
+          "content_hash": "19673ead4a8d8096c20e7edc02f075b93968760a4fc8e209cbe08cadfde5375e",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md",
+          "chapter_number": "2.3"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md": {
-          "content_hash": "2069d1073ca8051a7e9ddd4c25b9a647592dabd5abd4d73053b538a5a1546b78",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md",
-          "chapter_number": "1.3"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md": {
+          "content_hash": "277e0f1d4e0c55fc4ea40e4dd558d605c2e254dc8729fad5a51d5fb06cfdb550",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md",
+          "chapter_number": "10.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md": {
+          "content_hash": "4e0b0e970a00df329f5dfaced728358446d6e737e134d8ec22db69b52e80b024",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md",
+          "chapter_number": "4.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md": {
+          "content_hash": "3de51d85ff8f7a68fcd5bf553484391211baa2ad17cbf8ac003729d26da500ec",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md",
+          "chapter_number": "5.4"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md": {
+          "content_hash": "1320311446744ee6f23646e6c2b8db9f7bc86834ee2d192c65d7f49dd48935dc",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md",
+          "chapter_number": "2"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/常用布局器实现.md": {
           "content_hash": "a610eaa0f1e57d7c7ca4d9fcc3085c94fd811c07e04b2ec8306bb0f0d8422a37",
@@ -179,40 +154,65 @@
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复.md",
           "chapter_number": "6"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md": {
-          "content_hash": "88adf84096773c7800fcac1f1aa973eca96fde59f0ee36983bd7bf1f15d3c17f",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md",
-          "chapter_number": "2.1"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md": {
+          "content_hash": "d28391bb40c6d84235a74bb2a25705dd41fd78afdc7efd98044622c45ca45a32",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md",
+          "chapter_number": "7.1"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md": {
-          "content_hash": "fc72d49a35d37426ee12840d1484c1459ec08133936b42d77e464ecc333b9885",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md",
-          "chapter_number": "6.3"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md": {
+          "content_hash": "c4402edd5b0b523f28952f1a1d888fe3942b5ea73cad049571d00a1e848e834d",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md",
+          "chapter_number": "4"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md": {
-          "content_hash": "",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md",
-          "chapter_number": "4.2"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md": {
+          "content_hash": "9b5adbd8f120f4b05c32969be4353e1dc5b93c497f53314c353461a21004481f",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md",
+          "chapter_number": "9"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md": {
-          "content_hash": "b2a3073915b33b5e6a458fe9cbe79723c8f4fb5de19977f698d77492d66fcd04",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md",
-          "chapter_number": "3.2"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md": {
+          "content_hash": "818d719f9b7b3fa519a642d97d7f65306aa291bdc69d8ca0f7c3d2bfe1d54b7b",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md",
+          "chapter_number": "8.2"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md": {
-          "content_hash": "8e6032a3b0836c79d3451d52e39543609e181d0c7ab32b68f76d7a089b7cca15",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md",
-          "chapter_number": "10.1"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md": {
+          "content_hash": "d8d893cc0e43697321b17be9d9e6c4723bbdda406f535e9ce4926fed65fb7b96",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md",
+          "chapter_number": "7.2"
         },
-        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md": {
-          "content_hash": "890c8d2e95cb3154de5e7211efcf51ae48e2156895edb6bb36a055a04c849988",
-          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md",
-          "chapter_number": "2.2"
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md": {
+          "content_hash": "a813fb337b9397db5a1358b1aa6b7bb506babe078f7df456a1de4cff65422464",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md",
+          "chapter_number": "3.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md": {
+          "content_hash": "10594170cc12da89f9ae3d6f02b889fd29d5eb121e4abe1a83f49f7318128403",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md",
+          "chapter_number": "8.1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md": {
+          "content_hash": "7954b3cb79e3a494cd8d65932b7aace6a5f5779562bb9b2f3fd63fa997421db0",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md",
+          "chapter_number": "4.1"
         },
         "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/应用开发框架与工具集.md": {
           "content_hash": "e5d997c71d9814b0c4def4a1710ede7b82aa0564d294187b447713624dd34a75",
           "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/应用开发框架与工具集.md",
           "chapter_number": "8.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md": {
+          "content_hash": "6c0c9acbb780caafdbcea0cbb953abb9b8a6835be11aa48324244d0c981ca15a",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md",
+          "chapter_number": "1"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md": {
+          "content_hash": "f3ebbeccececd5aa3e1b02f379cf77cc7d4698824fe63aa9b3628603ca9ab4bc",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md",
+          "chapter_number": "7.3"
+        },
+        "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md": {
+          "content_hash": "19a22f878c38f1649bea14a9a67e9649b1d94c2e7ba084fadd25bdd9a0d6a324",
+          "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md",
+          "chapter_number": "3.1"
         }
       }
     }
@@ -223,165 +223,140 @@
     "generate_type": "full"
   },
   "catalogs": {
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md": {
-      "content_hash": "4e0b0e970a00df329f5dfaced728358446d6e737e134d8ec22db69b52e80b024",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md",
-      "chapter_number": "4.3"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md": {
-      "content_hash": "a813fb337b9397db5a1358b1aa6b7bb506babe078f7df456a1de4cff65422464",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md",
-      "chapter_number": "3.3"
-    },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染命令与上下文：RenderContext 与 DisplayList.md": {
       "content_hash": "b81e2a1f56ccd48337ece63415f8efa5213f1e7d7844182e5226b8d3d950cb61",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染命令与上下文：RenderContext 与 DisplayList.md",
       "chapter_number": "6.4"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md": {
-      "content_hash": "3903c79b8d7442c9e3899752b484e7fa5b6d47826a218d594c9024b1e8486c64",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md",
-      "chapter_number": "10.2"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md": {
-      "content_hash": "a4eb5dfad2d24a36d84243f158ddeee70b6a09d002cc0946e4d5374859373361",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md",
-      "chapter_number": "3"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md": {
-      "content_hash": "2875293d264114e7a3142f18e69a6f122b05ebea3caf8e75d1c636a20b039727",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md",
-      "chapter_number": "10"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/项目愿景与起源.md": {
       "content_hash": "138538d9e9e6c2ea497ed5faea9b3f1a567eff551f561a0804b8aed656533d48",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/项目愿景与起源.md",
       "chapter_number": "1.1"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md": {
-      "content_hash": "337290bcabe9f306c97e41bdefcaa0c15a9d77aee4f884d4199e28adca737446",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md",
-      "chapter_number": "6.1"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md": {
-      "content_hash": "818d719f9b7b3fa519a642d97d7f65306aa291bdc69d8ca0f7c3d2bfe1d54b7b",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md",
-      "chapter_number": "8.2"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md": {
-      "content_hash": "10594170cc12da89f9ae3d6f02b889fd29d5eb121e4abe1a83f49f7318128403",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md",
-      "chapter_number": "8.1"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md": {
-      "content_hash": "9a75ea6709f9405c43f265b6b330b94e7773358b65b0e8fd9313795466bc6272",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md",
-      "chapter_number": "7.4"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md": {
-      "content_hash": "28976b632ff72395220ab4da0b72ec2cdd2fcfe9f4a5c29914746f7f6e948c74",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md",
-      "chapter_number": "5"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md": {
-      "content_hash": "6c0c9acbb780caafdbcea0cbb953abb9b8a6835be11aa48324244d0c981ca15a",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md",
-      "chapter_number": "1"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md": {
-      "content_hash": "1320311446744ee6f23646e6c2b8db9f7bc86834ee2d192c65d7f49dd48935dc",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md",
-      "chapter_number": "2"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md": {
-      "content_hash": "19673ead4a8d8096c20e7edc02f075b93968760a4fc8e209cbe08cadfde5375e",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md",
-      "chapter_number": "2.3"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md": {
-      "content_hash": "d28391bb40c6d84235a74bb2a25705dd41fd78afdc7efd98044622c45ca45a32",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md",
-      "chapter_number": "7.1"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md": {
-      "content_hash": "b92eb25c8fc9f4e6299fb32438122e95be3b35c8536d975bed7a15912e768c31",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md",
-      "chapter_number": "5.1"
-    },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/边框装饰系统.md": {
       "content_hash": "09ab22df1c1a2758924e77cbee2a1b63460d17a056edc30be3063e2674515ebf",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/边框装饰系统.md",
       "chapter_number": "5.3"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md": {
-      "content_hash": "19a22f878c38f1649bea14a9a67e9649b1d94c2e7ba084fadd25bdd9a0d6a324",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md",
-      "chapter_number": "3.1"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md": {
+      "content_hash": "2875293d264114e7a3142f18e69a6f122b05ebea3caf8e75d1c636a20b039727",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程.md",
+      "chapter_number": "10"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md": {
-      "content_hash": "5d47eeca7356640681c96134b5b7f0d71008410ef2616b56d3336b19fb17e8f2",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md",
-      "chapter_number": "8"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md": {
-      "content_hash": "79a397686fed1edc81b18900fce80a494da617aa5e9238e9cfeee8c3365aa18f",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md",
-      "chapter_number": "1.2"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md": {
-      "content_hash": "f3ebbeccececd5aa3e1b02f379cf77cc7d4698824fe63aa9b3628603ca9ab4bc",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md",
-      "chapter_number": "7.3"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md": {
-      "content_hash": "9b5adbd8f120f4b05c32969be4353e1dc5b93c497f53314c353461a21004481f",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md",
-      "chapter_number": "9"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md": {
+      "content_hash": "fc72d49a35d37426ee12840d1484c1459ec08133936b42d77e464ecc333b9885",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md",
+      "chapter_number": "6.3"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/坐标系统与盒子模型.md": {
       "content_hash": "715183e166b87aedc918531bf6e91c13dafda5ad5874b5a97dfb6bfa3af8ffc9",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/坐标系统与盒子模型.md",
       "chapter_number": "4.4"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md": {
-      "content_hash": "277e0f1d4e0c55fc4ea40e4dd558d605c2e254dc8729fad5a51d5fb06cfdb550",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md",
-      "chapter_number": "10.3"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md": {
+      "content_hash": "5d47eeca7356640681c96134b5b7f0d71008410ef2616b56d3336b19fb17e8f2",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析.md",
+      "chapter_number": "8"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md": {
+      "content_hash": "3903c79b8d7442c9e3899752b484e7fa5b6d47826a218d594c9024b1e8486c64",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/Agent 治理与开发工作流.md",
+      "chapter_number": "10.2"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md": {
+      "content_hash": "8e6032a3b0836c79d3451d52e39543609e181d0c7ab32b68f76d7a089b7cca15",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md",
+      "chapter_number": "10.1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md": {
+      "content_hash": "88adf84096773c7800fcac1f1aa973eca96fde59f0ee36983bd7bf1f15d3c17f",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md",
+      "chapter_number": "2.1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md": {
+      "content_hash": "9a75ea6709f9405c43f265b6b330b94e7773358b65b0e8fd9313795466bc6272",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/视口管理与坐标变换.md",
+      "chapter_number": "7.4"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md": {
+      "content_hash": "337290bcabe9f306c97e41bdefcaa0c15a9d77aee4f884d4199e28adca737446",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/渲染后端：基于 Vello 的 WebGPU 渲染实现.md",
+      "chapter_number": "6.1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md": {
+      "content_hash": "b92eb25c8fc9f4e6299fb32438122e95be3b35c8536d975bed7a15912e768c31",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局协议与验证流程.md",
+      "chapter_number": "5.1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md": {
+      "content_hash": "79a397686fed1edc81b18900fce80a494da617aa5e9238e9cfeee8c3365aa18f",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/核心设计公理.md",
+      "chapter_number": "1.2"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md": {
+      "content_hash": "2069d1073ca8051a7e9ddd4c25b9a647592dabd5abd4d73053b538a5a1546b78",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md",
+      "chapter_number": "1.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md": {
+      "content_hash": "a4eb5dfad2d24a36d84243f158ddeee70b6a09d002cc0946e4d5374859373361",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础.md",
+      "chapter_number": "3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md": {
+      "content_hash": "b2a3073915b33b5e6a458fe9cbe79723c8f4fb5de19977f698d77492d66fcd04",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md",
+      "chapter_number": "3.2"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md": {
+      "content_hash": "890c8d2e95cb3154de5e7211efcf51ae48e2156895edb6bb36a055a04c849988",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md",
+      "chapter_number": "2.2"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md": {
+      "content_hash": "28976b632ff72395220ab4da0b72ec2cdd2fcfe9f4a5c29914746f7f6e948c74",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统.md",
+      "chapter_number": "5"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/更新管理器：UpdateManager 的设计与流水线.md": {
       "content_hash": "6fbd67eeeeed02c31cc0b67fce15fff39d2e3c50dffbfa873c35266f29b0461d",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/更新管理器：UpdateManager 的设计与流水线.md",
       "chapter_number": "6.2"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md": {
-      "content_hash": "7954b3cb79e3a494cd8d65932b7aace6a5f5779562bb9b2f3fd63fa997421db0",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md",
-      "chapter_number": "4.1"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md": {
-      "content_hash": "3de51d85ff8f7a68fcd5bf553484391211baa2ad17cbf8ac003729d26da500ec",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md",
-      "chapter_number": "5.4"
-    },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md": {
-      "content_hash": "c4402edd5b0b523f28952f1a1d888fe3942b5ea73cad049571d00a1e848e834d",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md",
-      "chapter_number": "4"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md": {
+      "content_hash": "",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md",
+      "chapter_number": "4.2"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统.md": {
       "content_hash": "3c7ff4c461fd6a3d5a5920960cbe5cf6d297ade120cf51cc215b029a06389405",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统.md",
       "chapter_number": "7"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md": {
-      "content_hash": "d8d893cc0e43697321b17be9d9e6c4723bbdda406f535e9ce4926fed65fb7b96",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md",
-      "chapter_number": "7.2"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md": {
+      "content_hash": "19673ead4a8d8096c20e7edc02f075b93968760a4fc8e209cbe08cadfde5375e",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/编写首个 Figure 应用.md",
+      "chapter_number": "2.3"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md": {
-      "content_hash": "2069d1073ca8051a7e9ddd4c25b9a647592dabd5abd4d73053b538a5a1546b78",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学/理想架构蓝图.md",
-      "chapter_number": "1.3"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md": {
+      "content_hash": "277e0f1d4e0c55fc4ea40e4dd558d605c2e254dc8729fad5a51d5fb06cfdb550",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/质量保障与测试策略.md",
+      "chapter_number": "10.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md": {
+      "content_hash": "4e0b0e970a00df329f5dfaced728358446d6e737e134d8ec22db69b52e80b024",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/内置图形组件库.md",
+      "chapter_number": "4.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md": {
+      "content_hash": "3de51d85ff8f7a68fcd5bf553484391211baa2ad17cbf8ac003729d26da500ec",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/布局约束与盒模型.md",
+      "chapter_number": "5.4"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md": {
+      "content_hash": "1320311446744ee6f23646e6c2b8db9f7bc86834ee2d192c65d7f49dd48935dc",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南.md",
+      "chapter_number": "2"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/布局引擎与边框系统/常用布局器实现.md": {
       "content_hash": "a610eaa0f1e57d7c7ca4d9fcc3085c94fd811c07e04b2ec8306bb0f0d8422a37",
@@ -393,40 +368,65 @@
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复.md",
       "chapter_number": "6"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md": {
-      "content_hash": "88adf84096773c7800fcac1f1aa973eca96fde59f0ee36983bd7bf1f15d3c17f",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/环境配置与依赖安装.md",
-      "chapter_number": "2.1"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md": {
+      "content_hash": "d28391bb40c6d84235a74bb2a25705dd41fd78afdc7efd98044622c45ca45a32",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/事件分发系统.md",
+      "chapter_number": "7.1"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md": {
-      "content_hash": "fc72d49a35d37426ee12840d1484c1459ec08133936b42d77e464ecc333b9885",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/渲染管线与损伤修复/损伤修复机制：Damage Repair 的原理与优化.md",
-      "chapter_number": "6.3"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md": {
+      "content_hash": "c4402edd5b0b523f28952f1a1d888fe3942b5ea73cad049571d00a1e848e834d",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系.md",
+      "chapter_number": "4"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md": {
-      "content_hash": "",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 树与场景图管理.md",
-      "chapter_number": "4.2"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md": {
+      "content_hash": "9b5adbd8f120f4b05c32969be4353e1dc5b93c497f53314c353461a21004481f",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Java 到 Rust 迁移指南.md",
+      "chapter_number": "9"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md": {
-      "content_hash": "b2a3073915b33b5e6a458fe9cbe79723c8f4fb5de19977f698d77492d66fcd04",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/数学运算工具.md",
-      "chapter_number": "3.2"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md": {
+      "content_hash": "818d719f9b7b3fa519a642d97d7f65306aa291bdc69d8ca0f7c3d2bfe1d54b7b",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/交互式编辑器实现分析.md",
+      "chapter_number": "8.2"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md": {
-      "content_hash": "8e6032a3b0836c79d3451d52e39543609e181d0c7ab32b68f76d7a089b7cca15",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/架构决策与开发流程/架构决策记录.md",
-      "chapter_number": "10.1"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md": {
+      "content_hash": "d8d893cc0e43697321b17be9d9e6c4723bbdda406f535e9ce4926fed65fb7b96",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/响应式通知与 Effect 队列.md",
+      "chapter_number": "7.2"
     },
-    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md": {
-      "content_hash": "890c8d2e95cb3154de5e7211efcf51ae48e2156895edb6bb36a055a04c849988",
-      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/快速上手指南/运行演示程序.md",
-      "chapter_number": "2.2"
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md": {
+      "content_hash": "a813fb337b9397db5a1358b1aa6b7bb506babe078f7df456a1de4cff65422464",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/坐标系统与空间转换.md",
+      "chapter_number": "3.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md": {
+      "content_hash": "10594170cc12da89f9ae3d6f02b889fd29d5eb121e4abe1a83f49f7318128403",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/基础功能演示应用分析.md",
+      "chapter_number": "8.1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md": {
+      "content_hash": "7954b3cb79e3a494cd8d65932b7aace6a5f5779562bb9b2f3fd63fa997421db0",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/Figure 场景图体系/Figure 核心接口与抽象.md",
+      "chapter_number": "4.1"
     },
     "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/应用开发框架与工具集.md": {
       "content_hash": "e5d997c71d9814b0c4def4a1710ede7b82aa0564d294187b447713624dd34a75",
       "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/演示应用案例分析/应用开发框架与工具集.md",
       "chapter_number": "8.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md": {
+      "content_hash": "6c0c9acbb780caafdbcea0cbb953abb9b8a6835be11aa48324244d0c981ca15a",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/项目概览与设计哲学.md",
+      "chapter_number": "1"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md": {
+      "content_hash": "f3ebbeccececd5aa3e1b02f379cf77cc7d4698824fe63aa9b3628603ca9ab4bc",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/响应式设计与事件系统/交互上下文与状态管理.md",
+      "chapter_number": "7.3"
+    },
+    "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md": {
+      "content_hash": "19a22f878c38f1649bea14a9a67e9649b1d94c2e7ba084fadd25bdd9a0d6a324",
+      "file_path": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/.trae/deepwiki/核心几何与数学基础/几何基元与变换.md",
+      "chapter_number": "3.1"
     }
   }
 }
