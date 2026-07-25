@@ -1,0 +1,30 @@
+engine/wasm_rust/novadraw/apps/transform-app/src/main.rs
+  s_72363287573373::t_3672ccaf141696 1,3-7,50-54,56-60,62-68,70-72,74,77,79-89,94,96-103,106-123,128,130-142,144-146,148-152,154-156,159-165,171-173,176-179,181-183,185-187,190-192,194-251,254,256-262,267-275,279,285-287,291-298
+  s_72363287573373::t_449943e4bbe496 14-49,153
+  s_72363287573373::t_600c27927bf037 8-10,276,280-283,299-320
+  s_72363287573373::t_1eb28dea793f1b 277-278
+  s_72363287573373::t_ce772caf56d3f9 284
+engine/wasm_rust/novadraw/apps/transform-app/README.md
+  s_72363287573373::t_5eb23a141b1fab 1,3-4,6,14,17-24
+  s_72363287573373::t_e9aa64665ead46 10-11
+engine/wasm_rust/novadraw/apps/README.md
+  s_72363287573373::t_b09a18563c2047 13,32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "59318a018395470e56ae96cfdebcc50b30f4f0ec",
+  "prompts": {},
+  "sessions": {
+    "s_72363287573373": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a5cf30b22b734588ca50eb8",
+        "model": "gpt-5.6-sol__max"
+      },
+      "human_author": "yezhang <yezhang989@163.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
