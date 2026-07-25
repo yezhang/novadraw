@@ -1,0 +1,21 @@
+engine/wasm_rust/novadraw/novadraw-apps/src/app.rs
+  s_72363287573373::t_2b919ef637b098 560
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "70b893238bcd41ac0ed3e37f813200d0f3e70a34",
+  "prompts": {},
+  "sessions": {
+    "s_72363287573373": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a5cf30b22b734588ca50eb8",
+        "model": "gpt-5.6-sol__max"
+      },
+      "human_author": "yezhang <yezhang989@163.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
