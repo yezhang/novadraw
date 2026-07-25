@@ -557,7 +557,7 @@ impl AppBuilder {
 ///
 /// # 示例
 ///
-/// ```rust
+/// ```rust,no_run
 /// use novadraw_apps::run_demo_app;
 ///
 /// fn create_rect_scene() -> novadraw::FigureGraph {
