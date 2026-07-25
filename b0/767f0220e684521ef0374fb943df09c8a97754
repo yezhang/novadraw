@@ -1,0 +1,29 @@
+engine/wasm_rust/novadraw/doc/06-roadmap/demo-matrix.md
+  s_72363287573373::t_fdc94f24e36a1d 25,28-30,33,51,66,80-82,86-89
+  s_72363287573373::t_080d73a1a33760 27,79
+engine/wasm_rust/novadraw/novadraw-scene/tests/m2_product_existence.rs
+  s_72363287573373::t_8dd2f14afad3d9 83
+engine/wasm_rust/novadraw/doc/06-roadmap/product-deliverables.md
+  s_72363287573373::t_033ed78e60a8d7 13,59,61-67,275-285
+  s_72363287573373::t_5a7ab0d086865a 286
+engine/wasm_rust/novadraw/doc/01-architecture/draw2d_api_coverage.md
+  s_72363287573373::t_fa19778123bffa 224-226,228,231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b0767f0220e684521ef0374fb943df09c8a97754",
+  "prompts": {},
+  "sessions": {
+    "s_72363287573373": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a5cf30b22b734588ca50eb8",
+        "model": "gpt-5.6-sol__max"
+      },
+      "human_author": "yezhang <yezhang989@163.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
