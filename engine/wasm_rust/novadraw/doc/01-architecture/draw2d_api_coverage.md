@@ -221,13 +221,14 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `coordinate.conversion` | `translateToAbsolute(Translatable)`, `translateToRelative(Translatable)` | `FigureGraph::{translate_to_absolute_mut,translate_to_relative}` | partial | M4 deep nested roundtrip 和 coordinate root movement probe |
-| `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureGraph::{translate_to_parent,translate_from_parent}`，`Viewport::{translate_to_parent,translate_from_parent}` | partial | parent/clientArea/viewport offset 需同源 |
-| `coordinate.conversion` | `isCoordinateSystem()` | `FigureGraph::is_coordinate_system`, `Bounded::use_local_coordinates`, `ChildTransform` | partial | 先保证 coordinate root 语义 |
+| `coordinate.conversion` | `translateToAbsolute(Translatable)`, `translateToRelative(Translatable)` | `FigureGraph::{translate_to_absolute_mut,translate_to_relative}` | verified | M4 contract 覆盖多层坐标根、Insets 与 Point/Rectangle 往返 |
+| `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureGraph::{translate_to_parent,translate_from_parent}`，`Viewport::{translate_to_parent,translate_from_parent}` | verified | active core 已验证；Viewport 扩展仍归 M8 |
+| `coordinate.conversion` | `isCoordinateSystem()` | `FigureGraph::is_coordinate_system`, `Bounded::use_local_coordinates`, `ChildTransform` | verified | 坐标根移动保持子 bounds 原子性并修复 old/new damage |
 | `coordinate.conversion` | `isMirrored()` | 暂无 public 等价 API | deferred | 可延后，当前不阻塞 M4 |
-| `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `BasicEventDispatcher` dispatch 路径 | partial | M4/M6 共同验证 target-domain event point |
+| `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `BasicEventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
+Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps/transform-app`。
 
 ### M5 Layout / Validation / UpdateManager
 

@@ -80,7 +80,7 @@ impl Figure for PaintMarkerFigure {
 }
 
 #[test]
-fn m2_five_product_figures_are_importable_as_dyn_figures() {
+fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
     let figures: Vec<Box<dyn Figure>> = vec![
         Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
         Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0)),

@@ -22,15 +22,15 @@
 | Milestone | Demo 名称 | 路径 | 验证策略 | 测试增量预期 |
 |------|-----------|------|----------|--------------|
 | M1 | 无独立 demo | — | 仅类型单测 + Graphics 状态栈嵌套测试 | +30 |
-| M2 | `shapes-demo` | `apps/shapes-demo` | 5 图元 + 三段式 paint 分层可视化 + 截图断言 | +60 |
+| M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 | +60 |
 | M3 | `clip-app` nested clip 场景 | `apps/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
-| M4 | `coordinates-demo` | `apps/coordinates-demo` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
-| M5 | `layouts-demo` + `update-stress-demo` | `apps/layouts-demo`、`apps/update-stress-demo` | 6 布局并排对比 + draw2d 反向等价测试；三种失效粒度 + 1k+ Figure 帧率断言 | +250 |
-| M6 | `events-demo` | `apps/events-demo` | 4 类监听 + hit-test 全图元 + capture/focus 状态机断言 | +100 |
-| M7 | 集成入 `events-demo` + `update-stress-demo` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
+| M4 | `transform-app` ✅ | `apps/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
+| M5 | `layout-app` + `update-app` | `apps/layout-app`、`apps/update-app` | 6 布局并排对比 + draw2d 反向等价测试；三种失效粒度 + 1k+ Figure 帧率断言 | +250 |
+| M6 | `event-app` | `apps/event-app` | 4 类监听 + hit-test 全图元 + capture/focus 状态机断言 | +100 |
+| M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
 | M8 | `scroll-pane-demo` + 收口 `viewport-app` | `apps/scroll-pane-demo`、`apps/viewport-app` | ScrollBar + 滚轮 + autoexpose；历史暂停的 4 场景视觉验证全过 | +120 |
 | M9 | `connections-demo` | `apps/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
-| M10 | `borders-demo` + `text-image-demo` + `tooltip-demo` | `apps/borders-demo`、`apps/text-image-demo`、`apps/tooltip-demo` | 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
+| M10 | `shape-app` + `border-app` + 待新增文本/Tooltip demo | `apps/shape-app`、`apps/border-app` | deferred builtin Figure + 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
 
 **测试增量合计**：+1,100（基线 146，目标 ~1,250）
 
@@ -48,7 +48,7 @@
 
 ### 帧率断言
 
-仅 M5 `update-stress-demo` 与 M8 滚动 demo 需要：
+仅 M5 `update-app` 的 stress 场景与 M8 滚动 demo 需要：
 
 - 1k+ Figure 全量更新 ≥ 30fps
 - 局部失效 ≥ 60fps（部分场景）
@@ -63,7 +63,7 @@
 
 ### 阻塞收口规则
 
-每个 demo 启动前必须确认依赖 milestone 已 `behavior_verified`。历史暂停项只在对应 milestone 执行时收口，不阻塞当前 M2 恢复热路径。
+每个 demo 启动前必须确认依赖 milestone 已 `behavior_verified`。历史暂停项只在对应 milestone 执行时收口。
 
 ## 状态同步规则
 
@@ -75,18 +75,18 @@
 
 ## Demo 完成清单（勾选区）
 
-- [ ] M2 `apps/shapes-demo`
 - [x] M3 `apps/clip-app` nested clip 场景
-- [ ] M4 `apps/coordinates-demo`
-- [ ] M5 `apps/layouts-demo`
-- [ ] M5 `apps/update-stress-demo`
-- [ ] M6 `apps/events-demo`
+- [x] M4 `apps/transform-app`
+- [ ] M5 `apps/layout-app`
+- [ ] M5 `apps/update-app` stress 场景
+- [ ] M6 `apps/event-app`
 - [ ] M8 `apps/scroll-pane-demo`
 - [ ] M8 `apps/viewport-app` 4 场景视觉验证
 - [ ] M9 `apps/connections-demo`
-- [ ] M10 `apps/borders-demo`
-- [ ] M10 `apps/text-image-demo`
-- [ ] M10 `apps/tooltip-demo`
+- [ ] M10 `apps/shape-app`
+- [ ] M10 `apps/border-app`
+- [ ] M10 文本/图像 demo（待新增）
+- [ ] M10 Tooltip demo（待新增）
 
 ---
 

@@ -10,7 +10,7 @@
 | Milestone | 标题（协议层） | 本文章节 | 产品策略要点 |
 |------|----------------|----------|--------------|
 | M1 | 几何与 Graphics 基础 | [§M1](#m1-几何与-graphics-基础) | 几何类型 + Graphics 状态栈 |
-| M2 | Figure 树与盒模型 | [§M2](#m2-figure-树与盒模型) | 5 基础图元 + 三段式 paint |
+| M2 | Figure 树与盒模型 | [§M2](#m2-figure-树与盒模型) | active core Figure + 三段式 paint |
 | M3 | 绘制遍历与裁剪闭环 | [§M3](#m3-绘制遍历与裁剪闭环) | 嵌套裁剪 + paint/hit-test 一致性 |
 | M4 | 坐标域与变换闭环 | [§M4](#m4-坐标域与变换闭环) | translate* 协议 + 入口域降域 |
 | M5 | Layout + Validation + UpdateManager | [§M5](#m5-layout--validation--updatemanager) | 6 布局 + 两阶段事务 |
@@ -56,15 +56,15 @@
 
 **协议层要求**：见 YAML M2 `contracts`（A1/A2/A3/A5）。本节只列产品层清单。
 
-### 基础图元（5 个）
+### Active core Figure
 
-| 图元 | g2 对应 | 说明 |
-|------|---------|------|
-| `RectangleFigure` | `RectangleFigure` | 矩形（基线） |
-| `EllipseFigure` | `Ellipse` | 椭圆 + 精确命中 |
-| `PolygonFigure` | `Polygon` | 多边形 |
-| `RoundedRectangleFigure` | `RoundedRectangle` | 圆角矩形 |
-| `TriangleFigure` | `Triangle` | 三角形（带方向） |
+- `RootFigure`
+- `RectangleFigure`
+- 测试 mock Figure
+
+M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
+`RoundedRectangleFigure`、`PolylineFigure`、`PolygonFigure` 和
+`TriangleFigure` 的 reusable surface 验收归入 M10。
 
 ### 三段式 paint 协议
 
@@ -271,6 +271,18 @@
 ## M10 常用 Figure 与文本/控件
 
 **协议层要求**：见 YAML M10 `contracts`。本节只列产品层清单。
+
+### Reusable Figure surface
+
+- `RectangleFigure` 作为 active baseline 复查
+- `EllipseFigure`
+- `RoundedRectangleFigure`
+- `PolylineFigure`
+- `PolygonFigure`
+- `TriangleFigure`
+
+这些 deferred builtin Figure 在 M10 必须补齐与 `RectangleFigure` 等价的
+paint、hit-test、border、style 和更新协议证据；类型可导出不等于 M10 已完成。
 
 ### Border 实现（6 个）
 
