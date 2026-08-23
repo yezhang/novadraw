@@ -3,6 +3,7 @@
 //! 提供场景图数据结构和管理功能。
 
 use std::sync::Arc;
+use std::{error::Error, fmt};
 
 use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Translatable};
@@ -30,6 +31,37 @@ pub mod bounds_test;
 pub mod update_integration_test;
 
 slotmap::new_key_type! { pub struct BlockId; }
+
+/// Figure 树允许的最大深度。根节点深度为 0。
+pub const MAX_TREE_DEPTH: usize = 10_000;
+
+/// Figure 树结构变更失败。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GraphMutationError {
+    ParentNotFound,
+    ChildNotFound,
+    CycleDetected,
+    DuplicateChild,
+    InvalidParentRelation,
+    DepthLimitExceeded { limit: usize },
+}
+
+impl fmt::Display for GraphMutationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ParentNotFound => write!(f, "parent block does not exist"),
+            Self::ChildNotFound => write!(f, "child block does not exist"),
+            Self::CycleDetected => write!(f, "mutation would create a cycle"),
+            Self::DuplicateChild => write!(f, "child is already attached to parent"),
+            Self::InvalidParentRelation => write!(f, "child is not attached to expected parent"),
+            Self::DepthLimitExceeded { limit } => {
+                write!(f, "figure tree depth exceeds limit {limit}")
+            }
+        }
+    }
+}
+
+impl Error for GraphMutationError {}
 
 const SELECTION_OUTLINE_COLOR: Color = Color {
     r: 0.98,
@@ -86,6 +118,8 @@ pub struct FigureBlock {
     pub(crate) children: Vec<BlockId>,
     /// 父块
     pub(crate) parent: Option<BlockId>,
+    /// 从 FigureGraph 根节点开始计算的深度；根节点深度为 0。
+    pub(crate) depth: usize,
     /// 图形
     pub(crate) figure: Box<dyn super::Figure>,
     /// 布局管理器（可选），只有需要布局的容器才设置
@@ -207,6 +241,7 @@ impl FigureGraph {
             uuid,
             children: Vec::new(),
             parent: None,
+            depth: 0,
             figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
             layout_manager: None,
             is_selected: false,
@@ -282,17 +317,17 @@ impl FigureGraph {
     /// 与 `add_child()` 的区别：此方法不触发 revalidate()，用于批量构建场景。
     pub fn add_child_to(&mut self, parent_id: BlockId, figure: Box<dyn super::Figure>) -> BlockId {
         self.try_add_child_to(parent_id, figure)
-            .unwrap_or_else(BlockId::null)
+            .unwrap_or_else(|_| BlockId::null())
     }
 
     /// 尝试添加子块到指定父块。
     ///
-    /// parent 不存在时不分配节点、不修改 UUID 映射，并返回 `None`。
+    /// parent 不存在或深度超限时不分配节点、不修改 UUID 映射，并返回错误。
     pub fn try_add_child_to(
         &mut self,
         parent_id: BlockId,
         figure: Box<dyn super::Figure>,
-    ) -> Option<BlockId> {
+    ) -> Result<BlockId, GraphMutationError> {
         self.new_block_with_parent(figure, parent_id)
     }
 
@@ -327,7 +362,7 @@ impl FigureGraph {
     ) -> BlockId {
         let figure = super::figure::RectangleFigure::new_with_color(x, y, width, height, color);
         self.try_add_child_to(parent_id, Box::new(figure))
-            .unwrap_or_else(BlockId::null)
+            .unwrap_or_else(|_| BlockId::null())
     }
 
     /// 添加子块
@@ -347,8 +382,9 @@ impl FigureGraph {
         figure: Box<dyn super::Figure>,
     ) -> BlockId {
         let bounds = figure.bounds();
-        let Some(child_id) = self.try_add_child_to(parent_id, figure) else {
-            return BlockId::null();
+        let child_id = match self.try_add_child_to(parent_id, figure) {
+            Ok(child_id) => child_id,
+            Err(_) => return BlockId::null(),
         };
 
         self.mark_invalid(update_manager, parent_id);
@@ -356,29 +392,6 @@ impl FigureGraph {
         self.mark_invalid(update_manager, child_id);
 
         child_id
-    }
-
-    pub(crate) fn allocate_block(&mut self, figure: Box<dyn super::Figure>) -> BlockId {
-        let uuid = Uuid::new_v4();
-        let id = self.blocks.insert_with_key(|key| FigureBlock {
-            id: key,
-            uuid,
-            children: Vec::new(),
-            parent: None,
-            figure,
-            layout_manager: None,
-            is_selected: false,
-            is_hovered: false,
-            is_pressed: false,
-            is_visible: true,
-            is_enabled: true,
-            is_valid: false,
-            preferred_size: None,
-            minimum_size: None,
-            maximum_size: None,
-        });
-        self.uuid_map.insert(uuid, id);
-        id
     }
 
     pub fn apply_pending_mutations(
@@ -424,10 +437,18 @@ impl FigureGraph {
         &mut self,
         figure: Box<dyn super::Figure>,
         parent_id: BlockId,
-    ) -> Option<BlockId> {
-        if !self.blocks.contains_key(parent_id) {
-            return None;
-        }
+    ) -> Result<BlockId, GraphMutationError> {
+        let parent_depth = self
+            .blocks
+            .get(parent_id)
+            .map(|parent| parent.depth)
+            .ok_or(GraphMutationError::ParentNotFound)?;
+        let depth = parent_depth
+            .checked_add(1)
+            .filter(|depth| *depth <= MAX_TREE_DEPTH)
+            .ok_or(GraphMutationError::DepthLimitExceeded {
+                limit: MAX_TREE_DEPTH,
+            })?;
 
         let uuid = Uuid::new_v4();
         let id = self.blocks.insert_with_key(|key| FigureBlock {
@@ -435,6 +456,7 @@ impl FigureGraph {
             uuid,
             children: Vec::new(),
             parent: Some(parent_id),
+            depth,
             figure,
             layout_manager: None,
             is_selected: false,
@@ -451,26 +473,26 @@ impl FigureGraph {
         self.blocks[parent_id].children.push(id);
         self.blocks[id].figure.on_attached(parent_id);
         self.mark_validation_path_invalid(parent_id);
-        Some(id)
+        Ok(id)
     }
 
-    fn attach_child(&mut self, parent_id: BlockId, child_id: BlockId) -> bool {
-        let Some(parent) = self.blocks.get_mut(parent_id) else {
-            return false;
-        };
+    fn attach_child_checked(
+        &mut self,
+        parent_id: BlockId,
+        child_id: BlockId,
+    ) -> Result<(), GraphMutationError> {
+        let new_depth = self.validate_attachment(parent_id, child_id)?;
 
-        if parent.children.contains(&child_id) {
-            return false;
-        }
-
-        parent.children.push(child_id);
-        if let Some(child) = self.blocks.get_mut(child_id) {
+        self.blocks[parent_id].children.push(child_id);
+        {
+            let child = &mut self.blocks[child_id];
             child.parent = Some(parent_id);
             child.is_valid = false;
             child.figure.on_attached(parent_id);
         }
+        self.set_subtree_depth(child_id, new_depth);
         self.mark_validation_path_invalid(parent_id);
-        true
+        Ok(())
     }
 
     fn detach_child(&mut self, parent_id: BlockId, child_id: BlockId) -> bool {
@@ -489,8 +511,80 @@ impl FigureGraph {
             child.parent = None;
             child.is_valid = false;
         }
+        self.set_subtree_depth(child_id, 0);
         self.mark_validation_path_invalid(parent_id);
         true
+    }
+
+    fn validate_attachment(
+        &self,
+        parent_id: BlockId,
+        child_id: BlockId,
+    ) -> Result<usize, GraphMutationError> {
+        let parent = self
+            .blocks
+            .get(parent_id)
+            .ok_or(GraphMutationError::ParentNotFound)?;
+        if !self.blocks.contains_key(child_id) {
+            return Err(GraphMutationError::ChildNotFound);
+        }
+
+        if parent_id == child_id || self.is_descendant_of(parent_id, child_id) {
+            return Err(GraphMutationError::CycleDetected);
+        }
+        if parent.children.contains(&child_id) {
+            return Err(GraphMutationError::DuplicateChild);
+        }
+
+        let new_depth =
+            parent
+                .depth
+                .checked_add(1)
+                .ok_or(GraphMutationError::DepthLimitExceeded {
+                    limit: MAX_TREE_DEPTH,
+                })?;
+        let subtree_height = self.subtree_height(child_id);
+        if new_depth
+            .checked_add(subtree_height)
+            .is_none_or(|depth| depth > MAX_TREE_DEPTH)
+        {
+            return Err(GraphMutationError::DepthLimitExceeded {
+                limit: MAX_TREE_DEPTH,
+            });
+        }
+
+        Ok(new_depth)
+    }
+
+    fn subtree_height(&self, root_id: BlockId) -> usize {
+        let Some(root) = self.blocks.get(root_id) else {
+            return 0;
+        };
+        let root_depth = root.depth;
+        let mut max_depth = root_depth;
+        let mut stack = vec![root_id];
+        while let Some(id) = stack.pop() {
+            let Some(block) = self.blocks.get(id) else {
+                continue;
+            };
+            max_depth = max_depth.max(block.depth);
+            stack.extend(block.children.iter().copied());
+        }
+        max_depth.saturating_sub(root_depth)
+    }
+
+    fn set_subtree_depth(&mut self, root_id: BlockId, root_depth: usize) {
+        let mut stack = vec![(root_id, root_depth)];
+        while let Some((id, depth)) = stack.pop() {
+            let children = match self.blocks.get_mut(id) {
+                Some(block) => {
+                    block.depth = depth;
+                    block.children.clone()
+                }
+                None => continue,
+            };
+            stack.extend(children.into_iter().map(|child| (child, depth + 1)));
+        }
     }
 
     fn contains_direct_child(&self, parent_id: BlockId, child_id: BlockId) -> bool {
@@ -561,15 +655,12 @@ impl FigureGraph {
         let Some(old_parent) = old_parent else {
             return false;
         };
-        if !self.blocks.contains_key(old_parent) || !self.blocks.contains_key(new_parent) {
-            return false;
-        }
-        if child == new_parent || self.is_descendant_of(new_parent, child) {
-            return false;
-        }
         if !self.contains_direct_child(old_parent, child)
             || self.contains_direct_child(new_parent, child)
         {
+            return false;
+        }
+        if self.validate_attachment(new_parent, child).is_err() {
             return false;
         }
 
@@ -577,7 +668,7 @@ impl FigureGraph {
         self.mark_invalid(update_manager, old_parent);
         self.repaint(update_manager, old_parent, None);
 
-        if !self.attach_child(new_parent, child) {
+        if self.attach_child_checked(new_parent, child).is_err() {
             return false;
         }
 
@@ -595,17 +686,10 @@ impl FigureGraph {
         let PendingMutationKind::AddChildFigure { parent, figure } = mutation else {
             return false;
         };
-        if !self.blocks.contains_key(parent) {
-            return false;
-        }
-        let child = self.allocate_block(figure);
-        let Some(bounds) = self.blocks.get(child).map(|block| block.figure_bounds()) else {
+        let bounds = figure.bounds();
+        let Ok(child) = self.new_block_with_parent(figure, parent) else {
             return false;
         };
-
-        if !self.attach_child(parent, child) {
-            return false;
-        }
 
         self.mark_invalid(update_manager, parent);
         self.mark_invalid(update_manager, child);
@@ -1061,6 +1145,11 @@ impl FigureGraph {
     /// 获取指定块的 Figure bounds。
     pub fn figure_bounds(&self, id: BlockId) -> Option<Rectangle> {
         self.blocks.get(id).map(FigureBlock::figure_bounds)
+    }
+
+    /// 返回节点从 FigureGraph 根节点开始计算的深度。
+    pub fn block_depth(&self, id: BlockId) -> Option<usize> {
+        self.blocks.get(id).map(|block| block.depth)
     }
 
     /// 返回节点自身的本地可见性标志。
@@ -1598,13 +1687,17 @@ impl FigureGraph {
 impl FigureGraph {
     fn mark_validation_path_invalid(&mut self, mut block_id: BlockId) {
         loop {
-            let parent = if let Some(block) = self.blocks.get_mut(block_id) {
+            let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(block_id) {
+                let was_valid = block.is_valid;
                 block.is_valid = false;
-                block.parent
+                (block.parent, was_valid)
             } else {
-                None
+                (None, false)
             };
 
+            if !was_valid {
+                break;
+            }
             match parent {
                 Some(parent_id) => block_id = parent_id,
                 None => break,
@@ -2502,7 +2595,7 @@ mod tests {
             ]
         );
 
-        assert!(scene.attach_child(right_id, child_id));
+        assert!(scene.attach_child_checked(right_id, child_id).is_ok());
         assert_eq!(
             *events.lock().unwrap(),
             vec![

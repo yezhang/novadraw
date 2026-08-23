@@ -189,7 +189,7 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `figure.tree` | `IFigure.add(IFigure)` | `FigureGraph::{set_contents,add_child_to,try_add_child_to,add_child_with_bounds,add_child}` | verified | 保持 child order / no-cycle probes |
+| `figure.tree` | `IFigure.add(IFigure)` | `FigureGraph::{set_contents,add_child_to,try_add_child_to,add_child_with_bounds,add_child}` | verified | 保持 child order / no-cycle / 10,000 层深度门禁 probes |
 | `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | indexed add 由 `add_child*` + `move_child_to_index` 组合表达；constraint add 由 `set_constraint` 分离表达 | partial | 若需要原子 indexed/constraint add，单独声明 API 或 probe |
 | `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | 暂无直接 public remove/get_parent/set_parent；结构变更可经 `PendingMutations`、`apply_pending_mutations` 间接表达 | partial | M2 已完成核心拓扑；remove/reparent public parity 需独立跟踪 |
 | `figure.tree` | `getChildren()` | `FigureBlock::children_count`, `FigureGraph::child_order`; `FigureBlock` 路径为 `novadraw_scene::graph::FigureBlock`，非 crate root re-export | partial | 若产品 API 需要 child iterator，应明确公开入口 |
@@ -392,6 +392,7 @@ Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`
 - Figure 是有序树节点，child 顺序同时影响绘制顺序和命中优先级。
 - 子节点重挂载必须维护 parent 反向关系。
 - 删除节点必须切断 parent/child 关系，并触发必要的 layout、paint、事件生命周期更新。
+- 根节点深度为 0；add/reparent 后的最大深度不得超过 10,000，失败必须无副作用。
 
 Novadraw 对照：
 
@@ -404,6 +405,7 @@ Novadraw 对照：
 - `child_order_controls_paint_and_hit_test_priority`
 - `remove_child_detaches_parent_relation`
 - `reparent_child_updates_old_and_new_parent`
+- `tree_depth_limit_rejects_add_and_reparent_atomically`
 
 ### Bounds 几何
 

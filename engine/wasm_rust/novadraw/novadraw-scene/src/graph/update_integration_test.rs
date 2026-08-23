@@ -5,8 +5,9 @@ use novadraw_geometry::Rectangle;
 use slotmap::Key;
 
 use crate::{
-    BlockId, FigureGraph, PendingMutations, RectangleFigure, SceneUpdateManager, ViewportFigure,
-    XYLayout, mutation::PendingMutation,
+    BlockId, FigureGraph, GraphMutationError, MAX_TREE_DEPTH, PendingMutations, RectangleFigure,
+    SceneUpdateManager, ViewportFigure, XYLayout,
+    mutation::{PendingMutation, PendingMutationKind},
 };
 
 fn new_scene() -> (FigureGraph, SceneUpdateManager) {
@@ -610,7 +611,7 @@ fn test_direct_add_child_to_invalid_parent_has_no_side_effect() {
 }
 
 #[test]
-fn test_try_add_child_to_invalid_parent_returns_none_without_side_effect() {
+fn test_try_add_child_to_invalid_parent_returns_error_without_side_effect() {
     let (mut scene, _) = new_scene();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let block_count = scene.blocks.len();
@@ -621,10 +622,79 @@ fn test_try_add_child_to_invalid_parent_returns_none_without_side_effect() {
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
-    assert_eq!(child_id, None);
+    assert_eq!(child_id, Err(GraphMutationError::ParentNotFound));
     assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
+}
+
+#[test]
+fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
+    let mut scene = FigureGraph::new();
+    let mut parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+
+    for expected_depth in 2..=MAX_TREE_DEPTH {
+        parent = scene
+            .try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .expect("depth at the configured boundary must be accepted");
+        assert_eq!(scene.block_depth(parent), Some(expected_depth));
+    }
+
+    let block_count = scene.blocks.len();
+    let uuid_count = scene.uuid_map.len();
+    let child_count = scene.get_block(parent).unwrap().children_count();
+    let effects = scene.notification_effects().to_vec();
+
+    let result = scene.try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+
+    assert_eq!(
+        result,
+        Err(GraphMutationError::DepthLimitExceeded {
+            limit: MAX_TREE_DEPTH
+        })
+    );
+    assert_eq!(scene.blocks.len(), block_count);
+    assert_eq!(scene.uuid_map.len(), uuid_count);
+    assert_eq!(
+        scene.get_block(parent).unwrap().children_count(),
+        child_count
+    );
+    assert_eq!(scene.notification_effects(), effects);
+}
+
+#[test]
+fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effects() {
+    let (mut scene, mut update_manager) = new_scene();
+    let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let subtree = scene.add_child_to(contents, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+    let subtree_child =
+        scene.add_child_to(subtree, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+
+    let mut deep_parent = contents;
+    for _ in 2..MAX_TREE_DEPTH {
+        deep_parent = scene.add_child_to(
+            deep_parent,
+            Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
+        );
+    }
+    assert_eq!(scene.block_depth(deep_parent), Some(MAX_TREE_DEPTH - 1));
+
+    let old_parent = scene.get_block(subtree).unwrap().parent;
+    let old_subtree_depth = scene.block_depth(subtree);
+    let old_child_depth = scene.block_depth(subtree_child);
+    let changed = scene.apply_reparent_mutation(
+        &mut update_manager,
+        PendingMutationKind::Reparent {
+            child: subtree,
+            new_parent: deep_parent,
+        },
+    );
+
+    assert!(!changed);
+    assert_eq!(scene.get_block(subtree).unwrap().parent, old_parent);
+    assert_eq!(scene.block_depth(subtree), old_subtree_depth);
+    assert_eq!(scene.block_depth(subtree_child), old_child_depth);
+    assert!(!update_manager.is_update_queued());
 }
 
 #[test]

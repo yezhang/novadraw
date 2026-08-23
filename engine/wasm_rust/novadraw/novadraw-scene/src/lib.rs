@@ -29,7 +29,7 @@ pub use figure::{
     TriangleFigure, Updatable,
 };
 pub use graph as scene;
-pub use graph::{BlockId, FigureGraph, FigureRenderer};
+pub use graph::{BlockId, FigureGraph, FigureRenderer, GraphMutationError, MAX_TREE_DEPTH};
 pub use host::SceneHost;
 pub use layout::{
     BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout, LayoutManager, XYLayout,
