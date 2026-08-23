@@ -54,7 +54,7 @@
 
 ## M2 Figure 树与盒模型
 
-**协议层要求**：见 YAML M2 `contracts`（A1/A2/A3/A5）。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M2 相关 family（A1/A2/A3/A5）。本节只列产品层清单。
 
 ### Active core Figure
 
@@ -85,7 +85,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M3 绘制遍历与裁剪闭环
 
-**协议层要求**：见 YAML M3 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M3 相关 family。本节只列产品层清单。
 
 ### 渲染主循环
 
@@ -107,7 +107,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M4 坐标域与变换闭环
 
-**协议层要求**：见 YAML M4 `contracts`（A4）。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M4 相关 family（A4）。本节只列产品层清单。
 
 ### 协议 API
 
@@ -124,7 +124,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M5 Layout + Validation + UpdateManager
 
-**协议层要求**：见 YAML M5 `contracts`（A6/A7/A8）。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M5 相关 family（A6/A7/A8）。本节只列产品层清单。
 
 ### LayoutManager 实现（6 个）
 
@@ -157,7 +157,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M6 事件分发与交互状态机
 
-**协议层要求**：见 YAML M6 `contracts`（A9）。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M6 相关 family（A9）。本节只列产品层清单。
 
 ### 输入分发状态
 
@@ -177,7 +177,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M7 通知语义分层
 
-**协议层要求**：见 YAML M7 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M7 相关 family。本节只列产品层清单。
 
 ### 六类 listener（不允许压扁成单一总线）
 
@@ -201,7 +201,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M8 Viewport / Scroll / Zoom
 
-**协议层要求**：见 YAML M8 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M8 相关 family。本节只列产品层清单。
 
 ### Viewport 体系
 
@@ -230,7 +230,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M9 Connection / Anchor / Router
 
-**协议层要求**：见 YAML M9 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M9 相关 family。本节只列产品层清单。
 
 ### Connection 图形
 
@@ -270,7 +270,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ## M10 常用 Figure 与文本/控件
 
-**协议层要求**：见 YAML M10 `contracts`。本节只列产品层清单。
+**协议层要求**：见 `draw2d_api_coverage.md` 中 M10 相关 family。本节只列产品层清单。
 
 ### Reusable Figure surface
 

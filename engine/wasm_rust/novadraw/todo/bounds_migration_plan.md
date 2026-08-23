@@ -1,5 +1,12 @@
 # Bounds 迁移计划
 
+> **Legacy 文档**
+>
+> 本文是坐标系统迁移期间的历史快照，表格中的“待实现”状态已经过期。
+> 当前坐标契约与进度分别以 `doc/04-coordinates/coordinates.md`、
+> `doc/01-architecture/draw2d_api_coverage.md` 和
+> `doc/06-roadmap/00-index.md` 为准。
+
 本文档记录将本项目的 Figure bounds 系统迁移到与 Eclipse Draw2D 一致所需的改进项。
 
 ## 1. 当前实现 vs g2 完整能力对比

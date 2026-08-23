@@ -46,6 +46,7 @@
 - 完整项目规则：`CLAUDE.md`
 - **Draw2D API 语义覆盖账本**：`doc/01-architecture/draw2d_api_coverage.md`
 - **产品交付清单 / Demo 矩阵**：`doc/06-roadmap/`
+  - M1-M10 编号与状态入口：`doc/06-roadmap/00-index.md`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/01-architecture/draw2d_api_coverage.md`。
 
 ### 架构分析边界

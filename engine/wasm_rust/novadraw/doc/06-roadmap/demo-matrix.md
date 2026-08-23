@@ -113,7 +113,7 @@
 如果探索过程中发现协议层缺口，正确做法：
 
 1. 在本文档附录记录缺口
-2. 起一个新的 delta（在 YAML 内）
+2. 在对应 milestone 下记录新的架构增量及受影响 API family
 3. 通过 contract probe 把缺口收口
 4. **禁止**为单独让 demo 跑通而在 apps 层堆便利方法
 

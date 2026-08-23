@@ -102,7 +102,7 @@ protected void repairDamage() {
 ### 数据结构
 
 ```rust
-// novadraw-scene/src/update/deferred.rs
+// novadraw-scene/src/runtime/update/deferred.rs
 
 pub struct SceneUpdateManager {
     /// 脏区域映射：block_id -> 脏区域
@@ -114,94 +114,81 @@ pub struct SceneUpdateManager {
     /// 是否有更新待处理
     pub(crate) update_queued: bool,
 
-    /// 合并脏区域时的扩展边距
-    expand_margin: f64,
+    /// 是否正在执行更新事务
+    pub(crate) updating: bool,
+
+    notification_effects: NotificationQueue,
+    listeners: Vec<Box<dyn UpdateListener>>,
 }
 ```
 
-### FigureGraph 集成
+### FigureGraph 协作
 
-```rust
-// novadraw-scene/src/scene/mod.rs
-
-pub struct FigureGraph {
-    // ... 其他字段
-    pub update_manager: super::update::SceneUpdateManager,
-}
-```
+`SceneUpdateManager` 不由 `FigureGraph` 持有。组合根同时持有二者，并在更新事务中
+把 `&mut FigureGraph` 传给 `UpdateManager::perform_update()`。这样更新服务可以访问
+图语义，但不会成为图的内部状态。
 
 ### 公开 API
 
 ```rust
 impl FigureGraph {
     /// 标记块需要重新布局
-    pub fn mark_invalid(&mut self, block_id: BlockId);
+    pub fn mark_invalid(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        block_id: BlockId,
+    );
 
     /// 请求重绘指定块
-    pub fn repaint(&mut self, block_id: BlockId, rect: Option<Rectangle>);
+    pub fn repaint(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        block_id: BlockId,
+        rect: Option<Rectangle>,
+    );
 
     /// 请求重绘整个场景
-    pub fn repaint_all(&mut self);
-
-    /// 检查是否有待处理的更新
-    pub fn has_pending_updates(&self) -> bool;
+    pub fn repaint_all(&mut self, update_manager: &mut dyn UpdateManager);
 
     /// 执行更新（两阶段：布局 + 重绘）
-    pub fn perform_update(&mut self);
-
-    /// 获取合并后的脏区域
-    pub fn get_damage_region(&self) -> Rectangle;
-
-    /// 清空更新队列
-    pub fn clear_updates(&mut self);
+    pub fn perform_update(&mut self, update_manager: &mut dyn UpdateManager) -> NdCanvas;
 }
 ```
 
 ## 关键设计决策
 
-### 决策 1: 脏区域不自动传播到父节点
+### 决策 1: Damage 在 repair phase 传播到根域
 
-**g2 方式**：在 `repairDamage` 中自动将脏区域变换到父坐标并与父 bounds 取交集。
+dirty region 以所属 Figure 的 bounds 坐标域入队。repair phase 冻结本轮 dirty
+snapshot，随后沿 parent chain 应用坐标根 transform 并与祖先 bounds/clip 求交，
+最终写入 `DamageSet.regions` 和强约束 `DamageSet.union`。
 
-**本项目方式**：脏区域存储在块的局部坐标，不自动传播。
+传播逻辑位于 `runtime/update/repair.rs`，而不是分散到 Figure 或渲染后端。
 
-**原因**：
-
-- 本项目的渲染流程使用 clip 机制，裁剪由渲染器处理
-- 脏区域主要用于视口裁剪（决定重绘范围）
-- 简化实现，保持单一职责
-
-```rust
-// 本项目：直接存储局部坐标的脏区域
-pub fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle) {
-    // 直接存储，不做坐标变换
-    self.dirty_regions.insert(block_id, rect);
-}
-```
-
-### 决策 2: SceneUpdateManager 作为 FigureGraph 的内部状态
+### 决策 2: SceneUpdateManager 是独立系统服务
 
 **g2 方式**：`UpdateManager` 是独立对象，通过 `setRoot(IFigure)` 关联根 Figure。
 
-**本项目方式**：`SceneUpdateManager` 直接作为 `FigureGraph` 的字段。
+**本项目方式**：`SceneUpdateManager` 与 `FigureGraph` 由组合根分别持有。
 
 **原因**：
 
-- Rust 的所有权模型更适合内部状态
-- 避免复杂的生命周期管理
-- 直接访问 FigureGraph 的 blocks
+- 避免 FigureGraph 同时成为树和更新服务 owner
+- UpdateManager 通过公开图协议协作，不直接访问 SlotMap
+- 便于 Headless/Winit/Web 宿主复用同一更新事务
 
-### 决策 3: 不实现异步更新机制
+### 决策 3: 调度异步，更新事务同步
 
 **g2 方式**：使用 `Display.asyncExec()` 异步执行更新。
 
-**本项目方式**：同步执行 `perform_update()`。
+**本项目方式**：`SceneHost::request_update()` 请求平台下一帧；收到 redraw 后同步执行
+`perform_update()`。
 
 **原因**：
 
-- Vello 渲染需要同步调用
-- WebGPU/Web 环境的异步模型不同
-- 简化实现，按需手动调用
+- 保留 Validation -> Damage Repair 的原子时序
+- 由不同 SceneHost 适配 winit、Web 或 headless 调度
+- 多次 request 可以由宿主合并
 
 ### 决策 4: 合并脏区域的方式
 
@@ -225,47 +212,40 @@ if let Some(existing) = self.dirty_regions.get_mut(&block_id) {
 - g2 需要支持任意 Figure 的脏区域
 - 本项目以 Block 为单位，更简单
 
-### 决策 5: 手动触发更新
+### 决策 5: 组合根负责触发更新
 
 **g2 方式**：`figure.repaint()` 自动触发 UpdateManager。
 
-**本项目方式**：用户需要手动调用 `perform_update()`。
-
-```rust
-// 本项目使用模式
-scene.repaint(block_id, None);
-
-if scene.has_pending_updates() {
-    scene.perform_update();
-    let canvas = scene.render();
-}
-```
+**本项目方式**：FigureGraph API 产生 invalid/dirty 工作，组合根检测队列从空到非空
+并调用 `SceneHost::request_update()`；redraw 入口调用
+`SceneHost::execute_update(scene, update_manager, renderer)`。
 
 **原因**：
 
-- Vello 渲染是同步的，需要在确定的时间点执行渲染
-- 更明确的控制流程
-- 避免隐式的异步行为
+- 通用调度语义位于组合根，不散落在 apps
+- UpdateManager 不直接依赖平台窗口
+- 同一帧内的多次变更可以合并
 
 ## API 对比
 
 | g2 API | 本项目 API | 差异 |
 |--------|-----------|------|
-| `figure.repaint()` | `scene.repaint(block_id, rect)` | 参数不同 |
-| `figure.revalidate()` | `scene.mark_invalid(block_id)` | 分离为两个操作 |
-| `updateManager.performUpdate()` | `scene.perform_update()` | 基本一致 |
-| `updateManager.addDirtyRegion(figure, rect)` | `scene.update_manager.add_dirty_region(block_id, rect)` | 内部方法 |
-| `figure.invalidate()` | `scene.invalidate()` | 基本一致 |
+| `figure.repaint()` | `scene.repaint(update_manager, block_id, rect)` | 图操作显式接收更新服务 |
+| `figure.revalidate()` | `scene.mark_invalid(update_manager, block_id)` | 图维护 valid 状态，manager 维护队列 |
+| `updateManager.performUpdate()` | `update_manager.perform_update(scene, canvas)` | 两阶段事务 |
+| `updateManager.addDirtyRegion(figure, rect)` | `update_manager.add_dirty_region(block_id, rect)` | 使用 BlockId |
+| `figure.invalidate()` | `scene.invalidate()` | 使 validation path 失效 |
 
 ## 使用示例
 
 ### 基本使用
 
 ```rust
-use novadraw_scene::{FigureGraph, RectangleFigure};
+use novadraw_scene::{FigureGraph, RectangleFigure, SceneUpdateManager, UpdateManager};
 
 // 创建场景
 let mut scene = FigureGraph::new();
+let mut update_manager = SceneUpdateManager::new();
 let container = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
 let container_id = scene.set_contents(Box::new(container));
 
@@ -274,15 +254,14 @@ let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
 scene.add_child_to(container_id, Box::new(child));
 
 // 修改块后，触发布局失效
-scene.mark_invalid(container_id);
+scene.mark_invalid(&mut update_manager, container_id);
 
 // 请求重绘
-scene.repaint(container_id, None);
+scene.repaint(&mut update_manager, container_id, None);
 
 // 执行更新并渲染
-if scene.has_pending_updates() {
-    scene.perform_update();
-    let canvas = scene.render();
+if update_manager.is_update_queued() {
+    let canvas = scene.perform_update(&mut update_manager);
     // ... 渲染到屏幕
 }
 ```
@@ -292,13 +271,12 @@ if scene.has_pending_updates() {
 ```rust
 // 批量修改多个块
 for child_id in children {
-    scene.mark_invalid(child_id);
-    scene.repaint(child_id, None);
+    scene.mark_invalid(&mut update_manager, child_id);
+    scene.repaint(&mut update_manager, child_id, None);
 }
 
 // 一次更新和渲染
-scene.perform_update();
-let canvas = scene.render();
+let canvas = scene.perform_update(&mut update_manager);
 ```
 
 ### 部分重绘
@@ -306,7 +284,7 @@ let canvas = scene.render();
 ```rust
 // 只重绘块的部分区域（用于小范围更新）
 let dirty_rect = Rectangle::new(10.0, 10.0, 50.0, 50.0);
-scene.repaint(block_id, Some(dirty_rect));
+scene.repaint(&mut update_manager, block_id, Some(dirty_rect));
 ```
 
 ## 测试验证
@@ -338,13 +316,13 @@ scene.repaint(block_id, Some(dirty_rect));
 
 | 功能 | g2 实现 | 当前状态 | 改进方向 |
 |------|---------|---------|----------|
-| 脏区域坐标传播 | 自动向上传播并取交集 | 无 | 可在 render 时处理 |
-| 异步更新 | asyncExec | 同步 | Vello 渲染需要同步 |
-| 增量重绘 | 只重绘 damage 区域 | 全量重绘 | 依赖 Vello 能力 |
-| UpdateListener | 有监听器 | 已有接口 | 可增强 |
+| exposed region 输入 | `performUpdate(Rectangle)` | 尚无公开重载 | M5 决定是否纳入核心门禁 |
+| 调度策略 | `asyncExec` | SceneHost request-driven | 增加 Web/Headless 实现 |
+| Validation root | 支持 | 部分 | M5 明确传播与重入收敛 |
+| UpdateListener | 可增删 | 仅支持添加 | M7 补订阅生命周期 |
 
 ## 参考资料
 
 - Eclipse Draw2D 源码：`org.eclipse.draw2d.UpdateManager`
 - Eclipse Draw2D 源码：`org.eclipse.draw2d.DeferredUpdateManager`
-- 本项目源码：`novadraw-scene/src/update/`
+- 本项目源码：`novadraw-scene/src/runtime/update/`

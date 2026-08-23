@@ -74,7 +74,8 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 - **产品交付清单**：`doc/06-roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）
 - **Demo + 验证矩阵**：`doc/06-roadmap/demo-matrix.md`（每个 milestone 配套 demo + 截图断言策略 + GEF 层探索附录）
 
-> 任何 delta、PR、commit、文档引用 `M{n}` 一律指 YAML M{n}，禁止在其他文档发明独立编号。
+> 任何 delta、PR、commit、文档引用 `M{n}` 一律指
+> `doc/06-roadmap/00-index.md` 定义的 M{n}，禁止在其他文档发明独立编号。
 > 节点编辑器等 GEF 层能力不在 draw2d 核心 milestone 内，详见 `demo-matrix.md` 附录 A。
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；受影响 family ID 记录在 delta 的 `api_semantics` 字段，语义来源见 `draw2d_api_coverage.md`。
 
