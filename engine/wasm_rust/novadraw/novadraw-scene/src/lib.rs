@@ -32,7 +32,8 @@ pub use graph as scene;
 pub use graph::{BlockId, FigureGraph, FigureRenderer, GraphMutationError, MAX_TREE_DEPTH};
 pub use host::SceneHost;
 pub use layout::{
-    BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout, LayoutManager, XYLayout,
+    BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
+    LayoutConstraint, LayoutManager, XYConstraint, XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
 pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};

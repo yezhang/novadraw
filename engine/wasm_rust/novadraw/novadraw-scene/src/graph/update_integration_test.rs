@@ -5,8 +5,8 @@ use novadraw_geometry::Rectangle;
 use slotmap::Key;
 
 use crate::{
-    BlockId, FigureGraph, GraphMutationError, MAX_TREE_DEPTH, PendingMutations, RectangleFigure,
-    SceneUpdateManager, ViewportFigure, XYLayout,
+    BlockId, BorderConstraint, BorderRegion, FigureGraph, GraphMutationError, MAX_TREE_DEPTH,
+    PendingMutations, RectangleFigure, SceneUpdateManager, ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
@@ -392,6 +392,44 @@ fn test_layout_repositions_descendants_via_set_bounds_protocol() {
     let grandchild_bounds = scene.blocks.get(grandchild_id).unwrap().figure_bounds();
     assert_eq!(child_bounds, Rectangle::new(80.0, 90.0, 40.0, 40.0));
     assert_eq!(grandchild_bounds, Rectangle::new(85.0, 95.0, 10.0, 10.0));
+}
+
+#[test]
+fn test_layout_constraint_is_owned_by_parent_and_typed() {
+    let (mut scene, _) = new_scene();
+    let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let child = scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+
+    assert!(scene.set_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)));
+    assert_eq!(
+        scene.get_constraint::<XYConstraint>(child),
+        Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
+    );
+    assert!(scene.get_constraint::<BorderConstraint>(child).is_none());
+}
+
+#[test]
+fn test_reparent_removes_constraint_owned_by_old_parent() {
+    let (mut scene, mut update_manager) = new_scene();
+    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+    let left = scene.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let right = scene.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0)),
+    );
+    let child = scene.add_child_to(left, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+    assert!(scene.set_constraint(child, BorderConstraint::with_size(BorderRegion::West, 20.0)));
+
+    let changed = scene.apply_reparent_mutation(
+        &mut update_manager,
+        PendingMutationKind::Reparent {
+            child,
+            new_parent: right,
+        },
+    );
+
+    assert!(changed);
+    assert!(scene.get_constraint::<BorderConstraint>(child).is_none());
 }
 
 #[test]

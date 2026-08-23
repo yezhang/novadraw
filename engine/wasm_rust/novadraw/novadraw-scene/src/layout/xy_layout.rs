@@ -11,8 +11,7 @@ use novadraw_geometry::Rectangle;
 /// XY 布局约束
 ///
 /// 对应 draw2d 中的 Rectangle 约束
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct XYConstraint {
     /// 位置 x
     pub x: f64,
@@ -24,7 +23,6 @@ pub struct XYConstraint {
     pub height: f64,
 }
 
-#[allow(dead_code)]
 impl XYConstraint {
     /// 从 Rectangle 创建约束
     pub fn from_rect(rect: Rectangle) -> Self {
@@ -73,17 +71,12 @@ impl Default for XYConstraint {
 /// 参考 draw2d: XYLayout
 /// 根据每个子元素的约束 Rectangle 来定位和设置大小。
 #[derive(Debug, Clone)]
-pub struct XYLayout {
-    /// 缓存的首选大小
-    cached_preferred_size: Option<(f64, f64)>,
-}
+pub struct XYLayout;
 
 impl XYLayout {
     /// 创建新的 XYLayout
     pub fn new() -> Self {
-        Self {
-            cached_preferred_size: None,
-        }
+        Self
     }
 }
 
@@ -94,20 +87,6 @@ impl Default for XYLayout {
 }
 
 impl LayoutManager for XYLayout {
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
-        // XYLayout 不存储约束，由外部（如 FigureGraph）管理
-        None
-    }
-
-    fn set_constraint(&mut self, _child_id: BlockId, _constraint: Rectangle) {
-        // XYLayout 不存储约束，由外部管理
-        self.invalidate();
-    }
-
-    fn remove_constraint(&mut self, _child_id: BlockId) {
-        self.invalidate();
-    }
-
     fn get_preferred_size(
         &self,
         _container: BlockId,
@@ -115,11 +94,6 @@ impl LayoutManager for XYLayout {
         _h_hint: f64,
         _ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        // 简化实现：直接返回缓存或默认大小
-        // 实际应该根据子元素的约束计算
-        if let Some(cached) = self.cached_preferred_size {
-            return cached;
-        }
         (0.0, 0.0)
     }
 
@@ -155,7 +129,7 @@ impl LayoutManager for XYLayout {
         // draw2d: bounds = bounds.getTranslated(offset)
         for (child_id, _) in children {
             // 获取约束（相对于 client area）
-            if let Some(constraint) = ctx.get_constraint(child_id) {
+            if let Some(constraint) = xy_constraint(ctx, child_id) {
                 // 将约束平移 offset，得到相对于 bounds 的坐标
                 let new_bounds = Rectangle::new(
                     constraint.x + offset_x,
@@ -168,8 +142,22 @@ impl LayoutManager for XYLayout {
             }
         }
     }
+}
 
-    fn invalidate(&mut self) {
-        self.cached_preferred_size = None;
+fn xy_constraint(ctx: &dyn LayoutContext, child_id: BlockId) -> Option<Rectangle> {
+    let constraint = ctx.get_constraint(child_id)?;
+    if let Some(rect) = constraint.as_any().downcast_ref::<Rectangle>() {
+        return Some(*rect);
     }
+    constraint
+        .as_any()
+        .downcast_ref::<XYConstraint>()
+        .map(|constraint| {
+            Rectangle::new(
+                constraint.x,
+                constraint.y,
+                constraint.width,
+                constraint.height,
+            )
+        })
 }

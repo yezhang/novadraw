@@ -29,8 +29,6 @@ pub enum FlowDirection {
 /// 子元素按添加顺序排列，自动换行到下一行/列。
 #[derive(Debug, Clone)]
 pub struct FlowLayout {
-    /// 缓存的首选大小
-    cached_preferred_size: Option<(f64, f64)>,
     /// 布局方向
     direction: FlowDirection,
     /// 主轴间距（元素之间的间距）
@@ -43,7 +41,6 @@ impl FlowLayout {
     /// 创建新的 FlowLayout（水平方向）
     pub fn new() -> Self {
         Self {
-            cached_preferred_size: None,
             direction: FlowDirection::Horizontal,
             spacing: 10.0,
             row_spacing: 10.0,
@@ -53,7 +50,6 @@ impl FlowLayout {
     /// 创建指定方向的 FlowLayout
     pub fn with_direction(direction: FlowDirection) -> Self {
         Self {
-            cached_preferred_size: None,
             direction,
             spacing: 10.0,
             row_spacing: 10.0,
@@ -184,18 +180,6 @@ impl Default for FlowLayout {
 }
 
 impl LayoutManager for FlowLayout {
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
-        None
-    }
-
-    fn set_constraint(&mut self, _child_id: BlockId, _constraint: Rectangle) {
-        self.invalidate();
-    }
-
-    fn remove_constraint(&mut self, _child_id: BlockId) {
-        self.invalidate();
-    }
-
     fn get_preferred_size(
         &self,
         _container: BlockId,
@@ -203,9 +187,6 @@ impl LayoutManager for FlowLayout {
         _h_hint: f64,
         _ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        if let Some(cached) = self.cached_preferred_size {
-            return cached;
-        }
         // 简化实现：返回默认尺寸
         (100.0, 100.0)
     }
@@ -222,10 +203,6 @@ impl LayoutManager for FlowLayout {
 
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
         self.perform_layout(container, ctx);
-    }
-
-    fn invalidate(&mut self) {
-        self.cached_preferred_size = None;
     }
 }
 
@@ -288,7 +265,7 @@ impl super::LayoutContext for MockLayoutContext {
         self.children.clone()
     }
 
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
+    fn get_constraint(&self, _child_id: BlockId) -> Option<&dyn super::LayoutConstraint> {
         None
     }
 

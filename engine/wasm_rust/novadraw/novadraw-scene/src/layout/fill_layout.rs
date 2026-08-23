@@ -8,23 +8,17 @@ use tracing::debug;
 use super::LayoutContext;
 use super::LayoutManager;
 use crate::graph::BlockId;
-use novadraw_geometry::Rectangle;
 
 /// Fill 布局器
 ///
 /// 第一个子元素填充容器（减去 insets），其他子元素保持原位。
 #[derive(Debug, Clone)]
-pub struct FillLayout {
-    /// 缓存的首选大小
-    cached_preferred_size: Option<(f64, f64)>,
-}
+pub struct FillLayout;
 
 impl FillLayout {
     /// 创建新的 FillLayout
     pub fn new() -> Self {
-        Self {
-            cached_preferred_size: None,
-        }
+        Self
     }
 }
 
@@ -35,18 +29,6 @@ impl Default for FillLayout {
 }
 
 impl LayoutManager for FillLayout {
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
-        None
-    }
-
-    fn set_constraint(&mut self, _child_id: BlockId, _constraint: Rectangle) {
-        self.invalidate();
-    }
-
-    fn remove_constraint(&mut self, _child_id: BlockId) {
-        self.invalidate();
-    }
-
     fn get_preferred_size(
         &self,
         _container: BlockId,
@@ -54,9 +36,6 @@ impl LayoutManager for FillLayout {
         _h_hint: f64,
         _ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        if let Some(cached) = self.cached_preferred_size {
-            return cached;
-        }
         (0.0, 0.0)
     }
 
@@ -89,9 +68,5 @@ impl LayoutManager for FillLayout {
             debug!("FillLayout: first child bounds={:?}", bounds);
             ctx.set_child_bounds(*first_child_id, bounds);
         }
-    }
-
-    fn invalidate(&mut self) {
-        self.cached_preferred_size = None;
     }
 }

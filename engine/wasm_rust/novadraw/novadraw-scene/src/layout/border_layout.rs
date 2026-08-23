@@ -39,6 +39,26 @@ impl BorderRegion {
     }
 }
 
+/// BorderLayout 为直接子节点定义的区域约束。
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BorderConstraint {
+    pub region: BorderRegion,
+    pub size: Option<f64>,
+}
+
+impl BorderConstraint {
+    pub fn new(region: BorderRegion) -> Self {
+        Self { region, size: None }
+    }
+
+    pub fn with_size(region: BorderRegion, size: f64) -> Self {
+        Self {
+            region,
+            size: Some(size.max(0.0)),
+        }
+    }
+}
+
 /// Border 布局器
 ///
 /// 将容器划分为五个区域：北、南、东、西、中。
@@ -56,8 +76,6 @@ impl BorderRegion {
 /// 约束的 width, height 指定该区域的尺寸（可选）
 #[derive(Debug, Clone)]
 pub struct BorderLayout {
-    /// 缓存的首选大小
-    cached_preferred_size: Option<(f64, f64)>,
     /// 各个区域的默认尺寸
     north_height: f64,
     south_height: f64,
@@ -69,7 +87,6 @@ impl BorderLayout {
     /// 创建新的 BorderLayout
     pub fn new() -> Self {
         Self {
-            cached_preferred_size: None,
             north_height: 50.0,
             south_height: 50.0,
             west_width: 50.0,
@@ -80,7 +97,6 @@ impl BorderLayout {
     /// 创建带有默认尺寸的 BorderLayout
     pub fn with_sizes(north: f64, south: f64, west: f64, east: f64) -> Self {
         Self {
-            cached_preferred_size: None,
             north_height: north,
             south_height: south,
             west_width: west,
@@ -115,18 +131,6 @@ impl Default for BorderLayout {
 }
 
 impl LayoutManager for BorderLayout {
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
-        None
-    }
-
-    fn set_constraint(&mut self, _child_id: BlockId, _constraint: Rectangle) {
-        self.invalidate();
-    }
-
-    fn remove_constraint(&mut self, _child_id: BlockId) {
-        self.invalidate();
-    }
-
     fn get_preferred_size(
         &self,
         _container: BlockId,
@@ -134,9 +138,6 @@ impl LayoutManager for BorderLayout {
         _h_hint: f64,
         _ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        if let Some(cached) = self.cached_preferred_size {
-            return cached;
-        }
         // 默认尺寸
         (
             self.west_width + self.east_width + 100.0,
@@ -184,58 +185,31 @@ impl LayoutManager for BorderLayout {
 
         // 第一次遍历：处理有明确约束的元素
         for (child_id, _current_bounds) in &children {
-            if let Some(constraint) = ctx.get_constraint(*child_id) {
-                let region = Self::get_region(&constraint);
-
+            if let Some((region, requested_size)) = border_constraint(ctx, *child_id) {
                 let (x, y, w, h) = match region {
                     BorderRegion::North => {
                         allocated_regions[1] = true;
-                        let h = if constraint.height > 0.0 {
-                            constraint.height.min(ch * 0.5)
-                        } else {
-                            north_h
-                        };
+                        let h = requested_size.unwrap_or(north_h).min(ch * 0.5);
                         (cx, cy, cw, h)
                     }
                     BorderRegion::South => {
                         allocated_regions[2] = true;
-                        let h = if constraint.height > 0.0 {
-                            constraint.height.min(ch * 0.5)
-                        } else {
-                            south_h
-                        };
+                        let h = requested_size.unwrap_or(south_h).min(ch * 0.5);
                         (cx, cy + ch - h, cw, h)
                     }
                     BorderRegion::East => {
                         allocated_regions[3] = true;
-                        let w = if constraint.width > 0.0 {
-                            constraint.width.min(cw * 0.5)
-                        } else {
-                            east_w
-                        };
+                        let w = requested_size.unwrap_or(east_w).min(cw * 0.5);
                         (cx + cw - w, center_y, w, center_h)
                     }
                     BorderRegion::West => {
                         allocated_regions[4] = true;
-                        let w = if constraint.width < 0.0 {
-                            (-constraint.width).min(cw * 0.5)
-                        } else {
-                            west_w
-                        };
+                        let w = requested_size.unwrap_or(west_w).min(cw * 0.5);
                         (cx, center_y, w, center_h)
                     }
                     BorderRegion::Center => {
                         allocated_regions[0] = true;
-                        if constraint.width > 0.0 && constraint.height > 0.0 {
-                            // 使用约束指定的尺寸
-                            let w = constraint.width.min(center_w);
-                            let h = constraint.height.min(center_h);
-                            let x = center_x + (center_w - w) / 2.0;
-                            let y = center_y + (center_h - h) / 2.0;
-                            (x, y, w, h)
-                        } else {
-                            (center_x, center_y, center_w, center_h)
-                        }
+                        (center_x, center_y, center_w, center_h)
                     }
                 };
 
@@ -273,10 +247,27 @@ impl LayoutManager for BorderLayout {
             }
         }
     }
+}
 
-    fn invalidate(&mut self) {
-        self.cached_preferred_size = None;
+fn border_constraint(
+    ctx: &dyn LayoutContext,
+    child_id: BlockId,
+) -> Option<(BorderRegion, Option<f64>)> {
+    let constraint = ctx.get_constraint(child_id)?;
+    if let Some(constraint) = constraint.as_any().downcast_ref::<BorderConstraint>() {
+        return Some((constraint.region, constraint.size));
     }
+    constraint.as_any().downcast_ref::<Rectangle>().map(|rect| {
+        let region = BorderLayout::get_region(rect);
+        let size = match region {
+            BorderRegion::North => (-rect.height).is_sign_positive().then_some(-rect.height),
+            BorderRegion::South => (rect.height > 0.0).then_some(rect.height),
+            BorderRegion::East => (rect.width > 0.0).then_some(rect.width),
+            BorderRegion::West => (rect.width < 0.0).then_some(-rect.width),
+            BorderRegion::Center => None,
+        };
+        (region, size)
+    })
 }
 
 #[cfg(test)]
@@ -346,7 +337,7 @@ impl super::LayoutContext for MockLayoutContext {
         self.children.clone()
     }
 
-    fn get_constraint(&self, _child_id: BlockId) -> Option<Rectangle> {
+    fn get_constraint(&self, _child_id: BlockId) -> Option<&dyn super::LayoutConstraint> {
         None
     }
 

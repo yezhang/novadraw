@@ -15,7 +15,7 @@ use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
 use super::figure::Updatable;
-use super::layout::LayoutManager;
+use super::layout::{LayoutConstraint, LayoutManager};
 use crate::runtime::update::{FigureEvent, NotificationEffect, NotificationQueue, UpdateManager};
 use crate::{PendingMutationBatch, mutation::PendingMutationKind};
 
@@ -124,6 +124,8 @@ pub struct FigureBlock {
     pub(crate) figure: Box<dyn super::Figure>,
     /// 布局管理器（可选），只有需要布局的容器才设置
     pub(crate) layout_manager: Option<Arc<dyn super::layout::LayoutManager>>,
+    /// 父容器施加给直接子节点的布局约束。
+    pub(crate) constraints: std::collections::HashMap<BlockId, Arc<dyn LayoutConstraint>>,
     /// 是否选中
     pub(crate) is_selected: bool,
     /// 鼠标是否悬停在该节点上
@@ -222,8 +224,6 @@ pub struct FigureGraph {
     root: BlockId,
     /// 内容块（用户可访问的根容器）
     contents: Option<BlockId>,
-    /// 子元素的布局约束 (child_id -> Rectangle constraint)
-    constraints: std::collections::HashMap<usize, Rectangle>,
     mouse_target: Option<BlockId>,
     focus_owner: Option<BlockId>,
     captured: Option<BlockId>,
@@ -244,6 +244,7 @@ impl FigureGraph {
             depth: 0,
             figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
             layout_manager: None,
+            constraints: std::collections::HashMap::new(),
             is_selected: false,
             is_hovered: false,
             is_pressed: false,
@@ -260,7 +261,6 @@ impl FigureGraph {
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
-            constraints: std::collections::HashMap::new(),
             mouse_target: None,
             focus_owner: None,
             captured: None,
@@ -459,6 +459,7 @@ impl FigureGraph {
             depth,
             figure,
             layout_manager: None,
+            constraints: std::collections::HashMap::new(),
             is_selected: false,
             is_hovered: false,
             is_pressed: false,
@@ -505,6 +506,7 @@ impl FigureGraph {
         if parent.children.len() == old_len {
             return false;
         }
+        parent.constraints.remove(&child_id);
 
         if let Some(child) = self.blocks.get_mut(child_id) {
             child.figure.on_detached(parent_id);
@@ -1252,34 +1254,53 @@ impl FigureGraph {
             .and_then(|b| b.layout_manager.clone())
     }
 
-    /// 设置子元素的布局约束
-    ///
-    /// 对应 draw2d: setConstraint(IFigure, Object)
-    /// 约束使用 Rectangle 类型
-    pub fn set_constraint(&mut self, child_id: BlockId, constraint: Rectangle) {
-        // 使用 child_id 的索引作为约束的 key
-        // 在实际布局时，通过遍历 children 来匹配
-        self.constraints
-            .insert(child_id.data().as_ffi() as usize, constraint);
-        self.invalidate();
+    /// 设置父容器施加给直接子节点的布局约束。
+    pub fn set_constraint<C>(&mut self, child_id: BlockId, constraint: C) -> bool
+    where
+        C: LayoutConstraint,
+    {
+        let Some(parent_id) = self.blocks.get(child_id).and_then(|child| child.parent) else {
+            return false;
+        };
+        let Some(parent) = self.blocks.get_mut(parent_id) else {
+            return false;
+        };
+        parent.constraints.insert(child_id, Arc::new(constraint));
+        self.mark_validation_path_invalid(parent_id);
+        true
     }
 
-    /// 获取子元素的布局约束
-    ///
-    /// 对应 draw2d: getConstraint(IFigure)
-    pub fn get_constraint(&self, child_id: BlockId) -> Option<Rectangle> {
-        self.constraints
-            .get(&(child_id.data().as_ffi() as usize))
-            .cloned()
+    /// 获取指定类型的布局约束。
+    pub fn get_constraint<C>(&self, child_id: BlockId) -> Option<&C>
+    where
+        C: LayoutConstraint,
+    {
+        self.constraint(child_id)?.as_any().downcast_ref::<C>()
     }
 
-    /// 移除子元素的布局约束
-    ///
-    /// 对应 draw2d: LayoutManager.remove(IFigure)
-    pub fn remove_constraint(&mut self, child_id: BlockId) {
-        self.constraints
-            .remove(&(child_id.data().as_ffi() as usize));
-        self.invalidate();
+    /// 移除父容器为直接子节点保存的布局约束。
+    pub fn remove_constraint(&mut self, child_id: BlockId) -> bool {
+        let Some(parent_id) = self.blocks.get(child_id).and_then(|child| child.parent) else {
+            return false;
+        };
+        let removed = self
+            .blocks
+            .get_mut(parent_id)
+            .and_then(|parent| parent.constraints.remove(&child_id))
+            .is_some();
+        if removed {
+            self.mark_validation_path_invalid(parent_id);
+        }
+        removed
+    }
+
+    fn constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+        let parent_id = self.blocks.get(child_id)?.parent?;
+        self.blocks
+            .get(parent_id)?
+            .constraints
+            .get(&child_id)
+            .map(Arc::as_ref)
     }
 
     /// 使布局生效
@@ -1853,9 +1874,8 @@ impl super::layout::LayoutContext for FigureGraph {
         }
     }
 
-    fn get_constraint(&self, child_id: BlockId) -> Option<Rectangle> {
-        let key = child_id.data().as_ffi() as usize;
-        self.constraints.get(&key).cloned()
+    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+        self.constraint(child_id)
     }
 
     fn get_preferred_size(&self, block_id: BlockId) -> (f64, f64) {

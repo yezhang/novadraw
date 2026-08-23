@@ -7,13 +7,27 @@ mod fill_layout;
 mod flow_layout;
 mod xy_layout;
 
-pub use border_layout::{BorderLayout, BorderRegion};
+pub use border_layout::{BorderConstraint, BorderLayout, BorderRegion};
 pub use fill_layout::FillLayout;
 pub use flow_layout::{FlowDirection, FlowLayout};
-pub use xy_layout::XYLayout;
+pub use xy_layout::{XYConstraint, XYLayout};
 
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
+use std::any::Any;
+
+/// 容器施加给直接子节点的布局约束。
+///
+/// 约束由父 FigureBlock 持有；具体 LayoutManager 通过 downcast 读取自己支持的类型。
+pub trait LayoutConstraint: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Any + Send + Sync> LayoutConstraint for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 /// 布局上下文 trait
 ///
@@ -25,7 +39,7 @@ pub trait LayoutContext: Send + Sync {
     fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)>;
 
     /// 获取子元素的布局约束
-    fn get_constraint(&self, child_id: BlockId) -> Option<Rectangle>;
+    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint>;
 
     /// 获取块的首选尺寸
     fn get_preferred_size(&self, block_id: BlockId) -> (f64, f64);
@@ -44,21 +58,6 @@ pub trait LayoutContext: Send + Sync {
 /// 参考 draw2d: LayoutManager
 /// 用于计算和设置子元素的位置。
 pub trait LayoutManager: Send + Sync {
-    /// 获取布局约束
-    ///
-    /// 对应 draw2d: getConstraint(IFigure)
-    fn get_constraint(&self, child_id: BlockId) -> Option<Rectangle>;
-
-    /// 设置布局约束
-    ///
-    /// 对应 draw2d: setConstraint(IFigure, Object)
-    fn set_constraint(&mut self, child_id: BlockId, constraint: Rectangle);
-
-    /// 移除布局约束
-    ///
-    /// 对应 draw2d: remove(IFigure)
-    fn remove_constraint(&mut self, child_id: BlockId);
-
     /// 获取首选大小
     ///
     /// 对应 draw2d: getPreferredSize(IFigure, int, int)
@@ -86,9 +85,4 @@ pub trait LayoutManager: Send + Sync {
     ///
     /// 对应 draw2d: layout(IFigure)
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext);
-
-    /// 使缓存失效
-    ///
-    /// 对应 draw2d: invalidate()
-    fn invalidate(&mut self);
 }
