@@ -783,16 +783,33 @@ impl FigureGraph {
                 break;
             }
 
-            for block_id in block_ids {
-                if !self.blocks.contains_key(block_id) {
-                    continue;
-                }
-                if !self.is_effectively_visible(block_id) || !self.is_effectively_enabled(block_id)
-                {
-                    continue;
-                }
-                self.revalidate(block_id);
+            let mut validation_roots: Vec<BlockId> = block_ids
+                .into_iter()
+                .filter_map(|block_id| self.validation_root(block_id))
+                .collect();
+            validation_roots.sort_by_key(|id| self.block_depth(*id).unwrap_or(usize::MAX));
+            validation_roots.dedup();
+
+            for root_id in validation_roots {
+                self.revalidate_with_update(update_manager, root_id);
             }
+        }
+    }
+
+    fn validation_root(&self, block_id: BlockId) -> Option<BlockId> {
+        let mut current = block_id;
+        let mut root = block_id;
+        loop {
+            let block = self.blocks.get(current)?;
+            let Some(parent_id) = block.parent else {
+                return Some(root);
+            };
+            let parent = self.blocks.get(parent_id)?;
+            if parent.is_valid {
+                return Some(root);
+            }
+            root = parent_id;
+            current = parent_id;
         }
     }
 
@@ -801,9 +818,21 @@ impl FigureGraph {
     /// 从指定容器开始，递归执行布局。
     /// 只有设置了布局管理器的容器才会执行布局。
     /// 参考 draw2d: Figure.layout() { if (layoutManager != null) layoutManager.layout() }
-    pub fn revalidate(&mut self, container_id: BlockId) {
-        if let Some(block) = self.blocks.get_mut(container_id) {
-            Updatable::validate(&mut *block.figure);
+    fn revalidate_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        container_id: BlockId,
+    ) {
+        if self
+            .blocks
+            .get(container_id)
+            .is_none_or(|block| block.is_valid)
+        {
+            return;
+        }
+        if !self.is_effectively_visible(container_id) || !self.is_effectively_enabled(container_id)
+        {
+            return;
         }
 
         let layout_manager = self
@@ -811,23 +840,27 @@ impl FigureGraph {
             .get(container_id)
             .and_then(|b| b.layout_manager.clone());
 
-        if layout_manager.is_none() {
-            self.revalidate_children(container_id);
-            if let Some(block) = self.blocks.get_mut(container_id) {
-                block.is_valid = true;
-            }
-            return;
+        if let Some(layout_manager) = layout_manager {
+            let mut layout_context = ValidationLayoutContext {
+                graph: self,
+                update_manager,
+            };
+            layout_manager.layout(container_id, &mut layout_context);
         }
 
-        layout_manager.unwrap().layout(container_id, self);
-        self.revalidate_children(container_id);
+        self.revalidate_children_with_update(update_manager, container_id);
         if let Some(block) = self.blocks.get_mut(container_id) {
+            Updatable::validate(&mut *block.figure);
             block.is_valid = true;
         }
     }
 
     /// 递归验证子容器的布局
-    fn revalidate_children(&mut self, parent_id: BlockId) {
+    fn revalidate_children_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        parent_id: BlockId,
+    ) {
         // 先收集子元素 ID，避免在迭代过程中同时持有不可变和可变引用
         let children: Vec<BlockId> = self
             .blocks
@@ -836,7 +869,46 @@ impl FigureGraph {
             .unwrap_or_default();
 
         for child_id in children {
+            self.revalidate_with_update(update_manager, child_id);
+        }
+    }
+
+    /// 立即验证指定子树，不产生 damage。
+    ///
+    /// 该入口用于初始场景构建；运行时更新应通过 `mark_invalid` 和
+    /// `UpdateManager::perform_update` 执行完整事务。
+    pub fn revalidate(&mut self, container_id: BlockId) {
+        if self
+            .blocks
+            .get(container_id)
+            .is_none_or(|block| block.is_valid)
+        {
+            return;
+        }
+        if !self.is_effectively_visible(container_id) || !self.is_effectively_enabled(container_id)
+        {
+            return;
+        }
+
+        let layout_manager = self
+            .blocks
+            .get(container_id)
+            .and_then(|block| block.layout_manager.clone());
+        if let Some(layout_manager) = layout_manager {
+            layout_manager.layout(container_id, self);
+        }
+
+        let children = self
+            .blocks
+            .get(container_id)
+            .map(|block| block.children.clone())
+            .unwrap_or_default();
+        for child_id in children {
             self.revalidate(child_id);
+        }
+        if let Some(block) = self.blocks.get_mut(container_id) {
+            Updatable::validate(&mut *block.figure);
+            block.is_valid = true;
         }
     }
 
@@ -866,6 +938,88 @@ impl FigureGraph {
             .get(self.contents.unwrap_or(self.root))
             .map(|block| block.is_valid)
             .unwrap_or(true)
+    }
+
+    /// 返回单个节点的 validation 状态。
+    pub fn is_valid(&self, block_id: BlockId) -> bool {
+        self.blocks
+            .get(block_id)
+            .is_some_and(|block| block.is_valid)
+    }
+
+    /// 计算节点首选尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
+    pub fn preferred_size(
+        &self,
+        block_id: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+    ) -> Option<(f64, f64)> {
+        let block = self.blocks.get(block_id)?;
+        if let Some(size) = block.preferred_size {
+            return Some(size);
+        }
+        if let Some(layout) = block.layout_manager.as_deref() {
+            return Some(layout.get_preferred_size(block_id, w_hint, h_hint, self));
+        }
+        Some(block.figure.preferred_size())
+    }
+
+    /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
+    pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
+        let block = self.blocks.get(block_id)?;
+        if let Some(size) = block.minimum_size {
+            return Some(size);
+        }
+        if let Some(layout) = block.layout_manager.as_deref() {
+            return Some(layout.get_minimum_size(block_id, w_hint, h_hint, self));
+        }
+        Some(block.figure.minimum_size())
+    }
+
+    /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
+    pub fn maximum_size(&self, block_id: BlockId) -> Option<(f64, f64)> {
+        let block = self.blocks.get(block_id)?;
+        Some(
+            block
+                .maximum_size
+                .unwrap_or_else(|| block.figure.maximum_size()),
+        )
+    }
+
+    pub fn set_preferred_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+        let Some(block) = self.blocks.get_mut(block_id) else {
+            return false;
+        };
+        if block.preferred_size == size {
+            return false;
+        }
+        block.preferred_size = size;
+        self.mark_validation_path_invalid(block_id);
+        true
+    }
+
+    pub fn set_minimum_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+        let Some(block) = self.blocks.get_mut(block_id) else {
+            return false;
+        };
+        if block.minimum_size == size {
+            return false;
+        }
+        block.minimum_size = size;
+        self.mark_validation_path_invalid(block_id);
+        true
+    }
+
+    pub fn set_maximum_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+        let Some(block) = self.blocks.get_mut(block_id) else {
+            return false;
+        };
+        if block.maximum_size == size {
+            return false;
+        }
+        block.maximum_size = size;
+        self.mark_validation_path_invalid(block_id);
+        true
     }
 
     /// 按矩形选择
@@ -1857,6 +2011,45 @@ impl FigureGraph {
     }
 }
 
+struct ValidationLayoutContext<'a> {
+    graph: &'a mut FigureGraph,
+    update_manager: &'a mut dyn UpdateManager,
+}
+
+impl super::layout::LayoutContext for ValidationLayoutContext<'_> {
+    fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+        <FigureGraph as super::layout::LayoutContext>::get_children(self.graph, parent_id)
+    }
+
+    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+        self.graph.constraint(child_id)
+    }
+
+    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.graph
+            .preferred_size(block_id, w_hint, h_hint)
+            .unwrap_or((0.0, 0.0))
+    }
+
+    fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {
+        self.graph.set_bounds_with_update(
+            self.update_manager,
+            child_id,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+        );
+    }
+
+    fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
+        <FigureGraph as super::layout::LayoutContext>::get_container_bounds(
+            self.graph,
+            container_id,
+        )
+    }
+}
+
 impl super::layout::LayoutContext for FigureGraph {
     fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
         if let Some(block) = self.blocks.get(parent_id) {
@@ -1878,20 +2071,20 @@ impl super::layout::LayoutContext for FigureGraph {
         self.constraint(child_id)
     }
 
-    fn get_preferred_size(&self, block_id: BlockId) -> (f64, f64) {
-        if let Some(block) = self.blocks.get(block_id) {
-            block.preferred_size.unwrap_or_else(|| {
-                let bounds = block.figure_bounds();
-                (bounds.width, bounds.height)
-            })
-        } else {
-            (0.0, 0.0)
-        }
+    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.preferred_size(block_id, w_hint, h_hint)
+            .unwrap_or((0.0, 0.0))
     }
 
     fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {
-        if self.blocks.get(child_id).is_some() {
-            self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
+        let Some(old_bounds) = self.figure_bounds(child_id) else {
+            return;
+        };
+        self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
+        if (old_bounds.width != bounds.width || old_bounds.height != bounds.height)
+            && let Some(child) = self.blocks.get_mut(child_id)
+        {
+            child.is_valid = false;
         }
     }
 

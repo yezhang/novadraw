@@ -269,7 +269,7 @@ impl super::LayoutContext for MockLayoutContext {
         None
     }
 
-    fn get_preferred_size(&self, _block_id: BlockId) -> (f64, f64) {
+    fn get_preferred_size(&self, _block_id: BlockId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
         (100.0, 100.0)
     }
 

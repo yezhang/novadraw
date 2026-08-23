@@ -42,7 +42,7 @@ pub trait LayoutContext: Send + Sync {
     fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint>;
 
     /// 获取块的首选尺寸
-    fn get_preferred_size(&self, block_id: BlockId) -> (f64, f64);
+    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64);
 
     /// 设置子元素的边界
     ///

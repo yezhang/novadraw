@@ -458,6 +458,57 @@ fn test_layout_uses_local_client_area_for_coordinate_root_container() {
 }
 
 #[test]
+fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
+    let (mut scene, mut update_manager) = new_scene();
+    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let container = scene.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(50.0, 50.0, 200.0, 150.0)),
+    );
+    let child = scene.add_child_to(
+        container,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+    );
+    scene.set_block_layout_manager(container, Arc::new(XYLayout::new()));
+    assert!(scene.set_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)));
+    scene.mark_invalid(&mut update_manager, root);
+    scene.perform_update(&mut update_manager);
+
+    assert!(scene.set_constraint(child, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0)));
+    update_manager.add_invalid_figure(child);
+    let canvas = scene.perform_update(&mut update_manager);
+
+    assert_eq!(
+        scene.figure_bounds(child),
+        Some(Rectangle::new(80.0, 90.0, 50.0, 60.0))
+    );
+    assert!(scene.is_valid(root));
+    assert!(scene.is_valid(container));
+    assert!(scene.is_valid(child));
+    assert_eq!(
+        canvas.damage().union,
+        Some(Rectangle::new(60.0, 70.0, 70.0, 80.0))
+    );
+}
+
+#[test]
+fn test_explicit_size_overrides_take_precedence() {
+    let (mut scene, _) = new_scene();
+    let block = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 40.0)));
+
+    assert_eq!(scene.preferred_size(block, -1.0, -1.0), Some((30.0, 40.0)));
+    assert_eq!(scene.minimum_size(block, -1.0, -1.0), Some((30.0, 40.0)));
+    assert_eq!(scene.maximum_size(block), Some((30.0, 40.0)));
+
+    assert!(scene.set_preferred_size(block, Some((50.0, 60.0))));
+    assert!(scene.set_minimum_size(block, Some((10.0, 20.0))));
+    assert!(scene.set_maximum_size(block, Some((100.0, 120.0))));
+    assert_eq!(scene.preferred_size(block, -1.0, -1.0), Some((50.0, 60.0)));
+    assert_eq!(scene.minimum_size(block, -1.0, -1.0), Some((10.0, 20.0)));
+    assert_eq!(scene.maximum_size(block), Some((100.0, 120.0)));
+}
+
+#[test]
 fn test_perform_update_clears_dirty_regions() {
     let (mut scene, mut update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
