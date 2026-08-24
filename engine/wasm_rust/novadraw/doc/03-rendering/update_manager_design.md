@@ -165,6 +165,17 @@ snapshot，随后沿 parent chain 应用坐标根 transform 并与祖先 bounds/
 
 传播逻辑位于 `runtime/update/repair.rs`，而不是分散到 Figure 或渲染后端。
 
+`DamageSet` 使用显式 `DamageMode`，禁止通过 `union == None` 猜测提交意图：
+
+| 模式 | 含义 | 后端行为 |
+|------|------|----------|
+| `None` | 本轮没有像素更新 | 不提交、不修改 retained frame |
+| `Full` | 首帧、resize、场景替换等强制全量重绘 | 使用完整 surface 作为 damage |
+| `Partial` | UpdateManager 计算出的局部 damage | 只复制 `regions` 覆盖的区域 |
+
+直接向空 `NdCanvas` 写入首条绘制命令会把未指定 damage 提升为 `Full`；UpdateManager
+则在生成命令前写入 `Partial`，因此不会丢失局部更新语义。
+
 ### 决策 2: SceneUpdateManager 是独立系统服务
 
 **g2 方式**：`UpdateManager` 是独立对象，通过 `setRoot(IFigure)` 关联根 Figure。
@@ -235,6 +246,10 @@ if let Some(existing) = self.dirty_regions.get_mut(&block_id) {
 | `updateManager.performUpdate()` | `update_manager.perform_update(scene, canvas)` | 两阶段事务 |
 | `updateManager.addDirtyRegion(figure, rect)` | `update_manager.add_dirty_region(block_id, rect)` | 使用 BlockId |
 | `figure.invalidate()` | `scene.invalidate()` | 使 validation path 失效 |
+
+Figure 事件回调中的 `NovadrawContext::invalidate()` 会先记录请求，待 Figure 不可变
+借用释放后统一调用 `FigureGraph::mark_invalid()`。图状态失效和 invalid queue 入队
+必须发生在同一个引擎事务边界，禁止只入队而不修改 `is_valid`。
 
 ## 使用示例
 

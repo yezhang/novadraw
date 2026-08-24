@@ -37,6 +37,7 @@ doc/
 │   ├── rendering_pipeline.md          # 渲染管线概览
 │   ├── update_manager_pipeline.md    # g2 UpdateManager + 渲染管线分析
 │   ├── update_manager_design.md      # Novadraw UpdateManager 设计
+│   ├── core-pipeline-review-2026-08-23.md # 核心渲染管线审查与修复状态
 │   ├── trampoline_rendering.md       # Trampoline 渲染任务管理
 │   ├── displaylist_detailed.md       # DisplayList 详细设计
 │   ├── graphics_api.md               # Graphics API 参考
@@ -104,6 +105,7 @@ doc/
 | `rendering_pipeline.md` | 管线概览 | 三环节验证：IR 层、后端层、场景层 |
 | `update_manager_pipeline.md` | g2 UpdateManager | g2 LightweightSystem、UM 两阶段、Figure.paint、Graphics、EventDispatcher |
 | `update_manager_design.md` | Novadraw UpdateManager | Novadraw SceneUpdateManager 实现、设计决策、与 g2 差异 |
+| `core-pipeline-review-2026-08-23.md` | 核心管线审查 | 渲染、更新、事件、宿主和后端的缺陷清单与修复状态 |
 | `trampoline_rendering.md` | 任务遍历 | Trampoline 模式、任务队列、避免递归栈溢出 |
 | `displaylist_detailed.md` | 详细实现 | RenderCommand 结构、场景图到命令的转换 |
 | `graphics_api.md` | API 参考 | Graphics 状态管理、绘制 API、变换 API |
