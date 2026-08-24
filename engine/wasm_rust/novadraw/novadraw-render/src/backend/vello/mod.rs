@@ -16,7 +16,7 @@ use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
 use crate::submission::DamageMode;
-use crate::traits::{RenderBackend, WindowProxy};
+use crate::traits::{RenderBackend, RenderOutcome, WindowProxy};
 
 pub mod winit;
 pub use winit::{WinitWindowProxy, WinitWindowProxyInner};
@@ -28,6 +28,42 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
     b: DEFAULT_BACKGROUND_COMPONENT,
     a: 1.0,
 };
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SurfaceRecovery {
+    Reconfigure,
+    Retry,
+    Fatal,
+}
+
+fn surface_recovery(error: &vello::wgpu::SurfaceError) -> SurfaceRecovery {
+    match error {
+        vello::wgpu::SurfaceError::Lost | vello::wgpu::SurfaceError::Outdated => {
+            SurfaceRecovery::Reconfigure
+        }
+        vello::wgpu::SurfaceError::Timeout | vello::wgpu::SurfaceError::Other => {
+            SurfaceRecovery::Retry
+        }
+        vello::wgpu::SurfaceError::OutOfMemory => SurfaceRecovery::Fatal,
+    }
+}
+
+fn surface_is_suspended(width: u32, height: u32) -> bool {
+    width == 0 || height == 0
+}
+
+fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
+    if full_damage {
+        [
+            DEFAULT_BACKGROUND_COMPONENT as f32,
+            DEFAULT_BACKGROUND_COMPONENT as f32,
+            DEFAULT_BACKGROUND_COMPONENT as f32,
+            1.0,
+        ]
+    } else {
+        [0.0, 0.0, 0.0, 0.0]
+    }
+}
 
 /// 渲染状态
 #[derive(Clone, Debug, Default)]
@@ -48,7 +84,16 @@ fn clip_restore_plan<'a>(
     current: &RenderState,
     saved_clips: &'a [RenderClip],
 ) -> (usize, &'a [RenderClip]) {
-    (current.clips.len(), saved_clips)
+    let common_prefix = current
+        .clips
+        .iter()
+        .zip(saved_clips)
+        .take_while(|(current_clip, saved_clip)| current_clip == saved_clip)
+        .count();
+    (
+        current.clips.len() - common_prefix,
+        &saved_clips[common_prefix..],
+    )
 }
 
 pub struct VelloRenderer {
@@ -58,6 +103,7 @@ pub struct VelloRenderer {
     surface: RenderSurface<'static>,
     window: Arc<WinitWindowProxy>,
     scale_factor: f64,
+    surface_suspended: bool,
     /// 状态栈
     state_stack: Vec<RenderState>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
@@ -96,6 +142,7 @@ impl VelloRenderer {
             surface,
             window,
             scale_factor,
+            surface_suspended: false,
             state_stack: vec![RenderState::default()],
             retained_texture: None,
             scratch_texture: None,
@@ -132,6 +179,26 @@ impl VelloRenderer {
 
         let view = texture.create_view(&vello::wgpu::TextureViewDescriptor::default());
         (texture, view, width, height)
+    }
+
+    fn handle_surface_error(&mut self, error: vello::wgpu::SurfaceError) -> RenderOutcome {
+        match surface_recovery(&error) {
+            SurfaceRecovery::Reconfigure => {
+                let width = self.window.width();
+                let height = self.window.height();
+                let scale_factor = self.window.scale_factor();
+                self.resize(width, height, scale_factor);
+                if self.surface_suspended {
+                    RenderOutcome::Skipped
+                } else {
+                    RenderOutcome::Retry
+                }
+            }
+            SurfaceRecovery::Retry => RenderOutcome::Retry,
+            SurfaceRecovery::Fatal => {
+                panic!("render surface is out of memory");
+            }
+        }
     }
 
     fn clear_texture_to_background(&self, view: &vello::wgpu::TextureView) {
@@ -769,7 +836,10 @@ impl RenderBackend for VelloRenderer {
         &self.window
     }
 
-    fn render(&mut self, submission: &crate::RenderSubmission) {
+    fn render(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        if self.surface_suspended {
+            return RenderOutcome::Skipped;
+        }
         let commands = &submission.commands;
         let damage = &submission.damage;
         debug!(
@@ -780,7 +850,7 @@ impl RenderBackend for VelloRenderer {
 
         let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
         else {
-            return;
+            return RenderOutcome::Skipped;
         };
         let (width, height) = self.current_surface_size();
         let clip_rect = [
@@ -812,6 +882,12 @@ impl RenderBackend for VelloRenderer {
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
 
+        let surface_texture = match self.surface.surface.get_current_texture() {
+            Ok(texture) => texture,
+            Err(error) => {
+                return self.handle_surface_error(error);
+            }
+        };
         let scratch_view = {
             let (_, view, _, _) = self
                 .scratch_texture
@@ -828,6 +904,7 @@ impl RenderBackend for VelloRenderer {
         };
 
         let device_handle = &self.render_context.devices[self.surface.dev_id];
+        let base_color = VelloColor::new(scratch_base_rgba(damage.is_full()));
 
         // 先把当前帧的脏区内容渲染到临时纹理，脏区外保持透明
         self.renderers[self.surface.dev_id]
@@ -839,7 +916,7 @@ impl RenderBackend for VelloRenderer {
                 &self.scene,
                 &scratch_view,
                 &vello::RenderParams {
-                    base_color: VelloColor::new([0.0, 0.0, 0.0, 0.0]),
+                    base_color,
                     width,
                     height,
                     antialiasing_method: AaConfig::Msaa16,
@@ -857,12 +934,6 @@ impl RenderBackend for VelloRenderer {
             .as_ref()
             .expect("Retained texture not created")
             .0;
-
-        let surface_texture = self
-            .surface
-            .surface
-            .get_current_texture()
-            .expect("Failed to get surface texture");
 
         let mut encoder =
             device_handle
@@ -916,22 +987,30 @@ impl RenderBackend for VelloRenderer {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
+        RenderOutcome::Presented
     }
 
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
         self.scale_factor = scale_factor;
-        self.render_context
-            .resize_surface(&mut self.surface, pixel_width, pixel_height);
-        // Offscreen retained buffers become invalid after resize and must be recreated
-        // on the next render to avoid mixing old frame contents with the new surface.
         self.retained_texture = None;
         self.scratch_texture = None;
+        if surface_is_suspended(pixel_width, pixel_height) {
+            self.surface_suspended = true;
+            return;
+        }
+        self.surface_suspended = false;
+        self.render_context
+            .resize_surface(&mut self.surface, pixel_width, pixel_height);
     }
 }
 
 impl VelloRenderer {
     /// 重新创建 surface（用于 resize 时确保配置更新）
     pub fn recreate_surface(&mut self, pixel_width: u32, pixel_height: u32) {
+        if surface_is_suspended(pixel_width, pixel_height) {
+            self.surface_suspended = true;
+            return;
+        }
         let surface_future = self.render_context.create_surface(
             self.window.window().clone(),
             pixel_width,
@@ -939,6 +1018,7 @@ impl VelloRenderer {
             vello::wgpu::PresentMode::AutoVsync,
         );
         self.surface = pollster::block_on(surface_future).expect("Failed to recreate surface");
+        self.surface_suspended = false;
     }
 
     /// 截图并保存为 PNG 文件
@@ -1058,6 +1138,69 @@ mod tests {
 
         assert_eq!(pop_count, 0);
         assert_eq!(clips_to_replay, [outer]);
+    }
+
+    #[test]
+    fn clip_restore_plan_keeps_the_common_prefix() {
+        let outer = RenderClip {
+            transform: Transform::IDENTITY,
+            rect: [DVec2::new(0.0, 0.0), DVec2::new(100.0, 100.0)],
+        };
+        let inner = RenderClip {
+            transform: Transform::IDENTITY,
+            rect: [DVec2::new(10.0, 10.0), DVec2::new(20.0, 20.0)],
+        };
+        let current = RenderState {
+            transform: Transform::IDENTITY,
+            clips: vec![outer.clone(), inner],
+        };
+
+        let (pop_count, clips_to_replay) =
+            clip_restore_plan(&current, std::slice::from_ref(&outer));
+
+        assert_eq!(pop_count, 1);
+        assert!(clips_to_replay.is_empty());
+    }
+
+    #[test]
+    fn zero_surface_extent_suspends_rendering() {
+        assert!(surface_is_suspended(0, 100));
+        assert!(surface_is_suspended(100, 0));
+        assert!(!surface_is_suspended(100, 100));
+    }
+
+    #[test]
+    fn recoverable_surface_errors_do_not_use_the_fatal_path() {
+        assert_eq!(
+            surface_recovery(&vello::wgpu::SurfaceError::Lost),
+            SurfaceRecovery::Reconfigure
+        );
+        assert_eq!(
+            surface_recovery(&vello::wgpu::SurfaceError::Outdated),
+            SurfaceRecovery::Reconfigure
+        );
+        assert_eq!(
+            surface_recovery(&vello::wgpu::SurfaceError::Timeout),
+            SurfaceRecovery::Retry
+        );
+        assert_eq!(
+            surface_recovery(&vello::wgpu::SurfaceError::OutOfMemory),
+            SurfaceRecovery::Fatal
+        );
+    }
+
+    #[test]
+    fn full_damage_uses_opaque_background_while_partial_damage_stays_transparent() {
+        assert_eq!(
+            scratch_base_rgba(true),
+            [
+                DEFAULT_BACKGROUND_COMPONENT as f32,
+                DEFAULT_BACKGROUND_COMPONENT as f32,
+                DEFAULT_BACKGROUND_COMPONENT as f32,
+                1.0,
+            ]
+        );
+        assert_eq!(scratch_base_rgba(false), [0.0, 0.0, 0.0, 0.0]);
     }
 }
 

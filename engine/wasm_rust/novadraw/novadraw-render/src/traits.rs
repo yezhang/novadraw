@@ -4,6 +4,13 @@
 
 use crate::submission::RenderSubmission;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RenderOutcome {
+    Presented,
+    Skipped,
+    Retry,
+}
+
 /// 窗口代理 trait
 ///
 /// 提供窗口的基本信息和方法。
@@ -29,7 +36,7 @@ pub trait RenderBackend {
     fn window(&self) -> &Self::Window;
 
     /// 执行渲染
-    fn render(&mut self, submission: &RenderSubmission);
+    fn render(&mut self, submission: &RenderSubmission) -> RenderOutcome;
 
     /// 处理窗口大小变化
     ///
