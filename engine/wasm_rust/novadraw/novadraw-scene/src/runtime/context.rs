@@ -137,6 +137,22 @@ impl DispatchContext for SceneDispatchContext<'_> {
         self.scene.set_mouse_target(id);
     }
 
+    fn cursor_target(&self) -> Option<BlockId> {
+        self.scene.cursor_target()
+    }
+
+    fn set_cursor_target(&mut self, id: Option<BlockId>) {
+        self.scene.set_cursor_target(id);
+    }
+
+    fn hover_source(&self) -> Option<BlockId> {
+        self.scene.hover_source()
+    }
+
+    fn set_hover_source(&mut self, id: Option<BlockId>) {
+        self.scene.set_hover_source(id);
+    }
+
     fn set_hovered(&mut self, id: BlockId, hovered: bool) {
         self.scene.set_hovered(id, hovered);
     }
@@ -159,6 +175,15 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
     fn set_captured(&mut self, id: Option<BlockId>) {
         self.scene.set_captured(id);
+    }
+
+    fn wants_key_events(&self, target_id: BlockId) -> bool {
+        self.scene.is_effectively_visible(target_id)
+            && self.scene.is_effectively_enabled(target_id)
+            && self
+                .scene
+                .block(target_id)
+                .is_some_and(|block| block.figure.wants_key_events())
     }
 
     fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool {
@@ -196,6 +221,15 @@ impl DispatchContext for SceneDispatchContext<'_> {
                         MouseEventKind::Moved => {
                             block.figure.on_mouse_moved(&local_event, &mut ctx)
                         }
+                        MouseEventKind::Dragged => {
+                            block.figure.on_mouse_dragged(&local_event, &mut ctx)
+                        }
+                        MouseEventKind::Hover => {
+                            block.figure.on_mouse_hover(&local_event, &mut ctx)
+                        }
+                        MouseEventKind::DoubleClicked => {
+                            block.figure.on_mouse_double_clicked(&local_event, &mut ctx)
+                        }
                         MouseEventKind::Entered => {
                             block.figure.on_mouse_entered(&local_event, &mut ctx)
                         }
@@ -204,6 +238,28 @@ impl DispatchContext for SceneDispatchContext<'_> {
                         }
                     }
                 }
+                Event::Wheel(wheel_event) => {
+                    let mut point = Point::new(wheel_event.x, wheel_event.y);
+                    self.scene.translate_to_relative(target_id, &mut point);
+                    let local_event = wheel_event.with_target_point(point.x(), point.y());
+                    block.figure.on_mouse_wheel(&local_event, &mut ctx)
+                }
+                Event::Key(key_event) => match key_event.kind {
+                    crate::event::KeyEventKind::Pressed => {
+                        block.figure.on_key_pressed(key_event, &mut ctx)
+                    }
+                    crate::event::KeyEventKind::Released => {
+                        block.figure.on_key_released(key_event, &mut ctx)
+                    }
+                },
+                Event::Focus(focus_event) => match focus_event.kind {
+                    crate::event::FocusEventKind::Gained => {
+                        block.figure.on_focus_gained(focus_event, &mut ctx)
+                    }
+                    crate::event::FocusEventKind::Lost => {
+                        block.figure.on_focus_lost(focus_event, &mut ctx)
+                    }
+                },
             }
         };
 

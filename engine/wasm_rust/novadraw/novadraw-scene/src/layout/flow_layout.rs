@@ -68,6 +68,40 @@ impl FlowLayout {
         self
     }
 
+    fn measure(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
+        minimum: bool,
+    ) -> (f64, f64) {
+        let sizes = ctx
+            .get_children(container)
+            .into_iter()
+            .map(|(child, _)| {
+                if minimum {
+                    ctx.get_minimum_size(child, w_hint, h_hint)
+                } else {
+                    ctx.get_preferred_size(child, w_hint, h_hint)
+                }
+            })
+            .collect::<Vec<_>>();
+        match self.direction {
+            FlowDirection::Horizontal => {
+                measure_wrapped(&sizes, w_hint, self.spacing, self.row_spacing)
+            }
+            FlowDirection::Vertical => {
+                let transposed = sizes
+                    .into_iter()
+                    .map(|(width, height)| (height, width))
+                    .collect::<Vec<_>>();
+                let measured = measure_wrapped(&transposed, h_hint, self.spacing, self.row_spacing);
+                (measured.1, measured.0)
+            }
+        }
+    }
+
     /// 布局计算（内部方法）
     fn perform_layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
         let children = ctx.get_children(container);
@@ -115,9 +149,8 @@ impl FlowLayout {
         let mut y: f64 = cy;
         let mut row_height: f64 = 0.0;
 
-        for (child_id, child_bounds) in children {
-            let child_w = child_bounds.width;
-            let child_h = child_bounds.height;
+        for (child_id, _) in children {
+            let (child_w, child_h) = ctx.get_preferred_size(*child_id, cw, -1.0);
 
             // 检查是否需要换行
             if x + child_w > cx + cw && x > cx {
@@ -150,9 +183,8 @@ impl FlowLayout {
         let mut y: f64 = cy;
         let mut col_width: f64 = 0.0;
 
-        for (child_id, child_bounds) in children {
-            let child_w = child_bounds.width;
-            let child_h = child_bounds.height;
+        for (child_id, _) in children {
+            let (child_w, child_h) = ctx.get_preferred_size(*child_id, -1.0, ch);
 
             // 检查是否需要换列
             if y + child_h > cy + ch && y > cy {
@@ -182,13 +214,12 @@ impl Default for FlowLayout {
 impl LayoutManager for FlowLayout {
     fn get_preferred_size(
         &self,
-        _container: BlockId,
-        _w_hint: f64,
-        _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        // 简化实现：返回默认尺寸
-        (100.0, 100.0)
+        self.measure(container, w_hint, h_hint, ctx, false)
     }
 
     fn get_minimum_size(
@@ -198,12 +229,48 @@ impl LayoutManager for FlowLayout {
         h_hint: f64,
         ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, ctx)
+        self.measure(container, w_hint, h_hint, ctx, true)
     }
 
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
         self.perform_layout(container, ctx);
     }
+}
+
+fn measure_wrapped(
+    sizes: &[(f64, f64)],
+    main_hint: f64,
+    spacing: f64,
+    line_spacing: f64,
+) -> (f64, f64) {
+    let mut line_main = 0.0_f64;
+    let mut line_minor = 0.0_f64;
+    let mut total_main = 0.0_f64;
+    let mut total_minor = 0.0_f64;
+    let mut line_items = 0_usize;
+
+    for &(main, minor) in sizes {
+        let required = if line_items == 0 {
+            main
+        } else {
+            line_main + spacing + main
+        };
+        if main_hint >= 0.0 && required > main_hint && line_items > 0 {
+            total_main = total_main.max(line_main);
+            total_minor += line_minor + line_spacing;
+            line_main = main;
+            line_minor = minor;
+            line_items = 1;
+        } else {
+            line_main = required;
+            line_minor = line_minor.max(minor);
+            line_items += 1;
+        }
+    }
+
+    total_main = total_main.max(line_main);
+    total_minor += line_minor;
+    (total_main, total_minor)
 }
 
 #[cfg(test)]
@@ -219,8 +286,7 @@ mod tests {
             600.0,
             &MockLayoutContext::new(),
         );
-        assert!(w > 0.0);
-        assert!(h > 0.0);
+        assert_eq!((w, h), (0.0, 0.0));
     }
 
     #[test]

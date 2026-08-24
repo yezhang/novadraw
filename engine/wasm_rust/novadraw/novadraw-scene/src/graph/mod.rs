@@ -16,7 +16,10 @@ use uuid::Uuid;
 
 use super::figure::Updatable;
 use super::layout::{LayoutConstraint, LayoutManager};
-use crate::runtime::update::{FigureEvent, NotificationEffect, NotificationQueue, UpdateManager};
+use crate::runtime::update::{
+    AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
+    NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
+};
 use crate::{PendingMutationBatch, mutation::PendingMutationKind};
 
 // 渲染模块
@@ -225,6 +228,8 @@ pub struct FigureGraph {
     /// 内容块（用户可访问的根容器）
     contents: Option<BlockId>,
     mouse_target: Option<BlockId>,
+    cursor_target: Option<BlockId>,
+    hover_source: Option<BlockId>,
     focus_owner: Option<BlockId>,
     captured: Option<BlockId>,
     notification_effects: NotificationQueue,
@@ -262,6 +267,8 @@ impl FigureGraph {
             root: root_id,
             contents: None,
             mouse_target: None,
+            cursor_target: None,
+            hover_source: None,
             focus_owner: None,
             captured: None,
             notification_effects: NotificationQueue::new(),
@@ -287,6 +294,18 @@ impl FigureGraph {
 
     fn emit_figure_event(&mut self, event: FigureEvent) {
         self.notification_effects.emit_figure(event);
+    }
+
+    fn emit_ancestor_event(&mut self, event: AncestorEvent) {
+        self.notification_effects.emit_ancestor(event);
+    }
+
+    fn emit_property_event(&mut self, event: PropertyChangeEvent) {
+        self.notification_effects.emit_property(event);
+    }
+
+    fn emit_layout_event(&mut self, event: LayoutEvent) {
+        self.notification_effects.emit_layout(event);
     }
 
     /// 设置内容块
@@ -473,6 +492,11 @@ impl FigureGraph {
         self.uuid_map.insert(uuid, id);
         self.blocks[parent_id].children.push(id);
         self.blocks[id].figure.on_attached(parent_id);
+        self.emit_ancestor_event(AncestorEvent {
+            kind: AncestorEventKind::Added,
+            block_id: id,
+            parent_id,
+        });
         self.mark_validation_path_invalid(parent_id);
         Ok(id)
     }
@@ -491,6 +515,11 @@ impl FigureGraph {
             child.is_valid = false;
             child.figure.on_attached(parent_id);
         }
+        self.emit_ancestor_event(AncestorEvent {
+            kind: AncestorEventKind::Added,
+            block_id: child_id,
+            parent_id,
+        });
         self.set_subtree_depth(child_id, new_depth);
         self.mark_validation_path_invalid(parent_id);
         Ok(())
@@ -513,6 +542,16 @@ impl FigureGraph {
             child.parent = None;
             child.is_valid = false;
         }
+        self.emit_ancestor_event(AncestorEvent {
+            kind: AncestorEventKind::Removed,
+            block_id: child_id,
+            parent_id,
+        });
+        self.emit_layout_event(LayoutEvent {
+            kind: LayoutEventKind::ChildRemoved,
+            container_id: parent_id,
+            child_id: Some(child_id),
+        });
         self.set_subtree_depth(child_id, 0);
         self.mark_validation_path_invalid(parent_id);
         true
@@ -783,6 +822,10 @@ impl FigureGraph {
                 break;
             }
 
+            for block_id in &block_ids {
+                self.mark_validation_path_invalid(*block_id);
+            }
+
             let mut validation_roots: Vec<BlockId> = block_ids
                 .into_iter()
                 .filter_map(|block_id| self.validation_root(block_id))
@@ -841,11 +884,21 @@ impl FigureGraph {
             .and_then(|b| b.layout_manager.clone());
 
         if let Some(layout_manager) = layout_manager {
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::Started,
+                container_id,
+                child_id: None,
+            });
             let mut layout_context = ValidationLayoutContext {
                 graph: self,
                 update_manager,
             };
             layout_manager.layout(container_id, &mut layout_context);
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::Finished,
+                container_id,
+                child_id: None,
+            });
         }
 
         self.revalidate_children_with_update(update_manager, container_id);
@@ -895,7 +948,17 @@ impl FigureGraph {
             .get(container_id)
             .and_then(|block| block.layout_manager.clone());
         if let Some(layout_manager) = layout_manager {
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::Started,
+                container_id,
+                child_id: None,
+            });
             layout_manager.layout(container_id, self);
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::Finished,
+                container_id,
+                child_id: None,
+            });
         }
 
         let children = self
@@ -1061,13 +1124,21 @@ impl FigureGraph {
     /// 选择单个块
     #[allow(clippy::collapsible_if)]
     pub fn select_single(&mut self, block_id: Option<BlockId>) {
-        for block in self.blocks.values_mut() {
-            block.is_selected = false;
-        }
-        if let Some(id) = block_id {
-            if let Some(block) = self.blocks.get_mut(id) {
-                block.is_selected = true;
+        let mut changed = Vec::new();
+        for (id, block) in &mut self.blocks {
+            let selected = Some(id) == block_id;
+            if block.is_selected != selected {
+                changed.push((id, block.is_selected, selected));
+                block.is_selected = selected;
             }
+        }
+        for (id, old_value, new_value) in changed {
+            self.emit_property_event(PropertyChangeEvent {
+                block_id: id,
+                property: "selected",
+                old_value: PropertyValue::Bool(old_value),
+                new_value: PropertyValue::Bool(new_value),
+            });
         }
     }
 
@@ -1337,6 +1408,7 @@ impl FigureGraph {
 
     /// 设置块可见性。
     pub fn set_visible(&mut self, id: BlockId, visible: bool) -> bool {
+        let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
                 return false;
@@ -1346,6 +1418,7 @@ impl FigureGraph {
                 return false;
             }
 
+            old_value = block.is_visible;
             block.is_visible = visible;
         }
 
@@ -1353,11 +1426,49 @@ impl FigureGraph {
             self.clear_interaction_state_for_subtree(id);
         }
         self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            block_id: id,
+            property: "visible",
+            old_value: PropertyValue::Bool(old_value),
+            new_value: PropertyValue::Bool(visible),
+        });
+        true
+    }
+
+    pub fn set_visible_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        id: BlockId,
+        visible: bool,
+    ) -> bool {
+        let Some((old_bounds, parent_id, was_effectively_visible)) =
+            self.blocks.get(id).map(|block| {
+                (
+                    block.figure_bounds(),
+                    block.parent,
+                    self.is_effectively_visible(id),
+                )
+            })
+        else {
+            return false;
+        };
+        if !self.set_visible(id, visible) {
+            return false;
+        }
+
+        if was_effectively_visible && !visible {
+            self.erase(update_manager, id, old_bounds, parent_id);
+        }
+        self.mark_invalid(update_manager, parent_id.unwrap_or(id));
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
         true
     }
 
     /// 设置块启用状态。
     pub fn set_enabled(&mut self, id: BlockId, enabled: bool) -> bool {
+        let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
                 return false;
@@ -1367,6 +1478,7 @@ impl FigureGraph {
                 return false;
             }
 
+            old_value = block.is_enabled;
             block.is_enabled = enabled;
         }
 
@@ -1374,6 +1486,26 @@ impl FigureGraph {
             self.clear_interaction_state_for_subtree(id);
         }
         self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            block_id: id,
+            property: "enabled",
+            old_value: PropertyValue::Bool(old_value),
+            new_value: PropertyValue::Bool(enabled),
+        });
+        true
+    }
+
+    pub fn set_enabled_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        id: BlockId,
+        enabled: bool,
+    ) -> bool {
+        if !self.set_enabled(id, enabled) {
+            return false;
+        }
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
         true
     }
 
@@ -1422,6 +1554,11 @@ impl FigureGraph {
         };
         parent.constraints.insert(child_id, Arc::new(constraint));
         self.mark_validation_path_invalid(parent_id);
+        self.emit_layout_event(LayoutEvent {
+            kind: LayoutEventKind::ConstraintChanged,
+            container_id: parent_id,
+            child_id: Some(child_id),
+        });
         true
     }
 
@@ -1445,6 +1582,11 @@ impl FigureGraph {
             .is_some();
         if removed {
             self.mark_validation_path_invalid(parent_id);
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::ConstraintChanged,
+                container_id: parent_id,
+                child_id: Some(child_id),
+            });
         }
         removed
     }
@@ -1475,6 +1617,22 @@ impl FigureGraph {
 
     pub fn set_mouse_target(&mut self, id: Option<BlockId>) {
         self.mouse_target = id;
+    }
+
+    pub fn cursor_target(&self) -> Option<BlockId> {
+        self.cursor_target
+    }
+
+    pub fn set_cursor_target(&mut self, id: Option<BlockId>) {
+        self.cursor_target = id;
+    }
+
+    pub fn hover_source(&self) -> Option<BlockId> {
+        self.hover_source
+    }
+
+    pub fn set_hover_source(&mut self, id: Option<BlockId>) {
+        self.hover_source = id;
     }
 
     pub fn is_hovered(&self, id: BlockId) -> bool {
@@ -1582,6 +1740,7 @@ impl FigureGraph {
     /// ```
     pub fn prim_translate(&mut self, block_id: BlockId, dx: f64, dy: f64) {
         self.prim_translate_internal(block_id, dx, dy, true);
+        self.emit_ancestor_moved(block_id);
     }
 
     fn prim_translate_internal(
@@ -1651,6 +1810,24 @@ impl FigureGraph {
         }
     }
 
+    fn emit_ancestor_moved(&mut self, ancestor_id: BlockId) {
+        let mut stack = self
+            .blocks
+            .get(ancestor_id)
+            .map(|block| block.children.clone())
+            .unwrap_or_default();
+        while let Some(block_id) = stack.pop() {
+            if let Some(block) = self.blocks.get(block_id) {
+                stack.extend(block.children.iter().copied());
+            }
+            self.emit_ancestor_event(AncestorEvent {
+                kind: AncestorEventKind::Moved,
+                block_id,
+                parent_id: ancestor_id,
+            });
+        }
+    }
+
     /// 设置节点的 bounds
     ///
     /// 对应 draw2d: setBounds(Rectangle)
@@ -1704,6 +1881,9 @@ impl FigureGraph {
                 old_bounds,
                 new_bounds,
             });
+        }
+        if translate {
+            self.emit_ancestor_moved(block_id);
         }
     }
 
@@ -1862,6 +2042,7 @@ impl FigureGraph {
 
 impl FigureGraph {
     fn mark_validation_path_invalid(&mut self, mut block_id: BlockId) {
+        let mut invalidated = Vec::new();
         loop {
             let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(block_id) {
                 let was_valid = block.is_valid;
@@ -1874,11 +2055,26 @@ impl FigureGraph {
             if !was_valid {
                 break;
             }
+            invalidated.push(block_id);
             match parent {
                 Some(parent_id) => block_id = parent_id,
                 None => break,
             }
         }
+        for container_id in invalidated {
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::Invalidated,
+                container_id,
+                child_id: None,
+            });
+        }
+    }
+
+    pub(crate) fn invalid_block_ids(&self) -> Vec<BlockId> {
+        self.blocks
+            .iter()
+            .filter_map(|(id, block)| (!block.is_valid).then_some(id))
+            .collect()
     }
 
     fn hit_test_from(
@@ -1956,6 +2152,18 @@ impl FigureGraph {
             self.mouse_target = None;
         }
         if self
+            .cursor_target
+            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
+        {
+            self.cursor_target = None;
+        }
+        if self
+            .hover_source
+            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
+        {
+            self.hover_source = None;
+        }
+        if self
             .captured
             .is_some_and(|id| self.is_in_subtree(id, subtree_root))
         {
@@ -1972,11 +2180,24 @@ impl FigureGraph {
             .keys()
             .filter(|&id| self.is_in_subtree(id, subtree_root))
             .collect();
+        let mut deselected = Vec::new();
         for id in descendants {
             if let Some(block) = self.blocks.get_mut(id) {
                 block.is_hovered = false;
                 block.is_pressed = false;
+                if block.is_selected {
+                    deselected.push(id);
+                }
+                block.is_selected = false;
             }
+        }
+        for block_id in deselected {
+            self.emit_property_event(PropertyChangeEvent {
+                block_id,
+                property: "selected",
+                old_value: PropertyValue::Bool(true),
+                new_value: PropertyValue::Bool(false),
+            });
         }
     }
 
@@ -2032,6 +2253,18 @@ impl super::layout::LayoutContext for ValidationLayoutContext<'_> {
             .unwrap_or((0.0, 0.0))
     }
 
+    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.graph
+            .minimum_size(block_id, w_hint, h_hint)
+            .unwrap_or((0.0, 0.0))
+    }
+
+    fn get_maximum_size(&self, block_id: BlockId) -> (f64, f64) {
+        self.graph
+            .maximum_size(block_id)
+            .unwrap_or((f64::INFINITY, f64::INFINITY))
+    }
+
     fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {
         self.graph.set_bounds_with_update(
             self.update_manager,
@@ -2075,6 +2308,16 @@ impl super::layout::LayoutContext for FigureGraph {
     fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.preferred_size(block_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
+    }
+
+    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.minimum_size(block_id, w_hint, h_hint)
+            .unwrap_or((0.0, 0.0))
+    }
+
+    fn get_maximum_size(&self, block_id: BlockId) -> (f64, f64) {
+        self.maximum_size(block_id)
+            .unwrap_or((f64::INFINITY, f64::INFINITY))
     }
 
     fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {

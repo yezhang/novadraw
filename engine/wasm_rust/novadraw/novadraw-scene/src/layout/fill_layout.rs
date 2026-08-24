@@ -31,12 +31,15 @@ impl Default for FillLayout {
 impl LayoutManager for FillLayout {
     fn get_preferred_size(
         &self,
-        _container: BlockId,
-        _w_hint: f64,
-        _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        (0.0, 0.0)
+        ctx.get_children(container)
+            .first()
+            .map(|(child, _)| ctx.get_preferred_size(*child, w_hint, h_hint))
+            .unwrap_or((0.0, 0.0))
     }
 
     fn get_minimum_size(
@@ -46,7 +49,10 @@ impl LayoutManager for FillLayout {
         h_hint: f64,
         ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, ctx)
+        ctx.get_children(container)
+            .first()
+            .map(|(child, _)| ctx.get_minimum_size(*child, w_hint, h_hint))
+            .unwrap_or((0.0, 0.0))
     }
 
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {

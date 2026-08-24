@@ -21,7 +21,8 @@ use novadraw_render::NdCanvas;
 
 use crate::graph::BlockId;
 use crate::runtime::update::listener::{
-    NotificationEffect, NotificationQueue, UpdateEvent, UpdateListener,
+    AncestorListener, CoordinateListener, FigureListener, LayoutListener, ListenerId,
+    NotificationEffect, NotificationQueue, PropertyChangeListener, UpdateEvent, UpdateListener,
 };
 use crate::runtime::update::repair::{
     compute_damage_union, merge_dirty_region, prepare_damage_set,
@@ -53,7 +54,13 @@ pub struct SceneUpdateManager {
     pub(crate) update_queued: bool,
     pub(crate) updating: bool,
     notification_effects: NotificationQueue,
-    listeners: Vec<Box<dyn UpdateListener>>,
+    listeners: Vec<(ListenerId, Box<dyn UpdateListener>)>,
+    figure_listeners: Vec<(ListenerId, Box<dyn FigureListener>)>,
+    coordinate_listeners: Vec<(ListenerId, Box<dyn CoordinateListener>)>,
+    ancestor_listeners: Vec<(ListenerId, Box<dyn AncestorListener>)>,
+    property_listeners: Vec<(ListenerId, Box<dyn PropertyChangeListener>)>,
+    layout_listeners: Vec<(ListenerId, Box<dyn LayoutListener>)>,
+    next_listener_id: u64,
 }
 
 impl Default for SceneUpdateManager {
@@ -72,12 +79,71 @@ impl SceneUpdateManager {
             updating: false,
             notification_effects: NotificationQueue::new(),
             listeners: Vec::new(),
+            figure_listeners: Vec::new(),
+            coordinate_listeners: Vec::new(),
+            ancestor_listeners: Vec::new(),
+            property_listeners: Vec::new(),
+            layout_listeners: Vec::new(),
+            next_listener_id: 1,
         }
     }
 
     /// 注册更新监听器
-    pub fn add_listener(&mut self, listener: Box<dyn UpdateListener>) {
-        self.listeners.push(listener);
+    pub fn add_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.listeners.push((id, listener));
+        id
+    }
+
+    pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.figure_listeners.push((id, listener));
+        id
+    }
+
+    pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.coordinate_listeners.push((id, listener));
+        id
+    }
+
+    pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.ancestor_listeners.push((id, listener));
+        id
+    }
+
+    pub fn add_property_listener(
+        &mut self,
+        listener: Box<dyn PropertyChangeListener>,
+    ) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.property_listeners.push((id, listener));
+        id
+    }
+
+    pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.layout_listeners.push((id, listener));
+        id
+    }
+
+    pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+        remove_listener(&mut self.listeners, id)
+            || remove_listener(&mut self.figure_listeners, id)
+            || remove_listener(&mut self.coordinate_listeners, id)
+            || remove_listener(&mut self.ancestor_listeners, id)
+            || remove_listener(&mut self.property_listeners, id)
+            || remove_listener(&mut self.layout_listeners, id)
+    }
+
+    fn allocate_listener_id(&mut self) -> ListenerId {
+        let id = ListenerId::new(self.next_listener_id);
+        self.next_listener_id = self
+            .next_listener_id
+            .checked_add(1)
+            .expect("listener id space exhausted");
+        id
     }
 
     /// 向所有监听器分发 effect 队列中的事件
@@ -85,32 +151,69 @@ impl SceneUpdateManager {
         for effect in effects {
             match effect {
                 NotificationEffect::Notify { block_id } => {
-                    for listener in &self.listeners {
+                    for (_, listener) in &self.listeners {
                         listener.on_notify(*block_id);
                     }
                 }
                 NotificationEffect::EmitFigure(event) => {
-                    for listener in &self.listeners {
+                    for (_, listener) in &self.listeners {
                         listener.on_figure_event(*event);
+                    }
+                    match event {
+                        crate::FigureEvent::FigureMoved { .. } => {
+                            for (_, listener) in &self.figure_listeners {
+                                listener.figure_moved(*event);
+                            }
+                        }
+                        crate::FigureEvent::CoordinateSystemChanged { .. } => {
+                            for (_, listener) in &self.coordinate_listeners {
+                                listener.coordinate_system_changed(*event);
+                            }
+                        }
                     }
                 }
                 NotificationEffect::EmitUpdate(event) => {
-                    for listener in &self.listeners {
+                    for (_, listener) in &self.listeners {
                         listener.on_update_event(event.clone());
+                        if let Some(validating_listener) = listener.as_validating_listener() {
+                            match event {
+                                UpdateEvent::Validating => validating_listener.notify_validating(),
+                                UpdateEvent::Validated => validating_listener.notify_validated(),
+                                UpdateEvent::Painting { .. } | UpdateEvent::Painted { .. } => {}
+                            }
+                        }
+                    }
+                }
+                NotificationEffect::EmitAncestor(event) => {
+                    for (_, listener) in &self.ancestor_listeners {
+                        listener.ancestor_changed(*event);
+                    }
+                }
+                NotificationEffect::EmitProperty(event) => {
+                    for (_, listener) in &self.property_listeners {
+                        listener.property_changed(event);
+                    }
+                }
+                NotificationEffect::EmitLayout(event) => {
+                    for (_, listener) in &self.layout_listeners {
+                        listener.layout_changed(*event);
                     }
                 }
             }
         }
     }
 
+    fn absorb_graph_effects(&mut self, graph: &mut crate::graph::FigureGraph) {
+        self.notification_effects
+            .extend(graph.drain_notification_effects());
+    }
+
     /// 统一 flush：收集 FigureGraph 和 SceneUpdateManager 两边的 effect，
     /// 在事务边界统一分发到所有注册的 listener。
     pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureGraph) {
-        let um_effects = self.notification_effects.drain();
-        self.dispatch_effects(&um_effects);
-
-        let graph_effects = graph.drain_notification_effects();
-        self.dispatch_effects(&graph_effects);
+        self.absorb_graph_effects(graph);
+        let effects = self.notification_effects.drain();
+        self.dispatch_effects(&effects);
     }
 
     /// 添加脏区域
@@ -220,6 +323,63 @@ impl SceneUpdateManager {
     pub fn clear_dirty_and_flag(&mut self) {
         self.update_queued = !self.invalid_blocks.is_empty() || !self.dirty_regions.is_empty();
     }
+
+    fn restore_dirty_snapshot(
+        &mut self,
+        dirty_snapshot: std::collections::HashMap<BlockId, Rectangle>,
+    ) {
+        for (block_id, rect) in dirty_snapshot {
+            merge_dirty_region(&mut self.dirty_regions, block_id, rect);
+        }
+    }
+
+    fn perform_update_transaction(
+        &mut self,
+        graph: &mut crate::graph::FigureGraph,
+        canvas: &mut NdCanvas,
+        dirty_snapshot: &mut Option<std::collections::HashMap<BlockId, Rectangle>>,
+    ) {
+        self.absorb_graph_effects(graph);
+
+        if self.has_pending_layout() {
+            self.notification_effects
+                .emit_update(UpdateEvent::Validating);
+            graph.perform_validation_cycle(self);
+            self.absorb_graph_effects(graph);
+            self.notification_effects
+                .emit_update(UpdateEvent::Validated);
+        }
+
+        self.update_queued = false;
+        *dirty_snapshot = Some(self.take_dirty_snapshot());
+        let snapshot = dirty_snapshot
+            .as_ref()
+            .expect("dirty snapshot must exist during repair");
+        let damage = prepare_damage_set(graph, canvas, snapshot.iter());
+
+        if !snapshot.is_empty() {
+            let reported_damage = damage.unwrap_or_else(|| Rectangle::new(0.0, 0.0, 0.0, 0.0));
+            self.notification_effects
+                .emit_update(UpdateEvent::Painting {
+                    damage: reported_damage,
+                });
+            if damage.is_some() {
+                graph.render_to(canvas);
+            }
+            self.notification_effects.emit_update(UpdateEvent::Painted {
+                damage: reported_damage,
+            });
+        }
+
+        self.clear_dirty_and_flag();
+        self.flush_notifications(graph);
+    }
+}
+
+fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: ListenerId) -> bool {
+    let old_len = listeners.len();
+    listeners.retain(|(listener_id, _)| *listener_id != id);
+    listeners.len() != old_len
 }
 
 impl crate::runtime::update::UpdateManager for SceneUpdateManager {
@@ -241,32 +401,23 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
         }
 
         self.updating = true;
-        self.notification_effects
-            .emit_update(UpdateEvent::Validating);
-        self.perform_validation(graph);
-        self.notification_effects
-            .emit_update(UpdateEvent::Validated);
-        self.update_queued = false;
-        let dirty_snapshot = self.take_dirty_snapshot();
-        let damage = prepare_damage_set(graph, canvas, dirty_snapshot.iter());
-
-        if !dirty_snapshot.is_empty() {
-            let reported_damage = damage.unwrap_or_else(|| Rectangle::new(0.0, 0.0, 0.0, 0.0));
-            self.notification_effects
-                .emit_update(UpdateEvent::Painting {
-                    damage: reported_damage,
-                });
-            if damage.is_some() {
-                graph.render_to(canvas);
-            }
-            self.notification_effects.emit_update(UpdateEvent::Painted {
-                damage: reported_damage,
-            });
-        }
-
-        self.clear_dirty_and_flag();
-        self.flush_notifications(graph);
+        let mut dirty_snapshot = None;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.perform_update_transaction(graph, canvas, &mut dirty_snapshot);
+        }));
         self.updating = false;
+
+        if let Err(payload) = result {
+            if let Some(snapshot) = dirty_snapshot {
+                self.restore_dirty_snapshot(snapshot);
+            }
+            for block_id in graph.invalid_block_ids() {
+                self.add_invalid_figure(block_id);
+            }
+            self.notification_effects.retain_semantic_effects();
+            self.clear_dirty_and_flag();
+            std::panic::resume_unwind(payload);
+        }
     }
 
     fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph) {
@@ -285,12 +436,51 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FigureEvent, FigureGraph, RectangleFigure, scene::BlockId, update::UpdateManager};
+    use crate::{
+        AncestorEvent, AncestorListener, CoordinateListener, FigureEvent, FigureGraph,
+        FigureListener, LayoutEvent, LayoutListener, LayoutManager, PropertyChangeEvent,
+        PropertyChangeListener, RectangleFigure, StackLayout, XYConstraint, XYLayout,
+        layout::LayoutContext, scene::BlockId, update::UpdateManager,
+    };
     use novadraw_core::Color;
     use slotmap::KeyData;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     fn create_test_key(data: u64) -> BlockId {
         BlockId::from(KeyData::from_ffi(data))
+    }
+
+    struct PanicOnceLayout {
+        did_panic: AtomicBool,
+    }
+
+    impl LayoutManager for PanicOnceLayout {
+        fn get_preferred_size(
+            &self,
+            _container: BlockId,
+            _w_hint: f64,
+            _h_hint: f64,
+            _ctx: &dyn LayoutContext,
+        ) -> (f64, f64) {
+            (0.0, 0.0)
+        }
+
+        fn get_minimum_size(
+            &self,
+            container: BlockId,
+            w_hint: f64,
+            h_hint: f64,
+            ctx: &dyn LayoutContext,
+        ) -> (f64, f64) {
+            self.get_preferred_size(container, w_hint, h_hint, ctx)
+        }
+
+        fn layout(&self, _container: BlockId, _ctx: &mut dyn LayoutContext) {
+            if !self.did_panic.swap(true, Ordering::SeqCst) {
+                panic!("intentional layout panic");
+            }
+        }
     }
 
     #[test]
@@ -489,8 +679,6 @@ mod tests {
         assert_eq!(
             captured,
             vec![
-                NotificationEffect::EmitUpdate(UpdateEvent::Validating),
-                NotificationEffect::EmitUpdate(UpdateEvent::Validated),
                 NotificationEffect::EmitUpdate(UpdateEvent::Painting {
                     damage: Rectangle::new(10.0, 20.0, 30.0, 40.0),
                 }),
@@ -575,8 +763,6 @@ mod tests {
         assert_eq!(
             *effects.lock().unwrap(),
             vec![
-                UpdateEvent::Validating,
-                UpdateEvent::Validated,
                 UpdateEvent::Painting {
                     damage: empty_damage,
                 },
@@ -614,9 +800,240 @@ mod tests {
 
         assert!(canvas.damage().is_empty());
         assert!(canvas.commands().is_empty());
+        assert!(effects.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_direct_invalid_queue_entry_invalidates_and_validates_graph_node() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        graph.revalidate(root_id);
+        assert!(graph.is_valid(root_id));
+
+        manager.add_invalid_figure(root_id);
+        manager.perform_update(&mut graph, &mut NdCanvas::new());
+
+        assert!(graph.is_valid(root_id));
+        assert!(!manager.is_update_queued());
+    }
+
+    #[test]
+    fn test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        graph.revalidate(root_id);
+        graph.set_block_layout_manager(
+            root_id,
+            Arc::new(PanicOnceLayout {
+                did_panic: AtomicBool::new(false),
+            }),
+        );
+        manager.add_invalid_figure(root_id);
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            manager.perform_update(&mut graph, &mut NdCanvas::new());
+        }));
+
+        assert!(result.is_err());
+        assert!(!manager.is_updating());
+        assert!(manager.has_pending_layout());
+        assert!(manager.is_update_queued());
+
+        manager.perform_update(&mut graph, &mut NdCanvas::new());
+        assert!(graph.is_valid(root_id));
+        assert!(!manager.is_update_queued());
+    }
+
+    #[test]
+    fn test_validation_figure_effects_preserve_causal_order() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        let child_id = graph.add_child_to(
+            root_id,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+        );
+        graph.set_block_layout_manager(root_id, Arc::new(XYLayout::new()));
+        graph.set_constraint(child_id, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0));
+        graph.revalidate(root_id);
+        graph.drain_notification_effects();
+        graph.set_constraint(child_id, XYConstraint::at_size(60.0, 70.0, 50.0, 60.0));
+        graph.mark_invalid(&mut manager, child_id);
+
+        let effects = Arc::new(std::sync::Mutex::new(Vec::new()));
+        struct CaptureAll {
+            effects: Arc<std::sync::Mutex<Vec<NotificationEffect>>>,
+        }
+        impl UpdateListener for CaptureAll {
+            fn on_update_event(&self, event: UpdateEvent) {
+                self.effects
+                    .lock()
+                    .unwrap()
+                    .push(NotificationEffect::EmitUpdate(event));
+            }
+            fn on_figure_event(&self, event: FigureEvent) {
+                self.effects
+                    .lock()
+                    .unwrap()
+                    .push(NotificationEffect::EmitFigure(event));
+            }
+            fn on_notify(&self, block_id: BlockId) {
+                self.effects
+                    .lock()
+                    .unwrap()
+                    .push(NotificationEffect::Notify { block_id });
+            }
+        }
+        manager.add_listener(Box::new(CaptureAll {
+            effects: effects.clone(),
+        }));
+
+        manager.perform_update(&mut graph, &mut NdCanvas::new());
+
+        let captured = effects.lock().unwrap();
+        let validating = captured
+            .iter()
+            .position(|effect| *effect == NotificationEffect::EmitUpdate(UpdateEvent::Validating))
+            .expect("validating event");
+        let moved = captured
+            .iter()
+            .position(|effect| {
+                matches!(
+                    effect,
+                    NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
+                        block_id,
+                        ..
+                    }) if *block_id == child_id
+                )
+            })
+            .expect("figure moved event");
+        let validated = captured
+            .iter()
+            .position(|effect| *effect == NotificationEffect::EmitUpdate(UpdateEvent::Validated))
+            .expect("validated event");
+
+        assert!(validating < moved);
+        assert!(moved < validated);
+    }
+
+    #[derive(Default)]
+    struct TypedListenerCounts {
+        figure: usize,
+        coordinate: usize,
+        ancestor: usize,
+        property: usize,
+        layout: usize,
+    }
+
+    struct TypedListener {
+        counts: Arc<std::sync::Mutex<TypedListenerCounts>>,
+    }
+
+    impl FigureListener for TypedListener {
+        fn figure_moved(&self, _event: FigureEvent) {
+            self.counts.lock().unwrap().figure += 1;
+        }
+    }
+
+    impl CoordinateListener for TypedListener {
+        fn coordinate_system_changed(&self, _event: FigureEvent) {
+            self.counts.lock().unwrap().coordinate += 1;
+        }
+    }
+
+    impl AncestorListener for TypedListener {
+        fn ancestor_changed(&self, _event: AncestorEvent) {
+            self.counts.lock().unwrap().ancestor += 1;
+        }
+    }
+
+    impl PropertyChangeListener for TypedListener {
+        fn property_changed(&self, _event: &PropertyChangeEvent) {
+            self.counts.lock().unwrap().property += 1;
+        }
+    }
+
+    impl LayoutListener for TypedListener {
+        fn layout_changed(&self, _event: LayoutEvent) {
+            self.counts.lock().unwrap().layout += 1;
+        }
+    }
+
+    #[test]
+    fn test_typed_listeners_dispatch_and_remove_independently() {
+        let mut manager = SceneUpdateManager::new();
+        let counts = Arc::new(std::sync::Mutex::new(TypedListenerCounts::default()));
+        let figure_id = manager.add_figure_listener(Box::new(TypedListener {
+            counts: counts.clone(),
+        }));
+        let coordinate_id = manager.add_coordinate_listener(Box::new(TypedListener {
+            counts: counts.clone(),
+        }));
+        let ancestor_id = manager.add_ancestor_listener(Box::new(TypedListener {
+            counts: counts.clone(),
+        }));
+        let property_id = manager.add_property_listener(Box::new(TypedListener {
+            counts: counts.clone(),
+        }));
+        let layout_id = manager.add_layout_listener(Box::new(TypedListener {
+            counts: counts.clone(),
+        }));
+
+        let mut graph = FigureGraph::new();
+        let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child = graph.add_child_to(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).with_local_coordinates(true)),
+        );
+        graph.set_block_layout_manager(root, Arc::new(StackLayout::new()));
+        graph.set_visible(child, false);
+        graph.set_visible(child, true);
+        graph.prim_translate(child, 5.0, 5.0);
+        graph.mark_invalid(&mut manager, root);
+        manager.perform_update(&mut graph, &mut NdCanvas::new());
+
+        {
+            let counts = counts.lock().unwrap();
+            assert!(counts.figure > 0);
+            assert!(counts.coordinate > 0);
+            assert!(counts.ancestor > 0);
+            assert!(counts.property > 0);
+            assert!(counts.layout > 0);
+        }
+
+        assert!(manager.remove_listener(figure_id));
+        assert!(manager.remove_listener(coordinate_id));
+        assert!(manager.remove_listener(ancestor_id));
+        assert!(manager.remove_listener(property_id));
+        assert!(manager.remove_listener(layout_id));
+        assert!(!manager.remove_listener(layout_id));
+
+        let before = {
+            let counts = counts.lock().unwrap();
+            (
+                counts.figure,
+                counts.coordinate,
+                counts.ancestor,
+                counts.property,
+                counts.layout,
+            )
+        };
+        graph.set_visible(child, false);
+        graph.prim_translate(child, 1.0, 1.0);
+        graph.mark_invalid(&mut manager, root);
+        manager.perform_update(&mut graph, &mut NdCanvas::new());
+        let after = counts.lock().unwrap();
         assert_eq!(
-            *effects.lock().unwrap(),
-            vec![UpdateEvent::Validating, UpdateEvent::Validated]
+            before,
+            (
+                after.figure,
+                after.coordinate,
+                after.ancestor,
+                after.property,
+                after.layout,
+            )
         );
     }
 }

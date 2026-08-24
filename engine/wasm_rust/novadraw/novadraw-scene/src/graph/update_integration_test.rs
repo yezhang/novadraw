@@ -180,6 +180,48 @@ fn test_disabled_parent_skips_child_validation_but_drains_queue() {
 }
 
 #[test]
+fn test_showing_hidden_subtree_requeues_deferred_validation() {
+    let (mut scene, mut update_manager) = new_scene();
+    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let child_id = scene.add_child_to(
+        parent_id,
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+    );
+    scene.set_visible(parent_id, false);
+    scene.mark_invalid(&mut update_manager, child_id);
+    scene.perform_update(&mut update_manager);
+    assert!(!scene.is_valid(child_id));
+
+    assert!(scene.set_visible_with_update(&mut update_manager, parent_id, true));
+    scene.perform_update(&mut update_manager);
+
+    assert!(scene.is_valid(parent_id));
+    assert!(scene.is_valid(child_id));
+    assert!(!update_manager.is_update_queued());
+}
+
+#[test]
+fn test_enabling_disabled_subtree_requeues_deferred_validation() {
+    let (mut scene, mut update_manager) = new_scene();
+    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let child_id = scene.add_child_to(
+        parent_id,
+        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
+    );
+    scene.set_enabled(parent_id, false);
+    scene.mark_invalid(&mut update_manager, child_id);
+    scene.perform_update(&mut update_manager);
+    assert!(!scene.is_valid(child_id));
+
+    assert!(scene.set_enabled_with_update(&mut update_manager, parent_id, true));
+    scene.perform_update(&mut update_manager);
+
+    assert!(scene.is_valid(parent_id));
+    assert!(scene.is_valid(child_id));
+    assert!(!update_manager.is_update_queued());
+}
+
+#[test]
 fn test_perform_update_two_phase() {
     let (mut scene, mut update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
@@ -498,7 +540,9 @@ fn test_explicit_size_overrides_take_precedence() {
 
     assert_eq!(scene.preferred_size(block, -1.0, -1.0), Some((30.0, 40.0)));
     assert_eq!(scene.minimum_size(block, -1.0, -1.0), Some((30.0, 40.0)));
-    assert_eq!(scene.maximum_size(block), Some((30.0, 40.0)));
+    let maximum = scene.maximum_size(block).expect("default maximum size");
+    assert!(maximum.0 > 30.0);
+    assert!(maximum.1 > 40.0);
 
     assert!(scene.set_preferred_size(block, Some((50.0, 60.0))));
     assert!(scene.set_minimum_size(block, Some((10.0, 20.0))));
@@ -820,8 +864,11 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
     scene.set_mouse_target(Some(child_id));
+    scene.set_cursor_target(Some(child_id));
+    scene.set_hover_source(Some(child_id));
     scene.set_focus_owner(Some(child_id));
     scene.set_captured(Some(child_id));
+    scene.set_selected(Some(child_id));
 
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::remove_child(parent_id, child_id));
@@ -836,8 +883,11 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
             .contains(&child_id)
     );
     assert_eq!(scene.mouse_target(), None);
+    assert_eq!(scene.cursor_target(), None);
+    assert_eq!(scene.hover_source(), None);
     assert_eq!(scene.focus_owner(), None);
     assert_eq!(scene.captured(), None);
+    assert_eq!(scene.selected_block(), None);
 }
 
 #[test]

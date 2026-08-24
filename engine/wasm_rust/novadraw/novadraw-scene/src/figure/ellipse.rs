@@ -142,6 +142,19 @@ impl Bounded for EllipseFigure {
         "EllipseFigure"
     }
 
+    fn contains_point(&self, x: f64, y: f64) -> bool {
+        let radius_x = self.bounds.width / 2.0;
+        let radius_y = self.bounds.height / 2.0;
+        if radius_x <= 0.0 || radius_y <= 0.0 {
+            return false;
+        }
+        let center_x = self.bounds.x + radius_x;
+        let center_y = self.bounds.y + radius_y;
+        let normalized_x = (x - center_x) / radius_x;
+        let normalized_y = (y - center_y) / radius_y;
+        normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
+    }
+
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         self.child_clipping_strategy
     }
@@ -243,5 +256,20 @@ impl Shape for EllipseFigure {
                 self.line_join,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn contains_point_uses_ellipse_geometry_not_only_bounds() {
+        let ellipse = EllipseFigure::new(10.0, 20.0, 100.0, 60.0);
+
+        assert!(ellipse.contains_point(60.0, 50.0));
+        assert!(ellipse.contains_point(10.0, 50.0));
+        assert!(!ellipse.contains_point(10.0, 20.0));
+        assert!(!ellipse.contains_point(109.0, 21.0));
     }
 }

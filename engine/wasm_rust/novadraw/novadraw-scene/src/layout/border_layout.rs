@@ -122,6 +122,54 @@ impl BorderLayout {
             BorderRegion::Center
         }
     }
+
+    fn measure(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
+        minimum: bool,
+    ) -> (f64, f64) {
+        let mut north = (0.0_f64, 0.0_f64);
+        let mut south = (0.0_f64, 0.0_f64);
+        let mut east = (0.0_f64, 0.0_f64);
+        let mut west = (0.0_f64, 0.0_f64);
+        let mut center = (0.0_f64, 0.0_f64);
+
+        for (child, _) in ctx.get_children(container) {
+            let intrinsic = if minimum {
+                ctx.get_minimum_size(child, w_hint, h_hint)
+            } else {
+                ctx.get_preferred_size(child, w_hint, h_hint)
+            };
+            let (region, requested) =
+                border_constraint(ctx, child).unwrap_or((BorderRegion::Center, None));
+            let size = match region {
+                BorderRegion::North | BorderRegion::South => {
+                    (intrinsic.0, requested.unwrap_or(intrinsic.1))
+                }
+                BorderRegion::East | BorderRegion::West => {
+                    (requested.unwrap_or(intrinsic.0), intrinsic.1)
+                }
+                BorderRegion::Center => intrinsic,
+            };
+            match region {
+                BorderRegion::North => north = size,
+                BorderRegion::South => south = size,
+                BorderRegion::East => east = size,
+                BorderRegion::West => west = size,
+                BorderRegion::Center => center = size,
+            }
+        }
+
+        let middle_width = west.0 + center.0 + east.0;
+        let middle_height = west.1.max(center.1).max(east.1);
+        (
+            north.0.max(south.0).max(middle_width),
+            north.1 + middle_height + south.1,
+        )
+    }
 }
 
 impl Default for BorderLayout {
@@ -133,16 +181,12 @@ impl Default for BorderLayout {
 impl LayoutManager for BorderLayout {
     fn get_preferred_size(
         &self,
-        _container: BlockId,
-        _w_hint: f64,
-        _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        // 默认尺寸
-        (
-            self.west_width + self.east_width + 100.0,
-            self.north_height + self.south_height + 100.0,
-        )
+        self.measure(container, w_hint, h_hint, ctx, false)
     }
 
     fn get_minimum_size(
@@ -152,7 +196,7 @@ impl LayoutManager for BorderLayout {
         h_hint: f64,
         ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, ctx)
+        self.measure(container, w_hint, h_hint, ctx, true)
     }
 
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
@@ -168,11 +212,26 @@ impl LayoutManager for BorderLayout {
         let cw = container_bounds.width;
         let ch = container_bounds.height;
 
-        // 默认区域尺寸
-        let north_h = self.north_height.min(ch * 0.3);
-        let south_h = self.south_height.min(ch * 0.3);
-        let west_w = self.west_width.min(cw * 0.3);
-        let east_w = self.east_width.min(cw * 0.3);
+        let mut north_h = self.north_height;
+        let mut south_h = self.south_height;
+        let mut west_w = self.west_width;
+        let mut east_w = self.east_width;
+        for (child_id, _) in &children {
+            let preferred = ctx.get_preferred_size(*child_id, cw, ch);
+            if let Some((region, requested)) = border_constraint(ctx, *child_id) {
+                match region {
+                    BorderRegion::North => north_h = requested.unwrap_or(preferred.1),
+                    BorderRegion::South => south_h = requested.unwrap_or(preferred.1),
+                    BorderRegion::East => east_w = requested.unwrap_or(preferred.0),
+                    BorderRegion::West => west_w = requested.unwrap_or(preferred.0),
+                    BorderRegion::Center => {}
+                }
+            }
+        }
+        north_h = north_h.min(ch * 0.5).max(0.0);
+        south_h = south_h.min((ch - north_h).max(0.0)).max(0.0);
+        west_w = west_w.min(cw * 0.5).max(0.0);
+        east_w = east_w.min((cw - west_w).max(0.0)).max(0.0);
 
         // 计算中心区域
         let center_x = cx + west_w;
@@ -298,10 +357,7 @@ mod tests {
             600.0,
             &MockLayoutContext::new(),
         );
-        // 默认尺寸 = west + east + 100 = 50 + 50 + 100 = 200
-        // 高度 = north + south + 100 = 50 + 50 + 100 = 200
-        assert!(w > 0.0);
-        assert!(h > 0.0);
+        assert_eq!((w, h), (0.0, 0.0));
     }
 
     #[test]

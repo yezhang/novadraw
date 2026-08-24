@@ -38,8 +38,10 @@ use novadraw_geometry::{Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
-use crate::{BlockId, MouseEvent, NovadrawContext};
+use crate::{BlockId, FocusEvent, KeyEvent, MouseEvent, NovadrawContext, WheelEvent};
 use border::Border;
+
+const DEFAULT_MAXIMUM_DIMENSION: f64 = i32::MAX as f64;
 
 // ============================================================================
 // Bounded Trait: 边界相关方法
@@ -241,9 +243,9 @@ pub trait Bounded: Send + Sync {
     /// 获取最大大小
     ///
     /// 对应 draw2d: getMaximumSize()
-    /// 默认返回首选大小
+    /// 默认不限制布局增长，对齐 Draw2D Figure.MAX_DIMENSION。
     fn maximum_size(&self) -> (f64, f64) {
-        self.preferred_size()
+        (DEFAULT_MAXIMUM_DIMENSION, DEFAULT_MAXIMUM_DIMENSION)
     }
 }
 
@@ -376,6 +378,38 @@ pub trait Figure: Bounded + Updatable + Send + Sync {
         false
     }
 
+    fn on_mouse_dragged(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_hover(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_double_clicked(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_focus_gained(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_focus_lost(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
     fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
         false
     }
@@ -459,6 +493,38 @@ pub trait Shape: Figure {
     }
 
     fn on_mouse_moved(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_dragged(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_hover(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_double_clicked(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_focus_gained(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_focus_lost(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
         false
     }
 
@@ -569,6 +635,38 @@ where
 
     fn on_mouse_moved(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
         Shape::on_mouse_moved(self, event, ctx)
+    }
+
+    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_mouse_dragged(self, event, ctx)
+    }
+
+    fn on_mouse_hover(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_mouse_hover(self, event, ctx)
+    }
+
+    fn on_mouse_double_clicked(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_mouse_double_clicked(self, event, ctx)
+    }
+
+    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_mouse_wheel(self, event, ctx)
+    }
+
+    fn on_key_pressed(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_key_pressed(self, event, ctx)
+    }
+
+    fn on_key_released(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_key_released(self, event, ctx)
+    }
+
+    fn on_focus_gained(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_focus_gained(self, event, ctx)
+    }
+
+    fn on_focus_lost(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        Shape::on_focus_lost(self, event, ctx)
     }
 
     fn on_mouse_entered(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {

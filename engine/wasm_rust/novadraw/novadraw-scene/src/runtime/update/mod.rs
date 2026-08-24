@@ -40,7 +40,10 @@ mod repair;
 
 pub use deferred::SceneUpdateManager;
 pub use listener::{
-    FigureEvent, NotificationEffect, NotificationQueue, UpdateEvent, UpdateListener,
+    AncestorEvent, AncestorEventKind, AncestorListener, CoordinateListener, FigureEvent,
+    FigureListener, LayoutEvent, LayoutEventKind, LayoutListener, ListenerId, NotificationEffect,
+    NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue, UpdateEvent,
+    UpdateListener, ValidatingListener,
 };
 
 pub trait UpdateManager: Send + Sync {

@@ -78,6 +78,40 @@ impl XYLayout {
     pub fn new() -> Self {
         Self
     }
+
+    fn measure(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
+        minimum: bool,
+    ) -> (f64, f64) {
+        ctx.get_children(container)
+            .into_iter()
+            .filter_map(|(child, _)| {
+                let constraint = xy_constraint(ctx, child)?;
+                let intrinsic = if minimum {
+                    ctx.get_minimum_size(child, w_hint, h_hint)
+                } else {
+                    ctx.get_preferred_size(child, w_hint, h_hint)
+                };
+                let width = if constraint.width < 0.0 {
+                    intrinsic.0
+                } else {
+                    constraint.width
+                };
+                let height = if constraint.height < 0.0 {
+                    intrinsic.1
+                } else {
+                    constraint.height
+                };
+                Some((constraint.x + width, constraint.y + height))
+            })
+            .fold((0.0_f64, 0.0_f64), |size, child_extent| {
+                (size.0.max(child_extent.0), size.1.max(child_extent.1))
+            })
+    }
 }
 
 impl Default for XYLayout {
@@ -89,12 +123,12 @@ impl Default for XYLayout {
 impl LayoutManager for XYLayout {
     fn get_preferred_size(
         &self,
-        _container: BlockId,
-        _w_hint: f64,
-        _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        (0.0, 0.0)
+        self.measure(container, w_hint, h_hint, ctx, false)
     }
 
     fn get_minimum_size(
@@ -104,8 +138,7 @@ impl LayoutManager for XYLayout {
         h_hint: f64,
         ctx: &dyn LayoutContext,
     ) -> (f64, f64) {
-        // 默认等于首选大小
-        self.get_preferred_size(container, w_hint, h_hint, ctx)
+        self.measure(container, w_hint, h_hint, ctx, true)
     }
 
     fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
@@ -130,12 +163,23 @@ impl LayoutManager for XYLayout {
         for (child_id, _) in children {
             // 获取约束（相对于 client area）
             if let Some(constraint) = xy_constraint(ctx, child_id) {
+                let preferred = ctx.get_preferred_size(child_id, -1.0, -1.0);
+                let width = if constraint.width < 0.0 {
+                    preferred.0
+                } else {
+                    constraint.width
+                };
+                let height = if constraint.height < 0.0 {
+                    preferred.1
+                } else {
+                    constraint.height
+                };
                 // 将约束平移 offset，得到相对于 bounds 的坐标
                 let new_bounds = Rectangle::new(
                     constraint.x + offset_x,
                     constraint.y + offset_y,
-                    constraint.width,
-                    constraint.height,
+                    width,
+                    height,
                 );
                 // 应用约束作为新的 bounds
                 ctx.set_child_bounds(child_id, new_bounds);

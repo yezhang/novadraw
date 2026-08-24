@@ -11,6 +11,15 @@ use novadraw_geometry::Rectangle;
 
 use crate::graph::BlockId;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ListenerId(u64);
+
+impl ListenerId {
+    pub(crate) fn new(value: u64) -> Self {
+        Self(value)
+    }
+}
+
 /// Update Event - 更新事件
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateEvent {
@@ -47,6 +56,53 @@ pub enum FigureEvent {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AncestorEventKind {
+    Added,
+    Moved,
+    Removed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AncestorEvent {
+    pub kind: AncestorEventKind,
+    pub block_id: BlockId,
+    pub parent_id: BlockId,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyValue {
+    Bool(bool),
+    Number(f64),
+    Text(String),
+    Block(Option<BlockId>),
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyChangeEvent {
+    pub block_id: BlockId,
+    pub property: &'static str,
+    pub old_value: PropertyValue,
+    pub new_value: PropertyValue,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutEventKind {
+    Invalidated,
+    Started,
+    Finished,
+    ConstraintChanged,
+    ChildRemoved,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LayoutEvent {
+    pub kind: LayoutEventKind,
+    pub container_id: BlockId,
+    pub child_id: Option<BlockId>,
+}
+
 /// 通知 effect
 ///
 /// `Notify` 表达“对象状态已变化”，不携带业务 payload。
@@ -61,6 +117,12 @@ pub enum NotificationEffect {
     EmitFigure(FigureEvent),
     /// UpdateManager 层 typed event。
     EmitUpdate(UpdateEvent),
+    /// 祖先链变化。
+    EmitAncestor(AncestorEvent),
+    /// 通用属性变化。
+    EmitProperty(PropertyChangeEvent),
+    /// 布局生命周期变化。
+    EmitLayout(LayoutEvent),
 }
 
 /// 通知 effect 队列
@@ -89,6 +151,18 @@ impl NotificationQueue {
         self.effects.push(NotificationEffect::EmitUpdate(event));
     }
 
+    pub fn emit_ancestor(&mut self, event: AncestorEvent) {
+        self.effects.push(NotificationEffect::EmitAncestor(event));
+    }
+
+    pub fn emit_property(&mut self, event: PropertyChangeEvent) {
+        self.effects.push(NotificationEffect::EmitProperty(event));
+    }
+
+    pub fn emit_layout(&mut self, event: LayoutEvent) {
+        self.effects.push(NotificationEffect::EmitLayout(event));
+    }
+
     pub fn is_empty(&self) -> bool {
         self.effects.is_empty()
     }
@@ -99,6 +173,15 @@ impl NotificationQueue {
 
     pub fn effects(&self) -> &[NotificationEffect] {
         &self.effects
+    }
+
+    pub fn extend(&mut self, effects: impl IntoIterator<Item = NotificationEffect>) {
+        self.effects.extend(effects);
+    }
+
+    pub fn retain_semantic_effects(&mut self) {
+        self.effects
+            .retain(|effect| !matches!(effect, NotificationEffect::EmitUpdate(_)));
     }
 
     pub fn drain(&mut self) -> Vec<NotificationEffect> {
@@ -141,6 +224,26 @@ pub trait ValidatingListener: Send + Sync {
 
     /// 通知验证完成
     fn notify_validated(&self);
+}
+
+pub trait FigureListener: Send + Sync {
+    fn figure_moved(&self, event: FigureEvent);
+}
+
+pub trait CoordinateListener: Send + Sync {
+    fn coordinate_system_changed(&self, event: FigureEvent);
+}
+
+pub trait AncestorListener: Send + Sync {
+    fn ancestor_changed(&self, event: AncestorEvent);
+}
+
+pub trait PropertyChangeListener: Send + Sync {
+    fn property_changed(&self, event: &PropertyChangeEvent);
+}
+
+pub trait LayoutListener: Send + Sync {
+    fn layout_changed(&self, event: LayoutEvent);
 }
 
 /// No-op 实现

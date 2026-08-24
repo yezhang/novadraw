@@ -199,11 +199,11 @@ fn m2_figure_graph_product_api_exposes_tree_box_and_z_order_roles() {
     assert_eq!(scene.child_order(root_id), Some(vec![bottom_id, top_id]));
     assert_eq!(scene.child_z_index(root_id, bottom_id), Some(0));
     assert_eq!(scene.child_z_index(root_id, top_id), Some(1));
-    assert_eq!(scene.hit_test_simple((40.0, 40.0)), Some(top_id));
+    assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(top_id));
 
     assert!(scene.send_child_to_back(root_id, top_id));
     assert_eq!(scene.child_order(root_id), Some(vec![top_id, bottom_id]));
-    assert_eq!(scene.hit_test_simple((40.0, 40.0)), Some(bottom_id));
+    assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(bottom_id));
 
     assert!(scene.is_visible(bottom_id));
     assert!(scene.is_enabled(bottom_id));

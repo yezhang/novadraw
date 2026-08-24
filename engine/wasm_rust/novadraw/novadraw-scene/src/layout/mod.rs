@@ -5,11 +5,17 @@
 mod border_layout;
 mod fill_layout;
 mod flow_layout;
+mod grid_layout;
+mod stack_layout;
+mod toolbar_layout;
 mod xy_layout;
 
 pub use border_layout::{BorderConstraint, BorderLayout, BorderRegion};
 pub use fill_layout::FillLayout;
 pub use flow_layout::{FlowDirection, FlowLayout};
+pub use grid_layout::{GridAlignment, GridConstraint, GridLayout};
+pub use stack_layout::StackLayout;
+pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
 use crate::graph::BlockId;
@@ -43,6 +49,16 @@ pub trait LayoutContext: Send + Sync {
 
     /// 获取块的首选尺寸
     fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64);
+
+    /// 获取块的最小尺寸。
+    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.get_preferred_size(block_id, w_hint, h_hint)
+    }
+
+    /// 获取块的最大尺寸。
+    fn get_maximum_size(&self, _block_id: BlockId) -> (f64, f64) {
+        (f64::INFINITY, f64::INFINITY)
+    }
 
     /// 设置子元素的边界
     ///
