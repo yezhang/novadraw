@@ -1,8 +1,8 @@
 use std::{sync::Arc, time::Duration};
 
 use novadraw::{
-    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, MouseButton, NdCanvas,
-    NovadrawSystem, PendingMutations, RenderBackend, SceneDispatchContext, SceneHost,
+    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, Key, KeyModifiers, MouseButton,
+    NdCanvas, NovadrawSystem, PendingMutations, RenderBackend, SceneDispatchContext, SceneHost,
     SceneUpdateManager, UpdateEvent, UpdateListener, backend::vello::WinitWindowProxy,
 };
 
@@ -178,6 +178,70 @@ impl EditorInteractionCore {
         self.apply_pending_mutations();
     }
 
+    pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher
+            .dispatch_mouse_double_clicked(&mut ctx, x, y, button);
+        self.apply_pending_mutations();
+    }
+
+    pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher.dispatch_mouse_hover(&mut ctx, x, y);
+        self.apply_pending_mutations();
+    }
+
+    pub fn dispatch_mouse_wheel(&mut self, x: f64, y: f64, delta_x: f64, delta_y: f64) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher
+            .dispatch_mouse_wheel(&mut ctx, x, y, delta_x, delta_y);
+        self.apply_pending_mutations();
+    }
+
+    pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher
+            .dispatch_key_pressed(&mut ctx, key, modifiers);
+        self.apply_pending_mutations();
+    }
+
+    pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher
+            .dispatch_key_released(&mut ctx, key, modifiers);
+        self.apply_pending_mutations();
+    }
+
+    pub fn release_focus(&mut self) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher.release_focus(&mut ctx);
+        self.apply_pending_mutations();
+    }
+
     pub fn dispatch_raw_mouse_moved(&mut self, input: RawPointerInput) -> InteractionTrace {
         let logical = input.logical_position();
         let mut trace = self.build_trace("move", Some(input), logical, None);
@@ -233,6 +297,8 @@ impl EditorInteractionCore {
                 InteractionStep::Hover { input, duration_ms } => {
                     report.traces.push(self.dispatch_raw_mouse_moved(input));
                     std::thread::sleep(Duration::from_millis(duration_ms));
+                    let logical = input.logical_position();
+                    self.dispatch_mouse_hover(logical.x, logical.y);
                 }
                 InteractionStep::Click { input, button } => {
                     report
@@ -334,6 +400,36 @@ impl WinitNovadrawSystem {
         button: MouseButton,
     ) -> InteractionTrace {
         self.run_update_transaction(|core| core.dispatch_raw_mouse_released(input, button))
+    }
+
+    pub fn dispatch_raw_mouse_double_clicked(
+        &mut self,
+        input: RawPointerInput,
+        button: MouseButton,
+    ) {
+        let logical = input.logical_position();
+        self.run_update_transaction(|core| {
+            core.dispatch_mouse_double_clicked(logical.x, logical.y, button)
+        });
+    }
+
+    pub fn dispatch_raw_mouse_wheel(&mut self, input: RawPointerInput, delta_x: f64, delta_y: f64) {
+        let logical = input.logical_position();
+        self.run_update_transaction(|core| {
+            core.dispatch_mouse_wheel(logical.x, logical.y, delta_x, delta_y)
+        });
+    }
+
+    pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
+        self.run_update_transaction(|core| core.dispatch_key_pressed(key, modifiers));
+    }
+
+    pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
+        self.run_update_transaction(|core| core.dispatch_key_released(key, modifiers));
+    }
+
+    pub fn release_focus(&mut self) {
+        self.run_update_transaction(EditorInteractionCore::release_focus);
     }
 
     pub fn run_interaction_script(&mut self, steps: &[InteractionStep]) -> InteractionReport {

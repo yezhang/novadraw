@@ -280,7 +280,7 @@ fn create_scene_constraint_update() -> novadraw::FigureGraph {
     scene
 }
 
-/// 创建网格布局场景（使用 XYLayout + 约束模拟）
+/// 创建 GridLayout 场景。
 fn create_scene_grid_layout() -> novadraw::FigureGraph {
     let mut scene = novadraw::FigureGraph::new();
 
@@ -294,28 +294,28 @@ fn create_scene_grid_layout() -> novadraw::FigureGraph {
     );
     let container_id = scene.set_contents(Box::new(container));
 
-    let xy_layout = Arc::new(novadraw::XYLayout::new());
-    scene.set_block_layout_manager(container_id, xy_layout);
+    scene.set_block_layout_manager(
+        container_id,
+        Arc::new(
+            novadraw::GridLayout::new(3)
+                .with_equal_column_widths(true)
+                .with_margins(40.0, 40.0)
+                .with_spacing(20.0, 20.0),
+        ),
+    );
 
     // 创建 3x3 网格
     for row in 0..3 {
         for col in 0..3 {
-            let x = 100.0 + col as f64 * 200.0;
-            let y = 80.0 + row as f64 * 150.0;
-            let w = 150.0;
-            let h = 120.0;
-
             let rect = novadraw::RectangleFigure::new_with_color(
                 0.0,
                 0.0,
-                w,
-                h,
+                150.0,
+                120.0,
                 novadraw::Color::rgba((col as f64 * 0.3) % 1.0, (row as f64 * 0.3) % 1.0, 0.6, 1.0),
             );
             let child_id = scene.add_child_to(container_id, Box::new(rect));
-
-            let constraint = novadraw::Rectangle::new(x, y, w, h);
-            scene.set_constraint(child_id, constraint);
+            scene.set_constraint(child_id, novadraw::GridConstraint::fill());
         }
     }
 
@@ -323,6 +323,69 @@ fn create_scene_grid_layout() -> novadraw::FigureGraph {
         scene.revalidate(contents);
     }
 
+    scene
+}
+
+fn create_scene_toolbar_layout() -> novadraw::FigureGraph {
+    let mut scene = novadraw::FigureGraph::new();
+    let container_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        0.0,
+        0.0,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        novadraw::Color::hex("#eeeeee"),
+    )));
+    scene.set_block_layout_manager(
+        container_id,
+        Arc::new(
+            novadraw::ToolbarLayout::horizontal()
+                .with_spacing(16.0)
+                .with_stretch_minor_axis(true),
+        ),
+    );
+    for (index, color) in ["#e74c3c", "#2ecc71", "#3498db", "#f1c40f"]
+        .iter()
+        .enumerate()
+    {
+        let child = scene.add_child_to(
+            container_id,
+            Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                240.0 - index as f64 * 20.0,
+                80.0,
+                novadraw::Color::hex(color),
+            )),
+        );
+        scene.set_minimum_size(child, Some((100.0, 40.0)));
+    }
+    scene.revalidate(container_id);
+    scene
+}
+
+fn create_scene_stack_layout() -> novadraw::FigureGraph {
+    let mut scene = novadraw::FigureGraph::new();
+    let container_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        80.0,
+        60.0,
+        640.0,
+        480.0,
+        novadraw::Color::hex("#eeeeee"),
+    )));
+    scene.set_block_layout_manager(container_id, Arc::new(novadraw::StackLayout::new()));
+    for color in ["#e74c3c", "#3498db", "#2ecc71"] {
+        scene.add_child_to(
+            container_id,
+            Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                100.0,
+                100.0,
+                novadraw::Color::hex(color),
+            )),
+        );
+    }
+    scene.revalidate(container_id);
     scene
 }
 
@@ -483,7 +546,9 @@ fn main() {
             "Constraint Update",
             Box::new(create_scene_constraint_update),
         ),
-        ("Grid Layout (XY)", Box::new(create_scene_grid_layout)),
+        ("GridLayout", Box::new(create_scene_grid_layout)),
+        ("ToolbarLayout", Box::new(create_scene_toolbar_layout)),
+        ("StackLayout", Box::new(create_scene_stack_layout)),
         ("No Layout (Raw)", Box::new(create_scene_no_layout)),
         ("Border Layout (XY)", Box::new(create_scene_border_layout)),
     ];

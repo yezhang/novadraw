@@ -6,8 +6,10 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub use novadraw::{
-    BlockId, FigureEvent, FigureGraph, NotificationEffect, RenderBackend, SceneUpdateManager,
-    UpdateEvent, UpdateListener, UpdateManager, WindowProxy,
+    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, FigureGraph, Key, KeyModifiers,
+    MouseButton, NotificationEffect, PendingMutations, RenderBackend, RenderOutcome,
+    SceneDispatchContext, SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager,
+    WindowProxy,
 };
 pub use novadraw_render::backend::vello::{VelloRenderer, WinitWindowProxy};
 pub use winit::dpi::{LogicalSize, PhysicalSize};
@@ -18,6 +20,9 @@ pub use winit::window::WindowAttributes;
 pub use winit::{application::ApplicationHandler, window::WindowId};
 
 use tracing::{error, info, warn};
+
+const SCREENSHOT_RENDER_RETRY_LIMIT: usize = 8;
+const SCREENSHOT_RENDER_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(16);
 
 /// 演示应用
 ///
@@ -60,6 +65,10 @@ pub struct DemoApp {
     height: f64,
     use_update_manager: bool,
     screenshot_mode: Option<usize>,
+    dispatcher: BasicEventDispatcher,
+    pending_mutations: PendingMutations,
+    cursor_position: Option<(f64, f64)>,
+    modifiers: KeyModifiers,
 }
 
 impl DemoApp {
@@ -87,6 +96,10 @@ impl DemoApp {
             height,
             use_update_manager: true,
             screenshot_mode,
+            dispatcher: BasicEventDispatcher,
+            pending_mutations: PendingMutations::new(),
+            cursor_position: None,
+            modifiers: KeyModifiers::default(),
         }
     }
 
@@ -99,6 +112,7 @@ impl DemoApp {
             let mut um = SceneUpdateManager::new();
             um.add_listener(Box::new(DemoUpdateListener));
             self.update_manager = Some(um);
+            self.pending_mutations = PendingMutations::new();
             eprintln!("切换到场景: {}", self.scenes[idx].0);
 
             // 更新窗口标题显示当前场景（只显示场景名称）
@@ -125,26 +139,55 @@ impl DemoApp {
     }
 
     /// 渲染当前场景
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> RenderOutcome {
         let Some(renderer) = &mut self.renderer else {
-            return;
+            return RenderOutcome::Skipped;
         };
         let Some(scene) = &mut self.scene_graph else {
-            return;
+            return RenderOutcome::Skipped;
         };
 
         if self.use_update_manager
             && let Some(um) = &mut self.update_manager
         {
-            let canvas = scene.perform_update(um);
-            let submission = canvas.to_submission();
-            renderer.render(&submission);
-            return;
+            let canvas = if um.is_update_queued() {
+                scene.perform_update(um)
+            } else {
+                scene.render()
+            };
+            let outcome = renderer.render(&canvas.to_submission());
+            if outcome == RenderOutcome::Retry {
+                renderer.window().request_redraw();
+            }
+            return outcome;
         }
 
         let render_ctx = scene.render();
-        let submission = render_ctx.to_submission();
-        renderer.render(&submission);
+        let outcome = renderer.render(&render_ctx.to_submission());
+        if outcome == RenderOutcome::Retry {
+            renderer.window().request_redraw();
+        }
+        outcome
+    }
+
+    fn dispatch_input(
+        &mut self,
+        action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
+    ) {
+        let (Some(scene), Some(update_manager)) = (&mut self.scene_graph, &mut self.update_manager)
+        else {
+            return;
+        };
+        {
+            let mut context =
+                SceneDispatchContext::new(scene, update_manager, &mut self.pending_mutations);
+            action(&mut self.dispatcher, &mut context);
+        }
+        let mutations = self.pending_mutations.drain();
+        scene.apply_pending_mutations(update_manager, mutations);
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
     }
 
     /// 截图并保存到文件
@@ -210,7 +253,7 @@ impl DemoApp {
             self.scenes.len()
         );
 
-        // 截图每个场景
+        let mut failed = false;
         for idx in scenes_to_capture {
             if idx >= self.scenes.len() {
                 warn!("场景索引 {} 超出范围", idx);
@@ -222,11 +265,19 @@ impl DemoApp {
             // 切换到目标场景
             self.switch_scene(idx);
 
-            // 渲染一帧
-            self.render();
-
-            // 等待一小段时间确保渲染完成
-            std::thread::sleep(std::time::Duration::from_millis(200));
+            let presented = (0..SCREENSHOT_RENDER_RETRY_LIMIT).any(|_| match self.render() {
+                RenderOutcome::Presented => true,
+                RenderOutcome::Retry => {
+                    std::thread::sleep(SCREENSHOT_RENDER_RETRY_DELAY);
+                    false
+                }
+                RenderOutcome::Skipped => false,
+            });
+            if !presented {
+                error!("场景 {} 未产生可截图帧", self.scenes[idx].0);
+                failed = true;
+                continue;
+            }
 
             // 截图
             let scene_name = self.scenes[idx].0;
@@ -238,13 +289,14 @@ impl DemoApp {
                 }
                 Err(e) => {
                     error!("截图失败: {}", e);
+                    failed = true;
                 }
             }
         }
 
         info!("截图完成，应用退出");
         // 截图完成后退出应用
-        std::process::exit(0);
+        std::process::exit(i32::from(failed));
     }
 
     /// 分析截图结果
@@ -303,43 +355,102 @@ impl ApplicationHandler<()> for DemoApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                self.render();
+                let _ = self.render();
             }
             WindowEvent::Resized(new_size) => {
                 if let Some(renderer) = &mut self.renderer {
                     let scale_factor = renderer.window().scale_factor();
                     let PhysicalSize { width, height } = new_size;
                     renderer.resize(width, height, scale_factor);
-                    renderer.recreate_surface(width, height);
                     renderer.window().request_redraw();
                 }
             }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor_position = Some((position.x, position.y));
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                self.dispatch_input(|dispatcher, context| {
+                    dispatcher.dispatch_mouse_moved(
+                        context,
+                        position.x / scale_factor,
+                        position.y / scale_factor,
+                    );
+                });
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let Some((x, y)) = self.cursor_position else {
+                    return;
+                };
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                let button = map_mouse_button(button);
+                self.dispatch_input(|dispatcher, context| match state {
+                    winit::event::ElementState::Pressed => dispatcher.dispatch_mouse_pressed(
+                        context,
+                        x / scale_factor,
+                        y / scale_factor,
+                        button,
+                    ),
+                    winit::event::ElementState::Released => dispatcher.dispatch_mouse_released(
+                        context,
+                        x / scale_factor,
+                        y / scale_factor,
+                        button,
+                    ),
+                });
+            }
             WindowEvent::MouseWheel { delta, .. } => {
-                // 鼠标滚轮切换场景
-                let count = self.scenes.len();
-                if count > 0 {
-                    let scroll_up = match delta {
-                        winit::event::MouseScrollDelta::LineDelta(_, y) => y > 0.0,
-                        winit::event::MouseScrollDelta::PixelDelta(p) => p.y > 0.0,
-                    };
-                    if scroll_up {
-                        // 滚轮向上，切换到上一个场景
-                        let new_idx = if self.current_scene_idx == 0 {
-                            count - 1
-                        } else {
-                            self.current_scene_idx - 1
-                        };
-                        self.switch_scene(new_idx);
-                    } else {
-                        // 滚轮向下，切换到下一个场景
-                        let new_idx = (self.current_scene_idx + 1) % count;
-                        self.switch_scene(new_idx);
+                let Some((x, y)) = self.cursor_position else {
+                    return;
+                };
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                let (delta_x, delta_y) = match delta {
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
+                    winit::event::MouseScrollDelta::PixelDelta(position) => {
+                        (position.x / scale_factor, position.y / scale_factor)
                     }
-                    self.window.as_ref().unwrap().request_redraw();
-                }
+                };
+                self.dispatch_input(|dispatcher, context| {
+                    dispatcher.dispatch_mouse_wheel(
+                        context,
+                        x / scale_factor,
+                        y / scale_factor,
+                        delta_x,
+                        delta_y,
+                    );
+                });
+            }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                let state = modifiers.state();
+                self.modifiers = KeyModifiers {
+                    shift: state.shift_key(),
+                    control: state.control_key(),
+                    alt: state.alt_key(),
+                    meta: state.super_key(),
+                };
+            }
+            WindowEvent::Focused(false) => {
+                self.dispatch_input(|dispatcher, context| dispatcher.release_focus(context));
             }
             WindowEvent::KeyboardInput { event, .. } => {
-                if event.state != winit::event::ElementState::Pressed {
+                let pressed = event.state == winit::event::ElementState::Pressed;
+                if !pressed {
+                    if let Some(key) = map_key(event.physical_key) {
+                        let modifiers = self.modifiers;
+                        self.dispatch_input(|dispatcher, context| {
+                            dispatcher.dispatch_key_released(context, key, modifiers);
+                        });
+                    }
                     return;
                 }
 
@@ -410,6 +521,11 @@ impl ApplicationHandler<()> for DemoApp {
                         if let Some(digit) = get_digit_index(&event.physical_key) {
                             self.switch_scene(digit);
                             self.window.as_ref().unwrap().request_redraw();
+                        } else if let Some(key) = map_key(event.physical_key) {
+                            let modifiers = self.modifiers;
+                            self.dispatch_input(|dispatcher, context| {
+                                dispatcher.dispatch_key_pressed(context, key, modifiers);
+                            });
                         }
                     }
                 }
@@ -446,6 +562,39 @@ fn get_digit_index(key: &winit::keyboard::PhysicalKey) -> Option<usize> {
         winit::keyboard::PhysicalKey::Code(KeyCode::Digit9) => Some(9),
         _ => None,
     }
+}
+
+fn map_mouse_button(button: winit::event::MouseButton) -> MouseButton {
+    match button {
+        winit::event::MouseButton::Left => MouseButton::Left,
+        winit::event::MouseButton::Right => MouseButton::Right,
+        winit::event::MouseButton::Middle => MouseButton::Middle,
+        winit::event::MouseButton::Back
+        | winit::event::MouseButton::Forward
+        | winit::event::MouseButton::Other(_) => MouseButton::None,
+    }
+}
+
+fn map_key(key: PhysicalKey) -> Option<Key> {
+    let PhysicalKey::Code(code) = key else {
+        return None;
+    };
+    Some(match code {
+        KeyCode::Enter => Key::Enter,
+        KeyCode::Escape => Key::Escape,
+        KeyCode::Tab => Key::Tab,
+        KeyCode::ArrowUp => Key::ArrowUp,
+        KeyCode::ArrowDown => Key::ArrowDown,
+        KeyCode::ArrowLeft => Key::ArrowLeft,
+        KeyCode::ArrowRight => Key::ArrowRight,
+        KeyCode::KeyA => Key::Character('a'),
+        KeyCode::KeyB => Key::Character('b'),
+        KeyCode::KeyC => Key::Character('c'),
+        KeyCode::KeyH => Key::Character('h'),
+        KeyCode::KeyM => Key::Character('m'),
+        KeyCode::KeyT => Key::Character('t'),
+        _ => return None,
+    })
 }
 
 /// 应用构建器

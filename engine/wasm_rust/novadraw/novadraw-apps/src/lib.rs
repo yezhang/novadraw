@@ -23,9 +23,11 @@
 
 pub mod app;
 pub mod prelude;
+pub mod verification;
 
 pub use app::{
     AppBuilder, DemoApp, run_demo_app, run_demo_app_with_scene_screenshot,
     run_demo_app_with_screenshot,
 };
 pub use prelude::*;
+pub use verification::{VerificationCase, VerificationCli, VerificationMetrics, run_verification};

@@ -1,13 +1,123 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use novadraw::{
-    BlockId, Color, FigureEvent, FigureGraph, NotificationEffect, Rectangle, RectangleFigure,
-    SceneUpdateManager, UpdateEvent, UpdateListener, XYLayout,
+    BlockId, Color, FigureEvent, FigureGraph, GridLayout, NotificationEffect, Rectangle,
+    RectangleFigure, SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, XYConstraint,
+    XYLayout,
 };
-use novadraw_apps::run_demo_app;
+use novadraw_apps::{
+    VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
+    run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,
+};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
+const STRESS_FIGURE_COUNT: usize = 1024;
+
+type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureGraph>);
+
+fn gray_background() -> RectangleFigure {
+    RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::hex("#eeeeee"))
+}
+
+fn baseline_scene() -> FigureGraph {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(gray_background()));
+    for (x, color) in [(100.0, "#e74c3c"), (325.0, "#2ecc71"), (550.0, "#3498db")] {
+        graph.add_child_to(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                x,
+                200.0,
+                150.0,
+                100.0,
+                Color::hex(color),
+            )),
+        );
+    }
+    graph
+}
+
+fn partial_damage_scene() -> FigureGraph {
+    let mut graph = baseline_scene();
+    let root = graph.get_contents().expect("contents");
+    let target = graph.child_order(root).expect("root children")[1];
+    let mut manager = SceneUpdateManager::new();
+    let old_bounds = graph.figure_bounds(target).expect("target bounds");
+    graph.set_bounds_with_update(
+        &mut manager,
+        target,
+        old_bounds.x + 40.0,
+        old_bounds.y + 30.0,
+        old_bounds.width,
+        old_bounds.height,
+    );
+    let _ = graph.perform_update(&mut manager);
+    graph
+}
+
+fn validation_scene() -> FigureGraph {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(gray_background()));
+    graph.set_block_layout_manager(root, Arc::new(XYLayout::new()));
+    for (index, color) in ["#9b59b6", "#f39c12", "#1abc9c"].iter().enumerate() {
+        let child = graph.add_child_to(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                140.0,
+                90.0,
+                Color::hex(color),
+            )),
+        );
+        graph.set_constraint(
+            child,
+            XYConstraint::at_size(100.0 + index as f64 * 220.0, 220.0, 140.0, 90.0),
+        );
+    }
+    graph.revalidate(root);
+    graph
+}
+
+fn stress_scene() -> FigureGraph {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(gray_background()));
+    graph.set_block_layout_manager(
+        root,
+        Arc::new(
+            GridLayout::new(32)
+                .with_margins(8.0, 8.0)
+                .with_spacing(2.0, 2.0),
+        ),
+    );
+    for index in 0..STRESS_FIGURE_COUNT {
+        let channel = (index % 32) as f64 / 31.0;
+        graph.add_child_to(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                20.0,
+                14.0,
+                Color::rgba(channel, 0.55, 1.0 - channel, 1.0),
+            )),
+        );
+    }
+    graph.revalidate(root);
+    graph
+}
+
+fn scenes() -> Vec<SceneEntry> {
+    vec![
+        ("baseline", Box::new(baseline_scene)),
+        ("partial_damage", Box::new(partial_damage_scene)),
+        ("validation", Box::new(validation_scene)),
+        ("stress_1024", Box::new(stress_scene)),
+    ]
+}
 
 struct CaptureListener {
     effects: Arc<Mutex<Vec<NotificationEffect>>>,
@@ -36,290 +146,240 @@ impl UpdateListener for CaptureListener {
     }
 }
 
-fn gray_bg() -> RectangleFigure {
-    RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::hex("#eeeeee"))
-}
+fn verify_damage_modes() -> Result<VerificationMetrics, String> {
+    let mut graph = baseline_scene();
+    let root = graph.get_contents().ok_or("missing root")?;
+    let child = graph.child_order(root).ok_or("missing root children")?[0];
+    let mut manager = SceneUpdateManager::new();
 
-fn create_scene_0_static_baseline() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let rect1 = RectangleFigure::new_with_color(100.0, 200.0, 150.0, 100.0, Color::hex("#e74c3c"));
-    let rect2 = RectangleFigure::new_with_color(325.0, 200.0, 150.0, 100.0, Color::hex("#2ecc71"));
-    let rect3 = RectangleFigure::new_with_color(550.0, 200.0, 150.0, 100.0, Color::hex("#3498db"));
-
-    scene.add_child_to(container_id, Box::new(rect1));
-    scene.add_child_to(container_id, Box::new(rect2));
-    scene.add_child_to(container_id, Box::new(rect3));
-
-    scene
-}
-
-fn create_scene_1_prim_translate() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let rect1 = RectangleFigure::new_with_color(100.0, 200.0, 120.0, 80.0, Color::hex("#e74c3c"));
-    let rect2 = RectangleFigure::new_with_color(340.0, 200.0, 120.0, 80.0, Color::hex("#2ecc71"));
-    let rect3 = RectangleFigure::new_with_color(580.0, 200.0, 120.0, 80.0, Color::hex("#3498db"));
-
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
-
-    scene.prim_translate(r2, 50.0, 30.0);
-
-    let effects = scene.drain_notification_effects();
-    println!("[Scene 1] prim_translate effects:");
-    for effect in &effects {
-        println!("  {:?}", effect);
+    let noop = graph.perform_update(&mut manager);
+    if !noop.damage().is_empty() || !noop.commands().is_empty() {
+        return Err("no-op update produced render work".to_string());
+    }
+    if !graph.render().damage().is_full() {
+        return Err("direct render is not full damage".to_string());
+    }
+    graph.repaint(&mut manager, child, None);
+    let partial = graph.perform_update(&mut manager);
+    if partial.damage().is_empty() || partial.damage().is_full() {
+        return Err("repaint did not produce partial damage".to_string());
     }
 
-    let has_figure_moved = effects.iter().any(|e| {
-        matches!(
-            e,
-            NotificationEffect::EmitFigure(FigureEvent::FigureMoved { .. })
-        )
-    });
-    println!("  FigureMoved recorded: {}", has_figure_moved);
-
-    scene
+    Ok(metrics([
+        ("noop_commands", noop.commands().len().to_string()),
+        (
+            "partial_regions",
+            partial.damage().regions().len().to_string(),
+        ),
+    ]))
 }
 
-fn create_scene_2_coordinate_root() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let parent = RectangleFigure::new_with_color(100.0, 100.0, 600.0, 400.0, Color::hex("#bdc3c7"))
-        .with_local_coordinates(true);
-    let parent_id = scene.add_child_to(container_id, Box::new(parent));
-
-    let child1 = RectangleFigure::new_with_color(130.0, 180.0, 150.0, 100.0, Color::hex("#e74c3c"));
-    let child2 = RectangleFigure::new_with_color(450.0, 180.0, 150.0, 100.0, Color::hex("#3498db"));
-    let _c1 = scene.add_child_to(parent_id, Box::new(child1));
-    let _c2 = scene.add_child_to(parent_id, Box::new(child2));
-
-    scene.drain_notification_effects();
-
-    scene.prim_translate(parent_id, 20.0, 20.0);
-
-    let effects = scene.drain_notification_effects();
-    println!("[Scene 2] Coordinate Root effects:");
-    for effect in &effects {
-        println!("  {:?}", effect);
-    }
-
-    let has_coord_changed = effects.iter().any(|e| {
+fn verify_notification_order() -> Result<VerificationMetrics, String> {
+    let mut graph = validation_scene();
+    let root = graph.get_contents().ok_or("missing root")?;
+    let child = graph.child_order(root).ok_or("missing root children")?[0];
+    graph.drain_notification_effects();
+    graph.set_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0));
+    let mut manager = SceneUpdateManager::new();
+    graph.mark_invalid(&mut manager, child);
+    let effects = Arc::new(Mutex::new(Vec::new()));
+    manager.add_listener(Box::new(CaptureListener {
+        effects: effects.clone(),
+    }));
+    let _ = graph.perform_update(&mut manager);
+    let effects = effects.lock().unwrap();
+    let validating = position(&effects, |effect| {
         matches!(
-            e,
-            NotificationEffect::EmitFigure(FigureEvent::CoordinateSystemChanged { .. })
+            effect,
+            NotificationEffect::EmitUpdate(UpdateEvent::Validating)
         )
-    });
-    let has_child_moved = effects.iter().any(|e| {
+    })?;
+    let moved = position(&effects, |effect| {
         matches!(
-            e,
+            effect,
             NotificationEffect::EmitFigure(FigureEvent::FigureMoved { block_id, .. })
-                if *block_id != parent_id
+                if *block_id == child
         )
-    });
-    println!("  CoordinateSystemChanged recorded: {}", has_coord_changed);
-    println!(
-        "  Children FigureMoved (should be false): {}",
-        has_child_moved
-    );
-
-    scene
-}
-
-fn create_scene_3_repaint() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let rect1 = RectangleFigure::new_with_color(100.0, 200.0, 120.0, 80.0, Color::hex("#e74c3c"));
-    let rect2 = RectangleFigure::new_with_color(340.0, 200.0, 120.0, 80.0, Color::hex("#2ecc71"));
-    let rect3 = RectangleFigure::new_with_color(580.0, 200.0, 120.0, 80.0, Color::hex("#3498db"));
-
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
-
-    let mut update_manager = SceneUpdateManager::new();
-    scene.repaint(&mut update_manager, r2, None);
-
-    println!("[Scene 3] repaint:");
-    println!(
-        "  has_pending_repaint: {}",
-        update_manager.has_pending_repaint()
-    );
-    println!("  dirty_count: {}", update_manager.dirty_count());
-
-    scene
-}
-
-fn create_scene_4_revalidate() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let inner = RectangleFigure::new_with_color(50.0, 50.0, 700.0, 500.0, Color::hex("#ecf0f1"));
-    let inner_id = scene.add_child_to(container_id, Box::new(inner));
-
-    let xy_layout = Arc::new(XYLayout::new());
-    scene.set_block_layout_manager(inner_id, xy_layout);
-
-    let child1 = RectangleFigure::new_with_color(0.0, 0.0, 150.0, 100.0, Color::hex("#e74c3c"));
-    let child2 = RectangleFigure::new_with_color(0.0, 0.0, 150.0, 100.0, Color::hex("#3498db"));
-    let c1 = scene.add_child_to(inner_id, Box::new(child1));
-    let c2 = scene.add_child_to(inner_id, Box::new(child2));
-
-    scene.set_constraint(c1, Rectangle::new(80.0, 100.0, 150.0, 100.0));
-    scene.set_constraint(c2, Rectangle::new(350.0, 100.0, 150.0, 100.0));
-
-    let mut update_manager = SceneUpdateManager::new();
-    scene.mark_invalid(&mut update_manager, inner_id);
-
-    println!("[Scene 4] revalidate:");
-    println!(
-        "  has_pending_layout: {}",
-        update_manager.has_pending_layout()
-    );
-    println!("  is_update_queued: {}", update_manager.is_update_queued());
-
-    scene.revalidate(inner_id);
-    println!("  After revalidate: layout applied");
-
-    scene
-}
-
-fn create_scene_5_notification_effects() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
-
-    let coord_root =
-        RectangleFigure::new_with_color(50.0, 80.0, 700.0, 440.0, Color::hex("#dfe6e9"))
-            .with_local_coordinates(true);
-    let coord_root_id = scene.add_child_to(container_id, Box::new(coord_root));
-
-    let rect1 = RectangleFigure::new_with_color(100.0, 200.0, 120.0, 80.0, Color::hex("#e74c3c"));
-    let rect2 = RectangleFigure::new_with_color(400.0, 200.0, 120.0, 80.0, Color::hex("#2ecc71"));
-    let _r1 = scene.add_child_to(coord_root_id, Box::new(rect1));
-    let r2 = scene.add_child_to(coord_root_id, Box::new(rect2));
-
-    scene.drain_notification_effects();
-
-    let mut update_manager = SceneUpdateManager::new();
-    let captured: Arc<Mutex<Vec<NotificationEffect>>> = Arc::new(Mutex::new(Vec::new()));
-    update_manager.add_listener(Box::new(CaptureListener {
-        effects: captured.clone(),
-    }));
-
-    scene.prim_translate(r2, 50.0, 30.0);
-    scene.repaint(&mut update_manager, r2, None);
-
-    let _canvas = scene.perform_update(&mut update_manager);
-
-    let effects = captured.lock().unwrap();
-    println!("[Scene 5] Notification Effects after perform_update:");
-    for effect in effects.iter() {
-        println!("  {:?}", effect);
+    })?;
+    let validated = position(&effects, |effect| {
+        matches!(
+            effect,
+            NotificationEffect::EmitUpdate(UpdateEvent::Validated)
+        )
+    })?;
+    if !(validating < moved && moved < validated) {
+        return Err("notification order is not causal".to_string());
     }
-
-    let has_validating = effects
-        .iter()
-        .any(|e| matches!(e, NotificationEffect::EmitUpdate(UpdateEvent::Validating)));
-    let has_validated = effects
-        .iter()
-        .any(|e| matches!(e, NotificationEffect::EmitUpdate(UpdateEvent::Validated)));
-    let has_painting = effects.iter().any(|e| {
-        matches!(
-            e,
-            NotificationEffect::EmitUpdate(UpdateEvent::Painting { .. })
-        )
-    });
-    let has_painted = effects.iter().any(|e| {
-        matches!(
-            e,
-            NotificationEffect::EmitUpdate(UpdateEvent::Painted { .. })
-        )
-    });
-    let has_figure_moved = effects.iter().any(|e| {
-        matches!(
-            e,
-            NotificationEffect::EmitFigure(FigureEvent::FigureMoved { .. })
-        )
-    });
-    let has_notify = effects
-        .iter()
-        .any(|e| matches!(e, NotificationEffect::Notify { .. }));
-
-    println!("  Validating: {}", has_validating);
-    println!("  Validated: {}", has_validated);
-    println!("  Painting: {}", has_painting);
-    println!("  Painted: {}", has_painted);
-    println!("  FigureMoved: {}", has_figure_moved);
-    println!("  Notify: {}", has_notify);
-
-    scene
+    Ok(metrics([("effect_count", effects.len().to_string())]))
 }
 
-fn create_scene_6_damage_repair() -> FigureGraph {
-    let mut scene = FigureGraph::new();
-    let container_id = scene.set_contents(Box::new(gray_bg()));
+fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
+    let mut graph = baseline_scene();
+    let root = graph.get_contents().ok_or("missing root")?;
+    let child = graph.child_order(root).ok_or("missing root children")?[0];
+    let mut manager = SceneUpdateManager::new();
+    manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 20.0, 20.0));
+    manager.add_dirty_region(child, Rectangle::new(10.0, 10.0, 30.0, 30.0));
+    if manager.dirty_count() != 1 {
+        return Err("dirty regions were not coalesced per block".to_string());
+    }
+    let damage = manager.compute_damage();
+    if damage != Rectangle::new(0.0, 0.0, 40.0, 40.0) {
+        return Err(format!("unexpected coalesced damage: {damage:?}"));
+    }
+    let _ = graph.perform_update(&mut manager);
+    Ok(metrics([("dirty_blocks", "1".to_string())]))
+}
 
-    let rect1 = RectangleFigure::new_with_color(200.0, 200.0, 200.0, 150.0, Color::hex("#e74c3c"));
-    let rect2 = RectangleFigure::new_with_color(300.0, 250.0, 200.0, 150.0, Color::hex("#3498db"));
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let r2 = scene.add_child_to(container_id, Box::new(rect2));
+struct PanicOnceListener {
+    did_panic: AtomicBool,
+}
 
-    scene.drain_notification_effects();
-
-    let mut update_manager = SceneUpdateManager::new();
-    let captured: Arc<Mutex<Vec<NotificationEffect>>> = Arc::new(Mutex::new(Vec::new()));
-    update_manager.add_listener(Box::new(CaptureListener {
-        effects: captured.clone(),
-    }));
-
-    let old_bounds = scene.figure_bounds(r2).unwrap();
-
-    scene.prim_translate(r2, 80.0, 60.0);
-    scene.repaint(&mut update_manager, r2, None);
-
-    let damage_before = update_manager.compute_damage();
-    println!("[Scene 6] Damage Repair:");
-    println!("  rect2 old_bounds: {:?}", old_bounds);
-    println!("  rect2 new_bounds: {:?}", scene.figure_bounds(r2).unwrap());
-    println!("  Damage before perform_update: {:?}", damage_before);
-
-    let _canvas = scene.perform_update(&mut update_manager);
-
-    let effects = captured.lock().unwrap();
-    for effect in effects.iter() {
-        if let NotificationEffect::EmitUpdate(UpdateEvent::Painting { damage }) = effect {
-            println!("  Painting damage: {:?}", damage);
-        }
-        if let NotificationEffect::EmitUpdate(UpdateEvent::Painted { damage }) = effect {
-            println!("  Painted damage: {:?}", damage);
+impl UpdateListener for PanicOnceListener {
+    fn on_update_event(&self, event: UpdateEvent) {
+        if matches!(event, UpdateEvent::Painting { .. })
+            && !self.did_panic.swap(true, Ordering::SeqCst)
+        {
+            panic!("intentional verification panic");
         }
     }
 
-    scene
+    fn on_figure_event(&self, _event: FigureEvent) {}
+    fn on_notify(&self, _block_id: BlockId) {}
+}
+
+fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
+    let mut graph = baseline_scene();
+    let root = graph.get_contents().ok_or("missing root")?;
+    let child = graph.child_order(root).ok_or("missing root children")?[0];
+    let mut manager = SceneUpdateManager::new();
+    manager.add_listener(Box::new(PanicOnceListener {
+        did_panic: AtomicBool::new(false),
+    }));
+    graph.repaint(&mut manager, child, None);
+    let previous_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    let first = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _ = graph.perform_update(&mut manager);
+    }));
+    std::panic::set_hook(previous_hook);
+    if first.is_ok() || manager.is_updating() || !manager.is_update_queued() {
+        return Err("manager did not recover from listener panic".to_string());
+    }
+    let _ = graph.perform_update(&mut manager);
+    if manager.is_update_queued() {
+        return Err("recovered update did not drain work".to_string());
+    }
+    Ok(metrics([("recovered", "true".to_string())]))
+}
+
+fn verify_stress_1024() -> Result<VerificationMetrics, String> {
+    let mut graph = stress_scene();
+    let root = graph.get_contents().ok_or("missing root")?;
+    let mut manager = SceneUpdateManager::new();
+    graph.mark_invalid(&mut manager, root);
+    graph.repaint(&mut manager, root, None);
+    let start = Instant::now();
+    let canvas = graph.perform_update(&mut manager);
+    let elapsed = start.elapsed();
+    if manager.is_update_queued() || canvas.commands().is_empty() {
+        return Err("stress transaction did not converge".to_string());
+    }
+    Ok(metrics([
+        ("figures", STRESS_FIGURE_COUNT.to_string()),
+        ("elapsed_us", elapsed.as_micros().to_string()),
+        ("commands", canvas.commands().len().to_string()),
+    ]))
+}
+
+fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics {
+    entries
+        .into_iter()
+        .map(|(key, value)| (key.to_string(), value))
+        .collect()
+}
+
+fn position(
+    effects: &[NotificationEffect],
+    predicate: impl Fn(&NotificationEffect) -> bool,
+) -> Result<usize, String> {
+    effects
+        .iter()
+        .position(predicate)
+        .ok_or_else(|| "expected notification was not emitted".to_string())
+}
+
+fn verification_cases() -> [VerificationCase; 5] {
+    [
+        VerificationCase {
+            name: "damage_modes",
+            run: verify_damage_modes,
+        },
+        VerificationCase {
+            name: "notification_order",
+            run: verify_notification_order,
+        },
+        VerificationCase {
+            name: "dirty_coalescing",
+            run: verify_dirty_coalescing,
+        },
+        VerificationCase {
+            name: "panic_recovery",
+            run: verify_panic_recovery,
+        },
+        VerificationCase {
+            name: "stress_1024",
+            run: verify_stress_1024,
+        },
+    ]
 }
 
 fn main() {
-    run_demo_app(
-        "Update App - UpdateManager 生命周期验证 (←→ 切换场景)",
-        "update-app",
-        vec![
-            ("Static Baseline", Box::new(create_scene_0_static_baseline)),
-            ("prim_translate", Box::new(create_scene_1_prim_translate)),
-            ("Coordinate Root", Box::new(create_scene_2_coordinate_root)),
-            ("repaint", Box::new(create_scene_3_repaint)),
-            ("revalidate", Box::new(create_scene_4_revalidate)),
-            (
-                "Notification Effects",
-                Box::new(create_scene_5_notification_effects),
-            ),
-            ("Damage Repair", Box::new(create_scene_6_damage_repair)),
-        ],
-    )
-    .expect("Failed to run app");
+    let cli = VerificationCli::parse().unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    if cli.verify {
+        run_verification(
+            "update-app",
+            &verification_cases(),
+            cli.scenario.as_deref(),
+            cli.report.as_deref(),
+        )
+        .unwrap_or_else(|error| {
+            eprintln!("{error}");
+            std::process::exit(1);
+        });
+        return;
+    }
+
+    let scene_list = scenes();
+    if cli.screenshot_all {
+        run_demo_app_with_screenshot(
+            "Update Pipeline Verification",
+            "update-app",
+            scene_list,
+            true,
+        )
+        .expect("run update-app screenshots");
+    } else if let Some(scenario) = cli.screenshot {
+        let index = scenario
+            .parse::<usize>()
+            .ok()
+            .or_else(|| scene_list.iter().position(|(name, _)| *name == scenario))
+            .unwrap_or_else(|| {
+                eprintln!("unknown screenshot scenario: {scenario}");
+                std::process::exit(2);
+            });
+        run_demo_app_with_scene_screenshot(
+            "Update Pipeline Verification",
+            "update-app",
+            scene_list,
+            index,
+        )
+        .expect("run update-app screenshot");
+    } else {
+        run_demo_app("Update Pipeline Verification", "update-app", scene_list)
+            .expect("run update-app");
+    }
 }

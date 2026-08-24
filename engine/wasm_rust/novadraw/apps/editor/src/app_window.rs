@@ -1,13 +1,14 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use crate::scene_manager::{DPI_TEST_PROBE_BOUNDS, SceneType};
 use crate::system::{RawPointerInput, WinitNovadrawSystem};
 use novadraw::backend::vello::{VelloRenderer, WinitWindowProxy};
 use novadraw::traits::WindowProxy;
-use novadraw::{NovadrawSystem, RenderBackend};
+use novadraw::{Key, KeyModifiers, NovadrawSystem, RenderBackend};
 use tracing::info;
 use winit::dpi::{self, PhysicalSize};
-use winit::event::{ElementState, MouseButton as WinitMouseButton};
+use winit::event::{ElementState, MouseButton as WinitMouseButton, MouseScrollDelta};
 use winit::window::WindowAttributes;
 use winit::{
     application::ApplicationHandler,
@@ -17,11 +18,16 @@ use winit::{
     window::{Window, WindowId},
 };
 
+const DOUBLE_CLICK_INTERVAL: Duration = Duration::from_millis(500);
+const DOUBLE_CLICK_DISTANCE: f64 = 4.0;
+
 pub struct GraphicsApp {
     renderer: Option<VelloRenderer>,
     system: Option<WinitNovadrawSystem>,
     cached_window: Option<Arc<Window>>,
     cursor_position: Option<(f64, f64)>,
+    last_press: Option<(Instant, novadraw::MouseButton, f64, f64)>,
+    modifiers: KeyModifiers,
 }
 
 impl GraphicsApp {
@@ -31,6 +37,8 @@ impl GraphicsApp {
             system: None,
             cached_window: None,
             cursor_position: None,
+            last_press: None,
+            modifiers: KeyModifiers::default(),
         }
     }
 
@@ -159,7 +167,6 @@ impl ApplicationHandler<()> for GraphicsApp {
                     let PhysicalSize { width, height } = new_size;
 
                     renderer.resize(width, height, scale_factor);
-                    renderer.recreate_surface(width, height);
                     self.request_update();
                 }
             }
@@ -203,6 +210,22 @@ impl ApplicationHandler<()> for GraphicsApp {
                     match state {
                         ElementState::Pressed => {
                             let _ = system.dispatch_raw_mouse_pressed(raw, button);
+                            let logical = raw.logical_position();
+                            let now = Instant::now();
+                            let double_clicked = self.last_press.is_some_and(
+                                |(previous_time, previous_button, previous_x, previous_y)| {
+                                    previous_button == button
+                                        && now.duration_since(previous_time)
+                                            <= DOUBLE_CLICK_INTERVAL
+                                        && (logical.x - previous_x).abs() <= DOUBLE_CLICK_DISTANCE
+                                        && (logical.y - previous_y).abs() <= DOUBLE_CLICK_DISTANCE
+                                },
+                            );
+                            self.last_press = Some((now, button, logical.x, logical.y));
+                            if double_clicked {
+                                system.dispatch_raw_mouse_double_clicked(raw, button);
+                                self.last_press = None;
+                            }
                         }
                         ElementState::Released => {
                             let _ = system.dispatch_raw_mouse_released(raw, button);
@@ -210,11 +233,51 @@ impl ApplicationHandler<()> for GraphicsApp {
                     }
                 }
             }
+            WindowEvent::MouseWheel { delta, .. } => {
+                if let (Some((physical_x, physical_y)), Some(system)) =
+                    (self.cursor_position, &mut self.system)
+                {
+                    let scale_factor = self
+                        .renderer
+                        .as_ref()
+                        .map(|renderer| renderer.window().scale_factor())
+                        .unwrap_or(1.0);
+                    let raw = RawPointerInput::new(physical_x, physical_y, scale_factor);
+                    let (delta_x, delta_y) = match delta {
+                        MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
+                        MouseScrollDelta::PixelDelta(position) => {
+                            (position.x / scale_factor, position.y / scale_factor)
+                        }
+                    };
+                    system.dispatch_raw_mouse_wheel(raw, delta_x, delta_y);
+                }
+            }
+            WindowEvent::ModifiersChanged(modifiers) => {
+                let state = modifiers.state();
+                self.modifiers = KeyModifiers {
+                    shift: state.shift_key(),
+                    control: state.control_key(),
+                    alt: state.alt_key(),
+                    meta: state.super_key(),
+                };
+            }
+            WindowEvent::Focused(false) => {
+                if let Some(system) = &mut self.system {
+                    system.release_focus();
+                }
+            }
             WindowEvent::KeyboardInput { event, .. } => {
+                let engine_key = map_key(event.physical_key);
+                if let (Some(system), Some(key)) = (&mut self.system, engine_key) {
+                    match event.state {
+                        ElementState::Pressed => system.dispatch_key_pressed(key, self.modifiers),
+                        ElementState::Released => system.dispatch_key_released(key, self.modifiers),
+                    }
+                }
+
                 if event.state != ElementState::Pressed {
                     return;
                 }
-
                 match event.physical_key {
                     PhysicalKey::Code(KeyCode::Digit0) => {
                         if let Some(system) = &mut self.system {
@@ -348,6 +411,28 @@ impl ApplicationHandler<()> for GraphicsApp {
             self.cached_window = Some(renderer.window().clone_window());
         }
     }
+}
+
+fn map_key(key: PhysicalKey) -> Option<Key> {
+    let PhysicalKey::Code(code) = key else {
+        return None;
+    };
+    Some(match code {
+        KeyCode::Enter => Key::Enter,
+        KeyCode::Escape => Key::Escape,
+        KeyCode::Tab => Key::Tab,
+        KeyCode::ArrowUp => Key::ArrowUp,
+        KeyCode::ArrowDown => Key::ArrowDown,
+        KeyCode::ArrowLeft => Key::ArrowLeft,
+        KeyCode::ArrowRight => Key::ArrowRight,
+        KeyCode::KeyA => Key::Character('a'),
+        KeyCode::KeyB => Key::Character('b'),
+        KeyCode::KeyC => Key::Character('c'),
+        KeyCode::KeyH => Key::Character('h'),
+        KeyCode::KeyM => Key::Character('m'),
+        KeyCode::KeyT => Key::Character('t'),
+        _ => return None,
+    })
 }
 
 pub fn start_app() -> Result<(), Box<dyn std::error::Error>> {

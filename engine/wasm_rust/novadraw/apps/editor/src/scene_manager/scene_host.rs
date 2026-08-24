@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use novadraw::{
-    FigureGraph, NdCanvas, RenderBackend, SceneHost, UpdateManager,
+    FigureGraph, NdCanvas, RenderBackend, RenderOutcome, SceneHost, UpdateManager,
     backend::vello::WinitWindowProxy, traits::WindowProxy,
 };
 
@@ -78,8 +78,10 @@ impl SceneHost for WinitSceneHost {
             UpdateExecution::Full => scene.render(),
             UpdateExecution::Incremental => scene.perform_update(update_manager),
         };
-        if !canvas.damage().is_empty() {
-            renderer.render(&canvas.to_submission());
+        if !canvas.damage().is_empty()
+            && renderer.render(&canvas.to_submission()) == RenderOutcome::Retry
+        {
+            self.request_update();
         }
 
         if update_manager.is_update_queued() {
