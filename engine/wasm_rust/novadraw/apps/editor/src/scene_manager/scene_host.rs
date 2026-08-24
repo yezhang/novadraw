@@ -27,6 +27,23 @@ pub struct WinitSceneHost {
     update_queued: AtomicBool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum UpdateExecution {
+    None,
+    Full,
+    Incremental,
+}
+
+fn select_update_execution(host_requested: bool, manager_queued: bool) -> UpdateExecution {
+    if manager_queued {
+        UpdateExecution::Incremental
+    } else if host_requested {
+        UpdateExecution::Full
+    } else {
+        UpdateExecution::None
+    }
+}
+
 impl WinitSceneHost {
     /// 创建新的 WinitSceneHost
     pub fn new(window: Arc<WinitWindowProxy>) -> Self {
@@ -39,13 +56,13 @@ impl WinitSceneHost {
 
 impl SceneHost for WinitSceneHost {
     fn request_update(&self) {
-        if !self.update_queued.swap(true, Ordering::Relaxed) {
+        if !self.update_queued.swap(true, Ordering::AcqRel) {
             self.window.request_redraw();
         }
     }
 
     fn is_update_queued(&self) -> bool {
-        self.update_queued.load(Ordering::Relaxed)
+        self.update_queued.load(Ordering::Acquire)
     }
 
     fn execute_update(
@@ -54,23 +71,51 @@ impl SceneHost for WinitSceneHost {
         update_manager: &mut dyn UpdateManager,
         renderer: &mut impl RenderBackend,
     ) -> NdCanvas {
-        if !self.update_queued.load(Ordering::Relaxed) && !update_manager.is_update_queued() {
-            return NdCanvas::new();
+        let host_requested = self.update_queued.swap(false, Ordering::AcqRel);
+        let manager_queued = update_manager.is_update_queued();
+        let canvas = match select_update_execution(host_requested, manager_queued) {
+            UpdateExecution::None => return NdCanvas::new(),
+            UpdateExecution::Full => scene.render(),
+            UpdateExecution::Incremental => scene.perform_update(update_manager),
+        };
+        if !canvas.damage().is_empty() {
+            renderer.render(&canvas.to_submission());
         }
 
-        let canvas = scene.perform_update(update_manager);
-        let submission = canvas.to_submission();
-        renderer.render(&submission);
-
-        let still_queued = update_manager.is_update_queued();
-        self.update_queued.store(still_queued, Ordering::Relaxed);
-        if still_queued {
-            self.window.request_redraw();
+        if update_manager.is_update_queued() {
+            self.request_update();
         }
         canvas
     }
 
     fn viewport_size(&self) -> (f64, f64) {
         (self.window.width() as f64, self.window.height() as f64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_only_request_forces_full_render() {
+        assert_eq!(select_update_execution(true, false), UpdateExecution::Full);
+    }
+
+    #[test]
+    fn manager_work_uses_incremental_update() {
+        assert_eq!(
+            select_update_execution(false, true),
+            UpdateExecution::Incremental
+        );
+        assert_eq!(
+            select_update_execution(true, true),
+            UpdateExecution::Incremental
+        );
+    }
+
+    #[test]
+    fn no_request_is_a_noop() {
+        assert_eq!(select_update_execution(false, false), UpdateExecution::None);
     }
 }

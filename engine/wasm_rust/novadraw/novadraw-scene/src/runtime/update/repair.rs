@@ -97,11 +97,11 @@ pub(crate) fn write_damage_set(canvas: &mut NdCanvas, rects: Vec<Rectangle>) -> 
     }
 
     canvas.damage_mut().set_regions(rects);
-    canvas.damage().union
+    canvas.damage().union()
 }
 
-pub(crate) fn execute_repair_phase<'a>(
-    graph: &mut FigureGraph,
+pub(crate) fn prepare_damage_set<'a>(
+    graph: &FigureGraph,
     canvas: &mut NdCanvas,
     dirty_regions: impl IntoIterator<Item = (&'a BlockId, &'a Rectangle)>,
 ) -> Option<Rectangle> {
@@ -109,9 +109,7 @@ pub(crate) fn execute_repair_phase<'a>(
         .into_iter()
         .filter_map(|(block_id, rect)| propagate_damage_to_root(graph, *block_id, *rect))
         .collect();
-    let union = write_damage_set(canvas, propagated_regions);
-    graph.render_to(canvas);
-    union
+    write_damage_set(canvas, propagated_regions)
 }
 
 fn collect_parent_chain_steps(
@@ -339,8 +337,8 @@ mod tests {
         let union = write_damage_set(&mut canvas, regions.clone());
 
         assert_eq!(union, Some(Rectangle::new(10.0, 20.0, 40.0, 38.0)));
-        assert_eq!(canvas.damage().regions, regions);
-        assert_eq!(canvas.damage().union, union);
+        assert_eq!(canvas.damage().regions(), regions);
+        assert_eq!(canvas.damage().union(), union);
     }
 
     #[test]

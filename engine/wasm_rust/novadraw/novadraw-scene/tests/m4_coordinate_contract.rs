@@ -246,7 +246,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
 
     let canvas = graph.perform_update(&mut update_manager);
     assert_eq!(
-        canvas.damage().union,
+        canvas.damage().union(),
         Some(Rectangle::new(50.0, 40.0, 120.0, 85.0))
     );
 }

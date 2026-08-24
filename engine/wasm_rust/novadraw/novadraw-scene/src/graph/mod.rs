@@ -1131,6 +1131,7 @@ impl FigureGraph {
     /// 3. paintBorder() - 绘制边框
     pub fn render(&self) -> NdCanvas {
         let mut gc = NdCanvas::new();
+        gc.damage_mut().set_full();
         self.render_to(&mut gc);
         gc
     }
@@ -2489,6 +2490,48 @@ mod tests {
         fn outline_shape(&self, _gc: &mut NdCanvas) {}
     }
 
+    struct AlphaStateFigure {
+        bounds: Rectangle,
+        alpha: Option<f64>,
+    }
+
+    impl Bounded for AlphaStateFigure {
+        fn bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+            self.bounds = Rectangle::new(x, y, width, height);
+        }
+
+        fn name(&self) -> &'static str {
+            "AlphaStateFigure"
+        }
+    }
+
+    impl Updatable for AlphaStateFigure {
+        fn validate(&mut self) {}
+    }
+
+    impl Figure for AlphaStateFigure {
+        fn init_properties(&self, gc: &mut NdCanvas) {
+            if let Some(alpha) = self.alpha {
+                gc.global_alpha(alpha);
+            }
+        }
+
+        fn paint_figure(&self, gc: &mut NdCanvas) {
+            let bounds = self.bounds;
+            gc.fill_rect(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                NovadrawCoreColor::WHITE,
+            );
+        }
+    }
+
     /// 测试渲染顺序：Z-order 验证
     ///
     /// 场景：父容器包含三个子矩形（从下到上添加）
@@ -3639,6 +3682,45 @@ mod tests {
             signatures.contains(&RenderSignature::Clip([0.0, 0.0, 100.0, 100.0])),
             "parent clientArea clip must remain active"
         );
+    }
+
+    #[test]
+    fn test_unclipped_children_restore_parent_graphics_state_between_siblings() {
+        let mut scene = FigureGraph::new();
+        let parent_id = scene.set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+                .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
+        ));
+        scene.add_child_to(
+            parent_id,
+            Box::new(AlphaStateFigure {
+                bounds: Rectangle::new(0.0, 0.0, 10.0, 10.0),
+                alpha: Some(0.25),
+            }),
+        );
+        scene.add_child_to(
+            parent_id,
+            Box::new(AlphaStateFigure {
+                bounds: Rectangle::new(20.0, 0.0, 10.0, 10.0),
+                alpha: None,
+            }),
+        );
+
+        let canvas = scene.render();
+        let sibling_color = canvas
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::FillRect { rect, color }
+                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
+                {
+                    Some(*color)
+                }
+                _ => None,
+            })
+            .expect("second sibling must paint");
+
+        assert_eq!(sibling_color.a, 1.0);
     }
 
     #[test]

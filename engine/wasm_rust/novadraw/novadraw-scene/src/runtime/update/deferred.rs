@@ -24,7 +24,7 @@ use crate::runtime::update::listener::{
     NotificationEffect, NotificationQueue, UpdateEvent, UpdateListener,
 };
 use crate::runtime::update::repair::{
-    compute_damage_union, execute_repair_phase, merge_dirty_region,
+    compute_damage_union, merge_dirty_region, prepare_damage_set,
 };
 
 /// Scene Update Manager
@@ -248,13 +248,21 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
             .emit_update(UpdateEvent::Validated);
         self.update_queued = false;
         let dirty_snapshot = self.take_dirty_snapshot();
-        let damage = compute_damage_union(dirty_snapshot.values());
+        let damage = prepare_damage_set(graph, canvas, dirty_snapshot.iter());
 
-        self.notification_effects
-            .emit_update(UpdateEvent::Painting { damage });
-        execute_repair_phase(graph, canvas, dirty_snapshot.iter());
-        self.notification_effects
-            .emit_update(UpdateEvent::Painted { damage });
+        if !dirty_snapshot.is_empty() {
+            let reported_damage = damage.unwrap_or_else(|| Rectangle::new(0.0, 0.0, 0.0, 0.0));
+            self.notification_effects
+                .emit_update(UpdateEvent::Painting {
+                    damage: reported_damage,
+                });
+            if damage.is_some() {
+                graph.render_to(canvas);
+            }
+            self.notification_effects.emit_update(UpdateEvent::Painted {
+                damage: reported_damage,
+            });
+        }
 
         self.clear_dirty_and_flag();
         self.flush_notifications(graph);
@@ -432,12 +440,12 @@ mod tests {
         manager.perform_update(&mut graph, &mut canvas);
 
         assert_eq!(
-            canvas.damage().union,
+            canvas.damage().union(),
             Some(Rectangle::new(10.0, 20.0, 30.0, 40.0))
         );
         assert_eq!(
-            canvas.damage().regions,
-            vec![Rectangle::new(10.0, 20.0, 30.0, 40.0)]
+            canvas.damage().regions(),
+            &[Rectangle::new(10.0, 20.0, 30.0, 40.0)]
         );
     }
 
@@ -490,6 +498,125 @@ mod tests {
                     damage: Rectangle::new(10.0, 20.0, 30.0, 40.0),
                 }),
             ]
+        );
+    }
+
+    #[test]
+    fn test_update_notifications_report_root_domain_damage() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let coordinate_root = graph.add_child_to(
+            root_id,
+            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0).with_local_coordinates(true)),
+        );
+        let child = graph.add_child_to(
+            coordinate_root,
+            Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)),
+        );
+        manager.add_dirty_region(child, Rectangle::new(10.0, 20.0, 30.0, 40.0));
+
+        let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        struct CapturePainting {
+            effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
+        }
+        impl UpdateListener for CapturePainting {
+            fn on_update_event(&self, event: UpdateEvent) {
+                self.effects.lock().unwrap().push(event);
+            }
+            fn on_figure_event(&self, _event: FigureEvent) {}
+            fn on_notify(&self, _block_id: BlockId) {}
+        }
+        manager.add_listener(Box::new(CapturePainting {
+            effects: effects.clone(),
+        }));
+
+        let mut canvas = NdCanvas::new();
+        manager.perform_update(&mut graph, &mut canvas);
+
+        let expected = Rectangle::new(110.0, 70.0, 30.0, 40.0);
+        assert_eq!(canvas.damage().union(), Some(expected));
+        assert!(
+            effects
+                .lock()
+                .unwrap()
+                .contains(&UpdateEvent::Painting { damage: expected })
+        );
+    }
+
+    #[test]
+    fn test_clipped_damage_notifies_without_rendering() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        manager.add_dirty_region(root_id, Rectangle::new(200.0, 200.0, 10.0, 10.0));
+
+        let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        struct CaptureUpdate {
+            effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
+        }
+        impl UpdateListener for CaptureUpdate {
+            fn on_update_event(&self, event: UpdateEvent) {
+                self.effects.lock().unwrap().push(event);
+            }
+            fn on_figure_event(&self, _event: FigureEvent) {}
+            fn on_notify(&self, _block_id: BlockId) {}
+        }
+        manager.add_listener(Box::new(CaptureUpdate {
+            effects: effects.clone(),
+        }));
+
+        let mut canvas = NdCanvas::new();
+        manager.perform_update(&mut graph, &mut canvas);
+
+        let empty_damage = Rectangle::new(0.0, 0.0, 0.0, 0.0);
+        assert!(canvas.damage().is_empty());
+        assert!(canvas.commands().is_empty());
+        assert_eq!(
+            *effects.lock().unwrap(),
+            vec![
+                UpdateEvent::Validating,
+                UpdateEvent::Validated,
+                UpdateEvent::Painting {
+                    damage: empty_damage,
+                },
+                UpdateEvent::Painted {
+                    damage: empty_damage,
+                },
+            ]
+        );
+        assert!(!manager.is_update_queued());
+    }
+
+    #[test]
+    fn test_update_without_dirty_regions_skips_rendering() {
+        let mut manager = SceneUpdateManager::new();
+        let mut graph = FigureGraph::new();
+        graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+
+        let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        struct CaptureUpdate {
+            effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
+        }
+        impl UpdateListener for CaptureUpdate {
+            fn on_update_event(&self, event: UpdateEvent) {
+                self.effects.lock().unwrap().push(event);
+            }
+            fn on_figure_event(&self, _event: FigureEvent) {}
+            fn on_notify(&self, _block_id: BlockId) {}
+        }
+        manager.add_listener(Box::new(CaptureUpdate {
+            effects: effects.clone(),
+        }));
+
+        let mut canvas = NdCanvas::new();
+        manager.perform_update(&mut graph, &mut canvas);
+
+        assert!(canvas.damage().is_empty());
+        assert!(canvas.commands().is_empty());
+        assert_eq!(
+            *effects.lock().unwrap(),
+            vec![UpdateEvent::Validating, UpdateEvent::Validated]
         );
     }
 }

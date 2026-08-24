@@ -8,6 +8,9 @@ use super::BlockId;
 use crate::ChildClippingStrategy;
 use crate::debug_render;
 
+const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
+const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
+
 /// 场景图引用（用于渲染）
 pub struct FigureGraphRenderRef<'a> {
     pub(crate) blocks: &'a slotmap::SlotMap<BlockId, super::FigureBlock>,
@@ -74,6 +77,12 @@ impl<'a> FigureRenderer<'a> {
     ///         └─> popState()
     /// ```
     fn paint(&mut self, block_id: BlockId) {
+        stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+            self.paint_inner(block_id);
+        });
+    }
+
+    fn paint_inner(&mut self, block_id: BlockId) {
         // 获取 block
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
@@ -244,13 +253,13 @@ impl<'a> FigureRenderer<'a> {
                         child_bounds.height,
                     );
                     self.paint(child_id);
-                    self.gc.restore_state();
                 }
                 ChildClippingStrategy::DoNotClipChildBounds => {
                     debug_render!("[RECUR]     -> paint child without child bounds clip");
                     self.paint(child_id);
                 }
             }
+            self.gc.restore_state();
         }
     }
 }

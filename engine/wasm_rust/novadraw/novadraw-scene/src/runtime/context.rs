@@ -40,6 +40,7 @@ pub struct SceneNovadrawContext<'a> {
     update_manager: &'a mut dyn UpdateManager,
     pending_mutations: &'a mut PendingMutations,
     selection_request: &'a mut Option<Option<BlockId>>,
+    invalidation_requested: &'a mut bool,
 }
 
 impl<'a> SceneNovadrawContext<'a> {
@@ -49,6 +50,7 @@ impl<'a> SceneNovadrawContext<'a> {
         update_manager: &'a mut dyn UpdateManager,
         pending_mutations: &'a mut PendingMutations,
         selection_request: &'a mut Option<Option<BlockId>>,
+        invalidation_requested: &'a mut bool,
     ) -> Self {
         Self {
             target_id,
@@ -56,6 +58,7 @@ impl<'a> SceneNovadrawContext<'a> {
             update_manager,
             pending_mutations,
             selection_request,
+            invalidation_requested,
         }
     }
 }
@@ -71,7 +74,7 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
     }
 
     fn invalidate(&mut self) {
-        self.update_manager.add_invalid_figure(self.target_id);
+        *self.invalidation_requested = true;
     }
 
     fn set_selected(&mut self, block_id: Option<BlockId>) {
@@ -166,6 +169,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
             return false;
         };
         let mut selection_request = None;
+        let mut invalidation_requested = false;
         let handled = {
             let bounds = block.figure_bounds();
             let mut ctx = SceneNovadrawContext::new(
@@ -174,6 +178,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 self.update_manager,
                 self.pending_mutations,
                 &mut selection_request,
+                &mut invalidation_requested,
             );
 
             match event {
@@ -201,6 +206,10 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 }
             }
         };
+
+        if invalidation_requested {
+            self.scene.mark_invalid(self.update_manager, target_id);
+        }
 
         if let Some(selected) = selection_request {
             let previous = self.scene.selected_block();
@@ -288,6 +297,7 @@ mod tests {
         }
 
         fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+            ctx.invalidate();
             ctx.add_child_later(
                 ctx.target_id(),
                 Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0)),
@@ -477,6 +487,8 @@ mod tests {
         let parent_id = scene.set_contents(Box::new(EnqueueChildFigure {
             bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
         }));
+        scene.revalidate(parent_id);
+        assert!(scene.is_valid(parent_id));
         let mut update_manager = crate::SceneUpdateManager::new();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
@@ -486,6 +498,8 @@ mod tests {
         dispatcher.dispatch_mouse_pressed(&mut ctx, 10.0, 10.0, MouseButton::Left);
 
         assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
+        assert!(!scene.is_valid(parent_id));
+        assert!(update_manager.has_pending_layout());
         assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
         assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 1);
     }

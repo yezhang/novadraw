@@ -335,7 +335,7 @@ fn test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain() {
 
     let canvas = scene.perform_update(&mut update_manager);
     assert_eq!(
-        canvas.damage().union,
+        canvas.damage().union(),
         Some(Rectangle::new(120.0, 80.0, 40.0, 40.0))
     );
 }
@@ -361,7 +361,7 @@ fn test_add_child_under_viewport_repair_uses_content_transform() {
 
     let canvas = scene.perform_update(&mut update_manager);
     assert_eq!(
-        canvas.damage().union,
+        canvas.damage().union(),
         Some(Rectangle::new(120.0, 70.0, 80.0, 80.0))
     );
 }
@@ -486,7 +486,7 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
     assert!(scene.is_valid(container));
     assert!(scene.is_valid(child));
     assert_eq!(
-        canvas.damage().union,
+        canvas.damage().union(),
         Some(Rectangle::new(60.0, 70.0, 70.0, 80.0))
     );
 }
@@ -564,7 +564,7 @@ fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
 
     let canvas = scene.perform_update(&mut update_manager);
     assert_eq!(
-        canvas.damage().union,
+        canvas.damage().union(),
         Some(Rectangle::new(50.0, 40.0, 100.0, 75.0))
     );
 }
@@ -728,6 +728,10 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
             .expect("depth at the configured boundary must be accepted");
         assert_eq!(scene.block_depth(parent), Some(expected_depth));
     }
+
+    let canvas = scene.render();
+    assert!(canvas.damage().is_full());
+    assert!(!canvas.commands().is_empty());
 
     let block_count = scene.blocks.len();
     let uuid_count = scene.uuid_map.len();

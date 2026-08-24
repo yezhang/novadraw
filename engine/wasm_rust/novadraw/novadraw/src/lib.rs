@@ -7,8 +7,8 @@ pub use novadraw_geometry::Transform;
 
 #[cfg(feature = "vello")]
 pub use novadraw_render::{
-    DamageSet, NdCanvas, RenderBackend, RenderCommand, RenderCommandKind, RenderSubmission,
-    WindowProxy, command,
+    DamageMode, DamageSet, NdCanvas, RenderBackend, RenderCommand, RenderCommandKind,
+    RenderSubmission, WindowProxy, command,
 };
 
 #[cfg(feature = "vello")]

@@ -15,6 +15,7 @@ use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
+use crate::submission::DamageMode;
 use crate::traits::{RenderBackend, WindowProxy};
 
 pub mod winit;
@@ -33,8 +34,21 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
 struct RenderState {
     /// 当前变换矩阵
     transform: Transform,
-    /// 当前已推入 scene 的裁剪层数量。
-    clip_depth: usize,
+    /// 当前状态下可重放的裁剪层。
+    clips: Vec<RenderClip>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct RenderClip {
+    transform: Transform,
+    rect: [DVec2; 2],
+}
+
+fn clip_restore_plan<'a>(
+    current: &RenderState,
+    saved_clips: &'a [RenderClip],
+) -> (usize, &'a [RenderClip]) {
+    (current.clips.len(), saved_clips)
 }
 
 pub struct VelloRenderer {
@@ -202,22 +216,29 @@ impl VelloRenderer {
     fn effective_damage_regions(
         &self,
         submission: &crate::RenderSubmission,
-    ) -> (Rectangle, Vec<Rectangle>) {
+    ) -> Option<(Rectangle, Vec<Rectangle>)> {
         let (width, height) = self.current_surface_size();
-        let fallback_union = submission.damage.union.unwrap_or_else(|| {
-            Rectangle::new(
-                0.0,
-                0.0,
-                width as f64 / self.scale_factor,
-                height as f64 / self.scale_factor,
-            )
-        });
-        let regions = if submission.damage.regions.is_empty() {
-            vec![fallback_union]
-        } else {
-            submission.damage.regions.clone()
-        };
-        (fallback_union, regions)
+        match submission.damage.mode() {
+            DamageMode::None => None,
+            DamageMode::Full => {
+                let full = Rectangle::new(
+                    0.0,
+                    0.0,
+                    width as f64 / self.scale_factor,
+                    height as f64 / self.scale_factor,
+                );
+                Some((full, vec![full]))
+            }
+            DamageMode::Partial => {
+                let union = submission.damage.union()?;
+                let regions = if submission.damage.regions().is_empty() {
+                    vec![union]
+                } else {
+                    submission.damage.regions().to_vec()
+                };
+                Some((union, regions))
+            }
+        }
     }
 
     /// 获取当前状态
@@ -236,6 +257,14 @@ impl VelloRenderer {
         }
     }
 
+    fn restore_clip_layers(&mut self, clips: &[RenderClip]) {
+        let (current_depth, clips_to_replay) = clip_restore_plan(self.current_state(), clips);
+        self.pop_clip_layers(current_depth);
+        for clip in clips_to_replay {
+            self.push_clip_layer(clip);
+        }
+    }
+
     /// 处理单个渲染命令
     fn render_command(&mut self, cmd: &RenderCommand) {
         match &cmd.kind {
@@ -248,9 +277,8 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::RestoreState => {
                 debug!("RestoreState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() >= 2 {
-                    let current_depth = self.current_state().clip_depth;
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
-                    self.pop_clip_layers(current_depth.saturating_sub(saved.clip_depth));
+                    self.restore_clip_layers(&saved.clips);
                     *self.current_state_mut() = saved;
                 }
             }
@@ -258,9 +286,8 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::PopState => {
                 debug!("PopState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() > 1 {
-                    let current_depth = self.current_state().clip_depth;
-                    let saved_depth = self.state_stack[self.state_stack.len() - 2].clip_depth;
-                    self.pop_clip_layers(current_depth.saturating_sub(saved_depth));
+                    let saved = self.state_stack[self.state_stack.len() - 2].clone();
+                    self.restore_clip_layers(&saved.clips);
                     self.state_stack.pop();
                 }
             }
@@ -285,15 +312,19 @@ impl VelloRenderer {
 
             crate::command::RenderCommandKind::Clip { rect } => {
                 debug!("Clip: {:?}", rect);
-                self.push_clip_layer(rect);
-                self.current_state_mut().clip_depth += 1;
+                let clip = RenderClip {
+                    transform: self.current_state().transform,
+                    rect: *rect,
+                };
+                self.push_clip_layer(&clip);
+                self.current_state_mut().clips.push(clip);
             }
 
             crate::command::RenderCommandKind::ResetClip => {
                 debug!("ResetClip");
-                let depth = self.current_state().clip_depth;
+                let depth = self.current_state().clips.len();
                 self.pop_clip_layers(depth);
-                self.current_state_mut().clip_depth = 0;
+                self.current_state_mut().clips.clear();
             }
 
             // ===== 绘制命令 =====
@@ -718,8 +749,9 @@ impl VelloRenderer {
     }
 
     /// 推送裁剪层到场景
-    fn push_clip_layer(&mut self, rect: &[DVec2; 2]) {
-        let affine = Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
+    fn push_clip_layer(&mut self, clip: &RenderClip) {
+        let affine = Self::transform_to_affine(&clip.transform, self.scale_factor);
+        let rect = &clip.rect;
         let x0 = rect[0].x * self.scale_factor;
         let y0 = rect[0].y * self.scale_factor;
         let x1 = rect[1].x * self.scale_factor;
@@ -742,12 +774,15 @@ impl RenderBackend for VelloRenderer {
         let damage = &submission.damage;
         debug!(
             "damage set: union={:?}, regions={}",
-            damage.union,
-            damage.regions.len()
+            damage.union(),
+            damage.regions().len()
         );
 
+        let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
+        else {
+            return;
+        };
         let (width, height) = self.current_surface_size();
-        let (effective_damage, effective_regions) = self.effective_damage_regions(submission);
         let clip_rect = [
             DVec2::new(effective_damage.x, effective_damage.y),
             DVec2::new(
@@ -763,7 +798,10 @@ impl RenderBackend for VelloRenderer {
         self.state_stack.clear();
         self.state_stack.push(RenderState::default());
 
-        self.push_clip_layer(&clip_rect);
+        self.push_clip_layer(&RenderClip {
+            transform: Transform::IDENTITY,
+            rect: clip_rect,
+        });
         for cmd in commands {
             self.render_command(cmd);
         }
@@ -997,6 +1035,29 @@ impl VelloRenderer {
     /// 获取窗口尺寸（像素）
     pub fn size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clip_restore_plan_replays_saved_outer_clip_after_reset() {
+        let outer = RenderClip {
+            transform: Transform::from_translation(10.0, 20.0),
+            rect: [DVec2::new(0.0, 0.0), DVec2::new(100.0, 100.0)],
+        };
+        let current_after_reset = RenderState::default();
+        let saved = RenderState {
+            transform: Transform::IDENTITY,
+            clips: vec![outer.clone()],
+        };
+
+        let (pop_count, clips_to_replay) = clip_restore_plan(&current_after_reset, &saved.clips);
+
+        assert_eq!(pop_count, 0);
+        assert_eq!(clips_to_replay, [outer]);
     }
 }
 

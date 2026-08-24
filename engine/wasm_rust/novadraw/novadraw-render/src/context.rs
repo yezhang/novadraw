@@ -73,6 +73,9 @@ impl NdCanvas {
     }
 
     fn create_command(&mut self, kind: RenderCommandKind) {
+        if self.damage.is_empty() {
+            self.damage.set_full();
+        }
         let command = RenderCommand { kind };
         self.commands.push(command);
     }
@@ -786,6 +789,16 @@ mod tests {
             commands[2].kind,
             RenderCommandKind::ResetTransform
         ));
+    }
+
+    #[test]
+    fn first_command_promotes_unspecified_damage_to_full() {
+        let mut canvas = NdCanvas::new();
+        assert!(canvas.damage().is_empty());
+
+        canvas.fill_rect(0.0, 0.0, 10.0, 10.0, Color::WHITE);
+
+        assert!(canvas.damage().is_full());
     }
 
     #[test]

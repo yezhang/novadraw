@@ -2,23 +2,54 @@ use novadraw_geometry::Rectangle;
 
 use crate::command::RenderCommand;
 
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+pub enum DamageMode {
+    #[default]
+    None,
+    Full,
+    Partial,
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct DamageSet {
-    pub union: Option<Rectangle>,
-    pub regions: Vec<Rectangle>,
+    mode: DamageMode,
+    union: Option<Rectangle>,
+    regions: Vec<Rectangle>,
 }
 
 impl DamageSet {
     pub fn is_empty(&self) -> bool {
-        self.union.is_none()
+        self.mode == DamageMode::None
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.mode == DamageMode::Full
+    }
+
+    pub fn mode(&self) -> DamageMode {
+        self.mode
+    }
+
+    pub fn union(&self) -> Option<Rectangle> {
+        self.union
+    }
+
+    pub fn regions(&self) -> &[Rectangle] {
+        &self.regions
+    }
+
+    pub fn set_full(&mut self) {
+        self.mode = DamageMode::Full;
+        self.union = None;
+        self.regions.clear();
     }
 
     pub fn set_union(&mut self, rect: Rectangle) {
         if rect.width <= 0.0 || rect.height <= 0.0 {
-            self.union = None;
-            self.regions.clear();
+            self.clear();
             return;
         }
+        self.mode = DamageMode::Partial;
         self.union = Some(rect);
         self.regions.clear();
         self.regions.push(rect);
@@ -35,6 +66,7 @@ impl DamageSet {
             return;
         }
 
+        self.mode = DamageMode::Partial;
         let union = filtered
             .iter()
             .copied()
@@ -46,6 +78,7 @@ impl DamageSet {
     }
 
     pub fn clear(&mut self) {
+        self.mode = DamageMode::None;
         self.union = None;
         self.regions.clear();
     }
@@ -55,4 +88,29 @@ impl DamageSet {
 pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn damage_mode_distinguishes_none_full_and_partial() {
+        let mut damage = DamageSet::default();
+        assert_eq!(damage.mode(), DamageMode::None);
+        assert!(damage.is_empty());
+
+        damage.set_full();
+        assert_eq!(damage.mode(), DamageMode::Full);
+        assert!(damage.is_full());
+        assert!(!damage.is_empty());
+
+        damage.set_union(Rectangle::new(1.0, 2.0, 3.0, 4.0));
+        assert_eq!(damage.mode(), DamageMode::Partial);
+        assert!(!damage.is_full());
+
+        damage.clear();
+        assert_eq!(damage.mode(), DamageMode::None);
+        assert!(damage.is_empty());
+    }
 }

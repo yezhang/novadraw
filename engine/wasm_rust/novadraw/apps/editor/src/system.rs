@@ -274,6 +274,7 @@ impl WinitNovadrawSystem {
 
     pub fn switch_scene(&mut self, scene_type: crate::scene_manager::SceneType) {
         self.core.scene_manager_mut().switch_scene(scene_type);
+        self.core.update_manager.clear();
         self.scene_host.request_update();
     }
 
