@@ -25,8 +25,8 @@
 | M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 | +60 |
 | M3 | `clip-app` nested clip 场景 | `apps/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
 | M4 | `transform-app` ✅ | `apps/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
-| M5 | `layout-app` + `update-app` | `apps/layout-app`、`apps/update-app` | 6 布局并排对比 + draw2d 反向等价测试；三种失效粒度 + 1k+ Figure 帧率断言 | +250 |
-| M6 | `event-app` | `apps/event-app` | 4 类监听 + hit-test 全图元 + capture/focus 状态机断言 | +100 |
+| M5 | `layout-app` ✅ + `update-app` ✅ | `apps/layout-app`、`apps/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
+| M6 | `event-app` ✅ | `apps/event-app` | 4 类监听 + hit-test 全图元 + capture/focus 状态机断言 | +100 |
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
 | M8 | `scroll-pane-demo` + 收口 `viewport-app` | `apps/scroll-pane-demo`、`apps/viewport-app` | ScrollBar + 滚轮 + autoexpose；历史暂停的 4 场景视觉验证全过 | +120 |
 | M9 | `connections-demo` | `apps/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
@@ -45,6 +45,13 @@
 - 背景色 RGB(238, 238, 238)，图形颜色禁止与此重复
 
 截图断言分为 6 层：Unit Contract Tests、RenderCommand Snapshot、Screenshot Capture、Pixel / Semantic Check、AI Visual Review、Visual Report。
+
+### 统一 CLI
+
+- `cargo run -p update-app -- --verify`：验证 damage、通知顺序、dirty 合并、panic 恢复和 1,024 Figure 事务
+- `cargo run -p event-app -- --verify`：验证 capture、focus/keyboard、wheel/hover/double-click 和坐标根降域
+- `--scenario=<name>` 只运行指定场景，`--report=<path>` 输出机器可读 JSON
+- 默认报告：`target/visual-verification/update-app.json`、`target/visual-verification/event-app.json`
 
 ### 帧率断言
 
@@ -77,9 +84,9 @@
 
 - [x] M3 `apps/clip-app` nested clip 场景
 - [x] M4 `apps/transform-app`
-- [ ] M5 `apps/layout-app`
-- [ ] M5 `apps/update-app` stress 场景
-- [ ] M6 `apps/event-app`
+- [x] M5 `apps/layout-app`
+- [x] M5 `apps/update-app` stress 场景
+- [x] M6 `apps/event-app`
 - [ ] M8 `apps/scroll-pane-demo`
 - [ ] M8 `apps/viewport-app` 4 场景视觉验证
 - [ ] M9 `apps/connections-demo`

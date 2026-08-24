@@ -456,7 +456,29 @@ Zed 与 Draw2D 的机制形式不同，但它们在核心原则上是接近的�
 
 ---
 
-## 14. 最终判断
+## 14. Novadraw 当前落地
+
+当前引擎已按语义拆分以下监听端口：
+
+- `FigureListener`
+- `CoordinateListener`
+- `AncestorListener`
+- `PropertyChangeListener`
+- `LayoutListener`
+- Figure input callbacks
+- UpdateManager 级 `UpdateListener` / `ValidatingListener`
+
+监听器注册返回 `ListenerId`，由 `SceneUpdateManager::remove_listener()` 统一解除，
+不依赖全局状态。所有变化先写入 `NotificationQueue`，再在更新事务末尾按发生顺序
+flush；validation 中产生的 Figure/Layout effect 位于 `Validating` 和 `Validated`
+之间。
+
+兼容入口 `UpdateListener::{on_figure_event,on_notify}` 暂时保留，但新增能力应优先
+使用对应 typed listener，避免重新形成单一总线。
+
+---
+
+## 15. 最终判断
 
 Draw2D 的通知机制可以概括为一句话：
 

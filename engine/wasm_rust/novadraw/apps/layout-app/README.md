@@ -14,16 +14,16 @@ cargo run -p layout-app
 
 | 场景 | 名称 | 验证内容 |
 |------|------|----------|
-| 0 | FlowLayout 水平 | 元素水平排列 |
-| 1 | FlowLayout 垂直 | 元素垂直排列 |
-| 2 | FlowLayout 换行 | 元素超出宽度时换行 |
-| 3 | BorderLayout | 方位布局（北、南、西、东、中） |
-| 4 | BorderLayout 嵌套 | 嵌套的 BorderLayout |
-| 5 | StackLayout | 堆叠布局，元素重叠显示 |
-| 6 | XYLayout 绝对 | 绝对定位布局 |
-| 7 | GridLayout | 网格布局 |
-| 8 | 布局嵌套 | 多种布局的组合使用 |
-| 9 | 布局约束 | 元素的尺寸约束 |
+| 0 | XYLayout + Constraints | 绝对定位与显式尺寸约束 |
+| 1 | FillLayout | 第一个子元素填充 client area |
+| 2 | FlowLayout | 水平流式排列和自动换行 |
+| 3 | Nested Layouts | 嵌套布局与约束传播 |
+| 4 | Constraint Update | 约束变化后的重新布局 |
+| 5 | GridLayout | 三列等宽网格与填充约束 |
+| 6 | ToolbarLayout | 单行排列、压缩和 minor-axis stretch |
+| 7 | StackLayout | 所有子元素覆盖同一 client area |
+| 8 | No Layout | 无布局管理器的对照场景 |
+| 9 | BorderLayout | 北、南、东、西、中五区域 |
 
 ## 操作说明
 

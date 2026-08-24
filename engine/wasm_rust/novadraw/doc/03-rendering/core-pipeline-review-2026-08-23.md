@@ -80,11 +80,30 @@ Vello 的 `ResetClip` 会弹出全部实际裁剪层，而 `GraphicsState` 只�
 
 ## 非阻断但尚未完整的能力
 
-- M5 尚缺 `GridLayout`、`ToolbarLayout`、`StackLayout`、六布局反向等价测试和
-  1k+ Figure stress。
-- M6 尚缺键盘、滚轮、drag、hover、double-click、完整 focus/capture 生命周期。
-- M7 尚缺六类 listener 的注册解绑和严格因果顺序。
-- Vello surface error、零尺寸 resize 和恢复后的全量重绘仍需独立增量收口。
+- M5-M7 核心契约已在后续增量中补齐，并提升为 `behavior_verified`。
+- `layout-app` 已使用真实 `GridLayout`、`ToolbarLayout` 和 `StackLayout`，不再用
+  XY 约束模拟 Grid。
+- Vello 已区分可恢复 surface error，零尺寸窗口进入 suspended 状态，恢复后由宿主
+  重新请求全量帧。
+- M8 Viewport / Scroll / Zoom 仍未闭合；Connection 阶段应继续遵守 M8 前置依赖。
+
+## 后续闭合增量
+
+| ID | 能力 | 证据 |
+|---|---|---|
+| CP-06 | UpdateManager panic 恢复、invalid 重入队、通知因果顺序 | deferred update 单元测试 |
+| CP-07 | 六布局、尺寸协议、Grid span/grab、1,024 Figure 事务 | `m5_layout_contract` |
+| CP-08 | cursor/hover/capture/focus 分轨与 key/wheel/drag/hover/double-click | `m6_event_contract` |
+| CP-09 | Figure/Coordinate/Ancestor/Property/Layout typed listener 生命周期 | typed listener 单元测试 |
+| CP-10 | surface error 分类、零尺寸 suspended、RenderOutcome 重试 | Vello backend 单元测试 |
+
+## 扩展阶段准入结论
+
+- **常用 Figure 扩展：允许启动。** M1-M7 核心依赖均已达到
+  `behavior_verified`，新增 Figure 应复用现有 bounds、paint、hit-test、
+  validation、event callback 和 typed notification 协议。
+- **Connection / Anchor / Router：暂缓。** 按路线图依赖，需先完成 M8 的
+  Viewport / Scroll / Zoom 核心契约，避免连线坐标与滚动缩放协议返工。
 
 ## 验收门禁
 

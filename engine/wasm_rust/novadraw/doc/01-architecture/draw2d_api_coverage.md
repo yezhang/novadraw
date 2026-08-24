@@ -234,13 +234,13 @@ Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | `LayoutManager::{get_constraint,set_constraint,remove_constraint}`；图层入口 `FigureGraph::{set_constraint,get_constraint,remove_constraint}` | partial | 约束生命周期和 child remove hook 未完全闭合 |
-| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | `LayoutManager::{get_preferred_size,get_minimum_size}`；`FigureBlock::{get_preferred_size,get_minimum_size,get_maximum_size}` | partial | size hint、border/client area 参与尺寸计算需补 probe |
-| `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 实际签名为 `LayoutManager::{invalidate,layout}`；`layout` 通过 `LayoutContext` 操作 children | partial | `invalidate` 无 IFigure 参数；cache invalidation 与 validation 阶段边界需明确 |
-| `layout.manager` | concrete layout implementations | `XYLayout`, `FillLayout`, `FlowLayout`, `BorderLayout`, `BorderRegion`, `FlowDirection` | partial | `XYConstraint` 未 re-export，不能记为稳定外部 API |
-| `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureGraph::{invalidate,mark_invalid,revalidate,revalidate_with_bounds,validate,perform_validation_cycle,is_layout_valid}`，`Updatable::{validate,invalidate}` | partial | M5 必须定义 validation root 和重复失效合并 |
-| `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `SceneUpdateManager::{add_invalid_figure,drain_invalid_blocks}`, `FigureGraph::{perform_validation_cycle,perform_update}`；无 `run_with_update` parity | partial | 明确 Validation -> Damage Repair 事务顺序 |
-| `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | `SceneUpdateManager::{add_dirty_region,compute_damage}`, `UpdateManager::{add_dirty_region,perform_update}`；无 exposed-rect overload | partial | 暴露区局部更新可作为 M5/P1 扩展 |
+| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | `FigureGraph::{set_constraint,get_constraint,remove_constraint}`；约束由父节点持有并在 remove/reparent 时清理 | verified | 保持约束所有权与 child 生命周期 probes |
+| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | `LayoutManager::{get_preferred_size,get_minimum_size}`，`LayoutContext::{get_preferred_size,get_minimum_size,get_maximum_size}` | verified | 六布局共享尺寸协议；border/client area 由图上下文提供 |
+| `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 无缓存布局采用图级 invalid path；`layout` 通过 `LayoutContext` 操作 children | verified | 缓存布局未来需重新声明 invalidate hook |
+| `layout.manager` | concrete layout implementations | `FlowLayout`, `BorderLayout`, `GridLayout`, `ToolbarLayout`, `XYLayout`, `StackLayout`；额外保留 `FillLayout` | verified | `m5_layout_contract` + `layout-app` |
+| `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureGraph::{invalidate,mark_invalid,revalidate,perform_validation_cycle,is_valid}`，validation root、重复失效与回调延迟失效已闭合 | verified | hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
+| `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `SceneUpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
+| `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | dirty 合并、根域传播、`DamageMode::{None,Full,Partial}` 与 retained frame 提交已闭合 | verified | exposed-rect overload 作为 P1 扩展 |
 
 Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpdateManager.java`。
 
@@ -248,12 +248,12 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `event.dispatcher` | `dispatchMousePressed/Released/Moved` | `EventDispatcher::{receive,dispatch_mouse_pressed,dispatch_mouse_released,dispatch_mouse_moved}`，`Event::Mouse`, `MouseEventKind` | partial | mouse 主线已声明，语义仍需 M6 probes |
-| `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 由 `BasicEventDispatcher` 内部状态迁移触发；drag/hover/double click 无 public API | missing | M6 补 drag、hover、double click 细分语义 |
+| `event.dispatcher` | `dispatchMousePressed/Released/Moved` | `EventDispatcher::{receive,dispatch_mouse_pressed,dispatch_mouse_released,dispatch_mouse_moved}`，`Event::Mouse`, `MouseEventKind` | verified | target-domain callback 与 capture 状态测试 |
+| `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 由 hoverSource 迁移触发；drag/hover/double-click 为显式 dispatcher API | verified | capture 与 hover target 分轨 |
 | `event.dispatcher` | `setRoot`, `setControl` | root 等价入口应指 `FigureGraph::set_contents` / 宿主组合根；`SceneHost` 仅提供 update/render/viewport 调度，无 root/control setter | partial | apps 只做平台输入适配，root dispatch 留在引擎层 |
-| `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `FigureGraph::{focus_owner,set_focus_owner}`；无 request/remove/traversable public API | partial | M6 补 focus gained/lost event 与 traversal |
-| `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | `FigureGraph::{captured,set_captured}`；无 release/is_captured 命名 API | partial | M6 补 capture 生命周期和 release 条件 |
-| `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | 目标契约继续使用 `event.input_listeners`；建议新增 `WheelEvent`, `KeyEvent`, `FocusEvent` 与 Figure callback/listener | missing | M6 明确 listener 与 callback 的 Rust 表达 |
+| `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `EventDispatcher::{request_focus,release_focus}`，`FigureGraph::focus_owner`，`FocusEvent` | verified | 当前 traversal 由上层按 Key::Tab 策略扩展 |
+| `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release 自动释放；`FigureGraph::{captured,set_captured}` | verified | captured target 与 hoverSource 独立 |
+| `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口 | verified | Winit 只做输入类型与坐标适配 |
 | `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor/accessibility 扩展 | deferred | cursor 可随 Figure properties；accessibility 不进当前核心门禁 |
 
 Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`MouseEvent.java`、listener 接口。
@@ -262,11 +262,11 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `SceneUpdateManager::add_listener`, `UpdateListener::on_figure_event`, `FigureEvent`; 无 remove listener | partial | 需要区分 move、resize、bounds changed 并补 remove |
-| `notification.ancestor` | `add/removeAncestorListener` | 目标契约继续使用 `notification.ancestor` | missing | M7 处理 add/remove/reparent/move ancestor 链 |
-| `notification.coordinate` | `add/removeCoordinateListener` | 已有 `FigureEvent::CoordinateSystemChanged` / `UpdateListener::on_figure_event` 通道，但无独立 coordinate listener | partial | coordinate root 或 parent conversion 变化时触发 |
-| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | 目标契约继续使用 `notification.property` | missing | 与 `figure.properties` 一起设计 |
-| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `SceneUpdateManager::add_listener`, `UpdateListener::{on_update_event,on_notify}`, `UpdateEvent`, `NotificationEffect`; `ValidatingListener` 未 re-export | partial | M7 拆清 layout lifecycle 与 update lifecycle |
+| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `FigureListener` + `ListenerId` 注册/移除；`FigureEvent::FigureMoved` | verified | resize 仍沿用 Draw2D figureMoved 语义 |
+| `notification.ancestor` | `add/removeAncestorListener` | `AncestorListener` + Added/Moved/Removed typed events | verified | add/remove/reparent/ancestor move 已进入 effect queue |
+| `notification.coordinate` | `add/removeCoordinateListener` | `CoordinateListener` + `CoordinateSystemChanged` | verified | coordinate root 变换独立分发 |
+| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled/selected 已接入 | verified | M10 新属性继续复用同一协议 |
+| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `LayoutListener`、`ValidatingListener`、`UpdateListener` 分层注册，事务内保持因果顺序 | verified | listener remove 生命周期已有测试 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。
 

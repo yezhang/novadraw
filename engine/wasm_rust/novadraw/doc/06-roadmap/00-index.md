@@ -39,9 +39,9 @@
 | M2 | Figure 树与盒模型 | `behavior_verified` | active Figure 的树、盒模型、生命周期与 z-order 已验证 |
 | M3 | 绘制遍历与裁剪闭环 | `behavior_verified` | `clip-app` 与 paint/hit-test 一致性测试已完成 |
 | M4 | 坐标域与变换闭环 | `behavior_verified` | `m4_coordinate_contract` 与 `transform-app` 已完成 |
-| M5 | Layout + Validation + UpdateManager | `in_progress` | 两阶段更新和 damage 主链已有；约束、完整布局族、压力与等价验证待收口 |
-| M6 | 事件分发与交互状态机 | `not_started` | 鼠标基础链路是前置原型，不代表完整事件契约 |
-| M7 | 通知语义分层 | `not_started` | effect queue 与部分事件是前置原型，完整 listener 生命周期待实现 |
+| M5 | Layout + Validation + UpdateManager | `behavior_verified` | 六布局、约束/尺寸、两阶段事务、panic 恢复、damage 与 1,024 Figure 契约测试已闭合 |
+| M6 | 事件分发与交互状态机 | `behavior_verified` | mouse/cursor/hover/capture/focus 分离，drag/hover/double-click/wheel/key 与精确椭圆命中已有契约测试 |
+| M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `not_started` | Viewport 坐标/裁剪原型已存在；ScrollPane、RangeModel 等待 M5-M7 |
 | M9 | Connection / Anchor / Router | `not_started` | 尚无核心公开协议 |
 | M10 | 常用 Figure 与文本/控件 | `not_started` | 部分 Figure/Border 可导出，仍属于 deferred surface |

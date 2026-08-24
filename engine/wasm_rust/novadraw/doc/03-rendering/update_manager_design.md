@@ -326,6 +326,9 @@ scene.repaint(&mut update_manager, block_id, Some(dirty_rect));
 | `test_multiple_repaints_merge_regions` | 多次重绘合并区域 |
 | `test_invisible_block_no_dirty_region` | 不可见块不产生脏区域 |
 | `test_perform_update_two_phase` | 两阶段更新正确执行 |
+| `test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes` | panic 后恢复非重入状态并重新排队 |
+| `test_validation_figure_effects_preserve_causal_order` | validation 内 Figure effect 保持发生顺序 |
+| `test_typed_listeners_dispatch_and_remove_independently` | typed listener 独立分发与移除 |
 
 ## 待增强功能
 
@@ -333,8 +336,8 @@ scene.repaint(&mut update_manager, block_id, Some(dirty_rect));
 |------|---------|---------|----------|
 | exposed region 输入 | `performUpdate(Rectangle)` | 尚无公开重载 | M5 决定是否纳入核心门禁 |
 | 调度策略 | `asyncExec` | SceneHost request-driven | 增加 Web/Headless 实现 |
-| Validation root | 支持 | 部分 | M5 明确传播与重入收敛 |
-| UpdateListener | 可增删 | 仅支持添加 | M7 补订阅生命周期 |
+| Validation root | 支持 | 已验证 | 最高 invalid ancestor、重复失效与 panic 恢复 |
+| UpdateListener | 可增删 | 已验证 | `ListenerId` 统一管理 typed listener 生命周期 |
 
 ## 参考资料
 
