@@ -1,64 +1,42 @@
-# Event App - 事件处理验证
+# Event App - 事件管线验证
 
-## 功能说明
+`event-app` 验证 Draw2D 风格的单目标事件分发、鼠标捕获、焦点与键盘路由、
+扩展鼠标事件以及坐标根事件点降域。Novadraw 不采用 DOM 的捕获阶段和冒泡阶段。
 
-验证 Draw2D 事件系统，包括鼠标事件、键盘事件、焦点事件以及事件传播机制。
-
-## 运行方式
+## 运行
 
 ```bash
 cargo run -p event-app
+cargo run -p event-app -- --verify
+cargo run -p event-app -- --screenshot-all
 ```
 
-## 场景说明
+## 场景
 
 | 场景 | 名称 | 验证内容 |
-|------|------|----------|
-| 0 | MouseEnter/Exit | 鼠标进入和离开事件 |
-| 1 | MouseHover | 鼠标悬停状态 |
-| 2 | MouseDown/Up | 鼠标按下和释放事件 |
-| 3 | MouseMove 基础 | 鼠标移动检测 |
-| 4 | MouseMove 拖拽 | 拖拽交互实现 |
-| 5 | KeyDown/Up | 键盘按下和释放事件 |
-| 6 | Focus 获得/失去 | 焦点获取和丢失 |
-| 7 | 组合键 | Ctrl、Shift 等组合键 |
-| 8 | 事件传播 | 捕获阶段和冒泡阶段 |
-| 9 | 自定义事件 | 用户定义的事件类型 |
+|---|---|---|
+| 0 | `pointer_capture` | enter/exit、press/release、拖出边界后的 mouse capture |
+| 1 | `focus_keyboard` | 点击取得焦点、键盘投递、焦点释放 |
+| 2 | `wheel_hover_double` | wheel、hover、double-click |
+| 3 | `coordinate_root` | 嵌套坐标根命中和 target-domain 事件点 |
 
-## 操作说明
+窗口中按 `Home` 回到场景 0，按数字键 `0`-`3` 切换场景，按 `Esc` 退出。
 
-- 按数字键 `0`-`9` 切换场景
-- 按 `ESC` 退出程序
+## Verification
 
-## 事件类型
+```bash
+cargo run -p event-app -- --verify \
+  --report=target/visual-verification/event-app.json
+```
 
-### 鼠标事件
+通过时输出：
 
-- `MouseEnter`: 鼠标进入元素区域
-- `MouseExit`: 鼠标离开元素区域
-- `MouseHover`: 鼠标在元素上方停留
-- `MouseDown`: 鼠标按钮按下
-- `MouseUp`: 鼠标按钮释放
-- `MouseMove`: 鼠标移动
+```text
+PASS pointer_capture
+PASS focus_keyboard
+PASS wheel_hover_double
+PASS coordinate_root
+```
 
-### 键盘事件
-
-- `KeyDown`: 键盘按键按下
-- `KeyUp`: 键盘按键释放
-
-### 焦点事件
-
-- `FocusGained`: 元素获得焦点
-- `FocusLost`: 元素失去焦点
-
-## 事件传播
-
-事件在层级中按以下阶段传播：
-
-1. **捕获阶段**: 从根元素到目标元素
-2. **目标阶段**: 到达目标元素
-3. **冒泡阶段**: 从目标元素回到根元素
-
-## 依赖模块
-
-- `novadraw-scene`: 场景图和 Figure 接口
+完整的人工动作、颜色状态和通过标准见
+[`doc/03-rendering/manual_core_pipeline_verification.md`](../../doc/03-rendering/manual_core_pipeline_verification.md)。

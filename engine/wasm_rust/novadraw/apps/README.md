@@ -14,9 +14,9 @@
 | **viewport-app** | Viewport Figure 树语义 | 4 | `cargo run -p viewport-app` |
 | **clip-app** | 裁剪机制 | 10 | `cargo run -p clip-app` |
 | **layout-app** | 布局管理 | 8 | `cargo run -p layout-app` |
-| **event-app** | 输入事件 | 10 | `cargo run -p event-app` |
+| **event-app** | 输入事件 | 4 | `cargo run -p event-app` |
 | **border-app** | Border 装饰器 | 5 | `cargo run -p border-app` |
-| **update-app** | 更新生命周期 + 通知 | 7 | `cargo run -p update-app` |
+| **update-app** | 更新生命周期 + 通知 | 4 | `cargo run -p update-app` |
 | **editor** | 集成编辑器 | - | `cargo run -p editor` |
 | **ndcanvas-app** | NdCanvas 底层 API | 8 | `cargo run -p ndcanvas-app` |
 | **vello-app** | Vello 原始 API | 1 | `cargo run -p vello-app` |
@@ -33,7 +33,7 @@
 | 视口 | viewport-app | ViewportFigure, content 裁剪, origin, zoom, 嵌套 viewport |
 | 裁剪 | clip-app | basic, nested, multi_layer, circle, path, transparent, animation |
 | 布局 | layout-app | XYLayout, FillLayout, FlowLayout, BorderLayout, 嵌套, 约束更新 |
-| 输入事件 | event-app | Mouse, Keyboard, Focus, 事件传播 |
+| 输入事件 | event-app | Mouse, Keyboard, Focus, capture、坐标根事件点 |
 | Border 装饰器 | border-app | RectangleBorder, LineBorder, MarginBorder, Border+insets |
 | 更新生命周期 | update-app | prim_translate, repaint, revalidate, notification effect, damage repair |
 | 底层 API | ndcanvas-app | NdCanvas 直接调用: fill_rect, stroke_rect, ellipse, line, polyline |
@@ -43,10 +43,15 @@
 
 所有 DemoApp 共享相同的操作方式：
 
-- 按方向键 / 鼠标滚轮切换场景
-- 按 `I` 切换迭代/递归渲染
-- 按 `U` 切换 UpdateManager 开关
+- 按左右方向键 / `PageUp` / `PageDown` 切换场景
+- 按 `Home` / `End` 切换到首个 / 最后一个场景
+- 按数字键切换到对应场景
+- 按 `S` 保存当前帧截图
+- 按 `U` 切换 UpdateManager 开关（仅用于诊断）
 - 按 `ESC` 退出程序
+
+当前主线不提供迭代渲染入口或 `I` 键切换。核心渲染管线的完整人工验收步骤见
+[`doc/03-rendering/manual_core_pipeline_verification.md`](../doc/03-rendering/manual_core_pipeline_verification.md)。
 
 ## 架构设计
 

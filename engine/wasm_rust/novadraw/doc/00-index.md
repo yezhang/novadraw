@@ -38,6 +38,7 @@ doc/
 │   ├── update_manager_pipeline.md    # g2 UpdateManager + 渲染管线分析
 │   ├── update_manager_design.md      # Novadraw UpdateManager 设计
 │   ├── core-pipeline-review-2026-08-23.md # 核心渲染管线审查与修复状态
+│   ├── manual_core_pipeline_verification.md # 核心渲染管线手工验收步骤
 │   ├── trampoline_rendering.md       # Trampoline 渲染任务管理
 │   ├── displaylist_detailed.md       # DisplayList 详细设计
 │   ├── graphics_api.md               # Graphics API 参考
@@ -106,6 +107,7 @@ doc/
 | `update_manager_pipeline.md` | g2 UpdateManager | g2 LightweightSystem、UM 两阶段、Figure.paint、Graphics、EventDispatcher |
 | `update_manager_design.md` | Novadraw UpdateManager | Novadraw SceneUpdateManager 实现、设计决策、与 g2 差异 |
 | `core-pipeline-review-2026-08-23.md` | 核心管线审查 | 渲染、更新、事件、宿主和后端的缺陷清单与修复状态 |
+| `manual_core_pipeline_verification.md` | 核心管线手工验收 | 从门禁、无窗口 verification 到渲染、事件、更新、坐标和裁剪的操作与通过标准 |
 | `trampoline_rendering.md` | 任务遍历 | Trampoline 模式、任务队列、避免递归栈溢出 |
 | `displaylist_detailed.md` | 详细实现 | RenderCommand 结构、场景图到命令的转换 |
 | `graphics_api.md` | API 参考 | Graphics 状态管理、绘制 API、变换 API |
@@ -170,9 +172,10 @@ doc/
 ```text
 1. rendering_pipeline.md            # 了解管线结构
 2. update_manager_pipeline.md      # g2 UpdateManager + EventDispatcher 机制
-3. trampoline_rendering.md        # 理解遍历机制
-4. graphics_api.md               # 熟悉绘图 API
-5. displaylist_detailed.md       # 深入实现细节
+3. manual_core_pipeline_verification.md # 执行核心管线手工验收
+4. trampoline_rendering.md        # 理解遍历机制
+5. graphics_api.md               # 熟悉绘图 API
+6. displaylist_detailed.md       # 深入实现细节
 ```
 
 ### 特性开发
