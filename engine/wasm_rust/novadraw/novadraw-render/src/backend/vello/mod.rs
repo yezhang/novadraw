@@ -994,19 +994,17 @@ impl RenderBackend for VelloRenderer {
         self.scale_factor = scale_factor;
         self.retained_texture = None;
         self.scratch_texture = None;
-        if surface_is_suspended(pixel_width, pixel_height) {
-            self.surface_suspended = true;
-            return;
-        }
-        self.surface_suspended = false;
-        self.render_context
-            .resize_surface(&mut self.surface, pixel_width, pixel_height);
+        self.recreate_surface(pixel_width, pixel_height);
     }
 }
 
 impl VelloRenderer {
-    /// 重新创建 surface（用于 resize 时确保配置更新）
-    pub fn recreate_surface(&mut self, pixel_width: u32, pixel_height: u32) {
+    /// Recreate the presentation surface while retaining the GPU device and renderer.
+    ///
+    /// Reconfiguring the existing surface through Vello's `resize_surface` causes visible
+    /// oscillation during interactive winit resize on macOS. A fresh surface keeps its
+    /// configuration synchronized with the native window without rebuilding render pipelines.
+    fn recreate_surface(&mut self, pixel_width: u32, pixel_height: u32) {
         if surface_is_suspended(pixel_width, pixel_height) {
             self.surface_suspended = true;
             return;
