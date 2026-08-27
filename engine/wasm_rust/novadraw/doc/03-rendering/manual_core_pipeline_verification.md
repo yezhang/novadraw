@@ -1,10 +1,13 @@
-# 核心渲染管线手工验证
+# M1-M7 核心渲染管线手工验证
 
 本文给出 Novadraw 核心通用机制的最终态人工验收路径，覆盖 M1-M7 的绘制、
 Figure 树、裁剪、坐标域、事件分发、两阶段更新与通知。
 
 本流程不验收 M8-M10 的 Viewport、Connection、文本或控件能力，也不以
 `editor` 中的业务场景代替引擎契约验证。
+
+本文是可重复执行的指导手册，不是某次验收已经通过的记录。实际签收必须记录
+commit、平台、图形设备、命令结果和窗口观察结论。
 
 ## 1. 验收原则
 
@@ -18,6 +21,21 @@ Figure 树、裁剪、坐标域、事件分发、两阶段更新与通知。
 
 静态截图只能证明某一帧的绘制结果，不能单独证明事件顺序、鼠标捕获、
 Validation 先于 Damage Repair、dirty 合并或 panic 恢复。
+
+### 1.1 M1-M7 证据映射
+
+| Milestone | 核心契约 | 自动证据 | 人工验收入口 |
+|---|---|---|---|
+| M1 | 几何、Graphics 状态栈、基础命令 | geometry/render 单元测试与 `m1_product_existence` | `update-app`、`clip-app` |
+| M2 | Figure 树、盒模型、生命周期、z-order | graph 单元测试与 `m2_product_existence` | `clip-app` 的层级与绘制顺序 |
+| M3 | 递归 paint、祖先裁剪、状态隔离 | paint/hit-test/clip restore 回归测试 | `clip-app` 场景 1、2 |
+| M4 | 坐标根、往返转换、事件点降域 | `m4_coordinate_contract` | `transform-app` 四个场景 |
+| M5 | 六布局、Validation、UpdateManager、damage | `m5_layout_contract`、`update-app --verify` | `update-app` 四个场景 |
+| M6 | hit-test、capture、hover、focus、key/wheel | `m6_event_contract`、`event-app --verify` | `event-app` 四个场景 |
+| M7 | typed listener、事务通知因果顺序 | deferred update 单元测试、`notification_order` | 以无窗口报告为主，窗口状态变化作辅助证据 |
+
+人工观察只签收用户可见闭环；涉及队列、因果顺序和 target-domain 数值的契约，
+必须以自动测试或 verification 报告为准。
 
 ## 2. 统一工作目录
 
@@ -89,6 +107,19 @@ PASS coordinate_root
 
 任一 case 失败时停止窗口验收。窗口画面正常不能覆盖契约失败。
 
+需要定位单个 milestone 时，可使用以下定向命令：
+
+```bash
+cargo test -p novadraw-geometry --test m1_product_existence
+cargo test -p novadraw-render --test m1_product_existence
+cargo test -p novadraw-scene --test m2_product_existence
+cargo test -p novadraw-scene --test m4_coordinate_contract
+cargo test -p novadraw-scene --test m5_layout_contract
+cargo test -p novadraw-scene --test m6_event_contract
+cargo test -p novadraw-scene typed_listeners_dispatch_and_remove_independently
+cargo test -p novadraw-scene validation_figure_effects_preserve_causal_order
+```
+
 ## 5. 窗口 app 通用操作
 
 所有以下 app 均支持：
@@ -152,7 +183,7 @@ cargo run -p event-app
 | 1 | 按 `Home` 进入 `pointer_capture`，把鼠标移入蓝色矩形 | 矩形立即变绿；移出后恢复蓝色 |
 | 2 | 在矩形内按住左键 | 矩形变红 |
 | 3 | 保持按下并拖到矩形外的灰色区域 | 矩形保持红色，说明拖拽仍投递给 captured target |
-| 4 | 在灰色区域释放左键 | 矩形恢复蓝色，说明 release 到达目标且 capture 已释放 |
+| 4 | 在灰色区域释放左键 | 矩形由红色变为紫色：release 到达 captured target，pressed/capture 已清除，press 建立的 focus 仍保留 |
 | 5 | 按 `1` 进入 `focus_keyboard`，点击矩形并释放 | 按下时红色，释放后紫色，说明点击建立 focus |
 | 6 | 保持窗口焦点，按 `A` 和 `Ctrl+A` | app 不崩溃、不切场景；键盘投递的精确结果看第 4 节报告 |
 | 7 | 切走系统窗口焦点再返回 | focus 状态被释放；重新点击后可再次变为紫色 |
@@ -161,9 +192,14 @@ cargo run -p event-app
 | 10 | 再按一次 `3` 重置场景，先点击目标外部，再点击目标内部 | 外部点击不改变蓝色目标；内部点击产生红色/紫色状态变化 |
 
 当前窗口颜色不编码键值、滚轮增量、双击次数或 target-domain 数值，因此这些内容
-不得仅凭肉眼签收。当前通用 winit 宿主也不合成 `Hover` 和 `DoubleClicked`，
-这两个事件只在 dispatcher verification 中验证；未来宿主接入后，应在此处补充对应
-窗口动作，不能用现有报告宣称平台适配链路已经覆盖。
+不得仅凭肉眼签收。共享 `novadraw-apps::DemoApp` 当前不合成 `Hover` 和
+`DoubleClicked`，这两个事件只在 dispatcher verification 中验证；`editor` 已有
+double-click 平台适配，但不作为 `event-app` 的端到端证据。未来共享宿主接入后，
+应在此处补充对应窗口动作，不能用现有报告宣称平台适配链路已经覆盖。
+
+Capture 与 focus 是两条独立状态轨：release 必须释放 capture，但不会自动释放
+focus。只有显式 `release_focus`、窗口失焦或焦点转移才会产生 `FocusLost`。因此
+步骤 4 的紫色是正确结果；若仍为红色才表示 release/capture 链路异常。
 
 ## 8. 坐标域与事件点降域
 
@@ -230,6 +266,36 @@ cargo run -p clip-app -- --screenshot=2
 - `transform-app` 四个场景截图。
 - `clip-app` 场景 1、2 截图。
 - `event-app` capture 拖出、focus 建立等交互状态的人工结论；静态截图不能替代。
+
+### 10.1 验收记录模板
+
+每次正式验收复制并填写以下记录，建议保存在发布记录或对应 architecture delta 中：
+
+```text
+Commit:
+日期:
+操作系统:
+图形设备 / 后端:
+
+自动门禁:
+[ ] cargo fmt --check
+[ ] cargo check
+[ ] cargo clippy -- -D warnings
+[ ] cargo test
+
+无窗口 verification:
+[ ] update-app 5/5 PASS，报告路径:
+[ ] event-app 4/4 PASS，报告路径:
+
+窗口验收:
+[ ] update-app：切场景、partial damage、1,024 Figure、resize/恢复
+[ ] event-app：hover、press、capture 拖出释放、focus
+[ ] transform-app：嵌套、往返重合、坐标根移动、点击命中
+[ ] clip-app：nested clip、multi-layer clip、resize/恢复
+
+未通过项与复现步骤:
+结论: PASS / FAIL
+```
 
 ## 11. 最终通过判定
 

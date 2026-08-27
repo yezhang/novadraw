@@ -210,7 +210,6 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `RangeModel` 抽象
 - `ScrollBar` 模型（H+V）
 - 鼠标滚轮
-- `AutoexposeHelper`
 
 ### Scalable 能力
 
@@ -221,6 +220,8 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 ### 收口要求
 
 - 历史暂停项不阻塞当前 M2 恢复热路径；仅在执行 M8 时纳入验收。
+- Draw2D 的 Viewport/ScrollPane 属于 M8；GEF 的 `AutoexposeHelper` 依赖
+  EditPart/Tool 拖拽生命周期，不进入 draw2d 核心 M8。
 
 ### 测试增量预期
 

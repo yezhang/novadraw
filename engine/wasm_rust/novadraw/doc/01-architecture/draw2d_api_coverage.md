@@ -274,13 +274,13 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportFigure` 只是普通 Figure；内容只能经 `FigureGraph` child tree 表达，未声明 contents API | missing | M8 将 viewport 纳入 Figure tree 语义门禁时明确 contents API |
-| `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | 目标契约名继续使用 `RangeModel` | missing | RangeModel 是 scroll 状态 SSOT，不应只靠 origin 字段 |
-| `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `Viewport::{new,with_origin,set_origin,pan,viewport_to_content,content_to_viewport,translate_to_parent,translate_from_parent}` | partial | 没有 Draw2D 同名 getter/setter；与 coordinate conversion/damage repair 联动 |
-| `viewport.scroll_zoom` | zoom / scalable figure | `Viewport::{with_zoom,set_zoom,zoom_at,zoom_to_fit,zoom_in,zoom_out,to_transform,to_inverse_transform}`；没有 `ScalableFigure` trait | partial | zoom transform 与 Graphics scale/坐标转换统一；`ScalableFigure` 仍 missing |
-| `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | 目标契约可命名为 contents track policy | missing | M8 layout/validation 中处理内容尺寸 |
-| `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | 目标契约继续使用 `ScrollPaneFigure` 或延后为 widget 组合 | missing | 先做 Viewport 核心，再做 ScrollPane 组合 |
-| `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments | 目标契约继续使用 `ScrollBar` / `RangeModel` | missing | 不应阻塞 Viewport 坐标与 clip 闭环 |
+| `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportHandle::{contents,set_contents}`；`ChildPolicy::Single` 在 add/reparent 入口强制单 contents | verified | `m8_viewport_contract` 覆盖替换与原子拒绝 |
+| `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | `RangeModel` / `DefaultRangeModel`；Viewport 与 ScrollBar 在私有 runtime 中共享模型，公开 handle 提供 snapshot | verified | 不暴露可绕过 UpdateManager 的裸可变模型引用 |
+| `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `ViewportHandle::{view_location,set_view_location,set_horizontal_location,set_vertical_location,scroll_by}` | verified | clamp、property/coordinate effect 与 repaint 已覆盖 |
+| `viewport.scroll_zoom` | zoom / scalable figure | `ScalableFigure`、`ScalableLayeredPaneFigure`、`ScaleHandle`；与 Viewport 的 `ChildTransform` 嵌套组合 | verified | Viewport 只管理 scroll，zoom SSOT 位于 scalable pane |
+| `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height,set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
+| `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::{viewport,set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
+| `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments | `ScrollBarFigure` 与 Viewport 共享 RangeModel，支持 step/page/thumb drag；wheel 未消费时沿祖先 fallback | verified | `m8_viewport_contract` + `scroll-pane-demo --verify` |
 | `layer.freeform` | `Layer.containsPoint/findFigureAt`, `FreeformLayer.getFreeformExtent/setFreeformBounds` | 目标契约继续使用 `LayerFigure` / `FreeformLayerFigure` | missing | 作为大画布/负坐标能力，M8 后半段或独立 delta |
 
 Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。

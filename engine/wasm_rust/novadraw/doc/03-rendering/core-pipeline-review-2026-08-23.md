@@ -1,12 +1,19 @@
 # 核心渲染管线审查报告（2026-08-23）
 
-## 范围与结论
+> 当前状态复核：2026-08-27，代码基线为基于 `34ac3aa` 的当前工作树。
+
+## 范围与当前结论
 
 本次审查覆盖 Figure/递归渲染、Validation/UpdateManager、事件与延迟变更、
 SceneHost 以及 Vello 提交链路，共 19 个核心文件。
 
-结论：基础调用链已经形成，但尚未达到“核心通用机制完整”的标准。M5 仍为
-`in_progress`，事件与通知仍分别属于 M6/M7 的前置原型。
+初次审查时的结论是基础调用链已经形成，但 M5-M7 尚未达到核心通用机制完整
+标准。该结论只描述 2026-08-23 发现缺陷时的基线，不再代表当前代码状态。
+
+当前代码事实：CP-01 至 CP-10 均已有实现和可重复验证证据，M1-M7 已达到
+`behavior_verified`。这表示核心契约可以支持常用 Figure 扩展，但不等于产品面
+已经完成；M8-M10 仍按路线图推进，完整手工验收还需执行
+`manual_core_pipeline_verification.md`。
 
 ## 修复状态
 
@@ -27,7 +34,7 @@ SceneHost 以及 Vello 提交链路，共 19 个核心文件。
 `DamageSet`。Vello 后端又把空 damage 回退为整窗区域，最终以透明 scratch 覆盖
 retained texture。
 
-修复方向：
+落地结果：
 
 - 提交协议显式区分 `NoOp`、`Full` 和 `Partial`。
 - `SceneHost` 不向后端提交 `NoOp`。
@@ -38,7 +45,7 @@ retained texture。
 `FigureGraph` 接受深度不超过 10,000 的树，但递归渲染每层会保留多个 Rust 栈帧。
 现有深度边界测试只构树，不执行渲染，未证明 10,000 层可安全绘制。
 
-修复方向：
+落地结果：
 
 - 保持当前递归渲染主线，不恢复已归档的迭代渲染入口。
 - 使用按需分段栈承载深树递归，不改变递归渲染协议。
@@ -50,7 +57,7 @@ retained texture。
 没有把目标节点及 validation 祖先链标为无效。队列消费后会因节点仍为 valid 而直接
 返回，Figure validate/layout 不会执行。
 
-修复方向：
+落地结果：
 
 - 回调期只记录 invalidation 请求。
 - Figure 借用释放后统一调用 `FigureGraph::mark_invalid()`。
@@ -61,7 +68,7 @@ Figure 在 `init_properties()` 之后才 `push_state()`。子 Figure 的 `pop_st
 恢复到自己的本地属性。`DoNotClipChildBounds` 分支没有恢复父保存点，后续兄弟和父
 border 会继承前一个 child 的颜色、字体或透明度。
 
-修复方向：
+落地结果：
 
 - 每个 child paint 返回后统一恢复父 client-area 保存点。
 - 增加兄弟 Figure 属性隔离测试。
@@ -72,7 +79,7 @@ Vello 的 `ResetClip` 会弹出全部实际裁剪层，而 `GraphicsState` 只�
 `clip_depth`。后续 `restore_state/pop_state` 只能恢复数字，无法重建已删除的裁剪
 几何。
 
-修复方向：
+落地结果：
 
 - Vello `RenderState` 中保存可重放的裁剪描述。
 - 恢复状态时由后端重建目标裁剪栈。
@@ -85,25 +92,26 @@ Vello 的 `ResetClip` 会弹出全部实际裁剪层，而 `GraphicsState` 只�
   XY 约束模拟 Grid。
 - Vello 已区分可恢复 surface error，零尺寸窗口进入 suspended 状态，恢复后由宿主
   重新请求全量帧。
-- M8 Viewport / Scroll / Zoom 仍未闭合；Connection 阶段应继续遵守 M8 前置依赖。
+- M8 Viewport / Scroll / Zoom 已完成自动契约与截图验证；Connection 阶段应在
+  M8 手工窗口验收通过后启动。
 
 ## 后续闭合增量
 
-| ID | 能力 | 证据 |
-|---|---|---|
-| CP-06 | UpdateManager panic 恢复、invalid 重入队、通知因果顺序 | deferred update 单元测试 |
-| CP-07 | 六布局、尺寸协议、Grid span/grab、1,024 Figure 事务 | `m5_layout_contract` |
-| CP-08 | cursor/hover/capture/focus 分轨与 key/wheel/drag/hover/double-click | `m6_event_contract` |
-| CP-09 | Figure/Coordinate/Ancestor/Property/Layout typed listener 生命周期 | typed listener 单元测试 |
-| CP-10 | surface error 分类、零尺寸 suspended、RenderOutcome 重试 | Vello backend 单元测试 |
+| ID | 能力 | 当前代码证据 | 状态 |
+|---|---|---|---|
+| CP-06 | UpdateManager panic 恢复、invalid 重入队、通知因果顺序 | `runtime/update/deferred.rs` 单元测试、`update-app --verify` | `verified` |
+| CP-07 | 六布局、尺寸协议、Grid span/grab、1,024 Figure 事务 | `m5_layout_contract.rs`、`layout-app`、`update-app --verify` | `verified` |
+| CP-08 | cursor/hover/capture/focus 分轨与 key/wheel/drag/hover/double-click | `m6_event_contract.rs`、`event-app --verify` | `verified` |
+| CP-09 | Figure/Coordinate/Ancestor/Property/Layout typed listener 生命周期 | `test_typed_listeners_dispatch_and_remove_independently` | `verified` |
+| CP-10 | surface error 分类、零尺寸 suspended、RenderOutcome 重试 | Vello backend 单元测试、SceneHost 单元测试 | `verified` |
 
 ## 扩展阶段准入结论
 
 - **常用 Figure 扩展：允许启动。** M1-M7 核心依赖均已达到
   `behavior_verified`，新增 Figure 应复用现有 bounds、paint、hit-test、
   validation、event callback 和 typed notification 协议。
-- **Connection / Anchor / Router：暂缓。** 按路线图依赖，需先完成 M8 的
-  Viewport / Scroll / Zoom 核心契约，避免连线坐标与滚动缩放协议返工。
+- **Connection / Anchor / Router：等待 M8 手工签收。** M8 核心契约已达到
+  `behavior_verified`；手工确认 wheel、scrollbar、resize 和 zoom 后即可启动 M9。
 
 ## 验收门禁
 

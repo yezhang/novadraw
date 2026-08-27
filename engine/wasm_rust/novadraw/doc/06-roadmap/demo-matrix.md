@@ -28,7 +28,7 @@
 | M5 | `layout-app` ✅ + `update-app` ✅ | `apps/layout-app`、`apps/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
 | M6 | `event-app` ✅ | `apps/event-app` | 4 类监听 + hit-test 全图元 + capture/focus 状态机断言 | +100 |
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
-| M8 | `scroll-pane-demo` + 收口 `viewport-app` | `apps/scroll-pane-demo`、`apps/viewport-app` | ScrollBar + 滚轮 + autoexpose；历史暂停的 4 场景视觉验证全过 | +120 |
+| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/scroll-pane-demo`、`apps/viewport-app` | ScrollBar + 滚轮 fallback + scalable pane；19 项契约测试、CLI 与 8 场景截图通过 | +120 |
 | M9 | `connections-demo` | `apps/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
 | M10 | `shape-app` + `border-app` + 待新增文本/Tooltip demo | `apps/shape-app`、`apps/border-app` | deferred builtin Figure + 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
 
@@ -87,8 +87,8 @@
 - [x] M5 `apps/layout-app`
 - [x] M5 `apps/update-app` stress 场景
 - [x] M6 `apps/event-app`
-- [ ] M8 `apps/scroll-pane-demo`
-- [ ] M8 `apps/viewport-app` 4 场景视觉验证
+- [x] M8 `apps/scroll-pane-demo`
+- [x] M8 `apps/viewport-app` 4 场景视觉验证
 - [ ] M9 `apps/connections-demo`
 - [ ] M10 `apps/shape-app`
 - [ ] M10 `apps/border-app`
@@ -107,6 +107,8 @@
 - **路径**：`apps/node-editor-demo`（暂定）
 - **触发时机**：M1-M10 全部 `behavior_verified` 之后
 - **能力范围**：创建节点 / 拖拽 / 连接 / 删除 / 滚动+缩放 / Tooltip
+- **GEF helper**：`AutoexposeHelper` 在拖拽期间驱动 Viewport 自动滚动，属于本层，
+  不计入 M8 Draw2D 核心完成门禁
 - **验证目的**：
   - draw2d 核心协议在端到端编辑场景下是否仍自洽
   - 暴露未来 GEF 层的需求点（Tool / Command / Request 在何处自然涌现）

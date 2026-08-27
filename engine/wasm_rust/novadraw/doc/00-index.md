@@ -18,6 +18,7 @@ doc/
 │   ├── displaylist_design.md          # DisplayList 中间层设计
 │   ├── draw2d-history.md             # draw2d 历史与架构演变
 │   ├── zed_reactive_design.md        # Zed 响应式设计分析与通知机制借鉴
+│   ├── m8-m9-contract-plan.md        # Viewport/Scroll 与 Connection 契约实施计划
 │   ├── ideal-directory-structure.md   # 理想目录结构设计（模块/目录/crate 演进策略）
 │   ├── swt-gc-analysis.md           # SWT GC 底层绘制 API 分析
 │   ├── ideal-architecture-static.md   # 理想架构 - 静态结构（组件关系、Trait 层级）
@@ -39,6 +40,7 @@ doc/
 │   ├── update_manager_design.md      # Novadraw UpdateManager 设计
 │   ├── core-pipeline-review-2026-08-23.md # 核心渲染管线审查与修复状态
 │   ├── manual_core_pipeline_verification.md # 核心渲染管线手工验收步骤
+│   ├── manual_m8_viewport_verification.md # M8 Viewport/Scroll/Zoom 手工验收
 │   ├── trampoline_rendering.md       # Trampoline 渲染任务管理
 │   ├── displaylist_detailed.md       # DisplayList 详细设计
 │   ├── graphics_api.md               # Graphics API 参考
@@ -80,6 +82,7 @@ doc/
 | `displaylist_design.md` | DisplayList 设计 | crate 设计决策、协议定义、与渲染层解耦方案 |
 | `draw2d-history.md` | draw2d 历史 | draw2d 架构演变、设计决策背景 |
 | `zed_reactive_design.md` | Zed 响应式设计 | `Entity<T>`、`notify/emit` 分离、`Subscription` 生命周期、effect flush、对 draw2d 等价通知机制的借鉴 |
+| `m8-m9-contract-plan.md` | M8-M9 契约计划 | RangeModel/Viewport/ScrollPane 与 Connection/Anchor/Router 的 API、运行时所有权、验证门禁和实施顺序 |
 | `ideal-directory-structure.md` | 理想目录结构 | 模块分层、目录命名、crate 演进顺序、目录调整禁止项 |
 | `swt-gc-analysis.md` | SWT GC 分析 | SWT GC 底层绘制 API、IServerOcr2d 接口 |
 | `ideal-architecture-static.md` | 理想架构 - 静态结构 | 组件关系图、Trait 层级、数据结构、平台解耦设计（d2 绘图） |
@@ -108,6 +111,7 @@ doc/
 | `update_manager_design.md` | Novadraw UpdateManager | Novadraw SceneUpdateManager 实现、设计决策、与 g2 差异 |
 | `core-pipeline-review-2026-08-23.md` | 核心管线审查 | 渲染、更新、事件、宿主和后端的缺陷清单与修复状态 |
 | `manual_core_pipeline_verification.md` | 核心管线手工验收 | 从门禁、无窗口 verification 到渲染、事件、更新、坐标和裁剪的操作与通过标准 |
+| `manual_m8_viewport_verification.md` | M8 手工验收 | Viewport、RangeModel、ScrollPane、ScrollBar、wheel fallback 与 scalable pane 的窗口验收 |
 | `trampoline_rendering.md` | 任务遍历 | Trampoline 模式、任务队列、避免递归栈溢出 |
 | `displaylist_detailed.md` | 详细实现 | RenderCommand 结构、场景图到命令的转换 |
 | `graphics_api.md` | API 参考 | Graphics 状态管理、绘制 API、变换 API |

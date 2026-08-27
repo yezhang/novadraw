@@ -42,7 +42,7 @@
 | M5 | Layout + Validation + UpdateManager | `behavior_verified` | 六布局、约束/尺寸、两阶段事务、panic 恢复、damage 与 1,024 Figure 契约测试已闭合 |
 | M6 | 事件分发与交互状态机 | `behavior_verified` | mouse/cursor/hover/capture/focus 分离，drag/hover/double-click/wheel/key 与精确椭圆命中已有契约测试 |
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
-| M8 | Viewport / Scroll / Zoom | `not_started` | Viewport 坐标/裁剪原型已存在；ScrollPane、RangeModel 等待 M5-M7 |
+| M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、单 contents Viewport、ScalableLayeredPane、ScrollPane/ScrollBar、wheel fallback 与 19 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `not_started` | 尚无核心公开协议 |
 | M10 | 常用 Figure 与文本/控件 | `not_started` | 部分 Figure/Border 可导出，仍属于 deferred surface |
 
