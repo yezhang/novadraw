@@ -6,7 +6,7 @@
 
 - content 坐标域裁剪
 - origin 滚动偏移
-- zoom 缩放
+- `ScalableLayeredPaneFigure` zoom 缩放
 - 嵌套 Viewport 父链变换
 
 ## 运行方式
@@ -21,13 +21,14 @@ cargo run -p viewport-app
 |------|------|----------|----------|
 | 0 | clip_to_viewport | content 超出 Viewport bounds 时被裁剪 | 红色越界块只能在黑框内露出一部分，不能画到黑框外 |
 | 1 | origin_scroll | `origin=(80,60)` 后 content 坐标降域 | 黄色 content 原点块不应可见，绿色块应贴近黑框左上角 |
-| 2 | zoomed_content | `zoom=2.0` 后 content 放大并裁剪 | 绿色块显示为放大尺寸，红色越界块仍被黑框裁掉 |
+| 2 | zoomed_content | 对场景 1 的同一份逻辑 content 设置 `scale=2.0` | 绿色锚点仍在左上角；网格偏移与矩形尺寸严格放大 2 倍，远端红块可完全移出裁剪区 |
 | 3 | nested_viewports | 外层和内层 Viewport 叠加父链变换 | 内层内容只出现在灰色内框范围内，外层内容仍被外层黑框裁剪 |
 
 ## 操作说明
 
 - 按数字键 `0`-`3` 切换场景
-- 按方向键或鼠标滚轮切换场景
+- 按左右方向键或 `PageUp` / `PageDown` 切换场景
+- 使用 `--screenshot=<name|index>` 或 `--screenshot-all` 自动截图
 - 按 `U` 切换 UpdateManager 渲染路径
 - 按 `S` 保存当前场景截图
 - 按 `ESC` 退出程序

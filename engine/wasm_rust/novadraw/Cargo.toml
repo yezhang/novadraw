@@ -21,6 +21,7 @@ members = [
   "apps/event-app",
   "apps/border-app",
   "apps/update-app",
+  "apps/scroll-pane-demo",
 ]
 
 [workspace.package]

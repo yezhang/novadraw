@@ -2,7 +2,9 @@
 //!
 //! 用可视化场景验证 ViewportFigure 的 content 裁剪、origin、zoom 和嵌套父链协议。
 
-use novadraw_apps::{run_demo_app, run_demo_app_with_scene_screenshot};
+use novadraw_apps::{
+    VerificationCli, run_demo_app, run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot,
+};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -10,6 +12,8 @@ const VIEWPORT_X: f64 = 110.0;
 const VIEWPORT_Y: f64 = 80.0;
 const VIEWPORT_WIDTH: f64 = 300.0;
 const VIEWPORT_HEIGHT: f64 = 200.0;
+const CONTENT_WIDTH: f64 = 500.0;
+const CONTENT_HEIGHT: f64 = 350.0;
 const STROKE_WIDTH: f64 = 3.0;
 const CLIP_TO_VIEWPORT_SCENE: usize = 0;
 
@@ -45,12 +49,18 @@ fn add_viewport(
     origin: (f64, f64),
     zoom: f64,
 ) -> novadraw::BlockId {
-    scene.add_child_to(
+    let viewport = scene.add_child_to(
         parent_id,
         Box::new(
             novadraw::ViewportFigure::new(x, y, width, height)
-                .with_origin(origin.0, origin.1)
-                .with_zoom(zoom),
+                .with_origin(origin.0 * zoom, origin.1 * zoom),
+        ),
+    );
+    scene.add_child_to(
+        viewport,
+        Box::new(
+            novadraw::ScalableLayeredPaneFigure::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT)
+                .with_scale(zoom),
         ),
     )
 }
@@ -110,6 +120,31 @@ fn add_content_grid(scene: &mut novadraw::FigureGraph, parent_id: novadraw::Bloc
     }
 }
 
+fn add_scroll_reference_content(
+    scene: &mut novadraw::FigureGraph,
+    content_parent: novadraw::BlockId,
+) {
+    add_content_grid(scene, content_parent);
+    add_rect(
+        scene,
+        content_parent,
+        novadraw::Rectangle::new(0.0, 0.0, 42.0, 42.0),
+        color(1.0, 0.88, 0.12),
+    );
+    add_rect(
+        scene,
+        content_parent,
+        novadraw::Rectangle::new(80.0, 60.0, 50.0, 50.0),
+        color(0.08, 0.85, 0.25),
+    );
+    add_rect(
+        scene,
+        content_parent,
+        novadraw::Rectangle::new(260.0, 180.0, 120.0, 80.0),
+        color(0.95, 0.18, 0.22),
+    );
+}
+
 fn create_scene_0_clip_to_viewport() -> novadraw::FigureGraph {
     let (mut scene, root_id) = empty_scene();
     let viewport_id = add_viewport(
@@ -161,25 +196,7 @@ fn create_scene_1_origin_scroll() -> novadraw::FigureGraph {
         1.0,
     );
 
-    add_content_grid(&mut scene, viewport_id);
-    add_rect(
-        &mut scene,
-        viewport_id,
-        novadraw::Rectangle::new(0.0, 0.0, 42.0, 42.0),
-        color(1.0, 0.88, 0.12),
-    );
-    add_rect(
-        &mut scene,
-        viewport_id,
-        novadraw::Rectangle::new(80.0, 60.0, 50.0, 50.0),
-        color(0.08, 0.85, 0.25),
-    );
-    add_rect(
-        &mut scene,
-        viewport_id,
-        novadraw::Rectangle::new(260.0, 180.0, 120.0, 80.0),
-        color(0.95, 0.18, 0.22),
-    );
+    add_scroll_reference_content(&mut scene, viewport_id);
     add_boundary(
         &mut scene,
         root_id,
@@ -201,23 +218,11 @@ fn create_scene_2_zoomed_content() -> novadraw::FigureGraph {
         VIEWPORT_Y,
         VIEWPORT_WIDTH,
         VIEWPORT_HEIGHT,
-        (40.0, 30.0),
+        (80.0, 60.0),
         2.0,
     );
 
-    add_content_grid(&mut scene, viewport_id);
-    add_rect(
-        &mut scene,
-        viewport_id,
-        novadraw::Rectangle::new(40.0, 30.0, 32.0, 32.0),
-        color(0.08, 0.85, 0.25),
-    );
-    add_rect(
-        &mut scene,
-        viewport_id,
-        novadraw::Rectangle::new(160.0, 110.0, 90.0, 80.0),
-        color(0.95, 0.18, 0.22),
-    );
+    add_scroll_reference_content(&mut scene, viewport_id);
     add_boundary(
         &mut scene,
         root_id,
@@ -305,13 +310,78 @@ fn scenes() -> Vec<SceneFactory> {
 fn main() {
     let title = "Viewport App - Figure 树视口验证 (按数字键 0-3 切换场景)";
     let app_name = "viewport-app";
-    let screenshot_clip = std::env::args().any(|arg| arg == "--screenshot-clip");
+    let cli = VerificationCli::parse().unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
 
-    let result = if screenshot_clip {
-        run_demo_app_with_scene_screenshot(title, app_name, scenes(), CLIP_TO_VIEWPORT_SCENE)
+    let scene_list = scenes();
+    let result = if cli.screenshot_all {
+        run_demo_app_with_screenshot(title, app_name, scene_list, true)
+    } else if let Some(scenario) = cli.screenshot {
+        let index = scenario
+            .parse::<usize>()
+            .ok()
+            .or_else(|| scene_list.iter().position(|(name, _)| *name == scenario))
+            .unwrap_or_else(|| {
+                eprintln!("unknown screenshot scenario: {scenario}");
+                std::process::exit(2);
+            });
+        run_demo_app_with_scene_screenshot(title, app_name, scene_list, index)
+    } else if std::env::args().any(|arg| arg == "--screenshot-clip") {
+        run_demo_app_with_scene_screenshot(title, app_name, scene_list, CLIP_TO_VIEWPORT_SCENE)
     } else {
-        run_demo_app(title, app_name, scenes())
+        run_demo_app(title, app_name, scene_list)
     };
 
     result.expect("Failed to run app");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn reference_geometry(zoom: f64) -> (novadraw::Point, novadraw::Point, novadraw::Rectangle) {
+        let (mut scene, root) = empty_scene();
+        let content_parent = add_viewport(
+            &mut scene,
+            root,
+            VIEWPORT_X,
+            VIEWPORT_Y,
+            VIEWPORT_WIDTH,
+            VIEWPORT_HEIGHT,
+            (80.0, 60.0),
+            zoom,
+        );
+        let marker = scene.add_child_to(
+            content_parent,
+            Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
+        );
+        let mut anchor = novadraw::Point::new(80.0, 60.0);
+        let mut offset = novadraw::Point::new(90.0, 70.0);
+        scene.translate_to_absolute_mut(marker, &mut anchor);
+        scene.translate_to_absolute_mut(marker, &mut offset);
+        (anchor, offset, scene.figure_bounds(content_parent).unwrap())
+    }
+
+    #[test]
+    fn zoom_scene_rebuilds_the_same_logical_content_without_scale_accumulation() {
+        let (anchor_1x, offset_1x, pane_1x) = reference_geometry(1.0);
+        let (anchor_2x, offset_2x, pane_2x) = reference_geometry(2.0);
+
+        assert_eq!(anchor_1x, novadraw::Point::new(VIEWPORT_X, VIEWPORT_Y));
+        assert_eq!(anchor_2x, anchor_1x);
+        assert_eq!(
+            offset_1x,
+            novadraw::Point::new(VIEWPORT_X + 10.0, VIEWPORT_Y + 10.0)
+        );
+        assert_eq!(
+            offset_2x,
+            novadraw::Point::new(VIEWPORT_X + 20.0, VIEWPORT_Y + 20.0)
+        );
+        assert_eq!(pane_1x.width, CONTENT_WIDTH);
+        assert_eq!(pane_1x.height, CONTENT_HEIGHT);
+        assert_eq!(pane_2x.width, CONTENT_WIDTH * 2.0);
+        assert_eq!(pane_2x.height, CONTENT_HEIGHT * 2.0);
+    }
 }
