@@ -7,7 +7,7 @@
 //! - draw2d：保留 `figureMoved`、`coordinateSystemChanged`、UpdateListener 等语义分层
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Point, Rectangle};
 
 use crate::graph::BlockId;
 
@@ -74,6 +74,7 @@ pub struct AncestorEvent {
 pub enum PropertyValue {
     Bool(bool),
     Number(f64),
+    Point(Point),
     Text(String),
     Block(Option<BlockId>),
     None,

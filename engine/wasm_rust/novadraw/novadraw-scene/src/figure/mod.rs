@@ -111,6 +111,16 @@ pub enum ChildClippingStrategy {
     DoNotClipChildBounds,
 }
 
+/// Figure 可接受的直接子节点数量策略。
+///
+/// 该策略由 FigureGraph 在所有 add/reparent 入口统一执行。它用于表达
+/// Viewport 等单 contents 容器的结构不变量，同时避免图层代码依赖具体 Figure 类型。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ChildPolicy {
+    Multiple,
+    Single,
+}
+
 /// 边界相关方法 trait
 ///
 /// 包含图形的边界、名称、位置检测等基础方法。
@@ -200,6 +210,11 @@ pub trait Bounded: Send + Sync {
     /// 的默认行为。具体 Figure 可以覆盖或暴露 builder 来改变策略。
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         ChildClippingStrategy::ClipToChildBounds
+    }
+
+    /// 当前 Figure 可接受的直接子节点数量策略。
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Multiple
     }
 
     // ==================== 布局相关方法 ====================

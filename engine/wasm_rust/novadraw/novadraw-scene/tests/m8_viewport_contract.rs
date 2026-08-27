@@ -1,0 +1,496 @@
+use std::sync::{Arc, Mutex};
+
+use novadraw_core::Color;
+use novadraw_geometry::{Point, Rectangle};
+use novadraw_scene::{
+    BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureGraph,
+    LineBorder, MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel,
+    RangeModelError, RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext,
+    SceneUpdateManager, ScrollBarVisibility, Updatable, Viewport, ViewportFigure,
+};
+
+struct RecordingRangeListener {
+    changes: Arc<Mutex<Vec<RangeChange>>>,
+}
+
+impl RangeListener for RecordingRangeListener {
+    fn range_changed(&self, change: RangeChange) {
+        self.changes.lock().unwrap().push(change);
+    }
+}
+
+#[test]
+fn range_model_clamps_extent_and_value_atomically() {
+    let model = DefaultRangeModel::new(0.0, 20.0, 100.0).unwrap();
+    model.set_value(90.0).unwrap();
+    assert_eq!(model.value(), 80.0);
+
+    let changes = model.set_all(10.0, 200.0, 60.0).unwrap();
+
+    assert_eq!(model.minimum(), 10.0);
+    assert_eq!(model.maximum(), 60.0);
+    assert_eq!(model.extent(), 50.0);
+    assert_eq!(model.value(), 10.0);
+    assert!(!model.is_enabled());
+    assert_eq!(
+        changes
+            .changes()
+            .iter()
+            .map(|change| change.property)
+            .collect::<Vec<_>>(),
+        vec![
+            RangeProperty::Maximum,
+            RangeProperty::Extent,
+            RangeProperty::Minimum,
+            RangeProperty::Value,
+        ]
+    );
+}
+
+#[test]
+fn range_model_rejects_invalid_input_without_partial_state() {
+    let model = DefaultRangeModel::new(0.0, 20.0, 100.0).unwrap();
+    let original = model.snapshot();
+
+    assert_eq!(
+        model.set_all(100.0, 10.0, 20.0),
+        Err(RangeModelError::InvalidBounds)
+    );
+    assert_eq!(
+        model.set_value(f64::NAN),
+        Err(RangeModelError::NonFiniteValue)
+    );
+    assert_eq!(model.snapshot(), original);
+}
+
+#[test]
+fn range_model_listener_observes_changes_until_removed() {
+    let model = DefaultRangeModel::default();
+    let recorded = Arc::new(Mutex::new(Vec::new()));
+    let listener_id = model.add_listener(Arc::new(RecordingRangeListener {
+        changes: Arc::clone(&recorded),
+    }));
+
+    model.set_value(30.0).unwrap();
+    assert!(model.remove_listener(listener_id));
+    model.set_value(40.0).unwrap();
+
+    assert_eq!(
+        *recorded.lock().unwrap(),
+        vec![RangeChange {
+            property: RangeProperty::Value,
+            old_value: 0.0,
+            new_value: 30.0,
+        }]
+    );
+}
+
+#[test]
+fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+    let contents = viewport
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+
+    graph.revalidate(viewport.block_id());
+
+    assert_eq!(viewport.contents(&graph), Some(contents));
+    assert_eq!(viewport.horizontal_range().extent, 300.0);
+    assert_eq!(viewport.horizontal_range().maximum, 600.0);
+    assert_eq!(viewport.vertical_range().extent, 200.0);
+    assert_eq!(viewport.vertical_range().maximum, 450.0);
+    assert_eq!(
+        graph.figure_bounds(contents),
+        Some(Rectangle::new(0.0, 0.0, 600.0, 450.0))
+    );
+}
+
+#[test]
+fn viewport_handle_replaces_contents_without_leaving_two_children() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+    let old_contents = viewport
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    let new_contents = viewport
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+        )
+        .unwrap();
+
+    assert_eq!(viewport.contents(&graph), Some(new_contents));
+    assert_eq!(graph.parent_id(old_contents), None);
+    assert_eq!(
+        graph.child_order(viewport.block_id()),
+        Some(vec![new_contents])
+    );
+}
+
+#[test]
+fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+    viewport
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    graph.revalidate(viewport.block_id());
+    graph.drain_notification_effects();
+    update_manager.clear();
+
+    assert!(
+        viewport
+            .set_view_location(&mut graph, &mut update_manager, 500.0, 400.0)
+            .unwrap()
+    );
+
+    assert_eq!(
+        viewport.view_location(),
+        novadraw_geometry::Point::new(300.0, 250.0)
+    );
+    assert!(update_manager.has_pending_repaint());
+    assert!(graph.notification_effects().iter().any(|effect| {
+        matches!(
+            effect,
+            novadraw_scene::NotificationEffect::EmitProperty(event)
+                if event.block_id == viewport.block_id() && event.property == "viewLocation"
+        )
+    }));
+}
+
+#[test]
+fn viewport_track_width_uses_available_width_until_content_minimum() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+    let contents = viewport
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    graph.set_minimum_size(contents, Some((180.0, 120.0)));
+    viewport
+        .set_tracks_width(&mut graph, &mut update_manager, true)
+        .unwrap();
+
+    graph.revalidate(viewport.block_id());
+
+    assert_eq!(graph.figure_bounds(contents).unwrap().width, 300.0);
+    assert_eq!(viewport.horizontal_range().maximum, 300.0);
+    assert!(!viewport.horizontal_range().is_enabled());
+}
+
+#[test]
+fn scalable_layered_pane_composes_with_viewport_parent_transform() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    let child = graph.add_child_to(
+        scalable.block_id(),
+        Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
+    );
+    let mut update_manager = SceneUpdateManager::new();
+
+    assert!(
+        scalable
+            .set_scale(&mut graph, &mut update_manager, 2.0)
+            .unwrap()
+    );
+    let mut point = Point::new(20.0, 30.0);
+    graph.translate_to_absolute_mut(child, &mut point);
+
+    assert_eq!(point, Point::new(140.0, 140.0));
+    assert_eq!(
+        graph.figure_bounds(scalable.block_id()),
+        Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
+    );
+    assert!(update_manager.has_pending_repaint());
+}
+
+#[test]
+fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let scalable = graph
+        .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+
+    assert_eq!(
+        scalable.set_scale(&mut graph, &mut update_manager, 0.0),
+        Err(ScaleError::InvalidScale)
+    );
+    assert_eq!(scalable.scale(), 1.0);
+    assert!(!update_manager.has_pending_repaint());
+}
+
+#[derive(Clone)]
+struct WheelIgnoringFigure {
+    bounds: Rectangle,
+}
+
+impl Bounded for WheelIgnoringFigure {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "WheelIgnoringFigure"
+    }
+}
+
+impl Updatable for WheelIgnoringFigure {
+    fn validate(&mut self) {}
+}
+
+impl Figure for WheelIgnoringFigure {
+    fn wants_mouse_events(&self) -> bool {
+        true
+    }
+}
+
+fn large_scroll_pane_scene() -> (
+    FigureGraph,
+    novadraw_scene::ScrollPaneHandle,
+    SceneUpdateManager,
+) {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let mut update_manager = SceneUpdateManager::new();
+    let contents = pane
+        .set_contents(
+            &mut graph,
+            &mut update_manager,
+            Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)),
+        )
+        .unwrap();
+    graph.add_child_to(
+        contents,
+        Box::new(WheelIgnoringFigure {
+            bounds: Rectangle::new(10.0, 10.0, 100.0, 80.0),
+        }),
+    );
+    graph.revalidate(pane.pane_id());
+    (graph, pane, update_manager)
+}
+
+#[test]
+fn scroll_pane_automatic_policy_reserves_both_scroll_bars() {
+    let (graph, pane, _) = large_scroll_pane_scene();
+
+    assert!(graph.is_visible(pane.horizontal_scroll_bar()));
+    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(
+        graph.figure_bounds(pane.viewport().block_id()),
+        Some(Rectangle::new(100.0, 80.0, 306.0, 206.0))
+    );
+    assert_eq!(pane.viewport().horizontal_range().extent, 306.0);
+    assert_eq!(pane.viewport().vertical_range().extent, 206.0);
+}
+
+#[test]
+fn scroll_pane_visibility_policy_controls_layout() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+
+    pane.set_scroll_bar_visibility(
+        &mut graph,
+        &mut update_manager,
+        ScrollBarVisibility::Never,
+        ScrollBarVisibility::Always,
+    )
+    .unwrap();
+    graph.revalidate(pane.pane_id());
+
+    assert!(!graph.is_visible(pane.horizontal_scroll_bar()));
+    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(
+        graph.figure_bounds(pane.viewport().block_id()),
+        Some(Rectangle::new(100.0, 80.0, 306.0, 220.0))
+    );
+}
+
+#[test]
+fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+
+    graph.set_bounds_with_update(
+        &mut update_manager,
+        pane.pane_id(),
+        100.0,
+        80.0,
+        900.0,
+        700.0,
+    );
+    graph.perform_update(&mut update_manager);
+
+    assert!(!graph.is_visible(pane.horizontal_scroll_bar()));
+    assert!(!graph.is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(pane.viewport().horizontal_range().extent, 900.0);
+    assert_eq!(pane.viewport().vertical_range().extent, 700.0);
+}
+
+#[test]
+fn unhandled_wheel_bubbles_to_nearest_scroll_pane() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_mouse_wheel(&mut context, 120.0, 100.0, 0.0, -1.0);
+    }
+
+    assert_eq!(pane.viewport().view_location().y(), 24.0);
+    assert!(
+        update_manager
+            .notification_effects()
+            .iter()
+            .any(|effect| matches!(
+                effect,
+                novadraw_scene::NotificationEffect::EmitFigure(
+                    novadraw_scene::FigureEvent::CoordinateSystemChanged { block_id, .. }
+                ) if *block_id == pane.viewport().block_id()
+            ))
+    );
+}
+
+#[test]
+fn vertical_scroll_bar_step_updates_shared_viewport_model() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
+    let x = bounds.x + bounds.width / 2.0;
+    let y = bounds.y + bounds.height - 2.0;
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+    let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+
+    dispatcher.dispatch_mouse_pressed(&mut context, x, y, MouseButton::Left);
+    dispatcher.dispatch_mouse_released(&mut context, x, y, MouseButton::Left);
+
+    assert_eq!(pane.viewport().view_location().y(), 24.0);
+}
+
+#[test]
+fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
+    let x = bounds.x + bounds.width / 2.0;
+    let thumb_y = bounds.y + 20.0;
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+    let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+
+    dispatcher.dispatch_mouse_pressed(&mut context, x, thumb_y, MouseButton::Left);
+    dispatcher.dispatch_mouse_moved(&mut context, x, thumb_y + 50.0);
+    dispatcher.dispatch_mouse_released(&mut context, x, thumb_y + 50.0, MouseButton::Left);
+
+    assert!(pane.viewport().view_location().y() > 0.0);
+}
+
+#[test]
+fn viewport_rejects_invalid_zoom_without_changing_state() {
+    let mut viewport = Viewport::new().with_zoom(2.0);
+
+    for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        viewport.set_zoom(invalid);
+        assert_eq!(viewport.zoom, 2.0);
+    }
+
+    viewport.zoom_out(0.0);
+    assert_eq!(viewport.zoom, 2.0);
+
+    viewport.zoom_at(0.0, glam::DVec2::new(50.0, 40.0));
+    assert_eq!(viewport.zoom, 2.0);
+    assert_eq!(viewport.origin, glam::DVec2::ZERO);
+}
+
+#[test]
+fn zoom_to_fit_rejects_viewport_smaller_than_padding() {
+    let mut viewport = Viewport::new().with_origin(12.0, 18.0).with_zoom(2.0);
+    let original = viewport;
+
+    viewport.zoom_to_fit(&Rectangle::new(10.0, 20.0, 100.0, 80.0), 20.0, 20.0, 10.0);
+
+    assert_eq!(viewport, original);
+}
+
+#[test]
+fn viewport_border_insets_define_child_transform_and_client_extent() {
+    let viewport = ViewportFigure::new(100.0, 50.0, 300.0, 200.0)
+        .with_origin(20.0, 30.0)
+        .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(10.0, 10.0, 10.0, 10.0));
+
+    let mut content_origin = Rectangle::new(20.0, 30.0, 1.0, 1.0);
+    viewport.child_transform().apply_to(&mut content_origin);
+
+    assert_eq!(content_origin, Rectangle::new(110.0, 60.0, 1.0, 1.0));
+    assert_eq!(
+        viewport.client_area(),
+        Rectangle::new(20.0, 30.0, 280.0, 180.0)
+    );
+}
+
+#[test]
+fn viewport_rejects_a_second_contents_child_atomically() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+    let viewport = graph.add_child_to(
+        root,
+        Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 200.0)),
+    );
+    let first = graph.try_add_child_to(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)),
+    );
+    assert!(first.is_ok());
+
+    let second = graph.try_add_child_to(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+    );
+
+    assert!(second.is_err());
+    assert_eq!(graph.child_order(viewport).unwrap().len(), 1);
+}

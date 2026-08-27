@@ -391,6 +391,10 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
         SceneUpdateManager::add_invalid_figure(self, block_id);
     }
 
+    fn enqueue_notification_effect(&mut self, effect: NotificationEffect) {
+        self.notification_effects.extend([effect]);
+    }
+
     fn drain_invalid_blocks(&mut self) -> Vec<BlockId> {
         SceneUpdateManager::drain_invalid_blocks(self)
     }

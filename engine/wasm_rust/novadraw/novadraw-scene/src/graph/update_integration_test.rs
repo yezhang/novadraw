@@ -6,7 +6,8 @@ use slotmap::Key;
 
 use crate::{
     BlockId, BorderConstraint, BorderRegion, FigureGraph, GraphMutationError, MAX_TREE_DEPTH,
-    PendingMutations, RectangleFigure, SceneUpdateManager, ViewportFigure, XYConstraint, XYLayout,
+    PendingMutations, RectangleFigure, ScalableLayeredPaneFigure, SceneUpdateManager,
+    ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
@@ -388,16 +389,16 @@ fn test_add_child_under_viewport_repair_uses_content_transform() {
     let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let viewport_id = scene.add_child_to(
         contents_id,
-        Box::new(
-            ViewportFigure::new(100.0, 50.0, 200.0, 100.0)
-                .with_origin(20.0, 10.0)
-                .with_zoom(2.0),
-        ),
+        Box::new(ViewportFigure::new(100.0, 50.0, 200.0, 100.0).with_origin(40.0, 20.0)),
+    );
+    let scalable_id = scene.add_child_to(
+        viewport_id,
+        Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 300.0).with_scale(2.0)),
     );
 
     scene.add_child(
         &mut update_manager,
-        viewport_id,
+        scalable_id,
         Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0)),
     );
 

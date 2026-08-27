@@ -14,7 +14,7 @@ use novadraw_render::{
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
-use super::figure::Updatable;
+use super::figure::{ChildPolicy, Updatable};
 use super::layout::{LayoutConstraint, LayoutManager};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
@@ -45,6 +45,7 @@ pub enum GraphMutationError {
     ChildNotFound,
     CycleDetected,
     DuplicateChild,
+    ChildLimitExceeded { limit: usize },
     InvalidParentRelation,
     DepthLimitExceeded { limit: usize },
 }
@@ -56,6 +57,9 @@ impl fmt::Display for GraphMutationError {
             Self::ChildNotFound => write!(f, "child block does not exist"),
             Self::CycleDetected => write!(f, "mutation would create a cycle"),
             Self::DuplicateChild => write!(f, "child is already attached to parent"),
+            Self::ChildLimitExceeded { limit } => {
+                write!(f, "parent accepts at most {limit} direct child")
+            }
             Self::InvalidParentRelation => write!(f, "child is not attached to expected parent"),
             Self::DepthLimitExceeded { limit } => {
                 write!(f, "figure tree depth exceeds limit {limit}")
@@ -304,6 +308,34 @@ impl FigureGraph {
         self.notification_effects.emit_property(event);
     }
 
+    pub(crate) fn record_property_change(
+        &mut self,
+        block_id: BlockId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+    ) {
+        self.notify_block_changed(block_id);
+        self.emit_property_event(PropertyChangeEvent {
+            block_id,
+            property,
+            old_value,
+            new_value,
+        });
+    }
+
+    pub(crate) fn record_coordinate_system_changed(&mut self, block_id: BlockId) {
+        let Some(bounds) = self.figure_bounds(block_id) else {
+            return;
+        };
+        self.notify_block_changed(block_id);
+        self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
+            block_id,
+            old_bounds: bounds,
+            new_bounds: bounds,
+        });
+    }
+
     fn emit_layout_event(&mut self, event: LayoutEvent) {
         self.notification_effects.emit_layout(event);
     }
@@ -451,6 +483,32 @@ impl FigureGraph {
         changed
     }
 
+    /// Removes a direct child through the update transaction.
+    pub fn remove_child(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        parent: BlockId,
+        child: BlockId,
+    ) -> bool {
+        self.apply_remove_mutation(
+            update_manager,
+            PendingMutationKind::RemoveChild { parent, child },
+        )
+    }
+
+    /// Reparents a block through the update transaction.
+    pub fn reparent(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        child: BlockId,
+        new_parent: BlockId,
+    ) -> bool {
+        self.apply_reparent_mutation(
+            update_manager,
+            PendingMutationKind::Reparent { child, new_parent },
+        )
+    }
+
     /// 创建带父块的块
     fn new_block_with_parent(
         &mut self,
@@ -462,6 +520,10 @@ impl FigureGraph {
             .get(parent_id)
             .map(|parent| parent.depth)
             .ok_or(GraphMutationError::ParentNotFound)?;
+        let parent = &self.blocks[parent_id];
+        if parent.figure.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
+            return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+        }
         let depth = parent_depth
             .checked_add(1)
             .filter(|depth| *depth <= MAX_TREE_DEPTH)
@@ -575,6 +637,9 @@ impl FigureGraph {
         }
         if parent.children.contains(&child_id) {
             return Err(GraphMutationError::DuplicateChild);
+        }
+        if parent.figure.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
+            return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
         }
 
         let new_depth =
@@ -1313,6 +1378,11 @@ impl FigureGraph {
         self.blocks
             .get(parent_id)
             .map(|block| block.children.clone())
+    }
+
+    /// Returns the direct parent of a block.
+    pub fn parent_id(&self, block_id: BlockId) -> Option<BlockId> {
+        self.blocks.get(block_id).and_then(|block| block.parent)
     }
 
     /// 返回 child 在父节点内的 z-order index。
@@ -2276,6 +2346,11 @@ impl super::layout::LayoutContext for ValidationLayoutContext<'_> {
         );
     }
 
+    fn set_child_visible(&mut self, child_id: BlockId, visible: bool) {
+        self.graph
+            .set_visible_with_update(self.update_manager, child_id, visible);
+    }
+
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
         <FigureGraph as super::layout::LayoutContext>::get_container_bounds(
             self.graph,
@@ -2332,6 +2407,10 @@ impl super::layout::LayoutContext for FigureGraph {
         }
     }
 
+    fn set_child_visible(&mut self, child_id: BlockId, visible: bool) {
+        self.set_visible(child_id, visible);
+    }
+
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
         if let Some(block) = self.blocks.get(container_id) {
             block.figure.client_area()
@@ -2355,7 +2434,7 @@ mod tests {
     use crate::{
         BlockId, EllipseFigure, Figure, FigureEvent, FigureGraph, LineBorder, NotificationEffect,
         PolygonFigure, PolylineFigure, Rectangle, RootFigure, RoundedRectangleFigure,
-        TriangleFigure, ViewportFigure,
+        ScalableLayeredPaneFigure, TriangleFigure, ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
     use novadraw_geometry::Vec2;
@@ -3186,19 +3265,19 @@ mod tests {
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
         let viewport_id = scene.add_child_to(
             contents_id,
-            Box::new(
-                ViewportFigure::new(100.0, 50.0, 120.0, 80.0)
-                    .with_origin(20.0, 10.0)
-                    .with_zoom(2.0),
-            ),
+            Box::new(ViewportFigure::new(100.0, 50.0, 120.0, 80.0).with_origin(40.0, 20.0)),
+        );
+        let scalable_id = scene.add_child_to(
+            viewport_id,
+            Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 240.0, 160.0).with_scale(2.0)),
         );
         let child_id = scene.add_child_to(
-            viewport_id,
+            scalable_id,
             Box::new(RectangleFigure::new(30.0, 20.0, 20.0, 20.0)),
         );
 
         assert_eq!(scene.hit_test_simple((120.0, 70.0)), Some(child_id));
-        assert_eq!(scene.hit_test_simple((105.0, 55.0)), Some(viewport_id));
+        assert_eq!(scene.hit_test_simple((105.0, 55.0)), Some(scalable_id));
         assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(contents_id));
     }
 

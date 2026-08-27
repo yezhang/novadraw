@@ -21,10 +21,16 @@ pub mod log;
 pub mod runtime;
 
 pub use container::viewport;
+pub use container::{
+    DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
+    RangeModelError, RangeModelSnapshot, RangeProperty, ScalableFigure, ScalableLayeredPaneFigure,
+    ScaleError, ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation,
+    ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout,
+};
 pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
 pub use figure::{
-    Bounded, ChildClippingStrategy, ChildTransform, Direction, EllipseFigure, Figure,
+    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Direction, EllipseFigure, Figure,
     PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
     TriangleFigure, Updatable,
 };
@@ -52,4 +58,4 @@ pub use runtime::update::{
     SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
 };
 pub use runtime::{context, event, mutation, system};
-pub use viewport::{Viewport, ViewportFigure};
+pub use viewport::{Viewport, ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

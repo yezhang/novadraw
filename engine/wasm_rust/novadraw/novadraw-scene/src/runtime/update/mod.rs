@@ -53,6 +53,7 @@ pub trait UpdateManager: Send + Sync {
         rect: novadraw_geometry::Rectangle,
     );
     fn add_invalid_figure(&mut self, block_id: crate::graph::BlockId);
+    fn enqueue_notification_effect(&mut self, _effect: NotificationEffect) {}
     fn drain_invalid_blocks(&mut self) -> Vec<crate::graph::BlockId>;
     fn perform_update(
         &mut self,

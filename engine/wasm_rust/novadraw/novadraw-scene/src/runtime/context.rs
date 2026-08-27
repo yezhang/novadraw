@@ -1,14 +1,29 @@
 use novadraw_geometry::Point;
 
 use crate::{
-    BlockId, DispatchContext, Event, Figure, FigureGraph, MouseEventKind, PendingMutations,
-    Rectangle, UpdateManager,
+    BlockId, DispatchContext, Event, Figure, FigureEvent, FigureGraph, MouseEventKind,
+    NotificationEffect, PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle,
+    UpdateManager,
     mutation::{MutationContext, PendingMutation},
 };
 
 pub trait NovadrawContext {
     fn target_id(&self) -> BlockId;
     fn repaint(&mut self, rect: Option<Rectangle>);
+    fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
+        if block_id == self.target_id() {
+            self.repaint(Some(rect));
+        }
+    }
+    fn emit_property_change(
+        &mut self,
+        _block_id: BlockId,
+        _property: &'static str,
+        _old_value: PropertyValue,
+        _new_value: PropertyValue,
+    ) {
+    }
+    fn coordinate_system_changed(&mut self, _block_id: BlockId, _bounds: Rectangle) {}
     fn invalidate(&mut self);
 
     /// Requests selection changes through the dispatch context.
@@ -71,6 +86,37 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
     fn repaint(&mut self, rect: Option<Rectangle>) {
         self.update_manager
             .add_dirty_region(self.target_id, rect.unwrap_or(self.bounds));
+    }
+
+    fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
+        self.update_manager.add_dirty_region(block_id, rect);
+    }
+
+    fn emit_property_change(
+        &mut self,
+        block_id: BlockId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+    ) {
+        self.update_manager
+            .enqueue_notification_effect(NotificationEffect::EmitProperty(PropertyChangeEvent {
+                block_id,
+                property,
+                old_value,
+                new_value,
+            }));
+    }
+
+    fn coordinate_system_changed(&mut self, block_id: BlockId, bounds: Rectangle) {
+        self.update_manager
+            .enqueue_notification_effect(NotificationEffect::EmitFigure(
+                FigureEvent::CoordinateSystemChanged {
+                    block_id,
+                    old_bounds: bounds,
+                    new_bounds: bounds,
+                },
+            ));
     }
 
     fn invalidate(&mut self) {
@@ -175,6 +221,10 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
     fn set_captured(&mut self, id: Option<BlockId>) {
         self.scene.set_captured(id);
+    }
+
+    fn parent_of(&self, target_id: BlockId) -> Option<BlockId> {
+        self.scene.parent_id(target_id)
     }
 
     fn wants_key_events(&self, target_id: BlockId) -> bool {

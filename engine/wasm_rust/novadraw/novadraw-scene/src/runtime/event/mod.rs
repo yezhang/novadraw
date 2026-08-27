@@ -158,6 +158,9 @@ pub trait DispatchContext {
     fn set_focus_owner(&mut self, id: Option<BlockId>);
     fn captured(&self) -> Option<BlockId>;
     fn set_captured(&mut self, id: Option<BlockId>);
+    fn parent_of(&self, _target_id: BlockId) -> Option<BlockId> {
+        None
+    }
     fn wants_key_events(&self, _target_id: BlockId) -> bool {
         false
     }
@@ -373,7 +376,13 @@ impl EventDispatcher for BasicEventDispatcher {
     ) {
         self.refresh_mouse_target(ctx, x, y);
         let event = Event::Wheel(WheelEvent::new(x, y, delta_x, delta_y));
-        let _ = ctx.dispatch_to_target(ctx.mouse_target(), &event);
+        let mut target = ctx.mouse_target();
+        while let Some(current) = target {
+            if ctx.dispatch_to_target(Some(current), &event) {
+                break;
+            }
+            target = ctx.parent_of(current);
+        }
     }
 
     fn dispatch_key_pressed(

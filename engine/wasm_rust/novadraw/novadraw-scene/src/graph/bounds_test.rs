@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use crate::container::viewport::ViewportFigure;
+use crate::container::{scalable::ScalableLayeredPaneFigure, viewport::ViewportFigure};
 use crate::figure::{Bounded, RectangleFigure, Shape, Updatable};
 use crate::graph::FigureGraph;
 
@@ -502,21 +502,21 @@ fn test_viewport_figure_render_uses_content_clip_and_transform() {
     let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let viewport_id = scene.add_child_to(
         root_id,
-        Box::new(
-            ViewportFigure::new(100.0, 50.0, 200.0, 100.0)
-                .with_origin(20.0, 10.0)
-                .with_zoom(2.0),
-        ),
+        Box::new(ViewportFigure::new(100.0, 50.0, 200.0, 100.0).with_origin(40.0, 20.0)),
+    );
+    let scalable_id = scene.add_child_to(
+        viewport_id,
+        Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 200.0).with_scale(2.0)),
     );
     scene.add_child_to(
-        viewport_id,
+        scalable_id,
         Box::new(RectangleFigure::new(30.0, 20.0, 40.0, 40.0)),
     );
 
     let gc = scene.render();
     let clips = collect_clip_rects(&gc);
     assert!(
-        has_clip_rect(&clips, 20.0, 10.0, 100.0, 50.0),
+        has_clip_rect(&clips, 40.0, 20.0, 200.0, 100.0),
         "renderer should clip viewport children in content coordinates: {:?}",
         clips
     );

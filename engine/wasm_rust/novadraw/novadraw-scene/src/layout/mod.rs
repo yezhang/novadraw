@@ -65,6 +65,9 @@ pub trait LayoutContext: Send + Sync {
     /// `bounds` 必须处于该子元素所属的坐标域中。
     fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle);
 
+    /// Sets layout-controlled child visibility.
+    fn set_child_visible(&mut self, _child_id: BlockId, _visible: bool) {}
+
     /// 获取容器 client area 在子节点坐标域中的矩形。
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle;
 }
