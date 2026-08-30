@@ -1,5 +1,7 @@
 # ADR-001: 使用 Rust + WebGPU 实现图形框架
 
+类型：`architecture-decision`
+
 ## 状态
 
 已通过

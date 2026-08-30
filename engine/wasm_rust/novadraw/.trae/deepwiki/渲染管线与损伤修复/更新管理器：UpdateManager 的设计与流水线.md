@@ -22,7 +22,7 @@
 
 ## 模块概览
 
-`UpdateManager` 模块是 `novadraw-scene` 引擎的核心调度中心，负责协调图形树（Figure Tree）的变更与渲染管线（Rendering Pipeline）之间的同步。该模块位于 `novadraw-scene/src/update/` 目录下，由以下核心文件组成：
+`UpdateManager` 模块是 `novadraw-scene` 引擎的核心调度中心，负责协调图形树（Figure Tree）的变更与渲染管线（Rendering Pipeline）之间的同步。该模块位于 `novadraw-scene/src/runtime/update/` 目录下，由以下核心文件组成：
 
 - `mod.rs`: 定义了 `UpdateManager` 和 `UpdateManagerSource` 等核心 Trait，确立了更新管理器的契约。
 - `deferred.rs`: 实现了 `SceneUpdateManager` 结构体，提供了基于延迟批处理（Deferred Batching）的更新策略。
@@ -58,7 +58,7 @@
 `UpdateManager` Trait 定义了更新管理器必须对外暴露的能力。它主要负责接收变更请求并驱动更新流水线。
 
 ```rust
-// novadraw-scene/src/update/mod.rs
+// novadraw-scene/src/runtime/update/mod.rs
 
 pub trait UpdateManager: Send + Sync {
     /// 添加脏区域（请求重绘）
@@ -97,7 +97,7 @@ pub trait UpdateManager: Send + Sync {
 由于 `SceneUpdateManager` 作为一个纯数据管理器，不具备执行布局和渲染的具体逻辑，因此它需要通过 `UpdateManagerSource` Trait 回调 `FigureGraph`。
 
 ```rust
-// novadraw-scene/src/update/mod.rs
+// novadraw-scene/src/runtime/update/mod.rs
 
 pub trait UpdateManagerSource: Send + Sync {
     /// 执行单个块的布局验证
@@ -133,8 +133,8 @@ graph TB
 在上述架构中，`FigureGraph` 作为整个系统的协调者，它持有一个 `SceneUpdateManager` 实例。当 `FigureGraph` 中的某个 Figure 发生变化时，它会向 `SUM` 提交请求。在执行更新时，`SUM` 会通过 `UMS` 接口回调 `FG` 来完成具体的计算和渲染工作。
 
 **Section sources**:
-- [mod.rs](novadraw-scene/src/update/mod.rs)
-- [deferred.rs](novadraw-scene/src/update/deferred.rs)
+- [mod.rs](novadraw-scene/src/runtime/update/mod.rs)
+- [deferred.rs](novadraw-scene/src/runtime/update/deferred.rs)
 
 ## 更新流水线：两阶段更新设计
 
@@ -185,8 +185,8 @@ flowchart TD
 通过将布局与重绘分离，`novadraw` 避免了在渲染过程中由于布局突变导致的画面闪烁或不一致问题。同时，通过合并脏区域，极大地减少了对渲染后端（如 Vello 或 WebGPU）的指令提交次数。
 
 **Section sources**:
-- [deferred.rs:L234-L259](novadraw-scene/src/update/deferred.rs#L234-L259)
-- [mod.rs:L12-L23](novadraw-scene/src/update/mod.rs#L12-L23)
+- [deferred.rs:L234-L259](novadraw-scene/src/runtime/update/deferred.rs#L234-L259)
+- [mod.rs:L12-L23](novadraw-scene/src/runtime/update/mod.rs#L12-L23)
 
 ## 响应式通知机制
 
@@ -197,7 +197,7 @@ flowchart TD
 在 `novadraw` 中，状态变更不会直接触发回调。相反，所有的变更都会首先生成一个 `NotificationEffect` 并进入 `NotificationQueue`。
 
 ```rust
-// novadraw-scene/src/update/listener.rs
+// novadraw-scene/src/runtime/update/listener.rs
 
 pub enum NotificationEffect {
     /// 无负载的状态失效通知（仅表示“我变了”）
@@ -259,8 +259,8 @@ sequenceDiagram
 这种基于 Effect 队列的异步分发模式，确保了引擎核心逻辑的纯粹性，同时也为上层提供了强大的扩展能力。
 
 **Section sources**:
-- [listener.rs](novadraw-scene/src/update/listener.rs)
-- [deferred.rs:L104-L110](novadraw-scene/src/update/deferred.rs#L104-L110)
+- [listener.rs](novadraw-scene/src/runtime/update/listener.rs)
+- [deferred.rs:L104-L110](novadraw-scene/src/runtime/update/deferred.rs#L104-L110)
 
 ## 延迟更新与合并策略
 
@@ -275,7 +275,7 @@ sequenceDiagram
 - **无效过滤**：宽度或高度为 0 的无效矩形会被直接忽略，避免浪费计算资源。
 
 ```rust
-// novadraw-scene/src/update/deferred.rs 中的逻辑简化
+// novadraw-scene/src/runtime/update/deferred.rs 中的逻辑简化
 pub fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle) {
     if rect.is_empty() { return; }
     
@@ -309,8 +309,8 @@ graph LR
 这种策略极大地减轻了 `FigureGraph` 在复杂交互下的负担，使得开发者可以放心地在循环或高频回调中调用 `repaint()` 或 `revalidate()`。
 
 **Section sources**:
-- [deferred.rs:L120-L143](novadraw-scene/src/update/deferred.rs#L120-L143)
-- [deferred.rs:L297-L315](novadraw-scene/src/update/deferred.rs#L297-L315)
+- [deferred.rs:L120-L143](novadraw-scene/src/runtime/update/deferred.rs#L120-L143)
+- [deferred.rs:L297-L315](novadraw-scene/src/runtime/update/deferred.rs#L297-L315)
 
 ## 完整更新流时序分析
 
@@ -379,15 +379,15 @@ sequenceDiagram
 
 本章节所述内容主要基于以下源代码及设计文档：
 
-- `novadraw-scene/src/update/mod.rs`: 定义核心 Trait 和流水线结构。
-- `novadraw-scene/src/update/deferred.rs`: 实现延迟更新管理器。
-- `novadraw-scene/src/update/listener.rs`: 实现响应式通知机制。
-- `doc/03-rendering/update_manager_design.md`: 详细的设计决策记录。
-- `doc/03-rendering/update_manager_pipeline.md`: 完整的渲染管线分析。
+- `novadraw-scene/src/runtime/update/mod.rs`: 定义核心 Trait 和流水线结构。
+- `novadraw-scene/src/runtime/update/deferred.rs`: 实现延迟更新管理器。
+- `novadraw-scene/src/runtime/update/listener.rs`: 实现响应式通知机制。
+- `doc/design/rendering/update-manager.md`: 详细的设计决策记录。
+- `doc/reference/draw2d/rendering/update-manager.md`: 完整的渲染管线分析。
 
 **Section sources**:
-- [mod.rs](novadraw-scene/src/update/mod.rs)
-- [deferred.rs](novadraw-scene/src/update/deferred.rs)
-- [listener.rs](novadraw-scene/src/update/listener.rs)
-- [update_manager_design.md](doc/03-rendering/update_manager_design.md)
-- [update_manager_pipeline.md](doc/03-rendering/update_manager_pipeline.md)
+- [mod.rs](novadraw-scene/src/runtime/update/mod.rs)
+- [deferred.rs](novadraw-scene/src/runtime/update/deferred.rs)
+- [listener.rs](novadraw-scene/src/runtime/update/listener.rs)
+- [update_manager_design.md](doc/design/rendering/update-manager.md)
+- [update_manager_pipeline.md](doc/reference/draw2d/rendering/update-manager.md)

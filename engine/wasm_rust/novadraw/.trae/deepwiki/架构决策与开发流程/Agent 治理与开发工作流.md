@@ -51,7 +51,7 @@ Novadraw 采用了一种独特的 **“Agentic Workflow”** 开发模式。与�
 这是一个专门的逻辑角色，其职责是充当“架构守门人”。
 
 - **核心目标**：发现架构漂移、职责边界回流和对标偏差（如偏离 draw2d/GEF 语义）。
-- **审查依据**：直接比对 `doc/理想架构设计.md` 和 `agent/governance-architecture-contracts.md` 与当前代码实现。
+- **审查依据**：直接比对 `doc/design/architecture/overview.md` 和 `agent/governance-architecture-contracts.md` 与当前代码实现。
 - **输出**：输出 `Architecture Fit` 结论（Fit/Drift）和 `Go/No-Go` 建议。
 
 **Section sources**:
@@ -158,7 +158,7 @@ stateDiagram-v2
    > "请先读取 AGENTS.md 和 CLAUDE.md，确认启动门禁已通过。"
 
 2. **架构审查请求**：
-   > "请作为 Novadraw Architecture Review Agent 审查当前代码。范围：novadraw-scene/src/event/mod.rs。要求比对架构契约并给出 Go/No-Go 结论。"
+   > "请作为 Novadraw Architecture Review Agent 审查当前代码。范围：novadraw-scene/src/runtime/event/mod.rs。要求比对架构契约并给出 Go/No-Go 结论。"
 
 3. **执行增量任务**：
    > "请执行 AD-017：在 apply_reparent_mutation 之前增加防环校验。请先更新 inner-loop-checkpoint.md 进行根因分析。"

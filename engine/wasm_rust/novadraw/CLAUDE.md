@@ -62,22 +62,22 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 
 | 场景 | 文档 |
 |------|------|
-| Figure 开发 | [doc/02-figure/](doc/02-figure/) |
-| 渲染管线 | [doc/03-rendering/](doc/03-rendering/) |
-| 架构设计 | [doc/01-architecture/](doc/01-architecture/) |
-| 坐标系 | [doc/04-coordinates/](doc/04-coordinates/) |
-| 路线图（产品视图 + Demo 矩阵） | [doc/06-roadmap/](doc/06-roadmap/) |
+| Draw2D Figure 参考 | [doc/reference/draw2d/figure/](doc/reference/draw2d/figure/) |
+| Draw2D 渲染参考 | [doc/reference/draw2d/rendering/](doc/reference/draw2d/rendering/) |
+| Novadraw 架构设计 | [doc/design/architecture/](doc/design/architecture/) |
+| Novadraw 坐标契约 | [doc/design/coordinates/](doc/design/coordinates/) |
+| 路线图（产品视图 + Demo 矩阵） | [doc/roadmap/](doc/roadmap/) |
 
 ### Milestone 与路线图
 
-- **Draw2D API 语义覆盖账本**：`doc/01-architecture/draw2d_api_coverage.md`（API family、语义契约、Novadraw 合理变体、M1-M10 映射）
-- **产品交付清单**：`doc/06-roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）
-- **Demo + 验证矩阵**：`doc/06-roadmap/demo-matrix.md`（每个 milestone 配套 demo + 截图断言策略 + GEF 层探索附录）
+- **Draw2D API 语义覆盖账本**：`doc/parity/draw2d/api-coverage.md`（API family、语义契约、Novadraw 合理变体、M1-M10 映射）
+- **产品交付清单**：`doc/roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）
+- **Demo + 验证矩阵**：`doc/roadmap/demo-matrix.md`（每个 milestone 配套 demo + 截图断言策略 + GEF 层探索附录）
 
 > 任何 delta、PR、commit、文档引用 `M{n}` 一律指
-> `doc/06-roadmap/00-index.md` 定义的 M{n}，禁止在其他文档发明独立编号。
+> `doc/roadmap/00-index.md` 定义的 M{n}，禁止在其他文档发明独立编号。
 > 节点编辑器等 GEF 层能力不在 draw2d 核心 milestone 内，详见 `demo-matrix.md` 附录 A。
-> 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；受影响 family ID 记录在 delta 的 `api_semantics` 字段，语义来源见 `draw2d_api_coverage.md`。
+> 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；受影响 family ID 记录在 delta 的 `api_semantics` 字段，语义来源见 `doc/parity/draw2d/api-coverage.md`。
 
 ## 架构设计原则
 

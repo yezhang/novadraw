@@ -52,7 +52,7 @@
 - 引入“公理 = 系统级不变量”的思维方式。
 
 来源：
-- doc/01-architecture/draw2d_design_axioms.md
+- doc/reference/draw2d/architecture/design-axioms.md
 
 交付物：
 - 一张“公理表”：每条公理由哪个模块/哪条链路负责落实。

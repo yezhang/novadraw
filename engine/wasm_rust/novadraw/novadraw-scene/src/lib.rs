@@ -22,17 +22,19 @@ pub mod runtime;
 
 pub use container::viewport;
 pub use container::{
-    DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
-    RangeModelError, RangeModelSnapshot, RangeProperty, ScalableFigure, ScalableLayeredPaneFigure,
-    ScaleError, ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation,
-    ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout,
+    DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, MouseLocationZoomScrollPolicy,
+    RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel, RangeModelError,
+    RangeModelSnapshot, RangeProperty, ScalableFigure, ScalableLayeredPaneFigure, ScaleError,
+    ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
+    ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy,
+    ZoomViewportState,
 };
 pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
 pub use figure::{
-    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Direction, EllipseFigure, Figure,
-    PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
-    TriangleFigure, Updatable,
+    AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Direction, EllipseFigure,
+    Figure, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
+    Shape, TriangleFigure, Updatable,
 };
 pub use graph as scene;
 pub use graph::{BlockId, FigureGraph, FigureRenderer, GraphMutationError, MAX_TREE_DEPTH};
@@ -45,8 +47,9 @@ pub use layout::{
 pub use novadraw_geometry::{Point, Rectangle};
 pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};
 pub use runtime::event::{
-    BasicEventDispatcher, DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind, Key,
-    KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, WheelEvent,
+    BasicEventDispatcher, DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind,
+    GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
 pub use runtime::mutation::{PendingMutationBatch, PendingMutations};
 pub use runtime::system::NovadrawSystem;
@@ -58,4 +61,4 @@ pub use runtime::update::{
     SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
 };
 pub use runtime::{context, event, mutation, system};
-pub use viewport::{Viewport, ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};
+pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

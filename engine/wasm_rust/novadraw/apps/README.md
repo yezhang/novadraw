@@ -53,7 +53,7 @@
 - 按 `ESC` 退出程序
 
 当前主线不提供迭代渲染入口或 `I` 键切换。核心渲染管线的完整人工验收步骤见
-[`doc/03-rendering/manual_core_pipeline_verification.md`](../doc/03-rendering/manual_core_pipeline_verification.md)。
+[`doc/verification/manual/core-pipeline.md`](../doc/verification/manual/core-pipeline.md)。
 
 ## 架构设计
 

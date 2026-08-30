@@ -13,11 +13,11 @@
 
 ## 模块概览
 
-损伤修复（Damage Repair）是 Novadraw 渲染引擎中实现增量更新和高性能局部重绘的核心模块。该模块主要位于 `novadraw-scene/src/update/repair.rs`，并与渲染管线和裁剪原则紧密结合。
+损伤修复（Damage Repair）是 Novadraw 渲染引擎中实现增量更新和高性能局部重绘的核心模块。该模块主要位于 `novadraw-scene/src/runtime/update/repair.rs`，并与渲染管线和裁剪原则紧密结合。
 
 在本次探索中，我们深入分析了以下范围：
-- **核心文件**：`novadraw-scene/src/update/repair.rs`，包含了损伤传播、合并和规范化的核心逻辑。
-- **关联文档**：`doc/03-rendering/rendering_pipeline.md` 和 `doc/03-rendering/clip_principle.md`，提供了宏观架构和裁剪设计的背景。
+- **核心文件**：`novadraw-scene/src/runtime/update/repair.rs`，包含了损伤传播、合并和规范化的核心逻辑。
+- **关联文档**：`doc/verification/checklists/rendering-pipeline.md` 和 `doc/reference/draw2d/rendering/clip.md`，提供了宏观架构和裁剪设计的背景。
 - **渲染集成**：`novadraw-render/src/submission.rs`（参考），了解损伤区域如何最终传递给渲染后端。
 
 **规模统计**：
@@ -74,8 +74,8 @@ sequenceDiagram
 损伤传播不仅是简单的坐标相加，它伴随着严格的裁剪逻辑。如果一个子节点的损伤区域超出了其父节点的可见范围（Bounds），那么超出部分在最终渲染中是不可见的，因此在传播过程中会被剪裁掉。这大大减少了最终需要处理的像素面积。
 
 **Diagram sources**: 
-- [repair.rs:L101-L113](novadraw-scene/src/update/repair.rs#L101-L113)
-- [repair.rs:L67-L79](novadraw-scene/src/update/repair.rs#L67-L79)
+- [repair.rs:L101-L113](novadraw-scene/src/runtime/update/repair.rs#L101-L113)
+- [repair.rs:L67-L79](novadraw-scene/src/runtime/update/repair.rs#L67-L79)
 
 ## 坐标空间转换与传播协议
 
@@ -129,7 +129,7 @@ flowchart TD
 这种设计允许 Novadraw 处理极其复杂的嵌套结构。例如，一个在深层嵌套中的小图形移动了，它的损伤会逐层被父容器裁剪。如果它移动到了父容器的滚动窗口之外，损伤区域会变成空，从而完全避免了渲染开销。
 
 **Diagram sources**: 
-- [repair.rs:L115-L154](novadraw-scene/src/update/repair.rs#L115-L154)
+- [repair.rs:L115-L154](novadraw-scene/src/runtime/update/repair.rs#L115-L154)
 
 ## 裁剪优化机制：从全局到局部的精细控制
 
@@ -196,8 +196,8 @@ flowchart TD
 - 这种“退化”策略保证了在极端混乱的场景下（如全屏动画），系统不会因为计算过多的脏矩形而卡死。
 
 **Diagram sources**: 
-- [repair.rs:L156-L211](novadraw-scene/src/update/repair.rs#L156-L211)
-- [repair.rs:L220-L255](novadraw-scene/src/update/repair.rs#L220-L255)
+- [repair.rs:L156-L211](novadraw-scene/src/runtime/update/repair.rs#L156-L211)
+- [repair.rs:L220-L255](novadraw-scene/src/runtime/update/repair.rs#L220-L255)
 
 ## 核心组件与代码实现分析
 
@@ -244,7 +244,7 @@ stateDiagram-v2
 4. 调用 `graph.render_to_iterative(canvas)` 进行实际的增量渲染。
 
 **Diagram sources**: 
-- [repair.rs:L101-L113](novadraw-scene/src/update/repair.rs#L101-L113)
+- [repair.rs:L101-L113](novadraw-scene/src/runtime/update/repair.rs#L101-L113)
 
 ## 集成与数据流：从场景更新到后端渲染
 
@@ -269,7 +269,7 @@ stateDiagram-v2
 本章节内容基于以下源文件分析得出：
 
 **Section sources**:
-- [novadraw-scene/src/update/repair.rs](novadraw-scene/src/update/repair.rs) - 损伤修复算法的核心实现。
-- [doc/03-rendering/rendering_pipeline.md](doc/03-rendering/rendering_pipeline.md) - 渲染管线架构说明。
-- [doc/03-rendering/clip_principle.md](doc/03-rendering/clip_principle.md) - 裁剪设计原则。
+- [novadraw-scene/src/runtime/update/repair.rs](novadraw-scene/src/runtime/update/repair.rs) - 损伤修复算法的核心实现。
+- [doc/verification/checklists/rendering-pipeline.md](doc/verification/checklists/rendering-pipeline.md) - 渲染管线架构说明。
+- [doc/reference/draw2d/rendering/clip.md](doc/reference/draw2d/rendering/clip.md) - 裁剪设计原则。
 - [novadraw-render/src/submission.rs](novadraw-render/src/submission.rs) - 损伤区域在渲染提交中的应用。

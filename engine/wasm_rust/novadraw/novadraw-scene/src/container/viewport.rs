@@ -11,8 +11,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use glam::DVec2;
-use novadraw_geometry::{Point, Rectangle, Transform};
+use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
@@ -23,10 +22,6 @@ use crate::{
     BlockId, DefaultRangeModel, FigureGraph, GraphMutationError, PropertyValue, RangeModel,
     RangeModelError, RangeModelSnapshot, UpdateManager,
 };
-
-fn is_valid_zoom(zoom: f64) -> bool {
-    zoom.is_finite() && zoom > 0.0
-}
 
 const DEFAULT_RANGE_MAXIMUM: f64 = i32::MAX as f64;
 
@@ -60,11 +55,8 @@ impl ViewportRuntime {
         }
     }
 
-    fn viewport(&self) -> Viewport {
-        Viewport {
-            origin: DVec2::new(self.horizontal.value(), self.vertical.value()),
-            zoom: 1.0,
-        }
+    fn view_location(&self) -> Point {
+        Point::new(self.horizontal.value(), self.vertical.value())
     }
 }
 
@@ -352,176 +344,6 @@ impl LayoutManager for ViewportLayout {
     }
 }
 
-/// 视口
-///
-/// 管理 content 坐标域的可见区域，支持平移和缩放。
-///
-/// `origin` 表示 viewport 左上角对应的 content 坐标。
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Viewport {
-    pub origin: DVec2,
-    pub zoom: f64,
-}
-
-impl Viewport {
-    /// 创建新视口
-    pub fn new() -> Self {
-        Self {
-            origin: DVec2::ZERO,
-            zoom: 1.0,
-        }
-    }
-
-    /// 设置原点
-    pub fn with_origin(mut self, x: f64, y: f64) -> Self {
-        self.origin = DVec2::new(x, y);
-        self
-    }
-
-    /// 设置缩放
-    pub fn with_zoom(mut self, zoom: f64) -> Self {
-        if is_valid_zoom(zoom) {
-            self.zoom = zoom;
-        }
-        self
-    }
-
-    /// viewport 坐标转 content 坐标。
-    ///
-    /// 对齐 draw2d `Viewport.translateFromParent()` 的方向：从父/viewport 坐标进入内容坐标。
-    pub fn viewport_to_content(&self, point: DVec2) -> DVec2 {
-        (point / self.zoom) + self.origin
-    }
-
-    /// content 坐标转 viewport 坐标。
-    ///
-    /// 对齐 draw2d `Viewport.translateToParent()` 的方向：从内容坐标回到父/viewport 坐标。
-    pub fn content_to_viewport(&self, point: DVec2) -> DVec2 {
-        (point - self.origin) * self.zoom
-    }
-
-    /// 将点从内容坐标转换到父/viewport 坐标。
-    pub fn translate_to_parent(&self, point: &mut DVec2) {
-        *point = self.content_to_viewport(*point);
-    }
-
-    /// 将点从父/viewport 坐标转换到内容坐标。
-    pub fn translate_from_parent(&self, point: &mut DVec2) {
-        *point = self.viewport_to_content(*point);
-    }
-
-    /// 平移
-    pub fn pan(&mut self, dx: f64, dy: f64) {
-        self.origin -= DVec2::new(dx, dy) / self.zoom;
-    }
-
-    /// 以指定中心点缩放
-    pub fn zoom_at(&mut self, factor: f64, center: DVec2) {
-        if !is_valid_zoom(factor) || !center.is_finite() {
-            return;
-        }
-        let content_center_before = self.viewport_to_content(center);
-        let next_zoom = self.zoom * factor;
-        if !is_valid_zoom(next_zoom) {
-            return;
-        }
-        self.zoom = next_zoom;
-        let content_center_after = self.viewport_to_content(center);
-        let offset = content_center_before - content_center_after;
-        self.origin += offset;
-    }
-
-    /// 缩放以适应矩形
-    pub fn zoom_to_fit(
-        &mut self,
-        rect: &crate::Rectangle,
-        viewport_width: f64,
-        viewport_height: f64,
-        padding: f64,
-    ) {
-        let available_width = viewport_width - padding * 2.0;
-        let available_height = viewport_height - padding * 2.0;
-        if !rect.x.is_finite()
-            || !rect.y.is_finite()
-            || !rect.width.is_finite()
-            || !rect.height.is_finite()
-            || !available_width.is_finite()
-            || !available_height.is_finite()
-            || !padding.is_finite()
-            || padding < 0.0
-            || rect.width <= 0.0
-            || rect.height <= 0.0
-            || available_width <= 0.0
-            || available_height <= 0.0
-        {
-            return;
-        }
-        let zoom = (available_width / rect.width).min(available_height / rect.height);
-        if !is_valid_zoom(zoom) {
-            return;
-        }
-        let origin = DVec2::new(rect.x - padding / zoom, rect.y - padding / zoom);
-        if !origin.is_finite() {
-            return;
-        }
-        self.zoom = zoom;
-        self.origin = origin;
-    }
-
-    /// 放大
-    pub fn zoom_in(&mut self, factor: f64) {
-        if is_valid_zoom(factor) {
-            self.set_zoom(self.zoom * factor);
-        }
-    }
-
-    /// 缩小
-    pub fn zoom_out(&mut self, factor: f64) {
-        if is_valid_zoom(factor) {
-            self.set_zoom(self.zoom / factor);
-        }
-    }
-
-    /// 设置原点
-    pub fn set_origin(&mut self, x: f64, y: f64) {
-        self.origin = DVec2::new(x, y);
-    }
-
-    /// 设置缩放
-    pub fn set_zoom(&mut self, zoom: f64) {
-        if is_valid_zoom(zoom) {
-            self.zoom = zoom;
-        }
-    }
-
-    /// 转换为变换矩阵
-    ///
-    /// 变换公式: viewport = (content - origin) * zoom
-    /// 即: 先平移 `-origin`，再缩放
-    /// 使用 `*` 运算符：T(translate) * S(scale) = 先 S，后 T
-    pub fn to_transform(&self) -> Transform {
-        let scale = Transform::from_scale(self.zoom, self.zoom);
-        let translate = Transform::from_translation(-self.origin.x, -self.origin.y);
-        scale * translate // S * T = 先平移 origin，后缩放
-    }
-
-    /// 转换为逆变换
-    ///
-    /// 逆变换公式: content = viewport / zoom + origin
-    pub fn to_inverse_transform(&self) -> Transform {
-        let inv_zoom = 1.0 / self.zoom;
-        let scale = Transform::from_scale(inv_zoom, inv_zoom);
-        let translate = Transform::from_translation(self.origin.x, self.origin.y);
-        translate * scale // T * S = 先缩放回 content 增量，后加 origin
-    }
-}
-
-impl Default for Viewport {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Draw2D 风格的 Viewport Figure。
 ///
 /// `ViewportFigure` 是 Figure 树中的坐标根和裁剪容器：自身 bounds 位于父坐标域，
@@ -573,11 +395,6 @@ impl ViewportFigure {
         self.border = Some(Arc::new(border));
         self
     }
-
-    /// 返回当前 viewport helper。
-    pub fn viewport(&self) -> Viewport {
-        lock_unpoisoned(&self.runtime).viewport()
-    }
 }
 
 impl Bounded for ViewportFigure {
@@ -598,11 +415,11 @@ impl Bounded for ViewportFigure {
     }
 
     fn child_transform(&self) -> ChildTransform {
-        let viewport = lock_unpoisoned(&self.runtime).viewport();
+        let view_location = lock_unpoisoned(&self.runtime).view_location();
         let (top, left, _, _) = self.insets();
         ChildTransform::translation(
-            self.bounds.x + left - viewport.origin.x,
-            self.bounds.y + top - viewport.origin.y,
+            self.bounds.x + left - view_location.x(),
+            self.bounds.y + top - view_location.y(),
         )
     }
 
@@ -622,11 +439,11 @@ impl Bounded for ViewportFigure {
     }
 
     fn client_area(&self) -> Rectangle {
-        let viewport = lock_unpoisoned(&self.runtime).viewport();
+        let view_location = lock_unpoisoned(&self.runtime).view_location();
         let (top, left, bottom, right) = self.insets();
         Rectangle::new(
-            viewport.origin.x,
-            viewport.origin.y,
+            view_location.x(),
+            view_location.y(),
             (self.bounds.width - left - right).max(0.0),
             (self.bounds.height - top - bottom).max(0.0),
         )
@@ -646,6 +463,18 @@ impl Figure for ViewportFigure {
 }
 
 impl FigureGraph {
+    pub fn viewport_handle(&self, block_id: BlockId) -> Option<ViewportHandle> {
+        let viewport = self
+            .block(block_id)?
+            .figure
+            .as_any()
+            .downcast_ref::<ViewportFigure>()?;
+        Some(ViewportHandle {
+            block_id,
+            runtime: Arc::clone(&viewport.runtime),
+        })
+    }
+
     /// Adds a Viewport Figure and returns its typed transactional handle.
     pub fn add_viewport_to(
         &mut self,
@@ -683,93 +512,5 @@ impl FigureGraph {
             Arc::new(ViewportLayout::new(Arc::clone(&runtime))),
         );
         Ok(ViewportHandle { block_id, runtime })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_viewport_content_conversion() {
-        let viewport = Viewport::new().with_origin(100.0, 200.0).with_zoom(2.0);
-        let content = DVec2::new(150.0, 250.0);
-        let viewport_point = viewport.content_to_viewport(content);
-        // viewport = (content - origin) * zoom
-        // zoom=2, origin=(100, 200), content=(150, 250)
-        // viewport = (150-100, 250-200) * 2 = (100, 100)
-        assert_eq!(viewport_point, DVec2::new(100.0, 100.0));
-        let back = viewport.viewport_to_content(viewport_point);
-        assert_eq!(back, content);
-    }
-
-    #[test]
-    fn test_translate_parent_protocol() {
-        let viewport = Viewport::new().with_origin(100.0, 200.0).with_zoom(2.0);
-
-        let mut point = DVec2::new(150.0, 250.0);
-        viewport.translate_to_parent(&mut point);
-        assert_eq!(point, DVec2::new(100.0, 100.0));
-
-        viewport.translate_from_parent(&mut point);
-        assert_eq!(point, DVec2::new(150.0, 250.0));
-    }
-
-    #[test]
-    fn test_pan() {
-        let mut viewport = Viewport::new().with_origin(100.0, 100.0).with_zoom(2.0);
-        viewport.pan(100.0, 100.0);
-        assert_eq!(viewport.origin, DVec2::new(50.0, 50.0));
-    }
-
-    #[test]
-    fn test_zoom_at() {
-        let mut viewport = Viewport::new().with_origin(0.0, 0.0).with_zoom(1.0);
-        viewport.zoom_at(2.0, DVec2::new(100.0, 100.0));
-        assert_eq!(viewport.zoom, 2.0);
-    }
-
-    #[test]
-    fn test_zoom_in_out() {
-        let mut viewport = Viewport::new().with_zoom(1.0);
-        viewport.zoom_in(2.0);
-        assert_eq!(viewport.zoom, 2.0);
-        viewport.zoom_out(2.0);
-        assert_eq!(viewport.zoom, 1.0);
-    }
-
-    #[test]
-    fn test_to_transform_identity() {
-        let viewport = Viewport::new().with_origin(0.0, 0.0).with_zoom(1.0);
-        let transform = viewport.to_transform();
-        let point = glam::DVec2::new(100.0, 200.0);
-        let transformed = transform.transform_point(point.x, point.y);
-        assert!((transformed.0 - point.x).abs() < 1e-10);
-        assert!((transformed.1 - point.y).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_to_transform_scale() {
-        let viewport = Viewport::new().with_origin(0.0, 0.0).with_zoom(2.0);
-        let transform = viewport.to_transform();
-        let point = glam::DVec2::new(100.0, 200.0);
-        let transformed = transform.transform_point(point.x, point.y);
-        // viewport = (content - origin) * zoom = (100-0, 200-0) * 2 = (200, 400)
-        assert_eq!(transformed.0, 200.0);
-        assert_eq!(transformed.1, 400.0);
-    }
-
-    #[test]
-    fn test_to_transform_with_non_zero_origin() {
-        let viewport = Viewport::new().with_origin(100.0, 200.0).with_zoom(2.0);
-        let transform = viewport.to_transform();
-        let inverse = viewport.to_inverse_transform();
-
-        let content = DVec2::new(150.0, 250.0);
-        let transformed = transform.transform_point(content.x, content.y);
-        assert_eq!(transformed, (100.0, 100.0));
-
-        let restored = inverse.transform_point(transformed.0, transformed.1);
-        assert_eq!(restored, (150.0, 250.0));
     }
 }

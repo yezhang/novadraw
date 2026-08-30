@@ -10,7 +10,7 @@ use crate::figure::{Bounded, Figure, Updatable};
 use crate::layout::{LayoutContext, LayoutManager};
 use crate::{
     BlockId, FigureGraph, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
-    RangeModel, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
+    RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
@@ -209,12 +209,16 @@ impl ScrollPaneFigure {
         Self { bounds, runtime }
     }
 
-    fn scroll_model(model: &dyn RangeModel, delta: f64) -> bool {
+    fn scroll_model(model: &dyn RangeModel, delta: f64, delta_kind: ScrollDeltaKind) -> bool {
         if !delta.is_finite() || delta == 0.0 || !model.is_enabled() {
             return false;
         }
+        let distance = match delta_kind {
+            ScrollDeltaKind::Lines => delta * DEFAULT_STEP_INCREMENT,
+            ScrollDeltaKind::LogicalPixels => delta,
+        };
         let old = model.value();
-        let _ = model.set_value(old - delta * DEFAULT_STEP_INCREMENT);
+        let _ = model.set_value(old - distance);
         model.value() != old
     }
 
@@ -278,8 +282,10 @@ impl Figure for ScrollPaneFigure {
     fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
         let runtime = lock_unpoisoned(&self.runtime);
         let old_location = Point::new(runtime.horizontal.value(), runtime.vertical.value());
-        let vertical_changed = Self::scroll_model(runtime.vertical.as_ref(), event.delta_y);
-        let horizontal_changed = Self::scroll_model(runtime.horizontal.as_ref(), event.delta_x);
+        let vertical_changed =
+            Self::scroll_model(runtime.vertical.as_ref(), event.delta_y, event.delta_kind);
+        let horizontal_changed =
+            Self::scroll_model(runtime.horizontal.as_ref(), event.delta_x, event.delta_kind);
         if !vertical_changed && !horizontal_changed {
             return false;
         }

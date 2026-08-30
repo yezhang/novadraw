@@ -7,6 +7,7 @@ pub mod range_model;
 pub mod scalable;
 pub mod scroll_pane;
 pub mod viewport;
+pub mod zoom;
 
 pub use range_model::{
     DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
@@ -16,4 +17,8 @@ pub use scalable::{ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleH
 pub use scroll_pane::{
     ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,
     ScrollPaneHandle, ScrollPaneLayout,
+};
+pub use zoom::{
+    DEFAULT_ZOOM_LEVELS, DefaultScrollPolicy, MouseLocationZoomScrollPolicy, ZoomError,
+    ZoomManager, ZoomScrollPolicy, ZoomViewportState,
 };

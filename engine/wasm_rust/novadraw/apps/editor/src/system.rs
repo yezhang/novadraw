@@ -3,7 +3,8 @@ use std::{sync::Arc, time::Duration};
 use novadraw::{
     BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, Key, KeyModifiers, MouseButton,
     NdCanvas, NovadrawSystem, PendingMutations, RenderBackend, SceneDispatchContext, SceneHost,
-    SceneUpdateManager, UpdateEvent, UpdateListener, backend::vello::WinitWindowProxy,
+    SceneUpdateManager, UpdateEvent, UpdateListener, WheelEvent, ZoomEvent,
+    backend::vello::WinitWindowProxy,
 };
 
 use crate::scene_manager::{SceneManager, scene_host::WinitSceneHost};
@@ -199,15 +200,33 @@ impl EditorInteractionCore {
         self.apply_pending_mutations();
     }
 
-    pub fn dispatch_mouse_wheel(&mut self, x: f64, y: f64, delta_x: f64, delta_y: f64) {
+    pub fn dispatch_scroll(&mut self, event: WheelEvent) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
-        self.dispatcher
-            .dispatch_mouse_wheel(&mut ctx, x, y, delta_x, delta_y);
+        self.dispatcher.dispatch_scroll(&mut ctx, event);
         self.apply_pending_mutations();
+    }
+
+    pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher.dispatch_zoom(&mut ctx, event);
+        self.apply_pending_mutations();
+    }
+
+    pub fn cancel_gestures(&mut self) {
+        let mut ctx = SceneDispatchContext::new(
+            &mut self.scene_manager.scene,
+            &mut self.update_manager,
+            &mut self.pending_mutations,
+        );
+        self.dispatcher.cancel_gestures(&mut ctx);
     }
 
     pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
@@ -413,11 +432,16 @@ impl WinitNovadrawSystem {
         });
     }
 
-    pub fn dispatch_raw_mouse_wheel(&mut self, input: RawPointerInput, delta_x: f64, delta_y: f64) {
-        let logical = input.logical_position();
-        self.run_update_transaction(|core| {
-            core.dispatch_mouse_wheel(logical.x, logical.y, delta_x, delta_y)
-        });
+    pub fn dispatch_scroll(&mut self, event: WheelEvent) {
+        self.run_update_transaction(|core| core.dispatch_scroll(event));
+    }
+
+    pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
+        self.run_update_transaction(|core| core.dispatch_zoom(event));
+    }
+
+    pub fn cancel_gestures(&mut self) {
+        self.run_update_transaction(EditorInteractionCore::cancel_gestures);
     }
 
     pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {

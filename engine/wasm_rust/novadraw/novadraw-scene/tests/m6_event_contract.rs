@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureGraph, FocusEvent,
-    FocusEventKind, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
-    MouseEventKind, PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext,
-    SceneUpdateManager, Updatable, WheelEvent,
+    FocusEventKind, GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure,
+    SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind, Updatable, WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -176,7 +176,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         let mut ctx = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
         dispatcher.dispatch_mouse_pressed(&mut ctx, 120.0, 80.0, MouseButton::Left);
         dispatcher.dispatch_mouse_moved(&mut ctx, 260.0, 190.0);
-        dispatcher.dispatch_mouse_wheel(&mut ctx, 260.0, 190.0, 1.0, -2.0);
+        dispatcher.dispatch_mouse_wheel(&mut ctx, 120.0, 80.0, 1.0, -2.0);
         dispatcher.dispatch_key_pressed(
             &mut ctx,
             Key::Character('x'),
@@ -197,7 +197,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let events = events.lock().unwrap();
     assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Pressed, 20.0, 30.0,)));
     assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Dragged, 160.0, 140.0,)));
-    assert!(events.contains(&RecordedInput::Wheel(160.0, 140.0, 1.0, -2.0)));
+    assert!(events.contains(&RecordedInput::Wheel(20.0, 30.0, 1.0, -2.0)));
     assert!(events.contains(&RecordedInput::Key(
         KeyEventKind::Pressed,
         Key::Character('x'),
@@ -216,4 +216,80 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         RecordedInput::Key(..) | RecordedInput::Focus(..) => true,
     }));
     assert_eq!(graph.mouse_target(), None);
+}
+
+#[test]
+fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
+    let captured_events = Arc::new(Mutex::new(Vec::new()));
+    let gesture_events = Arc::new(Mutex::new(Vec::new()));
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    graph.add_child_to(
+        root,
+        Box::new(InputProbeFigure {
+            bounds: Rectangle::new(10.0, 10.0, 80.0, 80.0),
+            events: Arc::clone(&captured_events),
+        }),
+    );
+    graph.add_child_to(
+        root,
+        Box::new(InputProbeFigure {
+            bounds: Rectangle::new(200.0, 100.0, 80.0, 80.0),
+            events: Arc::clone(&gesture_events),
+        }),
+    );
+    let mut update_manager = SceneUpdateManager::new();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+    let session = GestureSessionId::new(7);
+
+    {
+        let mut ctx = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_mouse_pressed(&mut ctx, 20.0, 20.0, MouseButton::Left);
+        dispatcher.dispatch_scroll(
+            &mut ctx,
+            WheelEvent::with_details(
+                220.0,
+                120.0,
+                0.0,
+                -4.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Begin,
+                KeyModifiers::default(),
+                session,
+            ),
+        );
+        dispatcher.dispatch_scroll(
+            &mut ctx,
+            WheelEvent::with_details(
+                350.0,
+                250.0,
+                0.0,
+                -6.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::End,
+                KeyModifiers::default(),
+                session,
+            ),
+        );
+    }
+
+    assert_eq!(
+        captured_events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| matches!(event, RecordedInput::Wheel(..)))
+            .count(),
+        0
+    );
+    assert_eq!(
+        gesture_events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| matches!(event, RecordedInput::Wheel(..)))
+            .count(),
+        2
+    );
 }

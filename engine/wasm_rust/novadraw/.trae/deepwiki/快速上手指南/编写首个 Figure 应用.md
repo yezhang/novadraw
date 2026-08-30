@@ -115,7 +115,7 @@ Figure 的能力被拆分为多个层级的 Trait，每个 Trait 负责一个特
 在 `FigureGraph` 内部，Figure 并不直接相互持有。相反，引擎使用 `FigureBlock` 作为容器，这种模式被称为“组件-容器”模式：
 
 ```rust
-// novadraw-scene/src/scene/mod.rs
+// novadraw-scene/src/graph/mod.rs
 
 pub struct FigureBlock {
     pub(crate) id: BlockId,            // 唯一 ID
@@ -151,7 +151,7 @@ classDiagram
 
 **Section sources**:
 - [novadraw-scene/src/figure/mod.rs](novadraw-scene/src/figure/mod.rs)
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 场景构建实战：FigureGraph
 
@@ -188,7 +188,7 @@ fn create_demo_scene() -> FigureGraph {
 - **`add_child`**: 用于交互式修改（如用户拖拽添加）。它会自动调用 `UpdateManager` 标记脏区域并请求重绘，确保 UI 能够实时响应。
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 布局与坐标系统
 
@@ -212,7 +212,7 @@ flowchart TD
 这种机制确保了在保留模式下，父节点的移动能自动带动整个子树，而无需开发者手动更新每个子节点的位置。这在实现复杂的 UI 容器（如滚动面板或对话框）时尤为重要。
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 - [novadraw-scene/src/figure/mod.rs](novadraw-scene/src/figure/mod.rs)
 
 ## 更新机制：两阶段更新与 UpdateManager
@@ -240,8 +240,8 @@ stateDiagram-v2
 ```
 
 **Section sources**:
-- [novadraw-scene/src/update/mod.rs](novadraw-scene/src/update/mod.rs)
-- [novadraw-scene/src/scene_host.rs](novadraw-scene/src/scene_host.rs)
+- [novadraw-scene/src/runtime/update/mod.rs](novadraw-scene/src/runtime/update/mod.rs)
+- [novadraw-scene/src/host/scene_host.rs](novadraw-scene/src/host/scene_host.rs)
 
 ## 渲染流程：从 Figure 到 GPU
 
@@ -270,8 +270,8 @@ fn fill_shape(&self, gc: &mut NdCanvas) {
 这些指令最终被打包成 `RenderSubmission` 提交给 Vello 后端。Vello 利用 GPU 的计算着色器（Compute Shaders）实现极速的矢量渲染，能够处理复杂的路径、渐变和混合模式。
 
 **Section sources**:
-- [novadraw-scene/src/scene/render_recursive.rs](novadraw-scene/src/scene/render_recursive.rs)
-- [novadraw-scene/src/scene/render_iterative.rs](novadraw-scene/src/scene/render_iterative.rs)
+- [novadraw-scene/src/graph/render_recursive.rs](novadraw-scene/src/graph/render_recursive.rs)
+- [迭代渲染归档](../../../doc/archive/render-iterative-poc.md)
 
 ## 事件处理与交互
 
@@ -301,8 +301,8 @@ sequenceDiagram
 ```
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
-- [novadraw-scene/src/event/mod.rs](novadraw-scene/src/event/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
+- [novadraw-scene/src/runtime/event/mod.rs](novadraw-scene/src/runtime/event/mod.rs)
 
 ## 进阶：自定义 Figure 实现
 
@@ -364,8 +364,8 @@ graph LR
 ```
 
 **Section sources**:
-- [novadraw-scene/src/update/repair.rs](novadraw-scene/src/update/repair.rs)
-- [novadraw-scene/src/update/deferred.rs](novadraw-scene/src/update/deferred.rs)
+- [novadraw-scene/src/runtime/update/repair.rs](novadraw-scene/src/runtime/update/repair.rs)
+- [novadraw-scene/src/runtime/update/deferred.rs](novadraw-scene/src/runtime/update/deferred.rs)
 
 ## 调试与诊断工具
 
@@ -380,7 +380,7 @@ Novadraw 内置了一些调试工具，帮助开发者理解复杂的 Figure 树
 > **注意**：这些工具通常只在开发环境下使用，生产环境下应当关闭。
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 完整代码解析
 
@@ -444,13 +444,13 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureGraph {
     - [novadraw-apps/src/lib.rs](novadraw-apps/src/lib.rs): 应用框架聚合入口。
 
 - **场景与图形层**:
-    - [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs): `FigureGraph` 和 `FigureBlock` 的核心实现。
+    - [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs): `FigureGraph` 和 `FigureBlock` 的核心实现。
     - [novadraw-scene/src/figure/mod.rs](novadraw-scene/src/figure/mod.rs): Figure Trait 体系定义。
     - [novadraw-scene/src/figure/rectangle.rs](novadraw-scene/src/figure/rectangle.rs): 矩形图形的具体实现。
-    - [novadraw-scene/src/scene_host.rs](novadraw-scene/src/scene_host.rs): 场景与平台交互的桥梁。
+    - [novadraw-scene/src/host/scene_host.rs](novadraw-scene/src/host/scene_host.rs): 场景与平台交互的桥梁。
 
 - **更新与渲染层**:
-    - [novadraw-scene/src/update/mod.rs](novadraw-scene/src/update/mod.rs): 两阶段更新管理器定义。
-    - [novadraw-scene/src/scene/render_recursive.rs](novadraw-scene/src/scene/render_recursive.rs): 递归渲染实现。
-    - [novadraw-scene/src/scene/render_iterative.rs](novadraw-scene/src/scene/render_iterative.rs): 迭代渲染实现。
-    - [novadraw-scene/src/update/repair.rs](novadraw-scene/src/update/repair.rs): 脏区域修复逻辑。
+    - [novadraw-scene/src/runtime/update/mod.rs](novadraw-scene/src/runtime/update/mod.rs): 两阶段更新管理器定义。
+    - [novadraw-scene/src/graph/render_recursive.rs](novadraw-scene/src/graph/render_recursive.rs): 递归渲染实现。
+    - [迭代渲染归档](../../../doc/archive/render-iterative-poc.md): 历史 POC，非当前实现。
+    - [novadraw-scene/src/runtime/update/repair.rs](novadraw-scene/src/runtime/update/repair.rs): 脏区域修复逻辑。

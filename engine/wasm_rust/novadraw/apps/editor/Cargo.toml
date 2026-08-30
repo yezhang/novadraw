@@ -8,5 +8,6 @@ winit.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 novadraw = { path = "../../novadraw", features = ["vello"] }
+novadraw-apps = { path = "../../novadraw-apps" }
 glam.workspace = true
 pollster.workspace = true

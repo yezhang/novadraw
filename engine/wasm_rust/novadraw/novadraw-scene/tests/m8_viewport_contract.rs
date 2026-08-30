@@ -4,9 +4,10 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureGraph,
-    LineBorder, MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel,
-    RangeModelError, RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext,
-    SceneUpdateManager, ScrollBarVisibility, Updatable, Viewport, ViewportFigure,
+    GesturePhase, GestureSessionId, KeyModifiers, LineBorder, MouseButton, PendingMutations,
+    RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty, RectangleFigure,
+    ScaleError, SceneDispatchContext, SceneUpdateManager, ScrollBarVisibility, ScrollDeltaKind,
+    Updatable, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
 };
 
 struct RecordingRangeListener {
@@ -238,9 +239,14 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     assert_eq!(point, Point::new(140.0, 140.0));
     assert_eq!(
         graph.figure_bounds(scalable.block_id()),
-        Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
+        Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
     );
     assert!(update_manager.has_pending_repaint());
+    graph.perform_update(&mut update_manager);
+    assert_eq!(
+        graph.figure_bounds(scalable.block_id()),
+        Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
+    );
 }
 
 #[test]
@@ -258,6 +264,30 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
     );
     assert_eq!(scalable.scale(), 1.0);
     assert!(!update_manager.has_pending_repaint());
+}
+
+#[test]
+fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    assert!(graph.set_preferred_size(scalable.block_id(), Some((500.0, 300.0))));
+    let mut update_manager = SceneUpdateManager::new();
+
+    scalable
+        .set_scale(&mut graph, &mut update_manager, 2.0)
+        .unwrap();
+    graph.perform_update(&mut update_manager);
+
+    assert_eq!(
+        graph.figure_bounds(scalable.block_id()),
+        Some(Rectangle::new(0.0, 0.0, 1000.0, 600.0))
+    );
 }
 
 #[derive(Clone)]
@@ -373,7 +403,7 @@ fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
 }
 
 #[test]
-fn unhandled_wheel_bubbles_to_nearest_scroll_pane() {
+fn unhandled_wheel_uses_nearest_scroll_pane_fallback() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -397,6 +427,243 @@ fn unhandled_wheel_bubbles_to_nearest_scroll_pane() {
 }
 
 #[test]
+fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                120.0,
+                100.0,
+                0.0,
+                -7.5,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+
+    assert_eq!(pane.viewport().view_location().y(), 7.5);
+}
+
+#[test]
+fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(
+            pane.viewport().block_id(),
+            Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        )
+        .unwrap();
+    let child = graph.add_child_to(
+        scalable.block_id(),
+        Box::new(WheelIgnoringFigure {
+            bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        }),
+    );
+    graph.revalidate(pane.pane_id());
+    let mut update_manager = SceneUpdateManager::new();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_zoom(
+            &mut context,
+            ZoomEvent::new(
+                150.0,
+                130.0,
+                2.0,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+
+    assert_eq!(scalable.scale(), 2.0);
+    assert_eq!(pane.viewport().view_location(), Point::new(50.0, 50.0));
+    let mut anchored_content_point = Point::new(50.0, 50.0);
+    graph.translate_to_absolute_mut(child, &mut anchored_content_point);
+    assert_eq!(anchored_content_point, Point::new(150.0, 130.0));
+}
+
+#[test]
+fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(
+            pane.viewport().block_id(),
+            Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        )
+        .unwrap();
+    let content = graph.add_child_to(
+        scalable.block_id(),
+        Box::new(WheelIgnoringFigure {
+            bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        }),
+    );
+    graph.revalidate(pane.pane_id());
+    let mut update_manager = SceneUpdateManager::new();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_zoom(
+            &mut context,
+            ZoomEvent::new(
+                250.0,
+                180.0,
+                2.0,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    // The next input event must already observe the scaled range; waiting for a
+    // render/validation frame makes a pinch followed by pan use stale limits.
+    assert_eq!(pane.viewport().horizontal_range().maximum, 1280.0);
+    assert_eq!(pane.viewport().vertical_range().maximum, 960.0);
+
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                250.0,
+                180.0,
+                10_000.0,
+                10_000.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    assert_eq!(pane.viewport().view_location(), Point::new(0.0, 0.0));
+    let mut top_left = Point::new(0.0, 0.0);
+    graph.translate_to_absolute_mut(content, &mut top_left);
+    assert_eq!(top_left, Point::new(100.0, 80.0));
+
+    {
+        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                250.0,
+                180.0,
+                -10_000.0,
+                -10_000.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    let horizontal = pane.viewport().horizontal_range();
+    let vertical = pane.viewport().vertical_range();
+    assert_eq!(
+        pane.viewport().view_location(),
+        Point::new(
+            horizontal.maximum - horizontal.extent,
+            vertical.maximum - vertical.extent
+        )
+    );
+    let mut bottom_right = Point::new(640.0, 480.0);
+    graph.translate_to_absolute_mut(content, &mut bottom_right);
+    assert_eq!(
+        bottom_right,
+        Point::new(100.0 + horizontal.extent, 80.0 + vertical.extent)
+    );
+
+    graph.perform_update(&mut update_manager);
+    assert_eq!(pane.viewport().horizontal_range(), horizontal);
+    assert_eq!(pane.viewport().vertical_range(), vertical);
+}
+
+#[test]
+fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(
+            pane.viewport().block_id(),
+            Rectangle::new(0.0, 0.0, 400.0, 300.0),
+        )
+        .unwrap();
+    let content = graph.add_child_to(
+        scalable.block_id(),
+        Box::new(WheelIgnoringFigure {
+            bounds: Rectangle::new(0.0, 0.0, 400.0, 300.0),
+        }),
+    );
+    graph.revalidate(pane.pane_id());
+    let mut update_manager = SceneUpdateManager::new();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = BasicEventDispatcher;
+
+    for factor in [0.5, 4.0] {
+        {
+            let mut context =
+                SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+            dispatcher.dispatch_zoom(
+                &mut context,
+                ZoomEvent::new(
+                    100.0,
+                    80.0,
+                    factor,
+                    GesturePhase::Impulse,
+                    KeyModifiers::default(),
+                    GestureSessionId::IMPULSE,
+                ),
+            );
+        }
+        graph.perform_update(&mut update_manager);
+        if factor == 0.5 {
+            let horizontal = pane.viewport().horizontal_range();
+            let vertical = pane.viewport().vertical_range();
+            let scaled_width = 400.0 * scalable.scale();
+            let scaled_height = 300.0 * scalable.scale();
+            let mut top_left = Point::new(0.0, 0.0);
+            let mut bottom_right = Point::new(400.0, 300.0);
+            graph.translate_to_absolute_mut(content, &mut top_left);
+            graph.translate_to_absolute_mut(content, &mut bottom_right);
+            assert_eq!(top_left, Point::new(100.0, 80.0));
+            assert_eq!(
+                bottom_right,
+                Point::new(top_left.x() + scaled_width, top_left.y() + scaled_height)
+            );
+            assert!(bottom_right.x() <= 100.0 + horizontal.extent);
+            assert!(bottom_right.y() <= 80.0 + vertical.extent);
+        }
+    }
+
+    assert_eq!(scalable.scale(), 2.0);
+    assert_eq!(pane.viewport().horizontal_range().maximum, 800.0);
+    assert_eq!(pane.viewport().vertical_range().maximum, 600.0);
+}
+
+#[test]
 fn vertical_scroll_bar_step_updates_shared_viewport_model() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
@@ -405,7 +672,6 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
     let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
-
     dispatcher.dispatch_mouse_pressed(&mut context, x, y, MouseButton::Left);
     dispatcher.dispatch_mouse_released(&mut context, x, y, MouseButton::Left);
 
@@ -430,30 +696,83 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
 }
 
 #[test]
-fn viewport_rejects_invalid_zoom_without_changing_state() {
-    let mut viewport = Viewport::new().with_zoom(2.0);
+fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    graph.revalidate(viewport.block_id());
+    let mut update_manager = SceneUpdateManager::new();
+    let manager = ZoomManager::new(scalable.clone(), viewport.clone());
+
+    assert!(
+        manager
+            .set_zoom(&mut graph, &mut update_manager, 2.0)
+            .unwrap()
+    );
+    assert_eq!(manager.zoom(), 2.0);
+    assert_eq!(viewport.view_location(), Point::new(150.0, 100.0));
+    assert_eq!(viewport.horizontal_range().maximum, 1200.0);
+    assert_eq!(viewport.vertical_range().maximum, 800.0);
+
+    assert!(
+        manager
+            .set_zoom(&mut graph, &mut update_manager, 0.01)
+            .unwrap()
+    );
+    assert_eq!(manager.zoom(), 0.5);
+    assert!(
+        manager
+            .set_zoom(&mut graph, &mut update_manager, 100.0)
+            .unwrap()
+    );
+    assert_eq!(manager.zoom(), 4.0);
+    assert!(manager.fit_all(&mut graph, &mut update_manager).unwrap());
+    assert_eq!(manager.zoom(), 0.5);
+    assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));
 
     for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
-        viewport.set_zoom(invalid);
-        assert_eq!(viewport.zoom, 2.0);
+        assert_eq!(
+            manager.set_zoom(&mut graph, &mut update_manager, invalid),
+            Err(ZoomError::InvalidZoom)
+        );
+        assert_eq!(manager.zoom(), 0.5);
     }
-
-    viewport.zoom_out(0.0);
-    assert_eq!(viewport.zoom, 2.0);
-
-    viewport.zoom_at(0.0, glam::DVec2::new(50.0, 40.0));
-    assert_eq!(viewport.zoom, 2.0);
-    assert_eq!(viewport.origin, glam::DVec2::ZERO);
 }
 
 #[test]
-fn zoom_to_fit_rejects_viewport_smaller_than_padding() {
-    let mut viewport = Viewport::new().with_origin(12.0, 18.0).with_zoom(2.0);
-    let original = viewport;
+fn zoom_manager_uses_configured_levels_for_step_zoom() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    graph.revalidate(viewport.block_id());
+    let mut update_manager = SceneUpdateManager::new();
+    let mut manager = ZoomManager::new(scalable, viewport);
+    manager.set_zoom_levels(vec![0.25, 1.0, 2.0]).unwrap();
 
-    viewport.zoom_to_fit(&Rectangle::new(10.0, 20.0, 100.0, 80.0), 20.0, 20.0, 10.0);
-
-    assert_eq!(viewport, original);
+    assert!(
+        manager
+            .set_zoom(&mut graph, &mut update_manager, 0.01)
+            .unwrap()
+    );
+    assert_eq!(manager.zoom(), 0.25);
+    assert!(manager.zoom_in(&mut graph, &mut update_manager).unwrap());
+    assert_eq!(manager.zoom(), 1.0);
+    assert!(manager.zoom_out(&mut graph, &mut update_manager).unwrap());
+    assert_eq!(manager.zoom(), 0.25);
+    assert_eq!(
+        manager.set_zoom_levels(vec![1.0, 0.5]),
+        Err(ZoomError::InvalidZoomLevels)
+    );
 }
 
 #[test]

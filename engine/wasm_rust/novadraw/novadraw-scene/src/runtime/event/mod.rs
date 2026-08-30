@@ -68,16 +68,47 @@ pub struct WheelEvent {
     pub y: f64,
     pub delta_x: f64,
     pub delta_y: f64,
+    pub delta_kind: ScrollDeltaKind,
+    pub phase: GesturePhase,
+    pub modifiers: KeyModifiers,
+    pub session_id: GestureSessionId,
     entry_point: Point,
 }
 
 impl WheelEvent {
     pub fn new(x: f64, y: f64, delta_x: f64, delta_y: f64) -> Self {
+        Self::with_details(
+            x,
+            y,
+            delta_x,
+            delta_y,
+            ScrollDeltaKind::Lines,
+            GesturePhase::Impulse,
+            KeyModifiers::default(),
+            GestureSessionId::IMPULSE,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_details(
+        x: f64,
+        y: f64,
+        delta_x: f64,
+        delta_y: f64,
+        delta_kind: ScrollDeltaKind,
+        phase: GesturePhase,
+        modifiers: KeyModifiers,
+        session_id: GestureSessionId,
+    ) -> Self {
         Self {
             x,
             y,
             delta_x,
             delta_y,
+            delta_kind,
+            phase,
+            modifiers,
+            session_id,
             entry_point: Point::new(x, y),
         }
     }
@@ -88,6 +119,93 @@ impl WheelEvent {
 
     pub fn with_target_point(self, x: f64, y: f64) -> Self {
         Self { x, y, ..self }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct GestureSessionId(u64);
+
+impl GestureSessionId {
+    pub const IMPULSE: Self = Self(0);
+
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GesturePhase {
+    Begin,
+    Update,
+    End,
+    Cancel,
+    Impulse,
+}
+
+impl GesturePhase {
+    fn starts_session(self) -> bool {
+        matches!(self, Self::Begin)
+    }
+
+    fn ends_session(self) -> bool {
+        matches!(self, Self::End | Self::Cancel)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScrollDeltaKind {
+    Lines,
+    LogicalPixels,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ZoomEvent {
+    pub x: f64,
+    pub y: f64,
+    pub scale_factor: f64,
+    pub phase: GesturePhase,
+    pub modifiers: KeyModifiers,
+    pub session_id: GestureSessionId,
+    entry_point: Point,
+}
+
+impl ZoomEvent {
+    pub fn new(
+        x: f64,
+        y: f64,
+        scale_factor: f64,
+        phase: GesturePhase,
+        modifiers: KeyModifiers,
+        session_id: GestureSessionId,
+    ) -> Self {
+        Self {
+            x,
+            y,
+            scale_factor,
+            phase,
+            modifiers,
+            session_id,
+            entry_point: Point::new(x, y),
+        }
+    }
+
+    pub fn entry_point(&self) -> Point {
+        self.entry_point
+    }
+
+    pub fn with_target_point(self, x: f64, y: f64) -> Self {
+        Self { x, y, ..self }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.x.is_finite()
+            && self.y.is_finite()
+            && self.scale_factor.is_finite()
+            && self.scale_factor > 0.0
     }
 }
 
@@ -140,12 +258,16 @@ pub struct FocusEvent {
 pub enum Event {
     Mouse(MouseEvent),
     Wheel(WheelEvent),
+    Zoom(ZoomEvent),
     Key(KeyEvent),
     Focus(FocusEvent),
 }
 
 pub trait DispatchContext {
     fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId>;
+    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+        self.find_mouse_event_target_at(x, y)
+    }
     fn mouse_target(&self) -> Option<BlockId>;
     fn set_mouse_target(&mut self, id: Option<BlockId>);
     fn cursor_target(&self) -> Option<BlockId>;
@@ -158,8 +280,20 @@ pub trait DispatchContext {
     fn set_focus_owner(&mut self, id: Option<BlockId>);
     fn captured(&self) -> Option<BlockId>;
     fn set_captured(&mut self, id: Option<BlockId>);
-    fn parent_of(&self, _target_id: BlockId) -> Option<BlockId> {
+    fn gesture_target(&self, _session_id: GestureSessionId) -> Option<BlockId> {
         None
+    }
+    fn has_gesture_session(&self, _session_id: GestureSessionId) -> bool {
+        false
+    }
+    fn set_gesture_target(&mut self, _session_id: GestureSessionId, _target_id: Option<BlockId>) {}
+    fn clear_gesture_target(&mut self, _session_id: GestureSessionId) {}
+    fn clear_gesture_targets(&mut self) {}
+    fn apply_scroll_fallback(&mut self, _target_id: BlockId, _event: &WheelEvent) -> bool {
+        false
+    }
+    fn apply_zoom_fallback(&mut self, _target_id: BlockId, _event: &ZoomEvent) -> bool {
+        false
     }
     fn wants_key_events(&self, _target_id: BlockId) -> bool {
         false
@@ -204,6 +338,13 @@ pub trait EventDispatcher: Send + Sync {
         delta_x: f64,
         delta_y: f64,
     );
+    fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, event: WheelEvent) {
+        self.dispatch_mouse_wheel(ctx, event.x, event.y, event.delta_x, event.delta_y);
+    }
+    fn dispatch_zoom(&mut self, _ctx: &mut dyn DispatchContext, _event: ZoomEvent) {}
+    fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
+        ctx.clear_gesture_targets();
+    }
     fn dispatch_key_pressed(
         &mut self,
         ctx: &mut dyn DispatchContext,
@@ -224,6 +365,29 @@ pub trait EventDispatcher: Send + Sync {
 pub struct BasicEventDispatcher;
 
 impl BasicEventDispatcher {
+    fn gesture_target(
+        &self,
+        ctx: &mut dyn DispatchContext,
+        session_id: GestureSessionId,
+        phase: GesturePhase,
+        x: f64,
+        y: f64,
+    ) -> Option<BlockId> {
+        if phase == GesturePhase::Impulse || session_id == GestureSessionId::IMPULSE {
+            return ctx.find_gesture_target_at(x, y);
+        }
+        if phase.starts_session() {
+            let target = ctx.find_gesture_target_at(x, y);
+            ctx.set_gesture_target(session_id, target);
+            return target;
+        }
+        if ctx.has_gesture_session(session_id) {
+            ctx.gesture_target(session_id)
+        } else {
+            ctx.find_gesture_target_at(x, y)
+        }
+    }
+
     fn refresh_mouse_target(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
         let hit_target = ctx.find_mouse_event_target_at(x, y);
         ctx.set_cursor_target(hit_target);
@@ -374,15 +538,50 @@ impl EventDispatcher for BasicEventDispatcher {
         delta_x: f64,
         delta_y: f64,
     ) {
-        self.refresh_mouse_target(ctx, x, y);
-        let event = Event::Wheel(WheelEvent::new(x, y, delta_x, delta_y));
-        let mut target = ctx.mouse_target();
-        while let Some(current) = target {
-            if ctx.dispatch_to_target(Some(current), &event) {
-                break;
-            }
-            target = ctx.parent_of(current);
+        self.dispatch_scroll(ctx, WheelEvent::new(x, y, delta_x, delta_y));
+    }
+
+    fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, wheel_event: WheelEvent) {
+        if !wheel_event.x.is_finite()
+            || !wheel_event.y.is_finite()
+            || !wheel_event.delta_x.is_finite()
+            || !wheel_event.delta_y.is_finite()
+        {
+            return;
         }
+        let session_id = wheel_event.session_id;
+        let phase = wheel_event.phase;
+        let target = self.gesture_target(ctx, session_id, phase, wheel_event.x, wheel_event.y);
+        let event = Event::Wheel(wheel_event);
+        let handled = ctx.dispatch_to_target(target, &event);
+        if !handled && let Some(target) = target {
+            let _ = ctx.apply_scroll_fallback(target, &wheel_event);
+        }
+        if phase.ends_session() {
+            ctx.clear_gesture_target(session_id);
+        }
+    }
+
+    fn dispatch_zoom(&mut self, ctx: &mut dyn DispatchContext, zoom_event: ZoomEvent) {
+        if !zoom_event.is_valid() {
+            return;
+        }
+        let session_id = zoom_event.session_id;
+        let phase = zoom_event.phase;
+        let initial_target =
+            self.gesture_target(ctx, session_id, phase, zoom_event.x, zoom_event.y);
+        let event = Event::Zoom(zoom_event);
+        let handled = ctx.dispatch_to_target(initial_target, &event);
+        if !handled && let Some(initial_target) = initial_target {
+            let _ = ctx.apply_zoom_fallback(initial_target, &zoom_event);
+        }
+        if phase.ends_session() {
+            ctx.clear_gesture_target(session_id);
+        }
+    }
+
+    fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
+        ctx.clear_gesture_targets();
     }
 
     fn dispatch_key_pressed(
@@ -435,6 +634,8 @@ mod tests {
         focus_owner: Option<BlockId>,
         captured: Option<BlockId>,
         dispatched: Vec<(Option<BlockId>, Event)>,
+        scroll_fallbacks: Vec<(BlockId, WheelEvent)>,
+        zoom_fallbacks: Vec<(BlockId, ZoomEvent)>,
         handled: bool,
         wants_key_events: bool,
     }
@@ -449,6 +650,8 @@ mod tests {
                 focus_owner: None,
                 captured: None,
                 dispatched: Vec::new(),
+                scroll_fallbacks: Vec::new(),
+                zoom_fallbacks: Vec::new(),
                 handled: false,
                 wants_key_events: false,
             }
@@ -502,6 +705,16 @@ mod tests {
 
         fn set_captured(&mut self, id: Option<BlockId>) {
             self.captured = id;
+        }
+
+        fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+            self.scroll_fallbacks.push((target_id, *event));
+            true
+        }
+
+        fn apply_zoom_fallback(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+            self.zoom_fallbacks.push((target_id, *event));
+            true
         }
 
         fn wants_key_events(&self, _target_id: BlockId) -> bool {
@@ -702,5 +915,35 @@ mod tests {
                 })
             )
         }));
+    }
+
+    #[test]
+    fn unhandled_gestures_dispatch_once_before_specialized_fallback() {
+        let mut dispatcher = BasicEventDispatcher;
+        let mut scene = FigureGraph::new();
+        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let mut ctx = MockDispatchContext::new(Some(target));
+        let wheel = WheelEvent::new(2.0, 3.0, 0.0, -1.0);
+        let zoom = ZoomEvent::new(
+            2.0,
+            3.0,
+            1.1,
+            GesturePhase::Impulse,
+            KeyModifiers::default(),
+            GestureSessionId::IMPULSE,
+        );
+
+        dispatcher.dispatch_scroll(&mut ctx, wheel);
+        dispatcher.dispatch_zoom(&mut ctx, zoom);
+
+        assert_eq!(
+            ctx.dispatched,
+            vec![
+                (Some(target), Event::Wheel(wheel)),
+                (Some(target), Event::Zoom(zoom)),
+            ]
+        );
+        assert_eq!(ctx.scroll_fallbacks, vec![(target, wheel)]);
+        assert_eq!(ctx.zoom_fallbacks, vec![(target, zoom)]);
     }
 }

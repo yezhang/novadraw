@@ -49,20 +49,24 @@ fn add_viewport(
     origin: (f64, f64),
     zoom: f64,
 ) -> novadraw::BlockId {
-    let viewport = scene.add_child_to(
-        parent_id,
-        Box::new(
-            novadraw::ViewportFigure::new(x, y, width, height)
-                .with_origin(origin.0 * zoom, origin.1 * zoom),
-        ),
-    );
-    scene.add_child_to(
-        viewport,
-        Box::new(
-            novadraw::ScalableLayeredPaneFigure::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT)
-                .with_scale(zoom),
-        ),
-    )
+    let viewport = scene
+        .add_viewport_to(parent_id, novadraw::Rectangle::new(x, y, width, height))
+        .expect("attach viewport");
+    let scalable = scene
+        .add_scalable_layered_pane_to(
+            viewport.block_id(),
+            novadraw::Rectangle::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT),
+        )
+        .expect("attach scalable pane");
+    let mut update_manager = novadraw::SceneUpdateManager::new();
+    scene.revalidate(viewport.block_id());
+    novadraw::ZoomManager::new(scalable.clone(), viewport.clone())
+        .set_zoom(scene, &mut update_manager, zoom)
+        .expect("set zoom");
+    viewport
+        .set_view_location(scene, &mut update_manager, origin.0 * zoom, origin.1 * zoom)
+        .expect("set viewport origin");
+    scalable.block_id()
 }
 
 fn add_boundary(

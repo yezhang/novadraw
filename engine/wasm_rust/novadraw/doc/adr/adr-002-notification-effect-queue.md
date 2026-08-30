@@ -1,5 +1,7 @@
 # ADR-002: 采用 Draw2D 语义分层与 Zed 式 effect queue 的通知机制
 
+类型：`architecture-decision`
+
 ## 状态
 
 已通过
@@ -195,9 +197,9 @@ Notification Flush Phase
 
 ## 参考
 
-- `doc/01-architecture/draw2d_notification_design.md`
-- `doc/01-architecture/zed_reactive_design.md`
-- `doc/01-architecture/draw2d_design_axioms.md`
+- `doc/parity/draw2d/notification-mapping.md`
+- `doc/reference/zed/reactive-design.md`
+- `doc/reference/draw2d/architecture/design-axioms.md`
 - Draw2D/GEF: `/Users/bytedance/Documents/code/GitHub/gef-classic`
 - Zed: `/Users/bytedance/Documents/code/GitHub/zed`
 

@@ -33,6 +33,8 @@ pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
 pub use triangle::{Direction, TriangleFigure};
 
+use std::any::Any;
+
 use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Translatable};
 use novadraw_render::NdCanvas;
@@ -247,12 +249,27 @@ pub trait Bounded: Send + Sync {
         (b.width, b.height)
     }
 
+    /// Converts parent/layout hints into this Figure's unscaled layout domain.
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        (w_hint, h_hint)
+    }
+
+    /// Projects an unscaled preferred size into the parent layout domain.
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        size
+    }
+
     /// 获取最小大小
     ///
     /// 对应 draw2d: getMinimumSize()
     /// 默认返回首选大小
     fn minimum_size(&self) -> (f64, f64) {
         self.preferred_size()
+    }
+
+    /// Projects an unscaled minimum size into the parent layout domain.
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        size
     }
 
     /// 获取最大大小
@@ -319,7 +336,17 @@ pub trait Updatable: Send + Sync {
 ///         │     └─> paintChildren()
 ///         └─> paintBorder()        [PaintBorder]
 /// ```
-pub trait Figure: Bounded + Updatable + Send + Sync {
+pub trait AsAny {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Any> AsAny for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+pub trait Figure: Bounded + Updatable + AsAny + Send + Sync {
     /// Figure 挂载到父节点后的生命周期 hook。
     ///
     /// 对应 draw2d: addNotify()。
@@ -406,6 +433,10 @@ pub trait Figure: Bounded + Updatable + Send + Sync {
     }
 
     fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        false
+    }
+
+    fn on_zoom(&self, _event: &crate::ZoomEvent, _ctx: &mut dyn NovadrawContext) -> bool {
         false
     }
 

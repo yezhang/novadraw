@@ -134,7 +134,7 @@ graph TB
 ```
 
 **Diagram sources**:
-- [novadraw-scene/src/scene/mod.rs:L75-L192](novadraw-scene/src/scene/mod.rs#L75-L192)
+- [novadraw-scene/src/graph/mod.rs:L75-L192](novadraw-scene/src/graph/mod.rs#L75-L192)
 
 ### FigureBlock 的职责
 
@@ -159,7 +159,7 @@ pub struct FigureBlock {
 ```
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 盒子模型与坐标系统
 
@@ -207,7 +207,7 @@ sequenceDiagram
 ```
 
 **Diagram sources**:
-- [novadraw-scene/src/scene/mod.rs:L1282-L1352](novadraw-scene/src/scene/mod.rs#L1282-L1352)
+- [novadraw-scene/src/graph/mod.rs:L1282-L1352](novadraw-scene/src/graph/mod.rs#L1282-L1352)
 
 **代码示例 3：坐标转换实现**
 
@@ -225,8 +225,8 @@ pub fn translate_to_parent<T: Translatable>(&self, block_id: BlockId, t: &mut T)
 
 **Section sources**:
 - [novadraw-scene/src/figure/mod.rs](novadraw-scene/src/figure/mod.rs)
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
-- [doc/02-figure/figure_bounds.md](doc/02-figure/figure_bounds.md)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
+- [doc/reference/draw2d/figure/bounds.md](doc/reference/draw2d/figure/bounds.md)
 
 ## 树形结构管理与生命周期
 
@@ -275,7 +275,7 @@ flowchart TD
 ```
 
 **Diagram sources**:
-- [novadraw-scene/src/scene/mod.rs:L617-L684](novadraw-scene/src/scene/mod.rs#L617-L684)
+- [novadraw-scene/src/graph/mod.rs:L617-L684](novadraw-scene/src/graph/mod.rs#L617-L684)
 
 **代码示例 5：位置平移的迭代实现**
 
@@ -295,8 +295,8 @@ pub fn prim_translate(&mut self, block_id: BlockId, dx: f64, dy: f64) {
 ```
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
-- [doc/02-figure/figure_tree_operations.md](doc/02-figure/figure_tree_operations.md)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
+- [doc/reference/draw2d/figure/tree-operations.md](doc/reference/draw2d/figure/tree-operations.md)
 
 ## 命中测试与交互逻辑
 
@@ -318,7 +318,7 @@ flowchart TD
 ```
 
 **Diagram sources**:
-- [novadraw-scene/src/scene/mod.rs:L1372-L1400](novadraw-scene/src/scene/mod.rs#L1372-L1400)
+- [novadraw-scene/src/graph/mod.rs:L1372-L1400](novadraw-scene/src/graph/mod.rs#L1372-L1400)
 
 **代码示例 6：命中测试核心逻辑**
 
@@ -343,7 +343,7 @@ fn hit_test_from(&self, block_id: BlockId, point: (f64, f64), path: &mut Vec<Blo
 ```
 
 **Section sources**:
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 内置图形组件
 
@@ -425,9 +425,9 @@ impl Shape for CrossFigure {
 - **核心接口**:
     - `novadraw-scene/src/figure/mod.rs`: Trait 定义与 Blanket Impl。
 - **场景图管理**:
-    - `novadraw-scene/src/scene/mod.rs`: `FigureGraph` 与 `FigureBlock` 实现。
-    - `novadraw-scene/src/scene/render_recursive.rs`: 递归渲染器。
-    - `novadraw-scene/src/scene/render_iterative.rs`: 迭代渲染器。
+    - `novadraw-scene/src/graph/mod.rs`: `FigureGraph` 与 `FigureBlock` 实现。
+    - `novadraw-scene/src/graph/render_recursive.rs`: 递归渲染器。
+    - `doc/archive/render-iterative-poc.md`: 已归档的迭代渲染 POC，非当前主线。
 - **内置图形**:
     - `novadraw-scene/src/figure/rectangle.rs`
     - `novadraw-scene/src/figure/ellipse.rs`
@@ -435,6 +435,6 @@ impl Shape for CrossFigure {
     - `novadraw-scene/src/figure/polyline.rs`
     - `novadraw-scene/src/figure/triangle.rs`
 - **设计文档**:
-    - `doc/02-figure/figure_core_concepts.md`: 核心设计理念。
-    - `doc/02-figure/figure_bounds.md`: 边界与坐标系统详述。
-    - `doc/02-figure/ifigure_interface.md`: 接口设计指南。
+    - `doc/reference/draw2d/figure/core-concepts.md`: 核心设计理念。
+    - `doc/reference/draw2d/figure/bounds.md`: 边界与坐标系统详述。
+    - `doc/reference/draw2d/figure/ifigure-interface.md`: Draw2D 接口分析。

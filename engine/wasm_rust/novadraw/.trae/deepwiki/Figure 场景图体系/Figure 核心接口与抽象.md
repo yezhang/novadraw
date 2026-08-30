@@ -343,5 +343,5 @@ where
 - `novadraw-scene/src/figure/mod.rs`: Trait 体系定义与渲染流程核心逻辑。
 - `novadraw-scene/src/figure/root.rs`: 根节点实现参考。
 - `novadraw-scene/src/figure/rectangle.rs`: 标准图形实现示例。
-- `doc/02-figure/ifigure_interface.md`: 接口设计文档。
-- `doc/02-figure/figure_core_concepts.md`: 核心概念全景图。
+- `doc/reference/draw2d/figure/ifigure-interface.md`: Draw2D 接口分析。
+- `doc/reference/draw2d/figure/core-concepts.md`: 核心概念全景图。

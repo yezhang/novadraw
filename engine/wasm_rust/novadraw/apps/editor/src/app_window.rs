@@ -6,9 +6,10 @@ use crate::system::{RawPointerInput, WinitNovadrawSystem};
 use novadraw::backend::vello::{VelloRenderer, WinitWindowProxy};
 use novadraw::traits::WindowProxy;
 use novadraw::{Key, KeyModifiers, NovadrawSystem, RenderBackend};
+use novadraw_apps::{AdaptedGesture, WinitGestureAdapter};
 use tracing::info;
 use winit::dpi::{self, PhysicalSize};
-use winit::event::{ElementState, MouseButton as WinitMouseButton, MouseScrollDelta};
+use winit::event::{ElementState, MouseButton as WinitMouseButton};
 use winit::window::WindowAttributes;
 use winit::{
     application::ApplicationHandler,
@@ -28,6 +29,7 @@ pub struct GraphicsApp {
     cursor_position: Option<(f64, f64)>,
     last_press: Option<(Instant, novadraw::MouseButton, f64, f64)>,
     modifiers: KeyModifiers,
+    gesture_adapter: WinitGestureAdapter,
 }
 
 impl GraphicsApp {
@@ -39,7 +41,17 @@ impl GraphicsApp {
             cursor_position: None,
             last_press: None,
             modifiers: KeyModifiers::default(),
+            gesture_adapter: WinitGestureAdapter::new(),
         }
+    }
+
+    fn gesture_anchor_physical(&self) -> Option<(f64, f64)> {
+        self.cursor_position.or_else(|| {
+            self.cached_window.as_ref().map(|window| {
+                let size = window.inner_size();
+                (f64::from(size.width) / 2.0, f64::from(size.height) / 2.0)
+            })
+        })
     }
 
     fn execute_update(&mut self) {
@@ -233,23 +245,52 @@ impl ApplicationHandler<()> for GraphicsApp {
                     }
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                if let (Some((physical_x, physical_y)), Some(system)) =
-                    (self.cursor_position, &mut self.system)
+            WindowEvent::MouseWheel {
+                device_id,
+                delta,
+                phase,
+            } => {
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                let (physical_x, physical_y) = self.gesture_anchor_physical().unwrap_or((0.0, 0.0));
+                if let Some(AdaptedGesture::Scroll(event)) = self.gesture_adapter.adapt_mouse_wheel(
+                    device_id,
+                    delta,
+                    phase,
+                    physical_x,
+                    physical_y,
+                    scale_factor,
+                    self.modifiers,
+                ) && let Some(system) = &mut self.system
                 {
-                    let scale_factor = self
-                        .renderer
-                        .as_ref()
-                        .map(|renderer| renderer.window().scale_factor())
-                        .unwrap_or(1.0);
-                    let raw = RawPointerInput::new(physical_x, physical_y, scale_factor);
-                    let (delta_x, delta_y) = match delta {
-                        MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
-                        MouseScrollDelta::PixelDelta(position) => {
-                            (position.x / scale_factor, position.y / scale_factor)
-                        }
-                    };
-                    system.dispatch_raw_mouse_wheel(raw, delta_x, delta_y);
+                    system.dispatch_scroll(event);
+                }
+            }
+            WindowEvent::PinchGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                let (physical_x, physical_y) = self.gesture_anchor_physical().unwrap_or((0.0, 0.0));
+                if let Some(AdaptedGesture::Zoom(event)) = self.gesture_adapter.adapt_pinch(
+                    device_id,
+                    delta,
+                    phase,
+                    physical_x,
+                    physical_y,
+                    scale_factor,
+                    self.modifiers,
+                ) && let Some(system) = &mut self.system
+                {
+                    system.dispatch_zoom(event);
                 }
             }
             WindowEvent::ModifiersChanged(modifiers) => {
@@ -262,7 +303,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                 };
             }
             WindowEvent::Focused(false) => {
+                self.gesture_adapter.cancel_all();
                 if let Some(system) = &mut self.system {
+                    system.cancel_gestures();
                     system.release_focus();
                 }
             }

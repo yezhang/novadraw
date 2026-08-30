@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use novadraw_geometry::Point;
 
 use crate::{
-    BlockId, DispatchContext, Event, Figure, FigureEvent, FigureGraph, MouseEventKind,
-    NotificationEffect, PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle,
-    UpdateManager,
+    BlockId, DispatchContext, Event, Figure, FigureEvent, FigureGraph, GestureSessionId,
+    MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect, PendingMutations,
+    PropertyChangeEvent, PropertyValue, Rectangle, ScalableLayeredPaneFigure, ScrollPaneFigure,
+    UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
     mutation::{MutationContext, PendingMutation},
 };
 
@@ -168,11 +171,89 @@ impl<'a> SceneDispatchContext<'a> {
             pending_mutations,
         }
     }
+
+    fn nearest_scalable(&self, mut target_id: BlockId) -> Option<BlockId> {
+        loop {
+            let block = self.scene.block(target_id)?;
+            if block.figure.as_any().is::<ScalableLayeredPaneFigure>() {
+                return Some(target_id);
+            }
+            target_id = self.scene.parent_id(target_id)?;
+        }
+    }
+
+    fn nearest_viewport_parent(&self, mut block_id: BlockId) -> Option<BlockId> {
+        while let Some(parent_id) = self.scene.parent_id(block_id) {
+            let parent = self.scene.block(parent_id)?;
+            if parent.figure.as_any().is::<ViewportFigure>() {
+                return Some(parent_id);
+            }
+            block_id = parent_id;
+        }
+        None
+    }
+
+    fn nearest_scroll_pane_parent(&self, mut block_id: BlockId) -> Option<BlockId> {
+        while let Some(parent_id) = self.scene.parent_id(block_id) {
+            let parent = self.scene.block(parent_id)?;
+            if parent.figure.as_any().is::<ScrollPaneFigure>() {
+                return Some(parent_id);
+            }
+            block_id = parent_id;
+        }
+        None
+    }
+
+    fn apply_scroll_controller(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+        let Some(scroll_pane_id) = self.nearest_scroll_pane_parent(target_id) else {
+            return false;
+        };
+        DispatchContext::dispatch_to_target(self, Some(scroll_pane_id), &Event::Wheel(*event))
+    }
+
+    fn apply_zoom_manager(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+        let Some(scalable_id) = self.nearest_scalable(target_id) else {
+            return false;
+        };
+        let Some(viewport_id) = self.nearest_viewport_parent(scalable_id) else {
+            return false;
+        };
+        let Some(scalable) = self.scene.scale_handle(scalable_id) else {
+            return false;
+        };
+        let Some(viewport) = self.scene.viewport_handle(viewport_id) else {
+            return false;
+        };
+        let anchor = {
+            let Some(block) = self.scene.block(viewport_id) else {
+                return false;
+            };
+            let bounds = block.figure_bounds();
+            let (top, left, _, _) = block.figure.insets();
+            let mut point = event.entry_point();
+            self.scene.translate_to_relative(viewport_id, &mut point);
+            Point::new(point.x() - bounds.x - left, point.y() - bounds.y - top)
+        };
+        let mut zoom_manager = ZoomManager::new(scalable, viewport);
+        zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+        zoom_manager
+            .zoom_by_at(
+                self.scene,
+                self.update_manager,
+                event.scale_factor,
+                Some(anchor),
+            )
+            .unwrap_or(false)
+    }
 }
 
 impl DispatchContext for SceneDispatchContext<'_> {
     fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
         self.scene.find_mouse_event_target_at(x, y)
+    }
+
+    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+        self.scene.hit_test_simple((x, y))
     }
 
     fn mouse_target(&self) -> Option<BlockId> {
@@ -223,8 +304,32 @@ impl DispatchContext for SceneDispatchContext<'_> {
         self.scene.set_captured(id);
     }
 
-    fn parent_of(&self, target_id: BlockId) -> Option<BlockId> {
-        self.scene.parent_id(target_id)
+    fn gesture_target(&self, session_id: GestureSessionId) -> Option<BlockId> {
+        self.scene.gesture_target(session_id)
+    }
+
+    fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
+        self.scene.has_gesture_session(session_id)
+    }
+
+    fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<BlockId>) {
+        self.scene.set_gesture_target(session_id, target_id);
+    }
+
+    fn clear_gesture_target(&mut self, session_id: GestureSessionId) {
+        self.scene.clear_gesture_target(session_id);
+    }
+
+    fn clear_gesture_targets(&mut self) {
+        self.scene.clear_gesture_targets();
+    }
+
+    fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+        self.apply_scroll_controller(target_id, event)
+    }
+
+    fn apply_zoom_fallback(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+        self.apply_zoom_manager(target_id, event)
     }
 
     fn wants_key_events(&self, target_id: BlockId) -> bool {
@@ -293,6 +398,12 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     self.scene.translate_to_relative(target_id, &mut point);
                     let local_event = wheel_event.with_target_point(point.x(), point.y());
                     block.figure.on_mouse_wheel(&local_event, &mut ctx)
+                }
+                Event::Zoom(zoom_event) => {
+                    let mut point = Point::new(zoom_event.x, zoom_event.y);
+                    self.scene.translate_to_relative(target_id, &mut point);
+                    let local_event = zoom_event.with_target_point(point.x(), point.y());
+                    block.figure.on_zoom(&local_event, &mut ctx)
                 }
                 Event::Key(key_event) => match key_event.kind {
                     crate::event::KeyEventKind::Pressed => {

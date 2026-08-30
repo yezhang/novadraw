@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::input::{AdaptedGesture, WinitGestureAdapter};
 pub use novadraw::{
     BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, FigureGraph, Key, KeyModifiers,
     MouseButton, NotificationEffect, PendingMutations, RenderBackend, RenderOutcome,
@@ -69,6 +70,7 @@ pub struct DemoApp {
     pending_mutations: PendingMutations,
     cursor_position: Option<(f64, f64)>,
     modifiers: KeyModifiers,
+    gesture_adapter: WinitGestureAdapter,
 }
 
 impl DemoApp {
@@ -100,6 +102,7 @@ impl DemoApp {
             pending_mutations: PendingMutations::new(),
             cursor_position: None,
             modifiers: KeyModifiers::default(),
+            gesture_adapter: WinitGestureAdapter::new(),
         }
     }
 
@@ -405,29 +408,74 @@ impl ApplicationHandler<()> for DemoApp {
                     ),
                 });
             }
-            WindowEvent::MouseWheel { delta, .. } => {
-                let Some((x, y)) = self.cursor_position else {
-                    return;
-                };
+            WindowEvent::MouseWheel {
+                device_id,
+                delta,
+                phase,
+            } => {
                 let scale_factor = self
                     .renderer
                     .as_ref()
                     .map(|renderer| renderer.window().scale_factor())
                     .unwrap_or(1.0);
-                let (delta_x, delta_y) = match delta {
-                    winit::event::MouseScrollDelta::LineDelta(x, y) => (x as f64, y as f64),
-                    winit::event::MouseScrollDelta::PixelDelta(position) => {
-                        (position.x / scale_factor, position.y / scale_factor)
-                    }
+                let (physical_x, physical_y) = self.cursor_position.unwrap_or_else(|| {
+                    let size = self
+                        .window
+                        .as_ref()
+                        .map(|window| window.inner_size())
+                        .unwrap_or(PhysicalSize::new(0, 0));
+                    (f64::from(size.width) / 2.0, f64::from(size.height) / 2.0)
+                });
+                let Some(gesture) = self.gesture_adapter.adapt_mouse_wheel(
+                    device_id,
+                    delta,
+                    phase,
+                    physical_x,
+                    physical_y,
+                    scale_factor,
+                    self.modifiers,
+                ) else {
+                    return;
                 };
                 self.dispatch_input(|dispatcher, context| {
-                    dispatcher.dispatch_mouse_wheel(
-                        context,
-                        x / scale_factor,
-                        y / scale_factor,
-                        delta_x,
-                        delta_y,
-                    );
+                    if let AdaptedGesture::Scroll(event) = gesture {
+                        dispatcher.dispatch_scroll(context, event);
+                    }
+                });
+            }
+            WindowEvent::PinchGesture {
+                device_id,
+                delta,
+                phase,
+            } => {
+                let scale_factor = self
+                    .renderer
+                    .as_ref()
+                    .map(|renderer| renderer.window().scale_factor())
+                    .unwrap_or(1.0);
+                let (physical_x, physical_y) = self.cursor_position.unwrap_or_else(|| {
+                    let size = self
+                        .window
+                        .as_ref()
+                        .map(|window| window.inner_size())
+                        .unwrap_or(PhysicalSize::new(0, 0));
+                    (f64::from(size.width) / 2.0, f64::from(size.height) / 2.0)
+                });
+                let Some(gesture) = self.gesture_adapter.adapt_pinch(
+                    device_id,
+                    delta,
+                    phase,
+                    physical_x,
+                    physical_y,
+                    scale_factor,
+                    self.modifiers,
+                ) else {
+                    return;
+                };
+                self.dispatch_input(|dispatcher, context| {
+                    if let AdaptedGesture::Zoom(event) = gesture {
+                        dispatcher.dispatch_zoom(context, event);
+                    }
                 });
             }
             WindowEvent::ModifiersChanged(modifiers) => {
@@ -440,7 +488,11 @@ impl ApplicationHandler<()> for DemoApp {
                 };
             }
             WindowEvent::Focused(false) => {
-                self.dispatch_input(|dispatcher, context| dispatcher.release_focus(context));
+                self.gesture_adapter.cancel_all();
+                self.dispatch_input(|dispatcher, context| {
+                    dispatcher.cancel_gestures(context);
+                    dispatcher.release_focus(context);
+                });
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 let pressed = event.state == winit::event::ElementState::Pressed;

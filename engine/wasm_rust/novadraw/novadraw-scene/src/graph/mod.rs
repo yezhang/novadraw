@@ -236,6 +236,7 @@ pub struct FigureGraph {
     hover_source: Option<BlockId>,
     focus_owner: Option<BlockId>,
     captured: Option<BlockId>,
+    gesture_targets: std::collections::HashMap<crate::GestureSessionId, Option<BlockId>>,
     notification_effects: NotificationQueue,
 }
 
@@ -275,6 +276,7 @@ impl FigureGraph {
             hover_source: None,
             focus_owner: None,
             captured: None,
+            gesture_targets: std::collections::HashMap::new(),
             notification_effects: NotificationQueue::new(),
         }
     }
@@ -991,6 +993,19 @@ impl FigureGraph {
         }
     }
 
+    /// Immediately validates a subtree while preserving UpdateManager damage.
+    ///
+    /// This is the Draw2D `Figure.validate()` equivalent used by coordinated
+    /// operations such as `ZoomManager`: scale invalidation is resolved before
+    /// the new viewport location is applied.
+    pub fn validate_with_update(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        container_id: BlockId,
+    ) {
+        self.revalidate_with_update(update_manager, container_id);
+    }
+
     /// 立即验证指定子树，不产生 damage。
     ///
     /// 该入口用于初始场景构建；运行时更新应通过 `mark_invalid` 和
@@ -1083,11 +1098,13 @@ impl FigureGraph {
         h_hint: f64,
     ) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
+        let (w_hint, h_hint) = block.figure.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.preferred_size {
-            return Some(size);
+            return Some(block.figure.project_preferred_size(size));
         }
         if let Some(layout) = block.layout_manager.as_deref() {
-            return Some(layout.get_preferred_size(block_id, w_hint, h_hint, self));
+            let size = layout.get_preferred_size(block_id, w_hint, h_hint, self);
+            return Some(block.figure.project_preferred_size(size));
         }
         Some(block.figure.preferred_size())
     }
@@ -1095,11 +1112,13 @@ impl FigureGraph {
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
     pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
+        let (w_hint, h_hint) = block.figure.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.minimum_size {
-            return Some(size);
+            return Some(block.figure.project_minimum_size(size));
         }
         if let Some(layout) = block.layout_manager.as_deref() {
-            return Some(layout.get_minimum_size(block_id, w_hint, h_hint, self));
+            let size = layout.get_minimum_size(block_id, w_hint, h_hint, self);
+            return Some(block.figure.project_minimum_size(size));
         }
         Some(block.figure.minimum_size())
     }
@@ -1383,6 +1402,38 @@ impl FigureGraph {
     /// Returns the direct parent of a block.
     pub fn parent_id(&self, block_id: BlockId) -> Option<BlockId> {
         self.blocks.get(block_id).and_then(|block| block.parent)
+    }
+
+    pub(crate) fn gesture_target(&self, session_id: crate::GestureSessionId) -> Option<BlockId> {
+        self.gesture_targets
+            .get(&session_id)
+            .copied()
+            .flatten()
+            .filter(|id| self.blocks.contains_key(*id))
+    }
+
+    pub(crate) fn has_gesture_session(&self, session_id: crate::GestureSessionId) -> bool {
+        self.gesture_targets.contains_key(&session_id)
+    }
+
+    pub(crate) fn set_gesture_target(
+        &mut self,
+        session_id: crate::GestureSessionId,
+        target_id: Option<BlockId>,
+    ) {
+        if session_id == crate::GestureSessionId::IMPULSE {
+            return;
+        }
+        let target_id = target_id.filter(|id| self.blocks.contains_key(*id));
+        self.gesture_targets.insert(session_id, target_id);
+    }
+
+    pub(crate) fn clear_gesture_target(&mut self, session_id: crate::GestureSessionId) {
+        self.gesture_targets.remove(&session_id);
+    }
+
+    pub(crate) fn clear_gesture_targets(&mut self) {
+        self.gesture_targets.clear();
     }
 
     /// 返回 child 在父节点内的 z-order index。
@@ -2244,6 +2295,18 @@ impl FigureGraph {
             .is_some_and(|id| self.is_in_subtree(id, subtree_root))
         {
             self.focus_owner = None;
+        }
+        let stale_gestures: Vec<crate::GestureSessionId> = self
+            .gesture_targets
+            .iter()
+            .filter_map(|(session_id, target_id)| {
+                target_id
+                    .is_some_and(|target_id| self.is_in_subtree(target_id, subtree_root))
+                    .then_some(*session_id)
+            })
+            .collect();
+        for session_id in stale_gestures {
+            self.gesture_targets.insert(session_id, None);
         }
         let descendants: Vec<BlockId> = self
             .blocks

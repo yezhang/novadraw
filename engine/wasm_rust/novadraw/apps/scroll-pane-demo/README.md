@@ -19,4 +19,6 @@ cargo run -p scroll-pane-demo -- --screenshot-all
 | `automatic_hidden` | 小内容下自动隐藏滚动条 |
 | `scalable_content` | Viewport scroll 与 ScalableLayeredPane zoom 组合 |
 
-窗口内可使用滚轮滚动内容，点击滚动条两端进行 step，拖动 thumb 调整位置。
+窗口内可使用鼠标滚轮或触控板双指滚动内容，点击滚动条两端进行 step，拖动 thumb
+调整位置。macOS 在 `scalable_content` 场景支持双指 pinch，并保持指针锚点下的
+content 位置不变。

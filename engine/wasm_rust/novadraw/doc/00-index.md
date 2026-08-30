@@ -1,223 +1,91 @@
-# Novadraw 设计文档索引
+# Novadraw 文档索引
 
-本文档对 doc 目录下所有设计文档进行分类说明，便于查阅和理解。
+本目录按文档的**知识来源与规范效力**组织。技术主题是第二层分类，不能再把
+Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录。
 
----
+## 权威边界
 
-## 文档分类结构
+| 目录 | 回答的问题 | 规范效力 |
+|---|---|---|
+| [`reference/`](reference/00-index.md) | Draw2D、GEF、SWT、Zed 实际如何工作？ | 外部事实；不直接约束 Novadraw |
+| [`design/`](design/00-index.md) | Novadraw 应该如何工作？ | Novadraw 设计 SSOT |
+| [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
+| [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
+| [`roadmap/`](roadmap/00-index.md) | 何时交付、当前到哪里？ | 里程碑与产品状态，不定义架构 |
+| [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
+| [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
+| [`archive/`](archive/00-index.md) | 哪些内容已失效或仅保留历史？ | 非当前契约 |
 
-```text
-doc/
-├── 00-index.md                        # 文档索引（本文档）
-│
-├── 01-architecture/                  # 架构设计
-│   ├── gef_principle.md              # GEF 框架核心原理
-│   ├── draw2d_design_axioms.md       # Draw2D 底层设计公理
-│   ├── draw2d_api_coverage.md        # Draw2D API 语义覆盖清单
-│   ├── draw2d_notification_design.md # Draw2D 通知机制设计分析
-│   ├── displaylist_design.md          # DisplayList 中间层设计
-│   ├── draw2d-history.md             # draw2d 历史与架构演变
-│   ├── zed_reactive_design.md        # Zed 响应式设计分析与通知机制借鉴
-│   ├── m8-m9-contract-plan.md        # Viewport/Scroll 与 Connection 契约实施计划
-│   ├── ideal-directory-structure.md   # 理想目录结构设计（模块/目录/crate 演进策略）
-│   ├── swt-gc-analysis.md           # SWT GC 底层绘制 API 分析
-│   ├── ideal-architecture-static.md   # 理想架构 - 静态结构（组件关系、Trait 层级）
-│   └── ideal-architecture-dynamic.md  # 理想架构 - 动态结构（事件流、更新流程）
-│
-├── 02-figure/                        # Figure 核心
-│   ├── figure_core_concepts.md       # Figure 核心概念
-│   ├── figure_bounds.md               # Figure 边界机制
-│   ├── figure_tree_position.md       # Figure 树父子位置
-│   ├── ifigure_interface.md          # g2 IFigure 接口分析
-│   ├── figure_implementation.md      # g2 Figure 实现分析
-│   ├── figure_tree_operations.md     # g2 Figure 树操作机制分析
-│   ├── figure_box_model.md           # 盒模型分析
-│   └── layout-constraints.md         # 布局约束机制
-│
-├── 03-rendering/                      # 渲染管线
-│   ├── rendering_pipeline.md          # 渲染管线概览
-│   ├── update_manager_pipeline.md    # g2 UpdateManager + 渲染管线分析
-│   ├── update_manager_design.md      # Novadraw UpdateManager 设计
-│   ├── core-pipeline-review-2026-08-23.md # 核心渲染管线审查与修复状态
-│   ├── manual_core_pipeline_verification.md # 核心渲染管线手工验收步骤
-│   ├── manual_m8_viewport_verification.md # M8 Viewport/Scroll/Zoom 手工验收
-│   ├── trampoline_rendering.md       # Trampoline 渲染任务管理
-│   ├── displaylist_detailed.md       # DisplayList 详细设计
-│   ├── graphics_api.md               # Graphics API 参考
-│   └── clip_principle.md             # Clip 裁剪原理
-│
-├── 04-coordinates/                   # 坐标系与变换
-│   └── coordinates.md                 # 坐标系统原理
-│
-├── 05-java-rust/                     # Java to Rust 迁移
-│   ├── java_to_rust_oo.md            # Java OOP 特性等价实现
-│   └── java_to_rust_migration.md     # 迁移步骤指南 + 多态支持
-│
-├── 06-roadmap/                       # 路线图（产品视图 + Demo 视图）
-│   ├── 00-index.md                   # 路线图三方职能边界说明
-│   ├── product-deliverables.md       # 每个 milestone 的产品策略层清单
-│   └── demo-matrix.md                # 每个 milestone 的 demo + 验证矩阵
-│
-├── adr/                              # 架构决策记录
-│   ├── README.md                     # ADR 列表与模板
-│   ├── adr-001-webgpu-rust-stack.md  # Rust + WebGPU 技术栈决策
-│   └── adr-002-notification-effect-queue.md # 通知机制 effect queue 决策
-│
-└── deprecated/                        # 历史文档（已被取代）
-    └── 架构设计-历史.md              # 早期架构设计，已被《理想架构设计.md》取代
-```
+## 核心 SSOT
 
----
+- Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)
+- 静态结构：[`design/architecture/static-architecture.md`](design/architecture/static-architecture.md)
+- 动态时序：[`design/architecture/dynamic-architecture.md`](design/architecture/dynamic-architecture.md)
+- 坐标协议：[`design/coordinates/coordinate-system.md`](design/coordinates/coordinate-system.md)
+- Scroll/Zoom 输入协议：[`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
+- UpdateManager：[`design/rendering/update-manager.md`](design/rendering/update-manager.md)
+- Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
+- M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 
-## 文档详细说明
+## 冲突处理
 
-### 1. 架构设计
+出现文档冲突时按以下顺序判断：
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `gef_principle.md` | GEF 框架架构 | MVC 模式、EditPart 控制器、Command 模式、Request/EditPolicy 机制、连接支持 |
-| `draw2d_design_axioms.md` | Draw2D 设计公理 | Figure 树、bounds、坐标根、两阶段更新、damage 修复、事件状态机 |
-| `draw2d_api_coverage.md` | Draw2D API 覆盖 | 按 API family 记录 draw2d 语义契约、Novadraw 合理变体、覆盖检查点与后续 probes |
-| `draw2d_notification_design.md` | Draw2D 通知机制 | Figure/Coordinate/Property/Ancestor/Input/Update 六类通知语义、实现方式、与 Zed/Novadraw 的对应关系 |
-| `displaylist_design.md` | DisplayList 设计 | crate 设计决策、协议定义、与渲染层解耦方案 |
-| `draw2d-history.md` | draw2d 历史 | draw2d 架构演变、设计决策背景 |
-| `zed_reactive_design.md` | Zed 响应式设计 | `Entity<T>`、`notify/emit` 分离、`Subscription` 生命周期、effect flush、对 draw2d 等价通知机制的借鉴 |
-| `m8-m9-contract-plan.md` | M8-M9 契约计划 | RangeModel/Viewport/ScrollPane 与 Connection/Anchor/Router 的 API、运行时所有权、验证门禁和实施顺序 |
-| `ideal-directory-structure.md` | 理想目录结构 | 模块分层、目录命名、crate 演进顺序、目录调整禁止项 |
-| `swt-gc-analysis.md` | SWT GC 分析 | SWT GC 底层绘制 API、IServerOcr2d 接口 |
-| `ideal-architecture-static.md` | 理想架构 - 静态结构 | 组件关系图、Trait 层级、数据结构、平台解耦设计（d2 绘图） |
-| `ideal-architecture-dynamic.md` | 理想架构 - 动态结构 | 事件分发流程、setCapture 机制、两阶段更新、数据流（d2 绘图） |
-| `render-iterative-archive.md` | 迭代渲染归档 | 历史 POC 归档 tag、恢复条件、当前禁止项 |
+1. 已接受 ADR 决定不可逆的关键取舍。
+2. `design/` 下范围更窄、主题更具体的契约优先于架构总览。
+3. `parity/` 只解释外部语义到 Novadraw 的映射，不覆盖 Novadraw 设计契约。
+4. `reference/` 必须服从参考源码事实，但不能据此推导 Novadraw 必须照搬。
+5. `roadmap/`、`verification/`、`migration/` 和 `archive/` 不定义运行时架构。
 
-### 2. Figure 核心
+发现设计与代码不一致时，不允许直接把文档改成代码现状。先判断：
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `figure_core_concepts.md` | Figure 基础 | Figure 接口、paint 流程、GeometryHolder、父子关系 |
-| `figure_bounds.md` | 边界机制 | bounds 定义、preferredSize、validate 流程、布局触发 |
-| `figure_tree_position.md` | 父子位置 | 坐标系转换、translateToParent/useLocalCoordinates、嵌套变换 |
-| `ifigure_interface.md` | IFigure 接口 | 接口方法分类、设计意图、上帝接口模式分析 |
-| `figure_implementation.md` | Figure 实现 | 核心数据结构、paint/setBounds 实现、关键设计模式 |
-| `figure_tree_operations.md` | 树操作机制 | 树遍历方法分类、递归/迭代机制、传播方向分析 |
-| `figure_box_model.md` | 盒模型 | Bounds/Insets/ClientArea/Border/Outline 关系 |
-| `layout-constraints.md` | 布局约束 | 约束系统、LayoutManager 接口、布局约束机制 |
+- 设计仍合理：补充设计依据、测试契约，再调整代码。
+- 实现形成了更合理的新约束：先修改设计或新增 ADR，再调整测试与索引。
+- 只是实施未完成：在设计文档中明确 `target` 状态，并在 roadmap 记录进度。
 
-### 3. 渲染管线
+## 文档类型
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `rendering_pipeline.md` | 管线概览 | 三环节验证：IR 层、后端层、场景层 |
-| `update_manager_pipeline.md` | g2 UpdateManager | g2 LightweightSystem、UM 两阶段、Figure.paint、Graphics、EventDispatcher |
-| `update_manager_design.md` | Novadraw UpdateManager | Novadraw SceneUpdateManager 实现、设计决策、与 g2 差异 |
-| `core-pipeline-review-2026-08-23.md` | 核心管线审查 | 渲染、更新、事件、宿主和后端的缺陷清单与修复状态 |
-| `manual_core_pipeline_verification.md` | 核心管线手工验收 | 从门禁、无窗口 verification 到渲染、事件、更新、坐标和裁剪的操作与通过标准 |
-| `manual_m8_viewport_verification.md` | M8 手工验收 | Viewport、RangeModel、ScrollPane、ScrollBar、wheel fallback 与 scalable pane 的窗口验收 |
-| `trampoline_rendering.md` | 任务遍历 | Trampoline 模式、任务队列、避免递归栈溢出 |
-| `displaylist_detailed.md` | 详细实现 | RenderCommand 结构、场景图到命令的转换 |
-| `graphics_api.md` | API 参考 | Graphics 状态管理、绘制 API、变换 API |
-| `clip_principle.md` | 裁剪机制 | Clip 架构、LazyState、IServerOcr2d 接口 |
+新增或大幅修改文档时，应在标题后的说明中明确以下类型之一：
 
-### 4. 坐标系与变换
+- `reference-analysis`
+- `normative-design`
+- `parity-contract`
+- `architecture-decision`
+- `verification`
+- `roadmap`
+- `migration-guide`
+- `archive`
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `coordinates.md` | 坐标系统 | 物理像素、入口域逻辑坐标、坐标根分段、Figure 树变换、MouseEvent 事件点降域 |
+每篇参考分析应给出仓库、基线提交以及稳定的 class/method 证据；行号仅用于辅助
+阅读。每篇设计文档应明确适用范围、失败模式、扩展点和验证入口。
 
-### 5. Java to Rust 迁移
+## 阅读路径
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `java_to_rust_oo.md` | OOP 等价实现 | 20 种 Java OOP 特性与 Rust 对应关系 |
-| `java_to_rust_migration.md` | 迁移指南 | 迁移步骤、多态调用支持、决策流程 |
+### 理解 Novadraw
 
-### 6. 路线图
+1. [`design/architecture/overview.md`](design/architecture/overview.md)
+2. [`reference/draw2d/architecture/design-axioms.md`](reference/draw2d/architecture/design-axioms.md)
+3. [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
+4. [`design/coordinates/coordinate-system.md`](design/coordinates/coordinate-system.md)
+5. [`design/rendering/update-manager.md`](design/rendering/update-manager.md)
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `06-roadmap/00-index.md` | 路线图文档边界 | 语义账本 / 产品清单 / demo 验证三类文档的分工 |
-| `06-roadmap/product-deliverables.md` | 产品交付清单 | 每个 milestone 下要交付的图元/布局/边框等策略层清单 |
-| `06-roadmap/demo-matrix.md` | Demo 与验证矩阵 | 每个 milestone 配套的 demo + 截图断言/帧率断言策略 + GEF 层探索附录 |
+### 开发 Viewport / Scroll / Zoom
 
-> 路线图统一使用 `M1-M10` 编号；相关产品清单与验证矩阵集中维护在 `doc/06-roadmap/`。
-> API 语义覆盖与 milestone 对应关系见 `doc/01-architecture/draw2d_api_coverage.md`。
+1. [`reference/draw2d/figure/scalable-zoom.md`](reference/draw2d/figure/scalable-zoom.md)
+2. [`design/architecture/m8-m9-contract-plan.md`](design/architecture/m8-m9-contract-plan.md)
+3. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
+4. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
 
-### 7. 历史文档
+### 修改 Draw2D 对标语义
 
-| 文档 | 主题 | 说明 |
-|------|------|------|
-| `deprecated/架构设计-历史.md` | 早期架构设计 | 已被《理想架构设计.md》取代，仅作历史参考 |
+1. 核对 `reference/` 中对应源码分析。
+2. 更新 [`verification/reference/draw2d-source-audit.md`](verification/reference/draw2d-source-audit.md) 的审计基线或结论。
+3. 在 [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md) 更新受影响 family。
+4. 若改变 Novadraw 行为，先更新 `design/` 或 ADR，再修改测试和代码。
 
-### 8. 架构决策记录
+## 命名与维护
 
-| 文档 | 主题 | 关键内容 |
-|------|------|----------|
-| `adr/README.md` | ADR 索引 | 架构决策记录列表与模板 |
-| `adr-001-webgpu-rust-stack.md` | 技术栈决策 | Rust、WebGPU、vello、winit、cosmic-text |
-| `adr-002-notification-effect-queue.md` | 通知机制决策 | Draw2D 语义分层、Zed 式 effect queue、Novadraw 事务 flush 边界 |
-
----
-
-## 阅读路径建议
-
-### 新人入门
-
-```text
-1. gef_principle.md              # 理解整体架构
-2. draw2d_design_axioms.md       # 理解最底层不变量
-3. draw2d_api_coverage.md        # 理解 API family 与 Novadraw 覆盖账本
-4. draw2d_notification_design.md # 理解 draw2d 的通知语义分层
-5. figure_core_concepts.md       # 理解 Figure 模型
-6. coordinates.md                # 理解坐标系
-7. zed_reactive_design.md        # 理解现代 Rust 响应式/通知机制参考
-```
-
-### 渲染开发
-
-```text
-1. rendering_pipeline.md            # 了解管线结构
-2. update_manager_pipeline.md      # g2 UpdateManager + EventDispatcher 机制
-3. manual_core_pipeline_verification.md # 执行核心管线手工验收
-4. trampoline_rendering.md        # 理解遍历机制
-5. graphics_api.md               # 熟悉绘图 API
-6. displaylist_detailed.md       # 深入实现细节
-```
-
-### 特性开发
-
-| 场景 | 推荐文档 |
-|------|----------|
-| 裁剪功能 | `clip_principle.md` |
-| 边界布局 | `figure_bounds.md` + `figure_tree_position.md` |
-| 连接线 | `gef_principle.md` (连接章节) + `graphics_api.md` |
-| 撤销重做 | `gef_principle.md` (Command 章节) |
-| UpdateManager | `update_manager_pipeline.md` (g2 参考) + `update_manager_design.md` (本项目) |
-| 通知体系 | `adr/adr-002-notification-effect-queue.md` + `draw2d_notification_design.md` + `zed_reactive_design.md` |
-
-### Java to Rust 迁移
-
-```text
-1. java_to_rust_oo.md              # 理解 Java OOP 在 Rust 中的等价物
-2. java_to_rust_migration.md       # 掌握迁移步骤和多态支持
-3. ifigure_interface.md            # 分析源接口
-4. figure_implementation.md        # 分析实现类
-```
-
----
-
-## 文档命名规范
-
-- 使用小写字母和下划线
-- 语义清晰，体现主题
-- 避免过长的文件名
-- 相关文档使用相似前缀以便分组
-
----
-
-## 贡献指南
-
-新增文档时请：
-
-1. 确定所属分类，放置到对应子目录
-2. 遵循现有文档的格式风格
-3. 通过 markdownlint 检查
-4. 更新本文档索引
+- 文件和目录使用小写 kebab-case；固定入口保留 `00-index.md`。
+- 移动文档后必须更新仓库内所有 Markdown 链接和 `AGENTS.md`、`CLAUDE.md`。
+- 已失效内容移入 `archive/`，不得继续被设计文档作为当前契约引用。
+- 设计、路线图和审计报告分别维护，不在一篇文档中重复保存三套状态。

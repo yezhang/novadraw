@@ -42,6 +42,42 @@ impl From<GraphMutationError> for ScaleError {
 #[derive(Debug)]
 struct ScaleRuntime {
     scale: f64,
+    unscaled_preferred_width: f64,
+    unscaled_preferred_height: f64,
+}
+
+impl ScaleRuntime {
+    fn new(width: f64, height: f64) -> Self {
+        Self {
+            scale: 1.0,
+            unscaled_preferred_width: width,
+            unscaled_preferred_height: height,
+        }
+    }
+
+    fn unscaled_preferred_size(&self) -> (f64, f64) {
+        (
+            self.unscaled_preferred_width,
+            self.unscaled_preferred_height,
+        )
+    }
+
+    fn update_scale(&mut self, scale: f64) -> Result<Option<(f64, f64, f64)>, ScaleError> {
+        if !valid_scale(scale) {
+            return Err(ScaleError::InvalidScale);
+        }
+        if self.scale == scale {
+            return Ok(None);
+        }
+        let old_scale = self.scale;
+        let (width, height) = self.unscaled_preferred_size();
+        let (width, height) = (width * scale, height * scale);
+        if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
+            return Err(ScaleError::InvalidScale);
+        }
+        self.scale = scale;
+        Ok(Some((old_scale, width, height)))
+    }
 }
 
 fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -81,27 +117,13 @@ impl ScaleHandle {
         if graph.get_block(self.block_id).is_none() {
             return Err(ScaleError::MissingFigure);
         }
-        let old_bounds = graph
-            .figure_bounds(self.block_id)
-            .ok_or(ScaleError::MissingFigure)?;
         let old_scale = {
             let mut runtime = lock_unpoisoned(&self.runtime);
-            if runtime.scale == scale {
+            let Some(update) = runtime.update_scale(scale)? else {
                 return Ok(false);
-            }
-            let old_scale = runtime.scale;
-            runtime.scale = scale;
-            old_scale
+            };
+            update.0
         };
-        let scale_ratio = scale / old_scale;
-        graph.set_bounds_with_update(
-            update_manager,
-            self.block_id,
-            old_bounds.x,
-            old_bounds.y,
-            old_bounds.width * scale_ratio,
-            old_bounds.height * scale_ratio,
-        );
 
         graph.record_property_change(
             self.block_id,
@@ -128,7 +150,7 @@ impl ScalableLayeredPaneFigure {
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self::with_runtime(
             Rectangle::new(x, y, width, height),
-            Arc::new(Mutex::new(ScaleRuntime { scale: 1.0 })),
+            Arc::new(Mutex::new(ScaleRuntime::new(width, height))),
         )
     }
 
@@ -141,14 +163,8 @@ impl ScalableLayeredPaneFigure {
         }
     }
 
-    pub fn with_scale(mut self, scale: f64) -> Self {
-        if valid_scale(scale) {
-            let old_scale = self.scale();
-            let scale_ratio = scale / old_scale;
-            self.bounds.width *= scale_ratio;
-            self.bounds.height *= scale_ratio;
-            lock_unpoisoned(&self.runtime).scale = scale;
-        }
+    pub fn with_scale(self, scale: f64) -> Self {
+        let _ = lock_unpoisoned(&self.runtime).update_scale(scale);
         self
     }
 
@@ -160,6 +176,15 @@ impl ScalableLayeredPaneFigure {
     pub fn with_border(mut self, border: impl Border + 'static) -> Self {
         self.border = Some(Arc::new(border));
         self
+    }
+
+    fn project_layout_size(&self, size: (f64, f64)) -> (f64, f64) {
+        let scale = self.scale();
+        let (top, left, bottom, right) = self.insets();
+        (
+            (size.0 - left - right).max(0.0) * scale + left + right,
+            (size.1 - top - bottom).max(0.0) * scale + top + bottom,
+        )
     }
 }
 
@@ -174,6 +199,25 @@ impl Bounded for ScalableLayeredPaneFigure {
 
     fn name(&self) -> &'static str {
         "ScalableLayeredPaneFigure"
+    }
+
+    fn preferred_size(&self) -> (f64, f64) {
+        let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
+        self.project_layout_size(size)
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        let scale = self.scale();
+        let scale_hint = |hint: f64| if hint >= 0.0 { hint / scale } else { hint };
+        (scale_hint(w_hint), scale_hint(h_hint))
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.project_layout_size(size)
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.project_layout_size(size)
     }
 
     fn use_local_coordinates(&self) -> bool {
@@ -228,12 +272,24 @@ impl ScalableFigure for ScalableLayeredPaneFigure {
 }
 
 impl FigureGraph {
+    pub fn scale_handle(&self, block_id: BlockId) -> Option<ScaleHandle> {
+        let scalable = self
+            .block(block_id)?
+            .figure
+            .as_any()
+            .downcast_ref::<ScalableLayeredPaneFigure>()?;
+        Some(ScaleHandle {
+            block_id,
+            runtime: Arc::clone(&scalable.runtime),
+        })
+    }
+
     pub fn add_scalable_layered_pane_to(
         &mut self,
         parent: BlockId,
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
-        let runtime = Arc::new(Mutex::new(ScaleRuntime { scale: 1.0 }));
+        let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
         let figure = ScalableLayeredPaneFigure::with_runtime(bounds, Arc::clone(&runtime));
         let block_id = self.try_add_child_to(parent, Box::new(figure))?;
         Ok(ScaleHandle { block_id, runtime })

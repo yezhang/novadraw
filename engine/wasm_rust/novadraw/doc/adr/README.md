@@ -1,5 +1,7 @@
 # 架构决策记录 (ADR)
 
+类型：`architecture-decision`
+
 ## 什么是 ADR
 
 ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录项目中重要的设计决策及其上下文。

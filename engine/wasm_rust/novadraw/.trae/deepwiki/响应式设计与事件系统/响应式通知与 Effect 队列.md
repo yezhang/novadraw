@@ -29,7 +29,7 @@
 - **子模块分布**：
   - `update/listener.rs`：定义了所有的通知类型、队列结构和监听器接口。
   - `update/deferred.rs`：实现了 `SceneUpdateManager`，负责协调更新事务和通知的最终分发。
-  - `doc/01-architecture/zed_reactive_design.md`：详细阐述了借鉴 Zed 设计的初衷与核心原则。
+  - `doc/reference/zed/reactive-design.md`：详细阐述了借鉴 Zed 设计的初衷与核心原则。
 - **覆盖范围**：本章节将深入探讨 `NotificationEffect` 的语义分层、`NotificationQueue` 的缓冲机制以及 `UpdateManager` 如何在事务边界执行 `flush`。
 
 ## 引言
@@ -111,7 +111,7 @@ classDiagram
 `UpdateListener` 采用了组合而非继承的设计模式。虽然它提供了处理所有通知类型的默认方法，但通过 `as_validating_listener` 钩子，它允许特定的实现者声明自己对布局验证阶段的特殊兴趣。这种设计既保持了接口的通用性，又为高性能的特化处理留下了空间。
 
 **Section sources**:
-- [novadraw-scene/src/update/listener.rs](novadraw-scene/src/update/listener.rs)
+- [novadraw-scene/src/runtime/update/listener.rs](novadraw-scene/src/runtime/update/listener.rs)
 
 ## 架构设计与数据流
 
@@ -189,8 +189,8 @@ flowchart LR
 在这个流向图中，`FigureGraph` 产生的事件（如几何位置变动）和 `UpdateManager` 产生的事件（如渲染阶段切换）被分别暂存在各自的队列中。在事务结束时，`flush_notifications` 函数充当了汇聚点的角色，它将所有零散的 Effect 收集起来，并按照统一的顺序分发给所有订阅者。这种集中式分发机制极大地简化了调试过程，因为开发者可以在 `dispatch_effects` 处设置断点，观察系统在每一帧产生的所有变化。
 
 **Diagram sources**:
-- [novadraw-scene/src/update/deferred.rs:L234-L258](novadraw-scene/src/update/deferred.rs#L234-L258)
-- [novadraw-scene/src/scene/mod.rs:L2054-L2121](novadraw-scene/src/scene/mod.rs#L2054-L2121)
+- [novadraw-scene/src/runtime/update/deferred.rs:L234-L258](novadraw-scene/src/runtime/update/deferred.rs#L234-L258)
+- [novadraw-scene/src/graph/mod.rs:L2054-L2121](novadraw-scene/src/graph/mod.rs#L2054-L2121)
 
 ## 事务边界与延迟刷新
 
@@ -245,7 +245,7 @@ stateDiagram-v2
 在 `Updating` 复合状态下，系统会经历验证和重绘两个主阶段。每个阶段的开始和结束都会产生相应的 `UpdateEvent`。最关键的是 `Flashing` 状态，它发生在所有图形和布局计算完全稳定之后。只有进入了这个状态，系统才会开始清空 Effect 队列并触发监听器。如果监听器在回调中触发了新的更新请求，这些请求会被记录为下一轮事务的输入，而不会干扰当前的 Flush 过程。
 
 **Section sources**:
-- [novadraw-scene/src/update/deferred.rs](novadraw-scene/src/update/deferred.rs)
+- [novadraw-scene/src/runtime/update/deferred.rs](novadraw-scene/src/runtime/update/deferred.rs)
 
 ## 关键算法与逻辑
 
@@ -272,8 +272,8 @@ pub trait ValidatingListener: Send + Sync {
 通过 `as_validating_listener` 动态转换机制，`UpdateManager` 可以识别并专门通知那些对布局过程感兴趣的监听器，这在实现复杂的动画协调或性能监控时非常有用。
 
 **Section sources**:
-- [novadraw-scene/src/update/listener.rs](novadraw-scene/src/update/listener.rs)
-- [novadraw-scene/src/scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [novadraw-scene/src/runtime/update/listener.rs](novadraw-scene/src/runtime/update/listener.rs)
+- [novadraw-scene/src/graph/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 与传统模式的对比
 
@@ -293,7 +293,7 @@ pub trait ValidatingListener: Send + Sync {
 
 以下是本章节涉及的核心源代码文件：
 
-- `novadraw-scene/src/update/listener.rs`：通知模型与监听器 trait 定义。
-- `novadraw-scene/src/update/deferred.rs`：更新事务管理与 Flush 逻辑实现。
-- `novadraw-scene/src/scene/mod.rs`：`FigureGraph` 中的事件捕获逻辑。
-- `doc/01-architecture/zed_reactive_design.md`：响应式设计的理论基础与 Zed 对标分析。
+- `novadraw-scene/src/runtime/update/listener.rs`：通知模型与监听器 trait 定义。
+- `novadraw-scene/src/runtime/update/deferred.rs`：更新事务管理与 Flush 逻辑实现。
+- `novadraw-scene/src/graph/mod.rs`：`FigureGraph` 中的事件捕获逻辑。
+- `doc/reference/zed/reactive-design.md`：响应式设计的理论基础与 Zed 对标分析。

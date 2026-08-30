@@ -291,4 +291,5 @@ pub trait RenderBackend {
 - `novadraw-render/src/command.rs`: `RenderCommand` 及其相关枚举（如 `LineCap`, `LineJoin`）的定义。
 - `novadraw-render/src/submission.rs`: `RenderSubmission` 和 `DamageSet` 的数据结构定义。
 - `novadraw-render/src/traits.rs`: `RenderBackend` 和 `WindowProxy` 抽象接口。
-- `doc/03-rendering/displaylist_detailed.md`: 关于 DisplayList 协议架构的详细设计文档。
+- [`doc/design/rendering/display-list-protocol.md`](../../../doc/design/rendering/display-list-protocol.md):
+  DisplayList 候选协议架构。

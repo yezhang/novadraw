@@ -75,7 +75,7 @@ graph TD
 在 Java 体系中，`RectangleFigure` 自动获得了 `Figure` 的所有字段和方法。而在 Rust 中，`RectangleFigure` 结构体必须显式实现 `Figure` 和 `Shape` Trait，或者利用 Rust 的 `Blanket Implementation`（覆盖实现）来自动为所有实现 `Shape` 的类型提供 `Figure` 的默认行为。
 
 **核心概念源码参考**:
-- [java_to_rust_migration.md](doc/05-java-rust/java_to_rust_migration.md)
+- [java_to_rust_migration.md](doc/migration/java-rust/migration-guide.md)
 - [figure/mod.rs](novadraw-scene/src/figure/mod.rs)
 
 ## 架构范式转换
@@ -129,8 +129,8 @@ sequenceDiagram
 这种设计模仿了 Draw2D 的 `UpdateManager` 机制，即所有的更新请求最终汇总到一个中心点进行处理，而不是在图形对象内部自行消化。
 
 **架构转换源码参考**:
-- [java_to_rust_oo.md](doc/05-java-rust/java_to_rust_oo.md)
-- [scene/mod.rs](novadraw-scene/src/scene/mod.rs)
+- [java_to_rust_oo.md](doc/migration/java-rust/oo-mapping.md)
+- [scene/mod.rs](novadraw-scene/src/graph/mod.rs)
 
 ## 模式转换指南
 
@@ -186,7 +186,7 @@ Novadraw 的布局流程如下：
 
 **模式转换源码参考**:
 - [layout/mod.rs](novadraw-scene/src/layout/mod.rs)
-- [update/mod.rs](novadraw-scene/src/update/mod.rs)
+- [update/mod.rs](novadraw-scene/src/runtime/update/mod.rs)
 
 ## 代码对比实战
 
@@ -271,8 +271,8 @@ flowchart TD
 以下是本指南涉及的关键文件，建议开发者深入阅读：
 
 - **迁移理论**:
-    - [doc/05-java-rust/java_to_rust_migration.md](doc/05-java-rust/java_to_rust_migration.md)
-    - [doc/05-java-rust/java_to_rust_oo.md](doc/05-java-rust/java_to_rust_oo.md)
+    - [doc/migration/java-rust/migration-guide.md](doc/migration/java-rust/migration-guide.md)
+    - [doc/migration/java-rust/oo-mapping.md](doc/migration/java-rust/oo-mapping.md)
 - **Java 示例**:
     - [examples/g2/src/main/java/org/example/draw2d/HelloWorld.java](examples/g2/src/main/java/org/example/draw2d/HelloWorld.java)
     - [examples/g2/src/main/java/org/example/draw2d/TriangleShapeDemo.java](examples/g2/src/main/java/org/example/draw2d/TriangleShapeDemo.java)

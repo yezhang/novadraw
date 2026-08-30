@@ -1,0 +1,2989 @@
+# 理想架构设计
+
+类型：`normative-design`
+
+本文是 Novadraw 总体职责与架构导航。范围更窄的专题设计是对应行为的 SSOT；
+Draw2D 源码事实以 `doc/reference/` 为准，采用关系以 `doc/parity/` 为准。本文中的
+“与当前实现对比”和实施优先级只提供历史背景，不覆盖 roadmap 状态。
+
+## 概述
+
+本文档基于对 Eclipse draw2d 核心组件（Figure、LayoutManager、UpdateManager、LightweightSystem）的完整源码分析，结合 Rust 语言特性，给出 Novadraw 的理想架构设计。
+
+设计遵循三大原则：
+
+1. **同职责内聚**：同一职责域的数据和方法尽量内聚
+2. **避免枚举多态**：使用 `dyn Trait` 实现灵活的多态扩展
+3. **ID 引用避免借用**：树层次结构使用 `SlotMap<BlockId, T>` 存储，通过 ID 而非嵌套引用遍历
+
+### 北极星原则
+
+为了在后续设计和实现过程中持续校验边界，本文保留以下北极星原则：
+
+> **Figure 是内在能力，FigureBlock 是节点状态，FigureGraph 是树关系与交互状态，Update/Event/Host 是系统服务，NovadrawSystem 是组合根。**
+
+这句话不是宣传口号，而是后续所有设计取舍的第一判断规则。
+
+#### 合理化说明
+
+这条原则需要做一个重要澄清：这里的“纯”是指**职责边界纯净**，不是指“对象内部完全没有数据”。
+
+- **Figure 是内在能力**
+  - 表示节点自己的几何、绘制、命中测试、首选尺寸、局部事件响应能力
+  - 可以持有图形本体需要的内在数据，如 bounds、颜色、线宽、圆角参数
+  - 不负责 parent/children、focus/capture、UpdateManager、平台窗口等外部关系
+- **FigureBlock 是节点状态**
+  - 表示单个节点在场景树中的运行时状态，如 parent、children、is_valid、layout_manager、约束缓存
+  - 它是 Figure 在树中的“宿主块”
+  - 不负责平台事件入口，不持有全局服务，不承担渲染后端职责
+- **FigureGraph 是树关系与交互状态**
+  - 负责节点存储、父子关系、命中测试、坐标转换、事件分发编排，以及 `mouse_target`、`focus_owner`、`captured`
+  - 它是运行时场景的一致性中心
+  - 不持有平台窗口，不直接变成平台事件分发器，也不退化成全局 God Object
+- **UpdateManager / EventDispatcher / SceneHost 是系统服务**
+  - `UpdateManager` 负责更新编排
+  - `EventDispatcher` 负责平台事件到框架事件的桥接
+  - `SceneHost` 负责调度与渲染入口协调
+  - 它们都不拥有节点树本体，只围绕 FigureGraph 提供服务
+- **NovadrawSystem 是组合根**
+  - 统一持有 scene、update_manager、dispatcher、scene_host
+  - 负责把各组件组装成对用户可用的系统入口
+  - 它本身不应继续下沉业务细节，否则会演化成新的 LightweightSystem 式大对象
+
+#### 用法
+
+当后续出现边界争议时，优先用下面的问题判断：
+
+1. 这个数据属于节点自身能力，还是属于节点在树中的运行时状态？
+2. 这个逻辑是在操作树关系，还是在提供系统级服务？
+3. 这个对象是不是开始持有它本不该拥有的全局引用、平台对象或树结构？
+
+如果某个设计让 `Figure` 开始知道父子关系、让 `FigureBlock` 直接持有全局服务、让 `EventDispatcher` 重新拥有交互状态、或让 `NovadrawSystem` 承担过多业务细节，就说明它偏离了北极星原则，需要回退并重新拆分职责。
+
+### 核心机制与实现策略分层
+
+为了保证架构在未来长期稳定，本文明确区分“核心机制”和“实现策略”。
+
+#### 核心机制
+
+核心机制是**不能被随意替换**的部分。它们决定系统的结构形状与运行时一致性，后续功能扩展必须建立在这些机制之上。
+
+- `Figure / FigureBlock / FigureGraph / UpdateManager / EventDispatcher / SceneHost / NovadrawSystem` 的职责边界
+- 事件分发主链路：`receive() -> find_mouse_event_target_at() -> dispatch_to_target()`
+- 交互状态归属：`mouse_target / focus_owner / captured` 在 `FigureGraph`
+- 两阶段更新：`Validation -> Damage Repair`
+- 结构性变更模型：事件期间不改树，统一 `PendingMutation -> apply_pending_mutations()`
+- Damage 语义：`DamageSet.union` 是强约束，`regions` 是优化提示
+
+#### 实现策略
+
+实现策略是**允许在不改变架构骨架的前提下演化**的部分。它们可以随性能、平台、调试需求调整，但不得反向改变核心机制。
+
+- invalid 队列使用 FIFO / LIFO / 分层队列
+- `DamageSet.regions` 的矩形归并算法
+- `RenderBackend` 是否支持多区域裁剪或退化为 union 裁剪
+- `SceneHost` 的平台实现形态（winit/web/headless）
+- `UpdateManager` 的内部存储结构与去重策略
+- `find_mouse_event_target_at()` 的局部优化策略（缓存、短路、预过滤）
+
+#### 分层原则（定稿）
+
+1. 允许替换“算法”，不允许替换“责任边界”
+2. 允许替换“数据结构”，不允许替换“状态归属”
+3. 允许替换“优化策略”，不允许替换“运行时时序”
+
+这条分层规则的作用是：未来你可以持续优化性能和工程实现，但不会因为一版实现细节的变化而把整个架构重新拉回设计阶段。
+
+### 稳定扩展点
+
+为了避免未来新增功能时反向侵入核心组件，本文提前把高概率扩展方向定义为“稳定扩展点”。这些扩展点允许生长，但必须建立在现有核心机制上。
+
+#### 1) 容器与视口扩展
+
+- `Layer`
+  - 目标：稳定绘制顺序与命中顺序的一致性
+  - 约束：不改变 `FigureGraph` 的树结构职责，只作为特殊 Figure/容器语义扩展
+- `Viewport`
+  - 目标：引入可视区域裁剪、坐标根转换、damage 与 hit-test 协同
+  - 约束：不改变 `DamageSet`/`find_mouse_event_target_at()` 的核心语义，只通过 `translateToParent/translateFromParent` 扩展坐标与裁剪规则
+  - 坐标：使用 viewport/content 坐标域命名；`origin` 表示 viewport 左上角对应的 content 坐标，禁止恢复旧式全局空间特判
+- `ScrollPane / Scroll`
+  - 目标：在 `Viewport` 之上增加 content offset 与 exposed region
+  - 约束：scroll 是 `Viewport` 扩展，不应回写为全局坐标特判
+
+#### 2) 事件模型扩展
+
+- wheel / touch / drag gesture / text input / IME
+- 这些能力都属于 `EventDispatcher` 的扩展事件域
+- 扩展时应遵循：
+  - 新事件类型进入统一事件模型
+  - 交互状态仍归 `FigureGraph`
+  - 不新增“第二套事件分发入口”
+
+#### 3) 渲染与缓存扩展
+
+- clip strategy
+- retained command / display list cache
+- render pass 优化
+- 这些都应建立在 `NdCanvas + DamageSet + RenderBackend` 协定上扩展
+- 不允许因为缓存优化而让 `FigureGraph` 直接持有平台渲染资源
+
+#### 4) 平台宿主扩展
+
+- `WinitSceneHost`
+- `WebSceneHost`
+- `HeadlessSceneHost`（测试/回归）
+- 这些都是 `SceneHost` 的平台实现，不改变 SceneHost 的职责定义
+
+#### 扩展原则（定稿）
+
+1. 扩展必须接在现有稳定接口上，而不是绕过接口直接侵入核心对象
+2. 扩展优先新增 trait / event kind / host impl，不优先修改核心 owner
+3. 任何扩展都不得改变 `FigureGraph`、`UpdateManager`、`EventDispatcher` 的核心归属关系
+
+### 不可回退的架构约束
+
+为了防止在实现压力下“临时方便”的代码把架构重新拉回 draw2d 式大对象，本文明确列出不可回退约束。
+
+#### Figure / FigureBlock / FigureGraph
+
+- `Figure` 不得重新知道 parent/children
+- `Figure` 不得直接持有 `FigureGraph` / `UpdateManager` / 平台窗口
+- `FigureBlock` 不得直接持有平台对象、`EventDispatcher`、`UpdateManager`
+- `FigureGraph` 不得重新持有 `UpdateManager`
+- `FigureGraph` 不得变回“平台事件分发器”或“渲染后端持有者”
+
+#### Event / Update / Host
+
+- `EventDispatcher` 不得重新持有交互状态
+- `EventDispatcher` 不得持有 `FigureGraph` / `UpdateManager` 的长期引用
+- `UpdateManager` 不得承担平台调度职责
+- `SceneHost` 不得承担输入分发职责
+- `SceneHost` 不得重新变成持有全部核心对象的大对象
+
+#### Mutation / Runtime
+
+- 分发期间不得直接改树
+- 结构性变更只能通过 `MutationContext + PendingMutation + apply_pending_mutations()` 生效
+- `apply_pending_mutations()` 不得挪入 `dispatch_to_target()` 调用栈内部
+- `DamageSet.union` 不得退化为“仅供参考的优化字段”，它必须始终保持强约束语义
+
+#### 组合根
+
+- `NovadrawSystem` 负责组合，不负责承载业务逻辑
+- 如果未来新增服务，应优先作为系统服务挂入组合根，而不是直接塞回 `FigureGraph` 或 `FigureBlock`
+
+#### 使用方法
+
+当未来实现某个功能时，如果需要：
+
+- 把状态塞回原本不拥有它的对象
+- 绕过既有 Context / Host / Manager 协定
+- 在事件分发过程中直接修改树结构
+
+则默认判定为“违反理想架构”，应优先回到本文档重新校验，而不是直接修改核心机制。
+
+## 核心组件关系与职责
+
+### 组件总览图
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                               NovadrawSystem (统一入口)                              │
+│                          platform::create_system() 创建                              │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                    │                           │                    │
+                    ▼                           ▼                    ▼
+        ┌───────────────────┐       ┌───────────────────┐   ┌───────────────────┐
+        │    SceneHost      │       │  FigureGraph      │   │ EventDispatcher   │
+        │   (渲染入口)       │       │   (场景图核心)     │   │   (事件分发)       │
+        │                   │       │                   │◀──│  通过 ctx 访问     │
+        │ + execute_update() │       │ + nodes: SlotMap  │   │ + dispatch_*()    │
+        │ + viewport_size() │       │ + root / contents │   └───────────────────┘
+        │ + request_update()│       │ + mouse_target   │
+        └───────────────────┘       └───────────────────┘              │
+                                        │    ▲                         │
+                                        ▼    │                         ▼
+                              ┌───────────────────┐          ┌───────────────────┐
+                              │   FigureBlock    │          │ BasicEventDispatcher│
+                              │   (节点状态)      │          │   (引擎服务)       │
+                              │                   │          │                   │
+                              │ + id, parent      │          │ + 无状态分发      │
+                              │ + children        │          └───────────────────┘
+                              │ + is_valid        │
+                              │ + layout_manager  │
+                              │ + figure: dyn Fig │
+                              └───────────────────┘
+                                        │
+                                        ▼
+                              ┌───────────────────┐
+                              │   dyn Figure      │
+                              │   (渲染接口)       │
+                              │                   │
+                              │ + bounds()        │
+                              │ + paint_figure()  │
+                              │ + validate()      │
+                              └───────────────────┘
+                                        ▲
+                                        │
+                              ┌───────────────────┐
+                              │   dyn LayoutManager│
+                              │   (布局算法)       │
+                              └───────────────────┘
+```
+
+### 五大核心组件职责
+
+| 组件 | 对应 g2 | 职责 | 关键字段/方法 |
+|------|---------|------|--------------|
+| **FigureGraph** | Figure 类树 | 树结构管理 + 交互状态 | `SlotMap<BlockId, FigureBlock>`, `root`, `contents`, `mouse_target`, `focus_owner` |
+| **NovadrawSystem** | LightweightSystem | 单个宿主实例的组合根 | 平台实现内部装配 `FigureGraph` / `UpdateManager` / `EventDispatcher` / `SceneHost`；公开 trait 只暴露稳定入口 |
+| **FigureBlock** | Figure 状态 | 单节点运行时状态 | `id`, `parent`, `children`, `is_valid`, `layout_manager`, `figure` |
+| **dyn Figure** | IFigure | 渲染接口定义 | `bounds()`, `paint_figure()`, `validate()`, `preferred_size()` |
+| **LayoutManager** | LayoutManager | 布局策略接口 | `layout()`, `get_preferred_size()` |
+| **UpdateManager** | UpdateManager | 两阶段更新调度 | `add_invalid_figure()`, `perform_validation()`, `repair_damage()` |
+| **EventDispatcher** | EventDispatcher | 事件分发（trait） | `dispatch_mouse_pressed()`, `dispatch_key_pressed()` |
+| **SceneHost** | LightweightSystem | 渲染入口协调 | `execute_update()`, `viewport_size()`, `request_update()` |
+
+### Trait 层级关系
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Bounded (基础)                              │
+│                                                                     │
+│  边界 + 坐标系统 + 布局属性                                          │
+│  • bounds() / set_bounds() / name()                                │
+│  • contains_point() / intersects()                                │
+│  • insets() / use_local_coordinates()                             │
+│  • client_area() / preferred_size() / minimum_size() / maximum_size│
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼ 继承
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Figure (渲染)                               │
+│                                                                     │
+│  渲染接口 + 验证                                                     │
+│  • paint_figure() / paint_border() / get_border()                  │
+│  • validate() / invalidate()                                       │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼ 继承
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Shape (图形)                               │
+│                                                                     │
+│  描边 + 填充                                                        │
+│  • fill_shape() / outline_shape()                                 │
+│  • stroke_color() / fill_color() / stroke_width()                 │
+│  • line_cap() / line_join() / alpha()                             │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 数据流关系
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                                    用户输入                                          │
+│                          (鼠标、键盘、窗口事件)                                      │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              app_window                                             │
+│                          (将平台事件转换为组合根命名动作)                            │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼ dispatch_mouse_pressed(x, y, button)
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                               FigureGraph                                           │
+│                                                                                     │
+│  • 交互状态: mouse_target, focus_owner, captured                                    │
+│  • 树遍历: find_mouse_event_target_at(), translate_to_absolute()                         │
+│  • 状态更新: set_mouse_target(), handle_mouse_pressed()                           │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼ mark_invalid() / repaint()
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              UpdateManager                                          │
+│                                                                                     │
+│  Phase 1: perform_validation() → FigureBlock.validate() + layout                  │
+│  Phase 2: repair_damage() → 脏区传播 + root.paint()                               │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼ NdCanvas (渲染命令)
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                               SceneHost                                             │
+│                          (execute_update 触发两阶段更新)                            │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              RenderBackend                                          │
+│                          (Vello/WebGPU 实际渲染)                                    │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 组件持有关系
+
+```text
+NovadrawSystem 平台实现                           ← 全局组合根
+  │
+  ├── core.scene_manager.scene: FigureGraph      // 树结构管理（内部装配，不由 trait 暴露）
+  │     │
+  │     ├── nodes: SlotMap<BlockId, FigureBlock>
+  │     │       │
+  │     │       └── FigureBlock
+  │     │             ├── figure: Box<dyn Figure>
+  │     │             └── layout_manager: Option<Arc<dyn LayoutManager>>
+  │     │                                            ↑
+  │     │                         每个容器独立布局管理器
+  │     │
+  │     ├── root: BlockId
+  │     ├── contents: Option<BlockId>
+  │     └── interaction_state: (mouse_target, focus_owner, captured)
+  │
+  ├── core.update_manager: UpdateManager         // system 实例级更新调度
+  │
+  ├── core.dispatcher: EventDispatcher           // 全局事件分发（内部服务）
+ │     └── 不持有任何引用，通过 DispatchContext 获取命中测试/交互状态/目标分发能力
+  │
+  └── scene_host: SceneHost                      // 渲染入口协调
+
+SceneHost (trait)
+  └── execute_update(scene, update_manager, renderer) → NdCanvas
+
+NovadrawSystem trait
+  ├── render(renderer) → NdCanvas
+  ├── viewport_size() → (f64, f64)
+  └── request_update()
+```
+
+### 平台解耦设计
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              平台无关层                                             │
+│                                                                                     │
+│  NovadrawSystem ──► FigureGraph                                                   │
+│       │                                                                           │
+│       ├──► UpdateManager ──► SceneHost ──► RenderBackend (trait)                  │
+│       │                                                                           │
+│       └──► EventDispatcher (trait)                                                │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+                    ▲
+                    │ 实现
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              平台实现层                                             │
+│                                                                                     │
+│  app_window           ──► 接收 winit::WindowEvent 并调用组合根命名动作             │
+│  WinitNovadrawSystem  ──► 组合 editor core + SceneHost                            │
+│  WinitSceneHost       ──► 持有 WinitWindowProxy                                   │
+│  VelloRenderBackend   ──► 持有 vello::Scene                                       │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## draw2d 核心组件职责分析
+
+### Figure 类职责过载问题
+
+draw2d 中 `IFigure` 接口有 **100+ 方法**，`Figure` 实现类约 2400 行。它混合了完全不同的职责：
+
+| 职责类别 | 具体内容 |
+|---|---|
+| 树结构 | `parent`, `children`, `add()`, `remove()` |
+| 几何/坐标 | `bounds`, `setBounds()`, `translate()`, `containsPoint()` |
+| 渲染 | `paint()`, `paintFigure()`, `paintBorder()`, `paintClientArea()` |
+| 布局 | `layoutManager`, `getPreferredSize()`, `setConstraint()` |
+| 验证 | `validate()`, `invalidate()`, `revalidate()` |
+| 状态 | `isVisible`, `isEnabled`, `isOpaque` |
+| 事件 | 10+ 种 listener 注册和 fire 方法 |
+| 更新 | `repaint()`, `getUpdateManager()` |
+| 样式 | `bgColor`, `fgColor`, `font`, `border` |
+
+这是 Draw2D 为保证任意 `IFigure` 都能参与同一套树、绘制、布局、命中和事件协议
+而选择的宽接口。把它评价为“上帝接口”可以作为 Novadraw 拆分 trait 的设计理由，
+但不能从源码推出其成因就是 Java 单一继承。
+
+### LightweightSystem 的桥接职责
+
+draw2d 中 `LightweightSystem` 是 SWT Canvas 与 Figure 树之间的桥接器，同时持有四个关键组件：
+
+```
+LightweightSystem
+  ├── Canvas canvas                  // SWT 底层画布
+  ├── IFigure root (RootFigure)     // Figure 树根节点（内部类）
+  ├── UpdateManager manager          // 更新管理器
+  └── EventDispatcher dispatcher     // 事件分发器
+
+UpdateManager
+  └── IFigure root                  // 持有 root，调用 root.paint()
+
+EventDispatcher (抽象分发契约)
+  └── SWTEventDispatcher (默认有状态实现)
+      ├── IFigure root                   // 用于事件路由
+      ├── IFigure mouseTarget           // 当前鼠标目标
+      ├── IFigure focusOwner            // 焦点所有者
+      └── boolean captured              // 捕获状态
+```
+
+### Novadraw 的职责分散
+
+LightweightSystem 的职责在 Novadraw 中**分散到多个组件**：
+
+| LightweightSystem 职责 | Novadraw 对应 | 说明 |
+|----------------------|---------------|------|
+| 持有 root Figure | **FigureGraph.root** | FigureGraph 管理整棵树 |
+| 持有 UpdateManager | **NovadrawSystem 平台实现内部服务** | 每个 system/host 实例一个服务，不由公开 trait 暴露 |
+| 持有 EventDispatcher | **NovadrawSystem 平台实现内部服务** | 每个 system/host 实例一个服务，不由公开 trait 暴露 |
+| 持有 Canvas / Window | **SceneHost / 平台 window proxy** | 平台宿主资源，不进入 EventDispatcher |
+| 注册事件监听 | **平台窗口层 app_window** | 只做平台输入适配，转成组合根命名动作 |
+| paint() → UM.paint() | **SceneHost.execute_update()** | 渲染入口 |
+| controlResized() | **外部调用** | 设置 viewport + set_bounds() |
+| setControl() | **SceneHost / 平台 window proxy** | 绑定窗口 |
+
+**关键结论**：
+
+- **SceneHost 不持有任何核心对象**，只负责渲染入口协调
+- LightweightSystem 的"持有"职责被**分散**到 FigureGraph、NovadrawSystem 平台实现、EventDispatcher trait、SceneHost / 平台 window proxy
+- **UpdateManager 和 EventDispatcher 都是 system 实例级服务**，由 NovadrawSystem
+  平台实现内部装配；这对应 Draw2D 每个 `LightweightSystem` 持有一组 manager /
+  dispatcher，而不是进程级全局单例
+- SceneHost 对应的是 LightweightSystem 的**操作接口**（paint、controlResized），不是其持有对象
+
+#### SceneHost 是否必要（定稿）
+
+SceneHost 在 Novadraw 中的定位是“平台宿主接口”，其存在目的是把**平台调度时机**与**核心更新算法**隔离开。
+
+保留 SceneHost 的理由：
+
+- **合帧与调度**：`request_update()` 与 `is_update_queued()` 用于把高频 `repaint()/invalidate()` 合并为一次平台 redraw
+- **渲染入口边界**：`execute_update(scene, update_manager, renderer)` 固定更新与渲染的入口时机，避免平台事件循环侵入 UpdateManager/FigureGraph
+- **视口信息来源**：`viewport_size()` 的权威来源在平台层；把它留在宿主接口能避免平台依赖扩散
+
+可以不引入 SceneHost 的条件：
+
+- 项目只面向单平台、单应用，且接受 `NovadrawSystem` 同时承担“组合根 + 平台宿主 + 调度入口”
+- 不需要对 `UpdateManager.perform_update` 做平台无关的单元测试或 headless 测试
+
+禁止 SceneHost 漂移的方向：
+
+- SceneHost 不持有 `FigureGraph`、`UpdateManager`、`EventDispatcher`
+- SceneHost 不拥有平台输入分发（输入分发属于 EventDispatcher）
+- SceneHost 不直接暴露平台窗口对象到核心层
+
+### SceneHost 职责边界
+
+```rust
+/// SceneHost - 渲染入口协调
+///
+/// 对应 draw2d: LightweightSystem 的渲染入口职责
+///
+/// # 职责
+///
+/// - 渲染入口：execute_update() → perform_update() + repair_damage()
+/// - 视口大小：viewport_size()
+/// - 更新请求：request_update()
+///
+/// # 不持有的对象
+///
+/// - FigureGraph：通过参数传递
+/// - UpdateManager：通过参数传递（来自 NovadrawSystem 平台实现内部服务）
+/// - EventDispatcher：在 NovadrawSystem 平台实现内部服务中装配
+/// - 平台窗口：由 SceneHost / window proxy 持有
+pub trait SceneHost: Send + Sync {
+    fn request_update(&self);
+    fn is_update_queued(&self) -> bool;
+    fn execute_update(
+        &self,
+        scene: &mut FigureGraph,
+        update_manager: &mut dyn UpdateManager,
+        renderer: &mut impl RenderBackend,
+    ) -> NdCanvas;
+    fn viewport_size(&self) -> (f64, f64);
+}
+```
+
+#### 平台事件循环时序（定稿）
+
+这一节把 `EventDispatcher / DispatchContext / SceneHost / UpdateManager` 的协作方式硬化为最终时序，避免后续实现阶段出现“谁创建 Context、谁触发 request_update、谁调用 perform_update”的分歧。
+
+##### 1) 输入事件时序
+
+```text
+winit event
+  → apps/NovadrawSystem 只做平台输入适配：physical / scale_factor = entry-domain logical point
+  → 引擎层 SceneDispatchContext（借用 graph + update_manager）承接分发
+  → dispatcher.receive(ctx, x, y)                            // 刷新 mouse_target + entered/exited
+  → dispatcher.dispatch_* (ctx, ...)                         // 主事件直达目标
+      → ctx.dispatch_to_target(target_id, event)
+          → engine 按 target_id 执行 translate_to_relative()
+          → MouseEvent.x/y 转换为 target/source Figure 所属坐标域中的点
+          → graph.dispatch_to_target(target_id, event, figure_ctx)
+              → block.handle_event(event, figure_ctx)
+                  → figure.on_* (event, figure_ctx)
+                      → figure_ctx.repaint()/invalidate()    // 仅收集到 UpdateManager
+  → 若本次分发产生 invalid/dirty：触发 scene_host.request_update()（合并到下一帧）
+```
+
+##### 2) 渲染/更新时序
+
+```text
+SceneHost（平台）在 redraw 请求到来时
+  → execute_update(scene, update_manager, renderer)
+      → update_manager.perform_update(scene, canvas)
+          → Phase 1: perform_validation(scene)
+          → Phase 2: repair_damage(scene, canvas)
+      → renderer 提交渲染结果
+```
+
+##### 3) Context 创建规则
+
+- `DispatchContext` 只在事件分发入口使用，提供命中测试与交互状态能力
+- `NovadrawContext` 只在 Figure 事件处理内部使用，提供“修改当前节点 + 请求更新”的能力
+- 二者的通用实现必须位于引擎层（如 `SceneDispatchContext` / `SceneNovadrawContext`），apps 只负责平台输入适配与调度
+- 在理想实现中二者都应基于同一个“顶层借用链”创建（单线程 UI 串行），避免引入全局锁
+- `request_update()` 的触发建议由 `NovadrawSystem`/平台层统一做 coalescing：
+  - 当 invalid/dirty 从空变为非空时触发一次
+  - 后续重复的 repaint/invalidate 不重复触发（直到本轮 execute_update 结束清空队列）
+
+### 架构对比图
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                        LightweightSystem (Java)                       │
+│                                                                     │
+│  持有：Canvas + UpdateManager + EventDispatcher + RootFigure        │
+│  操作：注册事件监听、paint()、controlResized()                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+                              ↕ 职责分散
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  Novadraw 组件分工                                                   │
+│                                                                     │
+│  NovadrawSystem    → 全局组合根，内部装配 UpdateManager + EventDispatcher│
+│  FigureGraph       → 树结构 + 交互状态                               │
+│  SceneHost         → 渲染入口 + 视口大小 + 更新请求                    │
+│  EventDispatcher   → 事件分发（trait）                              │
+│  app_window        → 平台输入适配，调用组合根命名动作                 │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### UpdateManager 两阶段更新模式
+
+```
+Phase 1: Validation
+  addInvalidFigure(fig) → for each: fig.validate() → layout() + children.validate()
+
+Phase 2: Damage Repair
+  addDirtyRegion(fig, rect) → repairDamage()
+    → 向父链传播脏区并交集（只重绘可见区域）
+    → root.paint(graphics)
+```
+
+**关键观察**：damage repair 阶段不只是简单重绘，而是脏区传播算法：
+1. 从叶节点向根链传播
+2. 每层与父节点 bounds 取交集
+3. 只渲染最终合并的可见区域
+
+### LayoutManager 策略接口设计
+
+`LayoutManager` 本身是策略接口，但接口不要求实现无状态。Draw2D 的
+`AbstractLayout` 缓存 preferred size，`AbstractConstraintLayout` 和
+`GridLayout` 保存 child constraint：
+
+```java
+interface LayoutManager {
+    Object getConstraint(IFigure child);
+    void setConstraint(IFigure child, Object constraint);
+    Dimension getMinimumSize(IFigure container, int wHint, int hHint);
+    Dimension getPreferredSize(IFigure container, int wHint, int hHint);
+    void invalidate();
+    void layout(IFigure container);
+    void remove(IFigure child);
+}
+```
+
+## 坐标系统设计
+
+### g2 坐标系统核心机制
+
+draw2d 中 **bounds 是相对最近坐标根的绝对值**，这是整个坐标系统的基础：
+
+```java
+// Figure.java - bounds 是相对最近坐标根的绝对值
+protected Rectangle bounds = new Rectangle(0, 0, 0, 0);
+
+// 默认模式下，父节点移动时自动传播到子节点
+protected void primTranslate(int dx, int dy) {
+    bounds.x += dx;
+    bounds.y += dy;
+
+    if (useLocalCoordinates()) {
+        fireCoordinateSystemChanged();
+        return;  // 本地坐标模式：不传播
+    }
+    children.forEach(child -> child.translate(dx, dy));  // 递归传播
+}
+```
+
+**坐标根（Coordinate System Root）**：
+
+对基础 `Figure`，当 `useLocalCoordinates() = true` 时，该节点为 children
+建立局部坐标系统：
+- 该节点自己的 bounds 仍位于 parent 提供的坐标域
+- 其 children 改用该节点 client area 的局部坐标
+- 该节点移动时不修改 children 的 bounds，但子树的视觉绝对位置仍随坐标根移动
+
+这不是唯一的坐标系统实现方式。`ScalableLayeredPane` 通过覆盖
+`isCoordinateSystem()` 和 `translateToParent/translateFromParent` 引入 scale；
+`Viewport` 以相同方式引入 scroll transform。
+
+### Novadraw 坐标系统设计
+
+#### 坐标语义
+
+| 概念 | 说明 |
+|------|------|
+| **相对最近坐标根的绝对值** | bounds 的 (x, y) 是相对于**最近坐标根**的位置 |
+| **坐标系统边界** | 为 children 提供非恒等 `ChildTransform` 的节点；local、scale、scroll 都可参与 |
+| **本地坐标** | 相对于最近祖先坐标根的偏移 |
+| **默认模式** | `use_local_coordinates() = false`，bounds 自动随父节点传播 |
+
+#### Bounded Trait：坐标相关属性
+
+```rust
+/// 边界相关方法 trait
+///
+/// 对应 draw2d: IFigure 的边界 + 坐标方法
+///
+/// # 坐标系统设计
+///
+/// - `bounds()`: 返回相对最近坐标根的绝对值
+/// - `use_local_coordinates()`: 是否采用基础 Figure 的 client-area 局部坐标
+/// - `insets()`: 内边距，影响 client_area 计算
+pub trait Bounded: Send + Sync {
+    // === 几何域 ===
+    fn bounds(&self) -> Rectangle;
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64);
+    fn name(&self) -> &'static str;
+
+    fn contains_point(&self, x: f64, y: f64) -> bool {
+        let b = self.bounds();
+        x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height
+    }
+
+    fn intersects(&self, rect: Rectangle) -> bool { ... }
+
+    // === 坐标系统域 ===
+
+    /// 内边距 (top, left, bottom, right)
+    fn insets(&self) -> (f64, f64, f64, f64) { (0.0, 0.0, 0.0, 0.0) }
+
+    /// 是否使用基础 Figure 的 client-area 局部坐标
+    ///
+    /// 对应 draw2d: useLocalCoordinates()
+    /// - false（默认）：父节点移动时，bounds 变化自动传播
+    /// - true：bounds 是相对坐标，不自动传播给父节点
+    fn use_local_coordinates(&self) -> bool { false }
+
+    // === 布局域 ===
+    fn client_area(&self) -> Rectangle { ... }
+    fn preferred_size(&self) -> (f64, f64) { ... }
+    fn minimum_size(&self) -> (f64, f64) { ... }
+    fn maximum_size(&self) -> (f64, f64) { ... }
+}
+```
+
+#### FigureGraph：坐标转换方法
+
+Draw2D 把 parent/local 变换作为 Figure 虚方法：
+
+- `figure.translateFromParent(t)`：把 figure 所属 parent 域的值转换到该 figure
+  为 children 提供的域。
+- `figure.translateToParent(t)`：执行逆变换。
+- 基础 `Figure` 的 local 模式应用 `bounds + insets` translation。
+- `ScalableLayeredPane` 覆盖为 scale / inverse-scale。
+- `Viewport` 在父实现之外叠加 scroll translation。
+
+Novadraw 不复制 Java receiver 所有权，而是在 `FigureGraph` 中把同一语义显式建模为
+parent 到 children 的 `ChildTransform`。这是所有 paint、hit-test、event point、
+damage 和 scroll range 必须共享的唯一变换来源：
+
+```text
+parent domain
+  -- ChildTransform(parent) --> children domain
+  -- inverse ----------------> parent domain
+```
+
+`translate_to_parent/translate_from_parent` 处理单条 edge；
+`translate_to_absolute/translate_to_relative` 沿 ancestor chain 正向或逆向组合 edge
+transform。实现不能只累加 bounds，也不能在调用方分别拼接 local、scale 或 scroll。
+
+#### 命中测试与坐标转换细则
+
+1. `EventDispatcher` 和根命中入口接收 entry-domain logical point。
+2. 当前 Figure 先在当前域执行 `containsPoint` 和 client-area 过滤。
+3. 递归 children 前，对点应用当前 Figure `ChildTransform` 的逆变换。
+4. children 按逆 Z-order 搜索。
+5. 命中 target 后，`MouseEvent` 点必须与 Draw2D
+   `source.translateToRelative()` 一样落到 target/source 所属坐标域。
+6. 普通输入直达 target，不依靠通用冒泡修正错误 target。
+
+详细可执行契约见 [`../coordinates/coordinate-system.md`](../coordinates/coordinate-system.md)；
+scale/scroll 的参考事实见
+[`../../reference/draw2d/figure/scalable-zoom.md`](../../reference/draw2d/figure/scalable-zoom.md)。
+
+### draw2d Figure 的 paint 模板方法
+
+```text
+paint(Graphics)
+  ├── 1. 设置背景色/前景色/字体
+  ├── 2. pushState()
+  ├── 3. paintFigure()           ← 子类覆盖：绘制背景
+  ├── 4. restoreState()           ← 恢复颜色，保留变换
+  ├── 5. paintClientArea()        ← 遍历子节点 child.paint()
+  │     └── 对每个子节点 clip 到其 bounds
+  ├── 6. paintBorder()            ← 绘制边框
+  └── 7. popState()
+```
+
+### draw2d RootFigure 的真实作用
+
+RootFigure 不是冗余的根节点，而是一个**平台资源桥接层**：
+
+```java
+protected class RootFigure extends Figure {
+    // 委托给 Canvas 的平台资源
+    @Override
+    public Color getBackgroundColor() {
+        if (getLocalBackgroundColor() != null) return getLocalBackgroundColor();
+        if (canvas != null) return canvas.getBackground();  // 从 SWT Canvas 获取
+        return null;
+    }
+
+    @Override
+    public Font getFont() {
+        if (getLocalFont() != null) return getLocalFont();
+        if (canvas != null) return canvas.getFont();
+        return null;
+    }
+
+    @Override
+    public UpdateManager getUpdateManager() {
+        return LightweightSystem.this.getUpdateManager();
+    }
+
+    @Override
+    public EventDispatcher internalGetEventDispatcher() {
+        return getEventDispatcher();
+    }
+}
+```
+
+#### Novadraw RootFigure 责任清单（定稿）
+
+RootFigure 在 Novadraw 中保留，但它的职责必须被严格限制在“平台资源桥接层”，避免成为新的 God Object。
+
+##### 允许的职责（可委托给平台）
+
+| 类别 | 示例 | 说明 |
+|---|---|---|
+| 视觉默认值 | background / font | RootFigure 作为 Figure 树默认资源的来源 |
+| 设备参数 | scale_factor / dpi | 用于单位换算与渲染质量控制 |
+| 视口信息 | viewport_size | 与 SceneHost 一致，提供给需要布局/渲染决策的 Figure |
+
+##### 禁止的职责
+
+- 不持有 `FigureGraph`、`UpdateManager`、`EventDispatcher`、`SceneHost`
+- 不持有平台窗口对象（例如 winit::Window）；平台对象只存在于平台层（SceneHost / 平台 System）
+- 不作为事件分发入口：事件分发由 `EventDispatcher + DispatchContext` 完成
+
+##### 与 SceneHost 的边界
+
+- RootFigure 可以“读取”平台参数（如 viewport_size、scale_factor）
+- RootFigure 不负责“触发”更新或渲染；更新触发只通过 SceneHost.request_update
+
+### draw2d EventDispatcher 的设计
+
+`EventDispatcher` 是抽象分发契约；默认具体实现 `SWTEventDispatcher` 保存
+交互状态。状态字段不在抽象基类中：
+
+```java
+public class SWTEventDispatcher extends EventDispatcher {
+    // 持有状态
+    private IFigure root;
+    private IFigure mouseTarget;
+    private IFigure cursorTarget;
+    private IFigure focusOwner;
+    private IFigure hoverSource;
+    private boolean captured;
+
+    // 实现抽象基类声明的分发方法
+    public void dispatchMousePressed(MouseEvent me);
+    public void dispatchMouseReleased(MouseEvent me);
+    // ...
+
+    // 状态管理方法
+    protected void setCapture(IFigure figure);
+    protected void releaseCapture();
+    protected void setFocus(IFigure fig);
+    // ...
+}
+```
+
+**设计意义**：在 Java/draw2d 默认实现中，`SWTEventDispatcher` 同时承担平台事件
+入口、命中测试入口和交互状态存储；抽象 `EventDispatcher` 只规定分发能力。
+
+**Novadraw 最终结论**：
+
+- g2 的默认 `SWTEventDispatcher` 把交互状态放在具体 dispatcher 中；关于其原因
+  属于设计推断，不是源码声明
+- Novadraw 不直接复制这个结构，而是保留 g2 的**行为语义**，重构其**所有权布局**
+- `mouse_target`、`focus_owner`、`captured` 这些状态与树结构、命中测试、事件分发强耦合，应该统一收敛到 `FigureGraph`
+- `EventDispatcher` 只保留“平台事件 → 框架事件”的桥接职责，不再持有交互状态
+
+## 核心结构与 Trait 设计
+
+### 架构总览图
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FigureGraph                                    │
+│                                                                              │
+│  职责：树结构管理 + 交互状态                                                │
+│                                                                              │
+│  # 核心数据                                                                 │
+│  SlotMap<BlockId, FigureBlock>  nodes;     // 所有节点，ID 索引         │
+│  HashMap<Uuid, BlockId>          uuid_map; // UUID 快速查找               │
+│  BlockId                           root;     // 根节点 ID                    │
+│  BlockId                           contents; // 用户可见的根容器 ID            │
+│                                                                              │
+│  # 交互状态（在 FigureGraph 中）                                           │
+│  Option<BlockId>                  mouse_target;                              │
+│  Option<BlockId>                  focus_owner;                               │
+│  Option<BlockId>                  captured;                                   │
+│                                                                              │
+│  # 协调职责                                                                 │
+│  - 树遍历 → nodes SlotMap                                                │
+│  - 布局计算 → LayoutManager trait (在 FigureBlock 中)                      │
+│  - 渲染触发 → SceneHost                                                   │
+│  - 更新调度 → UpdateManager（在 NovadrawSystem 中，通过参数传入）           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ 持有 SlotMap<BlockId, FigureBlock>
+                                  │ 节点之间通过 BlockId 引用（无嵌套借用）
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  FigureBlock (节点状态)                                                    │
+│                                                                              │
+│  职责：单个节点的运行时状态，与渲染无关的一切                                │
+│                                                                              │
+│  # 节点身份                                                               │
+│  BlockId              id;          // 自身 ID                              │
+│  Option<BlockId>     parent;       // 父节点 ID                           │
+│  Vec<BlockId>        children;     // 子节点 ID 列表                       │
+│                                                                              │
+│  # 运行时状态                                                             │
+│  bool                is_visible;                                           │
+│  bool                is_enabled;                                           │
+│  bool                is_selected;                                           │
+│  bool                is_valid;           // 验证标记（合并 layout_valid）     │
+│                                                                              │
+│  # 布局相关（只在 FigureBlock，FigureGraph 无 layout_manager）              │
+│  Arc<dyn LayoutManager> layout_manager;  // 每个容器可独立布局              │
+│  HashMap<BlockId, Constraint> constraints;  // 子节点约束                 │
+│  Option<(f64, f64)> preferred_size;   // 缓存                           │
+│  Option<(f64, f64)> minimum_size;                                           │
+│  Option<(f64, f64)> maximum_size;                                           │
+│                                                                              │
+│  # 几何属性                                                               │
+│  Box<dyn Figure>    figure;           // 几何定义 + 渲染指令              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### FigureGraph 持有关系图
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FigureGraph                                    │
+│                                                                              │
+│  nodes: SlotMap<BlockId, FigureBlock>                                      │
+│                                                                              │
+│  FigureGraph.nodes.get(id) → FigureBlock {                                 │
+│      id, parent, children: Vec<BlockId>                                    │
+│      is_visible, is_enabled, is_selected, is_valid                         │
+│      layout_manager, constraints  ← 只在 FigureBlock，不在 FigureGraph     │
+│      figure: Box<dyn Figure>           ← 渲染接口在此                        │
+│  }                                                                          │
+│                                                                              │
+│  交互状态: mouse_target, focus_owner, captured                              │
+│                                                                              │
+│  注意: FigureGraph 不持有 UpdateManager（由 NovadrawSystem 平台实现装配）  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ Arc<dyn Trait> 注入
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  全局服务（在 NovadrawSystem 平台实现内部）                                │
+│                                                                              │
+│  UpdateManager (Trait)         EventDispatcher (Trait)                     │
+│      │                              │                                      │
+│      ├── SceneUpdateManager        ├── BasicEventDispatcher                │
+│      └── 用户自定义 impl              └── 用户自定义 impl                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                  │
+                                  │ Arc<dyn Trait> 注入
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  LayoutManager (Trait) - 策略接口，实现可持有缓存或约束                     │
+│      │                                                                      │
+│      ├── FlowLayout                                                         │
+│      ├── BorderLayout                                                       │
+│      ├── FillLayout                                                         │
+│      └── 用户自定义 impl LayoutManager  ← 任意扩展                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  Figure (Trait) ← dyn Figure                                               │
+│      │                                                                      │
+│      ├── RectangleFigure                                                    │
+│      ├── EllipseFigure                                                      │
+│      ├── TriangleFigure                                                     │
+│      └── 用户自定义 impl Figure  ← 任意扩展                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 组件对应关系表
+
+| draw2d 组件 | Novadraw 对应 | 说明 |
+|---|---|---|
+| `IFigure` / `Figure` | `dyn Figure` + `FigureBlock` | Trait 定义渲染接口，FigureBlock 管理运行时状态 |
+| `Figure.parent` / `children` | `FigureBlock.parent` / `children` | 改为 ID 引用，避免嵌套借用 |
+| `Figure.paint()` | `FigureGraph` 遍历调度 | 模板方法在渲染器中实现 |
+| `Figure.getPreferredSize()` | `Figure.preferred_size()` | Figure 的自然属性，三级回退 |
+| `LayoutManager` | `LayoutManager` trait | 保持策略接口；是否缓存或保存约束由实现决定 |
+| `UpdateManager` | `NovadrawSystem` 平台实现内部服务 | system 实例级，与 EventDispatcher 同级；不由公开 trait 暴露 |
+| `LightweightSystem` | `NovadrawSystem` | 单个宿主实例的组合根；公开 trait 只暴露 render / viewport_size / request_update |
+| `RootFigure` | **RootFigure（保留）** | 平台资源桥接层（背景色/字体委托） |
+| `EventDispatcher` | `NovadrawSystem` 平台实现内部服务 | system 实例级，三层分离设计；通过 DispatchContext 访问图能力 |
+
+### SceneHost 与 LightweightSystem 对应关系
+
+```
+NovadrawSystem 平台实现 (Novadraw)   LightweightSystem (draw2d)
+┌─────────────────────────┐        ┌──────────────────────────┐
+│  internal FigureGraph   │◀───────│  IFigure root           │
+│                         │        │  (持有 Figure 树)        │
+│  internal update manager│◀───────│  UpdateManager          │
+│  (system 实例级)         │        │  (持有 root)            │
+│                         │        │                        │
+│  internal dispatcher    │◀───────│  EventDispatcher       │
+│  (system 实例级)         │        │  (默认实现有状态)       │
+│                         │        │                        │
+│  scene_host: SceneHost │◀───────│  (paint() 方法)         │
+│  (渲染入口)              │        │                        │
+└─────────────────────────┘        └──────────────────────────┘
+```
+
+**关键发现**：
+
+1. **NovadrawSystem 对应 LightweightSystem**，是统一组合根
+2. **UpdateManager 和 EventDispatcher 都是 NovadrawSystem 实例级服务**，由平台
+   实现内部装配，不作为公开 trait 逃生口
+3. **SceneHost 只负责渲染入口协调**，不持有核心对象
+4. **RootFigure 是平台桥接层**，用于委托平台资源（背景色、字体）
+
+### RootFigure 必要性结论
+
+draw2d RootFigure 有两个作用：
+
+| 作用 | draw2d 实现 | Novadraw 结论 |
+|------|-------------|---------------|
+| 作为 Figure 树的根节点 | `LightweightSystem.root = new RootFigure()` | FigureGraph.root 是 BlockId，不需要 Figure 对象 |
+| 从 Canvas 获取背景色/字体 | `RootFigure.getBackgroundColor() → canvas.getBackground()` | **需要保留**：NdCanvas 需要类似桥接 |
+
+**结论**：RootFigure **应该保留**，作为「平台资源桥接层」：
+- NdCanvas 的背景色/字体应该能委托给平台（winit Window）
+- RootFigure 的 `getBackgroundColor()` 委托给 `window.background_color()`
+- 这使得 Figure 树可以通过统一的 API 访问平台资源
+
+## 核心 Trait 设计
+
+### Figure Trait（渲染 + 验证）
+
+```rust
+/// Figure 渲染 trait
+///
+/// 对应 draw2d: IFigure 的渲染部分
+///
+/// 继承 Bounded trait，获得：
+/// - bounds、set_bounds、name
+/// - contains_point、intersects
+/// - insets、use_local_coordinates
+/// - client_area、preferred_size、minimum_size、maximum_size
+///
+/// # 设计原则
+///
+/// 1. Figure 不持有任何外部引用；图形内在数据在 Figure 实现中，树运行时状态在 FigureBlock 中
+/// 2. 坐标系统方法在 Bounded trait 中（use_local_coordinates、坐标转换由 FigureGraph 处理）
+/// 3. 布局方法在 Bounded trait 中（preferred_size 等是 Figure 的自然属性）
+/// 4. 事件处理通过 NovadrawContext 执行操作，实现与系统的解耦
+pub trait Figure: Bounded + Send + Sync {
+    // === 渲染域 ===
+    fn paint_figure(&self, gc: &mut NdCanvas);
+    fn paint_border(&self, gc: &mut NdCanvas) {
+        if let Some(border) = self.get_border() {
+            border.paint(self.bounds(), gc);
+        }
+    }
+    fn get_border(&self) -> Option<&dyn Border> { None }
+
+    // === 验证域 ===
+    fn validate(&mut self) {}
+
+    // === 事件处理域 ===
+    ///
+    /// 事件处理通过 NovadrawContext 执行操作：
+    /// - ctx.repaint() 触发重绘
+    /// - ctx.invalidate() 触发验证
+    /// - ctx.set_bounds() 修改边界
+    /// - ctx.translate() 修改位置
+    ///
+    /// 与 g2 的差异：g2 直接调用 this.repaint()，Novadraw 通过 ctx.repaint() 调用。
+    /// 这实现了 Figure 与 UpdateManager/FigureGraph 的解耦。
+    /// 是否愿意成为鼠标事件目标（对齐 g2: isMouseEventTarget）
+    ///
+    /// 默认为 false，只有需要交互能力的 Figure 才应返回 true。
+    /// 这样可以让 `find_mouse_event_target_at()` 找到真正的事件目标，而不是总返回最深节点。
+    fn wants_mouse_events(&self) -> bool { false }
+
+    /// 是否愿意成为键盘事件目标（focusOwner 的事件接收者）
+    fn wants_key_events(&self) -> bool { false }
+
+    fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_mouse_moved(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_focus_gained(&self, _ctx: &mut dyn NovadrawContext) -> bool { false }
+    fn on_focus_lost(&self, _ctx: &mut dyn NovadrawContext) -> bool { false }
+}
+
+/// Shape Trait - 描边/填充
+///
+/// 对应 draw2d: Shape 类
+pub trait Shape: Figure {
+    fn fill_shape(&self, gc: &mut NdCanvas);
+    fn outline_shape(&self, gc: &mut NdCanvas);
+    fn stroke_color(&self) -> Option<Color>;
+    fn fill_color(&self) -> Option<Color>;
+    fn stroke_width(&self) -> f64 { 1.0 }
+    fn line_cap(&self) -> LineCap { LineCap::Butt }
+    fn line_join(&self) -> LineJoin { LineJoin::Miter }
+    fn alpha(&self) -> f64 { 1.0 }
+}
+
+/// Blanket Impl：所有实现 Shape 的类型自动获得 Figure 实现
+impl<T: Shape> Figure for T {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        self.paint_fill(gc);
+        self.paint_outline(gc);
+    }
+    fn get_border(&self) -> Option<&dyn Border> { Shape::get_border(self) }
+}
+```
+
+### Trait 层级总结
+
+```
+Bounded        - 边界 + 坐标系统 + 布局属性
+  │
+  │ bounds(), set_bounds(), name()
+  │ contains_point(), intersects()
+  │ insets(), use_local_coordinates()
+  │ client_area()
+  │ preferred_size(), minimum_size(), maximum_size()
+  │
+  ▼
+Figure         - 渲染 + 验证 + 事件处理（继承 Bounded）
+  │
+  │ paint_figure(), paint_border(), get_border()
+  │ validate()
+  │ on_mouse_pressed(), on_mouse_released(), ...
+  │
+  ▼
+Shape          - 描边+填充（继承 Figure）
+  │
+  │ fill_shape(), outline_shape()
+  │ stroke_color(), fill_color()
+  │ stroke_width(), line_cap(), line_join(), alpha()
+```
+
+**设计要点**：
+
+1. **Bounded trait 是基础**：包含所有几何和坐标相关方法
+2. **Figure 叠加渲染 + 事件处理**：在 Bounded 基础上添加渲染接口和事件处理
+3. **Shape 叠加样式**：在 Figure 基础上添加描边/填充属性
+4. **坐标转换在 FigureGraph**：因为需要访问树结构
+5. **UpdateManager/EventDispatcher 在 NovadrawSystem**：实例级服务，对应 g2
+   `LightweightSystem` 的实例所有权
+6. **NovadrawContext 解耦**：事件处理通过上下文执行操作，Figure 不直接调用 UpdateManager
+
+### LayoutManager Trait（策略接口）
+
+```rust
+/// 布局管理器 Trait
+///
+/// 对应 draw2d: LayoutManager 接口
+///
+/// # 语义说明
+///
+/// draw2d 的 `Figure.getPreferredSize()` 实现三级回退：
+/// 1. `FigureBlock.preferred_size` 缓存值
+/// 2. `LayoutManager.get_preferred_size()` 计算
+/// 3. `Figure.getSize()` 回退
+///
+/// LayoutManager 是第二级计算器，负责根据容器内子节点的 preferredSize
+/// 计算容器的首选尺寸（delegating layout 模式）。
+///
+/// Novadraw 的额外约束：trait object 不长期持有 FigureGraph；
+/// 实现仍可持有自身缓存或 child constraint
+pub trait LayoutManager: Send + Sync {
+    fn get_preferred_size(
+        &self,
+        container_id: BlockId,
+        graph: &FigureGraph,
+        w_hint: f64,
+        h_hint: f64,
+    ) -> (f64, f64);
+
+    fn get_minimum_size(
+        &self,
+        container_id: BlockId,
+        graph: &FigureGraph,
+        w_hint: f64,
+        h_hint: f64,
+    ) -> (f64, f64);
+
+    fn layout(&self, container_id: BlockId, graph: &mut FigureGraph);
+    fn invalidate(&self) {}
+
+    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn Constraint>;
+    fn set_constraint(&mut self, child_id: BlockId, constraint: Box<dyn Constraint>);
+    fn remove(&mut self, child_id: BlockId);
+}
+
+/// 布局约束 Trait
+pub trait Constraint: Send + Sync {}
+```
+
+### UpdateManager Trait（两阶段更新）
+
+```rust
+/// DamageSet - 本轮更新需要重绘的区域集合
+///
+/// - `union`：所有区域的并集，用于快速裁剪或粗粒度重绘
+/// - `regions`：可选的细粒度区域列表，用于减少 overdraw
+pub struct DamageSet {
+    pub union: Rectangle,
+    pub regions: Vec<Rectangle>,
+}
+
+/// 更新管理器 Trait
+///
+/// 对应 draw2d: UpdateManager 抽象类
+///
+/// 两阶段更新：Phase 1 Validation + Phase 2 Damage Repair
+///
+/// # draw2d 观察
+///
+/// - performValidation() 遍历 invalidFigures 列表，逐个调用 fig.validate()
+/// - repairDamage() 执行脏区传播算法，向父链传播并取交集
+pub trait UpdateManager: Send + Sync {
+    // === 收集阶段 ===
+    fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle);
+    fn add_invalid_figure(&mut self, block_id: BlockId);
+
+    // === 执行阶段 ===
+    fn perform_update(&mut self, graph: &mut FigureGraph, canvas: &mut NdCanvas);
+    fn perform_validation(&mut self, graph: &mut FigureGraph);
+
+    // === 生命周期 ===
+    fn is_updating(&self) -> bool;
+    fn dispose(&mut self) {}
+}
+
+/// 更新监听器 Trait
+pub trait UpdateListener: Send + Sync {
+    fn notify_painting(&self, damage: &DamageSet, dirty_regions: &HashMap<BlockId, Rectangle>);
+    fn notify_validating(&self);
+}
+```
+
+#### UpdateManager 契约细化（定稿）
+
+为了避免后续实现阶段出现“谁负责去重、何时执行、如何与 SceneHost 协作”的分歧，本文把 UpdateManager 的语义补齐为可实现的最终契约。
+
+##### 1) 收集阶段语义
+
+- `add_invalid_figure(block_id)`：
+  - 语义：标记该节点需要重新验证（validate + layout + children.validate）
+  - 必须幂等：同一个 `block_id` 多次加入不会导致重复验证
+- `add_dirty_region(block_id, rect)`：
+  - 语义：标记该节点在 `rect` 区域需要重绘
+  - 必须合并：同一 `block_id` 的 dirty region 需要做 union 合并，避免无限增长
+
+##### 2) 执行边界
+
+- `perform_update(graph, canvas)` 是 UpdateManager 的“唯一执行入口”
+  - 负责串联 Phase 1 Validation 与 Phase 2 Damage Repair
+  - 必须是非重入的：执行期间 `is_updating() = true`
+  - 执行完毕后清空本次 update 产生的队列/合并状态
+- `perform_validation(graph)` 只负责 Phase 1：
+  - 消费 invalid 队列
+  - 调用 Figure 的 validate/layout 逻辑，使 `is_valid` 回到 true
+  - 允许在验证过程中产生新的 invalid（例如布局传播），但必须最终收敛
+
+##### 2.1) Validation 细则（定稿）
+
+Phase 1 的目标是把场景从“部分节点无效”推进到“本帧可绘制的一致状态”。为了避免后续实现阶段在遍历顺序、递归策略与重入上产生返工，Validation 的语义定稿为以下规则。
+
+**核心不变量**：
+
+1. `is_valid == true` 表示该节点在当前帧不需要再做 validate/layout
+2. `add_invalid_figure(id)` 的效果等价于：
+   - 令 `graph.block_mut(id).is_valid = false`
+   - 将 `id` 进入 invalid 队列（幂等去重）
+3. `perform_validation(graph)` 结束时应满足：invalid 队列为空
+
+**处理顺序**：
+
+- 实现可以按 FIFO/LIFO 处理 invalid 队列；两者对正确性等价
+- 为了接近 draw2d 的行为，推荐以“容器优先”的方式推进：
+  - 先处理具有 `layout_manager` 的节点（容器）
+  - 再处理普通叶子节点
+  - 该策略是性能优化点，不属于核心机制，允许未来调整
+
+**单节点处理语义**（伪代码）：
+
+```text
+validate_node(id):
+  if !is_showing(id):
+    // 不可见/不可用节点不参与本帧验证，但它的无效状态保留
+    return
+
+  if block(id).is_valid == true:
+    return
+
+  // 与 draw2d 一致：先把 valid 标记置回 true，再执行具体逻辑
+  // 如果过程中又被 invalidate，则会重新入队并在本轮继续收敛
+  block_mut(id).is_valid = true
+
+  // 1) Figure 内部验证（可选、可为空实现）
+  block_mut(id).figure.validate()
+
+  // 2) 容器布局：仅当存在 layout_manager 时执行
+  if block(id).layout_manager exists:
+    layout_manager.layout(id, graph)
+
+    // 3) 子节点验证推进
+    // draw2d 语义是“对所有 child 调用 validate()”，实现上可等价为“把 child 逐个入队”
+    for child in children(id):
+      if block(child).is_valid == false:
+        enqueue_invalid(child)
+```
+
+**终止性约束**：
+
+- Validation 必须是“收敛到空队列”的过程
+- 如果某个 Figure/LayoutManager 在 validate/layout 中无限制造 invalid，则属于实现 bug，而不是架构允许的行为
+  - 该约束的意义是把问题定位为“具体 Figure 或 Layout 算法错误”，而不是迫使核心机制引入复杂的防抖/截断逻辑
+
+##### 3) Damage Repair（脏区传播）契约
+
+Damage Repair 的目标不是“重绘整个场景”，而是从 dirty 源头向根链传播并裁剪，得到最终可见的 damage：
+
+1. 以每个 dirty 源 `(block_id, rect)` 作为起点
+2. 沿 parent 链向上传播，逐层与父节点 bounds 做交集裁剪
+3. 在传播过程中做合并（避免每个源头都单独走一遍渲染）
+4. 产出最终 `DamageSet` 并驱动渲染（至少包含 `union`，可选包含 `regions`）
+
+##### 3.1) 合并策略（定稿）
+
+为了保证运行时机制稳定、实现可验证，并为未来优化留出扩展点，Damage Repair 的合并策略定稿为：
+
+- **输入归一化**：对 dirty 源按 `block_id` 合并为 `dirty_by_node: HashMap<BlockId, Rectangle>`（union 合并）
+- **向上裁剪传播**：对每个 `(node, rect)`：
+  - `cur = rect`
+  - `id = node`
+  - while `parent(id)` 存在：
+    - `cur = cur ∩ bounds(parent)`
+    - 若 `cur` 为空则停止传播
+    - 将 `cur` 合并进 `accumulated_by_node[parent]`
+    - `id = parent`
+- **输出产物**：
+  - `DamageSet.union`：所有 `accumulated_by_node` 中的矩形 union
+  - `DamageSet.regions`：用于减少 overdraw 的细粒度矩形集合（可选）
+
+##### 3.2) regions 生成规则（定稿）
+
+regions 的生成是优化策略，不改变核心机制。最终规则如下：
+
+1. `regions` 的候选集合来自 `accumulated_by_node` 的值集合
+2. 对候选集合做矩形合并归约：
+   - 允许合并相交或相邻的矩形
+   - 归约结果为 `regions`
+3. 若 `regions` 规模过大或归约收益过低，退化为仅使用 `union`：
+   - “规模阈值”“收益判定”不写死数值，作为 UpdateManager 的可配置项
+   - 退化不影响正确性，只影响 overdraw
+
+##### 3.3) 渲染裁剪与 Damage 协定（定稿）
+
+Damage Repair 的输出必须能稳定驱动渲染，并与不同后端（Vello/WebGPU/WebCanvas）解耦。为避免实现阶段返工，本文把“DamageSet 如何影响渲染”定稿为以下协定。
+
+**核心原则**：
+
+1. `DamageSet.union` 是强约束：渲染后端至少要保证本帧对外可见的写入被裁剪在 `union` 内
+2. `DamageSet.regions` 是优化提示：后端可以使用它来减少 overdraw，但允许忽略并退化为只使用 `union`
+3. UpdateManager 负责“算出 damage 并写出绘制命令”，RenderBackend 负责“如何把命令提交到 GPU/平台画布”
+
+**推荐协作方式**：
+
+- UpdateManager 在 Phase 2 中计算 `DamageSet`
+- UpdateManager 将 `DamageSet` 作为“渲染裁剪提示”写入 `NdCanvas`
+- RenderBackend 在提交时读取 `NdCanvas.damage` 并应用裁剪：
+  - 若支持多裁剪区域：逐个 region 执行裁剪渲染（或使用后端等价机制）
+  - 若不支持：仅使用 `union` 作为单裁剪区域
+
+```rust
+pub struct NdCanvas {
+    pub damage: DamageSet,
+}
+
+pub trait RenderBackend: Send + Sync {
+    fn render(&mut self, canvas: &NdCanvas, viewport: (f64, f64));
+}
+```
+
+**RenderBackend 必须遵守的最小正确性**：
+
+- 当 `canvas.damage.union` 为空时，允许直接跳过提交
+- 当 `canvas.damage.union` 非空时：
+  - 后端必须保证最终的可见写入被限制在 `union` 内（clip/scissor/层级裁剪均可）
+  - 后端可以忽略 `regions`，但不得忽略 `union`
+
+**这条协定保证的稳定性**：
+
+- UpdateManager 的核心机制只依赖“DamageSet 是裁剪协定”这一事实，不依赖具体后端是否支持多区域裁剪
+- RenderBackend 的扩展只影响性能，不影响正确性与组件结构
+
+##### 3.4) RenderSubmission 提案（提交协定）
+
+为进一步收敛“录制层（NdCanvas）”与“提交层（RenderBackend）”的边界，避免后端依赖录制期的临时状态，提出 RenderSubmission 作为渲染提交的最小信封（envelope）。
+
+核心思想：
+- NdCanvas 负责“命令录制”，对标 Canvas/DisplayList 的角色；
+- RenderSubmission 负责“提交给后端”的稳定数据契约，仅包含“命令列表 + DamageSet”等与提交相关的数据；
+- RenderBackend 只依赖 RenderSubmission，不直接依赖 NdCanvas，便于后续替换后端与实现不同的回放/保留策略。
+
+参考接口：
+
+```rust
+pub struct RenderSubmission {
+    pub commands: Vec<RenderCommand>,
+    pub damage: DamageSet,      // { union: Option<Rect>, regions: Vec<Rect> }
+    // 预留字段（可选）：viewport、clear_policy、frame_id、timestamp ...
+}
+
+pub trait RenderBackend {
+    type Window: WindowProxy;
+    fn window(&self) -> &Self::Window;
+    fn render(&mut self, submission: &RenderSubmission);
+    fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64);
+}
+```
+
+迁移路径：
+- Phase A（当前阶段）：RenderBackend 接收 NdCanvas（已包含 DamageSet），优先保证正确性；
+- Phase B：在 NdCanvas 上提供 `finalize()` 导出 RenderSubmission，RenderBackend 接口切换为 `render(&RenderSubmission)`；
+- Phase C：后端按需利用 `submission.damage` 做真正的局部重绘/保留策略，忽略或使用 `regions` 作为性能优化。
+
+收益：
+- 后端与录制层完全解耦，便于替换不同平台/回放策略；
+- DamageSet 成为提交契约的一部分，确保“正确性优先、优化可选”的设计目标；
+- 便于后端实现 retained frame、分批提交、分层裁剪等高级策略，而不污染录制层。
+
+##### 4) 与 SceneHost 的协作边界
+
+- UpdateManager 只负责“收集 + 执行算法”，不负责“什么时候触发下一帧”
+- `SceneHost.request_update()` 是平台调度入口，决定何时触发 `execute_update()`
+- 推荐协作方式：
+  - 上层（EventDispatcher / 用户代码）调用 `ctx.repaint()` / `ctx.invalidate()` 只做收集
+  - SceneHost 在合适时机调用 `update_manager.perform_update(graph, canvas)`
+
+### EventDispatcher 设计（平台无关事件分发）
+
+#### g2 EventDispatcher 分析
+
+g2 中 `EventDispatcher` 是抽象类；交互状态由默认实现
+`SWTEventDispatcher` 持有：
+
+```java
+public class SWTEventDispatcher extends EventDispatcher {
+    // 持有状态
+    private IFigure root;
+    private IFigure mouseTarget;
+    private IFigure cursorTarget;
+    private IFigure focusOwner;
+    private IFigure hoverSource;
+    private boolean captured;
+}
+```
+
+**关键观察**：g2 默认 `SWTEventDispatcher` 保存的是**交互状态**（鼠标目标、
+焦点等），不是渲染状态。
+
+**Novadraw 最终决策**：
+
+- **保留 g2 的行为语义**：命中测试、鼠标捕获、焦点路由、事件分发
+- **不保留 g2 的状态归属**：交互状态不放在 EventDispatcher，而是放在 `FigureGraph`
+- **原因**：这些状态必须与 `find_mouse_event_target_at()`、`dispatch_to_target()`、父子关系、命中测试规则保持一致，属于树结构运行时状态的一部分
+
+#### setCapture：鼠标捕获机制
+
+g2 EventDispatcher 有 `setCapture()` 接口，但这是**鼠标捕获**（Mouse Capture），不是 DOM 的事件捕获阶段。
+
+**两种不同的"捕获"**：
+
+| 概念 | 用途 | g2 支持 |
+|------|------|---------|
+| **Mouse Capture** | 鼠标按下后，事件强制发送到捕获者（如拖拽） | ✅ `setCapture()` |
+| **DOM Capture Phase** | 从根向目标的事件传播阶段 | ❌ 无 |
+
+**setCapture 核心逻辑**：
+
+```java
+// g2 SWTEventDispatcher 的等价伪代码
+dispatchMousePressed(me) {
+    receive(me); // 非 capture 时调用 root.findMouseEventTargetAt(...)
+    if (mouseTarget != null) {
+        mouseTarget.handleMousePressed(currentEvent);
+        if (currentEvent.isConsumed()) {
+            setCapture(mouseTarget);
+        }
+    }
+}
+
+receive(me) {
+    if (captured) {
+        currentEvent = new MouseEvent(this, mouseTarget, me);
+    } else {
+        mouseTarget = root.findMouseEventTargetAt(me.x, me.y);
+    }
+}
+
+dispatchMouseReleased(me) {
+    receive(me);
+    if (mouseTarget != null) {
+        mouseTarget.handleMouseReleased(currentEvent);
+    }
+    releaseCapture();
+    receive(me);
+}
+```
+
+**典型使用场景**：
+
+```
+1. 用户在 Rectangle 上按下 → `handleMousePressed` 消费事件 →
+   `setCapture(Rectangle)`
+2. 用户拖动鼠标（可能移出 Rectangle 边界）
+3. 鼠标移动事件仍然发送到 Rectangle（拖拽进行中）
+4. 用户释放鼠标 → `handleMouseReleased` → `releaseCapture()`
+```
+
+**Novadraw 对应**：
+
+```rust
+// FigureGraph 持有捕获状态
+pub struct FigureGraph {
+    captured: Option<BlockId>,  // 当前被捕获的节点
+}
+
+// EventDispatcher 实现
+impl BasicEventDispatcher {
+    fn dispatch_mouse_pressed(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton) {
+        self.receive(ctx, x, y);
+        let target_id = ctx.mouse_target();
+        let event = MouseEvent::new(MouseEventKind::Pressed, x, y, button);
+        let handled = ctx.dispatch_to_target(target_id, &event);
+        if handled {
+            ctx.set_captured(target_id);  // 捕获鼠标（语义对齐 g2：按下事件被消费时捕获）
+        }
+    }
+
+    fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+        self.receive(ctx, x, y);
+        let event = MouseEvent::new(MouseEventKind::Moved, x, y, MouseButton::None);
+        if let Some(captured_id) = ctx.captured() {
+            ctx.dispatch_to_target(Some(captured_id), &event);
+        } else {
+            let target_id = ctx.mouse_target();
+            ctx.dispatch_to_target(target_id, &event);
+        }
+    }
+
+    fn dispatch_mouse_released(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton) {
+        self.receive(ctx, x, y);
+        let event = MouseEvent::new(MouseEventKind::Released, x, y, button);
+        if let Some(captured_id) = ctx.captured() {
+            ctx.dispatch_to_target(Some(captured_id), &event);
+            ctx.set_captured(None);  // 释放捕获
+        } else {
+            let target_id = ctx.mouse_target();
+            ctx.dispatch_to_target(target_id, &event);
+        }
+        self.receive(ctx, x, y);
+    }
+}
+```
+
+**注意**：`setCapture` 不同于 DOM 的事件捕获阶段（Capture Phase）。前者是**鼠标捕获机制**，用于拖拽等模态交互；后者是**事件传播模型**，Novadraw 不需要。
+
+#### Novadraw 设计：三层分离
+
+EventDispatcher 拆分为三层：
+
+| 层级 | 职责 | 平台相关？ |
+|------|------|------------|
+| **交互状态** | mouseTarget、focusOwner、captured | ❌ 纯逻辑，在 FigureGraph |
+| **事件分发接口** | dispatch_* 方法签名 | ❌ 纯接口 |
+| **平台输入适配** | winit physical → entry-domain logical | ✅ apps 层 |
+| **引擎分发上下文** | SceneDispatchContext / SceneNovadrawContext | ❌ 纯逻辑，在引擎层 |
+
+```rust
+/// EventDispatcher trait - 无状态事件分发接口
+///
+/// 对应 draw2d: EventDispatcher 抽象类
+///
+/// # 设计说明
+///
+/// 职责：将平台事件分发给 FigureGraph
+/// - 不持有任何状态，状态在 FigureGraph 中
+/// - 通过 DispatchContext 访问命中测试、交互状态与分发入口
+/// - 平台输入适配（如 app_window）负责将平台事件转换为组合根命名动作
+///
+/// # 与 g2 的关键区别
+///
+/// g2 默认 SWTEventDispatcher 直接持有交互状态（mouseTarget 等）。
+/// Novadraw 将交互状态移到 FigureGraph，EventDispatcher 只负责事件分发。
+pub trait EventDispatcher: Send + Sync {
+    // === 生命周期 ===
+    fn set_root(&mut self, root_id: BlockId);
+    fn dispose(&mut self);
+
+    // === 鼠标事件 ===
+    fn dispatch_mouse_pressed(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton);
+    fn dispatch_mouse_released(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton);
+    fn dispatch_mouse_clicked(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton, click_count: u32);
+    fn dispatch_mouse_double_clicked(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton);
+    fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
+    fn dispatch_mouse_entered(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
+    fn dispatch_mouse_exited(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
+    fn dispatch_mouse_wheel_scrolled(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, delta: f64);
+
+    // === 键盘事件 ===
+    fn dispatch_key_pressed(&mut self, ctx: &mut dyn DispatchContext, key: KeyCode, modifiers: Modifiers);
+    fn dispatch_key_released(&mut self, ctx: &mut dyn DispatchContext, key: KeyCode, modifiers: Modifiers);
+
+    // === 焦点事件 ===
+    fn dispatch_focus_gained(&mut self, ctx: &mut dyn DispatchContext, target_id: BlockId);
+    fn dispatch_focus_lost(&mut self, ctx: &mut dyn DispatchContext, target_id: BlockId);
+}
+
+/// FigureGraph 交互状态管理
+///
+/// 对应 g2: EventDispatcher 持有的交互状态
+///
+/// # 设计说明
+///
+/// 交互状态（mouseTarget、focusOwner、captured、hovered、pressed）是纯逻辑状态，
+/// 不涉及平台特定实现，放在 FigureGraph 中是自然的。
+impl FigureGraph {
+    // === 交互状态 ===
+    pub fn mouse_target(&self) -> Option<BlockId>;
+    pub fn set_mouse_target(&mut self, id: Option<BlockId>);
+    pub fn is_hovered(&self, id: BlockId) -> bool;
+    pub fn set_hovered(&mut self, id: BlockId, hovered: bool);
+    pub fn is_pressed(&self, id: BlockId) -> bool;
+    pub fn set_pressed(&mut self, id: BlockId, pressed: bool);
+    pub fn focus_owner(&self) -> Option<BlockId>;
+    pub fn set_focus_owner(&mut self, id: Option<BlockId>);
+    pub fn captured(&self) -> Option<BlockId>;
+    pub fn set_captured(&mut self, id: Option<BlockId>);
+
+    // === 事件处理 ===
+    pub fn handle_mouse_pressed(&mut self, target_id: BlockId, x: f64, y: f64, button: MouseButton);
+    pub fn handle_mouse_released(&mut self, target_id: BlockId, x: f64, y: f64, button: MouseButton);
+    pub fn handle_mouse_moved(&mut self, target_id: BlockId, x: f64, y: f64);
+    // ...
+}
+```
+
+**边界总结**：
+
+- `EventDispatcher` 不持有 `mouse_target`、`focus_owner`、`captured`、`hovered`、`pressed`
+- `FigureGraph` 是交互状态的唯一 owner
+- `Figure` 可以响应事件并请求 repaint/invalidate，但不应保存与图节点生命周期绑定的通用交互状态
+- `DispatchContext` 只暴露事件分发所需能力，`NovadrawContext` 只暴露 Figure 事件处理所需能力
+- 这样既保留了 g2 的交互效果，也避免把平台入口变成新的 God Object
+
+#### 对等 g2 的“分发入口”：receive + find_mouse_event_target_at + dispatch_to_target
+
+```rust
+/// DispatchContext - 仅供 EventDispatcher 使用的分发上下文
+///
+/// 对应 g2: SWTEventDispatcher.receive() + dispatchMouse*() 内部的分发入口。
+/// 分发模型是：
+/// 1. receive() 刷新 mouse_target
+/// 2. find_mouse_event_target_at() 负责命中测试并选择最终目标
+/// 3. dispatch_to_target() 把事件直接交给目标节点（无通用冒泡）
+pub trait DispatchContext: Send + Sync {
+    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId>;
+    fn mouse_target(&self) -> Option<BlockId>;
+    fn set_mouse_target(&mut self, id: Option<BlockId>);
+    fn set_hovered(&mut self, id: BlockId, hovered: bool);
+    fn set_pressed(&mut self, id: BlockId, pressed: bool);
+    fn focus_owner(&self) -> Option<BlockId>;
+    fn set_focus_owner(&mut self, id: Option<BlockId>);
+    fn captured(&self) -> Option<BlockId>;
+    fn set_captured(&mut self, id: Option<BlockId>);
+    fn wants_key_events(&self, target_id: BlockId) -> bool;
+
+    /// 分发事件到目标节点（无冒泡）
+    ///
+    /// 内部委托给 FigureGraph，把事件交给 FigureBlock/ Figure 处理。
+    fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &dyn Event) -> bool;
+}
+```
+
+#### find_mouse_event_target_at 位置决策：通过 DispatchContext 能力访问
+
+**g2 分析**：SWTEventDispatcher 的 `receive()` 方法（第419-444行）在每个鼠标事件分发**开始时**调用 `root.findMouseEventTargetAt()`。
+
+**Novadraw 最终设计**：
+
+| 组件 | 职责 |
+|------|------|
+| EventDispatcher | 不持有任何状态，通过 `DispatchContext` 调用 receive / 目标分发能力 |
+| DispatchContext | 暴露 `find_mouse_event_target_at()`、交互状态与 `dispatch_to_target()` |
+| FigureGraph | 提供实际的命中测试、目标分发与交互状态实现 |
+
+```text
+EventDispatcher.dispatch_mouse_pressed(ctx, x, y, button)
+  → receive(ctx, x, y)                               ← 刷新 mouse_target
+  → ctx.mouse_target()                               ← 取当前事件目标
+  → ctx.dispatch_to_target(target_id, event)         ← 目标分发（无冒泡）
+```
+
+#### receive() 语义（对齐 g2）
+
+`receive()` 不是“把事件传播出去”，而是“刷新当前鼠标事件目标并维护 entered/exited 语义”的状态机步骤。
+
+- 如果处于 `captured` 状态，则保持 `mouse_target` 不变
+- 否则调用 `find_mouse_event_target_at(x, y)` 重新计算目标
+- 如果目标变化：
+  - 对旧 `mouse_target` 分发 `MouseExited`
+  - 更新 `mouse_target`
+  - 对新 `mouse_target` 分发 `MouseEntered`
+- 之后具体的 `dispatch_mouse_pressed()` / `dispatch_mouse_moved()` / `dispatch_mouse_released()` 再把主事件直接发给当前目标
+
+#### 类型定义
+
+```rust
+/// 鼠标事件
+#[derive(Debug, Clone, Copy)]
+pub struct MouseEvent {
+    pub kind: MouseEventKind,
+    /// 当前 target/source Figure 所属坐标域中的事件点。
+    pub x: f64,
+    pub y: f64,
+    pub button: MouseButton,
+    pub click_count: u32,
+    pub modifiers: Modifiers,
+    entry_point: Point,
+}
+
+impl MouseEvent {
+    /// 创建入口域事件；投递给 Figure 前由引擎层转换 x/y。
+    pub fn new(kind: MouseEventKind, x: f64, y: f64, button: MouseButton) -> Self;
+
+    /// 只读返回平台输入归一化后的入口节点坐标域点。
+    pub fn entry_point(&self) -> Point;
+
+    /// 保留 entry_point，返回 target/source 坐标域事件点。
+    pub fn with_target_point(self, x: f64, y: f64) -> Self;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseEventKind {
+    Pressed,
+    Released,
+    Moved,
+    Entered,
+    Exited,
+}
+
+/// 键盘事件
+#[derive(Debug, Clone, Copy)]
+pub struct KeyEvent {
+    pub key: KeyCode,
+    pub modifiers: Modifiers,
+}
+
+/// 鼠标按钮
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    Left,
+    Middle,
+    Right,
+    None,
+}
+
+/// 键盘修饰符
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Modifiers {
+    pub ctrl: bool,
+    pub shift: bool,
+    pub alt: bool,
+    pub meta: bool,
+}
+
+/// 键盘按键码
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyCode(pub u32);
+```
+
+#### BasicEventDispatcher 实现示例
+
+```rust
+/// BasicEventDispatcher - 无状态事件分发
+///
+/// 通过 DispatchContext 访问命中测试、交互状态与分发入口。
+pub struct BasicEventDispatcher;
+
+impl BasicEventDispatcher {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl EventDispatcher for BasicEventDispatcher {
+    fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+        if ctx.captured().is_some() {
+            return;
+        }
+
+        let next_target = ctx.find_mouse_event_target_at(x, y);
+        let prev_target = ctx.mouse_target();
+
+        if next_target == prev_target {
+            return;
+        }
+
+        if let Some(old_id) = prev_target {
+            let exited = MouseEvent::new(MouseEventKind::Exited, x, y, MouseButton::None);
+            ctx.dispatch_to_target(Some(old_id), &exited);
+        }
+
+        ctx.set_mouse_target(next_target);
+
+        if let Some(new_id) = next_target {
+            let entered = MouseEvent::new(MouseEventKind::Entered, x, y, MouseButton::None);
+            ctx.dispatch_to_target(Some(new_id), &entered);
+        }
+    }
+
+    fn dispatch_mouse_pressed(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        x: f64,
+        y: f64,
+        button: MouseButton,
+    ) {
+        self.receive(ctx, x, y);
+        let target_id = ctx.mouse_target();
+
+        let event = MouseEvent::new(MouseEventKind::Pressed, x, y, button);
+        let handled = ctx.dispatch_to_target(target_id, &event);
+
+        if handled {
+            ctx.set_captured(target_id);
+        }
+
+        if let Some(id) = target_id {
+            if ctx.wants_key_events(id) && ctx.focus_owner() != Some(id) {
+                if let Some(old_id) = ctx.focus_owner() {
+                    let lost = FocusEvent { kind: FocusEventKind::Lost };
+                    ctx.dispatch_to_target(Some(old_id), &lost);
+                }
+                ctx.set_focus_owner(Some(id));
+                let gained = FocusEvent { kind: FocusEventKind::Gained };
+                ctx.dispatch_to_target(Some(id), &gained);
+            }
+        }
+    }
+
+    fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+        self.receive(ctx, x, y);
+
+        if let Some(captured_id) = ctx.captured() {
+            let event = MouseEvent::new(MouseEventKind::Moved, x, y, MouseButton::None);
+            ctx.dispatch_to_target(Some(captured_id), &event);
+        } else {
+            let target_id = ctx.mouse_target();
+            let event = MouseEvent::new(MouseEventKind::Moved, x, y, MouseButton::None);
+            ctx.dispatch_to_target(target_id, &event);
+        }
+    }
+
+    fn dispatch_mouse_released(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64, button: MouseButton) {
+        self.receive(ctx, x, y);
+
+        if let Some(captured_id) = ctx.captured() {
+            let event = MouseEvent::new(MouseEventKind::Released, x, y, button);
+            ctx.dispatch_to_target(Some(captured_id), &event);
+            ctx.set_captured(None);
+        } else {
+            let target_id = ctx.mouse_target();
+            let event = MouseEvent::new(MouseEventKind::Released, x, y, button);
+            ctx.dispatch_to_target(target_id, &event);
+        }
+
+        self.receive(ctx, x, y);
+    }
+
+    fn dispatch_key_pressed(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        key: KeyCode,
+        modifiers: Modifiers,
+    ) {
+        let event = KeyEvent { key, modifiers };
+        ctx.dispatch_to_target(ctx.focus_owner(), &event);
+    }
+
+    // ... 其他事件方法类似
+}
+```
+
+#### NovadrawContext 与 DispatchContext（职责拆分）
+
+g2 中事件分发入口（SWTEventDispatcher）与 Figure 事件处理是强绑定的：Figure 并不会主动“路由事件”，而是被动接收 handleMouse*()/handleKey*() 调用。
+
+为了对齐 g2 语义，并避免让 `NovadrawContext` 获得“事件分发入口”这类奇怪能力，Novadraw 将上下文拆分为两类：
+
+- `NovadrawContext`：只提供 Figure 事件处理需要的能力（修改自身几何、请求更新）
+- `DispatchContext`：只提供 EventDispatcher 事件分发入口需要的能力（命中测试、交互状态、分发到目标）
+
+**最终设计原则**：
+
+1. **能力导向，不暴露底层持有关系**：Context 暴露的是“能做什么”，不是“持有什么引用”
+2. **默认采用单线程借用模型**：UI 线程内事件分发、命中测试、更新调度本来就是串行过程，理想设计优先使用借用而不是锁
+3. **Arc/Mutex 只作为实现策略，不作为理想架构契约**：如果未来需要跨线程桥接，可额外提供线程安全实现，但不写入核心接口语义
+4. **FigureBlock 不直接持有 UpdateManager**：只能通过 Context 触发 `repaint()` / `invalidate()`
+
+```rust
+/// NovadrawContext - Figure 事件处理的执行环境
+///
+/// 封装 Figure 事件处理时需要的所有操作能力：
+/// - 更新请求（repaint / invalidate）
+/// - 当前节点能力（current_block_id）
+///
+/// # 设计原则
+///
+/// 1. **只允许修改当前节点的几何与请求更新**
+/// 2. **不提供命中测试与事件分发入口**
+pub trait NovadrawContext: Send + Sync {
+    // === 状态查询 ===
+    fn current_block_id(&self) -> BlockId;
+
+    // === 边界操作 ===
+    fn set_bounds(&mut self, x: f64, y: f64, w: f64, h: f64);
+    fn translate(&mut self, dx: f64, dy: f64);
+
+    // === 更新操作 ===
+    fn repaint(&mut self);
+    fn invalidate(&mut self);
+}
+
+/// 事件 trait - 统一的事件类型
+pub trait Event: Send + Sync {
+    fn event_type(&self) -> EventType;
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FocusEvent {
+    pub kind: FocusEventKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusEventKind {
+    Gained,
+    Lost,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum EventType {
+    MousePressed,
+    MouseReleased,
+    MouseMoved,
+    MouseEntered,
+    MouseExited,
+    KeyPressed,
+    KeyReleased,
+    FocusGained,
+    FocusLost,
+}
+```
+
+#### NovadrawContextImpl 实现
+
+```
+/// NovadrawContext 的理想实现
+///
+/// 默认运行在单线程 UI 调用链中，通过借用访问 Graph 和 UpdateManager。
+/// 如果未来需要跨线程桥接，可以额外提供 Arc/Mutex 包装实现，
+/// 但那属于实现策略，不属于核心架构契约。
+///
+/// 注意：这里的代码是职责示意。实际实现时如果遇到借用链重入问题，
+/// 应通过更细粒度的 Context 能力拆分、命令缓冲或分阶段调度解决，
+/// 不回退为“所有地方都包 Arc<Mutex<>>”。
+pub struct NovadrawContextImpl<'a> {
+    block_id: BlockId,
+    graph: &'a mut FigureGraph,
+    update_manager: &'a mut dyn UpdateManager,
+}
+
+impl<'a> NovadrawContextImpl<'a> {
+    pub fn new(
+        block_id: BlockId,
+        graph: &'a mut FigureGraph,
+        update_manager: &'a mut dyn UpdateManager,
+    ) -> Self {
+        Self {
+            block_id,
+            graph,
+            update_manager,
+        }
+    }
+}
+
+impl<'a> NovadrawContext for NovadrawContextImpl<'a> {
+    fn current_block_id(&self) -> BlockId {
+        self.block_id
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, w: f64, h: f64) {
+        self.graph.set_bounds(self.block_id, x, y, w, h);
+    }
+
+    fn translate(&mut self, dx: f64, dy: f64) {
+        self.graph.prim_translate(self.block_id, dx, dy);
+    }
+
+    fn repaint(&mut self) {
+        let bounds = self.graph.block(self.block_id).figure.bounds();
+        self.update_manager.add_dirty_region(self.block_id, bounds);
+    }
+
+    fn invalidate(&mut self) {
+        self.update_manager.add_invalid_figure(self.block_id);
+    }
+}
+```
+
+```
+/// DispatchContext 的理想实现：在 NovadrawContext 的基础上增加分发入口能力
+impl<'a> DispatchContext for NovadrawContextImpl<'a> {
+    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+        self.graph.find_mouse_event_target_at(x, y)
+    }
+
+    fn mouse_target(&self) -> Option<BlockId> {
+        self.graph.mouse_target()
+    }
+
+    fn set_mouse_target(&mut self, id: Option<BlockId>) {
+        self.graph.set_mouse_target(id);
+    }
+
+    fn focus_owner(&self) -> Option<BlockId> {
+        self.graph.focus_owner()
+    }
+
+    fn set_focus_owner(&mut self, id: Option<BlockId>) {
+        self.graph.set_focus_owner(id);
+    }
+
+    fn captured(&self) -> Option<BlockId> {
+        self.graph.captured()
+    }
+
+    fn set_captured(&mut self, id: Option<BlockId>) {
+        self.graph.set_captured(id);
+    }
+
+    fn wants_key_events(&self, target_id: BlockId) -> bool {
+        self.graph.block(target_id).is_showing() && self.graph.block(target_id).figure.wants_key_events()
+    }
+
+    fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &dyn Event) -> bool {
+        let Some(id) = target_id else {
+            return false;
+        };
+        let mut figure_ctx = NovadrawContextImpl::new(id, self.graph, self.update_manager);
+        figure_ctx.graph.dispatch_to_target(Some(id), event, &mut figure_ctx)
+    }
+}
+```
+
+#### FigureBlock 事件处理入口
+
+```
+/// FigureBlock - 事件处理入口，透传 Context
+///
+/// Context 由 NovadrawSystem 创建，FigureBlock 只负责调用 Figure 的事件处理方法。
+pub struct FigureBlock {
+    pub id: BlockId,
+    pub figure: Box<dyn Figure>,
+
+    // ... 其他字段
+}
+
+impl FigureBlock {
+    /// 处理事件 - 透传 Context
+    ///
+    /// Context 由调用方（FigureGraph.dispatch_to_target）传入，FigureBlock 只负责调用 Figure。
+    pub fn handle_event(
+        &self,
+        event: &dyn Event,
+        ctx: &mut dyn NovadrawContext,
+    ) -> bool {
+        match event.event_type() {
+            EventType::MousePressed => {
+                if let Some(e) = event.as_any().downcast_ref::<MouseEvent>() {
+                    return self.figure.on_mouse_pressed(e, ctx);
+                }
+            }
+            EventType::MouseReleased => {
+                if let Some(e) = event.as_any().downcast_ref::<MouseEvent>() {
+                    return self.figure.on_mouse_released(e, ctx);
+                }
+            }
+            EventType::MouseMoved => {
+                if let Some(e) = event.as_any().downcast_ref::<MouseEvent>() {
+                    return self.figure.on_mouse_moved(e, ctx);
+                }
+            }
+            EventType::MouseEntered => {
+                if let Some(e) = event.as_any().downcast_ref::<MouseEvent>() {
+                    return self.figure.on_mouse_moved(e, ctx);
+                }
+            }
+            EventType::MouseExited => {
+                if let Some(e) = event.as_any().downcast_ref::<MouseEvent>() {
+                    return self.figure.on_mouse_moved(e, ctx);
+                }
+            }
+            EventType::KeyPressed => {
+                if let Some(e) = event.as_any().downcast_ref::<KeyEvent>() {
+                    return self.figure.on_key_pressed(e, ctx);
+                }
+            }
+            EventType::KeyReleased => {
+                if let Some(e) = event.as_any().downcast_ref::<KeyEvent>() {
+                    return self.figure.on_key_released(e, ctx);
+                }
+            }
+            EventType::FocusGained => {
+                return self.figure.on_focus_gained(ctx);
+            }
+            EventType::FocusLost => {
+                return self.figure.on_focus_lost(ctx);
+            }
+        }
+        false
+    }
+}
+
+/// Event 扩展方法
+pub trait EventExt {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Event + 'static> EventExt for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+```
+
+#### 完整事件分发流程（对齐 g2：无通用冒泡）
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              用户输入                                          │
+│                         (winit 鼠标/键盘事件)                                  │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                      BasicEventDispatcher                                     │
+│                                                                              │
+│   dispatch_mouse_pressed(ctx, x, y, button):                             │
+│     1. receive(ctx, x, y)                                               │
+│     2. target_id = ctx.mouse_target()                                   │
+│     3. ctx.dispatch_to_target(target_id, &event)                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         NovadrawContext                                      │
+│                                                                              │
+│   dispatch_to_target(target_id, event):                                  │
+│     → graph.dispatch_to_target(target_id, event, self)                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        FigureGraph                                         │
+│                                                                              │
+│   dispatch_to_target(target_id, event, ctx):                             │
+│     1. block(target_id).handle_event(event, ctx)                         │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        FigureBlock                                         │
+│                                                                              │
+│   handle_event(event, ctx):                                              │
+│     figure.on_mouse_pressed(event, ctx)  ← 透传 ctx                      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                         dyn Figure                                         │
+│                                                                              │
+│   on_mouse_pressed(event, ctx):                                           │
+│     ctx.translate(dx, dy)      ← 使用传入的 Context                       │
+│     ctx.repaint()                                                        │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**与 g2 的关键差异**：
+
+| 阶段 | g2 | Novadraw |
+|------|-----|----------|
+| find_mouse_event_target_at | EventDispatcher.receive() 内部 | EventDispatcher 通过 **DispatchContext 能力** 调用 |
+| mouse_target 设置 | EventDispatcher 内部 | FigureGraph **内部** |
+| 事件分发 | EventDispatcher 自包含 | Graph + Context 提供 **单目标分发入口** |
+| 上下文传递 | 隐式 this | **显式 DispatchContext / NovadrawContext** |
+| 交互状态归属 | EventDispatcher 持有 | FigureGraph 持有 |
+
+## 事件处理期间的变更执行模型
+
+### 为什么需要单独设计
+
+事件分发一旦进入 `dispatch_to_target()`，Figure 的事件处理代码就可能触发：
+
+- `set_bounds()`
+- `translate()`
+- `repaint()`
+- `invalidate()`
+- 未来的 `add_child()` / `remove_child()` / `reparent()` / `set_constraint()` 等结构性变更
+
+如果这些操作全部在同一调用栈中直接生效，则命中测试、当前 `mouse_target`、`children` 迭代、UpdateManager 队列都可能在分发过程中发生重入与失稳。
+
+### 最终原则（定稿）
+
+- **允许立即生效的变更**：当前节点自身几何修改、重绘请求、失效请求
+- **禁止在分发过程中立即生效的变更**：树结构修改、重排父子关系、批量约束拓扑修改
+- **结构性变更统一延迟到本次顶层分发结束后 apply**
+
+### 变更分类
+
+| 变更类型 | 示例 | 执行策略 |
+|---|---|---|
+| 当前节点局部几何变更 | `translate()`、`set_bounds()` | 允许立即执行 |
+| 更新请求 | `repaint()`、`invalidate()` | 允许立即收集到 UpdateManager |
+| 交互状态变更 | `set_captured()`、`set_focus_owner()`、`set_mouse_target()` | 由 EventDispatcher / FigureGraph 立即执行 |
+| 树结构变更 | `add_child()`、`remove_child()`、`reparent()` | 延迟到分发完成后执行 |
+| 大范围布局拓扑变更 | 更换 layout_manager、批量约束重建 | 延迟执行 |
+
+### 推荐模型：结构性变更命令缓冲
+
+```
+pub enum PendingMutation {
+    AddChild { parent: BlockId, child: BlockId },
+    AddChildFigure { parent: BlockId, figure: Box<dyn Figure> },
+    RemoveChild { parent: BlockId, child: BlockId },
+    Reparent { child: BlockId, new_parent: BlockId },
+    SetLayoutManager { container: BlockId, layout: Box<dyn LayoutManager> },
+    SetConstraint { container: BlockId, child: BlockId, constraint: Box<dyn Constraint> },
+}
+```
+
+```
+pub trait MutationContext {
+    fn enqueue_mutation(&mut self, mutation: PendingMutation);
+    fn add_child_later(&mut self, parent: BlockId, figure: Box<dyn Figure>);
+    fn remove_child_later(&mut self, parent: BlockId, child: BlockId);
+    fn reparent_later(&mut self, child: BlockId, new_parent: BlockId);
+}
+```
+
+```
+顶层事件分发开始
+  → receive()
+  → dispatch_to_target()
+      → Figure 通过 NovadrawContext 立即修改自身几何 / 请求 repaint / invalidate
+      → Figure 通过 MutationContext / NovadrawContext 的 later 方法记录结构性变更
+顶层事件分发结束
+  → apply_pending_mutations()
+  → 将受影响节点加入 invalid / dirty 队列
+  → 由 UpdateManager 在下一轮 perform_update() 中处理
+```
+
+### apply_pending_mutations 规则（定稿）
+
+为了保证“事件处理期间不改树”的机制可稳定落地，同时允许未来扩展更多 mutation 类型，本节把 `apply_pending_mutations()` 的行为定稿为一组不易歧义的规则。
+
+#### 1) 输入与输出
+
+- 输入：本轮顶层分发累积的 `Vec<PendingMutation>`
+- 输出：
+  - 对 `FigureGraph` 的树结构修改（parent/children/constraints/layout_manager）
+  - 一组受影响节点集合 `affected: HashSet<BlockId>`
+
+#### 2) 执行时机
+
+- `apply_pending_mutations()` 只能在“顶层事件分发完成后”执行
+- 在 `UpdateManager.perform_update()` 执行期间不得 apply（避免重入与遍历失稳）
+
+#### 2.1) 调用点（定稿）
+
+`apply_pending_mutations()` 的调用点必须固定在平台事件循环的“顶层输入处理边界”，以保证树结构在同一帧内保持一致性：
+
+```
+顶层输入事件开始
+  → dispatcher.receive(...) + dispatcher.dispatch_*(...)
+  → apply_pending_mutations()
+  → 若产生 invalid/dirty：scene_host.request_update()
+顶层输入事件结束
+```
+
+这个调用点的决策理由是：
+
+- **避免分发中遍历失稳**：如果在 `dispatch_to_target()` 调用栈内部修改 children，会导致命中测试、迭代、交互状态与更新队列出现重入与不一致
+- **稳定 UpdateManager 的输入域**：UpdateManager 假设一次 `perform_update()` 期间树结构稳定；把 apply 固定在“进入 perform_update 之前”可以保证这一假设成立
+- **利于合帧**：apply 之后再触发一次 `request_update()`，可以把多次结构性变更合并为一次渲染，而不是每个 mutation 都触发 redraw
+
+#### 3) 应用顺序
+
+为避免顺序依赖导致的实现分歧，定稿顺序如下（同一批 mutation 以此分组顺序执行）：
+
+1. `RemoveChild`
+2. `Reparent`（先从旧 parent 脱钩，再挂到 new_parent）
+3. `AddChild`
+4. `SetLayoutManager`
+5. `SetConstraint`
+
+#### 4) 交互状态一致性
+
+当节点被移除或脱离树后，如果其 id 出现在交互状态中，必须清理：
+
+- `mouse_target == removed` → 置空
+- `captured == removed` → 置空
+- `focus_owner == removed` → 置空，并在下一次输入时按 focus 规则重新计算
+
+#### 5) invalid/dirty 推导规则
+
+`apply_pending_mutations()` 结束后必须生成最小的更新需求：
+
+- 发生结构性变更时：
+  - 将“涉及的 container（parent/new_parent）”加入 invalid（布局依赖）
+  - 将“受影响的旧位置/新位置”加入 dirty（可视变化依赖）
+- `SetLayoutManager` / `SetConstraint`：
+  - 视为布局拓扑变化，container 必须 invalid
+
+这条规则的目的不是一步到位做到最小重绘，而是保证正确性并保持机制稳定。性能优化（更小的 dirty）只能作为扩展，不应反向改变核心时序。
+
+### 对 Context 的影响
+
+- `NovadrawContext`：负责 Figure 回调需要的能力，包括当前节点修改、更新请求，以及结构性变更的 deferred request
+- `DispatchContext`：继续只负责命中测试、交互状态、目标分发
+- `MutationContext`：提供 `enqueue_mutation()` 与 `add_child_later()` / `remove_child_later()` / `reparent_later()` 这类显式延迟结构变更能力
+- 实现要求：Figure 回调只能记录 pending mutation；不得在 `dispatch_to_target()` 调用栈内部直接修改 FigureGraph 树关系
+
+## FigureBlock 职责边界
+
+### is_valid 与 layout_valid 合并
+
+draw2d 只有 `FLAG_VALID` 一个标志，没有单独的 `layout_valid`：
+
+```
+// draw2d Figure.java
+private static final int FLAG_VALID = 1;
+// validate() 方法
+public void validate() {
+    if (isValid()) return;  // FLAG_VALID
+    setValid(true);
+    layout();
+    children.forEach(IFigure::validate);  // 递归验证
+}
+```
+
+**结论**：Novadraw 应该**合并为单一的 `is_valid` 标志**：
+- `is_valid = true` 表示已验证（包括布局）
+- `is_valid = false` 表示需要重新验证
+
+### 理想 FigureBlock 结构
+
+```
+pub struct FigureBlock {
+    // === 节点身份 ===
+    pub id: BlockId,
+    pub uuid: Uuid,
+    pub parent: Option<BlockId>,
+    pub children: Vec<BlockId>,
+
+    // === 运行时状态 ===
+    pub is_visible: bool,
+    pub is_enabled: bool,
+    pub is_selected: bool,
+    pub is_valid: bool,  // 合并：layout_valid → is_valid
+
+    // === 布局状态（只在 FigureBlock）===
+    pub layout_manager: Option<Arc<dyn LayoutManager>>,
+    pub constraints: HashMap<BlockId, Box<dyn Constraint>>,
+    pub preferred_size: Option<(f64, f64)>,  // 缓存
+    pub minimum_size: Option<(f64, f64)>,
+    pub maximum_size: Option<(f64, f64)>,
+
+    // === 渲染接口 ===
+    pub figure: Box<dyn Figure>,
+}
+```
+
+**边界约束**：
+
+- `FigureBlock` 不直接持有 `UpdateManager`
+- `FigureBlock` 不直接持有 `EventDispatcher`
+- `FigureBlock` 不知道平台窗口、渲染器或全局系统对象
+- 事件处理时需要的能力统一通过 `NovadrawContext` 提供
+
+### 字段归属与语义（定稿）
+
+为了避免 “Figure 只负责绘图、所有内在能力都放 FigureBlock” 这类边界摇摆，下面把常见字段按语义归属定稿。
+
+#### 1) Figure 与 FigureBlock 是否冲突
+
+本项目的最终分工是：
+
+- `Figure` 是 **Trait + 每节点实例**：定义能力边界，并允许具体图形类型把它需要的内在数据放在自己的结构体中
+- `FigureBlock` 是 **节点宿主**：存放该节点在树中的运行时状态与缓存，作为 `Box<dyn Figure>` 的宿主
+
+因此，“Figure 是 Trait 用于扩展更多图形”与本文的理想设计完全一致；冲突只会发生在把图形内在语义（几何/样式/命中规则）强行外置到 `FigureBlock`，导致 `FigureBlock` 膨胀为通用大对象。
+
+#### 2) 核心字段归属表
+
+| 类别 | 具体内容 | 归属 | 备注 |
+|---|---|---|---|
+| 树关系 | parent / children | FigureBlock | 树结构运行时状态，不能放 Figure |
+| 节点身份 | id / uuid | FigureBlock | 与树存储一致 |
+| 节点开关 | is_visible / is_enabled / is_selected | FigureBlock | 运行时状态 |
+| 验证标记 | is_valid | FigureBlock | 与布局/验证流水线耦合 |
+| 布局算法 | layout_manager | FigureBlock | 每个容器独立；FigureGraph 不持有 |
+| 布局约束 | constraints（child_id → Constraint） | FigureBlock（父节点） | 约束属于父容器对孩子的关系状态 |
+| 尺寸缓存 | preferred/minimum/maximum cache | FigureBlock | 缓存是优化手段，属于运行时状态 |
+| 图形几何语义 | 点集/圆角/描边宽度等图形专属参数 | Figure（具体实现） | 每种图形不同，不应塞入 FigureBlock |
+| 图形样式语义 | stroke/fill/alpha/line_join 等 | Shape/Figure（具体实现） | 每节点实例持有最自然 |
+| 图形边界（bounds） | bounds()/set_bounds() | Figure（Bounded 实现） | 每节点实例持有；通过 Context/Graph 改写 |
+| 命中测试 | contains_point()/intersects() | Figure（Bounded/Figure 实现） | 默认可用 bounds，复杂图形可覆盖 |
+| 坐标转换 | translate_to_parent/absolute 等 | FigureGraph | 依赖树关系，Figure 不应知道 |
+| 交互状态 | mouse_target / focus_owner / captured | FigureGraph | 交互一致性中心 |
+| 更新编排 | invalid/dirty 收集与执行 | UpdateManager | 系统服务，不属于树本体 |
+| 平台事件入口 | winit/web 事件到 dispatch_* | EventDispatcher（平台实现） | 桥接服务；无交互状态 |
+| 渲染调度入口 | request_update/execute_update | SceneHost | 调度服务；不持有树本体 |
+
+#### 3) bounds 的语义说明
+
+`bounds` 在 Novadraw 中属于“每节点实例的几何状态”，因此放在 `Figure`（实现 `Bounded`）里是合理的：
+
+- `Figure` 作为每节点实例，持有自己的 bounds 本质上仍是“内在数据”
+- `FigureGraph` 负责依赖树关系的坐标转换与传播算法，而不是持有每个节点的 bounds
+- 布局与交互修改 bounds 必须通过 `FigureGraph`/`NovadrawContext` 提供的能力进行，避免让 `Figure` 直接操纵树关系
+
+如果未来引入更复杂的变换系统（如局部 transform），同样遵循这个规则：图形的局部语义放在 Figure，依赖树的组合与转换放在 FigureGraph
+
+### FigureBlock 方法设计
+
+```
+impl FigureBlock {
+    // === 树管理 ===
+    pub fn add_child(&mut self, child_id: BlockId);
+    pub fn remove_child(&mut self, child_id: BlockId);
+    pub fn children_count(&self) -> usize;
+
+    // === 状态访问 ===
+    pub fn is_showing(&self) -> bool { self.is_visible && self.is_enabled }
+    pub fn set_visible(&mut self, visible: bool) { self.is_visible = visible; }
+    pub fn set_enabled(&mut self, enabled: bool) { self.is_enabled = enabled; }
+
+    // === 事件目标能力 ===
+    ///
+    /// 对齐 g2: isMouseEventTarget()
+    pub fn wants_mouse_events(&self) -> bool { self.is_showing() && self.figure.wants_mouse_events() }
+
+    // === 几何委托 ===
+    pub fn figure_bounds(&self) -> Rectangle { self.figure.bounds() }
+    pub fn contains_point(&self, x: f64, y: f64) -> bool { self.figure.contains_point(x, y) }
+    pub fn intersects(&self, rect: Rectangle) -> bool { self.figure.intersects(rect) }
+    pub fn client_area(&self) -> Rectangle { self.figure.client_area() }
+    pub fn insets(&self) -> (f64, f64, f64, f64) { self.figure.insets() }
+
+    // === 布局访问（三级回退） ===
+    //
+    // draw2d 语义：Figure.getPreferredSize() 的三级回退模式
+    // 1. FigureBlock.preferred_size 缓存（优化用）
+    // 2. LayoutManager.get_preferred_size() 计算
+    // 3. Figure 自身属性（bounds 尺寸）
+    pub fn get_preferred_size(&self) -> (f64, f64) {
+        if let Some(size) = self.preferred_size {
+            return size;  // 1. 缓存优先
+        }
+        if let Some(ref lm) = self.layout_manager {
+            let size = lm.get_preferred_size(self.id, ...);
+            if size.0 > 0.0 && size.1 > 0.0 {
+                return size;  // 2. LayoutManager 计算
+            }
+        }
+        self.figure.preferred_size()  // 3. 回退到 Figure 自身属性
+    }
+
+    // === 事件处理入口 ===
+    //
+    // 事件处理流程：
+    // 1. 调用方创建 NovadrawContext
+    // 2. FigureBlock 只负责把 event + ctx 透传给 Figure
+    // 3. Figure 通过 ctx.repaint() / ctx.translate() 等执行操作
+    // 4. 返回事件是否被消费
+    pub fn handle_event(
+        &self,
+        event: &dyn Event,
+        ctx: &mut dyn NovadrawContext,
+    ) -> bool;
+}
+```
+
+**设计要点**：
+
+- Context 由上层调用链创建，通常是 `NovadrawSystem` / `EventDispatcher` / `FigureGraph.dispatch_to_target`
+- `FigureBlock` 只是事件透传层，不构造全局服务引用
+- 这样可以避免 `FigureBlock` 成为新的耦合中心
+
+## FigureGraph 职责设计
+
+### 核心职责
+
+**关键修正**：FigureGraph **不持有 UpdateManager 和 layout_manager**！
+
+```
+pub struct FigureGraph {
+    // === 节点存储（SlotMap 实现 ID 引用）===
+    nodes: SlotMap<BlockId, FigureBlock>,
+    uuid_map: HashMap<Uuid, BlockId>,
+
+    // === 根节点 ===
+    root: BlockId,
+    contents: Option<BlockId>,
+
+    // === 交互状态 ===
+    mouse_target: Option<BlockId>,
+    focus_owner: Option<BlockId>,
+    captured: Option<BlockId>,
+
+    // 注意：FigureGraph 不持有 UpdateManager！
+    // UpdateManager 是 NovadrawSystem 实例级服务
+}
+```
+
+### FigureGraph 事件处理
+
+```
+impl FigureGraph {
+    // === 交互状态 ===
+    pub fn mouse_target(&self) -> Option<BlockId>;
+    pub fn set_mouse_target(&mut self, id: Option<BlockId>);
+    pub fn focus_owner(&self) -> Option<BlockId>;
+    pub fn set_focus_owner(&mut self, id: Option<BlockId>);
+    pub fn captured(&self) -> Option<BlockId>;
+    pub fn set_captured(&mut self, id: Option<BlockId>);
+
+    // === 事件分发（无通用冒泡） ===
+    ///
+    /// 分发事件到目标节点（无通用冒泡）。
+    ///
+    /// # 参数
+    ///
+    /// * `target_id` - 事件目标节点
+    /// * `event` - 事件数据
+    /// * `ctx` - NovadrawContext，用于调用 Figure 的事件处理
+    ///
+    /// # 返回
+    ///
+    /// 事件是否被消费（handled）
+    pub fn dispatch_to_target(
+        &mut self,
+        target_id: Option<BlockId>,
+        event: &dyn Event,
+        ctx: &mut dyn NovadrawContext,
+    ) -> bool {
+        match target_id {
+            Some(id) => {
+                let handled = self.block(id).handle_event(event, ctx);
+                handled
+            }
+            None => false,
+        }
+    }
+
+    // === 事件目标命中测试 ===
+    ///
+    /// 对齐 g2: findMouseEventTargetAt()
+    /// 目标是找到“最深的、可接收鼠标事件的节点”，而不是单纯找到最深节点。
+    pub fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+        self.find_mouse_event_target_from(self.root, x, y)
+    }
+
+    fn find_mouse_event_target_from(&self, id: BlockId, x: f64, y: f64) -> Option<BlockId> {
+        let block = self.block(id);
+
+        if !block.is_visible || !block.is_enabled {
+            return None;
+        }
+
+        if !block.contains_point(x, y) {
+            return None;
+        }
+
+        // 点必须落在当前节点 client_area 内，才继续深入孩子
+        if !block.client_area().contains_point(x, y) {
+            return None;
+        }
+
+        // 逆序检查子节点（上层优先）
+        for &child_id in block.children.iter().rev() {
+            let mut local = Point::new(x, y);
+            self.translate_from_parent(child_id, &mut local);
+            if let Some(found) = self.find_mouse_event_target_from(child_id, local.x, local.y) {
+                return Some(found);
+            }
+        }
+
+        // 孩子都不接收事件时，再判断当前节点是否愿意接收鼠标事件
+        if block.wants_mouse_events() {
+            return Some(id);
+        }
+
+        None
+    }
+}
+```
+
+#### find_mouse_event_target_at 规则（定稿）
+
+`find_mouse_event_target_at()` 与普通 `find_figure_at()` 不是同一个概念。
+
+- `find_figure_at()`：回答“屏幕上最深的 Figure 是谁”
+- `find_mouse_event_target_at()`：回答“应该由谁接收鼠标事件”
+
+最终规则如下：
+
+1. 只考虑 `is_visible && is_enabled` 的节点
+2. 先检查当前节点 `contains_point`
+3. 再检查当前节点 `client_area`
+4. 子节点按逆序遍历
+5. 向子节点递归前，必须把点从父坐标转换到子本地坐标
+6. 如果子节点都不接收事件，只有 `wants_mouse_events()` 为 true 的当前节点才能成为结果
+
+这与 g2 的思路一致：事件分发依赖“可接收事件的目标查找”，而不是依赖后续冒泡来补救目标选择。
+
+## Trait 之间的依赖关系
+
+### 依赖关系图
+
+```
+dyn Figure
+  │
+  │ 不持有 FigureGraph 或 LayoutManager
+  │ 只提供 bounds() / paint_figure() / validate() / preferred_size()
+  │
+  ▼
+FigureGraph
+  │
+  │ 持有 SlotMap<BlockId, FigureBlock>
+  │
+  ├──► FigureBlock.figure: Box<dyn Figure>
+  │
+  └──► 交互状态: mouse_target, focus_owner, captured
+
+FigureBlock.layout_manager: Arc<dyn LayoutManager>
+  │
+  └──► LayoutManager 需要通过 BlockId 查询 FigureGraph
+      fn layout(container_id: BlockId, graph: &mut FigureGraph)
+
+NovadrawSystem 平台实现（内部装配以下全局服务）
+  │
+  ├──► update_manager: UpdateManager
+  │      │
+  │      └──► UpdateManager 操作 FigureGraph
+  │          fn perform_update(graph: &mut FigureGraph, canvas: &mut NdCanvas)
+  │
+  ├──► dispatcher: EventDispatcher
+  │      │
+  │      └──► 不持有任何引用，通过 DispatchContext 访问 FigureGraph
+  │          fn receive(ctx, x, y)
+  │          fn dispatch_mouse_pressed(ctx, x, y, button)
+  │
+  └──► scene_host: SceneHost
+         │
+         └──► 执行两阶段更新
+
+NovadrawContext (由 NovadrawSystem 创建)
+  │
+  └──► dispatch_to_target() → FigureGraph.dispatch_to_target()
+```
+
+### 避免循环依赖
+
+关键设计：**Figure Trait 不持有 FigureGraph 或 LayoutManager**。
+
+```
+// 错误示例（循环依赖）
+trait Figure {
+    fn do_something(&self, graph: &FigureGraph);  // ✗
+}
+
+// 正确示例（通过 ID 查询）
+trait LayoutManager {
+    fn layout(&self, container_id: BlockId, graph: &mut FigureGraph);
+    // LayoutManager 通过 BlockId 查询 FigureGraph 获取节点数据
+    // FigureGraph 通过 Arc<dyn LayoutManager> 调用 layout()
+}
+```
+
+## NovadrawSystem - 统一组合根
+
+### 设计背景
+
+draw2d 的 LightweightSystem 是单一组合根，持有所有核心组件（Canvas、UpdateManager、EventDispatcher、RootFigure）。
+
+当前 Novadraw 的组件按职责分散：
+- FigureGraph 持有树结构和图级交互状态
+- UpdateManager / EventDispatcher 是组合根内部装配的系统服务
+- app_window 只做平台输入适配，并调用组合根命名动作
+- SceneHost 只负责渲染入口和平台 redraw 调度
+
+**问题**：用户需要理解多个组件，使用不够直观。
+
+### 解决方案：组合根命名动作 + NovadrawSystem trait
+
+```
+/// Novadraw 系统接口
+///
+/// 对应 draw2d: LightweightSystem
+///
+/// 该 trait 只暴露平台宿主和渲染入口，不暴露 FigureGraph / UpdateManager /
+/// EventDispatcher 的可变引用。场景切换、平台输入、图操作和调度协作必须通过
+/// 平台组合根的命名动作进入，避免绕过 dispatch transaction、PendingMutation
+/// 和 redraw scheduling。
+pub trait NovadrawSystem: Send + Sync {
+    /// 执行渲染
+    fn render(&mut self, renderer: &mut impl RenderBackend) -> NdCanvas;
+
+    /// 获取视口尺寸
+    fn viewport_size(&self) -> (f64, f64);
+
+    /// 请求下一帧更新
+    fn request_update(&self);
+}
+```
+
+### 平台实现
+
+```
+/// Winit 平台实现
+pub struct WinitNovadrawSystem {
+    core: EditorInteractionCore,
+    scene_host: WinitSceneHost,
+}
+
+impl WinitNovadrawSystem {
+    pub fn is_scene(&self, scene_type: SceneType) -> bool {
+        self.core.scene_manager.current_scene == scene_type
+    }
+
+    pub fn switch_scene(&mut self, scene_type: SceneType) {
+        self.core.scene_manager_mut().switch_scene(scene_type);
+        self.scene_host.request_update();
+    }
+
+    pub fn translate_contents_if_scene(
+        &mut self,
+        scene_type: SceneType,
+        dx: f64,
+        dy: f64,
+    ) -> bool {
+        if !self.is_scene(scene_type) {
+            return false;
+        }
+        self.translate_contents(dx, dy)
+    }
+
+    pub fn dispatch_raw_mouse_pressed(
+        &mut self,
+        input: RawPointerInput,
+        button: MouseButton,
+    ) -> InteractionTrace {
+        self.run_update_transaction(|core| core.dispatch_raw_mouse_pressed(input, button))
+    }
+}
+
+impl NovadrawSystem for WinitNovadrawSystem {
+    fn render(&mut self, renderer: &mut impl RenderBackend) -> NdCanvas {
+        self.scene_host.execute_update(
+            &mut self.core.scene_manager.scene,
+            &mut self.core.update_manager,
+            renderer,
+        )
+    }
+
+    fn viewport_size(&self) -> (f64, f64) {
+        self.scene_host.viewport_size()
+    }
+
+    fn request_update(&self) {
+        self.scene_host.request_update()
+    }
+}
+```
+
+### 平台工厂
+
+```
+pub mod platform {
+    use super::*;
+
+    /// 创建 Winit 平台系统
+    pub fn create_system(window_proxy: Arc<WinitWindowProxy>) -> WinitNovadrawSystem {
+        WinitNovadrawSystem::new(window_proxy)
+    }
+
+    /// 创建 Web 平台系统（未来）
+    #[cfg(feature = "web")]
+    pub fn create_web_system(canvas: web_sys::HtmlCanvas) -> WebNovadrawSystem {
+        WebNovadrawSystem::new(canvas)
+    }
+}
+```
+
+### 多平台架构图
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         用户代码                                        │
+│                                                                     │
+│   let mut system = WinitNovadrawSystem::new(window);                 │
+│   system.switch_scene(scene_type);                                  │
+│   system.render(&mut renderer);                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              │ 组合根动作 + NovadrawSystem trait
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      NovadrawSystem trait                            │
+│                                                                     │
+│   + render(renderer): NdCanvas                                      │
+│   + viewport_size(): (f64, f64)                                     │
+│   + request_update()                                                │
+└─────────────────────────────────────────────────────────────────────┘
+                              ▲
+                              │
+         ┌────────────────────┼────────────────────┐
+         │                    │                    │
+         ▼                    ▼                    ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ WinitNovadraw   │  │ WebNovadraw     │  │ (Future:        │
+│ System          │  │ System          │  │  MacOS, Android) │
+│                 │  │                 │  │                 │
+│ - internal graph │ │ - internal graph │ │                 │
+│ - internal UM    │ │ - internal UM    │ │                 │
+│ - internal dispatcher│ - internal dispatcher│              │
+│ - WinitSceneHost│  │ - WebSceneHost  │  │                 │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+### 使用示例
+
+```
+fn main() {
+    // 创建平台组合根
+    let mut system = WinitNovadrawSystem::new(window_proxy);
+
+    // 场景构建、平台输入、更新调度都通过组合根命名动作进入。
+    // 不通过 NovadrawSystem trait 暴露 FigureGraph / UpdateManager / EventDispatcher
+    // 可变引用，避免绕过 dispatch transaction、PendingMutation 和 redraw scheduling。
+    system.switch_scene(scene_type);
+    system.dispatch_raw_mouse_pressed(input, MouseButton::Left);
+
+    // 渲染
+    let canvas = system.render(&mut renderer);
+}
+```
+
+### 与 LightweightSystem 对比
+
+| LightweightSystem | NovadrawSystem |
+|-------------------|----------------|
+| 持有所有组件 | 持有所有组件（通过组合） |
+| 直接持有 | 通过 trait 持有 |
+| 无需 factory | platform::create_system() |
+| Java 对象 | Rust trait object |
+
+## 实现一致性快照（2026-08-29）
+
+本节只说明设计与代码的结构一致性。M1-M10 的完成状态仍以
+[`../../roadmap/00-index.md`](../../roadmap/00-index.md) 为唯一来源。
+
+| 组件 | 当前实现 | 设计判断 | 状态 |
+|---|---|---|---|
+| `FigureBlock` | 单一 `is_valid`；layout manager、typed constraints 和尺寸覆盖均归节点所有 | 符合状态所有权设计 | aligned |
+| `dyn Figure` | `Bounded → Figure → Shape`，并提供布局尺寸投影与事件回调 | 符合能力接口设计 | aligned |
+| `FigureGraph` | 持有树、交互状态、gesture target、坐标转换和节点约束；不持有 UpdateManager | 符合一致性中心设计 | aligned |
+| `LayoutManager` | 通过 `LayoutContext` 工作，不长期持有 FigureGraph | 符合策略接口设计 | aligned |
+| `UpdateManager` | 独立服务，执行 Validation → Damage Repair 和 effect flush | 符合两阶段设计 | aligned |
+| `EventDispatcher` | 无状态，通过 `DispatchContext` 固定 target；Scroll/Zoom 使用专用 fallback | 符合无通用冒泡设计 | aligned |
+| `Viewport / Scalable` | RangeModel 是 scroll SSOT，Scalable pane 是 scale SSOT，ZoomManager 协调二者 | 符合 M8 所有权设计 | aligned |
+| `SceneHost` | 引擎 trait 负责调度与渲染入口 | 符合宿主边界 | aligned |
+| `NovadrawSystem` | trait 位于引擎，具体 dispatch transaction 仍部分实现在 `novadraw-apps` 和 editor | 通用事务编排最终应下沉 runtime，apps 只保留平台适配 | open structural delta |
+
+## 目录结构优化建议
+
+目录结构的独立设计与决策记录已拆分到单独文档，便于后续在调整模块与 crate 边界时独立维护：
+
+- [理想目录结构设计](directory-structure.md)
+
+本文只保留理想架构本身；目录结构相关分析、命名决策、执行顺序与禁止项，请统一参考上面的独立文档。
+
+## 已落地机制与后续边界
+
+### 已完成的架构骨架
+
+- **坐标系统设计**：use_local_coordinates 在 Bounded，坐标转换在 FigureGraph
+- **Trait 层级**：`Bounded → Figure → Shape` 三层设计
+- **EventDispatcher 设计**：通过 DispatchContext 访问 Graph，find_mouse_event_target_at 在 Graph 上
+- **UpdateManager 分层**：独立于 FigureGraph，与 EventDispatcher 同级
+- **NovadrawContext 模式**：Figure 通过上下文执行操作，与系统解耦
+- **事件分发链路**：对齐 g2 的目标分发（无通用冒泡），包含 mouse_target 与 captured 语义
+- **结构变更事务**：事件期间通过 PendingMutation 延迟修改树
+- **Damage 父链传播**：dirty region 按坐标根协议传播并形成 DamageSet
+- **目录职责分层**：figure / graph / runtime / host / container 已完成整理
+- **M8 容器与手势**：Viewport、RangeModel、ScrollPane、ZoomManager 和 gesture
+  session 已具备契约测试
+
+### 尚未完成
+
+1. **组合根事务编排下沉**
+   - `SceneDispatchContext`、事件点适配和 fallback 已在引擎层。
+   - `dispatch → PendingMutation flush → update scheduling` 的公共外壳仍在应用层重复。
+   - 该调整涉及组合根公开 API，应通过独立 architecture delta 完成，不能在应用中
+     继续复制新版本。
+
+2. **M9 Connection / Anchor / Router**
+   - 当前只有设计契约，没有核心公开实现。
+
+3. **M10 reusable Figure、文本、图像和基础控件**
+   - 部分类型存在不等于产品与行为门禁完成。
+
+具体实施顺序、状态提升条件和产品完成判据只在 roadmap 中维护，本文不再复制。
+
+## 文档映射
+
+| draw2d 文档 | Novadraw 对应 | 状态 |
+|---|---|---|
+| `IFigure.java` | `dyn Figure` + `Bounded` trait | ✅ 已有 |
+| `Figure.java` | `FigureBlock` (状态) + `dyn Figure` (行为) | ✅ 已有 |
+| Figure bounds/坐标系统 | `Bounded` trait + `FigureGraph` | ✅ 已有，坐标系统完整 |
+| `RootFigure.java` | `RootFigure`（平台桥接层） | ✅ 保留，明确作用 |
+| `LightweightSystem.java` (~611 行) | `SceneHost` | ✅ 已有 |
+| `UpdateManager.java` (~200 行) | `dyn UpdateManager` | ✅ 已有 |
+| `DeferredUpdateManager.java` (~368 行) | `SceneUpdateManager` | ✅ 已有 |
+| `LayoutManager.java` (~80 行) | `dyn LayoutManager` | ✅ 已有 |
+| `Figure.paint()` 模板方法 | `FigureGraph` 遍历调度 | ✅ 已有 |
+| `EventDispatcher.java` | `EventDispatcher` trait + `DispatchContext` | ✅ 状态归属已重构为 FigureGraph，分发入口已定稿 |
+| `SWTEventDispatcher.java` | 平台输入适配 + `BasicEventDispatcher` | ✅ M6/M8 行为已验证；组合根下沉另行跟踪 |
+
+## 架构测试原则
+
+理想架构不仅要能实现，还必须能被验证。测试的目标不是冻结当前实现，而是持续守住架构契约。
+
+### 原则 1：测试契约，不测试实现镜像
+
+- 自动测试应优先验证职责边界、状态归属、时序语义和坐标一致性
+- 不应依赖私有 helper、临时字段或偶然的内部调用顺序
+
+### 原则 2：验证层级必须与风险匹配
+
+- 局部规则：可用单元测试
+- 模块边界与调度语义：优先集成测试
+- 输入、DPI、平台交互：优先系统测试或最小复现场景
+
+### 原则 3：测试跟着契约和 delta 走
+
+- 每次架构改进，只补本轮最小必要测试
+- 若当前 delta 涉及职责边界变化、结构性变更时机变化或已知回归风险，原则上应补自动测试
+- 若本轮不补测试，必须在工作流记录中明确说明原因
+
+### 原则 4：关键契约必须存在可验证路径
+
+以下契约至少需要有一种稳定验证方式：
+
+- `FigureGraph` 持有图级信息
+- `UpdateManager` 只负责两阶段更新编排
+- `EventDispatcher` 只负责分发，不持有图状态归属
+- `SceneHost` 是极薄平台调度层
+- `PendingMutation` 在约定时机应用
+- 坐标转换遵循 `physical -> logical -> scene` 一致性
+
+### 原则 5：工作流与测试策略分层
+
+- 本文档只定义高层测试原则与哪些契约必须可验证
+- 具体的验证矩阵与落地入口见
+  [`../../roadmap/demo-matrix.md`](../../roadmap/demo-matrix.md)；API 语义覆盖见
+  [`../../parity/draw2d/api-coverage.md`](../../parity/draw2d/api-coverage.md)。
+
+## 参考资料
+
+- draw2d 源码：`/Users/bytedance/Documents/code/GitHub/gef-classic/org.eclipse.draw2d/src/org/eclipse/draw2d/`
+- IFigure: `IFigure.java`
+- Figure: `Figure.java`
+- LayoutManager: `LayoutManager.java`
+- UpdateManager: `UpdateManager.java`
+- DeferredUpdateManager: `DeferredUpdateManager.java`
+- LightweightSystem: `LightweightSystem.java`
+- RootFigure: `LightweightSystem.java` 内部类
+- EventDispatcher: `EventDispatcher.java`
+- SWTEventDispatcher: `SWTEventDispatcher.java`
+- 审计基线: eclipse/gef-classic commit `4463d9d0c`（2026-01-01）
