@@ -534,9 +534,18 @@ impl NdCanvas {
     }
 
     pub fn to_submission(&self) -> RenderSubmission {
+        self.to_submission_for_surface(Default::default())
+    }
+
+    pub fn to_submission_for_surface(
+        &self,
+        surface: crate::submission::SurfaceInfo,
+    ) -> RenderSubmission {
         RenderSubmission {
             commands: self.commands.clone(),
             damage: self.damage.clone(),
+            resources: Default::default(),
+            surface,
         }
     }
 

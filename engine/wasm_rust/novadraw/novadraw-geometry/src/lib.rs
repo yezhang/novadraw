@@ -45,5 +45,8 @@ pub type PrecisionDimension = Dimension;
 /// 向量兼容别名。
 pub type Vector = Vec2;
 
+/// Canonical 2D affine transform name used by the scene architecture.
+pub type Affine2D = Transform;
+
 /// 仿射变换兼容别名。
 pub type AffineTransform = Transform;

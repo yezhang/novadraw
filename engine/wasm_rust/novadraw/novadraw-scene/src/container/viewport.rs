@@ -509,7 +509,7 @@ impl FigureGraph {
         let block_id = self.try_add_child_to(parent, Box::new(figure))?;
         self.set_block_layout_manager(
             block_id,
-            Arc::new(ViewportLayout::new(Arc::clone(&runtime))),
+            Box::new(ViewportLayout::new(Arc::clone(&runtime))),
         );
         Ok(ViewportHandle { block_id, runtime })
     }

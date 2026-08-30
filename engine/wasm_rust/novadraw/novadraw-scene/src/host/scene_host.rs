@@ -1,4 +1,4 @@
-//! SceneHost - 场景图渲染入口协调
+//! Platform host and legacy SceneHost contracts.
 //!
 //! 定义渲染入口与平台环境交互的接口。只负责渲染触发和视口管理，
 //! 不持有 FigureGraph、UpdateManager 等核心对象。
@@ -55,12 +55,21 @@
 //!
 //! - **SceneHost**: 渲染入口协调。不持有任何核心对象（FigureGraph、UpdateManager 等）。
 //! - **FigureGraph**: 块树管理 + 布局计算。平台无关。
-//! - **EventDispatcher**: 事件分发 trait。交互状态在 FigureGraph 中。
+//! - **EventDispatcher**: 平台无关事件状态机；新 Runtime 的交互状态独立于 FigureTree。
 //! - **平台事件循环**: 负责把 winit redraw/input 事件转交给组合根。
 
-use novadraw_render::{NdCanvas, RenderBackend};
+use novadraw_render::{NdCanvas, RenderBackend, SurfaceInfo};
 
 use crate::{FigureGraph, UpdateManager};
+
+/// Minimal platform boundary used by the runtime.
+///
+/// Input adaptation and surface ownership stay in platform crates. The runtime
+/// only needs normalized surface information and an idempotent redraw request.
+pub trait PlatformHost {
+    fn request_redraw(&self);
+    fn surface_info(&self) -> SurfaceInfo;
+}
 
 /// 场景图主机环境 trait
 ///
@@ -74,7 +83,7 @@ use crate::{FigureGraph, UpdateManager};
 /// 3. `execute_update()` 执行两阶段更新后，用 UpdateManager 队列状态同步 host 标记
 ///
 /// 不同平台可提供不同的调度策略（如 requestAnimationFrame、节流等）。
-pub trait SceneHost: Send + Sync {
+pub trait SceneHost {
     /// 请求在下一次渲染帧执行更新
     ///
     /// 多次调用应合并为一次（由具体实现保证，如 winit 的 request_redraw 已是幂等）。

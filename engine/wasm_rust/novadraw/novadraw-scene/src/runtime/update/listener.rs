@@ -200,7 +200,7 @@ impl NotificationQueue {
 /// - 性能分析：统计更新频率和耗时
 /// - 动画：协调多个视图的更新
 /// - 视图同步：当 Figure 移动或坐标系统变化时更新视图状态
-pub trait UpdateListener: Send + Sync {
+pub trait UpdateListener {
     /// 通知 Update 层事件（验证、重绘阶段变化）
     fn on_update_event(&self, event: UpdateEvent);
 
@@ -219,7 +219,7 @@ pub trait UpdateListener: Send + Sync {
 /// Validating Listener - 验证监听器
 ///
 /// 专门监听验证（布局）阶段的监听器。
-pub trait ValidatingListener: Send + Sync {
+pub trait ValidatingListener {
     /// 通知验证开始
     fn notify_validating(&self);
 
@@ -227,23 +227,23 @@ pub trait ValidatingListener: Send + Sync {
     fn notify_validated(&self);
 }
 
-pub trait FigureListener: Send + Sync {
+pub trait FigureListener {
     fn figure_moved(&self, event: FigureEvent);
 }
 
-pub trait CoordinateListener: Send + Sync {
+pub trait CoordinateListener {
     fn coordinate_system_changed(&self, event: FigureEvent);
 }
 
-pub trait AncestorListener: Send + Sync {
+pub trait AncestorListener {
     fn ancestor_changed(&self, event: AncestorEvent);
 }
 
-pub trait PropertyChangeListener: Send + Sync {
+pub trait PropertyChangeListener {
     fn property_changed(&self, event: &PropertyChangeEvent);
 }
 
-pub trait LayoutListener: Send + Sync {
+pub trait LayoutListener {
     fn layout_changed(&self, event: LayoutEvent);
 }
 

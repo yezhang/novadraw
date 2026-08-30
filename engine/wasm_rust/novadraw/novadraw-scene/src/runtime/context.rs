@@ -4,9 +4,9 @@ use novadraw_geometry::Point;
 
 use crate::{
     BlockId, DispatchContext, Event, Figure, FigureEvent, FigureGraph, GestureSessionId,
-    MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect, PendingMutations,
-    PropertyChangeEvent, PropertyValue, Rectangle, ScalableLayeredPaneFigure, ScrollPaneFigure,
-    UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
+    InteractionState, MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect,
+    PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle, ScalableLayeredPaneFigure,
+    ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
     mutation::{MutationContext, PendingMutation},
 };
 
@@ -49,34 +49,29 @@ pub trait NovadrawContext {
     fn reparent_later(&mut self, child: BlockId, new_parent: BlockId);
 }
 
+enum RuntimeEffect {
+    Repaint { block_id: BlockId, rect: Rectangle },
+    Notification(NotificationEffect),
+    Invalidate(BlockId),
+    Select(Option<BlockId>),
+    Mutation(PendingMutation),
+}
+
 /// 引擎层通用的 Figure 回调上下文。
 ///
-/// 负责封装 target 运行时信息与 UpdateManager 的写操作。
+/// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
 pub struct SceneNovadrawContext<'a> {
     target_id: BlockId,
     bounds: Rectangle,
-    update_manager: &'a mut dyn UpdateManager,
-    pending_mutations: &'a mut PendingMutations,
-    selection_request: &'a mut Option<Option<BlockId>>,
-    invalidation_requested: &'a mut bool,
+    effects: &'a mut Vec<RuntimeEffect>,
 }
 
 impl<'a> SceneNovadrawContext<'a> {
-    pub fn new(
-        target_id: BlockId,
-        bounds: Rectangle,
-        update_manager: &'a mut dyn UpdateManager,
-        pending_mutations: &'a mut PendingMutations,
-        selection_request: &'a mut Option<Option<BlockId>>,
-        invalidation_requested: &'a mut bool,
-    ) -> Self {
+    fn new(target_id: BlockId, bounds: Rectangle, effects: &'a mut Vec<RuntimeEffect>) -> Self {
         Self {
             target_id,
             bounds,
-            update_manager,
-            pending_mutations,
-            selection_request,
-            invalidation_requested,
+            effects,
         }
     }
 }
@@ -87,12 +82,14 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
     }
 
     fn repaint(&mut self, rect: Option<Rectangle>) {
-        self.update_manager
-            .add_dirty_region(self.target_id, rect.unwrap_or(self.bounds));
+        self.effects.push(RuntimeEffect::Repaint {
+            block_id: self.target_id,
+            rect: rect.unwrap_or(self.bounds),
+        });
     }
 
     fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
-        self.update_manager.add_dirty_region(block_id, rect);
+        self.effects.push(RuntimeEffect::Repaint { block_id, rect });
     }
 
     fn emit_property_change(
@@ -102,32 +99,33 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         old_value: PropertyValue,
         new_value: PropertyValue,
     ) {
-        self.update_manager
-            .enqueue_notification_effect(NotificationEffect::EmitProperty(PropertyChangeEvent {
+        self.effects.push(RuntimeEffect::Notification(
+            NotificationEffect::EmitProperty(PropertyChangeEvent {
                 block_id,
                 property,
                 old_value,
                 new_value,
-            }));
+            }),
+        ));
     }
 
     fn coordinate_system_changed(&mut self, block_id: BlockId, bounds: Rectangle) {
-        self.update_manager
-            .enqueue_notification_effect(NotificationEffect::EmitFigure(
+        self.effects
+            .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
                 FigureEvent::CoordinateSystemChanged {
                     block_id,
                     old_bounds: bounds,
                     new_bounds: bounds,
                 },
-            ));
+            )));
     }
 
     fn invalidate(&mut self) {
-        *self.invalidation_requested = true;
+        self.effects.push(RuntimeEffect::Invalidate(self.target_id));
     }
 
     fn set_selected(&mut self, block_id: Option<BlockId>) {
-        *self.selection_request = Some(block_id);
+        self.effects.push(RuntimeEffect::Select(block_id));
     }
 
     fn add_child_later(&mut self, parent: BlockId, figure: Box<dyn Figure>) {
@@ -145,7 +143,7 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
 
 impl MutationContext for SceneNovadrawContext<'_> {
     fn enqueue_mutation(&mut self, mutation: PendingMutation) {
-        self.pending_mutations.enqueue(mutation);
+        self.effects.push(RuntimeEffect::Mutation(mutation));
     }
 }
 
@@ -155,6 +153,7 @@ impl MutationContext for SceneNovadrawContext<'_> {
 /// 坐标域切换与 Figure 回调调用都在引擎层统一处理。
 pub struct SceneDispatchContext<'a> {
     scene: &'a mut FigureGraph,
+    interaction: Option<&'a mut InteractionState>,
     update_manager: &'a mut dyn UpdateManager,
     pending_mutations: &'a mut PendingMutations,
 }
@@ -167,9 +166,36 @@ impl<'a> SceneDispatchContext<'a> {
     ) -> Self {
         Self {
             scene,
+            interaction: None,
             update_manager,
             pending_mutations,
         }
+    }
+
+    pub fn with_interaction(
+        scene: &'a mut FigureGraph,
+        interaction: &'a mut InteractionState,
+        update_manager: &'a mut dyn UpdateManager,
+        pending_mutations: &'a mut PendingMutations,
+    ) -> Self {
+        Self {
+            scene,
+            interaction: Some(interaction),
+            update_manager,
+            pending_mutations,
+        }
+    }
+
+    fn interaction(&self) -> &InteractionState {
+        self.interaction
+            .as_deref()
+            .unwrap_or_else(|| self.scene.interaction_state())
+    }
+
+    fn interaction_mut(&mut self) -> &mut InteractionState {
+        self.interaction
+            .as_deref_mut()
+            .unwrap_or_else(|| self.scene.interaction_state_mut())
     }
 
     fn nearest_scalable(&self, mut target_id: BlockId) -> Option<BlockId> {
@@ -257,71 +283,79 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn mouse_target(&self) -> Option<BlockId> {
-        self.scene.mouse_target()
+        self.interaction().mouse_target()
     }
 
     fn set_mouse_target(&mut self, id: Option<BlockId>) {
-        self.scene.set_mouse_target(id);
+        self.interaction_mut().set_mouse_target(id);
     }
 
     fn cursor_target(&self) -> Option<BlockId> {
-        self.scene.cursor_target()
+        self.interaction().cursor_target()
     }
 
     fn set_cursor_target(&mut self, id: Option<BlockId>) {
-        self.scene.set_cursor_target(id);
+        self.interaction_mut().set_cursor_target(id);
     }
 
     fn hover_source(&self) -> Option<BlockId> {
-        self.scene.hover_source()
+        self.interaction().hover_source()
     }
 
     fn set_hover_source(&mut self, id: Option<BlockId>) {
-        self.scene.set_hover_source(id);
+        self.interaction_mut().set_hover_source(id);
     }
 
     fn set_hovered(&mut self, id: BlockId, hovered: bool) {
-        self.scene.set_hovered(id, hovered);
+        if self.scene.get_block(id).is_some() {
+            self.interaction_mut().set_hovered(id, hovered);
+        }
     }
 
     fn set_pressed(&mut self, id: BlockId, pressed: bool) {
-        self.scene.set_pressed(id, pressed);
+        if self.scene.get_block(id).is_some() {
+            self.interaction_mut().set_pressed(id, pressed);
+        }
     }
 
     fn focus_owner(&self) -> Option<BlockId> {
-        self.scene.focus_owner()
+        self.interaction().focus_owner()
     }
 
     fn set_focus_owner(&mut self, id: Option<BlockId>) {
-        self.scene.set_focus_owner(id);
+        self.interaction_mut().set_focus_owner(id);
     }
 
     fn captured(&self) -> Option<BlockId> {
-        self.scene.captured()
+        self.interaction().captured()
     }
 
     fn set_captured(&mut self, id: Option<BlockId>) {
-        self.scene.set_captured(id);
+        self.interaction_mut().set_captured(id);
     }
 
     fn gesture_target(&self, session_id: GestureSessionId) -> Option<BlockId> {
-        self.scene.gesture_target(session_id)
+        self.interaction()
+            .gesture_target(session_id)
+            .filter(|id| self.scene.get_block(*id).is_some())
     }
 
     fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
-        self.scene.has_gesture_session(session_id)
+        self.interaction().has_gesture_session(session_id)
     }
 
     fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<BlockId>) {
-        self.scene.set_gesture_target(session_id, target_id);
+        let target_id = target_id.filter(|id| self.scene.get_block(*id).is_some());
+        self.interaction_mut()
+            .set_gesture_target(session_id, target_id);
     }
 
     fn clear_gesture_target(&mut self, session_id: GestureSessionId) {
-        self.scene.clear_gesture_target(session_id);
+        self.interaction_mut().clear_gesture_target(session_id);
     }
 
     fn clear_gesture_targets(&mut self) {
-        self.scene.clear_gesture_targets();
+        self.interaction_mut().clear_gestures();
     }
 
     fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
@@ -348,18 +382,10 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let Some(block) = self.scene.block(target_id) else {
             return false;
         };
-        let mut selection_request = None;
-        let mut invalidation_requested = false;
+        let mut effects = Vec::new();
         let handled = {
             let bounds = block.figure_bounds();
-            let mut ctx = SceneNovadrawContext::new(
-                target_id,
-                bounds,
-                self.update_manager,
-                self.pending_mutations,
-                &mut selection_request,
-                &mut invalidation_requested,
-            );
+            let mut ctx = SceneNovadrawContext::new(target_id, bounds, &mut effects);
 
             match event {
                 Event::Mouse(mouse_event) => {
@@ -424,22 +450,32 @@ impl DispatchContext for SceneDispatchContext<'_> {
             }
         };
 
-        if invalidation_requested {
-            self.scene.mark_invalid(self.update_manager, target_id);
-        }
-
-        if let Some(selected) = selection_request {
-            let previous = self.scene.selected_block();
-            if previous != selected {
-                let previous_bounds = previous.and_then(|id| self.scene.figure_bounds(id));
-                let selected_bounds = selected.and_then(|id| self.scene.figure_bounds(id));
-                self.scene.set_selected(selected);
-                if let (Some(id), Some(bounds)) = (previous, previous_bounds) {
-                    self.update_manager.add_dirty_region(id, bounds);
+        for effect in effects {
+            match effect {
+                RuntimeEffect::Repaint { block_id, rect } => {
+                    self.update_manager.add_dirty_region(block_id, rect);
                 }
-                if let (Some(id), Some(bounds)) = (selected, selected_bounds) {
-                    self.update_manager.add_dirty_region(id, bounds);
+                RuntimeEffect::Notification(effect) => {
+                    self.update_manager.enqueue_notification_effect(effect);
                 }
+                RuntimeEffect::Invalidate(block_id) => {
+                    self.scene.mark_invalid(self.update_manager, block_id);
+                }
+                RuntimeEffect::Select(selected) => {
+                    let previous = self.scene.selected_block();
+                    if previous != selected {
+                        let previous_bounds = previous.and_then(|id| self.scene.figure_bounds(id));
+                        let selected_bounds = selected.and_then(|id| self.scene.figure_bounds(id));
+                        self.scene.set_selected(selected);
+                        if let (Some(id), Some(bounds)) = (previous, previous_bounds) {
+                            self.update_manager.add_dirty_region(id, bounds);
+                        }
+                        if let (Some(id), Some(bounds)) = (selected, selected_bounds) {
+                            self.update_manager.add_dirty_region(id, bounds);
+                        }
+                    }
+                }
+                RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
             }
         }
 

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use slotmap::Key;
@@ -163,7 +161,7 @@ fn test_hidden_parent_skips_child_validation_but_drains_queue() {
 }
 
 #[test]
-fn test_disabled_parent_skips_child_validation_but_drains_queue() {
+fn disabled_parent_does_not_block_child_validation() {
     let (mut scene, mut update_manager) = new_scene();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let child_id = scene.add_child_to(
@@ -177,7 +175,8 @@ fn test_disabled_parent_skips_child_validation_but_drains_queue() {
 
     assert!(!update_manager.has_pending_layout());
     assert!(!update_manager.is_update_queued());
-    assert!(!scene.get_block(child_id).unwrap().is_valid);
+    assert!(scene.get_block(parent_id).unwrap().is_valid);
+    assert!(scene.get_block(child_id).unwrap().is_valid);
 }
 
 #[test]
@@ -202,7 +201,7 @@ fn test_showing_hidden_subtree_requeues_deferred_validation() {
 }
 
 #[test]
-fn test_enabling_disabled_subtree_requeues_deferred_validation() {
+fn enabling_disabled_subtree_starts_a_new_validation_transaction() {
     let (mut scene, mut update_manager) = new_scene();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let child_id = scene.add_child_to(
@@ -212,7 +211,7 @@ fn test_enabling_disabled_subtree_requeues_deferred_validation() {
     scene.set_enabled(parent_id, false);
     scene.mark_invalid(&mut update_manager, child_id);
     scene.perform_update(&mut update_manager);
-    assert!(!scene.is_valid(child_id));
+    assert!(scene.is_valid(child_id));
 
     assert!(scene.set_enabled_with_update(&mut update_manager, parent_id, true));
     scene.perform_update(&mut update_manager);
@@ -426,7 +425,7 @@ fn test_layout_repositions_descendants_via_set_bounds_protocol() {
         Box::new(RectangleFigure::new(15.0, 15.0, 10.0, 10.0)),
     );
 
-    scene.set_block_layout_manager(container_id, Arc::new(XYLayout::new()));
+    scene.set_block_layout_manager(container_id, Box::new(XYLayout::new()));
     scene.set_constraint(child_id, Rectangle::new(30.0, 40.0, 40.0, 40.0));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
@@ -491,7 +490,7 @@ fn test_layout_uses_local_client_area_for_coordinate_root_container() {
         Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
     );
 
-    scene.set_block_layout_manager(container_id, Arc::new(XYLayout::new()));
+    scene.set_block_layout_manager(container_id, Box::new(XYLayout::new()));
     scene.set_constraint(child_id, Rectangle::new(20.0, 30.0, 40.0, 40.0));
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
@@ -512,7 +511,7 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
         container,
         Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
     );
-    scene.set_block_layout_manager(container, Arc::new(XYLayout::new()));
+    scene.set_block_layout_manager(container, Box::new(XYLayout::new()));
     assert!(scene.set_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)));
     scene.mark_invalid(&mut update_manager, root);
     scene.perform_update(&mut update_manager);
@@ -1109,4 +1108,26 @@ fn test_apply_pending_reparent_to_descendant_keeps_original_tree() {
             .children
             .contains(&grandchild_id)
     );
+}
+
+#[test]
+fn pending_mutations_preserve_fifo_causality() {
+    let (mut scene, mut update_manager) = new_scene();
+    let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
+    let old_parent =
+        scene.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let new_parent = scene.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0)),
+    );
+    let child = scene.add_child_to(
+        old_parent,
+        Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
+    );
+    let mut pending = PendingMutations::new();
+    pending.enqueue(PendingMutation::reparent(child, new_parent));
+    pending.enqueue(PendingMutation::remove_child(old_parent, child));
+
+    assert!(scene.apply_pending_mutations(&mut update_manager, pending.drain()));
+    assert_eq!(scene.parent_id(child), Some(new_parent));
 }

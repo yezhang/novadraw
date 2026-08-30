@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::{BlockId, Figure};
 
 pub(crate) struct PendingMutation {
@@ -59,7 +61,7 @@ impl PendingMutationBatch {
 
 #[derive(Default)]
 pub struct PendingMutations {
-    queue: Vec<PendingMutation>,
+    queue: VecDeque<PendingMutation>,
 }
 
 impl PendingMutations {
@@ -68,7 +70,7 @@ impl PendingMutations {
     }
 
     pub(crate) fn enqueue(&mut self, mutation: PendingMutation) {
-        self.queue.push(mutation);
+        self.queue.push_back(mutation);
     }
 
     pub fn is_empty(&self) -> bool {

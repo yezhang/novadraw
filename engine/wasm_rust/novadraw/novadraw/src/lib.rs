@@ -3,12 +3,12 @@
 //! 此库作为所有子库的聚合入口，提供统一的 API。
 
 pub use novadraw_core::Color;
-pub use novadraw_geometry::Transform;
+pub use novadraw_geometry::{Affine2D, Transform};
 
 #[cfg(feature = "vello")]
 pub use novadraw_render::{
     DamageMode, DamageSet, NdCanvas, RenderBackend, RenderCommand, RenderCommandKind,
-    RenderOutcome, RenderSubmission, WindowProxy, command,
+    RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo, WindowProxy, command,
 };
 
 #[cfg(feature = "vello")]
@@ -25,17 +25,18 @@ pub use novadraw_scene::{
     AncestorEvent, AncestorEventKind, AncestorListener, BasicEventDispatcher, BlockId, Border,
     BorderConstraint, BorderLayout, BorderRegion, Bounded, ChildPolicy, ChildTransform,
     CoordinateListener, DEFAULT_ZOOM_LEVELS, DefaultScrollPolicy, Direction, DispatchContext,
-    EllipseFigure, Event, EventDispatcher, Figure, FigureEvent, FigureGraph, FigureListener,
-    FigureRenderer, FillLayout, FlowDirection, FlowLayout, FocusEvent, FocusEventKind,
-    GesturePhase, GestureSessionId, GraphMutationError, GridAlignment, GridConstraint, GridLayout,
-    Key, KeyEvent, KeyEventKind, KeyModifiers, LayoutConstraint, LayoutEvent, LayoutEventKind,
-    LayoutListener, LayoutManager, LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder,
-    MinorAlignment, MouseButton, MouseEvent, MouseEventKind, MouseLocationZoomScrollPolicy,
-    NotificationEffect, NotificationQueue, NovadrawContext, NovadrawSystem, PendingMutationBatch,
-    PendingMutations, Point, PolygonFigure, PolylineFigure, PropertyChangeEvent,
+    EllipseFigure, Event, EventDispatcher, Figure, FigureEvent, FigureGraph, FigureId,
+    FigureListener, FigureNode, FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout,
+    FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, GraphMutationError, GridAlignment,
+    GridConstraint, GridLayout, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
+    LayoutConstraint, LayoutEvent, LayoutEventKind, LayoutListener, LayoutManager, LayoutState,
+    LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder, MinorAlignment, MouseButton, MouseEvent,
+    MouseEventKind, MouseLocationZoomScrollPolicy, NodeState, NotificationEffect,
+    NotificationQueue, NovadrawContext, NovadrawSystem, PendingMutationBatch, PendingMutations,
+    PlatformHost, Point, PolygonFigure, PolylineFigure, PropertyChangeEvent,
     PropertyChangeListener, PropertyValue, RangeChange, RangeChangeSet, RangeListener,
     RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty, Rectangle,
-    RectangleBorder, RectangleFigure, RootFigure, RoundedRectangleFigure, ScalableFigure,
+    RectangleBorder, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, ScalableFigure,
     ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext, SceneHost,
     SceneNovadrawContext, SceneUpdateManager, ScrollBarFigure, ScrollBarVisibility,
     ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,

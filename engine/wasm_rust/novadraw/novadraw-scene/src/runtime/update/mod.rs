@@ -46,7 +46,7 @@ pub use listener::{
     UpdateListener, ValidatingListener,
 };
 
-pub trait UpdateManager: Send + Sync {
+pub trait UpdateManager {
     fn add_dirty_region(
         &mut self,
         block_id: crate::graph::BlockId,
@@ -81,7 +81,7 @@ pub trait UpdateManager: Send + Sync {
 ///
 /// - draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并调用其方法
 /// - 本实现通过 trait 定义回调接口，保持 SceneUpdateManager 与 FigureGraph 解耦
-pub trait UpdateManagerSource: Send + Sync {
+pub trait UpdateManagerSource {
     /// 执行单个块的布局验证
     ///
     /// 对应 draw2d: Figure.validate()

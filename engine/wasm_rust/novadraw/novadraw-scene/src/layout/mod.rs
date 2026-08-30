@@ -25,11 +25,11 @@ use std::any::Any;
 /// 容器施加给直接子节点的布局约束。
 ///
 /// 约束由父 FigureBlock 持有；具体 LayoutManager 通过 downcast 读取自己支持的类型。
-pub trait LayoutConstraint: Any + Send + Sync {
+pub trait LayoutConstraint: Any {
     fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: Any + Send + Sync> LayoutConstraint for T {
+impl<T: Any> LayoutConstraint for T {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -38,7 +38,7 @@ impl<T: Any + Send + Sync> LayoutConstraint for T {
 /// 布局上下文 trait
 ///
 /// 提供布局器所需的场景图查询接口。
-pub trait LayoutContext: Send + Sync {
+pub trait LayoutContext {
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
@@ -76,7 +76,7 @@ pub trait LayoutContext: Send + Sync {
 ///
 /// 参考 draw2d: LayoutManager
 /// 用于计算和设置子元素的位置。
-pub trait LayoutManager: Send + Sync {
+pub trait LayoutManager {
     /// 获取首选大小
     ///
     /// 对应 draw2d: getPreferredSize(IFigure, int, int)

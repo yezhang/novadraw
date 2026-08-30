@@ -2,9 +2,10 @@ use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Vec2};
 use novadraw_render::{NdCanvas, command::RenderCommandKind};
 use novadraw_scene::{
-    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureGraph, LineBorder,
-    PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
-    TriangleFigure, Updatable, ViewportFigure,
+    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureGraph, FigureId,
+    FigureNode, FigureTree, InteractionState, LayoutState, LineBorder, NodeState, PolygonFigure,
+    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
+    Updatable, ViewportFigure,
 };
 
 const ROOT_COLOR: Color = Color {
@@ -31,6 +32,22 @@ const CHILD_BORDER_COLOR: Color = Color {
     b: 0.65,
     a: 1.0,
 };
+
+#[test]
+fn architecture_level_runtime_types_are_public() {
+    fn assert_type<T>() {}
+
+    assert_type::<FigureId>();
+    assert_type::<FigureNode>();
+    assert_type::<FigureTree>();
+    assert_type::<NodeState>();
+    assert_type::<LayoutState>();
+    assert_type::<InteractionState>();
+
+    let runtime = Runtime::default();
+    assert!(runtime.tree().get_contents().is_none());
+    assert!(runtime.interaction().mouse_target().is_none());
+}
 
 #[derive(Clone, Debug)]
 struct PaintMarkerFigure {
@@ -195,6 +212,10 @@ fn m2_figure_graph_product_api_exposes_tree_box_and_z_order_roles() {
         root_block.figure_bounds(),
         Rectangle::new(0.0, 0.0, 200.0, 200.0)
     );
+    assert_eq!(root_block.state().bounds(), root_block.figure_bounds());
+    assert!(root_block.state().is_visible());
+    assert!(root_block.state().is_enabled());
+    assert_eq!(root_block.layout_state().constraint_count(), 0);
 
     assert_eq!(scene.child_order(root_id), Some(vec![bottom_id, top_id]));
     assert_eq!(scene.child_z_index(root_id, bottom_id), Some(0));

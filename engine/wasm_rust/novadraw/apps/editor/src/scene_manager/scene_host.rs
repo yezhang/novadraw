@@ -12,8 +12,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use novadraw::{
-    FigureGraph, NdCanvas, RenderBackend, RenderOutcome, SceneHost, UpdateManager,
-    backend::vello::WinitWindowProxy, traits::WindowProxy,
+    FigureGraph, NdCanvas, PlatformHost, RenderBackend, RenderOutcome, SceneHost, SurfaceInfo,
+    UpdateManager, backend::vello::WinitWindowProxy, traits::WindowProxy,
 };
 
 /// Winit 平台的 SceneHost 实现
@@ -54,11 +54,30 @@ impl WinitSceneHost {
     }
 }
 
-impl SceneHost for WinitSceneHost {
-    fn request_update(&self) {
+impl PlatformHost for WinitSceneHost {
+    fn request_redraw(&self) {
         if !self.update_queued.swap(true, Ordering::AcqRel) {
             self.window.request_redraw();
         }
+    }
+
+    fn surface_info(&self) -> SurfaceInfo {
+        let scale_factor = self.window.scale_factor();
+        let pixel_width = self.window.width();
+        let pixel_height = self.window.height();
+        SurfaceInfo {
+            logical_width: f64::from(pixel_width) / scale_factor,
+            logical_height: f64::from(pixel_height) / scale_factor,
+            pixel_width,
+            pixel_height,
+            scale_factor,
+        }
+    }
+}
+
+impl SceneHost for WinitSceneHost {
+    fn request_update(&self) {
+        PlatformHost::request_redraw(self);
     }
 
     fn is_update_queued(&self) -> bool {
@@ -79,7 +98,8 @@ impl SceneHost for WinitSceneHost {
             UpdateExecution::Incremental => scene.perform_update(update_manager),
         };
         if !canvas.damage().is_empty()
-            && renderer.render(&canvas.to_submission()) == RenderOutcome::Retry
+            && renderer.render(&canvas.to_submission_for_surface(self.surface_info()))
+                == RenderOutcome::Retry
         {
             self.request_update();
         }
@@ -91,7 +111,8 @@ impl SceneHost for WinitSceneHost {
     }
 
     fn viewport_size(&self) -> (f64, f64) {
-        (self.window.width() as f64, self.window.height() as f64)
+        let surface = self.surface_info();
+        (surface.logical_width, surface.logical_height)
     }
 }
 

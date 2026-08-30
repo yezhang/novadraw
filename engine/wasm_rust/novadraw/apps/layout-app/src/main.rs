@@ -7,7 +7,6 @@ use novadraw_apps::{
     run_demo_app, run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot,
 };
 use std::io::Write;
-use std::sync::Arc;
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -28,7 +27,7 @@ fn create_scene_xy_layout() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 设置 XYLayout
-    let xy_layout = Arc::new(novadraw::XYLayout::new());
+    let xy_layout = Box::new(novadraw::XYLayout::new());
     scene.set_block_layout_manager(container_id, xy_layout);
 
     // 创建子元素并设置约束
@@ -84,7 +83,7 @@ fn create_scene_fill_layout() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 设置 FillLayout
-    let fill_layout = Arc::new(novadraw::FillLayout::new());
+    let fill_layout = Box::new(novadraw::FillLayout::new());
     scene.set_block_layout_manager(container_id, fill_layout);
 
     // 第一个子元素会填充容器（设置约束为容器大小）
@@ -135,7 +134,7 @@ fn create_scene_flow_layout() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 设置 FlowLayout
-    let flow_layout = Arc::new(
+    let flow_layout = Box::new(
         novadraw::FlowLayout::new()
             .with_spacing(15.0)
             .with_row_spacing(15.0),
@@ -180,7 +179,7 @@ fn create_scene_nested_layout() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 外层：XYLayout
-    let outer_layout = Arc::new(novadraw::XYLayout::new());
+    let outer_layout = Box::new(novadraw::XYLayout::new());
     scene.set_block_layout_manager(container_id, outer_layout);
 
     // 创建四个区域容器
@@ -206,7 +205,7 @@ fn create_scene_nested_layout() -> novadraw::FigureGraph {
         scene.set_constraint(region_id, constraint);
 
         // 为区域设置布局管理器（这样子元素才会应用约束）
-        let region_layout = Arc::new(novadraw::XYLayout::new());
+        let region_layout = Box::new(novadraw::XYLayout::new());
         scene.set_block_layout_manager(region_id, region_layout);
 
         // 添加子元素（填充整个区域）
@@ -247,7 +246,7 @@ fn create_scene_constraint_update() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 设置 XYLayout
-    let xy_layout = Arc::new(novadraw::XYLayout::new());
+    let xy_layout = Box::new(novadraw::XYLayout::new());
     scene.set_block_layout_manager(container_id, xy_layout);
 
     // 创建三个可移动的方块
@@ -296,7 +295,7 @@ fn create_scene_grid_layout() -> novadraw::FigureGraph {
 
     scene.set_block_layout_manager(
         container_id,
-        Arc::new(
+        Box::new(
             novadraw::GridLayout::new(3)
                 .with_equal_column_widths(true)
                 .with_margins(40.0, 40.0)
@@ -337,7 +336,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureGraph {
     )));
     scene.set_block_layout_manager(
         container_id,
-        Arc::new(
+        Box::new(
             novadraw::ToolbarLayout::horizontal()
                 .with_spacing(16.0)
                 .with_stretch_minor_axis(true),
@@ -372,7 +371,7 @@ fn create_scene_stack_layout() -> novadraw::FigureGraph {
         480.0,
         novadraw::Color::hex("#eeeeee"),
     )));
-    scene.set_block_layout_manager(container_id, Arc::new(novadraw::StackLayout::new()));
+    scene.set_block_layout_manager(container_id, Box::new(novadraw::StackLayout::new()));
     for color in ["#e74c3c", "#3498db", "#2ecc71"] {
         scene.add_child_to(
             container_id,
@@ -450,7 +449,7 @@ fn create_scene_border_layout() -> novadraw::FigureGraph {
     let container_id = scene.set_contents(Box::new(container));
 
     // 设置 BorderLayout
-    let border_layout = Arc::new(novadraw::BorderLayout::new());
+    let border_layout = Box::new(novadraw::BorderLayout::new());
     scene.set_block_layout_manager(container_id, border_layout);
 
     // 添加五个区域：北、南、东、西、中

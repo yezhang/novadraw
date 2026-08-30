@@ -7,10 +7,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::input::{AdaptedGesture, WinitGestureAdapter};
 pub use novadraw::{
-    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, FigureGraph, Key, KeyModifiers,
-    MouseButton, NotificationEffect, PendingMutations, RenderBackend, RenderOutcome,
-    SceneDispatchContext, SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager,
-    WindowProxy,
+    BlockId, FigureEvent, FigureGraph, Key, KeyModifiers, MouseButton, NotificationEffect,
+    RenderBackend, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent, UpdateListener, WindowProxy,
 };
 pub use novadraw_render::backend::vello::{VelloRenderer, WinitWindowProxy};
 pub use winit::dpi::{LogicalSize, PhysicalSize};
@@ -56,8 +54,7 @@ pub struct DemoApp {
     #[allow(clippy::type_complexity)]
     scenes: Vec<(&'static str, SceneCreator)>,
     current_scene_idx: usize,
-    scene_graph: Option<FigureGraph>,
-    update_manager: Option<SceneUpdateManager>,
+    runtime: Option<Runtime>,
     renderer: Option<VelloRenderer>,
     window: Option<Arc<winit::window::Window>>,
     title: String,
@@ -66,8 +63,6 @@ pub struct DemoApp {
     height: f64,
     use_update_manager: bool,
     screenshot_mode: Option<usize>,
-    dispatcher: BasicEventDispatcher,
-    pending_mutations: PendingMutations,
     cursor_position: Option<(f64, f64)>,
     modifiers: KeyModifiers,
     gesture_adapter: WinitGestureAdapter,
@@ -88,8 +83,7 @@ impl DemoApp {
         Self {
             scenes,
             current_scene_idx: default_scene,
-            scene_graph: None,
-            update_manager: None,
+            runtime: None,
             renderer: None,
             window: None,
             title: title.to_string(),
@@ -98,8 +92,6 @@ impl DemoApp {
             height,
             use_update_manager: true,
             screenshot_mode,
-            dispatcher: BasicEventDispatcher,
-            pending_mutations: PendingMutations::new(),
             cursor_position: None,
             modifiers: KeyModifiers::default(),
             gesture_adapter: WinitGestureAdapter::new(),
@@ -111,11 +103,9 @@ impl DemoApp {
         if idx < self.scenes.len() {
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
-            self.scene_graph = Some(creator());
-            let mut um = SceneUpdateManager::new();
-            um.add_listener(Box::new(DemoUpdateListener));
-            self.update_manager = Some(um);
-            self.pending_mutations = PendingMutations::new();
+            let mut runtime = Runtime::new(creator());
+            runtime.add_update_listener(Box::new(DemoUpdateListener));
+            self.runtime = Some(runtime);
             eprintln!("切换到场景: {}", self.scenes[idx].0);
 
             // 更新窗口标题显示当前场景（只显示场景名称）
@@ -146,48 +136,40 @@ impl DemoApp {
         let Some(renderer) = &mut self.renderer else {
             return RenderOutcome::Skipped;
         };
-        let Some(scene) = &mut self.scene_graph else {
+        let Some(runtime) = &mut self.runtime else {
             return RenderOutcome::Skipped;
         };
 
-        if self.use_update_manager
-            && let Some(um) = &mut self.update_manager
-        {
-            let canvas = if um.is_update_queued() {
-                scene.perform_update(um)
-            } else {
-                scene.render()
+        let canvas = if self.use_update_manager {
+            let Some(canvas) = runtime.prepare_frame() else {
+                return RenderOutcome::Skipped;
             };
-            let outcome = renderer.render(&canvas.to_submission());
-            if outcome == RenderOutcome::Retry {
-                renderer.window().request_redraw();
-            }
-            return outcome;
-        }
-
-        let render_ctx = scene.render();
-        let outcome = renderer.render(&render_ctx.to_submission());
+            canvas
+        } else {
+            runtime.record_full_frame()
+        };
+        let scale_factor = renderer.window().scale_factor();
+        let pixel_width = renderer.window().width();
+        let pixel_height = renderer.window().height();
+        let surface = SurfaceInfo {
+            logical_width: f64::from(pixel_width) / scale_factor,
+            logical_height: f64::from(pixel_height) / scale_factor,
+            pixel_width,
+            pixel_height,
+            scale_factor,
+        };
+        let outcome = renderer.render(&canvas.to_submission_for_surface(surface));
         if outcome == RenderOutcome::Retry {
             renderer.window().request_redraw();
         }
         outcome
     }
 
-    fn dispatch_input(
-        &mut self,
-        action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
-    ) {
-        let (Some(scene), Some(update_manager)) = (&mut self.scene_graph, &mut self.update_manager)
-        else {
+    fn dispatch_input(&mut self, action: impl FnOnce(&mut Runtime)) {
+        let Some(runtime) = &mut self.runtime else {
             return;
         };
-        {
-            let mut context =
-                SceneDispatchContext::new(scene, update_manager, &mut self.pending_mutations);
-            action(&mut self.dispatcher, &mut context);
-        }
-        let mutations = self.pending_mutations.drain();
-        scene.apply_pending_mutations(update_manager, mutations);
+        action(runtime);
         if let Some(window) = &self.window {
             window.request_redraw();
         }
@@ -375,12 +357,9 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|renderer| renderer.window().scale_factor())
                     .unwrap_or(1.0);
-                self.dispatch_input(|dispatcher, context| {
-                    dispatcher.dispatch_mouse_moved(
-                        context,
-                        position.x / scale_factor,
-                        position.y / scale_factor,
-                    );
+                self.dispatch_input(|runtime| {
+                    runtime
+                        .dispatch_mouse_moved(position.x / scale_factor, position.y / scale_factor);
                 });
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -393,19 +372,13 @@ impl ApplicationHandler<()> for DemoApp {
                     .map(|renderer| renderer.window().scale_factor())
                     .unwrap_or(1.0);
                 let button = map_mouse_button(button);
-                self.dispatch_input(|dispatcher, context| match state {
-                    winit::event::ElementState::Pressed => dispatcher.dispatch_mouse_pressed(
-                        context,
-                        x / scale_factor,
-                        y / scale_factor,
-                        button,
-                    ),
-                    winit::event::ElementState::Released => dispatcher.dispatch_mouse_released(
-                        context,
-                        x / scale_factor,
-                        y / scale_factor,
-                        button,
-                    ),
+                self.dispatch_input(|runtime| match state {
+                    winit::event::ElementState::Pressed => {
+                        runtime.dispatch_mouse_pressed(x / scale_factor, y / scale_factor, button)
+                    }
+                    winit::event::ElementState::Released => {
+                        runtime.dispatch_mouse_released(x / scale_factor, y / scale_factor, button)
+                    }
                 });
             }
             WindowEvent::MouseWheel {
@@ -437,9 +410,9 @@ impl ApplicationHandler<()> for DemoApp {
                 ) else {
                     return;
                 };
-                self.dispatch_input(|dispatcher, context| {
+                self.dispatch_input(|runtime| {
                     if let AdaptedGesture::Scroll(event) = gesture {
-                        dispatcher.dispatch_scroll(context, event);
+                        runtime.dispatch_scroll(event);
                     }
                 });
             }
@@ -472,9 +445,9 @@ impl ApplicationHandler<()> for DemoApp {
                 ) else {
                     return;
                 };
-                self.dispatch_input(|dispatcher, context| {
+                self.dispatch_input(|runtime| {
                     if let AdaptedGesture::Zoom(event) = gesture {
-                        dispatcher.dispatch_zoom(context, event);
+                        runtime.dispatch_zoom(event);
                     }
                 });
             }
@@ -489,9 +462,9 @@ impl ApplicationHandler<()> for DemoApp {
             }
             WindowEvent::Focused(false) => {
                 self.gesture_adapter.cancel_all();
-                self.dispatch_input(|dispatcher, context| {
-                    dispatcher.cancel_gestures(context);
-                    dispatcher.release_focus(context);
+                self.dispatch_input(|runtime| {
+                    runtime.cancel_gestures();
+                    runtime.release_focus();
                 });
             }
             WindowEvent::KeyboardInput { event, .. } => {
@@ -499,8 +472,8 @@ impl ApplicationHandler<()> for DemoApp {
                 if !pressed {
                     if let Some(key) = map_key(event.physical_key) {
                         let modifiers = self.modifiers;
-                        self.dispatch_input(|dispatcher, context| {
-                            dispatcher.dispatch_key_released(context, key, modifiers);
+                        self.dispatch_input(|runtime| {
+                            runtime.dispatch_key_released(key, modifiers);
                         });
                     }
                     return;
@@ -575,8 +548,8 @@ impl ApplicationHandler<()> for DemoApp {
                             self.window.as_ref().unwrap().request_redraw();
                         } else if let Some(key) = map_key(event.physical_key) {
                             let modifiers = self.modifiers;
-                            self.dispatch_input(|dispatcher, context| {
-                                dispatcher.dispatch_key_pressed(context, key, modifiers);
+                            self.dispatch_input(|runtime| {
+                                runtime.dispatch_key_pressed(key, modifiers);
                             });
                         }
                     }

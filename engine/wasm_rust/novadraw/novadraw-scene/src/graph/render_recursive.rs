@@ -91,7 +91,7 @@ impl<'a> FigureRenderer<'a> {
 
         self.counter += 1;
         let id = self.counter;
-        let bounds = block.figure.bounds();
+        let bounds = block.figure_bounds();
         debug_render!("[RECUR] #{:02} paint bounds={:?}", id, bounds);
 
         // 1. 设置本地属性
@@ -244,7 +244,7 @@ impl<'a> FigureRenderer<'a> {
 
             match clipping_strategy {
                 ChildClippingStrategy::ClipToChildBounds => {
-                    let child_bounds = child_block.figure.bounds();
+                    let child_bounds = child_block.figure_bounds();
                     debug_render!("[RECUR]     -> clip to child bounds={:?}", child_bounds);
                     self.gc.clip_rect(
                         child_bounds.x,

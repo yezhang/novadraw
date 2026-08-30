@@ -305,7 +305,7 @@ pub trait DispatchContext {
     fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool;
 }
 
-pub trait EventDispatcher: Send + Sync {
+pub trait EventDispatcher {
     fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
     fn dispatch_mouse_pressed(
         &mut self,

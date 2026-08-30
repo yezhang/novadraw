@@ -830,7 +830,7 @@ mod tests {
         graph.revalidate(root_id);
         graph.set_block_layout_manager(
             root_id,
-            Arc::new(PanicOnceLayout {
+            Box::new(PanicOnceLayout {
                 did_panic: AtomicBool::new(false),
             }),
         );
@@ -859,7 +859,7 @@ mod tests {
             root_id,
             Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
         );
-        graph.set_block_layout_manager(root_id, Arc::new(XYLayout::new()));
+        graph.set_block_layout_manager(root_id, Box::new(XYLayout::new()));
         graph.set_constraint(child_id, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0));
         graph.revalidate(root_id);
         graph.drain_notification_effects();
@@ -991,7 +991,7 @@ mod tests {
             root,
             Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).with_local_coordinates(true)),
         );
-        graph.set_block_layout_manager(root, Arc::new(StackLayout::new()));
+        graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
         graph.set_visible(child, false);
         graph.set_visible(child, true);
         graph.prim_translate(child, 5.0, 5.0);

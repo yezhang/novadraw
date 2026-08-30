@@ -5,4 +5,4 @@
 
 mod scene_host;
 
-pub use scene_host::SceneHost;
+pub use scene_host::{PlatformHost, SceneHost};

@@ -1,7 +1,7 @@
 //! Figure 渲染接口
 //!
 //! 定义图形渲染的通用接口，遵循 Eclipse Draw2D 设计模式。
-//! Figure 只负责渲染接口，不包含运行时状态（状态在 FigureBlock 中）。
+//! Figure 只负责具体图形行为；公共节点状态由 FigureNode/NodeState 承载。
 //!
 //! # Trait 层级
 //!
@@ -141,7 +141,7 @@ pub enum ChildPolicy {
 /// 与 g2/draw2d 的对齐点：
 /// - 坐标根会在 `translateToParent/FromParent` 时进行 offset 变换
 /// - hit-test / repair / render 都必须遵循父链坐标变换协议
-pub trait Bounded: Send + Sync {
+pub trait Bounded {
     /// 获取图形边界
     ///
     /// 默认实现返回零矩形，子类应覆盖
@@ -294,7 +294,7 @@ pub trait Bounded: Send + Sync {
 ///
 /// - FigureGraph.revalidate() 会调用 Figure.validate()
 /// - UpdateManager 跟踪需要验证的块
-pub trait Updatable: Send + Sync {
+pub trait Updatable {
     /// 布局验证
     ///
     /// 对应 draw2d: IFigure.validate()
@@ -346,7 +346,7 @@ impl<T: Any> AsAny for T {
     }
 }
 
-pub trait Figure: Bounded + Updatable + AsAny + Send + Sync {
+pub trait Figure: Bounded + Updatable + AsAny {
     /// Figure 挂载到父节点后的生命周期 hook。
     ///
     /// 对应 draw2d: addNotify()。

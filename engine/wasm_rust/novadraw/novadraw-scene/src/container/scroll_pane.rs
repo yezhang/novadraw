@@ -718,7 +718,7 @@ impl FigureGraph {
         )?;
         self.set_block_layout_manager(
             pane_id,
-            Arc::new(ScrollPaneLayout {
+            Box::new(ScrollPaneLayout {
                 runtime: Arc::clone(&runtime),
                 viewport: viewport.block_id(),
                 horizontal_scroll_bar,

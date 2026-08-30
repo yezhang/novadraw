@@ -61,7 +61,7 @@ fn partial_damage_scene() -> FigureGraph {
 fn validation_scene() -> FigureGraph {
     let mut graph = FigureGraph::new();
     let root = graph.set_contents(Box::new(gray_background()));
-    graph.set_block_layout_manager(root, Arc::new(XYLayout::new()));
+    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
     for (index, color) in ["#9b59b6", "#f39c12", "#1abc9c"].iter().enumerate() {
         let child = graph.add_child_to(
             root,
@@ -87,7 +87,7 @@ fn stress_scene() -> FigureGraph {
     let root = graph.set_contents(Box::new(gray_background()));
     graph.set_block_layout_manager(
         root,
-        Arc::new(
+        Box::new(
             GridLayout::new(32)
                 .with_margins(8.0, 8.0)
                 .with_spacing(2.0, 2.0),

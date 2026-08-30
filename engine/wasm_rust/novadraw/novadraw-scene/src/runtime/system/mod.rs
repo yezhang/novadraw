@@ -1,6 +1,6 @@
 use novadraw_render::{NdCanvas, RenderBackend};
 
-pub trait NovadrawSystem: Send + Sync {
+pub trait NovadrawSystem {
     fn render(&mut self, renderer: &mut impl RenderBackend) -> NdCanvas;
     fn viewport_size(&self) -> (f64, f64);
 

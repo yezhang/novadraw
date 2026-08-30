@@ -37,14 +37,18 @@ pub use figure::{
     Shape, TriangleFigure, Updatable,
 };
 pub use graph as scene;
-pub use graph::{BlockId, FigureGraph, FigureRenderer, GraphMutationError, MAX_TREE_DEPTH};
-pub use host::SceneHost;
+pub use graph::{
+    BlockId, FigureGraph, FigureId, FigureNode, FigureRenderer, FigureTree, GraphMutationError,
+    InteractionState, LayoutState, MAX_TREE_DEPTH, NodeState,
+};
+pub use host::{PlatformHost, SceneHost};
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
     GridAlignment, GridConstraint, GridLayout, LayoutConstraint, LayoutManager, MinorAlignment,
     StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint, XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
+pub use runtime::Runtime;
 pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};
 pub use runtime::event::{
     BasicEventDispatcher, DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind,

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
     FigureGraph, GridAlignment, GridConstraint, GridLayout, RectangleFigure, SceneUpdateManager,
@@ -16,7 +14,7 @@ fn stack_layout_places_every_child_in_the_client_area() {
     let root = graph.set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 200.0, 100.0)));
     let first = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 30.0)));
     let second = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 50.0)));
-    graph.set_block_layout_manager(root, Arc::new(StackLayout::new()));
+    graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
 
     graph.revalidate(root);
 
@@ -35,7 +33,7 @@ fn toolbar_layout_compresses_main_axis_and_stretches_minor_axis() {
     graph.set_minimum_size(second, Some((100.0, 10.0)));
     graph.set_block_layout_manager(
         root,
-        Arc::new(
+        Box::new(
             ToolbarLayout::horizontal()
                 .with_spacing(10.0)
                 .with_stretch_minor_axis(true),
@@ -71,7 +69,7 @@ fn grid_layout_uses_track_maxima_and_fill_alignment() {
     graph.set_constraint(third, fill_cell);
     graph.set_block_layout_manager(
         root,
-        Arc::new(
+        Box::new(
             GridLayout::new(2)
                 .with_margins(0.0, 0.0)
                 .with_spacing(10.0, 10.0),
@@ -104,7 +102,7 @@ fn grid_layout_honors_column_span_and_excess_space() {
     graph.set_constraint(trailing, GridConstraint::fill());
     graph.set_block_layout_manager(
         root,
-        Arc::new(
+        Box::new(
             GridLayout::new(2)
                 .with_equal_column_widths(true)
                 .with_margins(0.0, 0.0)
@@ -135,7 +133,7 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
     }
     graph.set_block_layout_manager(
         root,
-        Arc::new(
+        Box::new(
             GridLayout::new(32)
                 .with_margins(0.0, 0.0)
                 .with_spacing(1.0, 1.0),

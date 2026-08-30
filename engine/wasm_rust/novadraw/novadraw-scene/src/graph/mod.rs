@@ -2,8 +2,11 @@
 //!
 //! 提供场景图数据结构和管理功能。
 
-use std::sync::Arc;
-use std::{error::Error, fmt};
+use std::{
+    error::Error,
+    fmt,
+    ops::{Deref, DerefMut},
+};
 
 use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Translatable};
@@ -34,6 +37,12 @@ pub mod bounds_test;
 pub mod update_integration_test;
 
 slotmap::new_key_type! { pub struct BlockId; }
+
+/// Runtime-local, generational identity of a Figure node.
+///
+/// `BlockId` remains as a compatibility name while callers migrate to the
+/// architecture-level `FigureId` terminology.
+pub type FigureId = BlockId;
 
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
@@ -106,7 +115,192 @@ pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
     );
 }
 
-/// FigureBlock - 图形节点
+/// State shared by every Figure node.
+///
+/// Concrete Figure implementations retain only type-specific data. Tree,
+/// interaction and update algorithms consume this state without downcasting.
+pub struct NodeState {
+    pub(crate) bounds: Rectangle,
+    pub(crate) is_selected: bool,
+    pub(crate) is_visible: bool,
+    pub(crate) is_enabled: bool,
+    pub(crate) is_valid: bool,
+    pub(crate) preferred_size: Option<(f64, f64)>,
+    pub(crate) minimum_size: Option<(f64, f64)>,
+    pub(crate) maximum_size: Option<(f64, f64)>,
+}
+
+impl Default for NodeState {
+    fn default() -> Self {
+        Self {
+            bounds: Rectangle::ZERO,
+            is_selected: false,
+            is_visible: true,
+            is_enabled: true,
+            is_valid: false,
+            preferred_size: None,
+            minimum_size: None,
+            maximum_size: None,
+        }
+    }
+}
+
+impl NodeState {
+    pub fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.is_visible
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.is_enabled
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self.is_valid
+    }
+}
+
+/// Interaction state for one runtime scene.
+///
+/// This is deliberately separate from node topology. It remains embedded in
+/// `FigureGraph` only for compatibility until callers migrate to `Runtime`.
+#[derive(Default)]
+pub struct InteractionState {
+    mouse_target: Option<FigureId>,
+    cursor_target: Option<FigureId>,
+    hover_source: Option<FigureId>,
+    focus_owner: Option<FigureId>,
+    captured: Option<FigureId>,
+    hovered: std::collections::HashSet<FigureId>,
+    pressed: std::collections::HashSet<FigureId>,
+    gesture_targets: std::collections::HashMap<crate::GestureSessionId, Option<FigureId>>,
+}
+
+impl InteractionState {
+    pub fn mouse_target(&self) -> Option<FigureId> {
+        self.mouse_target
+    }
+
+    pub fn focus_owner(&self) -> Option<FigureId> {
+        self.focus_owner
+    }
+
+    pub fn captured(&self) -> Option<FigureId> {
+        self.captured
+    }
+
+    pub fn is_hovered(&self, id: FigureId) -> bool {
+        self.hovered.contains(&id)
+    }
+
+    pub fn is_pressed(&self, id: FigureId) -> bool {
+        self.pressed.contains(&id)
+    }
+
+    pub(crate) fn set_mouse_target(&mut self, id: Option<FigureId>) {
+        self.mouse_target = id;
+    }
+
+    pub(crate) fn cursor_target(&self) -> Option<FigureId> {
+        self.cursor_target
+    }
+
+    pub(crate) fn set_cursor_target(&mut self, id: Option<FigureId>) {
+        self.cursor_target = id;
+    }
+
+    pub(crate) fn hover_source(&self) -> Option<FigureId> {
+        self.hover_source
+    }
+
+    pub(crate) fn set_hover_source(&mut self, id: Option<FigureId>) {
+        self.hover_source = id;
+    }
+
+    pub(crate) fn set_focus_owner(&mut self, id: Option<FigureId>) {
+        self.focus_owner = id;
+    }
+
+    pub(crate) fn set_captured(&mut self, id: Option<FigureId>) {
+        self.captured = id;
+    }
+
+    pub(crate) fn set_hovered(&mut self, id: FigureId, hovered: bool) {
+        if hovered {
+            self.hovered.insert(id);
+        } else {
+            self.hovered.remove(&id);
+        }
+    }
+
+    pub(crate) fn set_pressed(&mut self, id: FigureId, pressed: bool) {
+        if pressed {
+            self.pressed.insert(id);
+        } else {
+            self.pressed.remove(&id);
+        }
+    }
+
+    pub(crate) fn gesture_target(&self, session_id: crate::GestureSessionId) -> Option<FigureId> {
+        self.gesture_targets.get(&session_id).copied().flatten()
+    }
+
+    pub(crate) fn has_gesture_session(&self, session_id: crate::GestureSessionId) -> bool {
+        self.gesture_targets.contains_key(&session_id)
+    }
+
+    pub(crate) fn set_gesture_target(
+        &mut self,
+        session_id: crate::GestureSessionId,
+        target: Option<FigureId>,
+    ) {
+        if session_id != crate::GestureSessionId::IMPULSE {
+            self.gesture_targets.insert(session_id, target);
+        }
+    }
+
+    pub(crate) fn clear_gesture_target(&mut self, session_id: crate::GestureSessionId) {
+        self.gesture_targets.remove(&session_id);
+    }
+
+    pub(crate) fn clear_gestures(&mut self) {
+        self.gesture_targets.clear();
+    }
+
+    pub(crate) fn retain_figures(&mut self, mut exists: impl FnMut(FigureId) -> bool) {
+        self.mouse_target = self.mouse_target.filter(|id| exists(*id));
+        self.cursor_target = self.cursor_target.filter(|id| exists(*id));
+        self.hover_source = self.hover_source.filter(|id| exists(*id));
+        self.focus_owner = self.focus_owner.filter(|id| exists(*id));
+        self.captured = self.captured.filter(|id| exists(*id));
+        self.hovered.retain(|id| exists(*id));
+        self.pressed.retain(|id| exists(*id));
+        self.gesture_targets
+            .retain(|_, target| target.is_none_or(&mut exists));
+    }
+}
+
+/// Container-owned layout strategy and child constraints.
+#[derive(Default)]
+pub struct LayoutState {
+    pub(crate) manager: Option<Box<dyn LayoutManager>>,
+    pub(crate) constraints: std::collections::HashMap<FigureId, Box<dyn LayoutConstraint>>,
+}
+
+impl LayoutState {
+    pub fn has_manager(&self) -> bool {
+        self.manager.is_some()
+    }
+
+    pub fn constraint_count(&self) -> usize {
+        self.constraints.len()
+    }
+}
+
+/// FigureNode - 图形节点
 ///
 /// 场景图中的基本单元，同时包含图形数据（通过 Box<dyn Figure>）
 /// 和树形结构（parent/children），参考 Eclipse Draw2D 的 Figure 设计。
@@ -116,7 +310,7 @@ pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
 /// - `FigureBlock` 是具体的数据结构，实现了树形节点的所有功能
 /// - `dyn Figure` 是渲染接口 trait，定义了图形的几何和渲染行为
 /// - 一个 `FigureBlock` 持有 `Box<dyn Figure>` 来实现具体的图形类型
-pub struct FigureBlock {
+pub struct FigureNode {
     /// 块 ID
     pub(crate) id: BlockId,
     /// UUID
@@ -129,31 +323,30 @@ pub struct FigureBlock {
     pub(crate) depth: usize,
     /// 图形
     pub(crate) figure: Box<dyn super::Figure>,
-    /// 布局管理器（可选），只有需要布局的容器才设置
-    pub(crate) layout_manager: Option<Arc<dyn super::layout::LayoutManager>>,
-    /// 父容器施加给直接子节点的布局约束。
-    pub(crate) constraints: std::collections::HashMap<BlockId, Arc<dyn LayoutConstraint>>,
-    /// 是否选中
-    pub(crate) is_selected: bool,
-    /// 鼠标是否悬停在该节点上
-    pub(crate) is_hovered: bool,
-    /// 鼠标是否按压在该节点上
-    pub(crate) is_pressed: bool,
-    /// 是否可见
-    pub(crate) is_visible: bool,
-    /// 是否启用
-    pub(crate) is_enabled: bool,
-    /// 是否已验证
-    pub(crate) is_valid: bool,
-    /// 首选尺寸 (宽, 高)，None 表示使用 Figure 的 bounds
-    pub(crate) preferred_size: Option<(f64, f64)>,
-    /// 最小尺寸 (宽, 高)
-    pub(crate) minimum_size: Option<(f64, f64)>,
-    /// 最大尺寸 (宽, 高)
-    pub(crate) maximum_size: Option<(f64, f64)>,
+    /// 容器布局策略、关系约束和后续布局缓存的唯一归属。
+    pub(crate) layout: LayoutState,
+    /// 所有 Figure 共享的节点状态。
+    pub(crate) state: NodeState,
 }
 
-impl FigureBlock {
+/// Compatibility name for the pre-runtime architecture.
+pub type FigureBlock = FigureNode;
+
+impl Deref for FigureNode {
+    type Target = NodeState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.state
+    }
+}
+
+impl DerefMut for FigureNode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.state
+    }
+}
+
+impl FigureNode {
     /// 获取块 ID
     pub fn id(&self) -> BlockId {
         self.id
@@ -169,9 +362,25 @@ impl FigureBlock {
         self.children.len()
     }
 
-    /// 获取图形的边界（面向最近坐标根的绝对坐标）
+    pub fn state(&self) -> &NodeState {
+        &self.state
+    }
+
+    pub fn layout_state(&self) -> &LayoutState {
+        &self.layout
+    }
+
+    /// Returns the node bounds from common node state.
     pub fn figure_bounds(&self) -> Rectangle {
-        self.figure.bounds()
+        self.state.bounds
+    }
+
+    fn set_figure_bounds(&mut self, bounds: Rectangle) {
+        self.state.bounds = bounds;
+        // Compatibility bridge: concrete figures still paint from their legacy
+        // bounds until the local-coordinate paint migration is complete.
+        self.figure
+            .set_bounds(bounds.x, bounds.y, bounds.width, bounds.height);
     }
 
     /// 获取首选尺寸
@@ -179,7 +388,7 @@ impl FigureBlock {
         if let Some(size) = self.preferred_size {
             return size;
         }
-        let bounds = self.figure.bounds();
+        let bounds = self.state.bounds;
         (bounds.width, bounds.height)
     }
 
@@ -231,13 +440,25 @@ pub struct FigureGraph {
     root: BlockId,
     /// 内容块（用户可访问的根容器）
     contents: Option<BlockId>,
-    mouse_target: Option<BlockId>,
-    cursor_target: Option<BlockId>,
-    hover_source: Option<BlockId>,
-    focus_owner: Option<BlockId>,
-    captured: Option<BlockId>,
-    gesture_targets: std::collections::HashMap<crate::GestureSessionId, Option<BlockId>>,
+    interaction: InteractionState,
     notification_effects: NotificationQueue,
+}
+
+/// Compatibility name while the public API migrates from graph to tree.
+pub type FigureTree = FigureGraph;
+
+impl Deref for FigureGraph {
+    type Target = InteractionState;
+
+    fn deref(&self) -> &Self::Target {
+        &self.interaction
+    }
+}
+
+impl DerefMut for FigureGraph {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.interaction
+    }
 }
 
 impl FigureGraph {
@@ -245,25 +466,21 @@ impl FigureGraph {
     pub fn new() -> Self {
         let mut blocks = SlotMap::with_key();
         let uuid = Uuid::new_v4();
+        let root_bounds = Rectangle::ZERO;
 
-        let root_id = blocks.insert_with_key(|key| FigureBlock {
+        let root_id = blocks.insert_with_key(|key| FigureNode {
             id: key,
             uuid,
             children: Vec::new(),
             parent: None,
             depth: 0,
             figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
-            layout_manager: None,
-            constraints: std::collections::HashMap::new(),
-            is_selected: false,
-            is_hovered: false,
-            is_pressed: false,
-            is_visible: true,
-            is_enabled: true,
-            is_valid: true,
-            preferred_size: None,
-            minimum_size: None,
-            maximum_size: None,
+            layout: LayoutState::default(),
+            state: NodeState {
+                bounds: root_bounds,
+                is_valid: true,
+                ..NodeState::default()
+            },
         });
 
         FigureGraph {
@@ -271,14 +488,19 @@ impl FigureGraph {
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
-            mouse_target: None,
-            cursor_target: None,
-            hover_source: None,
-            focus_owner: None,
-            captured: None,
-            gesture_targets: std::collections::HashMap::new(),
+            interaction: InteractionState::default(),
             notification_effects: NotificationQueue::new(),
         }
+    }
+
+    /// Returns the interaction state associated with this compatibility graph.
+    pub fn interaction_state(&self) -> &InteractionState {
+        &self.interaction
+    }
+
+    /// Returns mutable interaction state for runtime orchestration.
+    pub fn interaction_state_mut(&mut self) -> &mut InteractionState {
+        &mut self.interaction
     }
 
     /// 返回当前积累的通知 effect。
@@ -457,29 +679,18 @@ impl FigureGraph {
         }
 
         let mut changed = false;
-
-        let mut removes = Vec::new();
-        let mut reparents = Vec::new();
-        let mut adds = Vec::new();
-
         for mutation in mutations.into_vec() {
-            match mutation.into_kind() {
-                kind @ PendingMutationKind::RemoveChild { .. } => removes.push(kind),
-                kind @ PendingMutationKind::Reparent { .. } => reparents.push(kind),
-                kind @ PendingMutationKind::AddChildFigure { .. } => adds.push(kind),
-            }
-        }
-
-        for mutation in removes {
-            changed |= self.apply_remove_mutation(update_manager, mutation);
-        }
-
-        for mutation in reparents {
-            changed |= self.apply_reparent_mutation(update_manager, mutation);
-        }
-
-        for mutation in adds {
-            changed |= self.apply_add_mutation(update_manager, mutation);
+            changed |= match mutation.into_kind() {
+                kind @ PendingMutationKind::RemoveChild { .. } => {
+                    self.apply_remove_mutation(update_manager, kind)
+                }
+                kind @ PendingMutationKind::Reparent { .. } => {
+                    self.apply_reparent_mutation(update_manager, kind)
+                }
+                kind @ PendingMutationKind::AddChildFigure { .. } => {
+                    self.apply_add_mutation(update_manager, kind)
+                }
+            };
         }
 
         changed
@@ -517,6 +728,7 @@ impl FigureGraph {
         figure: Box<dyn super::Figure>,
         parent_id: BlockId,
     ) -> Result<BlockId, GraphMutationError> {
+        let bounds = figure.bounds();
         let parent_depth = self
             .blocks
             .get(parent_id)
@@ -534,24 +746,18 @@ impl FigureGraph {
             })?;
 
         let uuid = Uuid::new_v4();
-        let id = self.blocks.insert_with_key(|key| FigureBlock {
+        let id = self.blocks.insert_with_key(|key| FigureNode {
             id: key,
             uuid,
             children: Vec::new(),
             parent: Some(parent_id),
             depth,
             figure,
-            layout_manager: None,
-            constraints: std::collections::HashMap::new(),
-            is_selected: false,
-            is_hovered: false,
-            is_pressed: false,
-            is_visible: true,
-            is_enabled: true,
-            is_valid: false,
-            preferred_size: None,
-            minimum_size: None,
-            maximum_size: None,
+            layout: LayoutState::default(),
+            state: NodeState {
+                bounds,
+                ..NodeState::default()
+            },
         });
         self.uuid_map.insert(uuid, id);
         self.blocks[parent_id].children.push(id);
@@ -599,7 +805,7 @@ impl FigureGraph {
         if parent.children.len() == old_len {
             return false;
         }
-        parent.constraints.remove(&child_id);
+        parent.layout.constraints.remove(&child_id);
 
         if let Some(child) = self.blocks.get_mut(child_id) {
             child.figure.on_detached(parent_id);
@@ -940,15 +1146,14 @@ impl FigureGraph {
         {
             return;
         }
-        if !self.is_effectively_visible(container_id) || !self.is_effectively_enabled(container_id)
-        {
+        if !self.is_effectively_visible(container_id) {
             return;
         }
 
         let layout_manager = self
             .blocks
-            .get(container_id)
-            .and_then(|b| b.layout_manager.clone());
+            .get_mut(container_id)
+            .and_then(|b| b.layout.manager.take());
 
         if let Some(layout_manager) = layout_manager {
             self.emit_layout_event(LayoutEvent {
@@ -956,11 +1161,19 @@ impl FigureGraph {
                 container_id,
                 child_id: None,
             });
-            let mut layout_context = ValidationLayoutContext {
-                graph: self,
-                update_manager,
-            };
-            layout_manager.layout(container_id, &mut layout_context);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let mut layout_context = ValidationLayoutContext {
+                    graph: self,
+                    update_manager,
+                };
+                layout_manager.layout(container_id, &mut layout_context);
+            }));
+            if let Some(block) = self.blocks.get_mut(container_id) {
+                block.layout.manager = Some(layout_manager);
+            }
+            if let Err(payload) = result {
+                std::panic::resume_unwind(payload);
+            }
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -1025,15 +1238,23 @@ impl FigureGraph {
 
         let layout_manager = self
             .blocks
-            .get(container_id)
-            .and_then(|block| block.layout_manager.clone());
+            .get_mut(container_id)
+            .and_then(|block| block.layout.manager.take());
         if let Some(layout_manager) = layout_manager {
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Started,
                 container_id,
                 child_id: None,
             });
-            layout_manager.layout(container_id, self);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                layout_manager.layout(container_id, self);
+            }));
+            if let Some(block) = self.blocks.get_mut(container_id) {
+                block.layout.manager = Some(layout_manager);
+            }
+            if let Err(payload) = result {
+                std::panic::resume_unwind(payload);
+            }
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -1102,7 +1323,7 @@ impl FigureGraph {
         if let Some(size) = block.preferred_size {
             return Some(block.figure.project_preferred_size(size));
         }
-        if let Some(layout) = block.layout_manager.as_deref() {
+        if let Some(layout) = block.layout.manager.as_deref() {
             let size = layout.get_preferred_size(block_id, w_hint, h_hint, self);
             return Some(block.figure.project_preferred_size(size));
         }
@@ -1116,7 +1337,7 @@ impl FigureGraph {
         if let Some(size) = block.minimum_size {
             return Some(block.figure.project_minimum_size(size));
         }
-        if let Some(layout) = block.layout_manager.as_deref() {
+        if let Some(layout) = block.layout.manager.as_deref() {
             let size = layout.get_minimum_size(block_id, w_hint, h_hint, self);
             return Some(block.figure.project_minimum_size(size));
         }
@@ -1404,38 +1625,6 @@ impl FigureGraph {
         self.blocks.get(block_id).and_then(|block| block.parent)
     }
 
-    pub(crate) fn gesture_target(&self, session_id: crate::GestureSessionId) -> Option<BlockId> {
-        self.gesture_targets
-            .get(&session_id)
-            .copied()
-            .flatten()
-            .filter(|id| self.blocks.contains_key(*id))
-    }
-
-    pub(crate) fn has_gesture_session(&self, session_id: crate::GestureSessionId) -> bool {
-        self.gesture_targets.contains_key(&session_id)
-    }
-
-    pub(crate) fn set_gesture_target(
-        &mut self,
-        session_id: crate::GestureSessionId,
-        target_id: Option<BlockId>,
-    ) {
-        if session_id == crate::GestureSessionId::IMPULSE {
-            return;
-        }
-        let target_id = target_id.filter(|id| self.blocks.contains_key(*id));
-        self.gesture_targets.insert(session_id, target_id);
-    }
-
-    pub(crate) fn clear_gesture_target(&mut self, session_id: crate::GestureSessionId) {
-        self.gesture_targets.remove(&session_id);
-    }
-
-    pub(crate) fn clear_gesture_targets(&mut self) {
-        self.gesture_targets.clear();
-    }
-
     /// 返回 child 在父节点内的 z-order index。
     ///
     /// index 越大表示越靠前绘制、越靠上层。
@@ -1631,7 +1820,7 @@ impl FigureGraph {
     }
 
     /// 设置布局管理器
-    pub fn set_layout_manager(&mut self, layout_manager: Arc<dyn LayoutManager>) {
+    pub fn set_layout_manager(&mut self, layout_manager: Box<dyn LayoutManager>) {
         let container_id = self.contents.unwrap_or(self.root);
         self.set_block_layout_manager(container_id, layout_manager);
     }
@@ -1640,26 +1829,26 @@ impl FigureGraph {
     pub fn get_layout_manager(&self) -> Option<&dyn LayoutManager> {
         self.blocks
             .get(self.contents.unwrap_or(self.root))
-            .and_then(|block| block.layout_manager.as_deref())
+            .and_then(|block| block.layout.manager.as_deref())
     }
 
     /// 设置指定块的布局管理器
     pub fn set_block_layout_manager(
         &mut self,
         block_id: BlockId,
-        layout_manager: Arc<dyn LayoutManager>,
+        layout_manager: Box<dyn LayoutManager>,
     ) {
         if let Some(block) = self.blocks.get_mut(block_id) {
-            block.layout_manager = Some(layout_manager);
+            block.layout.manager = Some(layout_manager);
         }
         self.mark_validation_path_invalid(block_id);
     }
 
     /// 获取指定块的布局管理器
-    pub fn get_block_layout_manager(&self, block_id: BlockId) -> Option<Arc<dyn LayoutManager>> {
+    pub fn get_block_layout_manager(&self, block_id: BlockId) -> Option<&dyn LayoutManager> {
         self.blocks
             .get(block_id)
-            .and_then(|b| b.layout_manager.clone())
+            .and_then(|b| b.layout.manager.as_deref())
     }
 
     /// 设置父容器施加给直接子节点的布局约束。
@@ -1673,7 +1862,10 @@ impl FigureGraph {
         let Some(parent) = self.blocks.get_mut(parent_id) else {
             return false;
         };
-        parent.constraints.insert(child_id, Arc::new(constraint));
+        parent
+            .layout
+            .constraints
+            .insert(child_id, Box::new(constraint));
         self.mark_validation_path_invalid(parent_id);
         self.emit_layout_event(LayoutEvent {
             kind: LayoutEventKind::ConstraintChanged,
@@ -1699,7 +1891,7 @@ impl FigureGraph {
         let removed = self
             .blocks
             .get_mut(parent_id)
-            .and_then(|parent| parent.constraints.remove(&child_id))
+            .and_then(|parent| parent.layout.constraints.remove(&child_id))
             .is_some();
         if removed {
             self.mark_validation_path_invalid(parent_id);
@@ -1716,9 +1908,10 @@ impl FigureGraph {
         let parent_id = self.blocks.get(child_id)?.parent?;
         self.blocks
             .get(parent_id)?
+            .layout
             .constraints
             .get(&child_id)
-            .map(Arc::as_ref)
+            .map(Box::as_ref)
     }
 
     /// 使布局生效
@@ -1757,28 +1950,32 @@ impl FigureGraph {
     }
 
     pub fn is_hovered(&self, id: BlockId) -> bool {
-        self.blocks
-            .get(id)
-            .map(|block| block.is_hovered)
-            .unwrap_or(false)
+        self.interaction.hovered.contains(&id)
     }
 
     pub fn set_hovered(&mut self, id: BlockId, hovered: bool) {
-        if let Some(block) = self.blocks.get_mut(id) {
-            block.is_hovered = hovered;
+        if !self.blocks.contains_key(id) {
+            return;
+        }
+        if hovered {
+            self.interaction.hovered.insert(id);
+        } else {
+            self.interaction.hovered.remove(&id);
         }
     }
 
     pub fn is_pressed(&self, id: BlockId) -> bool {
-        self.blocks
-            .get(id)
-            .map(|block| block.is_pressed)
-            .unwrap_or(false)
+        self.interaction.pressed.contains(&id)
     }
 
     pub fn set_pressed(&mut self, id: BlockId, pressed: bool) {
-        if let Some(block) = self.blocks.get_mut(id) {
-            block.is_pressed = pressed;
+        if !self.blocks.contains_key(id) {
+            return;
+        }
+        if pressed {
+            self.interaction.pressed.insert(id);
+        } else {
+            self.interaction.pressed.remove(&id);
         }
     }
 
@@ -1878,19 +2075,14 @@ impl FigureGraph {
             let Some((old_bounds, new_bounds, use_local_coordinates, children)) =
                 self.blocks.get_mut(id).map(|block| {
                     // 修改当前节点的 bounds (x, y)
-                    let old_bounds = block.figure.bounds();
+                    let old_bounds = block.figure_bounds();
                     let new_bounds = Rectangle::new(
                         old_bounds.x + dx,
                         old_bounds.y + dy,
                         old_bounds.width,
                         old_bounds.height,
                     );
-                    block.figure.set_bounds(
-                        new_bounds.x,
-                        new_bounds.y,
-                        new_bounds.width,
-                        new_bounds.height,
-                    );
+                    block.set_figure_bounds(new_bounds);
 
                     (
                         old_bounds,
@@ -1962,7 +2154,7 @@ impl FigureGraph {
     pub fn set_bounds(&mut self, block_id: BlockId, x: f64, y: f64, width: f64, height: f64) {
         let (old_bounds, use_local_coordinates) = {
             if let Some(block) = self.blocks.get(block_id) {
-                (block.figure.bounds(), block.figure.use_local_coordinates())
+                (block.figure_bounds(), block.figure.use_local_coordinates())
             } else {
                 return;
             }
@@ -1983,7 +2175,7 @@ impl FigureGraph {
         // 2. 更新自身的宽高（x, y 已由 prim_translate 更新）
         if resize {
             if let Some(block) = self.blocks.get_mut(block_id) {
-                block.figure.set_bounds(x, y, width, height);
+                block.set_figure_bounds(Rectangle::new(x, y, width, height));
             }
         }
 
@@ -2315,9 +2507,9 @@ impl FigureGraph {
             .collect();
         let mut deselected = Vec::new();
         for id in descendants {
+            self.interaction.hovered.remove(&id);
+            self.interaction.pressed.remove(&id);
             if let Some(block) = self.blocks.get_mut(id) {
-                block.is_hovered = false;
-                block.is_pressed = false;
                 if block.is_selected {
                     deselected.push(id);
                 }

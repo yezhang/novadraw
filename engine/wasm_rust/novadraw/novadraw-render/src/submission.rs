@@ -2,6 +2,33 @@ use novadraw_geometry::Rectangle;
 
 use crate::command::RenderCommand;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SurfaceInfo {
+    pub logical_width: f64,
+    pub logical_height: f64,
+    pub pixel_width: u32,
+    pub pixel_height: u32,
+    pub scale_factor: f64,
+}
+
+impl Default for SurfaceInfo {
+    fn default() -> Self {
+        Self {
+            logical_width: 0.0,
+            logical_height: 0.0,
+            pixel_width: 0,
+            pixel_height: 0,
+            scale_factor: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
+pub struct ResourceDelta {
+    pub added: Vec<u64>,
+    pub removed: Vec<u64>,
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum DamageMode {
     #[default]
@@ -88,6 +115,8 @@ impl DamageSet {
 pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
+    pub resources: ResourceDelta,
+    pub surface: SurfaceInfo,
 }
 
 #[cfg(test)]
@@ -112,5 +141,14 @@ mod tests {
         damage.clear();
         assert_eq!(damage.mode(), DamageMode::None);
         assert!(damage.is_empty());
+    }
+
+    #[test]
+    fn surface_info_defaults_to_a_valid_logical_scale() {
+        let surface = SurfaceInfo::default();
+
+        assert_eq!(surface.scale_factor, 1.0);
+        assert_eq!(surface.logical_width, 0.0);
+        assert_eq!(surface.pixel_width, 0);
     }
 }
