@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use novadraw::{
     BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureGraph, FocusEvent,
-    FocusEventKind, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
-    MouseEventKind, NdCanvas, NovadrawContext, PendingMutations, Rectangle, RectangleFigure,
-    SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
+    FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations, Rectangle,
+    RectangleFigure, SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -247,24 +247,32 @@ fn scenes() -> Vec<SceneEntry> {
 
 fn with_context(
     graph: &mut FigureGraph,
+    interaction: &mut InteractionState,
     manager: &mut SceneUpdateManager,
     pending: &mut PendingMutations,
     action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
 ) {
     let mut dispatcher = BasicEventDispatcher;
-    let mut context = SceneDispatchContext::new(graph, manager, pending);
+    let mut context = SceneDispatchContext::new(graph, interaction, manager, pending);
     action(&mut dispatcher, &mut context);
 }
 
 fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
+    let mut interaction = InteractionState::default();
     let mut manager = SceneUpdateManager::new();
     let mut pending = PendingMutations::new();
-    with_context(&mut graph, &mut manager, &mut pending, |dispatcher, ctx| {
-        dispatcher.dispatch_mouse_pressed(ctx, 300.0, 220.0, MouseButton::Left);
-        dispatcher.dispatch_mouse_moved(ctx, 700.0, 500.0);
-        dispatcher.dispatch_mouse_released(ctx, 700.0, 500.0, MouseButton::Left);
-    });
+    with_context(
+        &mut graph,
+        &mut interaction,
+        &mut manager,
+        &mut pending,
+        |dispatcher, ctx| {
+            dispatcher.dispatch_mouse_pressed(ctx, 300.0, 220.0, MouseButton::Left);
+            dispatcher.dispatch_mouse_moved(ctx, 700.0, 500.0);
+            dispatcher.dispatch_mouse_released(ctx, 700.0, 500.0, MouseButton::Left);
+        },
+    );
     let events = &state.lock().unwrap().events;
     assert_event_order(
         events,
@@ -276,7 +284,7 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
             MouseEventKind::Released,
         ],
     )?;
-    if graph.captured().is_some() {
+    if interaction.captured().is_some() {
         return Err("capture was not released".to_string());
     }
     Ok(metrics([("events", events.len().to_string())]))
@@ -284,21 +292,28 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
 
 fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
+    let mut interaction = InteractionState::default();
     let mut manager = SceneUpdateManager::new();
     let mut pending = PendingMutations::new();
-    with_context(&mut graph, &mut manager, &mut pending, |dispatcher, ctx| {
-        dispatcher.dispatch_mouse_pressed(ctx, 300.0, 220.0, MouseButton::Left);
-        dispatcher.dispatch_key_pressed(
-            ctx,
-            Key::Character('a'),
-            KeyModifiers {
-                control: true,
-                ..KeyModifiers::default()
-            },
-        );
-        dispatcher.dispatch_key_released(ctx, Key::Character('a'), KeyModifiers::default());
-        dispatcher.release_focus(ctx);
-    });
+    with_context(
+        &mut graph,
+        &mut interaction,
+        &mut manager,
+        &mut pending,
+        |dispatcher, ctx| {
+            dispatcher.dispatch_mouse_pressed(ctx, 300.0, 220.0, MouseButton::Left);
+            dispatcher.dispatch_key_pressed(
+                ctx,
+                Key::Character('a'),
+                KeyModifiers {
+                    control: true,
+                    ..KeyModifiers::default()
+                },
+            );
+            dispatcher.dispatch_key_released(ctx, Key::Character('a'), KeyModifiers::default());
+            dispatcher.release_focus(ctx);
+        },
+    );
     let events = &state.lock().unwrap().events;
     for expected in [
         ProbeEvent::Focus(FocusEventKind::Gained),
@@ -323,19 +338,26 @@ fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
     }
     Ok(metrics([(
         "focus_owner",
-        format!("{:?}", graph.focus_owner()),
+        format!("{:?}", interaction.focus_owner()),
     )]))
 }
 
 fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
+    let mut interaction = InteractionState::default();
     let mut manager = SceneUpdateManager::new();
     let mut pending = PendingMutations::new();
-    with_context(&mut graph, &mut manager, &mut pending, |dispatcher, ctx| {
-        dispatcher.dispatch_mouse_hover(ctx, 300.0, 220.0);
-        dispatcher.dispatch_mouse_wheel(ctx, 300.0, 220.0, 1.0, -2.0);
-        dispatcher.dispatch_mouse_double_clicked(ctx, 300.0, 220.0, MouseButton::Left);
-    });
+    with_context(
+        &mut graph,
+        &mut interaction,
+        &mut manager,
+        &mut pending,
+        |dispatcher, ctx| {
+            dispatcher.dispatch_mouse_hover(ctx, 300.0, 220.0);
+            dispatcher.dispatch_mouse_wheel(ctx, 300.0, 220.0, 1.0, -2.0);
+            dispatcher.dispatch_mouse_double_clicked(ctx, 300.0, 220.0, MouseButton::Left);
+        },
+    );
     let events = &state.lock().unwrap().events;
     if !events
         .iter()
@@ -354,11 +376,18 @@ fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
 
 fn verify_coordinate_reduction() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(true);
+    let mut interaction = InteractionState::default();
     let mut manager = SceneUpdateManager::new();
     let mut pending = PendingMutations::new();
-    with_context(&mut graph, &mut manager, &mut pending, |dispatcher, ctx| {
-        dispatcher.dispatch_mouse_pressed(ctx, 160.0, 150.0, MouseButton::Left);
-    });
+    with_context(
+        &mut graph,
+        &mut interaction,
+        &mut manager,
+        &mut pending,
+        |dispatcher, ctx| {
+            dispatcher.dispatch_mouse_pressed(ctx, 160.0, 150.0, MouseButton::Left);
+        },
+    );
     let events = &state.lock().unwrap().events;
     if !events.contains(&ProbeEvent::Mouse(MouseEventKind::Pressed, 60.0, 70.0)) {
         return Err(format!("target-domain point was not reduced: {events:?}"));

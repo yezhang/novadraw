@@ -39,7 +39,7 @@ pub use figure::{
 pub use graph as scene;
 pub use graph::{
     BlockId, FigureGraph, FigureId, FigureNode, FigureRenderer, FigureTree, GraphMutationError,
-    InteractionState, LayoutState, MAX_TREE_DEPTH, NodeState,
+    LayoutState, MAX_TREE_DEPTH, NodeState,
 };
 pub use host::{PlatformHost, SceneHost};
 pub use layout::{
@@ -48,7 +48,6 @@ pub use layout::{
     StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint, XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
-pub use runtime::Runtime;
 pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};
 pub use runtime::event::{
     BasicEventDispatcher, DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind,
@@ -64,5 +63,6 @@ pub use runtime::update::{
     NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue,
     SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
 };
+pub use runtime::{InteractionState, PointerId, Runtime};
 pub use runtime::{context, event, mutation, system};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

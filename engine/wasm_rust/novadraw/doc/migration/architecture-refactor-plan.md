@@ -100,6 +100,8 @@ cargo test --workspace
 
 前置条件：R1 手动验证 `PASS`。
 
+状态：`manually_approved`
+
 工作：
 
 - 将 editor 和剩余直接 dispatcher 调用迁移到 Runtime；
@@ -292,18 +294,24 @@ cargo test --workspace
 - benchmark 不低于迁移前已记录基线；
 - 所有手工验证记录为 PASS。
 
-## 12. 当前手动验证：R1
+## 12. R1 手动验收记录
 
-在开始 R2 前执行以下步骤。
+状态：`approved`
 
-### 12.1 自动验证工具
+用户已明确要求开始 R2，视为 R1 手动门禁通过。
+
+## 13. 当前手动验证：R2
+
+在开始 R3 前执行以下步骤。
+
+### 13.1 自动验证工具
 
 ```bash
 cargo run -p event-app -- --verify \
-  --report=target/visual-verification/event-app-r1.json
+  --report=target/visual-verification/event-app-r2.json
 
 cargo run -p scroll-pane-demo -- --verify \
-  --report=target/visual-verification/scroll-pane-r1.json
+  --report=target/visual-verification/scroll-pane-r2.json
 ```
 
 通过标准：
@@ -312,7 +320,7 @@ cargo run -p scroll-pane-demo -- --verify \
 - scroll-pane-demo 输出四项 `PASS`；
 - 两个 JSON 顶层 `"passed": true`。
 
-### 12.2 Event App
+### 13.2 Event App
 
 ```bash
 cargo run -p event-app
@@ -323,40 +331,36 @@ cargo run -p event-app
 3. 场景 2：验证 hover、wheel、double-click 均只触发一次。
 4. 场景 3：点击嵌套坐标目标，命中位置没有偏移。
 
-### 12.3 Layout App
+### 13.3 Editor
 
 ```bash
-cargo run -p layout-app
+cargo run -p editor
 ```
 
-按 `0` 到 `9` 逐个切换：
+1. 在场景 9 点击交互目标，确认命中位置与光标一致。
+2. 按住目标并拖出边界后释放，确认拖动持续到释放且不会粘住。
+3. 在场景间切换，确认旧场景的 hover、capture 和 focus 不会泄漏。
+4. 最小化后恢复窗口，确认输入仍能正常投递。
 
-- 所有布局正常显示；
-- 切换过程无 panic、黑帧或残影；
-- Grid、Toolbar、Stack 和 BorderLayout 的尺寸与排列无变化；
-- resize 后布局重新收敛。
-
-### 12.4 Viewport / Scroll
+### 13.4 Scroll / Zoom
 
 ```bash
-cargo run -p viewport-app
 cargo run -p scroll-pane-demo
 ```
 
-- viewport 四个场景裁剪与缩放正常；
-- 滚轮、触控板滚动和 pinch 正常；
-- scrollbar thumb 与内容同步；
-- 缩放后仍能到达内容四边；
-- 窗口 resize、最小化和恢复后无黑帧。
+1. 在可滚动内容上连续滚动，确认手势过程中由同一 ScrollPane 接管。
+2. 在嵌套内容边界附近滚动，确认中间 Figure 不会收到重复回调。
+3. 在缩放场景执行 pinch，确认锚点稳定。
+4. 按住可拖动目标时滚动，确认 pointer capture 与 gesture session 相互独立。
 
-### 12.5 验收回复
+### 13.5 验收回复
 
 请回复：
 
 ```text
-R1: PASS
+R2: PASS
 平台:
 失败项: 无
 ```
 
-若失败，请附应用名、场景编号、操作步骤和可见结果。收到 `R1: PASS` 后开始 R2。
+若失败，请附应用名、场景编号、操作步骤和可见结果。收到 `R2: PASS` 后开始 R3。

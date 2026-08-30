@@ -3,9 +3,9 @@ use novadraw_geometry::Rectangle;
 use slotmap::Key;
 
 use crate::{
-    BlockId, BorderConstraint, BorderRegion, FigureGraph, GraphMutationError, MAX_TREE_DEPTH,
-    PendingMutations, RectangleFigure, ScalableLayeredPaneFigure, SceneUpdateManager,
-    ViewportFigure, XYConstraint, XYLayout,
+    BlockId, BorderConstraint, BorderRegion, FigureGraph, GraphMutationError, InteractionState,
+    MAX_TREE_DEPTH, PendingMutations, RectangleFigure, ScalableLayeredPaneFigure,
+    SceneUpdateManager, ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
@@ -672,21 +672,22 @@ fn test_hidden_block_skips_validation_but_drains_queue() {
 fn test_interaction_state_accessors() {
     let mut scene = FigureGraph::new();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    assert_eq!(scene.mouse_target(), None);
-    assert_eq!(scene.focus_owner(), None);
-    assert_eq!(scene.captured(), None);
-    assert!(!scene.is_hovered(container_id));
-    assert!(!scene.is_pressed(container_id));
-    scene.set_mouse_target(Some(container_id));
-    scene.set_focus_owner(Some(container_id));
-    scene.set_captured(Some(container_id));
-    scene.set_hovered(container_id, true);
-    scene.set_pressed(container_id, true);
-    assert_eq!(scene.mouse_target(), Some(container_id));
-    assert_eq!(scene.focus_owner(), Some(container_id));
-    assert_eq!(scene.captured(), Some(container_id));
-    assert!(scene.is_hovered(container_id));
-    assert!(scene.is_pressed(container_id));
+    let mut interaction = InteractionState::default();
+    assert_eq!(interaction.mouse_target(), None);
+    assert_eq!(interaction.focus_owner(), None);
+    assert_eq!(interaction.captured(), None);
+    assert!(!interaction.is_hovered(container_id));
+    assert!(!interaction.is_pressed(container_id));
+    interaction.set_mouse_target(Some(container_id));
+    interaction.set_focus_owner(Some(container_id));
+    interaction.set_captured(Some(container_id));
+    interaction.set_hovered(container_id, true);
+    interaction.set_pressed(container_id, true);
+    assert_eq!(interaction.mouse_target(), Some(container_id));
+    assert_eq!(interaction.focus_owner(), Some(container_id));
+    assert_eq!(interaction.captured(), Some(container_id));
+    assert!(interaction.is_hovered(container_id));
+    assert!(interaction.is_pressed(container_id));
 }
 
 #[test]
@@ -858,21 +859,23 @@ fn test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect()
 #[test]
 fn test_apply_pending_remove_child_clears_interaction_state() {
     let (mut scene, mut update_manager) = new_scene();
+    let mut interaction = InteractionState::default();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let child_id = scene.add_child_to(
         parent_id,
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
-    scene.set_mouse_target(Some(child_id));
-    scene.set_cursor_target(Some(child_id));
-    scene.set_hover_source(Some(child_id));
-    scene.set_focus_owner(Some(child_id));
-    scene.set_captured(Some(child_id));
+    interaction.set_mouse_target(Some(child_id));
+    interaction.set_cursor_target(Some(child_id));
+    interaction.set_hover_source(Some(child_id));
+    interaction.set_focus_owner(Some(child_id));
+    interaction.set_captured(Some(child_id));
     scene.set_selected(Some(child_id));
 
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::remove_child(parent_id, child_id));
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
+    interaction.reconcile(&scene);
 
     assert_eq!(scene.get_block(child_id).unwrap().parent, None);
     assert!(
@@ -882,17 +885,18 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
             .children
             .contains(&child_id)
     );
-    assert_eq!(scene.mouse_target(), None);
-    assert_eq!(scene.cursor_target(), None);
-    assert_eq!(scene.hover_source(), None);
-    assert_eq!(scene.focus_owner(), None);
-    assert_eq!(scene.captured(), None);
+    assert_eq!(interaction.mouse_target(), None);
+    assert_eq!(interaction.cursor_target(), None);
+    assert_eq!(interaction.hover_source(), None);
+    assert_eq!(interaction.focus_owner(), None);
+    assert_eq!(interaction.captured(), None);
     assert_eq!(scene.selected_block(), None);
 }
 
 #[test]
 fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
     let (mut scene, mut update_manager) = new_scene();
+    let mut interaction = InteractionState::default();
     let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 400.0)));
     let left_id = scene.add_child_to(
         root_id,
@@ -906,14 +910,15 @@ fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
         left_id,
         Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
     );
-    scene.set_mouse_target(Some(child_id));
-    scene.set_focus_owner(Some(child_id));
-    scene.set_captured(Some(child_id));
+    interaction.set_mouse_target(Some(child_id));
+    interaction.set_focus_owner(Some(child_id));
+    interaction.set_captured(Some(child_id));
 
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::remove_child(right_id, child_id));
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
+    interaction.reconcile(&scene);
     assert_eq!(scene.get_block(child_id).unwrap().parent, Some(left_id));
     assert!(
         scene
@@ -922,9 +927,9 @@ fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
             .children
             .contains(&child_id)
     );
-    assert_eq!(scene.mouse_target(), Some(child_id));
-    assert_eq!(scene.focus_owner(), Some(child_id));
-    assert_eq!(scene.captured(), Some(child_id));
+    assert_eq!(interaction.mouse_target(), Some(child_id));
+    assert_eq!(interaction.focus_owner(), Some(child_id));
+    assert_eq!(interaction.captured(), Some(child_id));
     assert!(!update_manager.is_update_queued());
     assert_eq!(update_manager.invalid_count(), 0);
     assert_eq!(update_manager.dirty_count(), 0);

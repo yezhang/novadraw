@@ -163,126 +163,6 @@ impl NodeState {
     }
 }
 
-/// Interaction state for one runtime scene.
-///
-/// This is deliberately separate from node topology. It remains embedded in
-/// `FigureGraph` only for compatibility until callers migrate to `Runtime`.
-#[derive(Default)]
-pub struct InteractionState {
-    mouse_target: Option<FigureId>,
-    cursor_target: Option<FigureId>,
-    hover_source: Option<FigureId>,
-    focus_owner: Option<FigureId>,
-    captured: Option<FigureId>,
-    hovered: std::collections::HashSet<FigureId>,
-    pressed: std::collections::HashSet<FigureId>,
-    gesture_targets: std::collections::HashMap<crate::GestureSessionId, Option<FigureId>>,
-}
-
-impl InteractionState {
-    pub fn mouse_target(&self) -> Option<FigureId> {
-        self.mouse_target
-    }
-
-    pub fn focus_owner(&self) -> Option<FigureId> {
-        self.focus_owner
-    }
-
-    pub fn captured(&self) -> Option<FigureId> {
-        self.captured
-    }
-
-    pub fn is_hovered(&self, id: FigureId) -> bool {
-        self.hovered.contains(&id)
-    }
-
-    pub fn is_pressed(&self, id: FigureId) -> bool {
-        self.pressed.contains(&id)
-    }
-
-    pub(crate) fn set_mouse_target(&mut self, id: Option<FigureId>) {
-        self.mouse_target = id;
-    }
-
-    pub(crate) fn cursor_target(&self) -> Option<FigureId> {
-        self.cursor_target
-    }
-
-    pub(crate) fn set_cursor_target(&mut self, id: Option<FigureId>) {
-        self.cursor_target = id;
-    }
-
-    pub(crate) fn hover_source(&self) -> Option<FigureId> {
-        self.hover_source
-    }
-
-    pub(crate) fn set_hover_source(&mut self, id: Option<FigureId>) {
-        self.hover_source = id;
-    }
-
-    pub(crate) fn set_focus_owner(&mut self, id: Option<FigureId>) {
-        self.focus_owner = id;
-    }
-
-    pub(crate) fn set_captured(&mut self, id: Option<FigureId>) {
-        self.captured = id;
-    }
-
-    pub(crate) fn set_hovered(&mut self, id: FigureId, hovered: bool) {
-        if hovered {
-            self.hovered.insert(id);
-        } else {
-            self.hovered.remove(&id);
-        }
-    }
-
-    pub(crate) fn set_pressed(&mut self, id: FigureId, pressed: bool) {
-        if pressed {
-            self.pressed.insert(id);
-        } else {
-            self.pressed.remove(&id);
-        }
-    }
-
-    pub(crate) fn gesture_target(&self, session_id: crate::GestureSessionId) -> Option<FigureId> {
-        self.gesture_targets.get(&session_id).copied().flatten()
-    }
-
-    pub(crate) fn has_gesture_session(&self, session_id: crate::GestureSessionId) -> bool {
-        self.gesture_targets.contains_key(&session_id)
-    }
-
-    pub(crate) fn set_gesture_target(
-        &mut self,
-        session_id: crate::GestureSessionId,
-        target: Option<FigureId>,
-    ) {
-        if session_id != crate::GestureSessionId::IMPULSE {
-            self.gesture_targets.insert(session_id, target);
-        }
-    }
-
-    pub(crate) fn clear_gesture_target(&mut self, session_id: crate::GestureSessionId) {
-        self.gesture_targets.remove(&session_id);
-    }
-
-    pub(crate) fn clear_gestures(&mut self) {
-        self.gesture_targets.clear();
-    }
-
-    pub(crate) fn retain_figures(&mut self, mut exists: impl FnMut(FigureId) -> bool) {
-        self.mouse_target = self.mouse_target.filter(|id| exists(*id));
-        self.cursor_target = self.cursor_target.filter(|id| exists(*id));
-        self.hover_source = self.hover_source.filter(|id| exists(*id));
-        self.focus_owner = self.focus_owner.filter(|id| exists(*id));
-        self.captured = self.captured.filter(|id| exists(*id));
-        self.hovered.retain(|id| exists(*id));
-        self.pressed.retain(|id| exists(*id));
-        self.gesture_targets
-            .retain(|_, target| target.is_none_or(&mut exists));
-    }
-}
-
 /// Container-owned layout strategy and child constraints.
 #[derive(Default)]
 pub struct LayoutState {
@@ -440,26 +320,11 @@ pub struct FigureGraph {
     root: BlockId,
     /// 内容块（用户可访问的根容器）
     contents: Option<BlockId>,
-    interaction: InteractionState,
     notification_effects: NotificationQueue,
 }
 
 /// Compatibility name while the public API migrates from graph to tree.
 pub type FigureTree = FigureGraph;
-
-impl Deref for FigureGraph {
-    type Target = InteractionState;
-
-    fn deref(&self) -> &Self::Target {
-        &self.interaction
-    }
-}
-
-impl DerefMut for FigureGraph {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.interaction
-    }
-}
 
 impl FigureGraph {
     /// 创建新场景图
@@ -488,19 +353,8 @@ impl FigureGraph {
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
-            interaction: InteractionState::default(),
             notification_effects: NotificationQueue::new(),
         }
-    }
-
-    /// Returns the interaction state associated with this compatibility graph.
-    pub fn interaction_state(&self) -> &InteractionState {
-        &self.interaction
-    }
-
-    /// Returns mutable interaction state for runtime orchestration.
-    pub fn interaction_state_mut(&mut self) -> &mut InteractionState {
-        &mut self.interaction
     }
 
     /// 返回当前积累的通知 effect。
@@ -940,7 +794,7 @@ impl FigureGraph {
             self.contents = None;
         }
 
-        self.clear_interaction_state_for_subtree(child);
+        self.clear_selection_for_subtree(child);
         self.mark_invalid(update_manager, parent);
         update_manager.add_dirty_region(child, bounds);
         self.repaint(update_manager, parent, None);
@@ -1625,6 +1479,21 @@ impl FigureGraph {
         self.blocks.get(block_id).and_then(|block| block.parent)
     }
 
+    /// Returns whether a node is currently attached to this tree's root.
+    pub fn is_attached(&self, block_id: BlockId) -> bool {
+        let mut current = Some(block_id);
+        for _ in 0..=self.blocks.len() {
+            let Some(id) = current else {
+                return false;
+            };
+            if id == self.root {
+                return true;
+            }
+            current = self.blocks.get(id).and_then(|block| block.parent);
+        }
+        false
+    }
+
     /// 返回 child 在父节点内的 z-order index。
     ///
     /// index 越大表示越靠前绘制、越靠上层。
@@ -1733,7 +1602,7 @@ impl FigureGraph {
         }
 
         if !visible {
-            self.clear_interaction_state_for_subtree(id);
+            self.clear_selection_for_subtree(id);
         }
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
@@ -1793,7 +1662,7 @@ impl FigureGraph {
         }
 
         if !enabled {
-            self.clear_interaction_state_for_subtree(id);
+            self.clear_selection_for_subtree(id);
         }
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
@@ -1925,81 +1794,11 @@ impl FigureGraph {
         }
     }
 
-    pub fn mouse_target(&self) -> Option<BlockId> {
-        self.mouse_target
-    }
-
-    pub fn set_mouse_target(&mut self, id: Option<BlockId>) {
-        self.mouse_target = id;
-    }
-
-    pub fn cursor_target(&self) -> Option<BlockId> {
-        self.cursor_target
-    }
-
-    pub fn set_cursor_target(&mut self, id: Option<BlockId>) {
-        self.cursor_target = id;
-    }
-
-    pub fn hover_source(&self) -> Option<BlockId> {
-        self.hover_source
-    }
-
-    pub fn set_hover_source(&mut self, id: Option<BlockId>) {
-        self.hover_source = id;
-    }
-
-    pub fn is_hovered(&self, id: BlockId) -> bool {
-        self.interaction.hovered.contains(&id)
-    }
-
-    pub fn set_hovered(&mut self, id: BlockId, hovered: bool) {
-        if !self.blocks.contains_key(id) {
-            return;
-        }
-        if hovered {
-            self.interaction.hovered.insert(id);
-        } else {
-            self.interaction.hovered.remove(&id);
-        }
-    }
-
-    pub fn is_pressed(&self, id: BlockId) -> bool {
-        self.interaction.pressed.contains(&id)
-    }
-
-    pub fn set_pressed(&mut self, id: BlockId, pressed: bool) {
-        if !self.blocks.contains_key(id) {
-            return;
-        }
-        if pressed {
-            self.interaction.pressed.insert(id);
-        } else {
-            self.interaction.pressed.remove(&id);
-        }
-    }
-
     pub fn is_selected(&self, id: BlockId) -> bool {
         self.blocks
             .get(id)
             .map(|block| block.is_selected)
             .unwrap_or(false)
-    }
-
-    pub fn focus_owner(&self) -> Option<BlockId> {
-        self.focus_owner
-    }
-
-    pub fn set_focus_owner(&mut self, id: Option<BlockId>) {
-        self.focus_owner = id;
-    }
-
-    pub fn captured(&self) -> Option<BlockId> {
-        self.captured
-    }
-
-    pub fn set_captured(&mut self, id: Option<BlockId>) {
-        self.captured = id;
     }
 
     /// 应用布局
@@ -2457,49 +2256,7 @@ impl FigureGraph {
         block.figure.wants_mouse_events().then_some(block_id)
     }
 
-    fn clear_interaction_state_for_subtree(&mut self, subtree_root: BlockId) {
-        if self
-            .mouse_target
-            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
-        {
-            self.mouse_target = None;
-        }
-        if self
-            .cursor_target
-            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
-        {
-            self.cursor_target = None;
-        }
-        if self
-            .hover_source
-            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
-        {
-            self.hover_source = None;
-        }
-        if self
-            .captured
-            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
-        {
-            self.captured = None;
-        }
-        if self
-            .focus_owner
-            .is_some_and(|id| self.is_in_subtree(id, subtree_root))
-        {
-            self.focus_owner = None;
-        }
-        let stale_gestures: Vec<crate::GestureSessionId> = self
-            .gesture_targets
-            .iter()
-            .filter_map(|(session_id, target_id)| {
-                target_id
-                    .is_some_and(|target_id| self.is_in_subtree(target_id, subtree_root))
-                    .then_some(*session_id)
-            })
-            .collect();
-        for session_id in stale_gestures {
-            self.gesture_targets.insert(session_id, None);
-        }
+    fn clear_selection_for_subtree(&mut self, subtree_root: BlockId) {
         let descendants: Vec<BlockId> = self
             .blocks
             .keys()
@@ -2507,8 +2264,6 @@ impl FigureGraph {
             .collect();
         let mut deselected = Vec::new();
         for id in descendants {
-            self.interaction.hovered.remove(&id);
-            self.interaction.pressed.remove(&id);
             if let Some(block) = self.blocks.get_mut(id) {
                 if block.is_selected {
                     deselected.push(id);

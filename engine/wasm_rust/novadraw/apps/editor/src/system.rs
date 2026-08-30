@@ -1,10 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use novadraw::{
-    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, Key, KeyModifiers, MouseButton,
-    NdCanvas, NovadrawSystem, PendingMutations, RenderBackend, SceneDispatchContext, SceneHost,
-    SceneUpdateManager, UpdateEvent, UpdateListener, WheelEvent, ZoomEvent,
-    backend::vello::WinitWindowProxy,
+    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, InteractionState, Key,
+    KeyModifiers, MouseButton, NdCanvas, NovadrawSystem, PendingMutations, RenderBackend,
+    SceneDispatchContext, SceneHost, SceneUpdateManager, UpdateEvent, UpdateListener, WheelEvent,
+    ZoomEvent, backend::vello::WinitWindowProxy,
 };
 
 use crate::scene_manager::{SceneManager, scene_host::WinitSceneHost};
@@ -90,6 +90,7 @@ pub struct InteractionReport {
 pub struct EditorInteractionCore {
     scene_manager: SceneManager,
     update_manager: SceneUpdateManager,
+    interaction: InteractionState,
     dispatcher: BasicEventDispatcher,
     pending_mutations: PendingMutations,
 }
@@ -109,6 +110,7 @@ impl EditorInteractionCore {
         Self {
             scene_manager: SceneManager::new(),
             update_manager,
+            interaction: InteractionState::default(),
             dispatcher: BasicEventDispatcher,
             pending_mutations: PendingMutations::new(),
         }
@@ -134,7 +136,7 @@ impl EditorInteractionCore {
                 .scene_manager
                 .scene
                 .find_mouse_event_target_at(logical.x, logical.y),
-            mouse_target_before: self.scene_manager.scene.mouse_target(),
+            mouse_target_before: self.interaction.mouse_target(),
             mouse_target_after: None,
             focus_owner_after: None,
             captured_after: None,
@@ -142,14 +144,15 @@ impl EditorInteractionCore {
     }
 
     fn finish_trace(&self, trace: &mut InteractionTrace) {
-        trace.mouse_target_after = self.scene_manager.scene.mouse_target();
-        trace.focus_owner_after = self.scene_manager.scene.focus_owner();
-        trace.captured_after = self.scene_manager.scene.captured();
+        trace.mouse_target_after = self.interaction.mouse_target();
+        trace.focus_owner_after = self.interaction.focus_owner();
+        trace.captured_after = self.interaction.captured();
     }
 
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -160,6 +163,7 @@ impl EditorInteractionCore {
     pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -171,6 +175,7 @@ impl EditorInteractionCore {
     pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -182,6 +187,7 @@ impl EditorInteractionCore {
     pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -193,6 +199,7 @@ impl EditorInteractionCore {
     pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -203,6 +210,7 @@ impl EditorInteractionCore {
     pub fn dispatch_scroll(&mut self, event: WheelEvent) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -213,6 +221,7 @@ impl EditorInteractionCore {
     pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -223,6 +232,7 @@ impl EditorInteractionCore {
     pub fn cancel_gestures(&mut self) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -232,6 +242,7 @@ impl EditorInteractionCore {
     pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -243,6 +254,7 @@ impl EditorInteractionCore {
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -254,6 +266,7 @@ impl EditorInteractionCore {
     pub fn release_focus(&mut self) {
         let mut ctx = SceneDispatchContext::new(
             &mut self.scene_manager.scene,
+            &mut self.interaction,
             &mut self.update_manager,
             &mut self.pending_mutations,
         );
@@ -334,9 +347,12 @@ impl EditorInteractionCore {
 
     fn apply_pending_mutations(&mut self) -> bool {
         let mutations = self.pending_mutations.drain();
-        self.scene_manager
+        let changed = self
+            .scene_manager
             .scene
-            .apply_pending_mutations(&mut self.update_manager, mutations)
+            .apply_pending_mutations(&mut self.update_manager, mutations);
+        self.interaction.reconcile(&self.scene_manager.scene);
+        changed
     }
 }
 
@@ -360,6 +376,7 @@ impl WinitNovadrawSystem {
     pub fn switch_scene(&mut self, scene_type: crate::scene_manager::SceneType) {
         self.core.scene_manager_mut().switch_scene(scene_type);
         self.core.update_manager.clear();
+        self.core.interaction = InteractionState::default();
         self.scene_host.request_update();
     }
 
@@ -687,13 +704,13 @@ mod tests {
         );
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[0].mouse_target_after, Some(target_id));
-        assert!(core.scene_manager.scene.is_hovered(target_id));
-        assert!(!core.scene_manager.scene.is_pressed(target_id));
+        assert!(core.interaction.is_hovered(target_id));
+        assert!(!core.interaction.is_pressed(target_id));
         assert!(!core.scene_manager.scene.is_selected(target_id));
     }
 
     #[test]
-    fn test_click_script_updates_graph_interaction_state() {
+    fn test_click_script_updates_runtime_interaction_state() {
         let (mut core, target_id) = build_test_core();
         let report = core.run_interaction_script(&[InteractionStep::Click {
             input: RawPointerInput::new(300.0, 300.0, 2.0),
@@ -704,8 +721,8 @@ mod tests {
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
-        assert!(core.scene_manager.scene.is_hovered(target_id));
-        assert!(!core.scene_manager.scene.is_pressed(target_id));
+        assert!(core.interaction.is_hovered(target_id));
+        assert!(!core.interaction.is_pressed(target_id));
         assert!(core.scene_manager.scene.is_selected(target_id));
     }
 
@@ -732,8 +749,8 @@ mod tests {
         assert_eq!(report.traces[3].mouse_target_before, Some(target_id));
         assert_eq!(report.traces[3].captured_after, None);
         assert_eq!(report.traces[3].mouse_target_after, None);
-        assert!(!core.scene_manager.scene.is_hovered(target_id));
-        assert!(!core.scene_manager.scene.is_pressed(target_id));
+        assert!(!core.interaction.is_hovered(target_id));
+        assert!(!core.interaction.is_pressed(target_id));
         assert!(core.scene_manager.scene.is_selected(target_id));
     }
 
@@ -753,8 +770,8 @@ mod tests {
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
-        assert!(core.scene_manager.scene.is_hovered(target_id));
-        assert!(!core.scene_manager.scene.is_pressed(target_id));
+        assert!(core.interaction.is_hovered(target_id));
+        assert!(!core.interaction.is_pressed(target_id));
         assert!(core.scene_manager.scene.is_selected(target_id));
     }
 

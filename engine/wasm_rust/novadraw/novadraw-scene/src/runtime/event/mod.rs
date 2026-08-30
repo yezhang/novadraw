@@ -384,7 +384,9 @@ impl BasicEventDispatcher {
         if ctx.has_gesture_session(session_id) {
             ctx.gesture_target(session_id)
         } else {
-            ctx.find_gesture_target_at(x, y)
+            let target = ctx.find_gesture_target_at(x, y);
+            ctx.set_gesture_target(session_id, target);
+            target
         }
     }
 

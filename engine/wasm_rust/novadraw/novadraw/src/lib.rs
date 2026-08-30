@@ -33,7 +33,7 @@ pub use novadraw_scene::{
     LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder, MinorAlignment, MouseButton, MouseEvent,
     MouseEventKind, MouseLocationZoomScrollPolicy, NodeState, NotificationEffect,
     NotificationQueue, NovadrawContext, NovadrawSystem, PendingMutationBatch, PendingMutations,
-    PlatformHost, Point, PolygonFigure, PolylineFigure, PropertyChangeEvent,
+    PlatformHost, Point, PointerId, PolygonFigure, PolylineFigure, PropertyChangeEvent,
     PropertyChangeListener, PropertyValue, RangeChange, RangeChangeSet, RangeListener,
     RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty, Rectangle,
     RectangleBorder, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, ScalableFigure,

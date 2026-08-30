@@ -160,7 +160,7 @@ impl Runtime {
         action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
     ) {
         {
-            let mut context = SceneDispatchContext::with_interaction(
+            let mut context = SceneDispatchContext::new(
                 &mut self.tree,
                 &mut self.interaction,
                 &mut self.updates,
@@ -175,11 +175,7 @@ impl Runtime {
     }
 
     fn retain_interactive_figures(&mut self) {
-        self.interaction.retain_figures(|id| {
-            self.tree.get_block(id).is_some()
-                && self.tree.is_effectively_visible(id)
-                && self.tree.is_effectively_enabled(id)
-        });
+        self.interaction.reconcile(&self.tree);
     }
 
     /// Prepares an incremental frame when the runtime has pending work.
@@ -237,13 +233,13 @@ mod tests {
     }
 
     #[test]
-    fn runtime_interaction_state_is_independent_from_tree_compatibility_state() {
+    fn runtime_owns_interaction_state_separately_from_tree() {
         let mut runtime = Runtime::empty();
         let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
 
         runtime.interaction.set_mouse_target(Some(root));
 
         assert_eq!(runtime.interaction().mouse_target(), Some(root));
-        assert_eq!(runtime.tree().interaction_state().mouse_target(), None);
+        assert_eq!(runtime.tree().get_contents(), Some(root));
     }
 }

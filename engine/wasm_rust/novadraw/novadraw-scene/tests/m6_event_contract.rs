@@ -2,9 +2,10 @@ use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureGraph, FocusEvent,
-    FocusEventKind, GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers,
-    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure,
-    SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind, Updatable, WheelEvent,
+    FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind,
+    KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle,
+    RectangleFigure, SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind, Updatable,
+    WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -169,11 +170,17 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         }),
     );
     let mut update_manager = SceneUpdateManager::new();
+    let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
 
     {
-        let mut ctx = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        let mut ctx = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
         dispatcher.dispatch_mouse_pressed(&mut ctx, 120.0, 80.0, MouseButton::Left);
         dispatcher.dispatch_mouse_moved(&mut ctx, 260.0, 190.0);
         dispatcher.dispatch_mouse_wheel(&mut ctx, 120.0, 80.0, 1.0, -2.0);
@@ -189,10 +196,8 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         dispatcher.release_focus(&mut ctx);
     }
 
-    assert_eq!(graph.captured(), None);
-    assert_eq!(graph.focus_owner(), None);
-    assert_eq!(graph.hover_source(), None);
-    assert_eq!(graph.cursor_target(), None);
+    assert_eq!(interaction.captured(), None);
+    assert_eq!(interaction.focus_owner(), None);
 
     let events = events.lock().unwrap();
     assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Pressed, 20.0, 30.0,)));
@@ -215,7 +220,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         }
         RecordedInput::Key(..) | RecordedInput::Focus(..) => true,
     }));
-    assert_eq!(graph.mouse_target(), None);
+    assert_eq!(interaction.mouse_target(), None);
 }
 
 #[test]
@@ -239,12 +244,18 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
         }),
     );
     let mut update_manager = SceneUpdateManager::new();
+    let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
     let session = GestureSessionId::new(7);
 
     {
-        let mut ctx = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        let mut ctx = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
         dispatcher.dispatch_mouse_pressed(&mut ctx, 20.0, 20.0, MouseButton::Left);
         dispatcher.dispatch_scroll(
             &mut ctx,

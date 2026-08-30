@@ -153,7 +153,7 @@ impl MutationContext for SceneNovadrawContext<'_> {
 /// 坐标域切换与 Figure 回调调用都在引擎层统一处理。
 pub struct SceneDispatchContext<'a> {
     scene: &'a mut FigureGraph,
-    interaction: Option<&'a mut InteractionState>,
+    interaction: &'a mut InteractionState,
     update_manager: &'a mut dyn UpdateManager,
     pending_mutations: &'a mut PendingMutations,
 }
@@ -161,41 +161,16 @@ pub struct SceneDispatchContext<'a> {
 impl<'a> SceneDispatchContext<'a> {
     pub fn new(
         scene: &'a mut FigureGraph,
-        update_manager: &'a mut dyn UpdateManager,
-        pending_mutations: &'a mut PendingMutations,
-    ) -> Self {
-        Self {
-            scene,
-            interaction: None,
-            update_manager,
-            pending_mutations,
-        }
-    }
-
-    pub fn with_interaction(
-        scene: &'a mut FigureGraph,
         interaction: &'a mut InteractionState,
         update_manager: &'a mut dyn UpdateManager,
         pending_mutations: &'a mut PendingMutations,
     ) -> Self {
         Self {
             scene,
-            interaction: Some(interaction),
+            interaction,
             update_manager,
             pending_mutations,
         }
-    }
-
-    fn interaction(&self) -> &InteractionState {
-        self.interaction
-            .as_deref()
-            .unwrap_or_else(|| self.scene.interaction_state())
-    }
-
-    fn interaction_mut(&mut self) -> &mut InteractionState {
-        self.interaction
-            .as_deref_mut()
-            .unwrap_or_else(|| self.scene.interaction_state_mut())
     }
 
     fn nearest_scalable(&self, mut target_id: BlockId) -> Option<BlockId> {
@@ -231,14 +206,36 @@ impl<'a> SceneDispatchContext<'a> {
     }
 
     fn apply_scroll_controller(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
-        let Some(scroll_pane_id) = self.nearest_scroll_pane_parent(target_id) else {
+        let controller = if event.phase == crate::GesturePhase::Impulse
+            || event.session_id == GestureSessionId::IMPULSE
+        {
+            self.nearest_scroll_pane_parent(target_id)
+        } else if let Some(controller) = self.interaction.scroll_controller(event.session_id) {
+            controller
+        } else {
+            let controller = self.nearest_scroll_pane_parent(target_id);
+            self.interaction
+                .pin_scroll_controller(event.session_id, controller)
+        };
+        let Some(scroll_pane_id) = controller else {
             return false;
         };
         DispatchContext::dispatch_to_target(self, Some(scroll_pane_id), &Event::Wheel(*event))
     }
 
     fn apply_zoom_manager(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
-        let Some(scalable_id) = self.nearest_scalable(target_id) else {
+        let scalable = if event.phase == crate::GesturePhase::Impulse
+            || event.session_id == GestureSessionId::IMPULSE
+        {
+            self.nearest_scalable(target_id)
+        } else if let Some(controller) = self.interaction.zoom_controller(event.session_id) {
+            controller
+        } else {
+            let controller = self.nearest_scalable(target_id);
+            self.interaction
+                .pin_zoom_controller(event.session_id, controller)
+        };
+        let Some(scalable_id) = scalable else {
             return false;
         };
         let Some(viewport_id) = self.nearest_viewport_parent(scalable_id) else {
@@ -283,79 +280,78 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn mouse_target(&self) -> Option<BlockId> {
-        self.interaction().mouse_target()
+        self.interaction.mouse_target()
     }
 
     fn set_mouse_target(&mut self, id: Option<BlockId>) {
-        self.interaction_mut().set_mouse_target(id);
+        self.interaction.set_mouse_target(id);
     }
 
     fn cursor_target(&self) -> Option<BlockId> {
-        self.interaction().cursor_target()
+        self.interaction.cursor_target()
     }
 
     fn set_cursor_target(&mut self, id: Option<BlockId>) {
-        self.interaction_mut().set_cursor_target(id);
+        self.interaction.set_cursor_target(id);
     }
 
     fn hover_source(&self) -> Option<BlockId> {
-        self.interaction().hover_source()
+        self.interaction.hover_source()
     }
 
     fn set_hover_source(&mut self, id: Option<BlockId>) {
-        self.interaction_mut().set_hover_source(id);
+        self.interaction.set_hover_source(id);
     }
 
     fn set_hovered(&mut self, id: BlockId, hovered: bool) {
         if self.scene.get_block(id).is_some() {
-            self.interaction_mut().set_hovered(id, hovered);
+            self.interaction.set_hovered(id, hovered);
         }
     }
 
     fn set_pressed(&mut self, id: BlockId, pressed: bool) {
         if self.scene.get_block(id).is_some() {
-            self.interaction_mut().set_pressed(id, pressed);
+            self.interaction.set_pressed(id, pressed);
         }
     }
 
     fn focus_owner(&self) -> Option<BlockId> {
-        self.interaction().focus_owner()
+        self.interaction.focus_owner()
     }
 
     fn set_focus_owner(&mut self, id: Option<BlockId>) {
-        self.interaction_mut().set_focus_owner(id);
+        self.interaction.set_focus_owner(id);
     }
 
     fn captured(&self) -> Option<BlockId> {
-        self.interaction().captured()
+        self.interaction.captured()
     }
 
     fn set_captured(&mut self, id: Option<BlockId>) {
-        self.interaction_mut().set_captured(id);
+        self.interaction.set_captured(id);
     }
 
     fn gesture_target(&self, session_id: GestureSessionId) -> Option<BlockId> {
-        self.interaction()
+        self.interaction
             .gesture_target(session_id)
             .filter(|id| self.scene.get_block(*id).is_some())
     }
 
     fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
-        self.interaction().has_gesture_session(session_id)
+        self.interaction.has_gesture_session(session_id)
     }
 
     fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<BlockId>) {
         let target_id = target_id.filter(|id| self.scene.get_block(*id).is_some());
-        self.interaction_mut()
-            .set_gesture_target(session_id, target_id);
+        self.interaction.set_gesture_target(session_id, target_id);
     }
 
     fn clear_gesture_target(&mut self, session_id: GestureSessionId) {
-        self.interaction_mut().clear_gesture_target(session_id);
+        self.interaction.clear_gesture_target(session_id);
     }
 
     fn clear_gesture_targets(&mut self) {
-        self.interaction_mut().clear_gestures();
+        self.interaction.clear_gestures();
     }
 
     fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
@@ -675,10 +671,15 @@ mod tests {
         );
 
         let mut update_manager = crate::SceneUpdateManager::new();
+        let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
-        let mut ctx =
-            SceneDispatchContext::new(&mut scene, &mut update_manager, &mut pending_mutations);
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
 
         dispatcher.dispatch_mouse_pressed(&mut ctx, 130.0, 90.0, MouseButton::Left);
 
@@ -716,10 +717,15 @@ mod tests {
         );
 
         let mut update_manager = crate::SceneUpdateManager::new();
+        let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
-        let mut ctx =
-            SceneDispatchContext::new(&mut scene, &mut update_manager, &mut pending_mutations);
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
 
         dispatcher.dispatch_mouse_pressed(&mut ctx, 130.0, 90.0, MouseButton::Left);
 
@@ -743,10 +749,15 @@ mod tests {
         scene.revalidate(parent_id);
         assert!(scene.is_valid(parent_id));
         let mut update_manager = crate::SceneUpdateManager::new();
+        let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
-        let mut ctx =
-            SceneDispatchContext::new(&mut scene, &mut update_manager, &mut pending_mutations);
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
 
         dispatcher.dispatch_mouse_pressed(&mut ctx, 10.0, 10.0, MouseButton::Left);
 

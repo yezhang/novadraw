@@ -4,8 +4,8 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventDispatcher, FigureEvent, FigureGraph, LineBorder,
-    MouseButton, MouseEvent, NotificationEffect, NovadrawContext, PendingMutations,
+    BasicEventDispatcher, Bounded, EventDispatcher, FigureEvent, FigureGraph, InteractionState,
+    LineBorder, MouseButton, MouseEvent, NotificationEffect, NovadrawContext, PendingMutations,
     RectangleFigure, SceneDispatchContext, SceneUpdateManager, Shape, Updatable,
 };
 
@@ -177,10 +177,15 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     );
 
     let mut update_manager = SceneUpdateManager::new();
+    let mut interaction = InteractionState::default();
     let mut pending_mutations = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
-    let mut context =
-        SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending_mutations);
+    let mut context = SceneDispatchContext::new(
+        &mut graph,
+        &mut interaction,
+        &mut update_manager,
+        &mut pending_mutations,
+    );
     dispatcher.dispatch_mouse_pressed(&mut context, entry.x(), entry.y(), MouseButton::Left);
 
     assert_eq!(

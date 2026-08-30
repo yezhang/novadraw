@@ -1,7 +1,8 @@
 use novadraw::{
     BasicEventDispatcher, Color, EventDispatcher, FigureGraph, GesturePhase, GestureSessionId,
-    KeyModifiers, PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext,
-    SceneUpdateManager, ScrollBarVisibility, ScrollDeltaKind, WheelEvent, ZoomEvent, ZoomManager,
+    InteractionState, KeyModifiers, PendingMutations, Rectangle, RectangleFigure,
+    SceneDispatchContext, SceneUpdateManager, ScrollBarVisibility, ScrollDeltaKind, WheelEvent,
+    ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -231,10 +232,16 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
     )
     .map_err(|error| error.to_string())?;
     graph.revalidate(pane.pane_id());
+    let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
     {
-        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
         dispatcher.dispatch_mouse_wheel(&mut context, PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0);
     }
     let location = pane.viewport().view_location();
@@ -307,12 +314,18 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         )),
     );
     graph.revalidate(pane.pane_id());
+    let mut interaction = InteractionState::default();
     let mut update_manager = SceneUpdateManager::new();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
     let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
     {
-        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
         dispatcher.dispatch_zoom(
             &mut context,
             ZoomEvent::new(
@@ -340,7 +353,12 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         return Err("pinch did not synchronize the scaled scroll range".to_string());
     }
     {
-        let mut context = SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
         dispatcher.dispatch_scroll(
             &mut context,
             WheelEvent::with_details(
@@ -362,8 +380,12 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     let expanded_scale = 2.0;
     for target_scale in [shrunk_scale, expanded_scale] {
         {
-            let mut context =
-                SceneDispatchContext::new(&mut graph, &mut update_manager, &mut pending);
+            let mut context = SceneDispatchContext::new(
+                &mut graph,
+                &mut interaction,
+                &mut update_manager,
+                &mut pending,
+            );
             dispatcher.dispatch_zoom(
                 &mut context,
                 ZoomEvent::new(
