@@ -14,6 +14,7 @@
 | `doc/parity/draw2d/api-coverage.md` | **语义账本**：draw2d API family、Novadraw 对照方向、覆盖状态与 milestone 映射 | 人读，架构与实现对齐入口 | 按语义收敛持续更新 |
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
+| `doc/roadmap/m8-m9-contract-plan.md` | **阶段计划**：Viewport 与 Connection 的交付边界和验证门禁 | 人读，不定义理想架构 | 推进 M8/M9 时 |
 
 ## 编号唯一来源
 
@@ -68,3 +69,4 @@
 |------|------|
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
+| `m8-m9-contract-plan.md` | M8/M9 交付范围、前置契约与验收门禁 |

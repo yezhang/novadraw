@@ -1,259 +1,213 @@
-# 理想目录结构设计
+# 理想目录与 Crate 边界
 
 类型：`normative-design`
 
-本文档记录“理想架构如何映射到目录结构”的正式决策，用于指导后续代码重组。目标不是一次性把 workspace 拆成最终形态，而是先让目录表达清晰的职责边界，再逐步把稳定子域提升为独立 crate。
+本文定义理想架构映射到 Rust 模块和 crate 的原则，不记录当前仓库迁移状态。
 
-## 当前目录结构的主要问题
+## 1. 原则
 
-当前 `novadraw-scene` 仍同时承载了多类不同性质的内容：
+1. 目录首先表达职责和依赖方向。
+2. 先稳定模块契约，再提升为独立 crate。
+3. 不为每个概念创建 crate。
+4. 平台实现、领域运行时和渲染后端必须可独立替换。
+5. 目录结构不能迫使核心类型使用 `Arc<Mutex<_>>` 或不必要的 trait object。
 
-- 图形能力层：`figure`、`border`、`layout`
-- 图关系层：`scene`
-- 运行时服务层：`event`、`update`、`mutation`、`context`、`system`
-- 平台宿主与扩展容器层：`scene_host`、`viewport`
-
-这种组织方式在项目早期是高效的，但随着理想架构逐渐定稿，会产生两个长期问题：
-
-1. **边界只存在于文档，不存在于目录**
-   - 实现者需要靠记忆区分“这是核心域还是运行时服务”
-   - 一旦实现压力变大，逻辑容易重新混回 `novadraw-scene` 根层
-2. **未来拆 crate 缺乏自然迁移路径**
-   - 如果目录本身没有先按职责分层，后续再拆 crate 时会同时引入“文件移动 + 依赖重组 + 语义澄清”三类成本
-
-## 目录优化的核心决策
-
-### 决策 1：先做模块边界优化，再做 crate 边界优化
-
-这是本文最重要的目录决策。
-
-原因：
-
-- 当前最需要稳定的是**职责边界**，不是 workspace 数量
-- 如果现在立即大拆 crate，会在接口尚未完全落地前引入大量循环依赖与 facade 调整
-- 先在 `novadraw-scene` 内部把目录层次整理清楚，可以让后续 crate 拆分变成“机械迁移”，而不是再做一轮架构设计
-
-结论：
-
-- **短期目标**：让 `novadraw-scene/src` 的目录结构表达理想架构
-- **中期目标**：当边界稳定后，再把稳定子域升级为独立 crate
-
-### 决策 2：按“核心域 / 运行时服务 / 平台宿主 / 扩展容器”四层整理
-
-按理想架构，目录应该优先表达以下四种不同性质的对象：
-
-1. **图形与布局能力层**
-   - `Figure`
-   - `Border`
-   - `LayoutManager`
-2. **场景图核心层**
-   - `FigureBlock`
-   - `FigureGraph`
-   - hit-test / 坐标转换 / mutation apply
-3. **运行时服务层**
-   - `EventDispatcher`
-   - `UpdateManager`
-   - `NovadrawContext`
-   - `MutationContext`
-   - `NovadrawSystem`
-4. **平台宿主与扩展容器层**
-   - `SceneHost`
-   - `Viewport`
-   - 后续 `Layer`
-   - 后续 `Scroll`
-
-这么分的原因是：
-
-- 这四层正好对应理想架构中的四类对象
-- 它们的依赖方向天然不同
-- 后续即使扩展功能，也可以明确知道新增代码应该落在哪一层，而不是继续堆到根目录
-
-## 当前短期目录结构
-
-在不立刻拆 crate 的前提下，`novadraw-scene/src` 已通过 AD-019A / AD-019B 调整为如下结构：
+## 2. 逻辑分层
 
 ```text
-novadraw-scene/src/
-  lib.rs
+core + geometry
+  ↑
+figure / layout protocols
+  ↑
+tree
+  ↑
+runtime
+  ↑
+platform / application
 
-  figure/
-    mod.rs
-    traits.rs
-    shape.rs
-    root.rs
-    border/
-      mod.rs
-      line.rs
-      margin.rs
-      rectangle.rs
-
-  layout/
-    mod.rs
-    traits.rs
-    xy.rs
-    flow.rs
-    border.rs
-
-  graph/
-    mod.rs
-    block.rs
-    graph.rs
-    hit_test.rs
-    coords.rs
-    render.rs
-
-  runtime/
-    mod.rs
-    context.rs
-    event/
-      mod.rs
-      dispatcher.rs
-      types.rs
-      dispatch_context.rs
-    update/
-      mod.rs
-      manager.rs
-      deferred.rs
-      repair.rs
-      listener.rs
-    mutation/
-      mod.rs
-    system/
-      mod.rs
-
-  host/
-    mod.rs
-    scene_host.rs
-
-  container/
-    mod.rs
-    viewport.rs
-    layer.rs
-    scroll.rs
+render-protocol ← runtime
+render-backend  → render-protocol
+scene3d         → render-protocol
 ```
 
-## 关键命名调整
+### Geometry
 
-### 决策 3：`scene/` 更名为 `graph/`
+平台无关的二维几何：
 
-原因：
+- Point、Size、Rect、Insets；
+- Affine2D；
+- path 和精度策略；
+- 相交、包含和投影后的二维 bounds。
 
-- 当前理想架构的真正核心对象是 `FigureGraph`
-- `scene` 这个词过于宽泛，容易把运行时服务、平台宿主、视口等都理解成“scene 的一部分”
-- `graph` 更准确表达“树关系 + 节点状态 + 命中测试 + 坐标转换”的职责域
+3D 数学可以放在独立模块或依赖中，但不能把二维公共类型模糊成可切换的类型别名。
 
-结论：
+### Core
 
-- 后续目录与模块命名中，优先使用 `graph` 而不是泛化的 `scene`
+- `FigureId` 等运行时身份；
+- 平台无关错误和基础枚举；
+- 不依赖 Figure、Layout 或 Runtime 的稳定协议值。
 
-### 决策 4：把 `event / update / mutation / context / system` 收入 `runtime/`
+### Figure
 
-原因：
+- `Figure` 和可选 capability；
+- style、border 和 paint context；
+- 内置 Figure。
 
-- 这些都不是图结构本身，而是围绕图结构运转的系统服务
-- 单独平铺在 `src/` 根下，会弱化“服务层”和“核心域”的区别
-- 收入 `runtime/` 后，未来无论是否拆 crate，边界都更稳定
+### Layout
 
-结论：
+- LayoutManager；
+- constraints；
+- measurement；
+- LayoutOutput 和缓存。
 
-- `runtime/` 是理想架构中的“运行时机制层”
-- 任何新的调度/上下文/服务型能力，默认应优先归入 `runtime/`
+### Tree
 
-### 决策 5：把 `scene_host` 提升为 `host/scene_host.rs`
+- FigureTree；
+- arena 和 FigureNode；
+- NodeState；
+- topology mutation；
+- tree queries；
+- 坐标链、hit-test 和 paint traversal 所需的树视图。
 
-原因：
+Tree 不包含交互 session、frame scheduling 或平台对象。
 
-- `SceneHost` 是宿主接口，不属于图结构核心域
-- 把它从根层移动到 `host/`，可以防止后续实现者把它误当成 `FigureGraph` 相关模块继续耦合
-- 这也为未来的 `WinitSceneHost / WebSceneHost / HeadlessSceneHost` 留下自然位置
+### Runtime
 
-### 决策 6：把 `viewport` 明确为扩展容器层，而不是根层杂项模块
+- InteractionState；
+- EventDispatcher；
+- UpdateManager；
+- MutationQueue；
+- Runtime 组合根；
+- callback contexts 和 effects；
+- frame preparation。
 
-原因：
+### Platform
 
-- `Viewport` 已经被确定为稳定扩展点
-- 它会自然演化出 `Layer / Scroll / ScrollPane`
-- 如果继续放在根层，后续扩展容易变成若干零散模块，而不是围绕“扩展容器”形成清晰子域
+- Winit adapter；
+- Web adapter；
+- Headless host；
+- surface 生命周期；
+- cursor、clipboard、IME 和 accessibility bridge。
 
-结论：
+### Render
 
-- `viewport` 后续应进入 `container/`
-- `Layer / Scroll` 也应与它并列，而不是散落到根目录
+- RecordingCanvas；
+- CommandStream；
+- RenderSubmission；
+- RenderBackend；
+- Vello、软件或测试后端；
+- resource upload/release。
 
-## 为什么不建议现在立刻拆成更多 workspace crate
+### Scene3D
 
-### 决策 7：先稳定接口，再稳定物理边界
+可选独立子域：
 
-按理想架构，长期上可以演进到类似下面的 crate 结构：
+- SpatialNode；
+- Camera；
+- 3D bounds 和 ray hit-test；
+- material、lighting 和 depth；
+- 与二维 Figure 的嵌入/合成适配。
+
+## 3. 单 Crate 阶段
+
+在边界稳定前，可以在一个 scene/runtime crate 中保持以下模块：
 
 ```text
-novadraw-core
-novadraw-geometry
-novadraw-math
+src/
+├── core/
+│   ├── id.rs
+│   └── error.rs
+├── figure/
+│   ├── traits.rs
+│   ├── style.rs
+│   ├── border/
+│   └── builtin/
+├── layout/
+│   ├── traits.rs
+│   ├── state.rs
+│   └── builtin/
+├── tree/
+│   ├── node.rs
+│   ├── node_state.rs
+│   ├── topology.rs
+│   ├── coordinates.rs
+│   ├── hit_test.rs
+│   └── traversal.rs
+├── runtime/
+│   ├── runtime.rs
+│   ├── interaction.rs
+│   ├── event/
+│   ├── update/
+│   ├── mutation/
+│   ├── effects.rs
+│   └── resources.rs
+├── render/
+│   ├── recording.rs
+│   └── submission.rs
+└── container/
+    ├── viewport.rs
+    ├── scroll_pane.rs
+    └── layer.rs
+```
 
+平台实现和具体 GPU 后端即使早期位于同一 workspace，也应与上述领域模块分开。
+
+## 4. 长期 Workspace
+
+当依赖方向和公共 API 稳定后，可以演进为：
+
+```text
+novadraw-geometry
 novadraw-figure
 novadraw-layout
-novadraw-graph
+novadraw-tree
 novadraw-runtime
 novadraw-render
-
+novadraw-render-vello
+novadraw-platform-winit
+novadraw-platform-web
+novadraw-3d
 novadraw
 apps/*
 ```
 
-但本文不建议现在立刻这么拆，原因是：
+不要求每个逻辑层最终都成为 crate。只有满足以下条件才拆分：
 
-- `FigureGraph / UpdateManager / EventDispatcher / SceneHost / Context` 的接口虽然已经定稿，但代码层面的最小垂直链路还没有全部落地
-- 如果现在就拆 crate，接下来很容易把主要时间花在：
-  - 依赖方向调整
-  - facade 导出维护
-  - trait 所属位置争论
-- 这些成本不会提升架构质量，反而会拖慢关键基础结构的落地
+- 已有清晰且稳定的公开契约；
+- 依赖方向单向；
+- 能独立测试或复用；
+- 拆分不会产生大量 facade 转发；
+- 编译隔离或发布边界有实际价值。
 
-结论：
+## 5. 命名
 
-- **目录先行，crate 后移**
-- 这是为了把“架构稳定”优先级放在“物理拆分漂亮”之前
+- `tree` 表示节点存储和拓扑，不再使用含义过宽的 `scene` 承载全部机制；
+- `runtime` 表示跨树、交互和更新的事务协调；
+- `platform` 表示原生系统边界；
+- `render` 表示绘制录制、提交和后端；
+- `container` 表示 Viewport、Layer、ScrollPane 等 Figure 组合；
+- `scene3d` 表示真正的 3D 场景，不与二维 tree 混用。
 
-## 执行顺序
+## 6. 禁止的依赖
 
-为了让目录调整服务于长期稳定，而不是制造一次性的大迁移成本，执行顺序如下：
+- geometry 不依赖 Figure 或 Runtime；
+- core 不依赖 Figure、Layout、Tree 或 Runtime；
+- Figure 不依赖 FigureTree、Runtime、PlatformHost 或 RenderBackend；
+- LayoutManager 不长期持有 FigureTree；
+- FigureTree 不依赖 InteractionState、UpdateManager 或平台层；
+- Runtime 不依赖 winit、DOM、AppKit、Win32 或具体 GPU 后端；
+- RenderBackend 不回调修改 Runtime；
+- PlatformHost 不执行布局、命中或 Figure 回调；
+- Scene3D 不通过替换二维 Point/Rect 类型侵入 Figure API。
 
-1. **第一步：在 `novadraw-scene/src` 内部做目录重组（已完成）**
-   - `scene -> graph`
-   - `event/update/mutation/context/system -> runtime`
-   - `scene_host -> host`
-   - `viewport -> container`
-2. **第二步：保持 facade crate `novadraw` 不变（已完成）**
-   - 先不改变外部导出入口，避免同时引入 API 破坏
-3. **第三步：优先实现最小垂直链路**
-   - `FigureGraph`
-   - `UpdateManager`
-   - `EventDispatcher`
-   - `SceneHost`
-   - `RenderBackend`
-4. **第四步：等子域边界稳定后，再按目录自然升级为 crate（暂缓）**
-   - `figure/layout`
-   - `graph`
-   - `runtime`
+## 7. Facade
 
-## 目录调整时的禁止项
+顶层 `novadraw` facade 只导出稳定用户入口：
 
-为了避免目录优化过程中反向破坏理想架构，补充以下约束：
+- Runtime builder；
+- Figure 和 LayoutManager 扩展接口；
+- 平台无关输入与几何类型；
+- RenderBackend / PlatformHost 边界；
+- 常用内置 Figure 和容器。
 
-- 不要为了“目录好看”把 `EventDispatcher` 放回 `graph`
-- 不要为了“少文件”把 `SceneHost` 放回 `system`
-- 不要为了“方便访问”让 `viewport` 直接侵入 `FigureGraph` 的核心职责
-- 不要在 crate 尚未稳定前反复移动 facade 导出
-
-## 最终判断
-
-理想架构下，目录结构优化的目标不是“拆得越多越好”，而是：
-
-- **让目录表达职责边界**
-- **让未来 crate 拆分变成机械迁移**
-- **优先保障核心运行时结构的长期稳定**
-
-因此，本文正式建议：
-
-> **先把 `novadraw-scene` 从“大而全场景 crate”整理为 `figure / layout / graph / runtime / host / container` 六个子域，再在实现稳定后逐步提升为独立 crate。**
+内部 arena、队列、具体 dispatcher 和 update 数据结构不应因 facade 便利而公开。

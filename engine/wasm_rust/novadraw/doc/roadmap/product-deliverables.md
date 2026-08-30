@@ -73,11 +73,12 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `paint_figure` / `paint_client_area` / `paint_border`
 - 顺序：`paintFigure → paintClientArea(含子) → paintBorder`
 
-### Figure / FigureBlock / FigureGraph 角色
+### Figure / FigureNode / FigureTree 角色
 
-- `Figure` trait：几何 + 绘制
-- `FigureBlock`：运行时状态（父子、可见、selected、layout、preferred/min/max size）
-- `FigureGraph`：SlotMap<BlockId, FigureBlock>
+- `Figure` trait：具体图形的绘制、内在尺寸、精确命中和可选能力
+- `FigureNode`：组合 `NodeState`、`LayoutState` 与 `Box<dyn Figure>`
+- `FigureTree`：通过 `SlotMap<FigureId, FigureNode>` 维护拓扑和 Z-order
+- `InteractionState`：独立维护 pointer、capture、hover、focus 和 gesture session
 
 ### 测试增量预期
 

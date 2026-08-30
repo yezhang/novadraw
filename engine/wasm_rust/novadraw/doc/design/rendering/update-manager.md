@@ -1,348 +1,314 @@
-# UpdateManager 设计文档
+# UpdateManager 契约
 
 类型：`normative-design`
 
-## 概述
+本文是 Novadraw validation、damage repair 和 frame preparation 的 SSOT。Draw2D
+机制事实见 `doc/reference/draw2d/rendering/update-manager.md`。
 
-本文档描述 Novadraw 的 UpdateManager 实现，参考 Eclipse Draw2D (g2) 的设计，并说明从 Java 到 Rust 的迁移决策。
+## 1. 目标
 
-## g2 UpdateManager 机制
-
-### 核心组件
-
-| 组件 | g2 类 | 职责 |
-|------|-------|------|
-| 更新管理器 | `UpdateManager` | 抽象基类 |
-| 延迟更新管理器 | `DeferredUpdateManager` | 具体实现，批量处理更新 |
-| 脏区域 | `dirtyRegions: Map<IFigure, Rectangle>` | 需要重绘的区域 |
-| 失效队列 | `invalidFigures: List<IFigure>` | 需要重新布局的图形 |
-| 更新标志 | `updateQueued: boolean` | 是否有待处理更新 |
-
-### 两阶段更新流程
+UpdateManager 将多次局部变化合并为一个确定的更新事务：
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         g2 UpdateManager 流程                                │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  Figure.repaint() ──────────► UpdateManager.addDirtyRegion()                │
-│       │                                      │                              │
-│       │                                      ▼                              │
-│       │                           ┌─────────────────────┐                  │
-│       │                           │  dirtyRegions Map   │                  │
-│       │                           │  (figure -> rect)  │                  │
-│       │                           └─────────────────────┘                  │
-│       │                                      │                              │
-│       │                               queueWork()                          │
-│       │                                      │                              │
-│  Figure.revalidate() ───────► UpdateManager.addInvalidFigure()              │
-│       │                                      │                              │
-│       │                                      ▼                              │
-│       │                           ┌─────────────────────┐                  │
-│       │                           │  invalidFigures     │                  │
-│       │                           │  (List<IFigure>)    │                  │
-│       │                           └─────────────────────┘                  │
-│       │                                      │                              │
-│       │                               queueWork()                          │
-│       │                                      │                              │
-│       ▼                                                                    │
-│  performUpdate() ────────────────► Phase 1: performValidation()             │
-│                                              │                              │
-│                                              ▼                              │
-│                                    ┌─────────────────────┐                │
-│                                    │  Phase 2: repair   │                │
-│                                    │  Damage()           │                │
-│                                    │  - 合并脏区域       │                │
-│                                    │  - 坐标变换到父节点 │                │
-│                                    │  - root.paint()    │                │
-│                                    └─────────────────────┘                │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+collect invalid / dirty
+→ Validation
+→ Damage Repair
+→ Paint Recording
+→ RenderSubmission
 ```
 
-### repairDamage 核心算法
+Validation 必须先于 Damage Repair。UpdateManager 不决定平台何时 redraw，也不拥有
+FigureTree。
 
-g2 的 `repairDamage` 有一个关键逻辑：**脏区域坐标变换到父节点**。
+## 2. 所有权
 
-```java
-// g2 DeferredUpdateManager.java
-protected void repairDamage() {
-    oldRegions.forEach((figure, contribution) -> {
-        IFigure walker = figure.getParent();
-        // 脏区域与当前 figure bounds 取交集
-        contribution.intersect(figure.getBounds());
-
-        // 向上遍历父节点，变换坐标并取交集
-        while (!contribution.isEmpty() && walker != null) {
-            walker.translateToParent(contribution);  // 坐标变换到父节点
-            contribution.intersect(walker.getBounds());  // 与父节点 bounds 取交集
-            walker = walker.getParent();
-        }
-
-        // 累加到总 damage
-        damage.union(contribution);
-    });
+```rust
+pub struct UpdateManager {
+    invalid: InvalidSet,
+    dirty: DirtySet,
+    phase: UpdatePhase,
+    generation: UpdateGeneration,
+    listeners: ListenerRegistry,
 }
 ```
 
-这个设计的目的是：脏区域需要逐级向上传播，只有在每个祖先节点的 bounds 范围内的部分才需要重绘。
+它由 Runtime 独占持有，使用 `FigureId` 引用节点：
 
-## 本项目实现
+- FigureTree 保存节点及 valid 状态；
+- UpdateManager 保存待处理集合和事务阶段；
+- Runtime 保证修改 valid 状态与入队是同一个原子操作；
+- PlatformHost 只观察“是否需要 redraw”；
+- RenderBackend 只接收最终 submission。
 
-### 核心概念映射
+UpdateManager 默认是具体类型。队列、region 合并和调试策略可以内部替换。
 
-| g2 概念 | 本项目实现 | 说明 |
-|----------|-----------|------|
-| `UpdateManager` | `SceneUpdateManager` | 更新管理器 |
-| `dirtyRegions` (Map) | `dirty_regions` (HashMap) | 脏区域映射 |
-| `invalidFigures` (List) | `invalid_blocks` (Vec) | 失效块队列 |
-| `updateQueued` | `update_queued` | 是否有待处理更新 |
-| `addDirtyRegion()` | `add_dirty_region()` | 添加脏区域 |
-| `addInvalidFigure()` | `add_invalid_figure()` | 添加失效块 |
-| `performUpdate()` | `perform_update()` | 执行两阶段更新 |
+## 3. Invalidation
 
-### 数据结构
+### 3.1 invalidate
+
+```text
+invalidate(id, reason)
+→ mark node validity stale
+→ find required validation root
+→ insert root into InvalidSet
+→ request redraw on empty-to-nonempty transition
+```
+
+要求：
+
+- 重复 invalidate 幂等；
+- parent layout 依赖 child measurement 时向上失效；
+- container layout 结果改变时向下使受影响 child 失效；
+- disabled 不影响 validation；
+- invisible 节点可以推迟昂贵工作，但必须保留 stale 状态。
+
+### 3.2 Validity
+
+单个布尔值不足以支持长期缓存诊断时，可以内部使用 generation：
 
 ```rust
-// novadraw-scene/src/runtime/update/deferred.rs
-
-pub struct SceneUpdateManager {
-    /// 脏区域映射：block_id -> 脏区域
-    pub(crate) dirty_regions: std::collections::HashMap<BlockId, Rectangle>,
-
-    /// 失效块队列
-    pub(crate) invalid_blocks: Vec<BlockId>,
-
-    /// 是否有更新待处理
-    pub(crate) update_queued: bool,
-
-    /// 是否正在执行更新事务
-    pub(crate) updating: bool,
-
-    notification_effects: NotificationQueue,
-    listeners: Vec<Box<dyn UpdateListener>>,
+pub struct Validity {
+    layout_generation: u64,
+    transform_generation: u64,
+    style_generation: u64,
 }
 ```
 
-### FigureGraph 协作
+公开语义仍是“当前节点是否满足本帧绘制所需的一致状态”，不要求调用方理解缓存字段。
 
-`SceneUpdateManager` 不由 `FigureGraph` 持有。组合根同时持有二者，并在更新事务中
-把 `&mut FigureGraph` 传给 `UpdateManager::perform_update()`。这样更新服务可以访问
-图语义，但不会成为图的内部状态。
+## 4. Validation
 
-### 公开 API
+```text
+freeze invalid generation
+→ remove redundant descendants when ancestor is a validation root
+→ validate parent before descendants
+→ measure container
+→ calculate LayoutOutput
+→ atomically apply child bounds
+→ collect newly generated invalidations
+→ repeat until stable
+```
+
+Runtime 先构造不可变 `LayoutSnapshot`，再调用 LayoutManager 把结果写入
+`LayoutOutput`。布局器借用释放后统一提交，避免 LayoutManager 同时借用自身状态和
+整棵树，也避免在遍历中重入修改树。
+
+### 4.1 收敛
+
+正常完成条件是 invalid set 为空。为防止错误 Figure/Layout 无限制造 invalid：
+
+- 记录每个 generation 的处理次数和因果来源；
+- 使用可配置事务预算作为诊断保护；
+- 超出预算返回 `NonConvergingValidation`；
+- 保留未完成工作，不伪装为成功；
+- 调试信息按产生顺序报告 invalidation chain。
+
+这不是静默截断算法，而是对不满足收敛契约的实现显式报错。
+
+## 5. Dirty 收集
+
+dirty source 由以下操作产生：
+
+- repaint；
+- bounds 或 transform 的 old/new visual area；
+- visibility/style/border 改变；
+- attach/detach/reparent；
+- scroll/zoom；
+- 资源完成；
+- surface 恢复或 resize。
+
+dirty region 必须带来源坐标域：
 
 ```rust
-impl FigureGraph {
-    /// 标记块需要重新布局
-    pub fn mark_invalid(
-        &mut self,
-        update_manager: &mut dyn UpdateManager,
-        block_id: BlockId,
-    );
-
-    /// 请求重绘指定块
-    pub fn repaint(
-        &mut self,
-        update_manager: &mut dyn UpdateManager,
-        block_id: BlockId,
-        rect: Option<Rectangle>,
-    );
-
-    /// 请求重绘整个场景
-    pub fn repaint_all(&mut self, update_manager: &mut dyn UpdateManager);
-
-    /// 执行更新（两阶段：布局 + 重绘）
-    pub fn perform_update(&mut self, update_manager: &mut dyn UpdateManager) -> NdCanvas;
+pub struct DirtySource {
+    figure: FigureId,
+    local_region: Rect,
+    reason: DamageReason,
 }
 ```
 
-## 关键设计决策
+同一 Figure 的区域可以提前合并，但不能在 transform 或 clip 语义不同的节点之间直接
+合并 local rectangle。
 
-### 决策 1: Damage 在 repair phase 传播到根域
+## 6. Damage Repair
 
-dirty region 以所属 Figure 的 bounds 坐标域入队。repair phase 冻结本轮 dirty
-snapshot，随后沿 parent chain 应用坐标根 transform 并与祖先 bounds/clip 求交，
-最终写入 `DamageSet.regions` 和强约束 `DamageSet.union`。
+Validation 稳定后冻结 dirty snapshot。每个 source：
 
-传播逻辑位于 `runtime/update/repair.rs`，而不是分散到 Figure 或渲染后端。
+```text
+local region
+→ expand by stroke/filter/effect
+→ map through shared coordinate chain
+→ intersect effective ancestor clips
+→ project to logical-surface conservative AABB
+→ merge
+```
 
-`DamageSet` 使用显式 `DamageMode`，禁止通过 `union == None` 猜测提交意图：
-
-| 模式 | 含义 | 后端行为 |
-|------|------|----------|
-| `None` | 本轮没有像素更新 | 不提交、不修改 retained frame |
-| `Full` | 首帧、resize、场景替换等强制全量重绘 | 使用完整 surface 作为 damage |
-| `Partial` | UpdateManager 计算出的局部 damage | 只复制 `regions` 覆盖的区域 |
-
-直接向空 `NdCanvas` 写入首条绘制命令会把未指定 damage 提升为 `Full`；UpdateManager
-则在生成命令前写入 `Partial`，因此不会丢失局部更新语义。
-
-### 决策 2: SceneUpdateManager 是独立系统服务
-
-**g2 方式**：`UpdateManager` 是独立对象，通过 `setRoot(IFigure)` 关联根 Figure。
-
-**本项目方式**：`SceneUpdateManager` 与 `FigureGraph` 由组合根分别持有。
-
-**原因**：
-
-- 避免 FigureGraph 同时成为树和更新服务 owner
-- UpdateManager 通过公开图协议协作，不直接访问 SlotMap
-- 便于 Headless/Winit/Web 宿主复用同一更新事务
-
-### 决策 3: 调度异步，更新事务同步
-
-**g2 方式**：使用 `Display.asyncExec()` 异步执行更新。
-
-**本项目方式**：`SceneHost::request_update()` 请求平台下一帧；收到 redraw 后同步执行
-`perform_update()`。
-
-**原因**：
-
-- 保留 Validation -> Damage Repair 的原子时序
-- 由不同 SceneHost 适配 winit、Web 或 headless 调度
-- 多次 request 可以由宿主合并
-
-### 决策 4: 合并脏区域的方式
-
-**g2 方式**：在 `repairDamage` 中合并所有脏区域为一个 `damage` 区域。
-
-**本项目方式**：使用 `HashMap<BlockId, Rectangle>`，同一块的脏区域自动合并。
+输出：
 
 ```rust
-// 本项目：同一块的脏区域自动合并
-if let Some(existing) = self.dirty_regions.get_mut(&block_id) {
-    // 扩展区域
-    existing.x = existing.x.min(rect.x);
-    // ...
-} else {
-    self.dirty_regions.insert(block_id, rect);
+pub enum Damage {
+    None,
+    Full,
+    Partial(DamageRegions),
+}
+
+pub struct DamageRegions {
+    union: Rect,
+    regions: Vec<Rect>,
 }
 ```
 
-**原因**：
+- `union` 是所有 regions 的正确包围；
+- `regions` 是减少 overdraw/present cost 的优化信息；
+- region 数量阈值和合并算法是策略；
+- region 过多时可退化为一个 union；
+- surface 内容丢失、首帧和不确定效果必须使用 Full。
 
-- g2 需要支持任意 Figure 的脏区域
-- 本项目以 Block 为单位，更简单
+## 7. Damage 正确性
 
-### 决策 5: 组合根负责触发更新
+核心约束不是“后端必须按 union clip”，而是：
 
-**g2 方式**：`figure.repaint()` 自动触发 UpdateManager。
+> frame 提交后，Damage 外的可见像素必须保持与提交前等价。
 
-**本项目方式**：FigureGraph API 产生 invalid/dirty 工作，组合根检测队列从空到非空
-并调用 `SceneHost::request_update()`；redraw 入口调用
-`SceneHost::execute_update(scene, update_manager, renderer)`。
+允许的后端策略：
 
-**原因**：
+- partial raster + retained surface；
+- tile cache；
+- full rerender + full present；
+- full rerender + platform partial present；
+- CPU/software clipped redraw。
 
-- 通用调度语义位于组合根，不散落在 apps
-- UpdateManager 不直接依赖平台窗口
-- 同一帧内的多次变更可以合并
+后端若无法可靠保留 Damage 外像素，必须提升为 Full，不能忽略损坏区域造成残影。
 
-## API 对比
+## 8. Paint Recording
 
-| g2 API | 本项目 API | 差异 |
-|--------|-----------|------|
-| `figure.repaint()` | `scene.repaint(update_manager, block_id, rect)` | 图操作显式接收更新服务 |
-| `figure.revalidate()` | `scene.mark_invalid(update_manager, block_id)` | 图维护 valid 状态，manager 维护队列 |
-| `updateManager.performUpdate()` | `update_manager.perform_update(scene, canvas)` | 两阶段事务 |
-| `updateManager.addDirtyRegion(figure, rect)` | `update_manager.add_dirty_region(block_id, rect)` | 使用 BlockId |
-| `figure.invalidate()` | `scene.invalidate()` | 使 validation path 失效 |
+UpdateManager 在稳定 scene snapshot 上驱动绘制录制：
 
-Figure 事件回调中的 `NovadrawContext::invalidate()` 会先记录请求，待 Figure 不可变
-借用释放后统一调用 `FigureGraph::mark_invalid()`。图状态失效和 invalid queue 入队
-必须发生在同一个引擎事务边界，禁止只入队而不修改 `is_valid`。
+```text
+Damage::None    → no frame unless platform requires one
+Damage::Full    → record complete visible scene
+Damage::Partial → backend/recorder policy chooses partial or full recording
+```
 
-## 使用示例
+Figure paint 只写入 RecordingCanvas，不访问平台 surface 或 GPU 对象。
 
-### 基本使用
+绘制遍历保持：
+
+- parent self before children；
+- children forward Z-order；
+- border/foreground after children；
+- per-node state isolation；
+- shared coordinate and clip protocol。
+
+## 9. RenderSubmission
 
 ```rust
-use novadraw_scene::{FigureGraph, RectangleFigure, SceneUpdateManager, UpdateManager};
-
-// 创建场景
-let mut scene = FigureGraph::new();
-let mut update_manager = SceneUpdateManager::new();
-let container = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
-let container_id = scene.set_contents(Box::new(container));
-
-// 添加子块
-let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
-scene.add_child_to(container_id, Box::new(child));
-
-// 修改块后，触发布局失效
-scene.mark_invalid(&mut update_manager, container_id);
-
-// 请求重绘
-scene.repaint(&mut update_manager, container_id, None);
-
-// 执行更新并渲染
-if update_manager.is_update_queued() {
-    let canvas = scene.perform_update(&mut update_manager);
-    // ... 渲染到屏幕
+pub struct RenderSubmission {
+    pub commands: CommandStream,
+    pub damage: Damage,
+    pub resources: ResourceDelta,
+    pub surface: SurfaceInfo,
+    pub frame_id: FrameId,
 }
 ```
 
-### 批量修改
+`RenderSubmission` 是进程内稳定语义信封。它不承诺：
 
-```rust
-// 批量修改多个块
-for child_id in children {
-    scene.mark_invalid(&mut update_manager, child_id);
-    scene.repaint(&mut update_manager, child_id, None);
-}
+- 固定内存布局；
+- 跨语言 ABI；
+- 零拷贝反序列化；
+- chunk patch；
+- 网络安全格式。
 
-// 一次更新和渲染
-let canvas = scene.perform_update(&mut update_manager);
+这些能力属于 DisplayList proposal。
+
+## 10. 平台调度
+
+```text
+pending work: empty → non-empty
+→ Runtime calls PlatformHost.request_redraw()
+→ host coalesces requests
+→ redraw callback calls Runtime.prepare_frame()
+→ RenderBackend.submit()
 ```
 
-### 部分重绘
+UpdateManager 不依赖 winit、DOM 或 OS run loop。同步更新事务和异步 redraw scheduling
+是两个不同概念。
 
-```rust
-// 只重绘块的部分区域（用于小范围更新）
-let dirty_rect = Rectangle::new(10.0, 10.0, 50.0, 50.0);
-scene.repaint(&mut update_manager, block_id, Some(dirty_rect));
+## 11. Mutation 协作
+
+顶层更新前必须先提交已冻结的结构 mutation：
+
+```text
+apply mutations
+→ collect old/new damage
+→ invalidate affected layout roots
+→ Validation
+→ Damage Repair
 ```
 
-## 测试验证
+UpdateManager 执行期间不得提交新的结构 mutation。layout/lifecycle 回调产生的结构
+请求进入下一事务。
 
-### 单元测试
+## 12. 通知
 
-| 测试用例 | 验证内容 |
-|---------|---------|
-| `test_dirty_region_tracking` | 添加脏区域后 has_pending_repaint() 返回 true |
-| `test_dirty_region_merge` | 同一块的多个脏区域自动合并 |
-| `test_invalid_block_queue` | 添加失效块后 has_pending_layout() 返回 true |
-| `test_invalid_block_dedup` | 重复添加同一失效块会自动去重 |
-| `test_clear` | clear() 清空所有队列 |
-| `test_invalid_region` | 无效区域（宽/高为0）被忽略 |
+通知按阶段分层：
 
-### 集成测试
+```text
+will_validate
+did_validate
+will_record(damage)
+did_prepare(submission metadata)
+did_submit(result)
+```
 
-| 测试用例 | 验证内容 |
-|---------|---------|
-| `test_add_child_marks_layout_invalid` | add_child 后布局自动失效 |
-| `test_mark_invalid_adds_to_queue` | mark_invalid 添加到失效队列 |
-| `test_repaints_adds_dirty_region` | repaint 添加脏区域 |
-| `test_repaint_uses_specified_rect` | 指定区域重绘而非整个块 |
-| `test_multiple_repaints_merge_regions` | 多次重绘合并区域 |
-| `test_invisible_block_no_dirty_region` | 不可见块不产生脏区域 |
-| `test_perform_update_two_phase` | 两阶段更新正确执行 |
-| `test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes` | panic 后恢复非重入状态并重新排队 |
-| `test_validation_figure_effects_preserve_causal_order` | validation 内 Figure effect 保持发生顺序 |
-| `test_typed_listeners_dispatch_and_remove_independently` | typed listener 独立分发与移除 |
+- Figure 几何通知不混入 update listener；
+- listener effect 延迟到内部可变借用释放后执行；
+- listener 的发生顺序必须可观测；
+- listener 不能重入当前 update transaction。
 
-## 待增强功能
+## 13. 失败恢复
 
-| 功能 | g2 实现 | 当前状态 | 改进方向 |
-|------|---------|---------|----------|
-| exposed region 输入 | `performUpdate(Rectangle)` | 尚无公开重载 | M5 决定是否纳入核心门禁 |
-| 调度策略 | `asyncExec` | SceneHost request-driven | 增加 Web/Headless 实现 |
-| Validation root | 支持 | 已验证 | 最高 invalid ancestor、重复失效与 panic 恢复 |
-| UpdateListener | 可增删 | 已验证 | `ListenerId` 统一管理 typed listener 生命周期 |
+| 失败 | 行为 |
+|---|---|
+| validation 不收敛 | 返回诊断错误，保留 invalid work |
+| Figure paint 失败 | 放弃不完整 submission，下轮 Full |
+| backend submit 失败 | 标记 surface state unknown，下轮 Full |
+| surface lost | 暂停提交，恢复后 Full |
+| invalid FigureId | 丢弃该 source 并记录其来源；不得访问复用节点 |
+| callback panic | 恢复 phase guard；是否继续由 Runtime panic policy 决定 |
 
-## 参考资料
+phase guard 必须使用作用域恢复机制，确保错误后 `is_updating` 不会永久为 true。
 
-- Eclipse Draw2D 源码：`org.eclipse.draw2d.UpdateManager`
-- Eclipse Draw2D 源码：`org.eclipse.draw2d.DeferredUpdateManager`
-- 本项目源码：`novadraw-scene/src/runtime/update/`
+## 14. 性能扩展点
+
+不改变语义即可替换：
+
+- InvalidSet 去重结构；
+- validation root 归约；
+- dirty region coalescing；
+- spatial index；
+- transform/projected-bounds cache；
+- retained command cache；
+- tile cache；
+- parallel command preparation；
+- backend partial present。
+
+并行化只能处理已冻结的只读 scene snapshot，结果通过确定性顺序合并。
+
+## 15. 验证门禁
+
+至少验证：
+
+1. Validation 严格先于 Damage Repair；
+2. 重复 invalid/dirty 合并；
+3. layout 中产生的新 invalid 能收敛；
+4. non-converging validation 可诊断且不挂起；
+5. bounds 变更覆盖 old/new projected area；
+6. nested transform、viewport 和 clip damage；
+7. disabled 节点仍参与 validation；
+8. invisible 节点恢复时完成过期 validation；
+9. surface lost/resize 后 Full；
+10. backend full-render 与 partial-render 结果等价；
+11. panic/error 后 phase 状态恢复；
+12. 通知保持因果顺序。

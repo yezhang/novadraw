@@ -6,6 +6,10 @@
 
 已通过
 
+后续细化：ADR-003 已确定 Runtime 是 effect 与 mutation 的提交边界。本文中将
+`FigureGraph`、`SceneHost` 或未来 Context 列为候选 flush owner 的内容仅保留为历史
+推导，不再代表当前选择。
+
 ## 背景
 
 Novadraw 需要实现与 Eclipse Draw2D 等价的通知能力，用于支撑：

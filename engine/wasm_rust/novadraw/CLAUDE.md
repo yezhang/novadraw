@@ -88,7 +88,7 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 1. **扩展性 > 稳定性 > 性能**：优先保证架构可扩展，其次是稳定可靠，最后才考虑性能
 2. **参考 g2 设计理念**：draw2d/GEF 经过 20+ 年生产验证，核心设计决策优先对标 g2
 3. **不考虑当前代码状态**：架构讨论独立于实现，代码应追随架构而非反之
-4. **接口 vs 实现分离**：核心抽象必须是接口（trait），具体实现可替换
+4. **契约与实现分离**：只在存在真实替换需求的边界使用 trait；核心算法可用具体类型和内部策略保持契约稳定
 5. **引擎层承载通用机制**：draw2d 风格的事件链路、坐标域切换和 Figure 回调上下文属于引擎语义，不属于应用层便利逻辑
 
 ### 架构设计执行规则
@@ -105,11 +105,13 @@ draw2d/GEF 的核心设计哲学：
 
 | 原则 | 说明 | Novadraw 对应 |
 |------|------|---------------|
-| **接口内聚** | IFigure 接口保持内聚，避免上帝接口 | dyn Figure trait |
-| **状态分离** | Figure 只有渲染状态，FigureBlock 持有运行时状态 | Figure/FigureBlock 分离 |
+| **轻量 Figure 树** | Figure 树统一承载组合、Z-order、绘制、命中和坐标传播 | `FigureTree` + `FigureNode` |
+| **行为语义内聚** | IFigure 让每个 Figure 参与统一协议，但其 Java 接口本身很宽 | Rust 小 trait/capability + Runtime facade |
+| **节点状态与具体行为分离** | 这是 Novadraw 对 Draw2D 行为语义的 Rust 迁移，不是 Draw2D 的源码结构 | `NodeState` + `Box<dyn Figure>` |
 | **委托优于继承** | 布局、更新等通过组合实现 | LayoutManager trait |
 | **两阶段更新** | Validation → Damage Repair 分离 | UpdateManager 两阶段 |
-| **ID 引用树** | 树节点通过 ID 而非引用访问 | SlotMap<BlockId, T> |
+| **ID 引用树** | 这是 Novadraw 为 Rust 所有权采用的迁移策略 | `SlotMap<FigureId, FigureNode>` |
+| **平台与引擎隔离** | LightweightSystem 桥接 SWT 与 Figure 世界 | `PlatformHost` + `Runtime` |
 
 ### 架构审查清单
 

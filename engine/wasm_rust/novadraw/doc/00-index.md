@@ -27,12 +27,18 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 
+候选方案不属于核心 SSOT：
+
+- DisplayList 候选协议：[`design/rendering/display-list-protocol.md`](design/rendering/display-list-protocol.md)
+- DisplayList 探索计划：[`design/rendering/displaylist-implementation-plan.md`](design/rendering/displaylist-implementation-plan.md)
+
 ## 冲突处理
 
 出现文档冲突时按以下顺序判断：
 
 1. 已接受 ADR 决定不可逆的关键取舍。
-2. `design/` 下范围更窄、主题更具体的契约优先于架构总览。
+2. `design/` 下标记为 `normative-design` 且范围更窄的专题契约优先于架构总览；
+   `proposal` 不具有覆盖效力。
 3. `parity/` 只解释外部语义到 Novadraw 的映射，不覆盖 Novadraw 设计契约。
 4. `reference/` 必须服从参考源码事实，但不能据此推导 Novadraw 必须照搬。
 5. `roadmap/`、`verification/`、`migration/` 和 `archive/` 不定义运行时架构。
@@ -55,6 +61,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - `roadmap`
 - `migration-guide`
 - `archive`
+- `proposal`
 
 每篇参考分析应给出仓库、基线提交以及稳定的 class/method 证据；行号仅用于辅助
 阅读。每篇设计文档应明确适用范围、失败模式、扩展点和验证入口。
@@ -72,7 +79,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 ### 开发 Viewport / Scroll / Zoom
 
 1. [`reference/draw2d/figure/scalable-zoom.md`](reference/draw2d/figure/scalable-zoom.md)
-2. [`design/architecture/m8-m9-contract-plan.md`](design/architecture/m8-m9-contract-plan.md)
+2. [`roadmap/m8-m9-contract-plan.md`](roadmap/m8-m9-contract-plan.md)
 3. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
 4. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
 

@@ -55,23 +55,26 @@ Novadraw 采用了一种独特的 **“Agentic Workflow”** 开发模式。与�
 - **输出**：输出 `Architecture Fit` 结论（Fit/Drift）和 `Go/No-Go` 建议。
 
 **Section sources**:
-- [AGENTS.md](AGENTS.md)
-- [CLAUDE.md](CLAUDE.md)
-- [agent/architecture-review-agent.md](agent/architecture-review-agent.md)
+- [AGENTS.md](../../../AGENTS.md)
+- [CLAUDE.md](../../../CLAUDE.md)
+- [总体架构契约](../../../doc/design/architecture/overview.md)
 
 ## 架构契约 (Architecture Contracts)
 
 架构契约是将宏大的架构愿景转化为 Agent 可执行的硬约束。在 `agent/governance-architecture-contracts.md` 中，定义了核心组件的职责边界：
 
-- **Figure**：只负责内在能力（如绘制、度量），不持有父子关系或平台对象。
-- **FigureBlock**：作为状态容器，承载生命周期绑定的运行时状态。
-- **FigureGraph**：持有树关系、交互状态和全局不变量。
-- **UpdateManager**：仅负责两阶段（Validation/Repair）更新编排。
+- **Figure**：只负责具体图形行为（如绘制、内在度量和精确命中）。
+- **FigureNode**：组合通用 `NodeState`、容器 `LayoutState` 与具体 Figure。
+- **FigureTree**：只持有节点、树关系和 Z-order。
+- **InteractionState**：独立持有 pointer、focus、capture、hover 和 gesture session。
+- **Runtime**：原子协调事件、effect、mutation 和更新事务。
+- **UpdateManager**：负责 Validation/Repair 时序，不负责平台调度。
 
-这些契约确保了 Agent 在生成代码时，不会因为“方便”而破坏职责分离原则。例如，如果 Agent 试图在 `Figure` 中直接修改 `FigureGraph`，架构审查 Agent 会根据契约判定为 `No-Go`。
+这些契约确保了 Agent 在生成代码时，不会因为“方便”而破坏职责分离原则。例如，
+Figure 回调只能记录 effect，不能直接修改 FigureTree 或 UpdateManager。
 
 **Section sources**:
-- [agent/governance-architecture-contracts.md](agent/governance-architecture-contracts.md)
+- [总体架构契约](../../../doc/design/architecture/overview.md)
 
 ## 开发双环：内环与外环协作
 
@@ -129,9 +132,8 @@ stateDiagram-v2
 当 Agent 被打断时，它会使用 `capture-interruption` 技能将当前状态、未完成的动作和下一步计划写入 `agent/interruptions-inbox.md`。下次进入时，通过读取该文件即可无缝恢复。
 
 **Section sources**:
-- [agent/workflow-map.md](agent/workflow-map.md)
-- [agent/inner-loop-checkpoint.md](agent/inner-loop-checkpoint.md)
-- [agent/outer-loop-delta-backlog.yaml](agent/outer-loop-delta-backlog.yaml)
+- [开发规则](../../../CLAUDE.md)
+- [路线图入口](../../../doc/roadmap/00-index.md)
 
 ## 技能系统 (Skill System)
 
@@ -148,7 +150,7 @@ stateDiagram-v2
 这些技能的存在，使得 Agent 不仅仅是在写代码，而是在执行一套标准化的工程动作。
 
 **Section sources**:
-- [.claude/skills/](.claude/skills/)
+- `skills` 由当前 Agent 环境提供，不属于仓库架构契约。
 
 ## 常用开发指令示例
 
@@ -189,6 +191,6 @@ stateDiagram-v2
 | `agent/quality-workflow-readiness.md` | 工作流自动化能力的就绪等级评估。 |
 
 **Section sources**:
-- [agent/README.md](agent/README.md)
-- [agent/workflow-continuous.md](agent/workflow-continuous.md)
-- [agent/quality-testing-strategy.md](agent/quality-testing-strategy.md)
+- [AGENTS.md](../../../AGENTS.md)
+- [CLAUDE.md](../../../CLAUDE.md)
+- [验证文档入口](../../../doc/verification/00-index.md)
