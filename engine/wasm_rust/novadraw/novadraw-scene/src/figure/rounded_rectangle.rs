@@ -192,7 +192,10 @@ impl Shape for RoundedRectangleFigure {
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
-        self.draw_rounded_rect(gc, Some(self.fill_color), None);
+        let mut local = self.clone();
+        local.bounds.x = 0.0;
+        local.bounds.y = 0.0;
+        local.draw_rounded_rect(gc, Some(self.fill_color), None);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
@@ -202,8 +205,8 @@ impl Shape for RoundedRectangleFigure {
             let line_inset = (1.0_f64).max(self.stroke_width) / 2.0;
 
             // 向内缩 bounds
-            let x = self.bounds.x + line_inset;
-            let y = self.bounds.y + line_inset;
+            let x = line_inset;
+            let y = line_inset;
             let width = self.bounds.width - line_inset * 2.0;
             let height = self.bounds.height - line_inset * 2.0;
             let radius = (self.corner_radius - line_inset).max(0.0);

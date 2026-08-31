@@ -115,6 +115,13 @@ impl Translatable for PointList {
             point.scale(factor);
         }
     }
+
+    #[inline]
+    fn transform(&mut self, transform: Transform) {
+        for point in &mut self.points {
+            point.transform(transform);
+        }
+    }
 }
 
 impl From<Vec<Point>> for PointList {

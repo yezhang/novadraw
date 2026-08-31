@@ -233,7 +233,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
             .set_scale(&mut graph, &mut update_manager, 2.0)
             .unwrap()
     );
-    let mut point = Point::new(20.0, 30.0);
+    let mut point = Point::new(0.0, 0.0);
     graph.translate_to_absolute_mut(child, &mut point);
 
     assert_eq!(point, Point::new(140.0, 140.0));
@@ -355,7 +355,7 @@ fn scroll_pane_automatic_policy_reserves_both_scroll_bars() {
     assert!(graph.is_visible(pane.vertical_scroll_bar()));
     assert_eq!(
         graph.figure_bounds(pane.viewport().block_id()),
-        Some(Rectangle::new(100.0, 80.0, 306.0, 206.0))
+        Some(Rectangle::new(0.0, 0.0, 306.0, 206.0))
     );
     assert_eq!(pane.viewport().horizontal_range().extent, 306.0);
     assert_eq!(pane.viewport().vertical_range().extent, 206.0);
@@ -378,7 +378,7 @@ fn scroll_pane_visibility_policy_controls_layout() {
     assert!(graph.is_visible(pane.vertical_scroll_bar()));
     assert_eq!(
         graph.figure_bounds(pane.viewport().block_id()),
-        Some(Rectangle::new(100.0, 80.0, 306.0, 220.0))
+        Some(Rectangle::new(0.0, 0.0, 306.0, 220.0))
     );
 }
 
@@ -706,8 +706,8 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
 fn vertical_scroll_bar_step_updates_shared_viewport_model() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
-    let x = bounds.x + bounds.width / 2.0;
-    let y = bounds.y + bounds.height - 2.0;
+    let mut point = Point::new(bounds.width / 2.0, bounds.height - 2.0);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut point);
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -717,8 +717,8 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
         &mut update_manager,
         &mut pending,
     );
-    dispatcher.dispatch_mouse_pressed(&mut context, x, y, MouseButton::Left);
-    dispatcher.dispatch_mouse_released(&mut context, x, y, MouseButton::Left);
+    dispatcher.dispatch_mouse_pressed(&mut context, point.x(), point.y(), MouseButton::Left);
+    dispatcher.dispatch_mouse_released(&mut context, point.x(), point.y(), MouseButton::Left);
 
     assert_eq!(pane.viewport().view_location().y(), 24.0);
 }
@@ -727,8 +727,10 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
 fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
-    let x = bounds.x + bounds.width / 2.0;
-    let thumb_y = bounds.y + 20.0;
+    let mut start = Point::new(bounds.width / 2.0, 20.0);
+    let mut end = Point::new(start.x(), start.y() + 50.0);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut start);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut end);
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -739,9 +741,9 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
         &mut pending,
     );
 
-    dispatcher.dispatch_mouse_pressed(&mut context, x, thumb_y, MouseButton::Left);
-    dispatcher.dispatch_mouse_moved(&mut context, x, thumb_y + 50.0);
-    dispatcher.dispatch_mouse_released(&mut context, x, thumb_y + 50.0, MouseButton::Left);
+    dispatcher.dispatch_mouse_pressed(&mut context, start.x(), start.y(), MouseButton::Left);
+    dispatcher.dispatch_mouse_moved(&mut context, end.x(), end.y());
+    dispatcher.dispatch_mouse_released(&mut context, end.x(), end.y(), MouseButton::Left);
 
     assert!(pane.viewport().view_location().y() > 0.0);
 }
@@ -835,10 +837,10 @@ fn viewport_border_insets_define_child_transform_and_client_extent() {
     let mut content_origin = Rectangle::new(20.0, 30.0, 1.0, 1.0);
     viewport.child_transform().apply_to(&mut content_origin);
 
-    assert_eq!(content_origin, Rectangle::new(110.0, 60.0, 1.0, 1.0));
+    assert_eq!(content_origin, Rectangle::new(10.0, 10.0, 1.0, 1.0));
     assert_eq!(
         viewport.client_area(),
-        Rectangle::new(20.0, 30.0, 280.0, 180.0)
+        Rectangle::new(10.0, 10.0, 280.0, 180.0)
     );
 }
 

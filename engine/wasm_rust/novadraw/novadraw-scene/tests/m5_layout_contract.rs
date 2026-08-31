@@ -18,7 +18,7 @@ fn stack_layout_places_every_child_in_the_client_area() {
 
     graph.revalidate(root);
 
-    let expected = Rectangle::new(10.0, 20.0, 200.0, 100.0);
+    let expected = Rectangle::new(0.0, 0.0, 200.0, 100.0);
     assert_rect(graph.figure_bounds(first), expected);
     assert_rect(graph.figure_bounds(second), expected);
 }

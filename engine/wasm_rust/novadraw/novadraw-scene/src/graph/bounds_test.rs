@@ -1,6 +1,6 @@
 //! Bounds 坐标系统验证测试
 //!
-//! 验证 bounds 表示相对最近坐标根的绝对值，且 RenderCommand 使用其所属坐标域中的值。
+//! 验证 bounds 位于 parent content domain，Figure 绘制位于 node-local domain。
 
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
@@ -12,7 +12,7 @@ use crate::graph::FigureGraph;
 
 // ========== 测试用 Figure 类型 ==========
 
-/// 坐标根 Figure（使用本地坐标）
+/// 带可配置 insets 的测试 Figure。
 #[derive(Clone, Copy)]
 struct TestCoordRootFigure {
     bounds: Rectangle,
@@ -44,10 +44,6 @@ impl Bounded for TestCoordRootFigure {
         self.bounds = Rectangle::new(x, y, width, height);
     }
 
-    fn use_local_coordinates(&self) -> bool {
-        true
-    }
-
     fn insets(&self) -> (f64, f64, f64, f64) {
         self.insets
     }
@@ -57,7 +53,7 @@ impl Bounded for TestCoordRootFigure {
     }
 }
 
-/// 带 insets 的非坐标根 Figure。
+/// 另一种带 insets 的测试 Figure。
 #[derive(Clone, Copy)]
 struct TestInsetFigure {
     bounds: Rectangle,
@@ -197,7 +193,7 @@ fn has_clip_rect(clip_rects: &[[glam::DVec2; 2]], x: f64, y: f64, width: f64, he
     })
 }
 
-/// 测试：bounds 表示相对最近坐标根的绝对值
+/// 测试：bounds 表示 parent content domain 中的布局矩形
 ///
 /// 场景：父子节点分别设置 bounds
 /// 期望：所有 RenderCommand 使用 bounds 在所属坐标域中的值
@@ -315,7 +311,7 @@ fn test_hit_test_prefers_topmost_deepest_child() {
     let top = RectangleFigure::new(40.0, 40.0, 120.0, 120.0);
     let top_id = scene.add_child_to(root_id, Box::new(top));
 
-    let nested = RectangleFigure::new(60.0, 60.0, 40.0, 40.0);
+    let nested = RectangleFigure::new(20.0, 20.0, 40.0, 40.0);
     let nested_id = scene.add_child_to(top_id, Box::new(nested));
 
     assert_eq!(scene.find_mouse_event_target_at(70.0, 70.0), None);
@@ -326,11 +322,11 @@ fn test_hit_test_prefers_topmost_deepest_child() {
     assert_eq!(scene.hit_test_simple((260.0, 260.0)), None);
 }
 
-/// 测试：prim_translate 传播到子节点
+/// 测试：prim_translate 保持子节点的 parent-local bounds
 ///
 /// 场景：parent(0,0,100,100) + child(10,10,50,50)
 /// 动作：平移 parent (5, 10)
-/// 期望：parent bounds = (5,10,100,100), child bounds = (15,20,50,50)
+/// 期望：parent bounds = (5,10,100,100), child bounds 保持不变
 #[test]
 fn test_prim_translate_propagates() {
     let mut scene = FigureGraph::new();
@@ -352,21 +348,21 @@ fn test_prim_translate_propagates() {
     // 平移 parent (5, 10)
     scene.prim_translate(parent_id, 5.0, 10.0);
 
-    // 验证平移后 bounds（仍是相对最近坐标根的绝对值）
+    // 验证平移后 parent-local bounds
     let parent_bounds = scene.blocks.get(parent_id).unwrap().figure_bounds();
     assert_eq!(parent_bounds.x, 5.0, "父节点 x 应为 5");
     assert_eq!(parent_bounds.y, 10.0, "父节点 y 应为 10");
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 15.0, "子节点 x 应为 15 (10 + 5)");
-    assert_eq!(child_bounds.y, 20.0, "子节点 y 应为 20 (10 + 10)");
+    assert_eq!(child_bounds.x, 10.0, "子节点 x 不应被改写");
+    assert_eq!(child_bounds.y, 10.0, "子节点 y 不应被改写");
 }
 
-/// 测试：prim_translate 嵌套传播
+/// 测试：prim_translate 通过变换链移动子树
 ///
 /// 场景：root(0,0,200,200) → parent(50,50,100,100) → child(10,10,50,50)
 /// 动作：平移 root (5, 5)
-/// 期望：所有后代同步平移
+/// 期望：后代 parent-local bounds 不变
 #[test]
 fn test_prim_translate_nested_propagation() {
     let mut scene = FigureGraph::new();
@@ -383,18 +379,18 @@ fn test_prim_translate_nested_propagation() {
     // 平移根节点 (5, 5)
     scene.prim_translate(root_id, 5.0, 5.0);
 
-    // 验证所有节点都被平移
+    // 只有 root 的 parent-local bounds 被修改。
     let root_bounds = scene.blocks.get(root_id).unwrap().figure_bounds();
     assert_eq!(root_bounds.x, 5.0);
     assert_eq!(root_bounds.y, 5.0);
 
     let parent_bounds = scene.blocks.get(parent_id).unwrap().figure_bounds();
-    assert_eq!(parent_bounds.x, 55.0, "父节点 x 应为 55 (50 + 5)");
-    assert_eq!(parent_bounds.y, 55.0, "父节点 y 应为 55 (50 + 5)");
+    assert_eq!(parent_bounds.x, 50.0);
+    assert_eq!(parent_bounds.y, 50.0);
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 15.0, "子节点 x 应为 15 (10 + 5)");
-    assert_eq!(child_bounds.y, 15.0, "子节点 y 应为 15 (10 + 5)");
+    assert_eq!(child_bounds.x, 10.0);
+    assert_eq!(child_bounds.y, 10.0);
 }
 
 /// 测试：RenderCommand 在平移后使用更新后的 bounds
@@ -430,14 +426,11 @@ fn test_render_commands_after_translate() {
     assert_eq!(parent_bounds.y, 20.0);
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 20.0);
-    assert_eq!(child_bounds.y, 30.0);
+    assert_eq!(child_bounds.x, 10.0);
+    assert_eq!(child_bounds.y, 10.0);
 }
 
-/// 测试：本地坐标模式的 Figure 正确处理
-///
-/// 场景：使用 use_local_coordinates() = true 的 Figure
-/// 期望：translate 生效，裁剪区在本地坐标 (0, 0)
+/// 测试：Figure 的 parent-local placement 与 node-local clip 正确组合
 #[test]
 fn test_local_coordinates_mode() {
     let mut scene = FigureGraph::new();
@@ -469,11 +462,11 @@ fn test_local_coordinates_mode() {
 fn test_client_area_resets_origin_for_coordinate_root() {
     let figure = TestCoordRootFigure::with_insets(10.0, 20.0, 100.0, 80.0, (5.0, 7.0, 11.0, 13.0));
 
-    assert_eq!(figure.client_area(), Rectangle::new(0.0, 0.0, 80.0, 64.0));
+    assert_eq!(figure.client_area(), Rectangle::new(7.0, 5.0, 80.0, 64.0));
 }
 
 #[test]
-fn test_render_clips_non_local_coordinate_figure_to_client_area() {
+fn test_render_clips_parent_local_figure_to_client_area() {
     let mut scene = FigureGraph::new();
     let root_id = scene.set_contents(Box::new(TestInsetFigure::new(
         10.0,
@@ -490,8 +483,8 @@ fn test_render_clips_non_local_coordinate_figure_to_client_area() {
     let gc = scene.render();
     let clips = collect_clip_rects(&gc);
     assert!(
-        has_clip_rect(&clips, 17.0, 25.0, 80.0, 64.0),
-        "renderer should clip non-local figure children to client area: {:?}",
+        has_clip_rect(&clips, 7.0, 5.0, 80.0, 64.0),
+        "renderer should clip parent-local children to client area: {:?}",
         clips
     );
 }
@@ -516,8 +509,8 @@ fn test_viewport_figure_render_uses_content_clip_and_transform() {
     let gc = scene.render();
     let clips = collect_clip_rects(&gc);
     assert!(
-        has_clip_rect(&clips, 40.0, 20.0, 200.0, 100.0),
-        "renderer should clip viewport children in content coordinates: {:?}",
+        has_clip_rect(&clips, 0.0, 0.0, 200.0, 100.0),
+        "renderer should clip viewport children in node-local coordinates: {:?}",
         clips
     );
 }
@@ -618,15 +611,15 @@ fn test_contains_point_basic() {
     let rect = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
 
     // 边界内
-    assert!(rect.contains_point(10.0, 10.0), "左上角应包含");
-    assert!(rect.contains_point(35.0, 35.0), "中心点应包含");
-    assert!(rect.contains_point(59.0, 59.0), "右下角应包含");
+    assert!(rect.contains_point(0.0, 0.0), "左上角应包含");
+    assert!(rect.contains_point(25.0, 25.0), "中心点应包含");
+    assert!(rect.contains_point(49.0, 49.0), "右下角应包含");
 
     // 边界外
-    assert!(!rect.contains_point(9.0, 35.0), "左边外应不包含");
-    assert!(!rect.contains_point(61.0, 35.0), "右边外应不包含");
-    assert!(!rect.contains_point(35.0, 9.0), "上边外应不包含");
-    assert!(!rect.contains_point(35.0, 61.0), "下边外应不包含");
+    assert!(!rect.contains_point(-1.0, 25.0), "左边外应不包含");
+    assert!(!rect.contains_point(51.0, 25.0), "右边外应不包含");
+    assert!(!rect.contains_point(25.0, -1.0), "上边外应不包含");
+    assert!(!rect.contains_point(25.0, 51.0), "下边外应不包含");
 }
 
 /// 测试：contains_point 边界情况
@@ -722,11 +715,9 @@ fn test_set_bounds_affects_contains_point() {
     // 移动到 (100, 100)
     rect.set_bounds(100.0, 100.0, 100.0, 100.0);
 
-    // 点 (50, 50) 现在在外部
-    assert!(!rect.contains_point(50.0, 50.0));
-
-    // 点 (150, 150) 现在在内部
-    assert!(rect.contains_point(150.0, 150.0));
+    // node-local 命中只受 size 影响，不受 parent-local origin 影响。
+    assert!(rect.contains_point(50.0, 50.0));
+    assert!(!rect.contains_point(150.0, 150.0));
 }
 
 /// 测试：使用 Figure trait 的 set_bounds
@@ -811,10 +802,10 @@ fn test_scene_set_bounds_basic() {
     assert_eq!(parent_bounds.width, 150.0, "父节点 width 应为 150");
     assert_eq!(parent_bounds.height, 100.0, "父节点 height 应为 100");
 
-    // 验证 child 位置被传播（+20, +30）
+    // child 的 parent-local bounds 保持不变。
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 30.0, "子节点 x 应为 30 (10 + 20)");
-    assert_eq!(child_bounds.y, 40.0, "子节点 y 应为 40 (10 + 30)");
+    assert_eq!(child_bounds.x, 10.0);
+    assert_eq!(child_bounds.y, 10.0);
     assert_eq!(child_bounds.width, 50.0, "子节点 width 不变");
     assert_eq!(child_bounds.height, 50.0, "子节点 height 不变");
 }
@@ -823,7 +814,7 @@ fn test_scene_set_bounds_basic() {
 ///
 /// 场景：parent(0,0,100,100) + child(10,10,50,50)
 /// 动作：set_bounds(parent, 50, 60, 100, 100)（只变位置，不变尺寸）
-/// 期望：只传播位置偏移，尺寸不变
+/// 期望：只修改 parent，child 的 parent-local bounds 不变
 #[test]
 fn test_scene_set_bounds_position_only() {
     let mut scene = FigureGraph::new();
@@ -844,15 +835,15 @@ fn test_scene_set_bounds_position_only() {
     assert_eq!(parent_bounds.height, 100.0);
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 60.0, "子节点 x 应为 60 (10 + 50)");
-    assert_eq!(child_bounds.y, 70.0, "子节点 y 应为 70 (10 + 60)");
+    assert_eq!(child_bounds.x, 10.0);
+    assert_eq!(child_bounds.y, 10.0);
 }
 
-/// 测试：FigureGraph::set_bounds 嵌套传播
+/// 测试：FigureGraph::set_bounds 不改写后代 bounds
 ///
 /// 场景：root(0,0,200,200) → parent(50,50,100,100) → child(10,10,50,50)
 /// 动作：set_bounds(root, 10, 10, 200, 200)
-/// 期望：所有后代同步平移
+/// 期望：后代通过变换链移动，但存储值保持不变
 #[test]
 fn test_scene_set_bounds_nested_propagation() {
     let mut scene = FigureGraph::new();
@@ -869,18 +860,18 @@ fn test_scene_set_bounds_nested_propagation() {
     // set_bounds: 偏移 (+10, +10)
     scene.set_bounds(root_id, 10.0, 10.0, 200.0, 200.0);
 
-    // 验证所有节点都被平移
+    // 验证后代 parent-local bounds 保持不变。
     let root_bounds = scene.blocks.get(root_id).unwrap().figure_bounds();
     assert_eq!(root_bounds.x, 10.0);
     assert_eq!(root_bounds.y, 10.0);
 
     let parent_bounds = scene.blocks.get(parent_id).unwrap().figure_bounds();
-    assert_eq!(parent_bounds.x, 60.0, "父节点 x 应为 60 (50 + 10)");
-    assert_eq!(parent_bounds.y, 60.0, "父节点 y 应为 60 (50 + 10)");
+    assert_eq!(parent_bounds.x, 50.0);
+    assert_eq!(parent_bounds.y, 50.0);
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds.x, 20.0, "子节点 x 应为 20 (10 + 10)");
-    assert_eq!(child_bounds.y, 20.0, "子节点 y 应为 20 (10 + 10)");
+    assert_eq!(child_bounds.x, 10.0);
+    assert_eq!(child_bounds.y, 10.0);
 }
 
 /// 测试：FigureGraph::set_bounds 仅尺寸变化

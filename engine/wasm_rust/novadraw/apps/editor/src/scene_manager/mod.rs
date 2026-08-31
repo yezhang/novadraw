@@ -292,8 +292,7 @@ impl SceneManager {
             250.0,
             200.0,
             Color::rgba(0.4, 0.2, 0.5, 1.0),
-        )
-        .with_local_coordinates(true);
+        );
         let parent_id = scene.add_child_to(root_id, Box::new(parent));
 
         // Child - 橙色（与场景 1 相同尺寸：150x100）
@@ -303,8 +302,7 @@ impl SceneManager {
             150.0,
             100.0,
             Color::rgba(0.9, 0.5, 0.1, 1.0),
-        )
-        .with_local_coordinates(true);
+        );
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         // Grandchild - 青色（选中状态，与场景 1 相同尺寸：80x40）
@@ -315,8 +313,7 @@ impl SceneManager {
             80.0,
             40.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
-        )
-        .with_local_coordinates(true);
+        );
         let gc_id = scene.add_child_to(child_id, Box::new(gc));
         scene.set_selected(Some(gc_id));
     }

@@ -99,6 +99,9 @@ pub trait Translatable {
     /// 按比例缩放
     fn scale(&mut self, factor: f64);
 
+    /// 应用二维仿射变换。
+    fn transform(&mut self, transform: crate::Affine2D);
+
     /// 通过 Point 平移
     ///
     /// 默认实现调用 `translate(point.x(), point.y())`
@@ -136,6 +139,13 @@ impl Translatable for Point {
         self.0.x *= factor;
         self.0.y *= factor;
     }
+
+    #[inline]
+    fn transform(&mut self, transform: crate::Affine2D) {
+        let (x, y) = transform.transform_point(self.x(), self.y());
+        self.0.x = x;
+        self.0.y = y;
+    }
 }
 
 impl Translatable for Rectangle {
@@ -152,6 +162,33 @@ impl Translatable for Rectangle {
         self.width *= factor;
         self.height *= factor;
     }
+
+    #[inline]
+    fn transform(&mut self, transform: crate::Affine2D) {
+        let corners = [
+            transform.transform_point(self.x, self.y),
+            transform.transform_point(self.x + self.width, self.y),
+            transform.transform_point(self.x, self.y + self.height),
+            transform.transform_point(self.x + self.width, self.y + self.height),
+        ];
+        let min_x = corners
+            .iter()
+            .map(|point| point.0)
+            .fold(f64::INFINITY, f64::min);
+        let min_y = corners
+            .iter()
+            .map(|point| point.1)
+            .fold(f64::INFINITY, f64::min);
+        let max_x = corners
+            .iter()
+            .map(|point| point.0)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let max_y = corners
+            .iter()
+            .map(|point| point.1)
+            .fold(f64::NEG_INFINITY, f64::max);
+        *self = Rectangle::new(min_x, min_y, max_x - min_x, max_y - min_y);
+    }
 }
 
 impl Translatable for (f64, f64) {
@@ -165,6 +202,11 @@ impl Translatable for (f64, f64) {
     fn scale(&mut self, factor: f64) {
         self.0 *= factor;
         self.1 *= factor;
+    }
+
+    #[inline]
+    fn transform(&mut self, transform: crate::Affine2D) {
+        *self = transform.transform_point(self.0, self.1);
     }
 }
 
@@ -222,5 +264,16 @@ mod tests {
         r.translate_by_size(Size::new(5.0, 10.0));
         assert_eq!(r.x, 15.0);
         assert_eq!(r.y, 30.0);
+    }
+
+    #[test]
+    fn rectangle_affine_transform_returns_conservative_aabb() {
+        let mut rect = Rectangle::new(0.0, 0.0, 20.0, 10.0);
+        rect.transform(crate::Affine2D::from_rotation(std::f64::consts::FRAC_PI_2));
+
+        assert!((rect.x + 10.0).abs() < 1e-10);
+        assert!(rect.y.abs() < 1e-10);
+        assert!((rect.width - 10.0).abs() < 1e-10);
+        assert!((rect.height - 20.0).abs() < 1e-10);
     }
 }

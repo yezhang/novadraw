@@ -92,13 +92,7 @@ impl Figure for EventProbeFigure {
         } else {
             Color::hex("#3498db")
         };
-        canvas.fill_rect(
-            self.bounds.x,
-            self.bounds.y,
-            self.bounds.width,
-            self.bounds.height,
-            color,
-        );
+        canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
     }
 
     fn wants_mouse_events(&self) -> bool {
@@ -205,10 +199,13 @@ fn probe_scene(local_coordinates: bool) -> (FigureGraph, Arc<Mutex<ProbeState>>)
     let parent = if local_coordinates {
         graph.add_child_to(
             root,
-            Box::new(
-                RectangleFigure::new_with_color(100.0, 80.0, 500.0, 360.0, Color::hex("#dfe6e9"))
-                    .with_local_coordinates(true),
-            ),
+            Box::new(RectangleFigure::new_with_color(
+                100.0,
+                80.0,
+                500.0,
+                360.0,
+                Color::hex("#dfe6e9"),
+            )),
         )
     } else {
         root
@@ -389,12 +386,12 @@ fn verify_coordinate_reduction() -> Result<VerificationMetrics, String> {
         },
     );
     let events = &state.lock().unwrap().events;
-    if !events.contains(&ProbeEvent::Mouse(MouseEventKind::Pressed, 60.0, 70.0)) {
+    if !events.contains(&ProbeEvent::Mouse(MouseEventKind::Pressed, 20.0, 20.0)) {
         return Err(format!("target-domain point was not reduced: {events:?}"));
     }
     Ok(metrics([
         ("entry_x", "160".to_string()),
-        ("target_x", "60".to_string()),
+        ("target_x", "20".to_string()),
     ]))
 }
 

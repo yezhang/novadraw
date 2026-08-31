@@ -36,7 +36,7 @@ pub use triangle::{Direction, TriangleFigure};
 use std::any::Any;
 
 use novadraw_core::Color;
-use novadraw_geometry::{Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
@@ -49,55 +49,55 @@ const DEFAULT_MAXIMUM_DIMENSION: f64 = i32::MAX as f64;
 // Bounded Trait: 边界相关方法
 // ============================================================================
 
-/// 当前 Figure 提供给子树的坐标变换。
-///
-/// 表达 `child -> parent` 的统一缩放和平移：`parent = child * scale + translate`。
+/// 当前 Figure 提供的 `child content -> node local` 仿射变换。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ChildTransform {
-    /// 统一缩放因子。
-    pub scale: f64,
-    /// X 方向平移。
-    pub translate_x: f64,
-    /// Y 方向平移。
-    pub translate_y: f64,
+    affine: Affine2D,
 }
 
 impl ChildTransform {
     /// 恒等变换。
     pub const IDENTITY: Self = Self {
-        scale: 1.0,
-        translate_x: 0.0,
-        translate_y: 0.0,
+        affine: Affine2D::IDENTITY,
     };
 
     /// 创建只有平移的变换。
-    pub const fn translation(translate_x: f64, translate_y: f64) -> Self {
+    pub fn translation(translate_x: f64, translate_y: f64) -> Self {
         Self {
-            scale: 1.0,
-            translate_x,
-            translate_y,
+            affine: Affine2D::from_translation(translate_x, translate_y),
         }
     }
 
     /// 创建统一缩放和平移变换。
-    pub const fn uniform(scale: f64, translate_x: f64, translate_y: f64) -> Self {
+    pub fn uniform(scale: f64, translate_x: f64, translate_y: f64) -> Self {
         Self {
-            scale,
-            translate_x,
-            translate_y,
+            affine: Affine2D::from_translation(translate_x, translate_y)
+                * Affine2D::from_uniform_scale(scale),
         }
     }
 
-    /// 应用 `child -> parent` 变换。
-    pub fn apply_to<T: Translatable>(self, target: &mut T) {
-        target.scale(self.scale);
-        target.translate(self.translate_x, self.translate_y);
+    /// 从任意二维仿射变换创建。
+    pub const fn from_affine(affine: Affine2D) -> Self {
+        Self { affine }
     }
 
-    /// 应用 `parent -> child` 逆变换。
-    pub fn apply_inverse_to<T: Translatable>(self, target: &mut T) {
-        target.translate(-self.translate_x, -self.translate_y);
-        target.scale(1.0 / self.scale);
+    /// 返回规范二维仿射变换。
+    pub const fn affine(self) -> Affine2D {
+        self.affine
+    }
+
+    /// 应用 `child content -> node local` 变换。
+    pub fn apply_to<T: Translatable>(self, target: &mut T) {
+        target.transform(self.affine);
+    }
+
+    /// 应用 `node local -> child content` 逆变换。
+    pub fn apply_inverse_to<T: Translatable>(self, target: &mut T) -> bool {
+        let Some(inverse) = self.affine.inverse() else {
+            return false;
+        };
+        target.transform(inverse);
+        true
     }
 }
 
@@ -130,17 +130,8 @@ pub enum ChildPolicy {
 ///
 /// # 坐标模型契约
 ///
-/// `bounds()` 返回的是**相对于最近坐标根的绝对值**，而不是相对于父节点的偏移。
-/// 当父链上出现 `use_local_coordinates() = true` 的节点时，
-/// 其后代会切换到新的坐标域。
-///
-/// `use_local_coordinates()` 只控制 `prim_translate` 是否传播到子节点，
-/// 以及渲染时是否对 children 做 `translate(x+left, y+top)`，
-/// 同时决定该节点是否为其子树的坐标根。
-///
-/// 与 g2/draw2d 的对齐点：
-/// - 坐标根会在 `translateToParent/FromParent` 时进行 offset 变换
-/// - hit-test / repair / render 都必须遵循父链坐标变换协议
+/// `bounds()` 返回 parent content domain 中的布局矩形。Figure 自身绘制和
+/// 精确命中使用 node-local domain。
 pub trait Bounded {
     /// 获取图形边界
     ///
@@ -161,7 +152,7 @@ pub trait Bounded {
     /// 对应 draw2d: containsPoint(int, int)
     fn contains_point(&self, x: f64, y: f64) -> bool {
         let b = self.bounds();
-        x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height
+        x >= 0.0 && x <= b.width && y >= 0.0 && y <= b.height
     }
 
     /// 检查矩形是否与图形边界相交
@@ -169,10 +160,10 @@ pub trait Bounded {
     /// 对应 draw2d: intersects(Rectangle)
     fn intersects(&self, rect: Rectangle) -> bool {
         let b = self.bounds();
-        b.x < rect.x + rect.width
-            && b.x + b.width > rect.x
-            && b.y < rect.y + rect.height
-            && b.y + b.height > rect.y
+        0.0 < rect.x + rect.width
+            && b.width > rect.x
+            && 0.0 < rect.y + rect.height
+            && b.height > rect.y
     }
 
     /// 获取内边距 (top, left, bottom, right)
@@ -180,30 +171,12 @@ pub trait Bounded {
         (0.0, 0.0, 0.0, 0.0)
     }
 
-    /// 是否使用本地坐标
+    /// 当前 Figure 提供的 `child content -> node local` 坐标变换。
     ///
-    /// 对应 draw2d: useLocalCoordinates()
-    /// - true: `prim_translate` 不传播到子节点，渲染时子节点会做 translate 变换
-    /// - false: 默认模式，`prim_translate` 会传播到所有子孙节点
-    ///
-    /// 注意：设为 true 后，当前节点会成为其子树的坐标根。
-    /// 子节点的 bounds 将处于该坐标根的坐标域中。
-    fn use_local_coordinates(&self) -> bool {
-        false
-    }
-
-    /// 当前 Figure 提供给子树的 `child -> parent` 坐标变换。
-    ///
-    /// 默认只表达 draw2d `useLocalCoordinates()` 的 client-area 平移；Viewport 等
-    /// Figure 可以覆盖此方法，把 content offset / zoom 纳入同一父链协议。
+    /// 默认映射 client origin；Viewport 和 scalable 容器可叠加 scroll 或 scale。
     fn child_transform(&self) -> ChildTransform {
-        if self.use_local_coordinates() {
-            let bounds = self.bounds();
-            let (top, left, _, _) = self.insets();
-            ChildTransform::translation(bounds.x + left, bounds.y + top)
-        } else {
-            ChildTransform::IDENTITY
-        }
+        let (top, left, _, _) = self.insets();
+        ChildTransform::translation(left, top)
     }
 
     /// 获取绘制子节点时使用的裁剪策略。
@@ -225,19 +198,13 @@ pub trait Bounded {
     ///
     /// 对应 draw2d: getClientArea()
     ///
-    /// 返回值位于当前 Figure 为其子节点提供的坐标域中：
-    /// - `use_local_coordinates() == true` 时，当前 Figure 是子树坐标根，client area 原点重置为 `(0, 0)`；
-    /// - 否则 client area 仍位于当前 Figure 所属坐标域，原点为 `bounds.x/y + insets`。
+    /// 返回值位于 node local domain。
     fn client_area(&self) -> Rectangle {
         let b = self.bounds();
         let (top, left, bottom, right) = self.insets();
         let width = b.width - left - right;
         let height = b.height - top - bottom;
-        if self.use_local_coordinates() {
-            Rectangle::new(0.0, 0.0, width, height)
-        } else {
-            Rectangle::new(b.x + left, b.y + top, width, height)
-        }
+        Rectangle::new(left, top, width, height)
     }
 
     /// 获取首选大小
@@ -396,7 +363,8 @@ pub trait Figure: Bounded + Updatable + AsAny {
     /// 默认实现调用 Border::paint()
     fn paint_border(&self, gc: &mut NdCanvas) {
         if let Some(border) = self.get_border() {
-            border.paint(self.bounds(), gc);
+            let bounds = self.bounds();
+            border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
         }
     }
 
@@ -630,7 +598,7 @@ pub trait Shape: Figure {
 // ============================================================================
 //
 // 设计原理：
-// 1. Bounds trait 定义边界相关方法（bounds, set_bounds, name, use_local_coordinates 等）
+// 1. Bounds trait 定义边界相关方法（bounds, set_bounds, name 等）
 // 2. Figure trait 继承 Bounds，定义渲染接口（paint_figure, paint_border 等）
 // 3. Shape trait 继承 Figure，添加描边/填充属性和 fill_shape/outline_shape 抽象方法
 // 4. 所有实现 Bounds 的类型自动获得 Figure 的实现
@@ -721,5 +689,20 @@ where
 
     fn on_mouse_exited(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
         Shape::on_mouse_exited(self, event, ctx)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChildTransform;
+    use novadraw_geometry::{Affine2D, Point};
+
+    #[test]
+    fn singular_child_transform_has_no_inverse_mapping() {
+        let transform = ChildTransform::from_affine(Affine2D::from_scale(0.0, 1.0));
+        let mut point = Point::new(12.0, 8.0);
+
+        assert!(!transform.apply_inverse_to(&mut point));
+        assert_eq!(point, Point::new(12.0, 8.0));
     }
 }

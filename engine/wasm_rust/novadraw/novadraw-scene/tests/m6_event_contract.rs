@@ -160,7 +160,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let coordinate_root = graph.add_child_to(
         root,
-        Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0).with_local_coordinates(true)),
+        Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
     );
     graph.add_child_to(
         coordinate_root,
@@ -200,9 +200,9 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     assert_eq!(interaction.focus_owner(), None);
 
     let events = events.lock().unwrap();
-    assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Pressed, 20.0, 30.0,)));
-    assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Dragged, 160.0, 140.0,)));
-    assert!(events.contains(&RecordedInput::Wheel(20.0, 30.0, 1.0, -2.0)));
+    assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Pressed, 10.0, 10.0,)));
+    assert!(events.contains(&RecordedInput::Mouse(MouseEventKind::Dragged, 150.0, 120.0,)));
+    assert!(events.contains(&RecordedInput::Wheel(10.0, 10.0, 1.0, -2.0)));
     assert!(events.contains(&RecordedInput::Key(
         KeyEventKind::Pressed,
         Key::Character('x'),

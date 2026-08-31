@@ -90,10 +90,6 @@ impl Bounded for PolygonFigure {
         self.polyline.set_points(new_points);
     }
 
-    fn use_local_coordinates(&self) -> bool {
-        Bounded::use_local_coordinates(&self.polyline)
-    }
-
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         self.polyline.child_clipping_strategy()
     }
@@ -156,10 +152,12 @@ impl Shape for PolygonFigure {
         // 使用 path API 构建闭合路径
         gc.begin_path();
         if let Some(first) = points.first() {
-            gc.move_to(first.0.x, first.0.y);
+            let bounds = self.bounds();
+            gc.move_to(first.0.x - bounds.x, first.0.y - bounds.y);
         }
+        let bounds = self.bounds();
         for point in points.iter().skip(1) {
-            gc.line_to(point.0.x, point.0.y);
+            gc.line_to(point.0.x - bounds.x, point.0.y - bounds.y);
         }
         gc.close_path();
 
@@ -177,10 +175,12 @@ impl Shape for PolygonFigure {
         // 使用 path API 构建闭合路径（与 fill_shape 统一）
         gc.begin_path();
         if let Some(first) = points.first() {
-            gc.move_to(first.0.x, first.0.y);
+            let bounds = self.bounds();
+            gc.move_to(first.0.x - bounds.x, first.0.y - bounds.y);
         }
+        let bounds = self.bounds();
         for point in points.iter().skip(1) {
-            gc.line_to(point.0.x, point.0.y);
+            gc.line_to(point.0.x - bounds.x, point.0.y - bounds.y);
         }
         gc.close_path();
 

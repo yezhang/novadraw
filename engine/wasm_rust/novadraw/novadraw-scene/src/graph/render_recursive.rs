@@ -94,23 +94,20 @@ impl<'a> FigureRenderer<'a> {
         let bounds = block.figure_bounds();
         debug_render!("[RECUR] #{:02} paint bounds={:?}", id, bounds);
 
-        // 1. 设置本地属性
-        block.figure.init_properties(self.gc);
-
-        // 2. 保存状态 → 直接调用 gc
+        // 1. 保存 parent state，并设置当前节点的 local state。
         self.gc.push_state();
+        block.figure.init_properties(self.gc);
+        self.gc.translate(bounds.x, bounds.y);
 
-        // 3. 绘制自身
+        // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
+        self.gc.push_state();
         block.figure.paint_figure(self.gc);
+        self.gc.pop_state();
 
-        // 4. 恢复上下文状态 → 直接调用 gc
-        debug_render!("[RECUR] #{:02}   paint_figure done, restore_state", id);
-        self.gc.restore_state();
-
-        // 5. 绘制子元素区域（paintClientArea 负责 translate + clip）
+        // 3. 绘制子元素区域。
         self.paint_client_area(block_id);
 
-        // 6. 绘制边框
+        // 4. 绘制边框
         // 注意：block 借用在此结束，可以安全重新获取
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
@@ -119,7 +116,7 @@ impl<'a> FigureRenderer<'a> {
         block.figure.paint_border(self.gc);
         super::paint_selection_overlay(block, self.gc);
 
-        // 7. 恢复初始状态 → 直接调用 gc
+        // 5. 恢复 parent state。
         debug_render!("[RECUR] #{:02}   pop_state", id);
         self.gc.pop_state();
     }
@@ -146,54 +143,28 @@ impl<'a> FigureRenderer<'a> {
         self.counter += 1;
         let id = self.counter;
 
-        if block.figure.use_local_coordinates() {
-            let transform = block.figure.child_transform();
-            let client_area = block.figure.client_area();
-            debug_render!(
-                "[RECUR] #{:02} paintClientArea use_local=true, scale({}) translate({}, {}) clip({},{},{},{})",
-                id,
-                transform.scale,
-                transform.translate_x,
-                transform.translate_y,
-                client_area.x,
-                client_area.y,
-                client_area.width,
-                client_area.height
-            );
-            self.gc.scale(transform.scale, transform.scale);
-            self.gc
-                .translate(transform.translate_x, transform.translate_y);
-            self.gc.clip_rect(
-                client_area.x,
-                client_area.y,
-                client_area.width,
-                client_area.height,
-            );
-        } else {
-            let client_area = block.figure.client_area();
-            debug_render!(
-                "[RECUR] #{:02} paintClientArea use_local=false, clip({},{},{},{})",
-                id,
-                client_area.x,
-                client_area.y,
-                client_area.width,
-                client_area.height
-            );
-            self.gc.clip_rect(
-                client_area.x,
-                client_area.y,
-                client_area.width,
-                client_area.height,
-            );
-        }
-
+        let transform = block.figure.child_transform();
+        let client_area = block.figure.client_area();
+        let [a, b, c, d, e, f] = transform.affine().coeffs();
+        debug_render!(
+            "[RECUR] #{:02} paintClientArea transform({a},{b},{c},{d},{e},{f}) clip({},{},{},{})",
+            id,
+            client_area.x,
+            client_area.y,
+            client_area.width,
+            client_area.height
+        );
         self.gc.push_state();
+        self.gc.clip_rect(
+            client_area.x,
+            client_area.y,
+            client_area.width,
+            client_area.height,
+        );
+        self.gc.transform(a, b, c, d, e, f);
+
         self.paint_children(block_id);
         self.gc.pop_state();
-
-        // 恢复 paintClientArea 设置的裁剪区域
-        debug_render!("[RECUR] #{:02}   restore_state (client area)", id);
-        self.gc.restore_state();
     }
 
     /// 绘制子元素
@@ -242,6 +213,7 @@ impl<'a> FigureRenderer<'a> {
                 _ => continue,
             };
 
+            self.gc.push_state();
             match clipping_strategy {
                 ChildClippingStrategy::ClipToChildBounds => {
                     let child_bounds = child_block.figure_bounds();
@@ -259,7 +231,7 @@ impl<'a> FigureRenderer<'a> {
                     self.paint(child_id);
                 }
             }
-            self.gc.restore_state();
+            self.gc.pop_state();
         }
     }
 }

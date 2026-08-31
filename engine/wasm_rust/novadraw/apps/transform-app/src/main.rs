@@ -55,7 +55,6 @@ fn background() -> RectangleFigure {
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64, color: Color) -> RectangleFigure {
     RectangleFigure::new_with_color(x, y, width, height, color)
-        .with_local_coordinates(true)
         .with_border(LineBorder::new(Color::BLACK, BORDER_WIDTH).with_insets(8.0, 12.0, 8.0, 12.0))
 }
 
@@ -103,11 +102,14 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureGraph {
         ),
     );
 
-    let mut absolute_bounds = local_bounds;
+    let mut absolute_bounds = Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height);
     scene.translate_to_absolute_mut(child, &mut absolute_bounds);
     let mut roundtrip = absolute_bounds;
     scene.translate_to_relative(child, &mut roundtrip);
-    assert_eq!(roundtrip, local_bounds);
+    assert_eq!(
+        roundtrip,
+        Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height)
+    );
 
     scene.add_child_to(
         contents,
@@ -214,20 +216,14 @@ impl Shape for TargetDomainFigure {
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
-        gc.fill_rect(
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height,
-            TARGET_COLOR,
-        );
+        gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, TARGET_COLOR);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
         gc.stroke_rect(
-            bounds.x,
-            bounds.y,
+            0.0,
+            0.0,
             bounds.width,
             bounds.height,
             Color::WHITE,

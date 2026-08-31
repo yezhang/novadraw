@@ -11,7 +11,6 @@ use novadraw_scene::{
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
     RectangleFigure::new(x, y, width, height)
-        .with_local_coordinates(true)
         .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(3.0, 5.0, 0.0, 0.0))
 }
 
@@ -26,7 +25,6 @@ fn nested_coordinate_scene() -> (FigureGraph, novadraw_scene::BlockId) {
         outer,
         Box::new(
             RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
-                .with_local_coordinates(true)
                 .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
         ),
     );
@@ -40,7 +38,7 @@ fn nested_coordinate_scene() -> (FigureGraph, novadraw_scene::BlockId) {
 #[test]
 fn m4_point_roundtrips_across_nested_coordinate_roots_with_insets() {
     let (graph, child) = nested_coordinate_scene();
-    let original = Point::new(25.0, 35.0);
+    let original = Point::new(15.0, 20.0);
     let mut point = original;
 
     graph.translate_to_absolute_mut(child, &mut point);
@@ -53,7 +51,7 @@ fn m4_point_roundtrips_across_nested_coordinate_roots_with_insets() {
 #[test]
 fn m4_rectangle_roundtrip_preserves_extent_across_nested_coordinate_roots() {
     let (graph, child) = nested_coordinate_scene();
-    let original = Rectangle::new(25.0, 35.0, 18.0, 12.0);
+    let original = Rectangle::new(15.0, 20.0, 18.0, 12.0);
     let mut rect = original;
 
     graph.translate_to_absolute_mut(child, &mut rect);
@@ -158,7 +156,6 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
         outer,
         Box::new(
             RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
-                .with_local_coordinates(true)
                 .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
         ),
     );
@@ -191,7 +188,7 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     assert_eq!(
         *recorded.lock().unwrap(),
         Some(RecordedMousePoint {
-            target: Point::new(25.0, 35.0),
+            target: Point::new(15.0, 20.0),
             entry,
         })
     );
@@ -203,7 +200,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
     let coordinate_root = graph.add_child_to(
         contents,
-        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0).with_local_coordinates(true)),
+        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
     );
     let child = graph.add_child_to(
         coordinate_root,

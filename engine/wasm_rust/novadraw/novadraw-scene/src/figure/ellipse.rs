@@ -148,8 +148,8 @@ impl Bounded for EllipseFigure {
         if radius_x <= 0.0 || radius_y <= 0.0 {
             return false;
         }
-        let center_x = self.bounds.x + radius_x;
-        let center_y = self.bounds.y + radius_y;
+        let center_x = radius_x;
+        let center_y = radius_y;
         let normalized_x = (x - center_x) / radius_x;
         let normalized_y = (y - center_y) / radius_y;
         normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
@@ -209,8 +209,8 @@ impl Shape for EllipseFigure {
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
         // 填充使用完整的 bounds
-        let cx = self.bounds.x + self.bounds.width / 2.0;
-        let cy = self.bounds.y + self.bounds.height / 2.0;
+        let cx = self.bounds.width / 2.0;
+        let cy = self.bounds.height / 2.0;
         let rx = self.bounds.width / 2.0;
         let ry = self.bounds.height / 2.0;
 
@@ -234,8 +234,8 @@ impl Shape for EllipseFigure {
             let line_inset = (1.0_f64).max(self.stroke_width) / 2.0;
 
             // 向内缩 bounds（使用浮点数避免 floor/ceil 不对称）
-            let x = self.bounds.x + line_inset;
-            let y = self.bounds.y + line_inset;
+            let x = line_inset;
+            let y = line_inset;
             let width = self.bounds.width - line_inset * 2.0;
             let height = self.bounds.height - line_inset * 2.0;
 
@@ -267,9 +267,9 @@ mod tests {
     fn contains_point_uses_ellipse_geometry_not_only_bounds() {
         let ellipse = EllipseFigure::new(10.0, 20.0, 100.0, 60.0);
 
-        assert!(ellipse.contains_point(60.0, 50.0));
-        assert!(ellipse.contains_point(10.0, 50.0));
-        assert!(!ellipse.contains_point(10.0, 20.0));
-        assert!(!ellipse.contains_point(109.0, 21.0));
+        assert!(ellipse.contains_point(50.0, 30.0));
+        assert!(ellipse.contains_point(0.0, 30.0));
+        assert!(!ellipse.contains_point(0.0, 0.0));
+        assert!(!ellipse.contains_point(99.0, 1.0));
     }
 }

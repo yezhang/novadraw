@@ -131,6 +131,8 @@ cargo test --workspace
 
 前置条件：R2 手动验证 `PASS`。
 
+状态：`awaiting_manual_approval`
+
 工作：
 
 - NodeState.bounds 成为唯一几何真源；
@@ -300,18 +302,26 @@ cargo test --workspace
 
 用户已明确要求开始 R2，视为 R1 手动门禁通过。
 
-## 13. 当前手动验证：R2
+## 13. R2 手动验收记录
 
-在开始 R3 前执行以下步骤。
+状态：`approved`
 
-### 13.1 自动验证工具
+- 平台：macOS
+- 结果：PASS
+- 失败项：无
+
+## 14. 当前手动验证：R3
+
+在开始 R4 前执行以下步骤。
+
+### 14.1 自动验证工具
 
 ```bash
 cargo run -p event-app -- --verify \
-  --report=target/visual-verification/event-app-r2.json
+  --report=target/visual-verification/event-app-r3.json
 
 cargo run -p scroll-pane-demo -- --verify \
-  --report=target/visual-verification/scroll-pane-r2.json
+  --report=target/visual-verification/scroll-pane-r3.json
 ```
 
 通过标准：
@@ -320,47 +330,59 @@ cargo run -p scroll-pane-demo -- --verify \
 - scroll-pane-demo 输出四项 `PASS`；
 - 两个 JSON 顶层 `"passed": true`。
 
-### 13.2 Event App
+### 14.2 Transform App
 
 ```bash
-cargo run -p event-app
+cargo run -p transform-app
 ```
 
-1. 场景 0：移入目标、按下、拖出、释放；拖出期间仍保持 capture，释放后恢复。
-2. 场景 1：点击获得焦点，再输入键盘；焦点样式和键盘响应正常。
-3. 场景 2：验证 hover、wheel、double-click 均只触发一次。
-4. 场景 3：点击嵌套坐标目标，命中位置没有偏移。
+1. 按 `0`：嵌套图形位置正确，父子边距一致。
+2. 按 `1`：白色轮廓与红色绝对投影完全重合。
+3. 按 `2`：移动父节点后，子节点保持相对位置，没有二次偏移。
+4. 按 `3`：点击红色目标的四角和中心，命中点与光标一致。
 
-### 13.3 Editor
+### 14.3 Editor
 
 ```bash
 cargo run -p editor
 ```
 
-1. 在场景 9 点击交互目标，确认命中位置与光标一致。
-2. 按住目标并拖出边界后释放，确认拖动持续到释放且不会粘住。
-3. 在场景间切换，确认旧场景的 hover、capture 和 focus 不会泄漏。
-4. 最小化后恢复窗口，确认输入仍能正常投递。
+1. 按 `1`、`2`：嵌套图形位置和尺寸正确，场景 2 不出现额外偏移。
+2. 按 `5`，再按 `T`：父节点移动时后代整体移动，内部相对位置保持不变。
+3. 按 `9`：点击四角 DPI 探针，命中位置与光标一致。
 
-### 13.4 Scroll / Zoom
+### 14.4 Viewport
+
+```bash
+cargo run -p viewport-app
+```
+
+依次按 `0` 到 `3`：
+
+1. viewport 外内容被裁剪；
+2. origin 滚动方向与距离正确；
+3. zoom 后内容位置、尺寸和裁剪一致；
+4. 嵌套 viewport 没有重复平移或缩放。
+
+### 14.5 Scroll Pane
 
 ```bash
 cargo run -p scroll-pane-demo
 ```
 
-1. 在可滚动内容上连续滚动，确认手势过程中由同一 ScrollPane 接管。
-2. 在嵌套内容边界附近滚动，确认中间 Figure 不会收到重复回调。
-3. 在缩放场景执行 pinch，确认锚点稳定。
-4. 按住可拖动目标时滚动，确认 pointer capture 与 gesture session 相互独立。
+1. 滚动条按钮、轨道和 thumb 点击位置准确。
+2. 拖动垂直 thumb，内容连续移动且释放后不粘连。
+3. 触控板滚动可到达四边。
+4. pinch 缩放时锚点稳定，缩放后仍可滚动到四边。
 
-### 13.5 验收回复
+### 14.6 验收回复
 
 请回复：
 
 ```text
-R2: PASS
+R3: PASS
 平台:
 失败项: 无
 ```
 
-若失败，请附应用名、场景编号、操作步骤和可见结果。收到 `R2: PASS` 后开始 R3。
+若失败，请附应用名、场景编号、操作步骤和可见结果。收到 `R3: PASS` 后开始 R4。

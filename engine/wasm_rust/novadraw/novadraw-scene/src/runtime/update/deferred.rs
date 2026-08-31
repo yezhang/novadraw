@@ -223,7 +223,7 @@ impl SceneUpdateManager {
     /// # Arguments
     ///
     /// * `block_id` - 需要重绘的块 ID
-    /// * `rect` - 脏区域（与该 block 的 bounds 同域）
+    /// * `rect` - node-local 脏区域
     pub fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle) {
         if merge_dirty_region(&mut self.dirty_regions, block_id, rect) {
             self.update_queued = true;
@@ -700,13 +700,13 @@ mod tests {
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root = graph.add_child_to(
             root_id,
-            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0).with_local_coordinates(true)),
+            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
         );
         let child = graph.add_child_to(
             coordinate_root,
             Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)),
         );
-        manager.add_dirty_region(child, Rectangle::new(10.0, 20.0, 30.0, 40.0));
+        manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 30.0, 40.0));
 
         let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
         struct CapturePainting {
@@ -987,14 +987,12 @@ mod tests {
 
         let mut graph = FigureGraph::new();
         let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child = graph.add_child_to(
-            root,
-            Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0).with_local_coordinates(true)),
-        );
+        let child =
+            graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
         graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
         graph.set_visible(child, false);
         graph.set_visible(child, true);
-        graph.prim_translate(child, 5.0, 5.0);
+        graph.prim_translate(root, 5.0, 5.0);
         graph.mark_invalid(&mut manager, root);
         manager.perform_update(&mut graph, &mut NdCanvas::new());
 

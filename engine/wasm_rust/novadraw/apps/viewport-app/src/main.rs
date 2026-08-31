@@ -361,8 +361,8 @@ mod tests {
             content_parent,
             Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
         );
-        let mut anchor = novadraw::Point::new(80.0, 60.0);
-        let mut offset = novadraw::Point::new(90.0, 70.0);
+        let mut anchor = novadraw::Point::new(0.0, 0.0);
+        let mut offset = novadraw::Point::new(10.0, 10.0);
         scene.translate_to_absolute_mut(marker, &mut anchor);
         scene.translate_to_absolute_mut(marker, &mut offset);
         (anchor, offset, scene.figure_bounds(content_parent).unwrap())

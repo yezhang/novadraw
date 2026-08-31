@@ -220,14 +220,10 @@ impl Bounded for ScalableLayeredPaneFigure {
         self.project_layout_size(size)
     }
 
-    fn use_local_coordinates(&self) -> bool {
-        true
-    }
-
     fn child_transform(&self) -> ChildTransform {
         let scale = self.scale();
         let (top, left, _, _) = self.insets();
-        ChildTransform::uniform(scale, self.bounds.x + left, self.bounds.y + top)
+        ChildTransform::uniform(scale, left, top)
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -242,13 +238,12 @@ impl Bounded for ScalableLayeredPaneFigure {
     }
 
     fn client_area(&self) -> Rectangle {
-        let scale = self.scale();
         let (top, left, bottom, right) = self.insets();
         Rectangle::new(
-            0.0,
-            0.0,
-            (self.bounds.width - left - right).max(0.0) / scale,
-            (self.bounds.height - top - bottom).max(0.0) / scale,
+            left,
+            top,
+            (self.bounds.width - left - right).max(0.0),
+            (self.bounds.height - top - bottom).max(0.0),
         )
     }
 }

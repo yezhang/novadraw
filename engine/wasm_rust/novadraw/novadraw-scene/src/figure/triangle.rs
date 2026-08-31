@@ -226,7 +226,7 @@ impl TriangleFigure {
     /// 2. 主尖角完整，不被裁剪（在收缩后的边界内，考虑描边向外扩展）
     /// 3. 底部两角的裁剪由渲染器的 line join 行为自然产生
     fn compute_points(&self) -> [(f64, f64); 3] {
-        let mut r = self.bounds;
+        let mut r = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
 
         if r.width <= 0.0 || r.height <= 0.0 {
             return [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)];

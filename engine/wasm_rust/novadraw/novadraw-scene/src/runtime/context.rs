@@ -251,11 +251,12 @@ impl<'a> SceneDispatchContext<'a> {
             let Some(block) = self.scene.block(viewport_id) else {
                 return false;
             };
-            let bounds = block.figure_bounds();
             let (top, left, _, _) = block.figure.insets();
             let mut point = event.entry_point();
-            self.scene.translate_to_relative(viewport_id, &mut point);
-            Point::new(point.x() - bounds.x - left, point.y() - bounds.y - top)
+            if !self.scene.translate_to_relative(viewport_id, &mut point) {
+                return false;
+            }
+            Point::new(point.x() - left, point.y() - top)
         };
         let mut zoom_manager = ZoomManager::new(scalable, viewport);
         zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
@@ -381,12 +382,15 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let mut effects = Vec::new();
         let handled = {
             let bounds = block.figure_bounds();
-            let mut ctx = SceneNovadrawContext::new(target_id, bounds, &mut effects);
+            let local_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+            let mut ctx = SceneNovadrawContext::new(target_id, local_bounds, &mut effects);
 
             match event {
                 Event::Mouse(mouse_event) => {
                     let mut point = Point::new(mouse_event.x, mouse_event.y);
-                    self.scene.translate_to_relative(target_id, &mut point);
+                    if !self.scene.translate_to_relative(target_id, &mut point) {
+                        return false;
+                    }
                     let local_event = mouse_event.with_target_point(point.x(), point.y());
                     match local_event.kind {
                         MouseEventKind::Pressed => {
@@ -417,13 +421,17 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 }
                 Event::Wheel(wheel_event) => {
                     let mut point = Point::new(wheel_event.x, wheel_event.y);
-                    self.scene.translate_to_relative(target_id, &mut point);
+                    if !self.scene.translate_to_relative(target_id, &mut point) {
+                        return false;
+                    }
                     let local_event = wheel_event.with_target_point(point.x(), point.y());
                     block.figure.on_mouse_wheel(&local_event, &mut ctx)
                 }
                 Event::Zoom(zoom_event) => {
                     let mut point = Point::new(zoom_event.x, zoom_event.y);
-                    self.scene.translate_to_relative(target_id, &mut point);
+                    if !self.scene.translate_to_relative(target_id, &mut point) {
+                        return false;
+                    }
                     let local_event = zoom_event.with_target_point(point.x(), point.y());
                     block.figure.on_zoom(&local_event, &mut ctx)
                 }
@@ -464,10 +472,16 @@ impl DispatchContext for SceneDispatchContext<'_> {
                         let selected_bounds = selected.and_then(|id| self.scene.figure_bounds(id));
                         self.scene.set_selected(selected);
                         if let (Some(id), Some(bounds)) = (previous, previous_bounds) {
-                            self.update_manager.add_dirty_region(id, bounds);
+                            self.update_manager.add_dirty_region(
+                                id,
+                                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                            );
                         }
                         if let (Some(id), Some(bounds)) = (selected, selected_bounds) {
-                            self.update_manager.add_dirty_region(id, bounds);
+                            self.update_manager.add_dirty_region(
+                                id,
+                                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                            );
                         }
                     }
                 }
@@ -565,19 +579,17 @@ mod tests {
 
     struct RecordingFigure {
         bounds: Rectangle,
-        use_local_coordinates: bool,
         last_mouse_point: Arc<Mutex<Option<RecordedMousePoint>>>,
     }
 
     impl RecordingFigure {
         fn new(
             bounds: Rectangle,
-            use_local_coordinates: bool,
+            _legacy_local_coordinates: bool,
             last_mouse_point: Arc<Mutex<Option<RecordedMousePoint>>>,
         ) -> Self {
             Self {
                 bounds,
-                use_local_coordinates,
                 last_mouse_point,
             }
         }
@@ -590,10 +602,6 @@ mod tests {
 
         fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
             self.bounds = Rectangle::new(x, y, width, height);
-        }
-
-        fn use_local_coordinates(&self) -> bool {
-            self.use_local_coordinates
         }
 
         fn name(&self) -> &'static str {
@@ -656,10 +664,13 @@ mod tests {
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
-            Box::new(
-                RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
-                    .with_local_coordinates(true),
-            ),
+            Box::new(RectangleFigure::new_with_color(
+                100.0,
+                50.0,
+                200.0,
+                150.0,
+                Color::WHITE,
+            )),
         );
         scene.add_child_to(
             coordinate_root_id,
@@ -686,8 +697,8 @@ mod tests {
         assert_eq!(
             *recorded.lock().unwrap(),
             Some(RecordedMousePoint {
-                x: 30.0,
-                y: 40.0,
+                x: 10.0,
+                y: 10.0,
                 entry_x: 130.0,
                 entry_y: 90.0,
             })
@@ -695,17 +706,20 @@ mod tests {
     }
 
     #[test]
-    fn test_scene_dispatch_context_uses_target_parent_coordinate_domain() {
+    fn test_scene_dispatch_context_uses_target_local_coordinate_domain() {
         let recorded = Arc::new(Mutex::new(None));
         let mut scene = FigureGraph::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
             contents_id,
-            Box::new(
-                RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
-                    .with_local_coordinates(true),
-            ),
+            Box::new(RectangleFigure::new_with_color(
+                100.0,
+                50.0,
+                200.0,
+                150.0,
+                Color::WHITE,
+            )),
         );
         scene.add_child_to(
             coordinate_root_id,
@@ -732,8 +746,8 @@ mod tests {
         assert_eq!(
             *recorded.lock().unwrap(),
             Some(RecordedMousePoint {
-                x: 30.0,
-                y: 40.0,
+                x: 10.0,
+                y: 10.0,
                 entry_x: 130.0,
                 entry_y: 90.0,
             })

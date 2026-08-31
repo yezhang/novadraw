@@ -270,7 +270,7 @@ impl Shape for PolylineFigure {
         let points: Vec<glam::DVec2> = self
             .points
             .iter()
-            .map(|p| glam::DVec2::new(p.0.x, p.0.y))
+            .map(|p| glam::DVec2::new(p.0.x - self.bounds().x, p.0.y - self.bounds().y))
             .collect();
 
         gc.polyline(

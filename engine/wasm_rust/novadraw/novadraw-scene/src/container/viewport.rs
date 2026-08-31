@@ -410,17 +410,10 @@ impl Bounded for ViewportFigure {
         "ViewportFigure"
     }
 
-    fn use_local_coordinates(&self) -> bool {
-        true
-    }
-
     fn child_transform(&self) -> ChildTransform {
         let view_location = lock_unpoisoned(&self.runtime).view_location();
         let (top, left, _, _) = self.insets();
-        ChildTransform::translation(
-            self.bounds.x + left - view_location.x(),
-            self.bounds.y + top - view_location.y(),
-        )
+        ChildTransform::translation(left - view_location.x(), top - view_location.y())
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -439,11 +432,10 @@ impl Bounded for ViewportFigure {
     }
 
     fn client_area(&self) -> Rectangle {
-        let view_location = lock_unpoisoned(&self.runtime).view_location();
         let (top, left, bottom, right) = self.insets();
         Rectangle::new(
-            view_location.x(),
-            view_location.y(),
+            left,
+            top,
             (self.bounds.width - left - right).max(0.0),
             (self.bounds.height - top - bottom).max(0.0),
         )

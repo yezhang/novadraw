@@ -26,8 +26,6 @@ pub struct RectangleFigure {
     pub line_cap: novadraw_render::command::LineCap,
     /// 连接样式
     pub line_join: novadraw_render::command::LineJoin,
-    /// 是否使用本地坐标模式
-    use_local_coordinates: bool,
     /// 绘制子节点时使用的裁剪策略
     child_clipping_strategy: ChildClippingStrategy,
     /// 边框装饰器
@@ -44,7 +42,6 @@ impl RectangleFigure {
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
             line_join: novadraw_render::command::LineJoin::default(),
-            use_local_coordinates: false,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
         }
@@ -59,7 +56,6 @@ impl RectangleFigure {
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
             line_join: novadraw_render::command::LineJoin::default(),
-            use_local_coordinates: false,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
         }
@@ -74,7 +70,6 @@ impl RectangleFigure {
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
             line_join: novadraw_render::command::LineJoin::default(),
-            use_local_coordinates: false,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
         }
@@ -84,15 +79,6 @@ impl RectangleFigure {
     pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
         self.stroke_color = Some(color);
         self.stroke_width = width;
-        self
-    }
-
-    /// 设置坐标模式
-    ///
-    /// `true`: 当前 Figure 成为坐标根，子元素相对于它的 client area 定位
-    /// `false`: 子元素继续与当前 Figure 共享父坐标域
-    pub fn with_local_coordinates(mut self, enable: bool) -> Self {
-        self.use_local_coordinates = enable;
         self
     }
 
@@ -136,10 +122,6 @@ impl Bounded for RectangleFigure {
 
     fn name(&self) -> &'static str {
         "RectangleFigure"
-    }
-
-    fn use_local_coordinates(&self) -> bool {
-        self.use_local_coordinates
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -201,8 +183,8 @@ impl Shape for RectangleFigure {
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
         gc.fill_rect(
-            self.bounds.x,
-            self.bounds.y,
+            0.0,
+            0.0,
             self.bounds.width,
             self.bounds.height,
             self.fill_color,
@@ -217,8 +199,8 @@ impl Shape for RectangleFigure {
             let line_inset = (1.0_f64).max(self.stroke_width) / 2.0;
 
             // 向内缩 bounds（使用浮点数避免 floor/ceil 不对称）
-            let x = self.bounds.x + line_inset;
-            let y = self.bounds.y + line_inset;
+            let x = line_inset;
+            let y = line_inset;
             let width = self.bounds.width - line_inset * 2.0;
             let height = self.bounds.height - line_inset * 2.0;
 

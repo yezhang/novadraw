@@ -241,7 +241,15 @@ impl ScrollPaneFigure {
             PropertyValue::Point(new_location),
         );
         ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.repaint_figure(viewport_id, runtime.viewport_bounds);
+        ctx.repaint_figure(
+            viewport_id,
+            Rectangle::new(
+                0.0,
+                0.0,
+                runtime.viewport_bounds.width,
+                runtime.viewport_bounds.height,
+            ),
+        );
     }
 }
 
@@ -267,8 +275,8 @@ impl Updatable for ScrollPaneFigure {
 impl Figure for ScrollPaneFigure {
     fn paint_figure(&self, gc: &mut NdCanvas) {
         gc.fill_rect(
-            self.bounds.x,
-            self.bounds.y,
+            0.0,
+            0.0,
             self.bounds.width,
             self.bounds.height,
             PANE_BACKGROUND,
@@ -290,7 +298,10 @@ impl Figure for ScrollPaneFigure {
             return false;
         }
         Self::notify_viewport_change(&runtime, old_location, ctx);
-        ctx.repaint_figure(ctx.target_id(), self.bounds);
+        ctx.repaint_figure(
+            ctx.target_id(),
+            Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height),
+        );
         true
     }
 }
@@ -337,10 +348,7 @@ impl ScrollBarFigure {
     }
 
     fn axis_start(&self) -> f64 {
-        match self.orientation {
-            ScrollOrientation::Horizontal => self.bounds.x,
-            ScrollOrientation::Vertical => self.bounds.y,
-        }
+        0.0
     }
 
     fn axis_length(&self) -> f64 {
@@ -357,7 +365,10 @@ impl ScrollBarFigure {
     fn repaint_pane(&self, ctx: &mut dyn NovadrawContext) {
         let runtime = lock_unpoisoned(&self.pane_runtime);
         let pane_bounds = runtime.pane_bounds;
-        ctx.repaint_figure(self.pane_id, pane_bounds);
+        ctx.repaint_figure(
+            self.pane_id,
+            Rectangle::new(0.0, 0.0, pane_bounds.width, pane_bounds.height),
+        );
     }
 
     fn notify_model_change(&self, old_value: f64, ctx: &mut dyn NovadrawContext) {
@@ -380,7 +391,15 @@ impl ScrollBarFigure {
             PropertyValue::Number(new_value),
         );
         ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.repaint_figure(viewport_id, runtime.viewport_bounds);
+        ctx.repaint_figure(
+            viewport_id,
+            Rectangle::new(
+                0.0,
+                0.0,
+                runtime.viewport_bounds.width,
+                runtime.viewport_bounds.height,
+            ),
+        );
     }
 }
 
@@ -411,13 +430,7 @@ impl Updatable for ScrollBarFigure {
 
 impl Figure for ScrollBarFigure {
     fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rect(
-            self.bounds.x,
-            self.bounds.y,
-            self.bounds.width,
-            self.bounds.height,
-            TRACK_COLOR,
-        );
+        gc.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
         let geometry = self.geometry();
         let thickness = match self.orientation {
             ScrollOrientation::Horizontal => self.bounds.height,
@@ -427,21 +440,21 @@ impl Figure for ScrollBarFigure {
             ScrollOrientation::Horizontal => {
                 gc.fill_rect(
                     geometry.axis_start,
-                    self.bounds.y,
+                    0.0,
                     geometry.button_length,
                     thickness,
                     BUTTON_COLOR,
                 );
                 gc.fill_rect(
                     geometry.axis_end - geometry.button_length,
-                    self.bounds.y,
+                    0.0,
                     geometry.button_length,
                     thickness,
                     BUTTON_COLOR,
                 );
                 gc.fill_rect(
                     geometry.thumb_start,
-                    self.bounds.y,
+                    0.0,
                     geometry.thumb_length,
                     thickness,
                     THUMB_COLOR,
@@ -449,21 +462,21 @@ impl Figure for ScrollBarFigure {
             }
             ScrollOrientation::Vertical => {
                 gc.fill_rect(
-                    self.bounds.x,
+                    0.0,
                     geometry.axis_start,
                     thickness,
                     geometry.button_length,
                     BUTTON_COLOR,
                 );
                 gc.fill_rect(
-                    self.bounds.x,
+                    0.0,
                     geometry.axis_end - geometry.button_length,
                     thickness,
                     geometry.button_length,
                     BUTTON_COLOR,
                 );
                 gc.fill_rect(
-                    self.bounds.x,
+                    0.0,
                     geometry.thumb_start,
                     thickness,
                     geometry.thumb_length,

@@ -95,6 +95,10 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
+fn local_border_box(bounds: Rectangle) -> Rectangle {
+    Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
+}
+
 pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
     if !block.is_selected {
         return;
@@ -104,8 +108,8 @@ pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
     let width = (bounds.width - SELECTION_OUTLINE_INSET - SELECTION_OUTLINE_INSET).max(0.0);
     let height = (bounds.height - SELECTION_OUTLINE_INSET - SELECTION_OUTLINE_INSET).max(0.0);
     gc.stroke_rect(
-        bounds.x + SELECTION_OUTLINE_INSET,
-        bounds.y + SELECTION_OUTLINE_INSET,
+        SELECTION_OUTLINE_INSET,
+        SELECTION_OUTLINE_INSET,
         width,
         height,
         SELECTION_OUTLINE_COLOR,
@@ -464,9 +468,9 @@ impl FigureGraph {
     ///
     /// # 坐标语义
     ///
-    /// - bounds 是相对最近坐标根的绝对值，不是相对于父节点的偏移
+    /// - bounds 位于 parent content domain
     /// - 添加后，子节点的 bounds 保持不变
-    /// - 平移操作由 `prim_translate` 负责，会修改 bounds 并传播到子节点
+    /// - 平移操作只修改当前节点，后代通过父链变换改变 surface 投影
     ///
     /// # 示例
     ///
@@ -477,7 +481,7 @@ impl FigureGraph {
     /// let mut scene = FigureGraph::new();
     /// let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     /// let color = Color::hex("#3498db");
-    /// // 添加子节点，bounds 是相对最近坐标根的绝对值 (10, 10, 50, 50)
+    /// // 添加子节点，bounds 位于 parent content domain
     /// let _child_id = scene.add_child_with_bounds(parent_id, 10.0, 10.0, 50.0, 50.0, color);
     /// ```
     pub fn add_child_with_bounds(
@@ -517,7 +521,7 @@ impl FigureGraph {
         };
 
         self.mark_invalid(update_manager, parent_id);
-        update_manager.add_dirty_region(child_id, bounds);
+        update_manager.add_dirty_region(child_id, local_border_box(bounds));
         self.mark_invalid(update_manager, child_id);
 
         child_id
@@ -782,9 +786,9 @@ impl FigureGraph {
         let PendingMutationKind::RemoveChild { parent, child } = mutation else {
             return false;
         };
-        let Some(bounds) = self.blocks.get(child).map(|block| block.figure_bounds()) else {
+        if !self.blocks.contains_key(child) {
             return false;
-        };
+        }
 
         if !self.detach_child(parent, child) {
             return false;
@@ -796,7 +800,6 @@ impl FigureGraph {
 
         self.clear_selection_for_subtree(child);
         self.mark_invalid(update_manager, parent);
-        update_manager.add_dirty_region(child, bounds);
         self.repaint(update_manager, parent, None);
         true
     }
@@ -841,7 +844,7 @@ impl FigureGraph {
         }
 
         self.mark_invalid(update_manager, new_parent);
-        update_manager.add_dirty_region(child, bounds);
+        update_manager.add_dirty_region(child, local_border_box(bounds));
         self.repaint(update_manager, new_parent, None);
         true
     }
@@ -861,7 +864,7 @@ impl FigureGraph {
 
         self.mark_invalid(update_manager, parent);
         self.mark_invalid(update_manager, child);
-        update_manager.add_dirty_region(child, bounds);
+        update_manager.add_dirty_region(child, local_border_box(bounds));
         self.repaint(update_manager, parent, None);
         true
     }
@@ -895,7 +898,7 @@ impl FigureGraph {
     /// # Arguments
     ///
     /// * `block_id` - 需要重绘的块 ID
-    /// * `rect` - 脏区域（与该 block 的 bounds 同域），如果为 None 则使用块的 bounds
+    /// * `rect` - node-local 脏区域；`None` 表示完整 local border box
     pub fn repaint(
         &mut self,
         update_manager: &mut dyn UpdateManager,
@@ -907,7 +910,7 @@ impl FigureGraph {
                 return;
             }
 
-            let dirty_rect = rect.unwrap_or_else(|| block.figure_bounds());
+            let dirty_rect = rect.unwrap_or_else(|| local_border_box(block.figure_bounds()));
             update_manager.add_dirty_region(block_id, dirty_rect);
         }
     }
@@ -1323,9 +1326,8 @@ impl FigureGraph {
     ///
     /// # 坐标语义
     ///
-    /// `point` 必须处于入口节点的坐标域中。
-    /// 遍历子树时，若遇到 `use_local_coordinates() == true` 的父节点，
-    /// 需要按 `translateFromParent` 协议切换到子节点所在坐标域。
+    /// `point` 必须处于 logical surface domain。遍历时逐边逆变换到
+    /// node-local 和 child content domain。
     ///
     /// # 参数
     ///
@@ -1824,102 +1826,41 @@ impl FigureGraph {
 
     /// 原始平移（对应 draw2d: primTranslate）
     ///
-    /// 移动 Figure 的位置并传播到子节点。
-    /// 如果 `use_local_coordinates()` 为 false（默认），子节点的 bounds 也会被平移。
-    /// 如果 `use_local_coordinates()` 为 true，只平移当前节点，不传播到子节点。
+    /// Moves one node in its parent content domain.
     ///
-    /// # 关键特性
-    ///
-    /// - 使用**显式栈**迭代实现，避免递归栈溢出
-    /// - 每个 bounds 都是**相对于最近坐标根的绝对值**
-    /// - `use_local_coordinates()` 为 true 时，当前节点是坐标根，不传播到子节点
-    ///
-    /// # 坐标语义说明
-    ///
-    /// - 若当前节点不是坐标根，子孙节点与它处于同一坐标域，因此需要同步平移
-    /// - 若当前节点是坐标根，子节点属于新的坐标域，不传播位置偏移
-    /// - 当 `use_local_coordinates()` 为 true 时，当前节点的 bounds 变化会触发坐标系统变更通知
-    ///
-    /// # 与 draw2d 的一致性
-    ///
-    /// ```java
-    /// // Figure.java:1390-1397 - primTranslate
-    /// protected void primTranslate(int dx, int dy) {
-    ///     bounds.x += dx;
-    ///     bounds.y += dy;
-    ///
-    ///     if (useLocalCoordinates()) {
-    ///         fireCoordinateSystemChanged();
-    ///         return;
-    ///     }
-    ///     children.forEach(child -> child.translate(dx, dy));
-    /// }
-    /// ```
+    /// Descendant bounds remain unchanged. Their projected positions change
+    /// through the shared parent transform.
     pub fn prim_translate(&mut self, block_id: BlockId, dx: f64, dy: f64) {
-        self.prim_translate_internal(block_id, dx, dy, true);
-        self.emit_ancestor_moved(block_id);
-    }
+        let Some((old_bounds, new_bounds, has_children)) =
+            self.blocks.get_mut(block_id).map(|block| {
+                let old_bounds = block.figure_bounds();
+                let new_bounds = Rectangle::new(
+                    old_bounds.x + dx,
+                    old_bounds.y + dy,
+                    old_bounds.width,
+                    old_bounds.height,
+                );
+                block.set_figure_bounds(new_bounds);
+                (old_bounds, new_bounds, !block.children.is_empty())
+            })
+        else {
+            return;
+        };
 
-    fn prim_translate_internal(
-        &mut self,
-        block_id: BlockId,
-        dx: f64,
-        dy: f64,
-        emit_root_events: bool,
-    ) {
-        // 使用显式栈实现迭代式深度优先遍历
-        let mut stack = vec![block_id];
-
-        while let Some(id) = stack.pop() {
-            let Some((old_bounds, new_bounds, use_local_coordinates, children)) =
-                self.blocks.get_mut(id).map(|block| {
-                    // 修改当前节点的 bounds (x, y)
-                    let old_bounds = block.figure_bounds();
-                    let new_bounds = Rectangle::new(
-                        old_bounds.x + dx,
-                        old_bounds.y + dy,
-                        old_bounds.width,
-                        old_bounds.height,
-                    );
-                    block.set_figure_bounds(new_bounds);
-
-                    (
-                        old_bounds,
-                        new_bounds,
-                        block.figure.use_local_coordinates(),
-                        block.children.clone(),
-                    )
-                })
-            else {
-                continue;
-            };
-
-            self.notify_block_changed(id);
-            if emit_root_events || id != block_id {
-                self.emit_figure_event(FigureEvent::FigureMoved {
-                    block_id: id,
-                    old_bounds,
-                    new_bounds,
-                });
-            }
-
-            // 检查是否使用本地坐标模式
-            if use_local_coordinates {
-                if emit_root_events || id != block_id {
-                    self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
-                        block_id: id,
-                        old_bounds,
-                        new_bounds,
-                    });
-                }
-                continue;
-            }
-
-            // 默认模式：将所有子节点加入栈进行平移
-            for child_id in children {
-                stack.push(child_id);
-            }
+        self.notify_block_changed(block_id);
+        self.emit_figure_event(FigureEvent::FigureMoved {
+            block_id,
+            old_bounds,
+            new_bounds,
+        });
+        if has_children {
+            self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
+                block_id,
+                old_bounds,
+                new_bounds,
+            });
         }
+        self.emit_ancestor_moved(block_id);
     }
 
     fn emit_ancestor_moved(&mut self, ancestor_id: BlockId) {
@@ -1944,50 +1885,33 @@ impl FigureGraph {
     ///
     /// 对应 draw2d: setBounds(Rectangle)
     /// 核心逻辑：
-    /// 1. 计算位置偏移
-    /// 2. 使用栈迭代调用 prim_translate 传播偏移到所有子节点
-    /// 3. 更新自身的宽高
-    ///
-    /// 注意：所有子节点传播操作必须使用迭代实现，禁止递归
+    /// Updates position and size atomically without rewriting descendant bounds.
     #[allow(clippy::collapsible_if)]
     pub fn set_bounds(&mut self, block_id: BlockId, x: f64, y: f64, width: f64, height: f64) {
-        let (old_bounds, use_local_coordinates) = {
+        let (old_bounds, has_children) = {
             if let Some(block) = self.blocks.get(block_id) {
-                (block.figure_bounds(), block.figure.use_local_coordinates())
+                (block.figure_bounds(), !block.children.is_empty())
             } else {
                 return;
             }
         };
-        let dx = x - old_bounds.x;
-        let dy = y - old_bounds.y;
         let resize = width != old_bounds.width || height != old_bounds.height;
-        let translate = dx != 0.0 || dy != 0.0;
+        let translate = x != old_bounds.x || y != old_bounds.y;
         if !resize && !translate {
             return;
         }
 
-        // 1. 传播位置偏移到所有子节点（使用栈迭代）
-        if translate {
-            self.prim_translate_internal(block_id, dx, dy, false);
+        if let Some(block) = self.blocks.get_mut(block_id) {
+            block.set_figure_bounds(Rectangle::new(x, y, width, height));
         }
-
-        // 2. 更新自身的宽高（x, y 已由 prim_translate 更新）
-        if resize {
-            if let Some(block) = self.blocks.get_mut(block_id) {
-                block.set_figure_bounds(Rectangle::new(x, y, width, height));
-            }
-        }
-
-        if !translate {
-            self.notify_block_changed(block_id);
-        }
+        self.notify_block_changed(block_id);
         let new_bounds = Rectangle::new(x, y, width, height);
         self.emit_figure_event(FigureEvent::FigureMoved {
             block_id,
             old_bounds,
             new_bounds,
         });
-        if translate && use_local_coordinates {
+        if translate && has_children {
             self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
                 block_id,
                 old_bounds,
@@ -2063,92 +1987,74 @@ impl FigureGraph {
             return;
         }
 
-        self.translate_to_parent(parent_id, &mut old_bounds);
+        if let Some(parent) = self.blocks.get(parent_id) {
+            parent.figure.child_transform().apply_to(&mut old_bounds);
+        }
         update_manager.add_dirty_region(parent_id, old_bounds);
     }
 
-    /// 坐标转换：沿父链应用 translateToParent 协议
-    ///
-    /// 对应 draw2d: translateToAbsolute(Translatable)
-    ///
-    /// 对未设 `use_local_coordinates` 的祖先节点，此方法是恒等变换；
-    /// 遇到坐标根时才会把局部值提升到父坐标域。
-    ///
-    /// # 算法
-    ///
-    /// draw2d 语义：
-    ///
-    /// ```java
-    /// if (getParent() != null) {
-    ///     getParent().translateToParent(t);
-    ///     getParent().translateToAbsolute(t);
-    /// }
-    /// ```
-    ///
-    /// `translate_to_parent` 只在 `use_local_coordinates` 为 true 时
-    /// 才执行 offset 翻译（bounds.x + left, bounds.y + top）。
-    #[allow(clippy::collapsible_if)]
+    /// 将 node-local 几何转换到 logical surface domain。
     pub fn translate_to_absolute_mut<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
-        let mut current = self.blocks.get(block_id).and_then(|block| block.parent);
-
-        while let Some(parent_id) = current {
-            self.translate_to_parent(parent_id, t);
-            current = self.blocks.get(parent_id).and_then(|block| block.parent);
+        if let Some(transform) = self.local_to_surface_transform(block_id) {
+            t.transform(transform);
         }
     }
 
-    /// 检查节点是否是坐标根
-    ///
-    /// 对应 draw2d: isCoordinateSystem()
-    /// 返回 true 如果节点使用本地坐标（即它是子节点的坐标根）。
-    pub fn is_coordinate_system(&self, block_id: BlockId) -> bool {
-        if let Some(block) = self.blocks.get(block_id) {
-            block.figure.use_local_coordinates()
-        } else {
-            false
-        }
-    }
-
-    /// 坐标转换：子到父（由 Figure 的子树坐标协议决定）
-    ///
-    /// 对应 draw2d: translateToParent(Translatable)
-    ///
-    /// 普通坐标根只执行 client-area 平移；Viewport 等 Figure 可以通过
-    /// `child_transform()` 同时表达 content origin 与 zoom。
-    #[allow(clippy::collapsible_if, clippy::needless_return)]
+    /// 将 node-local 几何转换到 parent content domain。
     pub fn translate_to_parent<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
         if let Some(block) = self.blocks.get(block_id) {
-            block.figure.child_transform().apply_to(t);
+            let bounds = block.figure_bounds();
+            t.transform(novadraw_geometry::Affine2D::from_translation(
+                bounds.x, bounds.y,
+            ));
         }
     }
 
-    /// 坐标转换：父到子（由 Figure 的子树坐标协议决定）
-    ///
-    /// 对应 draw2d: translateFromParent(Translatable)
-    ///
-    /// 普通坐标根只执行 client-area 平移逆变换；Viewport 等 Figure 可以通过
-    /// `child_transform()` 同时表达 content origin 与 zoom。
-    #[allow(clippy::collapsible_if, clippy::needless_return)]
+    /// 将 parent content 几何转换到 node-local domain。
     pub fn translate_from_parent<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
         if let Some(block) = self.blocks.get(block_id) {
-            block.figure.child_transform().apply_inverse_to(t);
+            let bounds = block.figure_bounds();
+            t.transform(novadraw_geometry::Affine2D::from_translation(
+                -bounds.x, -bounds.y,
+            ));
         }
     }
 
-    /// 坐标转换：沿父链应用 translateFromParent 协议
-    ///
-    /// 对应 draw2d: translateToRelative(Translatable)
-    ///
-    /// 对未设 `use_local_coordinates` 的节点，此方法是恒等变换；
-    /// 只有遇到坐标根时才执行 offset 翻译。
-    #[allow(clippy::collapsible_if, clippy::needless_return)]
-    pub fn translate_to_relative<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
-        if let Some(block) = self.blocks.get(block_id) {
-            if let Some(parent_id) = block.parent {
-                self.translate_to_relative(parent_id, t);
-                self.translate_from_parent(parent_id, t);
-            }
+    /// 将 logical surface 几何转换到 node-local domain。
+    pub fn translate_to_relative<T: Translatable>(&self, block_id: BlockId, t: &mut T) -> bool {
+        let Some(transform) = self
+            .local_to_surface_transform(block_id)
+            .and_then(|transform| transform.inverse())
+        else {
+            return false;
+        };
+        t.transform(transform);
+        true
+    }
+
+    /// 返回 node-local 到 logical surface 的完整父链变换。
+    pub fn local_to_surface_transform(
+        &self,
+        block_id: BlockId,
+    ) -> Option<novadraw_geometry::Affine2D> {
+        let mut transform = novadraw_geometry::Affine2D::IDENTITY;
+        let mut current_id = block_id;
+
+        loop {
+            let current = self.blocks.get(current_id)?;
+            let bounds = current.figure_bounds();
+            transform =
+                novadraw_geometry::Affine2D::from_translation(bounds.x, bounds.y) * transform;
+
+            let Some(parent_id) = current.parent else {
+                break;
+            };
+            let parent = self.blocks.get(parent_id)?;
+            transform = parent.figure.child_transform().affine() * transform;
+            current_id = parent_id;
         }
+
+        Some(transform)
     }
 }
 
@@ -2200,15 +2106,25 @@ impl FigureGraph {
             return None;
         }
 
-        if !block.figure.contains_point(point.0, point.1) {
+        let mut local_point = point;
+        self.translate_from_parent(block_id, &mut local_point);
+        if !block.figure.contains_point(local_point.0, local_point.1) {
             return None;
         }
 
         path.push(block_id);
-        let mut child_point = point;
-        self.translate_from_parent(block_id, &mut child_point);
         let client_area = block.figure.client_area();
-        if !point_in_rect(child_point, &client_area) {
+        if !point_in_rect(local_point, &client_area) {
+            let hit = Some((block_id, path.clone()));
+            path.pop();
+            return hit;
+        }
+        let mut child_point = local_point;
+        if !block
+            .figure
+            .child_transform()
+            .apply_inverse_to(&mut child_point)
+        {
             let hit = Some((block_id, path.clone()));
             path.pop();
             return hit;
@@ -2235,15 +2151,23 @@ impl FigureGraph {
             return None;
         }
 
-        let contains = block.figure.contains_point(point.0, point.1);
+        let mut local_point = point;
+        self.translate_from_parent(block_id, &mut local_point);
+        let contains = block.figure.contains_point(local_point.0, local_point.1);
         if !contains {
             return None;
         }
 
-        let mut child_point = point;
-        self.translate_from_parent(block_id, &mut child_point);
         let client_area = block.figure.client_area();
-        if !point_in_rect(child_point, &client_area) {
+        if !point_in_rect(local_point, &client_area) {
+            return block.figure.wants_mouse_events().then_some(block_id);
+        }
+        let mut child_point = local_point;
+        if !block
+            .figure
+            .child_transform()
+            .apply_inverse_to(&mut child_point)
+        {
             return block.figure.wants_mouse_events().then_some(block_id);
         }
 
@@ -2509,10 +2433,6 @@ mod tests {
             self.bounds = Rectangle::new(x, y, width, height);
         }
 
-        fn use_local_coordinates(&self) -> bool {
-            true
-        }
-
         fn name(&self) -> &'static str {
             "TestCoordinateRootFigure"
         }
@@ -2698,10 +2618,6 @@ mod tests {
 
         fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
             self.bounds = Rectangle::new(x, y, width, height);
-        }
-
-        fn use_local_coordinates(&self) -> bool {
-            true
         }
 
         fn insets(&self) -> (f64, f64, f64, f64) {
@@ -2998,16 +2914,12 @@ mod tests {
         scene.blocks.get_mut(invisible_id).unwrap().is_visible = false;
 
         let gc = scene.render();
-        let cmd_count = gc.commands().len();
-
-        // 渲染：parent + visible_child = 2 个图形
-        // 每个图形的命令数（参见 test_render_order_z_order）
-        // parent: 8, child: 7, Total: 15
-        assert!(
-            cmd_count >= 8 && cmd_count <= 18,
-            "应只渲染可见元素，实际为 {} 个命令",
-            cmd_count
-        );
+        let fill_count = gc
+            .commands()
+            .iter()
+            .filter(|command| matches!(command.kind, RenderCommandKind::FillRect { .. }))
+            .count();
+        assert_eq!(fill_count, 2, "只应绘制 parent 和 visible child");
     }
 
     /// 测试变换累加
@@ -3337,10 +3249,10 @@ mod tests {
         assert_eq!(parent_bounds.x, 10.0, "父节点 x 应为 10");
         assert_eq!(parent_bounds.y, 20.0, "父节点 y 应为 20");
 
-        // 验证子节点 bounds 也被平移
+        // 子节点通过父链变换改变世界位置，但 parent-local 存储值不变。
         let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-        assert_eq!(child_bounds.x, 20.0, "子节点 x 应为 20 (10 + 10)");
-        assert_eq!(child_bounds.y, 30.0, "子节点 y 应为 30 (10 + 20)");
+        assert_eq!(child_bounds.x, 10.0);
+        assert_eq!(child_bounds.y, 10.0);
     }
 
     #[test]
@@ -3360,7 +3272,7 @@ mod tests {
         assert!(effects.contains(&NotificationEffect::Notify {
             block_id: parent_id
         }));
-        assert!(effects.contains(&NotificationEffect::Notify { block_id: child_id }));
+        assert!(!effects.contains(&NotificationEffect::Notify { block_id: child_id }));
         assert!(
             effects.contains(&NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
                 block_id: parent_id,
@@ -3368,13 +3280,13 @@ mod tests {
                 new_bounds: Rectangle::new(10.0, 20.0, 100.0, 100.0),
             }))
         );
-        assert!(
-            effects.contains(&NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
-                block_id: child_id,
-                old_bounds: Rectangle::new(10.0, 10.0, 50.0, 50.0),
-                new_bounds: Rectangle::new(20.0, 30.0, 50.0, 50.0),
-            }))
-        );
+        assert!(!effects.iter().any(|effect| {
+            matches!(
+                effect,
+                NotificationEffect::EmitFigure(FigureEvent::FigureMoved { block_id, .. })
+                    if *block_id == child_id
+            )
+        }));
     }
 
     #[test]
@@ -3432,37 +3344,18 @@ mod tests {
         // 平移根节点 (5, 10)
         scene.prim_translate(root_id, 5.0, 10.0);
 
-        // 验证所有节点都被平移
+        // 后代通过父链变换改变世界位置，但 parent-local 存储值不变。
         let root_bounds = scene.blocks.get(root_id).unwrap().figure_bounds();
         assert_eq!(root_bounds.x, 5.0);
         assert_eq!(root_bounds.y, 10.0);
 
         let parent_bounds = scene.blocks.get(parent_id).unwrap().figure_bounds();
-        assert_eq!(parent_bounds.x, 55.0, "父节点 x 应为 55 (50 + 5)");
-        assert_eq!(parent_bounds.y, 60.0, "父节点 y 应为 60 (50 + 10)");
+        assert_eq!(parent_bounds.x, 50.0);
+        assert_eq!(parent_bounds.y, 50.0);
 
         let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
-        assert_eq!(child_bounds.x, 15.0, "子节点 x 应为 15 (10 + 5)");
-        assert_eq!(child_bounds.y, 20.0, "子节点 y 应为 20 (10 + 10)");
-    }
-
-    /// 测试 is_coordinate_system 功能
-    ///
-    /// 场景：检查节点的坐标根状态
-    /// 期望：默认返回 false，使用本地坐标返回 true
-    #[test]
-    fn test_is_coordinate_system() {
-        let mut scene = FigureGraph::new();
-
-        let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
-        let parent_id = scene.set_contents(Box::new(parent));
-
-        let child = RectangleFigure::new(10.0, 10.0, 50.0, 50.0);
-        let child_id = scene.add_child_to(parent_id, Box::new(child));
-
-        // 默认不使用本地坐标
-        assert!(!scene.is_coordinate_system(parent_id), "默认不是坐标根");
-        assert!(!scene.is_coordinate_system(child_id), "默认不是坐标根");
+        assert_eq!(child_bounds.x, 10.0);
+        assert_eq!(child_bounds.y, 10.0);
     }
 
     // ========== translate_to_parent 测试 ==========
@@ -3488,10 +3381,7 @@ mod tests {
         assert_eq!(point, (30.0, 50.0));
     }
 
-    /// 测试 translate_to_parent 带 insets
-    ///
-    /// 场景：当前节点是坐标根且有 insets
-    /// 期望：本地坐标 (10, 20) 转换为父坐标 (35, 55)，其中 bounds=(20,30), insets=(5,5,0,0)
+    /// Node placement 不包含其 child-content insets。
     #[test]
     fn test_translate_to_parent_with_insets() {
         let mut scene = FigureGraph::new();
@@ -3511,8 +3401,8 @@ mod tests {
         );
         let mut point = (10.0, 20.0);
         scene.translate_to_parent(coord_root_id, &mut point);
-        assert_eq!(point.0, 35.0, "x 应为 10 + 20 + 5");
-        assert_eq!(point.1, 55.0, "y 应为 20 + 30 + 5");
+        assert_eq!(point.0, 30.0);
+        assert_eq!(point.1, 50.0);
     }
 
     /// 测试 translate_to_parent 父节点不是坐标根
@@ -3534,7 +3424,7 @@ mod tests {
 
         let mut point = (10.0, 20.0);
         scene.translate_to_parent(child_id, &mut point);
-        assert_eq!(point, (10.0, 20.0), "当前节点不是坐标根时不转换");
+        assert_eq!(point, (20.0, 40.0));
     }
 
     // ========== translate_from_parent 测试 ==========
@@ -3559,10 +3449,7 @@ mod tests {
         assert_eq!(point, (10.0, 20.0));
     }
 
-    /// 测试 translate_from_parent 带 insets
-    ///
-    /// 场景：当前节点是坐标根且有 insets
-    /// 期望：父坐标 (35, 55) 转换为本地坐标 (10, 20)
+    /// Parent content 到 node local 只逆转 node placement。
     #[test]
     fn test_translate_from_parent_with_insets() {
         let mut scene = FigureGraph::new();
@@ -3582,8 +3469,8 @@ mod tests {
         );
         let mut point = (35.0, 55.0);
         scene.translate_from_parent(coord_root_id, &mut point);
-        assert_eq!(point.0, 10.0, "x 应为 35 - 20 - 5");
-        assert_eq!(point.1, 20.0, "y 应为 55 - 30 - 5");
+        assert_eq!(point.0, 15.0);
+        assert_eq!(point.1, 25.0);
     }
 
     // ========== translate_to_relative 测试 ==========
@@ -3607,10 +3494,10 @@ mod tests {
         let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0);
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
-        // 绝对坐标 (30, 40) 减去 coord_root_bounds (0, 0) = 本地坐标 (30, 40)
+        // 绝对坐标位于 child 原点，转换后得到 node-local 原点。
         let mut point = (30.0, 40.0);
         scene.translate_to_relative(child_id, &mut point);
-        assert_eq!(point, (30.0, 40.0));
+        assert_eq!(point, (0.0, 0.0));
     }
 
     /// 测试 translate_to_relative 嵌套坐标根
@@ -3641,11 +3528,10 @@ mod tests {
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         // 绝对坐标 = coord_root1 + coord_root2 + child = (20+10+15, 30+5+25) = (45, 60)
-        // 本地坐标 = 绝对坐标 - coord_root1_bounds - coord_root2_bounds = (15, 25)
+        // 该绝对坐标是 child 的 node-local 原点。
         let mut point = (45.0, 60.0);
         scene.translate_to_relative(child_id, &mut point);
-        assert_eq!(point.0, 15.0, "x 应为 45 - 20 - 10");
-        assert_eq!(point.1, 25.0, "y 应为 60 - 30 - 5");
+        assert_eq!(point, (0.0, 0.0));
     }
 
     /// 测试 translate_to_relative 与 translate_to_absolute_mut 严格互为父链逆变换。
@@ -3672,7 +3558,7 @@ mod tests {
 
         let mut point = (15.0, 25.0);
         scene.translate_to_absolute_mut(coord_root2_id, &mut point);
-        assert_eq!(point, (35.0, 55.0));
+        assert_eq!(point, (45.0, 60.0));
 
         scene.translate_to_relative(coord_root2_id, &mut point);
         assert_eq!(point, (15.0, 25.0));
@@ -3699,11 +3585,11 @@ mod tests {
         let child = RectangleFigure::new(30.0, 40.0, 50.0, 50.0);
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
-        // 绝对坐标 Rectangle (40, 60, 50, 50) 减去 coord_root_bounds (10, 20) = 本地坐标 (30, 40)
+        // 绝对矩形从 child 原点开始。
         let mut rect = Rectangle::new(40.0, 60.0, 50.0, 50.0);
         scene.translate_to_relative(child_id, &mut rect);
-        assert_eq!(rect.x, 30.0, "x 应为 40 - 10");
-        assert_eq!(rect.y, 40.0, "y 应为 60 - 20");
+        assert_eq!(rect.x, 0.0);
+        assert_eq!(rect.y, 0.0);
     }
 
     // ========== translate_to_absolute_mut 测试 ==========
@@ -3729,11 +3615,9 @@ mod tests {
         let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
-        // 本地坐标 (10, 5) 转换为绝对坐标 (30, 35)
-        let mut point = (10.0, 5.0);
+        let mut point = (0.0, 0.0);
         scene.translate_to_absolute_mut(child_id, &mut point);
-        assert_eq!(point.0, 30.0, "x 应为 10 + 20");
-        assert_eq!(point.1, 35.0, "y 应为 5 + 30");
+        assert_eq!(point, (30.0, 35.0));
     }
 
     /// 测试 translate_to_absolute_mut 在坐标根包含 insets 时会通过父链协议叠加它们。
@@ -3758,10 +3642,9 @@ mod tests {
         let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
-        let mut point = (10.0, 5.0);
+        let mut point = (0.0, 0.0);
         scene.translate_to_absolute_mut(child_id, &mut point);
-        assert_eq!(point.0, 37.0, "x 应为 10 + 20 + 7");
-        assert_eq!(point.1, 40.0, "y 应为 5 + 30 + 5");
+        assert_eq!(point, (37.0, 40.0));
     }
 
     /// 测试 translate_to_absolute_mut 嵌套坐标根
@@ -3792,10 +3675,9 @@ mod tests {
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         // 绝对坐标 = coord_root1 + coord_root2 + child = (10+5+15, 20+10+25) = (30, 55)
-        let mut point = (15.0, 25.0);
+        let mut point = (0.0, 0.0);
         scene.translate_to_absolute_mut(child_id, &mut point);
-        assert_eq!(point.0, 30.0, "x 应为 15 + 10 + 5");
-        assert_eq!(point.1, 55.0, "y 应为 25 + 20 + 10");
+        assert_eq!(point, (30.0, 55.0));
     }
 
     /// 测试 translate_to_absolute_mut 在多层坐标根且包含 insets 时严格按父链协议累加。
@@ -3831,10 +3713,9 @@ mod tests {
         let child = RectangleFigure::new(15.0, 25.0, 30.0, 30.0);
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
-        let mut point = (15.0, 25.0);
+        let mut point = (0.0, 0.0);
         scene.translate_to_absolute_mut(child_id, &mut point);
-        assert_eq!(point.0, 39.0, "x 应为 15 + (5 + 6) + (10 + 3)");
-        assert_eq!(point.1, 61.0, "y 应为 25 + (10 + 4) + (20 + 2)");
+        assert_eq!(point, (39.0, 61.0));
     }
 
     /// 测试 translate_to_absolute_mut Rectangle 类型
@@ -3858,11 +3739,10 @@ mod tests {
         let child = RectangleFigure::new(10.0, 5.0, 50.0, 50.0);
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
-        // 本地坐标 Rectangle (10, 5, 50, 50) 转换为绝对坐标 (30, 35, 50, 50)
-        let mut rect = Rectangle::new(10.0, 5.0, 50.0, 50.0);
+        let mut rect = Rectangle::new(0.0, 0.0, 50.0, 50.0);
         scene.translate_to_absolute_mut(child_id, &mut rect);
-        assert_eq!(rect.x, 30.0, "x 应为 10 + 20");
-        assert_eq!(rect.y, 35.0, "y 应为 5 + 30");
+        assert_eq!(rect.x, 30.0);
+        assert_eq!(rect.y, 35.0);
     }
 
     #[test]
@@ -3891,7 +3771,7 @@ mod tests {
 
         assert!(
             signatures.contains(&RenderSignature::Clip([20.0, 10.0, 80.0, 70.0])),
-            "parent clientArea must be clipped by border insets"
+            "parent clientArea must be clipped by border insets: {signatures:?}"
         );
         assert!(
             signatures.contains(&RenderSignature::StrokeRect([21.0, 11.0, 79.0, 69.0])),
@@ -3900,7 +3780,7 @@ mod tests {
 
         let child_fill_index = signatures
             .iter()
-            .position(|signature| *signature == RenderSignature::FillRect([5.0, 5.0, 25.0, 25.0]))
+            .position(|signature| *signature == RenderSignature::FillRect([0.0, 0.0, 20.0, 20.0]))
             .expect("child fill must be rendered under parent clientArea clip");
         let parent_border_index = signatures
             .iter()
@@ -3936,10 +3816,10 @@ mod tests {
         );
 
         let recursive = scene.render();
+        let signatures = render_signatures(&recursive);
         assert!(
-            render_signatures(&recursive)
-                .contains(&RenderSignature::Clip([20.0, 10.0, 80.0, 70.0])),
-            "paint traversal must clip children to the border-inset clientArea"
+            signatures.contains(&RenderSignature::Clip([20.0, 10.0, 80.0, 70.0])),
+            "paint traversal must clip children to the border-inset clientArea: {signatures:?}"
         );
 
         assert_eq!(
@@ -3948,7 +3828,7 @@ mod tests {
             "hit-test must not descend into children outside the painted clientArea"
         );
         assert_eq!(
-            scene.hit_test_simple((21.0, 11.0)),
+            scene.hit_test_simple((26.0, 16.0)),
             Some(child_id),
             "hit-test should descend once the point is inside the painted clientArea"
         );
@@ -4178,6 +4058,6 @@ mod tests {
         );
 
         assert_eq!(scene.find_mouse_event_target_at(6.0, 6.0), None);
-        assert_eq!(scene.find_mouse_event_target_at(21.0, 11.0), Some(child_id));
+        assert_eq!(scene.find_mouse_event_target_at(26.0, 16.0), Some(child_id));
     }
 }

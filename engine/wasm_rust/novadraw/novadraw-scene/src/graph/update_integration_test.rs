@@ -363,10 +363,13 @@ fn test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain() {
     let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let coordinate_root_id = scene.add_child_to(
         contents_id,
-        Box::new(
-            RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
-                .with_local_coordinates(true),
-        ),
+        Box::new(RectangleFigure::new_with_color(
+            100.0,
+            50.0,
+            200.0,
+            150.0,
+            Color::WHITE,
+        )),
     );
 
     scene.add_child(
@@ -432,8 +435,8 @@ fn test_layout_repositions_descendants_via_set_bounds_protocol() {
 
     let child_bounds = scene.blocks.get(child_id).unwrap().figure_bounds();
     let grandchild_bounds = scene.blocks.get(grandchild_id).unwrap().figure_bounds();
-    assert_eq!(child_bounds, Rectangle::new(80.0, 90.0, 40.0, 40.0));
-    assert_eq!(grandchild_bounds, Rectangle::new(85.0, 95.0, 10.0, 10.0));
+    assert_eq!(child_bounds, Rectangle::new(30.0, 40.0, 40.0, 40.0));
+    assert_eq!(grandchild_bounds, Rectangle::new(15.0, 15.0, 10.0, 10.0));
 }
 
 #[test]
@@ -480,10 +483,13 @@ fn test_layout_uses_local_client_area_for_coordinate_root_container() {
     let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let container_id = scene.add_child_to(
         contents_id,
-        Box::new(
-            RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
-                .with_local_coordinates(true),
-        ),
+        Box::new(RectangleFigure::new_with_color(
+            100.0,
+            50.0,
+            200.0,
+            150.0,
+            Color::WHITE,
+        )),
     );
     let child_id = scene.add_child_to(
         container_id,
@@ -522,7 +528,7 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
 
     assert_eq!(
         scene.figure_bounds(child),
-        Some(Rectangle::new(80.0, 90.0, 50.0, 60.0))
+        Some(Rectangle::new(30.0, 40.0, 50.0, 60.0))
     );
     assert!(scene.is_valid(root));
     assert!(scene.is_valid(container));
@@ -585,7 +591,7 @@ fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
     let contents_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
     let coordinate_root_id = scene.add_child_to(
         contents_id,
-        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0).with_local_coordinates(true)),
+        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
     );
     let child_id = scene.add_child_to(
         coordinate_root_id,

@@ -25,9 +25,9 @@ pub enum MouseEventKind {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MouseEvent {
     pub kind: MouseEventKind,
-    /// 鼠标点在当前 target/source Figure 坐标域中的 x 值。
+    /// 鼠标点在当前 target/source Figure node-local domain 中的 x 值。
     pub x: f64,
-    /// 鼠标点在当前 target/source Figure 坐标域中的 y 值。
+    /// 鼠标点在当前 target/source Figure node-local domain 中的 y 值。
     pub y: f64,
     pub button: MouseButton,
     entry_point: Point,
@@ -37,7 +37,7 @@ impl MouseEvent {
     /// 创建一个入口域鼠标事件。
     ///
     /// 此时 `x/y` 与 `entry_point()` 相同；引擎在投递给 target 前会调用
-    /// `with_target_point()` 生成 target/source Figure 坐标域中的事件点。
+    /// `with_target_point()` 生成 target/source Figure node-local 事件点。
     pub fn new(kind: MouseEventKind, x: f64, y: f64, button: MouseButton) -> Self {
         Self {
             kind,
@@ -51,7 +51,7 @@ impl MouseEvent {
     /// 返回平台输入归一化后的入口节点坐标域点。
     ///
     /// 该点只读保留，用于调试、录制回放或跨 target 手势分析；Figure 的常规业务逻辑
-    /// 应优先使用 `x/y`，它们已在引擎层转换到当前 target/source Figure 坐标域。
+    /// 应优先使用 `x/y`，它们已在引擎层转换到 target/source node-local domain。
     pub fn entry_point(&self) -> Point {
         self.entry_point
     }

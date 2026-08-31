@@ -2,25 +2,19 @@
 //!
 //! # 坐标模型契约
 //!
-//! `bounds` 处于所属 Figure 最近坐标根的坐标域内。`repaint()` 产生的 dirty rect
-//! 也必须与该 Figure 的 `bounds` 同域。
+//! `bounds` 处于 parent content domain。`repaint()` 产生的 dirty rect
+//! 处于对应 Figure 的 node-local domain。
 //!
 //! 因此 damage 传播必须遵循 Draw2D 的 repairDamage 协议：
 //!
-//! - 先与当前 Figure 的 `bounds` 求交；
-//! - 沿父链向上遍历；
-//! - 每到一层父节点，先应用该父节点的 `translateToParent()` 语义；
-//! - 再与该父节点的 `bounds` 求交。
-//!
-//! 只有遇到 `use_local_coordinates() == true` 的父节点时，才会发生
-//! `bounds.x/y + insets.left/top` 的坐标提升；否则该层 offset 为 0。
-//!
-//! 当前阶段仍只采用 bounds-based propagation，不引入 client-area/clip-area
-//! 的更细语义；待该路径稳定后再继续扩展。
+//! - 先与当前 Figure 的 local border box 求交；
+//! - 沿父链组合 node placement 与 parent child transform；
+//! - 每到一层 parent local domain，与 parent client area 求交；
+//! - 最终得到 logical surface domain 中的保守 AABB。
 
 use std::collections::HashMap;
 
-use novadraw_geometry::{Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 
 use crate::graph::{BlockId, FigureGraph};
@@ -30,9 +24,7 @@ const DAMAGE_REGION_MAX_COUNT: usize = 8;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct DamagePropagationStep {
-    pub scale: f64,
-    pub offset_x: f64,
-    pub offset_y: f64,
+    pub transform: Affine2D,
     pub clip: Option<Rectangle>,
 }
 
@@ -70,8 +62,7 @@ pub(crate) fn propagate_damage_through_parent_chain(
     steps: &[DamagePropagationStep],
 ) -> Option<Rectangle> {
     for step in steps {
-        contribution.scale(step.scale);
-        contribution.translate(step.offset_x, step.offset_y);
+        contribution.transform(step.transform);
         if let Some(clip) = step.clip {
             contribution = contribution.intersection(clip)?;
         }
@@ -120,31 +111,49 @@ fn collect_parent_chain_steps(
     let current = graph.get_block(block_id)?;
     let contents_id = graph.get_contents();
     steps.push(DamagePropagationStep {
-        scale: 1.0,
-        offset_x: 0.0,
-        offset_y: 0.0,
-        clip: Some(current.figure_bounds()),
+        transform: Affine2D::IDENTITY,
+        clip: Some(Rectangle::new(
+            0.0,
+            0.0,
+            current.figure_bounds().width,
+            current.figure_bounds().height,
+        )),
     });
-    let mut walker_id = if Some(block_id) == contents_id {
-        None
-    } else {
-        current.parent
-    };
-
-    while let Some(current_id) = walker_id {
-        let current = graph.get_block(current_id)?;
+    if Some(block_id) == contents_id {
         let bounds = current.figure_bounds();
-        let transform = current.figure.child_transform();
         steps.push(DamagePropagationStep {
-            scale: transform.scale,
-            offset_x: transform.translate_x,
-            offset_y: transform.translate_y,
-            clip: Some(bounds),
+            transform: Affine2D::from_translation(bounds.x, bounds.y),
+            clip: None,
         });
-        if Some(current_id) == contents_id {
+        return Some(steps);
+    }
+    let mut walker_id = block_id;
+
+    loop {
+        let walker = graph.get_block(walker_id)?;
+        let bounds = walker.figure_bounds();
+        let Some(parent_id) = walker.parent else {
+            steps.push(DamagePropagationStep {
+                transform: Affine2D::from_translation(bounds.x, bounds.y),
+                clip: None,
+            });
+            break;
+        };
+        let parent = graph.get_block(parent_id)?;
+        steps.push(DamagePropagationStep {
+            transform: parent.figure.child_transform().affine()
+                * Affine2D::from_translation(bounds.x, bounds.y),
+            clip: Some(parent.figure.client_area()),
+        });
+        if Some(parent_id) == contents_id {
+            let parent_bounds = parent.figure_bounds();
+            steps.push(DamagePropagationStep {
+                transform: Affine2D::from_translation(parent_bounds.x, parent_bounds.y),
+                clip: None,
+            });
             break;
         }
-        walker_id = current.parent;
+        walker_id = parent_id;
     }
 
     Some(steps)
@@ -409,9 +418,7 @@ mod tests {
     fn test_parent_chain_single_level_propagation() {
         let local_damage = Rectangle::new(10.0, 20.0, 30.0, 40.0);
         let steps = [DamagePropagationStep {
-            scale: 1.0,
-            offset_x: 100.0,
-            offset_y: 50.0,
+            transform: Affine2D::from_translation(100.0, 50.0),
             clip: None,
         }];
         let expected_root_damage = Rectangle::new(110.0, 70.0, 30.0, 40.0);
@@ -427,15 +434,11 @@ mod tests {
         let local_damage = Rectangle::new(5.0, 6.0, 20.0, 10.0);
         let steps = [
             DamagePropagationStep {
-                scale: 1.0,
-                offset_x: 30.0,
-                offset_y: 40.0,
+                transform: Affine2D::from_translation(30.0, 40.0),
                 clip: None,
             },
             DamagePropagationStep {
-                scale: 1.0,
-                offset_x: 100.0,
-                offset_y: 200.0,
+                transform: Affine2D::from_translation(100.0, 200.0),
                 clip: None,
             },
         ];
@@ -452,15 +455,11 @@ mod tests {
         let local_damage = Rectangle::new(10.0, 10.0, 80.0, 60.0);
         let steps = [
             DamagePropagationStep {
-                scale: 1.0,
-                offset_x: 20.0,
-                offset_y: 30.0,
+                transform: Affine2D::from_translation(20.0, 30.0),
                 clip: Some(Rectangle::new(40.0, 50.0, 30.0, 20.0)),
             },
             DamagePropagationStep {
-                scale: 1.0,
-                offset_x: 100.0,
-                offset_y: 0.0,
+                transform: Affine2D::from_translation(100.0, 0.0),
                 clip: Some(Rectangle::new(150.0, 40.0, 20.0, 20.0)),
             },
         ];
@@ -476,20 +475,19 @@ mod tests {
         let mut graph = FigureGraph::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
-        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE)
-            .with_local_coordinates(true);
+        let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE);
         let parent_id = graph.add_child_to(root_id, Box::new(parent));
         let child = RectangleFigure::new_with_color(20.0, 30.0, 80.0, 60.0, Color::WHITE);
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(20.0, 30.0, 20.0, 10.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0));
 
         assert_eq!(actual, Some(Rectangle::new(120.0, 80.0, 20.0, 10.0)));
     }
 
     #[test]
-    fn test_propagate_damage_to_root_does_not_translate_through_non_coordinate_ancestors() {
+    fn test_propagate_damage_to_root_translates_through_parent_local_ancestors() {
         let mut graph = FigureGraph::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
@@ -499,9 +497,9 @@ mod tests {
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(120.0, 80.0, 20.0, 10.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 20.0, 10.0));
 
-        assert_eq!(actual, Some(Rectangle::new(120.0, 80.0, 20.0, 10.0)));
+        assert_eq!(actual, Some(Rectangle::new(220.0, 130.0, 20.0, 10.0)));
     }
 
     #[test]
@@ -509,14 +507,13 @@ mod tests {
         let mut graph = FigureGraph::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
-        let parent = RectangleFigure::new_with_color(70.0, 50.0, 40.0, 40.0, Color::WHITE)
-            .with_local_coordinates(true);
+        let parent = RectangleFigure::new_with_color(70.0, 50.0, 40.0, 40.0, Color::WHITE);
         let parent_id = graph.add_child_to(root_id, Box::new(parent));
         let child = RectangleFigure::new_with_color(20.0, 20.0, 30.0, 30.0, Color::WHITE);
         let child_id = graph.add_child_to(parent_id, Box::new(child));
 
         let actual =
-            propagate_damage_to_root(&graph, child_id, Rectangle::new(20.0, 20.0, 30.0, 30.0));
+            propagate_damage_to_root(&graph, child_id, Rectangle::new(0.0, 0.0, 30.0, 30.0));
 
         assert_eq!(actual, Some(Rectangle::new(90.0, 70.0, 10.0, 10.0)));
     }

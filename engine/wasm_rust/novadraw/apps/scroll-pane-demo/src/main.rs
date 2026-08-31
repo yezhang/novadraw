@@ -277,7 +277,7 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     pane.viewport()
         .set_view_location(&mut graph, &mut update_manager, 0.0, 0.0)
         .map_err(|error| error.to_string())?;
-    let mut point = novadraw::Point::new(20.0, 30.0);
+    let mut point = novadraw::Point::new(0.0, 0.0);
     graph.translate_to_absolute_mut(child, &mut point);
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;

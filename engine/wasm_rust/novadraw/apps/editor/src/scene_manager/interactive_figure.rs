@@ -82,14 +82,14 @@ impl Shape for InteractiveRectFigure {
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
-        gc.fill_rect(bounds.x, bounds.y, bounds.width, bounds.height, self.fill());
+        gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, self.fill());
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
         gc.stroke_rect(
-            bounds.x + 2.0,
-            bounds.y + 2.0,
+            2.0,
+            2.0,
             (bounds.width - 4.0).max(0.0),
             (bounds.height - 4.0).max(0.0),
             self.stroke(),

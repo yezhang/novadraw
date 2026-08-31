@@ -640,16 +640,13 @@ mod tests {
         )));
         let coordinate_root_id = scene.add_child_to(
             root_id,
-            Box::new(
-                novadraw::RectangleFigure::new_with_color(
-                    100.0,
-                    50.0,
-                    200.0,
-                    150.0,
-                    Color::rgba(0.2, 0.2, 0.2, 0.0),
-                )
-                .with_local_coordinates(true),
-            ),
+            Box::new(novadraw::RectangleFigure::new_with_color(
+                100.0,
+                50.0,
+                200.0,
+                150.0,
+                Color::rgba(0.2, 0.2, 0.2, 0.0),
+            )),
         );
         let target_id = scene.add_child_to(
             coordinate_root_id,
