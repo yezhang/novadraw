@@ -83,6 +83,15 @@ child_local
 
 实现可以缓存组合矩阵，但所有消费者必须从同一 edge-transform 协议取得结果。
 
+矩阵使用列向量语义。向已有 parent/world 变换追加 local 变换时必须执行：
+
+```text
+world = parent_world * local
+```
+
+对应 API 为 `parent_world.post_concat(local)`。不得使用
+`local * parent_world`，否则父层 scale/rotation 会与子节点 placement 以错误顺序组合。
+
 ## 4. Affine2D
 
 二维核心使用显式仿射变换：

@@ -362,7 +362,7 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::ConcatTransform { matrix } => {
                 debug!("ConcatTransform: {:?}", matrix);
                 // 叠加变换
-                let new_transform = self.current_state().transform.then_transform(*matrix);
+                let new_transform = self.current_state().transform.post_concat(*matrix);
 
                 self.current_state_mut().transform = new_transform;
             }

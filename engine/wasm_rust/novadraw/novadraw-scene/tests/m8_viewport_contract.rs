@@ -1,7 +1,8 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Point, Rectangle, Transform, Translatable};
+use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureGraph,
     GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
@@ -222,9 +223,16 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     let scalable = graph
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
+    let child_color = Color::hex("#d7263d");
     let child = graph.add_child_to(
         scalable.block_id(),
-        Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
+        Box::new(RectangleFigure::new_with_color(
+            20.0,
+            30.0,
+            40.0,
+            20.0,
+            child_color,
+        )),
     );
     let mut update_manager = SceneUpdateManager::new();
 
@@ -237,6 +245,41 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     graph.translate_to_absolute_mut(child, &mut point);
 
     assert_eq!(point, Point::new(140.0, 140.0));
+    let canvas = graph.render();
+    let mut transform = Transform::IDENTITY;
+    let mut stack = Vec::new();
+    let mut projected_child = None;
+    for command in canvas.commands() {
+        match command.kind {
+            RenderCommandKind::PushState => stack.push(transform),
+            RenderCommandKind::RestoreState => {
+                transform = *stack.last().expect("restore requires saved state");
+            }
+            RenderCommandKind::PopState => {
+                transform = stack.pop().expect("pop requires saved state");
+            }
+            RenderCommandKind::ConcatTransform { matrix } => {
+                transform = transform.post_concat(matrix);
+            }
+            RenderCommandKind::SetTransform { matrix } => transform = matrix,
+            RenderCommandKind::ResetTransform => transform = Transform::IDENTITY,
+            RenderCommandKind::FillRect { rect, color } if color == child_color => {
+                let mut bounds = Rectangle::new(
+                    rect[0].x,
+                    rect[0].y,
+                    rect[1].x - rect[0].x,
+                    rect[1].y - rect[0].y,
+                );
+                bounds.transform(transform);
+                projected_child = Some(bounds);
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        projected_child,
+        Some(Rectangle::new(140.0, 140.0, 80.0, 40.0))
+    );
     assert_eq!(
         graph.figure_bounds(scalable.block_id()),
         Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))

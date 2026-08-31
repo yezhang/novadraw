@@ -124,7 +124,7 @@ impl NdCanvas {
     /// 生成 ConcatTransform 命令
     pub fn translate(&mut self, x: f64, y: f64) {
         let t = Transform::from_translation(x, y);
-        self.state.transform = self.state.transform.then_transform(t);
+        self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
@@ -133,7 +133,7 @@ impl NdCanvas {
     /// 生成 ConcatTransform 命令
     pub fn rotate(&mut self, angle: f64) {
         let t = Transform::from_rotation(angle);
-        self.state.transform = self.state.transform.then_transform(t);
+        self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
@@ -142,13 +142,13 @@ impl NdCanvas {
     /// 生成 ConcatTransform 命令
     pub fn scale(&mut self, x: f64, y: f64) {
         let t = Transform::from_scale(x, y);
-        self.state.transform = self.state.transform.then_transform(t);
+        self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
     pub fn transform(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
         let t = Transform::new(a, b, c, d, e, f);
-        self.state.transform = self.state.transform.then_transform(t);
+        self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
@@ -798,6 +798,23 @@ mod tests {
             commands[2].kind,
             RenderCommandKind::ResetTransform
         ));
+    }
+
+    #[test]
+    fn concat_transform_uses_parent_times_local_order() {
+        let mut canvas = NdCanvas::new();
+
+        canvas.scale(2.0, 3.0);
+        canvas.translate(10.0, 20.0);
+
+        assert_transform_eq(
+            canvas.state.transform,
+            Transform::from_scale(2.0, 3.0).post_concat(Transform::from_translation(10.0, 20.0)),
+        );
+        assert_eq!(
+            canvas.state.transform.transform_point(0.0, 0.0),
+            (20.0, 60.0)
+        );
     }
 
     #[test]

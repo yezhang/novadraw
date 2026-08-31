@@ -103,6 +103,23 @@ impl Transform {
         }
     }
 
+    /// 在当前变换之后拼接 local 变换。
+    ///
+    /// 返回 `self * local`。对列向量语义，这表示先应用 `local`，
+    /// 再应用已有的 parent/world 变换 `self`。
+    #[inline]
+    pub fn post_concat(self, local: Transform) -> Transform {
+        self.multiply(local)
+    }
+
+    /// 在当前变换之前拼接 parent 变换。
+    ///
+    /// 返回 `parent * self`。
+    #[inline]
+    pub fn pre_concat(self, parent: Transform) -> Transform {
+        parent.multiply(self)
+    }
+
     /// 变换点
     #[inline]
     pub fn transform_point(self, x: f64, y: f64) -> (f64, f64) {
@@ -507,5 +524,24 @@ mod tests {
 
         assert!((p1.0 - p2.0).abs() < 1e-10);
         assert!((p1.1 - p2.1).abs() < 1e-10);
+    }
+
+    #[test]
+    fn post_concat_keeps_parent_scale_outside_child_translation() {
+        let parent = Transform::from_scale(2.0, 3.0);
+        let child = Transform::from_translation(10.0, 20.0);
+
+        let world = parent.post_concat(child);
+
+        assert_eq!(world.transform_point(0.0, 0.0), (20.0, 60.0));
+        assert_eq!(world.transform_vector(5.0, 4.0), (10.0, 12.0));
+    }
+
+    #[test]
+    fn pre_concat_places_parent_before_existing_local_transform() {
+        let local = Transform::from_translation(10.0, 20.0);
+        let parent = Transform::from_scale(2.0, 3.0);
+
+        assert_eq!(local.pre_concat(parent), parent.post_concat(local));
     }
 }
