@@ -381,9 +381,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
         };
         let mut effects = Vec::new();
         let handled = {
-            let bounds = block.figure_bounds();
-            let local_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-            let mut ctx = SceneNovadrawContext::new(target_id, local_bounds, &mut effects);
+            let visual_bounds = block.figure.visual_bounds();
+            let mut ctx = SceneNovadrawContext::new(target_id, visual_bounds, &mut effects);
 
             match event {
                 Event::Mouse(mouse_event) => {
@@ -585,7 +584,6 @@ mod tests {
     impl RecordingFigure {
         fn new(
             bounds: Rectangle,
-            _legacy_local_coordinates: bool,
             last_mouse_point: Arc<Mutex<Option<RecordedMousePoint>>>,
         ) -> Self {
             Self {
@@ -676,7 +674,6 @@ mod tests {
             coordinate_root_id,
             Box::new(RecordingFigure::new(
                 Rectangle::new(20.0, 30.0, 40.0, 40.0),
-                false,
                 Arc::clone(&recorded),
             )),
         );
@@ -725,7 +722,6 @@ mod tests {
             coordinate_root_id,
             Box::new(RecordingFigure::new(
                 Rectangle::new(20.0, 30.0, 40.0, 40.0),
-                true,
                 Arc::clone(&recorded),
             )),
         );

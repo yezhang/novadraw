@@ -95,10 +95,6 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
-fn local_border_box(bounds: Rectangle) -> Rectangle {
-    Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
-}
-
 pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
     if !block.is_selected {
         return;
@@ -261,8 +257,7 @@ impl FigureNode {
 
     fn set_figure_bounds(&mut self, bounds: Rectangle) {
         self.state.bounds = bounds;
-        // Compatibility bridge: concrete figures still paint from their legacy
-        // bounds until the local-coordinate paint migration is complete.
+        // R4 removes this compatibility mirror when common geometry leaves Figure.
         self.figure
             .set_bounds(bounds.x, bounds.y, bounds.width, bounds.height);
     }
@@ -443,6 +438,62 @@ impl FigureGraph {
         self.contents
     }
 
+    /// 一次性把旧版“相对最近坐标根的绝对 bounds”转换为 parent-local bounds。
+    ///
+    /// `legacy_coordinate_roots` 必须包含旧模型中所有会重置子树坐标域的节点。
+    /// 该方法只用于场景导入迁移，应在 Runtime 接管场景和注册监听器前调用；
+    /// 它不保留任何运行时兼容模式。返回实际改写的节点数量。
+    pub fn migrate_legacy_bounds_to_parent_local(
+        &mut self,
+        legacy_coordinate_roots: &std::collections::HashSet<FigureId>,
+    ) -> usize {
+        let Some(contents_id) = self.contents else {
+            return 0;
+        };
+        let Some(contents) = self.blocks.get(contents_id) else {
+            return 0;
+        };
+
+        let mut changed = 0;
+        let mut stack = vec![(contents_id, contents.figure_bounds())];
+        while let Some((parent_id, original_parent_bounds)) = stack.pop() {
+            let Some(parent) = self.blocks.get(parent_id) else {
+                continue;
+            };
+            let children = parent.children.clone();
+            let (top, left, _, _) = parent.figure.insets();
+            let resets_child_domain = legacy_coordinate_roots.contains(&parent_id);
+
+            for child_id in children {
+                let Some(original_child_bounds) =
+                    self.blocks.get(child_id).map(FigureNode::figure_bounds)
+                else {
+                    continue;
+                };
+                stack.push((child_id, original_child_bounds));
+
+                if resets_child_domain {
+                    continue;
+                }
+
+                let migrated = Rectangle::new(
+                    original_child_bounds.x - original_parent_bounds.x - left,
+                    original_child_bounds.y - original_parent_bounds.y - top,
+                    original_child_bounds.width,
+                    original_child_bounds.height,
+                );
+                if migrated != original_child_bounds {
+                    if let Some(child) = self.blocks.get_mut(child_id) {
+                        child.set_figure_bounds(migrated);
+                    }
+                    changed += 1;
+                }
+            }
+        }
+
+        changed
+    }
+
     /// 添加子块到指定父块
     ///
     /// 对应 draw2d: parent.addChild(child) (不触发 revalidate)
@@ -514,14 +565,14 @@ impl FigureGraph {
         parent_id: BlockId,
         figure: Box<dyn super::Figure>,
     ) -> BlockId {
-        let bounds = figure.bounds();
+        let visual_bounds = figure.visual_bounds();
         let child_id = match self.try_add_child_to(parent_id, figure) {
             Ok(child_id) => child_id,
             Err(_) => return BlockId::null(),
         };
 
         self.mark_invalid(update_manager, parent_id);
-        update_manager.add_dirty_region(child_id, local_border_box(bounds));
+        update_manager.add_dirty_region(child_id, visual_bounds);
         self.mark_invalid(update_manager, child_id);
 
         child_id
@@ -820,7 +871,11 @@ impl FigureGraph {
             return false;
         }
 
-        let Some(bounds) = self.blocks.get(child).map(|block| block.figure_bounds()) else {
+        let Some(visual_bounds) = self
+            .blocks
+            .get(child)
+            .map(|block| block.figure.visual_bounds())
+        else {
             return false;
         };
         let Some(old_parent) = old_parent else {
@@ -844,7 +899,7 @@ impl FigureGraph {
         }
 
         self.mark_invalid(update_manager, new_parent);
-        update_manager.add_dirty_region(child, local_border_box(bounds));
+        update_manager.add_dirty_region(child, visual_bounds);
         self.repaint(update_manager, new_parent, None);
         true
     }
@@ -857,14 +912,14 @@ impl FigureGraph {
         let PendingMutationKind::AddChildFigure { parent, figure } = mutation else {
             return false;
         };
-        let bounds = figure.bounds();
+        let visual_bounds = figure.visual_bounds();
         let Ok(child) = self.new_block_with_parent(figure, parent) else {
             return false;
         };
 
         self.mark_invalid(update_manager, parent);
         self.mark_invalid(update_manager, child);
-        update_manager.add_dirty_region(child, local_border_box(bounds));
+        update_manager.add_dirty_region(child, visual_bounds);
         self.repaint(update_manager, parent, None);
         true
     }
@@ -910,7 +965,7 @@ impl FigureGraph {
                 return;
             }
 
-            let dirty_rect = rect.unwrap_or_else(|| local_border_box(block.figure_bounds()));
+            let dirty_rect = rect.unwrap_or_else(|| block.figure.visual_bounds());
             update_manager.add_dirty_region(block_id, dirty_rect);
         }
     }
@@ -1622,10 +1677,11 @@ impl FigureGraph {
         id: BlockId,
         visible: bool,
     ) -> bool {
-        let Some((old_bounds, parent_id, was_effectively_visible)) =
+        let Some((old_bounds, old_visual_bounds, parent_id, was_effectively_visible)) =
             self.blocks.get(id).map(|block| {
                 (
                     block.figure_bounds(),
+                    block.figure.visual_bounds(),
                     block.parent,
                     self.is_effectively_visible(id),
                 )
@@ -1638,7 +1694,7 @@ impl FigureGraph {
         }
 
         if was_effectively_visible && !visible {
-            self.erase(update_manager, id, old_bounds, parent_id);
+            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
         }
         self.mark_invalid(update_manager, parent_id.unwrap_or(id));
         if visible {
@@ -1948,6 +2004,7 @@ impl FigureGraph {
             return false;
         };
         let old_bounds = block.figure_bounds();
+        let old_visual_bounds = block.figure.visual_bounds();
         let resize = width != old_bounds.width || height != old_bounds.height;
         let translate = x != old_bounds.x || y != old_bounds.y;
         if !resize && !translate {
@@ -1957,7 +2014,13 @@ impl FigureGraph {
         let visible = self.is_effectively_visible(block_id);
 
         if visible {
-            self.erase(update_manager, block_id, old_bounds, parent_id);
+            self.erase(
+                update_manager,
+                block_id,
+                old_bounds,
+                old_visual_bounds,
+                parent_id,
+            );
         }
 
         self.set_bounds(block_id, x, y, width, height);
@@ -1977,7 +2040,8 @@ impl FigureGraph {
         &self,
         update_manager: &mut dyn UpdateManager,
         block_id: BlockId,
-        mut old_bounds: Rectangle,
+        old_bounds: Rectangle,
+        mut old_visual_bounds: Rectangle,
         parent_id: Option<BlockId>,
     ) {
         let Some(parent_id) = parent_id else {
@@ -1987,10 +2051,14 @@ impl FigureGraph {
             return;
         }
 
+        old_visual_bounds.translate(old_bounds.x, old_bounds.y);
         if let Some(parent) = self.blocks.get(parent_id) {
-            parent.figure.child_transform().apply_to(&mut old_bounds);
+            parent
+                .figure
+                .child_transform()
+                .apply_to(&mut old_visual_bounds);
         }
-        update_manager.add_dirty_region(parent_id, old_bounds);
+        update_manager.add_dirty_region(parent_id, old_visual_bounds);
     }
 
     /// 将 node-local 几何转换到 logical surface domain。
@@ -2500,6 +2568,10 @@ mod tests {
 
         fn name(&self) -> &'static str {
             "OverflowPaintFigure"
+        }
+
+        fn visual_bounds(&self) -> Rectangle {
+            self.paint_rect
         }
     }
 
@@ -3743,6 +3815,70 @@ mod tests {
         scene.translate_to_absolute_mut(child_id, &mut rect);
         assert_eq!(rect.x, 30.0);
         assert_eq!(rect.y, 35.0);
+    }
+
+    #[test]
+    fn migrate_legacy_bounds_converts_shared_domains_and_preserves_coordinate_roots() {
+        let mut scene = FigureGraph::new();
+        let contents =
+            scene.set_contents(Box::new(RectangleFigure::new(100.0, 50.0, 500.0, 400.0)));
+        let parent = scene.add_child_to(
+            contents,
+            Box::new(TestFigureWithInsets::new(
+                130.0,
+                80.0,
+                200.0,
+                150.0,
+                (5.0, 7.0, 0.0, 0.0),
+            )),
+        );
+        let legacy_root = scene.add_child_to(
+            parent,
+            Box::new(RectangleFigure::new(150.0, 100.0, 80.0, 60.0)),
+        );
+        let child = scene.add_child_to(
+            legacy_root,
+            Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
+        );
+
+        let changed = scene
+            .migrate_legacy_bounds_to_parent_local(&std::collections::HashSet::from([legacy_root]));
+
+        assert_eq!(changed, 2);
+        assert_eq!(
+            scene.figure_bounds(parent),
+            Some(Rectangle::new(30.0, 30.0, 200.0, 150.0))
+        );
+        assert_eq!(
+            scene.figure_bounds(legacy_root),
+            Some(Rectangle::new(13.0, 15.0, 80.0, 60.0))
+        );
+        assert_eq!(
+            scene.figure_bounds(child),
+            Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
+        );
+    }
+
+    #[test]
+    fn moved_figure_damage_uses_old_and_new_projected_visual_bounds() {
+        let mut scene = FigureGraph::new();
+        let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+        let figure = scene.add_child_to(
+            contents,
+            Box::new(OverflowPaintFigure::new(
+                Rectangle::new(50.0, 40.0, 20.0, 20.0),
+                Rectangle::new(-5.0, -6.0, 30.0, 32.0),
+            )),
+        );
+        let mut updates = crate::SceneUpdateManager::new();
+
+        assert!(scene.set_bounds_with_update(&mut updates, figure, 70.0, 60.0, 20.0, 20.0,));
+
+        let canvas = scene.perform_update(&mut updates);
+        assert_eq!(
+            canvas.damage().union(),
+            Some(Rectangle::new(45.0, 34.0, 50.0, 52.0))
+        );
     }
 
     #[test]

@@ -135,14 +135,16 @@ cargo test --workspace
 
 工作：
 
-- NodeState.bounds 成为唯一几何真源；
+- NodeState.bounds 成为树、布局、命中和 damage 的唯一权威来源；
+- Figure 内 bounds 在 R4 删除 capability 兼容层时移除，本阶段不得作为树算法的数据源；
 - Figure 使用 local border-box 绘制；
 - 删除 `use_local_coordinates` 和移动后代 bounds 的旧模型；
 - 每条树边统一为 `Affine2D`；
 - Viewport scroll、ScalablePane scale 和 insets 进入同一变换链；
 - event point 转为 target local domain；
-- damage 使用 projected visual bounds；
-- 提供一次性旧场景坐标转换工具，不在运行时长期保留双模式。
+- damage 使用可覆盖的 local visual bounds，并沿统一 Affine2D 链投影；
+- 提供一次性旧场景坐标转换工具
+  `FigureTree::migrate_legacy_bounds_to_parent_local()`，不在运行时长期保留双模式。
 
 自动测试：
 

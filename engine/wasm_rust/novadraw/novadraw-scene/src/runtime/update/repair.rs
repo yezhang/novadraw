@@ -112,12 +112,7 @@ fn collect_parent_chain_steps(
     let contents_id = graph.get_contents();
     steps.push(DamagePropagationStep {
         transform: Affine2D::IDENTITY,
-        clip: Some(Rectangle::new(
-            0.0,
-            0.0,
-            current.figure_bounds().width,
-            current.figure_bounds().height,
-        )),
+        clip: Some(current.figure.visual_bounds()),
     });
     if Some(block_id) == contents_id {
         let bounds = current.figure_bounds();

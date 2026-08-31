@@ -161,6 +161,21 @@ projected_bounds  // logical surface domain 中的保守 AABB
 
 这些概念不能共用一个含义模糊的 rectangle。
 
+### 6.1 旧场景一次性迁移
+
+旧版“相对最近坐标根的绝对 bounds”场景必须在交给 Runtime 前调用：
+
+```rust
+FigureTree::migrate_legacy_bounds_to_parent_local(&legacy_coordinate_roots)
+```
+
+调用方负责提供旧模型中重置子树坐标域的 FigureId 集合。转换会使用修改前的父
+bounds 与 insets 计算所有普通父子边的 parent-local bounds；旧坐标根的直接
+children 保持原值。
+
+该操作不是幂等的，不得在正常帧循环、事件回调或已经迁移的场景上调用。引擎不会
+保存 legacy 标记，也不会根据场景内容自动猜测旧坐标模式。
+
 ## 7. Client Area 与 Insets
 
 ```text

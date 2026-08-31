@@ -87,12 +87,12 @@ impl Updatable for PaintMarkerFigure {
 impl Figure for PaintMarkerFigure {
     fn paint_figure(&self, gc: &mut NdCanvas) {
         let b = self.bounds;
-        gc.fill_rect(b.x, b.y, b.width, b.height, self.figure_color);
+        gc.fill_rect(0.0, 0.0, b.width, b.height, self.figure_color);
     }
 
     fn paint_border(&self, gc: &mut NdCanvas) {
         let b = self.bounds;
-        gc.fill_rect(b.x, b.y, b.width, b.height, self.border_color);
+        gc.fill_rect(0.0, 0.0, b.width, b.height, self.border_color);
     }
 }
 

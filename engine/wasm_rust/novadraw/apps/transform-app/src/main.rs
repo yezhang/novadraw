@@ -239,7 +239,8 @@ impl Shape for TargetDomainFigure {
 
     fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
         let point = Point::new(event.x, event.y);
-        if self.bounds.contains(point) {
+        let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
+        if local_bounds.contains(point) {
             ctx.select_target();
             return true;
         }

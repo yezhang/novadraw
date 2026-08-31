@@ -166,6 +166,15 @@ pub trait Bounded {
             && b.height > rect.y
     }
 
+    /// 返回 node-local domain 中的保守可见边界。
+    ///
+    /// 阴影、滤镜或允许越界绘制的 Figure 应覆盖此方法；damage 会将该矩形
+    /// 沿与 paint/hit-test 相同的父链变换投影到 logical surface domain。
+    fn visual_bounds(&self) -> Rectangle {
+        let bounds = self.bounds();
+        Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
+    }
+
     /// 获取内边距 (top, left, bottom, right)
     fn insets(&self) -> (f64, f64, f64, f64) {
         (0.0, 0.0, 0.0, 0.0)
