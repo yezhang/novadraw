@@ -73,7 +73,7 @@ impl SceneManager {
             400.0,
             Color::rgba(0.3, 0.3, 0.3, 1.0),
         );
-        let root_bounds = root_fig.bounds;
+        let root_size = (root_fig.bounds.width, root_fig.bounds.height);
         let parent_id = scene.set_contents(Box::new(root_fig));
 
         // 角点手柄大小
@@ -81,8 +81,8 @@ impl SceneManager {
 
         // 左上角 - 红色小正方形
         let rect_tl = RectangleFigure::new_with_color(
-            root_bounds.x,
-            root_bounds.y,
+            0.0,
+            0.0,
             handle_size,
             handle_size,
             Color::rgba(0.9, 0.2, 0.2, 1.0),
@@ -91,8 +91,8 @@ impl SceneManager {
 
         // 右上角 - 绿色小正方形
         let rect_tr = RectangleFigure::new_with_color(
-            root_bounds.x + root_bounds.width - handle_size,
-            root_bounds.y,
+            root_size.0 - handle_size,
+            0.0,
             handle_size,
             handle_size,
             Color::rgba(0.2, 0.8, 0.3, 1.0),
@@ -101,8 +101,8 @@ impl SceneManager {
 
         // 左下角 - 蓝色小正方形
         let rect_bl = RectangleFigure::new_with_color(
-            root_bounds.x,
-            root_bounds.y + root_bounds.height - handle_size,
+            0.0,
+            root_size.1 - handle_size,
             handle_size,
             handle_size,
             Color::rgba(0.2, 0.4, 0.9, 1.0),
@@ -111,8 +111,8 @@ impl SceneManager {
 
         // 右下角 - 黄色小正方形
         let rect_br = RectangleFigure::new_with_color(
-            root_bounds.x + root_bounds.width - handle_size,
-            root_bounds.y + root_bounds.height - handle_size,
+            root_size.0 - handle_size,
+            root_size.1 - handle_size,
             handle_size,
             handle_size,
             Color::rgba(0.9, 0.8, 0.2, 1.0),

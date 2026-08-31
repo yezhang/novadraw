@@ -687,6 +687,18 @@ mod tests {
     }
 
     #[test]
+    fn basic_anchor_scene_places_controls_at_parent_local_corners() {
+        let manager = SceneManager::with_scene(SceneType::BasicAnchors);
+        let contents = manager.scene.get_contents().unwrap();
+
+        for point in [(105.0, 105.0), (695.0, 105.0), (105.0, 495.0), (695.0, 495.0)] {
+            let (target, path) = manager.scene.hit_test(point).expect("corner must be hit");
+            assert_ne!(target, contents);
+            assert_eq!(path.len(), 2);
+        }
+    }
+
+    #[test]
     fn test_hover_script_hits_expected_target() {
         let (mut core, target_id) = build_test_core();
         let report = core.run_interaction_script(&[InteractionStep::Hover {
