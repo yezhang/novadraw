@@ -12,6 +12,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 | [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
 | [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
 | [`roadmap/`](roadmap/00-index.md) | 何时交付、当前到哪里？ | 里程碑与产品状态，不定义架构 |
+| [`strategy/`](strategy/00-index.md) | 为谁创造价值、如何验证？ | 产品与商业决策输入，不定义架构 |
 | [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
 | [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
 | [`archive/`](archive/00-index.md) | 哪些内容已失效或仅保留历史？ | 非当前契约 |
@@ -59,6 +60,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - `architecture-decision`
 - `verification`
 - `roadmap`
+- `product-strategy`
 - `migration-guide`
 - `archive`
 - `proposal`
@@ -89,6 +91,13 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 2. 更新 [`verification/reference/draw2d-source-audit.md`](verification/reference/draw2d-source-audit.md) 的审计基线或结论。
 3. 在 [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md) 更新受影响 family。
 4. 若改变 Novadraw 行为，先更新 `design/` 或 ADR，再修改测试和代码。
+
+### 理解产品与商业价值
+
+1. [`strategy/commercial-value-analysis.md`](strategy/commercial-value-analysis.md)
+2. [`roadmap/00-index.md`](roadmap/00-index.md)
+3. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
+4. [`roadmap/m8-m9-contract-plan.md`](roadmap/m8-m9-contract-plan.md)
 
 ## 命名与维护
 
