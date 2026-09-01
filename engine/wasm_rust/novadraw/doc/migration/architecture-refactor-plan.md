@@ -166,6 +166,8 @@ cargo test --workspace
 
 前置条件：R3 手动验证 `PASS`。
 
+状态：`awaiting_manual_approval`
+
 工作：
 
 - Figure 基础接口只保留 paint、intrinsic measure 和 precise hit；
@@ -393,6 +395,87 @@ cargo run -p scroll-pane-demo
 ```text
 R3: PASS
 平台:
+失败项: 无
+```
+
+若失败，请附应用名、场景编号、操作步骤和可见结果。
+
+## 15. 当前手动验证：R4
+
+在开始 R5 前执行以下步骤。通用 demo 使用 `Home` 返回首场景、左右方向键或
+`PageUp`/`PageDown` 切换场景、`S` 保存当前截图。
+
+### 15.1 Shape App
+
+```bash
+cargo run -p shape-app
+```
+
+按 `Home` 后逐个切换 0-7：
+
+1. `0 Rectangle Fill`：五个矩形完整显示，位置、尺寸和填充色互不串扰。
+2. `1 Ellipse Fill`：五个椭圆完整显示，边缘平滑且没有退化为矩形命中外观。
+3. `2 Rounded Rect`：圆角、填充和描边组合正确，粗描边没有越界裁剪。
+4. `3 Polyline`：不同点数、线宽、line cap 和 line join 均可区分，无整体偏移。
+5. `4 Mixed Shapes`：矩形、椭圆和折线组合的位置及尺寸正确。
+6. `5 Z-Order`：后添加图元稳定遮挡先添加图元。
+7. `6 Triangle`：不同方向、线宽、填充和描边均正确。
+8. `7 Parent-Child`：嵌套图元保持 parent-local 相对位置，边框和子内容不重叠。
+
+可选截图留档：
+
+```bash
+cargo run -p shape-app -- --screenshot-all
+```
+
+### 15.2 Style App
+
+```bash
+cargo run -p style-app
+```
+
+按 `Home` 后逐个切换七个场景：
+
+1. `Fill Colors`：四种填充色正确。
+2. `Alpha/Transparency`：透明度从不透明到透明逐级变化，叠加背景正确。
+3. `Stroke Width`：描边宽度递增且保持在图元边界内。
+4. `Stroke Color`：描边颜色互不串扰。
+5. `LineCap`：Butt、Round、Square 端点差异正确。
+6. `LineJoin`：Miter、Round、Bevel 转角差异正确。
+7. `Stroke vs Border`：三行分别显示 shape stroke、border、二者叠加；绿色内描边
+   与红色外边框都可见。
+
+### 15.3 Border App
+
+```bash
+cargo run -p border-app
+```
+
+按 `Home` 后逐个切换五个场景：
+
+1. `RectangleBorder`：三种宽度边框完整显示。
+2. `Border+insets`：10、20、30 像素 inset 递增，内容区同步收缩。
+3. `LineBorder`：不同颜色和宽度均正确。
+4. `MarginBorder`：边距递增，四边间距一致。
+5. `Stroke vs Border`：stroke、border 和组合三组没有错位、覆盖或异常裁剪。
+
+### 15.4 Editor Selection Overlay
+
+```bash
+cargo run -p editor
+```
+
+1. 按 `1`：青色孙节点外显示黄色 selection outline，轮廓紧贴节点且不遮挡内容。
+2. 按 `2`：透明根下的同尺寸孙节点显示相同 outline，无额外坐标偏移。
+3. 按 `5`：记录 outline 位置，连续按 `T`；图元与 outline 同步移动，旧位置无残影。
+4. 按 `9`：点击蓝色探针内部，出现黄色 outline；拖出图元后释放，outline 不偏移。
+5. 在 `1`、`2`、`5`、`9` 间切换，上一场景的选择状态不得泄漏到新场景。
+
+### 15.5 验收回复
+
+```text
+R4: PASS
+平台: macOS
 失败项: 无
 ```
 
