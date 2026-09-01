@@ -178,6 +178,23 @@ impl Figure for EllipseFigure {
         Shape::paint_figure(self, gc);
     }
 
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        let mut local = self.clone();
+        local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        Shape::paint_figure(&local, gc);
+    }
+
+    fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
+        let radius_x = bounds.width / 2.0;
+        let radius_y = bounds.height / 2.0;
+        if radius_x <= 0.0 || radius_y <= 0.0 {
+            return false;
+        }
+        let normalized_x = (x - radius_x) / radius_x;
+        let normalized_y = (y - radius_y) / radius_y;
+        normalized_x * normalized_x + normalized_y * normalized_y <= 1.0
+    }
+
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
     }

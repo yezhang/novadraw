@@ -106,7 +106,10 @@ impl<'a> FigureRenderer<'a> {
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
-        block.figure.paint_figure(self.gc);
+        block.figure.paint_figure_in_bounds(
+            self.gc,
+            novadraw_geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+        );
         self.gc.pop_state();
 
         // 3. 绘制子元素区域。
@@ -118,7 +121,10 @@ impl<'a> FigureRenderer<'a> {
             Some(b) if b.is_visible => b,
             _ => return,
         };
-        block.figure.paint_border(self.gc);
+        block.figure.paint_border_in_bounds(
+            self.gc,
+            novadraw_geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+        );
         super::paint_selection_overlay(block, self.scene.selected.contains(&block_id), self.gc);
 
         // 5. 恢复 parent state。
@@ -148,8 +154,8 @@ impl<'a> FigureRenderer<'a> {
         self.counter += 1;
         let id = self.counter;
 
-        let transform = block.figure.child_transform();
-        let client_area = block.figure.client_area();
+        let transform = block.child_transform();
+        let client_area = block.client_area();
         let [a, b, c, d, e, f] = transform.affine().coeffs();
         debug_render!(
             "[RECUR] #{:02} paintClientArea transform({a},{b},{c},{d},{e},{f}) clip({},{},{},{})",

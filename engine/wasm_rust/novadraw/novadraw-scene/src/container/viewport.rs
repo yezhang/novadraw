@@ -412,8 +412,7 @@ impl Bounded for ViewportFigure {
 
     fn child_transform(&self) -> ChildTransform {
         let view_location = lock_unpoisoned(&self.runtime).view_location();
-        let (top, left, _, _) = self.insets();
-        ChildTransform::translation(left - view_location.x(), top - view_location.y())
+        ChildTransform::translation(-view_location.x(), -view_location.y())
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {

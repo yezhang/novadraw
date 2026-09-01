@@ -251,7 +251,7 @@ impl<'a> SceneDispatchContext<'a> {
             let Some(block) = self.scene.block(viewport_id) else {
                 return false;
             };
-            let (top, left, _, _) = block.figure.insets();
+            let (top, left, _, _) = block.state().insets();
             let mut point = event.entry_point();
             if !self.scene.translate_to_relative(viewport_id, &mut point) {
                 return false;
@@ -382,7 +382,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
         };
         let mut effects = Vec::new();
         let handled = {
-            let visual_bounds = block.figure.visual_bounds();
+            let visual_bounds = block.visual_bounds();
             let mut ctx = SceneNovadrawContext::new(target_id, visual_bounds, &mut effects);
             let Some(handler) = block.figure.event_handler() else {
                 return false;

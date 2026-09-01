@@ -206,7 +206,7 @@ impl ZoomManager {
         let block = graph
             .block(self.viewport.block_id())
             .ok_or(ZoomError::MissingViewport)?;
-        let client_area = block.figure.client_area();
+        let client_area = block.client_area();
         let old_location = self.viewport.view_location();
         let new_location = self.scroll_policy.calc_new_view_location(
             ZoomViewportState {
@@ -315,11 +315,10 @@ impl ZoomManager {
         let scalable_block = graph
             .block(self.scalable.block_id())
             .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
-        let (top, left, bottom, right) = scalable_block.figure.insets();
+        let (top, left, bottom, right) = scalable_block.state().insets();
         let viewport = graph
             .block(self.viewport.block_id())
             .ok_or(ZoomError::MissingViewport)?
-            .figure
             .client_area();
         let scaled_content_width = preferred.0 - left - right;
         let scaled_content_height = preferred.1 - top - bottom;

@@ -114,6 +114,12 @@ impl Figure for PolygonFigure {
         Shape::paint_figure(self, gc);
     }
 
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        let mut local = self.clone();
+        Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height);
+        Shape::paint_figure(&local, gc);
+    }
+
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
     }

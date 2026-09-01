@@ -40,7 +40,7 @@ pub use figure::{
 pub use graph as scene;
 pub use graph::{
     BlockId, FigureGraph, FigureId, FigureNode, FigureRenderer, FigureTree, GraphMutationError,
-    LayoutState, MAX_TREE_DEPTH, NodeState,
+    LayoutState, MAX_TREE_DEPTH, NodeState, StyleOverride,
 };
 pub use host::{PlatformHost, SceneHost};
 pub use layout::{

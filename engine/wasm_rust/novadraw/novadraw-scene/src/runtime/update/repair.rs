@@ -112,7 +112,7 @@ fn collect_parent_chain_steps(
     let contents_id = graph.get_contents();
     steps.push(DamagePropagationStep {
         transform: Affine2D::IDENTITY,
-        clip: Some(current.figure.visual_bounds()),
+        clip: Some(current.visual_bounds()),
     });
     if Some(block_id) == contents_id {
         let bounds = current.figure_bounds();
@@ -136,9 +136,9 @@ fn collect_parent_chain_steps(
         };
         let parent = graph.get_block(parent_id)?;
         steps.push(DamagePropagationStep {
-            transform: parent.figure.child_transform().affine()
+            transform: parent.child_transform().affine()
                 * Affine2D::from_translation(bounds.x, bounds.y),
-            clip: Some(parent.figure.client_area()),
+            clip: Some(parent.client_area()),
         });
         if Some(parent_id) == contents_id {
             let parent_bounds = parent.figure_bounds();

@@ -382,6 +382,13 @@ impl Figure for TriangleFigure {
         Shape::paint_figure(self, gc);
     }
 
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        let mut local = self.clone();
+        local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        local.invalidate();
+        Shape::paint_figure(&local, gc);
+    }
+
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
     }

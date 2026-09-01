@@ -222,8 +222,7 @@ impl Bounded for ScalableLayeredPaneFigure {
 
     fn child_transform(&self) -> ChildTransform {
         let scale = self.scale();
-        let (top, left, _, _) = self.insets();
-        ChildTransform::uniform(scale, left, top)
+        ChildTransform::uniform(scale, 0.0, 0.0)
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {

@@ -122,24 +122,38 @@ pub(crate) fn paint_selection_overlay(block: &FigureBlock, selected: bool, gc: &
 /// interaction and update algorithms consume this state without downcasting.
 pub struct NodeState {
     pub(crate) bounds: Rectangle,
+    pub(crate) insets: (f64, f64, f64, f64),
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
+    pub(crate) is_opaque: bool,
     pub(crate) is_valid: bool,
     pub(crate) preferred_size: Option<(f64, f64)>,
     pub(crate) minimum_size: Option<(f64, f64)>,
     pub(crate) maximum_size: Option<(f64, f64)>,
+    pub(crate) style: StyleOverride,
+}
+
+/// Inheritable rendering properties explicitly set on one node.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct StyleOverride {
+    pub foreground: Option<Color>,
+    pub background: Option<Color>,
+    pub alpha: Option<f64>,
 }
 
 impl Default for NodeState {
     fn default() -> Self {
         Self {
             bounds: Rectangle::ZERO,
+            insets: (0.0, 0.0, 0.0, 0.0),
             is_visible: true,
             is_enabled: true,
+            is_opaque: false,
             is_valid: false,
             preferred_size: None,
             minimum_size: None,
             maximum_size: None,
+            style: StyleOverride::default(),
         }
     }
 }
@@ -157,8 +171,20 @@ impl NodeState {
         self.is_enabled
     }
 
+    pub fn is_opaque(&self) -> bool {
+        self.is_opaque
+    }
+
     pub fn is_valid(&self) -> bool {
         self.is_valid
+    }
+
+    pub fn insets(&self) -> (f64, f64, f64, f64) {
+        self.insets
+    }
+
+    pub fn style(&self) -> StyleOverride {
+        self.style
     }
 }
 
@@ -256,9 +282,29 @@ impl FigureNode {
 
     fn set_figure_bounds(&mut self, bounds: Rectangle) {
         self.state.bounds = bounds;
-        // R4 removes this compatibility mirror when common geometry leaves Figure.
-        self.figure
-            .set_bounds(bounds.x, bounds.y, bounds.width, bounds.height);
+    }
+
+    pub(crate) fn visual_bounds(&self) -> Rectangle {
+        self.figure.visual_bounds_in(self.state.bounds)
+    }
+
+    pub(crate) fn client_area(&self) -> Rectangle {
+        let bounds = self.state.bounds;
+        let (top, left, bottom, right) = self.state.insets;
+        Rectangle::new(
+            left,
+            top,
+            (bounds.width - left - right).max(0.0),
+            (bounds.height - top - bottom).max(0.0),
+        )
+    }
+
+    pub(crate) fn child_transform(&self) -> super::ChildTransform {
+        let (top, left, _, _) = self.state.insets;
+        super::ChildTransform::from_affine(
+            novadraw_geometry::Affine2D::from_translation(left, top)
+                * self.figure.child_transform().affine(),
+        )
     }
 
     /// 获取首选尺寸
@@ -463,7 +509,7 @@ impl FigureGraph {
                 continue;
             };
             let children = parent.children.clone();
-            let (top, left, _, _) = parent.figure.insets();
+            let (top, left, _, _) = parent.state.insets;
             let resets_child_domain = legacy_coordinate_roots.contains(&parent_id);
 
             for child_id in children {
@@ -567,11 +613,11 @@ impl FigureGraph {
         parent_id: BlockId,
         figure: Box<dyn super::Figure>,
     ) -> BlockId {
-        let visual_bounds = figure.visual_bounds();
         let child_id = match self.try_add_child_to(parent_id, figure) {
             Ok(child_id) => child_id,
             Err(_) => return BlockId::null(),
         };
+        let visual_bounds = self.blocks[child_id].visual_bounds();
 
         self.mark_invalid(update_manager, parent_id);
         update_manager.add_dirty_region(child_id, visual_bounds);
@@ -640,6 +686,7 @@ impl FigureGraph {
         parent_id: BlockId,
     ) -> Result<BlockId, GraphMutationError> {
         let bounds = figure.bounds();
+        let insets = figure.insets();
         let parent_depth = self
             .blocks
             .get(parent_id)
@@ -667,6 +714,7 @@ impl FigureGraph {
             layout: LayoutState::default(),
             state: NodeState {
                 bounds,
+                insets,
                 ..NodeState::default()
             },
         });
@@ -879,11 +927,7 @@ impl FigureGraph {
             return false;
         }
 
-        let Some(visual_bounds) = self
-            .blocks
-            .get(child)
-            .map(|block| block.figure.visual_bounds())
-        else {
+        let Some(visual_bounds) = self.blocks.get(child).map(FigureNode::visual_bounds) else {
             return false;
         };
         let Some(old_parent) = old_parent else {
@@ -920,10 +964,10 @@ impl FigureGraph {
         let PendingMutationKind::AddChildFigure { parent, figure } = mutation else {
             return false;
         };
-        let visual_bounds = figure.visual_bounds();
         let Ok(child) = self.new_block_with_parent(figure, parent) else {
             return false;
         };
+        let visual_bounds = self.blocks[child].visual_bounds();
 
         self.mark_invalid(update_manager, parent);
         self.mark_invalid(update_manager, child);
@@ -973,7 +1017,7 @@ impl FigureGraph {
                 return;
             }
 
-            let dirty_rect = rect.unwrap_or_else(|| block.figure.visual_bounds());
+            let dirty_rect = rect.unwrap_or_else(|| block.visual_bounds());
             update_manager.add_dirty_region(block_id, dirty_rect);
         }
     }
@@ -1637,6 +1681,75 @@ impl FigureGraph {
             .unwrap_or(false)
     }
 
+    pub fn is_opaque(&self, id: BlockId) -> bool {
+        self.blocks.get(id).is_some_and(|block| block.is_opaque)
+    }
+
+    pub fn insets(&self, id: BlockId) -> Option<(f64, f64, f64, f64)> {
+        self.blocks.get(id).map(|block| block.insets)
+    }
+
+    pub fn style_override(&self, id: BlockId) -> Option<StyleOverride> {
+        self.blocks.get(id).map(|block| block.style)
+    }
+
+    pub fn inherited_style(&self, id: BlockId) -> Option<StyleOverride> {
+        self.blocks.get(id)?;
+        let mut result = StyleOverride::default();
+        let mut current = Some(id);
+        while let Some(node_id) = current {
+            let node = self.blocks.get(node_id)?;
+            if result.foreground.is_none() {
+                result.foreground = node.style.foreground;
+            }
+            if result.background.is_none() {
+                result.background = node.style.background;
+            }
+            if result.alpha.is_none() {
+                result.alpha = node.style.alpha;
+            }
+            current = node.parent;
+        }
+        Some(result)
+    }
+
+    pub fn set_insets(&mut self, id: BlockId, insets: (f64, f64, f64, f64)) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.insets == insets {
+            return false;
+        }
+        block.insets = insets;
+        self.mark_validation_path_invalid(id);
+        self.notify_block_changed(id);
+        true
+    }
+
+    pub fn set_opaque(&mut self, id: BlockId, opaque: bool) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.is_opaque == opaque {
+            return false;
+        }
+        block.is_opaque = opaque;
+        self.notify_block_changed(id);
+        true
+    }
+
+    pub fn set_style_override(&mut self, id: BlockId, style: StyleOverride) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.style == style {
+            return false;
+        }
+        block.style = style;
+        self.notify_block_changed(id);
+        true
+    }
+
     /// 返回节点沿父链传播后的有效可见性。
     pub fn is_effectively_visible(&self, id: BlockId) -> bool {
         self.effective_flag_from(id, |block| block.is_visible)
@@ -1686,7 +1799,7 @@ impl FigureGraph {
             self.blocks.get(id).map(|block| {
                 (
                     block.figure_bounds(),
-                    block.figure.visual_bounds(),
+                    block.visual_bounds(),
                     block.parent,
                     self.is_effectively_visible(id),
                 )
@@ -2006,7 +2119,7 @@ impl FigureGraph {
             return false;
         };
         let old_bounds = block.figure_bounds();
-        let old_visual_bounds = block.figure.visual_bounds();
+        let old_visual_bounds = block.visual_bounds();
         let resize = width != old_bounds.width || height != old_bounds.height;
         let translate = x != old_bounds.x || y != old_bounds.y;
         if !resize && !translate {
@@ -2120,7 +2233,7 @@ impl FigureGraph {
                 break;
             };
             let parent = self.blocks.get(parent_id)?;
-            transform = parent.figure.child_transform().affine() * transform;
+            transform = parent.child_transform().affine() * transform;
             current_id = parent_id;
         }
 
@@ -2178,23 +2291,22 @@ impl FigureGraph {
 
         let mut local_point = point;
         self.translate_from_parent(block_id, &mut local_point);
-        if !block.figure.contains_point(local_point.0, local_point.1) {
+        if !block
+            .figure
+            .precise_hit(local_point.0, local_point.1, block.figure_bounds())
+        {
             return None;
         }
 
         path.push(block_id);
-        let client_area = block.figure.client_area();
+        let client_area = block.client_area();
         if !point_in_rect(local_point, &client_area) {
             let hit = Some((block_id, path.clone()));
             path.pop();
             return hit;
         }
         let mut child_point = local_point;
-        if !block
-            .figure
-            .child_transform()
-            .apply_inverse_to(&mut child_point)
-        {
+        if !block.child_transform().apply_inverse_to(&mut child_point) {
             let hit = Some((block_id, path.clone()));
             path.pop();
             return hit;
@@ -2223,12 +2335,15 @@ impl FigureGraph {
 
         let mut local_point = point;
         self.translate_from_parent(block_id, &mut local_point);
-        let contains = block.figure.contains_point(local_point.0, local_point.1);
+        let contains =
+            block
+                .figure
+                .precise_hit(local_point.0, local_point.1, block.figure_bounds());
         if !contains {
             return None;
         }
 
-        let client_area = block.figure.client_area();
+        let client_area = block.client_area();
         if !point_in_rect(local_point, &client_area) {
             return block
                 .figure
@@ -2237,11 +2352,7 @@ impl FigureGraph {
                 .then_some(block_id);
         }
         let mut child_point = local_point;
-        if !block
-            .figure
-            .child_transform()
-            .apply_inverse_to(&mut child_point)
-        {
+        if !block.child_transform().apply_inverse_to(&mut child_point) {
             return block
                 .figure
                 .event_handler()
@@ -2424,7 +2535,7 @@ impl super::layout::LayoutContext for FigureGraph {
 
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
         if let Some(block) = self.blocks.get(container_id) {
-            block.figure.client_area()
+            block.client_area()
         } else {
             Rectangle::new(0.0, 0.0, 0.0, 0.0)
         }

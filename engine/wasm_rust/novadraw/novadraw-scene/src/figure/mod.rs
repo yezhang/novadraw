@@ -180,10 +180,9 @@ pub trait Bounded {
 
     /// 当前 Figure 提供的 `child content -> node local` 坐标变换。
     ///
-    /// 默认映射 client origin；Viewport 和 scalable 容器可叠加 scroll 或 scale。
+    /// NodeState 统一应用 client origin；Figure 只提供额外的 scroll 或 scale。
     fn child_transform(&self) -> ChildTransform {
-        let (top, left, _, _) = self.insets();
-        ChildTransform::translation(left, top)
+        ChildTransform::IDENTITY
     }
 
     /// 获取绘制子节点时使用的裁剪策略。
@@ -337,6 +336,36 @@ pub trait Figure: Bounded + Updatable + AsAny {
     /// 默认空实现，由 Shape trait 覆盖
     fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
+    /// 使用 NodeState 提供的当前 border-box 绘制。
+    ///
+    /// 旧 Figure 可继续实现 `paint_figure`；支持 resize 的 Figure 应覆盖此方法，
+    /// 避免读取构造期 bounds。
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
+        self.paint_figure(gc);
+    }
+
+    /// 返回 Figure 的内在尺寸，供无 LayoutManager 时测量。
+    fn intrinsic_size(&self) -> (f64, f64) {
+        self.preferred_size()
+    }
+
+    /// 在 NodeState 当前 border-box 中执行精确命中。
+    fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
+        x >= 0.0 && x <= bounds.width && y >= 0.0 && y <= bounds.height
+    }
+
+    /// 返回当前 NodeState border-box 对应的 node-local 可见边界。
+    fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
+        let initial = self.bounds();
+        let visual = self.visual_bounds();
+        Rectangle::new(
+            visual.x,
+            visual.y,
+            (bounds.width + visual.width - initial.width).max(0.0),
+            (bounds.height + visual.height - initial.height).max(0.0),
+        )
+    }
+
     /// ===== PaintChildren 相关方法 =====
     /// 绘制子元素
     ///
@@ -361,6 +390,13 @@ pub trait Figure: Bounded + Updatable + AsAny {
     fn paint_border(&self, gc: &mut NdCanvas) {
         if let Some(border) = self.get_border() {
             let bounds = self.bounds();
+            border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
+        }
+    }
+
+    /// 使用 NodeState 提供的当前 border-box 绘制边框。
+    fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        if let Some(border) = self.get_border() {
             border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
         }
     }

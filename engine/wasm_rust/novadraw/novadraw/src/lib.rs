@@ -41,10 +41,10 @@ pub use novadraw_scene::{
     ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext, SceneHost,
     SceneNovadrawContext, SceneUpdateManager, ScrollBarFigure, ScrollBarVisibility,
     ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
-    ScrollPaneLayout, Shape, StackLayout, ToolbarLayout, ToolbarOrientation, TriangleFigure,
-    Updatable, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener, ViewportError,
-    ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint, XYLayout, ZoomError,
-    ZoomEvent, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
+    ScrollPaneLayout, Shape, StackLayout, StyleOverride, ToolbarLayout, ToolbarOrientation,
+    TriangleFigure, Updatable, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
+    ViewportError, ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint,
+    XYLayout, ZoomError, ZoomEvent, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
 };
 
 #[cfg(feature = "vello")]

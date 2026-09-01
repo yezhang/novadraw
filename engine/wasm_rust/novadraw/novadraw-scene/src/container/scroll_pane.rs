@@ -283,6 +283,10 @@ impl Figure for ScrollPaneFigure {
         );
     }
 
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, PANE_BACKGROUND);
+    }
+
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
         Some(self)
     }
@@ -490,6 +494,12 @@ impl Figure for ScrollBarFigure {
                 );
             }
         }
+    }
+
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        let mut local = self.clone();
+        local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        local.paint_figure(gc);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
