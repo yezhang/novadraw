@@ -33,9 +33,9 @@ pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
 pub use figure::{
     AccessibleFigure, AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform,
-    Direction, EllipseFigure, Figure, FigureEventHandler, FigureLifecycle, PolygonFigure,
-    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, TriangleFigure,
-    Updatable,
+    Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
+    PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
+    TriangleFigure, Updatable,
 };
 pub use graph as scene;
 pub use graph::{

@@ -40,6 +40,14 @@ impl Updatable for InputProbeFigure {
 }
 
 impl Figure for InputProbeFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
         Some(self)
     }

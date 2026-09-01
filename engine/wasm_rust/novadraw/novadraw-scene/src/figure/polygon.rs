@@ -4,7 +4,10 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, PolylineFigure, Shape, Updatable};
+use super::{
+    Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, PolylineFigure, Shape,
+    Updatable,
+};
 
 /// 多边形图形
 ///
@@ -91,7 +94,7 @@ impl Bounded for PolygonFigure {
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
-        self.polyline.child_clipping_strategy()
+        Bounded::child_clipping_strategy(&self.polyline)
     }
 
     fn insets(&self) -> (f64, f64, f64, f64) {
@@ -110,6 +113,18 @@ impl Updatable for PolygonFigure {
 }
 
 impl Figure for PolygonFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        "PolygonFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -122,6 +137,16 @@ impl Figure for PolygonFigure {
 
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for PolygonFigure {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        Bounded::child_clipping_strategy(self)
     }
 }
 

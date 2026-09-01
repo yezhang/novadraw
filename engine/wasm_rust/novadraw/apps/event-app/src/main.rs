@@ -81,6 +81,14 @@ impl Updatable for EventProbeFigure {
 }
 
 impl Figure for EventProbeFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
     fn paint_figure(&self, canvas: &mut NdCanvas) {
         let state = self.state.lock().unwrap();
         let color = if state.pressed {

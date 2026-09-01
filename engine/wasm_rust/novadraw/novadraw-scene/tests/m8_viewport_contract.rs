@@ -358,6 +358,14 @@ impl Updatable for WheelIgnoringFigure {
 }
 
 impl Figure for WheelIgnoringFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
         Some(self)
     }
@@ -883,7 +891,9 @@ fn viewport_border_insets_define_child_transform_and_client_extent() {
     let mut content_origin = Rectangle::new(20.0, 30.0, 1.0, 1.0);
     viewport.child_transform().apply_to(&mut content_origin);
 
-    assert_eq!(content_origin, Rectangle::new(10.0, 10.0, 1.0, 1.0));
+    // FigureContainer contributes only viewport scrolling. NodeState applies
+    // the border insets when the Figure is attached to a graph.
+    assert_eq!(content_origin, Rectangle::new(0.0, 0.0, 1.0, 1.0));
     assert_eq!(
         viewport.client_area(),
         Rectangle::new(10.0, 10.0, 280.0, 180.0)

@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
 
 /// 折线图形
 ///
@@ -224,6 +224,18 @@ impl Updatable for PolylineFigure {
 }
 
 impl Figure for PolylineFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.calculate_bounds()
+    }
+
+    fn name(&self) -> &'static str {
+        "PolylineFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -236,6 +248,16 @@ impl Figure for PolylineFigure {
 
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for PolylineFigure {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.child_clipping_strategy
     }
 }
 

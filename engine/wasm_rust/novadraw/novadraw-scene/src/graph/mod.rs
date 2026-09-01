@@ -18,7 +18,7 @@ use novadraw_render::{
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
-use super::figure::{ChildPolicy, Updatable};
+use super::figure::{ChildClippingStrategy, ChildPolicy};
 use super::layout::{LayoutConstraint, LayoutManager};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
@@ -280,7 +280,7 @@ impl FigureNode {
         self.state.bounds
     }
 
-    fn set_figure_bounds(&mut self, bounds: Rectangle) {
+    fn set_node_bounds(&mut self, bounds: Rectangle) {
         self.state.bounds = bounds;
     }
 
@@ -301,10 +301,49 @@ impl FigureNode {
 
     pub(crate) fn child_transform(&self) -> super::ChildTransform {
         let (top, left, _, _) = self.state.insets;
+        let figure_transform = self
+            .figure
+            .container()
+            .map(|container| container.child_transform())
+            .unwrap_or(super::ChildTransform::IDENTITY);
         super::ChildTransform::from_affine(
-            novadraw_geometry::Affine2D::from_translation(left, top)
-                * self.figure.child_transform().affine(),
+            novadraw_geometry::Affine2D::from_translation(left, top) * figure_transform.affine(),
         )
+    }
+
+    pub(crate) fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.figure
+            .container()
+            .map(|container| container.child_clipping_strategy())
+            .unwrap_or(ChildClippingStrategy::ClipToChildBounds)
+    }
+
+    fn child_policy(&self) -> ChildPolicy {
+        self.figure
+            .container()
+            .map(|container| container.child_policy())
+            .unwrap_or(ChildPolicy::Multiple)
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.figure
+            .container()
+            .map(|container| container.layout_size_hints(w_hint, h_hint))
+            .unwrap_or((w_hint, h_hint))
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.figure
+            .container()
+            .map(|container| container.project_preferred_size(size))
+            .unwrap_or(size)
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.figure
+            .container()
+            .map(|container| container.project_minimum_size(size))
+            .unwrap_or(size)
     }
 
     /// 获取首选尺寸
@@ -532,7 +571,7 @@ impl FigureGraph {
                 );
                 if migrated != original_child_bounds {
                     if let Some(child) = self.blocks.get_mut(child_id) {
-                        child.set_figure_bounds(migrated);
+                        child.set_node_bounds(migrated);
                     }
                     changed += 1;
                 }
@@ -685,15 +724,15 @@ impl FigureGraph {
         figure: Box<dyn super::Figure>,
         parent_id: BlockId,
     ) -> Result<BlockId, GraphMutationError> {
-        let bounds = figure.bounds();
-        let insets = figure.insets();
+        let bounds = figure.initial_bounds();
+        let insets = figure.initial_insets();
         let parent_depth = self
             .blocks
             .get(parent_id)
             .map(|parent| parent.depth)
             .ok_or(GraphMutationError::ParentNotFound)?;
         let parent = &self.blocks[parent_id];
-        if parent.figure.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
+        if parent.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
             return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
         }
         let depth = parent_depth
@@ -770,10 +809,10 @@ impl FigureGraph {
         }
         parent.layout.constraints.remove(&child_id);
 
-        if let Some(child) = self.blocks.get_mut(child_id)
-            && let Some(lifecycle) = child.figure.lifecycle()
-        {
-            lifecycle.on_detached(parent_id);
+        if let Some(child) = self.blocks.get_mut(child_id) {
+            if let Some(lifecycle) = child.figure.lifecycle() {
+                lifecycle.on_detached(parent_id);
+            }
             child.parent = None;
             child.is_valid = false;
         }
@@ -811,7 +850,7 @@ impl FigureGraph {
         if parent.children.contains(&child_id) {
             return Err(GraphMutationError::DuplicateChild);
         }
-        if parent.figure.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
+        if parent.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
             return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
         }
 
@@ -1147,7 +1186,10 @@ impl FigureGraph {
 
         self.revalidate_children_with_update(update_manager, container_id);
         if let Some(block) = self.blocks.get_mut(container_id) {
-            Updatable::validate(&mut *block.figure);
+            let bounds = block.figure_bounds();
+            if let Some(lifecycle) = block.figure.lifecycle() {
+                lifecycle.validate(bounds);
+            }
             block.is_valid = true;
         }
     }
@@ -1235,7 +1277,10 @@ impl FigureGraph {
             self.revalidate(child_id);
         }
         if let Some(block) = self.blocks.get_mut(container_id) {
-            Updatable::validate(&mut *block.figure);
+            let bounds = block.figure_bounds();
+            if let Some(lifecycle) = block.figure.lifecycle() {
+                lifecycle.validate(bounds);
+            }
             block.is_valid = true;
         }
     }
@@ -1283,39 +1328,35 @@ impl FigureGraph {
         h_hint: f64,
     ) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
-        let (w_hint, h_hint) = block.figure.layout_size_hints(w_hint, h_hint);
+        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.preferred_size {
-            return Some(block.figure.project_preferred_size(size));
+            return Some(block.project_preferred_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let size = layout.get_preferred_size(block_id, w_hint, h_hint, self);
-            return Some(block.figure.project_preferred_size(size));
+            return Some(block.project_preferred_size(size));
         }
-        Some(block.figure.preferred_size())
+        Some(block.figure.intrinsic_size())
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
     pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
-        let (w_hint, h_hint) = block.figure.layout_size_hints(w_hint, h_hint);
+        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.minimum_size {
-            return Some(block.figure.project_minimum_size(size));
+            return Some(block.project_minimum_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let size = layout.get_minimum_size(block_id, w_hint, h_hint, self);
-            return Some(block.figure.project_minimum_size(size));
+            return Some(block.project_minimum_size(size));
         }
-        Some(block.figure.minimum_size())
+        Some(block.figure.intrinsic_size())
     }
 
     /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
     pub fn maximum_size(&self, block_id: BlockId) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
-        Some(
-            block
-                .maximum_size
-                .unwrap_or_else(|| block.figure.maximum_size()),
-        )
+        Some(block.maximum_size.unwrap_or((f64::INFINITY, f64::INFINITY)))
     }
 
     pub fn set_preferred_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
@@ -2011,7 +2052,7 @@ impl FigureGraph {
                     old_bounds.width,
                     old_bounds.height,
                 );
-                block.set_figure_bounds(new_bounds);
+                block.set_node_bounds(new_bounds);
                 (old_bounds, new_bounds, !block.children.is_empty())
             })
         else {
@@ -2073,7 +2114,7 @@ impl FigureGraph {
         }
 
         if let Some(block) = self.blocks.get_mut(block_id) {
-            block.set_figure_bounds(Rectangle::new(x, y, width, height));
+            block.set_node_bounds(Rectangle::new(x, y, width, height));
         }
         self.notify_block_changed(block_id);
         let new_bounds = Rectangle::new(x, y, width, height);
@@ -2168,10 +2209,7 @@ impl FigureGraph {
 
         old_visual_bounds.translate(old_bounds.x, old_bounds.y);
         if let Some(parent) = self.blocks.get(parent_id) {
-            parent
-                .figure
-                .child_transform()
-                .apply_to(&mut old_visual_bounds);
+            parent.child_transform().apply_to(&mut old_visual_bounds);
         }
         update_manager.add_dirty_region(parent_id, old_visual_bounds);
     }
@@ -2248,6 +2286,9 @@ impl FigureGraph {
             let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(block_id) {
                 let was_valid = block.is_valid;
                 block.is_valid = false;
+                if was_valid && let Some(lifecycle) = block.figure.lifecycle() {
+                    lifecycle.invalidate();
+                }
                 (block.parent, was_valid)
             } else {
                 (None, false)
@@ -2556,8 +2597,8 @@ mod tests {
     use crate::{
         BlockId, EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureGraph,
         FigureLifecycle, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
-        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure,
-        ViewportFigure,
+        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, StyleOverride,
+        TriangleFigure, ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
     use novadraw_geometry::Vec2;
@@ -2773,6 +2814,14 @@ mod tests {
     }
 
     impl Figure for LifecycleRecordingFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
             Some(self)
         }
@@ -2939,6 +2988,18 @@ mod tests {
         ($($figure:ty),+ $(,)?) => {
             $(
                 impl Figure for $figure {
+                    fn initial_bounds(&self) -> Rectangle {
+                        Bounded::bounds(self)
+                    }
+
+                    fn name(&self) -> &'static str {
+                        Bounded::name(self)
+                    }
+
+                    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+                        Bounded::insets(self)
+                    }
+
                     fn paint_figure(&self, gc: &mut NdCanvas) {
                         Shape::paint_figure(self, gc);
                     }
@@ -2947,13 +3008,40 @@ mod tests {
         };
     }
 
-    impl_test_shape_figure!(
-        TestCoordinateRootFigure,
-        OverflowPaintFigure,
-        TestFigureWithInsets,
-    );
+    impl_test_shape_figure!(TestCoordinateRootFigure, TestFigureWithInsets);
+
+    impl Figure for OverflowPaintFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
+        fn paint_figure(&self, gc: &mut NdCanvas) {
+            Shape::paint_figure(self, gc);
+        }
+
+        fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
+            Rectangle::new(
+                self.paint_rect.x,
+                self.paint_rect.y,
+                bounds.width + self.paint_rect.width - self.bounds.width,
+                bounds.height + self.paint_rect.height - self.bounds.height,
+            )
+        }
+    }
 
     impl Figure for TestInteractiveFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn paint_figure(&self, gc: &mut NdCanvas) {
             Shape::paint_figure(self, gc);
         }
@@ -2987,6 +3075,14 @@ mod tests {
     }
 
     impl Figure for AlphaStateFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn init_properties(&self, gc: &mut NdCanvas) {
             if let Some(alpha) = self.alpha {
                 gc.global_alpha(alpha);
@@ -4348,5 +4444,70 @@ mod tests {
 
         assert_eq!(scene.find_mouse_event_target_at(6.0, 6.0), None);
         assert_eq!(scene.find_mouse_event_target_at(26.0, 16.0), Some(child_id));
+    }
+
+    #[test]
+    fn node_bounds_drive_rendering_without_writing_back_to_figure() {
+        let mut scene = FigureGraph::new();
+        let id = scene.set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            20.0,
+            20.0,
+            NovadrawCoreColor::WHITE,
+        )));
+
+        scene.set_bounds(id, 0.0, 0.0, 80.0, 60.0);
+
+        let figure = scene.blocks[id]
+            .figure
+            .as_any()
+            .downcast_ref::<RectangleFigure>()
+            .unwrap();
+        assert_eq!(figure.bounds, Rectangle::new(0.0, 0.0, 20.0, 20.0));
+        assert_eq!(
+            scene.figure_bounds(id),
+            Some(Rectangle::new(0.0, 0.0, 80.0, 60.0))
+        );
+        assert!(
+            render_signatures(&scene.render())
+                .contains(&RenderSignature::FillRect([0.0, 0.0, 80.0, 60.0]))
+        );
+    }
+
+    #[test]
+    fn node_style_inherits_each_unset_property_independently() {
+        let mut scene = FigureGraph::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child =
+            scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let foreground = NovadrawCoreColor::hex("#123456");
+        let background = NovadrawCoreColor::hex("#abcdef");
+
+        scene.set_style_override(
+            parent,
+            StyleOverride {
+                foreground: Some(foreground),
+                background: None,
+                alpha: Some(0.75),
+            },
+        );
+        scene.set_style_override(
+            child,
+            StyleOverride {
+                foreground: None,
+                background: Some(background),
+                alpha: None,
+            },
+        );
+
+        assert_eq!(
+            scene.inherited_style(child),
+            Some(StyleOverride {
+                foreground: Some(foreground),
+                background: Some(background),
+                alpha: Some(0.75),
+            })
+        );
     }
 }

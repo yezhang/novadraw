@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
 
 /// 矩形图形
 ///
@@ -148,6 +148,18 @@ impl Updatable for RectangleFigure {
 }
 
 impl Figure for RectangleFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "RectangleFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -160,6 +172,16 @@ impl Figure for RectangleFigure {
 
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for RectangleFigure {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.child_clipping_strategy
     }
 }
 

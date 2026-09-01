@@ -273,6 +273,14 @@ impl Updatable for ScrollPaneFigure {
 }
 
 impl Figure for ScrollPaneFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ScrollPaneFigure"
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         gc.fill_rect(
             0.0,
@@ -439,6 +447,18 @@ impl Updatable for ScrollBarFigure {
 }
 
 impl Figure for ScrollBarFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ScrollBarFigure"
+    }
+
+    fn intrinsic_size(&self) -> (f64, f64) {
+        Bounded::preferred_size(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         gc.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
         let geometry = self.geometry();

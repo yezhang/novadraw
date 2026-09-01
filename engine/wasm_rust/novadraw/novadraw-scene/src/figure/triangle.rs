@@ -30,7 +30,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
 
 /// 三角形方向
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -378,6 +378,18 @@ impl Updatable for TriangleFigure {
 }
 
 impl Figure for TriangleFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "TriangleFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -391,6 +403,35 @@ impl Figure for TriangleFigure {
 
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+
+    fn lifecycle(&mut self) -> Option<&mut dyn super::FigureLifecycle> {
+        Some(self)
+    }
+}
+
+impl super::FigureLifecycle for TriangleFigure {
+    fn validate(&mut self, bounds: Rectangle) {
+        if self.bounds.width != bounds.width || self.bounds.height != bounds.height {
+            self.bounds.width = bounds.width;
+            self.bounds.height = bounds.height;
+            Updatable::invalidate(self);
+        }
+        Updatable::validate(self);
+    }
+
+    fn invalidate(&mut self) {
+        Updatable::invalidate(self);
+    }
+}
+
+impl FigureContainer for TriangleFigure {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.child_clipping_strategy
     }
 }
 

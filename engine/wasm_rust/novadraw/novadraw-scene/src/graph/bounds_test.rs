@@ -169,6 +169,18 @@ macro_rules! impl_test_shape_figure {
     ($($figure:ty),+ $(,)?) => {
         $(
             impl Figure for $figure {
+                fn initial_bounds(&self) -> Rectangle {
+                    Bounded::bounds(self)
+                }
+
+                fn name(&self) -> &'static str {
+                    Bounded::name(self)
+                }
+
+                fn initial_insets(&self) -> (f64, f64, f64, f64) {
+                    Bounded::insets(self)
+                }
+
                 fn paint_figure(&self, gc: &mut NdCanvas) {
                     Shape::paint_figure(self, gc);
                 }

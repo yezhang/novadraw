@@ -584,6 +584,14 @@ mod tests {
     }
 
     impl Figure for TestInteractiveFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn paint_figure(&self, gc: &mut NdCanvas) {
             Shape::paint_figure(self, gc);
         }

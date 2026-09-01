@@ -121,10 +121,10 @@ pub enum ChildPolicy {
     Single,
 }
 
-/// 边界相关方法 trait
+/// 构造期几何兼容 trait。
 ///
-/// 包含图形的边界、名称、位置检测等基础方法。
-/// 所有图形类型都需要实现此 trait。
+/// 新的 Figure 运行时契约不依赖该 trait。它暂时保留给独立图元操作和旧调用方；
+/// Figure 加入树后，位置、尺寸和 insets 的权威来源是 NodeState。
 ///
 /// # 坐标模型契约
 ///
@@ -258,15 +258,15 @@ pub trait Bounded {
 // Updatable Trait: 更新/验证接口
 // ============================================================================
 
-/// 可更新 trait
+/// 独立图元的验证兼容 trait。
 ///
 /// 定义图形验证和更新的接口，参考 Eclipse Draw2D 的 IFigure 设计。
 /// 负责布局后的验证、失效标记等生命周期管理。
 ///
 /// # 与 FigureGraph 的关系
 ///
-/// - FigureGraph.revalidate() 会调用 Figure.validate()
-/// - UpdateManager 跟踪需要验证的块
+/// FigureTree 的运行时验证通过可选 [`FigureLifecycle`] capability 调用；
+/// 该 trait 暂时保留给尚未迁移的独立图元 API。
 pub trait Updatable {
     /// 布局验证
     ///
@@ -319,7 +319,18 @@ impl<T: Any> AsAny for T {
     }
 }
 
-pub trait Figure: Bounded + Updatable + AsAny {
+pub trait Figure: AsAny {
+    /// Returns the construction-time placement copied into NodeState on attach.
+    fn initial_bounds(&self) -> Rectangle;
+
+    /// Stable diagnostic name.
+    fn name(&self) -> &'static str;
+
+    /// Returns construction-time insets copied into NodeState on attach.
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        (0.0, 0.0, 0.0, 0.0)
+    }
+
     /// ===== 模板方法 =====
     /// 初始化本地属性
     ///
@@ -346,7 +357,8 @@ pub trait Figure: Bounded + Updatable + AsAny {
 
     /// 返回 Figure 的内在尺寸，供无 LayoutManager 时测量。
     fn intrinsic_size(&self) -> (f64, f64) {
-        self.preferred_size()
+        let bounds = self.initial_bounds();
+        (bounds.width, bounds.height)
     }
 
     /// 在 NodeState 当前 border-box 中执行精确命中。
@@ -356,14 +368,7 @@ pub trait Figure: Bounded + Updatable + AsAny {
 
     /// 返回当前 NodeState border-box 对应的 node-local 可见边界。
     fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
-        let initial = self.bounds();
-        let visual = self.visual_bounds();
-        Rectangle::new(
-            visual.x,
-            visual.y,
-            (bounds.width + visual.width - initial.width).max(0.0),
-            (bounds.height + visual.height - initial.height).max(0.0),
-        )
+        Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
     }
 
     /// ===== PaintChildren 相关方法 =====
@@ -389,7 +394,7 @@ pub trait Figure: Bounded + Updatable + AsAny {
     /// 默认实现调用 Border::paint()
     fn paint_border(&self, gc: &mut NdCanvas) {
         if let Some(border) = self.get_border() {
-            let bounds = self.bounds();
+            let bounds = self.initial_bounds();
             border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
         }
     }
@@ -398,6 +403,8 @@ pub trait Figure: Bounded + Updatable + AsAny {
     fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
         if let Some(border) = self.get_border() {
             border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
+        } else {
+            self.paint_border(gc);
         }
     }
 
@@ -414,6 +421,38 @@ pub trait Figure: Bounded + Updatable + AsAny {
     /// 返回可选的 accessibility 能力。
     fn accessible(&self) -> Option<&dyn AccessibleFigure> {
         None
+    }
+
+    /// 返回可选的容器坐标与布局投影能力。
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        None
+    }
+}
+
+/// Figure 的可选容器能力。
+pub trait FigureContainer {
+    fn child_transform(&self) -> ChildTransform {
+        ChildTransform::IDENTITY
+    }
+
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        ChildClippingStrategy::ClipToChildBounds
+    }
+
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Multiple
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        (w_hint, h_hint)
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        size
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        size
     }
 }
 
@@ -493,6 +532,12 @@ pub trait FigureLifecycle {
 
     /// Figure 从父节点移除前的 hook，对应 Draw2D `removeNotify()`。
     fn on_detached(&mut self, _parent_id: BlockId) {}
+
+    /// Recomputes Figure-specific derived data after node geometry changes.
+    fn validate(&mut self, _bounds: Rectangle) {}
+
+    /// Invalidates Figure-specific derived data.
+    fn invalidate(&mut self) {}
 }
 
 /// Figure 的可选 accessibility 能力。
@@ -604,8 +649,71 @@ pub trait Shape {
 
 #[cfg(test)]
 mod tests {
-    use super::ChildTransform;
-    use novadraw_geometry::{Affine2D, Point};
+    use std::cell::Cell;
+
+    use super::{ChildTransform, Figure, Shape};
+    use novadraw_core::Color;
+    use novadraw_geometry::{Affine2D, Point, Rectangle};
+    use novadraw_render::{
+        NdCanvas,
+        command::{LineCap, LineJoin},
+    };
+
+    struct MinimalFigure;
+
+    impl Figure for MinimalFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+
+        fn name(&self) -> &'static str {
+            "MinimalFigure"
+        }
+    }
+
+    struct CustomShapeFigure {
+        custom_paint_called: Cell<bool>,
+    }
+
+    impl Shape for CustomShapeFigure {
+        fn stroke_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn stroke_width(&self) -> f64 {
+            0.0
+        }
+
+        fn fill_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn line_cap(&self) -> LineCap {
+            LineCap::default()
+        }
+
+        fn line_join(&self) -> LineJoin {
+            LineJoin::default()
+        }
+
+        fn fill_shape(&self, _gc: &mut NdCanvas) {}
+
+        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    }
+
+    impl Figure for CustomShapeFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+
+        fn name(&self) -> &'static str {
+            "CustomShapeFigure"
+        }
+
+        fn paint_figure(&self, _gc: &mut NdCanvas) {
+            self.custom_paint_called.set(true);
+        }
+    }
 
     #[test]
     fn singular_child_transform_has_no_inverse_mapping() {
@@ -614,5 +722,22 @@ mod tests {
 
         assert!(!transform.apply_inverse_to(&mut point));
         assert_eq!(point, Point::new(12.0, 8.0));
+    }
+
+    #[test]
+    fn non_interactive_figure_needs_no_event_or_lifecycle_methods() {
+        let mut figure = MinimalFigure;
+        assert!(figure.event_handler().is_none());
+        assert!(figure.lifecycle().is_none());
+        assert!(figure.accessible().is_none());
+    }
+
+    #[test]
+    fn shape_can_customize_figure_paint_behavior() {
+        let figure = CustomShapeFigure {
+            custom_paint_called: Cell::new(false),
+        };
+        Figure::paint_figure(&figure, &mut NdCanvas::new());
+        assert!(figure.custom_paint_called.get());
     }
 }

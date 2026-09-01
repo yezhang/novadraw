@@ -45,6 +45,14 @@ impl Updatable for TestFigure {
 }
 
 impl Figure for TestFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         (self.test_fn)(gc);
     }

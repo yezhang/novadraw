@@ -25,7 +25,7 @@ pub use novadraw_scene::{
     AccessibleFigure, AncestorEvent, AncestorEventKind, AncestorListener, BasicEventDispatcher,
     BlockId, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded, ChildPolicy,
     ChildTransform, CoordinateListener, DEFAULT_ZOOM_LEVELS, DefaultScrollPolicy, Direction,
-    DispatchContext, EllipseFigure, Event, EventDispatcher, Figure, FigureEvent,
+    DispatchContext, EllipseFigure, Event, EventDispatcher, Figure, FigureContainer, FigureEvent,
     FigureEventHandler, FigureGraph, FigureId, FigureLifecycle, FigureListener, FigureNode,
     FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout, FocusEvent, FocusEventKind,
     GesturePhase, GestureSessionId, GraphMutationError, GridAlignment, GridConstraint, GridLayout,

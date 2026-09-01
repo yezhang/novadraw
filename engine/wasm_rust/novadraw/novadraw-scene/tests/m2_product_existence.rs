@@ -85,6 +85,14 @@ impl Updatable for PaintMarkerFigure {
 }
 
 impl Figure for PaintMarkerFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         let b = self.bounds;
         gc.fill_rect(0.0, 0.0, b.width, b.height, self.figure_color);
@@ -127,7 +135,11 @@ fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
             "TriangleFigure"
         ]
     );
-    assert!(figures.iter().all(|figure| figure.bounds().width > 0.0));
+    assert!(
+        figures
+            .iter()
+            .all(|figure| figure.initial_bounds().width > 0.0)
+    );
 }
 
 #[test]
@@ -155,11 +167,11 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
         Box::new(ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
     ];
 
-    assert!(
-        figures
-            .iter()
-            .all(|figure| figure.child_clipping_strategy() == strategy)
-    );
+    assert!(figures.iter().all(|figure| {
+        figure
+            .container()
+            .is_some_and(|container| container.child_clipping_strategy() == strategy)
+    }));
 }
 
 #[test]
@@ -188,7 +200,7 @@ fn existing_product_figures_expose_border_api() {
     assert!(
         figures
             .iter()
-            .all(|figure| figure.insets() == (1.0, 2.0, 3.0, 4.0))
+            .all(|figure| figure.initial_insets() == (1.0, 2.0, 3.0, 4.0))
     );
 }
 

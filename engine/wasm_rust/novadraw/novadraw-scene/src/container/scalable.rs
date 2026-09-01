@@ -6,7 +6,8 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildTransform, Figure, Updatable, border::Border,
+    Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, Updatable,
+    border::Border,
 };
 use crate::{BlockId, FigureGraph, GraphMutationError, PropertyValue, UpdateManager};
 
@@ -252,10 +253,52 @@ impl Updatable for ScalableLayeredPaneFigure {
 }
 
 impl Figure for ScalableLayeredPaneFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ScalableLayeredPaneFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
+    fn intrinsic_size(&self) -> (f64, f64) {
+        Bounded::preferred_size(self)
+    }
+
     fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
     fn get_border(&self) -> Option<&dyn Border> {
         self.border.as_deref()
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for ScalableLayeredPaneFigure {
+    fn child_transform(&self) -> ChildTransform {
+        Bounded::child_transform(self)
+    }
+
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.child_clipping_strategy
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        Bounded::layout_size_hints(self, w_hint, h_hint)
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        Bounded::project_preferred_size(self, size)
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        Bounded::project_minimum_size(self, size)
     }
 }
 

@@ -548,6 +548,14 @@ mod tests {
     }
 
     impl Figure for EnqueueChildFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn paint_figure(&self, gc: &mut novadraw_render::NdCanvas) {
             Shape::paint_figure(self, gc);
         }
@@ -640,6 +648,14 @@ mod tests {
     }
 
     impl Figure for RecordingFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
         fn paint_figure(&self, gc: &mut novadraw_render::NdCanvas) {
             Shape::paint_figure(self, gc);
         }

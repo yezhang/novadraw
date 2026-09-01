@@ -15,7 +15,8 @@ use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, Updatable, border::Border,
+    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
+    Updatable, border::Border,
 };
 use crate::layout::{LayoutContext, LayoutManager};
 use crate::{
@@ -446,10 +447,40 @@ impl Updatable for ViewportFigure {
 }
 
 impl Figure for ViewportFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ViewportFigure"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
     fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
     fn get_border(&self) -> Option<&dyn Border> {
         self.border.as_deref()
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for ViewportFigure {
+    fn child_transform(&self) -> ChildTransform {
+        Bounded::child_transform(self)
+    }
+
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        self.child_clipping_strategy
+    }
+
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Single
     }
 }
 

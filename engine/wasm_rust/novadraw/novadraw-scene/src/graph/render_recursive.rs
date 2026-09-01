@@ -209,7 +209,7 @@ impl<'a> FigureRenderer<'a> {
         let clipping_strategy = self
             .scene
             .get(block_id)
-            .map(|block| block.figure.child_clipping_strategy())
+            .map(super::FigureNode::child_clipping_strategy)
             .unwrap_or(ChildClippingStrategy::ClipToChildBounds);
 
         debug_render!(
