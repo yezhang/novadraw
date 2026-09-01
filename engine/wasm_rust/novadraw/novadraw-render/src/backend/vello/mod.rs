@@ -33,18 +33,19 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
 enum SurfaceRecovery {
     Reconfigure,
     Retry,
-    Fatal,
+    Skip,
 }
 
-fn surface_recovery(error: &vello::wgpu::SurfaceError) -> SurfaceRecovery {
-    match error {
-        vello::wgpu::SurfaceError::Lost | vello::wgpu::SurfaceError::Outdated => {
-            SurfaceRecovery::Reconfigure
+fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<SurfaceRecovery> {
+    match status {
+        vello::wgpu::CurrentSurfaceTexture::Success(_)
+        | vello::wgpu::CurrentSurfaceTexture::Suboptimal(_) => None,
+        vello::wgpu::CurrentSurfaceTexture::Lost | vello::wgpu::CurrentSurfaceTexture::Outdated => {
+            Some(SurfaceRecovery::Reconfigure)
         }
-        vello::wgpu::SurfaceError::Timeout | vello::wgpu::SurfaceError::Other => {
-            SurfaceRecovery::Retry
-        }
-        vello::wgpu::SurfaceError::OutOfMemory => SurfaceRecovery::Fatal,
+        vello::wgpu::CurrentSurfaceTexture::Timeout
+        | vello::wgpu::CurrentSurfaceTexture::Validation => Some(SurfaceRecovery::Retry),
+        vello::wgpu::CurrentSurfaceTexture::Occluded => Some(SurfaceRecovery::Skip),
     }
 }
 
@@ -181,8 +182,8 @@ impl VelloRenderer {
         (texture, view, width, height)
     }
 
-    fn handle_surface_error(&mut self, error: vello::wgpu::SurfaceError) -> RenderOutcome {
-        match surface_recovery(&error) {
+    fn recover_surface(&mut self, recovery: SurfaceRecovery) -> RenderOutcome {
+        match recovery {
             SurfaceRecovery::Reconfigure => {
                 let width = self.window.width();
                 let height = self.window.height();
@@ -195,9 +196,7 @@ impl VelloRenderer {
                 }
             }
             SurfaceRecovery::Retry => RenderOutcome::Retry,
-            SurfaceRecovery::Fatal => {
-                panic!("render surface is out of memory");
-            }
+            SurfaceRecovery::Skip => RenderOutcome::Skipped,
         }
     }
 
@@ -224,6 +223,7 @@ impl VelloRenderer {
                 depth_stencil_attachment: None,
                 occlusion_query_set: None,
                 timestamp_writes: None,
+                multiview_mask: None,
             });
         }
         device_handle.queue.submit([encoder.finish()]);
@@ -882,10 +882,14 @@ impl RenderBackend for VelloRenderer {
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
 
-        let surface_texture = match self.surface.surface.get_current_texture() {
-            Ok(texture) => texture,
-            Err(error) => {
-                return self.handle_surface_error(error);
+        let surface_status = self.surface.surface.get_current_texture();
+        let (surface_texture, reconfigure_after_present) = match surface_status {
+            vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
+            vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
+            status => {
+                let recovery =
+                    surface_recovery(&status).expect("unavailable surface must define recovery");
+                return self.recover_surface(recovery);
             }
         };
         let scratch_view = {
@@ -987,6 +991,9 @@ impl RenderBackend for VelloRenderer {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
+        if reconfigure_after_present {
+            self.render_context.configure_surface(&self.surface);
+        }
         RenderOutcome::Presented
     }
 
@@ -1168,22 +1175,26 @@ mod tests {
     }
 
     #[test]
-    fn recoverable_surface_errors_do_not_use_the_fatal_path() {
+    fn surface_statuses_select_the_expected_recovery() {
         assert_eq!(
-            surface_recovery(&vello::wgpu::SurfaceError::Lost),
-            SurfaceRecovery::Reconfigure
+            surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Lost),
+            Some(SurfaceRecovery::Reconfigure)
         );
         assert_eq!(
-            surface_recovery(&vello::wgpu::SurfaceError::Outdated),
-            SurfaceRecovery::Reconfigure
+            surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Outdated),
+            Some(SurfaceRecovery::Reconfigure)
         );
         assert_eq!(
-            surface_recovery(&vello::wgpu::SurfaceError::Timeout),
-            SurfaceRecovery::Retry
+            surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Timeout),
+            Some(SurfaceRecovery::Retry)
         );
         assert_eq!(
-            surface_recovery(&vello::wgpu::SurfaceError::OutOfMemory),
-            SurfaceRecovery::Fatal
+            surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Validation),
+            Some(SurfaceRecovery::Retry)
+        );
+        assert_eq!(
+            surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Occluded),
+            Some(SurfaceRecovery::Skip)
         );
     }
 

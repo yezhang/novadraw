@@ -5,6 +5,5 @@ edition.workspace = true
 
 [dependencies]
 vello.workspace = true
-wgpu.workspace = true
 winit.workspace = true
 pollster.workspace = true

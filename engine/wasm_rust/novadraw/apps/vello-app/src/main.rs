@@ -53,12 +53,7 @@ impl VelloDemo {
     }
 
     fn render(&mut self) {
-        let (Some(_window), Some(render_context), Some(renderer), Some(surface)) = (
-            &self.window,
-            &self.render_context,
-            self.renderer.as_mut(),
-            &self.surface,
-        ) else {
+        let Some(surface) = &self.surface else {
             return;
         };
 
@@ -88,30 +83,47 @@ impl VelloDemo {
             &Rect::new(200.0, 150.0, 400.0, 250.0),
         );
 
+        let surface_status = {
+            let (Some(render_context), Some(renderer), Some(surface)) =
+                (&self.render_context, self.renderer.as_mut(), &self.surface)
+            else {
+                return;
+            };
+            let device_handle = &render_context.devices[surface.dev_id];
+            let base_color = Color::new([0.933, 0.933, 0.933, 1.0]);
+            renderer
+                .render_to_texture(
+                    &device_handle.device,
+                    &device_handle.queue,
+                    &self.scene,
+                    &surface.target_view,
+                    &vello::RenderParams {
+                        base_color,
+                        width,
+                        height,
+                        antialiasing_method: AaConfig::Msaa16,
+                    },
+                )
+                .expect("Failed to render to texture");
+            surface.surface.get_current_texture()
+        };
+
+        let (surface_texture, reconfigure_after_present) = match surface_status {
+            vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
+            vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
+            vello::wgpu::CurrentSurfaceTexture::Outdated
+            | vello::wgpu::CurrentSurfaceTexture::Lost => {
+                self.create_surface(width, height);
+                return;
+            }
+            vello::wgpu::CurrentSurfaceTexture::Timeout
+            | vello::wgpu::CurrentSurfaceTexture::Occluded
+            | vello::wgpu::CurrentSurfaceTexture::Validation => return,
+        };
+
+        let render_context = self.render_context.as_ref().unwrap();
+        let surface = self.surface.as_ref().unwrap();
         let device_handle = &render_context.devices[surface.dev_id];
-
-        // Render to texture
-        let base_color = Color::new([0.933, 0.933, 0.933, 1.0]);
-        renderer
-            .render_to_texture(
-                &device_handle.device,
-                &device_handle.queue,
-                &self.scene,
-                &surface.target_view,
-                &vello::RenderParams {
-                    base_color,
-                    width,
-                    height,
-                    antialiasing_method: AaConfig::Msaa16,
-                },
-            )
-            .expect("Failed to render to texture");
-
-        // Get current texture and present
-        let surface_texture = surface
-            .surface
-            .get_current_texture()
-            .expect("Failed to get surface texture");
 
         let mut encoder =
             device_handle
@@ -131,6 +143,9 @@ impl VelloDemo {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
+        if reconfigure_after_present {
+            render_context.configure_surface(surface);
+        }
     }
 }
 

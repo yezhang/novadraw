@@ -29,14 +29,13 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace.dependencies]
-vello = "0.7.0"
+vello = "0.10.0"
 glam = "0.30.9"
 slotmap = "1.0.7"
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 anyhow = "1.0.99"
-wgpu = { version = "26.0.1", default-features = false, features = ["std", "wgsl"] }
 winit = "0.30.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
