@@ -2,6 +2,8 @@
 //!
 //! 直接递归实现 Figure 树的渲染遍历，参考 Eclipse Draw2D 的 paint() 方法。
 
+use std::collections::HashSet;
+
 use novadraw_render::NdCanvas;
 
 use super::BlockId;
@@ -14,6 +16,7 @@ const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
 /// 场景图引用（用于渲染）
 pub struct FigureGraphRenderRef<'a> {
     pub(crate) blocks: &'a slotmap::SlotMap<BlockId, super::FigureBlock>,
+    pub(crate) selected: &'a HashSet<BlockId>,
 }
 
 impl<'a> FigureGraphRenderRef<'a> {
@@ -27,6 +30,7 @@ impl<'a> Clone for FigureGraphRenderRef<'a> {
     fn clone(&self) -> Self {
         Self {
             blocks: self.blocks,
+            selected: self.selected,
         }
     }
 }
@@ -47,6 +51,7 @@ impl<'a> FigureRenderer<'a> {
         Self {
             scene: FigureGraphRenderRef {
                 blocks: scene.blocks,
+                selected: scene.selected,
             },
             gc,
             counter: 0,
@@ -114,7 +119,7 @@ impl<'a> FigureRenderer<'a> {
             _ => return,
         };
         block.figure.paint_border(self.gc);
-        super::paint_selection_overlay(block, self.gc);
+        super::paint_selection_overlay(block, self.scene.selected.contains(&block_id), self.gc);
 
         // 5. 恢复 parent state。
         debug_render!("[RECUR] #{:02}   pop_state", id);

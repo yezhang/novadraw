@@ -3,6 +3,7 @@
 //! 提供场景图数据结构和管理功能。
 
 use std::{
+    collections::HashSet,
     error::Error,
     fmt,
     ops::{Deref, DerefMut},
@@ -95,8 +96,8 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
-pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
-    if !block.is_selected {
+pub(crate) fn paint_selection_overlay(block: &FigureBlock, selected: bool, gc: &mut NdCanvas) {
+    if !selected {
         return;
     }
 
@@ -121,7 +122,6 @@ pub(crate) fn paint_selection_overlay(block: &FigureBlock, gc: &mut NdCanvas) {
 /// interaction and update algorithms consume this state without downcasting.
 pub struct NodeState {
     pub(crate) bounds: Rectangle,
-    pub(crate) is_selected: bool,
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
     pub(crate) is_valid: bool,
@@ -134,7 +134,6 @@ impl Default for NodeState {
     fn default() -> Self {
         Self {
             bounds: Rectangle::ZERO,
-            is_selected: false,
             is_visible: true,
             is_enabled: true,
             is_valid: false,
@@ -319,6 +318,8 @@ pub struct FigureGraph {
     root: BlockId,
     /// 内容块（用户可访问的根容器）
     contents: Option<BlockId>,
+    /// Compatibility selection model kept outside core node state.
+    selected: HashSet<BlockId>,
     notification_effects: NotificationQueue,
 }
 
@@ -352,6 +353,7 @@ impl FigureGraph {
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
+            selected: HashSet::new(),
             notification_effects: NotificationQueue::new(),
         }
     }
@@ -1310,9 +1312,7 @@ impl FigureGraph {
 
     /// 按矩形选择
     pub fn select_by_rect(&mut self, rect: Rectangle) {
-        for block in self.blocks.values_mut() {
-            block.is_selected = false;
-        }
+        self.selected.clear();
 
         // 收集需要选中的 ID
         let mut to_select: Vec<BlockId> = Vec::new();
@@ -1337,24 +1337,23 @@ impl FigureGraph {
         }
 
         // 设置选中状态
-        for id in to_select {
-            if let Some(block) = self.blocks.get_mut(id) {
-                block.is_selected = true;
-            }
-        }
+        self.selected.extend(to_select);
     }
 
     /// 选择单个块
     #[allow(clippy::collapsible_if)]
     pub fn select_single(&mut self, block_id: Option<BlockId>) {
         let mut changed = Vec::new();
-        for (id, block) in &mut self.blocks {
+        for id in self.blocks.keys() {
             let selected = Some(id) == block_id;
-            if block.is_selected != selected {
-                changed.push((id, block.is_selected, selected));
-                block.is_selected = selected;
+            let was_selected = self.selected.contains(&id);
+            if was_selected != selected {
+                changed.push((id, was_selected, selected));
             }
         }
+        self.selected.clear();
+        self.selected
+            .extend(block_id.filter(|id| self.blocks.contains_key(*id)));
         for (id, old_value, new_value) in changed {
             self.emit_property_event(PropertyChangeEvent {
                 block_id: id,
@@ -1372,12 +1371,7 @@ impl FigureGraph {
 
     /// 获取当前选中的块 ID
     pub fn selected_block(&self) -> Option<BlockId> {
-        for (id, block) in self.blocks.iter() {
-            if block.is_selected {
-                return Some(id);
-            }
-        }
-        None
+        self.selected.iter().next().copied()
     }
 
     /// 命中测试
@@ -1434,6 +1428,7 @@ impl FigureGraph {
         let start_id = self.contents.unwrap_or(self.root);
         let scene_ref = FigureGraphRenderRef {
             blocks: &self.blocks,
+            selected: &self.selected,
         };
         let mut renderer = FigureRenderer::new(&scene_ref, gc);
         renderer.render(start_id);
@@ -1463,7 +1458,11 @@ impl FigureGraph {
         if let Some(block) = self.blocks.get(block_id) {
             let bounds = block.figure_bounds();
             let visibility = if block.is_visible { "V" } else { "H" };
-            let selected = if block.is_selected { " *" } else { "" };
+            let selected = if self.selected.contains(&block_id) {
+                " *"
+            } else {
+                ""
+            };
             eprintln!(
                 "{}{} {:?}: {} bounds=({:.0},{:.0},{:.0},{:.0}){}",
                 indent,
@@ -1859,10 +1858,7 @@ impl FigureGraph {
     }
 
     pub fn is_selected(&self, id: BlockId) -> bool {
-        self.blocks
-            .get(id)
-            .map(|block| block.is_selected)
-            .unwrap_or(false)
+        self.selected.contains(&id)
     }
 
     /// 应用布局
@@ -2272,15 +2268,10 @@ impl FigureGraph {
             .keys()
             .filter(|&id| self.is_in_subtree(id, subtree_root))
             .collect();
-        let mut deselected = Vec::new();
-        for id in descendants {
-            if let Some(block) = self.blocks.get_mut(id) {
-                if block.is_selected {
-                    deselected.push(id);
-                }
-                block.is_selected = false;
-            }
-        }
+        let deselected: Vec<_> = descendants
+            .into_iter()
+            .filter(|id| self.selected.remove(id))
+            .collect();
         for block_id in deselected {
             self.emit_property_event(PropertyChangeEvent {
                 block_id,
