@@ -131,7 +131,7 @@ cargo test --workspace
 
 前置条件：R2 手动验证 `PASS`。
 
-状态：`awaiting_manual_approval`
+状态：`approved`
 
 工作：
 
@@ -312,7 +312,15 @@ cargo test --workspace
 - 结果：PASS
 - 失败项：无
 
-## 14. 当前手动验证：R3
+## 14. R3 手动验收记录
+
+状态：`approved`
+
+- 平台：macOS
+- 结果：PASS
+- 失败项：无
+
+以下为本次验收使用的步骤。
 
 在开始 R4 前执行以下步骤。
 
@@ -388,4 +396,4 @@ R3: PASS
 失败项: 无
 ```
 
-若失败，请附应用名、场景编号、操作步骤和可见结果。收到 `R3: PASS` 后开始 R4。
+若失败，请附应用名、场景编号、操作步骤和可见结果。
