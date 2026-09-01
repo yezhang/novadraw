@@ -166,7 +166,7 @@ cargo test --workspace
 
 前置条件：R3 手动验证 `PASS`。
 
-状态：`awaiting_manual_approval`
+状态：`approved`
 
 工作：
 
@@ -400,7 +400,15 @@ R3: PASS
 
 若失败，请附应用名、场景编号、操作步骤和可见结果。
 
-## 15. 当前手动验证：R4
+## 15. R4 手动验收记录
+
+状态：`approved`
+
+- 平台：macOS
+- 结果：PASS
+- 失败项：无
+
+以下为本次验收使用的步骤。
 
 在开始 R5 前执行以下步骤。通用 demo 使用 `Home` 返回首场景、左右方向键或
 `PageUp`/`PageDown` 切换场景、`S` 保存当前截图。
