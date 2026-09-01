@@ -4,7 +4,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, PolylineFigure, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, PolylineFigure, Shape, Updatable};
 
 /// 多边形图形
 ///
@@ -109,6 +109,16 @@ impl Updatable for PolygonFigure {
     fn invalidate(&mut self) {}
 }
 
+impl Figure for PolygonFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Shape::get_border(self)
+    }
+}
+
 // 实现 Shape trait
 impl Shape for PolygonFigure {
     fn stroke_color(&self) -> Option<Color> {
@@ -132,7 +142,7 @@ impl Shape for PolygonFigure {
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
-        self.polyline.get_border()
+        Shape::get_border(&self.polyline)
     }
 
     fn fill_enabled(&self) -> bool {

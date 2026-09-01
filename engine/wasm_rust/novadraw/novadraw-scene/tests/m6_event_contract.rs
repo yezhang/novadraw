@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureGraph, FocusEvent,
-    FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind,
-    KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle,
-    RectangleFigure, SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind, Updatable,
-    WheelEvent,
+    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, FigureGraph,
+    FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent,
+    KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations,
+    Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind,
+    Updatable, WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +40,12 @@ impl Updatable for InputProbeFigure {
 }
 
 impl Figure for InputProbeFigure {
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for InputProbeFigure {
     fn wants_mouse_events(&self) -> bool {
         true
     }

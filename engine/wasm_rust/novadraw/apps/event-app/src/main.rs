@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
-    BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureGraph, FocusEvent,
-    FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
-    MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations, Rectangle,
-    RectangleFigure, SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
+    BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureEventHandler, FigureGraph,
+    FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations,
+    Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -95,6 +95,12 @@ impl Figure for EventProbeFigure {
         canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
     }
 
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for EventProbeFigure {
     fn wants_mouse_events(&self) -> bool {
         true
     }
@@ -165,7 +171,7 @@ impl Figure for EventProbeFigure {
     }
 
     fn on_key_released(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        self.on_key_pressed(event, ctx)
+        FigureEventHandler::on_key_pressed(self, event, ctx)
     }
 
     fn on_focus_gained(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {

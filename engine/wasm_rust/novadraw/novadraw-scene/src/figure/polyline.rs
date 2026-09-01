@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
 
 /// 折线图形
 ///
@@ -221,6 +221,16 @@ impl Bounded for PolylineFigure {
 impl Updatable for PolylineFigure {
     fn validate(&mut self) {}
     fn invalidate(&mut self) {}
+}
+
+impl Figure for PolylineFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Shape::get_border(self)
+    }
 }
 
 // 实现 Shape trait

@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
 
 /// 矩形图形
 ///
@@ -144,6 +144,16 @@ impl Updatable for RectangleFigure {
 
     fn invalidate(&mut self) {
         // 默认空实现
+    }
+}
+
+impl Figure for RectangleFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Shape::get_border(self)
     }
 }
 

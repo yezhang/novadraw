@@ -6,13 +6,11 @@
 //! # Trait 层级
 //!
 //! ```text
-//! Bounded        - 边界相关方法（bounds, set_bounds, name 等）
-//!   |
-//!   v
-//! Figure         - 渲染接口（继承 Bounded）
-//!   |
-//!   v
-//! Shape          - 描边/填充（继承 Figure）
+//! Figure                  - 绘制与精确几何
+//! Shape                   - 可复用的描边/填充辅助
+//! FigureEventHandler      - 可选输入能力
+//! FigureLifecycle         - 可选挂载生命周期
+//! AccessibleFigure       - 可选 accessibility 能力
 //! ```
 
 mod ellipse;
@@ -323,16 +321,6 @@ impl<T: Any> AsAny for T {
 }
 
 pub trait Figure: Bounded + Updatable + AsAny {
-    /// Figure 挂载到父节点后的生命周期 hook。
-    ///
-    /// 对应 draw2d: addNotify()。
-    fn on_attached(&mut self, _parent_id: BlockId) {}
-
-    /// Figure 从父节点移除前的生命周期 hook。
-    ///
-    /// 对应 draw2d: removeNotify()。
-    fn on_detached(&mut self, _parent_id: BlockId) {}
-
     /// ===== 模板方法 =====
     /// 初始化本地属性
     ///
@@ -377,8 +365,28 @@ pub trait Figure: Bounded + Updatable + AsAny {
         }
     }
 
+    /// 返回可选的输入能力。
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        None
+    }
+
+    /// 返回可选的生命周期能力。
+    fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
+        None
+    }
+
+    /// 返回可选的 accessibility 能力。
+    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
+        None
+    }
+}
+
+/// Figure 的可选输入能力。
+///
+/// 非交互 Figure 不实现该 trait，也不需要携带空事件方法。
+pub trait FigureEventHandler {
     fn wants_mouse_events(&self) -> bool {
-        false
+        true
     }
 
     fn wants_key_events(&self) -> bool {
@@ -442,6 +450,22 @@ pub trait Figure: Bounded + Updatable + AsAny {
     }
 }
 
+/// Figure 的可选树挂载生命周期能力。
+pub trait FigureLifecycle {
+    /// Figure 挂载到父节点后的 hook，对应 Draw2D `addNotify()`。
+    fn on_attached(&mut self, _parent_id: BlockId) {}
+
+    /// Figure 从父节点移除前的 hook，对应 Draw2D `removeNotify()`。
+    fn on_detached(&mut self, _parent_id: BlockId) {}
+}
+
+/// Figure 的可选 accessibility 能力。
+pub trait AccessibleFigure {
+    fn accessible_name(&self) -> Option<&str> {
+        None
+    }
+}
+
 // ============================================================================
 // Shape Trait: 描边/填充
 // ============================================================================
@@ -460,7 +484,7 @@ pub trait Figure: Bounded + Updatable + AsAny {
 ///   +-> paint_outline()    [内部方法]
 ///         +-> outline_shape() [抽象方法]
 /// ```
-pub trait Shape: Figure {
+pub trait Shape {
     /// ===== Shape 特有方法 =====
     /// 获取边框装饰器（覆盖 Figure 的默认实现）
     ///
@@ -497,66 +521,6 @@ pub trait Shape: Figure {
     /// 获取透明度 (0.0 - 1.0)
     fn alpha(&self) -> f64 {
         1.0
-    }
-
-    fn wants_mouse_events(&self) -> bool {
-        false
-    }
-
-    fn wants_key_events(&self) -> bool {
-        false
-    }
-
-    fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_moved(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_dragged(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_hover(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_double_clicked(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_focus_gained(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_focus_lost(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
-    }
-
-    fn on_mouse_exited(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
-        false
     }
 
     /// ===== 渲染方法 =====
@@ -600,105 +564,6 @@ pub trait Shape: Figure {
     /// 对应 draw2d: outlineShape(Graphics)
     /// 具体图形必须实现此方法
     fn outline_shape(&self, gc: &mut NdCanvas);
-}
-
-// ============================================================================
-// Blanket Impl: 让所有实现 Bounds 的类型自动实现 Figure
-// ============================================================================
-//
-// 设计原理：
-// 1. Bounds trait 定义边界相关方法（bounds, set_bounds, name 等）
-// 2. Figure trait 继承 Bounds，定义渲染接口（paint_figure, paint_border 等）
-// 3. Shape trait 继承 Figure，添加描边/填充属性和 fill_shape/outline_shape 抽象方法
-// 4. 所有实现 Bounds 的类型自动获得 Figure 的实现
-// 5. Shape 类型会覆盖 paint_figure 实现，调用 paint_fill 和 paint_outline
-//
-// 关键点：
-// - 具体图形类型需要实现 Bounds 和 Shape
-// - Shape: Figure，所以所有实现 Shape 的类型也实现 Figure
-// - Blanket impl 让所有实现 Shape 的类型自动获得 Figure 实现
-
-/// Blanket Impl：所有实现 Shape trait 的类型自动获得 Figure trait 的实现
-///
-/// 具体图形类型只需要实现 Shape，不需要显式实现 Figure。
-/// Shape 继承 Figure，paint_figure 由 Shape 提供。
-impl<T: Shape> Figure for T
-where
-    T: Bounded,
-{
-    /// 绘制自身：调用 Shape 的 paint_figure
-    ///
-    /// 当通过 Box<dyn Figure> 调用时，会正确分派到 Shape 的实现
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    /// 获取边框：调用 Shape 的 get_border
-    ///
-    /// 当通过 Box<dyn Figure> 调用时，会正确分派到 Shape 的实现
-    fn get_border(&self) -> Option<&dyn super::Border> {
-        Shape::get_border(self)
-    }
-
-    fn wants_mouse_events(&self) -> bool {
-        Shape::wants_mouse_events(self)
-    }
-
-    fn wants_key_events(&self) -> bool {
-        Shape::wants_key_events(self)
-    }
-
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_pressed(self, event, ctx)
-    }
-
-    fn on_mouse_released(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_released(self, event, ctx)
-    }
-
-    fn on_mouse_moved(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_moved(self, event, ctx)
-    }
-
-    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_dragged(self, event, ctx)
-    }
-
-    fn on_mouse_hover(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_hover(self, event, ctx)
-    }
-
-    fn on_mouse_double_clicked(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_double_clicked(self, event, ctx)
-    }
-
-    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_wheel(self, event, ctx)
-    }
-
-    fn on_key_pressed(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_key_pressed(self, event, ctx)
-    }
-
-    fn on_key_released(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_key_released(self, event, ctx)
-    }
-
-    fn on_focus_gained(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_focus_gained(self, event, ctx)
-    }
-
-    fn on_focus_lost(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_focus_lost(self, event, ctx)
-    }
-
-    fn on_mouse_entered(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_entered(self, event, ctx)
-    }
-
-    fn on_mouse_exited(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
-        Shape::on_mouse_exited(self, event, ctx)
-    }
 }
 
 #[cfg(test)]

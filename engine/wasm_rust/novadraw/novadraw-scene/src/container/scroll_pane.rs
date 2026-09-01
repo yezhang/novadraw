@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
-use crate::figure::{Bounded, Figure, Updatable};
+use crate::figure::{Bounded, Figure, FigureEventHandler, Updatable};
 use crate::layout::{LayoutContext, LayoutManager};
 use crate::{
     BlockId, FigureGraph, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
@@ -283,6 +283,12 @@ impl Figure for ScrollPaneFigure {
         );
     }
 
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for ScrollPaneFigure {
     fn wants_mouse_events(&self) -> bool {
         true
     }
@@ -486,6 +492,12 @@ impl Figure for ScrollBarFigure {
         }
     }
 
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for ScrollBarFigure {
     fn wants_mouse_events(&self) -> bool {
         true
     }

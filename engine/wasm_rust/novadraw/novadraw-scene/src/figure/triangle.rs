@@ -30,7 +30,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
 
 /// 三角形方向
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -374,6 +374,16 @@ impl Updatable for TriangleFigure {
         // 清除缓存，强制重新计算
         self.cached_points = None;
         self.cached_bounds = None;
+    }
+}
+
+impl Figure for TriangleFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Shape::get_border(self)
     }
 }
 

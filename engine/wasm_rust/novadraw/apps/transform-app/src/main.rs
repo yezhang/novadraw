@@ -1,8 +1,8 @@
 //! M4 坐标域与变换闭环验证。
 
 use novadraw::{
-    Bounded, Color, LineBorder, MouseEvent, NdCanvas, NovadrawContext, Point, Rectangle,
-    RectangleFigure, SceneUpdateManager, Shape, Updatable,
+    Bounded, Color, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas, NovadrawContext,
+    Point, Rectangle, RectangleFigure, SceneUpdateManager, Shape, Updatable,
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{
@@ -193,6 +193,16 @@ impl Updatable for TargetDomainFigure {
     fn validate(&mut self) {}
 }
 
+impl Figure for TargetDomainFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
 impl Shape for TargetDomainFigure {
     fn stroke_color(&self) -> Option<Color> {
         Some(Color::WHITE)
@@ -232,11 +242,9 @@ impl Shape for TargetDomainFigure {
             LineJoin::default(),
         );
     }
+}
 
-    fn wants_mouse_events(&self) -> bool {
-        true
-    }
-
+impl FigureEventHandler for TargetDomainFigure {
     fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
         let point = Point::new(event.x, event.y);
         let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);

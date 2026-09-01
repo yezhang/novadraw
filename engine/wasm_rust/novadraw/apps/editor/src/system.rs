@@ -519,8 +519,8 @@ impl UpdateListener for TraceUpdateListener {
 #[cfg(test)]
 mod tests {
     use novadraw::{
-        Bounded, Color, FigureGraph, MouseEvent, NdCanvas, NovadrawContext, Rectangle,
-        RenderCommandKind, Shape, Updatable,
+        Bounded, Color, Figure, FigureEventHandler, FigureGraph, MouseEvent, NdCanvas,
+        NovadrawContext, Rectangle, RenderCommandKind, Shape, Updatable,
         command::{LineCap, LineJoin},
     };
 
@@ -581,11 +581,19 @@ mod tests {
         fn fill_shape(&self, _gc: &mut NdCanvas) {}
 
         fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    }
 
-        fn wants_mouse_events(&self) -> bool {
-            true
+    impl Figure for TestInteractiveFigure {
+        fn paint_figure(&self, gc: &mut NdCanvas) {
+            Shape::paint_figure(self, gc);
         }
 
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for TestInteractiveFigure {
         fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
             if event.button == MouseButton::Left {
                 ctx.select_target();
@@ -691,7 +699,12 @@ mod tests {
         let manager = SceneManager::with_scene(SceneType::BasicAnchors);
         let contents = manager.scene.get_contents().unwrap();
 
-        for point in [(105.0, 105.0), (695.0, 105.0), (105.0, 495.0), (695.0, 495.0)] {
+        for point in [
+            (105.0, 105.0),
+            (695.0, 105.0),
+            (105.0, 495.0),
+            (695.0, 495.0),
+        ] {
             let (target, path) = manager.scene.hit_test(point).expect("corner must be hit");
             assert_ne!(target, contents);
             assert_eq!(path.len(), 2);

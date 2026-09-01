@@ -4,11 +4,12 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle, Transform, Translatable};
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureGraph,
-    GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
-    PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
-    RectangleFigure, ScaleError, SceneDispatchContext, SceneUpdateManager, ScrollBarVisibility,
-    ScrollDeltaKind, Updatable, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
+    BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler,
+    FigureGraph, GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder,
+    MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError,
+    RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext, SceneUpdateManager,
+    ScrollBarVisibility, ScrollDeltaKind, Updatable, ViewportFigure, WheelEvent, ZoomError,
+    ZoomEvent, ZoomManager,
 };
 
 struct RecordingRangeListener {
@@ -357,10 +358,12 @@ impl Updatable for WheelIgnoringFigure {
 }
 
 impl Figure for WheelIgnoringFigure {
-    fn wants_mouse_events(&self) -> bool {
-        true
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
     }
 }
+
+impl FigureEventHandler for WheelIgnoringFigure {}
 
 fn large_scroll_pane_scene() -> (
     FigureGraph,

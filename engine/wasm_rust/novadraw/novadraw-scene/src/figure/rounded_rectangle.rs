@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, Shape, Updatable};
 
 /// 圆角矩形图形
 ///
@@ -155,6 +155,16 @@ impl Bounded for RoundedRectangleFigure {
 impl Updatable for RoundedRectangleFigure {
     fn validate(&mut self) {}
     fn invalidate(&mut self) {}
+}
+
+impl Figure for RoundedRectangleFigure {
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        Shape::paint_figure(self, gc);
+    }
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        Shape::get_border(self)
+    }
 }
 
 // 实现 Shape trait

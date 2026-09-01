@@ -670,7 +670,9 @@ impl FigureGraph {
         });
         self.uuid_map.insert(uuid, id);
         self.blocks[parent_id].children.push(id);
-        self.blocks[id].figure.on_attached(parent_id);
+        if let Some(lifecycle) = self.blocks[id].figure.lifecycle() {
+            lifecycle.on_attached(parent_id);
+        }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
             block_id: id,
@@ -692,7 +694,9 @@ impl FigureGraph {
             let child = &mut self.blocks[child_id];
             child.parent = Some(parent_id);
             child.is_valid = false;
-            child.figure.on_attached(parent_id);
+            if let Some(lifecycle) = child.figure.lifecycle() {
+                lifecycle.on_attached(parent_id);
+            }
         }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
@@ -716,8 +720,10 @@ impl FigureGraph {
         }
         parent.layout.constraints.remove(&child_id);
 
-        if let Some(child) = self.blocks.get_mut(child_id) {
-            child.figure.on_detached(parent_id);
+        if let Some(child) = self.blocks.get_mut(child_id)
+            && let Some(lifecycle) = child.figure.lifecycle()
+        {
+            lifecycle.on_detached(parent_id);
             child.parent = None;
             child.is_valid = false;
         }
@@ -2228,7 +2234,11 @@ impl FigureGraph {
 
         let client_area = block.figure.client_area();
         if !point_in_rect(local_point, &client_area) {
-            return block.figure.wants_mouse_events().then_some(block_id);
+            return block
+                .figure
+                .event_handler()
+                .is_some_and(|handler| handler.wants_mouse_events())
+                .then_some(block_id);
         }
         let mut child_point = local_point;
         if !block
@@ -2236,7 +2246,11 @@ impl FigureGraph {
             .child_transform()
             .apply_inverse_to(&mut child_point)
         {
-            return block.figure.wants_mouse_events().then_some(block_id);
+            return block
+                .figure
+                .event_handler()
+                .is_some_and(|handler| handler.wants_mouse_events())
+                .then_some(block_id);
         }
 
         for &child_id in block.children.iter().rev() {
@@ -2245,7 +2259,11 @@ impl FigureGraph {
             }
         }
 
-        block.figure.wants_mouse_events().then_some(block_id)
+        block
+            .figure
+            .event_handler()
+            .is_some_and(|handler| handler.wants_mouse_events())
+            .then_some(block_id)
     }
 
     fn clear_selection_for_subtree(&mut self, subtree_root: BlockId) {
@@ -2434,9 +2452,10 @@ mod tests {
 
     use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape, Updatable};
     use crate::{
-        BlockId, EllipseFigure, Figure, FigureEvent, FigureGraph, LineBorder, NotificationEffect,
-        PolygonFigure, PolylineFigure, Rectangle, RootFigure, RoundedRectangleFigure,
-        ScalableLayeredPaneFigure, TriangleFigure, ViewportFigure,
+        BlockId, EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureGraph,
+        FigureLifecycle, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
+        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure,
+        ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
     use novadraw_geometry::Vec2;
@@ -2652,6 +2671,12 @@ mod tests {
     }
 
     impl Figure for LifecycleRecordingFigure {
+        fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
+            Some(self)
+        }
+    }
+
+    impl FigureLifecycle for LifecycleRecordingFigure {
         fn on_attached(&mut self, parent_id: BlockId) {
             self.events
                 .lock()
@@ -2801,13 +2826,39 @@ mod tests {
             false
         }
 
-        fn wants_mouse_events(&self) -> bool {
-            true
-        }
-
         fn fill_shape(&self, _gc: &mut NdCanvas) {}
 
         fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    }
+
+    impl FigureEventHandler for TestInteractiveFigure {}
+
+    macro_rules! impl_test_shape_figure {
+        ($($figure:ty),+ $(,)?) => {
+            $(
+                impl Figure for $figure {
+                    fn paint_figure(&self, gc: &mut NdCanvas) {
+                        Shape::paint_figure(self, gc);
+                    }
+                }
+            )+
+        };
+    }
+
+    impl_test_shape_figure!(
+        TestCoordinateRootFigure,
+        OverflowPaintFigure,
+        TestFigureWithInsets,
+    );
+
+    impl Figure for TestInteractiveFigure {
+        fn paint_figure(&self, gc: &mut NdCanvas) {
+            Shape::paint_figure(self, gc);
+        }
+
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
     }
 
     struct AlphaStateFigure {

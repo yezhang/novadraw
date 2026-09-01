@@ -7,7 +7,7 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::container::{scalable::ScalableLayeredPaneFigure, viewport::ViewportFigure};
-use crate::figure::{Bounded, RectangleFigure, Shape, Updatable};
+use crate::figure::{Bounded, Figure, RectangleFigure, Shape, Updatable};
 use crate::graph::FigureGraph;
 
 // ========== 测试用 Figure 类型 ==========
@@ -164,6 +164,20 @@ impl Shape for TestCoordRootFigure {
 
     fn outline_shape(&self, _gc: &mut NdCanvas) {}
 }
+
+macro_rules! impl_test_shape_figure {
+    ($($figure:ty),+ $(,)?) => {
+        $(
+            impl Figure for $figure {
+                fn paint_figure(&self, gc: &mut NdCanvas) {
+                    Shape::paint_figure(self, gc);
+                }
+            }
+        )+
+    };
+}
+
+impl_test_shape_figure!(TestCoordRootFigure, TestInsetFigure);
 
 /// 辅助函数：收集所有 FillRect 命令的 rect 坐标
 fn collect_fill_rects(gc: &novadraw_render::NdCanvas) -> Vec<[glam::DVec2; 2]> {

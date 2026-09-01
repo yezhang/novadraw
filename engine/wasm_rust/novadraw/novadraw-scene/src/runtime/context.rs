@@ -369,7 +369,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
             && self
                 .scene
                 .block(target_id)
-                .is_some_and(|block| block.figure.wants_key_events())
+                .and_then(|block| block.figure.event_handler())
+                .is_some_and(|handler| handler.wants_key_events())
     }
 
     fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool {
@@ -383,6 +384,9 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let handled = {
             let visual_bounds = block.figure.visual_bounds();
             let mut ctx = SceneNovadrawContext::new(target_id, visual_bounds, &mut effects);
+            let Some(handler) = block.figure.event_handler() else {
+                return false;
+            };
 
             match event {
                 Event::Mouse(mouse_event) => {
@@ -392,30 +396,18 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     }
                     let local_event = mouse_event.with_target_point(point.x(), point.y());
                     match local_event.kind {
-                        MouseEventKind::Pressed => {
-                            block.figure.on_mouse_pressed(&local_event, &mut ctx)
-                        }
+                        MouseEventKind::Pressed => handler.on_mouse_pressed(&local_event, &mut ctx),
                         MouseEventKind::Released => {
-                            block.figure.on_mouse_released(&local_event, &mut ctx)
+                            handler.on_mouse_released(&local_event, &mut ctx)
                         }
-                        MouseEventKind::Moved => {
-                            block.figure.on_mouse_moved(&local_event, &mut ctx)
-                        }
-                        MouseEventKind::Dragged => {
-                            block.figure.on_mouse_dragged(&local_event, &mut ctx)
-                        }
-                        MouseEventKind::Hover => {
-                            block.figure.on_mouse_hover(&local_event, &mut ctx)
-                        }
+                        MouseEventKind::Moved => handler.on_mouse_moved(&local_event, &mut ctx),
+                        MouseEventKind::Dragged => handler.on_mouse_dragged(&local_event, &mut ctx),
+                        MouseEventKind::Hover => handler.on_mouse_hover(&local_event, &mut ctx),
                         MouseEventKind::DoubleClicked => {
-                            block.figure.on_mouse_double_clicked(&local_event, &mut ctx)
+                            handler.on_mouse_double_clicked(&local_event, &mut ctx)
                         }
-                        MouseEventKind::Entered => {
-                            block.figure.on_mouse_entered(&local_event, &mut ctx)
-                        }
-                        MouseEventKind::Exited => {
-                            block.figure.on_mouse_exited(&local_event, &mut ctx)
-                        }
+                        MouseEventKind::Entered => handler.on_mouse_entered(&local_event, &mut ctx),
+                        MouseEventKind::Exited => handler.on_mouse_exited(&local_event, &mut ctx),
                     }
                 }
                 Event::Wheel(wheel_event) => {
@@ -424,7 +416,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                         return false;
                     }
                     let local_event = wheel_event.with_target_point(point.x(), point.y());
-                    block.figure.on_mouse_wheel(&local_event, &mut ctx)
+                    handler.on_mouse_wheel(&local_event, &mut ctx)
                 }
                 Event::Zoom(zoom_event) => {
                     let mut point = Point::new(zoom_event.x, zoom_event.y);
@@ -432,22 +424,22 @@ impl DispatchContext for SceneDispatchContext<'_> {
                         return false;
                     }
                     let local_event = zoom_event.with_target_point(point.x(), point.y());
-                    block.figure.on_zoom(&local_event, &mut ctx)
+                    handler.on_zoom(&local_event, &mut ctx)
                 }
                 Event::Key(key_event) => match key_event.kind {
                     crate::event::KeyEventKind::Pressed => {
-                        block.figure.on_key_pressed(key_event, &mut ctx)
+                        handler.on_key_pressed(key_event, &mut ctx)
                     }
                     crate::event::KeyEventKind::Released => {
-                        block.figure.on_key_released(key_event, &mut ctx)
+                        handler.on_key_released(key_event, &mut ctx)
                     }
                 },
                 Event::Focus(focus_event) => match focus_event.kind {
                     crate::event::FocusEventKind::Gained => {
-                        block.figure.on_focus_gained(focus_event, &mut ctx)
+                        handler.on_focus_gained(focus_event, &mut ctx)
                     }
                     crate::event::FocusEventKind::Lost => {
-                        block.figure.on_focus_lost(focus_event, &mut ctx)
+                        handler.on_focus_lost(focus_event, &mut ctx)
                     }
                 },
             }
@@ -501,8 +493,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        BasicEventDispatcher, Bounded, EventDispatcher, MouseButton, MouseEvent, RectangleFigure,
-        Shape, Updatable,
+        BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, MouseButton,
+        MouseEvent, RectangleFigure, Shape, Updatable,
     };
 
     struct EnqueueChildFigure {
@@ -553,11 +545,19 @@ mod tests {
         fn fill_shape(&self, _gc: &mut novadraw_render::NdCanvas) {}
 
         fn outline_shape(&self, _gc: &mut novadraw_render::NdCanvas) {}
+    }
 
-        fn wants_mouse_events(&self) -> bool {
-            true
+    impl Figure for EnqueueChildFigure {
+        fn paint_figure(&self, gc: &mut novadraw_render::NdCanvas) {
+            Shape::paint_figure(self, gc);
         }
 
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for EnqueueChildFigure {
         fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
             ctx.invalidate();
             ctx.add_child_later(
@@ -637,11 +637,19 @@ mod tests {
         fn fill_shape(&self, _gc: &mut novadraw_render::NdCanvas) {}
 
         fn outline_shape(&self, _gc: &mut novadraw_render::NdCanvas) {}
+    }
 
-        fn wants_mouse_events(&self) -> bool {
-            true
+    impl Figure for RecordingFigure {
+        fn paint_figure(&self, gc: &mut novadraw_render::NdCanvas) {
+            Shape::paint_figure(self, gc);
         }
 
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for RecordingFigure {
         fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
             let entry_point = event.entry_point();
             *self.last_mouse_point.lock().unwrap() = Some(RecordedMousePoint {

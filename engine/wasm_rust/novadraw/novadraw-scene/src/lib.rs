@@ -32,9 +32,10 @@ pub use container::{
 pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
 pub use figure::{
-    AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Direction, EllipseFigure,
-    Figure, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
-    Shape, TriangleFigure, Updatable,
+    AccessibleFigure, AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform,
+    Direction, EllipseFigure, Figure, FigureEventHandler, FigureLifecycle, PolygonFigure,
+    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, TriangleFigure,
+    Updatable,
 };
 pub use graph as scene;
 pub use graph::{
