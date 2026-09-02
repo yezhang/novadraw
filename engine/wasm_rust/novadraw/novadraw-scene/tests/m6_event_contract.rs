@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, FigureGraph,
+    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree,
     FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent,
     KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations,
     Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind,
@@ -170,7 +170,7 @@ impl InputProbeFigure {
 #[test]
 fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let events = Arc::new(Mutex::new(Vec::new()));
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     let coordinate_root = graph.add_child_to(
         root,
@@ -241,7 +241,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
 fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let captured_events = Arc::new(Mutex::new(Vec::new()));
     let gesture_events = Arc::new(Mutex::new(Vec::new()));
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
     graph.add_child_to(
         root,

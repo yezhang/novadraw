@@ -5,7 +5,7 @@ use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEvent, FigureEventHandler,
-    FigureGraph, InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect,
+    FigureTree, InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect,
     NovadrawContext, PendingMutations, RectangleFigure, SceneDispatchContext, SceneUpdateManager,
     Shape, Updatable,
 };
@@ -15,8 +15,8 @@ fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
         .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(3.0, 5.0, 0.0, 0.0))
 }
 
-fn nested_coordinate_scene() -> (FigureGraph, novadraw_scene::BlockId) {
-    let mut graph = FigureGraph::new();
+fn nested_coordinate_scene() -> (FigureTree, novadraw_scene::FigureId) {
+    let mut graph = FigureTree::new();
     let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
     let outer = graph.add_child_to(
         contents,
@@ -163,7 +163,7 @@ impl FigureEventHandler for RecordingFigure {
 #[test]
 fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let recorded = Arc::new(Mutex::new(None));
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
     let outer = graph.add_child_to(
         contents,
@@ -213,7 +213,7 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
 
 #[test]
 fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
     let coordinate_root = graph.add_child_to(
         contents,

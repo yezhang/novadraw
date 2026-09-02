@@ -5,7 +5,7 @@ use novadraw_geometry::{Point, Rectangle, Transform, Translatable};
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler,
-    FigureGraph, GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder,
+    FigureTree, GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder,
     MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError,
     RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext, SceneUpdateManager,
     ScrollBarVisibility, ScrollDeltaKind, Updatable, ViewportFigure, WheelEvent, ZoomError,
@@ -90,7 +90,7 @@ fn range_model_listener_observes_changes_until_removed() {
 
 #[test]
 fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -119,7 +119,7 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
 
 #[test]
 fn viewport_handle_replaces_contents_without_leaving_two_children() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -150,7 +150,7 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
 
 #[test]
 fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -189,7 +189,7 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
 
 #[test]
 fn viewport_track_width_uses_available_width_until_content_minimum() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -216,7 +216,7 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
 
 #[test]
 fn scalable_layered_pane_composes_with_viewport_parent_transform() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -295,7 +295,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
 
 #[test]
 fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let scalable = graph
         .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
@@ -312,7 +312,7 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
 
 #[test]
 fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -374,11 +374,11 @@ impl Figure for WheelIgnoringFigure {
 impl FigureEventHandler for WheelIgnoringFigure {}
 
 fn large_scroll_pane_scene() -> (
-    FigureGraph,
+    FigureTree,
     novadraw_scene::ScrollPaneHandle,
     SceneUpdateManager,
 ) {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -519,7 +519,7 @@ fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
 
 #[test]
 fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -571,7 +571,7 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
 
 #[test]
 fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -688,7 +688,7 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
 
 #[test]
 fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -822,7 +822,7 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
 
 #[test]
 fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -871,7 +871,7 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
 
 #[test]
 fn zoom_manager_uses_configured_levels_for_step_zoom() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -920,7 +920,7 @@ fn viewport_border_insets_define_child_transform_and_client_extent() {
 
 #[test]
 fn viewport_rejects_a_second_contents_child_atomically() {
-    let mut graph = FigureGraph::new();
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
     let viewport = graph.add_child_to(
         root,

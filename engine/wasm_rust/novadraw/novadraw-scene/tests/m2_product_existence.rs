@@ -2,8 +2,8 @@ use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Vec2};
 use novadraw_render::{NdCanvas, command::RenderCommandKind};
 use novadraw_scene::{
-    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureGraph, FigureId,
-    FigureNode, FigureTree, InteractionState, LayoutState, LineBorder, NodeState, PolygonFigure,
+    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureNode,
+    FigureTree, InteractionState, LayoutState, LineBorder, NodeState, PolygonFigure,
     PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
     Updatable, ViewportFigure,
 };
@@ -205,8 +205,8 @@ fn existing_product_figures_expose_border_api() {
 }
 
 #[test]
-fn m2_figure_graph_product_api_exposes_tree_box_and_z_order_roles() {
-    let mut scene = FigureGraph::new();
+fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
+    let mut scene = FigureTree::new();
     let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let bottom_id = scene.add_child_to(
         root_id,
@@ -249,7 +249,7 @@ fn m2_figure_graph_product_api_exposes_tree_box_and_z_order_roles() {
 
 #[test]
 fn m2_three_phase_paint_order_is_observable_from_product_api() {
-    let mut scene = FigureGraph::new();
+    let mut scene = FigureTree::new();
     let root_id = scene.set_contents(Box::new(PaintMarkerFigure::new(
         Rectangle::new(0.0, 0.0, 100.0, 100.0),
         ROOT_COLOR,
