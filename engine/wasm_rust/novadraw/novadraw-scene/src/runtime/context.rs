@@ -12,6 +12,8 @@ use crate::{
 
 pub trait NovadrawContext {
     fn target_id(&self) -> BlockId;
+    /// Returns the target's current border box in its node-local coordinate domain.
+    fn target_bounds(&self) -> Rectangle;
     fn repaint(&mut self, rect: Option<Rectangle>);
     fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
         if block_id == self.target_id() {
@@ -62,15 +64,22 @@ enum RuntimeEffect {
 /// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
 pub struct SceneNovadrawContext<'a> {
     target_id: BlockId,
-    bounds: Rectangle,
+    target_bounds: Rectangle,
+    visual_bounds: Rectangle,
     effects: &'a mut Vec<RuntimeEffect>,
 }
 
 impl<'a> SceneNovadrawContext<'a> {
-    fn new(target_id: BlockId, bounds: Rectangle, effects: &'a mut Vec<RuntimeEffect>) -> Self {
+    fn new(
+        target_id: BlockId,
+        target_bounds: Rectangle,
+        visual_bounds: Rectangle,
+        effects: &'a mut Vec<RuntimeEffect>,
+    ) -> Self {
         Self {
             target_id,
-            bounds,
+            target_bounds,
+            visual_bounds,
             effects,
         }
     }
@@ -81,10 +90,14 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         self.target_id
     }
 
+    fn target_bounds(&self) -> Rectangle {
+        self.target_bounds
+    }
+
     fn repaint(&mut self, rect: Option<Rectangle>) {
         self.effects.push(RuntimeEffect::Repaint {
             block_id: self.target_id,
-            rect: rect.unwrap_or(self.bounds),
+            rect: rect.unwrap_or(self.visual_bounds),
         });
     }
 
@@ -382,8 +395,11 @@ impl DispatchContext for SceneDispatchContext<'_> {
         };
         let mut effects = Vec::new();
         let handled = {
+            let bounds = block.figure_bounds();
+            let target_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
             let visual_bounds = block.visual_bounds();
-            let mut ctx = SceneNovadrawContext::new(target_id, visual_bounds, &mut effects);
+            let mut ctx =
+                SceneNovadrawContext::new(target_id, target_bounds, visual_bounds, &mut effects);
             let Some(handler) = block.figure.event_handler() else {
                 return false;
             };

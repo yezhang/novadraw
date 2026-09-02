@@ -365,19 +365,15 @@ impl ScrollBarFigure {
         }
     }
 
-    fn axis_start(&self) -> f64 {
-        0.0
-    }
-
-    fn axis_length(&self) -> f64 {
+    fn axis_length(&self, bounds: Rectangle) -> f64 {
         match self.orientation {
-            ScrollOrientation::Horizontal => self.bounds.width,
-            ScrollOrientation::Vertical => self.bounds.height,
+            ScrollOrientation::Horizontal => bounds.width,
+            ScrollOrientation::Vertical => bounds.height,
         }
     }
 
-    fn geometry(&self) -> ScrollBarGeometry {
-        ScrollBarGeometry::new(self.axis_start(), self.axis_length(), self.model.snapshot())
+    fn geometry(&self, bounds: Rectangle) -> ScrollBarGeometry {
+        ScrollBarGeometry::new(0.0, self.axis_length(bounds), self.model.snapshot())
     }
 
     fn repaint_pane(&self, ctx: &mut dyn NovadrawContext) {
@@ -461,7 +457,7 @@ impl Figure for ScrollBarFigure {
 
     fn paint_figure(&self, gc: &mut NdCanvas) {
         gc.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
-        let geometry = self.geometry();
+        let geometry = self.geometry(self.bounds);
         let thickness = match self.orientation {
             ScrollOrientation::Horizontal => self.bounds.height,
             ScrollOrientation::Vertical => self.bounds.width,
@@ -534,7 +530,7 @@ impl FigureEventHandler for ScrollBarFigure {
 
     fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
         let pointer = self.axis_position(event.x, event.y);
-        let geometry = self.geometry();
+        let geometry = self.geometry(ctx.target_bounds());
         let snapshot = self.model.snapshot();
         let next = if pointer < geometry.track_start {
             Some(snapshot.value - DEFAULT_STEP_INCREMENT)
@@ -567,7 +563,7 @@ impl FigureEventHandler for ScrollBarFigure {
         if !drag.armed {
             return false;
         }
-        let geometry = self.geometry();
+        let geometry = self.geometry(ctx.target_bounds());
         let draggable = (geometry.track_length - geometry.thumb_length).max(0.0);
         let value_range =
             (self.model.maximum() - self.model.extent() - self.model.minimum()).max(0.0);

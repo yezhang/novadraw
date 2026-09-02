@@ -778,13 +778,17 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
 }
 
 #[test]
-fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
+fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
     let mut start = Point::new(bounds.width / 2.0, 20.0);
-    let mut end = Point::new(start.x(), start.y() + 50.0);
+    let mut first_move = Point::new(start.x(), start.y() + 25.0);
+    let mut second_move = Point::new(start.x(), start.y() + 50.0);
+    let mut after_release = Point::new(start.x(), start.y() + 75.0);
     graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut start);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut end);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut first_move);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut second_move);
+    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut after_release);
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -796,10 +800,24 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model() {
     );
 
     dispatcher.dispatch_mouse_pressed(&mut context, start.x(), start.y(), MouseButton::Left);
-    dispatcher.dispatch_mouse_moved(&mut context, end.x(), end.y());
-    dispatcher.dispatch_mouse_released(&mut context, end.x(), end.y(), MouseButton::Left);
+    assert_eq!(pane.viewport().view_location().y(), 0.0);
 
-    assert!(pane.viewport().view_location().y() > 0.0);
+    dispatcher.dispatch_mouse_moved(&mut context, first_move.x(), first_move.y());
+    let first_value = pane.viewport().view_location().y();
+    assert!(first_value > 0.0);
+
+    dispatcher.dispatch_mouse_moved(&mut context, second_move.x(), second_move.y());
+    let second_value = pane.viewport().view_location().y();
+    assert!(second_value > first_value);
+
+    dispatcher.dispatch_mouse_released(
+        &mut context,
+        second_move.x(),
+        second_move.y(),
+        MouseButton::Left,
+    );
+    dispatcher.dispatch_mouse_moved(&mut context, after_release.x(), after_release.y());
+    assert_eq!(pane.viewport().view_location().y(), second_value);
 }
 
 #[test]
