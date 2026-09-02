@@ -641,7 +641,8 @@ Web 验收结果：
 
 - 平台：Chrome / wasm32-unknown-unknown
 - 结果：PASS
-- Wasm Runtime 与 Canvas2D backend 正常加载和绘制；
+- 默认 Vello WebGPU backend 正常初始化并通过 Wasm Runtime 绘制；
+- Canvas2D backend 作为 `?backend=canvas2d` 诊断基线保留；
 - Pointer、Wheel、Keyboard 事件均进入 Runtime，计数与状态更新正确；
 - 1x/2x DPR 切换触发 Full damage，logical/physical surface 尺寸正确；
 - 浏览器控制台无错误，JavaScript 与 Wasm 资源请求成功。
@@ -706,14 +707,18 @@ cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-too
 ./scripts/serve_web_validation.sh
 ```
 
-访问 `http://127.0.0.1:4173/`。2026-09-02 的 Chrome 验收已确认：
+默认访问 `http://127.0.0.1:4173/` 使用 Vello WebGPU；访问
+`http://127.0.0.1:4173/?backend=canvas2d` 使用 Canvas2D 诊断基线。后端初始化失败时
+页面进入 `ERROR`，不得静默降级。2026-09-02 的 Chrome 验收已确认：
 
-1. 页面进入 `READY` 且 Canvas 非空；
+1. 页面进入 `READY · Vello WebGPU` 且 GPU Canvas 非空；
 2. Pointer hover/click、Keyboard `A` 与 Wheel 事件计数递增；
 3. Figure 在 idle/focus 状态间正确切换颜色；
 4. DPR 从 2x 切换至 1x 后，surface 从 `1560×975 px` 更新为 `780×488 px`，
    logical size 保持 `780×488`，并产生 Full damage；
-5. 控制台无错误，`web_validation.js` 与 `web_validation_bg.wasm` 加载成功。
+5. Canvas2D 查询参数可独立启动，未与 WebGPU canvas context 混用；
+6. 控制台无 Wasm/WebGPU 错误，`web_validation.js` 与
+   `web_validation_bg.wasm` 加载成功。
 
 Web pointer 坐标保持 CSS logical units，wheel 的 pixel/line/page delta 映射到统一引擎
 事件。Windows/Linux build 与基础输入仍需在 CI 或目标机器验证。
