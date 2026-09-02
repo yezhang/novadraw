@@ -1,7 +1,7 @@
 //! Single-row or single-column toolbar layout.
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -81,7 +81,7 @@ impl ToolbarLayout {
 
     fn aggregate_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -114,7 +114,7 @@ impl Default for ToolbarLayout {
 impl LayoutManager for ToolbarLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -124,7 +124,7 @@ impl LayoutManager for ToolbarLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -134,7 +134,7 @@ impl LayoutManager for ToolbarLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {

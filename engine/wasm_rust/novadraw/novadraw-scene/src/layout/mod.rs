@@ -18,7 +18,7 @@ pub use stack_layout::StackLayout;
 pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 use std::any::Any;
 use std::error::Error;
@@ -26,7 +26,7 @@ use std::fmt;
 
 /// 容器施加给直接子节点的布局约束。
 ///
-/// 约束由父 FigureBlock 持有；具体 LayoutManager 通过 downcast 读取自己支持的类型。
+/// 约束由父 FigureNode 持有；具体 LayoutManager 通过 downcast 读取自己支持的类型。
 pub trait LayoutConstraint: Any {
     fn as_any(&self) -> &dyn Any;
     fn type_name(&self) -> &'static str;
@@ -51,26 +51,26 @@ pub trait LayoutContext {
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
-    fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)>;
+    fn get_children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)>;
 
     /// 获取子元素的布局约束
-    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint>;
+    fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint>;
 
     /// 获取块的首选尺寸
-    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64);
+    fn get_preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64);
 
     /// 获取块的最小尺寸。
-    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.get_preferred_size(block_id, w_hint, h_hint)
     }
 
     /// 获取块的最大尺寸。
-    fn get_maximum_size(&self, _block_id: BlockId) -> (f64, f64) {
+    fn get_maximum_size(&self, _block_id: FigureId) -> (f64, f64) {
         (f64::INFINITY, f64::INFINITY)
     }
 
     /// 获取容器 client area 在子节点坐标域中的矩形。
-    fn get_container_bounds(&self, container_id: BlockId) -> Rectangle;
+    fn get_container_bounds(&self, container_id: FigureId) -> Rectangle;
 }
 
 /// Immutable view of the scene used by one layout calculation.
@@ -84,18 +84,18 @@ impl<'a> LayoutSnapshot<'a> {
         Self { source }
     }
 
-    pub fn children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+    pub fn children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         self.source.get_children(parent_id)
     }
 
-    pub fn constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+    pub fn constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint> {
         self.source.get_constraint(child_id)
     }
 
     pub fn constraint_as<C: LayoutConstraint>(
         &self,
-        container: BlockId,
-        child: BlockId,
+        container: FigureId,
+        child: FigureId,
     ) -> Result<Option<&C>, LayoutError> {
         let Some(constraint) = self.constraint(child) else {
             return Ok(None);
@@ -110,19 +110,19 @@ impl<'a> LayoutSnapshot<'a> {
         )
     }
 
-    pub fn preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    pub fn preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.source.get_preferred_size(block_id, w_hint, h_hint)
     }
 
-    pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    pub fn minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.source.get_minimum_size(block_id, w_hint, h_hint)
     }
 
-    pub fn maximum_size(&self, block_id: BlockId) -> (f64, f64) {
+    pub fn maximum_size(&self, block_id: FigureId) -> (f64, f64) {
         self.source.get_maximum_size(block_id)
     }
 
-    pub fn container_bounds(&self, container_id: BlockId) -> Rectangle {
+    pub fn container_bounds(&self, container_id: FigureId) -> Rectangle {
         self.source.get_container_bounds(container_id)
     }
 }
@@ -130,14 +130,14 @@ impl<'a> LayoutSnapshot<'a> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LayoutError {
     ConstraintTypeMismatch {
-        container: BlockId,
-        child: BlockId,
+        container: FigureId,
+        child: FigureId,
         expected: &'static str,
         actual: &'static str,
     },
     InvalidChild {
-        container: BlockId,
-        child: BlockId,
+        container: FigureId,
+        child: FigureId,
     },
 }
 
@@ -172,9 +172,9 @@ pub enum LayoutInvalidation {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum LayoutChange {
-    Bounds(BlockId, Rectangle),
-    Visibility(BlockId, bool),
-    Invalidate(BlockId),
+    Bounds(FigureId, Rectangle),
+    Visibility(FigureId, bool),
+    Invalidate(FigureId),
 }
 
 /// Buffered changes produced by a layout calculation.
@@ -188,15 +188,15 @@ impl LayoutOutput {
         Self::default()
     }
 
-    pub fn set_child_bounds(&mut self, child: BlockId, bounds: Rectangle) {
+    pub fn set_child_bounds(&mut self, child: FigureId, bounds: Rectangle) {
         self.changes.push(LayoutChange::Bounds(child, bounds));
     }
 
-    pub fn set_child_visible(&mut self, child: BlockId, visible: bool) {
+    pub fn set_child_visible(&mut self, child: FigureId, visible: bool) {
         self.changes.push(LayoutChange::Visibility(child, visible));
     }
 
-    pub fn invalidate(&mut self, child: BlockId) {
+    pub fn invalidate(&mut self, child: FigureId) {
         self.changes.push(LayoutChange::Invalidate(child));
     }
 
@@ -216,7 +216,7 @@ pub trait LayoutManager {
     /// wHint, hHint 为建议的宽高，-1 表示无限制
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -227,7 +227,7 @@ pub trait LayoutManager {
     /// 对应 draw2d: getMinimumSize(IFigure, int, int)
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -238,7 +238,7 @@ pub trait LayoutManager {
     /// 对应 draw2d: layout(IFigure)
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError>;

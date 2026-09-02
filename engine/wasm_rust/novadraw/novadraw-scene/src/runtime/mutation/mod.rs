@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{BlockId, Figure};
+use crate::{Figure, FigureId};
 
 pub(crate) struct PendingMutation {
     kind: PendingMutationKind,
@@ -8,33 +8,33 @@ pub(crate) struct PendingMutation {
 
 pub(crate) enum PendingMutationKind {
     AddChildFigure {
-        parent: BlockId,
+        parent: FigureId,
         figure: Box<dyn Figure>,
     },
     RemoveChild {
-        parent: BlockId,
-        child: BlockId,
+        parent: FigureId,
+        child: FigureId,
     },
     Reparent {
-        child: BlockId,
-        new_parent: BlockId,
+        child: FigureId,
+        new_parent: FigureId,
     },
 }
 
 impl PendingMutation {
-    pub(crate) fn add_child_figure(parent: BlockId, figure: Box<dyn Figure>) -> Self {
+    pub(crate) fn add_child_figure(parent: FigureId, figure: Box<dyn Figure>) -> Self {
         Self {
             kind: PendingMutationKind::AddChildFigure { parent, figure },
         }
     }
 
-    pub(crate) fn remove_child(parent: BlockId, child: BlockId) -> Self {
+    pub(crate) fn remove_child(parent: FigureId, child: FigureId) -> Self {
         Self {
             kind: PendingMutationKind::RemoveChild { parent, child },
         }
     }
 
-    pub(crate) fn reparent(child: BlockId, new_parent: BlockId) -> Self {
+    pub(crate) fn reparent(child: FigureId, new_parent: FigureId) -> Self {
         Self {
             kind: PendingMutationKind::Reparent { child, new_parent },
         }
@@ -87,15 +87,15 @@ impl PendingMutations {
 pub(crate) trait MutationContext {
     fn enqueue_mutation(&mut self, mutation: PendingMutation);
 
-    fn add_child_later(&mut self, parent: BlockId, figure: Box<dyn Figure>) {
+    fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
         self.enqueue_mutation(PendingMutation::add_child_figure(parent, figure));
     }
 
-    fn remove_child_later(&mut self, parent: BlockId, child: BlockId) {
+    fn remove_child_later(&mut self, parent: FigureId, child: FigureId) {
         self.enqueue_mutation(PendingMutation::remove_child(parent, child));
     }
 
-    fn reparent_later(&mut self, child: BlockId, new_parent: BlockId) {
+    fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         self.enqueue_mutation(PendingMutation::reparent(child, new_parent));
     }
 }

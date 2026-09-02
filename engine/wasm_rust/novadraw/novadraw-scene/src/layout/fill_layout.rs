@@ -6,7 +6,7 @@
 use tracing::debug;
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 
 /// Fill 布局器
 ///
@@ -30,7 +30,7 @@ impl Default for FillLayout {
 impl LayoutManager for FillLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -44,7 +44,7 @@ impl LayoutManager for FillLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -58,7 +58,7 @@ impl LayoutManager for FillLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {

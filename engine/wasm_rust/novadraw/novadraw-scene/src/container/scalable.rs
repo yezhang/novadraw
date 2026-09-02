@@ -9,7 +9,7 @@ use crate::figure::{
     Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, Updatable,
     border::Border,
 };
-use crate::{BlockId, FigureGraph, GraphMutationError, PropertyValue, UpdateManager};
+use crate::{FigureId, FigureTree, GraphMutationError, PropertyValue, UpdateManager};
 
 fn valid_scale(scale: f64) -> bool {
     scale.is_finite() && scale > 0.0
@@ -93,12 +93,12 @@ pub trait ScalableFigure: Figure {
 
 #[derive(Clone)]
 pub struct ScaleHandle {
-    block_id: BlockId,
+    block_id: FigureId,
     runtime: Arc<Mutex<ScaleRuntime>>,
 }
 
 impl ScaleHandle {
-    pub fn block_id(&self) -> BlockId {
+    pub fn block_id(&self) -> FigureId {
         self.block_id
     }
 
@@ -108,7 +108,7 @@ impl ScaleHandle {
 
     pub fn set_scale(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         scale: f64,
     ) -> Result<bool, ScaleError> {
@@ -308,8 +308,8 @@ impl ScalableFigure for ScalableLayeredPaneFigure {
     }
 }
 
-impl FigureGraph {
-    pub fn scale_handle(&self, block_id: BlockId) -> Option<ScaleHandle> {
+impl FigureTree {
+    pub fn scale_handle(&self, block_id: FigureId) -> Option<ScaleHandle> {
         let scalable = self
             .block(block_id)?
             .figure
@@ -323,7 +323,7 @@ impl FigureGraph {
 
     pub fn add_scalable_layered_pane_to(
         &mut self,
-        parent: BlockId,
+        parent: FigureId,
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
         let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));

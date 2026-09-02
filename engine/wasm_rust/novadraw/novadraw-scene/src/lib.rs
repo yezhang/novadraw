@@ -5,7 +5,7 @@
 //! # 模块
 //!
 //! - [`figure`] - Figure 渲染接口和实现
-//! - [`graph`] - FigureGraph、图结构和渲染/命中测试集成
+//! - [`graph`] - FigureTree、图结构和渲染/命中测试集成
 //! - [`runtime`] - 事件、上下文、更新、延迟结构变更和组合根协议
 //! - [`container`] - Viewport 等 Figure 级容器
 //! - [`host`] - 平台宿主与渲染入口协调
@@ -39,9 +39,9 @@ pub use figure::{
 };
 pub use graph as scene;
 pub use graph::{
-    BlockId, DEFAULT_VALIDATION_BUDGET, FigureGraph, FigureId, FigureNode, FigureRenderer,
-    FigureTree, GraphMutationError, LayoutState, MAX_TREE_DEPTH, NodeState, StyleOverride,
-    ValidationError,
+    BlockId, DEFAULT_VALIDATION_BUDGET, FigureBlock, FigureGraph, FigureId, FigureNode,
+    FigureRenderer, FigureTree, GraphMutationError, LayoutState, MAX_TREE_DEPTH, NodeState,
+    StyleOverride, ValidationError,
 };
 pub use host::{AccessibilityUpdate, CursorIcon, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{

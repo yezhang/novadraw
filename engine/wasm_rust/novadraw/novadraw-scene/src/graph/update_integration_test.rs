@@ -3,14 +3,14 @@ use novadraw_geometry::Rectangle;
 use slotmap::Key;
 
 use crate::{
-    BlockId, BorderConstraint, BorderRegion, FigureGraph, GraphMutationError, InteractionState,
+    BorderConstraint, BorderRegion, FigureId, FigureTree, GraphMutationError, InteractionState,
     MAX_TREE_DEPTH, PendingMutations, RectangleFigure, ScalableLayeredPaneFigure,
     SceneUpdateManager, ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
-fn new_scene() -> (FigureGraph, SceneUpdateManager) {
-    (FigureGraph::new(), SceneUpdateManager::new())
+fn new_scene() -> (FigureTree, SceneUpdateManager) {
+    (FigureTree::new(), SceneUpdateManager::new())
 }
 
 #[test]
@@ -676,7 +676,7 @@ fn test_hidden_block_skips_validation_but_drains_queue() {
 
 #[test]
 fn test_interaction_state_accessors() {
-    let mut scene = FigureGraph::new();
+    let mut scene = FigureTree::new();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let mut interaction = InteractionState::default();
     assert_eq!(interaction.mouse_target(), None);
@@ -721,7 +721,7 @@ fn test_apply_pending_add_child_with_invalid_parent_has_no_side_effect() {
     let uuid_count = scene.uuid_map.len();
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::add_child_figure(
-        BlockId::null(),
+        FigureId::null(),
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     ));
 
@@ -740,11 +740,11 @@ fn test_direct_add_child_to_invalid_parent_has_no_side_effect() {
     let uuid_count = scene.uuid_map.len();
 
     let child_id = scene.add_child_to(
-        BlockId::null(),
+        FigureId::null(),
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
-    assert_eq!(child_id, BlockId::null());
+    assert_eq!(child_id, FigureId::null());
     assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
@@ -758,7 +758,7 @@ fn test_try_add_child_to_invalid_parent_returns_error_without_side_effect() {
     let uuid_count = scene.uuid_map.len();
 
     let child_id = scene.try_add_child_to(
-        BlockId::null(),
+        FigureId::null(),
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
@@ -770,7 +770,7 @@ fn test_try_add_child_to_invalid_parent_returns_error_without_side_effect() {
 
 #[test]
 fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
-    let mut scene = FigureGraph::new();
+    let mut scene = FigureTree::new();
     let mut parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
 
     for expected_depth in 2..=MAX_TREE_DEPTH {
@@ -850,11 +850,11 @@ fn test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect()
 
     let child_id = scene.add_child(
         &mut update_manager,
-        BlockId::null(),
+        FigureId::null(),
         Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
     );
 
-    assert_eq!(child_id, BlockId::null());
+    assert_eq!(child_id, FigureId::null());
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
     assert!(!update_manager.is_update_queued());
@@ -1042,7 +1042,7 @@ fn test_apply_pending_reparent_to_invalid_parent_keeps_original_tree() {
         Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)),
     );
     let mut pending_mutations = PendingMutations::new();
-    pending_mutations.enqueue(PendingMutation::reparent(child_id, BlockId::null()));
+    pending_mutations.enqueue(PendingMutation::reparent(child_id, FigureId::null()));
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 

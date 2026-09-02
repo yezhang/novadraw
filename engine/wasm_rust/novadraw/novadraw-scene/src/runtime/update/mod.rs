@@ -25,7 +25,7 @@
 //! # 架构设计
 //!
 //! [`UpdateManager`] 是 Runtime 内部的具体事务组件，负责跟踪失效与脏区，
-//! 并驱动 FigureGraph 完成 validation 和 recording。
+//! 并驱动 FigureTree 完成 validation 和 recording。
 //! [`repair`] 模块负责 DamageSet 写入与 repair phase 的脏区处理逻辑。
 
 mod deferred;

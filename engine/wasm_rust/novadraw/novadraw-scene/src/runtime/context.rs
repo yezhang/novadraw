@@ -3,7 +3,7 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    BlockId, DispatchContext, Event, Figure, FigureEvent, FigureGraph, GestureSessionId,
+    DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree, GestureSessionId,
     InteractionState, MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect,
     PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle, ScalableLayeredPaneFigure,
     ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
@@ -11,51 +11,51 @@ use crate::{
 };
 
 pub trait NovadrawContext {
-    fn target_id(&self) -> BlockId;
+    fn target_id(&self) -> FigureId;
     /// Returns the target's current border box in its node-local coordinate domain.
     fn target_bounds(&self) -> Rectangle;
     fn repaint(&mut self, rect: Option<Rectangle>);
-    fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
+    fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
         if block_id == self.target_id() {
             self.repaint(Some(rect));
         }
     }
     fn emit_property_change(
         &mut self,
-        _block_id: BlockId,
+        _block_id: FigureId,
         _property: &'static str,
         _old_value: PropertyValue,
         _new_value: PropertyValue,
     ) {
     }
-    fn coordinate_system_changed(&mut self, _block_id: BlockId, _bounds: Rectangle) {}
+    fn coordinate_system_changed(&mut self, _block_id: FigureId, _bounds: Rectangle) {}
     fn invalidate(&mut self);
 
     /// Requests selection changes through the dispatch context.
     ///
-    /// Figure callbacks never mutate `FigureGraph` directly; the engine applies
+    /// Figure callbacks never mutate `FigureTree` directly; the engine applies
     /// the request after the target callback returns.
-    fn set_selected(&mut self, block_id: Option<BlockId>);
+    fn set_selected(&mut self, block_id: Option<FigureId>);
 
     fn select_target(&mut self) {
         self.set_selected(Some(self.target_id()));
     }
 
     /// Enqueues a structural mutation for application after top-level dispatch.
-    fn add_child_later(&mut self, parent: BlockId, figure: Box<dyn Figure>);
+    fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>);
 
     /// Enqueues a child removal for application after top-level dispatch.
-    fn remove_child_later(&mut self, parent: BlockId, child: BlockId);
+    fn remove_child_later(&mut self, parent: FigureId, child: FigureId);
 
     /// Enqueues a reparent operation for application after top-level dispatch.
-    fn reparent_later(&mut self, child: BlockId, new_parent: BlockId);
+    fn reparent_later(&mut self, child: FigureId, new_parent: FigureId);
 }
 
 enum RuntimeEffect {
-    Repaint { block_id: BlockId, rect: Rectangle },
+    Repaint { block_id: FigureId, rect: Rectangle },
     Notification(NotificationEffect),
-    Invalidate(BlockId),
-    Select(Option<BlockId>),
+    Invalidate(FigureId),
+    Select(Option<FigureId>),
     Mutation(PendingMutation),
 }
 
@@ -63,7 +63,7 @@ enum RuntimeEffect {
 ///
 /// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
 pub struct SceneNovadrawContext<'a> {
-    target_id: BlockId,
+    target_id: FigureId,
     target_bounds: Rectangle,
     visual_bounds: Rectangle,
     effects: &'a mut Vec<RuntimeEffect>,
@@ -71,7 +71,7 @@ pub struct SceneNovadrawContext<'a> {
 
 impl<'a> SceneNovadrawContext<'a> {
     fn new(
-        target_id: BlockId,
+        target_id: FigureId,
         target_bounds: Rectangle,
         visual_bounds: Rectangle,
         effects: &'a mut Vec<RuntimeEffect>,
@@ -86,7 +86,7 @@ impl<'a> SceneNovadrawContext<'a> {
 }
 
 impl NovadrawContext for SceneNovadrawContext<'_> {
-    fn target_id(&self) -> BlockId {
+    fn target_id(&self) -> FigureId {
         self.target_id
     }
 
@@ -101,13 +101,13 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         });
     }
 
-    fn repaint_figure(&mut self, block_id: BlockId, rect: Rectangle) {
+    fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
         self.effects.push(RuntimeEffect::Repaint { block_id, rect });
     }
 
     fn emit_property_change(
         &mut self,
-        block_id: BlockId,
+        block_id: FigureId,
         property: &'static str,
         old_value: PropertyValue,
         new_value: PropertyValue,
@@ -122,7 +122,7 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         ));
     }
 
-    fn coordinate_system_changed(&mut self, block_id: BlockId, bounds: Rectangle) {
+    fn coordinate_system_changed(&mut self, block_id: FigureId, bounds: Rectangle) {
         self.effects
             .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
                 FigureEvent::CoordinateSystemChanged {
@@ -137,19 +137,19 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
     }
 
-    fn set_selected(&mut self, block_id: Option<BlockId>) {
+    fn set_selected(&mut self, block_id: Option<FigureId>) {
         self.effects.push(RuntimeEffect::Select(block_id));
     }
 
-    fn add_child_later(&mut self, parent: BlockId, figure: Box<dyn Figure>) {
+    fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
         MutationContext::add_child_later(self, parent, figure);
     }
 
-    fn remove_child_later(&mut self, parent: BlockId, child: BlockId) {
+    fn remove_child_later(&mut self, parent: FigureId, child: FigureId) {
         MutationContext::remove_child_later(self, parent, child);
     }
 
-    fn reparent_later(&mut self, child: BlockId, new_parent: BlockId) {
+    fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         MutationContext::reparent_later(self, child, new_parent);
     }
 }
@@ -165,7 +165,7 @@ impl MutationContext for SceneNovadrawContext<'_> {
 /// Apps 只负责把平台输入转换为入口节点坐标域中的点；真正的 target 解析、
 /// 坐标域切换与 Figure 回调调用都在引擎层统一处理。
 pub struct SceneDispatchContext<'a> {
-    scene: &'a mut FigureGraph,
+    scene: &'a mut FigureTree,
     interaction: &'a mut InteractionState,
     update_manager: &'a mut UpdateManager,
     pending_mutations: &'a mut PendingMutations,
@@ -173,7 +173,7 @@ pub struct SceneDispatchContext<'a> {
 
 impl<'a> SceneDispatchContext<'a> {
     pub fn new(
-        scene: &'a mut FigureGraph,
+        scene: &'a mut FigureTree,
         interaction: &'a mut InteractionState,
         update_manager: &'a mut UpdateManager,
         pending_mutations: &'a mut PendingMutations,
@@ -186,7 +186,7 @@ impl<'a> SceneDispatchContext<'a> {
         }
     }
 
-    fn nearest_scalable(&self, mut target_id: BlockId) -> Option<BlockId> {
+    fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
         loop {
             let block = self.scene.block(target_id)?;
             if block.figure.as_any().is::<ScalableLayeredPaneFigure>() {
@@ -196,7 +196,7 @@ impl<'a> SceneDispatchContext<'a> {
         }
     }
 
-    fn nearest_viewport_parent(&self, mut block_id: BlockId) -> Option<BlockId> {
+    fn nearest_viewport_parent(&self, mut block_id: FigureId) -> Option<FigureId> {
         while let Some(parent_id) = self.scene.parent_id(block_id) {
             let parent = self.scene.block(parent_id)?;
             if parent.figure.as_any().is::<ViewportFigure>() {
@@ -207,7 +207,7 @@ impl<'a> SceneDispatchContext<'a> {
         None
     }
 
-    fn nearest_scroll_pane_parent(&self, mut block_id: BlockId) -> Option<BlockId> {
+    fn nearest_scroll_pane_parent(&self, mut block_id: FigureId) -> Option<FigureId> {
         while let Some(parent_id) = self.scene.parent_id(block_id) {
             let parent = self.scene.block(parent_id)?;
             if parent.figure.as_any().is::<ScrollPaneFigure>() {
@@ -218,7 +218,7 @@ impl<'a> SceneDispatchContext<'a> {
         None
     }
 
-    fn apply_scroll_controller(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+    fn apply_scroll_controller(&mut self, target_id: FigureId, event: &WheelEvent) -> bool {
         let controller = if event.phase == crate::GesturePhase::Impulse
             || event.session_id == GestureSessionId::IMPULSE
         {
@@ -236,7 +236,7 @@ impl<'a> SceneDispatchContext<'a> {
         DispatchContext::dispatch_to_target(self, Some(scroll_pane_id), &Event::Wheel(*event))
     }
 
-    fn apply_zoom_manager(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+    fn apply_zoom_manager(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
         let scalable = if event.phase == crate::GesturePhase::Impulse
             || event.session_id == GestureSessionId::IMPULSE
         {
@@ -285,67 +285,67 @@ impl<'a> SceneDispatchContext<'a> {
 }
 
 impl DispatchContext for SceneDispatchContext<'_> {
-    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.scene.find_mouse_event_target_at(x, y)
     }
 
-    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.scene.hit_test_simple((x, y))
     }
 
-    fn mouse_target(&self) -> Option<BlockId> {
+    fn mouse_target(&self) -> Option<FigureId> {
         self.interaction.mouse_target()
     }
 
-    fn set_mouse_target(&mut self, id: Option<BlockId>) {
+    fn set_mouse_target(&mut self, id: Option<FigureId>) {
         self.interaction.set_mouse_target(id);
     }
 
-    fn cursor_target(&self) -> Option<BlockId> {
+    fn cursor_target(&self) -> Option<FigureId> {
         self.interaction.cursor_target()
     }
 
-    fn set_cursor_target(&mut self, id: Option<BlockId>) {
+    fn set_cursor_target(&mut self, id: Option<FigureId>) {
         self.interaction.set_cursor_target(id);
     }
 
-    fn hover_source(&self) -> Option<BlockId> {
+    fn hover_source(&self) -> Option<FigureId> {
         self.interaction.hover_source()
     }
 
-    fn set_hover_source(&mut self, id: Option<BlockId>) {
+    fn set_hover_source(&mut self, id: Option<FigureId>) {
         self.interaction.set_hover_source(id);
     }
 
-    fn set_hovered(&mut self, id: BlockId, hovered: bool) {
+    fn set_hovered(&mut self, id: FigureId, hovered: bool) {
         if self.scene.get_block(id).is_some() {
             self.interaction.set_hovered(id, hovered);
         }
     }
 
-    fn set_pressed(&mut self, id: BlockId, pressed: bool) {
+    fn set_pressed(&mut self, id: FigureId, pressed: bool) {
         if self.scene.get_block(id).is_some() {
             self.interaction.set_pressed(id, pressed);
         }
     }
 
-    fn focus_owner(&self) -> Option<BlockId> {
+    fn focus_owner(&self) -> Option<FigureId> {
         self.interaction.focus_owner()
     }
 
-    fn set_focus_owner(&mut self, id: Option<BlockId>) {
+    fn set_focus_owner(&mut self, id: Option<FigureId>) {
         self.interaction.set_focus_owner(id);
     }
 
-    fn captured(&self) -> Option<BlockId> {
+    fn captured(&self) -> Option<FigureId> {
         self.interaction.captured()
     }
 
-    fn set_captured(&mut self, id: Option<BlockId>) {
+    fn set_captured(&mut self, id: Option<FigureId>) {
         self.interaction.set_captured(id);
     }
 
-    fn gesture_target(&self, session_id: GestureSessionId) -> Option<BlockId> {
+    fn gesture_target(&self, session_id: GestureSessionId) -> Option<FigureId> {
         self.interaction
             .gesture_target(session_id)
             .filter(|id| self.scene.get_block(*id).is_some())
@@ -355,7 +355,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
         self.interaction.has_gesture_session(session_id)
     }
 
-    fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<BlockId>) {
+    fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<FigureId>) {
         let target_id = target_id.filter(|id| self.scene.get_block(*id).is_some());
         self.interaction.set_gesture_target(session_id, target_id);
     }
@@ -368,15 +368,15 @@ impl DispatchContext for SceneDispatchContext<'_> {
         self.interaction.clear_gestures();
     }
 
-    fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+    fn apply_scroll_fallback(&mut self, target_id: FigureId, event: &WheelEvent) -> bool {
         self.apply_scroll_controller(target_id, event)
     }
 
-    fn apply_zoom_fallback(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+    fn apply_zoom_fallback(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
         self.apply_zoom_manager(target_id, event)
     }
 
-    fn wants_key_events(&self, target_id: BlockId) -> bool {
+    fn wants_key_events(&self, target_id: FigureId) -> bool {
         self.scene.is_effectively_visible(target_id)
             && self.scene.is_effectively_enabled(target_id)
             && self
@@ -386,7 +386,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 .is_some_and(|handler| handler.wants_key_events())
     }
 
-    fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool {
+    fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool {
         let Some(target_id) = target_id else {
             return false;
         };
@@ -697,7 +697,7 @@ mod tests {
     #[test]
     fn test_scene_dispatch_context_translates_mouse_point_to_target_coordinate_domain() {
         let recorded = Arc::new(Mutex::new(None));
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
@@ -745,7 +745,7 @@ mod tests {
     #[test]
     fn test_scene_dispatch_context_uses_target_local_coordinate_domain() {
         let recorded = Arc::new(Mutex::new(None));
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
@@ -792,7 +792,7 @@ mod tests {
 
     #[test]
     fn test_scene_dispatch_context_defers_structure_mutation_until_after_callback() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(EnqueueChildFigure {
             bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
         }));

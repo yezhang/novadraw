@@ -1,7 +1,7 @@
 //! Stack layout: every child occupies the container client area.
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StackLayout;
@@ -13,7 +13,7 @@ impl StackLayout {
 
     fn aggregate_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -38,7 +38,7 @@ impl StackLayout {
 impl LayoutManager for StackLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -48,7 +48,7 @@ impl LayoutManager for StackLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -58,7 +58,7 @@ impl LayoutManager for StackLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {

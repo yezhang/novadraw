@@ -41,13 +41,10 @@ pub mod bounds_test;
 #[cfg(test)]
 pub mod update_integration_test;
 
-slotmap::new_key_type! { pub struct BlockId; }
+slotmap::new_key_type! { pub struct FigureId; }
 
 /// Runtime-local, generational identity of a Figure node.
-///
-/// `BlockId` remains as a compatibility name while callers migrate to the
-/// architecture-level `FigureId` terminology.
-pub type FigureId = BlockId;
+pub type BlockId = FigureId;
 
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
@@ -133,7 +130,7 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
-pub(crate) fn paint_selection_overlay(block: &FigureBlock, selected: bool, gc: &mut NdCanvas) {
+pub(crate) fn paint_selection_overlay(block: &FigureNode, selected: bool, gc: &mut NdCanvas) {
     if !selected {
         return;
     }
@@ -296,19 +293,19 @@ impl LayoutState {
 ///
 /// # 与 Figure trait 的区别
 ///
-/// - `FigureBlock` 是具体的数据结构，实现了树形节点的所有功能
+/// - `FigureNode` 是具体的数据结构，实现了树形节点的所有功能
 /// - `dyn Figure` 是渲染接口 trait，定义了图形的几何和渲染行为
-/// - 一个 `FigureBlock` 持有 `Box<dyn Figure>` 来实现具体的图形类型
+/// - 一个 `FigureNode` 持有 `Box<dyn Figure>` 来实现具体的图形类型
 pub struct FigureNode {
     /// 块 ID
-    pub(crate) id: BlockId,
+    pub(crate) id: FigureId,
     /// UUID
     pub(crate) uuid: Uuid,
     /// 子块列表
-    pub(crate) children: Vec<BlockId>,
+    pub(crate) children: Vec<FigureId>,
     /// 父块
-    pub(crate) parent: Option<BlockId>,
-    /// 从 FigureGraph 根节点开始计算的深度；根节点深度为 0。
+    pub(crate) parent: Option<FigureId>,
+    /// 从 FigureTree 根节点开始计算的深度；根节点深度为 0。
     pub(crate) depth: usize,
     /// 图形
     pub(crate) figure: Box<dyn super::Figure>,
@@ -318,7 +315,7 @@ pub struct FigureNode {
     pub(crate) state: NodeState,
 }
 
-/// Compatibility name for the pre-runtime architecture.
+/// Compatibility name for callers that still use the pre-runtime terminology.
 pub type FigureBlock = FigureNode;
 
 impl Deref for FigureNode {
@@ -337,7 +334,7 @@ impl DerefMut for FigureNode {
 
 impl FigureNode {
     /// 获取块 ID
-    pub fn id(&self) -> BlockId {
+    pub fn id(&self) -> FigureId {
         self.id
     }
 
@@ -468,9 +465,9 @@ fn rect_intersects(a: &Rectangle, b: &Rectangle) -> bool {
 /// # 使用示例
 ///
 /// ```
-/// use novadraw_scene::{Figure, RectangleFigure, FigureGraph};
+/// use novadraw_scene::{Figure, RectangleFigure, FigureTree};
 ///
-/// let mut scene = FigureGraph::new();
+/// let mut scene = FigureTree::new();
 ///
 /// // 创建根内容块（类似 Draw2d 的 setContents）
 /// let contents = RectangleFigure::new(0.0, 0.0, 100.0, 50.0);
@@ -480,22 +477,22 @@ fn rect_intersects(a: &Rectangle, b: &Rectangle) -> bool {
 /// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0);
 /// scene.add_child_to(contents_id, Box::new(child));
 /// ```
-pub struct FigureGraph {
-    blocks: SlotMap<BlockId, FigureBlock>,
-    uuid_map: std::collections::HashMap<Uuid, BlockId>,
+pub struct FigureTree {
+    blocks: SlotMap<FigureId, FigureNode>,
+    uuid_map: std::collections::HashMap<Uuid, FigureId>,
     /// 根块（内部使用）
-    root: BlockId,
+    root: FigureId,
     /// 内容块（用户可访问的根容器）
-    contents: Option<BlockId>,
+    contents: Option<FigureId>,
     /// Compatibility selection model kept outside core node state.
-    selected: HashSet<BlockId>,
+    selected: HashSet<FigureId>,
     notification_effects: NotificationQueue,
 }
 
-/// Compatibility name while the public API migrates from graph to tree.
-pub type FigureTree = FigureGraph;
+/// Compatibility name for callers that still use the pre-runtime terminology.
+pub type FigureGraph = FigureTree;
 
-impl FigureGraph {
+impl FigureTree {
     /// 创建新场景图
     pub fn new() -> Self {
         let mut blocks = SlotMap::with_key();
@@ -517,7 +514,7 @@ impl FigureGraph {
             },
         });
 
-        FigureGraph {
+        FigureTree {
             blocks,
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
@@ -540,7 +537,7 @@ impl FigureGraph {
         self.notification_effects.drain()
     }
 
-    fn notify_block_changed(&mut self, block_id: BlockId) {
+    fn notify_block_changed(&mut self, block_id: FigureId) {
         self.notification_effects.notify(block_id);
     }
 
@@ -558,7 +555,7 @@ impl FigureGraph {
 
     pub(crate) fn record_property_change(
         &mut self,
-        block_id: BlockId,
+        block_id: FigureId,
         property: &'static str,
         old_value: PropertyValue,
         new_value: PropertyValue,
@@ -572,7 +569,7 @@ impl FigureGraph {
         });
     }
 
-    pub(crate) fn record_coordinate_system_changed(&mut self, block_id: BlockId) {
+    pub(crate) fn record_coordinate_system_changed(&mut self, block_id: FigureId) {
         let Some(bounds) = self.figure_bounds(block_id) else {
             return;
         };
@@ -595,17 +592,17 @@ impl FigureGraph {
     /// 设置场景的根容器，后续添加的子块将作为此容器的子元素。
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
-    pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> BlockId {
+    pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
         let contents_id = self
             .new_block_with_parent(figure, self.root)
-            .expect("FigureGraph root must exist");
+            .expect("FigureTree root must exist");
         self.contents = Some(contents_id);
         self.invalidate();
         contents_id
     }
 
     /// 获取内容块
-    pub fn get_contents(&self) -> Option<BlockId> {
+    pub fn get_contents(&self) -> Option<FigureId> {
         self.contents
     }
 
@@ -670,9 +667,13 @@ impl FigureGraph {
     /// 对应 draw2d: parent.addChild(child) (不触发 revalidate)
     ///
     /// 与 `add_child()` 的区别：此方法不触发 revalidate()，用于批量构建场景。
-    pub fn add_child_to(&mut self, parent_id: BlockId, figure: Box<dyn super::Figure>) -> BlockId {
+    pub fn add_child_to(
+        &mut self,
+        parent_id: FigureId,
+        figure: Box<dyn super::Figure>,
+    ) -> FigureId {
         self.try_add_child_to(parent_id, figure)
-            .unwrap_or_else(|_| BlockId::null())
+            .unwrap_or_else(|_| FigureId::null())
     }
 
     /// 尝试添加子块到指定父块。
@@ -680,9 +681,9 @@ impl FigureGraph {
     /// parent 不存在或深度超限时不分配节点、不修改 UUID 映射，并返回错误。
     pub fn try_add_child_to(
         &mut self,
-        parent_id: BlockId,
+        parent_id: FigureId,
         figure: Box<dyn super::Figure>,
-    ) -> Result<BlockId, GraphMutationError> {
+    ) -> Result<FigureId, GraphMutationError> {
         self.new_block_with_parent(figure, parent_id)
     }
 
@@ -698,9 +699,9 @@ impl FigureGraph {
     ///
     /// ```
     /// use novadraw_core::Color;
-    /// use novadraw_scene::{figure::RectangleFigure, FigureGraph};
+    /// use novadraw_scene::{figure::RectangleFigure, FigureTree};
     ///
-    /// let mut scene = FigureGraph::new();
+    /// let mut scene = FigureTree::new();
     /// let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     /// let color = Color::hex("#3498db");
     /// // 添加子节点，bounds 位于 parent content domain
@@ -708,16 +709,16 @@ impl FigureGraph {
     /// ```
     pub fn add_child_with_bounds(
         &mut self,
-        parent_id: BlockId,
+        parent_id: FigureId,
         x: f64,
         y: f64,
         width: f64,
         height: f64,
         color: novadraw_core::Color,
-    ) -> BlockId {
+    ) -> FigureId {
         let figure = super::figure::RectangleFigure::new_with_color(x, y, width, height, color);
         self.try_add_child_to(parent_id, Box::new(figure))
-            .unwrap_or_else(|_| BlockId::null())
+            .unwrap_or_else(|_| FigureId::null())
     }
 
     /// 添加子块
@@ -733,12 +734,12 @@ impl FigureGraph {
     pub fn add_child(
         &mut self,
         update_manager: &mut UpdateManager,
-        parent_id: BlockId,
+        parent_id: FigureId,
         figure: Box<dyn super::Figure>,
-    ) -> BlockId {
+    ) -> FigureId {
         let child_id = match self.try_add_child_to(parent_id, figure) {
             Ok(child_id) => child_id,
-            Err(_) => return BlockId::null(),
+            Err(_) => return FigureId::null(),
         };
         let visual_bounds = self.blocks[child_id].visual_bounds();
 
@@ -780,8 +781,8 @@ impl FigureGraph {
     pub fn remove_child(
         &mut self,
         update_manager: &mut UpdateManager,
-        parent: BlockId,
-        child: BlockId,
+        parent: FigureId,
+        child: FigureId,
     ) -> bool {
         self.apply_remove_mutation(
             update_manager,
@@ -793,8 +794,8 @@ impl FigureGraph {
     pub fn reparent(
         &mut self,
         update_manager: &mut UpdateManager,
-        child: BlockId,
-        new_parent: BlockId,
+        child: FigureId,
+        new_parent: FigureId,
     ) -> bool {
         self.apply_reparent_mutation(
             update_manager,
@@ -806,8 +807,8 @@ impl FigureGraph {
     fn new_block_with_parent(
         &mut self,
         figure: Box<dyn super::Figure>,
-        parent_id: BlockId,
-    ) -> Result<BlockId, GraphMutationError> {
+        parent_id: FigureId,
+    ) -> Result<FigureId, GraphMutationError> {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
         let parent_depth = self
@@ -857,8 +858,8 @@ impl FigureGraph {
 
     fn attach_child_checked(
         &mut self,
-        parent_id: BlockId,
-        child_id: BlockId,
+        parent_id: FigureId,
+        child_id: FigureId,
     ) -> Result<(), GraphMutationError> {
         let new_depth = self.validate_attachment(parent_id, child_id)?;
 
@@ -881,7 +882,7 @@ impl FigureGraph {
         Ok(())
     }
 
-    fn detach_child(&mut self, parent_id: BlockId, child_id: BlockId) -> bool {
+    fn detach_child(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         let Some(parent) = self.blocks.get_mut(parent_id) else {
             return false;
         };
@@ -917,8 +918,8 @@ impl FigureGraph {
 
     fn validate_attachment(
         &self,
-        parent_id: BlockId,
-        child_id: BlockId,
+        parent_id: FigureId,
+        child_id: FigureId,
     ) -> Result<usize, GraphMutationError> {
         let parent = self
             .blocks
@@ -958,7 +959,7 @@ impl FigureGraph {
         Ok(new_depth)
     }
 
-    fn subtree_height(&self, root_id: BlockId) -> usize {
+    fn subtree_height(&self, root_id: FigureId) -> usize {
         let Some(root) = self.blocks.get(root_id) else {
             return 0;
         };
@@ -975,7 +976,7 @@ impl FigureGraph {
         max_depth.saturating_sub(root_depth)
     }
 
-    fn set_subtree_depth(&mut self, root_id: BlockId, root_depth: usize) {
+    fn set_subtree_depth(&mut self, root_id: FigureId, root_depth: usize) {
         let mut stack = vec![(root_id, root_depth)];
         while let Some((id, depth)) = stack.pop() {
             let children = match self.blocks.get_mut(id) {
@@ -989,13 +990,13 @@ impl FigureGraph {
         }
     }
 
-    fn contains_direct_child(&self, parent_id: BlockId, child_id: BlockId) -> bool {
+    fn contains_direct_child(&self, parent_id: FigureId, child_id: FigureId) -> bool {
         self.blocks
             .get(parent_id)
             .is_some_and(|parent| parent.children.contains(&child_id))
     }
 
-    fn is_descendant_of(&self, mut node: BlockId, ancestor: BlockId) -> bool {
+    fn is_descendant_of(&self, mut node: FigureId, ancestor: FigureId) -> bool {
         for _ in 0..self.blocks.len() {
             if node == ancestor {
                 return true;
@@ -1115,7 +1116,7 @@ impl FigureGraph {
     /// # Arguments
     ///
     /// * `block_id` - 需要重新布局的块 ID
-    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, block_id: BlockId) {
+    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, block_id: FigureId) {
         self.mark_validation_path_invalid(block_id);
         update_manager.add_invalid_figure(block_id);
     }
@@ -1132,7 +1133,7 @@ impl FigureGraph {
     pub fn repaint(
         &mut self,
         update_manager: &mut UpdateManager,
-        block_id: BlockId,
+        block_id: FigureId,
         rect: Option<Rectangle>,
     ) {
         if let Some(block) = self.blocks.get(block_id) {
@@ -1174,7 +1175,7 @@ impl FigureGraph {
     /// 执行 validation phase 的图级语义。
     ///
     /// UpdateManager 只提供待验证队列与 phase 触发，
-    /// FigureGraph 自身决定哪些节点可参与验证以及如何 revalidate。
+    /// FigureTree 自身决定哪些节点可参与验证以及如何 revalidate。
     pub fn perform_validation_cycle(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -1212,7 +1213,7 @@ impl FigureGraph {
                 self.mark_validation_path_invalid(*block_id);
             }
 
-            let mut validation_roots: Vec<BlockId> = block_ids
+            let mut validation_roots: Vec<FigureId> = block_ids
                 .into_iter()
                 .filter_map(|block_id| self.validation_root(block_id))
                 .collect();
@@ -1228,7 +1229,7 @@ impl FigureGraph {
         }
     }
 
-    fn validation_root(&self, block_id: BlockId) -> Option<BlockId> {
+    fn validation_root(&self, block_id: FigureId) -> Option<FigureId> {
         let mut current = block_id;
         let mut root = block_id;
         loop {
@@ -1253,7 +1254,7 @@ impl FigureGraph {
     fn revalidate_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        container_id: BlockId,
+        container_id: FigureId,
     ) -> Result<(), LayoutError> {
         if self
             .blocks
@@ -1314,10 +1315,10 @@ impl FigureGraph {
     fn revalidate_children_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        parent_id: BlockId,
+        parent_id: FigureId,
     ) -> Result<(), LayoutError> {
         // 先收集子元素 ID，避免在迭代过程中同时持有不可变和可变引用
-        let children: Vec<BlockId> = self
+        let children: Vec<FigureId> = self
             .blocks
             .get(parent_id)
             .map(|b| b.children.clone())
@@ -1337,7 +1338,7 @@ impl FigureGraph {
     pub fn validate_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        container_id: BlockId,
+        container_id: FigureId,
     ) -> Result<(), LayoutError> {
         self.revalidate_with_update(update_manager, container_id)
     }
@@ -1346,12 +1347,12 @@ impl FigureGraph {
     ///
     /// 该入口用于初始场景构建；运行时更新应通过 `mark_invalid` 和
     /// `UpdateManager::perform_update` 执行完整事务。
-    pub fn revalidate(&mut self, container_id: BlockId) {
+    pub fn revalidate(&mut self, container_id: FigureId) {
         self.try_revalidate(container_id)
             .expect("layout validation failed");
     }
 
-    pub fn try_revalidate(&mut self, container_id: BlockId) -> Result<(), LayoutError> {
+    pub fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
         if self
             .blocks
             .get(container_id)
@@ -1415,7 +1416,7 @@ impl FigureGraph {
 
     fn validate_layout_output(
         &self,
-        container_id: BlockId,
+        container_id: FigureId,
         output: &LayoutOutput,
     ) -> Result<(), LayoutError> {
         for change in &output.changes {
@@ -1441,7 +1442,7 @@ impl FigureGraph {
     fn apply_layout_output(
         &mut self,
         update_manager: &mut UpdateManager,
-        container_id: BlockId,
+        container_id: FigureId,
         output: LayoutOutput,
     ) -> Result<(), LayoutError> {
         self.validate_layout_output(container_id, &output)?;
@@ -1470,7 +1471,7 @@ impl FigureGraph {
 
     fn apply_layout_output_without_update(
         &mut self,
-        container_id: BlockId,
+        container_id: FigureId,
         output: LayoutOutput,
     ) -> Result<(), LayoutError> {
         self.validate_layout_output(container_id, &output)?;
@@ -1499,7 +1500,7 @@ impl FigureGraph {
 
     /// 获取子元素 ID 列表
     #[allow(dead_code)]
-    fn get_children_ids(&self, parent_id: BlockId) -> Vec<BlockId> {
+    fn get_children_ids(&self, parent_id: FigureId) -> Vec<FigureId> {
         self.blocks
             .get(parent_id)
             .map(|b| b.children.clone())
@@ -1526,7 +1527,7 @@ impl FigureGraph {
     }
 
     /// 返回单个节点的 validation 状态。
-    pub fn is_valid(&self, block_id: BlockId) -> bool {
+    pub fn is_valid(&self, block_id: FigureId) -> bool {
         self.blocks
             .get(block_id)
             .is_some_and(|block| block.is_valid)
@@ -1535,7 +1536,7 @@ impl FigureGraph {
     /// 计算节点首选尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
     pub fn preferred_size(
         &self,
-        block_id: BlockId,
+        block_id: FigureId,
         w_hint: f64,
         h_hint: f64,
     ) -> Option<(f64, f64)> {
@@ -1567,7 +1568,7 @@ impl FigureGraph {
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
-    pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
+    pub fn minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
         let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.minimum_size {
@@ -1595,12 +1596,12 @@ impl FigureGraph {
     }
 
     /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
-    pub fn maximum_size(&self, block_id: BlockId) -> Option<(f64, f64)> {
+    pub fn maximum_size(&self, block_id: FigureId) -> Option<(f64, f64)> {
         let block = self.blocks.get(block_id)?;
         Some(block.maximum_size.unwrap_or((f64::INFINITY, f64::INFINITY)))
     }
 
-    pub fn set_preferred_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+    pub fn set_preferred_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
         let Some(block) = self.blocks.get_mut(block_id) else {
             return false;
         };
@@ -1612,7 +1613,7 @@ impl FigureGraph {
         true
     }
 
-    pub fn set_minimum_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+    pub fn set_minimum_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
         let Some(block) = self.blocks.get_mut(block_id) else {
             return false;
         };
@@ -1624,7 +1625,7 @@ impl FigureGraph {
         true
     }
 
-    pub fn set_maximum_size(&mut self, block_id: BlockId, size: Option<(f64, f64)>) -> bool {
+    pub fn set_maximum_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
         let Some(block) = self.blocks.get_mut(block_id) else {
             return false;
         };
@@ -1641,7 +1642,7 @@ impl FigureGraph {
         self.selected.clear();
 
         // 收集需要选中的 ID
-        let mut to_select: Vec<BlockId> = Vec::new();
+        let mut to_select: Vec<FigureId> = Vec::new();
         let mut stack = vec![self.root];
         while let Some(node_id) = stack.pop() {
             if let Some(block) = self.blocks.get(node_id) {
@@ -1668,7 +1669,7 @@ impl FigureGraph {
 
     /// 选择单个块
     #[allow(clippy::collapsible_if)]
-    pub fn select_single(&mut self, block_id: Option<BlockId>) {
+    pub fn select_single(&mut self, block_id: Option<FigureId>) {
         let mut changed = Vec::new();
         for id in self.blocks.keys() {
             let selected = Some(id) == block_id;
@@ -1691,12 +1692,12 @@ impl FigureGraph {
     }
 
     /// 设置选中状态
-    pub fn set_selected(&mut self, block_id: Option<BlockId>) {
+    pub fn set_selected(&mut self, block_id: Option<FigureId>) {
         self.select_single(block_id);
     }
 
     /// 获取当前选中的块 ID
-    pub fn selected_block(&self) -> Option<BlockId> {
+    pub fn selected_block(&self) -> Option<FigureId> {
         self.selected.iter().next().copied()
     }
 
@@ -1718,7 +1719,7 @@ impl FigureGraph {
     ///
     /// Some((target, path)) 其中 target 是最底层命中的图形，path 是从根到目标的路径
     /// None 表示未命中任何图形
-    pub fn hit_test(&self, point: (f64, f64)) -> Option<(BlockId, Vec<BlockId>)> {
+    pub fn hit_test(&self, point: (f64, f64)) -> Option<(FigureId, Vec<FigureId>)> {
         let start_id = self.contents.unwrap_or(self.root);
         let mut path = Vec::new();
         self.hit_test_from(start_id, point, &mut path)
@@ -1727,11 +1728,11 @@ impl FigureGraph {
     /// 简单的命中测试
     ///
     /// 只返回第一个命中的块 ID，不包含路径。
-    pub fn hit_test_simple(&self, point: (f64, f64)) -> Option<BlockId> {
+    pub fn hit_test_simple(&self, point: (f64, f64)) -> Option<FigureId> {
         self.hit_test(point).map(|(target, _)| target)
     }
 
-    pub fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+    pub fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.find_mouse_event_target_from(self.contents.unwrap_or(self.root), (x, y))
     }
 
@@ -1766,9 +1767,9 @@ impl FigureGraph {
     ///
     /// 使用 `eprintln!` 输出到 stderr，格式示例：
     /// ```text
-    /// V BlockId(0x1): Figure bounds=(0,0,100,100)
-    ///   V BlockId(0x2): RectangleFigure bounds=(10,10,50,50)
-    ///   H BlockId(0x3): RectangleFigure bounds=(50,50,50,50)  // 不可见
+    /// V FigureId(0x1): Figure bounds=(0,0,100,100)
+    ///   V FigureId(0x2): RectangleFigure bounds=(10,10,50,50)
+    ///   H FigureId(0x3): RectangleFigure bounds=(50,50,50,50)  // 不可见
     /// ```
     #[cfg(feature = "debug_render")]
     pub fn print_tree(&self) {
@@ -1779,7 +1780,7 @@ impl FigureGraph {
 
     /// 递归打印单个块（内部使用）
     #[cfg(feature = "debug_render")]
-    fn print_block(&self, block_id: BlockId, depth: usize) {
+    fn print_block(&self, block_id: FigureId, depth: usize) {
         let indent = "  ".repeat(depth);
         if let Some(block) = self.blocks.get(block_id) {
             let bounds = block.figure_bounds();
@@ -1845,30 +1846,30 @@ impl FigureGraph {
     }
 
     /// 获取块
-    pub fn get_block(&self, id: BlockId) -> Option<&FigureBlock> {
+    pub fn get_block(&self, id: FigureId) -> Option<&FigureNode> {
         self.blocks.get(id)
     }
 
-    pub(crate) fn block(&self, id: BlockId) -> Option<&FigureBlock> {
+    pub(crate) fn block(&self, id: FigureId) -> Option<&FigureNode> {
         self.blocks.get(id)
     }
 
     /// 返回指定父节点的 child 顺序。
     ///
     /// 顺序与 Draw2D 一致：数组靠前的 child 先绘制，靠后的 child 后绘制并位于更高 z-order。
-    pub fn child_order(&self, parent_id: BlockId) -> Option<Vec<BlockId>> {
+    pub fn child_order(&self, parent_id: FigureId) -> Option<Vec<FigureId>> {
         self.blocks
             .get(parent_id)
             .map(|block| block.children.clone())
     }
 
     /// Returns the direct parent of a block.
-    pub fn parent_id(&self, block_id: BlockId) -> Option<BlockId> {
+    pub fn parent_id(&self, block_id: FigureId) -> Option<FigureId> {
         self.blocks.get(block_id).and_then(|block| block.parent)
     }
 
     /// Returns whether a node is currently attached to this tree's root.
-    pub fn is_attached(&self, block_id: BlockId) -> bool {
+    pub fn is_attached(&self, block_id: FigureId) -> bool {
         let mut current = Some(block_id);
         for _ in 0..=self.blocks.len() {
             let Some(id) = current else {
@@ -1885,7 +1886,7 @@ impl FigureGraph {
     /// 返回 child 在父节点内的 z-order index。
     ///
     /// index 越大表示越靠前绘制、越靠上层。
-    pub fn child_z_index(&self, parent_id: BlockId, child_id: BlockId) -> Option<usize> {
+    pub fn child_z_index(&self, parent_id: FigureId, child_id: FigureId) -> Option<usize> {
         self.blocks
             .get(parent_id)?
             .children
@@ -1898,8 +1899,8 @@ impl FigureGraph {
     /// `index == 0` 表示最底层；`index == children.len() - 1` 表示最顶层。
     pub fn move_child_to_index(
         &mut self,
-        parent_id: BlockId,
-        child_id: BlockId,
+        parent_id: FigureId,
+        child_id: FigureId,
         index: usize,
     ) -> bool {
         let Some(parent) = self.blocks.get_mut(parent_id) else {
@@ -1921,7 +1922,7 @@ impl FigureGraph {
     }
 
     /// 将直接 child 移动到最高 z-order。
-    pub fn bring_child_to_front(&mut self, parent_id: BlockId, child_id: BlockId) -> bool {
+    pub fn bring_child_to_front(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         let Some(last_index) = self
             .blocks
             .get(parent_id)
@@ -1933,22 +1934,22 @@ impl FigureGraph {
     }
 
     /// 将直接 child 移动到最低 z-order。
-    pub fn send_child_to_back(&mut self, parent_id: BlockId, child_id: BlockId) -> bool {
+    pub fn send_child_to_back(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         self.move_child_to_index(parent_id, child_id, 0)
     }
 
     /// 获取指定块的 Figure bounds。
-    pub fn figure_bounds(&self, id: BlockId) -> Option<Rectangle> {
-        self.blocks.get(id).map(FigureBlock::figure_bounds)
+    pub fn figure_bounds(&self, id: FigureId) -> Option<Rectangle> {
+        self.blocks.get(id).map(FigureNode::figure_bounds)
     }
 
-    /// 返回节点从 FigureGraph 根节点开始计算的深度。
-    pub fn block_depth(&self, id: BlockId) -> Option<usize> {
+    /// 返回节点从 FigureTree 根节点开始计算的深度。
+    pub fn block_depth(&self, id: FigureId) -> Option<usize> {
         self.blocks.get(id).map(|block| block.depth)
     }
 
     /// 返回节点自身的本地可见性标志。
-    pub fn is_visible(&self, id: BlockId) -> bool {
+    pub fn is_visible(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)
             .map(|block| block.is_visible)
@@ -1956,26 +1957,26 @@ impl FigureGraph {
     }
 
     /// 返回节点自身的本地启用标志。
-    pub fn is_enabled(&self, id: BlockId) -> bool {
+    pub fn is_enabled(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)
             .map(|block| block.is_enabled)
             .unwrap_or(false)
     }
 
-    pub fn is_opaque(&self, id: BlockId) -> bool {
+    pub fn is_opaque(&self, id: FigureId) -> bool {
         self.blocks.get(id).is_some_and(|block| block.is_opaque)
     }
 
-    pub fn insets(&self, id: BlockId) -> Option<(f64, f64, f64, f64)> {
+    pub fn insets(&self, id: FigureId) -> Option<(f64, f64, f64, f64)> {
         self.blocks.get(id).map(|block| block.insets)
     }
 
-    pub fn style_override(&self, id: BlockId) -> Option<StyleOverride> {
+    pub fn style_override(&self, id: FigureId) -> Option<StyleOverride> {
         self.blocks.get(id).map(|block| block.style)
     }
 
-    pub fn inherited_style(&self, id: BlockId) -> Option<StyleOverride> {
+    pub fn inherited_style(&self, id: FigureId) -> Option<StyleOverride> {
         self.blocks.get(id)?;
         let mut result = StyleOverride::default();
         let mut current = Some(id);
@@ -1995,7 +1996,7 @@ impl FigureGraph {
         Some(result)
     }
 
-    pub fn set_insets(&mut self, id: BlockId, insets: (f64, f64, f64, f64)) -> bool {
+    pub fn set_insets(&mut self, id: FigureId, insets: (f64, f64, f64, f64)) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -2008,7 +2009,7 @@ impl FigureGraph {
         true
     }
 
-    pub fn set_opaque(&mut self, id: BlockId, opaque: bool) -> bool {
+    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -2020,7 +2021,7 @@ impl FigureGraph {
         true
     }
 
-    pub fn set_style_override(&mut self, id: BlockId, style: StyleOverride) -> bool {
+    pub fn set_style_override(&mut self, id: FigureId, style: StyleOverride) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -2033,17 +2034,17 @@ impl FigureGraph {
     }
 
     /// 返回节点沿父链传播后的有效可见性。
-    pub fn is_effectively_visible(&self, id: BlockId) -> bool {
+    pub fn is_effectively_visible(&self, id: FigureId) -> bool {
         self.effective_flag_from(id, |block| block.is_visible)
     }
 
     /// 返回节点沿父链传播后的有效启用状态。
-    pub fn is_effectively_enabled(&self, id: BlockId) -> bool {
+    pub fn is_effectively_enabled(&self, id: FigureId) -> bool {
         self.effective_flag_from(id, |block| block.is_enabled)
     }
 
     /// 设置块可见性。
-    pub fn set_visible(&mut self, id: BlockId, visible: bool) -> bool {
+    pub fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
         let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
@@ -2074,7 +2075,7 @@ impl FigureGraph {
     pub fn set_visible_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        id: BlockId,
+        id: FigureId,
         visible: bool,
     ) -> bool {
         let Some((old_bounds, old_visual_bounds, parent_id, was_effectively_visible)) =
@@ -2104,7 +2105,7 @@ impl FigureGraph {
     }
 
     /// 设置块启用状态。
-    pub fn set_enabled(&mut self, id: BlockId, enabled: bool) -> bool {
+    pub fn set_enabled(&mut self, id: FigureId, enabled: bool) -> bool {
         let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
@@ -2135,7 +2136,7 @@ impl FigureGraph {
     pub fn set_enabled_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        id: BlockId,
+        id: FigureId,
         enabled: bool,
     ) -> bool {
         if !self.set_enabled(id, enabled) {
@@ -2162,7 +2163,7 @@ impl FigureGraph {
     /// 设置指定块的布局管理器
     pub fn set_block_layout_manager(
         &mut self,
-        block_id: BlockId,
+        block_id: FigureId,
         layout_manager: Box<dyn LayoutManager>,
     ) {
         if let Some(block) = self.blocks.get_mut(block_id) {
@@ -2172,14 +2173,14 @@ impl FigureGraph {
     }
 
     /// 获取指定块的布局管理器
-    pub fn get_block_layout_manager(&self, block_id: BlockId) -> Option<&dyn LayoutManager> {
+    pub fn get_block_layout_manager(&self, block_id: FigureId) -> Option<&dyn LayoutManager> {
         self.blocks
             .get(block_id)
             .and_then(|b| b.layout.manager.as_deref())
     }
 
     /// 设置父容器施加给直接子节点的布局约束。
-    pub fn set_constraint<C>(&mut self, child_id: BlockId, constraint: C) -> bool
+    pub fn set_constraint<C>(&mut self, child_id: FigureId, constraint: C) -> bool
     where
         C: LayoutConstraint,
     {
@@ -2203,7 +2204,7 @@ impl FigureGraph {
     }
 
     /// 获取指定类型的布局约束。
-    pub fn get_constraint<C>(&self, child_id: BlockId) -> Option<&C>
+    pub fn get_constraint<C>(&self, child_id: FigureId) -> Option<&C>
     where
         C: LayoutConstraint,
     {
@@ -2211,7 +2212,7 @@ impl FigureGraph {
     }
 
     /// 移除父容器为直接子节点保存的布局约束。
-    pub fn remove_constraint(&mut self, child_id: BlockId) -> bool {
+    pub fn remove_constraint(&mut self, child_id: FigureId) -> bool {
         let Some(parent_id) = self.blocks.get(child_id).and_then(|child| child.parent) else {
             return false;
         };
@@ -2231,7 +2232,7 @@ impl FigureGraph {
         removed
     }
 
-    fn constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+    fn constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint> {
         let parent_id = self.blocks.get(child_id)?.parent?;
         self.blocks
             .get(parent_id)?
@@ -2252,7 +2253,7 @@ impl FigureGraph {
         }
     }
 
-    pub fn is_selected(&self, id: BlockId) -> bool {
+    pub fn is_selected(&self, id: FigureId) -> bool {
         self.selected.contains(&id)
     }
 
@@ -2283,7 +2284,7 @@ impl FigureGraph {
     ///
     /// Descendant bounds remain unchanged. Their projected positions change
     /// through the shared parent transform.
-    pub fn prim_translate(&mut self, block_id: BlockId, dx: f64, dy: f64) {
+    pub fn prim_translate(&mut self, block_id: FigureId, dx: f64, dy: f64) {
         let Some((old_bounds, new_bounds, has_children)) =
             self.blocks.get_mut(block_id).map(|block| {
                 let old_bounds = block.figure_bounds();
@@ -2316,7 +2317,7 @@ impl FigureGraph {
         self.emit_ancestor_moved(block_id);
     }
 
-    fn emit_ancestor_moved(&mut self, ancestor_id: BlockId) {
+    fn emit_ancestor_moved(&mut self, ancestor_id: FigureId) {
         let mut stack = self
             .blocks
             .get(ancestor_id)
@@ -2340,7 +2341,7 @@ impl FigureGraph {
     /// 核心逻辑：
     /// Updates position and size atomically without rewriting descendant bounds.
     #[allow(clippy::collapsible_if)]
-    pub fn set_bounds(&mut self, block_id: BlockId, x: f64, y: f64, width: f64, height: f64) {
+    pub fn set_bounds(&mut self, block_id: FigureId, x: f64, y: f64, width: f64, height: f64) {
         let (old_bounds, has_children) = {
             if let Some(block) = self.blocks.get(block_id) {
                 (block.figure_bounds(), !block.children.is_empty())
@@ -2391,7 +2392,7 @@ impl FigureGraph {
     pub fn set_bounds_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        block_id: BlockId,
+        block_id: FigureId,
         x: f64,
         y: f64,
         width: f64,
@@ -2436,10 +2437,10 @@ impl FigureGraph {
     fn erase(
         &self,
         update_manager: &mut UpdateManager,
-        block_id: BlockId,
+        block_id: FigureId,
         old_bounds: Rectangle,
         mut old_visual_bounds: Rectangle,
-        parent_id: Option<BlockId>,
+        parent_id: Option<FigureId>,
     ) {
         let Some(parent_id) = parent_id else {
             return;
@@ -2456,14 +2457,14 @@ impl FigureGraph {
     }
 
     /// 将 node-local 几何转换到 logical surface domain。
-    pub fn translate_to_absolute_mut<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
+    pub fn translate_to_absolute_mut<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
         if let Some(transform) = self.local_to_surface_transform(block_id) {
             t.transform(transform);
         }
     }
 
     /// 将 node-local 几何转换到 parent content domain。
-    pub fn translate_to_parent<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
+    pub fn translate_to_parent<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
         if let Some(block) = self.blocks.get(block_id) {
             let bounds = block.figure_bounds();
             t.transform(novadraw_geometry::Affine2D::from_translation(
@@ -2473,7 +2474,7 @@ impl FigureGraph {
     }
 
     /// 将 parent content 几何转换到 node-local domain。
-    pub fn translate_from_parent<T: Translatable>(&self, block_id: BlockId, t: &mut T) {
+    pub fn translate_from_parent<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
         if let Some(block) = self.blocks.get(block_id) {
             let bounds = block.figure_bounds();
             t.transform(novadraw_geometry::Affine2D::from_translation(
@@ -2483,7 +2484,7 @@ impl FigureGraph {
     }
 
     /// 将 logical surface 几何转换到 node-local domain。
-    pub fn translate_to_relative<T: Translatable>(&self, block_id: BlockId, t: &mut T) -> bool {
+    pub fn translate_to_relative<T: Translatable>(&self, block_id: FigureId, t: &mut T) -> bool {
         let Some(transform) = self
             .local_to_surface_transform(block_id)
             .and_then(|transform| transform.inverse())
@@ -2497,7 +2498,7 @@ impl FigureGraph {
     /// 返回 node-local 到 logical surface 的完整父链变换。
     pub fn local_to_surface_transform(
         &self,
-        block_id: BlockId,
+        block_id: FigureId,
     ) -> Option<novadraw_geometry::Affine2D> {
         let mut transform = novadraw_geometry::Affine2D::IDENTITY;
         let mut current_id = block_id;
@@ -2520,14 +2521,14 @@ impl FigureGraph {
     }
 }
 
-impl FigureGraph {
-    fn mark_validation_path_invalid(&mut self, block_id: BlockId) {
+impl FigureTree {
+    fn mark_validation_path_invalid(&mut self, block_id: FigureId) {
         self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Geometry);
     }
 
     fn mark_validation_path_invalid_for(
         &mut self,
-        mut block_id: BlockId,
+        mut block_id: FigureId,
         reason: LayoutInvalidation,
     ) {
         let mut invalidated = Vec::new();
@@ -2561,7 +2562,7 @@ impl FigureGraph {
         }
     }
 
-    pub(crate) fn invalid_block_ids(&self) -> Vec<BlockId> {
+    pub(crate) fn invalid_block_ids(&self) -> Vec<FigureId> {
         self.blocks
             .iter()
             .filter_map(|(id, block)| (!block.is_valid).then_some(id))
@@ -2570,10 +2571,10 @@ impl FigureGraph {
 
     fn hit_test_from(
         &self,
-        block_id: BlockId,
+        block_id: FigureId,
         point: (f64, f64),
-        path: &mut Vec<BlockId>,
-    ) -> Option<(BlockId, Vec<BlockId>)> {
+        path: &mut Vec<FigureId>,
+    ) -> Option<(FigureId, Vec<FigureId>)> {
         let block = self.blocks.get(block_id)?;
         if !block.is_visible || !block.is_enabled {
             return None;
@@ -2615,9 +2616,9 @@ impl FigureGraph {
 
     fn find_mouse_event_target_from(
         &self,
-        block_id: BlockId,
+        block_id: FigureId,
         point: (f64, f64),
-    ) -> Option<BlockId> {
+    ) -> Option<FigureId> {
         let block = self.blocks.get(block_id)?;
         if !block.is_visible || !block.is_enabled {
             return None;
@@ -2663,8 +2664,8 @@ impl FigureGraph {
             .then_some(block_id)
     }
 
-    fn clear_selection_for_subtree(&mut self, subtree_root: BlockId) {
-        let descendants: Vec<BlockId> = self
+    fn clear_selection_for_subtree(&mut self, subtree_root: FigureId) {
+        let descendants: Vec<FigureId> = self
             .blocks
             .keys()
             .filter(|&id| self.is_in_subtree(id, subtree_root))
@@ -2683,7 +2684,7 @@ impl FigureGraph {
         }
     }
 
-    fn is_in_subtree(&self, block_id: BlockId, subtree_root: BlockId) -> bool {
+    fn is_in_subtree(&self, block_id: FigureId, subtree_root: FigureId) -> bool {
         let mut current = Some(block_id);
         while let Some(id) = current {
             if id == subtree_root {
@@ -2696,8 +2697,8 @@ impl FigureGraph {
 
     fn effective_flag_from(
         &self,
-        mut block_id: BlockId,
-        local_flag: fn(&FigureBlock) -> bool,
+        mut block_id: FigureId,
+        local_flag: fn(&FigureNode) -> bool,
     ) -> bool {
         for _ in 0..self.blocks.len() {
             let Some(block) = self.blocks.get(block_id) else {
@@ -2715,8 +2716,8 @@ impl FigureGraph {
     }
 }
 
-impl super::layout::LayoutContext for FigureGraph {
-    fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+impl super::layout::LayoutContext for FigureTree {
+    fn get_children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         if let Some(block) = self.blocks.get(parent_id) {
             block
                 .children
@@ -2732,26 +2733,26 @@ impl super::layout::LayoutContext for FigureGraph {
         }
     }
 
-    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+    fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint> {
         self.constraint(child_id)
     }
 
-    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn get_preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.preferred_size(block_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
     }
 
-    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.minimum_size(block_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
     }
 
-    fn get_maximum_size(&self, block_id: BlockId) -> (f64, f64) {
+    fn get_maximum_size(&self, block_id: FigureId) -> (f64, f64) {
         self.maximum_size(block_id)
             .unwrap_or((f64::INFINITY, f64::INFINITY))
     }
 
-    fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
+    fn get_container_bounds(&self, container_id: FigureId) -> Rectangle {
         if let Some(block) = self.blocks.get(container_id) {
             block.client_area()
         } else {
@@ -2760,7 +2761,7 @@ impl super::layout::LayoutContext for FigureGraph {
     }
 }
 
-impl Default for FigureGraph {
+impl Default for FigureTree {
     fn default() -> Self {
         Self::new()
     }
@@ -2772,8 +2773,8 @@ mod tests {
 
     use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape, Updatable};
     use crate::{
-        BlockId, EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureGraph,
-        FigureLifecycle, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
+        EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureId, FigureLifecycle,
+        FigureTree, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
         RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, StyleOverride,
         TriangleFigure, ViewportFigure,
     };
@@ -2959,8 +2960,8 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     enum LifecycleEvent {
-        Attached(BlockId),
-        Detached(BlockId),
+        Attached(FigureId),
+        Detached(FigureId),
     }
 
     impl LifecycleRecordingFigure {
@@ -3005,14 +3006,14 @@ mod tests {
     }
 
     impl FigureLifecycle for LifecycleRecordingFigure {
-        fn on_attached(&mut self, parent_id: BlockId) {
+        fn on_attached(&mut self, parent_id: FigureId) {
             self.events
                 .lock()
                 .unwrap()
                 .push(LifecycleEvent::Attached(parent_id));
         }
 
-        fn on_detached(&mut self, parent_id: BlockId) {
+        fn on_detached(&mut self, parent_id: FigureId) {
             self.events
                 .lock()
                 .unwrap()
@@ -3285,7 +3286,7 @@ mod tests {
     ///       即先添加的在下面（被遮挡），后添加的在上面（遮挡别人）
     #[test]
     fn test_render_order_z_order() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         // 创建父容器（100x100）
         let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
@@ -3347,7 +3348,7 @@ mod tests {
     /// 期望渲染顺序：parent → child1 → grandchild1
     #[test]
     fn test_render_order_nested() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         // 根
         let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
@@ -3395,7 +3396,7 @@ mod tests {
     /// 期望：只渲染可见元素
     #[test]
     fn test_visibility_filter() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
         let parent_id = scene.set_contents(Box::new(parent));
@@ -3426,7 +3427,7 @@ mod tests {
     /// 期望：Trampoline 渲染能正确处理嵌套层次
     #[test]
     fn test_transform_accumulation() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
         let parent_id = scene.set_contents(Box::new(parent));
@@ -3472,7 +3473,7 @@ mod tests {
 
     #[test]
     fn test_find_mouse_event_target_at_skips_non_interactive_figures() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
 
         assert_eq!(scene.find_mouse_event_target_at(10.0, 10.0), None);
@@ -3480,7 +3481,7 @@ mod tests {
 
     #[test]
     fn test_find_mouse_event_target_at_prefers_deepest_interactive_figure() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let interactive_parent = scene.add_child_to(
             root_id,
@@ -3503,7 +3504,7 @@ mod tests {
 
     #[test]
     fn test_hit_test_descends_only_through_parent_client_area() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(TestFigureWithInsets::new(
             100.0,
             100.0,
@@ -3522,7 +3523,7 @@ mod tests {
 
     #[test]
     fn test_mouse_event_target_descends_only_through_parent_client_area() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(TestFigureWithInsets::new(
             100.0,
             100.0,
@@ -3544,7 +3545,7 @@ mod tests {
 
     #[test]
     fn test_child_order_appends_children_back_to_front() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let first = scene.add_child_to(
             root_id,
@@ -3568,7 +3569,7 @@ mod tests {
     #[test]
     fn test_figure_lifecycle_hooks_fire_on_add_remove_and_reparent() {
         let events = Arc::new(Mutex::new(Vec::new()));
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let left_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let right_id = scene.add_child_to(
             left_id,
@@ -3606,7 +3607,7 @@ mod tests {
 
     #[test]
     fn test_z_order_reorder_changes_topmost_hit_test_target() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let bottom = scene.add_child_to(
             root_id,
@@ -3634,7 +3635,7 @@ mod tests {
 
     #[test]
     fn test_z_order_reorder_rejects_invalid_inputs_without_side_effects() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let child = scene.add_child_to(
             root_id,
@@ -3658,7 +3659,7 @@ mod tests {
 
     #[test]
     fn test_hit_test_translates_through_coordinate_root() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
@@ -3680,7 +3681,7 @@ mod tests {
 
     #[test]
     fn test_hit_test_translates_through_viewport_figure() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
         let viewport_id = scene.add_child_to(
@@ -3703,7 +3704,7 @@ mod tests {
 
     #[test]
     fn test_find_mouse_event_target_at_translates_through_coordinate_root() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 300.0)));
         let coordinate_root_id = scene.add_child_to(
@@ -3730,7 +3731,7 @@ mod tests {
     /// 期望：父子节点的 bounds 都被平移相同的量
     #[test]
     fn test_prim_translate_basic() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         // 创建父子层次
         let parent = RectangleFigure::new(0.0, 0.0, 100.0, 100.0);
@@ -3755,7 +3756,7 @@ mod tests {
 
     #[test]
     fn test_prim_translate_records_figure_moved_effects() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let child_id = scene.add_child_to(
             parent_id,
@@ -3789,7 +3790,7 @@ mod tests {
 
     #[test]
     fn test_prim_translate_records_coordinate_system_changed_effect() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(TestCoordinateRootFigure::new(
             0.0, 0.0, 100.0, 100.0,
         )));
@@ -3827,7 +3828,7 @@ mod tests {
     /// 期望：整棵子树的 bounds 都被平移
     #[test]
     fn test_prim_translate_nested() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         // 创建三层层次：root -> parent -> child
         let root = RectangleFigure::new(0.0, 0.0, 200.0, 200.0);
@@ -3864,7 +3865,7 @@ mod tests {
     /// 期望：本地坐标 (10, 20) 转换为父坐标 (30, 50)
     #[test]
     fn test_translate_to_parent_basic() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -3882,7 +3883,7 @@ mod tests {
     /// Node placement 不包含其 child-content insets。
     #[test]
     fn test_translate_to_parent_with_insets() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -3909,7 +3910,7 @@ mod tests {
     /// 期望：不进行转换，返回原坐标
     #[test]
     fn test_translate_to_parent_not_coordinate_root() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -3933,7 +3934,7 @@ mod tests {
     /// 期望：父坐标 (30, 50) 转换为本地坐标 (10, 20)
     #[test]
     fn test_translate_from_parent_basic() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -3950,7 +3951,7 @@ mod tests {
     /// Parent content 到 node local 只逆转 node placement。
     #[test]
     fn test_translate_from_parent_with_insets() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -3979,7 +3980,7 @@ mod tests {
     /// 期望：绝对坐标 (30, 40) 转换为本地坐标 (30, 40)
     #[test]
     fn test_translate_to_relative_basic() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4004,7 +4005,7 @@ mod tests {
     /// 期望：正确累积转换
     #[test]
     fn test_translate_to_relative_nested() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4039,7 +4040,7 @@ mod tests {
     /// translateFromParent；这与 Draw2D Figure#translateToRelative 的 parent-chain 协议一致。
     #[test]
     fn test_translate_to_relative_roundtrips_target_coordinate_root() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents_id =
             scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
@@ -4068,7 +4069,7 @@ mod tests {
     /// 期望：Rectangle 的 x, y 被正确转换
     #[test]
     fn test_translate_to_relative_rect() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4098,7 +4099,7 @@ mod tests {
     /// 期望：本地坐标 (10, 5) 转换为绝对坐标 (30, 35)
     #[test]
     fn test_translate_to_absolute_mut_basic() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4121,7 +4122,7 @@ mod tests {
     /// 测试 translate_to_absolute_mut 在坐标根包含 insets 时会通过父链协议叠加它们。
     #[test]
     fn test_translate_to_absolute_mut_includes_parent_insets() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4151,7 +4152,7 @@ mod tests {
     /// 期望：正确累加多个坐标根的 bounds
     #[test]
     fn test_translate_to_absolute_mut_nested() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4181,7 +4182,7 @@ mod tests {
     /// 测试 translate_to_absolute_mut 在多层坐标根且包含 insets 时严格按父链协议累加。
     #[test]
     fn test_translate_to_absolute_mut_nested_insets_follow_parent_chain_protocol() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4222,7 +4223,7 @@ mod tests {
     /// 期望：Rectangle 的 x, y 被正确转换
     #[test]
     fn test_translate_to_absolute_mut_rect() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
         let contents_id = scene.set_contents(Box::new(contents));
@@ -4245,7 +4246,7 @@ mod tests {
 
     #[test]
     fn migrate_legacy_bounds_converts_shared_domains_and_preserves_coordinate_roots() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents =
             scene.set_contents(Box::new(RectangleFigure::new(100.0, 50.0, 500.0, 400.0)));
         let parent = scene.add_child_to(
@@ -4287,7 +4288,7 @@ mod tests {
 
     #[test]
     fn moved_figure_damage_uses_old_and_new_projected_visual_bounds() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
         let figure = scene.add_child_to(
             contents,
@@ -4309,7 +4310,7 @@ mod tests {
 
     #[test]
     fn test_border_insets_define_client_area_clip_for_children() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
@@ -4358,7 +4359,7 @@ mod tests {
 
     #[test]
     fn test_paint_clip_and_hit_test_share_border_inset_client_area() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
@@ -4398,7 +4399,7 @@ mod tests {
 
     #[test]
     fn test_default_clipping_strategy_clips_children_to_child_bounds() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         scene.add_child_to(
@@ -4427,7 +4428,7 @@ mod tests {
 
     #[test]
     fn test_custom_clipping_strategy_can_skip_child_bounds_clip() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
@@ -4460,7 +4461,7 @@ mod tests {
 
     #[test]
     fn test_unclipped_children_restore_parent_graphics_state_between_siblings() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
                 .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
@@ -4578,7 +4579,7 @@ mod tests {
         ];
 
         for (name, make_parent) in parent_factories {
-            let mut scene = FigureGraph::new();
+            let mut scene = FigureTree::new();
             let parent_id = scene.set_contents(make_parent());
             scene.add_child_to(
                 parent_id,
@@ -4606,7 +4607,7 @@ mod tests {
 
     #[test]
     fn test_mouse_event_target_uses_same_border_inset_client_area_as_paint() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
@@ -4625,7 +4626,7 @@ mod tests {
 
     #[test]
     fn node_bounds_drive_rendering_without_writing_back_to_figure() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let id = scene.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -4654,7 +4655,7 @@ mod tests {
 
     #[test]
     fn node_style_inherits_each_unset_property_independently() {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let child =
             scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));

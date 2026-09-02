@@ -6,7 +6,7 @@
 use tracing::debug;
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
 /// Flow 布局方向
@@ -69,7 +69,7 @@ impl FlowLayout {
 
     fn measure(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -104,7 +104,7 @@ impl FlowLayout {
     /// 布局计算（内部方法）
     fn perform_layout(
         &self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) {
@@ -143,7 +143,7 @@ impl FlowLayout {
     fn layout_horizontal(
         &self,
         area: Rectangle,
-        children: &[(BlockId, Rectangle)],
+        children: &[(FigureId, Rectangle)],
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) {
@@ -175,7 +175,7 @@ impl FlowLayout {
     fn layout_vertical(
         &self,
         area: Rectangle,
-        children: &[(BlockId, Rectangle)],
+        children: &[(FigureId, Rectangle)],
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) {
@@ -214,7 +214,7 @@ impl Default for FlowLayout {
 impl LayoutManager for FlowLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -224,7 +224,7 @@ impl LayoutManager for FlowLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -234,7 +234,7 @@ impl LayoutManager for FlowLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -287,7 +287,7 @@ mod tests {
     fn test_flow_layout_creation() {
         let layout = FlowLayout::new();
         let (w, h) = layout.get_preferred_size(
-            BlockId::from(slotmap::KeyData::from_ffi(0)),
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
             &LayoutSnapshot::new(&MockLayoutContext::new()),
@@ -306,7 +306,7 @@ mod tests {
         let layout = FlowLayout::new().with_spacing(20.0).with_row_spacing(15.0);
         // 通过 get_preferred_size 间接验证
         let _ = layout.get_preferred_size(
-            BlockId::from(slotmap::KeyData::from_ffi(0)),
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
             &LayoutSnapshot::new(&MockLayoutContext::new()),
@@ -317,7 +317,7 @@ mod tests {
 /// Mock LayoutContext for testing
 #[cfg(test)]
 struct MockLayoutContext {
-    children: Vec<(BlockId, Rectangle)>,
+    children: Vec<(FigureId, Rectangle)>,
     container_bounds: Rectangle,
 }
 
@@ -333,19 +333,19 @@ impl MockLayoutContext {
 
 #[cfg(test)]
 impl super::LayoutContext for MockLayoutContext {
-    fn get_children(&self, _parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+    fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         self.children.clone()
     }
 
-    fn get_constraint(&self, _child_id: BlockId) -> Option<&dyn super::LayoutConstraint> {
+    fn get_constraint(&self, _child_id: FigureId) -> Option<&dyn super::LayoutConstraint> {
         None
     }
 
-    fn get_preferred_size(&self, _block_id: BlockId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
+    fn get_preferred_size(&self, _block_id: FigureId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
         (100.0, 100.0)
     }
 
-    fn get_container_bounds(&self, _container_id: BlockId) -> Rectangle {
+    fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
         self.container_bounds
     }
 }

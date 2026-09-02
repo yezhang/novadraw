@@ -38,7 +38,7 @@ use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
-use crate::{BlockId, FocusEvent, KeyEvent, MouseEvent, NovadrawContext, WheelEvent};
+use crate::{FigureId, FocusEvent, KeyEvent, MouseEvent, NovadrawContext, WheelEvent};
 use border::Border;
 
 const DEFAULT_MAXIMUM_DIMENSION: f64 = i32::MAX as f64;
@@ -113,7 +113,7 @@ pub enum ChildClippingStrategy {
 
 /// Figure 可接受的直接子节点数量策略。
 ///
-/// 该策略由 FigureGraph 在所有 add/reparent 入口统一执行。它用于表达
+/// 该策略由 FigureTree 在所有 add/reparent 入口统一执行。它用于表达
 /// Viewport 等单 contents 容器的结构不变量，同时避免图层代码依赖具体 Figure 类型。
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChildPolicy {
@@ -263,7 +263,7 @@ pub trait Bounded {
 /// 定义图形验证和更新的接口，参考 Eclipse Draw2D 的 IFigure 设计。
 /// 负责布局后的验证、失效标记等生命周期管理。
 ///
-/// # 与 FigureGraph 的关系
+/// # 与 FigureTree 的关系
 ///
 /// FigureTree 的运行时验证通过可选 [`FigureLifecycle`] capability 调用；
 /// 该 trait 暂时保留给尚未迁移的独立图元 API。
@@ -275,7 +275,7 @@ pub trait Updatable {
     /// - 预计算依赖布局的几何属性（如 Triangle 顶点）
     /// - 缓存布局相关的计算结果
     ///
-    /// 注意：本方法在 FigureGraph.revalidate() 流程中被调用。
+    /// 注意：本方法在 FigureTree.revalidate() 流程中被调用。
     fn validate(&mut self);
 
     /// 标记为无效
@@ -283,7 +283,7 @@ pub trait Updatable {
     /// 对应 draw2d: IFigure.invalidate()
     /// 标记图形需要重新验证。通常由 setBounds() 等操作触发。
     ///
-    /// 默认实现为空，子类可覆盖以通知 FigureGraph。
+    /// 默认实现为空，子类可覆盖以通知 FigureTree。
     fn invalidate(&mut self) {}
 }
 
@@ -528,10 +528,10 @@ pub trait FigureEventHandler {
 /// Figure 的可选树挂载生命周期能力。
 pub trait FigureLifecycle {
     /// Figure 挂载到父节点后的 hook，对应 Draw2D `addNotify()`。
-    fn on_attached(&mut self, _parent_id: BlockId) {}
+    fn on_attached(&mut self, _parent_id: FigureId) {}
 
     /// Figure 从父节点移除前的 hook，对应 Draw2D `removeNotify()`。
-    fn on_detached(&mut self, _parent_id: BlockId) {}
+    fn on_detached(&mut self, _parent_id: FigureId) {}
 
     /// Recomputes Figure-specific derived data after node geometry changes.
     fn validate(&mut self, _bounds: Rectangle) {}

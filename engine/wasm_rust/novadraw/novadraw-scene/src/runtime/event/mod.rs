@@ -1,6 +1,6 @@
 use novadraw_geometry::Point;
 
-use crate::BlockId;
+use crate::FigureId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseButton {
@@ -264,45 +264,45 @@ pub enum Event {
 }
 
 pub trait DispatchContext {
-    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<BlockId>;
-    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<BlockId> {
+    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId>;
+    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.find_mouse_event_target_at(x, y)
     }
-    fn mouse_target(&self) -> Option<BlockId>;
-    fn set_mouse_target(&mut self, id: Option<BlockId>);
-    fn cursor_target(&self) -> Option<BlockId>;
-    fn set_cursor_target(&mut self, id: Option<BlockId>);
-    fn hover_source(&self) -> Option<BlockId>;
-    fn set_hover_source(&mut self, id: Option<BlockId>);
-    fn set_hovered(&mut self, id: BlockId, hovered: bool);
-    fn set_pressed(&mut self, id: BlockId, pressed: bool);
-    fn focus_owner(&self) -> Option<BlockId>;
-    fn set_focus_owner(&mut self, id: Option<BlockId>);
-    fn captured(&self) -> Option<BlockId>;
-    fn set_captured(&mut self, id: Option<BlockId>);
-    fn gesture_target(&self, _session_id: GestureSessionId) -> Option<BlockId> {
+    fn mouse_target(&self) -> Option<FigureId>;
+    fn set_mouse_target(&mut self, id: Option<FigureId>);
+    fn cursor_target(&self) -> Option<FigureId>;
+    fn set_cursor_target(&mut self, id: Option<FigureId>);
+    fn hover_source(&self) -> Option<FigureId>;
+    fn set_hover_source(&mut self, id: Option<FigureId>);
+    fn set_hovered(&mut self, id: FigureId, hovered: bool);
+    fn set_pressed(&mut self, id: FigureId, pressed: bool);
+    fn focus_owner(&self) -> Option<FigureId>;
+    fn set_focus_owner(&mut self, id: Option<FigureId>);
+    fn captured(&self) -> Option<FigureId>;
+    fn set_captured(&mut self, id: Option<FigureId>);
+    fn gesture_target(&self, _session_id: GestureSessionId) -> Option<FigureId> {
         None
     }
     fn has_gesture_session(&self, _session_id: GestureSessionId) -> bool {
         false
     }
-    fn set_gesture_target(&mut self, _session_id: GestureSessionId, _target_id: Option<BlockId>) {}
+    fn set_gesture_target(&mut self, _session_id: GestureSessionId, _target_id: Option<FigureId>) {}
     fn clear_gesture_target(&mut self, _session_id: GestureSessionId) {}
     fn clear_gesture_targets(&mut self) {}
-    fn apply_scroll_fallback(&mut self, _target_id: BlockId, _event: &WheelEvent) -> bool {
+    fn apply_scroll_fallback(&mut self, _target_id: FigureId, _event: &WheelEvent) -> bool {
         false
     }
-    fn apply_zoom_fallback(&mut self, _target_id: BlockId, _event: &ZoomEvent) -> bool {
+    fn apply_zoom_fallback(&mut self, _target_id: FigureId, _event: &ZoomEvent) -> bool {
         false
     }
-    fn wants_key_events(&self, _target_id: BlockId) -> bool {
+    fn wants_key_events(&self, _target_id: FigureId) -> bool {
         false
     }
     /// 将事件投递给 target。
     ///
     /// 传入的 `Event` 使用入口节点坐标域；具体实现负责在投递前把鼠标点转换到
     /// target Figure 的坐标域，以对齐 draw2d 的 `source.translateToRelative()` 语义。
-    fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool;
+    fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool;
 }
 
 pub trait EventDispatcher {
@@ -357,7 +357,7 @@ pub trait EventDispatcher {
         key: Key,
         modifiers: KeyModifiers,
     );
-    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<BlockId>);
+    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>);
     fn release_focus(&mut self, ctx: &mut dyn DispatchContext);
 }
 
@@ -372,7 +372,7 @@ impl BasicEventDispatcher {
         phase: GesturePhase,
         x: f64,
         y: f64,
-    ) -> Option<BlockId> {
+    ) -> Option<FigureId> {
         if phase == GesturePhase::Impulse || session_id == GestureSessionId::IMPULSE {
             return ctx.find_gesture_target_at(x, y);
         }
@@ -424,7 +424,7 @@ impl BasicEventDispatcher {
         ctx.set_mouse_target(next_target);
     }
 
-    fn update_focus(&mut self, ctx: &mut dyn DispatchContext, requested: Option<BlockId>) {
+    fn update_focus(&mut self, ctx: &mut dyn DispatchContext, requested: Option<FigureId>) {
         let next = requested.filter(|target| ctx.wants_key_events(*target));
         let previous = ctx.focus_owner();
         if previous == next {
@@ -614,7 +614,7 @@ impl EventDispatcher for BasicEventDispatcher {
         let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
     }
 
-    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<BlockId>) {
+    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>) {
         self.update_focus(ctx, target);
     }
 
@@ -626,24 +626,24 @@ impl EventDispatcher for BasicEventDispatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FigureGraph, RectangleFigure};
+    use crate::{FigureTree, RectangleFigure};
 
     struct MockDispatchContext {
-        hit_target: Option<BlockId>,
-        mouse_target: Option<BlockId>,
-        cursor_target: Option<BlockId>,
-        hover_source: Option<BlockId>,
-        focus_owner: Option<BlockId>,
-        captured: Option<BlockId>,
-        dispatched: Vec<(Option<BlockId>, Event)>,
-        scroll_fallbacks: Vec<(BlockId, WheelEvent)>,
-        zoom_fallbacks: Vec<(BlockId, ZoomEvent)>,
+        hit_target: Option<FigureId>,
+        mouse_target: Option<FigureId>,
+        cursor_target: Option<FigureId>,
+        hover_source: Option<FigureId>,
+        focus_owner: Option<FigureId>,
+        captured: Option<FigureId>,
+        dispatched: Vec<(Option<FigureId>, Event)>,
+        scroll_fallbacks: Vec<(FigureId, WheelEvent)>,
+        zoom_fallbacks: Vec<(FigureId, ZoomEvent)>,
         handled: bool,
         wants_key_events: bool,
     }
 
     impl MockDispatchContext {
-        fn new(hit_target: Option<BlockId>) -> Self {
+        fn new(hit_target: Option<FigureId>) -> Self {
             Self {
                 hit_target,
                 mouse_target: None,
@@ -661,69 +661,69 @@ mod tests {
     }
 
     impl DispatchContext for MockDispatchContext {
-        fn find_mouse_event_target_at(&self, _x: f64, _y: f64) -> Option<BlockId> {
+        fn find_mouse_event_target_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
             self.hit_target
         }
 
-        fn mouse_target(&self) -> Option<BlockId> {
+        fn mouse_target(&self) -> Option<FigureId> {
             self.mouse_target
         }
 
-        fn set_mouse_target(&mut self, id: Option<BlockId>) {
+        fn set_mouse_target(&mut self, id: Option<FigureId>) {
             self.mouse_target = id;
         }
 
-        fn cursor_target(&self) -> Option<BlockId> {
+        fn cursor_target(&self) -> Option<FigureId> {
             self.cursor_target
         }
 
-        fn set_cursor_target(&mut self, id: Option<BlockId>) {
+        fn set_cursor_target(&mut self, id: Option<FigureId>) {
             self.cursor_target = id;
         }
 
-        fn hover_source(&self) -> Option<BlockId> {
+        fn hover_source(&self) -> Option<FigureId> {
             self.hover_source
         }
 
-        fn set_hover_source(&mut self, id: Option<BlockId>) {
+        fn set_hover_source(&mut self, id: Option<FigureId>) {
             self.hover_source = id;
         }
 
-        fn set_hovered(&mut self, _id: BlockId, _hovered: bool) {}
+        fn set_hovered(&mut self, _id: FigureId, _hovered: bool) {}
 
-        fn set_pressed(&mut self, _id: BlockId, _pressed: bool) {}
+        fn set_pressed(&mut self, _id: FigureId, _pressed: bool) {}
 
-        fn focus_owner(&self) -> Option<BlockId> {
+        fn focus_owner(&self) -> Option<FigureId> {
             self.focus_owner
         }
 
-        fn set_focus_owner(&mut self, id: Option<BlockId>) {
+        fn set_focus_owner(&mut self, id: Option<FigureId>) {
             self.focus_owner = id;
         }
 
-        fn captured(&self) -> Option<BlockId> {
+        fn captured(&self) -> Option<FigureId> {
             self.captured
         }
 
-        fn set_captured(&mut self, id: Option<BlockId>) {
+        fn set_captured(&mut self, id: Option<FigureId>) {
             self.captured = id;
         }
 
-        fn apply_scroll_fallback(&mut self, target_id: BlockId, event: &WheelEvent) -> bool {
+        fn apply_scroll_fallback(&mut self, target_id: FigureId, event: &WheelEvent) -> bool {
             self.scroll_fallbacks.push((target_id, *event));
             true
         }
 
-        fn apply_zoom_fallback(&mut self, target_id: BlockId, event: &ZoomEvent) -> bool {
+        fn apply_zoom_fallback(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
             self.zoom_fallbacks.push((target_id, *event));
             true
         }
 
-        fn wants_key_events(&self, _target_id: BlockId) -> bool {
+        fn wants_key_events(&self, _target_id: FigureId) -> bool {
             self.wants_key_events
         }
 
-        fn dispatch_to_target(&mut self, target_id: Option<BlockId>, event: &Event) -> bool {
+        fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool {
             self.dispatched.push((target_id, *event));
             self.handled
         }
@@ -733,7 +733,7 @@ mod tests {
     fn test_receive_updates_mouse_target() {
         let mut dispatcher = BasicEventDispatcher;
         let mut ctx = MockDispatchContext::new(None);
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         ctx.hit_target = Some(target);
 
@@ -758,7 +758,7 @@ mod tests {
     #[test]
     fn test_captured_target_overrides_hit_target() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let hit_target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let captured = scene.add_child_to(
             hit_target,
@@ -776,7 +776,7 @@ mod tests {
     #[test]
     fn test_press_sets_capture_when_handled() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.handled = true;
@@ -791,7 +791,7 @@ mod tests {
     #[test]
     fn test_release_uses_capture_and_then_clears_it() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(None);
         ctx.mouse_target = Some(target);
@@ -827,7 +827,7 @@ mod tests {
     #[test]
     fn test_drag_uses_capture_while_hover_tracks_hit_target() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let captured = scene.add_child_to(root, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
         let mut ctx = MockDispatchContext::new(Some(root));
@@ -854,7 +854,7 @@ mod tests {
     #[test]
     fn test_handled_press_assigns_focus_and_key_events_follow_focus_owner() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.handled = true;
@@ -886,7 +886,7 @@ mod tests {
     #[test]
     fn test_wheel_hover_and_double_click_use_pointer_target() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
 
@@ -922,7 +922,7 @@ mod tests {
     #[test]
     fn unhandled_gestures_dispatch_once_before_specialized_fallback() {
         let mut dispatcher = BasicEventDispatcher;
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
         let wheel = WheelEvent::new(2.0, 3.0, 0.0, -1.0);

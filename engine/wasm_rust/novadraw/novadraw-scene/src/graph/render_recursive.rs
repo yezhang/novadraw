@@ -6,7 +6,7 @@ use std::collections::HashSet;
 
 use novadraw_render::NdCanvas;
 
-use super::BlockId;
+use super::FigureId;
 use crate::ChildClippingStrategy;
 use crate::debug_render;
 
@@ -15,13 +15,13 @@ const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
 
 /// 场景图引用（用于渲染）
 pub struct FigureGraphRenderRef<'a> {
-    pub(crate) blocks: &'a slotmap::SlotMap<BlockId, super::FigureBlock>,
-    pub(crate) selected: &'a HashSet<BlockId>,
+    pub(crate) blocks: &'a slotmap::SlotMap<FigureId, super::FigureNode>,
+    pub(crate) selected: &'a HashSet<FigureId>,
 }
 
 impl<'a> FigureGraphRenderRef<'a> {
     /// 获取块
-    pub fn get(&self, id: BlockId) -> Option<&super::FigureBlock> {
+    pub fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
     }
 }
@@ -61,7 +61,7 @@ impl<'a> FigureRenderer<'a> {
     /// 递归渲染
     ///
     /// 对应 draw2d Figure.paint() final。
-    pub fn render(&mut self, root_id: BlockId) {
+    pub fn render(&mut self, root_id: FigureId) {
         self.paint(root_id);
     }
 
@@ -81,13 +81,13 @@ impl<'a> FigureRenderer<'a> {
     ///         ├─> paintBorder()
     ///         └─> popState()
     /// ```
-    fn paint(&mut self, block_id: BlockId) {
+    fn paint(&mut self, block_id: FigureId) {
         stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
             self.paint_inner(block_id);
         });
     }
 
-    fn paint_inner(&mut self, block_id: BlockId) {
+    fn paint_inner(&mut self, block_id: FigureId) {
         // 获取 block
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
@@ -145,7 +145,7 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     ///   paintChildren(graphics);
     /// ```
-    fn paint_client_area(&mut self, block_id: BlockId) {
+    fn paint_client_area(&mut self, block_id: FigureId) {
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
             _ => return,
@@ -198,8 +198,8 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     /// }
     /// ```
-    fn paint_children(&mut self, block_id: BlockId) {
-        let children: Vec<BlockId> = {
+    fn paint_children(&mut self, block_id: FigureId) {
+        let children: Vec<FigureId> = {
             let block = match self.scene.get(block_id) {
                 Some(b) if b.is_visible => b,
                 _ => return,

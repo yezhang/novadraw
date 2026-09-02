@@ -20,7 +20,7 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::ValidationError;
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use crate::runtime::update::listener::{
     AncestorListener, CoordinateListener, FigureListener, LayoutListener, ListenerId,
     NotificationEffect, NotificationQueue, PropertyChangeListener, UpdateEvent, UpdateListener,
@@ -44,12 +44,12 @@ use crate::runtime::update::repair::{
 /// # 与 draw2d 的差异
 ///
 /// draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并调用其方法。
-/// 本实现由 Runtime 持有 manager，并在事务执行时显式传入 FigureGraph。
+/// 本实现由 Runtime 持有 manager，并在事务执行时显式传入 FigureTree。
 pub struct UpdateManager {
     /// 脏区域映射：block_id -> 脏区域
-    pub(crate) dirty_regions: std::collections::HashMap<BlockId, Rectangle>,
+    pub(crate) dirty_regions: std::collections::HashMap<FigureId, Rectangle>,
     /// 失效块队列
-    pub(crate) invalid_blocks: Vec<BlockId>,
+    pub(crate) invalid_blocks: Vec<FigureId>,
     /// 是否有更新待处理
     pub(crate) update_queued: bool,
     pub(crate) updating: bool,
@@ -208,14 +208,14 @@ impl UpdateManager {
         }
     }
 
-    fn absorb_graph_effects(&mut self, graph: &mut crate::graph::FigureGraph) {
+    fn absorb_graph_effects(&mut self, graph: &mut crate::graph::FigureTree) {
         self.notification_effects
             .extend(graph.drain_notification_effects());
     }
 
-    /// 统一 flush：收集 FigureGraph 和 UpdateManager 两边的 effect，
+    /// 统一 flush：收集 FigureTree 和 UpdateManager 两边的 effect，
     /// 在事务边界统一分发到所有注册的 listener。
-    pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureGraph) {
+    pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureTree) {
         self.absorb_graph_effects(graph);
         let effects = self.notification_effects.drain();
         self.dispatch_effects(&effects);
@@ -229,7 +229,7 @@ impl UpdateManager {
     ///
     /// * `block_id` - 需要重绘的块 ID
     /// * `rect` - node-local 脏区域
-    pub fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle) {
+    pub fn add_dirty_region(&mut self, block_id: FigureId, rect: Rectangle) {
         if merge_dirty_region(&mut self.dirty_regions, block_id, rect) {
             self.update_queued = true;
         }
@@ -244,7 +244,7 @@ impl UpdateManager {
     /// # Arguments
     ///
     /// * `block_id` - 需要重新布局的块 ID
-    pub fn add_invalid_figure(&mut self, block_id: BlockId) {
+    pub fn add_invalid_figure(&mut self, block_id: FigureId) {
         // 检查是否已在队列中
         if self.invalid_blocks.contains(&block_id) {
             return;
@@ -294,7 +294,7 @@ impl UpdateManager {
         compute_damage_union(self.dirty_regions.values())
     }
 
-    pub(crate) fn take_dirty_snapshot(&mut self) -> std::collections::HashMap<BlockId, Rectangle> {
+    pub(crate) fn take_dirty_snapshot(&mut self) -> std::collections::HashMap<FigureId, Rectangle> {
         std::mem::take(&mut self.dirty_regions)
     }
 
@@ -333,22 +333,22 @@ impl UpdateManager {
     /// 排空并返回所有待验证的块 ID
     ///
     /// 对应 draw2d: performValidation 中对 invalidFigures 的 drain。
-    /// FigureGraph 使用此方法获取需要验证的块列表。
-    pub fn drain_invalid_blocks(&mut self) -> Vec<BlockId> {
+    /// FigureTree 使用此方法获取需要验证的块列表。
+    pub fn drain_invalid_blocks(&mut self) -> Vec<FigureId> {
         self.invalid_blocks.drain(..).collect()
     }
 
     /// 清空脏区域和更新标记
     ///
     /// 对应 draw2d: performUpdate 完成后清空队列。
-    /// 由 FigureGraph 在 repairDamage 完成后调用。
+    /// 由 FigureTree 在 repairDamage 完成后调用。
     pub fn clear_dirty_and_flag(&mut self) {
         self.update_queued = !self.invalid_blocks.is_empty() || !self.dirty_regions.is_empty();
     }
 
     fn restore_dirty_snapshot(
         &mut self,
-        dirty_snapshot: std::collections::HashMap<BlockId, Rectangle>,
+        dirty_snapshot: std::collections::HashMap<FigureId, Rectangle>,
     ) {
         for (block_id, rect) in dirty_snapshot {
             merge_dirty_region(&mut self.dirty_regions, block_id, rect);
@@ -357,9 +357,9 @@ impl UpdateManager {
 
     fn perform_update_transaction(
         &mut self,
-        graph: &mut crate::graph::FigureGraph,
+        graph: &mut crate::graph::FigureTree,
         canvas: &mut NdCanvas,
-        dirty_snapshot: &mut Option<std::collections::HashMap<BlockId, Rectangle>>,
+        dirty_snapshot: &mut Option<std::collections::HashMap<FigureId, Rectangle>>,
     ) -> Result<(), ValidationError> {
         self.absorb_graph_effects(graph);
 
@@ -398,7 +398,7 @@ impl UpdateManager {
         Ok(())
     }
 
-    pub fn perform_update(&mut self, graph: &mut crate::graph::FigureGraph, canvas: &mut NdCanvas) {
+    pub fn perform_update(&mut self, graph: &mut crate::graph::FigureTree, canvas: &mut NdCanvas) {
         if self.updating {
             return;
         }
@@ -435,7 +435,7 @@ impl UpdateManager {
         }
     }
 
-    pub fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph) {
+    pub fn perform_validation(&mut self, graph: &mut crate::graph::FigureTree) {
         self.last_validation_error = graph.perform_validation_cycle(self).err();
     }
 
@@ -454,18 +454,18 @@ fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: Lis
 mod tests {
     use super::*;
     use crate::{
-        AncestorEvent, AncestorListener, CoordinateListener, FigureEvent, FigureGraph,
-        FigureListener, LayoutError, LayoutEvent, LayoutListener, LayoutManager, LayoutOutput,
+        AncestorEvent, AncestorListener, CoordinateListener, FigureEvent, FigureListener,
+        FigureTree, LayoutError, LayoutEvent, LayoutListener, LayoutManager, LayoutOutput,
         LayoutSnapshot, PropertyChangeEvent, PropertyChangeListener, RectangleFigure, StackLayout,
-        XYConstraint, XYLayout, scene::BlockId, update::UpdateManager,
+        XYConstraint, XYLayout, scene::FigureId, update::UpdateManager,
     };
     use novadraw_core::Color;
     use slotmap::KeyData;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
 
-    fn create_test_key(data: u64) -> BlockId {
-        BlockId::from(KeyData::from_ffi(data))
+    fn create_test_key(data: u64) -> FigureId {
+        FigureId::from(KeyData::from_ffi(data))
     }
 
     struct PanicOnceLayout {
@@ -475,7 +475,7 @@ mod tests {
     impl LayoutManager for PanicOnceLayout {
         fn get_preferred_size(
             &self,
-            _container: BlockId,
+            _container: FigureId,
             _w_hint: f64,
             _h_hint: f64,
             _snapshot: &LayoutSnapshot<'_>,
@@ -485,7 +485,7 @@ mod tests {
 
         fn get_minimum_size(
             &self,
-            container: BlockId,
+            container: FigureId,
             w_hint: f64,
             h_hint: f64,
             snapshot: &LayoutSnapshot<'_>,
@@ -495,7 +495,7 @@ mod tests {
 
         fn layout(
             &mut self,
-            _container: BlockId,
+            _container: FigureId,
             _snapshot: &LayoutSnapshot<'_>,
             _out: &mut LayoutOutput,
         ) -> Result<(), LayoutError> {
@@ -639,7 +639,7 @@ mod tests {
     #[test]
     fn test_perform_update_writes_damage_set_to_canvas() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -665,7 +665,7 @@ mod tests {
     #[test]
     fn test_perform_update_records_update_phase_effects() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -688,7 +688,7 @@ mod tests {
                         .push(NotificationEffect::EmitUpdate(event));
                 }
                 fn on_figure_event(&self, _event: FigureEvent) {}
-                fn on_notify(&self, _block_id: BlockId) {}
+                fn on_notify(&self, _block_id: FigureId) {}
             }
             manager.add_listener(Box::new(CaptureUpdate {
                 effects: effects.clone(),
@@ -715,7 +715,7 @@ mod tests {
     #[test]
     fn test_update_notifications_report_root_domain_damage() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root = graph.add_child_to(
             root_id,
@@ -736,7 +736,7 @@ mod tests {
                 self.effects.lock().unwrap().push(event);
             }
             fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: BlockId) {}
+            fn on_notify(&self, _block_id: FigureId) {}
         }
         manager.add_listener(Box::new(CapturePainting {
             effects: effects.clone(),
@@ -758,7 +758,7 @@ mod tests {
     #[test]
     fn test_clipped_damage_notifies_without_rendering() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         manager.add_dirty_region(root_id, Rectangle::new(200.0, 200.0, 10.0, 10.0));
 
@@ -771,7 +771,7 @@ mod tests {
                 self.effects.lock().unwrap().push(event);
             }
             fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: BlockId) {}
+            fn on_notify(&self, _block_id: FigureId) {}
         }
         manager.add_listener(Box::new(CaptureUpdate {
             effects: effects.clone(),
@@ -800,7 +800,7 @@ mod tests {
     #[test]
     fn test_update_without_dirty_regions_skips_rendering() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
 
         let effects = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -812,7 +812,7 @@ mod tests {
                 self.effects.lock().unwrap().push(event);
             }
             fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: BlockId) {}
+            fn on_notify(&self, _block_id: FigureId) {}
         }
         manager.add_listener(Box::new(CaptureUpdate {
             effects: effects.clone(),
@@ -829,7 +829,7 @@ mod tests {
     #[test]
     fn test_direct_invalid_queue_entry_invalidates_and_validates_graph_node() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
         assert!(graph.is_valid(root_id));
@@ -844,7 +844,7 @@ mod tests {
     #[test]
     fn test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
         graph.set_block_layout_manager(
@@ -872,7 +872,7 @@ mod tests {
     #[test]
     fn test_validation_figure_effects_preserve_causal_order() {
         let mut manager = UpdateManager::new();
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let child_id = graph.add_child_to(
             root_id,
@@ -902,7 +902,7 @@ mod tests {
                     .unwrap()
                     .push(NotificationEffect::EmitFigure(event));
             }
-            fn on_notify(&self, block_id: BlockId) {
+            fn on_notify(&self, block_id: FigureId) {
                 self.effects
                     .lock()
                     .unwrap()
@@ -1004,7 +1004,7 @@ mod tests {
             counts: counts.clone(),
         }));
 
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let child =
             graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));

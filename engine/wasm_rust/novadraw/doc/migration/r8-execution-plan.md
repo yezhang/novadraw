@@ -75,6 +75,8 @@ R8 必须把 canonical 定义统一为 `FigureId / FigureNode / FigureTree`，�
 
 ### R8.1 Canonical 定义反转
 
+状态：`completed`
+
 工作：
 
 - SlotMap key 的真实定义改为 `FigureId`；

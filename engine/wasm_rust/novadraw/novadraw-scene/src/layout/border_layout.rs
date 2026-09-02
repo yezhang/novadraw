@@ -4,7 +4,7 @@
 //! 将容器划分为北、南、东、西、中五个区域。
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
 /// Border 布局区域
@@ -124,7 +124,7 @@ impl BorderLayout {
 
     fn measure(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -182,7 +182,7 @@ impl Default for BorderLayout {
 impl LayoutManager for BorderLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -192,7 +192,7 @@ impl LayoutManager for BorderLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -202,7 +202,7 @@ impl LayoutManager for BorderLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -319,8 +319,8 @@ impl LayoutManager for BorderLayout {
 
 fn border_constraint(
     snapshot: &LayoutSnapshot<'_>,
-    container: BlockId,
-    child_id: BlockId,
+    container: FigureId,
+    child_id: FigureId,
 ) -> Result<Option<(BorderRegion, Option<f64>)>, LayoutError> {
     let Some(constraint) = snapshot.constraint(child_id) else {
         return Ok(None);
@@ -372,7 +372,7 @@ mod tests {
         let layout = BorderLayout::new();
         // 默认尺寸应该设置正确
         let (w, h) = layout.get_preferred_size(
-            BlockId::from(slotmap::KeyData::from_ffi(0)),
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
             &LayoutSnapshot::new(&MockLayoutContext::new()),
@@ -393,7 +393,7 @@ mod tests {
 /// Mock LayoutContext for testing
 #[cfg(test)]
 struct MockLayoutContext {
-    children: Vec<(BlockId, Rectangle)>,
+    children: Vec<(FigureId, Rectangle)>,
     container_bounds: Rectangle,
 }
 
@@ -409,19 +409,19 @@ impl MockLayoutContext {
 
 #[cfg(test)]
 impl super::LayoutContext for MockLayoutContext {
-    fn get_children(&self, _parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+    fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         self.children.clone()
     }
 
-    fn get_constraint(&self, _child_id: BlockId) -> Option<&dyn super::LayoutConstraint> {
+    fn get_constraint(&self, _child_id: FigureId) -> Option<&dyn super::LayoutConstraint> {
         None
     }
 
-    fn get_preferred_size(&self, _block_id: BlockId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
+    fn get_preferred_size(&self, _block_id: FigureId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
         (100.0, 100.0)
     }
 
-    fn get_container_bounds(&self, _container_id: BlockId) -> Rectangle {
+    fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
         self.container_bounds
     }
 }

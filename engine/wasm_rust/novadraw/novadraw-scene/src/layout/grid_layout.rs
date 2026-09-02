@@ -1,7 +1,7 @@
 //! Grid layout with per-child alignment, span and excess-space constraints.
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
 const DEFAULT_MARGIN: f64 = 5.0;
@@ -75,7 +75,7 @@ pub struct GridLayout {
 
 #[derive(Clone, Copy)]
 struct Placement {
-    child: BlockId,
+    child: FigureId,
     row: usize,
     column: usize,
     row_span: usize,
@@ -116,8 +116,8 @@ impl GridLayout {
 
     fn constraint(
         snapshot: &LayoutSnapshot<'_>,
-        container: BlockId,
-        child: BlockId,
+        container: FigureId,
+        child: FigureId,
     ) -> Result<GridConstraint, LayoutError> {
         Ok(snapshot
             .constraint_as::<GridConstraint>(container, child)?
@@ -127,7 +127,7 @@ impl GridLayout {
 
     fn placements(
         &self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
     ) -> Result<Vec<Placement>, LayoutError> {
         let mut occupied: Vec<Vec<bool>> = Vec::new();
@@ -275,7 +275,7 @@ impl GridLayout {
 
     fn measured_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
@@ -301,7 +301,7 @@ impl Default for GridLayout {
 impl LayoutManager for GridLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         _w_hint: f64,
         _h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -311,7 +311,7 @@ impl LayoutManager for GridLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         _w_hint: f64,
         _h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -321,7 +321,7 @@ impl LayoutManager for GridLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {

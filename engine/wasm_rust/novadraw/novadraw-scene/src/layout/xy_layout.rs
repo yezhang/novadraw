@@ -4,7 +4,7 @@
 //! 使用约束（Rectangle）定位每个子元素。
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
 /// XY 布局约束
@@ -80,7 +80,7 @@ impl XYLayout {
 
     fn measure(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -123,7 +123,7 @@ impl Default for XYLayout {
 impl LayoutManager for XYLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -133,7 +133,7 @@ impl LayoutManager for XYLayout {
 
     fn get_minimum_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -143,7 +143,7 @@ impl LayoutManager for XYLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -196,8 +196,8 @@ impl LayoutManager for XYLayout {
 
 fn xy_constraint(
     snapshot: &LayoutSnapshot<'_>,
-    container: BlockId,
-    child_id: BlockId,
+    container: FigureId,
+    child_id: FigureId,
 ) -> Result<Option<Rectangle>, LayoutError> {
     let Some(constraint) = snapshot.constraint(child_id) else {
         return Ok(None);

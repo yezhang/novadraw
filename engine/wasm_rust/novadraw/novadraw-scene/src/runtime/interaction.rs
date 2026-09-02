@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{FigureGraph, FigureId, GestureSessionId};
+use crate::{FigureId, FigureTree, GestureSessionId};
 
 #[derive(Clone, Copy, Default)]
 struct GestureState {
@@ -193,7 +193,7 @@ impl InteractionState {
         self.pointers.entry(pointer).or_default()
     }
 
-    pub fn reconcile(&mut self, tree: &FigureGraph) {
+    pub fn reconcile(&mut self, tree: &FigureTree) {
         self.retain_figures(|id| {
             tree.is_attached(id)
                 && tree.is_effectively_visible(id)

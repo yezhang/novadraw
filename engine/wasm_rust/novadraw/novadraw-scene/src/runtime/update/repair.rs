@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 
-use crate::graph::{BlockId, FigureGraph};
+use crate::graph::{FigureId, FigureTree};
 
 const DAMAGE_REGION_MERGE_AREA_THRESHOLD: f64 = 9.0;
 const DAMAGE_REGION_MAX_COUNT: usize = 8;
@@ -29,8 +29,8 @@ pub(crate) struct DamagePropagationStep {
 }
 
 pub(crate) fn merge_dirty_region(
-    dirty_regions: &mut HashMap<BlockId, Rectangle>,
-    block_id: BlockId,
+    dirty_regions: &mut HashMap<FigureId, Rectangle>,
+    block_id: FigureId,
     rect: Rectangle,
 ) -> bool {
     if rect.width <= 0.0 || rect.height <= 0.0 {
@@ -72,8 +72,8 @@ pub(crate) fn propagate_damage_through_parent_chain(
 }
 
 pub(crate) fn propagate_damage_to_root(
-    graph: &FigureGraph,
-    block_id: BlockId,
+    graph: &FigureTree,
+    block_id: FigureId,
     contribution: Rectangle,
 ) -> Option<Rectangle> {
     let steps = collect_parent_chain_steps(graph, block_id)?;
@@ -92,9 +92,9 @@ pub(crate) fn write_damage_set(canvas: &mut NdCanvas, rects: Vec<Rectangle>) -> 
 }
 
 pub(crate) fn prepare_damage_set<'a>(
-    graph: &FigureGraph,
+    graph: &FigureTree,
     canvas: &mut NdCanvas,
-    dirty_regions: impl IntoIterator<Item = (&'a BlockId, &'a Rectangle)>,
+    dirty_regions: impl IntoIterator<Item = (&'a FigureId, &'a Rectangle)>,
 ) -> Option<Rectangle> {
     let propagated_regions: Vec<Rectangle> = dirty_regions
         .into_iter()
@@ -104,8 +104,8 @@ pub(crate) fn prepare_damage_set<'a>(
 }
 
 fn collect_parent_chain_steps(
-    graph: &FigureGraph,
-    block_id: BlockId,
+    graph: &FigureTree,
+    block_id: FigureId,
 ) -> Option<Vec<DamagePropagationStep>> {
     let mut steps = Vec::new();
     let current = graph.get_block(block_id)?;
@@ -286,8 +286,8 @@ mod tests {
     use novadraw_core::Color;
     use slotmap::KeyData;
 
-    fn create_test_key(data: u64) -> BlockId {
-        BlockId::from(KeyData::from_ffi(data))
+    fn create_test_key(data: u64) -> FigureId {
+        FigureId::from(KeyData::from_ffi(data))
     }
 
     #[test]
@@ -467,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_propagate_damage_to_root_uses_figure_local_coordinate_roots() {
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
         let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE);
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_propagate_damage_to_root_translates_through_parent_local_ancestors() {
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 500.0, 400.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
         let parent = RectangleFigure::new_with_color(100.0, 50.0, 200.0, 150.0, Color::WHITE);
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn test_propagate_damage_to_root_applies_root_clip() {
-        let mut graph = FigureGraph::new();
+        let mut graph = FigureTree::new();
         let root = RectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, Color::BLACK);
         let root_id = graph.set_contents(Box::new(root));
         let parent = RectangleFigure::new_with_color(70.0, 50.0, 40.0, 40.0, Color::WHITE);

@@ -20,7 +20,7 @@ use crate::figure::{
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    BlockId, DefaultRangeModel, FigureGraph, GraphMutationError, PropertyValue, RangeModel,
+    DefaultRangeModel, FigureId, FigureTree, GraphMutationError, PropertyValue, RangeModel,
     RangeModelError, RangeModelSnapshot, UpdateManager,
 };
 
@@ -102,16 +102,16 @@ impl From<RangeModelError> for ViewportError {
 
 #[derive(Clone)]
 pub struct ViewportHandle {
-    block_id: BlockId,
+    block_id: FigureId,
     runtime: Arc<Mutex<ViewportRuntime>>,
 }
 
 impl ViewportHandle {
-    pub fn block_id(&self) -> BlockId {
+    pub fn block_id(&self) -> FigureId {
         self.block_id
     }
 
-    pub fn contents(&self, graph: &FigureGraph) -> Option<BlockId> {
+    pub fn contents(&self, graph: &FigureTree) -> Option<FigureId> {
         graph
             .child_order(self.block_id)
             .and_then(|children| children.first().copied())
@@ -132,7 +132,7 @@ impl ViewportHandle {
 
     pub fn set_view_location(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         x: f64,
         y: f64,
@@ -169,7 +169,7 @@ impl ViewportHandle {
 
     pub fn set_horizontal_location(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         x: f64,
     ) -> Result<bool, ViewportError> {
@@ -179,7 +179,7 @@ impl ViewportHandle {
 
     pub fn set_vertical_location(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         y: f64,
     ) -> Result<bool, ViewportError> {
@@ -189,7 +189,7 @@ impl ViewportHandle {
 
     pub fn scroll_by(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         dx: f64,
         dy: f64,
@@ -208,10 +208,10 @@ impl ViewportHandle {
 
     pub fn set_contents(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
-    ) -> Result<BlockId, ViewportError> {
+    ) -> Result<FigureId, ViewportError> {
         if graph.get_block(self.block_id).is_none() {
             return Err(ViewportError::MissingViewport);
         }
@@ -227,7 +227,7 @@ impl ViewportHandle {
 
     pub fn set_tracks_width(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         tracks: bool,
     ) -> Result<bool, ViewportError> {
@@ -236,7 +236,7 @@ impl ViewportHandle {
 
     pub fn set_tracks_height(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         tracks: bool,
     ) -> Result<bool, ViewportError> {
@@ -245,7 +245,7 @@ impl ViewportHandle {
 
     fn set_track_policy(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         tracks_width: Option<bool>,
         tracks_height: Option<bool>,
@@ -292,7 +292,7 @@ impl ViewportLayout {
 impl LayoutManager for ViewportLayout {
     fn get_preferred_size(
         &self,
-        container: BlockId,
+        container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -308,7 +308,7 @@ impl LayoutManager for ViewportLayout {
 
     fn get_minimum_size(
         &self,
-        _container: BlockId,
+        _container: FigureId,
         _w_hint: f64,
         _h_hint: f64,
         _snapshot: &LayoutSnapshot<'_>,
@@ -318,7 +318,7 @@ impl LayoutManager for ViewportLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -490,8 +490,8 @@ impl FigureContainer for ViewportFigure {
     }
 }
 
-impl FigureGraph {
-    pub fn viewport_handle(&self, block_id: BlockId) -> Option<ViewportHandle> {
+impl FigureTree {
+    pub fn viewport_handle(&self, block_id: FigureId) -> Option<ViewportHandle> {
         let viewport = self
             .block(block_id)?
             .figure
@@ -506,7 +506,7 @@ impl FigureGraph {
     /// Adds a Viewport Figure and returns its typed transactional handle.
     pub fn add_viewport_to(
         &mut self,
-        parent: BlockId,
+        parent: FigureId,
         bounds: Rectangle,
     ) -> Result<ViewportHandle, GraphMutationError> {
         self.add_viewport_with_models_to(
@@ -525,7 +525,7 @@ impl FigureGraph {
 
     pub(crate) fn add_viewport_with_models_to(
         &mut self,
-        parent: BlockId,
+        parent: FigureId,
         bounds: Rectangle,
         horizontal: Arc<dyn RangeModel>,
         vertical: Arc<dyn RangeModel>,

@@ -9,7 +9,7 @@ use novadraw_render::NdCanvas;
 use crate::figure::{Bounded, Figure, FigureEventHandler, Updatable};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    BlockId, FigureGraph, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
+    FigureId, FigureTree, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
     RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
 };
 
@@ -93,7 +93,7 @@ impl From<ViewportError> for ScrollPaneError {
 
 struct ScrollPaneRuntime {
     pane_bounds: Rectangle,
-    viewport_id: Option<BlockId>,
+    viewport_id: Option<FigureId>,
     viewport_bounds: Rectangle,
     horizontal: Arc<dyn RangeModel>,
     vertical: Arc<dyn RangeModel>,
@@ -123,15 +123,15 @@ impl ScrollPaneRuntime {
 
 #[derive(Clone)]
 pub struct ScrollPaneHandle {
-    pane_id: BlockId,
+    pane_id: FigureId,
     viewport: ViewportHandle,
-    horizontal_scroll_bar: BlockId,
-    vertical_scroll_bar: BlockId,
+    horizontal_scroll_bar: FigureId,
+    vertical_scroll_bar: FigureId,
     runtime: Arc<Mutex<ScrollPaneRuntime>>,
 }
 
 impl ScrollPaneHandle {
-    pub fn pane_id(&self) -> BlockId {
+    pub fn pane_id(&self) -> FigureId {
         self.pane_id
     }
 
@@ -139,17 +139,17 @@ impl ScrollPaneHandle {
         &self.viewport
     }
 
-    pub fn horizontal_scroll_bar(&self) -> BlockId {
+    pub fn horizontal_scroll_bar(&self) -> FigureId {
         self.horizontal_scroll_bar
     }
 
-    pub fn vertical_scroll_bar(&self) -> BlockId {
+    pub fn vertical_scroll_bar(&self) -> FigureId {
         self.vertical_scroll_bar
     }
 
     pub fn set_scroll_bar_visibility(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         horizontal: ScrollBarVisibility,
         vertical: ScrollBarVisibility,
@@ -178,7 +178,7 @@ impl ScrollPaneHandle {
 
     pub fn scroll_to(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         x: f64,
         y: f64,
@@ -190,10 +190,10 @@ impl ScrollPaneHandle {
 
     pub fn set_contents(
         &self,
-        graph: &mut FigureGraph,
+        graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
-    ) -> Result<BlockId, ScrollPaneError> {
+    ) -> Result<FigureId, ScrollPaneError> {
         Ok(self.viewport.set_contents(graph, update_manager, figure)?)
     }
 }
@@ -336,7 +336,7 @@ pub struct ScrollBarFigure {
     bounds: Rectangle,
     orientation: ScrollOrientation,
     model: Arc<dyn RangeModel>,
-    pane_id: BlockId,
+    pane_id: FigureId,
     pane_runtime: Arc<Mutex<ScrollPaneRuntime>>,
     drag: Arc<Mutex<DragState>>,
 }
@@ -345,7 +345,7 @@ impl ScrollBarFigure {
     fn new(
         orientation: ScrollOrientation,
         model: Arc<dyn RangeModel>,
-        pane_id: BlockId,
+        pane_id: FigureId,
         pane_runtime: Arc<Mutex<ScrollPaneRuntime>>,
     ) -> Self {
         Self {
@@ -639,15 +639,15 @@ impl ScrollBarGeometry {
 #[derive(Clone)]
 pub struct ScrollPaneLayout {
     runtime: Arc<Mutex<ScrollPaneRuntime>>,
-    viewport: BlockId,
-    horizontal_scroll_bar: BlockId,
-    vertical_scroll_bar: BlockId,
+    viewport: FigureId,
+    horizontal_scroll_bar: FigureId,
+    vertical_scroll_bar: FigureId,
 }
 
 impl LayoutManager for ScrollPaneLayout {
     fn get_preferred_size(
         &self,
-        _container: BlockId,
+        _container: FigureId,
         w_hint: f64,
         h_hint: f64,
         snapshot: &LayoutSnapshot<'_>,
@@ -671,7 +671,7 @@ impl LayoutManager for ScrollPaneLayout {
 
     fn get_minimum_size(
         &self,
-        _container: BlockId,
+        _container: FigureId,
         _w_hint: f64,
         _h_hint: f64,
         _snapshot: &LayoutSnapshot<'_>,
@@ -681,7 +681,7 @@ impl LayoutManager for ScrollPaneLayout {
 
     fn layout(
         &mut self,
-        container: BlockId,
+        container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -732,10 +732,10 @@ impl LayoutManager for ScrollPaneLayout {
     }
 }
 
-impl FigureGraph {
+impl FigureTree {
     pub fn add_scroll_pane_to(
         &mut self,
-        parent: BlockId,
+        parent: FigureId,
         bounds: Rectangle,
     ) -> Result<ScrollPaneHandle, ScrollPaneError> {
         let horizontal_model: Arc<dyn RangeModel> = Arc::new(crate::DefaultRangeModel::default());

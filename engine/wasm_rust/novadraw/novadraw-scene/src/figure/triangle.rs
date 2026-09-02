@@ -622,7 +622,7 @@ mod tests {
 
         // 注意：当前实现中 set_bounds 不清除缓存，
         // 因为只检查了大小变化。但如果需要更严格的优化，
-        // 可以让 set_bounds 也清除缓存，让 FigureGraph 用 prim_translate 处理纯平移。
+        // 可以让 set_bounds 也清除缓存，让 FigureTree 用 prim_translate 处理纯平移。
         // 目前缓存被保留，validate 会比较 bounds 发现没变，直接用缓存。
         assert!(triangle.cached_points.is_some());
         assert_eq!(triangle.cached_points.unwrap(), original_points);

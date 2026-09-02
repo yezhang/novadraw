@@ -4,17 +4,17 @@ use novadraw_render::{
 };
 
 use crate::{
-    BasicEventDispatcher, EventDispatcher, Figure, FigureGraph, FigureId, InteractionState, Key,
+    BasicEventDispatcher, EventDispatcher, Figure, FigureId, FigureTree, InteractionState, Key,
     KeyModifiers, MouseButton, PendingMutations, SceneDispatchContext, UpdateEvent, UpdateListener,
     UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
 ///
-/// `FigureGraph` remains accepted as the compatibility tree implementation while
+/// `FigureTree` remains accepted as the compatibility tree implementation while
 /// callers migrate to the `FigureTree` name.
 pub struct Runtime {
-    tree: FigureGraph,
+    tree: FigureTree,
     interaction: InteractionState,
     interaction_dispatcher: BasicEventDispatcher,
     updates: UpdateManager,
@@ -32,7 +32,7 @@ struct InFlightFrame {
 }
 
 impl Runtime {
-    pub fn new(tree: FigureGraph) -> Self {
+    pub fn new(tree: FigureTree) -> Self {
         Self {
             tree,
             interaction: InteractionState::default(),
@@ -48,10 +48,10 @@ impl Runtime {
     }
 
     pub fn empty() -> Self {
-        Self::new(FigureGraph::new())
+        Self::new(FigureTree::new())
     }
 
-    pub fn tree(&self) -> &FigureGraph {
+    pub fn tree(&self) -> &FigureTree {
         &self.tree
     }
 
@@ -135,7 +135,7 @@ impl Runtime {
         self.full_redraw_pending = true;
     }
 
-    pub fn into_tree(self) -> FigureGraph {
+    pub fn into_tree(self) -> FigureTree {
         self.tree
     }
 
@@ -371,7 +371,7 @@ mod tests {
 
     #[test]
     fn dispatch_flushes_structural_mutations_before_returning() {
-        let mut tree = FigureGraph::new();
+        let mut tree = FigureTree::new();
         let root = tree.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -603,7 +603,7 @@ mod tests {
 
     #[test]
     fn pending_mutations_are_applied_before_validation_and_recording() {
-        let mut tree = FigureGraph::new();
+        let mut tree = FigureTree::new();
         let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let mut runtime = Runtime::new(tree);
         runtime

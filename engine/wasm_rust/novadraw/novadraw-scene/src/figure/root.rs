@@ -11,7 +11,7 @@ use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Sha
 /// 根图形（内部使用）
 ///
 /// 参考 draw2d 的 LightweightSystem.RootFigure 设计。
-/// 用于表示 FigureGraph 内部的根容器，与用户设置的图形根区分。
+/// 用于表示 FigureTree 内部的根容器，与用户设置的图形根区分。
 ///
 /// 特点：
 /// - 透明（不渲染自身）

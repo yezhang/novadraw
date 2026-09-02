@@ -10,7 +10,7 @@
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{DamageMode, FrameId, RenderOutcome};
 
-use crate::graph::BlockId;
+use crate::graph::FigureId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ListenerId(u64);
@@ -53,7 +53,7 @@ pub enum FigureEvent {
     ///
     /// 对应 draw2d: `FigureListener.figureMoved(...)`。
     FigureMoved {
-        block_id: BlockId,
+        block_id: FigureId,
         old_bounds: Rectangle,
         new_bounds: Rectangle,
     },
@@ -61,7 +61,7 @@ pub enum FigureEvent {
     ///
     /// 对应 draw2d: `CoordinateListener.coordinateSystemChanged(...)`。
     CoordinateSystemChanged {
-        block_id: BlockId,
+        block_id: FigureId,
         old_bounds: Rectangle,
         new_bounds: Rectangle,
     },
@@ -77,8 +77,8 @@ pub enum AncestorEventKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AncestorEvent {
     pub kind: AncestorEventKind,
-    pub block_id: BlockId,
-    pub parent_id: BlockId,
+    pub block_id: FigureId,
+    pub parent_id: FigureId,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,13 +87,13 @@ pub enum PropertyValue {
     Number(f64),
     Point(Point),
     Text(String),
-    Block(Option<BlockId>),
+    Block(Option<FigureId>),
     None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyChangeEvent {
-    pub block_id: BlockId,
+    pub block_id: FigureId,
     pub property: &'static str,
     pub old_value: PropertyValue,
     pub new_value: PropertyValue,
@@ -111,8 +111,8 @@ pub enum LayoutEventKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LayoutEvent {
     pub kind: LayoutEventKind,
-    pub container_id: BlockId,
-    pub child_id: Option<BlockId>,
+    pub container_id: FigureId,
+    pub child_id: Option<FigureId>,
 }
 
 /// 通知 effect
@@ -124,7 +124,7 @@ pub struct LayoutEvent {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NotificationEffect {
     /// 无 payload 的状态失效通知。
-    Notify { block_id: BlockId },
+    Notify { block_id: FigureId },
     /// Figure 层 typed event。
     EmitFigure(FigureEvent),
     /// UpdateManager 层 typed event。
@@ -151,7 +151,7 @@ impl NotificationQueue {
         Self::default()
     }
 
-    pub fn notify(&mut self, block_id: BlockId) {
+    pub fn notify(&mut self, block_id: FigureId) {
         self.effects.push(NotificationEffect::Notify { block_id });
     }
 
@@ -219,7 +219,7 @@ pub trait UpdateListener {
     fn on_figure_event(&self, event: FigureEvent);
 
     /// 通知块状态变化（Notify 语义）
-    fn on_notify(&self, block_id: BlockId);
+    fn on_notify(&self, block_id: FigureId);
 
     /// 检查是否为验证监听器
     fn as_validating_listener(&self) -> Option<&dyn ValidatingListener> {
@@ -262,7 +262,7 @@ pub trait LayoutListener {
 impl UpdateListener for () {
     fn on_update_event(&self, _event: UpdateEvent) {}
     fn on_figure_event(&self, _event: FigureEvent) {}
-    fn on_notify(&self, _block_id: BlockId) {}
+    fn on_notify(&self, _block_id: FigureId) {}
 }
 
 impl ValidatingListener for () {
@@ -275,8 +275,8 @@ mod tests {
     use super::*;
     use slotmap::KeyData;
 
-    fn block_id(data: u64) -> BlockId {
-        BlockId::from(KeyData::from_ffi(data))
+    fn block_id(data: u64) -> FigureId {
+        FigureId::from(KeyData::from_ffi(data))
     }
 
     #[test]
