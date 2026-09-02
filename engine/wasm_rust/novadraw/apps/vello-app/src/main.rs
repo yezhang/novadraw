@@ -8,12 +8,22 @@ use winit::event::{DeviceEvent, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
+#[cfg(target_os = "macos")]
+fn keep_previous_drawable_unscaled(surface: &vello::wgpu::Surface<'_>) {
+    let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
+        return;
+    };
+    let layer = surface.render_layer().lock();
+    layer.setContentsGravity(unsafe { objc2_quartz_core::kCAGravityBottomLeft });
+}
+
 struct VelloDemo {
     window: Option<Arc<Window>>,
     render_context: Option<RenderContext>,
     renderer: Option<Renderer>,
     surface: Option<RenderSurface<'static>>,
     scene: vello::Scene,
+    pending_resize: Option<(u32, u32)>,
 }
 
 impl VelloDemo {
@@ -24,6 +34,7 @@ impl VelloDemo {
             renderer: None,
             surface: None,
             scene: vello::Scene::new(),
+            pending_resize: None,
         }
     }
 
@@ -50,9 +61,21 @@ impl VelloDemo {
         }
 
         self.surface = Some(surface);
+        #[cfg(target_os = "macos")]
+        keep_previous_drawable_unscaled(&self.surface.as_ref().unwrap().surface);
     }
 
     fn render(&mut self) {
+        if let Some((width, height)) = self.pending_resize.take() {
+            if width == 0 || height == 0 {
+                return;
+            }
+
+            let render_context = self.render_context.as_ref().unwrap();
+            let surface = self.surface.as_mut().unwrap();
+            render_context.resize_surface(surface, width, height);
+        }
+
         let Some(surface) = &self.surface else {
             return;
         };
@@ -159,13 +182,10 @@ impl ApplicationHandler for VelloDemo {
         self.window = Some(window.clone());
 
         let size = window.inner_size();
-        let scale_factor = window.scale_factor();
-        let width = (size.width as f64 * scale_factor) as u32;
-        let height = (size.height as f64 * scale_factor) as u32;
 
         let render_context = RenderContext::new();
         self.render_context = Some(render_context);
-        self.create_surface(width, height);
+        self.create_surface(size.width, size.height);
     }
 
     fn window_event(
@@ -176,12 +196,10 @@ impl ApplicationHandler for VelloDemo {
     ) {
         match event {
             WindowEvent::Resized(new_size) => {
-                let scale_factor = self.window.as_ref().unwrap().scale_factor();
-                let width = (new_size.width as f64 * scale_factor) as u32;
-                let height = (new_size.height as f64 * scale_factor) as u32;
-
-                // Recreate surface on resize
-                self.create_surface(width, height);
+                self.pending_resize = Some((new_size.width, new_size.height));
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
             }
             WindowEvent::RedrawRequested => {
                 self.render();

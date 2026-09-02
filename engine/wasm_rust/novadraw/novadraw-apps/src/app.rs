@@ -36,6 +36,12 @@ type SceneCreator = Box<dyn FnMut() -> FigureGraph>;
 
 struct DemoUpdateListener;
 
+fn preserve_unpresented_frame(runtime: &mut Runtime, outcome: RenderOutcome) {
+    if outcome != RenderOutcome::Presented {
+        runtime.request_full_redraw();
+    }
+}
+
 impl UpdateListener for DemoUpdateListener {
     fn on_update_event(&self, event: UpdateEvent) {
         tracing::debug!("[DemoApp] update event: {:?}", event);
@@ -159,6 +165,7 @@ impl DemoApp {
             scale_factor,
         };
         let outcome = renderer.render(&canvas.to_submission_for_surface(surface));
+        preserve_unpresented_frame(runtime, outcome);
         if outcome == RenderOutcome::Retry {
             renderer.window().request_redraw();
         }
@@ -170,6 +177,16 @@ impl DemoApp {
             return;
         };
         action(runtime);
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+
+    fn request_surface_redraw(&mut self) {
+        if let Some(runtime) = &mut self.runtime {
+            // A surface size change invalidates retained pixels even when scene state is unchanged.
+            runtime.request_full_redraw();
+        }
         if let Some(window) = &self.window {
             window.request_redraw();
         }
@@ -256,7 +273,10 @@ impl DemoApp {
                     std::thread::sleep(SCREENSHOT_RENDER_RETRY_DELAY);
                     false
                 }
-                RenderOutcome::Skipped => false,
+                RenderOutcome::Skipped => {
+                    std::thread::sleep(SCREENSHOT_RENDER_RETRY_DELAY);
+                    false
+                }
             });
             if !presented {
                 error!("场景 {} 未产生可截图帧", self.scenes[idx].0);
@@ -347,8 +367,8 @@ impl ApplicationHandler<()> for DemoApp {
                     let scale_factor = renderer.window().scale_factor();
                     let PhysicalSize { width, height } = new_size;
                     renderer.resize(width, height, scale_factor);
-                    renderer.window().request_redraw();
                 }
+                self.request_surface_redraw();
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_position = Some((position.x, position.y));
@@ -620,6 +640,46 @@ fn map_key(key: PhysicalKey) -> Option<Key> {
         KeyCode::KeyT => Key::Character('t'),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn surface_change_requests_a_full_runtime_frame() {
+        let mut app = DemoApp::new(
+            "test",
+            vec![("empty", Box::new(FigureGraph::new))],
+            800.0,
+            600.0,
+            "test",
+            None,
+        );
+        app.switch_scene(0);
+
+        let runtime = app.runtime.as_mut().unwrap();
+        assert!(runtime.prepare_frame().is_some());
+        assert!(!runtime.has_pending_update());
+
+        app.request_surface_redraw();
+
+        assert!(app.runtime.as_ref().unwrap().has_pending_update());
+    }
+
+    #[test]
+    fn unpresented_frame_restores_full_redraw_work() {
+        let mut runtime = Runtime::empty();
+        assert!(runtime.prepare_frame().is_some());
+        assert!(!runtime.has_pending_update());
+
+        preserve_unpresented_frame(&mut runtime, RenderOutcome::Skipped);
+        assert!(runtime.has_pending_update());
+
+        assert!(runtime.prepare_frame().is_some());
+        preserve_unpresented_frame(&mut runtime, RenderOutcome::Presented);
+        assert!(!runtime.has_pending_update());
+    }
 }
 
 /// 应用构建器

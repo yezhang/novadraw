@@ -307,6 +307,16 @@ platform surface changed
 → request redraw
 ```
 
+Surface resize 只改变 logical viewport 的可见范围，不改变 Figure 的世界坐标或
+ScalablePane 的 scale。fit width、fit height 和 fit all 只能由显式
+`ZoomManager` 操作触发；平台 resize 不得隐式调用这些操作。
+
+连续 resize 事件只保留最新 physical size。RenderBackend 在下一次 frame submission
+开始前原位配置既有 surface，并在同一帧重建尺寸相关纹理；禁止为每个 resize 事件
+销毁和重建平台 surface。macOS 的 Metal presentation layer 必须保持上一帧的左上
+逻辑原点（对应 Core Animation 的 bottom-left native gravity），不得在新尺寸帧
+present 前缩放旧 drawable。
+
 DPI 改变可能同时改变 physical size 和 logical scale。Runtime 使用 logical units，
 RenderBackend 在提交边界接收 scale factor。
 

@@ -19,3 +19,6 @@ image = { version = "0.25", default-features = false, features = ["png"], option
 [features]
 default = []
 vello = ["dep:vello", "dep:winit", "dep:pollster", "dep:image"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-quartz-core = "0.3.2"

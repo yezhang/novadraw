@@ -7,3 +7,6 @@ edition.workspace = true
 vello.workspace = true
 winit.workspace = true
 pollster.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-quartz-core = "0.3.2"

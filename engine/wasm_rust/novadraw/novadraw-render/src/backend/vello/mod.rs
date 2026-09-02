@@ -53,6 +53,15 @@ fn surface_is_suspended(width: u32, height: u32) -> bool {
     width == 0 || height == 0
 }
 
+#[cfg(target_os = "macos")]
+fn keep_previous_drawable_unscaled(surface: &vello::wgpu::Surface<'_>) {
+    let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
+        return;
+    };
+    let layer = surface.render_layer().lock();
+    layer.setContentsGravity(unsafe { objc2_quartz_core::kCAGravityBottomLeft });
+}
+
 fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
     if full_damage {
         [
@@ -105,6 +114,7 @@ pub struct VelloRenderer {
     window: Arc<WinitWindowProxy>,
     scale_factor: f64,
     surface_suspended: bool,
+    pending_resize: Option<(u32, u32, f64)>,
     /// 状态栈
     state_stack: Vec<RenderState>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
@@ -116,6 +126,19 @@ pub struct VelloRenderer {
 impl VelloRenderer {
     fn current_surface_size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
+    }
+
+    fn apply_pending_resize(&mut self) {
+        let Some((pixel_width, pixel_height, scale_factor)) = self.pending_resize.take() else {
+            return;
+        };
+        if surface_is_suspended(pixel_width, pixel_height) {
+            return;
+        }
+
+        self.scale_factor = scale_factor;
+        self.render_context
+            .resize_surface(&mut self.surface, pixel_width, pixel_height);
     }
 
     pub fn new(window: Arc<WinitWindowProxy>, logical_width: f64, logical_height: f64) -> Self {
@@ -131,6 +154,8 @@ impl VelloRenderer {
             vello::wgpu::PresentMode::AutoVsync,
         );
         let surface = pollster::block_on(surface_future).expect("Failed to create surface");
+        #[cfg(target_os = "macos")]
+        keep_previous_drawable_unscaled(&surface.surface);
 
         let mut renderers = vec![];
         renderers.resize_with(render_context.devices.len(), || None);
@@ -144,6 +169,7 @@ impl VelloRenderer {
             window,
             scale_factor,
             surface_suspended: false,
+            pending_resize: None,
             state_stack: vec![RenderState::default()],
             retained_texture: None,
             scratch_texture: None,
@@ -837,6 +863,7 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn render(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        self.apply_pending_resize();
         if self.surface_suspended {
             return RenderOutcome::Skipped;
         }
@@ -998,34 +1025,14 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
-        self.scale_factor = scale_factor;
         self.retained_texture = None;
         self.scratch_texture = None;
-        self.recreate_surface(pixel_width, pixel_height);
+        self.surface_suspended = surface_is_suspended(pixel_width, pixel_height);
+        self.pending_resize = Some((pixel_width, pixel_height, scale_factor));
     }
 }
 
 impl VelloRenderer {
-    /// Recreate the presentation surface while retaining the GPU device and renderer.
-    ///
-    /// Reconfiguring the existing surface through Vello's `resize_surface` causes visible
-    /// oscillation during interactive winit resize on macOS. A fresh surface keeps its
-    /// configuration synchronized with the native window without rebuilding render pipelines.
-    fn recreate_surface(&mut self, pixel_width: u32, pixel_height: u32) {
-        if surface_is_suspended(pixel_width, pixel_height) {
-            self.surface_suspended = true;
-            return;
-        }
-        let surface_future = self.render_context.create_surface(
-            self.window.window().clone(),
-            pixel_width,
-            pixel_height,
-            vello::wgpu::PresentMode::AutoVsync,
-        );
-        self.surface = pollster::block_on(surface_future).expect("Failed to recreate surface");
-        self.surface_suspended = false;
-    }
-
     /// 截图并保存为 PNG 文件
     pub fn screenshot(&self, path: &std::path::Path) -> std::io::Result<()> {
         let device_handle = &self.render_context.devices[self.surface.dev_id];
