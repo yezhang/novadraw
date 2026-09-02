@@ -179,7 +179,7 @@ impl ZoomManager {
     pub fn set_zoom(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         zoom: f64,
     ) -> Result<bool, ZoomError> {
         self.set_zoom_at(graph, update_manager, zoom, None)
@@ -188,7 +188,7 @@ impl ZoomManager {
     pub fn set_zoom_at(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         zoom: f64,
         anchor: Option<Point>,
     ) -> Result<bool, ZoomError> {
@@ -202,7 +202,7 @@ impl ZoomManager {
     fn prim_set_zoom_at(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         new_zoom: f64,
         anchor: Option<Point>,
     ) -> Result<bool, ZoomError> {
@@ -244,7 +244,7 @@ impl ZoomManager {
     pub fn zoom_by_at(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         factor: f64,
         anchor: Option<Point>,
     ) -> Result<bool, ZoomError> {
@@ -257,7 +257,7 @@ impl ZoomManager {
     pub fn zoom_in(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<bool, ZoomError> {
         let current = self.zoom();
         let next = self
@@ -272,7 +272,7 @@ impl ZoomManager {
     pub fn zoom_out(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<bool, ZoomError> {
         let current = self.zoom();
         let previous = self
@@ -288,7 +288,7 @@ impl ZoomManager {
     pub fn fit_all(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<bool, ZoomError> {
         self.fit(graph, update_manager, true, true)
     }
@@ -296,7 +296,7 @@ impl ZoomManager {
     pub fn fit_width(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<bool, ZoomError> {
         self.fit(graph, update_manager, true, false)
     }
@@ -304,7 +304,7 @@ impl ZoomManager {
     pub fn fit_height(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<bool, ZoomError> {
         self.fit(graph, update_manager, false, true)
     }
@@ -312,7 +312,7 @@ impl ZoomManager {
     fn fit(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         fit_width: bool,
         fit_height: bool,
     ) -> Result<bool, ZoomError> {
@@ -378,7 +378,7 @@ impl ZoomManager {
     fn repaint_range_changes(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         old_horizontal: RangeModelSnapshot,
         old_vertical: RangeModelSnapshot,
     ) {

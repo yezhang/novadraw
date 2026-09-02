@@ -109,7 +109,7 @@ impl ScaleHandle {
     pub fn set_scale(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         scale: f64,
     ) -> Result<bool, ScaleError> {
         if !valid_scale(scale) {

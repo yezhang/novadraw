@@ -101,7 +101,7 @@ pub trait SceneHost {
     fn execute_update(
         &self,
         scene: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         renderer: &mut impl RenderBackend,
     ) -> NdCanvas;
 

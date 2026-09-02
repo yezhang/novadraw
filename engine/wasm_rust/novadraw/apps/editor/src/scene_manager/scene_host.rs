@@ -87,7 +87,7 @@ impl SceneHost for WinitSceneHost {
     fn execute_update(
         &self,
         scene: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         renderer: &mut impl RenderBackend,
     ) -> NdCanvas {
         let host_requested = self.update_queued.swap(false, Ordering::AcqRel);

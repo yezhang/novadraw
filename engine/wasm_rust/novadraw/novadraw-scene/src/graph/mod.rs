@@ -732,7 +732,7 @@ impl FigureGraph {
     /// 批量构建使用 `add_child_to()` 以避免不必要的更新触发。
     pub fn add_child(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         parent_id: BlockId,
         figure: Box<dyn super::Figure>,
     ) -> BlockId {
@@ -751,7 +751,7 @@ impl FigureGraph {
 
     pub fn apply_pending_mutations(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         mutations: PendingMutationBatch,
     ) -> bool {
         if mutations.is_empty() {
@@ -779,7 +779,7 @@ impl FigureGraph {
     /// Removes a direct child through the update transaction.
     pub fn remove_child(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         parent: BlockId,
         child: BlockId,
     ) -> bool {
@@ -792,7 +792,7 @@ impl FigureGraph {
     /// Reparents a block through the update transaction.
     pub fn reparent(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         child: BlockId,
         new_parent: BlockId,
     ) -> bool {
@@ -1010,7 +1010,7 @@ impl FigureGraph {
 
     fn apply_remove_mutation(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         mutation: PendingMutationKind,
     ) -> bool {
         let PendingMutationKind::RemoveChild { parent, child } = mutation else {
@@ -1036,7 +1036,7 @@ impl FigureGraph {
 
     fn apply_reparent_mutation(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         mutation: PendingMutationKind,
     ) -> bool {
         let PendingMutationKind::Reparent { child, new_parent } = mutation else {
@@ -1081,7 +1081,7 @@ impl FigureGraph {
 
     fn apply_add_mutation(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         mutation: PendingMutationKind,
     ) -> bool {
         let PendingMutationKind::AddChildFigure { parent, figure } = mutation else {
@@ -1115,7 +1115,7 @@ impl FigureGraph {
     /// # Arguments
     ///
     /// * `block_id` - 需要重新布局的块 ID
-    pub fn mark_invalid(&mut self, update_manager: &mut dyn UpdateManager, block_id: BlockId) {
+    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, block_id: BlockId) {
         self.mark_validation_path_invalid(block_id);
         update_manager.add_invalid_figure(block_id);
     }
@@ -1131,7 +1131,7 @@ impl FigureGraph {
     /// * `rect` - node-local 脏区域；`None` 表示完整 local border box
     pub fn repaint(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         block_id: BlockId,
         rect: Option<Rectangle>,
     ) {
@@ -1148,7 +1148,7 @@ impl FigureGraph {
     /// 请求重绘整个场景
     ///
     /// 对应 draw2d: Figure.repaint() 使用整个 bounds
-    pub fn repaint_all(&mut self, update_manager: &mut dyn UpdateManager) {
+    pub fn repaint_all(&mut self, update_manager: &mut UpdateManager) {
         if let Some(contents_id) = self.contents {
             self.repaint(update_manager, contents_id, None);
         }
@@ -1165,7 +1165,7 @@ impl FigureGraph {
     /// Phase 2: 脏区域重绘
     /// - 如果有待重绘的脏区域，使用脏区域裁剪渲染
     /// - 清空脏区域
-    pub fn perform_update(&mut self, update_manager: &mut dyn UpdateManager) -> NdCanvas {
+    pub fn perform_update(&mut self, update_manager: &mut UpdateManager) -> NdCanvas {
         let mut canvas = NdCanvas::new();
         update_manager.perform_update(self, &mut canvas);
         canvas
@@ -1177,14 +1177,14 @@ impl FigureGraph {
     /// FigureGraph 自身决定哪些节点可参与验证以及如何 revalidate。
     pub fn perform_validation_cycle(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
     ) -> Result<(), ValidationError> {
         self.perform_validation_cycle_with_budget(update_manager, DEFAULT_VALIDATION_BUDGET)
     }
 
     pub fn perform_validation_cycle_with_budget(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         budget: usize,
     ) -> Result<(), ValidationError> {
         let mut processed = 0;
@@ -1252,7 +1252,7 @@ impl FigureGraph {
     /// 参考 draw2d: Figure.layout() { if (layoutManager != null) layoutManager.layout() }
     fn revalidate_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         container_id: BlockId,
     ) -> Result<(), LayoutError> {
         if self
@@ -1313,7 +1313,7 @@ impl FigureGraph {
     /// 递归验证子容器的布局
     fn revalidate_children_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         parent_id: BlockId,
     ) -> Result<(), LayoutError> {
         // 先收集子元素 ID，避免在迭代过程中同时持有不可变和可变引用
@@ -1336,7 +1336,7 @@ impl FigureGraph {
     /// the new viewport location is applied.
     pub fn validate_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         container_id: BlockId,
     ) -> Result<(), LayoutError> {
         self.revalidate_with_update(update_manager, container_id)
@@ -1440,7 +1440,7 @@ impl FigureGraph {
 
     fn apply_layout_output(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         container_id: BlockId,
         output: LayoutOutput,
     ) -> Result<(), LayoutError> {
@@ -2073,7 +2073,7 @@ impl FigureGraph {
 
     pub fn set_visible_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         id: BlockId,
         visible: bool,
     ) -> bool {
@@ -2134,7 +2134,7 @@ impl FigureGraph {
 
     pub fn set_enabled_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         id: BlockId,
         enabled: bool,
     ) -> bool {
@@ -2390,7 +2390,7 @@ impl FigureGraph {
     /// 应使用此方法，确保旧区域曝光、当前区域重绘和坐标根移动使用同一 damage 协议。
     pub fn set_bounds_with_update(
         &mut self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         block_id: BlockId,
         x: f64,
         y: f64,
@@ -2435,7 +2435,7 @@ impl FigureGraph {
 
     fn erase(
         &self,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         block_id: BlockId,
         old_bounds: Rectangle,
         mut old_visual_bounds: Rectangle,

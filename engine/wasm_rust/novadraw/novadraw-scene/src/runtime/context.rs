@@ -167,7 +167,7 @@ impl MutationContext for SceneNovadrawContext<'_> {
 pub struct SceneDispatchContext<'a> {
     scene: &'a mut FigureGraph,
     interaction: &'a mut InteractionState,
-    update_manager: &'a mut dyn UpdateManager,
+    update_manager: &'a mut UpdateManager,
     pending_mutations: &'a mut PendingMutations,
 }
 
@@ -175,7 +175,7 @@ impl<'a> SceneDispatchContext<'a> {
     pub fn new(
         scene: &'a mut FigureGraph,
         interaction: &'a mut InteractionState,
-        update_manager: &'a mut dyn UpdateManager,
+        update_manager: &'a mut UpdateManager,
         pending_mutations: &'a mut PendingMutations,
     ) -> Self {
         Self {

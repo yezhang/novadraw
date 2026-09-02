@@ -7,8 +7,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::input::{AdaptedGesture, WinitGestureAdapter};
 pub use novadraw::{
-    BlockId, FigureEvent, FigureGraph, Key, KeyModifiers, MouseButton, NotificationEffect,
-    RenderBackend, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent, UpdateListener, WindowProxy,
+    BackendCapabilities, BlockId, FigureEvent, FigureGraph, Key, KeyModifiers, MouseButton,
+    NotificationEffect, RenderBackend, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent,
+    UpdateListener, WindowProxy,
 };
 pub use novadraw_render::backend::vello::{VelloRenderer, WinitWindowProxy};
 pub use winit::dpi::{LogicalSize, PhysicalSize};
@@ -35,12 +36,6 @@ const SCREENSHOT_RENDER_RETRY_DELAY: std::time::Duration = std::time::Duration::
 type SceneCreator = Box<dyn FnMut() -> FigureGraph>;
 
 struct DemoUpdateListener;
-
-fn preserve_unpresented_frame(runtime: &mut Runtime, outcome: RenderOutcome) {
-    if outcome != RenderOutcome::Presented {
-        runtime.request_full_redraw();
-    }
-}
 
 impl UpdateListener for DemoUpdateListener {
     fn on_update_event(&self, event: UpdateEvent) {
@@ -146,14 +141,6 @@ impl DemoApp {
             return RenderOutcome::Skipped;
         };
 
-        let canvas = if self.use_update_manager {
-            let Some(canvas) = runtime.prepare_frame() else {
-                return RenderOutcome::Skipped;
-            };
-            canvas
-        } else {
-            runtime.record_full_frame()
-        };
         let scale_factor = renderer.window().scale_factor();
         let pixel_width = renderer.window().width();
         let pixel_height = renderer.window().height();
@@ -164,8 +151,15 @@ impl DemoApp {
             pixel_height,
             scale_factor,
         };
-        let outcome = renderer.render(&canvas.to_submission_for_surface(surface));
-        preserve_unpresented_frame(runtime, outcome);
+        if !self.use_update_manager {
+            runtime.request_full_redraw();
+        }
+        let Some(submission) = runtime.prepare_submission(surface, renderer.capabilities()) else {
+            return RenderOutcome::Skipped;
+        };
+        let frame_id = submission.frame_id;
+        let outcome = renderer.render(&submission);
+        runtime.complete_submission(frame_id, outcome);
         if outcome == RenderOutcome::Retry {
             renderer.window().request_redraw();
         }
@@ -670,14 +664,25 @@ mod tests {
     #[test]
     fn unpresented_frame_restores_full_redraw_work() {
         let mut runtime = Runtime::empty();
-        assert!(runtime.prepare_frame().is_some());
+        let surface = SurfaceInfo {
+            logical_width: 100.0,
+            logical_height: 100.0,
+            pixel_width: 100,
+            pixel_height: 100,
+            scale_factor: 1.0,
+        };
+        let submission = runtime
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
         assert!(!runtime.has_pending_update());
 
-        preserve_unpresented_frame(&mut runtime, RenderOutcome::Skipped);
+        assert!(runtime.complete_submission(submission.frame_id, RenderOutcome::Skipped));
         assert!(runtime.has_pending_update());
 
-        assert!(runtime.prepare_frame().is_some());
-        preserve_unpresented_frame(&mut runtime, RenderOutcome::Presented);
+        let submission = runtime
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert!(runtime.complete_submission(submission.frame_id, RenderOutcome::Presented));
         assert!(!runtime.has_pending_update());
     }
 }

@@ -150,7 +150,7 @@ impl ScrollPaneHandle {
     pub fn set_scroll_bar_visibility(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         horizontal: ScrollBarVisibility,
         vertical: ScrollBarVisibility,
     ) -> Result<bool, ScrollPaneError> {
@@ -179,7 +179,7 @@ impl ScrollPaneHandle {
     pub fn scroll_to(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         x: f64,
         y: f64,
     ) -> Result<bool, ScrollPaneError> {
@@ -191,7 +191,7 @@ impl ScrollPaneHandle {
     pub fn set_contents(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
     ) -> Result<BlockId, ScrollPaneError> {
         Ok(self.viewport.set_contents(graph, update_manager, figure)?)

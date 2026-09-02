@@ -24,21 +24,15 @@
 //!
 //! # 架构设计
 //!
-//! [`SceneUpdateManager`] 是纯数据管理器，负责跟踪脏区域和失效块队列。
-//! [`FigureGraph`] 是 orchestrator，通过调用 SceneUpdateManager 的数据方法
-//! 编排两阶段更新流程。
+//! [`UpdateManager`] 是 Runtime 内部的具体事务组件，负责跟踪失效与脏区，
+//! 并驱动 FigureGraph 完成 validation 和 recording。
 //! [`repair`] 模块负责 DamageSet 写入与 repair phase 的脏区处理逻辑。
-//!
-//! 对应 draw2d 的 DeferredUpdateManager（持有 root + GraphicsSource + orchestrator），
-//! 本实现将数据管理（SceneUpdateManager）和场景编排（FigureGraph）分离，
-//! 通过 trait [`UpdateManagerSource`] 定义 FigureGraph 的回调接口，
-//! 支持未来替换不同的更新策略实现。
 
 mod deferred;
 mod listener;
 mod repair;
 
-pub use deferred::SceneUpdateManager;
+pub use deferred::UpdateManager;
 pub use listener::{
     AncestorEvent, AncestorEventKind, AncestorListener, CoordinateListener, FigureEvent,
     FigureListener, LayoutEvent, LayoutEventKind, LayoutListener, ListenerId, NotificationEffect,
@@ -46,57 +40,5 @@ pub use listener::{
     UpdateListener, ValidatingListener,
 };
 
-pub trait UpdateManager {
-    fn add_dirty_region(
-        &mut self,
-        block_id: crate::graph::BlockId,
-        rect: novadraw_geometry::Rectangle,
-    );
-    fn add_invalid_figure(&mut self, block_id: crate::graph::BlockId);
-    fn enqueue_notification_effect(&mut self, _effect: NotificationEffect) {}
-    fn drain_invalid_blocks(&mut self) -> Vec<crate::graph::BlockId>;
-    fn perform_update(
-        &mut self,
-        graph: &mut crate::graph::FigureGraph,
-        canvas: &mut novadraw_render::NdCanvas,
-    );
-    fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph);
-    fn is_update_queued(&self) -> bool;
-    fn is_updating(&self) -> bool;
-}
-
-/// Update Manager Source - 更新管理器数据源
-///
-/// 对应 draw2d: DeferredUpdateManager 持有 root Figure 的方式。
-///
-/// 定义 FigureGraph 作为 UpdateManager 数据源时需要实现的接口。
-/// 当 SceneUpdateManager 需要执行验证和渲染时，通过此 trait 回调 FigureGraph。
-///
-/// # 实现说明
-///
-/// 当前 validation 的图级语义由 FigureGraph 执行，
-/// SceneUpdateManager 只负责保存队列并触发 phase 边界。
-///
-/// # 设计要点
-///
-/// - draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并调用其方法
-/// - 本实现通过 trait 定义回调接口，保持 SceneUpdateManager 与 FigureGraph 解耦
-pub trait UpdateManagerSource {
-    /// 执行单个块的布局验证
-    ///
-    /// 对应 draw2d: Figure.validate()
-    ///
-    /// # Arguments
-    ///
-    /// * `block_id` - 需要验证的块 ID
-    fn perform_validation(&mut self, block_id: crate::graph::BlockId);
-
-    /// 使用脏区域裁剪渲染场景
-    ///
-    /// 对应 draw2d: DeferredUpdateManager.repairDamage() 中的 paint(graphics)
-    ///
-    /// # Arguments
-    ///
-    /// * `clip` - 脏区域裁剪矩形
-    fn render_damage(&mut self, clip: novadraw_geometry::Rectangle) -> novadraw_render::NdCanvas;
-}
+/// Compatibility name retained until the R8 public API cleanup.
+pub type SceneUpdateManager = UpdateManager;

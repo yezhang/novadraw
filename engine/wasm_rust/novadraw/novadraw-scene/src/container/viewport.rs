@@ -133,7 +133,7 @@ impl ViewportHandle {
     pub fn set_view_location(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         x: f64,
         y: f64,
     ) -> Result<bool, ViewportError> {
@@ -170,7 +170,7 @@ impl ViewportHandle {
     pub fn set_horizontal_location(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         x: f64,
     ) -> Result<bool, ViewportError> {
         let current = self.view_location();
@@ -180,7 +180,7 @@ impl ViewportHandle {
     pub fn set_vertical_location(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         y: f64,
     ) -> Result<bool, ViewportError> {
         let current = self.view_location();
@@ -190,7 +190,7 @@ impl ViewportHandle {
     pub fn scroll_by(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         dx: f64,
         dy: f64,
     ) -> Result<bool, ViewportError> {
@@ -209,7 +209,7 @@ impl ViewportHandle {
     pub fn set_contents(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
     ) -> Result<BlockId, ViewportError> {
         if graph.get_block(self.block_id).is_none() {
@@ -228,7 +228,7 @@ impl ViewportHandle {
     pub fn set_tracks_width(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         tracks: bool,
     ) -> Result<bool, ViewportError> {
         self.set_track_policy(graph, update_manager, Some(tracks), None)
@@ -237,7 +237,7 @@ impl ViewportHandle {
     pub fn set_tracks_height(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         tracks: bool,
     ) -> Result<bool, ViewportError> {
         self.set_track_policy(graph, update_manager, None, Some(tracks))
@@ -246,7 +246,7 @@ impl ViewportHandle {
     fn set_track_policy(
         &self,
         graph: &mut FigureGraph,
-        update_manager: &mut dyn UpdateManager,
+        update_manager: &mut UpdateManager,
         tracks_width: Option<bool>,
         tracks_height: Option<bool>,
     ) -> Result<bool, ViewportError> {

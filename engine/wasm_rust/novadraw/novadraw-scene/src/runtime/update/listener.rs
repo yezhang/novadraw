@@ -8,6 +8,7 @@
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
 use novadraw_geometry::{Point, Rectangle};
+use novadraw_render::{DamageMode, FrameId, RenderOutcome};
 
 use crate::graph::BlockId;
 
@@ -31,6 +32,16 @@ pub enum UpdateEvent {
     Painting { damage: Rectangle },
     /// 重绘完成
     Painted { damage: Rectangle },
+    /// RenderSubmission 已在稳定事务边界生成。
+    Prepared {
+        frame_id: FrameId,
+        damage: DamageMode,
+    },
+    /// 后端已返回该提交的处理结果。
+    Submitted {
+        frame_id: FrameId,
+        outcome: RenderOutcome,
+    },
 }
 
 /// Figure 语义事件

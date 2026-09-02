@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use novadraw::{
-    BlockId, Color, FigureEvent, FigureGraph, GridLayout, NotificationEffect, Rectangle,
-    RectangleFigure, SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, XYConstraint,
-    XYLayout,
+    BackendCapabilities, BlockId, Color, DamageMode, FigureEvent, FigureGraph, GridLayout,
+    NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SceneUpdateManager,
+    SurfaceInfo, UpdateEvent, UpdateListener, XYConstraint, XYLayout,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -292,6 +292,43 @@ fn verify_stress_1024() -> Result<VerificationMetrics, String> {
     ]))
 }
 
+fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
+    let surface = SurfaceInfo {
+        logical_width: WINDOW_WIDTH,
+        logical_height: WINDOW_HEIGHT,
+        pixel_width: WINDOW_WIDTH as u32,
+        pixel_height: WINDOW_HEIGHT as u32,
+        scale_factor: 1.0,
+    };
+    let mut runtime = Runtime::new(baseline_scene());
+    runtime.add_resource(7);
+
+    let first = runtime
+        .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        .ok_or("initial submission was not prepared")?;
+    if first.damage.mode() != DamageMode::Full || first.resources.added != [7] {
+        return Err("initial submission did not carry full damage and resources".to_string());
+    }
+    if !runtime.complete_submission(first.frame_id, RenderOutcome::Retry) {
+        return Err("retry result was not accepted".to_string());
+    }
+
+    let retry = runtime
+        .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        .ok_or("retry submission was not prepared")?;
+    if retry.damage.mode() != DamageMode::Full || retry.resources.added != [7] {
+        return Err("retry did not restore full damage and resources".to_string());
+    }
+    if !runtime.complete_submission(retry.frame_id, RenderOutcome::Presented) {
+        return Err("presented result was not accepted".to_string());
+    }
+
+    Ok(metrics([
+        ("first_frame_id", first.frame_id.get().to_string()),
+        ("retry_frame_id", retry.frame_id.get().to_string()),
+    ]))
+}
+
 fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics {
     entries
         .into_iter()
@@ -309,7 +346,7 @@ fn position(
         .ok_or_else(|| "expected notification was not emitted".to_string())
 }
 
-fn verification_cases() -> [VerificationCase; 5] {
+fn verification_cases() -> [VerificationCase; 6] {
     [
         VerificationCase {
             name: "damage_modes",
@@ -330,6 +367,10 @@ fn verification_cases() -> [VerificationCase; 5] {
         VerificationCase {
             name: "stress_1024",
             run: verify_stress_1024,
+        },
+        VerificationCase {
+            name: "submission_lifecycle",
+            run: verify_submission_lifecycle,
         },
     ]
 }

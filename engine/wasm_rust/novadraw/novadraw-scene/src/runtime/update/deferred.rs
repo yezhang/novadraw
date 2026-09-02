@@ -39,14 +39,13 @@ use crate::runtime::update::repair::{
 /// - 脏区域使用 HashMap 合并，每个块最多一个脏区域
 /// - 失效块使用 Vec 存储，支持重复添加（去重）
 /// - 两阶段更新：先布局，再重绘
-/// - 纯数据管理：具体的验证和渲染由 FigureGraph 通过 trait 方法执行
+/// - 具体事务组件：与 Runtime 共同维护 validation 和 recording 顺序
 ///
 /// # 与 draw2d 的差异
 ///
-/// draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并直接调用其方法。
-/// 本实现将数据管理（UM）和业务逻辑（FigureGraph）分离，
-/// 通过 `UpdateManagerSource` trait 定义回调接口，保持解耦。
-pub struct SceneUpdateManager {
+/// draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并调用其方法。
+/// 本实现由 Runtime 持有 manager，并在事务执行时显式传入 FigureGraph。
+pub struct UpdateManager {
     /// 脏区域映射：block_id -> 脏区域
     pub(crate) dirty_regions: std::collections::HashMap<BlockId, Rectangle>,
     /// 失效块队列
@@ -65,13 +64,13 @@ pub struct SceneUpdateManager {
     last_validation_error: Option<ValidationError>,
 }
 
-impl Default for SceneUpdateManager {
+impl Default for UpdateManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SceneUpdateManager {
+impl UpdateManager {
     /// 创建新的场景更新管理器
     pub fn new() -> Self {
         Self {
@@ -182,7 +181,10 @@ impl SceneUpdateManager {
                             match event {
                                 UpdateEvent::Validating => validating_listener.notify_validating(),
                                 UpdateEvent::Validated => validating_listener.notify_validated(),
-                                UpdateEvent::Painting { .. } | UpdateEvent::Painted { .. } => {}
+                                UpdateEvent::Painting { .. }
+                                | UpdateEvent::Painted { .. }
+                                | UpdateEvent::Prepared { .. }
+                                | UpdateEvent::Submitted { .. } => {}
                             }
                         }
                     }
@@ -211,7 +213,7 @@ impl SceneUpdateManager {
             .extend(graph.drain_notification_effects());
     }
 
-    /// 统一 flush：收集 FigureGraph 和 SceneUpdateManager 两边的 effect，
+    /// 统一 flush：收集 FigureGraph 和 UpdateManager 两边的 effect，
     /// 在事务边界统一分发到所有注册的 listener。
     pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureGraph) {
         self.absorb_graph_effects(graph);
@@ -268,6 +270,14 @@ impl SceneUpdateManager {
 
     pub fn take_validation_error(&mut self) -> Option<ValidationError> {
         self.last_validation_error.take()
+    }
+
+    pub(crate) fn emit_update_event(&mut self, event: UpdateEvent) {
+        self.notification_effects.emit_update(event);
+    }
+
+    pub(crate) fn enqueue_notification_effect(&mut self, effect: NotificationEffect) {
+        self.notification_effects.extend([effect]);
     }
 
     /// 检查是否有待处理的更新
@@ -387,32 +397,8 @@ impl SceneUpdateManager {
         self.flush_notifications(graph);
         Ok(())
     }
-}
 
-fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: ListenerId) -> bool {
-    let old_len = listeners.len();
-    listeners.retain(|(listener_id, _)| *listener_id != id);
-    listeners.len() != old_len
-}
-
-impl crate::runtime::update::UpdateManager for SceneUpdateManager {
-    fn add_dirty_region(&mut self, block_id: BlockId, rect: Rectangle) {
-        SceneUpdateManager::add_dirty_region(self, block_id, rect);
-    }
-
-    fn add_invalid_figure(&mut self, block_id: BlockId) {
-        SceneUpdateManager::add_invalid_figure(self, block_id);
-    }
-
-    fn enqueue_notification_effect(&mut self, effect: NotificationEffect) {
-        self.notification_effects.extend([effect]);
-    }
-
-    fn drain_invalid_blocks(&mut self) -> Vec<BlockId> {
-        SceneUpdateManager::drain_invalid_blocks(self)
-    }
-
-    fn perform_update(&mut self, graph: &mut crate::graph::FigureGraph, canvas: &mut NdCanvas) {
+    pub fn perform_update(&mut self, graph: &mut crate::graph::FigureGraph, canvas: &mut NdCanvas) {
         if self.updating {
             return;
         }
@@ -449,17 +435,19 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
         }
     }
 
-    fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph) {
+    pub fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph) {
         self.last_validation_error = graph.perform_validation_cycle(self).err();
     }
 
-    fn is_updating(&self) -> bool {
+    pub fn is_updating(&self) -> bool {
         self.updating
     }
+}
 
-    fn is_update_queued(&self) -> bool {
-        self.update_queued
-    }
+fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: ListenerId) -> bool {
+    let old_len = listeners.len();
+    listeners.retain(|(listener_id, _)| *listener_id != id);
+    listeners.len() != old_len
 }
 
 #[cfg(test)]
@@ -520,7 +508,7 @@ mod tests {
 
     #[test]
     fn test_dirty_region_tracking() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         let rect = Rectangle::new(0.0, 0.0, 100.0, 100.0);
         manager.add_dirty_region(create_test_key(1), rect);
@@ -532,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_dirty_region_merge() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         let rect1 = Rectangle::new(0.0, 0.0, 100.0, 100.0);
         let rect2 = Rectangle::new(50.0, 50.0, 100.0, 100.0);
@@ -553,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_invalid_block_queue() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         let key = create_test_key(1);
         manager.add_invalid_figure(key);
@@ -564,7 +552,7 @@ mod tests {
 
     #[test]
     fn test_invalid_block_dedup() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         let key = create_test_key(1);
         manager.add_invalid_figure(key);
@@ -576,7 +564,7 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         let key = create_test_key(1);
         manager.add_dirty_region(key, Rectangle::new(0.0, 0.0, 100.0, 100.0));
@@ -591,7 +579,7 @@ mod tests {
 
     #[test]
     fn test_invalid_region() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         // 无效区域应该被忽略
         let rect = Rectangle::new(0.0, 0.0, 0.0, 100.0);
@@ -602,7 +590,7 @@ mod tests {
 
     #[test]
     fn test_drain_invalid_blocks() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
 
         manager.add_invalid_figure(create_test_key(1));
         manager.add_invalid_figure(create_test_key(2));
@@ -614,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_take_dirty_snapshot_freezes_current_cycle() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let key1 = create_test_key(1);
         let key2 = create_test_key(2);
         manager.add_dirty_region(key1, Rectangle::new(0.0, 0.0, 10.0, 10.0));
@@ -637,7 +625,7 @@ mod tests {
 
     #[test]
     fn test_clear_dirty_and_flag_preserves_next_cycle_work() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         manager.add_dirty_region(create_test_key(1), Rectangle::new(0.0, 0.0, 10.0, 10.0));
         let _snapshot = manager.take_dirty_snapshot();
         manager.add_dirty_region(create_test_key(2), Rectangle::new(5.0, 5.0, 5.0, 5.0));
@@ -650,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_perform_update_writes_damage_set_to_canvas() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -676,7 +664,7 @@ mod tests {
 
     #[test]
     fn test_perform_update_records_update_phase_effects() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -726,7 +714,7 @@ mod tests {
 
     #[test]
     fn test_update_notifications_report_root_domain_damage() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
         let coordinate_root = graph.add_child_to(
@@ -769,7 +757,7 @@ mod tests {
 
     #[test]
     fn test_clipped_damage_notifies_without_rendering() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         manager.add_dirty_region(root_id, Rectangle::new(200.0, 200.0, 10.0, 10.0));
@@ -811,7 +799,7 @@ mod tests {
 
     #[test]
     fn test_update_without_dirty_regions_skips_rendering() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
 
@@ -840,7 +828,7 @@ mod tests {
 
     #[test]
     fn test_direct_invalid_queue_entry_invalidates_and_validates_graph_node() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
@@ -855,7 +843,7 @@ mod tests {
 
     #[test]
     fn test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
@@ -883,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_validation_figure_effects_preserve_causal_order() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let mut graph = FigureGraph::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
         let child_id = graph.add_child_to(
@@ -998,7 +986,7 @@ mod tests {
 
     #[test]
     fn test_typed_listeners_dispatch_and_remove_independently() {
-        let mut manager = SceneUpdateManager::new();
+        let mut manager = UpdateManager::new();
         let counts = Arc::new(std::sync::Mutex::new(TypedListenerCounts::default()));
         let figure_id = manager.add_figure_listener(Box::new(TypedListener {
             counts: counts.clone(),
