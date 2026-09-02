@@ -315,6 +315,17 @@ impl ApplicationHandler<()> for GraphicsApp {
                     return;
                 }
                 match event.physical_key {
+                    PhysicalKey::Code(KeyCode::ArrowLeft) | PhysicalKey::Code(KeyCode::PageUp) => {
+                        if let Some(system) = &mut self.system {
+                            system.previous_scene();
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::ArrowRight)
+                    | PhysicalKey::Code(KeyCode::PageDown) => {
+                        if let Some(system) = &mut self.system {
+                            system.next_scene();
+                        }
+                    }
                     PhysicalKey::Code(KeyCode::Digit0) => {
                         if let Some(system) = &mut self.system {
                             system.switch_scene(SceneType::BasicAnchors);

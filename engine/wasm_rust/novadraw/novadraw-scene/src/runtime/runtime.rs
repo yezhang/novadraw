@@ -82,14 +82,21 @@ impl Runtime {
     }
 
     pub fn set_bounds(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
-        self.tree.set_bounds_with_update(
+        let is_contents = self.tree.get_contents() == Some(id);
+        let changed = self.tree.set_bounds_with_update(
             &mut self.updates,
             id,
             bounds.x,
             bounds.y,
             bounds.width,
             bounds.height,
-        )
+        );
+        if changed && is_contents {
+            // The synthetic tree root has no drawable background to repair
+            // pixels exposed by a moved or resized contents node.
+            self.full_redraw_pending = true;
+        }
+        changed
     }
 
     pub fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
@@ -429,14 +436,16 @@ mod tests {
     fn backend_capability_promotes_partial_damage_to_full() {
         let mut runtime = Runtime::empty();
         let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
 
         runtime.set_bounds(
-            root,
-            novadraw_geometry::Rectangle::new(5.0, 5.0, 90.0, 90.0),
+            child,
+            novadraw_geometry::Rectangle::new(15.0, 15.0, 20.0, 20.0),
         );
         let partial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -445,13 +454,30 @@ mod tests {
         runtime.complete_submission(partial.frame_id, RenderOutcome::Presented);
 
         runtime.set_bounds(
-            root,
-            novadraw_geometry::Rectangle::new(10.0, 10.0, 80.0, 80.0),
+            child,
+            novadraw_geometry::Rectangle::new(20.0, 20.0, 20.0, 20.0),
         );
         let promoted = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY)
             .unwrap();
         assert_eq!(promoted.damage.mode(), DamageMode::Full);
+    }
+
+    #[test]
+    fn moving_contents_forces_full_damage_to_clear_exposed_pixels() {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(20.0, 20.0, 60.0, 60.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        assert!(runtime.translate(root, 10.0, 10.0));
+        let moved = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        assert_eq!(moved.damage.mode(), DamageMode::Full);
     }
 
     #[test]

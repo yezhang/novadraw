@@ -10,7 +10,7 @@ pub struct SceneManager {
     pub current_scene: SceneType,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum SceneType {
     BasicAnchors,    // 场景0：基础四个定位点
     Nested,          // 场景1：嵌套父子结构
@@ -22,6 +22,37 @@ pub enum SceneType {
     EllipseTest,     // 场景7：椭圆图形测试
     LineTest,        // 场景8：直线图形测试
     DpiTest,         // 场景9：DPI 坐标验证
+}
+
+impl SceneType {
+    pub const ALL: [Self; 10] = [
+        Self::BasicAnchors,
+        Self::Nested,
+        Self::NestedWithRoot,
+        Self::ZOrder,
+        Self::Visibility,
+        Self::BoundsTranslate,
+        Self::ClipTest,
+        Self::EllipseTest,
+        Self::LineTest,
+        Self::DpiTest,
+    ];
+
+    pub fn previous(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|scene| *scene == self)
+            .expect("every scene type must be listed");
+        Self::ALL[(index + Self::ALL.len() - 1) % Self::ALL.len()]
+    }
+
+    pub fn next(self) -> Self {
+        let index = Self::ALL
+            .iter()
+            .position(|scene| *scene == self)
+            .expect("every scene type must be listed");
+        Self::ALL[(index + 1) % Self::ALL.len()]
+    }
 }
 
 pub const DPI_TEST_PROBE_BOUNDS: Rectangle = Rectangle {
@@ -530,5 +561,18 @@ impl SceneManager {
 impl Default for SceneManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SceneType;
+
+    #[test]
+    fn scene_navigation_wraps_in_both_directions() {
+        assert_eq!(SceneType::BasicAnchors.previous(), SceneType::DpiTest);
+        assert_eq!(SceneType::DpiTest.next(), SceneType::BasicAnchors);
+        assert_eq!(SceneType::BoundsTranslate.previous(), SceneType::Visibility);
+        assert_eq!(SceneType::BoundsTranslate.next(), SceneType::ClipTest);
     }
 }

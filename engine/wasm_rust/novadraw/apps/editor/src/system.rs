@@ -282,6 +282,14 @@ impl EditorRuntime {
         self.host.request_redraw();
     }
 
+    pub fn previous_scene(&mut self) {
+        self.switch_scene(self.core.current_scene.previous());
+    }
+
+    pub fn next_scene(&mut self) {
+        self.switch_scene(self.core.current_scene.next());
+    }
+
     pub fn translate_contents_if_scene(
         &mut self,
         scene_type: crate::scene_manager::SceneType,
