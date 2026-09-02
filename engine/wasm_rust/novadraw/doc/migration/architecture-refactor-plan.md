@@ -620,14 +620,29 @@ R6: PASS
 
 ## 18. R7 手动验收记录
 
-状态：`pending`
+状态：`platform_partial`
 
 首次 macOS 人工验收未通过：
 
 - editor 场景 5 按 `T` 平移时出现旧帧残影；
 - editor 左右方向键切换场景失效。
 
-以上问题已修复并增加回归测试，等待重新验收。完成后才能开始 R8。
+以上问题已修复并增加回归测试。
+
+macOS 复验结果：
+
+- 平台：macOS
+- 结果：PASS
+- 失败项：无
+
+未验证平台：
+
+- Web
+- Windows
+- Linux
+
+R7 尚未整体批准；至少完成 Web 验证及 Windows/Linux 中一个目标的构建与基础输入验证后，
+才能将状态更新为 `approved` 并开始 R8。
 
 ### 18.1 macOS 核心 Demo
 
