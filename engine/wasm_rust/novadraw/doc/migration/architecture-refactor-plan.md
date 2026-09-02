@@ -274,7 +274,7 @@ cargo test --workspace
 
 前置条件：R6 手动验证 `PASS`。
 
-状态：`platform_partial`
+状态：`approved`
 
 工作：
 
@@ -313,11 +313,13 @@ cargo test --workspace
 
 - macOS 全部核心 demo；
 - 至少一个 Web 构建和浏览器输入验证；
-- Windows/Linux 在 CI 或目标机器验证 build 与基础输入。
+- Windows/Linux 延期到对应跨平台应用开发或发布资格验证，不阻塞后续引擎迁移。
 
 ## 11. R8：清理、性能与扩展验证
 
 前置条件：R7 手动验证 `PASS`。
+
+状态：`planning`
 
 工作：
 
@@ -622,7 +624,7 @@ R6: PASS
 
 ## 18. R7 手动验收记录
 
-状态：`platform_partial`
+状态：`approved`
 
 首次 macOS 人工验收未通过：
 
@@ -647,35 +649,36 @@ Web 验收结果：
 - 1x/2x DPR 切换触发 Full damage，logical/physical surface 尺寸正确；
 - 浏览器控制台无错误，JavaScript 与 Wasm 资源请求成功。
 
-未验证平台：
+延期验证平台：
 
 - Windows
 - Linux
 
-### 18.1 Windows 验证暂缓与后续方案
+### 18.1 跨平台验证暂缓与后续方案
 
-决策（2026-09-02）：当前阶段暂不执行 Windows 平台验证，继续以 macOS 与 Web 的
-已通过验收作为开发迭代依据。该暂缓仅代表 Windows 尚未验证，不得表述为 Windows
-已支持、已兼容或已通过验收。
+决策（2026-09-02）：R7 的目标是证明平台边界与引擎运行时解耦，不是完成所有桌面
+平台的发布资格认证。macOS 覆盖原生 Winit + Vello 路径，Web 覆盖独立 Web adapter +
+Vello WebGPU 路径，HeadlessHost 与自动契约覆盖确定性行为；三类证据足以批准 R7 并
+继续引擎迭代。
 
-R7 保持 `platform_partial`。在 Windows 或 Linux 至少一个目标完成构建和基础输入验证前，
-不得将 R7 更新为 `approved`；Windows 图形验收仍是桌面跨平台发布前的必经门禁。
+Windows/Linux 验证延期到对应跨平台应用开始开发、进入 CI 支持矩阵或准备发布时执行。
+延期不代表这些平台已支持、已兼容或已通过验收，也不得用于发布声明。
 
-Windows 验证分层如下：
+平台资格验证分层如下：
 
-1. **持续集成构建门禁**：在 GitHub Actions 的 `windows-latest` 上运行
+1. **持续集成构建门禁**：在目标平台 runner 上运行
    `cargo fmt --all -- --check`、`cargo check --workspace`、
    `cargo clippy --workspace -- -D warnings` 与 `cargo test --workspace`。
-   交叉编译只可作为本地提前发现 target 编译问题的补充，不能替代 Windows runner。
-2. **目标平台基础输入验证**：在 Windows x86_64 实机或 Windows CI runner 上启动
+   交叉编译只可作为本地提前发现 target 编译问题的补充，不能替代目标平台 runner。
+2. **目标平台基础输入验证**：在目标平台实机或 CI runner 上启动
    `event-app` 和至少一个图形 demo，验证窗口创建、Pointer、Wheel、Keyboard、resize
    与 Full damage。
-3. **发布前图形验收**：在真实 Windows x86_64 机器及原生 GPU 驱动上运行 editor、
+3. **发布前图形验收**：在真实目标机器及原生 GPU 驱动上运行 editor、
    `update-app`、`viewport-app` 和 `scroll-pane-demo`，覆盖 resize、DPI 缩放、最小化/
-   恢复与 WebGPU/Vello 渲染。Apple Silicon 上的 Windows ARM 虚拟机可用于辅助人工检查，
-   但不能替代此项验收。
+   恢复与 WebGPU/Vello 渲染。虚拟机可用于辅助人工检查，但不能替代此项验收。
 
-后续恢复 Windows 验收时，先补齐第 1 层，再按第 2、3 层顺序执行并将结果写入本节。
+后续启动 Windows/Linux 应用工作时，先补齐第 1 层，再按第 2、3 层顺序执行并将结果
+写入本节或对应平台验证文档。
 
 ### 18.2 macOS 核心 Demo
 
@@ -746,14 +749,15 @@ cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-too
    `web_validation_bg.wasm` 加载成功。
 
 Web pointer 坐标保持 CSS logical units，wheel 的 pixel/line/page delta 映射到统一引擎
-事件。Windows/Linux build 与基础输入仍需在 CI 或目标机器验证。
+事件。Windows/Linux 属于延期的平台资格验证，不阻塞 R8。
 
 ### 18.5 验收回复
 
 ```text
 R7: PASS
-平台: macOS / Web / Windows 或 Linux
+引擎迁移验证平台: macOS / Web / Headless
+延期平台资格验证: Windows / Linux
 失败项: 无
 ```
 
-若有未覆盖平台，请明确列为“未验证”，不要记为 PASS。
+延期平台不得记为平台 PASS；R7 PASS 只表示当前引擎迁移门禁已满足。
