@@ -236,7 +236,7 @@ cargo test --workspace
 
 前置条件：R5 手动验证 `PASS`。
 
-状态：`automatic_verified`
+状态：`approved`
 
 工作：
 
@@ -564,9 +564,13 @@ R5: PASS
 
 ## 17. R6 手动验收记录
 
-状态：`pending`
+状态：`approved`
 
-自动门禁已通过，等待 macOS 人工窗口验收。完成以下步骤后才能开始 R7。
+- 平台：macOS
+- 结果：PASS
+- 失败项：无
+
+自动门禁与人工窗口验收均已通过，可以开始 R7。
 
 ### 17.1 Update App
 
