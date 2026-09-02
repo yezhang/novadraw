@@ -52,6 +52,8 @@ R8 必须把 canonical 定义统一为 `FigureId / FigureNode / FigureTree`，�
 
 ### R8.0 迁移前基线
 
+状态：`completed`
+
 工作：
 
 - 记录工具链、平台、构建模式和提交；
@@ -66,6 +68,10 @@ R8 必须把 canonical 定义统一为 `FigureId / FigureNode / FigureTree`，�
 - 后续批次使用相同机器、工具链和 release 配置比较。
 
 提交主题：`验证：建立 R8 迁移前性能基线`
+
+基线记录：
+
+- [`../verification/performance/r8-baseline-2026-09-02.md`](../verification/performance/r8-baseline-2026-09-02.md)
 
 ### R8.1 Canonical 定义反转
 

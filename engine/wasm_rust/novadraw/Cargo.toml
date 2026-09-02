@@ -23,6 +23,7 @@ members = [
   "apps/update-app",
   "apps/scroll-pane-demo",
   "apps/web-validation",
+  "apps/r8-perf",
 ]
 
 [workspace.package]
