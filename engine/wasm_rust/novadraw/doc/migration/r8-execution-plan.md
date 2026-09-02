@@ -24,7 +24,7 @@ R8 必须保持：
 
 ## 2. 当前影响面
 
-R8 启动盘点结果：
+R8 启动时盘点结果：
 
 | 旧名称 | Rust 引用数 | 目标名称 |
 |---|---:|---|
@@ -32,7 +32,7 @@ R8 启动盘点结果：
 | `FigureBlock` | 12 | `FigureNode` |
 | `FigureGraph` | 405 | `FigureTree` |
 
-引用分布在 52 个 Rust 文件中。当前实现关系为：
+引用分布在 52 个 Rust 文件中。启动时实现关系为：
 
 ```text
 BlockId    <- canonical definition
@@ -95,6 +95,8 @@ R8 必须把 canonical 定义统一为 `FigureId / FigureNode / FigureTree`，�
 
 ### R8.2 调用方迁移与旧别名删除
 
+状态：`completed`
+
 按所有权边界分三次迁移：
 
 1. `novadraw-scene` 测试与内部模块；
@@ -121,6 +123,15 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 活跃设计引用。
 
 提交主题按模块拆分，最后一项为：`重构：删除旧 Figure 兼容名称`
+
+完成记录：
+
+- `9c18073`：迁移聚合 crate、应用公共库与应用调用方；
+- `98213f3`：迁移 parity、verification 与参考文档中的活跃术语；
+- `a845736`：迁移 `novadraw-scene` 契约测试；
+- `262dd90`：删除三个兼容名称，并将渲染只读视图改名为
+  `FigureTreeRenderRef`；
+- workspace fmt、check、Clippy `-D warnings` 与全量测试通过。
 
 ### R8.3 Context、坐标与失效文档清理
 
