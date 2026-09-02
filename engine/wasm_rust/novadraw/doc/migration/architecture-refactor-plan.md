@@ -274,7 +274,7 @@ cargo test --workspace
 
 前置条件：R6 手动验证 `PASS`。
 
-状态：`automatic_verified`
+状态：`platform_partial`
 
 工作：
 
@@ -302,6 +302,8 @@ cargo test --workspace
 - `cargo test --workspace`：全部通过；
 - `cargo tree -p novadraw-scene -e normal`：不包含 winit、Vello 或 wgpu；
 - `novadraw-apps` 的 Winit/Web adapter 与 `HeadlessHost` 契约测试通过。
+- `cargo check -p novadraw-apps --no-default-features`：通过；
+- `./scripts/build_web_validation.sh`：生成可由浏览器加载的 wasm-bindgen 产物；
 - `cargo run -p update-app -- --verify
   --report=target/visual-verification/update-app-r7.json`：6 项通过；
 - `cargo run -p event-app -- --verify
@@ -635,14 +637,22 @@ macOS 复验结果：
 - 结果：PASS
 - 失败项：无
 
+Web 验收结果：
+
+- 平台：Chrome / wasm32-unknown-unknown
+- 结果：PASS
+- Wasm Runtime 与 Canvas2D backend 正常加载和绘制；
+- Pointer、Wheel、Keyboard 事件均进入 Runtime，计数与状态更新正确；
+- 1x/2x DPR 切换触发 Full damage，logical/physical surface 尺寸正确；
+- 浏览器控制台无错误，JavaScript 与 Wasm 资源请求成功。
+
 未验证平台：
 
-- Web
 - Windows
 - Linux
 
-R7 尚未整体批准；至少完成 Web 验证及 Windows/Linux 中一个目标的构建与基础输入验证后，
-才能将状态更新为 `approved` 并开始 R8。
+R7 尚未整体批准；至少完成 Windows/Linux 中一个目标的构建与基础输入验证后，才能将
+状态更新为 `approved` 并开始 R8。
 
 ### 18.1 macOS 核心 Demo
 
@@ -687,9 +697,26 @@ cargo run -p event-app -- --verify --scenario=focus_keyboard
 
 ### 18.3 Web 与其他桌面目标
 
-在已安装对应 Rust target 的环境执行至少一次 Web 构建，并在 CI 或目标机器验证
-Windows/Linux build 与基础输入。Web pointer 坐标必须保持 CSS logical units，
-wheel 的 pixel/line/page delta 必须映射到统一引擎事件。
+Web 环境构建与运行：
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-tools
+./scripts/build_web_validation.sh
+./scripts/serve_web_validation.sh
+```
+
+访问 `http://127.0.0.1:4173/`。2026-09-02 的 Chrome 验收已确认：
+
+1. 页面进入 `READY` 且 Canvas 非空；
+2. Pointer hover/click、Keyboard `A` 与 Wheel 事件计数递增；
+3. Figure 在 idle/focus 状态间正确切换颜色；
+4. DPR 从 2x 切换至 1x 后，surface 从 `1560×975 px` 更新为 `780×488 px`，
+   logical size 保持 `780×488`，并产生 Full damage；
+5. 控制台无错误，`web_validation.js` 与 `web_validation_bg.wasm` 加载成功。
+
+Web pointer 坐标保持 CSS logical units，wheel 的 pixel/line/page delta 映射到统一引擎
+事件。Windows/Linux build 与基础输入仍需在 CI 或目标机器验证。
 
 ### 18.4 验收回复
 
