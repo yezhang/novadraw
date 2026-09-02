@@ -8,5 +8,5 @@
 //! use novadraw_render::backend::vello::VelloRenderer;
 //! ```
 
-#[cfg(feature = "vello")]
+#[cfg(any(feature = "vello", feature = "vello-web"))]
 pub mod vello;

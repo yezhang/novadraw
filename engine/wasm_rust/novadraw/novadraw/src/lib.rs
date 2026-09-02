@@ -12,7 +12,7 @@ pub use novadraw_render::{
 
 pub use novadraw_render as render;
 
-#[cfg(feature = "vello")]
+#[cfg(any(feature = "vello", feature = "vello-web"))]
 pub use novadraw_render::backend;
 
 pub use novadraw_render::traits;

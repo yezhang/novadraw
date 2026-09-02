@@ -12,7 +12,7 @@
 #![allow(missing_docs)]
 
 /// 渲染后端模块
-#[cfg(feature = "vello")]
+#[cfg(any(feature = "vello", feature = "vello-web"))]
 pub mod backend;
 /// 渲染命令模块
 pub mod command;

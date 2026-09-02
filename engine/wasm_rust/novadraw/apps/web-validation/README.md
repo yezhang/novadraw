@@ -1,7 +1,8 @@
 # Web Validation
 
 This application exercises the Novadraw `Runtime`, `WebInputAdapter`, and
-`WebPlatformHost` in a browser with a Canvas2D `RenderBackend`.
+`WebPlatformHost` in a browser. Vello over WebGPU is the default renderer.
+Canvas2D remains available as a diagnostic baseline.
 
 ## Prerequisites
 
@@ -19,9 +20,14 @@ cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-too
 
 Open <http://127.0.0.1:4173/>.
 
+Use <http://127.0.0.1:4173/?backend=canvas2d> to run the Canvas2D baseline.
+An unsupported or unavailable Vello WebGPU backend reports an initialization
+error instead of silently falling back.
+
 The page exposes browser-verification state on the `body` element:
 
 - `data-ready`
+- `data-backend`
 - `data-frame-count`
 - `data-pointer-events`
 - `data-wheel-events`

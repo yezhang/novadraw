@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 use std::cell::{Cell, RefCell};
 use std::f64::consts::TAU;
 use std::rc::Rc;
@@ -7,11 +9,16 @@ use novadraw::{
     KeyModifiers, MouseButton, NdCanvas, NovadrawContext, PlatformHost, Rectangle, RectangleFigure,
     RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo,
     Updatable,
+    backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen_futures::spawn_local;
+#[cfg(target_arch = "wasm32")]
+use web_sys::UrlSearchParams;
 use web_sys::{
     CanvasRenderingContext2d, Document, Event, HtmlButtonElement, HtmlCanvasElement, KeyboardEvent,
     PointerEvent, WheelEvent as DomWheelEvent, Window,
@@ -415,13 +422,57 @@ impl RenderBackend for Canvas2dBackend {
     }
 }
 
+enum ValidationBackend {
+    Vello(Box<VelloRenderer>),
+    Canvas2d(Canvas2dBackend),
+}
+
+impl ValidationBackend {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Vello(_) => "Vello WebGPU",
+            Self::Canvas2d(_) => "Canvas2D",
+        }
+    }
+
+    fn data_name(&self) -> &'static str {
+        match self {
+            Self::Vello(_) => "vello-webgpu",
+            Self::Canvas2d(_) => "canvas2d",
+        }
+    }
+}
+
+impl RenderBackend for ValidationBackend {
+    fn capabilities(&self) -> BackendCapabilities {
+        match self {
+            Self::Vello(backend) => backend.capabilities(),
+            Self::Canvas2d(backend) => backend.capabilities(),
+        }
+    }
+
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+        match self {
+            Self::Vello(backend) => backend.submit(submission),
+            Self::Canvas2d(backend) => backend.submit(submission),
+        }
+    }
+
+    fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
+        match self {
+            Self::Vello(backend) => backend.resize(pixel_width, pixel_height, scale_factor),
+            Self::Canvas2d(backend) => backend.resize(pixel_width, pixel_height, scale_factor),
+        }
+    }
+}
+
 struct WebValidationApp {
     window: Window,
     document: Document,
     canvas: HtmlCanvasElement,
     runtime: Runtime,
     host: WebPlatformHost,
-    backend: Canvas2dBackend,
+    backend: ValidationBackend,
     input: WebInputAdapter,
     probe: Rc<ProbeState>,
     redraw_pending: Rc<Cell<bool>>,
@@ -434,7 +485,7 @@ impl WebValidationApp {
         window: Window,
         document: Document,
         canvas: HtmlCanvasElement,
-        context: CanvasRenderingContext2d,
+        backend: ValidationBackend,
     ) -> Self {
         let probe = Rc::new(ProbeState::default());
         let mut graph = novadraw::FigureGraph::new();
@@ -485,7 +536,7 @@ impl WebValidationApp {
             canvas: canvas.clone(),
             runtime: Runtime::new(graph),
             host,
-            backend: Canvas2dBackend::new(canvas, context),
+            backend,
             input: WebInputAdapter,
             probe,
             redraw_pending,
@@ -495,19 +546,11 @@ impl WebValidationApp {
     }
 
     fn sync_surface(&mut self) {
-        let rect = self.canvas.get_bounding_client_rect();
-        let logical_width = rect.width().max(1.0);
-        let logical_height = rect.height().max(1.0);
-        let scale_factor = self
-            .scale_override
-            .unwrap_or_else(|| self.window.device_pixel_ratio().max(1.0));
-        self.host.set_surface_info(SurfaceInfo {
-            logical_width,
-            logical_height,
-            pixel_width: (logical_width * scale_factor).round() as u32,
-            pixel_height: (logical_height * scale_factor).round() as u32,
-            scale_factor,
-        });
+        self.host.set_surface_info(measure_surface(
+            &self.window,
+            &self.canvas,
+            self.scale_override,
+        ));
         self.runtime.request_full_redraw();
     }
 
@@ -544,7 +587,8 @@ impl WebValidationApp {
 
     fn update_status(&self, damage: DamageMode) {
         let status = format!(
-            "READY · frame {} · {:?} · pointer {} · wheel {} · key {}",
+            "READY · {} · frame {} · {:?} · pointer {} · wheel {} · key {}",
+            self.backend.name(),
             self.frame_count,
             damage,
             self.probe.pointer_events.get(),
@@ -586,8 +630,10 @@ impl WebValidationApp {
                 surface.scale_factor
             ),
         );
+        set_text(&self.document, "backend-status", self.backend.name());
         if let Some(body) = self.document.body() {
             let _ = body.set_attribute("data-ready", "true");
+            let _ = body.set_attribute("data-backend", self.backend.data_name());
             let _ = body.set_attribute("data-frame-count", &self.frame_count.to_string());
             let _ = body.set_attribute(
                 "data-pointer-events",
@@ -745,23 +791,72 @@ fn element<T: JsCast>(document: &Document, id: &str) -> Result<T, JsValue> {
         .map_err(|_| JsValue::from_str(&format!("invalid element type for #{id}")))
 }
 
-#[wasm_bindgen(start)]
-pub fn start() -> Result<(), JsValue> {
+fn measure_surface(
+    window: &Window,
+    canvas: &HtmlCanvasElement,
+    scale_override: Option<f64>,
+) -> SurfaceInfo {
+    let rect = canvas.get_bounding_client_rect();
+    let logical_width = rect.width().max(1.0);
+    let logical_height = rect.height().max(1.0);
+    let scale_factor = scale_override.unwrap_or_else(|| window.device_pixel_ratio().max(1.0));
+    SurfaceInfo {
+        logical_width,
+        logical_height,
+        pixel_width: (logical_width * scale_factor).round() as u32,
+        pixel_height: (logical_height * scale_factor).round() as u32,
+        scale_factor,
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn create_backend(
+    window: &Window,
+    canvas: &HtmlCanvasElement,
+    surface: SurfaceInfo,
+) -> Result<ValidationBackend, JsValue> {
+    let parameters = UrlSearchParams::new_with_str(&window.location().search()?)?;
+    match parameters.get("backend").as_deref() {
+        Some("canvas2d") => {
+            let context = canvas
+                .get_context("2d")?
+                .ok_or_else(|| JsValue::from_str("Canvas2D unavailable"))?
+                .dyn_into::<CanvasRenderingContext2d>()?;
+            Ok(ValidationBackend::Canvas2d(Canvas2dBackend::new(
+                canvas.clone(),
+                context,
+            )))
+        }
+        None | Some("vello") => VelloRenderer::new_web(canvas.clone(), surface)
+            .await
+            .map(Box::new)
+            .map(ValidationBackend::Vello)
+            .map_err(|error| {
+                JsValue::from_str(&format!("Vello WebGPU initialization failed: {error}"))
+            }),
+        Some(value) => Err(JsValue::from_str(&format!(
+            "unsupported backend '{value}', expected 'vello' or 'canvas2d'"
+        ))),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+async fn start_async() -> Result<(), JsValue> {
     let window = web_sys::window().ok_or_else(|| JsValue::from_str("missing window"))?;
     let document = window
         .document()
         .ok_or_else(|| JsValue::from_str("missing document"))?;
     let canvas: HtmlCanvasElement = element(&document, "novadraw-canvas")?;
-    let context = canvas
-        .get_context("2d")?
-        .ok_or_else(|| JsValue::from_str("Canvas2D unavailable"))?
-        .dyn_into::<CanvasRenderingContext2d>()?;
+    let surface = measure_surface(&window, &canvas, None);
+    canvas.set_width(surface.pixel_width);
+    canvas.set_height(surface.pixel_height);
+    let backend = create_backend(&window, &canvas, surface).await?;
 
     let app = Rc::new(RefCell::new(WebValidationApp::new(
         window.clone(),
         document.clone(),
         canvas.clone(),
-        context,
+        backend,
     )));
     let target: &web_sys::EventTarget = canvas.as_ref();
     register_event(target, "pointermove", &app, |app, event| {
@@ -806,4 +901,24 @@ pub fn start() -> Result<(), JsValue> {
     // Event closures own an Rc; retaining this reference documents the app lifetime.
     std::mem::forget(app);
     Ok(())
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(start)]
+pub fn start() {
+    spawn_local(async {
+        if let Err(error) = start_async().await {
+            if let Some(document) = web_sys::window().and_then(|window| window.document()) {
+                if let Some(body) = document.body() {
+                    let _ = body.set_attribute("data-ready", "error");
+                }
+                set_text(
+                    &document,
+                    "runtime-status",
+                    &format!("ERROR · {}", error.as_string().unwrap_or_default()),
+                );
+            }
+            web_sys::console::error_1(&error);
+        }
+    });
 }

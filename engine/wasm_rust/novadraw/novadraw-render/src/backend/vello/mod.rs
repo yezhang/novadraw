@@ -3,9 +3,11 @@
 //! 实现 RenderCommand 解释器，维护独立的状态栈。
 //! 状态管理从 NdCanvas 移到本模块（参考 skia/Flutter DisplayList 设计）。
 
+#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use std::sync::Arc;
 
 use glam::DVec2;
+#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
 use novadraw_geometry::{Rectangle, Transform};
 use tracing::debug;
@@ -140,6 +142,42 @@ pub struct VelloRenderer {
 }
 
 impl VelloRenderer {
+    async fn new_for_surface(
+        target: vello::wgpu::SurfaceTarget<'static>,
+        pixel_width: u32,
+        pixel_height: u32,
+        scale_factor: f64,
+    ) -> Result<Self, vello::Error> {
+        let mut render_context = RenderContext::new();
+        let surface = render_context
+            .create_surface(
+                target,
+                pixel_width,
+                pixel_height,
+                vello::wgpu::PresentMode::AutoVsync,
+            )
+            .await?;
+        #[cfg(target_os = "macos")]
+        keep_previous_drawable_unscaled(&surface.surface);
+
+        let mut renderers = vec![];
+        renderers.resize_with(render_context.devices.len(), || None);
+        renderers[surface.dev_id].get_or_insert_with(|| create_renderer(&render_context, &surface));
+
+        Ok(Self {
+            render_context,
+            renderers,
+            scene: vello::Scene::new(),
+            surface,
+            scale_factor,
+            surface_suspended: false,
+            pending_resize: None,
+            state_stack: vec![RenderState::default()],
+            retained_texture: None,
+            scratch_texture: None,
+        })
+    }
+
     fn current_surface_size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
     }
@@ -184,6 +222,7 @@ impl VelloRenderer {
         self.pending_resize = Some(requested);
     }
 
+    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn new(
         window: Arc<::winit::window::Window>,
         logical_width: f64,
@@ -193,33 +232,27 @@ impl VelloRenderer {
         let width = (logical_width * scale_factor) as u32;
         let height = (logical_height * scale_factor) as u32;
 
-        let mut render_context = RenderContext::new();
-        let surface_future = render_context.create_surface(
-            window,
+        pollster::block_on(Self::new_for_surface(
+            window.into(),
             width,
             height,
-            vello::wgpu::PresentMode::AutoVsync,
-        );
-        let surface = pollster::block_on(surface_future).expect("Failed to create surface");
-        #[cfg(target_os = "macos")]
-        keep_previous_drawable_unscaled(&surface.surface);
-
-        let mut renderers = vec![];
-        renderers.resize_with(render_context.devices.len(), || None);
-        renderers[surface.dev_id].get_or_insert_with(|| create_renderer(&render_context, &surface));
-
-        VelloRenderer {
-            render_context,
-            renderers,
-            scene: vello::Scene::new(),
-            surface,
             scale_factor,
-            surface_suspended: false,
-            pending_resize: None,
-            state_stack: vec![RenderState::default()],
-            retained_texture: None,
-            scratch_texture: None,
-        }
+        ))
+        .expect("Failed to create surface")
+    }
+
+    #[cfg(all(feature = "vello-web", target_arch = "wasm32"))]
+    pub async fn new_web(
+        canvas: web_sys::HtmlCanvasElement,
+        surface: crate::SurfaceInfo,
+    ) -> Result<Self, vello::Error> {
+        Self::new_for_surface(
+            vello::wgpu::SurfaceTarget::Canvas(canvas),
+            surface.pixel_width,
+            surface.pixel_height,
+            surface.scale_factor,
+        )
+        .await
     }
 
     fn create_offscreen_texture(
@@ -1074,6 +1107,7 @@ impl RenderBackend for VelloRenderer {
 
 impl VelloRenderer {
     /// 截图并保存为 PNG 文件
+    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn screenshot(&self, path: &std::path::Path) -> std::io::Result<()> {
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let width = self.surface.config.width;
