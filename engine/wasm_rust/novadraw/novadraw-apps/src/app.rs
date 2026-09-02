@@ -6,12 +6,13 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::input::{AdaptedGesture, WinitGestureAdapter};
+use crate::platform::WinitPlatformHost;
 pub use novadraw::{
     BackendCapabilities, BlockId, FigureEvent, FigureGraph, Key, KeyModifiers, MouseButton,
-    NotificationEffect, RenderBackend, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent,
-    UpdateListener, WindowProxy,
+    NotificationEffect, PlatformHost, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
+    UpdateEvent, UpdateListener,
 };
-pub use novadraw_render::backend::vello::{VelloRenderer, WinitWindowProxy};
+pub use novadraw_render::backend::vello::VelloRenderer;
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
 pub use winit::event_loop::{ActiveEventLoop, EventLoop};
@@ -57,7 +58,7 @@ pub struct DemoApp {
     current_scene_idx: usize,
     runtime: Option<Runtime>,
     renderer: Option<VelloRenderer>,
-    window: Option<Arc<winit::window::Window>>,
+    host: Option<WinitPlatformHost>,
     title: String,
     app_name: String,
     width: f64,
@@ -86,7 +87,7 @@ impl DemoApp {
             current_scene_idx: default_scene,
             runtime: None,
             renderer: None,
-            window: None,
+            host: None,
             title: title.to_string(),
             app_name: app_name.to_string(),
             width,
@@ -113,9 +114,9 @@ impl DemoApp {
             let scene_name = self.scenes[idx].0;
             let new_title = format!("{} - {}", self.title, scene_name);
             eprintln!("设置窗口标题: {}", new_title);
-            if let Some(window) = &self.window {
-                window.set_title(&new_title);
-                window.request_redraw(); // 忽略错误
+            if let Some(host) = &self.host {
+                host.window().set_title(&new_title);
+                host.request_redraw();
             }
         }
     }
@@ -134,6 +135,10 @@ impl DemoApp {
 
     /// 渲染当前场景
     pub fn render(&mut self) -> RenderOutcome {
+        let Some(host) = &self.host else {
+            return RenderOutcome::Skipped;
+        };
+        host.begin_redraw();
         let Some(renderer) = &mut self.renderer else {
             return RenderOutcome::Skipped;
         };
@@ -141,16 +146,7 @@ impl DemoApp {
             return RenderOutcome::Skipped;
         };
 
-        let scale_factor = renderer.window().scale_factor();
-        let pixel_width = renderer.window().width();
-        let pixel_height = renderer.window().height();
-        let surface = SurfaceInfo {
-            logical_width: f64::from(pixel_width) / scale_factor,
-            logical_height: f64::from(pixel_height) / scale_factor,
-            pixel_width,
-            pixel_height,
-            scale_factor,
-        };
+        let surface = host.surface_info();
         if !self.use_update_manager {
             runtime.request_full_redraw();
         }
@@ -158,10 +154,10 @@ impl DemoApp {
             return RenderOutcome::Skipped;
         };
         let frame_id = submission.frame_id;
-        let outcome = renderer.render(&submission);
+        let outcome = renderer.submit(&submission);
         runtime.complete_submission(frame_id, outcome);
         if outcome == RenderOutcome::Retry {
-            renderer.window().request_redraw();
+            host.request_redraw();
         }
         outcome
     }
@@ -171,8 +167,8 @@ impl DemoApp {
             return;
         };
         action(runtime);
-        if let Some(window) = &self.window {
-            window.request_redraw();
+        if let Some(host) = &self.host {
+            host.request_redraw();
         }
     }
 
@@ -181,8 +177,8 @@ impl DemoApp {
             // A surface size change invalidates retained pixels even when scene state is unchanged.
             runtime.request_full_redraw();
         }
-        if let Some(window) = &self.window {
-            window.request_redraw();
+        if let Some(host) = &self.host {
+            host.request_redraw();
         }
     }
 
@@ -312,21 +308,27 @@ impl ApplicationHandler<()> for DemoApp {
             return;
         }
 
-        let window: Arc<winit::window::Window> = Arc::new(
-            event_loop
-                .create_window(
-                    WindowAttributes::default()
-                        .with_title(&self.title)
-                        .with_inner_size(LogicalSize::new(self.width, self.height))
-                        .with_resizable(true),
+        let window = self
+            .host
+            .as_ref()
+            .map(WinitPlatformHost::window_arc)
+            .unwrap_or_else(|| {
+                Arc::new(
+                    event_loop
+                        .create_window(
+                            WindowAttributes::default()
+                                .with_title(&self.title)
+                                .with_inner_size(LogicalSize::new(self.width, self.height))
+                                .with_resizable(true),
+                        )
+                        .unwrap(),
                 )
-                .unwrap(),
-        );
+            });
+        if self.host.is_none() {
+            self.host = Some(WinitPlatformHost::new(window.clone()));
+        }
 
-        self.window = Some(window.clone());
-
-        let window_proxy = Arc::new(WinitWindowProxy::new(window));
-        let renderer = VelloRenderer::new(window_proxy, self.width, self.height);
+        let renderer = VelloRenderer::new(window, self.width, self.height);
         self.renderer = Some(renderer);
 
         // 创建初始场景（通过 switch_scene 以更新窗口标题）
@@ -354,22 +356,20 @@ impl ApplicationHandler<()> for DemoApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                if let Some(host) = &self.host {
+                    host.begin_redraw();
+                }
                 let _ = self.render();
             }
-            WindowEvent::Resized(new_size) => {
-                if let Some(renderer) = &mut self.renderer {
-                    let scale_factor = renderer.window().scale_factor();
-                    let PhysicalSize { width, height } = new_size;
-                    renderer.resize(width, height, scale_factor);
-                }
+            WindowEvent::Resized(_) => {
                 self.request_surface_redraw();
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.cursor_position = Some((position.x, position.y));
                 let scale_factor = self
-                    .renderer
+                    .host
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
                 self.dispatch_input(|runtime| {
                     runtime
@@ -381,9 +381,9 @@ impl ApplicationHandler<()> for DemoApp {
                     return;
                 };
                 let scale_factor = self
-                    .renderer
+                    .host
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
                 let button = map_mouse_button(button);
                 self.dispatch_input(|runtime| match state {
@@ -401,15 +401,15 @@ impl ApplicationHandler<()> for DemoApp {
                 phase,
             } => {
                 let scale_factor = self
-                    .renderer
+                    .host
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
                 let (physical_x, physical_y) = self.cursor_position.unwrap_or_else(|| {
                     let size = self
-                        .window
+                        .host
                         .as_ref()
-                        .map(|window| window.inner_size())
+                        .map(|host| host.window().inner_size())
                         .unwrap_or(PhysicalSize::new(0, 0));
                     (f64::from(size.width) / 2.0, f64::from(size.height) / 2.0)
                 });
@@ -436,15 +436,15 @@ impl ApplicationHandler<()> for DemoApp {
                 phase,
             } => {
                 let scale_factor = self
-                    .renderer
+                    .host
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
                 let (physical_x, physical_y) = self.cursor_position.unwrap_or_else(|| {
                     let size = self
-                        .window
+                        .host
                         .as_ref()
-                        .map(|window| window.inner_size())
+                        .map(|host| host.window().inner_size())
                         .unwrap_or(PhysicalSize::new(0, 0));
                     (f64::from(size.width) / 2.0, f64::from(size.height) / 2.0)
                 });
@@ -507,7 +507,7 @@ impl ApplicationHandler<()> for DemoApp {
                                 "禁用 (直接渲染)"
                             }
                         );
-                        self.window.as_ref().unwrap().request_redraw();
+                        self.host.as_ref().unwrap().request_redraw();
                     }
                     PhysicalKey::Code(KeyCode::KeyS) => {
                         // 截图
@@ -527,7 +527,7 @@ impl ApplicationHandler<()> for DemoApp {
                                 self.current_scene_idx - 1
                             };
                             self.switch_scene(new_idx);
-                            self.window.as_ref().unwrap().request_redraw();
+                            self.host.as_ref().unwrap().request_redraw();
                         }
                     }
                     PhysicalKey::Code(KeyCode::ArrowRight)
@@ -537,14 +537,14 @@ impl ApplicationHandler<()> for DemoApp {
                         if count > 0 {
                             let new_idx = (self.current_scene_idx + 1) % count;
                             self.switch_scene(new_idx);
-                            self.window.as_ref().unwrap().request_redraw();
+                            self.host.as_ref().unwrap().request_redraw();
                         }
                     }
                     PhysicalKey::Code(KeyCode::Home) => {
                         // 切换到第一个场景
                         if !self.scenes.is_empty() {
                             self.switch_scene(0);
-                            self.window.as_ref().unwrap().request_redraw();
+                            self.host.as_ref().unwrap().request_redraw();
                         }
                     }
                     PhysicalKey::Code(KeyCode::End) => {
@@ -552,14 +552,14 @@ impl ApplicationHandler<()> for DemoApp {
                         let count = self.scenes.len();
                         if count > 0 {
                             self.switch_scene(count - 1);
-                            self.window.as_ref().unwrap().request_redraw();
+                            self.host.as_ref().unwrap().request_redraw();
                         }
                     }
                     // 数字键 0-9 切换场景
                     _ => {
                         if let Some(digit) = get_digit_index(&event.physical_key) {
                             self.switch_scene(digit);
-                            self.window.as_ref().unwrap().request_redraw();
+                            self.host.as_ref().unwrap().request_redraw();
                         } else if let Some(key) = map_key(event.physical_key) {
                             let modifiers = self.modifiers;
                             self.dispatch_input(|runtime| {
@@ -574,15 +574,13 @@ impl ApplicationHandler<()> for DemoApp {
     }
 
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(renderer) = &self.renderer {
-            renderer.window().request_redraw();
+        if let Some(host) = &self.host {
+            host.request_redraw();
         }
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(renderer) = self.renderer.take() {
-            self.window = Some(renderer.window().clone_window());
-        }
+        self.renderer = None;
     }
 }
 

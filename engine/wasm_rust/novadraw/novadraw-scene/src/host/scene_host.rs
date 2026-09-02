@@ -1,114 +1,177 @@
-//! Platform host and legacy SceneHost contracts.
-//!
-//! 定义渲染入口与平台环境交互的接口。只负责渲染触发和视口管理，
-//! 不持有 FigureGraph、UpdateManager 等核心对象。
-//!
-//! 对应 draw2d: LightweightSystem 的**渲染入口职责**（paint() 方法）
-//!
-//! # LightweightSystem 职责分散说明
-//!
-//! LightweightSystem 持有 Canvas + UpdateManager + EventDispatcher + RootFigure，
-//! 这些职责在 Novadraw 中分散到多个组件：
-//!
-//! | LightweightSystem 持有 | Novadraw 对应 |
-//! |----------------------|---------------|
-//! | root Figure | FigureGraph.root |
-//! | UpdateManager | NovadrawSystem.update_manager |
-//! | EventDispatcher | EventDispatcher trait |
-//! | Canvas / paint entry | SceneHost + RenderBackend |
-//!
-//! SceneHost 只对应 LightweightSystem 的：
-//! - 渲染入口：execute_update()
-//! - 视口大小：viewport_size()
-//! - 更新请求：request_update()
-//!
-//! # 设计理念
-//!
-//! draw2d 的 LightweightSystem 通过 SWT 的 `Display.asyncExec` 实现延迟批处理。
-//! 本实现将调度策略抽象为 trait，不同平台提供不同实现：
-//!
-//! - **WinitSceneHost**: `request_update()` → `window.request_redraw()`，
-//!   利用 winit 的 redraw 请求实现 request-driven 帧合并
-//! - **WebSceneHost** (未来): `requestAnimationFrame` 调度
-//!
-//! # 更新流程
-//!
-//! ```text
-//! FigureGraph.mark_invalid() / repaint()
-//!         │
-//!         ▼ (组合根检测到 UpdateManager 队列从空变为非空)
-//! SceneHost.request_update()
-//!         │
-//!         ▼ (平台调度)
-//! WinitSceneHost:  window.request_redraw()
-//!         │
-//!         ▼ (RedrawRequested 事件)
-//! SceneHost.execute_update()
-//!         │
-//!         └─► update_manager.perform_update(scene, canvas)
-//!                 │
-//!                 ▼
-//!         renderer.render(commands)
-//! ```
-//!
-//! # 职责边界
-//!
-//! - **SceneHost**: 渲染入口协调。不持有任何核心对象（FigureGraph、UpdateManager 等）。
-//! - **FigureGraph**: 块树管理 + 布局计算。平台无关。
-//! - **EventDispatcher**: 平台无关事件状态机；新 Runtime 的交互状态独立于 FigureTree。
-//! - **平台事件循环**: 负责把 winit redraw/input 事件转交给组合根。
+//! Platform services consumed by the runtime boundary.
 
-use novadraw_render::{NdCanvas, RenderBackend, SurfaceInfo};
+use std::cell::{Cell, RefCell};
 
-use crate::{FigureGraph, UpdateManager};
+use novadraw_geometry::Rectangle;
+use novadraw_render::SurfaceInfo;
 
-/// Minimal platform boundary used by the runtime.
-///
-/// Input adaptation and surface ownership stay in platform crates. The runtime
-/// only needs normalized surface information and an idempotent redraw request.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum CursorIcon {
+    #[default]
+    Default,
+    Pointer,
+    Crosshair,
+    Text,
+    Move,
+    NotAllowed,
+    EastWestResize,
+    NorthSouthResize,
+    NorthEastSouthWestResize,
+    NorthWestSouthEastResize,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct ImeState {
+    pub enabled: bool,
+    pub cursor_area: Option<Rectangle>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccessibilityUpdate {
+    pub revision: u64,
+}
+
+/// Narrow platform boundary. It schedules redraws and exposes platform state,
+/// but never executes scene or renderer work.
 pub trait PlatformHost {
     fn request_redraw(&self);
     fn surface_info(&self) -> SurfaceInfo;
+    fn set_cursor(&self, cursor: CursorIcon);
+    fn set_ime_state(&self, state: ImeState);
+    fn update_accessibility(&self, update: AccessibilityUpdate);
 }
 
-/// 场景图主机环境 trait
-///
-/// 定义场景图与平台环境交互的接口。
-///
-/// # 实现说明
-///
-/// 典型实现（WinitSceneHost）：
-/// 1. `request_update()` 设置 host 侧 `update_queued = true`
-/// 2. 平台事件循环收到 `RedrawRequested` → 调用 `execute_update()`
-/// 3. `execute_update()` 执行两阶段更新后，用 UpdateManager 队列状态同步 host 标记
-///
-/// 不同平台可提供不同的调度策略（如 requestAnimationFrame、节流等）。
-pub trait SceneHost {
-    /// 请求在下一次渲染帧执行更新
-    ///
-    /// 多次调用应合并为一次（由具体实现保证，如 winit 的 request_redraw 已是幂等）。
-    fn request_update(&self);
+/// Deterministic host for tests and replay without a native window.
+pub struct HeadlessHost {
+    surface: Cell<SurfaceInfo>,
+    redraw_requests: Cell<u64>,
+    redraw_pending: Cell<bool>,
+    cursor: Cell<CursorIcon>,
+    ime: Cell<ImeState>,
+    accessibility_updates: RefCell<Vec<AccessibilityUpdate>>,
+}
 
-    /// 检查是否有待执行的更新
-    ///
-    /// 对应 draw2d: DeferredUpdateManager.updateQueued 标志。
-    fn is_update_queued(&self) -> bool;
+impl HeadlessHost {
+    pub fn new(surface: SurfaceInfo) -> Self {
+        Self {
+            surface: Cell::new(surface),
+            redraw_requests: Cell::new(0),
+            redraw_pending: Cell::new(false),
+            cursor: Cell::new(CursorIcon::Default),
+            ime: Cell::new(ImeState::default()),
+            accessibility_updates: RefCell::new(Vec::new()),
+        }
+    }
 
-    /// 执行一轮完整的两阶段更新（布局验证 + 脏区域重绘）
-    ///
-    /// 对应 draw2d: DeferredUpdateManager.performUpdate()。
-    ///
-    fn execute_update(
-        &self,
-        scene: &mut FigureGraph,
-        update_manager: &mut UpdateManager,
-        renderer: &mut impl RenderBackend,
-    ) -> NdCanvas;
+    pub fn set_surface_info(&self, surface: SurfaceInfo) {
+        self.surface.set(surface);
+    }
 
-    /// 获取视口（窗口）尺寸
-    ///
-    /// # Returns
-    ///
-    /// `(width, height)` 单位为逻辑像素
-    fn viewport_size(&self) -> (f64, f64);
+    pub fn redraw_request_count(&self) -> u64 {
+        self.redraw_requests.get()
+    }
+
+    pub fn take_redraw_request(&self) -> bool {
+        self.redraw_pending.replace(false)
+    }
+
+    pub fn cursor(&self) -> CursorIcon {
+        self.cursor.get()
+    }
+
+    pub fn ime_state(&self) -> ImeState {
+        self.ime.get()
+    }
+
+    pub fn accessibility_updates(&self) -> Vec<AccessibilityUpdate> {
+        self.accessibility_updates.borrow().clone()
+    }
+}
+
+impl PlatformHost for HeadlessHost {
+    fn request_redraw(&self) {
+        if !self.redraw_pending.replace(true) {
+            self.redraw_requests
+                .set(self.redraw_requests.get().wrapping_add(1));
+        }
+    }
+
+    fn surface_info(&self) -> SurfaceInfo {
+        self.surface.get()
+    }
+
+    fn set_cursor(&self, cursor: CursorIcon) {
+        self.cursor.set(cursor);
+    }
+
+    fn set_ime_state(&self, state: ImeState) {
+        self.ime.set(state);
+    }
+
+    fn update_accessibility(&self, update: AccessibilityUpdate) {
+        self.accessibility_updates.borrow_mut().push(update);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{RectangleFigure, Runtime};
+    use novadraw_render::{BackendCapabilities, DamageMode};
+
+    #[test]
+    fn headless_host_records_platform_effects_deterministically() {
+        let host = HeadlessHost::new(SurfaceInfo {
+            logical_width: 800.0,
+            logical_height: 600.0,
+            pixel_width: 1600,
+            pixel_height: 1200,
+            scale_factor: 2.0,
+        });
+
+        host.request_redraw();
+        host.request_redraw();
+        host.set_cursor(CursorIcon::Crosshair);
+        host.set_ime_state(ImeState {
+            enabled: true,
+            cursor_area: Some(Rectangle::new(10.0, 20.0, 2.0, 18.0)),
+        });
+        host.update_accessibility(AccessibilityUpdate { revision: 3 });
+
+        assert_eq!(host.redraw_request_count(), 1);
+        assert!(host.take_redraw_request());
+        assert!(!host.take_redraw_request());
+        host.request_redraw();
+        assert_eq!(host.redraw_request_count(), 2);
+        assert_eq!(host.cursor(), CursorIcon::Crosshair);
+        assert!(host.ime_state().enabled);
+        assert_eq!(
+            host.accessibility_updates(),
+            vec![AccessibilityUpdate { revision: 3 }]
+        );
+    }
+
+    #[test]
+    fn headless_host_drives_a_deterministic_runtime_frame() {
+        let surface = SurfaceInfo {
+            logical_width: 320.0,
+            logical_height: 200.0,
+            pixel_width: 640,
+            pixel_height: 400,
+            scale_factor: 2.0,
+        };
+        let host = HeadlessHost::new(surface);
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
+
+        host.request_redraw();
+        assert!(host.take_redraw_request());
+        let submission = runtime
+            .prepare_submission(host.surface_info(), BackendCapabilities::FULL_FRAME_ONLY)
+            .expect("headless frame");
+
+        assert_eq!(submission.surface, surface);
+        assert_eq!(submission.damage.mode(), DamageMode::Full);
+        assert!(!submission.commands.is_empty());
+    }
 }

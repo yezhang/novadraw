@@ -1,13 +1,12 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use novadraw::{
-    BasicEventDispatcher, BlockId, EventDispatcher, FigureEvent, InteractionState, Key,
-    KeyModifiers, MouseButton, NdCanvas, NovadrawSystem, PendingMutations, RenderBackend,
-    SceneDispatchContext, SceneHost, SceneUpdateManager, UpdateEvent, UpdateListener, WheelEvent,
-    ZoomEvent, backend::vello::WinitWindowProxy,
+    BlockId, FigureEvent, Key, KeyModifiers, MouseButton, PlatformHost, RenderBackend,
+    RenderOutcome, Runtime, UpdateEvent, UpdateListener, WheelEvent, ZoomEvent,
 };
+use novadraw_apps::WinitPlatformHost;
 
-use crate::scene_manager::{SceneManager, scene_host::WinitSceneHost};
+use crate::scene_manager::{SceneManager, SceneType};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RawPointerInput {
@@ -88,11 +87,8 @@ pub struct InteractionReport {
 }
 
 pub struct EditorInteractionCore {
-    scene_manager: SceneManager,
-    update_manager: SceneUpdateManager,
-    interaction: InteractionState,
-    dispatcher: BasicEventDispatcher,
-    pending_mutations: PendingMutations,
+    runtime: Runtime,
+    current_scene: SceneType,
 }
 
 impl Default for EditorInteractionCore {
@@ -103,21 +99,20 @@ impl Default for EditorInteractionCore {
 
 impl EditorInteractionCore {
     pub fn new() -> Self {
-        let mut update_manager = SceneUpdateManager::new();
+        Self::from_scene_manager(SceneManager::new())
+    }
 
-        update_manager.add_listener(Box::new(TraceUpdateListener));
-
+    fn from_scene_manager(scene_manager: SceneManager) -> Self {
+        let mut runtime = Runtime::new(scene_manager.scene);
+        runtime.add_update_listener(Box::new(TraceUpdateListener));
         Self {
-            scene_manager: SceneManager::new(),
-            update_manager,
-            interaction: InteractionState::default(),
-            dispatcher: BasicEventDispatcher,
-            pending_mutations: PendingMutations::new(),
+            runtime,
+            current_scene: scene_manager.current_scene,
         }
     }
 
-    pub fn scene_manager_mut(&mut self) -> &mut SceneManager {
-        &mut self.scene_manager
+    fn replace_scene(&mut self, scene_type: SceneType) {
+        *self = Self::from_scene_manager(SceneManager::with_scene(scene_type));
     }
 
     fn build_trace(
@@ -133,10 +128,10 @@ impl EditorInteractionCore {
             logical,
             button,
             hit_target_before: self
-                .scene_manager
-                .scene
+                .runtime
+                .tree()
                 .find_mouse_event_target_at(logical.x, logical.y),
-            mouse_target_before: self.interaction.mouse_target(),
+            mouse_target_before: self.runtime.interaction().mouse_target(),
             mouse_target_after: None,
             focus_owner_after: None,
             captured_after: None,
@@ -144,134 +139,53 @@ impl EditorInteractionCore {
     }
 
     fn finish_trace(&self, trace: &mut InteractionTrace) {
-        trace.mouse_target_after = self.interaction.mouse_target();
-        trace.focus_owner_after = self.interaction.focus_owner();
-        trace.captured_after = self.interaction.captured();
+        trace.mouse_target_after = self.runtime.interaction().mouse_target();
+        trace.focus_owner_after = self.runtime.interaction().focus_owner();
+        trace.captured_after = self.runtime.interaction().captured();
     }
 
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.dispatch_mouse_moved(&mut ctx, x, y);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_mouse_moved(x, y);
     }
 
     pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher
-            .dispatch_mouse_pressed(&mut ctx, x, y, button);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_mouse_pressed(x, y, button);
     }
 
     pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher
-            .dispatch_mouse_released(&mut ctx, x, y, button);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_mouse_released(x, y, button);
     }
 
     pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher
-            .dispatch_mouse_double_clicked(&mut ctx, x, y, button);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_mouse_double_clicked(x, y, button);
     }
 
     pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.dispatch_mouse_hover(&mut ctx, x, y);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_mouse_hover(x, y);
     }
 
     pub fn dispatch_scroll(&mut self, event: WheelEvent) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.dispatch_scroll(&mut ctx, event);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_scroll(event);
     }
 
     pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.dispatch_zoom(&mut ctx, event);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_zoom(event);
     }
 
     pub fn cancel_gestures(&mut self) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.cancel_gestures(&mut ctx);
+        self.runtime.cancel_gestures();
     }
 
     pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher
-            .dispatch_key_pressed(&mut ctx, key, modifiers);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_key_pressed(key, modifiers);
     }
 
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher
-            .dispatch_key_released(&mut ctx, key, modifiers);
-        self.apply_pending_mutations();
+        self.runtime.dispatch_key_released(key, modifiers);
     }
 
     pub fn release_focus(&mut self) {
-        let mut ctx = SceneDispatchContext::new(
-            &mut self.scene_manager.scene,
-            &mut self.interaction,
-            &mut self.update_manager,
-            &mut self.pending_mutations,
-        );
-        self.dispatcher.release_focus(&mut ctx);
-        self.apply_pending_mutations();
+        self.runtime.release_focus();
     }
 
     pub fn dispatch_raw_mouse_moved(&mut self, input: RawPointerInput) -> InteractionTrace {
@@ -344,40 +258,28 @@ impl EditorInteractionCore {
         }
         report
     }
-
-    fn apply_pending_mutations(&mut self) -> bool {
-        let mutations = self.pending_mutations.drain();
-        let changed = self
-            .scene_manager
-            .scene
-            .apply_pending_mutations(&mut self.update_manager, mutations);
-        self.interaction.reconcile(&self.scene_manager.scene);
-        changed
-    }
 }
 
-pub struct WinitNovadrawSystem {
+pub struct EditorRuntime {
     core: EditorInteractionCore,
-    scene_host: WinitSceneHost,
+    host: WinitPlatformHost,
 }
 
-impl WinitNovadrawSystem {
-    pub fn new(window_proxy: Arc<WinitWindowProxy>) -> Self {
+impl EditorRuntime {
+    pub fn new(host: WinitPlatformHost) -> Self {
         Self {
             core: EditorInteractionCore::new(),
-            scene_host: WinitSceneHost::new(window_proxy),
+            host,
         }
     }
 
     pub fn is_scene(&self, scene_type: crate::scene_manager::SceneType) -> bool {
-        self.core.scene_manager.current_scene == scene_type
+        self.core.current_scene == scene_type
     }
 
     pub fn switch_scene(&mut self, scene_type: crate::scene_manager::SceneType) {
-        self.core.scene_manager_mut().switch_scene(scene_type);
-        self.core.update_manager.clear();
-        self.core.interaction = InteractionState::default();
-        self.scene_host.request_update();
+        self.core.replace_scene(scene_type);
+        self.host.request_redraw();
     }
 
     pub fn translate_contents_if_scene(
@@ -393,12 +295,9 @@ impl WinitNovadrawSystem {
     }
 
     pub fn translate_contents(&mut self, dx: f64, dy: f64) -> bool {
-        if let Some(root_id) = self.core.scene_manager.scene().get_contents() {
-            self.core
-                .scene_manager_mut()
-                .scene_mut()
-                .prim_translate(root_id, dx, dy);
-            self.scene_host.request_update();
+        if let Some(root_id) = self.core.runtime.tree().get_contents() {
+            self.core.runtime.translate(root_id, dx, dy);
+            self.host.request_redraw();
             true
         } else {
             false
@@ -406,13 +305,13 @@ impl WinitNovadrawSystem {
     }
 
     fn schedule_update_if_transitioned(&self, was_queued: bool) {
-        if !was_queued && self.core.update_manager.is_update_queued() {
-            self.scene_host.request_update();
+        if !was_queued && self.core.runtime.has_pending_update() {
+            self.host.request_redraw();
         }
     }
 
     fn run_update_transaction<R>(&mut self, f: impl FnOnce(&mut EditorInteractionCore) -> R) -> R {
-        let was_queued = self.core.update_manager.is_update_queued();
+        let was_queued = self.core.runtime.has_pending_update();
         let result = f(&mut self.core);
         self.schedule_update_if_transitioned(was_queued);
         result
@@ -478,25 +377,30 @@ impl WinitNovadrawSystem {
     }
 
     pub fn request_update(&self) {
-        self.scene_host.request_update();
-    }
-}
-
-impl NovadrawSystem for WinitNovadrawSystem {
-    fn render(&mut self, renderer: &mut impl RenderBackend) -> NdCanvas {
-        self.scene_host.execute_update(
-            &mut self.core.scene_manager.scene,
-            &mut self.core.update_manager,
-            renderer,
-        )
+        self.host.request_redraw();
     }
 
-    fn viewport_size(&self) -> (f64, f64) {
-        self.scene_host.viewport_size()
+    pub fn surface_changed(&mut self) {
+        self.core.runtime.request_full_redraw();
+        self.host.request_redraw();
     }
 
-    fn request_update(&self) {
-        self.scene_host.request_update();
+    pub fn render(&mut self, renderer: &mut impl RenderBackend) -> RenderOutcome {
+        self.host.begin_redraw();
+        let Some(submission) = self
+            .core
+            .runtime
+            .prepare_submission(self.host.surface_info(), renderer.capabilities())
+        else {
+            return RenderOutcome::Skipped;
+        };
+        let frame_id = submission.frame_id;
+        let outcome = renderer.submit(&submission);
+        self.core.runtime.complete_submission(frame_id, outcome);
+        if outcome == RenderOutcome::Retry || self.core.runtime.has_pending_update() {
+            self.host.request_redraw();
+        }
+        outcome
     }
 }
 
@@ -637,11 +541,10 @@ mod tests {
                 100.0, 100.0, 100.0, 100.0,
             ))),
         );
-        let mut core = EditorInteractionCore::new();
-        core.scene_manager = SceneManager {
+        let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,
-        };
+        });
         (core, target_id)
     }
 
@@ -670,11 +573,10 @@ mod tests {
                 20.0, 30.0, 40.0, 40.0,
             ))),
         );
-        let mut core = EditorInteractionCore::new();
-        core.scene_manager = SceneManager {
+        let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,
-        };
+        });
         (core, target_id)
     }
 
@@ -734,9 +636,9 @@ mod tests {
         );
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[0].mouse_target_after, Some(target_id));
-        assert!(core.interaction.is_hovered(target_id));
-        assert!(!core.interaction.is_pressed(target_id));
-        assert!(!core.scene_manager.scene.is_selected(target_id));
+        assert!(core.runtime.interaction().is_hovered(target_id));
+        assert!(!core.runtime.interaction().is_pressed(target_id));
+        assert!(!core.runtime.tree().is_selected(target_id));
     }
 
     #[test]
@@ -751,9 +653,9 @@ mod tests {
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
-        assert!(core.interaction.is_hovered(target_id));
-        assert!(!core.interaction.is_pressed(target_id));
-        assert!(core.scene_manager.scene.is_selected(target_id));
+        assert!(core.runtime.interaction().is_hovered(target_id));
+        assert!(!core.runtime.interaction().is_pressed(target_id));
+        assert!(core.runtime.tree().is_selected(target_id));
     }
 
     #[test]
@@ -779,9 +681,9 @@ mod tests {
         assert_eq!(report.traces[3].mouse_target_before, Some(target_id));
         assert_eq!(report.traces[3].captured_after, None);
         assert_eq!(report.traces[3].mouse_target_after, None);
-        assert!(!core.interaction.is_hovered(target_id));
-        assert!(!core.interaction.is_pressed(target_id));
-        assert!(core.scene_manager.scene.is_selected(target_id));
+        assert!(!core.runtime.interaction().is_hovered(target_id));
+        assert!(!core.runtime.interaction().is_pressed(target_id));
+        assert!(core.runtime.tree().is_selected(target_id));
     }
 
     #[test]
@@ -800,17 +702,17 @@ mod tests {
         assert_eq!(report.traces[0].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].hit_target_before, Some(target_id));
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
-        assert!(core.interaction.is_hovered(target_id));
-        assert!(!core.interaction.is_pressed(target_id));
-        assert!(core.scene_manager.scene.is_selected(target_id));
+        assert!(core.runtime.interaction().is_hovered(target_id));
+        assert!(!core.runtime.interaction().is_pressed(target_id));
+        assert!(core.runtime.tree().is_selected(target_id));
     }
 
     #[test]
     fn test_selected_target_renders_highlight_overlay() {
         let (mut core, target_id) = build_test_core();
-        core.scene_manager.scene.set_selected(Some(target_id));
+        core.runtime.set_selected(Some(target_id));
 
-        let canvas = core.scene_manager.scene.render();
+        let canvas = core.runtime.record_full_frame();
 
         assert!(has_selection_stroke(&canvas));
     }

@@ -8,8 +8,7 @@ pub use novadraw_geometry::{Affine2D, Transform};
 #[cfg(feature = "vello")]
 pub use novadraw_render::{
     BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCommand,
-    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo, WindowProxy,
-    command,
+    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo, command,
 };
 
 #[cfg(feature = "vello")]
@@ -23,23 +22,23 @@ pub use novadraw_render::traits;
 
 #[cfg(feature = "vello")]
 pub use novadraw_scene::{
-    AccessibleFigure, AncestorEvent, AncestorEventKind, AncestorListener, BasicEventDispatcher,
-    BlockId, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded, ChildPolicy,
-    ChildTransform, CoordinateListener, DEFAULT_ZOOM_LEVELS, DefaultScrollPolicy, Direction,
-    DispatchContext, EllipseFigure, Event, EventDispatcher, Figure, FigureContainer, FigureEvent,
-    FigureEventHandler, FigureGraph, FigureId, FigureLifecycle, FigureListener, FigureNode,
-    FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout, FocusEvent, FocusEventKind,
-    GesturePhase, GestureSessionId, GraphMutationError, GridAlignment, GridConstraint, GridLayout,
-    InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers, LayoutConstraint, LayoutEvent,
-    LayoutEventKind, LayoutListener, LayoutManager, LayoutState, LineBorder, ListenerId,
-    MAX_TREE_DEPTH, MarginBorder, MinorAlignment, MouseButton, MouseEvent, MouseEventKind,
-    MouseLocationZoomScrollPolicy, NodeState, NotificationEffect, NotificationQueue,
-    NovadrawContext, NovadrawSystem, PendingMutationBatch, PendingMutations, PlatformHost, Point,
-    PointerId, PolygonFigure, PolylineFigure, PropertyChangeEvent, PropertyChangeListener,
-    PropertyValue, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
-    RangeModelError, RangeModelSnapshot, RangeProperty, Rectangle, RectangleBorder,
-    RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, ScalableFigure,
-    ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext, SceneHost,
+    AccessibilityUpdate, AccessibleFigure, AncestorEvent, AncestorEventKind, AncestorListener,
+    BasicEventDispatcher, BlockId, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded,
+    ChildPolicy, ChildTransform, CoordinateListener, CursorIcon, DEFAULT_ZOOM_LEVELS,
+    DefaultScrollPolicy, Direction, DispatchContext, EllipseFigure, Event, EventDispatcher, Figure,
+    FigureContainer, FigureEvent, FigureEventHandler, FigureGraph, FigureId, FigureLifecycle,
+    FigureListener, FigureNode, FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout,
+    FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, GraphMutationError, GridAlignment,
+    GridConstraint, GridLayout, HeadlessHost, ImeState, InteractionState, Key, KeyEvent,
+    KeyEventKind, KeyModifiers, LayoutConstraint, LayoutEvent, LayoutEventKind, LayoutListener,
+    LayoutManager, LayoutState, LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder,
+    MinorAlignment, MouseButton, MouseEvent, MouseEventKind, MouseLocationZoomScrollPolicy,
+    NodeState, NotificationEffect, NotificationQueue, NovadrawContext, PendingMutationBatch,
+    PendingMutations, PlatformHost, Point, PointerId, PolygonFigure, PolylineFigure,
+    PropertyChangeEvent, PropertyChangeListener, PropertyValue, RangeChange, RangeChangeSet,
+    RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
+    Rectangle, RectangleBorder, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime,
+    ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext,
     SceneNovadrawContext, SceneUpdateManager, ScrollBarFigure, ScrollBarVisibility,
     ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
     ScrollPaneLayout, Shape, StackLayout, StyleOverride, ToolbarLayout, ToolbarOrientation,

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use novadraw::{
-    GesturePhase, GestureSessionId, KeyModifiers, ScrollDeltaKind, WheelEvent, ZoomEvent,
+    GesturePhase, GestureSessionId, KeyModifiers, Point, PointerId, ScrollDeltaKind, WheelEvent,
+    ZoomEvent,
 };
 use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
 
@@ -9,6 +10,76 @@ use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
 pub enum AdaptedGesture {
     Scroll(WheelEvent),
     Zoom(ZoomEvent),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct WebPointerInput {
+    pub pointer_id: u64,
+    pub client_x: f64,
+    pub client_y: f64,
+    pub canvas_left: f64,
+    pub canvas_top: f64,
+}
+
+impl WebPointerInput {
+    pub fn pointer_id(self) -> PointerId {
+        PointerId::new(self.pointer_id)
+    }
+
+    /// DOM pointer coordinates are CSS pixels, which are the runtime logical unit.
+    pub fn logical_position(self) -> Option<Point> {
+        let x = self.client_x - self.canvas_left;
+        let y = self.client_y - self.canvas_top;
+        (x.is_finite() && y.is_finite()).then_some(Point::new(x, y))
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum WebWheelDeltaMode {
+    Pixel,
+    Line,
+    Page,
+}
+
+#[derive(Debug, Default)]
+pub struct WebInputAdapter;
+
+impl WebInputAdapter {
+    #[allow(clippy::too_many_arguments)]
+    pub fn adapt_wheel(
+        &self,
+        pointer: WebPointerInput,
+        delta_x: f64,
+        delta_y: f64,
+        delta_mode: WebWheelDeltaMode,
+        viewport_width: f64,
+        viewport_height: f64,
+        modifiers: KeyModifiers,
+    ) -> Option<WheelEvent> {
+        let point = pointer.logical_position()?;
+        if !delta_x.is_finite() || !delta_y.is_finite() {
+            return None;
+        }
+        let (delta_x, delta_y, delta_kind) = match delta_mode {
+            WebWheelDeltaMode::Pixel => (delta_x, delta_y, ScrollDeltaKind::LogicalPixels),
+            WebWheelDeltaMode::Line => (delta_x, delta_y, ScrollDeltaKind::Lines),
+            WebWheelDeltaMode::Page => (
+                delta_x * viewport_width.max(0.0),
+                delta_y * viewport_height.max(0.0),
+                ScrollDeltaKind::LogicalPixels,
+            ),
+        };
+        Some(WheelEvent::with_details(
+            point.x(),
+            point.y(),
+            delta_x,
+            delta_y,
+            delta_kind,
+            GesturePhase::Impulse,
+            modifiers,
+            GestureSessionId::IMPULSE,
+        ))
+    }
 }
 
 #[derive(Default)]
@@ -268,5 +339,61 @@ mod tests {
         assert_eq!(begin.session_id, end.session_id);
         assert_eq!(orphan_update.phase, GesturePhase::Impulse);
         assert_eq!(orphan_update.session_id, GestureSessionId::IMPULSE);
+    }
+
+    #[test]
+    fn web_pointer_coordinates_remain_in_css_logical_units() {
+        let input = WebPointerInput {
+            pointer_id: 17,
+            client_x: 220.0,
+            client_y: 140.0,
+            canvas_left: 20.0,
+            canvas_top: 40.0,
+        };
+
+        assert_eq!(input.pointer_id(), PointerId::new(17));
+        assert_eq!(input.logical_position(), Some(Point::new(200.0, 100.0)));
+    }
+
+    #[test]
+    fn web_wheel_delta_modes_map_to_engine_units() {
+        let pointer = WebPointerInput {
+            pointer_id: 1,
+            client_x: 100.0,
+            client_y: 80.0,
+            canvas_left: 10.0,
+            canvas_top: 20.0,
+        };
+        let adapter = WebInputAdapter;
+
+        let pixel = adapter
+            .adapt_wheel(
+                pointer,
+                5.0,
+                -10.0,
+                WebWheelDeltaMode::Pixel,
+                800.0,
+                600.0,
+                KeyModifiers::default(),
+            )
+            .unwrap();
+        assert_eq!(pixel.x, 90.0);
+        assert_eq!(pixel.y, 60.0);
+        assert_eq!(pixel.delta_kind, ScrollDeltaKind::LogicalPixels);
+        assert_eq!(pixel.delta_y, -10.0);
+
+        let page = adapter
+            .adapt_wheel(
+                pointer,
+                0.0,
+                1.0,
+                WebWheelDeltaMode::Page,
+                800.0,
+                600.0,
+                KeyModifiers::default(),
+            )
+            .unwrap();
+        assert_eq!(page.delta_kind, ScrollDeltaKind::LogicalPixels);
+        assert_eq!(page.delta_y, 600.0);
     }
 }

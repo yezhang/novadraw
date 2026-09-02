@@ -16,10 +16,7 @@ use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
 use crate::submission::DamageMode;
-use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome, WindowProxy};
-
-pub mod winit;
-pub use winit::{WinitWindowProxy, WinitWindowProxyInner};
+use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
 const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
@@ -131,7 +128,6 @@ pub struct VelloRenderer {
     renderers: Vec<Option<Renderer>>,
     scene: vello::Scene,
     surface: RenderSurface<'static>,
-    window: Arc<WinitWindowProxy>,
     scale_factor: f64,
     surface_suspended: bool,
     pending_resize: Option<(u32, u32, f64)>,
@@ -161,14 +157,45 @@ impl VelloRenderer {
             .resize_surface(&mut self.surface, pixel_width, pixel_height);
     }
 
-    pub fn new(window: Arc<WinitWindowProxy>, logical_width: f64, logical_height: f64) -> Self {
+    fn queue_resize(
+        &mut self,
+        pixel_width: u32,
+        pixel_height: u32,
+        scale_factor: f64,
+        force: bool,
+    ) {
+        let requested = (pixel_width, pixel_height, scale_factor);
+        let current = (
+            self.surface.config.width,
+            self.surface.config.height,
+            self.scale_factor,
+        );
+        if !force
+            && (self.pending_resize == Some(requested)
+                || (!self.surface_suspended
+                    && self.pending_resize.is_none()
+                    && current == requested))
+        {
+            return;
+        }
+        self.retained_texture = None;
+        self.scratch_texture = None;
+        self.surface_suspended = surface_is_suspended(pixel_width, pixel_height);
+        self.pending_resize = Some(requested);
+    }
+
+    pub fn new(
+        window: Arc<::winit::window::Window>,
+        logical_width: f64,
+        logical_height: f64,
+    ) -> Self {
         let scale_factor = window.scale_factor();
         let width = (logical_width * scale_factor) as u32;
         let height = (logical_height * scale_factor) as u32;
 
         let mut render_context = RenderContext::new();
         let surface_future = render_context.create_surface(
-            window.window().clone(),
+            window,
             width,
             height,
             vello::wgpu::PresentMode::AutoVsync,
@@ -186,7 +213,6 @@ impl VelloRenderer {
             renderers,
             scene: vello::Scene::new(),
             surface,
-            window,
             scale_factor,
             surface_suspended: false,
             pending_resize: None,
@@ -228,13 +254,19 @@ impl VelloRenderer {
         (texture, view, width, height)
     }
 
-    fn recover_surface(&mut self, recovery: SurfaceRecovery) -> RenderOutcome {
+    fn recover_surface(
+        &mut self,
+        recovery: SurfaceRecovery,
+        surface: crate::SurfaceInfo,
+    ) -> RenderOutcome {
         match recovery {
             SurfaceRecovery::Reconfigure => {
-                let width = self.window.width();
-                let height = self.window.height();
-                let scale_factor = self.window.scale_factor();
-                self.resize(width, height, scale_factor);
+                self.queue_resize(
+                    surface.pixel_width,
+                    surface.pixel_height,
+                    surface.scale_factor,
+                    true,
+                );
                 if self.surface_suspended {
                     RenderOutcome::Skipped
                 } else {
@@ -864,17 +896,16 @@ impl VelloRenderer {
 }
 
 impl RenderBackend for VelloRenderer {
-    type Window = WinitWindowProxy;
-
-    fn window(&self) -> &Self::Window {
-        &self.window
-    }
-
     fn capabilities(&self) -> BackendCapabilities {
         BackendCapabilities::RETAINED_PARTIAL
     }
 
-    fn render(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        self.resize(
+            submission.surface.pixel_width,
+            submission.surface.pixel_height,
+            submission.surface.scale_factor,
+        );
         self.apply_pending_resize();
         if self.surface_suspended {
             return RenderOutcome::Skipped;
@@ -928,7 +959,7 @@ impl RenderBackend for VelloRenderer {
             status => {
                 let recovery =
                     surface_recovery(&status).expect("unavailable surface must define recovery");
-                return self.recover_surface(recovery);
+                return self.recover_surface(recovery, submission.surface);
             }
         };
         let scratch_view = {
@@ -1037,10 +1068,7 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
-        self.retained_texture = None;
-        self.scratch_texture = None;
-        self.surface_suspended = surface_is_suspended(pixel_width, pixel_height);
-        self.pending_resize = Some((pixel_width, pixel_height, scale_factor));
+        self.queue_resize(pixel_width, pixel_height, scale_factor, false);
     }
 }
 

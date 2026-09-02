@@ -2,7 +2,7 @@
 
 use novadraw::{
     Bounded, Color, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas, NovadrawContext,
-    Point, Rectangle, RectangleFigure, SceneUpdateManager, Shape, Updatable,
+    Point, Rectangle, RectangleFigure, Shape, Updatable,
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{
@@ -158,15 +158,7 @@ fn create_coordinate_root_move() -> novadraw::FigureGraph {
         )),
     );
 
-    let mut update_manager = SceneUpdateManager::new();
-    scene.set_bounds_with_update(
-        &mut update_manager,
-        coordinate_root,
-        330.0,
-        220.0,
-        340.0,
-        250.0,
-    );
+    scene.set_bounds(coordinate_root, 330.0, 220.0, 340.0, 250.0);
     scene
 }
 

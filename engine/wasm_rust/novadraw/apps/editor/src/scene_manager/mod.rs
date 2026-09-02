@@ -1,7 +1,6 @@
 use novadraw::{Color, EllipseFigure, FigureGraph, PolylineFigure, Rectangle, RectangleFigure};
 
 mod interactive_figure;
-pub mod scene_host;
 
 use interactive_figure::InteractiveRectFigure;
 
@@ -525,35 +524,6 @@ impl SceneManager {
             Color::rgba(0.98, 0.86, 0.22, 1.0),
         );
         scene.add_child_to(root_id, Box::new(outer));
-    }
-
-    /// 切换场景
-    pub fn switch_scene(&mut self, scene_type: SceneType) {
-        self.scene = FigureGraph::new();
-        match scene_type {
-            SceneType::BasicAnchors => Self::create_basic_anchors_scene(&mut self.scene),
-            SceneType::Nested => Self::create_nested_scene(&mut self.scene),
-            SceneType::NestedWithRoot => Self::create_nested_with_root_scene(&mut self.scene),
-            SceneType::ZOrder => Self::create_zorder_scene(&mut self.scene),
-            SceneType::Visibility => Self::create_visibility_scene(&mut self.scene),
-            SceneType::BoundsTranslate => Self::create_bounds_translate_scene(&mut self.scene),
-            SceneType::ClipTest => Self::create_clip_test_scene(&mut self.scene),
-            SceneType::EllipseTest => Self::create_ellipse_test_scene(&mut self.scene),
-            SceneType::LineTest => Self::create_line_test_scene(&mut self.scene),
-            SceneType::DpiTest => Self::create_dpi_test_scene(&mut self.scene),
-        }
-        self.current_scene = scene_type;
-        println!("[SceneManager] 切换到场景 {:?}", scene_type);
-    }
-
-    /// 获取场景图
-    pub fn scene(&self) -> &FigureGraph {
-        &self.scene
-    }
-
-    /// 获取场景图可变引用
-    pub fn scene_mut(&mut self) -> &mut FigureGraph {
-        &mut self.scene
     }
 }
 

@@ -108,6 +108,26 @@ impl Runtime {
         changed
     }
 
+    pub fn translate(&mut self, id: FigureId, dx: f64, dy: f64) -> bool {
+        let Some(bounds) = self.tree.figure_bounds(id) else {
+            return false;
+        };
+        self.set_bounds(
+            id,
+            novadraw_geometry::Rectangle::new(
+                bounds.x + dx,
+                bounds.y + dy,
+                bounds.width,
+                bounds.height,
+            ),
+        )
+    }
+
+    pub fn set_selected(&mut self, id: Option<FigureId>) {
+        self.tree.set_selected(id);
+        self.full_redraw_pending = true;
+    }
+
     pub fn into_tree(self) -> FigureGraph {
         self.tree
     }
@@ -455,6 +475,30 @@ mod tests {
             .prepare_submission(surface(120, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(resized.damage.mode(), DamageMode::Full);
+    }
+
+    #[test]
+    fn dpi_change_updates_surface_metadata_and_forces_full_damage() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        let hidpi_surface = SurfaceInfo {
+            logical_width: 100.0,
+            logical_height: 100.0,
+            pixel_width: 200,
+            pixel_height: 200,
+            scale_factor: 2.0,
+        };
+        let submission = runtime
+            .prepare_submission(hidpi_surface, BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        assert_eq!(submission.surface, hidpi_surface);
+        assert_eq!(submission.damage.mode(), DamageMode::Full);
     }
 
     #[test]

@@ -2,13 +2,12 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::scene_manager::{DPI_TEST_PROBE_BOUNDS, SceneType};
-use crate::system::{RawPointerInput, WinitNovadrawSystem};
-use novadraw::backend::vello::{VelloRenderer, WinitWindowProxy};
-use novadraw::traits::WindowProxy;
-use novadraw::{Key, KeyModifiers, NovadrawSystem, RenderBackend};
-use novadraw_apps::{AdaptedGesture, WinitGestureAdapter};
+use crate::system::{EditorRuntime, RawPointerInput};
+use novadraw::backend::vello::VelloRenderer;
+use novadraw::{Key, KeyModifiers};
+use novadraw_apps::{AdaptedGesture, WinitGestureAdapter, WinitPlatformHost};
 use tracing::info;
-use winit::dpi::{self, PhysicalSize};
+use winit::dpi;
 use winit::event::{ElementState, MouseButton as WinitMouseButton};
 use winit::window::WindowAttributes;
 use winit::{
@@ -24,7 +23,7 @@ const DOUBLE_CLICK_DISTANCE: f64 = 4.0;
 
 pub struct GraphicsApp {
     renderer: Option<VelloRenderer>,
-    system: Option<WinitNovadrawSystem>,
+    system: Option<EditorRuntime>,
     cached_window: Option<Arc<Window>>,
     cursor_position: Option<(f64, f64)>,
     last_press: Option<(Instant, novadraw::MouseButton, f64, f64)>,
@@ -148,13 +147,11 @@ impl ApplicationHandler<()> for GraphicsApp {
         let logical_height = 600.0;
 
         self.cached_window = Some(Arc::clone(&window));
-        let window_proxy = Arc::new(WinitWindowProxy::new(window));
-
-        let renderer = VelloRenderer::new(Arc::clone(&window_proxy), logical_width, logical_height);
+        let renderer = VelloRenderer::new(Arc::clone(&window), logical_width, logical_height);
         self.renderer = Some(renderer);
 
         if self.system.is_none() {
-            self.system = Some(WinitNovadrawSystem::new(window_proxy));
+            self.system = Some(EditorRuntime::new(WinitPlatformHost::new(window)));
         }
 
         self.request_update();
@@ -173,20 +170,16 @@ impl ApplicationHandler<()> for GraphicsApp {
             WindowEvent::RedrawRequested => {
                 self.execute_update();
             }
-            WindowEvent::Resized(new_size) => {
-                if let Some(renderer) = &mut self.renderer {
-                    let scale_factor = renderer.window().scale_factor();
-                    let PhysicalSize { width, height } = new_size;
-
-                    renderer.resize(width, height, scale_factor);
-                    self.request_update();
+            WindowEvent::Resized(_) => {
+                if let Some(system) = &mut self.system {
+                    system.surface_changed();
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 let scale_factor = self
-                    .renderer
+                    .cached_window
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|window| window.scale_factor())
                     .unwrap_or(1.0);
                 let raw = RawPointerInput::new(position.x, position.y, scale_factor);
                 let logical_position = raw.logical_position();
@@ -207,9 +200,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                     (self.cursor_position, &mut self.system)
                 {
                     let scale_factor = self
-                        .renderer
+                        .cached_window
                         .as_ref()
-                        .map(|renderer| renderer.window().scale_factor())
+                        .map(|window| window.scale_factor())
                         .unwrap_or(1.0);
                     let raw = RawPointerInput::new(physical_x, physical_y, scale_factor);
                     let button = match button {
@@ -251,9 +244,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                 phase,
             } => {
                 let scale_factor = self
-                    .renderer
+                    .cached_window
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|window| window.scale_factor())
                     .unwrap_or(1.0);
                 let (physical_x, physical_y) = self.gesture_anchor_physical().unwrap_or((0.0, 0.0));
                 if let Some(AdaptedGesture::Scroll(event)) = self.gesture_adapter.adapt_mouse_wheel(
@@ -275,9 +268,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                 phase,
             } => {
                 let scale_factor = self
-                    .renderer
+                    .cached_window
                     .as_ref()
-                    .map(|renderer| renderer.window().scale_factor())
+                    .map(|window| window.scale_factor())
                     .unwrap_or(1.0);
                 let (physical_x, physical_y) = self.gesture_anchor_physical().unwrap_or((0.0, 0.0));
                 if let Some(AdaptedGesture::Zoom(event)) = self.gesture_adapter.adapt_pinch(
@@ -387,9 +380,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                     PhysicalKey::Code(KeyCode::KeyH) => {
                         if let Some(system) = &mut self.system {
                             let scale_factor = self
-                                .renderer
+                                .cached_window
                                 .as_ref()
-                                .map(|renderer| renderer.window().scale_factor())
+                                .map(|window| window.scale_factor())
                                 .unwrap_or(1.0);
                             let report = system.run_interaction_script(&[
                                 crate::system::InteractionStep::Hover {
@@ -408,9 +401,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                     PhysicalKey::Code(KeyCode::KeyM) => {
                         if let Some(system) = &mut self.system {
                             let scale_factor = self
-                                .renderer
+                                .cached_window
                                 .as_ref()
-                                .map(|renderer| renderer.window().scale_factor())
+                                .map(|window| window.scale_factor())
                                 .unwrap_or(1.0);
                             let trace = system.dispatch_raw_mouse_moved(RawPointerInput::new(
                                 150.0 * scale_factor,
@@ -424,9 +417,9 @@ impl ApplicationHandler<()> for GraphicsApp {
                     PhysicalKey::Code(KeyCode::KeyC) => {
                         if let Some(system) = &mut self.system {
                             let scale_factor = self
-                                .renderer
+                                .cached_window
                                 .as_ref()
-                                .map(|renderer| renderer.window().scale_factor())
+                                .map(|window| window.scale_factor())
                                 .unwrap_or(1.0);
                             let report = system.run_interaction_script(&[
                                 crate::system::InteractionStep::Click {
@@ -450,9 +443,7 @@ impl ApplicationHandler<()> for GraphicsApp {
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(renderer) = self.renderer.take() {
-            self.cached_window = Some(renderer.window().clone_window());
-        }
+        self.renderer = None;
     }
 }
 

@@ -28,4 +28,4 @@ pub use context::NdCanvas;
 pub use submission::{
     DamageMode, DamageSet, FrameId, RenderSubmission, ResourceDelta, SurfaceInfo,
 };
-pub use traits::{BackendCapabilities, RenderBackend, RenderOutcome, WindowProxy};
+pub use traits::{BackendCapabilities, RenderBackend, RenderOutcome};

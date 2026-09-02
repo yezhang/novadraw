@@ -39,36 +39,16 @@ pub enum RenderOutcome {
     Retry,
 }
 
-/// 窗口代理 trait
-///
-/// 提供窗口的基本信息和方法。
-pub trait WindowProxy: Send + Sync {
-    /// 请求重绘
-    fn request_redraw(&self);
-    /// 获取缩放因子
-    fn scale_factor(&self) -> f64;
-    /// 获取窗口宽度
-    fn width(&self) -> u32;
-    /// 获取窗口高度
-    fn height(&self) -> u32;
-}
-
 /// 渲染后端 trait
 ///
 /// 定义渲染后端的通用接口。
 pub trait RenderBackend {
-    /// 关联的窗口代理类型
-    type Window: WindowProxy;
-
-    /// 获取关联的窗口代理
-    fn window(&self) -> &Self::Window;
-
     fn capabilities(&self) -> BackendCapabilities {
         BackendCapabilities::FULL_FRAME_ONLY
     }
 
-    /// 执行渲染
-    fn render(&mut self, submission: &RenderSubmission) -> RenderOutcome;
+    /// Submits one runtime-prepared frame.
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome;
 
     /// 处理窗口大小变化
     ///

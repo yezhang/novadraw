@@ -23,6 +23,7 @@
 
 pub mod app;
 pub mod input;
+pub mod platform;
 pub mod prelude;
 pub mod verification;
 
@@ -30,6 +31,9 @@ pub use app::{
     AppBuilder, DemoApp, run_demo_app, run_demo_app_with_scene_screenshot,
     run_demo_app_with_screenshot,
 };
-pub use input::{AdaptedGesture, WinitGestureAdapter};
+pub use input::{
+    AdaptedGesture, WebInputAdapter, WebPointerInput, WebWheelDeltaMode, WinitGestureAdapter,
+};
+pub use platform::{WebPlatformHost, WinitPlatformHost};
 pub use prelude::*;
 pub use verification::{VerificationCase, VerificationCli, VerificationMetrics, run_verification};
