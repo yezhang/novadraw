@@ -622,7 +622,12 @@ R6: PASS
 
 状态：`pending`
 
-自动门禁已通过，等待平台人工验收。完成后才能开始 R8。
+首次 macOS 人工验收未通过：
+
+- editor 场景 5 按 `T` 平移时出现旧帧残影；
+- editor 左右方向键切换场景失效。
+
+以上问题已修复并增加回归测试，等待重新验收。完成后才能开始 R8。
 
 ### 18.1 macOS 核心 Demo
 
@@ -639,18 +644,39 @@ cargo run -p scroll-pane-demo
 
 重点检查：
 
-1. editor 的点击、拖拽、hover、键盘输入与场景切换行为不变；
-2. 所有应用 resize 后首帧完整，无旧帧拉伸、残影、透明帧或黑帧；
-3. 最小化后恢复会产生 Full damage；
-4. `update-app` 按 `U` 切换增量与全量路径时画面一致。
+1. editor 左右方向键和 `PageUp`/`PageDown` 可循环切换场景；
+2. editor 场景 5 连续按 `T`，图形向右下移动且旧位置不留轨迹；
+3. editor 的点击、拖拽、hover 和键盘输入行为不变；
+4. 所有应用 resize 后首帧完整，无旧帧拉伸、残影、透明帧或黑帧；
+5. 最小化后恢复会产生 Full damage；
+6. `update-app` 按 `U` 切换增量与全量路径时画面一致。
 
-### 18.2 Web 与其他桌面目标
+### 18.2 Event App Focus / Keyboard
+
+先运行确定性验证：
+
+```bash
+cargo run -p event-app -- --verify --scenario=focus_keyboard
+```
+
+预期输出 `PASS focus_keyboard`。该场景依次验证：
+
+1. 鼠标按下目标后收到 `FocusGained`；
+2. 焦点目标收到 `Ctrl+A` 的 key pressed；
+3. 焦点目标收到 `A` 的 key released；
+4. 主动释放焦点后收到 `FocusLost`，最终 `focus_owner` 为 `None`。
+
+窗口中可按 `1` 进入 `focus_keyboard`，点击蓝色目标；释放鼠标后目标应保持紫色，
+表示焦点仍由该目标持有。按键事件本身不改变颜色，因此键盘事件顺序以以上
+`--verify` 结果为验收依据。
+
+### 18.3 Web 与其他桌面目标
 
 在已安装对应 Rust target 的环境执行至少一次 Web 构建，并在 CI 或目标机器验证
 Windows/Linux build 与基础输入。Web pointer 坐标必须保持 CSS logical units，
 wheel 的 pixel/line/page delta 必须映射到统一引擎事件。
 
-### 18.3 验收回复
+### 18.4 验收回复
 
 ```text
 R7: PASS
