@@ -354,6 +354,7 @@ pub trait PlatformHost {
     fn surface_info(&self) -> SurfaceInfo;
     fn set_cursor(&self, cursor: CursorIcon);
     fn set_ime_state(&self, state: ImeState);
+    fn update_accessibility(&self, update: AccessibilityUpdate);
 }
 ```
 
@@ -379,10 +380,9 @@ pub struct RenderSubmission {
 }
 
 pub trait RenderBackend {
-    type Error;
-
-    fn resize(&mut self, surface: SurfaceInfo) -> Result<(), Self::Error>;
-    fn submit(&mut self, frame: &RenderSubmission) -> Result<(), Self::Error>;
+    fn capabilities(&self) -> BackendCapabilities;
+    fn submit(&mut self, frame: &RenderSubmission) -> RenderOutcome;
+    fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64);
 }
 ```
 

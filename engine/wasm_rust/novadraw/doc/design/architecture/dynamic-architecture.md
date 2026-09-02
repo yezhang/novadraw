@@ -271,7 +271,7 @@ Runtime pending work changes empty → non-empty
 → PlatformHost.request_redraw()
 → platform coalesces requests
 → redraw callback
-→ Runtime.prepare_frame()
+→ Runtime.prepare_submission()
 → RenderBackend.submit()
 ```
 

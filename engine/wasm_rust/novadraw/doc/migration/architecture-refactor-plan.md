@@ -274,6 +274,8 @@ cargo test --workspace
 
 前置条件：R6 手动验证 `PASS`。
 
+状态：`automatic_verified`
+
 工作：
 
 - PlatformHost 只负责 redraw、surface、cursor、IME 和 accessibility；
@@ -292,6 +294,18 @@ cargo test --workspace
 - host redraw 合并；
 - backend retry；
 - 平台类型依赖扫描。
+
+自动验证结果：
+
+- `cargo check --workspace`：通过；
+- `cargo clippy -- -D warnings`：通过；
+- `cargo test --workspace`：全部通过；
+- `cargo tree -p novadraw-scene -e normal`：不包含 winit、Vello 或 wgpu；
+- `novadraw-apps` 的 Winit/Web adapter 与 `HeadlessHost` 契约测试通过。
+- `cargo run -p update-app -- --verify
+  --report=target/visual-verification/update-app-r7.json`：6 项通过；
+- `cargo run -p event-app -- --verify
+  --report=target/visual-verification/event-app-r7.json`：4 项通过。
 
 手动验证：
 
@@ -603,3 +617,45 @@ R6: PASS
 ```
 
 若失败，请附场景名、是否启用 UpdateManager、窗口操作步骤和可见结果。
+
+## 18. R7 手动验收记录
+
+状态：`pending`
+
+自动门禁已通过，等待平台人工验收。完成后才能开始 R8。
+
+### 18.1 macOS 核心 Demo
+
+依次运行以下应用，确认启动、输入、场景切换、resize、最小化和恢复均正常：
+
+```bash
+cargo run -p editor
+cargo run -p layout-app
+cargo run -p event-app
+cargo run -p update-app
+cargo run -p viewport-app
+cargo run -p scroll-pane-demo
+```
+
+重点检查：
+
+1. editor 的点击、拖拽、hover、键盘输入与场景切换行为不变；
+2. 所有应用 resize 后首帧完整，无旧帧拉伸、残影、透明帧或黑帧；
+3. 最小化后恢复会产生 Full damage；
+4. `update-app` 按 `U` 切换增量与全量路径时画面一致。
+
+### 18.2 Web 与其他桌面目标
+
+在已安装对应 Rust target 的环境执行至少一次 Web 构建，并在 CI 或目标机器验证
+Windows/Linux build 与基础输入。Web pointer 坐标必须保持 CSS logical units，
+wheel 的 pixel/line/page delta 必须映射到统一引擎事件。
+
+### 18.3 验收回复
+
+```text
+R7: PASS
+平台: macOS / Web / Windows 或 Linux
+失败项: 无
+```
+
+若有未覆盖平台，请明确列为“未验证”，不要记为 PASS。
