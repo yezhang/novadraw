@@ -4,6 +4,7 @@ screenshot/
 
 # Build outputs
 target/
+apps/web-validation/dist/
 
 # Runtime logs
 log/

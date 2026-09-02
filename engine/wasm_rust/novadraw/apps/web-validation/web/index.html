@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Novadraw Web Validation</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body data-ready="false">
+    <header>
+      <div>
+        <p class="eyebrow">Novadraw</p>
+        <h1>Web Runtime Validation</h1>
+      </div>
+      <output id="runtime-status">Loading Wasm runtime…</output>
+    </header>
+
+    <main>
+      <section class="workspace" aria-label="Interactive runtime canvas">
+        <canvas
+          id="novadraw-canvas"
+          tabindex="0"
+          role="application"
+          aria-label="Novadraw interactive canvas"
+        ></canvas>
+      </section>
+
+      <aside aria-label="Validation state">
+        <div class="metric">
+          <span>Pointer</span>
+          <strong id="pointer-status">Idle</strong>
+        </div>
+        <div class="metric">
+          <span>Keyboard</span>
+          <strong id="keyboard-status">No key received</strong>
+        </div>
+        <div class="metric">
+          <span>Surface</span>
+          <strong id="surface-status">Pending</strong>
+        </div>
+        <button id="toggle-scale" type="button">Toggle 1x / 2x DPR</button>
+      </aside>
+    </main>
+
+    <script type="module">
+      import init from "./pkg/web_validation.js";
+
+      init().catch((error) => {
+        document.body.dataset.ready = "error";
+        document.querySelector("#runtime-status").textContent = `ERROR · ${error}`;
+        console.error(error);
+      });
+    </script>
+  </body>
+</html>

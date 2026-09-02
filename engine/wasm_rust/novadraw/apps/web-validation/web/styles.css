@@ -1,0 +1,150 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f4f6f8;
+  color: #17202a;
+  letter-spacing: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+header {
+  min-height: 88px;
+  padding: 18px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #d8dee4;
+}
+
+.eyebrow {
+  margin: 0 0 3px;
+  color: #52606d;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+output {
+  max-width: 56%;
+  color: #34495e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  text-align: right;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  min-height: calc(100vh - 88px);
+}
+
+.workspace {
+  min-width: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: #e8edf1;
+}
+
+canvas {
+  width: min(100%, 800px);
+  height: auto;
+  aspect-ratio: 8 / 5;
+  display: block;
+  background: #eef1f4;
+  border: 1px solid #8c99a5;
+  outline: none;
+}
+
+canvas:focus-visible {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 22%);
+}
+
+aside {
+  padding: 24px 20px;
+  background: #ffffff;
+  border-left: 1px solid #d8dee4;
+}
+
+.metric {
+  padding: 13px 0;
+  border-bottom: 1px solid #e5e9ed;
+}
+
+.metric span,
+.metric strong {
+  display: block;
+}
+
+.metric span {
+  margin-bottom: 5px;
+  color: #667480;
+  font-size: 12px;
+}
+
+.metric strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+button {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 20px;
+  border: 1px solid #1f5ea8;
+  border-radius: 6px;
+  background: #256fbf;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1f5ea8;
+}
+
+button:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 25%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  output {
+    max-width: 100%;
+    text-align: left;
+  }
+
+  main {
+    grid-template-columns: 1fr;
+  }
+
+  aside {
+    border-top: 1px solid #d8dee4;
+    border-left: 0;
+  }
+}

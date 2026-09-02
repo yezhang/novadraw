@@ -21,19 +21,25 @@
 //! }
 //! ```
 
+#[cfg(feature = "native")]
 pub mod app;
 pub mod input;
 pub mod platform;
 pub mod prelude;
+#[cfg(feature = "native")]
 pub mod verification;
 
+#[cfg(feature = "native")]
 pub use app::{
     AppBuilder, DemoApp, run_demo_app, run_demo_app_with_scene_screenshot,
     run_demo_app_with_screenshot,
 };
-pub use input::{
-    AdaptedGesture, WebInputAdapter, WebPointerInput, WebWheelDeltaMode, WinitGestureAdapter,
-};
-pub use platform::{WebPlatformHost, WinitPlatformHost};
+#[cfg(feature = "native")]
+pub use input::{AdaptedGesture, WinitGestureAdapter};
+pub use input::{WebInputAdapter, WebPointerInput, WebWheelDeltaMode};
+pub use platform::WebPlatformHost;
+#[cfg(feature = "native")]
+pub use platform::WinitPlatformHost;
 pub use prelude::*;
+#[cfg(feature = "native")]
 pub use verification::{VerificationCase, VerificationCli, VerificationMetrics, run_verification};

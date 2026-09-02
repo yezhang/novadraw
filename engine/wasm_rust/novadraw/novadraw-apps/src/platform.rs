@@ -1,17 +1,23 @@
+#[cfg(feature = "native")]
 use std::sync::Arc;
+#[cfg(feature = "native")]
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use novadraw::{AccessibilityUpdate, CursorIcon, ImeState, PlatformHost, SurfaceInfo};
+#[cfg(feature = "native")]
 use winit::dpi::{LogicalPosition, LogicalSize};
+#[cfg(feature = "native")]
 use winit::window::{CursorIcon as WinitCursorIcon, Window};
 
 /// Native platform adapter shared by every winit application.
+#[cfg(feature = "native")]
 pub struct WinitPlatformHost {
     window: Arc<Window>,
     redraw_pending: AtomicBool,
     accessibility_revision: AtomicU64,
 }
 
+#[cfg(feature = "native")]
 impl WinitPlatformHost {
     pub fn new(window: Arc<Window>) -> Self {
         Self {
@@ -39,6 +45,7 @@ impl WinitPlatformHost {
     }
 }
 
+#[cfg(feature = "native")]
 impl PlatformHost for WinitPlatformHost {
     fn request_redraw(&self) {
         if !self.redraw_pending.swap(true, Ordering::AcqRel) {

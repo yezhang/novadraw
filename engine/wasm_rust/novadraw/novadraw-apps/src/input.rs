@@ -1,11 +1,15 @@
+#[cfg(feature = "native")]
 use std::collections::HashMap;
 
+#[cfg(feature = "native")]
+use novadraw::ZoomEvent;
 use novadraw::{
     GesturePhase, GestureSessionId, KeyModifiers, Point, PointerId, ScrollDeltaKind, WheelEvent,
-    ZoomEvent,
 };
+#[cfg(feature = "native")]
 use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
 
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AdaptedGesture {
     Scroll(WheelEvent),
@@ -82,6 +86,7 @@ impl WebInputAdapter {
     }
 }
 
+#[cfg(feature = "native")]
 #[derive(Default)]
 pub struct WinitGestureAdapter {
     next_session_id: u64,
@@ -89,6 +94,7 @@ pub struct WinitGestureAdapter {
     zoom_sessions: HashMap<DeviceId, GestureSessionId>,
 }
 
+#[cfg(feature = "native")]
 impl WinitGestureAdapter {
     pub fn new() -> Self {
         Self {
@@ -233,6 +239,7 @@ impl WinitGestureAdapter {
     }
 }
 
+#[cfg(feature = "native")]
 fn map_touch_phase(phase: TouchPhase) -> GesturePhase {
     match phase {
         TouchPhase::Started => GesturePhase::Begin,
@@ -242,6 +249,7 @@ fn map_touch_phase(phase: TouchPhase) -> GesturePhase {
     }
 }
 
+#[cfg(feature = "native")]
 fn valid_scale_factor(scale_factor: f64) -> f64 {
     if scale_factor.is_finite() && scale_factor > 0.0 {
         scale_factor

@@ -5,22 +5,18 @@
 pub use novadraw_core::Color;
 pub use novadraw_geometry::{Affine2D, Transform};
 
-#[cfg(feature = "vello")]
 pub use novadraw_render::{
     BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCommand,
     RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo, command,
 };
 
-#[cfg(feature = "vello")]
 pub use novadraw_render as render;
 
 #[cfg(feature = "vello")]
 pub use novadraw_render::backend;
 
-#[cfg(feature = "vello")]
 pub use novadraw_render::traits;
 
-#[cfg(feature = "vello")]
 pub use novadraw_scene::{
     AccessibilityUpdate, AccessibleFigure, AncestorEvent, AncestorEventKind, AncestorListener,
     BasicEventDispatcher, BlockId, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded,
@@ -47,7 +43,6 @@ pub use novadraw_scene::{
     XYLayout, ZoomError, ZoomEvent, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
 };
 
-#[cfg(feature = "vello")]
 pub mod border {
     pub use novadraw_scene::border::*;
 }
