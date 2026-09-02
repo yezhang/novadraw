@@ -133,7 +133,7 @@ Novadraw 当前显式保存非 freeform scalable pane 的未缩放 preferred siz
 现有 Figure API 的合理变体。布局分配的 bounds 不得修改该值。
 
 连续手势要求同一输入事务立即处理后续 pan，因此 `ZoomManager` 调用
-`FigureGraph::validate_with_update(viewport)`，同步完成 Draw2D
+`FigureTree::validate_with_update(viewport)`，同步完成 Draw2D
 `viewport.validate()` 所承担的 contents bounds 和 RangeModel 更新，再设置新的
 view location。
 

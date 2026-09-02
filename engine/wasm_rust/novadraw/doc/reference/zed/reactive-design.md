@@ -186,7 +186,7 @@ Zed 还通过 `WeakEntity` 让订阅回调每次执行前先尝试 upgrade：
 
 这套模式对 Rust 尤其自然，也很适合 Novadraw：
 
-- `FigureBlock` 或未来的 runtime object 都可以被弱引用观察
+- `FigureNode` 或未来的 runtime object 都可以被弱引用观察
 - listener 生命周期可以跟随宿主对象，而不是依赖手工管理
 
 ---

@@ -127,7 +127,7 @@ mod tests {
     fn test_parent_child_transform() {
         // 场景: parent(100,100) -> child(30,30)
         // 期望: child 实际位置 (130, 130)
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let parent = Rectangle::new(0.0, 0.0, 100.0, 100.0);
         let parent_id = scene.set_contents(Box::new(parent));
 
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn test_render_order_z_order() {
         // 后添加的在上面（Z-order）
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
         let contents = scene.set_contents(Box::new(Rectangle::new(0.0, 0.0, 100.0, 100.0)));
 
         let rect1 = Rectangle::new(0.0, 0.0, 100.0, 100.0);
@@ -234,7 +234,7 @@ impl RendererTrait for VelloRenderer {
 ### 方法 1: 打印渲染命令
 
 ```rust
-// 在 FigureGraph 中添加
+// 在 FigureTree 中添加
 pub fn debug_commands(&self) {
     let gc = self.render();
     eprintln!("=== 渲染命令列表 ===");
@@ -255,11 +255,11 @@ pub fn print_tree(&self) {
     self.print_block(self.root, 0);
 }
 
-fn print_block(&self, block_id: BlockId, depth: usize) {
+fn print_block(&self, block_id: FigureId, depth: usize) {
     let indent = "  ".repeat(depth);
     if let Some(block) = self.blocks.get(block_id) {
         let bounds = block.figure_bounds();
-        eprintln!("{}BlockId({:?}): {:?} bounds=({:.0},{:.0},{:.0},{:.0})",
+        eprintln!("{}FigureId({:?}): {:?} bounds=({:.0},{:.0},{:.0},{:.0})",
             indent, block_id,
             if block.is_visible { "V" } else { "H" },
             bounds.x, bounds.y, bounds.width, bounds.height);
@@ -276,7 +276,7 @@ fn print_block(&self, block_id: BlockId, depth: usize) {
 #[test]
 fn test_end_to_end() {
     // 1. 创建场景图
-    let mut scene = FigureGraph::new();
+    let mut scene = FigureTree::new();
     // ... 添加图形
 
     // 2. 生成命令
