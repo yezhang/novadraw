@@ -652,10 +652,32 @@ Web 验收结果：
 - Windows
 - Linux
 
-R7 尚未整体批准；至少完成 Windows/Linux 中一个目标的构建与基础输入验证后，才能将
-状态更新为 `approved` 并开始 R8。
+### 18.1 Windows 验证暂缓与后续方案
 
-### 18.1 macOS 核心 Demo
+决策（2026-09-02）：当前阶段暂不执行 Windows 平台验证，继续以 macOS 与 Web 的
+已通过验收作为开发迭代依据。该暂缓仅代表 Windows 尚未验证，不得表述为 Windows
+已支持、已兼容或已通过验收。
+
+R7 保持 `platform_partial`。在 Windows 或 Linux 至少一个目标完成构建和基础输入验证前，
+不得将 R7 更新为 `approved`；Windows 图形验收仍是桌面跨平台发布前的必经门禁。
+
+Windows 验证分层如下：
+
+1. **持续集成构建门禁**：在 GitHub Actions 的 `windows-latest` 上运行
+   `cargo fmt --all -- --check`、`cargo check --workspace`、
+   `cargo clippy --workspace -- -D warnings` 与 `cargo test --workspace`。
+   交叉编译只可作为本地提前发现 target 编译问题的补充，不能替代 Windows runner。
+2. **目标平台基础输入验证**：在 Windows x86_64 实机或 Windows CI runner 上启动
+   `event-app` 和至少一个图形 demo，验证窗口创建、Pointer、Wheel、Keyboard、resize
+   与 Full damage。
+3. **发布前图形验收**：在真实 Windows x86_64 机器及原生 GPU 驱动上运行 editor、
+   `update-app`、`viewport-app` 和 `scroll-pane-demo`，覆盖 resize、DPI 缩放、最小化/
+   恢复与 WebGPU/Vello 渲染。Apple Silicon 上的 Windows ARM 虚拟机可用于辅助人工检查，
+   但不能替代此项验收。
+
+后续恢复 Windows 验收时，先补齐第 1 层，再按第 2、3 层顺序执行并将结果写入本节。
+
+### 18.2 macOS 核心 Demo
 
 依次运行以下应用，确认启动、输入、场景切换、resize、最小化和恢复均正常：
 
@@ -677,7 +699,7 @@ cargo run -p scroll-pane-demo
 5. 最小化后恢复会产生 Full damage；
 6. `update-app` 按 `U` 切换增量与全量路径时画面一致。
 
-### 18.2 Event App Focus / Keyboard
+### 18.3 Event App Focus / Keyboard
 
 先运行确定性验证：
 
@@ -696,7 +718,7 @@ cargo run -p event-app -- --verify --scenario=focus_keyboard
 表示焦点仍由该目标持有。按键事件本身不改变颜色，因此键盘事件顺序以以上
 `--verify` 结果为验收依据。
 
-### 18.3 Web 与其他桌面目标
+### 18.4 Web 与其他桌面目标
 
 Web 环境构建与运行：
 
@@ -723,7 +745,7 @@ cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-too
 Web pointer 坐标保持 CSS logical units，wheel 的 pixel/line/page delta 映射到统一引擎
 事件。Windows/Linux build 与基础输入仍需在 CI 或目标机器验证。
 
-### 18.4 验收回复
+### 18.5 验收回复
 
 ```text
 R7: PASS
