@@ -10,3 +10,5 @@
 - [`architecture-refactor-plan.md`](architecture-refactor-plan.md)：从
   `GPT-5.6-sol` 设计基线迁移到新 Runtime、FigureTree、parent-local 坐标和平台边界
   的分阶段计划及人工验收门禁。
+- [`r8-execution-plan.md`](r8-execution-plan.md)：R8 兼容名称清理、性能基线与扩展
+  capability 的分批执行计划。

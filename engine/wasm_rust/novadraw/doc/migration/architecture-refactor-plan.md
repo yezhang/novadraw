@@ -321,6 +321,10 @@ cargo test --workspace
 
 状态：`planning`
 
+执行细则：
+
+- [`r8-execution-plan.md`](r8-execution-plan.md)
+
 工作：
 
 - 删除 BlockId/FigureBlock/FigureGraph 等兼容名称；
