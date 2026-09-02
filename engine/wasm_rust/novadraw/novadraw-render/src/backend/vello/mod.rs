@@ -16,7 +16,7 @@ use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
 use crate::submission::DamageMode;
-use crate::traits::{RenderBackend, RenderOutcome, WindowProxy};
+use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome, WindowProxy};
 
 pub mod winit;
 pub use winit::{WinitWindowProxy, WinitWindowProxyInner};
@@ -51,6 +51,26 @@ fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<Surfa
 
 fn surface_is_suspended(width: u32, height: u32) -> bool {
     width == 0 || height == 0
+}
+
+fn damage_rect_to_copy_region(
+    rect: Rectangle,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+) -> Option<(u32, u32, u32, u32)> {
+    let x0 = (rect.x * scale_factor).floor().max(0.0) as u32;
+    let y0 = (rect.y * scale_factor).floor().max(0.0) as u32;
+    let x1 = ((rect.x + rect.width) * scale_factor).ceil().max(0.0) as u32;
+    let y1 = ((rect.y + rect.height) * scale_factor).ceil().max(0.0) as u32;
+    let x0 = x0.min(width);
+    let y0 = y0.min(height);
+    let x1 = x1.min(width);
+    let y1 = y1.min(height);
+    let copy_width = x1.saturating_sub(x0);
+    let copy_height = y1.saturating_sub(y0);
+
+    (copy_width > 0 && copy_height > 0).then_some((x0, y0, copy_width, copy_height))
 }
 
 #[cfg(target_os = "macos")]
@@ -291,19 +311,7 @@ impl VelloRenderer {
         width: u32,
         height: u32,
     ) -> Option<(u32, u32, u32, u32)> {
-        let origin_x = (rect.x * self.scale_factor).floor().max(0.0) as u32;
-        let origin_y = (rect.y * self.scale_factor).floor().max(0.0) as u32;
-        let max_width = width.saturating_sub(origin_x);
-        let max_height = height.saturating_sub(origin_y);
-        let copy_width = ((rect.width * self.scale_factor).ceil().max(0.0) as u32).min(max_width);
-        let copy_height =
-            ((rect.height * self.scale_factor).ceil().max(0.0) as u32).min(max_height);
-
-        if copy_width == 0 || copy_height == 0 {
-            return None;
-        }
-
-        Some((origin_x, origin_y, copy_width, copy_height))
+        damage_rect_to_copy_region(rect, width, height, self.scale_factor)
     }
 
     fn effective_damage_regions(
@@ -862,6 +870,10 @@ impl RenderBackend for VelloRenderer {
         &self.window
     }
 
+    fn capabilities(&self) -> BackendCapabilities {
+        BackendCapabilities::RETAINED_PARTIAL
+    }
+
     fn render(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
         self.apply_pending_resize();
         if self.surface_suspended {
@@ -1217,6 +1229,43 @@ mod tests {
             ]
         );
         assert_eq!(scratch_base_rgba(false), [0.0, 0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn fractional_damage_is_rounded_outward_for_retained_surface_copy() {
+        assert_eq!(
+            damage_rect_to_copy_region(Rectangle::new(0.5, 1.25, 1.0, 2.0), 10, 10, 1.0),
+            Some((0, 1, 2, 3))
+        );
+        assert_eq!(
+            damage_rect_to_copy_region(Rectangle::new(4.5, 4.5, 2.0, 2.0), 6, 6, 2.0),
+            None
+        );
+    }
+
+    #[test]
+    fn partial_copy_produces_the_same_pixels_as_full_replacement() {
+        const WIDTH: usize = 4;
+        const HEIGHT: usize = 3;
+        let old = vec![1_u8; WIDTH * HEIGHT];
+        let mut next = old.clone();
+        for y in 1..3 {
+            for x in 1..4 {
+                next[y * WIDTH + x] = 9;
+            }
+        }
+
+        let (x, y, width, height) =
+            damage_rect_to_copy_region(Rectangle::new(1.0, 1.0, 3.0, 2.0), 4, 3, 1.0)
+                .expect("damage intersects surface");
+        let mut retained = old;
+        for row in y as usize..(y + height) as usize {
+            let start = row * WIDTH + x as usize;
+            let end = start + width as usize;
+            retained[start..end].copy_from_slice(&next[start..end]);
+        }
+
+        assert_eq!(retained, next);
     }
 }
 

@@ -2,6 +2,28 @@ use novadraw_geometry::Rectangle;
 
 use crate::command::RenderCommand;
 
+#[derive(Debug, Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct FrameId(u64);
+
+impl FrameId {
+    pub const INITIAL: Self = Self(1);
+
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+
+    pub const fn next(self) -> Self {
+        match self.0.checked_add(1) {
+            Some(value) => Self(value),
+            None => Self::INITIAL,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceInfo {
     pub logical_width: f64,
@@ -23,10 +45,34 @@ impl Default for SurfaceInfo {
     }
 }
 
+impl SurfaceInfo {
+    pub fn is_renderable(self) -> bool {
+        self.pixel_width > 0
+            && self.pixel_height > 0
+            && self.logical_width.is_finite()
+            && self.logical_width > 0.0
+            && self.logical_height.is_finite()
+            && self.logical_height > 0.0
+            && self.scale_factor.is_finite()
+            && self.scale_factor > 0.0
+    }
+}
+
 #[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct ResourceDelta {
     pub added: Vec<u64>,
     pub removed: Vec<u64>,
+}
+
+impl ResourceDelta {
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.removed.is_empty()
+    }
+
+    pub fn extend(&mut self, other: Self) {
+        self.added.extend(other.added);
+        self.removed.extend(other.removed);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
@@ -117,6 +163,7 @@ pub struct RenderSubmission {
     pub damage: DamageSet,
     pub resources: ResourceDelta,
     pub surface: SurfaceInfo,
+    pub frame_id: FrameId,
 }
 
 #[cfg(test)]
@@ -150,5 +197,28 @@ mod tests {
         assert_eq!(surface.scale_factor, 1.0);
         assert_eq!(surface.logical_width, 0.0);
         assert_eq!(surface.pixel_width, 0);
+        assert!(!surface.is_renderable());
+    }
+
+    #[test]
+    fn frame_ids_are_monotonic_and_skip_zero_after_wrap() {
+        assert_eq!(FrameId::INITIAL.get(), 1);
+        assert_eq!(FrameId::INITIAL.next().get(), 2);
+        assert_eq!(FrameId::new(u64::MAX).next(), FrameId::INITIAL);
+    }
+
+    #[test]
+    fn resource_delta_preserves_append_order() {
+        let mut delta = ResourceDelta {
+            added: vec![1],
+            removed: vec![2],
+        };
+        delta.extend(ResourceDelta {
+            added: vec![3],
+            removed: vec![4],
+        });
+
+        assert_eq!(delta.added, vec![1, 3]);
+        assert_eq!(delta.removed, vec![2, 4]);
     }
 }

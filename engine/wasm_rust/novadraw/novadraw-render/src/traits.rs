@@ -5,6 +5,34 @@
 use crate::submission::RenderSubmission;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BackendCapabilities {
+    pub partial_damage: bool,
+    pub retained_surface: bool,
+}
+
+impl BackendCapabilities {
+    pub const FULL_FRAME_ONLY: Self = Self {
+        partial_damage: false,
+        retained_surface: false,
+    };
+
+    pub const RETAINED_PARTIAL: Self = Self {
+        partial_damage: true,
+        retained_surface: true,
+    };
+
+    pub const fn supports_partial_damage(self) -> bool {
+        self.partial_damage && self.retained_surface
+    }
+}
+
+impl Default for BackendCapabilities {
+    fn default() -> Self {
+        Self::FULL_FRAME_ONLY
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RenderOutcome {
     Presented,
     Skipped,
@@ -34,6 +62,10 @@ pub trait RenderBackend {
 
     /// 获取关联的窗口代理
     fn window(&self) -> &Self::Window;
+
+    fn capabilities(&self) -> BackendCapabilities {
+        BackendCapabilities::FULL_FRAME_ONLY
+    }
 
     /// 执行渲染
     fn render(&mut self, submission: &RenderSubmission) -> RenderOutcome;
