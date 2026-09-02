@@ -198,6 +198,8 @@ cargo test --workspace
 
 前置条件：R4 手动验证 `PASS`。
 
+状态：`automatic_verified`
+
 工作：
 
 - LayoutManager 输入改为不可变 LayoutSnapshot；
@@ -215,6 +217,14 @@ cargo test --workspace
 - panic/error 后 manager 和队列恢复；
 - 1,024 节点布局；
 - non-converging validation。
+
+自动验证结果：
+
+- `cargo test -p novadraw-scene --test m5_layout_contract`：10 项通过；
+- `cargo test --workspace --lib --tests`：全部通过；
+- `cargo clippy -p novadraw-scene --lib -- -D warnings`：通过；
+- `cargo run -p update-app -- --verify
+  --report=target/visual-verification/update-app-r5.json`：5 项通过。
 
 手动验证：
 
@@ -483,6 +493,55 @@ cargo run -p editor
 
 ```text
 R4: PASS
+平台: macOS
+失败项: 无
+```
+
+若失败，请附应用名、场景编号、操作步骤和可见结果。
+
+## 16. R5 手动验收记录
+
+状态：`pending`
+
+自动门禁已通过，等待 macOS 人工窗口验收。完成以下步骤后才能开始 R6。
+
+### 16.1 Layout App
+
+```bash
+cargo run -p layout-app
+```
+
+按 `Home` 后逐个切换 0-9：
+
+1. `XYLayout + Constraints`：约束位置和尺寸正确；
+2. `FillLayout (First Fills)`：首个子节点填满 client area；
+3. `FlowLayout`：子节点按可用宽度稳定换行；
+4. `Nested Layouts`：嵌套布局没有重复偏移；
+5. `Constraint Update`：更新约束后结果稳定；
+6. `GridLayout`：行列、间距和填充正确；
+7. `ToolbarLayout`：主轴压缩和次轴拉伸正确；
+8. `StackLayout`：所有子节点填满 client area；
+9. `No Layout (Raw)`：无布局节点保持原始 bounds；
+10. `Border Layout (XY)`：五区布局完整且无重叠。
+
+拖动窗口改变大小，确认布局连续稳定、无闪烁和残影。
+
+### 16.2 Update App
+
+```bash
+cargo run -p update-app -- --verify \
+  --report=target/visual-verification/update-app-r5.json
+
+cargo run -p update-app
+```
+
+自动报告应包含 5 项 `PASS`。窗口中切换全部场景，确认 validation、partial damage
+和 1,024 Figure 场景均正常显示，resize 后布局稳定。
+
+### 16.3 验收回复
+
+```text
+R5: PASS
 平台: macOS
 失败项: 无
 ```
