@@ -18,7 +18,7 @@ use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
     Updatable, border::Border,
 };
-use crate::layout::{LayoutContext, LayoutManager};
+use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
     BlockId, DefaultRangeModel, FigureGraph, GraphMutationError, PropertyValue, RangeModel,
     RangeModelError, RangeModelSnapshot, UpdateManager,
@@ -295,15 +295,15 @@ impl LayoutManager for ViewportLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        let Some((contents, _)) = ctx.get_children(container).first().copied() else {
+        let Some((contents, _)) = snapshot.children(container).first().copied() else {
             return (0.0, 0.0);
         };
         let runtime = lock_unpoisoned(&self.runtime);
         let width_hint = if runtime.tracks_width { w_hint } else { -1.0 };
         let height_hint = if runtime.tracks_height { h_hint } else { -1.0 };
-        ctx.get_preferred_size(contents, width_hint, height_hint)
+        snapshot.preferred_size(contents, width_hint, height_hint)
     }
 
     fn get_minimum_size(
@@ -311,22 +311,27 @@ impl LayoutManager for ViewportLayout {
         _container: BlockId,
         _w_hint: f64,
         _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        _snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
         (0.0, 0.0)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let Some((contents, _)) = ctx.get_children(container).first().copied() else {
-            return;
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let Some((contents, _)) = snapshot.children(container).first().copied() else {
+            return Ok(());
         };
-        let area = ctx.get_container_bounds(container);
+        let area = snapshot.container_bounds(container);
         let (tracks_width, tracks_height) = {
             let runtime = lock_unpoisoned(&self.runtime);
             (runtime.tracks_width, runtime.tracks_height)
         };
-        let preferred = ctx.get_preferred_size(contents, area.width, area.height);
-        let minimum = ctx.get_minimum_size(contents, area.width, area.height);
+        let preferred = snapshot.preferred_size(contents, area.width, area.height);
+        let minimum = snapshot.minimum_size(contents, area.width, area.height);
         let width = if tracks_width {
             area.width.max(minimum.0)
         } else {
@@ -337,11 +342,12 @@ impl LayoutManager for ViewportLayout {
         } else {
             area.height.max(preferred.1)
         };
-        ctx.set_child_bounds(contents, Rectangle::new(0.0, 0.0, width, height));
+        out.set_child_bounds(contents, Rectangle::new(0.0, 0.0, width, height));
 
         let runtime = lock_unpoisoned(&self.runtime);
         let _ = runtime.horizontal.set_all(0.0, area.width, width);
         let _ = runtime.vertical.set_all(0.0, area.height, height);
+        Ok(())
     }
 }
 

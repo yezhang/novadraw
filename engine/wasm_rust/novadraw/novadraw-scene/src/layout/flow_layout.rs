@@ -5,8 +5,7 @@
 
 use tracing::debug;
 
-use super::LayoutContext;
-use super::LayoutManager;
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
 
@@ -73,17 +72,17 @@ impl FlowLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
-        let sizes = ctx
-            .get_children(container)
+        let sizes = snapshot
+            .children(container)
             .into_iter()
             .map(|(child, _)| {
                 if minimum {
-                    ctx.get_minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, w_hint, h_hint)
                 } else {
-                    ctx.get_preferred_size(child, w_hint, h_hint)
+                    snapshot.preferred_size(child, w_hint, h_hint)
                 }
             })
             .collect::<Vec<_>>();
@@ -103,8 +102,13 @@ impl FlowLayout {
     }
 
     /// 布局计算（内部方法）
-    fn perform_layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let children = ctx.get_children(container);
+    fn perform_layout(
+        &self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) {
+        let children = snapshot.children(container);
         if children.is_empty() {
             return;
         }
@@ -115,7 +119,7 @@ impl FlowLayout {
             children.len()
         );
 
-        let container_bounds = ctx.get_container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container);
         let cx = container_bounds.x;
         let cy = container_bounds.y;
         let cw = container_bounds.width;
@@ -128,41 +132,39 @@ impl FlowLayout {
 
         match self.direction {
             FlowDirection::Horizontal => {
-                self.layout_horizontal(cx, cy, cw, ch, &children, ctx);
+                self.layout_horizontal(container_bounds, &children, snapshot, out);
             }
             FlowDirection::Vertical => {
-                self.layout_vertical(cx, cy, cw, ch, &children, ctx);
+                self.layout_vertical(container_bounds, &children, snapshot, out);
             }
         }
     }
 
     fn layout_horizontal(
         &self,
-        cx: f64,
-        cy: f64,
-        cw: f64,
-        _ch: f64,
+        area: Rectangle,
         children: &[(BlockId, Rectangle)],
-        ctx: &mut dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
     ) {
-        let mut x: f64 = cx;
-        let mut y: f64 = cy;
+        let mut x: f64 = area.x;
+        let mut y: f64 = area.y;
         let mut row_height: f64 = 0.0;
 
         for (child_id, _) in children {
-            let (child_w, child_h) = ctx.get_preferred_size(*child_id, cw, -1.0);
+            let (child_w, child_h) = snapshot.preferred_size(*child_id, area.width, -1.0);
 
             // 检查是否需要换行
-            if x + child_w > cx + cw && x > cx {
+            if x + child_w > area.x + area.width && x > area.x {
                 // 换行
                 y += row_height + self.row_spacing;
-                x = cx;
+                x = area.x;
                 row_height = 0.0;
             }
 
             // 设置子元素位置
             let new_bounds = Rectangle::new(x, y, child_w, child_h);
-            ctx.set_child_bounds(*child_id, new_bounds);
+            out.set_child_bounds(*child_id, new_bounds);
 
             // 更新位置和行高
             x += child_w + self.spacing;
@@ -172,31 +174,29 @@ impl FlowLayout {
 
     fn layout_vertical(
         &self,
-        cx: f64,
-        cy: f64,
-        _cw: f64,
-        ch: f64,
+        area: Rectangle,
         children: &[(BlockId, Rectangle)],
-        ctx: &mut dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
     ) {
-        let mut x: f64 = cx;
-        let mut y: f64 = cy;
+        let mut x: f64 = area.x;
+        let mut y: f64 = area.y;
         let mut col_width: f64 = 0.0;
 
         for (child_id, _) in children {
-            let (child_w, child_h) = ctx.get_preferred_size(*child_id, -1.0, ch);
+            let (child_w, child_h) = snapshot.preferred_size(*child_id, -1.0, area.height);
 
             // 检查是否需要换列
-            if y + child_h > cy + ch && y > cy {
+            if y + child_h > area.y + area.height && y > area.y {
                 // 换列
                 x += col_width + self.row_spacing;
-                y = cy;
+                y = area.y;
                 col_width = 0.0;
             }
 
             // 设置子元素位置
             let new_bounds = Rectangle::new(x, y, child_w, child_h);
-            ctx.set_child_bounds(*child_id, new_bounds);
+            out.set_child_bounds(*child_id, new_bounds);
 
             // 更新位置和列宽
             y += child_h + self.spacing;
@@ -217,9 +217,9 @@ impl LayoutManager for FlowLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, false)
+        self.measure(container, w_hint, h_hint, snapshot, false)
     }
 
     fn get_minimum_size(
@@ -227,13 +227,19 @@ impl LayoutManager for FlowLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, true)
+        self.measure(container, w_hint, h_hint, snapshot, true)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        self.perform_layout(container, ctx);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        self.perform_layout(container, snapshot, out);
+        Ok(())
     }
 }
 
@@ -284,7 +290,7 @@ mod tests {
             BlockId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
-            &MockLayoutContext::new(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
         assert_eq!((w, h), (0.0, 0.0));
     }
@@ -303,7 +309,7 @@ mod tests {
             BlockId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
-            &MockLayoutContext::new(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
     }
 }
@@ -338,8 +344,6 @@ impl super::LayoutContext for MockLayoutContext {
     fn get_preferred_size(&self, _block_id: BlockId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
         (100.0, 100.0)
     }
-
-    fn set_child_bounds(&mut self, _child_id: BlockId, _bounds: Rectangle) {}
 
     fn get_container_bounds(&self, _container_id: BlockId) -> Rectangle {
         self.container_bounds

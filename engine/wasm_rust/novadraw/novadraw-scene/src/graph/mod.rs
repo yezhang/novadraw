@@ -3,6 +3,7 @@
 //! 提供场景图数据结构和管理功能。
 
 use std::{
+    cell::RefCell,
     collections::HashSet,
     error::Error,
     fmt,
@@ -19,7 +20,10 @@ use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
 use super::figure::{ChildClippingStrategy, ChildPolicy};
-use super::layout::{LayoutConstraint, LayoutManager};
+use super::layout::{
+    LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
+    LayoutSnapshot,
+};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
     NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
@@ -47,6 +51,7 @@ pub type FigureId = BlockId;
 
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
+pub const DEFAULT_VALIDATION_BUDGET: usize = 10_000;
 
 /// Figure 树结构变更失败。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +84,38 @@ impl fmt::Display for GraphMutationError {
 }
 
 impl Error for GraphMutationError {}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ValidationError {
+    Layout(LayoutError),
+    NonConvergingValidation {
+        budget: usize,
+        invalidation_chain: Vec<FigureId>,
+    },
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Layout(error) => error.fmt(f),
+            Self::NonConvergingValidation {
+                budget,
+                invalidation_chain,
+            } => write!(
+                f,
+                "validation did not converge within {budget} passes; invalidation chain: {invalidation_chain:?}"
+            ),
+        }
+    }
+}
+
+impl Error for ValidationError {}
+
+impl From<LayoutError> for ValidationError {
+    fn from(value: LayoutError) -> Self {
+        Self::Layout(value)
+    }
+}
 
 const SELECTION_OUTLINE_COLOR: Color = Color {
     r: 0.98,
@@ -193,6 +230,29 @@ impl NodeState {
 pub struct LayoutState {
     pub(crate) manager: Option<Box<dyn LayoutManager>>,
     pub(crate) constraints: std::collections::HashMap<FigureId, Box<dyn LayoutConstraint>>,
+    cache: RefCell<LayoutCache>,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct LayoutCache {
+    generation: u64,
+    preferred: Option<CachedMeasurement>,
+    minimum: Option<CachedMeasurement>,
+    validated_generation: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CachedMeasurement {
+    generation: u64,
+    w_hint: f64,
+    h_hint: f64,
+    size: (f64, f64),
+}
+
+impl CachedMeasurement {
+    fn matches(self, generation: u64, w_hint: f64, h_hint: f64) -> bool {
+        self.generation == generation && self.w_hint == w_hint && self.h_hint == h_hint
+    }
 }
 
 impl LayoutState {
@@ -202,6 +262,30 @@ impl LayoutState {
 
     pub fn constraint_count(&self) -> usize {
         self.constraints.len()
+    }
+
+    pub fn generation(&self) -> u64 {
+        self.cache.borrow().generation
+    }
+
+    pub fn validated_generation(&self) -> Option<u64> {
+        self.cache.borrow().validated_generation
+    }
+
+    fn invalidate(&mut self, reason: LayoutInvalidation) {
+        let cache = self.cache.get_mut();
+        cache.generation = cache.generation.wrapping_add(1);
+        cache.preferred = None;
+        cache.minimum = None;
+        cache.validated_generation = None;
+        if let Some(manager) = self.manager.as_mut() {
+            manager.invalidate(reason);
+        }
+    }
+
+    fn mark_validated(&mut self) {
+        let cache = self.cache.get_mut();
+        cache.validated_generation = Some(cache.generation);
     }
 }
 
@@ -1091,12 +1175,38 @@ impl FigureGraph {
     ///
     /// UpdateManager 只提供待验证队列与 phase 触发，
     /// FigureGraph 自身决定哪些节点可参与验证以及如何 revalidate。
-    pub fn perform_validation_cycle(&mut self, update_manager: &mut dyn UpdateManager) {
+    pub fn perform_validation_cycle(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+    ) -> Result<(), ValidationError> {
+        self.perform_validation_cycle_with_budget(update_manager, DEFAULT_VALIDATION_BUDGET)
+    }
+
+    pub fn perform_validation_cycle_with_budget(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        budget: usize,
+    ) -> Result<(), ValidationError> {
+        let mut processed = 0;
+        let mut invalidation_chain = Vec::new();
         loop {
             let block_ids = update_manager.drain_invalid_blocks();
             if block_ids.is_empty() {
-                break;
+                return Ok(());
             }
+            let remaining = budget.saturating_sub(processed);
+            if block_ids.len() > remaining {
+                invalidation_chain.extend(block_ids.iter().take(remaining).copied());
+                for block_id in &block_ids {
+                    update_manager.add_invalid_figure(*block_id);
+                }
+                return Err(ValidationError::NonConvergingValidation {
+                    budget,
+                    invalidation_chain,
+                });
+            }
+            processed += block_ids.len();
+            invalidation_chain.extend(block_ids.iter().copied());
 
             for block_id in &block_ids {
                 self.mark_validation_path_invalid(*block_id);
@@ -1110,7 +1220,10 @@ impl FigureGraph {
             validation_roots.dedup();
 
             for root_id in validation_roots {
-                self.revalidate_with_update(update_manager, root_id);
+                if let Err(error) = self.revalidate_with_update(update_manager, root_id) {
+                    update_manager.add_invalid_figure(root_id);
+                    return Err(error.into());
+                }
             }
         }
     }
@@ -1141,16 +1254,16 @@ impl FigureGraph {
         &mut self,
         update_manager: &mut dyn UpdateManager,
         container_id: BlockId,
-    ) {
+    ) -> Result<(), LayoutError> {
         if self
             .blocks
             .get(container_id)
             .is_none_or(|block| block.is_valid)
         {
-            return;
+            return Ok(());
         }
         if !self.is_effectively_visible(container_id) {
-            return;
+            return Ok(());
         }
 
         let layout_manager = self
@@ -1158,25 +1271,26 @@ impl FigureGraph {
             .get_mut(container_id)
             .and_then(|b| b.layout.manager.take());
 
-        if let Some(layout_manager) = layout_manager {
+        if let Some(mut layout_manager) = layout_manager {
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Started,
                 container_id,
                 child_id: None,
             });
+            let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let mut layout_context = ValidationLayoutContext {
-                    graph: self,
-                    update_manager,
-                };
-                layout_manager.layout(container_id, &mut layout_context);
+                let snapshot = LayoutSnapshot::new(self);
+                layout_manager.layout(container_id, &snapshot, &mut output)
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
                 block.layout.manager = Some(layout_manager);
             }
-            if let Err(payload) = result {
-                std::panic::resume_unwind(payload);
-            }
+            let layout_result = match result {
+                Ok(result) => result,
+                Err(payload) => std::panic::resume_unwind(payload),
+            };
+            layout_result?;
+            self.apply_layout_output(update_manager, container_id, output)?;
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -1184,14 +1298,16 @@ impl FigureGraph {
             });
         }
 
-        self.revalidate_children_with_update(update_manager, container_id);
+        self.revalidate_children_with_update(update_manager, container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
             if let Some(lifecycle) = block.figure.lifecycle() {
                 lifecycle.validate(bounds);
             }
             block.is_valid = true;
+            block.layout.mark_validated();
         }
+        Ok(())
     }
 
     /// 递归验证子容器的布局
@@ -1199,7 +1315,7 @@ impl FigureGraph {
         &mut self,
         update_manager: &mut dyn UpdateManager,
         parent_id: BlockId,
-    ) {
+    ) -> Result<(), LayoutError> {
         // 先收集子元素 ID，避免在迭代过程中同时持有不可变和可变引用
         let children: Vec<BlockId> = self
             .blocks
@@ -1208,8 +1324,9 @@ impl FigureGraph {
             .unwrap_or_default();
 
         for child_id in children {
-            self.revalidate_with_update(update_manager, child_id);
+            self.revalidate_with_update(update_manager, child_id)?;
         }
+        Ok(())
     }
 
     /// Immediately validates a subtree while preserving UpdateManager damage.
@@ -1221,8 +1338,8 @@ impl FigureGraph {
         &mut self,
         update_manager: &mut dyn UpdateManager,
         container_id: BlockId,
-    ) {
-        self.revalidate_with_update(update_manager, container_id);
+    ) -> Result<(), LayoutError> {
+        self.revalidate_with_update(update_manager, container_id)
     }
 
     /// 立即验证指定子树，不产生 damage。
@@ -1230,37 +1347,46 @@ impl FigureGraph {
     /// 该入口用于初始场景构建；运行时更新应通过 `mark_invalid` 和
     /// `UpdateManager::perform_update` 执行完整事务。
     pub fn revalidate(&mut self, container_id: BlockId) {
+        self.try_revalidate(container_id)
+            .expect("layout validation failed");
+    }
+
+    pub fn try_revalidate(&mut self, container_id: BlockId) -> Result<(), LayoutError> {
         if self
             .blocks
             .get(container_id)
             .is_none_or(|block| block.is_valid)
         {
-            return;
+            return Ok(());
         }
-        if !self.is_effectively_visible(container_id) || !self.is_effectively_enabled(container_id)
-        {
-            return;
+        if !self.is_effectively_visible(container_id) {
+            return Ok(());
         }
 
         let layout_manager = self
             .blocks
             .get_mut(container_id)
             .and_then(|block| block.layout.manager.take());
-        if let Some(layout_manager) = layout_manager {
+        if let Some(mut layout_manager) = layout_manager {
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Started,
                 container_id,
                 child_id: None,
             });
+            let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                layout_manager.layout(container_id, self);
+                let snapshot = LayoutSnapshot::new(self);
+                layout_manager.layout(container_id, &snapshot, &mut output)
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
                 block.layout.manager = Some(layout_manager);
             }
-            if let Err(payload) = result {
-                std::panic::resume_unwind(payload);
-            }
+            let layout_result = match result {
+                Ok(result) => result,
+                Err(payload) => std::panic::resume_unwind(payload),
+            };
+            layout_result?;
+            self.apply_layout_output_without_update(container_id, output)?;
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::Finished,
                 container_id,
@@ -1274,7 +1400,7 @@ impl FigureGraph {
             .map(|block| block.children.clone())
             .unwrap_or_default();
         for child_id in children {
-            self.revalidate(child_id);
+            self.try_revalidate(child_id)?;
         }
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
@@ -1282,7 +1408,93 @@ impl FigureGraph {
                 lifecycle.validate(bounds);
             }
             block.is_valid = true;
+            block.layout.mark_validated();
         }
+        Ok(())
+    }
+
+    fn validate_layout_output(
+        &self,
+        container_id: BlockId,
+        output: &LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        for change in &output.changes {
+            let child_id = match change {
+                LayoutChange::Bounds(child_id, _)
+                | LayoutChange::Visibility(child_id, _)
+                | LayoutChange::Invalidate(child_id) => *child_id,
+            };
+            if self
+                .blocks
+                .get(child_id)
+                .is_none_or(|child| child.parent != Some(container_id))
+            {
+                return Err(LayoutError::InvalidChild {
+                    container: container_id,
+                    child: child_id,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_layout_output(
+        &mut self,
+        update_manager: &mut dyn UpdateManager,
+        container_id: BlockId,
+        output: LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        self.validate_layout_output(container_id, &output)?;
+        for change in output.changes {
+            match change {
+                LayoutChange::Bounds(child_id, bounds) => {
+                    self.set_bounds_with_update(
+                        update_manager,
+                        child_id,
+                        bounds.x,
+                        bounds.y,
+                        bounds.width,
+                        bounds.height,
+                    );
+                }
+                LayoutChange::Visibility(child_id, visible) => {
+                    self.set_visible_with_update(update_manager, child_id, visible);
+                }
+                LayoutChange::Invalidate(child_id) => {
+                    self.mark_invalid(update_manager, child_id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_layout_output_without_update(
+        &mut self,
+        container_id: BlockId,
+        output: LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        self.validate_layout_output(container_id, &output)?;
+        for change in output.changes {
+            match change {
+                LayoutChange::Bounds(child_id, bounds) => {
+                    let old_bounds = self.figure_bounds(child_id);
+                    self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
+                    if old_bounds
+                        .is_some_and(|old| old.width != bounds.width || old.height != bounds.height)
+                        && let Some(child) = self.blocks.get_mut(child_id)
+                    {
+                        child.is_valid = false;
+                    }
+                }
+                LayoutChange::Visibility(child_id, visible) => {
+                    self.set_visible(child_id, visible);
+                }
+                LayoutChange::Invalidate(child_id) => {
+                    self.mark_validation_path_invalid(child_id);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// 获取子元素 ID 列表
@@ -1333,8 +1545,23 @@ impl FigureGraph {
             return Some(block.project_preferred_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
-            let size = layout.get_preferred_size(block_id, w_hint, h_hint, self);
-            return Some(block.project_preferred_size(size));
+            let generation = block.layout.generation();
+            if let Some(cached) = block.layout.cache.borrow().preferred
+                && cached.matches(generation, w_hint, h_hint)
+            {
+                return Some(cached.size);
+            }
+            let snapshot = LayoutSnapshot::new(self);
+            let size = block.project_preferred_size(
+                layout.get_preferred_size(block_id, w_hint, h_hint, &snapshot),
+            );
+            block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
+                generation,
+                w_hint,
+                h_hint,
+                size,
+            });
+            return Some(size);
         }
         Some(block.figure.intrinsic_size())
     }
@@ -1347,8 +1574,22 @@ impl FigureGraph {
             return Some(block.project_minimum_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
-            let size = layout.get_minimum_size(block_id, w_hint, h_hint, self);
-            return Some(block.project_minimum_size(size));
+            let generation = block.layout.generation();
+            if let Some(cached) = block.layout.cache.borrow().minimum
+                && cached.matches(generation, w_hint, h_hint)
+            {
+                return Some(cached.size);
+            }
+            let snapshot = LayoutSnapshot::new(self);
+            let size = block
+                .project_minimum_size(layout.get_minimum_size(block_id, w_hint, h_hint, &snapshot));
+            block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
+                generation,
+                w_hint,
+                h_hint,
+                size,
+            });
+            return Some(size);
         }
         Some(block.figure.intrinsic_size())
     }
@@ -1367,7 +1608,7 @@ impl FigureGraph {
             return false;
         }
         block.preferred_size = size;
-        self.mark_validation_path_invalid(block_id);
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
@@ -1379,7 +1620,7 @@ impl FigureGraph {
             return false;
         }
         block.minimum_size = size;
-        self.mark_validation_path_invalid(block_id);
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
@@ -1391,7 +1632,7 @@ impl FigureGraph {
             return false;
         }
         block.maximum_size = size;
-        self.mark_validation_path_invalid(block_id);
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
@@ -1927,7 +2168,7 @@ impl FigureGraph {
         if let Some(block) = self.blocks.get_mut(block_id) {
             block.layout.manager = Some(layout_manager);
         }
-        self.mark_validation_path_invalid(block_id);
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Structure);
     }
 
     /// 获取指定块的布局管理器
@@ -1952,7 +2193,7 @@ impl FigureGraph {
             .layout
             .constraints
             .insert(child_id, Box::new(constraint));
-        self.mark_validation_path_invalid(parent_id);
+        self.mark_validation_path_invalid_for(parent_id, LayoutInvalidation::Constraint);
         self.emit_layout_event(LayoutEvent {
             kind: LayoutEventKind::ConstraintChanged,
             container_id: parent_id,
@@ -1980,7 +2221,7 @@ impl FigureGraph {
             .and_then(|parent| parent.layout.constraints.remove(&child_id))
             .is_some();
         if removed {
-            self.mark_validation_path_invalid(parent_id);
+            self.mark_validation_path_invalid_for(parent_id, LayoutInvalidation::Constraint);
             self.emit_layout_event(LayoutEvent {
                 kind: LayoutEventKind::ConstraintChanged,
                 container_id: parent_id,
@@ -2280,12 +2521,21 @@ impl FigureGraph {
 }
 
 impl FigureGraph {
-    fn mark_validation_path_invalid(&mut self, mut block_id: BlockId) {
+    fn mark_validation_path_invalid(&mut self, block_id: BlockId) {
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Geometry);
+    }
+
+    fn mark_validation_path_invalid_for(
+        &mut self,
+        mut block_id: BlockId,
+        reason: LayoutInvalidation,
+    ) {
         let mut invalidated = Vec::new();
         loop {
             let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(block_id) {
                 let was_valid = block.is_valid;
                 block.is_valid = false;
+                block.layout.invalidate(reason);
                 if was_valid && let Some(lifecycle) = block.figure.lifecycle() {
                     lifecycle.invalidate();
                 }
@@ -2294,10 +2544,9 @@ impl FigureGraph {
                 (None, false)
             };
 
-            if !was_valid {
-                break;
+            if was_valid {
+                invalidated.push(block_id);
             }
-            invalidated.push(block_id);
             match parent {
                 Some(parent_id) => block_id = parent_id,
                 None => break,
@@ -2466,62 +2715,6 @@ impl FigureGraph {
     }
 }
 
-struct ValidationLayoutContext<'a> {
-    graph: &'a mut FigureGraph,
-    update_manager: &'a mut dyn UpdateManager,
-}
-
-impl super::layout::LayoutContext for ValidationLayoutContext<'_> {
-    fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
-        <FigureGraph as super::layout::LayoutContext>::get_children(self.graph, parent_id)
-    }
-
-    fn get_constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
-        self.graph.constraint(child_id)
-    }
-
-    fn get_preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.graph
-            .preferred_size(block_id, w_hint, h_hint)
-            .unwrap_or((0.0, 0.0))
-    }
-
-    fn get_minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.graph
-            .minimum_size(block_id, w_hint, h_hint)
-            .unwrap_or((0.0, 0.0))
-    }
-
-    fn get_maximum_size(&self, block_id: BlockId) -> (f64, f64) {
-        self.graph
-            .maximum_size(block_id)
-            .unwrap_or((f64::INFINITY, f64::INFINITY))
-    }
-
-    fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {
-        self.graph.set_bounds_with_update(
-            self.update_manager,
-            child_id,
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height,
-        );
-    }
-
-    fn set_child_visible(&mut self, child_id: BlockId, visible: bool) {
-        self.graph
-            .set_visible_with_update(self.update_manager, child_id, visible);
-    }
-
-    fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {
-        <FigureGraph as super::layout::LayoutContext>::get_container_bounds(
-            self.graph,
-            container_id,
-        )
-    }
-}
-
 impl super::layout::LayoutContext for FigureGraph {
     fn get_children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
         if let Some(block) = self.blocks.get(parent_id) {
@@ -2556,22 +2749,6 @@ impl super::layout::LayoutContext for FigureGraph {
     fn get_maximum_size(&self, block_id: BlockId) -> (f64, f64) {
         self.maximum_size(block_id)
             .unwrap_or((f64::INFINITY, f64::INFINITY))
-    }
-
-    fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle) {
-        let Some(old_bounds) = self.figure_bounds(child_id) else {
-            return;
-        };
-        self.set_bounds(child_id, bounds.x, bounds.y, bounds.width, bounds.height);
-        if (old_bounds.width != bounds.width || old_bounds.height != bounds.height)
-            && let Some(child) = self.blocks.get_mut(child_id)
-        {
-            child.is_valid = false;
-        }
-    }
-
-    fn set_child_visible(&mut self, child_id: BlockId, visible: bool) {
-        self.set_visible(child_id, visible);
     }
 
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle {

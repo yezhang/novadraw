@@ -19,6 +19,7 @@
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
+use crate::ValidationError;
 use crate::graph::BlockId;
 use crate::runtime::update::listener::{
     AncestorListener, CoordinateListener, FigureListener, LayoutListener, ListenerId,
@@ -61,6 +62,7 @@ pub struct SceneUpdateManager {
     property_listeners: Vec<(ListenerId, Box<dyn PropertyChangeListener>)>,
     layout_listeners: Vec<(ListenerId, Box<dyn LayoutListener>)>,
     next_listener_id: u64,
+    last_validation_error: Option<ValidationError>,
 }
 
 impl Default for SceneUpdateManager {
@@ -85,6 +87,7 @@ impl SceneUpdateManager {
             property_listeners: Vec::new(),
             layout_listeners: Vec::new(),
             next_listener_id: 1,
+            last_validation_error: None,
         }
     }
 
@@ -259,6 +262,14 @@ impl SceneUpdateManager {
         !self.dirty_regions.is_empty()
     }
 
+    pub fn last_validation_error(&self) -> Option<&ValidationError> {
+        self.last_validation_error.as_ref()
+    }
+
+    pub fn take_validation_error(&mut self) -> Option<ValidationError> {
+        self.last_validation_error.take()
+    }
+
     /// 检查是否有待处理的更新
     ///
     /// 对应 draw2d: updateQueued flag
@@ -283,6 +294,7 @@ impl SceneUpdateManager {
         self.invalid_blocks.clear();
         self.update_queued = false;
         self.updating = false;
+        self.last_validation_error = None;
         self.notification_effects.drain();
     }
 
@@ -338,13 +350,13 @@ impl SceneUpdateManager {
         graph: &mut crate::graph::FigureGraph,
         canvas: &mut NdCanvas,
         dirty_snapshot: &mut Option<std::collections::HashMap<BlockId, Rectangle>>,
-    ) {
+    ) -> Result<(), ValidationError> {
         self.absorb_graph_effects(graph);
 
         if self.has_pending_layout() {
             self.notification_effects
                 .emit_update(UpdateEvent::Validating);
-            graph.perform_validation_cycle(self);
+            graph.perform_validation_cycle(self)?;
             self.absorb_graph_effects(graph);
             self.notification_effects
                 .emit_update(UpdateEvent::Validated);
@@ -373,6 +385,7 @@ impl SceneUpdateManager {
 
         self.clear_dirty_and_flag();
         self.flush_notifications(graph);
+        Ok(())
     }
 }
 
@@ -405,27 +418,39 @@ impl crate::runtime::update::UpdateManager for SceneUpdateManager {
         }
 
         self.updating = true;
+        self.last_validation_error = None;
         let mut dirty_snapshot = None;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.perform_update_transaction(graph, canvas, &mut dirty_snapshot);
+            self.perform_update_transaction(graph, canvas, &mut dirty_snapshot)
         }));
         self.updating = false;
 
-        if let Err(payload) = result {
-            if let Some(snapshot) = dirty_snapshot {
-                self.restore_dirty_snapshot(snapshot);
+        match result {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                self.last_validation_error = Some(error);
+                for block_id in graph.invalid_block_ids() {
+                    self.add_invalid_figure(block_id);
+                }
+                self.notification_effects.retain_semantic_effects();
+                self.clear_dirty_and_flag();
             }
-            for block_id in graph.invalid_block_ids() {
-                self.add_invalid_figure(block_id);
+            Err(payload) => {
+                if let Some(snapshot) = dirty_snapshot {
+                    self.restore_dirty_snapshot(snapshot);
+                }
+                for block_id in graph.invalid_block_ids() {
+                    self.add_invalid_figure(block_id);
+                }
+                self.notification_effects.retain_semantic_effects();
+                self.clear_dirty_and_flag();
+                std::panic::resume_unwind(payload);
             }
-            self.notification_effects.retain_semantic_effects();
-            self.clear_dirty_and_flag();
-            std::panic::resume_unwind(payload);
         }
     }
 
     fn perform_validation(&mut self, graph: &mut crate::graph::FigureGraph) {
-        graph.perform_validation_cycle(self);
+        self.last_validation_error = graph.perform_validation_cycle(self).err();
     }
 
     fn is_updating(&self) -> bool {
@@ -442,9 +467,9 @@ mod tests {
     use super::*;
     use crate::{
         AncestorEvent, AncestorListener, CoordinateListener, FigureEvent, FigureGraph,
-        FigureListener, LayoutEvent, LayoutListener, LayoutManager, PropertyChangeEvent,
-        PropertyChangeListener, RectangleFigure, StackLayout, XYConstraint, XYLayout,
-        layout::LayoutContext, scene::BlockId, update::UpdateManager,
+        FigureListener, LayoutError, LayoutEvent, LayoutListener, LayoutManager, LayoutOutput,
+        LayoutSnapshot, PropertyChangeEvent, PropertyChangeListener, RectangleFigure, StackLayout,
+        XYConstraint, XYLayout, scene::BlockId, update::UpdateManager,
     };
     use novadraw_core::Color;
     use slotmap::KeyData;
@@ -465,7 +490,7 @@ mod tests {
             _container: BlockId,
             _w_hint: f64,
             _h_hint: f64,
-            _ctx: &dyn LayoutContext,
+            _snapshot: &LayoutSnapshot<'_>,
         ) -> (f64, f64) {
             (0.0, 0.0)
         }
@@ -475,15 +500,21 @@ mod tests {
             container: BlockId,
             w_hint: f64,
             h_hint: f64,
-            ctx: &dyn LayoutContext,
+            snapshot: &LayoutSnapshot<'_>,
         ) -> (f64, f64) {
-            self.get_preferred_size(container, w_hint, h_hint, ctx)
+            self.get_preferred_size(container, w_hint, h_hint, snapshot)
         }
 
-        fn layout(&self, _container: BlockId, _ctx: &mut dyn LayoutContext) {
+        fn layout(
+            &mut self,
+            _container: BlockId,
+            _snapshot: &LayoutSnapshot<'_>,
+            _out: &mut LayoutOutput,
+        ) -> Result<(), LayoutError> {
             if !self.did_panic.swap(true, Ordering::SeqCst) {
                 panic!("intentional layout panic");
             }
+            Ok(())
         }
     }
 

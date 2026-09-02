@@ -1,6 +1,6 @@
 //! Stack layout: every child occupies the container client area.
 
-use super::{LayoutContext, LayoutManager};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -16,16 +16,17 @@ impl StackLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
-        ctx.get_children(container)
+        snapshot
+            .children(container)
             .into_iter()
             .map(|(child, _)| {
                 if minimum {
-                    ctx.get_minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, w_hint, h_hint)
                 } else {
-                    ctx.get_preferred_size(child, w_hint, h_hint)
+                    snapshot.preferred_size(child, w_hint, h_hint)
                 }
             })
             .fold((0.0_f64, 0.0_f64), |size, child| {
@@ -40,9 +41,9 @@ impl LayoutManager for StackLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, ctx, false)
+        self.aggregate_size(container, w_hint, h_hint, snapshot, false)
     }
 
     fn get_minimum_size(
@@ -50,15 +51,21 @@ impl LayoutManager for StackLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, ctx, true)
+        self.aggregate_size(container, w_hint, h_hint, snapshot, true)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let client_area = ctx.get_container_bounds(container);
-        for (child, _) in ctx.get_children(container) {
-            ctx.set_child_bounds(child, client_area);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let client_area = snapshot.container_bounds(container);
+        for (child, _) in snapshot.children(container) {
+            out.set_child_bounds(child, client_area);
         }
+        Ok(())
     }
 }

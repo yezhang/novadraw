@@ -5,8 +5,7 @@
 
 use tracing::debug;
 
-use super::LayoutContext;
-use super::LayoutManager;
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 
 /// Fill 布局器
@@ -34,11 +33,12 @@ impl LayoutManager for FillLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        ctx.get_children(container)
+        snapshot
+            .children(container)
             .first()
-            .map(|(child, _)| ctx.get_preferred_size(*child, w_hint, h_hint))
+            .map(|(child, _)| snapshot.preferred_size(*child, w_hint, h_hint))
             .unwrap_or((0.0, 0.0))
     }
 
@@ -47,18 +47,24 @@ impl LayoutManager for FillLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        ctx.get_children(container)
+        snapshot
+            .children(container)
             .first()
-            .map(|(child, _)| ctx.get_minimum_size(*child, w_hint, h_hint))
+            .map(|(child, _)| snapshot.minimum_size(*child, w_hint, h_hint))
             .unwrap_or((0.0, 0.0))
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let children = ctx.get_children(container);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let children = snapshot.children(container);
         if children.is_empty() {
-            return;
+            return Ok(());
         }
 
         debug!(
@@ -70,9 +76,10 @@ impl LayoutManager for FillLayout {
         // 获取第一个子元素
         if let Some((first_child_id, _)) = children.first() {
             // FillLayout：第一个子元素填充容器的 client area
-            let bounds = ctx.get_container_bounds(container);
+            let bounds = snapshot.container_bounds(container);
             debug!("FillLayout: first child bounds={:?}", bounds);
-            ctx.set_child_bounds(*first_child_id, bounds);
+            out.set_child_bounds(*first_child_id, bounds);
         }
+        Ok(())
     }
 }

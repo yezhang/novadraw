@@ -1,8 +1,11 @@
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
-    FigureGraph, GridAlignment, GridConstraint, GridLayout, RectangleFigure, SceneUpdateManager,
-    StackLayout, ToolbarLayout,
+    BlockId, BorderConstraint, BorderRegion, FigureGraph, GridAlignment, GridConstraint,
+    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, RectangleFigure,
+    SceneUpdateManager, StackLayout, ToolbarLayout, ValidationError, XYLayout,
 };
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn assert_rect(actual: Option<Rectangle>, expected: Rectangle) {
     assert_eq!(actual, Some(expected));
@@ -149,4 +152,241 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
     assert!(!update_manager.is_update_queued());
     assert!(!canvas.damage().is_empty());
     assert!(!canvas.commands().is_empty());
+}
+
+struct InvalidOutputLayout {
+    valid_child: BlockId,
+    invalid_child: BlockId,
+}
+
+impl LayoutManager for InvalidOutputLayout {
+    fn get_preferred_size(
+        &self,
+        _container: BlockId,
+        _w_hint: f64,
+        _h_hint: f64,
+        _snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
+    fn get_minimum_size(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    }
+
+    fn layout(
+        &mut self,
+        _container: BlockId,
+        _snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        out.set_child_bounds(self.valid_child, Rectangle::new(50.0, 60.0, 70.0, 80.0));
+        out.set_child_bounds(self.invalid_child, Rectangle::new(1.0, 2.0, 3.0, 4.0));
+        Ok(())
+    }
+}
+
+#[test]
+fn layout_output_is_validated_before_any_change_is_committed() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
+    graph.set_block_layout_manager(
+        root,
+        Box::new(InvalidOutputLayout {
+            valid_child: child,
+            invalid_child: root,
+        }),
+    );
+
+    let error = graph.try_revalidate(root).expect_err("invalid output");
+
+    assert_eq!(
+        error,
+        LayoutError::InvalidChild {
+            container: root,
+            child: root,
+        }
+    );
+    assert_rect(
+        graph.figure_bounds(child),
+        Rectangle::new(10.0, 20.0, 30.0, 40.0),
+    );
+    assert!(graph.get_block_layout_manager(root).is_some());
+}
+
+#[test]
+fn wrong_constraint_type_is_reported_and_invalid_work_is_preserved() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
+    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
+    graph.set_constraint(child, BorderConstraint::new(BorderRegion::Center));
+    let mut updates = SceneUpdateManager::new();
+    graph.mark_invalid(&mut updates, root);
+
+    graph.perform_update(&mut updates);
+
+    assert!(matches!(
+        updates.last_validation_error(),
+        Some(ValidationError::Layout(
+            LayoutError::ConstraintTypeMismatch {
+                container,
+                child: error_child,
+                ..
+            }
+        )) if *container == root && *error_child == child
+    ));
+    assert!(updates.has_pending_layout());
+    assert!(!graph.is_valid(root));
+}
+
+struct CountingLayout {
+    measurements: Arc<AtomicUsize>,
+}
+
+impl LayoutManager for CountingLayout {
+    fn get_preferred_size(
+        &self,
+        _container: BlockId,
+        _w_hint: f64,
+        _h_hint: f64,
+        _snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        self.measurements.fetch_add(1, Ordering::SeqCst);
+        (25.0, 35.0)
+    }
+
+    fn get_minimum_size(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    }
+
+    fn layout(
+        &mut self,
+        _container: BlockId,
+        _snapshot: &LayoutSnapshot<'_>,
+        _out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        Ok(())
+    }
+}
+
+#[test]
+fn layout_measurements_are_cached_until_generation_changes() {
+    let measurements = Arc::new(AtomicUsize::new(0));
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    graph.set_block_layout_manager(
+        root,
+        Box::new(CountingLayout {
+            measurements: measurements.clone(),
+        }),
+    );
+
+    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
+    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
+    assert_eq!(measurements.load(Ordering::SeqCst), 1);
+
+    let old_generation = graph.get_block(root).unwrap().layout_state().generation();
+    graph.set_preferred_size(child, Some((20.0, 20.0)));
+    let new_generation = graph.get_block(root).unwrap().layout_state().generation();
+    assert!(new_generation > old_generation);
+    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
+    assert_eq!(measurements.load(Ordering::SeqCst), 2);
+
+    graph.revalidate(root);
+    let layout_state = graph.get_block(root).unwrap().layout_state();
+    assert_eq!(
+        layout_state.validated_generation(),
+        Some(layout_state.generation())
+    );
+}
+
+#[test]
+fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
+    let measurements = Arc::new(AtomicUsize::new(0));
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    graph.set_block_layout_manager(
+        root,
+        Box::new(CountingLayout {
+            measurements: measurements.clone(),
+        }),
+    );
+    graph.set_preferred_size(root, Some((0.0, 0.0)));
+
+    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((0.0, 0.0)));
+    assert_eq!(measurements.load(Ordering::SeqCst), 0);
+}
+
+struct ReinvalidatingLayout {
+    child: BlockId,
+}
+
+impl LayoutManager for ReinvalidatingLayout {
+    fn get_preferred_size(
+        &self,
+        _container: BlockId,
+        _w_hint: f64,
+        _h_hint: f64,
+        _snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
+    fn get_minimum_size(
+        &self,
+        container: BlockId,
+        w_hint: f64,
+        h_hint: f64,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> (f64, f64) {
+        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    }
+
+    fn layout(
+        &mut self,
+        _container: BlockId,
+        _snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        out.invalidate(self.child);
+        Ok(())
+    }
+}
+
+#[test]
+fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
+    let mut graph = FigureGraph::new();
+    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    graph.set_block_layout_manager(root, Box::new(ReinvalidatingLayout { child }));
+    let mut updates = SceneUpdateManager::new();
+    graph.mark_invalid(&mut updates, root);
+
+    let error = graph
+        .perform_validation_cycle_with_budget(&mut updates, 3)
+        .expect_err("validation must not converge");
+
+    assert!(matches!(
+        error,
+        ValidationError::NonConvergingValidation {
+            budget: 3,
+            ref invalidation_chain,
+        } if invalidation_chain.len() == 3
+    ));
+    assert!(updates.has_pending_layout());
 }

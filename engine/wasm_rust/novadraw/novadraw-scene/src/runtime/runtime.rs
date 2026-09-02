@@ -3,7 +3,7 @@ use novadraw_render::NdCanvas;
 use crate::{
     BasicEventDispatcher, EventDispatcher, Figure, FigureGraph, FigureId, InteractionState, Key,
     KeyModifiers, MouseButton, PendingMutations, SceneDispatchContext, SceneUpdateManager,
-    UpdateListener, WheelEvent, ZoomEvent,
+    UpdateListener, ValidationError, WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
@@ -102,6 +102,14 @@ impl Runtime {
 
     pub fn has_pending_update(&self) -> bool {
         self.full_redraw_pending || self.updates.is_update_queued()
+    }
+
+    pub fn last_validation_error(&self) -> Option<&ValidationError> {
+        self.updates.last_validation_error()
+    }
+
+    pub fn take_validation_error(&mut self) -> Option<ValidationError> {
+        self.updates.take_validation_error()
     }
 
     pub fn request_full_redraw(&mut self) {

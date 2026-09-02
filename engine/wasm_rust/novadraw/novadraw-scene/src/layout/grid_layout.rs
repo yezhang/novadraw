@@ -1,6 +1,6 @@
 //! Grid layout with per-child alignment, span and excess-space constraints.
 
-use super::{LayoutContext, LayoutManager};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
 
@@ -114,21 +114,29 @@ impl GridLayout {
         self
     }
 
-    fn constraint(ctx: &dyn LayoutContext, child: BlockId) -> GridConstraint {
-        ctx.get_constraint(child)
-            .and_then(|constraint| constraint.as_any().downcast_ref::<GridConstraint>())
+    fn constraint(
+        snapshot: &LayoutSnapshot<'_>,
+        container: BlockId,
+        child: BlockId,
+    ) -> Result<GridConstraint, LayoutError> {
+        Ok(snapshot
+            .constraint_as::<GridConstraint>(container, child)?
             .copied()
-            .unwrap_or_default()
+            .unwrap_or_default())
     }
 
-    fn placements(&self, container: BlockId, ctx: &dyn LayoutContext) -> Vec<Placement> {
+    fn placements(
+        &self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> Result<Vec<Placement>, LayoutError> {
         let mut occupied: Vec<Vec<bool>> = Vec::new();
         let mut row = 0;
         let mut column = 0;
         let mut placements = Vec::new();
 
-        for (child, _) in ctx.get_children(container) {
-            let constraint = Self::constraint(ctx, child);
+        for (child, _) in snapshot.children(container) {
+            let constraint = Self::constraint(snapshot, container, child)?;
             let column_span = constraint.horizontal_span.max(1).min(self.columns);
             let row_span = constraint.vertical_span.max(1);
 
@@ -159,8 +167,8 @@ impl GridLayout {
 
             let width_hint = constraint.width_hint.unwrap_or(-1.0);
             let height_hint = constraint.height_hint.unwrap_or(-1.0);
-            let mut preferred = ctx.get_preferred_size(child, width_hint, height_hint);
-            let mut minimum = ctx.get_minimum_size(child, width_hint, height_hint);
+            let mut preferred = snapshot.preferred_size(child, width_hint, height_hint);
+            let mut minimum = snapshot.minimum_size(child, width_hint, height_hint);
             if let Some(width) = constraint.width_hint {
                 preferred.0 = width.max(0.0);
                 minimum.0 = minimum.0.min(preferred.0);
@@ -185,7 +193,7 @@ impl GridLayout {
             column += column_span;
         }
 
-        placements
+        Ok(placements)
     }
 
     fn track_sizes(
@@ -268,10 +276,10 @@ impl GridLayout {
     fn measured_size(
         &self,
         container: BlockId,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
-        let placements = self.placements(container, ctx);
+        let placements = self.placements(container, snapshot).unwrap_or_default();
         let (columns, rows, _, _) = self.track_sizes(&placements, minimum);
         (
             columns.iter().sum::<f64>()
@@ -296,9 +304,9 @@ impl LayoutManager for GridLayout {
         container: BlockId,
         _w_hint: f64,
         _h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measured_size(container, ctx, false)
+        self.measured_size(container, snapshot, false)
     }
 
     fn get_minimum_size(
@@ -306,18 +314,23 @@ impl LayoutManager for GridLayout {
         container: BlockId,
         _w_hint: f64,
         _h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measured_size(container, ctx, true)
+        self.measured_size(container, snapshot, true)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let placements = self.placements(container, ctx);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let placements = self.placements(container, snapshot)?;
         if placements.is_empty() {
-            return;
+            return Ok(());
         }
         let (mut columns, mut rows, grab_columns, grab_rows) = self.track_sizes(&placements, false);
-        let client = ctx.get_container_bounds(container);
+        let client = snapshot.container_bounds(container);
         let available_width = (client.width
             - self.margin_width * 2.0
             - self.horizontal_spacing * columns.len().saturating_sub(1) as f64)
@@ -381,11 +394,12 @@ impl LayoutManager for GridLayout {
                     cell_height,
                     child_height,
                 );
-            ctx.set_child_bounds(
+            out.set_child_bounds(
                 placement.child,
                 Rectangle::new(x, y, child_width, child_height),
             );
         }
+        Ok(())
     }
 }
 

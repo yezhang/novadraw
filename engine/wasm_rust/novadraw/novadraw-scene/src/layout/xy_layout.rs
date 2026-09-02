@@ -3,8 +3,7 @@
 //! 参考 draw2d: XYLayout
 //! 使用约束（Rectangle）定位每个子元素。
 
-use super::LayoutContext;
-use super::LayoutManager;
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
 
@@ -84,17 +83,18 @@ impl XYLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
-        ctx.get_children(container)
+        snapshot
+            .children(container)
             .into_iter()
             .filter_map(|(child, _)| {
-                let constraint = xy_constraint(ctx, child)?;
+                let constraint = xy_constraint(snapshot, container, child).ok().flatten()?;
                 let intrinsic = if minimum {
-                    ctx.get_minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, w_hint, h_hint)
                 } else {
-                    ctx.get_preferred_size(child, w_hint, h_hint)
+                    snapshot.preferred_size(child, w_hint, h_hint)
                 };
                 let width = if constraint.width < 0.0 {
                     intrinsic.0
@@ -126,9 +126,9 @@ impl LayoutManager for XYLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, false)
+        self.measure(container, w_hint, h_hint, snapshot, false)
     }
 
     fn get_minimum_size(
@@ -136,20 +136,25 @@ impl LayoutManager for XYLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, true)
+        self.measure(container, w_hint, h_hint, snapshot, true)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
         // 获取容器的 bounds
-        let children = ctx.get_children(container);
+        let children = snapshot.children(container);
         if children.is_empty() {
-            return;
+            return Ok(());
         }
 
         // 获取容器的 bounds（用于计算 client area）
-        let container_bounds = ctx.get_container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container);
 
         // draw2d: getOrigin(parent) 返回 parent.getClientArea().getLocation()
         // 在 draw2d 中，useLocalCoordinates() 默认返回 false
@@ -162,8 +167,8 @@ impl LayoutManager for XYLayout {
         // draw2d: bounds = bounds.getTranslated(offset)
         for (child_id, _) in children {
             // 获取约束（相对于 client area）
-            if let Some(constraint) = xy_constraint(ctx, child_id) {
-                let preferred = ctx.get_preferred_size(child_id, -1.0, -1.0);
+            if let Some(constraint) = xy_constraint(snapshot, container, child_id)? {
+                let preferred = snapshot.preferred_size(child_id, -1.0, -1.0);
                 let width = if constraint.width < 0.0 {
                     preferred.0
                 } else {
@@ -182,26 +187,34 @@ impl LayoutManager for XYLayout {
                     height,
                 );
                 // 应用约束作为新的 bounds
-                ctx.set_child_bounds(child_id, new_bounds);
+                out.set_child_bounds(child_id, new_bounds);
             }
         }
+        Ok(())
     }
 }
 
-fn xy_constraint(ctx: &dyn LayoutContext, child_id: BlockId) -> Option<Rectangle> {
-    let constraint = ctx.get_constraint(child_id)?;
+fn xy_constraint(
+    snapshot: &LayoutSnapshot<'_>,
+    container: BlockId,
+    child_id: BlockId,
+) -> Result<Option<Rectangle>, LayoutError> {
+    let Some(constraint) = snapshot.constraint(child_id) else {
+        return Ok(None);
+    };
     if let Some(rect) = constraint.as_any().downcast_ref::<Rectangle>() {
-        return Some(*rect);
+        return Ok(Some(*rect));
     }
-    constraint
-        .as_any()
-        .downcast_ref::<XYConstraint>()
+    snapshot
+        .constraint_as::<XYConstraint>(container, child_id)
         .map(|constraint| {
-            Rectangle::new(
-                constraint.x,
-                constraint.y,
-                constraint.width,
-                constraint.height,
-            )
+            constraint.map(|constraint| {
+                Rectangle::new(
+                    constraint.x,
+                    constraint.y,
+                    constraint.width,
+                    constraint.height,
+                )
+            })
         })
 }

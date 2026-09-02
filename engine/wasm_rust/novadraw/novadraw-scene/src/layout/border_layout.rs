@@ -3,8 +3,7 @@
 //! 参考 draw2d: BorderLayout
 //! 将容器划分为北、南、东、西、中五个区域。
 
-use super::LayoutContext;
-use super::LayoutManager;
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
 
@@ -128,7 +127,7 @@ impl BorderLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
     ) -> (f64, f64) {
         let mut north = (0.0_f64, 0.0_f64);
@@ -137,14 +136,16 @@ impl BorderLayout {
         let mut west = (0.0_f64, 0.0_f64);
         let mut center = (0.0_f64, 0.0_f64);
 
-        for (child, _) in ctx.get_children(container) {
+        for (child, _) in snapshot.children(container) {
             let intrinsic = if minimum {
-                ctx.get_minimum_size(child, w_hint, h_hint)
+                snapshot.minimum_size(child, w_hint, h_hint)
             } else {
-                ctx.get_preferred_size(child, w_hint, h_hint)
+                snapshot.preferred_size(child, w_hint, h_hint)
             };
-            let (region, requested) =
-                border_constraint(ctx, child).unwrap_or((BorderRegion::Center, None));
+            let (region, requested) = border_constraint(snapshot, container, child)
+                .ok()
+                .flatten()
+                .unwrap_or((BorderRegion::Center, None));
             let size = match region {
                 BorderRegion::North | BorderRegion::South => {
                     (intrinsic.0, requested.unwrap_or(intrinsic.1))
@@ -184,9 +185,9 @@ impl LayoutManager for BorderLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, false)
+        self.measure(container, w_hint, h_hint, snapshot, false)
     }
 
     fn get_minimum_size(
@@ -194,19 +195,24 @@ impl LayoutManager for BorderLayout {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, ctx, true)
+        self.measure(container, w_hint, h_hint, snapshot, true)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let children = ctx.get_children(container);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let children = snapshot.children(container);
         if children.is_empty() {
-            return;
+            return Ok(());
         }
 
         // 获取容器的 bounds
-        let container_bounds = ctx.get_container_bounds(container);
+        let container_bounds = snapshot.container_bounds(container);
         let cx = container_bounds.x;
         let cy = container_bounds.y;
         let cw = container_bounds.width;
@@ -217,8 +223,8 @@ impl LayoutManager for BorderLayout {
         let mut west_w = self.west_width;
         let mut east_w = self.east_width;
         for (child_id, _) in &children {
-            let preferred = ctx.get_preferred_size(*child_id, cw, ch);
-            if let Some((region, requested)) = border_constraint(ctx, *child_id) {
+            let preferred = snapshot.preferred_size(*child_id, cw, ch);
+            if let Some((region, requested)) = border_constraint(snapshot, container, *child_id)? {
                 match region {
                     BorderRegion::North => north_h = requested.unwrap_or(preferred.1),
                     BorderRegion::South => south_h = requested.unwrap_or(preferred.1),
@@ -244,7 +250,9 @@ impl LayoutManager for BorderLayout {
 
         // 第一次遍历：处理有明确约束的元素
         for (child_id, _current_bounds) in &children {
-            if let Some((region, requested_size)) = border_constraint(ctx, *child_id) {
+            if let Some((region, requested_size)) =
+                border_constraint(snapshot, container, *child_id)?
+            {
                 let (x, y, w, h) = match region {
                     BorderRegion::North => {
                         allocated_regions[1] = true;
@@ -272,7 +280,7 @@ impl LayoutManager for BorderLayout {
                     }
                 };
 
-                ctx.set_child_bounds(*child_id, Rectangle::new(x, y, w, h));
+                out.set_child_bounds(*child_id, Rectangle::new(x, y, w, h));
             }
         }
 
@@ -292,7 +300,7 @@ impl LayoutManager for BorderLayout {
         }
 
         for (child_id, _) in &children {
-            if ctx.get_constraint(*child_id).is_none()
+            if snapshot.constraint(*child_id).is_none()
                 && let Some(region) = remaining_regions.pop()
             {
                 let (x, y, w, h) = match region {
@@ -302,21 +310,33 @@ impl LayoutManager for BorderLayout {
                     BorderRegion::West => (cx, center_y, west_w, center_h),
                     BorderRegion::Center => (center_x, center_y, center_w, center_h),
                 };
-                ctx.set_child_bounds(*child_id, Rectangle::new(x, y, w, h));
+                out.set_child_bounds(*child_id, Rectangle::new(x, y, w, h));
             }
         }
+        Ok(())
     }
 }
 
 fn border_constraint(
-    ctx: &dyn LayoutContext,
+    snapshot: &LayoutSnapshot<'_>,
+    container: BlockId,
     child_id: BlockId,
-) -> Option<(BorderRegion, Option<f64>)> {
-    let constraint = ctx.get_constraint(child_id)?;
+) -> Result<Option<(BorderRegion, Option<f64>)>, LayoutError> {
+    let Some(constraint) = snapshot.constraint(child_id) else {
+        return Ok(None);
+    };
     if let Some(constraint) = constraint.as_any().downcast_ref::<BorderConstraint>() {
-        return Some((constraint.region, constraint.size));
+        return Ok(Some((constraint.region, constraint.size)));
     }
-    constraint.as_any().downcast_ref::<Rectangle>().map(|rect| {
+    let Some(rect) = constraint.as_any().downcast_ref::<Rectangle>() else {
+        return Err(LayoutError::ConstraintTypeMismatch {
+            container,
+            child: child_id,
+            expected: "BorderConstraint or Rectangle",
+            actual: constraint.type_name(),
+        });
+    };
+    Ok(Some({
         let region = BorderLayout::get_region(rect);
         let size = match region {
             BorderRegion::North => (-rect.height).is_sign_positive().then_some(-rect.height),
@@ -326,7 +346,7 @@ fn border_constraint(
             BorderRegion::Center => None,
         };
         (region, size)
-    })
+    }))
 }
 
 #[cfg(test)]
@@ -355,7 +375,7 @@ mod tests {
             BlockId::from(slotmap::KeyData::from_ffi(0)),
             800.0,
             600.0,
-            &MockLayoutContext::new(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
         assert_eq!((w, h), (0.0, 0.0));
     }
@@ -399,10 +419,6 @@ impl super::LayoutContext for MockLayoutContext {
 
     fn get_preferred_size(&self, _block_id: BlockId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
         (100.0, 100.0)
-    }
-
-    fn set_child_bounds(&mut self, _child_id: BlockId, _bounds: Rectangle) {
-        // No-op for testing
     }
 
     fn get_container_bounds(&self, _container_id: BlockId) -> Rectangle {

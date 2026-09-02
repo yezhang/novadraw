@@ -21,23 +21,32 @@ pub use xy_layout::{XYConstraint, XYLayout};
 use crate::graph::BlockId;
 use novadraw_geometry::Rectangle;
 use std::any::Any;
+use std::error::Error;
+use std::fmt;
 
 /// 容器施加给直接子节点的布局约束。
 ///
 /// 约束由父 FigureBlock 持有；具体 LayoutManager 通过 downcast 读取自己支持的类型。
 pub trait LayoutConstraint: Any {
     fn as_any(&self) -> &dyn Any;
+    fn type_name(&self) -> &'static str;
 }
 
 impl<T: Any> LayoutConstraint for T {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
 }
 
-/// 布局上下文 trait
+/// Read-only layout queries exposed through [`LayoutSnapshot`].
 ///
-/// 提供布局器所需的场景图查询接口。
+/// This remains a trait so tests and future frozen scene representations can
+/// provide the data. Layout managers only receive the concrete immutable
+/// snapshot wrapper and cannot mutate the Figure tree.
 pub trait LayoutContext {
     /// 获取子元素列表
     ///
@@ -60,16 +69,140 @@ pub trait LayoutContext {
         (f64::INFINITY, f64::INFINITY)
     }
 
-    /// 设置子元素的边界
-    ///
-    /// `bounds` 必须处于该子元素所属的坐标域中。
-    fn set_child_bounds(&mut self, child_id: BlockId, bounds: Rectangle);
-
-    /// Sets layout-controlled child visibility.
-    fn set_child_visible(&mut self, _child_id: BlockId, _visible: bool) {}
-
     /// 获取容器 client area 在子节点坐标域中的矩形。
     fn get_container_bounds(&self, container_id: BlockId) -> Rectangle;
+}
+
+/// Immutable view of the scene used by one layout calculation.
+#[derive(Clone, Copy)]
+pub struct LayoutSnapshot<'a> {
+    source: &'a dyn LayoutContext,
+}
+
+impl<'a> LayoutSnapshot<'a> {
+    pub fn new(source: &'a dyn LayoutContext) -> Self {
+        Self { source }
+    }
+
+    pub fn children(&self, parent_id: BlockId) -> Vec<(BlockId, Rectangle)> {
+        self.source.get_children(parent_id)
+    }
+
+    pub fn constraint(&self, child_id: BlockId) -> Option<&dyn LayoutConstraint> {
+        self.source.get_constraint(child_id)
+    }
+
+    pub fn constraint_as<C: LayoutConstraint>(
+        &self,
+        container: BlockId,
+        child: BlockId,
+    ) -> Result<Option<&C>, LayoutError> {
+        let Some(constraint) = self.constraint(child) else {
+            return Ok(None);
+        };
+        constraint.as_any().downcast_ref::<C>().map(Some).ok_or(
+            LayoutError::ConstraintTypeMismatch {
+                container,
+                child,
+                expected: std::any::type_name::<C>(),
+                actual: constraint.type_name(),
+            },
+        )
+    }
+
+    pub fn preferred_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.source.get_preferred_size(block_id, w_hint, h_hint)
+    }
+
+    pub fn minimum_size(&self, block_id: BlockId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.source.get_minimum_size(block_id, w_hint, h_hint)
+    }
+
+    pub fn maximum_size(&self, block_id: BlockId) -> (f64, f64) {
+        self.source.get_maximum_size(block_id)
+    }
+
+    pub fn container_bounds(&self, container_id: BlockId) -> Rectangle {
+        self.source.get_container_bounds(container_id)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LayoutError {
+    ConstraintTypeMismatch {
+        container: BlockId,
+        child: BlockId,
+        expected: &'static str,
+        actual: &'static str,
+    },
+    InvalidChild {
+        container: BlockId,
+        child: BlockId,
+    },
+}
+
+impl fmt::Display for LayoutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ConstraintTypeMismatch {
+                container,
+                child,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "layout constraint type mismatch for child {child:?} in {container:?}: expected {expected}, got {actual}"
+            ),
+            Self::InvalidChild { container, child } => {
+                write!(f, "{child:?} is not a direct child of {container:?}")
+            }
+        }
+    }
+}
+
+impl Error for LayoutError {}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LayoutInvalidation {
+    Structure,
+    Constraint,
+    Geometry,
+    ExplicitSize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum LayoutChange {
+    Bounds(BlockId, Rectangle),
+    Visibility(BlockId, bool),
+    Invalidate(BlockId),
+}
+
+/// Buffered changes produced by a layout calculation.
+#[derive(Debug, Default)]
+pub struct LayoutOutput {
+    pub(crate) changes: Vec<LayoutChange>,
+}
+
+impl LayoutOutput {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn set_child_bounds(&mut self, child: BlockId, bounds: Rectangle) {
+        self.changes.push(LayoutChange::Bounds(child, bounds));
+    }
+
+    pub fn set_child_visible(&mut self, child: BlockId, visible: bool) {
+        self.changes.push(LayoutChange::Visibility(child, visible));
+    }
+
+    pub fn invalidate(&mut self, child: BlockId) {
+        self.changes.push(LayoutChange::Invalidate(child));
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.changes.is_empty()
+    }
 }
 
 /// 布局管理器 trait
@@ -86,7 +219,7 @@ pub trait LayoutManager {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64);
 
     /// 获取最小大小
@@ -97,11 +230,18 @@ pub trait LayoutManager {
         container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64);
 
     /// 执行布局
     ///
     /// 对应 draw2d: layout(IFigure)
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError>;
+
+    fn invalidate(&mut self, _reason: LayoutInvalidation) {}
 }

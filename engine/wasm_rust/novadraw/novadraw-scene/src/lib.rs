@@ -39,14 +39,16 @@ pub use figure::{
 };
 pub use graph as scene;
 pub use graph::{
-    BlockId, FigureGraph, FigureId, FigureNode, FigureRenderer, FigureTree, GraphMutationError,
-    LayoutState, MAX_TREE_DEPTH, NodeState, StyleOverride,
+    BlockId, DEFAULT_VALIDATION_BUDGET, FigureGraph, FigureId, FigureNode, FigureRenderer,
+    FigureTree, GraphMutationError, LayoutState, MAX_TREE_DEPTH, NodeState, StyleOverride,
+    ValidationError,
 };
 pub use host::{PlatformHost, SceneHost};
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
-    GridAlignment, GridConstraint, GridLayout, LayoutConstraint, LayoutManager, MinorAlignment,
-    StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint, XYLayout,
+    GridAlignment, GridConstraint, GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation,
+    LayoutManager, LayoutOutput, LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout,
+    ToolbarOrientation, XYConstraint, XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
 pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};

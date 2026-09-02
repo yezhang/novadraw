@@ -7,7 +7,7 @@ use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
 use crate::figure::{Bounded, Figure, FigureEventHandler, Updatable};
-use crate::layout::{LayoutContext, LayoutManager};
+use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
     BlockId, FigureGraph, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
     RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
@@ -650,9 +650,9 @@ impl LayoutManager for ScrollPaneLayout {
         _container: BlockId,
         w_hint: f64,
         h_hint: f64,
-        ctx: &dyn LayoutContext,
+        snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
-        let viewport_size = ctx.get_preferred_size(self.viewport, w_hint, h_hint);
+        let viewport_size = snapshot.preferred_size(self.viewport, w_hint, h_hint);
         let runtime = lock_unpoisoned(&self.runtime);
         let width = viewport_size.0
             + if runtime.vertical_visibility == ScrollBarVisibility::Never {
@@ -674,14 +674,19 @@ impl LayoutManager for ScrollPaneLayout {
         _container: BlockId,
         _w_hint: f64,
         _h_hint: f64,
-        _ctx: &dyn LayoutContext,
+        _snapshot: &LayoutSnapshot<'_>,
     ) -> (f64, f64) {
         (0.0, 0.0)
     }
 
-    fn layout(&self, container: BlockId, ctx: &mut dyn LayoutContext) {
-        let area = ctx.get_container_bounds(container);
-        let preferred = ctx.get_preferred_size(self.viewport, area.width, area.height);
+    fn layout(
+        &mut self,
+        container: BlockId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        let area = snapshot.container_bounds(container);
+        let preferred = snapshot.preferred_size(self.viewport, area.width, area.height);
         let (h_policy, v_policy, thickness) = {
             let runtime = lock_unpoisoned(&self.runtime);
             (
@@ -705,17 +710,17 @@ impl LayoutManager for ScrollPaneLayout {
         let viewport_width = (area.width - if show_v { thickness } else { 0.0 }).max(0.0);
         let viewport_height = (area.height - if show_h { thickness } else { 0.0 }).max(0.0);
         let viewport_bounds = Rectangle::new(area.x, area.y, viewport_width, viewport_height);
-        ctx.set_child_bounds(self.viewport, viewport_bounds);
-        ctx.set_child_visible(self.horizontal_scroll_bar, show_h);
-        ctx.set_child_visible(self.vertical_scroll_bar, show_v);
+        out.set_child_bounds(self.viewport, viewport_bounds);
+        out.set_child_visible(self.horizontal_scroll_bar, show_h);
+        out.set_child_visible(self.vertical_scroll_bar, show_v);
         if show_h {
-            ctx.set_child_bounds(
+            out.set_child_bounds(
                 self.horizontal_scroll_bar,
                 Rectangle::new(area.x, area.y + viewport_height, viewport_width, thickness),
             );
         }
         if show_v {
-            ctx.set_child_bounds(
+            out.set_child_bounds(
                 self.vertical_scroll_bar,
                 Rectangle::new(area.x + viewport_width, area.y, thickness, viewport_height),
             );
@@ -723,6 +728,7 @@ impl LayoutManager for ScrollPaneLayout {
         let mut runtime = lock_unpoisoned(&self.runtime);
         runtime.pane_bounds = area;
         runtime.viewport_bounds = viewport_bounds;
+        Ok(())
     }
 }
 

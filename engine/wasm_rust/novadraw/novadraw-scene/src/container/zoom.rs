@@ -5,8 +5,8 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    FigureGraph, RangeModelSnapshot, ScaleError, ScaleHandle, UpdateManager, ViewportError,
-    ViewportHandle,
+    FigureGraph, LayoutError, RangeModelSnapshot, ScaleError, ScaleHandle, UpdateManager,
+    ViewportError, ViewportHandle,
 };
 
 pub const DEFAULT_ZOOM_LEVELS: [f64; 8] = [0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
@@ -85,6 +85,7 @@ pub enum ZoomError {
     InvalidZoom,
     InvalidZoomLevels,
     MissingViewport,
+    Layout(LayoutError),
     Scale(ScaleError),
     Viewport(ViewportError),
 }
@@ -100,6 +101,7 @@ impl fmt::Display for ZoomError {
                 )
             }
             Self::MissingViewport => write!(f, "zoom manager viewport does not exist"),
+            Self::Layout(error) => error.fmt(f),
             Self::Scale(error) => error.fmt(f),
             Self::Viewport(error) => error.fmt(f),
         }
@@ -111,6 +113,12 @@ impl Error for ZoomError {}
 impl From<ScaleError> for ZoomError {
     fn from(value: ScaleError) -> Self {
         Self::Scale(value)
+    }
+}
+
+impl From<LayoutError> for ZoomError {
+    fn from(value: LayoutError) -> Self {
+        Self::Layout(value)
     }
 }
 
@@ -222,7 +230,7 @@ impl ZoomManager {
         let old_vertical = self.viewport.vertical_range();
 
         self.scalable.set_scale(graph, update_manager, new_zoom)?;
-        graph.validate_with_update(update_manager, self.viewport.block_id());
+        graph.validate_with_update(update_manager, self.viewport.block_id())?;
         self.viewport.set_view_location(
             graph,
             update_manager,
