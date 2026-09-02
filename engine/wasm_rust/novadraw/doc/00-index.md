@@ -85,6 +85,12 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 3. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
 4. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
 
+### 验证 Web 平台
+
+1. [`adr/adr-001-webgpu-rust-stack.md`](adr/adr-001-webgpu-rust-stack.md)
+2. [`verification/manual/web-platform.md`](verification/manual/web-platform.md)
+3. [`migration/architecture-refactor-plan.md`](migration/architecture-refactor-plan.md)
+
 ### 修改 Draw2D 对标语义
 
 1. 核对 `reference/` 中对应源码分析。

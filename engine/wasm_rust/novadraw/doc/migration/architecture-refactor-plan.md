@@ -720,6 +720,9 @@ cargo run -p event-app -- --verify --scenario=focus_keyboard
 
 ### 18.4 Web 与其他桌面目标
 
+完整环境准备、资源服务、浏览器操作、失败分类和记录模板见
+[`../verification/manual/web-platform.md`](../verification/manual/web-platform.md)。
+
 Web 环境构建与运行：
 
 ```bash

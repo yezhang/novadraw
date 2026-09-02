@@ -10,5 +10,12 @@
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
+## 手工验证入口
+
+- [`manual/core-pipeline.md`](manual/core-pipeline.md)：M1-M7 核心渲染与事件链路；
+- [`manual/m8-viewport.md`](manual/m8-viewport.md)：Viewport、Scroll 与 Zoom；
+- [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、
+  Vello WebGPU 与 Canvas2D 浏览器验收。
+
 验证文档记录证据与结果，不定义新的架构。发现不一致时，应回到 `design/` 或 ADR
 先确定合理契约，再调整实现。

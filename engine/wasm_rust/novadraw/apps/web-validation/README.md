@@ -1,38 +1,22 @@
 # Web Validation
 
-This application exercises the Novadraw `Runtime`, `WebInputAdapter`, and
-`WebPlatformHost` in a browser. Vello over WebGPU is the default renderer.
-Canvas2D remains available as a diagnostic baseline.
+该应用通过浏览器验证 Novadraw `Runtime`、`WebInputAdapter`、
+`WebPlatformHost` 和渲染后端。Vello WebGPU 是默认后端，Canvas2D 是诊断基线。
 
-## Prerequisites
+完整环境准备、操作步骤、通过标准和故障定位见
+[`../../doc/verification/manual/web-platform.md`](../../doc/verification/manual/web-platform.md)。
+
+快速启动：
 
 ```bash
 rustup target add wasm32-unknown-unknown
-cargo install wasm-bindgen-cli --version 0.2.127 --locked --root target/wasm-tools
-```
-
-## Run
-
-```bash
+cargo install wasm-bindgen-cli \
+  --version 0.2.127 \
+  --locked \
+  --root target/wasm-tools
 ./scripts/build_web_validation.sh
 ./scripts/serve_web_validation.sh
 ```
 
-Open <http://127.0.0.1:4173/>.
-
-Use <http://127.0.0.1:4173/?backend=canvas2d> to run the Canvas2D baseline.
-An unsupported or unavailable Vello WebGPU backend reports an initialization
-error instead of silently falling back.
-
-The page exposes browser-verification state on the `body` element:
-
-- `data-ready`
-- `data-backend`
-- `data-frame-count`
-- `data-pointer-events`
-- `data-wheel-events`
-- `data-key-events`
-
-Pointer, wheel, and keyboard input are dispatched through the same Runtime
-event path used by native applications. The DPR button exercises surface
-resize and full redraw at 1x and 2x scale factors.
+默认入口为 <http://127.0.0.1:4173/?backend=vello>。Canvas2D 对照入口为
+<http://127.0.0.1:4173/?backend=canvas2d>。
