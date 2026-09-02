@@ -236,6 +236,8 @@ cargo test --workspace
 
 前置条件：R5 手动验证 `PASS`。
 
+状态：`automatic_verified`
+
 工作：
 
 - UpdateManager 成为 Runtime 内部具体组件；
@@ -252,6 +254,14 @@ cargo test --workspace
 - surface lost/retry；
 - notification 因果顺序；
 - retained surface 正确性。
+
+自动验证结果：
+
+- `cargo check --workspace`：通过；
+- `cargo clippy -- -D warnings`：通过；
+- `cargo test --workspace --lib --tests`：全部通过；
+- `cargo run -p update-app -- --verify
+  --report=target/visual-verification/update-app-r6.json`：6 项通过。
 
 手动验证：
 
@@ -551,3 +561,41 @@ R5: PASS
 ```
 
 若失败，请附应用名、场景编号、操作步骤和可见结果。
+
+## 17. R6 手动验收记录
+
+状态：`pending`
+
+自动门禁已通过，等待 macOS 人工窗口验收。完成以下步骤后才能开始 R7。
+
+### 17.1 Update App
+
+```bash
+cargo run -p update-app
+```
+
+1. 依次查看 `baseline`、`partial_damage`、`validation`、`stress_1024`；
+2. 在每个场景按 `U` 往返切换增量与全量路径，画面应保持一致；
+3. 连续拖动窗口边缘改变大小，内容应稳定，无残影、透明帧或黑帧；
+4. 最小化窗口后恢复，首个可见帧应完整；
+5. 多次切换场景并 resize，确认没有停帧或旧帧残留。
+
+### 17.2 自动报告复核
+
+```bash
+cargo run -p update-app -- --verify \
+  --report=target/visual-verification/update-app-r6.json
+```
+
+报告应包含 6 项 `PASS`，其中 `submission_lifecycle` 验证 frame ID、ResourceDelta
+和 retry 后的 Full damage 恢复。
+
+### 17.3 验收回复
+
+```text
+R6: PASS
+平台: macOS
+失败项: 无
+```
+
+若失败，请附场景名、是否启用 UpdateManager、窗口操作步骤和可见结果。
