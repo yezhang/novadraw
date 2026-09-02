@@ -33,7 +33,7 @@ use crate::{PendingMutationBatch, mutation::PendingMutationKind};
 // 渲染模块
 pub mod render_recursive;
 
-pub use render_recursive::{FigureGraphRenderRef, FigureRenderer};
+pub use render_recursive::{FigureRenderer, FigureTreeRenderRef};
 
 #[cfg(test)]
 pub mod bounds_test;
@@ -41,10 +41,10 @@ pub mod bounds_test;
 #[cfg(test)]
 pub mod update_integration_test;
 
-slotmap::new_key_type! { pub struct FigureId; }
-
-/// Runtime-local, generational identity of a Figure node.
-pub type BlockId = FigureId;
+slotmap::new_key_type! {
+    /// Runtime-local, generational identity of a Figure node.
+    pub struct FigureId;
+}
 
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
@@ -315,9 +315,6 @@ pub struct FigureNode {
     pub(crate) state: NodeState,
 }
 
-/// Compatibility name for callers that still use the pre-runtime terminology.
-pub type FigureBlock = FigureNode;
-
 impl Deref for FigureNode {
     type Target = NodeState;
 
@@ -488,9 +485,6 @@ pub struct FigureTree {
     selected: HashSet<FigureId>,
     notification_effects: NotificationQueue,
 }
-
-/// Compatibility name for callers that still use the pre-runtime terminology.
-pub type FigureGraph = FigureTree;
 
 impl FigureTree {
     /// 创建新场景图
@@ -1753,7 +1747,7 @@ impl FigureTree {
     /// 渲染到上下文（递归实现）
     pub(crate) fn render_to(&self, gc: &mut NdCanvas) {
         let start_id = self.contents.unwrap_or(self.root);
-        let scene_ref = FigureGraphRenderRef {
+        let scene_ref = FigureTreeRenderRef {
             blocks: &self.blocks,
             selected: &self.selected,
         };

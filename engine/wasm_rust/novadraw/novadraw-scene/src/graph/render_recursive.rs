@@ -14,19 +14,19 @@ const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
 const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
 
 /// 场景图引用（用于渲染）
-pub struct FigureGraphRenderRef<'a> {
+pub struct FigureTreeRenderRef<'a> {
     pub(crate) blocks: &'a slotmap::SlotMap<FigureId, super::FigureNode>,
     pub(crate) selected: &'a HashSet<FigureId>,
 }
 
-impl<'a> FigureGraphRenderRef<'a> {
+impl<'a> FigureTreeRenderRef<'a> {
     /// 获取块
     pub fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
     }
 }
 
-impl<'a> Clone for FigureGraphRenderRef<'a> {
+impl<'a> Clone for FigureTreeRenderRef<'a> {
     fn clone(&self) -> Self {
         Self {
             blocks: self.blocks,
@@ -39,7 +39,7 @@ impl<'a> Clone for FigureGraphRenderRef<'a> {
 ///
 /// 直接递归实现，简洁直观。
 pub struct FigureRenderer<'a> {
-    scene: FigureGraphRenderRef<'a>,
+    scene: FigureTreeRenderRef<'a>,
     gc: &'a mut NdCanvas,
     /// 调试计数器
     counter: usize,
@@ -47,9 +47,9 @@ pub struct FigureRenderer<'a> {
 
 impl<'a> FigureRenderer<'a> {
     /// 创建渲染器
-    pub fn new(scene: &FigureGraphRenderRef<'a>, gc: &'a mut NdCanvas) -> Self {
+    pub fn new(scene: &FigureTreeRenderRef<'a>, gc: &'a mut NdCanvas) -> Self {
         Self {
-            scene: FigureGraphRenderRef {
+            scene: FigureTreeRenderRef {
                 blocks: scene.blocks,
                 selected: scene.selected,
             },
