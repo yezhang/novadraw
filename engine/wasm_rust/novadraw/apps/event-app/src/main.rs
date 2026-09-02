@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
-    BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureEventHandler, FigureGraph,
+    BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureEventHandler, FigureTree,
     FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
     MouseButton, MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations,
     Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
@@ -14,7 +14,7 @@ use novadraw_apps::{
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
 
 #[derive(Clone, Debug, PartialEq)]
 enum ProbeEvent {
@@ -201,8 +201,8 @@ impl FigureEventHandler for EventProbeFigure {
     }
 }
 
-fn probe_scene(local_coordinates: bool) -> (FigureGraph, Arc<Mutex<ProbeState>>) {
-    let mut graph = FigureGraph::new();
+fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState>>) {
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
         0.0,
         0.0,
@@ -239,11 +239,11 @@ fn probe_scene(local_coordinates: bool) -> (FigureGraph, Arc<Mutex<ProbeState>>)
     (graph, state)
 }
 
-fn pointer_scene() -> FigureGraph {
+fn pointer_scene() -> FigureTree {
     probe_scene(false).0
 }
 
-fn coordinate_scene() -> FigureGraph {
+fn coordinate_scene() -> FigureTree {
     probe_scene(true).0
 }
 
@@ -257,7 +257,7 @@ fn scenes() -> Vec<SceneEntry> {
 }
 
 fn with_context(
-    graph: &mut FigureGraph,
+    graph: &mut FigureTree,
     interaction: &mut InteractionState,
     manager: &mut SceneUpdateManager,
     pending: &mut PendingMutations,

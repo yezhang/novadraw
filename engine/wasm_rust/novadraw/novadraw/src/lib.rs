@@ -19,12 +19,12 @@ pub use novadraw_render::traits;
 
 pub use novadraw_scene::{
     AccessibilityUpdate, AccessibleFigure, AncestorEvent, AncestorEventKind, AncestorListener,
-    BasicEventDispatcher, BlockId, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded,
+    BasicEventDispatcher, Border, BorderConstraint, BorderLayout, BorderRegion, Bounded,
     ChildPolicy, ChildTransform, CoordinateListener, CursorIcon, DEFAULT_ZOOM_LEVELS,
     DefaultScrollPolicy, Direction, DispatchContext, EllipseFigure, Event, EventDispatcher, Figure,
-    FigureContainer, FigureEvent, FigureEventHandler, FigureGraph, FigureId, FigureLifecycle,
-    FigureListener, FigureNode, FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout,
-    FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, GraphMutationError, GridAlignment,
+    FigureContainer, FigureEvent, FigureEventHandler, FigureId, FigureLifecycle, FigureListener,
+    FigureNode, FigureRenderer, FigureTree, FillLayout, FlowDirection, FlowLayout, FocusEvent,
+    FocusEventKind, GesturePhase, GestureSessionId, GraphMutationError, GridAlignment,
     GridConstraint, GridLayout, HeadlessHost, ImeState, InteractionState, Key, KeyEvent,
     KeyEventKind, KeyModifiers, LayoutConstraint, LayoutEvent, LayoutEventKind, LayoutListener,
     LayoutManager, LayoutState, LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder,

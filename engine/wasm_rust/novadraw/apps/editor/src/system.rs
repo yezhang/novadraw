@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use novadraw::{
-    BlockId, FigureEvent, Key, KeyModifiers, MouseButton, PlatformHost, RenderBackend,
+    FigureEvent, FigureId, Key, KeyModifiers, MouseButton, PlatformHost, RenderBackend,
     RenderOutcome, Runtime, UpdateEvent, UpdateListener, WheelEvent, ZoomEvent,
 };
 use novadraw_apps::WinitPlatformHost;
@@ -50,11 +50,11 @@ pub struct InteractionTrace {
     pub raw: Option<RawPointerInput>,
     pub logical: LogicalPointerPosition,
     pub button: Option<MouseButton>,
-    pub hit_target_before: Option<BlockId>,
-    pub mouse_target_before: Option<BlockId>,
-    pub mouse_target_after: Option<BlockId>,
-    pub focus_owner_after: Option<BlockId>,
-    pub captured_after: Option<BlockId>,
+    pub hit_target_before: Option<FigureId>,
+    pub mouse_target_before: Option<FigureId>,
+    pub mouse_target_after: Option<FigureId>,
+    pub focus_owner_after: Option<FigureId>,
+    pub captured_after: Option<FigureId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -423,7 +423,7 @@ impl UpdateListener for TraceUpdateListener {
         tracing::info!("[Notification] figure event: {:?}", event);
     }
 
-    fn on_notify(&self, block_id: BlockId) {
+    fn on_notify(&self, block_id: FigureId) {
         tracing::info!("[Notification] notify: {:?}", block_id);
     }
 }
@@ -431,7 +431,7 @@ impl UpdateListener for TraceUpdateListener {
 #[cfg(test)]
 mod tests {
     use novadraw::{
-        Bounded, Color, Figure, FigureEventHandler, FigureGraph, MouseEvent, NdCanvas,
+        Bounded, Color, Figure, FigureEventHandler, FigureTree, MouseEvent, NdCanvas,
         NovadrawContext, Rectangle, RenderCommandKind, Shape, Updatable,
         command::{LineCap, LineJoin},
     };
@@ -534,8 +534,8 @@ mod tests {
         }
     }
 
-    fn build_test_core() -> (EditorInteractionCore, BlockId) {
-        let mut scene = FigureGraph::new();
+    fn build_test_core() -> (EditorInteractionCore, FigureId) {
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -556,8 +556,8 @@ mod tests {
         (core, target_id)
     }
 
-    fn build_coordinate_root_test_core() -> (EditorInteractionCore, BlockId) {
-        let mut scene = FigureGraph::new();
+    fn build_coordinate_root_test_core() -> (EditorInteractionCore, FigureId) {
+        let mut scene = FigureTree::new();
         let root_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
             0.0,
             0.0,

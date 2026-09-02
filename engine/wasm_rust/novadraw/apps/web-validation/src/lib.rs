@@ -488,7 +488,7 @@ impl WebValidationApp {
         backend: ValidationBackend,
     ) -> Self {
         let probe = Rc::new(ProbeState::default());
-        let mut graph = novadraw::FigureGraph::new();
+        let mut graph = novadraw::FigureTree::new();
         let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,

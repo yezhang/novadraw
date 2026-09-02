@@ -25,8 +25,8 @@ fn transparent() -> novadraw::Color {
     novadraw::Color::rgba(0.0, 0.0, 0.0, 0.0)
 }
 
-fn empty_scene() -> (novadraw::FigureGraph, novadraw::BlockId) {
-    let mut scene = novadraw::FigureGraph::new();
+fn empty_scene() -> (novadraw::FigureTree, novadraw::FigureId) {
+    let mut scene = novadraw::FigureTree::new();
     let root = novadraw::RectangleFigure::new_with_color(
         0.0,
         0.0,
@@ -40,15 +40,15 @@ fn empty_scene() -> (novadraw::FigureGraph, novadraw::BlockId) {
 
 #[allow(clippy::too_many_arguments)]
 fn add_viewport(
-    scene: &mut novadraw::FigureGraph,
-    parent_id: novadraw::BlockId,
+    scene: &mut novadraw::FigureTree,
+    parent_id: novadraw::FigureId,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
     origin: (f64, f64),
     zoom: f64,
-) -> novadraw::BlockId {
+) -> novadraw::FigureId {
     let viewport = scene
         .add_viewport_to(parent_id, novadraw::Rectangle::new(x, y, width, height))
         .expect("attach viewport");
@@ -70,8 +70,8 @@ fn add_viewport(
 }
 
 fn add_boundary(
-    scene: &mut novadraw::FigureGraph,
-    parent_id: novadraw::BlockId,
+    scene: &mut novadraw::FigureTree,
+    parent_id: novadraw::FigureId,
     x: f64,
     y: f64,
     width: f64,
@@ -84,8 +84,8 @@ fn add_boundary(
 }
 
 fn add_rect(
-    scene: &mut novadraw::FigureGraph,
-    parent_id: novadraw::BlockId,
+    scene: &mut novadraw::FigureTree,
+    parent_id: novadraw::FigureId,
     rect: novadraw::Rectangle,
     fill: novadraw::Color,
 ) {
@@ -101,7 +101,7 @@ fn add_rect(
     );
 }
 
-fn add_content_grid(scene: &mut novadraw::FigureGraph, parent_id: novadraw::BlockId) {
+fn add_content_grid(scene: &mut novadraw::FigureTree, parent_id: novadraw::FigureId) {
     for row in 0..4 {
         for col in 0..5 {
             let fill = if (row + col) % 2 == 0 {
@@ -125,8 +125,8 @@ fn add_content_grid(scene: &mut novadraw::FigureGraph, parent_id: novadraw::Bloc
 }
 
 fn add_scroll_reference_content(
-    scene: &mut novadraw::FigureGraph,
-    content_parent: novadraw::BlockId,
+    scene: &mut novadraw::FigureTree,
+    content_parent: novadraw::FigureId,
 ) {
     add_content_grid(scene, content_parent);
     add_rect(
@@ -149,7 +149,7 @@ fn add_scroll_reference_content(
     );
 }
 
-fn create_scene_0_clip_to_viewport() -> novadraw::FigureGraph {
+fn create_scene_0_clip_to_viewport() -> novadraw::FigureTree {
     let (mut scene, root_id) = empty_scene();
     let viewport_id = add_viewport(
         &mut scene,
@@ -187,7 +187,7 @@ fn create_scene_0_clip_to_viewport() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_1_origin_scroll() -> novadraw::FigureGraph {
+fn create_scene_1_origin_scroll() -> novadraw::FigureTree {
     let (mut scene, root_id) = empty_scene();
     let viewport_id = add_viewport(
         &mut scene,
@@ -213,7 +213,7 @@ fn create_scene_1_origin_scroll() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_2_zoomed_content() -> novadraw::FigureGraph {
+fn create_scene_2_zoomed_content() -> novadraw::FigureTree {
     let (mut scene, root_id) = empty_scene();
     let viewport_id = add_viewport(
         &mut scene,
@@ -239,7 +239,7 @@ fn create_scene_2_zoomed_content() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_3_nested_viewports() -> novadraw::FigureGraph {
+fn create_scene_3_nested_viewports() -> novadraw::FigureTree {
     let (mut scene, root_id) = empty_scene();
     let outer_id = add_viewport(
         &mut scene,
@@ -294,7 +294,7 @@ fn create_scene_3_nested_viewports() -> novadraw::FigureGraph {
     scene
 }
 
-type SceneFactory = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneFactory = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn scenes() -> Vec<SceneFactory> {
     vec![

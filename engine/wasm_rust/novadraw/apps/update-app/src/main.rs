@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use novadraw::{
-    BackendCapabilities, BlockId, Color, DamageMode, FigureEvent, FigureGraph, GridLayout,
+    BackendCapabilities, Color, DamageMode, FigureEvent, FigureId, FigureTree, GridLayout,
     NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SceneUpdateManager,
     SurfaceInfo, UpdateEvent, UpdateListener, XYConstraint, XYLayout,
 };
@@ -16,14 +16,14 @@ const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
 const STRESS_FIGURE_COUNT: usize = 1024;
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
 
 fn gray_background() -> RectangleFigure {
     RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::hex("#eeeeee"))
 }
 
-fn baseline_scene() -> FigureGraph {
-    let mut graph = FigureGraph::new();
+fn baseline_scene() -> FigureTree {
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(gray_background()));
     for (x, color) in [(100.0, "#e74c3c"), (325.0, "#2ecc71"), (550.0, "#3498db")] {
         graph.add_child_to(
@@ -40,7 +40,7 @@ fn baseline_scene() -> FigureGraph {
     graph
 }
 
-fn partial_damage_scene() -> FigureGraph {
+fn partial_damage_scene() -> FigureTree {
     let mut graph = baseline_scene();
     let root = graph.get_contents().expect("contents");
     let target = graph.child_order(root).expect("root children")[1];
@@ -58,8 +58,8 @@ fn partial_damage_scene() -> FigureGraph {
     graph
 }
 
-fn validation_scene() -> FigureGraph {
-    let mut graph = FigureGraph::new();
+fn validation_scene() -> FigureTree {
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(gray_background()));
     graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
     for (index, color) in ["#9b59b6", "#f39c12", "#1abc9c"].iter().enumerate() {
@@ -82,8 +82,8 @@ fn validation_scene() -> FigureGraph {
     graph
 }
 
-fn stress_scene() -> FigureGraph {
-    let mut graph = FigureGraph::new();
+fn stress_scene() -> FigureTree {
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(gray_background()));
     graph.set_block_layout_manager(
         root,
@@ -138,7 +138,7 @@ impl UpdateListener for CaptureListener {
             .push(NotificationEffect::EmitFigure(event));
     }
 
-    fn on_notify(&self, block_id: BlockId) {
+    fn on_notify(&self, block_id: FigureId) {
         self.effects
             .lock()
             .unwrap()
@@ -245,7 +245,7 @@ impl UpdateListener for PanicOnceListener {
     }
 
     fn on_figure_event(&self, _event: FigureEvent) {}
-    fn on_notify(&self, _block_id: BlockId) {}
+    fn on_notify(&self, _block_id: FigureId) {}
 }
 
 fn verify_panic_recovery() -> Result<VerificationMetrics, String> {

@@ -6,10 +6,10 @@
 //!
 //! ```rust,ignore
 //! use novadraw_apps::run_demo_app;
-//! use novadraw::FigureGraph;
+//! use novadraw::FigureTree;
 //!
-//! fn create_scene() -> FigureGraph {
-//!     let mut scene = FigureGraph::new();
+//! fn create_scene() -> FigureTree {
+//!     let mut scene = FigureTree::new();
 //!     // 创建场景...
 //!     scene
 //! }

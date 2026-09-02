@@ -8,15 +8,15 @@ fn bg_gray() -> novadraw::Color {
     novadraw::Color::rgba(0.85, 0.85, 0.85, 1.0)
 }
 
-fn gray_container() -> (novadraw::FigureGraph, novadraw::BlockId) {
-    let mut scene = novadraw::FigureGraph::new();
+fn gray_container() -> (novadraw::FigureTree, novadraw::FigureId) {
+    let mut scene = novadraw::FigureTree::new();
     let container =
         novadraw::RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, bg_gray());
     let container_id = scene.set_contents(Box::new(container));
     (scene, container_id)
 }
 
-fn create_scene_0_fill_colors() -> novadraw::FigureGraph {
+fn create_scene_0_fill_colors() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let colors = [
@@ -40,7 +40,7 @@ fn create_scene_0_fill_colors() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_1_alpha() -> novadraw::FigureGraph {
+fn create_scene_1_alpha() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let base_rect = novadraw::RectangleFigure::new_with_color(
@@ -67,7 +67,7 @@ fn create_scene_1_alpha() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_2_stroke_width() -> novadraw::FigureGraph {
+fn create_scene_2_stroke_width() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let widths = [1.0, 2.0, 3.0, 4.0, 5.0];
@@ -89,7 +89,7 @@ fn create_scene_2_stroke_width() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_3_stroke_color() -> novadraw::FigureGraph {
+fn create_scene_3_stroke_color() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let stroke_colors = [
@@ -115,7 +115,7 @@ fn create_scene_3_stroke_color() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_4_line_cap() -> novadraw::FigureGraph {
+fn create_scene_4_line_cap() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let caps = [
@@ -149,7 +149,7 @@ fn create_scene_4_line_cap() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_5_line_join() -> novadraw::FigureGraph {
+fn create_scene_5_line_join() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let joins = [
@@ -184,7 +184,7 @@ fn create_scene_5_line_join() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_6_stroke_vs_border() -> novadraw::FigureGraph {
+fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let fill_color = novadraw::Color::rgba(0.9, 0.95, 1.0, 1.0);
@@ -238,7 +238,7 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureGraph {
     scene
 }
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn main() {
     let scenes: Vec<SceneEntry> = vec![

@@ -19,8 +19,8 @@ const WINDOW_HEIGHT: f64 = 600.0;
 
 /// Scene 0: 矩形图形 - 验证 RectangleFigure
 /// MECE: 单独验证矩形填充
-fn create_scene_0_rectangle_fill() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -73,8 +73,8 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureGraph {
 
 /// Scene 1: 椭圆图形 - 验证 EllipseFigure
 /// MECE: 单独验证椭圆填充
-fn create_scene_1_ellipse_fill() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -126,8 +126,8 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureGraph {
 }
 
 /// Scene 2: 圆角矩形
-fn create_scene_2_rounded_rect() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -252,8 +252,8 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureGraph {
 
 /// Scene 3: 折线图形 - 验证 PolylineFigure
 /// MECE: 按折线属性分类（点数、线宽、线帽、连接样式、闭合）
-fn create_scene_3_polyline() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_3_polyline() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new_with_color(
         0.0,
@@ -516,8 +516,8 @@ fn create_scene_3_polyline() -> novadraw::FigureGraph {
 
 /// Scene 7: 混合图形组合
 /// MECE: 验证多种图形在同一场景中正确渲染
-fn create_scene_8_mixed_shapes() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -698,8 +698,8 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureGraph {
 
 /// Scene 8: Z-order 遮挡关系
 /// MECE: 验证后添加的图形遮挡先添加的图形
-fn create_scene_9_zorder() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_9_zorder() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -781,8 +781,8 @@ fn create_scene_9_zorder() -> novadraw::FigureGraph {
 
 /// Scene 10: 三角形图形 - 验证 TriangleFigure
 /// MECE: 验证等边三角形、直角三角形、描边宽度、纯填充/纯描边
-fn create_scene_10_triangle() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_10_triangle() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new_with_color(
         0.0,
@@ -934,8 +934,8 @@ fn create_scene_10_triangle() -> novadraw::FigureGraph {
 
 /// Scene 9: 父子嵌套结构
 /// MECE: 验证 Figure 嵌套渲染
-fn create_scene_11_parent_child() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_11_parent_child() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
@@ -1027,7 +1027,7 @@ fn create_scene_11_parent_child() -> novadraw::FigureGraph {
 // 场景映射
 // ============================================================================
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn main() {
     // 解析命令行参数

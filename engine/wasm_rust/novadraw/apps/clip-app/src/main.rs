@@ -10,8 +10,8 @@ use std::io::Write;
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
 
-fn create_scene_0_basic_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_0_basic_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -37,8 +37,8 @@ fn create_scene_0_basic_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_1_nested_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_1_nested_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -63,8 +63,8 @@ fn create_scene_1_nested_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_2_multi_layer_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_2_multi_layer_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -98,8 +98,8 @@ fn create_scene_2_multi_layer_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_3_circle_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_3_circle_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -124,8 +124,8 @@ fn create_scene_3_circle_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_4_path_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_4_path_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -150,8 +150,8 @@ fn create_scene_4_path_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_5_clip_with_events() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_5_clip_with_events() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -167,8 +167,8 @@ fn create_scene_5_clip_with_events() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_6_transparent_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_6_transparent_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -193,8 +193,8 @@ fn create_scene_6_transparent_clip() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_7_clip_animation() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_7_clip_animation() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -210,8 +210,8 @@ fn create_scene_7_clip_animation() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_8_clip_performance() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_8_clip_performance() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -231,8 +231,8 @@ fn create_scene_8_clip_performance() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_9_inverted_clip() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_9_inverted_clip() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.set_contents(Box::new(container));
 
@@ -257,7 +257,7 @@ fn create_scene_9_inverted_clip() -> novadraw::FigureGraph {
     scene
 }
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn scenes() -> Vec<SceneEntry> {
     vec![

@@ -9,7 +9,7 @@ pub use crate::{
 };
 pub use crate::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
 pub use novadraw::{
-    BlockId, Color, EllipseFigure, Figure, FigureEvent, FigureGraph, NotificationEffect,
+    Color, EllipseFigure, Figure, FigureEvent, FigureId, FigureTree, NotificationEffect,
     PolylineFigure, Rectangle, RectangleFigure, Runtime, UpdateEvent, UpdateListener,
 };
 #[cfg(feature = "native")]

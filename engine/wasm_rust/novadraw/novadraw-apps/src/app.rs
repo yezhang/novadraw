@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::input::{AdaptedGesture, WinitGestureAdapter};
 use crate::platform::WinitPlatformHost;
 pub use novadraw::{
-    BackendCapabilities, BlockId, FigureEvent, FigureGraph, Key, KeyModifiers, MouseButton,
+    BackendCapabilities, FigureEvent, FigureId, FigureTree, Key, KeyModifiers, MouseButton,
     NotificationEffect, PlatformHost, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
     UpdateEvent, UpdateListener,
 };
@@ -34,7 +34,7 @@ const SCREENSHOT_RENDER_RETRY_DELAY: std::time::Duration = std::time::Duration::
 /// - 事件处理
 ///
 // 场景创建函数类型
-type SceneCreator = Box<dyn FnMut() -> FigureGraph>;
+type SceneCreator = Box<dyn FnMut() -> FigureTree>;
 
 struct DemoUpdateListener;
 
@@ -47,7 +47,7 @@ impl UpdateListener for DemoUpdateListener {
         tracing::debug!("[DemoApp] figure event: {:?}", event);
     }
 
-    fn on_notify(&self, block_id: BlockId) {
+    fn on_notify(&self, block_id: FigureId) {
         tracing::debug!("[DemoApp] notify: {:?}", block_id);
     }
 }
@@ -642,7 +642,7 @@ mod tests {
     fn surface_change_requests_a_full_runtime_frame() {
         let mut app = DemoApp::new(
             "test",
-            vec![("empty", Box::new(FigureGraph::new))],
+            vec![("empty", Box::new(FigureTree::new))],
             800.0,
             600.0,
             "test",
@@ -729,7 +729,7 @@ impl AppBuilder {
     pub fn add_scene(
         mut self,
         name: &'static str,
-        creator: impl FnMut() -> FigureGraph + 'static,
+        creator: impl FnMut() -> FigureTree + 'static,
     ) -> Self {
         self.scenes.push((name, Box::new(creator)));
         self
@@ -739,7 +739,7 @@ impl AppBuilder {
     #[allow(clippy::type_complexity)]
     pub fn with_scenes_boxed(
         mut self,
-        scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureGraph>)>,
+        scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
     ) -> Self {
         self.scenes = scenes;
         self
@@ -797,8 +797,8 @@ impl AppBuilder {
 /// ```rust,no_run
 /// use novadraw_apps::run_demo_app;
 ///
-/// fn create_rect_scene() -> novadraw::FigureGraph {
-///     let mut scene = novadraw::FigureGraph::new();
+/// fn create_rect_scene() -> novadraw::FigureTree {
+///     let mut scene = novadraw::FigureTree::new();
 ///     let rect = novadraw::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
 ///     scene.set_contents(Box::new(rect));
 ///     scene
@@ -814,7 +814,7 @@ impl AppBuilder {
 pub fn run_demo_app(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureGraph>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     run_demo_app_with_options(title, app_name, scenes, false, None)
 }
@@ -823,7 +823,7 @@ pub fn run_demo_app(
 pub fn run_demo_app_with_screenshot(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureGraph>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
     screenshot_all: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     run_demo_app_with_options(title, app_name, scenes, screenshot_all, None)
@@ -833,7 +833,7 @@ pub fn run_demo_app_with_screenshot(
 pub fn run_demo_app_with_scene_screenshot(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureGraph>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
     scene_index: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     run_demo_app_with_options(title, app_name, scenes, false, Some(scene_index))
@@ -843,7 +843,7 @@ pub fn run_demo_app_with_scene_screenshot(
 fn run_demo_app_with_options(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureGraph>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
     screenshot_all: bool,
     screenshot_scene: Option<usize>,
 ) -> Result<(), Box<dyn std::error::Error>> {

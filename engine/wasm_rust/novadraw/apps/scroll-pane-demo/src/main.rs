@@ -1,5 +1,5 @@
 use novadraw::{
-    BasicEventDispatcher, Color, EventDispatcher, FigureGraph, GesturePhase, GestureSessionId,
+    BasicEventDispatcher, Color, EventDispatcher, FigureTree, GesturePhase, GestureSessionId,
     InteractionState, KeyModifiers, PendingMutations, Rectangle, RectangleFigure,
     SceneDispatchContext, SceneUpdateManager, ScrollBarVisibility, ScrollDeltaKind, WheelEvent,
     ZoomEvent, ZoomManager,
@@ -28,14 +28,14 @@ const INITIAL_SCROLL_X: f64 = 90.0;
 const INITIAL_SCROLL_Y: f64 = 70.0;
 const DEMO_SCALE: f64 = 1.5;
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
 
 fn color(hex: &str) -> Color {
     Color::hex(hex)
 }
 
-fn base_scene() -> (FigureGraph, novadraw::BlockId) {
-    let mut graph = FigureGraph::new();
+fn base_scene() -> (FigureTree, novadraw::FigureId) {
+    let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
         0.0,
         0.0,
@@ -46,7 +46,7 @@ fn base_scene() -> (FigureGraph, novadraw::BlockId) {
     (graph, root)
 }
 
-fn add_grid(graph: &mut FigureGraph, parent: novadraw::BlockId) {
+fn add_grid(graph: &mut FigureTree, parent: novadraw::FigureId) {
     for row in 0..GRID_ROWS {
         for column in 0..GRID_COLUMNS {
             let fill = match (row + column) % 4 {
@@ -75,7 +75,7 @@ fn scene_with_policy(
     horizontal: ScrollBarVisibility,
     vertical: ScrollBarVisibility,
     initial_scroll: Option<(f64, f64)>,
-) -> FigureGraph {
+) -> FigureTree {
     let (mut graph, root) = base_scene();
     let pane = graph
         .add_scroll_pane_to(
@@ -108,7 +108,7 @@ fn scene_with_policy(
     graph
 }
 
-fn automatic_scene() -> FigureGraph {
+fn automatic_scene() -> FigureTree {
     scene_with_policy(
         LARGE_CONTENT_WIDTH,
         LARGE_CONTENT_HEIGHT,
@@ -118,7 +118,7 @@ fn automatic_scene() -> FigureGraph {
     )
 }
 
-fn scrolled_scene() -> FigureGraph {
+fn scrolled_scene() -> FigureTree {
     scene_with_policy(
         LARGE_CONTENT_WIDTH,
         LARGE_CONTENT_HEIGHT,
@@ -128,7 +128,7 @@ fn scrolled_scene() -> FigureGraph {
     )
 }
 
-fn hidden_bars_scene() -> FigureGraph {
+fn hidden_bars_scene() -> FigureTree {
     scene_with_policy(
         SMALL_CONTENT_WIDTH,
         SMALL_CONTENT_HEIGHT,
@@ -138,7 +138,7 @@ fn hidden_bars_scene() -> FigureGraph {
     )
 }
 
-fn scalable_scene() -> FigureGraph {
+fn scalable_scene() -> FigureTree {
     let (mut graph, root) = base_scene();
     let pane = graph
         .add_scroll_pane_to(

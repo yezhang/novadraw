@@ -62,15 +62,15 @@ impl Figure for TestFigure {
 // 测试场景创建
 // ============================================================
 
-fn create_scene_clear() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_clear() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let _bg_id = scene.set_contents(Box::new(bg));
     scene
 }
 
-fn create_scene_fill_rect() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_fill_rect() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -84,8 +84,8 @@ fn create_scene_fill_rect() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_stroke_rect() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_stroke_rect() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -126,8 +126,8 @@ fn create_scene_stroke_rect() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_ellipse() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_ellipse() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -174,8 +174,8 @@ fn create_scene_ellipse() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_line() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_line() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -246,8 +246,8 @@ fn create_scene_line() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_polyline() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_polyline() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -313,8 +313,8 @@ fn create_scene_polyline() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_line_join() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_line_join() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -348,8 +348,8 @@ fn create_scene_line_join() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_scene_transform() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_scene_transform() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene.set_contents(Box::new(bg));
 
@@ -402,7 +402,7 @@ fn create_scene_transform() -> novadraw::FigureGraph {
 // 主程序
 // ============================================================
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();

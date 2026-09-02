@@ -1,11 +1,11 @@
-use novadraw::{Color, EllipseFigure, FigureGraph, PolylineFigure, Rectangle, RectangleFigure};
+use novadraw::{Color, EllipseFigure, FigureTree, PolylineFigure, Rectangle, RectangleFigure};
 
 mod interactive_figure;
 
 use interactive_figure::InteractiveRectFigure;
 
 pub struct SceneManager {
-    pub scene: FigureGraph,
+    pub scene: FigureTree,
     /// 当前激活的场景类型
     pub current_scene: SceneType,
 }
@@ -70,7 +70,7 @@ impl SceneManager {
 
     /// 根据场景类型创建场景
     pub fn with_scene(scene_type: SceneType) -> Self {
-        let mut scene = FigureGraph::new();
+        let mut scene = FigureTree::new();
 
         match scene_type {
             SceneType::BasicAnchors => Self::create_basic_anchors_scene(&mut scene),
@@ -94,7 +94,7 @@ impl SceneManager {
     /// 场景 0：基础四个定位点（只有四个小正方形）
     ///
     /// 用于验证最基本的渲染逻辑
-    fn create_basic_anchors_scene(scene: &mut FigureGraph) {
+    fn create_basic_anchors_scene(scene: &mut FigureTree) {
         // 创建一个基准矩形作为父容器（灰色边框）
         let root_fig = RectangleFigure::new_with_color(
             100.0,
@@ -153,7 +153,7 @@ impl SceneManager {
     /// 场景 4：prim_translate 平移传播测试
     ///
     /// 验证：`prim_translate` 平移操作会传播到所有子节点
-    fn create_bounds_translate_scene(scene: &mut FigureGraph) {
+    fn create_bounds_translate_scene(scene: &mut FigureTree) {
         // Parent - 深紫容器
         let parent = RectangleFigure::new_with_color(
             200.0,
@@ -191,7 +191,7 @@ impl SceneManager {
     /// 场景 3：不可见节点过滤测试
     ///
     /// 验证：`is_visible = false` 的节点不产生任何渲染命令
-    fn create_visibility_scene(scene: &mut FigureGraph) {
+    fn create_visibility_scene(scene: &mut FigureTree) {
         // Visible A - 红色 (contents)
         let rect_a = RectangleFigure::new_with_color(
             50.0,
@@ -229,7 +229,7 @@ impl SceneManager {
     /// 场景 2：Z-order 叠加测试
     ///
     /// 验证：后添加的节点视觉上在上层（遮挡先添加的）
-    fn create_zorder_scene(scene: &mut FigureGraph) {
+    fn create_zorder_scene(scene: &mut FigureTree) {
         // Z-Order Parent - 灰色容器
         let z_parent = RectangleFigure::new_with_color(
             50.0,
@@ -264,7 +264,7 @@ impl SceneManager {
     /// 场景 1：嵌套父子结构测试
     ///
     /// 验证：`parent.PaintBorder` 在所有子节点完成后执行
-    fn create_nested_scene(scene: &mut FigureGraph) {
+    fn create_nested_scene(scene: &mut FigureTree) {
         // Parent - 深紫容器
         let parent = RectangleFigure::new_with_color(
             150.0,
@@ -304,7 +304,7 @@ impl SceneManager {
     /// contents 根节点下包含一个相对坐标模式的子树，
     /// 验证局部坐标模式下子元素坐标的累积效果。
     /// 注意：与场景 1 保持相同的矩形尺寸，方便比较。
-    fn create_nested_with_root_scene(scene: &mut FigureGraph) {
+    fn create_nested_with_root_scene(scene: &mut FigureTree) {
         // 创建透明背景作为根容器
         let root = RectangleFigure::new_with_color(
             0.0,
@@ -351,7 +351,7 @@ impl SceneManager {
     /// 场景 6：裁剪测试
     ///
     /// 验证：子元素超出父边界时被正确裁剪
-    fn create_clip_test_scene(scene: &mut FigureGraph) {
+    fn create_clip_test_scene(scene: &mut FigureTree) {
         // 创建透明背景作为根容器
         let root = RectangleFigure::new_with_color(
             0.0,
@@ -410,7 +410,7 @@ impl SceneManager {
     /// 场景 7：椭圆图形测试
     ///
     /// 验证 EllipseFigure 渲染正确
-    fn create_ellipse_test_scene(scene: &mut FigureGraph) {
+    fn create_ellipse_test_scene(scene: &mut FigureTree) {
         // 创建透明背景
         let root = RectangleFigure::new_with_color(
             0.0,
@@ -461,7 +461,7 @@ impl SceneManager {
     /// 场景 8：直线图形测试
     ///
     /// 验证 LineFigure 渲染正确
-    fn create_line_test_scene(scene: &mut FigureGraph) {
+    fn create_line_test_scene(scene: &mut FigureTree) {
         // 创建透明背景
         let root = RectangleFigure::new_with_color(
             0.0,
@@ -533,7 +533,7 @@ impl SceneManager {
         scene.add_child_to(root_id, Box::new(white_line));
     }
 
-    fn create_dpi_test_scene(scene: &mut FigureGraph) {
+    fn create_dpi_test_scene(scene: &mut FigureTree) {
         let root = RectangleFigure::new_with_color(
             0.0,
             0.0,

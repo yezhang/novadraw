@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
-    Bounded, Color, Figure, FigureGraph, NdCanvas, Rectangle, RectangleFigure, SceneUpdateManager,
+    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, SceneUpdateManager,
     Updatable, ZoomManager,
 };
 use serde::Serialize;
@@ -277,8 +277,8 @@ fn duration_ns(duration: std::time::Duration) -> u64 {
     duration.as_nanos().min(u128::from(u64::MAX)) as u64
 }
 
-fn root_tree() -> (FigureGraph, novadraw::BlockId) {
-    let mut tree = FigureGraph::new();
+fn root_tree() -> (FigureTree, novadraw::FigureId) {
+    let mut tree = FigureTree::new();
     let root = tree.set_contents(Box::new(RectangleFigure::new_with_color(
         0.0,
         0.0,
@@ -289,7 +289,7 @@ fn root_tree() -> (FigureGraph, novadraw::BlockId) {
     (tree, root)
 }
 
-fn build_large_tree() -> FigureGraph {
+fn build_large_tree() -> FigureTree {
     let (mut tree, root) = root_tree();
     for index in 0..LARGE_TREE_FIGURES {
         let column = index % LARGE_TREE_COLUMNS;
@@ -307,7 +307,7 @@ fn build_large_tree() -> FigureGraph {
     tree
 }
 
-fn build_deep_tree() -> FigureGraph {
+fn build_deep_tree() -> FigureTree {
     let (mut tree, mut parent) = root_tree();
     for _ in 1..DEEP_TREE_DEPTH {
         parent = tree.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
@@ -315,7 +315,7 @@ fn build_deep_tree() -> FigureGraph {
     tree
 }
 
-fn build_text_tree() -> FigureGraph {
+fn build_text_tree() -> FigureTree {
     let (mut tree, root) = root_tree();
     for index in 0..TEXT_FIGURES {
         let row = index / 20;
@@ -331,7 +331,7 @@ fn build_text_tree() -> FigureGraph {
     tree
 }
 
-fn build_viewport_tree() -> FigureGraph {
+fn build_viewport_tree() -> FigureTree {
     let (mut tree, root) = root_tree();
     let viewport = tree
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 800.0, 560.0))

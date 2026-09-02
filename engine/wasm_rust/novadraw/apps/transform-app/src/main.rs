@@ -59,9 +59,9 @@ fn coordinate_root(x: f64, y: f64, width: f64, height: f64, color: Color) -> Rec
 }
 
 fn add_nested_roots(
-    scene: &mut novadraw::FigureGraph,
-    contents: novadraw::BlockId,
-) -> (novadraw::BlockId, novadraw::BlockId) {
+    scene: &mut novadraw::FigureTree,
+    contents: novadraw::FigureId,
+) -> (novadraw::FigureId, novadraw::FigureId) {
     let outer = scene.add_child_to(
         contents,
         Box::new(coordinate_root(120.0, 90.0, 520.0, 400.0, OUTER_COLOR)),
@@ -73,8 +73,8 @@ fn add_nested_roots(
     (outer, inner)
 }
 
-fn create_nested_coordinate_roots() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_nested_coordinate_roots() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let contents = scene.set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     scene.add_child_to(
@@ -90,8 +90,8 @@ fn create_nested_coordinate_roots() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_coordinate_roundtrip_overlay() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let contents = scene.set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let local_bounds = Rectangle::new(45.0, 40.0, 150.0, 100.0);
@@ -127,8 +127,8 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureGraph {
     scene
 }
 
-fn create_coordinate_root_move() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_coordinate_root_move() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let contents = scene.set_contents(Box::new(background()));
     scene.add_child_to(
         contents,
@@ -256,8 +256,8 @@ impl FigureEventHandler for TargetDomainFigure {
     }
 }
 
-fn create_event_point_reduction() -> novadraw::FigureGraph {
-    let mut scene = novadraw::FigureGraph::new();
+fn create_event_point_reduction() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
     let contents = scene.set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     scene.add_child_to(
@@ -269,7 +269,7 @@ fn create_event_point_reduction() -> novadraw::FigureGraph {
     scene
 }
 
-type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureGraph>);
+type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn scenes() -> Vec<SceneEntry> {
     vec![
