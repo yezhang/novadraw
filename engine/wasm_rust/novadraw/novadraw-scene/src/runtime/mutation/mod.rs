@@ -45,20 +45,6 @@ impl PendingMutation {
     }
 }
 
-pub struct PendingMutationBatch {
-    mutations: Vec<PendingMutation>,
-}
-
-impl PendingMutationBatch {
-    pub fn is_empty(&self) -> bool {
-        self.mutations.is_empty()
-    }
-
-    pub(crate) fn into_vec(self) -> Vec<PendingMutation> {
-        self.mutations
-    }
-}
-
 #[derive(Default)]
 pub struct PendingMutations {
     queue: VecDeque<PendingMutation>,
@@ -77,10 +63,8 @@ impl PendingMutations {
         self.queue.is_empty()
     }
 
-    pub fn drain(&mut self) -> PendingMutationBatch {
-        PendingMutationBatch {
-            mutations: self.queue.drain(..).collect(),
-        }
+    pub(crate) fn drain(&mut self) -> Vec<PendingMutation> {
+        self.queue.drain(..).collect()
     }
 }
 

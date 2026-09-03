@@ -56,7 +56,7 @@ pub use runtime::event::{
     GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
     MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
-pub use runtime::mutation::{PendingMutationBatch, PendingMutations};
+pub use runtime::mutation::PendingMutations;
 pub use runtime::update;
 pub use runtime::update::{
     AncestorEvent, AncestorEventKind, AncestorListener, CoordinateListener, FigureEvent,

@@ -62,7 +62,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P0 | Figure 生命周期 | `addNotify/removeNotify` | 节点挂载/卸载 hook | 子树 attach/detach、资源初始化、事件解绑 |
 | P0 | Bounds 几何 | `getBounds/setBounds/getLocation/setLocation/getSize/setSize/translate` | `Bounded` / `FigureTree` bounds API | bounds 改变后的 repaint、layout invalidation、子坐标影响 |
 | P0 | ClientArea / Insets | `getClientArea/getInsets` | border-inset 后的内容区 | paint clip、layout area、hit-test descent 共用同一 inset 逻辑 |
-| P0 | Paint 主协议 | `paint(Graphics)` | `FigureTree::render` / `FigureRenderer` traversal + `Figure::paint_figure` | 背景、border、client area、children paint 顺序 |
+| P0 | Paint 主协议 | `paint(Graphics)` | `FigureTree::render` / 内部递归 traversal + `Figure::paint_figure` | 背景、border、client area、children paint 顺序 |
 | P0 | Graphics 绘制上下文 | `Graphics.draw*/fill*/clip*/translate/pushState/popState` | `NdCanvas` / Vello backend | 状态栈、clip、坐标平移、线宽、颜色、文本、路径 |
 | P0 | 坐标转换 | `translateToAbsolute/Relative/Parent/FromParent` | graph 坐标域转换 API | parent/local/root 坐标互转、嵌套偏移、clip 下命中 |
 | P0 | Hit-test | `containsPoint/findFigureAt/findMouseEventTargetAt` | hit-test traversal | 可见性、启用状态、逆 child 顺序、client area、event target |
@@ -213,7 +213,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `paint.protocol` | `IFigure.paint(Graphics)` | 实际 traversal 在 `FigureRenderer::render` / `FigureTree::render`；没有 public `Figure::paint` 方法 | verified | 保护 `render_recursive.rs` 主流程，只在协议不符时调整 |
+| `paint.protocol` | `IFigure.paint(Graphics)` | 实际 traversal 由 `FigureTree::render` 的内部递归实现承载；没有 public `Figure::paint` 或 renderer 替换入口 | verified | 保护 `render_recursive.rs` 主流程，只在协议不符时调整 |
 | `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；`paint_client_area` 是 renderer 内部流程，`Figure::paint_children` 是 hook 不是实际 child traversal | partial | 不把 `paint_children` 误记为真实 traversal API |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | `Bounded::child_clipping_strategy`; concrete figures 提供 `with_child_clipping_strategy` builder；没有统一 setter | partial | M8 viewport、M10 deferred figures 纳入时复查覆盖 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 签名为 `paint(Rectangle, &mut NdCanvas)` | partial | 保持实际 Rust trait 名称 |

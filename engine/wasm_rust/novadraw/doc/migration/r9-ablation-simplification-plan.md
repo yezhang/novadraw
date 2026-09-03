@@ -2,7 +2,7 @@
 
 类型：`migration-guide`
 
-状态：`in_progress`
+状态：`approved`
 
 本文在 R8 完成后，以消融实验方式收窄 Novadraw 的实现和公共 API。目标不是减少类型
 数量本身，而是删除没有独立语义或替换需求的暴露面，同时保持 Draw2D 行为语义、
@@ -55,10 +55,11 @@ Runtime 事务、跨平台边界和后续扩展能力。
 
 ### R9.2 事件分发公共面收窄
 
-状态：`pending`
+状态：`completed`
 
-- 先把应用和验证入口迁移到 Runtime 命名操作；
-- 再将 `SceneDispatchContext`、`DispatchContext` 和默认 dispatcher 实现收窄；
+- 评估应用和验证入口能否全部迁移到 Runtime 命名操作；
+- 删除没有第二实现的完整 dispatcher trait；
+- 评估 `SceneDispatchContext`、`DispatchContext` 是否仍有独立用途；
 - 保留单一 target、capture、focus、hover、gesture session 和 typed fallback；
 - 若测试替身仍需要替换完整 dispatcher，则停止 trait 删除，只收窄 re-export。
 
@@ -68,18 +69,28 @@ Runtime 事务、跨平台边界和后续扩展能力。
 - 删除 dispatcher trait，将默认实现收敛为具体 `EventDispatcher`；
 - M4、M6、M8 契约测试及 workspace 全量门禁通过。
 
-剩余工作：
+停止结论：
 
-- 将应用和外部契约测试的直接 context 构造迁移到 Runtime；
-- 评估 `SceneDispatchContext` / `DispatchContext` 是否可完全收窄。
+- M4、M6、M8 契约测试使用 `DispatchContext` 注入可观测状态；
+- 隐藏该 seam 会迫使 Runtime 增加测试专用公开访问器，公共面反而扩大；
+- 因此保留 `SceneDispatchContext` / `DispatchContext`，不继续过度简化。
 
 ### R9.3 Mutation 包装层简化
 
-状态：`pending`
+状态：`completed`
 
-- 在调用方不再直接构造 mutation queue 后，将其收进 Runtime；
-- 允许合并纯包装类型；
+- 区分外部 context 仍需要的 queue 与仅在 crate 内流转的 batch；
+- 将纯包装 batch 合并为冻结后的内部 mutation 向量；
 - 必须保留“冻结当前批次、新 mutation 延后”和 FIFO 语义。
+
+消融结果：
+
+- 删除 `PendingMutationBatch`；
+- `PendingMutations::drain` 直接冻结为 crate 内部 mutation 向量；
+- `FigureTree::apply_pending_mutations` 收窄为 crate 内部提交入口；
+- `PendingMutations` 继续服务保留的 context seam，不强行收入 Runtime；
+- FIFO、批次冻结、原子 mutation 和 Runtime 提交边界保持不变；
+- workspace fmt、check、Clippy `-D warnings` 与全量测试通过。
 
 ### R9.4 条件项观察
 

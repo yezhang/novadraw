@@ -24,11 +24,11 @@ use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
     LayoutSnapshot,
 };
+use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
     NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
 };
-use crate::{PendingMutationBatch, mutation::PendingMutationKind};
 
 // 渲染模块
 mod render_recursive;
@@ -688,17 +688,17 @@ impl FigureTree {
         child_id
     }
 
-    pub fn apply_pending_mutations(
+    pub(crate) fn apply_pending_mutations(
         &mut self,
         update_manager: &mut UpdateManager,
-        mutations: PendingMutationBatch,
+        mutations: Vec<PendingMutation>,
     ) -> bool {
         if mutations.is_empty() {
             return false;
         }
 
         let mut changed = false;
-        for mutation in mutations.into_vec() {
+        for mutation in mutations {
             changed |= match mutation.into_kind() {
                 kind @ PendingMutationKind::RemoveChild { .. } => {
                     self.apply_remove_mutation(update_manager, kind)
