@@ -229,12 +229,33 @@ D1.4c 执行结果：
 
 ### D1.5 树查询与焦点遍历
 
+状态：`in_progress`
+
 目标：
 
 - 引入可接受/剪枝的 TreeSearch 策略；
 - 支持 exclusion search、ancestor/descendant 查询；
 - 定义稳定、可配置的 focus traversal；
 - 保持普通输入单 target，不引入 DOM 式通用冒泡。
+
+候选契约：
+
+- [`../design/architecture/tree-search-and-focus.md`](../design/architecture/tree-search-and-focus.md)
+
+执行批次：
+
+1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`in_progress`；
+2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy；
+3. D1.5c：Native/Web Tab traversal 和人工验收。
+
+评审点：
+
+- `accept` 只决定当前节点能否返回，`prune` 排除当前节点和整个子树；
+- visibility、enabled、几何、裁剪和坐标转换仍是不可绕过的树不变量；
+- direct focus 与 traversal focus 使用独立资格；
+- 默认 traversal 按稳定前序/逆序且不 wrap；
+- focus owner 失效必须发出 FocusLost，不能静默清除；
+- traversal 到边界时交回平台，不把同一次 Tab 再投递为普通 key event。
 
 D1 完成门禁：
 
