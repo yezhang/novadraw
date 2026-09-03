@@ -40,11 +40,18 @@ Runtime 事务、跨平台边界和后续扩展能力。
 
 ### R9.1 渲染遍历辅助类型收窄
 
-状态：`in_progress`
+状态：`completed`
 
 - 将 `FigureRenderer`、`FigureTreeRenderRef` 限制为 crate 内部实现；
 - 不改变 `render_recursive.rs` 的遍历逻辑；
 - 外部只通过 FigureTree/Runtime 触发绘制。
+
+消融结果：
+
+- `render_recursive` 模块、`FigureRenderer` 和 `FigureTreeRenderRef` 已收窄为 crate
+  内部实现；
+- workspace fmt、check、Clippy `-D warnings` 与全量测试通过；
+- R8 benchmark command 数完全一致，各场景 median 均未超过 15% 回归阈值。
 
 ### R9.2 事件分发公共面收窄
 

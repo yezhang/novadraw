@@ -39,9 +39,8 @@ pub use figure::{
 };
 pub use graph as scene;
 pub use graph::{
-    DEFAULT_VALIDATION_BUDGET, FigureId, FigureNode, FigureRenderer, FigureTree,
-    FigureTreeRenderRef, GraphMutationError, LayoutState, MAX_TREE_DEPTH, NodeState, StyleOverride,
-    ValidationError,
+    DEFAULT_VALIDATION_BUDGET, FigureId, FigureNode, FigureTree, GraphMutationError, LayoutState,
+    MAX_TREE_DEPTH, NodeState, StyleOverride, ValidationError,
 };
 pub use host::{AccessibilityUpdate, CursorIcon, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{

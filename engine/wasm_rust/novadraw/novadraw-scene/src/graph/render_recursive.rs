@@ -14,14 +14,14 @@ const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
 const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
 
 /// 场景图引用（用于渲染）
-pub struct FigureTreeRenderRef<'a> {
+pub(super) struct FigureTreeRenderRef<'a> {
     pub(crate) blocks: &'a slotmap::SlotMap<FigureId, super::FigureNode>,
     pub(crate) selected: &'a HashSet<FigureId>,
 }
 
 impl<'a> FigureTreeRenderRef<'a> {
     /// 获取块
-    pub fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
+    pub(super) fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
     }
 }
@@ -38,7 +38,7 @@ impl<'a> Clone for FigureTreeRenderRef<'a> {
 /// Figure 渲染器（递归模式）
 ///
 /// 直接递归实现，简洁直观。
-pub struct FigureRenderer<'a> {
+pub(super) struct FigureRenderer<'a> {
     scene: FigureTreeRenderRef<'a>,
     gc: &'a mut NdCanvas,
     /// 调试计数器
@@ -47,7 +47,7 @@ pub struct FigureRenderer<'a> {
 
 impl<'a> FigureRenderer<'a> {
     /// 创建渲染器
-    pub fn new(scene: &FigureTreeRenderRef<'a>, gc: &'a mut NdCanvas) -> Self {
+    pub(super) fn new(scene: &FigureTreeRenderRef<'a>, gc: &'a mut NdCanvas) -> Self {
         Self {
             scene: FigureTreeRenderRef {
                 blocks: scene.blocks,
@@ -61,7 +61,7 @@ impl<'a> FigureRenderer<'a> {
     /// 递归渲染
     ///
     /// 对应 draw2d Figure.paint() final。
-    pub fn render(&mut self, root_id: FigureId) {
+    pub(super) fn render(&mut self, root_id: FigureId) {
         self.paint(root_id);
     }
 

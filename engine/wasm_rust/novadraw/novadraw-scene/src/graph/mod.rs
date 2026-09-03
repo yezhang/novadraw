@@ -31,9 +31,9 @@ use crate::runtime::update::{
 use crate::{PendingMutationBatch, mutation::PendingMutationKind};
 
 // 渲染模块
-pub mod render_recursive;
+mod render_recursive;
 
-pub use render_recursive::{FigureRenderer, FigureTreeRenderRef};
+use render_recursive::{FigureRenderer, FigureTreeRenderRef};
 
 #[cfg(test)]
 pub mod bounds_test;
