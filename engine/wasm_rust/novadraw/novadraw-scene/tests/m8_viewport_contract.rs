@@ -4,12 +4,11 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle, Transform, Translatable};
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler,
-    FigureTree, GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder,
-    MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError,
-    RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext, ScrollBarVisibility,
-    ScrollDeltaKind, Updatable, UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent,
-    ZoomManager,
+    Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler, FigureTree,
+    GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
+    PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
+    RectangleFigure, ScaleError, SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind,
+    Updatable, UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
 };
 
 struct RecordingRangeListener {
@@ -457,7 +456,7 @@ fn unhandled_wheel_uses_nearest_scroll_pane_fallback() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     {
         let mut context = SceneDispatchContext::new(
             &mut graph,
@@ -487,7 +486,7 @@ fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     {
         let mut context = SceneDispatchContext::new(
             &mut graph,
@@ -536,7 +535,7 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
 
     {
         let mut context = SceneDispatchContext::new(
@@ -588,7 +587,7 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
 
     {
         let mut context = SceneDispatchContext::new(
@@ -705,7 +704,7 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
 
     for factor in [0.5, 4.0] {
         {
@@ -760,7 +759,7 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
     graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut point);
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let mut context = SceneDispatchContext::new(
         &mut graph,
         &mut interaction,
@@ -787,7 +786,7 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
     graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut after_release);
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let mut context = SceneDispatchContext::new(
         &mut graph,
         &mut interaction,

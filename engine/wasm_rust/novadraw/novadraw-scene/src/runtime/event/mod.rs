@@ -305,66 +305,10 @@ pub trait DispatchContext {
     fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool;
 }
 
-pub trait EventDispatcher {
-    fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
-    fn dispatch_mouse_pressed(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        x: f64,
-        y: f64,
-        button: MouseButton,
-    );
-    fn dispatch_mouse_released(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        x: f64,
-        y: f64,
-        button: MouseButton,
-    );
-    fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
-    fn dispatch_mouse_double_clicked(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        x: f64,
-        y: f64,
-        button: MouseButton,
-    );
-    fn dispatch_mouse_hover(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64);
-    fn dispatch_mouse_wheel(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        x: f64,
-        y: f64,
-        delta_x: f64,
-        delta_y: f64,
-    );
-    fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, event: WheelEvent) {
-        self.dispatch_mouse_wheel(ctx, event.x, event.y, event.delta_x, event.delta_y);
-    }
-    fn dispatch_zoom(&mut self, _ctx: &mut dyn DispatchContext, _event: ZoomEvent) {}
-    fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
-        ctx.clear_gesture_targets();
-    }
-    fn dispatch_key_pressed(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        key: Key,
-        modifiers: KeyModifiers,
-    );
-    fn dispatch_key_released(
-        &mut self,
-        ctx: &mut dyn DispatchContext,
-        key: Key,
-        modifiers: KeyModifiers,
-    );
-    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>);
-    fn release_focus(&mut self, ctx: &mut dyn DispatchContext);
-}
-
 #[derive(Default)]
-pub struct BasicEventDispatcher;
+pub struct EventDispatcher;
 
-impl BasicEventDispatcher {
+impl EventDispatcher {
     fn gesture_target(
         &self,
         ctx: &mut dyn DispatchContext,
@@ -459,12 +403,12 @@ impl BasicEventDispatcher {
     }
 }
 
-impl EventDispatcher for BasicEventDispatcher {
-    fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+impl EventDispatcher {
+    pub fn receive(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
         self.refresh_mouse_target(ctx, x, y);
     }
 
-    fn dispatch_mouse_pressed(
+    pub fn dispatch_mouse_pressed(
         &mut self,
         ctx: &mut dyn DispatchContext,
         x: f64,
@@ -484,7 +428,7 @@ impl EventDispatcher for BasicEventDispatcher {
         }
     }
 
-    fn dispatch_mouse_released(
+    pub fn dispatch_mouse_released(
         &mut self,
         ctx: &mut dyn DispatchContext,
         x: f64,
@@ -502,7 +446,7 @@ impl EventDispatcher for BasicEventDispatcher {
         }
     }
 
-    fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+    pub fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
         let kind = if ctx.captured().is_some() {
             MouseEventKind::Dragged
         } else {
@@ -511,7 +455,7 @@ impl EventDispatcher for BasicEventDispatcher {
         self.dispatch_mouse_event(ctx, kind, x, y, MouseButton::None);
     }
 
-    fn dispatch_mouse_double_clicked(
+    pub fn dispatch_mouse_double_clicked(
         &mut self,
         ctx: &mut dyn DispatchContext,
         x: f64,
@@ -521,7 +465,7 @@ impl EventDispatcher for BasicEventDispatcher {
         self.dispatch_mouse_event(ctx, MouseEventKind::DoubleClicked, x, y, button);
     }
 
-    fn dispatch_mouse_hover(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+    pub fn dispatch_mouse_hover(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
         self.refresh_mouse_target(ctx, x, y);
         let event = Event::Mouse(MouseEvent::new(
             MouseEventKind::Hover,
@@ -532,7 +476,7 @@ impl EventDispatcher for BasicEventDispatcher {
         let _ = ctx.dispatch_to_target(ctx.hover_source(), &event);
     }
 
-    fn dispatch_mouse_wheel(
+    pub fn dispatch_mouse_wheel(
         &mut self,
         ctx: &mut dyn DispatchContext,
         x: f64,
@@ -543,7 +487,7 @@ impl EventDispatcher for BasicEventDispatcher {
         self.dispatch_scroll(ctx, WheelEvent::new(x, y, delta_x, delta_y));
     }
 
-    fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, wheel_event: WheelEvent) {
+    pub fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, wheel_event: WheelEvent) {
         if !wheel_event.x.is_finite()
             || !wheel_event.y.is_finite()
             || !wheel_event.delta_x.is_finite()
@@ -564,7 +508,7 @@ impl EventDispatcher for BasicEventDispatcher {
         }
     }
 
-    fn dispatch_zoom(&mut self, ctx: &mut dyn DispatchContext, zoom_event: ZoomEvent) {
+    pub fn dispatch_zoom(&mut self, ctx: &mut dyn DispatchContext, zoom_event: ZoomEvent) {
         if !zoom_event.is_valid() {
             return;
         }
@@ -582,11 +526,11 @@ impl EventDispatcher for BasicEventDispatcher {
         }
     }
 
-    fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
+    pub fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
         ctx.clear_gesture_targets();
     }
 
-    fn dispatch_key_pressed(
+    pub fn dispatch_key_pressed(
         &mut self,
         ctx: &mut dyn DispatchContext,
         key: Key,
@@ -600,7 +544,7 @@ impl EventDispatcher for BasicEventDispatcher {
         let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
     }
 
-    fn dispatch_key_released(
+    pub fn dispatch_key_released(
         &mut self,
         ctx: &mut dyn DispatchContext,
         key: Key,
@@ -614,11 +558,11 @@ impl EventDispatcher for BasicEventDispatcher {
         let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
     }
 
-    fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>) {
+    pub fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>) {
         self.update_focus(ctx, target);
     }
 
-    fn release_focus(&mut self, ctx: &mut dyn DispatchContext) {
+    pub fn release_focus(&mut self, ctx: &mut dyn DispatchContext) {
         self.update_focus(ctx, None);
     }
 }
@@ -731,7 +675,7 @@ mod tests {
 
     #[test]
     fn test_receive_updates_mouse_target() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut ctx = MockDispatchContext::new(None);
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
@@ -757,7 +701,7 @@ mod tests {
 
     #[test]
     fn test_captured_target_overrides_hit_target() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let hit_target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let captured = scene.add_child_to(
@@ -775,7 +719,7 @@ mod tests {
 
     #[test]
     fn test_press_sets_capture_when_handled() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
@@ -790,7 +734,7 @@ mod tests {
 
     #[test]
     fn test_release_uses_capture_and_then_clears_it() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(None);
@@ -826,7 +770,7 @@ mod tests {
 
     #[test]
     fn test_drag_uses_capture_while_hover_tracks_hit_target() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let captured = scene.add_child_to(root, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
@@ -853,7 +797,7 @@ mod tests {
 
     #[test]
     fn test_handled_press_assigns_focus_and_key_events_follow_focus_owner() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
@@ -885,7 +829,7 @@ mod tests {
 
     #[test]
     fn test_wheel_hover_and_double_click_use_pointer_target() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
@@ -921,7 +865,7 @@ mod tests {
 
     #[test]
     fn unhandled_gestures_dispatch_once_before_specialized_fallback() {
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));

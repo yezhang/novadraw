@@ -474,8 +474,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, MouseButton,
-        MouseEvent, RectangleFigure, Shape, Updatable,
+        Bounded, EventDispatcher, Figure, FigureEventHandler, MouseButton, MouseEvent,
+        RectangleFigure, Shape, Updatable,
     };
 
     struct EnqueueChildFigure {
@@ -686,7 +686,7 @@ mod tests {
         let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut ctx = SceneDispatchContext::new(
             &mut scene,
             &mut interaction,
@@ -734,7 +734,7 @@ mod tests {
         let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut ctx = SceneDispatchContext::new(
             &mut scene,
             &mut interaction,
@@ -766,7 +766,7 @@ mod tests {
         let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
-        let mut dispatcher = BasicEventDispatcher;
+        let mut dispatcher = EventDispatcher;
         let mut ctx = SceneDispatchContext::new(
             &mut scene,
             &mut interaction,

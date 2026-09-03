@@ -1,8 +1,7 @@
 use novadraw::{
-    BasicEventDispatcher, Color, EventDispatcher, FigureTree, GesturePhase, GestureSessionId,
-    InteractionState, KeyModifiers, PendingMutations, Rectangle, RectangleFigure,
-    SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind, UpdateManager, WheelEvent,
-    ZoomEvent, ZoomManager,
+    Color, EventDispatcher, FigureTree, GesturePhase, GestureSessionId, InteractionState,
+    KeyModifiers, PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext,
+    ScrollBarVisibility, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -234,7 +233,7 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
     graph.revalidate(pane.pane_id());
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     {
         let mut context = SceneDispatchContext::new(
             &mut graph,
@@ -317,7 +316,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     let mut interaction = InteractionState::default();
     let mut update_manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
     {
         let mut context = SceneDispatchContext::new(

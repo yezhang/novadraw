@@ -231,7 +231,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 | `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureTree::{translate_to_parent,translate_from_parent}`，`Viewport::{translate_to_parent,translate_from_parent}` | verified | active core 已验证；Viewport 扩展仍归 M8 |
 | `coordinate.conversion` | `isCoordinateSystem()` | 无对应模式开关；所有树边统一使用 parent-local bounds，容器通过 `FigureContainer::child_transform` 提供额外 Affine2D | verified | 坐标根语义由显式变换边表达；移动 ancestor 不改写 descendant bounds |
 | `coordinate.conversion` | `isMirrored()` | 暂无 public 等价 API | deferred | 可延后，当前不阻塞 M4 |
-| `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `BasicEventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
+| `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
 Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps/transform-app`。

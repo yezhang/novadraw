@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
-    BasicEventDispatcher, Bounded, Color, EventContext, EventDispatcher, Figure,
-    FigureEventHandler, FigureTree, FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent,
-    KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, NdCanvas,
-    PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext, Updatable, UpdateManager,
-    WheelEvent,
+    Bounded, Color, EventContext, EventDispatcher, Figure, FigureEventHandler, FigureTree,
+    FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind, NdCanvas, PendingMutations, Rectangle,
+    RectangleFigure, SceneDispatchContext, Updatable, UpdateManager, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -262,9 +261,9 @@ fn with_context(
     interaction: &mut InteractionState,
     manager: &mut UpdateManager,
     pending: &mut PendingMutations,
-    action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
+    action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>),
 ) {
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let mut context = SceneDispatchContext::new(graph, interaction, manager, pending);
     action(&mut dispatcher, &mut context);
 }

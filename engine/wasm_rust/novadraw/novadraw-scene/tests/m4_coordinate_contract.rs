@@ -4,10 +4,9 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventContext, EventDispatcher, Figure, FigureEvent,
-    FigureEventHandler, FigureTree, InteractionState, LineBorder, MouseButton, MouseEvent,
-    NotificationEffect, PendingMutations, RectangleFigure, SceneDispatchContext, Shape, Updatable,
-    UpdateManager,
+    Bounded, EventContext, EventDispatcher, Figure, FigureEvent, FigureEventHandler, FigureTree,
+    InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect, PendingMutations,
+    RectangleFigure, SceneDispatchContext, Shape, Updatable, UpdateManager,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
@@ -193,7 +192,7 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending_mutations = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let mut context = SceneDispatchContext::new(
         &mut graph,
         &mut interaction,

@@ -4,8 +4,8 @@ use novadraw_render::{
 };
 
 use crate::{
-    BasicEventDispatcher, EventDispatcher, Figure, FigureId, FigureTree, InteractionState, Key,
-    KeyModifiers, MouseButton, PendingMutations, SceneDispatchContext, UpdateEvent, UpdateListener,
+    EventDispatcher, Figure, FigureId, FigureTree, InteractionState, Key, KeyModifiers,
+    MouseButton, PendingMutations, SceneDispatchContext, UpdateEvent, UpdateListener,
     UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
@@ -13,7 +13,7 @@ use crate::{
 pub struct Runtime {
     tree: FigureTree,
     interaction: InteractionState,
-    interaction_dispatcher: BasicEventDispatcher,
+    interaction_dispatcher: EventDispatcher,
     updates: UpdateManager,
     mutations: PendingMutations,
     full_redraw_pending: bool,
@@ -33,7 +33,7 @@ impl Runtime {
         Self {
             tree,
             interaction: InteractionState::default(),
-            interaction_dispatcher: BasicEventDispatcher,
+            interaction_dispatcher: EventDispatcher,
             updates: UpdateManager::new(),
             mutations: PendingMutations::new(),
             full_redraw_pending: true,
@@ -215,7 +215,7 @@ impl Runtime {
     /// Applies all callback effects and structural mutations before returning.
     fn dispatch(
         &mut self,
-        action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
+        action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>),
     ) {
         {
             let mut context = SceneDispatchContext::new(

@@ -62,6 +62,17 @@ Runtime 事务、跨平台边界和后续扩展能力。
 - 保留单一 target、capture、focus、hover、gesture session 和 typed fallback；
 - 若测试替身仍需要替换完整 dispatcher，则停止 trait 删除，只收窄 re-export。
 
+已完成子批：
+
+- 完整 dispatcher trait 只有一个实现，测试替身只替换 `DispatchContext`；
+- 删除 dispatcher trait，将默认实现收敛为具体 `EventDispatcher`；
+- M4、M6、M8 契约测试及 workspace 全量门禁通过。
+
+剩余工作：
+
+- 将应用和外部契约测试的直接 context 构造迁移到 Runtime；
+- 评估 `SceneDispatchContext` / `DispatchContext` 是否可完全收窄。
+
 ### R9.3 Mutation 包装层简化
 
 状态：`pending`

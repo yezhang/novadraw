@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree,
-    FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent,
-    KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations,
-    Rectangle, RectangleFigure, SceneDispatchContext, ScrollDeltaKind, Updatable, UpdateManager,
-    WheelEvent,
+    Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind,
+    GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
+    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure,
+    SceneDispatchContext, ScrollDeltaKind, Updatable, UpdateManager, WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -186,7 +185,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
 
     {
         let mut ctx = SceneDispatchContext::new(
@@ -260,7 +259,7 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
-    let mut dispatcher = BasicEventDispatcher;
+    let mut dispatcher = EventDispatcher;
     let session = GestureSessionId::new(7);
 
     {
