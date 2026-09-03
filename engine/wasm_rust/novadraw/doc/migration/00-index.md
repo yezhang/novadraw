@@ -12,3 +12,5 @@
   的分阶段计划及人工验收门禁。
 - [`r8-execution-plan.md`](r8-execution-plan.md)：R8 兼容名称清理、性能基线与扩展
   capability 的分批执行计划。
+- [`r9-ablation-simplification-plan.md`](r9-ablation-simplification-plan.md)：R8 后按
+  消融实验收窄公共 API 与重复包装的分批计划。
