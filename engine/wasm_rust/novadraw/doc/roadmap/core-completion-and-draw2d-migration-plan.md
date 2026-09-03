@@ -244,9 +244,9 @@ D1.4c 执行结果：
 
 执行批次：
 
-1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`in_progress`；
-2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy；
-3. D1.5c：Native/Web Tab traversal 和人工验收。
+1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`complete`；
+2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy，`not_started`；
+3. D1.5c：Native/Web Tab traversal 和人工验收，`not_started`。
 
 评审点：
 
@@ -256,6 +256,18 @@ D1.4c 执行结果：
 - 默认 traversal 按稳定前序/逆序且不 wrap；
 - focus owner 失效必须发出 FocusLost，不能静默清除；
 - traversal 到边界时交回平台，不把同一次 Tab 再投递为普通 key event。
+
+D1.5a 执行结果：
+
+- 新增只读 `TreeSearchContext` 及 `TreeSearch`、`IdentitySearch`、
+  `ExclusionSearch`；
+- 新增 `hit_test_with`、`hit_test_excluding`、`find_in_subtree`、
+  `ancestor_ids`、`descendant_ids` 和 `is_ancestor_of`；
+- 普通命中、mouse event target、cursor、tooltip 与 gesture 共用同一坐标、裁剪和
+  reverse Z-order 遍历内核；
+- `prune` 在访问子树前执行，`accept` 在所有可命中子节点失败后决定当前节点；
+- 5 项内部搜索测试与 2 项 public API 契约测试通过；
+- `cargo test --workspace`、核心 Clippy 和 Web target check 通过。
 
 D1 完成门禁：
 

@@ -38,7 +38,7 @@ Novadraw 保留这些语义，并作以下明确变体：
 
 ## 3. TreeSearch
 
-候选接口：
+接口：
 
 ```rust
 pub trait TreeSearch {
@@ -241,11 +241,15 @@ Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。
 
 ### D1.5a TreeSearch
 
+状态：`complete`
+
 - 引入只读搜索上下文和内置策略；
 - 统一几何命中与事件目标遍历内核；
 - 增加 exclusion、ancestor 和 descendant 契约测试。
 
 ### D1.5b Focus model
+
+状态：`not_started`
 
 - 增加显式 focusable/focus_traversable 节点属性；
 - 引入默认 tree-order policy；
@@ -253,6 +257,8 @@ Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。
 - 迁移现有 event demo 的显式资格配置。
 
 ### D1.5c Platform traversal
+
+状态：`not_started`
 
 - Native/Web adapter 接入 Tab/Shift+Tab；
 - Headless 覆盖 forward/backward/boundary；

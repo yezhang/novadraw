@@ -206,8 +206,8 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | `figure.box.client_area` | `getClientArea()`, `getClientArea(Rectangle)`, `getInsets()` | `Bounded::{client_area,insets}` | verified | M5 layout area、M8 viewport client area 继续复查 |
 | `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{set_visible,set_enabled,is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` | verified | M6 复查 disabled 对 event target 的策略 |
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |
-| `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | 暂无 public 等价 API | missing | 作为 P1 search strategy 扩展 |
-| `figure.properties` | `foreground/background/font/cursor/tooltip/opaque` | 目标契约名继续使用 `figure.properties`；建议未来声明 `FigureProperties` / `FigureStyle` | missing | M10 前定义本地属性、继承属性和 opaque 背景语义 |
+| `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | `TreeSearch`、`TreeSearchContext`、`ExclusionSearch`、`FigureTree::{hit_test_with,hit_test_excluding,find_in_subtree,ancestor_ids,descendant_ids,is_ancestor_of}` | verified | D1.5a：共享 hit-test traversal、prune 子树与稳定结构查询已有契约测试 |
+| `figure.properties` | `foreground/background/font/cursor/tooltip/opaque` | `FigureStyle`、`ResolvedStyle`、`FigureTree::{figure_style,resolved_style,set_figure_style,set_opaque}`、Runtime cursor/tooltip 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
