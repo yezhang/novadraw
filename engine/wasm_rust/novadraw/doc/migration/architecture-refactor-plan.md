@@ -319,7 +319,7 @@ cargo test --workspace
 
 前置条件：R7 手动验证 `PASS`。
 
-状态：`planning`
+状态：`approved`
 
 执行细则：
 

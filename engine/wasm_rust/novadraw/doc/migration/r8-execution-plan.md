@@ -2,6 +2,8 @@
 
 类型：`migration-guide`
 
+状态：`approved`
+
 本文细化
 [`architecture-refactor-plan.md`](architecture-refactor-plan.md)
 中的 R8。目标是删除迁移期兼容名称、建立可复查的性能基线，并验证二维核心与
@@ -181,7 +183,7 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 
 ### R8.5 扩展边界验证
 
-状态：`in_progress`
+状态：`completed`
 
 工作：
 
@@ -195,6 +197,16 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 - backend 不支持 projective 时返回明确结果；
 - 二维 layout bounds、hit-test 和 damage 语义保持不变；
 - Scene3D 类型不反向依赖 FigureTree 内部可变状态。
+
+完成记录：
+
+- `BackendCapabilities` 通过 `RenderCapability::ProjectiveComposition` 显式声明能力；
+- 不支持该能力时，`require` 返回 `UnsupportedRenderCapability`；
+- `r8_extension_boundaries` 验证外部 Scene3D 帧只经现有 `ImageData` 合成边界进入
+  二维命令流；
+- Rust 源码中不存在 DisplayList 协议实现，相关文档继续保持 `proposal`；
+- `novadraw-render` 的正常依赖不包含 `novadraw-scene`；
+- workspace fmt、check、Clippy `-D warnings` 与全量测试通过。
 
 ## 4. 每批统一验证
 

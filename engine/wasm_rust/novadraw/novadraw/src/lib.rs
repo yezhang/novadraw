@@ -6,8 +6,9 @@ pub use novadraw_core::Color;
 pub use novadraw_geometry::{Affine2D, Transform};
 
 pub use novadraw_render::{
-    BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCommand,
-    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo, command,
+    BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCapability,
+    RenderCommand, RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo,
+    UnsupportedRenderCapability, command,
 };
 
 pub use novadraw_render as render;

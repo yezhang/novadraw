@@ -1,7 +1,7 @@
 //! Vello 渲染器实现
 //!
 //! 实现 RenderCommand 解释器，维护独立的状态栈。
-//! 状态管理从 NdCanvas 移到本模块（参考 skia/Flutter DisplayList 设计）。
+//! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
 #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use std::sync::Arc;
