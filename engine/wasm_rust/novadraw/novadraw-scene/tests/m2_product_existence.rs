@@ -5,7 +5,7 @@ use novadraw_scene::{
     Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureNode,
     FigureTree, InteractionState, LayoutState, LineBorder, NodeState, PolygonFigure,
     PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
-    Updatable, ViewportFigure,
+    ViewportFigure,
 };
 
 const ROOT_COLOR: Color = Color {
@@ -78,10 +78,6 @@ impl Bounded for PaintMarkerFigure {
     fn name(&self) -> &'static str {
         "PaintMarkerFigure"
     }
-}
-
-impl Updatable for PaintMarkerFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for PaintMarkerFigure {

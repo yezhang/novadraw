@@ -8,7 +8,7 @@ use novadraw_scene::{
     GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
     PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
     RectangleFigure, ScaleError, SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind,
-    Updatable, UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
+    UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
 };
 
 struct RecordingRangeListener {
@@ -350,10 +350,6 @@ impl Bounded for WheelIgnoringFigure {
     fn name(&self) -> &'static str {
         "WheelIgnoringFigure"
     }
-}
-
-impl Updatable for WheelIgnoringFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for WheelIgnoringFigure {

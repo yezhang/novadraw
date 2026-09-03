@@ -2,7 +2,7 @@
 
 use novadraw::{
     Bounded, Color, EventContext, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas,
-    Point, Rectangle, RectangleFigure, Shape, Updatable,
+    Point, Rectangle, RectangleFigure, Shape,
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{
@@ -181,10 +181,6 @@ impl Bounded for TargetDomainFigure {
     }
 }
 
-impl Updatable for TargetDomainFigure {
-    fn validate(&mut self) {}
-}
-
 impl Figure for TargetDomainFigure {
     fn initial_bounds(&self) -> Rectangle {
         Bounded::bounds(self)
@@ -245,11 +241,10 @@ impl Shape for TargetDomainFigure {
 }
 
 impl FigureEventHandler for TargetDomainFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         let point = Point::new(event.x, event.y);
         let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
         if local_bounds.contains(point) {
-            ctx.select_target();
             return true;
         }
         false

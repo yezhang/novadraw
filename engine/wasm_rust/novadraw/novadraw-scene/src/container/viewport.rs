@@ -16,7 +16,7 @@ use novadraw_render::NdCanvas;
 
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
-    Updatable, border::Border,
+    border::Border,
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
@@ -446,10 +446,6 @@ impl Bounded for ViewportFigure {
             (self.bounds.height - top - bottom).max(0.0),
         )
     }
-}
-
-impl Updatable for ViewportFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for ViewportFigure {

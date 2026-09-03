@@ -10,6 +10,7 @@ novadraw-core = { path = "../novadraw-core" }
 glam.workspace = true
 serde.workspace = true
 tracing.workspace = true
+uuid.workspace = true
 
 vello = { workspace = true, optional = true }
 winit = { workspace = true, optional = true }

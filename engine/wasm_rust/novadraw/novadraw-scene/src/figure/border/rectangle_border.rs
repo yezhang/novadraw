@@ -1,6 +1,6 @@
 //! RectangleBorder 矩形边框
 //!
-//! 绘制带圆角的矩形边框。
+//! 绘制矩形边框。
 
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
@@ -10,7 +10,7 @@ use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH};
 
 /// 矩形边框
 ///
-/// 绘制矩形边框，支持圆角。
+/// 绘制矩形边框。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RectangleBorder {
     /// 边框颜色
@@ -21,8 +21,6 @@ pub struct RectangleBorder {
     pub style: BorderStyle,
     /// 内边距 (top, left, bottom, right)
     pub insets: (f64, f64, f64, f64),
-    /// 圆角半径
-    pub corner_radius: f64,
 }
 
 impl RectangleBorder {
@@ -33,7 +31,6 @@ impl RectangleBorder {
             width,
             style: BorderStyle::Solid,
             insets: (0.0, 0.0, 0.0, 0.0),
-            corner_radius: 0.0,
         }
     }
 
@@ -51,12 +48,6 @@ impl RectangleBorder {
     /// 设置边框样式
     pub fn with_style(mut self, style: BorderStyle) -> Self {
         self.style = style;
-        self
-    }
-
-    /// 设置圆角半径
-    pub fn with_corner_radius(mut self, radius: f64) -> Self {
-        self.corner_radius = radius;
         self
     }
 }
@@ -82,15 +73,7 @@ impl Border for RectangleBorder {
         let cap = novadraw_render::command::LineCap::Butt;
         let join = novadraw_render::command::LineJoin::Miter;
 
-        if self.corner_radius > 0.0 {
-            // 圆角矩形：使用多条线段模拟（当前版本暂不支持圆角）
-            // TODO: 后续添加 stroke_rounded_rect 支持
-            // 暂时绘制普通矩形
-            gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
-        } else {
-            // 绘制普通矩形边框
-            gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
-        }
+        gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
     }
 
     fn get_color(&self) -> Color {

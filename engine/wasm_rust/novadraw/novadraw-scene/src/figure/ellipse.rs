@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
 
 /// 椭圆图形
 ///
@@ -165,12 +165,6 @@ impl Bounded for EllipseFigure {
             .map(|border| border.get_insets())
             .unwrap_or((0.0, 0.0, 0.0, 0.0))
     }
-}
-
-// 实现 Updatable trait
-impl Updatable for EllipseFigure {
-    fn validate(&mut self) {}
-    fn invalidate(&mut self) {}
 }
 
 impl Figure for EllipseFigure {

@@ -4,7 +4,7 @@ use novadraw_scene::{
     Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind,
     GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
     MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure,
-    SceneDispatchContext, ScrollDeltaKind, Updatable, UpdateManager, WheelEvent,
+    SceneDispatchContext, ScrollDeltaKind, UpdateManager, WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -32,10 +32,6 @@ impl Bounded for InputProbeFigure {
     fn name(&self) -> &'static str {
         "InputProbeFigure"
     }
-}
-
-impl Updatable for InputProbeFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for InputProbeFigure {

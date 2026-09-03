@@ -5,20 +5,7 @@ use std::cell::{Cell, RefCell};
 use novadraw_geometry::Rectangle;
 use novadraw_render::SurfaceInfo;
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub enum CursorIcon {
-    #[default]
-    Default,
-    Pointer,
-    Crosshair,
-    Text,
-    Move,
-    NotAllowed,
-    EastWestResize,
-    NorthSouthResize,
-    NorthEastSouthWestResize,
-    NorthWestSouthEastResize,
-}
+use crate::CursorIcon;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ImeState {

@@ -4,7 +4,7 @@ use novadraw::{
     Bounded, Color, EventContext, EventDispatcher, Figure, FigureEventHandler, FigureTree,
     FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
     MouseButton, MouseEvent, MouseEventKind, NdCanvas, PendingMutations, Rectangle,
-    RectangleFigure, SceneDispatchContext, Updatable, UpdateManager, WheelEvent,
+    RectangleFigure, SceneDispatchContext, UpdateManager, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -74,10 +74,6 @@ impl Bounded for EventProbeFigure {
     fn name(&self) -> &'static str {
         "EventProbeFigure"
     }
-}
-
-impl Updatable for EventProbeFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for EventProbeFigure {

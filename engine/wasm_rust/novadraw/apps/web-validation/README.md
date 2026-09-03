@@ -18,5 +18,8 @@ cargo install wasm-bindgen-cli \
 ./scripts/serve_web_validation.sh
 ```
 
-默认入口为 <http://127.0.0.1:4173/?backend=vello>。Canvas2D 对照入口为
-<http://127.0.0.1:4173/?backend=canvas2d>。
+默认入口为 <http://127.0.0.1:4173/?backend=vello>。页面包含 Input、Shapes 和
+Viewport 主题；每个主题的场景可通过画布上方的箭头切换。主题与场景可通过查询参数
+复现，例如 <http://127.0.0.1:4173/?backend=vello&theme=viewport&scene=2>。
+
+Canvas2D 对照入口为 <http://127.0.0.1:4173/?backend=canvas2d>。

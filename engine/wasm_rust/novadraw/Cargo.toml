@@ -8,6 +8,7 @@ members = [
   "novadraw-render",
   "novadraw-scene",
   "novadraw-apps",
+  "novadraw-demo-scenes",
 
   "apps/editor",
   "apps/vello-app",

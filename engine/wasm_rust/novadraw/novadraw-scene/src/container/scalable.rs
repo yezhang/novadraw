@@ -6,8 +6,7 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, Updatable,
-    border::Border,
+    Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, border::Border,
 };
 use crate::{FigureId, FigureTree, GraphMutationError, PropertyValue, UpdateManager};
 
@@ -246,10 +245,6 @@ impl Bounded for ScalableLayeredPaneFigure {
             (self.bounds.height - top - bottom).max(0.0),
         )
     }
-}
-
-impl Updatable for ScalableLayeredPaneFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for ScalableLayeredPaneFigure {

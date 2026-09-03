@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
-    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, Updatable,
-    UpdateManager, ZoomManager,
+    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, UpdateManager,
+    ZoomManager,
 };
 use serde::Serialize;
 
@@ -113,10 +113,6 @@ impl Bounded for TextProbeFigure {
     fn name(&self) -> &'static str {
         "R8TextProbe"
     }
-}
-
-impl Updatable for TextProbeFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for TextProbeFigure {

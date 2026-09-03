@@ -7,6 +7,7 @@ use novadraw::{
 use novadraw_apps::WinitPlatformHost;
 
 use crate::scene_manager::{SceneManager, SceneType};
+use crate::selection::SelectionModel;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RawPointerInput {
@@ -88,6 +89,7 @@ pub struct InteractionReport {
 
 pub struct EditorInteractionCore {
     runtime: Runtime,
+    selection: SelectionModel,
     current_scene: SceneType,
 }
 
@@ -103,11 +105,17 @@ impl EditorInteractionCore {
     }
 
     fn from_scene_manager(scene_manager: SceneManager) -> Self {
-        let mut runtime = Runtime::new(scene_manager.scene);
+        let SceneManager {
+            scene,
+            current_scene,
+            initial_selection,
+        } = scene_manager;
+        let mut runtime = Runtime::new(scene);
         runtime.add_update_listener(Box::new(TraceUpdateListener));
         Self {
             runtime,
-            current_scene: scene_manager.current_scene,
+            selection: SelectionModel::new(initial_selection),
+            current_scene,
         }
     }
 
@@ -149,7 +157,11 @@ impl EditorInteractionCore {
     }
 
     pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
+        let target = self.runtime.tree().find_mouse_event_target_at(x, y);
         self.runtime.dispatch_mouse_pressed(x, y, button);
+        if button == MouseButton::Left && self.selection.select(self.runtime.tree(), target) {
+            self.runtime.request_full_redraw();
+        }
     }
 
     pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
@@ -186,6 +198,11 @@ impl EditorInteractionCore {
 
     pub fn release_focus(&mut self) {
         self.runtime.release_focus();
+    }
+
+    #[cfg(test)]
+    pub fn selected(&self) -> Option<FigureId> {
+        self.selection.selected()
     }
 
     pub fn dispatch_raw_mouse_moved(&mut self, input: RawPointerInput) -> InteractionTrace {
@@ -321,6 +338,7 @@ impl EditorRuntime {
     fn run_update_transaction<R>(&mut self, f: impl FnOnce(&mut EditorInteractionCore) -> R) -> R {
         let was_queued = self.core.runtime.has_pending_update();
         let result = f(&mut self.core);
+        self.host.set_cursor(self.core.runtime.cursor_icon());
         self.schedule_update_if_transitioned(was_queued);
         result
     }
@@ -395,13 +413,19 @@ impl EditorRuntime {
 
     pub fn render(&mut self, renderer: &mut impl RenderBackend) -> RenderOutcome {
         self.host.begin_redraw();
-        let Some(submission) = self
+        if self.core.selection.reconcile(self.core.runtime.tree()) {
+            self.core.runtime.request_full_redraw();
+        }
+        let Some(mut submission) = self
             .core
             .runtime
             .prepare_submission(self.host.surface_info(), renderer.capabilities())
         else {
             return RenderOutcome::Skipped;
         };
+        self.core
+            .selection
+            .append_feedback(self.core.runtime.tree(), &mut submission);
         let frame_id = submission.frame_id;
         let outcome = renderer.submit(&submission);
         self.core.runtime.complete_submission(frame_id, outcome);
@@ -432,7 +456,7 @@ impl UpdateListener for TraceUpdateListener {
 mod tests {
     use novadraw::{
         Bounded, Color, EventContext, Figure, FigureEventHandler, FigureTree, MouseEvent, NdCanvas,
-        Rectangle, RenderCommandKind, Shape, Updatable,
+        Rectangle, RenderCommandKind, Shape,
         command::{LineCap, LineJoin},
     };
 
@@ -461,12 +485,6 @@ mod tests {
         fn name(&self) -> &'static str {
             "TestInteractiveFigure"
         }
-    }
-
-    impl Updatable for TestInteractiveFigure {
-        fn validate(&mut self) {}
-
-        fn invalidate(&mut self) {}
     }
 
     impl Shape for TestInteractiveFigure {
@@ -514,10 +532,7 @@ mod tests {
     }
 
     impl FigureEventHandler for TestInteractiveFigure {
-        fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-            if event.button == MouseButton::Left {
-                ctx.select_target();
-            }
+        fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
             true
         }
 
@@ -552,6 +567,7 @@ mod tests {
         let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,
+            initial_selection: None,
         });
         (core, target_id)
     }
@@ -584,6 +600,7 @@ mod tests {
         let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,
+            initial_selection: None,
         });
         (core, target_id)
     }
@@ -596,8 +613,8 @@ mod tests {
     };
     const TEST_SELECTION_OUTLINE_STROKE_WIDTH: f64 = 4.0;
 
-    fn has_selection_stroke(canvas: &NdCanvas) -> bool {
-        canvas.commands().iter().any(|command| match &command.kind {
+    fn has_selection_stroke(commands: &[novadraw::RenderCommand]) -> bool {
+        commands.iter().any(|command| match &command.kind {
             RenderCommandKind::StrokeRect { color, width, .. } => {
                 *color == TEST_SELECTION_OUTLINE_COLOR
                     && (*width - TEST_SELECTION_OUTLINE_STROKE_WIDTH).abs() < f64::EPSILON
@@ -646,7 +663,7 @@ mod tests {
         assert_eq!(report.traces[0].mouse_target_after, Some(target_id));
         assert!(core.runtime.interaction().is_hovered(target_id));
         assert!(!core.runtime.interaction().is_pressed(target_id));
-        assert!(!core.runtime.tree().is_selected(target_id));
+        assert_eq!(core.selected(), None);
     }
 
     #[test]
@@ -663,7 +680,7 @@ mod tests {
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
         assert!(core.runtime.interaction().is_hovered(target_id));
         assert!(!core.runtime.interaction().is_pressed(target_id));
-        assert!(core.runtime.tree().is_selected(target_id));
+        assert_eq!(core.selected(), Some(target_id));
     }
 
     #[test]
@@ -691,7 +708,7 @@ mod tests {
         assert_eq!(report.traces[3].mouse_target_after, None);
         assert!(!core.runtime.interaction().is_hovered(target_id));
         assert!(!core.runtime.interaction().is_pressed(target_id));
-        assert!(core.runtime.tree().is_selected(target_id));
+        assert_eq!(core.selected(), Some(target_id));
     }
 
     #[test]
@@ -712,16 +729,18 @@ mod tests {
         assert_eq!(report.traces[1].mouse_target_after, Some(target_id));
         assert!(core.runtime.interaction().is_hovered(target_id));
         assert!(!core.runtime.interaction().is_pressed(target_id));
-        assert!(core.runtime.tree().is_selected(target_id));
+        assert_eq!(core.selected(), Some(target_id));
     }
 
     #[test]
     fn test_selected_target_renders_highlight_overlay() {
         let (mut core, target_id) = build_test_core();
-        core.runtime.set_selected(Some(target_id));
+        assert!(core.selection.select(core.runtime.tree(), Some(target_id)));
 
         let canvas = core.runtime.record_full_frame();
+        let mut commands = canvas.commands().clone();
+        commands.extend(core.selection.feedback_commands(core.runtime.tree()));
 
-        assert!(has_selection_stroke(&canvas));
+        assert!(has_selection_stroke(&commands));
     }
 }

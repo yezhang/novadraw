@@ -26,7 +26,8 @@ pub mod traits;
 pub use command::{ImageData, LineCap, LineJoin, LineStyle, RenderCommand, RenderCommandKind};
 pub use context::NdCanvas;
 pub use submission::{
-    DamageMode, DamageSet, FrameId, RenderSubmission, ResourceDelta, SurfaceInfo,
+    DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta, ResourceId,
+    ResourcePayload, ResourceUpdate, SurfaceInfo,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

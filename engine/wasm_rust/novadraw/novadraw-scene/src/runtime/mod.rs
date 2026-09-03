@@ -7,10 +7,14 @@ pub mod context;
 pub mod event;
 pub mod interaction;
 pub mod mutation;
+pub mod resource;
 // `runtime::Runtime` is the deliberate public domain name.
 #[allow(clippy::module_inception)]
 pub mod runtime;
 pub mod update;
 
 pub use interaction::{InteractionState, PointerId};
+pub use resource::{
+    FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
+};
 pub use runtime::Runtime;

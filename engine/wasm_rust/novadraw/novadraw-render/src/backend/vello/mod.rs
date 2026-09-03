@@ -576,10 +576,6 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &kurbo_rect);
             }
 
-            crate::command::RenderCommandKind::Clear { color: _ } => {
-                // 未实现
-            }
-
             crate::command::RenderCommandKind::Line {
                 p1,
                 p2,
@@ -794,8 +790,6 @@ impl VelloRenderer {
                     }
                 }
 
-                // 填充路径 - 需要从 context 获取颜色，这里简化处理
-                // TODO: 正确传递颜色
                 self.scene.fill(
                     vello::peniko::Fill::NonZero,
                     affine,

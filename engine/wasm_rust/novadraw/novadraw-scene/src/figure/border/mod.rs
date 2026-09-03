@@ -93,7 +93,6 @@ impl BorderBuilder {
             width: self.width,
             style: self.style,
             insets: self.insets,
-            corner_radius: 0.0,
         }
     }
 

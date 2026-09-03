@@ -6,7 +6,7 @@ use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
     Bounded, EventContext, EventDispatcher, Figure, FigureEvent, FigureEventHandler, FigureTree,
     InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect, PendingMutations,
-    RectangleFigure, SceneDispatchContext, Shape, Updatable, UpdateManager,
+    RectangleFigure, SceneDispatchContext, Shape, UpdateManager,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
@@ -91,10 +91,6 @@ impl Bounded for RecordingFigure {
     fn name(&self) -> &'static str {
         "RecordingFigure"
     }
-}
-
-impl Updatable for RecordingFigure {
-    fn validate(&mut self) {}
 }
 
 impl Shape for RecordingFigure {

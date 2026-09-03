@@ -8,6 +8,8 @@ pub struct SceneManager {
     pub scene: FigureTree,
     /// 当前激活的场景类型
     pub current_scene: SceneType,
+    /// 编辑器场景期望的初始选择，不属于 FigureTree 状态。
+    pub initial_selection: Option<novadraw::FigureId>,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -72,22 +74,44 @@ impl SceneManager {
     pub fn with_scene(scene_type: SceneType) -> Self {
         let mut scene = FigureTree::new();
 
-        match scene_type {
-            SceneType::BasicAnchors => Self::create_basic_anchors_scene(&mut scene),
-            SceneType::Nested => Self::create_nested_scene(&mut scene),
-            SceneType::NestedWithRoot => Self::create_nested_with_root_scene(&mut scene),
-            SceneType::ZOrder => Self::create_zorder_scene(&mut scene),
-            SceneType::Visibility => Self::create_visibility_scene(&mut scene),
-            SceneType::BoundsTranslate => Self::create_bounds_translate_scene(&mut scene),
-            SceneType::ClipTest => Self::create_clip_test_scene(&mut scene),
-            SceneType::EllipseTest => Self::create_ellipse_test_scene(&mut scene),
-            SceneType::LineTest => Self::create_line_test_scene(&mut scene),
-            SceneType::DpiTest => Self::create_dpi_test_scene(&mut scene),
-        }
+        let initial_selection = match scene_type {
+            SceneType::BasicAnchors => {
+                Self::create_basic_anchors_scene(&mut scene);
+                None
+            }
+            SceneType::Nested => Some(Self::create_nested_scene(&mut scene)),
+            SceneType::NestedWithRoot => Some(Self::create_nested_with_root_scene(&mut scene)),
+            SceneType::ZOrder => {
+                Self::create_zorder_scene(&mut scene);
+                None
+            }
+            SceneType::Visibility => {
+                Self::create_visibility_scene(&mut scene);
+                None
+            }
+            SceneType::BoundsTranslate => Some(Self::create_bounds_translate_scene(&mut scene)),
+            SceneType::ClipTest => {
+                Self::create_clip_test_scene(&mut scene);
+                None
+            }
+            SceneType::EllipseTest => {
+                Self::create_ellipse_test_scene(&mut scene);
+                None
+            }
+            SceneType::LineTest => {
+                Self::create_line_test_scene(&mut scene);
+                None
+            }
+            SceneType::DpiTest => {
+                Self::create_dpi_test_scene(&mut scene);
+                None
+            }
+        };
 
         Self {
             scene,
             current_scene: scene_type,
+            initial_selection,
         }
     }
 
@@ -153,7 +177,7 @@ impl SceneManager {
     /// 场景 4：prim_translate 平移传播测试
     ///
     /// 验证：`prim_translate` 平移操作会传播到所有子节点
-    fn create_bounds_translate_scene(scene: &mut FigureTree) {
+    fn create_bounds_translate_scene(scene: &mut FigureTree) -> novadraw::FigureId {
         // Parent - 深紫容器
         let parent = RectangleFigure::new_with_color(
             200.0,
@@ -182,10 +206,7 @@ impl SceneManager {
             30.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        let gc_id = scene.add_child_to(child_id, Box::new(grandchild));
-
-        // 选中 Grandchild
-        scene.set_selected(Some(gc_id));
+        scene.add_child_to(child_id, Box::new(grandchild))
     }
 
     /// 场景 3：不可见节点过滤测试
@@ -264,7 +285,7 @@ impl SceneManager {
     /// 场景 1：嵌套父子结构测试
     ///
     /// 验证：`parent.PaintBorder` 在所有子节点完成后执行
-    fn create_nested_scene(scene: &mut FigureTree) {
+    fn create_nested_scene(scene: &mut FigureTree) -> novadraw::FigureId {
         // Parent - 深紫容器
         let parent = RectangleFigure::new_with_color(
             150.0,
@@ -293,10 +314,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        let gc_id = scene.add_child_to(child_id, Box::new(grandchild));
-
-        // 选中 Grandchild
-        scene.set_selected(Some(gc_id));
+        scene.add_child_to(child_id, Box::new(grandchild))
     }
 
     /// 场景 2：嵌套场景（含透明根节点）
@@ -304,7 +322,7 @@ impl SceneManager {
     /// contents 根节点下包含一个相对坐标模式的子树，
     /// 验证局部坐标模式下子元素坐标的累积效果。
     /// 注意：与场景 1 保持相同的矩形尺寸，方便比较。
-    fn create_nested_with_root_scene(scene: &mut FigureTree) {
+    fn create_nested_with_root_scene(scene: &mut FigureTree) -> novadraw::FigureId {
         // 创建透明背景作为根容器
         let root = RectangleFigure::new_with_color(
             0.0,
@@ -344,8 +362,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        let gc_id = scene.add_child_to(child_id, Box::new(gc));
-        scene.set_selected(Some(gc_id));
+        scene.add_child_to(child_id, Box::new(gc))
     }
 
     /// 场景 6：裁剪测试

@@ -30,7 +30,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
 
 /// 三角形方向
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -356,13 +356,12 @@ impl Bounded for TriangleFigure {
     }
 }
 
-// 实现 Updatable trait：验证钩子
-impl Updatable for TriangleFigure {
+impl TriangleFigure {
     /// 布局验证：计算并缓存顶点
     ///
     /// 对应 draw2d: Triangle.validate()
     /// 在布局完成后被调用，预计算三角形的顶点位置。
-    fn validate(&mut self) {
+    pub fn validate(&mut self) {
         // 检查 bounds 是否变化，变化则重新计算顶点
         if self.cached_bounds != Some(self.bounds) {
             self.cached_points = Some(self.compute_points());
@@ -370,7 +369,7 @@ impl Updatable for TriangleFigure {
         }
     }
 
-    fn invalidate(&mut self) {
+    pub fn invalidate(&mut self) {
         // 清除缓存，强制重新计算
         self.cached_points = None;
         self.cached_bounds = None;
@@ -419,13 +418,13 @@ impl super::FigureLifecycle for TriangleFigure {
         if self.bounds.width != bounds.width || self.bounds.height != bounds.height {
             self.bounds.width = bounds.width;
             self.bounds.height = bounds.height;
-            Updatable::invalidate(self);
+            TriangleFigure::invalidate(self);
         }
-        Updatable::validate(self);
+        TriangleFigure::validate(self);
     }
 
     fn invalidate(&mut self) {
-        Updatable::invalidate(self);
+        TriangleFigure::invalidate(self);
     }
 }
 

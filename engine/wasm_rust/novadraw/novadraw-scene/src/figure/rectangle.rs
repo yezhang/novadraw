@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape, Updatable};
+use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
 
 /// 矩形图形
 ///
@@ -133,17 +133,6 @@ impl Bounded for RectangleFigure {
             .as_deref()
             .map(Border::get_insets)
             .unwrap_or((0.0, 0.0, 0.0, 0.0))
-    }
-}
-
-// 实现 Updatable trait：验证钩子
-impl Updatable for RectangleFigure {
-    fn validate(&mut self) {
-        // 默认空实现，Rectangle 不需要预计算几何属性
-    }
-
-    fn invalidate(&mut self) {
-        // 默认空实现
     }
 }
 

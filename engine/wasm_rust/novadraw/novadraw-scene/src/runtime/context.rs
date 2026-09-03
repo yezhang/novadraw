@@ -14,7 +14,6 @@ enum RuntimeEffect {
     Repaint { block_id: FigureId, rect: Rectangle },
     Notification(NotificationEffect),
     Invalidate(FigureId),
-    Select(Option<FigureId>),
     Mutation(PendingMutation),
 }
 
@@ -93,15 +92,6 @@ impl<'a> EventContext<'a> {
 
     pub fn invalidate(&mut self) {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
-    }
-
-    /// Requests selection changes after the target callback returns.
-    pub fn set_selected(&mut self, block_id: Option<FigureId>) {
-        self.effects.push(RuntimeEffect::Select(block_id));
-    }
-
-    pub fn select_target(&mut self) {
-        self.set_selected(Some(self.target_id));
     }
 
     /// Enqueues a structural mutation for application after top-level dispatch.
@@ -253,6 +243,14 @@ impl<'a> SceneDispatchContext<'a> {
 impl DispatchContext for SceneDispatchContext<'_> {
     fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.scene.find_mouse_event_target_at(x, y)
+    }
+
+    fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene.hit_test_simple((x, y))
+    }
+
+    fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene.hit_test_simple((x, y))
     }
 
     fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
@@ -437,26 +435,6 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 RuntimeEffect::Invalidate(block_id) => {
                     self.scene.mark_invalid(self.update_manager, block_id);
                 }
-                RuntimeEffect::Select(selected) => {
-                    let previous = self.scene.selected_block();
-                    if previous != selected {
-                        let previous_bounds = previous.and_then(|id| self.scene.figure_bounds(id));
-                        let selected_bounds = selected.and_then(|id| self.scene.figure_bounds(id));
-                        self.scene.set_selected(selected);
-                        if let (Some(id), Some(bounds)) = (previous, previous_bounds) {
-                            self.update_manager.add_dirty_region(
-                                id,
-                                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-                            );
-                        }
-                        if let (Some(id), Some(bounds)) = (selected, selected_bounds) {
-                            self.update_manager.add_dirty_region(
-                                id,
-                                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-                            );
-                        }
-                    }
-                }
                 RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
             }
         }
@@ -475,7 +453,7 @@ mod tests {
     use super::*;
     use crate::{
         Bounded, EventDispatcher, Figure, FigureEventHandler, MouseButton, MouseEvent,
-        RectangleFigure, Shape, Updatable,
+        RectangleFigure, Shape,
     };
 
     struct EnqueueChildFigure {
@@ -494,12 +472,6 @@ mod tests {
         fn name(&self) -> &'static str {
             "EnqueueChildFigure"
         }
-    }
-
-    impl Updatable for EnqueueChildFigure {
-        fn validate(&mut self) {}
-
-        fn invalidate(&mut self) {}
     }
 
     impl Shape for EnqueueChildFigure {
@@ -594,12 +566,6 @@ mod tests {
         fn name(&self) -> &'static str {
             "RecordingFigure"
         }
-    }
-
-    impl Updatable for RecordingFigure {
-        fn validate(&mut self) {}
-
-        fn invalidate(&mut self) {}
     }
 
     impl Shape for RecordingFigure {

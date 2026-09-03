@@ -603,20 +603,10 @@ impl NdCanvas {
         self.line_style(style);
     }
 
-    pub fn line_dash_offset(&mut self, _offset: f64) {}
-
-    pub fn set_line_dash(&mut self, _dash: &[f64]) {}
-
-    pub fn miter_limit(&mut self, _limit: f64) {}
-
     pub fn font(&mut self, font: &str) {
         self.state.font = font.to_string();
         self.state.font_size = parse_font_size(font).unwrap_or(DEFAULT_FONT_SIZE);
     }
-
-    pub fn text_align(&mut self, _align: &str) {}
-
-    pub fn text_baseline(&mut self, _baseline: &str) {}
 
     pub fn fill_text(&mut self, text: &str, x: f64, y: f64) {
         let Some(color) = self.state.fill_color else {
@@ -702,24 +692,6 @@ impl NdCanvas {
 
     pub fn set_alpha(&mut self, alpha: f64) {
         self.global_alpha(alpha);
-    }
-
-    pub fn global_composite_operation(&mut self, _op: &str) {}
-
-    pub fn shadow_color(&mut self, _color: Color) {}
-
-    pub fn shadow_blur(&mut self, _blur: f64) {}
-
-    pub fn shadow_offset_x(&mut self, _offset: f64) {}
-
-    pub fn shadow_offset_y(&mut self, _offset: f64) {}
-
-    pub fn is_point_in_path(&mut self, _x: f64, _y: f64) -> bool {
-        false
-    }
-
-    pub fn is_point_in_stroke(&mut self, _x: f64, _y: f64) -> bool {
-        false
     }
 
     pub fn clip_depth(&self) -> usize {

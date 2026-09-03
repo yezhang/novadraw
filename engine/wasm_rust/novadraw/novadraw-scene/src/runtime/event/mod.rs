@@ -265,6 +265,12 @@ pub enum Event {
 
 pub trait DispatchContext {
     fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId>;
+    fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.find_mouse_event_target_at(x, y)
+    }
+    fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.find_cursor_target_at(x, y)
+    }
     fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
         self.find_mouse_event_target_at(x, y)
     }
@@ -336,10 +342,11 @@ impl EventDispatcher {
 
     fn refresh_mouse_target(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
         let hit_target = ctx.find_mouse_event_target_at(x, y);
-        ctx.set_cursor_target(hit_target);
+        ctx.set_cursor_target(ctx.find_cursor_target_at(x, y));
+        let hover_source = ctx.find_hover_source_at(x, y);
 
         let previous_hover = ctx.hover_source();
-        if previous_hover != hit_target {
+        if previous_hover != hover_source {
             if let Some(previous_hover) = previous_hover {
                 ctx.set_hovered(previous_hover, false);
                 let exited = Event::Mouse(MouseEvent::new(
@@ -350,16 +357,16 @@ impl EventDispatcher {
                 ));
                 let _ = ctx.dispatch_to_target(Some(previous_hover), &exited);
             }
-            ctx.set_hover_source(hit_target);
-            if let Some(hit_target) = hit_target {
-                ctx.set_hovered(hit_target, true);
+            ctx.set_hover_source(hover_source);
+            if let Some(hover_source) = hover_source {
+                ctx.set_hovered(hover_source, true);
                 let entered = Event::Mouse(MouseEvent::new(
                     MouseEventKind::Entered,
                     x,
                     y,
                     MouseButton::None,
                 ));
-                let _ = ctx.dispatch_to_target(Some(hit_target), &entered);
+                let _ = ctx.dispatch_to_target(Some(hover_source), &entered);
             }
         }
 

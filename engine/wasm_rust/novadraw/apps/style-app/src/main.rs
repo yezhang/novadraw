@@ -1,8 +1,37 @@
 use novadraw::border::RectangleBorder;
+use novadraw::{CursorIcon, Figure, FigureStyle, NdCanvas, Rectangle};
 use novadraw_apps::{run_demo_app, run_demo_app_with_screenshot};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
+
+struct StyleProbeFigure {
+    bounds: Rectangle,
+    text: &'static str,
+}
+
+impl StyleProbeFigure {
+    fn new(bounds: Rectangle, text: &'static str) -> Self {
+        Self { bounds, text }
+    }
+}
+
+impl Figure for StyleProbeFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "StyleProbeFigure"
+    }
+
+    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
+        canvas.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+        canvas.set_line_width(3.0);
+        canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
+        canvas.stroke_text(self.text, 16.0, bounds.height / 2.0);
+    }
+}
 
 fn bg_gray() -> novadraw::Color {
     novadraw::Color::rgba(0.85, 0.85, 0.85, 1.0)
@@ -238,6 +267,55 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
     scene
 }
 
+fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
+    let (mut scene, container_id) = gray_container();
+    let parent = scene.add_child_to(
+        container_id,
+        Box::new(StyleProbeFigure::new(
+            Rectangle::new(80.0, 100.0, 640.0, 380.0),
+            "Parent style",
+        )),
+    );
+    scene.set_figure_style(
+        parent,
+        FigureStyle {
+            foreground: Some(novadraw::Color::BLACK),
+            background: Some(novadraw::Color::rgba(0.25, 0.55, 0.85, 1.0)),
+            alpha: Some(0.7),
+            font: Some("20px sans-serif".to_string()),
+            cursor: Some(CursorIcon::Pointer),
+            tooltip: Some(Some("Inherited parent tooltip".to_string())),
+        },
+    );
+
+    scene.add_child_to(
+        parent,
+        Box::new(StyleProbeFigure::new(
+            Rectangle::new(40.0, 100.0, 240.0, 150.0),
+            "Inherited",
+        )),
+    );
+    let overridden = scene.add_child_to(
+        parent,
+        Box::new(StyleProbeFigure::new(
+            Rectangle::new(360.0, 100.0, 240.0, 150.0),
+            "Overridden",
+        )),
+    );
+    scene.set_figure_style(
+        overridden,
+        FigureStyle {
+            foreground: Some(novadraw::Color::WHITE),
+            background: Some(novadraw::Color::rgba(0.75, 0.2, 0.25, 1.0)),
+            alpha: Some(1.0),
+            font: None,
+            cursor: Some(CursorIcon::Crosshair),
+            tooltip: Some(None),
+        },
+    );
+    scene
+}
+
 type SceneEntry = (&'static str, Box<dyn FnMut() -> novadraw::FigureTree>);
 
 fn main() {
@@ -251,6 +329,10 @@ fn main() {
         (
             "Stroke vs Border",
             Box::new(create_scene_6_stroke_vs_border),
+        ),
+        (
+            "Inherited FigureStyle",
+            Box::new(create_scene_7_inherited_figure_style),
         ),
     ];
 

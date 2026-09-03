@@ -876,7 +876,6 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
     interaction.set_hover_source(Some(child_id));
     interaction.set_focus_owner(Some(child_id));
     interaction.set_captured(Some(child_id));
-    scene.set_selected(Some(child_id));
 
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::remove_child(parent_id, child_id));
@@ -896,7 +895,6 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
     assert_eq!(interaction.hover_source(), None);
     assert_eq!(interaction.focus_owner(), None);
     assert_eq!(interaction.captured(), None);
-    assert_eq!(scene.selected_block(), None);
 }
 
 #[test]

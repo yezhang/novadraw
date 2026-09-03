@@ -107,14 +107,6 @@ pub enum RenderCommandKind {
         join: LineJoin,
     },
 
-    /// 清除屏幕
-    ///
-    /// 使用指定颜色填充整个视口。
-    Clear {
-        /// 清除颜色
-        color: Color,
-    },
-
     /// 绘制直线
     Line {
         /// 起点
@@ -411,11 +403,6 @@ impl Path {
         }
     }
 
-    /// 检查点是否在路径内
-    pub fn contains(&self, _x: f64, _y: f64) -> bool {
-        false
-    }
-
     /// 获取路径操作列表
     pub fn operations(&self) -> &[PathOp] {
         &self.operations
@@ -450,7 +437,7 @@ pub enum PathOp {
 }
 
 /// 图像数据类型
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ImageData {
     /// 图像宽度
     pub width: u32,

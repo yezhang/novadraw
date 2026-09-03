@@ -7,7 +7,7 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::container::{scalable::ScalableLayeredPaneFigure, viewport::ViewportFigure};
-use crate::figure::{Bounded, Figure, RectangleFigure, Shape, Updatable};
+use crate::figure::{Bounded, Figure, RectangleFigure, Shape};
 use crate::graph::FigureTree;
 
 // ========== 测试用 Figure 类型 ==========
@@ -87,11 +87,6 @@ impl Bounded for TestInsetFigure {
     }
 }
 
-impl Updatable for TestInsetFigure {
-    fn validate(&mut self) {}
-    fn invalidate(&mut self) {}
-}
-
 impl Shape for TestInsetFigure {
     fn stroke_color(&self) -> Option<novadraw_core::Color> {
         None
@@ -124,11 +119,6 @@ impl Shape for TestInsetFigure {
     fn fill_shape(&self, _gc: &mut NdCanvas) {}
 
     fn outline_shape(&self, _gc: &mut NdCanvas) {}
-}
-
-impl Updatable for TestCoordRootFigure {
-    fn validate(&mut self) {}
-    fn invalidate(&mut self) {}
 }
 
 impl Shape for TestCoordRootFigure {

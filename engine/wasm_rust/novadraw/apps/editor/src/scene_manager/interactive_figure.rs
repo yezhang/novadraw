@@ -1,7 +1,6 @@
 use novadraw::NdCanvas;
 use novadraw::{
-    Bounded, Color, EventContext, Figure, FigureEventHandler, MouseButton, MouseEvent, Rectangle,
-    Shape, Updatable,
+    Bounded, Color, EventContext, Figure, FigureEventHandler, MouseEvent, Rectangle, Shape,
     command::{LineCap, LineJoin},
 };
 
@@ -52,12 +51,6 @@ impl Bounded for InteractiveRectFigure {
     fn name(&self) -> &'static str {
         "InteractiveRectFigure"
     }
-}
-
-impl Updatable for InteractiveRectFigure {
-    fn validate(&mut self) {}
-
-    fn invalidate(&mut self) {}
 }
 
 impl Figure for InteractiveRectFigure {
@@ -120,10 +113,7 @@ impl Shape for InteractiveRectFigure {
 }
 
 impl FigureEventHandler for InteractiveRectFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        if event.button == MouseButton::Left {
-            ctx.select_target();
-        }
+    fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         ctx.repaint(None);
         true
     }

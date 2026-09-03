@@ -8,11 +8,12 @@ use novadraw::{
     BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, EventContext, Figure,
     FigureEventHandler, Key, KeyModifiers, MouseButton, NdCanvas, PlatformHost, Rectangle,
     RectangleFigure, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission, Runtime,
-    Shape, SurfaceInfo, Updatable,
+    Shape, SurfaceInfo,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
+use novadraw_demo_scenes::{DemoTheme, SceneEntry, web_themes};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
@@ -32,6 +33,10 @@ const PROBE_BOUNDS: Rectangle = Rectangle {
     width: 300.0,
     height: 200.0,
 };
+const INPUT_THEME_ID: &str = "input";
+const INPUT_THEME_TITLE: &str = "Input";
+const INPUT_SCENE_TITLE: &str = "Pointer, keyboard and wheel";
+const THEME_BUTTON_IDS: [&str; 3] = ["theme-input", "theme-shape", "theme-viewport"];
 
 #[derive(Default)]
 struct ProbeState {
@@ -74,10 +79,6 @@ impl Bounded for WebProbeFigure {
     fn name(&self) -> &'static str {
         "WebProbeFigure"
     }
-}
-
-impl Updatable for WebProbeFigure {
-    fn validate(&mut self) {}
 }
 
 impl Shape for WebProbeFigure {
@@ -372,15 +373,6 @@ impl RenderBackend for Canvas2dBackend {
                         self.context.stroke();
                     }
                 }
-                RenderCommandKind::Clear { color } => {
-                    self.set_fill(*color);
-                    self.context.fill_rect(
-                        0.0,
-                        0.0,
-                        submission.surface.logical_width,
-                        submission.surface.logical_height,
-                    );
-                }
                 _ => {}
             }
         }
@@ -442,6 +434,62 @@ impl RenderBackend for ValidationBackend {
     }
 }
 
+fn input_theme(probe: Rc<ProbeState>) -> DemoTheme {
+    let scene_probe = probe.clone();
+    let scenes: Vec<SceneEntry> = vec![(
+        INPUT_SCENE_TITLE,
+        Box::new(move || {
+            let mut graph = novadraw::FigureTree::new();
+            let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                LOGICAL_WIDTH,
+                LOGICAL_HEIGHT,
+                Color::hex("#eef1f4"),
+            )));
+            graph.add_child_to(
+                root,
+                Box::new(WebProbeFigure::new(PROBE_BOUNDS, scene_probe.clone())),
+            );
+            graph
+        }),
+    )];
+
+    DemoTheme {
+        id: INPUT_THEME_ID,
+        title: INPUT_THEME_TITLE,
+        scenes,
+    }
+}
+
+fn theme_selection(window: &Window, themes: &[DemoTheme]) -> (usize, usize) {
+    let parameters = window
+        .location()
+        .search()
+        .ok()
+        .and_then(|search| UrlSearchParams::new_with_str(&search).ok());
+    let theme_id = parameters.as_ref().and_then(|query| query.get("theme"));
+    let theme_index = theme_id
+        .as_deref()
+        .and_then(|id| themes.iter().position(|theme| theme.id == id))
+        .unwrap_or_default();
+    let scene_index = parameters
+        .and_then(|query| query.get("scene"))
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|index| *index < themes[theme_index].scenes.len())
+        .unwrap_or_default();
+    (theme_index, scene_index)
+}
+
+fn create_scene(
+    themes: &mut [DemoTheme],
+    theme_index: usize,
+    scene_index: usize,
+) -> novadraw::FigureTree {
+    let scene = &mut themes[theme_index].scenes[scene_index].1;
+    scene()
+}
+
 struct WebValidationApp {
     window: Window,
     document: Document,
@@ -451,6 +499,9 @@ struct WebValidationApp {
     backend: ValidationBackend,
     input: WebInputAdapter,
     probe: Rc<ProbeState>,
+    themes: Vec<DemoTheme>,
+    current_theme: usize,
+    current_scene: usize,
     redraw_pending: Rc<Cell<bool>>,
     frame_count: u64,
     scale_override: Option<f64>,
@@ -464,18 +515,10 @@ impl WebValidationApp {
         backend: ValidationBackend,
     ) -> Self {
         let probe = Rc::new(ProbeState::default());
-        let mut graph = novadraw::FigureTree::new();
-        let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            LOGICAL_WIDTH,
-            LOGICAL_HEIGHT,
-            Color::hex("#eef1f4"),
-        )));
-        graph.add_child_to(
-            root,
-            Box::new(WebProbeFigure::new(PROBE_BOUNDS, probe.clone())),
-        );
+        let mut themes = vec![input_theme(probe.clone())];
+        themes.extend(web_themes());
+        let (current_theme, current_scene) = theme_selection(&window, &themes);
+        let graph = create_scene(&mut themes, current_theme, current_scene);
 
         let redraw_pending = Rc::new(Cell::new(false));
         let host = WebPlatformHost::new(
@@ -515,6 +558,9 @@ impl WebValidationApp {
             backend,
             input: WebInputAdapter,
             probe,
+            themes,
+            current_theme,
+            current_scene,
             redraw_pending,
             frame_count: 0,
             scale_override: None,
@@ -530,6 +576,76 @@ impl WebValidationApp {
         self.runtime.request_full_redraw();
     }
 
+    fn switch_theme(&mut self, theme_index: usize) {
+        if theme_index >= self.themes.len() {
+            return;
+        }
+        self.current_theme = theme_index;
+        self.current_scene = 0;
+        self.replace_scene();
+    }
+
+    fn switch_scene(&mut self, scene_index: usize) {
+        if scene_index >= self.themes[self.current_theme].scenes.len() {
+            return;
+        }
+        self.current_scene = scene_index;
+        self.replace_scene();
+    }
+
+    fn previous_scene(&mut self) {
+        let count = self.themes[self.current_theme].scenes.len();
+        if count > 0 {
+            self.switch_scene((self.current_scene + count - 1) % count);
+        }
+    }
+
+    fn next_scene(&mut self) {
+        let count = self.themes[self.current_theme].scenes.len();
+        if count > 0 {
+            self.switch_scene((self.current_scene + 1) % count);
+        }
+    }
+
+    fn replace_scene(&mut self) {
+        self.runtime.release_focus();
+        self.runtime = Runtime::new(create_scene(
+            &mut self.themes,
+            self.current_theme,
+            self.current_scene,
+        ));
+        self.runtime.request_full_redraw();
+        self.update_navigation();
+        self.request_and_render();
+    }
+
+    fn update_navigation(&self) {
+        let theme = &self.themes[self.current_theme];
+        set_text(&self.document, "theme-title", theme.title);
+        set_text(
+            &self.document,
+            "scene-title",
+            theme.scenes[self.current_scene].0,
+        );
+        set_text(
+            &self.document,
+            "scene-count",
+            &format!("{}/{}", self.current_scene + 1, theme.scenes.len()),
+        );
+        for (index, id) in THEME_BUTTON_IDS.iter().enumerate() {
+            if let Some(button) = self.document.get_element_by_id(id) {
+                let _ = button.set_attribute(
+                    "aria-selected",
+                    if index == self.current_theme {
+                        "true"
+                    } else {
+                        "false"
+                    },
+                );
+            }
+        }
+    }
+
     fn pointer_input(&self, event: &PointerEvent) -> WebPointerInput {
         let rect = self.canvas.get_bounding_client_rect();
         WebPointerInput {
@@ -542,6 +658,7 @@ impl WebValidationApp {
     }
 
     fn request_and_render(&mut self) {
+        self.host.set_cursor(self.runtime.cursor_icon());
         self.host.request_redraw();
         if !self.redraw_pending.replace(false) {
             return;
@@ -862,6 +979,20 @@ async fn start_async() -> Result<(), JsValue> {
     register_event(scale_button.as_ref(), "click", &app, |app, _event| {
         app.toggle_scale()
     })?;
+    for (theme_index, id) in THEME_BUTTON_IDS.iter().enumerate() {
+        let button: HtmlButtonElement = element(&document, id)?;
+        register_event(button.as_ref(), "click", &app, move |app, _event| {
+            app.switch_theme(theme_index)
+        })?;
+    }
+    let previous_scene: HtmlButtonElement = element(&document, "previous-scene")?;
+    register_event(previous_scene.as_ref(), "click", &app, |app, _event| {
+        app.previous_scene()
+    })?;
+    let next_scene: HtmlButtonElement = element(&document, "next-scene")?;
+    register_event(next_scene.as_ref(), "click", &app, |app, _event| {
+        app.next_scene()
+    })?;
     register_event(window.as_ref(), "resize", &app, |app, _event| {
         app.sync_surface();
         app.request_and_render();
@@ -870,6 +1001,7 @@ async fn start_async() -> Result<(), JsValue> {
     {
         let mut app = app.borrow_mut();
         app.host.set_cursor(CursorIcon::Crosshair);
+        app.update_navigation();
         app.sync_surface();
         app.request_and_render();
     }

@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 novadraw = { path = "../../novadraw", default-features = false, features = ["vello-web"] }
 novadraw-apps = { path = "../../novadraw-apps", default-features = false }
+novadraw-demo-scenes = { path = "../../novadraw-demo-scenes" }
 wasm-bindgen = "0.2.127"
 wasm-bindgen-futures = "0.4.54"
 

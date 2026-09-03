@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use novadraw::{
     BackendCapabilities, Color, DamageMode, FigureEvent, FigureId, FigureTree, GridLayout,
-    NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SurfaceInfo,
+    ImageData, NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SurfaceInfo,
     UpdateEvent, UpdateListener, UpdateManager, XYConstraint, XYLayout,
 };
 use novadraw_apps::{
@@ -301,12 +301,21 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         scale_factor: 1.0,
     };
     let mut runtime = Runtime::new(baseline_scene());
-    runtime.add_resource(7);
+    let image = runtime.register_image();
+    runtime
+        .complete_image(
+            image,
+            ImageData::from_rgba(1, 1, vec![255, 255, 255, 255], 1.0),
+        )
+        .map_err(|error| error.to_string())?;
 
     let first = runtime
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .ok_or("initial submission was not prepared")?;
-    if first.damage.mode() != DamageMode::Full || first.resources.added != [7] {
+    if first.damage.mode() != DamageMode::Full
+        || first.resources.added.len() != 1
+        || first.resources.added[0].id != image.resource_id()
+    {
         return Err("initial submission did not carry full damage and resources".to_string());
     }
     if !runtime.complete_submission(first.frame_id, RenderOutcome::Retry) {
@@ -316,7 +325,10 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
     let retry = runtime
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .ok_or("retry submission was not prepared")?;
-    if retry.damage.mode() != DamageMode::Full || retry.resources.added != [7] {
+    if retry.damage.mode() != DamageMode::Full
+        || retry.resources.added.len() != 1
+        || retry.resources.added[0].id != image.resource_id()
+    {
         return Err("retry did not restore full damage and resources".to_string());
     }
     if !runtime.complete_submission(retry.frame_id, RenderOutcome::Presented) {

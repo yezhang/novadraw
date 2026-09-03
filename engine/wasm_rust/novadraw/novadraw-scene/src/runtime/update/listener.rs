@@ -7,10 +7,12 @@
 //! - draw2d：保留 `figureMoved`、`coordinateSystemChanged`、UpdateListener 等语义分层
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
+use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{DamageMode, FrameId, RenderOutcome};
 
 use crate::graph::FigureId;
+use crate::style::CursorIcon;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ListenerId(u64);
@@ -85,6 +87,8 @@ pub struct AncestorEvent {
 pub enum PropertyValue {
     Bool(bool),
     Number(f64),
+    Color(Color),
+    Cursor(CursorIcon),
     Point(Point),
     Text(String),
     Block(Option<FigureId>),

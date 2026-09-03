@@ -6,8 +6,9 @@ pub use novadraw_core::Color;
 pub use novadraw_geometry::{Affine2D, Transform};
 
 pub use novadraw_render::{
-    BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCapability,
-    RenderCommand, RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, SurfaceInfo,
+    BackendCapabilities, DamageMode, DamageSet, FontData, FrameId, ImageData, NdCanvas,
+    RenderBackend, RenderCapability, RenderCommand, RenderCommandKind, RenderOutcome,
+    RenderSubmission, ResourceDelta, ResourceId, ResourcePayload, ResourceUpdate, SurfaceInfo,
     UnsupportedRenderCapability, command,
 };
 
@@ -24,23 +25,24 @@ pub use novadraw_scene::{
     CoordinateListener, CursorIcon, DEFAULT_ZOOM_LEVELS, DefaultScrollPolicy, Direction,
     DispatchContext, EllipseFigure, Event, EventContext, EventDispatcher, Figure, FigureContainer,
     FigureEvent, FigureEventHandler, FigureId, FigureLifecycle, FigureListener, FigureNode,
-    FigureTree, FillLayout, FlowDirection, FlowLayout, FocusEvent, FocusEventKind, GesturePhase,
-    GestureSessionId, GraphMutationError, GridAlignment, GridConstraint, GridLayout, HeadlessHost,
-    ImeState, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers, LayoutConstraint,
-    LayoutEvent, LayoutEventKind, LayoutListener, LayoutManager, LayoutState, LineBorder,
-    ListenerId, MAX_TREE_DEPTH, MarginBorder, MinorAlignment, MouseButton, MouseEvent,
-    MouseEventKind, MouseLocationZoomScrollPolicy, NodeState, NotificationEffect,
+    FigureStyle, FigureTree, FillLayout, FlowDirection, FlowLayout, FocusEvent, FocusEventKind,
+    FontId, GesturePhase, GestureSessionId, GraphMutationError, GridAlignment, GridConstraint,
+    GridLayout, HeadlessHost, ImageId, ImeState, InteractionState, Key, KeyEvent, KeyEventKind,
+    KeyModifiers, LayoutConstraint, LayoutEvent, LayoutEventKind, LayoutListener, LayoutManager,
+    LayoutState, LineBorder, ListenerId, MAX_TREE_DEPTH, MarginBorder, MinorAlignment, MouseButton,
+    MouseEvent, MouseEventKind, MouseLocationZoomScrollPolicy, NodeState, NotificationEffect,
     NotificationQueue, PendingMutations, PlatformHost, Point, PointerId, PolygonFigure,
     PolylineFigure, PropertyChangeEvent, PropertyChangeListener, PropertyValue, RangeChange,
     RangeChangeSet, RangeListener, RangeListenerId, RangeModel, RangeModelError,
-    RangeModelSnapshot, RangeProperty, Rectangle, RectangleBorder, RectangleFigure, RootFigure,
+    RangeModelSnapshot, RangeProperty, Rectangle, RectangleBorder, RectangleFigure, ResolvedStyle,
+    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, RootFigure,
     RoundedRectangleFigure, Runtime, ScalableFigure, ScalableLayeredPaneFigure, ScaleError,
     ScaleHandle, SceneDispatchContext, ScrollBarFigure, ScrollBarVisibility, ScrollDeltaKind,
     ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout,
-    Shape, StackLayout, StyleOverride, ToolbarLayout, ToolbarOrientation, TriangleFigure,
-    Updatable, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener, ValidationError,
-    ViewportError, ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint,
-    XYLayout, ZoomEvent, ZoomManager, ZoomScrollPolicy,
+    Shape, StackLayout, ToolbarLayout, ToolbarOrientation, TriangleFigure, UpdateEvent,
+    UpdateListener, UpdateManager, ValidatingListener, ValidationError, ViewportError,
+    ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint, XYLayout, ZoomEvent,
+    ZoomManager, ZoomScrollPolicy,
 };
 
 pub mod border {

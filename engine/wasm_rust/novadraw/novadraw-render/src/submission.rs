@@ -1,6 +1,9 @@
-use novadraw_geometry::Rectangle;
+use std::sync::Arc;
 
-use crate::command::RenderCommand;
+use novadraw_geometry::Rectangle;
+use uuid::Uuid;
+
+use crate::command::{ImageData, RenderCommand};
 
 #[derive(Debug, Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct FrameId(u64);
@@ -58,10 +61,57 @@ impl SurfaceInfo {
     }
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ResourceId {
+    namespace: Uuid,
+    generation_key: u64,
+}
+
+impl ResourceId {
+    pub const fn new(namespace: Uuid, generation_key: u64) -> Self {
+        Self {
+            namespace,
+            generation_key,
+        }
+    }
+
+    pub const fn namespace(self) -> Uuid {
+        self.namespace
+    }
+
+    pub const fn generation_key(self) -> u64 {
+        self.generation_key
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FontData {
+    pub bytes: Vec<u8>,
+}
+
+impl FontData {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self { bytes }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResourcePayload {
+    Image(Arc<ImageData>),
+    Font(Arc<FontData>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResourceUpdate {
+    pub id: ResourceId,
+    pub revision: u64,
+    pub payload: ResourcePayload,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ResourceDelta {
-    pub added: Vec<u64>,
-    pub removed: Vec<u64>,
+    pub added: Vec<ResourceUpdate>,
+    pub removed: Vec<ResourceId>,
 }
 
 impl ResourceDelta {
@@ -209,16 +259,35 @@ mod tests {
 
     #[test]
     fn resource_delta_preserves_append_order() {
+        let namespace = Uuid::nil();
+        let image = ResourceUpdate {
+            id: ResourceId::new(namespace, 1),
+            revision: 1,
+            payload: ResourcePayload::Image(Arc::new(ImageData::from_rgba(
+                1,
+                1,
+                vec![255; 4],
+                1.0,
+            ))),
+        };
+        let font = ResourceUpdate {
+            id: ResourceId::new(namespace, 3),
+            revision: 1,
+            payload: ResourcePayload::Font(Arc::new(FontData::new(vec![1, 2, 3]))),
+        };
         let mut delta = ResourceDelta {
-            added: vec![1],
-            removed: vec![2],
+            added: vec![image.clone()],
+            removed: vec![ResourceId::new(namespace, 2)],
         };
         delta.extend(ResourceDelta {
-            added: vec![3],
-            removed: vec![4],
+            added: vec![font.clone()],
+            removed: vec![ResourceId::new(namespace, 4)],
         });
 
-        assert_eq!(delta.added, vec![1, 3]);
-        assert_eq!(delta.removed, vec![2, 4]);
+        assert_eq!(delta.added, vec![image, font]);
+        assert_eq!(
+            delta.removed,
+            vec![ResourceId::new(namespace, 2), ResourceId::new(namespace, 4)]
+        );
     }
 }

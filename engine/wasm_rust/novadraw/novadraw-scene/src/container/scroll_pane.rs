@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
-use crate::figure::{Bounded, Figure, FigureEventHandler, Updatable};
+use crate::figure::{Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
     EventContext, FigureId, FigureTree, GraphMutationError, MouseEvent, PropertyValue, RangeModel,
@@ -268,10 +268,6 @@ impl Bounded for ScrollPaneFigure {
     }
 }
 
-impl Updatable for ScrollPaneFigure {
-    fn validate(&mut self) {}
-}
-
 impl Figure for ScrollPaneFigure {
     fn initial_bounds(&self) -> Rectangle {
         self.bounds
@@ -436,10 +432,6 @@ impl Bounded for ScrollBarFigure {
             ScrollOrientation::Vertical => (DEFAULT_SCROLL_BAR_THICKNESS, 0.0),
         }
     }
-}
-
-impl Updatable for ScrollBarFigure {
-    fn validate(&mut self) {}
 }
 
 impl Figure for ScrollBarFigure {

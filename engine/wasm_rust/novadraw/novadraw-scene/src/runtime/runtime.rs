@@ -1,11 +1,12 @@
 use novadraw_render::{
-    BackendCapabilities, DamageMode, FrameId, NdCanvas, RenderOutcome, RenderSubmission,
-    ResourceDelta, SurfaceInfo,
+    BackendCapabilities, DamageMode, FontData, FrameId, ImageData, NdCanvas, RenderOutcome,
+    RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
 };
 
 use crate::{
-    EventDispatcher, Figure, FigureId, FigureTree, InteractionState, Key, KeyModifiers,
-    MouseButton, PendingMutations, SceneDispatchContext, UpdateEvent, UpdateListener,
+    CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FontId, ImageId,
+    InteractionState, Key, KeyModifiers, MouseButton, PendingMutations, ResourceError,
+    ResourceRegistry, ResourceStatus, SceneDispatchContext, UpdateEvent, UpdateListener,
     UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
@@ -20,7 +21,7 @@ pub struct Runtime {
     next_frame_id: FrameId,
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
-    pending_resources: ResourceDelta,
+    resources: ResourceRegistry,
 }
 
 struct InFlightFrame {
@@ -40,7 +41,7 @@ impl Runtime {
             next_frame_id: FrameId::INITIAL,
             in_flight: None,
             last_surface: None,
-            pending_resources: ResourceDelta::default(),
+            resources: ResourceRegistry::new(),
         }
     }
 
@@ -56,8 +57,27 @@ impl Runtime {
         &self.interaction
     }
 
+    pub fn cursor_icon(&self) -> CursorIcon {
+        self.interaction
+            .cursor_target()
+            .and_then(|id| self.tree.resolved_style(id))
+            .map_or(CursorIcon::Default, |style| style.cursor)
+    }
+
+    pub fn tooltip(&self) -> Option<String> {
+        self.interaction
+            .hover_source()
+            .and_then(|id| self.tree.resolved_style(id))
+            .and_then(|style| style.tooltip)
+    }
+
+    pub fn resources(&self) -> &ResourceRegistry {
+        &self.resources
+    }
+
     pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
         let id = self.tree.set_contents(figure);
+        self.retain_interactive_figures();
         self.full_redraw_pending = true;
         self.tree.mark_invalid(&mut self.updates, id);
         self.tree.repaint(&mut self.updates, id, None);
@@ -112,6 +132,19 @@ impl Runtime {
         changed
     }
 
+    pub fn set_figure_style(&mut self, id: FigureId, style: FigureStyle) -> bool {
+        self.tree
+            .set_figure_style_with_update(&mut self.updates, id, style)
+    }
+
+    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
+        if !self.tree.set_opaque(id, opaque) {
+            return false;
+        }
+        self.tree.repaint(&mut self.updates, id, None);
+        true
+    }
+
     pub fn translate(&mut self, id: FigureId, dx: f64, dy: f64) -> bool {
         let Some(bounds) = self.tree.figure_bounds(id) else {
             return false;
@@ -127,11 +160,6 @@ impl Runtime {
         )
     }
 
-    pub fn set_selected(&mut self, id: Option<FigureId>) {
-        self.tree.set_selected(id);
-        self.full_redraw_pending = true;
-    }
-
     pub fn into_tree(self) -> FigureTree {
         self.tree
     }
@@ -141,7 +169,9 @@ impl Runtime {
     }
 
     pub fn has_pending_update(&self) -> bool {
-        self.full_redraw_pending || self.updates.is_update_queued()
+        self.full_redraw_pending
+            || self.updates.is_update_queued()
+            || self.resources.has_pending_delta()
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {
@@ -156,14 +186,66 @@ impl Runtime {
         self.full_redraw_pending = true;
     }
 
-    pub fn add_resource(&mut self, resource_id: u64) {
-        self.pending_resources.added.push(resource_id);
-        self.full_redraw_pending = true;
+    pub fn register_image(&mut self) -> ImageId {
+        self.resources.register_image()
     }
 
-    pub fn remove_resource(&mut self, resource_id: u64) {
-        self.pending_resources.removed.push(resource_id);
-        self.full_redraw_pending = true;
+    pub fn register_font(&mut self) -> FontId {
+        self.resources.register_font()
+    }
+
+    pub fn resource_status(
+        &self,
+        resource_id: ResourceId,
+    ) -> Result<&ResourceStatus, ResourceError> {
+        self.resources.status(resource_id)
+    }
+
+    pub fn add_resource_dependency(
+        &mut self,
+        resource_id: ResourceId,
+        figure: FigureId,
+    ) -> Result<(), ResourceError> {
+        if !self.tree.is_attached(figure) {
+            return Err(ResourceError::UnknownFigure);
+        }
+        self.resources.add_dependency(resource_id, figure)
+    }
+
+    pub fn remove_resource_dependency(
+        &mut self,
+        resource_id: ResourceId,
+        figure: FigureId,
+    ) -> Result<bool, ResourceError> {
+        self.resources.remove_dependency(resource_id, figure)
+    }
+
+    pub fn complete_image(&mut self, id: ImageId, image: ImageData) -> Result<(), ResourceError> {
+        let dependents = self.resources.complete_image(id, image)?;
+        self.invalidate_resource_dependents(dependents);
+        Ok(())
+    }
+
+    pub fn complete_font(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
+        let dependents = self.resources.complete_font(id, font)?;
+        self.invalidate_resource_dependents(dependents);
+        Ok(())
+    }
+
+    pub fn fail_resource(
+        &mut self,
+        id: ResourceId,
+        reason: impl Into<String>,
+    ) -> Result<(), ResourceError> {
+        let dependents = self.resources.fail(id, reason)?;
+        self.invalidate_resource_dependents(dependents);
+        Ok(())
+    }
+
+    pub fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+        let dependents = self.resources.remove(id)?;
+        self.invalidate_resource_dependents(dependents);
+        Ok(())
     }
 
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) {
@@ -234,6 +316,17 @@ impl Runtime {
 
     fn retain_interactive_figures(&mut self) {
         self.interaction.reconcile(&self.tree);
+        self.resources
+            .retain_dependencies(|id| self.tree.is_attached(id));
+    }
+
+    fn invalidate_resource_dependents(&mut self, dependents: Vec<FigureId>) {
+        for figure in dependents {
+            if self.tree.is_attached(figure) {
+                self.tree.mark_invalid(&mut self.updates, figure);
+                self.tree.repaint(&mut self.updates, figure, None);
+            }
+        }
     }
 
     /// Produces one complete renderer submission at a stable transaction boundary.
@@ -263,10 +356,13 @@ impl Runtime {
             return None;
         }
 
+        let has_resource_delta = self.resources.has_pending_delta();
         let mut canvas = if self.updates.is_update_queued() {
             self.tree.perform_update(&mut self.updates)
         } else if self.full_redraw_pending {
             self.tree.render()
+        } else if has_resource_delta {
+            NdCanvas::new()
         } else {
             return None;
         };
@@ -288,7 +384,7 @@ impl Runtime {
 
         let frame_id = self.next_frame_id;
         self.next_frame_id = self.next_frame_id.next();
-        let resources = std::mem::take(&mut self.pending_resources);
+        let resources = self.resources.take_delta();
         let submission = canvas.to_submission_for_frame(surface, resources.clone(), frame_id);
         self.full_redraw_pending = false;
         self.in_flight = Some(InFlightFrame {
@@ -315,9 +411,7 @@ impl Runtime {
 
         if outcome != RenderOutcome::Presented {
             self.full_redraw_pending = true;
-            let newer_resources = std::mem::take(&mut self.pending_resources);
-            self.pending_resources = in_flight.resources;
-            self.pending_resources.extend(newer_resources);
+            self.resources.restore_delta(in_flight.resources);
         }
         self.updates
             .emit_update_event(UpdateEvent::Submitted { frame_id, outcome });
@@ -402,17 +496,44 @@ mod tests {
     }
 
     #[test]
+    fn cursor_and_tooltip_resolve_from_the_current_pointer_targets() {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime.set_figure_style(
+            root,
+            FigureStyle {
+                cursor: Some(CursorIcon::Crosshair),
+                tooltip: Some(Some("root tip".to_string())),
+                ..FigureStyle::default()
+            },
+        );
+
+        runtime.dispatch_mouse_moved(50.0, 50.0);
+
+        assert_eq!(runtime.cursor_icon(), CursorIcon::Crosshair);
+        assert_eq!(runtime.tooltip().as_deref(), Some("root tip"));
+
+        runtime.dispatch_mouse_moved(150.0, 150.0);
+        assert_eq!(runtime.cursor_icon(), CursorIcon::Default);
+        assert_eq!(runtime.tooltip(), None);
+    }
+
+    #[test]
     fn submission_contains_surface_resources_and_monotonic_frame_id() {
         let mut runtime = Runtime::empty();
         runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        runtime.add_resource(7);
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0))
+            .unwrap();
 
         let first = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(first.frame_id, FrameId::INITIAL);
         assert_eq!(first.surface, surface(100, 100));
-        assert_eq!(first.resources.added, vec![7]);
+        assert_eq!(first.resources.added.len(), 1);
+        assert_eq!(first.resources.added[0].id, image.resource_id());
         assert_eq!(first.damage.mode(), DamageMode::Full);
         assert!(runtime.complete_submission(first.frame_id, RenderOutcome::Presented));
 
@@ -427,6 +548,89 @@ mod tests {
                 .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
                 .is_none()
         );
+    }
+
+    #[test]
+    fn resource_only_completion_produces_a_submission_without_scene_damage() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![0, 0, 0, 0], 1.0))
+            .unwrap();
+        let resource_only = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        assert_eq!(resource_only.damage.mode(), DamageMode::None);
+        assert!(resource_only.commands.is_empty());
+        assert_eq!(resource_only.resources.added.len(), 1);
+        assert_eq!(resource_only.resources.added[0].id, image.resource_id());
+    }
+
+    #[test]
+    fn resource_completion_invalidates_and_repaints_dependent_figure() {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        let image = runtime.register_image();
+        runtime
+            .add_resource_dependency(image.resource_id(), child)
+            .unwrap();
+        runtime
+            .complete_image(image, ImageData::from_rgba(2, 2, vec![255; 2 * 2 * 4], 1.0))
+            .unwrap();
+
+        assert_eq!(
+            runtime.resource_status(image.resource_id()),
+            Ok(&ResourceStatus::Ready { revision: 1 })
+        );
+        assert!(runtime.has_pending_update());
+        let submission = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert_eq!(submission.resources.added[0].id, image.resource_id());
+        assert_ne!(submission.damage.mode(), DamageMode::None);
+    }
+
+    #[test]
+    fn replacing_contents_removes_resource_dependencies_from_detached_figures() {
+        let mut runtime = Runtime::empty();
+        let old_contents =
+            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let image = runtime.register_image();
+        runtime
+            .add_resource_dependency(image.resource_id(), old_contents)
+            .unwrap();
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let replacement = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(replacement.frame_id, RenderOutcome::Presented);
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
+            .unwrap();
+        let resource_only = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        assert_eq!(resource_only.damage.mode(), DamageMode::None);
     }
 
     #[test]
@@ -481,7 +685,13 @@ mod tests {
     fn surface_change_and_retry_force_full_damage() {
         let mut runtime = Runtime::empty();
         runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        runtime.add_resource(11);
+        let image = runtime.register_image();
+        runtime
+            .complete_image(
+                image,
+                ImageData::from_rgba(1, 1, vec![255, 255, 255, 255], 1.0),
+            )
+            .unwrap();
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -491,13 +701,48 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(retry.damage.mode(), DamageMode::Full);
-        assert_eq!(retry.resources.added, vec![11]);
+        assert_eq!(retry.resources.added.len(), 1);
+        assert_eq!(retry.resources.added[0].id, image.resource_id());
         runtime.complete_submission(retry.frame_id, RenderOutcome::Presented);
 
         let resized = runtime
             .prepare_submission(surface(120, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(resized.damage.mode(), DamageMode::Full);
+    }
+
+    #[test]
+    fn retry_restores_in_flight_resource_updates_before_newer_updates() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+        let first_update = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
+            .unwrap();
+        runtime.complete_submission(first_update.frame_id, RenderOutcome::Retry);
+
+        let retry = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        let revisions: Vec<_> = retry
+            .resources
+            .added
+            .iter()
+            .map(|update| update.revision)
+            .collect();
+
+        assert_eq!(revisions, vec![1, 2]);
     }
 
     #[test]

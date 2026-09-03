@@ -4,18 +4,13 @@
 
 use std::{
     cell::RefCell,
-    collections::HashSet,
     error::Error,
     fmt,
     ops::{Deref, DerefMut},
 };
 
-use novadraw_core::Color;
 use novadraw_geometry::{Rectangle, Translatable};
-use novadraw_render::{
-    NdCanvas,
-    command::{LineCap, LineJoin},
-};
+use novadraw_render::NdCanvas;
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
@@ -29,6 +24,7 @@ use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
     NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
 };
+use crate::style::{FigureStyle, ResolvedStyle};
 
 // 渲染模块
 mod render_recursive;
@@ -114,40 +110,11 @@ impl From<LayoutError> for ValidationError {
     }
 }
 
-const SELECTION_OUTLINE_COLOR: Color = Color {
-    r: 0.98,
-    g: 0.86,
-    b: 0.22,
-    a: 1.0,
-};
-const SELECTION_OUTLINE_INSET: f64 = 2.0;
-const SELECTION_OUTLINE_STROKE_WIDTH: f64 = 4.0;
-
 fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
     point.0 >= rect.x
         && point.0 <= rect.x + rect.width
         && point.1 >= rect.y
         && point.1 <= rect.y + rect.height
-}
-
-pub(crate) fn paint_selection_overlay(block: &FigureNode, selected: bool, gc: &mut NdCanvas) {
-    if !selected {
-        return;
-    }
-
-    let bounds = block.figure_bounds();
-    let width = (bounds.width - SELECTION_OUTLINE_INSET - SELECTION_OUTLINE_INSET).max(0.0);
-    let height = (bounds.height - SELECTION_OUTLINE_INSET - SELECTION_OUTLINE_INSET).max(0.0);
-    gc.stroke_rect(
-        SELECTION_OUTLINE_INSET,
-        SELECTION_OUTLINE_INSET,
-        width,
-        height,
-        SELECTION_OUTLINE_COLOR,
-        SELECTION_OUTLINE_STROKE_WIDTH,
-        LineCap::default(),
-        LineJoin::default(),
-    );
 }
 
 /// State shared by every Figure node.
@@ -164,15 +131,7 @@ pub struct NodeState {
     pub(crate) preferred_size: Option<(f64, f64)>,
     pub(crate) minimum_size: Option<(f64, f64)>,
     pub(crate) maximum_size: Option<(f64, f64)>,
-    pub(crate) style: StyleOverride,
-}
-
-/// Inheritable rendering properties explicitly set on one node.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct StyleOverride {
-    pub foreground: Option<Color>,
-    pub background: Option<Color>,
-    pub alpha: Option<f64>,
+    pub(crate) style: FigureStyle,
 }
 
 impl Default for NodeState {
@@ -187,7 +146,7 @@ impl Default for NodeState {
             preferred_size: None,
             minimum_size: None,
             maximum_size: None,
-            style: StyleOverride::default(),
+            style: FigureStyle::default(),
         }
     }
 }
@@ -217,8 +176,8 @@ impl NodeState {
         self.insets
     }
 
-    pub fn style(&self) -> StyleOverride {
-        self.style
+    pub fn style(&self) -> &FigureStyle {
+        &self.style
     }
 }
 
@@ -450,11 +409,6 @@ impl FigureNode {
     }
 }
 
-#[inline]
-fn rect_intersects(a: &Rectangle, b: &Rectangle) -> bool {
-    a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y
-}
-
 /// 场景图
 ///
 /// 管理所有图形块的层次结构，参考 Eclipse Draw2d 设计模式。
@@ -481,8 +435,6 @@ pub struct FigureTree {
     root: FigureId,
     /// 内容块（用户可访问的根容器）
     contents: Option<FigureId>,
-    /// Compatibility selection model kept outside core node state.
-    selected: HashSet<FigureId>,
     notification_effects: NotificationQueue,
 }
 
@@ -513,7 +465,6 @@ impl FigureTree {
             uuid_map: std::collections::HashMap::new(),
             root: root_id,
             contents: None,
-            selected: HashSet::new(),
             notification_effects: NotificationQueue::new(),
         }
     }
@@ -587,6 +538,9 @@ impl FigureTree {
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
     pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
+        if let Some(previous) = self.contents.take() {
+            self.detach_child(self.root, previous);
+        }
         let contents_id = self
             .new_block_with_parent(figure, self.root)
             .expect("FigureTree root must exist");
@@ -967,7 +921,6 @@ impl FigureTree {
             self.contents = None;
         }
 
-        self.clear_selection_for_subtree(child);
         self.mark_invalid(update_manager, parent);
         self.repaint(update_manager, parent, None);
         true
@@ -1445,17 +1398,6 @@ impl FigureTree {
             .unwrap_or_default()
     }
 
-    /// 重新验证布局（兼容旧 API）
-    ///
-    /// 如果布局无效则重新计算。
-    /// 使用内容块作为根容器。
-    pub fn revalidate_with_bounds(&mut self, container_bounds: Rectangle) {
-        if !self.is_layout_valid() {
-            self.apply_layout(container_bounds);
-            self.validate();
-        }
-    }
-
     /// 检查布局是否有效
     pub fn is_layout_valid(&self) -> bool {
         self.blocks
@@ -1575,70 +1517,6 @@ impl FigureTree {
         true
     }
 
-    /// 按矩形选择
-    pub fn select_by_rect(&mut self, rect: Rectangle) {
-        self.selected.clear();
-
-        // 收集需要选中的 ID
-        let mut to_select: Vec<FigureId> = Vec::new();
-        let mut stack = vec![self.root];
-        while let Some(node_id) = stack.pop() {
-            if let Some(block) = self.blocks.get(node_id) {
-                if !block.is_visible {
-                    continue;
-                }
-
-                // 先处理子节点
-                for &child_id in block.children.iter().rev() {
-                    stack.push(child_id);
-                }
-
-                // 检查矩形相交
-                let bounds = block.figure_bounds();
-                if rect_intersects(&rect, &bounds) {
-                    to_select.push(node_id);
-                }
-            }
-        }
-
-        // 设置选中状态
-        self.selected.extend(to_select);
-    }
-
-    /// 选择单个块
-    #[allow(clippy::collapsible_if)]
-    pub fn select_single(&mut self, block_id: Option<FigureId>) {
-        let mut changed = Vec::new();
-        for id in self.blocks.keys() {
-            let selected = Some(id) == block_id;
-            let was_selected = self.selected.contains(&id);
-            if was_selected != selected {
-                changed.push((id, was_selected, selected));
-            }
-        }
-        self.selected.clear();
-        self.selected
-            .extend(block_id.filter(|id| self.blocks.contains_key(*id)));
-        for (id, old_value, new_value) in changed {
-            self.emit_property_event(PropertyChangeEvent {
-                block_id: id,
-                property: "selected",
-                old_value: PropertyValue::Bool(old_value),
-                new_value: PropertyValue::Bool(new_value),
-            });
-        }
-    }
-
-    /// 设置选中状态
-    pub fn set_selected(&mut self, block_id: Option<FigureId>) {
-        self.select_single(block_id);
-    }
-
-    /// 获取当前选中的块 ID
-    pub fn selected_block(&self) -> Option<FigureId> {
-        self.selected.iter().next().copied()
-    }
-
     /// 命中测试
     ///
     /// 检测指定点是否命中任意图形，返回从根到目标的路径。
@@ -1693,7 +1571,6 @@ impl FigureTree {
         let start_id = self.contents.unwrap_or(self.root);
         let scene_ref = FigureTreeRenderRef {
             blocks: &self.blocks,
-            selected: &self.selected,
         };
         let mut renderer = FigureRenderer::new(&scene_ref, gc);
         renderer.render(start_id);
@@ -1723,13 +1600,8 @@ impl FigureTree {
         if let Some(block) = self.blocks.get(block_id) {
             let bounds = block.figure_bounds();
             let visibility = if block.is_visible { "V" } else { "H" };
-            let selected = if self.selected.contains(&block_id) {
-                " *"
-            } else {
-                ""
-            };
             eprintln!(
-                "{}{} {:?}: {} bounds=({:.0},{:.0},{:.0},{:.0}){}",
+                "{}{} {:?}: {} bounds=({:.0},{:.0},{:.0},{:.0})",
                 indent,
                 visibility,
                 block_id,
@@ -1737,8 +1609,7 @@ impl FigureTree {
                 bounds.x,
                 bounds.y,
                 bounds.width,
-                bounds.height,
-                selected
+                bounds.height
             );
 
             // 正序打印子节点（视觉上：先添加的在上面）
@@ -1910,26 +1781,22 @@ impl FigureTree {
         self.blocks.get(id).map(|block| block.insets)
     }
 
-    pub fn style_override(&self, id: FigureId) -> Option<StyleOverride> {
-        self.blocks.get(id).map(|block| block.style)
+    pub fn figure_style(&self, id: FigureId) -> Option<&FigureStyle> {
+        self.blocks.get(id).map(|block| &block.style)
     }
 
-    pub fn inherited_style(&self, id: FigureId) -> Option<StyleOverride> {
+    pub fn resolved_style(&self, id: FigureId) -> Option<ResolvedStyle> {
         self.blocks.get(id)?;
-        let mut result = StyleOverride::default();
+        let mut chain = Vec::new();
         let mut current = Some(id);
         while let Some(node_id) = current {
             let node = self.blocks.get(node_id)?;
-            if result.foreground.is_none() {
-                result.foreground = node.style.foreground;
-            }
-            if result.background.is_none() {
-                result.background = node.style.background;
-            }
-            if result.alpha.is_none() {
-                result.alpha = node.style.alpha;
-            }
+            chain.push(node_id);
             current = node.parent;
+        }
+        let mut result = ResolvedStyle::default();
+        for node_id in chain.into_iter().rev() {
+            result.apply_override(&self.blocks[node_id].style);
         }
         Some(result)
     }
@@ -1959,16 +1826,113 @@ impl FigureTree {
         true
     }
 
-    pub fn set_style_override(&mut self, id: FigureId, style: StyleOverride) -> bool {
-        let Some(block) = self.blocks.get_mut(id) else {
+    pub fn set_figure_style(&mut self, id: FigureId, mut style: FigureStyle) -> bool {
+        let Some(old_style) = self.blocks.get(id).map(|block| block.style.clone()) else {
             return false;
         };
-        if block.style == style {
+        style.alpha = style.alpha.map(|alpha| alpha.clamp(0.0, 1.0));
+        if old_style == style {
             return false;
         }
-        block.style = style;
+        self.blocks[id].style = style.clone();
         self.notify_block_changed(id);
+        self.emit_style_property_changes(id, &old_style, &style);
         true
+    }
+
+    pub fn set_figure_style_with_update(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        style: FigureStyle,
+    ) -> bool {
+        let font_changed = self
+            .blocks
+            .get(id)
+            .is_some_and(|block| block.style.font != style.font);
+        if !self.set_figure_style(id, style) {
+            return false;
+        }
+
+        let mut stack = vec![id];
+        while let Some(node_id) = stack.pop() {
+            let Some(node) = self.blocks.get(node_id) else {
+                continue;
+            };
+            stack.extend(node.children.iter().copied());
+            if font_changed {
+                self.mark_invalid(update_manager, node_id);
+            }
+            self.repaint(update_manager, node_id, None);
+        }
+        true
+    }
+
+    fn emit_style_property_changes(&mut self, id: FigureId, old: &FigureStyle, new: &FigureStyle) {
+        if old.foreground != new.foreground {
+            self.record_property_change(
+                id,
+                "foreground",
+                old.foreground
+                    .map_or(PropertyValue::None, PropertyValue::Color),
+                new.foreground
+                    .map_or(PropertyValue::None, PropertyValue::Color),
+            );
+        }
+        if old.background != new.background {
+            self.record_property_change(
+                id,
+                "background",
+                old.background
+                    .map_or(PropertyValue::None, PropertyValue::Color),
+                new.background
+                    .map_or(PropertyValue::None, PropertyValue::Color),
+            );
+        }
+        if old.alpha != new.alpha {
+            self.record_property_change(
+                id,
+                "alpha",
+                old.alpha.map_or(PropertyValue::None, PropertyValue::Number),
+                new.alpha.map_or(PropertyValue::None, PropertyValue::Number),
+            );
+        }
+        if old.font != new.font {
+            self.record_property_change(
+                id,
+                "font",
+                old.font
+                    .clone()
+                    .map_or(PropertyValue::None, PropertyValue::Text),
+                new.font
+                    .clone()
+                    .map_or(PropertyValue::None, PropertyValue::Text),
+            );
+        }
+        if old.cursor != new.cursor {
+            self.record_property_change(
+                id,
+                "cursor",
+                old.cursor
+                    .map_or(PropertyValue::None, PropertyValue::Cursor),
+                new.cursor
+                    .map_or(PropertyValue::None, PropertyValue::Cursor),
+            );
+        }
+        if old.tooltip != new.tooltip {
+            self.record_property_change(
+                id,
+                "tooltip",
+                old.tooltip
+                    .clone()
+                    .flatten()
+                    .map_or(PropertyValue::None, PropertyValue::Text),
+                new.tooltip
+                    .clone()
+                    .flatten()
+                    .map_or(PropertyValue::None, PropertyValue::Text),
+            );
+        }
     }
 
     /// 返回节点沿父链传播后的有效可见性。
@@ -1997,9 +1961,6 @@ impl FigureTree {
             block.is_visible = visible;
         }
 
-        if !visible {
-            self.clear_selection_for_subtree(id);
-        }
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
             block_id: id,
@@ -2058,9 +2019,6 @@ impl FigureTree {
             block.is_enabled = enabled;
         }
 
-        if !enabled {
-            self.clear_selection_for_subtree(id);
-        }
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
             block_id: id,
@@ -2189,29 +2147,6 @@ impl FigureTree {
         if let Some(block) = self.blocks.get_mut(target) {
             block.is_valid = true;
         }
-    }
-
-    pub fn is_selected(&self, id: FigureId) -> bool {
-        self.selected.contains(&id)
-    }
-
-    /// 应用布局
-    ///
-    /// 根据布局管理器重新计算子元素的位置。
-    /// 注意：当前实现为简化版本。
-    pub fn apply_layout(&mut self, container_bounds: Rectangle) {
-        // TODO: 完整的布局实现需要基于约束系统
-        // 当前简化实现：不做任何布局，子元素保持原位
-        let _ = container_bounds;
-    }
-
-    /// 计算布局大小
-    ///
-    /// 返回容器的首选大小。
-    pub fn compute_layout_size(&self, container_bounds: Rectangle) -> (f64, f64) {
-        // TODO: 完整的布局实现需要基于约束系统
-        // 当前简化实现：返回容器大小
-        (container_bounds.width, container_bounds.height)
     }
 
     // ========== 坐标变换方法 ==========
@@ -2602,37 +2537,6 @@ impl FigureTree {
             .then_some(block_id)
     }
 
-    fn clear_selection_for_subtree(&mut self, subtree_root: FigureId) {
-        let descendants: Vec<FigureId> = self
-            .blocks
-            .keys()
-            .filter(|&id| self.is_in_subtree(id, subtree_root))
-            .collect();
-        let deselected: Vec<_> = descendants
-            .into_iter()
-            .filter(|id| self.selected.remove(id))
-            .collect();
-        for block_id in deselected {
-            self.emit_property_event(PropertyChangeEvent {
-                block_id,
-                property: "selected",
-                old_value: PropertyValue::Bool(true),
-                new_value: PropertyValue::Bool(false),
-            });
-        }
-    }
-
-    fn is_in_subtree(&self, block_id: FigureId, subtree_root: FigureId) -> bool {
-        let mut current = Some(block_id);
-        while let Some(id) = current {
-            if id == subtree_root {
-                return true;
-            }
-            current = self.blocks.get(id).and_then(|block| block.parent);
-        }
-        false
-    }
-
     fn effective_flag_from(
         &self,
         mut block_id: FigureId,
@@ -2709,12 +2613,13 @@ impl Default for FigureTree {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape, Updatable};
+    use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape};
+    use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
     use crate::{
         EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureId, FigureLifecycle,
         FigureTree, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
-        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, StyleOverride,
-        TriangleFigure, ViewportFigure,
+        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure,
+        UpdateManager, ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
     use novadraw_geometry::Vec2;
@@ -2784,11 +2689,6 @@ mod tests {
         }
     }
 
-    impl Updatable for TestCoordinateRootFigure {
-        fn validate(&mut self) {}
-        fn invalidate(&mut self) {}
-    }
-
     impl Shape for TestCoordinateRootFigure {
         fn stroke_color(&self) -> Option<NovadrawCoreColor> {
             None
@@ -2851,10 +2751,6 @@ mod tests {
         fn visual_bounds(&self) -> Rectangle {
             self.paint_rect
         }
-    }
-
-    impl Updatable for OverflowPaintFigure {
-        fn validate(&mut self) {}
     }
 
     impl Shape for OverflowPaintFigure {
@@ -2925,10 +2821,6 @@ mod tests {
         }
     }
 
-    impl Updatable for LifecycleRecordingFigure {
-        fn validate(&mut self) {}
-    }
-
     impl Figure for LifecycleRecordingFigure {
         fn initial_bounds(&self) -> Rectangle {
             Bounded::bounds(self)
@@ -2993,11 +2885,6 @@ mod tests {
         }
     }
 
-    impl Updatable for TestFigureWithInsets {
-        fn validate(&mut self) {}
-        fn invalidate(&mut self) {}
-    }
-
     impl Shape for TestFigureWithInsets {
         fn stroke_color(&self) -> Option<NovadrawCoreColor> {
             None
@@ -3057,11 +2944,6 @@ mod tests {
         fn name(&self) -> &'static str {
             "TestInteractiveFigure"
         }
-    }
-
-    impl Updatable for TestInteractiveFigure {
-        fn validate(&mut self) {}
-        fn invalidate(&mut self) {}
     }
 
     impl Shape for TestInteractiveFigure {
@@ -3169,7 +3051,6 @@ mod tests {
 
     struct AlphaStateFigure {
         bounds: Rectangle,
-        alpha: Option<f64>,
     }
 
     impl Bounded for AlphaStateFigure {
@@ -3186,10 +3067,6 @@ mod tests {
         }
     }
 
-    impl Updatable for AlphaStateFigure {
-        fn validate(&mut self) {}
-    }
-
     impl Figure for AlphaStateFigure {
         fn initial_bounds(&self) -> Rectangle {
             Bounded::bounds(self)
@@ -3197,12 +3074,6 @@ mod tests {
 
         fn name(&self) -> &'static str {
             Bounded::name(self)
-        }
-
-        fn init_properties(&self, gc: &mut NdCanvas) {
-            if let Some(alpha) = self.alpha {
-                gc.global_alpha(alpha);
-            }
         }
 
         fn paint_figure(&self, gc: &mut NdCanvas) {
@@ -4362,18 +4233,23 @@ mod tests {
             RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
                 .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
         ));
-        scene.add_child_to(
+        let first = scene.add_child_to(
             parent_id,
             Box::new(AlphaStateFigure {
                 bounds: Rectangle::new(0.0, 0.0, 10.0, 10.0),
-                alpha: Some(0.25),
             }),
+        );
+        scene.set_figure_style(
+            first,
+            FigureStyle {
+                alpha: Some(0.25),
+                ..FigureStyle::default()
+            },
         );
         scene.add_child_to(
             parent_id,
             Box::new(AlphaStateFigure {
                 bounds: Rectangle::new(20.0, 0.0, 10.0, 10.0),
-                alpha: None,
             }),
         );
 
@@ -4550,6 +4426,19 @@ mod tests {
     }
 
     #[test]
+    fn replacing_contents_detaches_the_previous_root_subtree() {
+        let mut scene = FigureTree::new();
+        let previous = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let replacement =
+            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+
+        assert!(!scene.is_attached(previous));
+        assert!(scene.is_attached(replacement));
+        assert_eq!(scene.get_contents(), Some(replacement));
+        assert_eq!(scene.child_order(scene.root), Some(vec![replacement]));
+    }
+
+    #[test]
     fn node_style_inherits_each_unset_property_independently() {
         let mut scene = FigureTree::new();
         let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
@@ -4558,30 +4447,110 @@ mod tests {
         let foreground = NovadrawCoreColor::hex("#123456");
         let background = NovadrawCoreColor::hex("#abcdef");
 
-        scene.set_style_override(
+        scene.set_figure_style(
             parent,
-            StyleOverride {
+            FigureStyle {
                 foreground: Some(foreground),
                 background: None,
                 alpha: Some(0.75),
+                font: Some("18px serif".to_string()),
+                cursor: Some(CursorIcon::Pointer),
+                tooltip: None,
             },
         );
-        scene.set_style_override(
+        scene.set_figure_style(
             child,
-            StyleOverride {
+            FigureStyle {
                 foreground: None,
                 background: Some(background),
                 alpha: None,
+                font: None,
+                cursor: None,
+                tooltip: Some(Some("child".to_string())),
             },
         );
 
         assert_eq!(
-            scene.inherited_style(child),
-            Some(StyleOverride {
-                foreground: Some(foreground),
-                background: Some(background),
-                alpha: Some(0.75),
+            scene.resolved_style(child),
+            Some(ResolvedStyle {
+                foreground,
+                background,
+                alpha: 0.75,
+                font: "18px serif".to_string(),
+                cursor: CursorIcon::Pointer,
+                tooltip: Some("child".to_string()),
             })
+        );
+    }
+
+    #[test]
+    fn resolved_style_is_applied_to_descendant_graphics_state() {
+        let mut scene = FigureTree::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        scene.set_figure_style(
+            parent,
+            FigureStyle {
+                alpha: Some(0.5),
+                ..FigureStyle::default()
+            },
+        );
+        scene.add_child_to(
+            parent,
+            Box::new(AlphaStateFigure {
+                bounds: Rectangle::new(20.0, 0.0, 10.0, 10.0),
+            }),
+        );
+
+        let color = scene
+            .render()
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::FillRect { rect, color }
+                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
+                {
+                    Some(*color)
+                }
+                _ => None,
+            })
+            .expect("styled descendant must paint");
+
+        assert_eq!(color.a, 0.5);
+    }
+
+    #[test]
+    fn style_change_emits_typed_properties_and_queues_subtree_repaint() {
+        let mut scene = FigureTree::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child =
+            scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let mut updates = UpdateManager::new();
+
+        assert!(scene.set_figure_style_with_update(
+            &mut updates,
+            parent,
+            FigureStyle {
+                foreground: Some(NovadrawCoreColor::WHITE),
+                font: Some("16px sans-serif".to_string()),
+                cursor: Some(CursorIcon::Crosshair),
+                tooltip: Some(Some("container".to_string())),
+                ..FigureStyle::default()
+            },
+        ));
+
+        assert!(updates.has_pending_repaint());
+        assert!(updates.has_pending_layout());
+        let effects = scene.notification_effects();
+        for property in ["foreground", "font", "cursor", "tooltip"] {
+            assert!(effects.iter().any(|effect| matches!(
+                effect,
+                NotificationEffect::EmitProperty(event)
+                    if event.block_id == parent && event.property == property
+            )));
+        }
+        assert_eq!(
+            scene.resolved_style(child).unwrap().cursor,
+            CursorIcon::Crosshair
         );
     }
 }

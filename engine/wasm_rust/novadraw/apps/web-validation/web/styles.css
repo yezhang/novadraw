@@ -58,8 +58,100 @@ main {
   min-width: 0;
   padding: 24px;
   display: grid;
-  place-items: center;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  justify-items: center;
+  align-content: center;
+  gap: 14px;
   background: #e8edf1;
+}
+
+.theme-tabs,
+.scene-toolbar {
+  width: min(100%, 800px);
+}
+
+.theme-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #b7c1ca;
+}
+
+.theme-tabs button {
+  width: auto;
+  min-height: 32px;
+  margin: 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #52606d;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.theme-tabs button[aria-selected="true"] {
+  border-bottom-color: #2563eb;
+  color: #17202a;
+}
+
+.theme-tabs button:hover {
+  background: #dce4eb;
+}
+
+.scene-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.scene-toolbar p,
+.scene-toolbar strong {
+  display: block;
+}
+
+.scene-toolbar p {
+  margin: 0 0 3px;
+  color: #667480;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.scene-toolbar strong {
+  font-size: 14px;
+}
+
+.scene-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scene-controls output {
+  min-width: 36px;
+  max-width: none;
+  color: #34495e;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: center;
+}
+
+.icon-button {
+  width: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #8c99a5;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #17202a;
+  font-size: 23px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.icon-button:hover {
+  background: #e5e9ed;
 }
 
 canvas {
@@ -141,6 +233,10 @@ button:focus-visible {
 
   main {
     grid-template-columns: 1fr;
+  }
+
+  .workspace {
+    padding: 16px;
   }
 
   aside {

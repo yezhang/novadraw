@@ -3,7 +3,7 @@
 //! 直接调用 NdCanvas API 测试每个渲染命令
 
 use novadraw::command::{LineCap, LineJoin};
-use novadraw::{Bounded, Color, Figure, NdCanvas, Rectangle, RectangleFigure, Updatable};
+use novadraw::{Bounded, Color, Figure, NdCanvas, Rectangle, RectangleFigure};
 use novadraw_apps::{run_demo_app, run_demo_app_with_scene_screenshot};
 
 // 窗口大小
@@ -37,11 +37,6 @@ impl Bounded for TestFigure {
     fn set_bounds(&mut self, _x: f64, _y: f64, _width: f64, _height: f64) {
         // 不支持设置 bounds
     }
-}
-
-impl Updatable for TestFigure {
-    fn validate(&mut self) {}
-    fn invalidate(&mut self) {}
 }
 
 impl Figure for TestFigure {

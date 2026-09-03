@@ -1,5 +1,6 @@
 mod app_window;
 mod scene_manager;
+mod selection;
 mod system;
 
 use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};

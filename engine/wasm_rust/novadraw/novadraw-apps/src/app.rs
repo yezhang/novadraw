@@ -168,6 +168,7 @@ impl DemoApp {
         };
         action(runtime);
         if let Some(host) = &self.host {
+            host.set_cursor(runtime.cursor_icon());
             host.request_redraw();
         }
     }

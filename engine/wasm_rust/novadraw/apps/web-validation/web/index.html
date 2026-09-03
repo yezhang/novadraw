@@ -17,6 +17,22 @@
 
     <main>
       <section class="workspace" aria-label="Interactive runtime canvas">
+        <nav class="theme-tabs" aria-label="Validation theme" role="tablist">
+          <button id="theme-input" type="button" role="tab" aria-selected="true">Input</button>
+          <button id="theme-shape" type="button" role="tab" aria-selected="false">Shapes</button>
+          <button id="theme-viewport" type="button" role="tab" aria-selected="false">Viewport</button>
+        </nav>
+        <div class="scene-toolbar">
+          <div>
+            <p id="theme-title">Input</p>
+            <strong id="scene-title">Pointer, keyboard and wheel</strong>
+          </div>
+          <div class="scene-controls">
+            <button id="previous-scene" class="icon-button" type="button" aria-label="Previous scene">‹</button>
+            <output id="scene-count">1/1</output>
+            <button id="next-scene" class="icon-button" type="button" aria-label="Next scene">›</button>
+          </div>
+        </div>
         <canvas
           id="novadraw-canvas"
           tabindex="0"

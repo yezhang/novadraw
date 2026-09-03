@@ -19,6 +19,7 @@ pub mod host;
 pub mod layout;
 pub mod log;
 pub mod runtime;
+pub mod style;
 
 pub use container::viewport;
 pub use container::{
@@ -35,14 +36,14 @@ pub use figure::{
     AccessibleFigure, AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform,
     Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
     PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
-    TriangleFigure, Updatable,
+    TriangleFigure,
 };
 pub use graph as scene;
 pub use graph::{
     DEFAULT_VALIDATION_BUDGET, FigureId, FigureNode, FigureTree, GraphMutationError, LayoutState,
-    MAX_TREE_DEPTH, NodeState, StyleOverride, ValidationError,
+    MAX_TREE_DEPTH, NodeState, ValidationError,
 };
-pub use host::{AccessibilityUpdate, CursorIcon, HeadlessHost, ImeState, PlatformHost};
+pub use host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
     GridAlignment, GridConstraint, GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation,
@@ -64,6 +65,10 @@ pub use runtime::update::{
     NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue, UpdateEvent,
     UpdateListener, UpdateManager, ValidatingListener,
 };
-pub use runtime::{InteractionState, PointerId, Runtime};
+pub use runtime::{
+    FontId, ImageId, InteractionState, PointerId, ResourceError, ResourceKind, ResourceRegistry,
+    ResourceStatus, Runtime,
+};
 pub use runtime::{context, event, mutation};
+pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

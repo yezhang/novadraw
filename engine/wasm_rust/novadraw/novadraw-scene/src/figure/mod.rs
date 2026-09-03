@@ -255,47 +255,14 @@ pub trait Bounded {
 }
 
 // ============================================================================
-// Updatable Trait: 更新/验证接口
-// ============================================================================
-
-/// 独立图元的验证兼容 trait。
-///
-/// 定义图形验证和更新的接口，参考 Eclipse Draw2D 的 IFigure 设计。
-/// 负责布局后的验证、失效标记等生命周期管理。
-///
-/// # 与 FigureTree 的关系
-///
-/// FigureTree 的运行时验证通过可选 [`FigureLifecycle`] capability 调用；
-/// 该 trait 暂时保留给尚未迁移的独立图元 API。
-pub trait Updatable {
-    /// 布局验证
-    ///
-    /// 对应 draw2d: IFigure.validate()
-    /// 在布局计算完成后被调用，用于：
-    /// - 预计算依赖布局的几何属性（如 Triangle 顶点）
-    /// - 缓存布局相关的计算结果
-    ///
-    /// 注意：本方法在 FigureTree.revalidate() 流程中被调用。
-    fn validate(&mut self);
-
-    /// 标记为无效
-    ///
-    /// 对应 draw2d: IFigure.invalidate()
-    /// 标记图形需要重新验证。通常由 setBounds() 等操作触发。
-    ///
-    /// 默认实现为空，子类可覆盖以通知 FigureTree。
-    fn invalidate(&mut self) {}
-}
-
-// ============================================================================
 // Figure Trait: 渲染接口
 // ============================================================================
 
 /// Figure 渲染 trait
 ///
 /// 所有图形对象都需要实现此 trait。
-/// 只包含渲染相关方法，边界方法在 Bounded trait 中。
-/// 布局验证方法在 Updatable trait 中定义。
+/// 只包含具体 Figure 行为；运行时几何与 validation 状态由 FigureNode 管理，
+/// 需要派生缓存的 Figure 通过 [`FigureLifecycle`] 接入 validation。
 ///
 /// # 渲染流程（参考 Draw2D）
 ///
@@ -329,15 +296,6 @@ pub trait Figure: AsAny {
     /// Returns construction-time insets copied into NodeState on attach.
     fn initial_insets(&self) -> (f64, f64, f64, f64) {
         (0.0, 0.0, 0.0, 0.0)
-    }
-
-    /// ===== 模板方法 =====
-    /// 初始化本地属性
-    ///
-    /// 对应 draw2d: setLocalBackgroundColor/ForegroundColor/Font
-    /// 设置图形的本地渲染属性（颜色、字体等）
-    fn init_properties(&self, _gc: &mut NdCanvas) {
-        // 默认空实现，子类可覆盖
     }
 
     /// ===== PaintSelf 阶段方法 =====
