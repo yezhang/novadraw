@@ -51,7 +51,7 @@ pub use layout::{
     ToolbarOrientation, XYConstraint, XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
-pub use runtime::context::{NovadrawContext, SceneDispatchContext, SceneNovadrawContext};
+pub use runtime::context::{EventContext, SceneDispatchContext};
 pub use runtime::event::{
     BasicEventDispatcher, DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind,
     GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,

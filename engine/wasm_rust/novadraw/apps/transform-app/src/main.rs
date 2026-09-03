@@ -1,7 +1,7 @@
 //! M4 坐标域与变换闭环验证。
 
 use novadraw::{
-    Bounded, Color, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas, NovadrawContext,
+    Bounded, Color, EventContext, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas,
     Point, Rectangle, RectangleFigure, Shape, Updatable,
     command::{LineCap, LineJoin},
 };
@@ -245,7 +245,7 @@ impl Shape for TargetDomainFigure {
 }
 
 impl FigureEventHandler for TargetDomainFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         let point = Point::new(event.x, event.y);
         let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
         if local_bounds.contains(point) {

@@ -38,7 +38,7 @@ use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
-use crate::{FigureId, FocusEvent, KeyEvent, MouseEvent, NovadrawContext, WheelEvent};
+use crate::{EventContext, FigureId, FocusEvent, KeyEvent, MouseEvent, WheelEvent};
 use border::Border;
 
 const DEFAULT_MAXIMUM_DIMENSION: f64 = i32::MAX as f64;
@@ -468,59 +468,59 @@ pub trait FigureEventHandler {
         false
     }
 
-    fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_moved(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_moved(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_dragged(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_dragged(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_hover(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_hover(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_double_clicked(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_double_clicked(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_wheel(&self, _event: &WheelEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_zoom(&self, _event: &crate::ZoomEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_zoom(&self, _event: &crate::ZoomEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_pressed(&self, _event: &KeyEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_released(&self, _event: &KeyEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_focus_gained(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_focus_gained(&self, _event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_focus_lost(&self, _event: &FocusEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_focus_lost(&self, _event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 
-    fn on_mouse_exited(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_exited(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }
 }

@@ -431,8 +431,8 @@ impl UpdateListener for TraceUpdateListener {
 #[cfg(test)]
 mod tests {
     use novadraw::{
-        Bounded, Color, Figure, FigureEventHandler, FigureTree, MouseEvent, NdCanvas,
-        NovadrawContext, Rectangle, RenderCommandKind, Shape, Updatable,
+        Bounded, Color, EventContext, Figure, FigureEventHandler, FigureTree, MouseEvent, NdCanvas,
+        Rectangle, RenderCommandKind, Shape, Updatable,
         command::{LineCap, LineJoin},
     };
 
@@ -514,22 +514,22 @@ mod tests {
     }
 
     impl FigureEventHandler for TestInteractiveFigure {
-        fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
             if event.button == MouseButton::Left {
                 ctx.select_target();
             }
             true
         }
 
-        fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
             true
         }
 
-        fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_entered(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
             true
         }
 
-        fn on_mouse_exited(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_exited(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
             true
         }
     }

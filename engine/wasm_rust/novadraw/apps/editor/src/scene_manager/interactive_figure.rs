@@ -1,7 +1,7 @@
 use novadraw::NdCanvas;
 use novadraw::{
-    Bounded, Color, Figure, FigureEventHandler, MouseButton, MouseEvent, NovadrawContext,
-    Rectangle, Shape, Updatable,
+    Bounded, Color, EventContext, Figure, FigureEventHandler, MouseButton, MouseEvent, Rectangle,
+    Shape, Updatable,
     command::{LineCap, LineJoin},
 };
 
@@ -120,7 +120,7 @@ impl Shape for InteractiveRectFigure {
 }
 
 impl FigureEventHandler for InteractiveRectFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         if event.button == MouseButton::Left {
             ctx.select_target();
         }
@@ -128,17 +128,17 @@ impl FigureEventHandler for InteractiveRectFigure {
         true
     }
 
-    fn on_mouse_released(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_released(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         ctx.repaint(None);
         true
     }
 
-    fn on_mouse_entered(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_entered(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         ctx.repaint(None);
         true
     }
 
-    fn on_mouse_exited(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_exited(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         ctx.repaint(None);
         true
     }

@@ -9,8 +9,8 @@ use novadraw_render::NdCanvas;
 use crate::figure::{Bounded, Figure, FigureEventHandler, Updatable};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    FigureId, FigureTree, GraphMutationError, MouseEvent, NovadrawContext, PropertyValue,
-    RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
+    EventContext, FigureId, FigureTree, GraphMutationError, MouseEvent, PropertyValue, RangeModel,
+    ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
@@ -225,7 +225,7 @@ impl ScrollPaneFigure {
     fn notify_viewport_change(
         runtime: &ScrollPaneRuntime,
         old_location: Point,
-        ctx: &mut dyn NovadrawContext,
+        ctx: &mut EventContext<'_>,
     ) {
         let Some(viewport_id) = runtime.viewport_id else {
             return;
@@ -305,7 +305,7 @@ impl FigureEventHandler for ScrollPaneFigure {
         true
     }
 
-    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut EventContext<'_>) -> bool {
         let runtime = lock_unpoisoned(&self.runtime);
         let old_location = Point::new(runtime.horizontal.value(), runtime.vertical.value());
         let vertical_changed =
@@ -376,7 +376,7 @@ impl ScrollBarFigure {
         ScrollBarGeometry::new(0.0, self.axis_length(bounds), self.model.snapshot())
     }
 
-    fn repaint_pane(&self, ctx: &mut dyn NovadrawContext) {
+    fn repaint_pane(&self, ctx: &mut EventContext<'_>) {
         let runtime = lock_unpoisoned(&self.pane_runtime);
         let pane_bounds = runtime.pane_bounds;
         ctx.repaint_figure(
@@ -385,7 +385,7 @@ impl ScrollBarFigure {
         );
     }
 
-    fn notify_model_change(&self, old_value: f64, ctx: &mut dyn NovadrawContext) {
+    fn notify_model_change(&self, old_value: f64, ctx: &mut EventContext<'_>) {
         let runtime = lock_unpoisoned(&self.pane_runtime);
         let Some(viewport_id) = runtime.viewport_id else {
             return;
@@ -528,7 +528,7 @@ impl FigureEventHandler for ScrollBarFigure {
         true
     }
 
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         let pointer = self.axis_position(event.x, event.y);
         let geometry = self.geometry(ctx.target_bounds());
         let snapshot = self.model.snapshot();
@@ -558,7 +558,7 @@ impl FigureEventHandler for ScrollBarFigure {
         true
     }
 
-    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         let drag = *lock_unpoisoned(&self.drag);
         if !drag.armed {
             return false;
@@ -579,7 +579,7 @@ impl FigureEventHandler for ScrollBarFigure {
         true
     }
 
-    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_released(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         lock_unpoisoned(&self.drag).armed = false;
         true
     }

@@ -362,7 +362,7 @@ pub struct ImageFigure {
 }
 
 pub trait ClickableFigure: Figure {
-    fn do_click(&mut self, ctx: &mut dyn NovadrawContext);
+    fn do_click(&mut self, ctx: &mut EventContext<'_>);
     fn is_selected(&self) -> bool;
     fn set_selected(&mut self, selected: bool);
 }

@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
-    BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureEventHandler, FigureTree,
-    FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
-    MouseButton, MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations,
-    Rectangle, RectangleFigure, SceneDispatchContext, Updatable, UpdateManager, WheelEvent,
+    BasicEventDispatcher, Bounded, Color, EventContext, EventDispatcher, Figure,
+    FigureEventHandler, FigureTree, FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent,
+    KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, NdCanvas,
+    PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext, Updatable, UpdateManager,
+    WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -42,7 +43,7 @@ impl EventProbeFigure {
         Self { bounds, state }
     }
 
-    fn record_mouse(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) {
+    fn record_mouse(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) {
         let mut state = self.state.lock().unwrap();
         match event.kind {
             MouseEventKind::Entered => state.hovered = true,
@@ -117,47 +118,47 @@ impl FigureEventHandler for EventProbeFigure {
         true
     }
 
-    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_released(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_released(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_moved(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_moved(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_dragged(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_hover(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_hover(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_double_clicked(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_double_clicked(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_entered(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_entered(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_exited(&self, event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_exited(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
     }
 
-    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_wheel(&self, event: &WheelEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.lock().unwrap().events.push(ProbeEvent::Wheel(
             event.x,
             event.y,
@@ -168,7 +169,7 @@ impl FigureEventHandler for EventProbeFigure {
         true
     }
 
-    fn on_key_pressed(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_pressed(&self, event: &KeyEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.lock().unwrap().events.push(ProbeEvent::Key(
             event.kind,
             event.key,
@@ -178,11 +179,11 @@ impl FigureEventHandler for EventProbeFigure {
         true
     }
 
-    fn on_key_released(&self, event: &KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_released(&self, event: &KeyEvent, ctx: &mut EventContext<'_>) -> bool {
         FigureEventHandler::on_key_pressed(self, event, ctx)
     }
 
-    fn on_focus_gained(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_focus_gained(&self, event: &FocusEvent, ctx: &mut EventContext<'_>) -> bool {
         let mut state = self.state.lock().unwrap();
         state.focused = true;
         state.events.push(ProbeEvent::Focus(event.kind));
@@ -191,7 +192,7 @@ impl FigureEventHandler for EventProbeFigure {
         true
     }
 
-    fn on_focus_lost(&self, event: &FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_focus_lost(&self, event: &FocusEvent, ctx: &mut EventContext<'_>) -> bool {
         let mut state = self.state.lock().unwrap();
         state.focused = false;
         state.events.push(ProbeEvent::Focus(event.kind));

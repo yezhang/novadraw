@@ -5,10 +5,10 @@ use std::f64::consts::TAU;
 use std::rc::Rc;
 
 use novadraw::{
-    BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, Figure, FigureEventHandler, Key,
-    KeyModifiers, MouseButton, NdCanvas, NovadrawContext, PlatformHost, Rectangle, RectangleFigure,
-    RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo,
-    Updatable,
+    BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, EventContext, Figure,
+    FigureEventHandler, Key, KeyModifiers, MouseButton, NdCanvas, PlatformHost, Rectangle,
+    RectangleFigure, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission, Runtime,
+    Shape, SurfaceInfo, Updatable,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
@@ -54,7 +54,7 @@ impl WebProbeFigure {
         Self { bounds, state }
     }
 
-    fn record_pointer(&self, ctx: &mut dyn NovadrawContext) {
+    fn record_pointer(&self, ctx: &mut EventContext<'_>) {
         self.state
             .pointer_events
             .set(self.state.pointer_events.get() + 1);
@@ -159,61 +159,41 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn on_mouse_pressed(
-        &self,
-        _event: &novadraw::MouseEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_mouse_pressed(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.pressed.set(true);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_released(
-        &self,
-        _event: &novadraw::MouseEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_mouse_released(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.pressed.set(false);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_moved(&self, _event: &novadraw::MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_moved(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_dragged(
-        &self,
-        _event: &novadraw::MouseEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_mouse_dragged(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_entered(
-        &self,
-        _event: &novadraw::MouseEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_mouse_entered(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.hovered.set(true);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_exited(
-        &self,
-        _event: &novadraw::MouseEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_mouse_exited(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.hovered.set(false);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_wheel(&self, _event: &novadraw::WheelEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_wheel(&self, _event: &novadraw::WheelEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state
             .wheel_events
             .set(self.state.wheel_events.get() + 1);
@@ -221,28 +201,24 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn on_key_pressed(&self, event: &novadraw::KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_pressed(&self, event: &novadraw::KeyEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.key_events.set(self.state.key_events.get() + 1);
         *self.state.last_key.borrow_mut() = format!("{:?}", event.key);
         ctx.repaint(None);
         true
     }
 
-    fn on_key_released(&self, event: &novadraw::KeyEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_key_released(&self, event: &novadraw::KeyEvent, ctx: &mut EventContext<'_>) -> bool {
         self.on_key_pressed(event, ctx)
     }
 
-    fn on_focus_gained(
-        &self,
-        _event: &novadraw::FocusEvent,
-        ctx: &mut dyn NovadrawContext,
-    ) -> bool {
+    fn on_focus_gained(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.focused.set(true);
         ctx.repaint(None);
         true
     }
 
-    fn on_focus_lost(&self, _event: &novadraw::FocusEvent, ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_focus_lost(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.focused.set(false);
         ctx.repaint(None);
         true

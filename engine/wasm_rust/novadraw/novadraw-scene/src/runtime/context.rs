@@ -10,47 +10,6 @@ use crate::{
     mutation::{MutationContext, PendingMutation},
 };
 
-pub trait NovadrawContext {
-    fn target_id(&self) -> FigureId;
-    /// Returns the target's current border box in its node-local coordinate domain.
-    fn target_bounds(&self) -> Rectangle;
-    fn repaint(&mut self, rect: Option<Rectangle>);
-    fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
-        if block_id == self.target_id() {
-            self.repaint(Some(rect));
-        }
-    }
-    fn emit_property_change(
-        &mut self,
-        _block_id: FigureId,
-        _property: &'static str,
-        _old_value: PropertyValue,
-        _new_value: PropertyValue,
-    ) {
-    }
-    fn coordinate_system_changed(&mut self, _block_id: FigureId, _bounds: Rectangle) {}
-    fn invalidate(&mut self);
-
-    /// Requests selection changes through the dispatch context.
-    ///
-    /// Figure callbacks never mutate `FigureTree` directly; the engine applies
-    /// the request after the target callback returns.
-    fn set_selected(&mut self, block_id: Option<FigureId>);
-
-    fn select_target(&mut self) {
-        self.set_selected(Some(self.target_id()));
-    }
-
-    /// Enqueues a structural mutation for application after top-level dispatch.
-    fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>);
-
-    /// Enqueues a child removal for application after top-level dispatch.
-    fn remove_child_later(&mut self, parent: FigureId, child: FigureId);
-
-    /// Enqueues a reparent operation for application after top-level dispatch.
-    fn reparent_later(&mut self, child: FigureId, new_parent: FigureId);
-}
-
 enum RuntimeEffect {
     Repaint { block_id: FigureId, rect: Rectangle },
     Notification(NotificationEffect),
@@ -62,14 +21,14 @@ enum RuntimeEffect {
 /// 引擎层通用的 Figure 回调上下文。
 ///
 /// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
-pub struct SceneNovadrawContext<'a> {
+pub struct EventContext<'a> {
     target_id: FigureId,
     target_bounds: Rectangle,
     visual_bounds: Rectangle,
     effects: &'a mut Vec<RuntimeEffect>,
 }
 
-impl<'a> SceneNovadrawContext<'a> {
+impl<'a> EventContext<'a> {
     fn new(
         target_id: FigureId,
         target_bounds: Rectangle,
@@ -83,29 +42,28 @@ impl<'a> SceneNovadrawContext<'a> {
             effects,
         }
     }
-}
 
-impl NovadrawContext for SceneNovadrawContext<'_> {
-    fn target_id(&self) -> FigureId {
+    pub fn target_id(&self) -> FigureId {
         self.target_id
     }
 
-    fn target_bounds(&self) -> Rectangle {
+    /// Returns the target's current border box in its node-local coordinate domain.
+    pub fn target_bounds(&self) -> Rectangle {
         self.target_bounds
     }
 
-    fn repaint(&mut self, rect: Option<Rectangle>) {
+    pub fn repaint(&mut self, rect: Option<Rectangle>) {
         self.effects.push(RuntimeEffect::Repaint {
             block_id: self.target_id,
             rect: rect.unwrap_or(self.visual_bounds),
         });
     }
 
-    fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
+    pub fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
         self.effects.push(RuntimeEffect::Repaint { block_id, rect });
     }
 
-    fn emit_property_change(
+    pub fn emit_property_change(
         &mut self,
         block_id: FigureId,
         property: &'static str,
@@ -122,7 +80,7 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
         ));
     }
 
-    fn coordinate_system_changed(&mut self, block_id: FigureId, bounds: Rectangle) {
+    pub fn coordinate_system_changed(&mut self, block_id: FigureId, bounds: Rectangle) {
         self.effects
             .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
                 FigureEvent::CoordinateSystemChanged {
@@ -133,28 +91,36 @@ impl NovadrawContext for SceneNovadrawContext<'_> {
             )));
     }
 
-    fn invalidate(&mut self) {
+    pub fn invalidate(&mut self) {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
     }
 
-    fn set_selected(&mut self, block_id: Option<FigureId>) {
+    /// Requests selection changes after the target callback returns.
+    pub fn set_selected(&mut self, block_id: Option<FigureId>) {
         self.effects.push(RuntimeEffect::Select(block_id));
     }
 
-    fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
+    pub fn select_target(&mut self) {
+        self.set_selected(Some(self.target_id));
+    }
+
+    /// Enqueues a structural mutation for application after top-level dispatch.
+    pub fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
         MutationContext::add_child_later(self, parent, figure);
     }
 
-    fn remove_child_later(&mut self, parent: FigureId, child: FigureId) {
+    /// Enqueues a child removal for application after top-level dispatch.
+    pub fn remove_child_later(&mut self, parent: FigureId, child: FigureId) {
         MutationContext::remove_child_later(self, parent, child);
     }
 
-    fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
+    /// Enqueues a reparent operation for application after top-level dispatch.
+    pub fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         MutationContext::reparent_later(self, child, new_parent);
     }
 }
 
-impl MutationContext for SceneNovadrawContext<'_> {
+impl MutationContext for EventContext<'_> {
     fn enqueue_mutation(&mut self, mutation: PendingMutation) {
         self.effects.push(RuntimeEffect::Mutation(mutation));
     }
@@ -398,8 +364,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
             let bounds = block.figure_bounds();
             let target_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
             let visual_bounds = block.visual_bounds();
-            let mut ctx =
-                SceneNovadrawContext::new(target_id, target_bounds, visual_bounds, &mut effects);
+            let mut ctx = EventContext::new(target_id, target_bounds, visual_bounds, &mut effects);
             let Some(handler) = block.figure.event_handler() else {
                 return false;
             };
@@ -582,7 +547,7 @@ mod tests {
     }
 
     impl FigureEventHandler for EnqueueChildFigure {
-        fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
             ctx.invalidate();
             ctx.add_child_later(
                 ctx.target_id(),
@@ -682,7 +647,7 @@ mod tests {
     }
 
     impl FigureEventHandler for RecordingFigure {
-        fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+        fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
             let entry_point = event.entry_point();
             *self.last_mouse_point.lock().unwrap() = Some(RecordedMousePoint {
                 x: event.x,

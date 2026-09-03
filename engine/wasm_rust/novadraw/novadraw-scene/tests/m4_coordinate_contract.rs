@@ -4,9 +4,9 @@ use novadraw_core::Color;
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
-    BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEvent, FigureEventHandler,
-    FigureTree, InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect,
-    NovadrawContext, PendingMutations, RectangleFigure, SceneDispatchContext, Shape, Updatable,
+    BasicEventDispatcher, Bounded, EventContext, EventDispatcher, Figure, FigureEvent,
+    FigureEventHandler, FigureTree, InteractionState, LineBorder, MouseButton, MouseEvent,
+    NotificationEffect, PendingMutations, RectangleFigure, SceneDispatchContext, Shape, Updatable,
     UpdateManager,
 };
 
@@ -151,7 +151,7 @@ impl Figure for RecordingFigure {
 }
 
 impl FigureEventHandler for RecordingFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut dyn NovadrawContext) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         *self.recorded.lock().unwrap() = Some(RecordedMousePoint {
             target: Point::new(event.x, event.y),
             entry: event.entry_point(),

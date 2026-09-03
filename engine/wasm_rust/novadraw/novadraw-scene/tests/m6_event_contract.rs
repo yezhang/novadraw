@@ -65,7 +65,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_pressed(
         &self,
         event: &MouseEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.record_mouse(event);
         true
@@ -74,7 +74,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_released(
         &self,
         event: &MouseEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.record_mouse(event);
         true
@@ -83,7 +83,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_dragged(
         &self,
         event: &MouseEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.record_mouse(event);
         true
@@ -92,7 +92,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_entered(
         &self,
         event: &MouseEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.record_mouse(event);
         true
@@ -101,7 +101,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_exited(
         &self,
         event: &MouseEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.record_mouse(event);
         true
@@ -110,7 +110,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_mouse_wheel(
         &self,
         event: &WheelEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.events.lock().unwrap().push(RecordedInput::Wheel(
             event.x,
@@ -124,7 +124,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_key_pressed(
         &self,
         event: &KeyEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.events
             .lock()
@@ -136,7 +136,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_focus_gained(
         &self,
         event: &FocusEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.events
             .lock()
@@ -148,7 +148,7 @@ impl FigureEventHandler for InputProbeFigure {
     fn on_focus_lost(
         &self,
         event: &FocusEvent,
-        _ctx: &mut dyn novadraw_scene::NovadrawContext,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
     ) -> bool {
         self.events
             .lock()
