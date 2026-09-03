@@ -94,17 +94,25 @@ Runtime 事务、跨平台边界和后续扩展能力。
 
 ### R9.4 条件项观察
 
-状态：`deferred`
+状态：`in_progress`
 
 以下内容至少观察到 M10 或出现重复实现证据后再决定：
 
-- `Bounded`、`Updatable` capability；
+- `Bounded` capability；
 - typed listener 外观；
 - `NodeState` 与 `FigureNode` 的物理布局；
 - `ResourceDelta`；
 - Figure 的输入、生命周期和 accessibility capability。
 
 不得把这些能力合并回宽 Figure trait，也不得删除独立的状态域或事务阶段。
+
+已完成结论：
+
+- `Updatable` 只有 Triangle 存在非空实现，且 Runtime validation 已统一通过
+  `FigureLifecycle` 调用；
+- 删除 `Updatable` 及全部空实现，Triangle 派生缓存改用 inherent 方法并桥接
+  `FigureLifecycle`；
+- `Bounded` 仍承载构造期/独立图元几何与容器尺寸投影，保留到 M10 后复查。
 
 ## 4. 统一门禁
 

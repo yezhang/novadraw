@@ -18,9 +18,11 @@
 1. [`architecture/overview.md`](architecture/overview.md)
 2. [`architecture/static-architecture.md`](architecture/static-architecture.md)
 3. [`architecture/dynamic-architecture.md`](architecture/dynamic-architecture.md)
-4. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
-5. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
-6. [`rendering/update-manager.md`](rendering/update-manager.md)
+4. [`architecture/figure-style.md`](architecture/figure-style.md)
+5. [`architecture/resource-lifecycle.md`](architecture/resource-lifecycle.md)
+6. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
+7. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
+8. [`rendering/update-manager.md`](rendering/update-manager.md)
 
 ## 非规范提案
 

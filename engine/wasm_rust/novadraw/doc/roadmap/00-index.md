@@ -15,6 +15,7 @@
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/m8-m9-contract-plan.md` | **阶段计划**：Viewport 与 Connection 的交付边界和验证门禁 | 人读，不定义理想架构 | 推进 M8/M9 时 |
+| `doc/roadmap/core-completion-and-draw2d-migration-plan.md` | **当前执行计划**：R8/R9 后的核心收口 delta 与 M9/M10 分批顺序 | 人读，不创建新 milestone 编号 | 每个执行批次完成时 |
 
 ## 编号唯一来源
 
@@ -49,6 +50,24 @@
 | M9 | Connection / Anchor / Router | `not_started` | 尚无核心公开协议 |
 | M10 | 常用 Figure 与文本/控件 | `not_started` | 部分 Figure/Border 可导出，仍属于 deferred surface |
 
+## 当前执行顺序
+
+R8/R9 已完成架构迁移与消融式简化，当前不直接跳入 M9 产品实现。后续按
+[`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
+执行：
+
+```text
+D0 路线图与证据校准
+→ D1 核心公共协议收口
+→ D2 Layer / Freeform
+→ M9 Connection
+→ M10 Reusable Figure
+→ Draw2D Core 1.0
+```
+
+`D0-D2` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
+消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
+
 状态提升规则：
 
 1. `behavior_verified` 至少要求语义账本中的主 API family 有可重复的契约测试。
@@ -70,3 +89,4 @@
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
 | `m8-m9-contract-plan.md` | M8/M9 交付范围、前置契约与验收门禁 |
+| `core-completion-and-draw2d-migration-plan.md` | 当前核心收口与后续 Draw2D 功能迁移执行顺序 |

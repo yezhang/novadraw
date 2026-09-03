@@ -27,6 +27,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - UpdateManager：[`design/rendering/update-manager.md`](design/rendering/update-manager.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
+- 当前核心收口与功能迁移顺序：
+  [`roadmap/core-completion-and-draw2d-migration-plan.md`](roadmap/core-completion-and-draw2d-migration-plan.md)
 
 候选方案不属于核心 SSOT：
 

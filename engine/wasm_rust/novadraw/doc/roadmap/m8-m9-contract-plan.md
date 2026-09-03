@@ -5,6 +5,10 @@
 本文记录 M8/M9 的交付范围和验证门禁，不定义理想架构。架构契约以
 `doc/design/` 为准，里程碑状态以 [00-index.md](00-index.md) 为准。
 
+R8/R9 完成后的实际推进顺序以
+[`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
+为准。M9 开始前先完成其中的 D1 核心公共协议收口和 D2 Layer/Freeform 基础。
+
 ## 1. 边界
 
 ### M8
@@ -158,8 +162,10 @@ Connection Figure 只负责绘制、精确 hit-test 和内在样式。节点或 
 ## 7. 推进顺序
 
 1. 完成 M8 手工验收并更新唯一状态入口。
-2. 定义 Anchor/Router 的 architecture delta。
-3. 编写纯计算 contract tests。
-4. 实现 connection runtime 与 Figure。
-5. 补齐 damage、hit-test 和 viewport/zoom 组合测试。
-6. 完成 demo、视觉验证和文档收口。
+2. 完成 D1 核心公共协议收口。
+3. 完成 D2 Layer/Freeform 基础。
+4. 定义 Anchor/Router 的 architecture delta。
+5. 编写纯计算 contract tests。
+6. 实现 connection runtime 与 Figure。
+7. 补齐 damage、hit-test 和 viewport/zoom 组合测试。
+8. 完成 demo、视觉验证和文档收口。

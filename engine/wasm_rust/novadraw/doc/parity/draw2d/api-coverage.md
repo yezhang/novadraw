@@ -8,6 +8,8 @@ Draw2D 源码事实基线：eclipse/gef-classic commit `4463d9d0c`（2026-01-01�
 Novadraw 覆盖状态随本仓库演进单独更新。
 
 它不是 Java API 迁移待办，也不是进度管理或任务编排文件。
+当前核心收口与功能迁移顺序见
+`doc/roadmap/core-completion-and-draw2d-migration-plan.md`。
 
 ## 使用原则
 
@@ -186,7 +188,7 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 | `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | 暂无 `NdCanvas` public 等价方法 | missing | M10 `RoundedRectangleFigure` 升级时确定 rounded rect 命令入口 |
 | `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | `NdCanvas::{draw_string,draw_text,fill_text,stroke_text,font,measure_text}`；没有 `draw_text_layout/get_font_metrics/set_font` | partial | M10 前补 preferred size + text measure contract |
 | `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size}` | partial | M10 前补 image resource id、preferred size、paint contract |
-| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,set_line_dash,line_cap,line_join,miter_limit}`；antialias/XOR 无完整 public parity | deferred | 高级 stroke/style 不进入 M1 完成门禁 |
+| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,line_cap,line_join}`；line dash/miter、antialias、XOR 暂无 public parity | deferred | 高级 stroke/style 不进入 M1 完成门禁；未实现 API 不暴露静默 no-op |
 | `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw_geometry::{Point,Dimension,Rectangle,Insets,PointList,Transform,Precision*}`；`novadraw_math::{Mat3,Vec3}` | verified | `PointList` 需在 M9/M10 connection/point-list shape 中复查 |
 
 Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.java`、`PrinterGraphics.java`。
@@ -271,7 +273,7 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 | `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `FigureListener` + `ListenerId` 注册/移除；`FigureEvent::FigureMoved` | verified | resize 仍沿用 Draw2D figureMoved 语义 |
 | `notification.ancestor` | `add/removeAncestorListener` | `AncestorListener` + Added/Moved/Removed typed events | verified | add/remove/reparent/ancestor move 已进入 effect queue |
 | `notification.coordinate` | `add/removeCoordinateListener` | `CoordinateListener` + `CoordinateSystemChanged` | verified | coordinate root 变换独立分发 |
-| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled/selected 已接入 | verified | M10 新属性继续复用同一协议 |
+| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled 已接入；selection 属于 editor/GEF 层 | verified | M10 新 Figure 属性继续复用同一协议 |
 | `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `LayoutListener`、`ValidatingListener`、`UpdateListener` 分层注册，事务内保持因果顺序 | verified | listener remove 生命周期已有测试 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。
