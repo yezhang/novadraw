@@ -28,8 +28,10 @@ use crate::style::{FigureStyle, ResolvedStyle};
 
 // 渲染模块
 mod render_recursive;
+mod search;
 
 use render_recursive::{FigureRenderer, FigureTreeRenderRef};
+pub use search::{ExclusionSearch, IdentitySearch, TreeQueryError, TreeSearch, TreeSearchContext};
 
 #[cfg(test)]
 pub mod bounds_test;
@@ -821,7 +823,7 @@ impl FigureTree {
             return Err(GraphMutationError::ChildNotFound);
         }
 
-        if parent_id == child_id || self.is_descendant_of(parent_id, child_id) {
+        if parent_id == child_id || self.is_descendant_or_self(parent_id, child_id) {
             return Err(GraphMutationError::CycleDetected);
         }
         if parent.children.contains(&child_id) {
@@ -888,7 +890,7 @@ impl FigureTree {
             .is_some_and(|parent| parent.children.contains(&child_id))
     }
 
-    fn is_descendant_of(&self, mut node: FigureId, ancestor: FigureId) -> bool {
+    fn is_descendant_or_self(&self, mut node: FigureId, ancestor: FigureId) -> bool {
         for _ in 0..self.blocks.len() {
             if node == ancestor {
                 return true;
@@ -1515,41 +1517,6 @@ impl FigureTree {
         block.maximum_size = size;
         self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
         true
-    }
-
-    /// 命中测试
-    ///
-    /// 检测指定点是否命中任意图形，返回从根到目标的路径。
-    /// 使用深度优先遍历（逆序子节点，确保先命中最上层的图形）。
-    ///
-    /// # 坐标语义
-    ///
-    /// `point` 必须处于 logical surface domain。遍历时逐边逆变换到
-    /// node-local 和 child content domain。
-    ///
-    /// # 参数
-    ///
-    /// - `point`: 待检测的坐标（与入口节点同域）
-    ///
-    /// # 返回
-    ///
-    /// Some((target, path)) 其中 target 是最底层命中的图形，path 是从根到目标的路径
-    /// None 表示未命中任何图形
-    pub fn hit_test(&self, point: (f64, f64)) -> Option<(FigureId, Vec<FigureId>)> {
-        let start_id = self.contents.unwrap_or(self.root);
-        let mut path = Vec::new();
-        self.hit_test_from(start_id, point, &mut path)
-    }
-
-    /// 简单的命中测试
-    ///
-    /// 只返回第一个命中的块 ID，不包含路径。
-    pub fn hit_test_simple(&self, point: (f64, f64)) -> Option<FigureId> {
-        self.hit_test(point).map(|(target, _)| target)
-    }
-
-    pub fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.find_mouse_event_target_from(self.contents.unwrap_or(self.root), (x, y))
     }
 
     /// 渲染场景图
@@ -2440,101 +2407,6 @@ impl FigureTree {
             .iter()
             .filter_map(|(id, block)| (!block.is_valid).then_some(id))
             .collect()
-    }
-
-    fn hit_test_from(
-        &self,
-        block_id: FigureId,
-        point: (f64, f64),
-        path: &mut Vec<FigureId>,
-    ) -> Option<(FigureId, Vec<FigureId>)> {
-        let block = self.blocks.get(block_id)?;
-        if !block.is_visible || !block.is_enabled {
-            return None;
-        }
-
-        let mut local_point = point;
-        self.translate_from_parent(block_id, &mut local_point);
-        if !block
-            .figure
-            .precise_hit(local_point.0, local_point.1, block.figure_bounds())
-        {
-            return None;
-        }
-
-        path.push(block_id);
-        let client_area = block.client_area();
-        if !point_in_rect(local_point, &client_area) {
-            let hit = Some((block_id, path.clone()));
-            path.pop();
-            return hit;
-        }
-        let mut child_point = local_point;
-        if !block.child_transform().apply_inverse_to(&mut child_point) {
-            let hit = Some((block_id, path.clone()));
-            path.pop();
-            return hit;
-        }
-
-        for &child_id in block.children.iter().rev() {
-            if let Some(hit) = self.hit_test_from(child_id, child_point, path) {
-                return Some(hit);
-            }
-        }
-
-        let hit = Some((block_id, path.clone()));
-        path.pop();
-        hit
-    }
-
-    fn find_mouse_event_target_from(
-        &self,
-        block_id: FigureId,
-        point: (f64, f64),
-    ) -> Option<FigureId> {
-        let block = self.blocks.get(block_id)?;
-        if !block.is_visible || !block.is_enabled {
-            return None;
-        }
-
-        let mut local_point = point;
-        self.translate_from_parent(block_id, &mut local_point);
-        let contains =
-            block
-                .figure
-                .precise_hit(local_point.0, local_point.1, block.figure_bounds());
-        if !contains {
-            return None;
-        }
-
-        let client_area = block.client_area();
-        if !point_in_rect(local_point, &client_area) {
-            return block
-                .figure
-                .event_handler()
-                .is_some_and(|handler| handler.wants_mouse_events())
-                .then_some(block_id);
-        }
-        let mut child_point = local_point;
-        if !block.child_transform().apply_inverse_to(&mut child_point) {
-            return block
-                .figure
-                .event_handler()
-                .is_some_and(|handler| handler.wants_mouse_events())
-                .then_some(block_id);
-        }
-
-        for &child_id in block.children.iter().rev() {
-            if let Some(target) = self.find_mouse_event_target_from(child_id, child_point) {
-                return Some(target);
-            }
-        }
-
-        block
-            .figure
-            .event_handler()
-            .is_some_and(|handler| handler.wants_mouse_events())
-            .then_some(block_id)
     }
 
     fn effective_flag_from(

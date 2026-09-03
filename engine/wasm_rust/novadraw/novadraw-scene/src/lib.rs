@@ -40,8 +40,9 @@ pub use figure::{
 };
 pub use graph as scene;
 pub use graph::{
-    DEFAULT_VALIDATION_BUDGET, FigureId, FigureNode, FigureTree, GraphMutationError, LayoutState,
-    MAX_TREE_DEPTH, NodeState, ValidationError,
+    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FigureId, FigureNode, FigureTree,
+    GraphMutationError, IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState, TreeQueryError,
+    TreeSearch, TreeSearchContext, ValidationError,
 };
 pub use host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{
