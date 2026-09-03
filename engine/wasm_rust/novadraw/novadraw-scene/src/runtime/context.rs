@@ -718,7 +718,7 @@ mod tests {
             )),
         );
 
-        let mut update_manager = crate::SceneUpdateManager::new();
+        let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
@@ -766,7 +766,7 @@ mod tests {
             )),
         );
 
-        let mut update_manager = crate::SceneUpdateManager::new();
+        let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;
@@ -798,7 +798,7 @@ mod tests {
         }));
         scene.revalidate(parent_id);
         assert!(scene.is_valid(parent_id));
-        let mut update_manager = crate::SceneUpdateManager::new();
+        let mut update_manager = crate::UpdateManager::new();
         let mut interaction = InteractionState::default();
         let mut pending_mutations = PendingMutations::new();
         let mut dispatcher = BasicEventDispatcher;

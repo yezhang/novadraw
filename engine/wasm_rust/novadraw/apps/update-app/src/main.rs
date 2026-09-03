@@ -4,8 +4,8 @@ use std::time::Instant;
 
 use novadraw::{
     BackendCapabilities, Color, DamageMode, FigureEvent, FigureId, FigureTree, GridLayout,
-    NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SceneUpdateManager,
-    SurfaceInfo, UpdateEvent, UpdateListener, XYConstraint, XYLayout,
+    NotificationEffect, Rectangle, RectangleFigure, RenderOutcome, Runtime, SurfaceInfo,
+    UpdateEvent, UpdateListener, UpdateManager, XYConstraint, XYLayout,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -44,7 +44,7 @@ fn partial_damage_scene() -> FigureTree {
     let mut graph = baseline_scene();
     let root = graph.get_contents().expect("contents");
     let target = graph.child_order(root).expect("root children")[1];
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     let old_bounds = graph.figure_bounds(target).expect("target bounds");
     graph.set_bounds_with_update(
         &mut manager,
@@ -150,7 +150,7 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
     let root = graph.get_contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
 
     let noop = graph.perform_update(&mut manager);
     if !noop.damage().is_empty() || !noop.commands().is_empty() {
@@ -180,7 +180,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     graph.drain_notification_effects();
     graph.set_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0));
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     graph.mark_invalid(&mut manager, child);
     let effects = Arc::new(Mutex::new(Vec::new()));
     manager.add_listener(Box::new(CaptureListener {
@@ -217,7 +217,7 @@ fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
     let root = graph.get_contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 20.0, 20.0));
     manager.add_dirty_region(child, Rectangle::new(10.0, 10.0, 30.0, 30.0));
     if manager.dirty_count() != 1 {
@@ -252,7 +252,7 @@ fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
     let root = graph.get_contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     manager.add_listener(Box::new(PanicOnceListener {
         did_panic: AtomicBool::new(false),
     }));
@@ -276,7 +276,7 @@ fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
 fn verify_stress_1024() -> Result<VerificationMetrics, String> {
     let mut graph = stress_scene();
     let root = graph.get_contents().ok_or("missing root")?;
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     graph.mark_invalid(&mut manager, root);
     graph.repaint(&mut manager, root, None);
     let start = Instant::now();

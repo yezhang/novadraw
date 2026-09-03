@@ -7,9 +7,9 @@ use novadraw_scene::{
     BasicEventDispatcher, Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler,
     FigureTree, GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder,
     MouseButton, PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError,
-    RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext, SceneUpdateManager,
-    ScrollBarVisibility, ScrollDeltaKind, Updatable, ViewportFigure, WheelEvent, ZoomError,
-    ZoomEvent, ZoomManager,
+    RangeProperty, RectangleFigure, ScaleError, SceneDispatchContext, ScrollBarVisibility,
+    ScrollDeltaKind, Updatable, UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent,
+    ZoomManager,
 };
 
 struct RecordingRangeListener {
@@ -95,7 +95,7 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let contents = viewport
         .set_contents(
             &mut graph,
@@ -124,7 +124,7 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let old_contents = viewport
         .set_contents(
             &mut graph,
@@ -155,7 +155,7 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     viewport
         .set_contents(
             &mut graph,
@@ -194,7 +194,7 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
     let viewport = graph
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let contents = viewport
         .set_contents(
             &mut graph,
@@ -235,7 +235,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
             child_color,
         )),
     );
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
 
     assert!(
         scalable
@@ -300,7 +300,7 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
     let scalable = graph
         .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
 
     assert_eq!(
         scalable.set_scale(&mut graph, &mut update_manager, 0.0),
@@ -321,7 +321,7 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     assert!(graph.set_preferred_size(scalable.block_id(), Some((500.0, 300.0))));
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
 
     scalable
         .set_scale(&mut graph, &mut update_manager, 2.0)
@@ -373,17 +373,13 @@ impl Figure for WheelIgnoringFigure {
 
 impl FigureEventHandler for WheelIgnoringFigure {}
 
-fn large_scroll_pane_scene() -> (
-    FigureTree,
-    novadraw_scene::ScrollPaneHandle,
-    SceneUpdateManager,
-) {
+fn large_scroll_pane_scene() -> (FigureTree, novadraw_scene::ScrollPaneHandle, UpdateManager) {
     let mut graph = FigureTree::new();
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
         .unwrap();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let contents = pane
         .set_contents(
             &mut graph,
@@ -537,7 +533,7 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
         }),
     );
     graph.revalidate(pane.pane_id());
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -589,7 +585,7 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
         }),
     );
     graph.revalidate(pane.pane_id());
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -706,7 +702,7 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
         }),
     );
     graph.revalidate(pane.pane_id());
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -831,7 +827,7 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     graph.revalidate(viewport.block_id());
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let manager = ZoomManager::new(scalable.clone(), viewport.clone());
 
     assert!(
@@ -880,7 +876,7 @@ fn zoom_manager_uses_configured_levels_for_step_zoom() {
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     graph.revalidate(viewport.block_id());
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut manager = ZoomManager::new(scalable, viewport);
     manager.set_zoom_levels(vec![0.25, 1.0, 2.0]).unwrap();
 

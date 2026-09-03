@@ -4,7 +4,7 @@ use novadraw::{
     BasicEventDispatcher, Bounded, Color, EventDispatcher, Figure, FigureEventHandler, FigureTree,
     FocusEvent, FocusEventKind, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
     MouseButton, MouseEvent, MouseEventKind, NdCanvas, NovadrawContext, PendingMutations,
-    Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, Updatable, WheelEvent,
+    Rectangle, RectangleFigure, SceneDispatchContext, Updatable, UpdateManager, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -259,7 +259,7 @@ fn scenes() -> Vec<SceneEntry> {
 fn with_context(
     graph: &mut FigureTree,
     interaction: &mut InteractionState,
-    manager: &mut SceneUpdateManager,
+    manager: &mut UpdateManager,
     pending: &mut PendingMutations,
     action: impl FnOnce(&mut BasicEventDispatcher, &mut SceneDispatchContext<'_>),
 ) {
@@ -271,7 +271,7 @@ fn with_context(
 fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
     let mut interaction = InteractionState::default();
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
     with_context(
         &mut graph,
@@ -304,7 +304,7 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
 fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
     let mut interaction = InteractionState::default();
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
     with_context(
         &mut graph,
@@ -356,7 +356,7 @@ fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
 fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(false);
     let mut interaction = InteractionState::default();
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
     with_context(
         &mut graph,
@@ -388,7 +388,7 @@ fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
 fn verify_coordinate_reduction() -> Result<VerificationMetrics, String> {
     let (mut graph, state) = probe_scene(true);
     let mut interaction = InteractionState::default();
-    let mut manager = SceneUpdateManager::new();
+    let mut manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
     with_context(
         &mut graph,

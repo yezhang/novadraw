@@ -4,13 +4,13 @@ use slotmap::Key;
 
 use crate::{
     BorderConstraint, BorderRegion, FigureId, FigureTree, GraphMutationError, InteractionState,
-    MAX_TREE_DEPTH, PendingMutations, RectangleFigure, ScalableLayeredPaneFigure,
-    SceneUpdateManager, ViewportFigure, XYConstraint, XYLayout,
+    MAX_TREE_DEPTH, PendingMutations, RectangleFigure, ScalableLayeredPaneFigure, UpdateManager,
+    ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
-fn new_scene() -> (FigureTree, SceneUpdateManager) {
-    (FigureTree::new(), SceneUpdateManager::new())
+fn new_scene() -> (FigureTree, UpdateManager) {
+    (FigureTree::new(), UpdateManager::new())
 }
 
 #[test]

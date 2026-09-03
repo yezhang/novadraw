@@ -582,13 +582,13 @@ Draw2D 没有独立的 SceneGraph 对象。树关系、绘制、命中、验证�
 
 | draw2d 机制 | Novadraw 对应 | 差异 |
 |-------------|--------------|------|
-| `primTranslate` 递归向下 | FigureTree 坐标协议 | 保留 `useLocalCoordinates()` 处停止修改后代 bounds 的语义 |
+| `primTranslate` 递归向下 | FigureTree parent-local 坐标协议 | 只改变目标 bounds；后代位置通过统一变换链投影，不改写后代 bounds |
 | `revalidate` 递归向上 | FigureTree + UpdateManager | 保留冒泡到 validation root 的语义 |
 | `paintChildren` 互相递归 | 当前递归渲染主线 | 保留 Draw2D 的深度优先阶段顺序 |
 | `findFigureAt` 互相递归 | FigureTree 命中协议 | 保留逆序 Z-order 与坐标降域 |
 | `forEach` 树操作 | FigureTree 生命周期操作 | 区分同层迭代与递归传播 |
-| `useLocalCoordinates` 门控 | Figure 的 child-local 坐标标记 | 对应 |
-| `UpdateManager` 批量失效 | `SceneUpdateManager` | 对应 |
+| `useLocalCoordinates` 门控 | `FigureContainer::child_transform` | 不保留模式开关；所有树边统一为 parent-local，容器显式提供额外变换 |
+| `UpdateManager` 批量失效 | `UpdateManager` | 对应 |
 
 ---
 

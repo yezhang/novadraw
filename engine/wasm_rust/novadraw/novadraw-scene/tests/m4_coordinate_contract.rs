@@ -6,8 +6,8 @@ use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
     BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEvent, FigureEventHandler,
     FigureTree, InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect,
-    NovadrawContext, PendingMutations, RectangleFigure, SceneDispatchContext, SceneUpdateManager,
-    Shape, Updatable,
+    NovadrawContext, PendingMutations, RectangleFigure, SceneDispatchContext, Shape, Updatable,
+    UpdateManager,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
@@ -190,7 +190,7 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
         Some(target)
     );
 
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending_mutations = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -224,7 +224,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
     );
     graph.drain_notification_effects();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
 
     assert!(graph.set_bounds_with_update(
         &mut update_manager,

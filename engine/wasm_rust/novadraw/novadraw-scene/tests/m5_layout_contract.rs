@@ -2,7 +2,7 @@ use novadraw_geometry::Rectangle;
 use novadraw_scene::{
     BorderConstraint, BorderRegion, FigureId, FigureTree, GridAlignment, GridConstraint,
     GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, RectangleFigure,
-    SceneUpdateManager, StackLayout, ToolbarLayout, ValidationError, XYLayout,
+    StackLayout, ToolbarLayout, UpdateManager, ValidationError, XYLayout,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -142,7 +142,7 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
                 .with_spacing(1.0, 1.0),
         ),
     );
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     graph.mark_invalid(&mut update_manager, root);
 
     let canvas = graph.perform_update(&mut update_manager);
@@ -228,7 +228,7 @@ fn wrong_constraint_type_is_reported_and_invalid_work_is_preserved() {
     let child = graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
     graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
     graph.set_constraint(child, BorderConstraint::new(BorderRegion::Center));
-    let mut updates = SceneUpdateManager::new();
+    let mut updates = UpdateManager::new();
     graph.mark_invalid(&mut updates, root);
 
     graph.perform_update(&mut updates);
@@ -374,7 +374,7 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
     let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let child = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
     graph.set_block_layout_manager(root, Box::new(ReinvalidatingLayout { child }));
-    let mut updates = SceneUpdateManager::new();
+    let mut updates = UpdateManager::new();
     graph.mark_invalid(&mut updates, root);
 
     let error = graph

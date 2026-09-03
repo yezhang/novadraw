@@ -10,9 +10,6 @@ use crate::{
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
-///
-/// `FigureTree` remains accepted as the compatibility tree implementation while
-/// callers migrate to the `FigureTree` name.
 pub struct Runtime {
     tree: FigureTree,
     interaction: InteractionState,

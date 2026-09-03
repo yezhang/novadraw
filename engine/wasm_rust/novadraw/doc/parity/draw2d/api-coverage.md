@@ -229,7 +229,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 |---|---|---|---|---|
 | `coordinate.conversion` | `translateToAbsolute(Translatable)`, `translateToRelative(Translatable)` | `FigureTree::{translate_to_absolute_mut,translate_to_relative}` | verified | M4 contract 覆盖多层坐标根、Insets 与 Point/Rectangle 往返 |
 | `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureTree::{translate_to_parent,translate_from_parent}`，`Viewport::{translate_to_parent,translate_from_parent}` | verified | active core 已验证；Viewport 扩展仍归 M8 |
-| `coordinate.conversion` | `isCoordinateSystem()` | `FigureTree::is_coordinate_system`, `Bounded::use_local_coordinates`, `ChildTransform` | verified | 坐标根移动保持子 bounds 原子性并修复 old/new damage |
+| `coordinate.conversion` | `isCoordinateSystem()` | 无对应模式开关；所有树边统一使用 parent-local bounds，容器通过 `FigureContainer::child_transform` 提供额外 Affine2D | verified | 坐标根语义由显式变换边表达；移动 ancestor 不改写 descendant bounds |
 | `coordinate.conversion` | `isMirrored()` | 暂无 public 等价 API | deferred | 可延后，当前不阻塞 M4 |
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `BasicEventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
@@ -245,7 +245,7 @@ Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps
 | `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 无缓存布局采用图级 invalid path；`layout` 通过 `LayoutContext` 操作 children | verified | 缓存布局未来需重新声明 invalidate hook |
 | `layout.manager` | concrete layout implementations | `FlowLayout`, `BorderLayout`, `GridLayout`, `ToolbarLayout`, `XYLayout`, `StackLayout`；额外保留 `FillLayout` | verified | `m5_layout_contract` + `layout-app` |
 | `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureTree::{invalidate,mark_invalid,revalidate,perform_validation_cycle,is_valid}`，validation root、重复失效与回调延迟失效已闭合 | verified | hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
-| `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `SceneUpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
+| `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `UpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
 | `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | dirty 合并、根域传播、`DamageMode::{None,Full,Partial}` 与 retained frame 提交已闭合 | verified | exposed-rect overload 作为 P1 扩展 |
 
 Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpdateManager.java`。

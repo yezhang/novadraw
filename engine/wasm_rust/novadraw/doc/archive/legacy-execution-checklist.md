@@ -1,5 +1,7 @@
 # Novadraw 执行清单
 
+类型：`archive`
+
 > **Legacy 文档**
 >
 > 本文记录 2026 年早期实现阶段的历史任务，不再表示当前项目进度，其中的
@@ -57,7 +59,7 @@
 |---|------|--------|------|
 | 0.1 | Clip 裁剪验证 | P0 | ✅ 已验证 |
 | 0.2 | Stroke/Fill 属性完善 | P1 | ✅ 已完成 |
-| 0.3 | 坐标系统对齐 Draw2D | P1 | 见 bounds_migration_plan.md |
+| 0.3 | 坐标系统对齐 Draw2D | P1 | 见 `bounds-migration-plan.md` |
 | 0.4 | UpdateManager 更新管理 | P0 | ✅ 已完成 |
 
 ---

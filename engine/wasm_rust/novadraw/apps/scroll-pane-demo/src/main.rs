@@ -1,7 +1,7 @@
 use novadraw::{
     BasicEventDispatcher, Color, EventDispatcher, FigureTree, GesturePhase, GestureSessionId,
     InteractionState, KeyModifiers, PendingMutations, Rectangle, RectangleFigure,
-    SceneDispatchContext, SceneUpdateManager, ScrollBarVisibility, ScrollDeltaKind, WheelEvent,
+    SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind, UpdateManager, WheelEvent,
     ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
@@ -83,7 +83,7 @@ fn scene_with_policy(
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .expect("attach scroll pane");
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     pane.set_scroll_bar_visibility(&mut graph, &mut update_manager, horizontal, vertical)
         .expect("set scrollbar visibility");
     let contents = pane
@@ -152,7 +152,7 @@ fn scalable_scene() -> FigureTree {
             Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
         )
         .expect("attach scalable pane");
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     add_grid(&mut graph, scalable.block_id());
     graph.revalidate(pane.pane_id());
     ZoomManager::new(scalable, pane.viewport().clone())
@@ -181,7 +181,7 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     pane.set_contents(
         &mut graph,
         &mut update_manager,
@@ -219,7 +219,7 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     pane.set_contents(
         &mut graph,
         &mut update_manager,
@@ -265,7 +265,7 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
             Rectangle::new(0.0, 0.0, 400.0, 300.0),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let child = graph.add_child_to(
         scalable.block_id(),
         Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
@@ -315,7 +315,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     );
     graph.revalidate(pane.pane_id());
     let mut interaction = InteractionState::default();
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
     let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);

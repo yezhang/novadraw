@@ -472,7 +472,7 @@ Zed 与 Draw2D 的机制形式不同，但它们在核心原则上是接近的�
 - Figure input callbacks
 - UpdateManager 级 `UpdateListener` / `ValidatingListener`
 
-监听器注册返回 `ListenerId`，由 `SceneUpdateManager::remove_listener()` 统一解除，
+监听器注册返回 `ListenerId`，由 `UpdateManager::remove_listener()` 统一解除，
 不依赖全局状态。所有变化先写入 `NotificationQueue`，再在更新事务末尾按发生顺序
 flush；validation 中产生的 Figure/Layout effect 位于 `Validating` 和 `Validated`
 之间。

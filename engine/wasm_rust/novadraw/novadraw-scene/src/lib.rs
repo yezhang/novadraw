@@ -62,8 +62,8 @@ pub use runtime::update;
 pub use runtime::update::{
     AncestorEvent, AncestorEventKind, AncestorListener, CoordinateListener, FigureEvent,
     FigureListener, LayoutEvent, LayoutEventKind, LayoutListener, ListenerId, NotificationEffect,
-    NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue,
-    SceneUpdateManager, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
+    NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue, UpdateEvent,
+    UpdateListener, UpdateManager, ValidatingListener,
 };
 pub use runtime::{InteractionState, PointerId, Runtime};
 pub use runtime::{context, event, mutation};

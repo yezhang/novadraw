@@ -39,6 +39,3 @@ pub use listener::{
     NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue, UpdateEvent,
     UpdateListener, ValidatingListener,
 };
-
-/// Compatibility name retained until the R8 public API cleanup.
-pub type SceneUpdateManager = UpdateManager;

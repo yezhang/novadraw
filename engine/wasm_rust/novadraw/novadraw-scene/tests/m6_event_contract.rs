@@ -4,8 +4,8 @@ use novadraw_scene::{
     BasicEventDispatcher, Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree,
     FocusEvent, FocusEventKind, GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent,
     KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind, PendingMutations,
-    Rectangle, RectangleFigure, SceneDispatchContext, SceneUpdateManager, ScrollDeltaKind,
-    Updatable, WheelEvent,
+    Rectangle, RectangleFigure, SceneDispatchContext, ScrollDeltaKind, Updatable, UpdateManager,
+    WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -183,7 +183,7 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
             events: events.clone(),
         }),
     );
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;
@@ -257,7 +257,7 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
             events: Arc::clone(&gesture_events),
         }),
     );
-    let mut update_manager = SceneUpdateManager::new();
+    let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = BasicEventDispatcher;

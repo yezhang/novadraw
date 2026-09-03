@@ -5,6 +5,8 @@
 本目录内容已失效、已被替代或只保留历史方案背景：
 
 - `architecture-legacy.md`：早期总体架构
+- `bounds-migration-plan.md`：旧绝对 bounds / 坐标根迁移计划
+- `legacy-execution-checklist.md`：旧 Phase 与 M1-M9 执行清单
 - `render-iterative-poc.md`：迭代渲染 POC 的归档决策
 - `trampoline-rendering.md`：历史 Trampoline 渲染方案
 

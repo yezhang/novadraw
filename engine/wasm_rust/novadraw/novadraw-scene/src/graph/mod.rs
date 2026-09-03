@@ -600,62 +600,6 @@ impl FigureTree {
         self.contents
     }
 
-    /// 一次性把旧版“相对最近坐标根的绝对 bounds”转换为 parent-local bounds。
-    ///
-    /// `legacy_coordinate_roots` 必须包含旧模型中所有会重置子树坐标域的节点。
-    /// 该方法只用于场景导入迁移，应在 Runtime 接管场景和注册监听器前调用；
-    /// 它不保留任何运行时兼容模式。返回实际改写的节点数量。
-    pub fn migrate_legacy_bounds_to_parent_local(
-        &mut self,
-        legacy_coordinate_roots: &std::collections::HashSet<FigureId>,
-    ) -> usize {
-        let Some(contents_id) = self.contents else {
-            return 0;
-        };
-        let Some(contents) = self.blocks.get(contents_id) else {
-            return 0;
-        };
-
-        let mut changed = 0;
-        let mut stack = vec![(contents_id, contents.figure_bounds())];
-        while let Some((parent_id, original_parent_bounds)) = stack.pop() {
-            let Some(parent) = self.blocks.get(parent_id) else {
-                continue;
-            };
-            let children = parent.children.clone();
-            let (top, left, _, _) = parent.state.insets;
-            let resets_child_domain = legacy_coordinate_roots.contains(&parent_id);
-
-            for child_id in children {
-                let Some(original_child_bounds) =
-                    self.blocks.get(child_id).map(FigureNode::figure_bounds)
-                else {
-                    continue;
-                };
-                stack.push((child_id, original_child_bounds));
-
-                if resets_child_domain {
-                    continue;
-                }
-
-                let migrated = Rectangle::new(
-                    original_child_bounds.x - original_parent_bounds.x - left,
-                    original_child_bounds.y - original_parent_bounds.y - top,
-                    original_child_bounds.width,
-                    original_child_bounds.height,
-                );
-                if migrated != original_child_bounds {
-                    if let Some(child) = self.blocks.get_mut(child_id) {
-                        child.set_node_bounds(migrated);
-                    }
-                    changed += 1;
-                }
-            }
-        }
-
-        changed
-    }
-
     /// 添加子块到指定父块
     ///
     /// 对应 draw2d: parent.addChild(child) (不触发 revalidate)
@@ -4239,48 +4183,6 @@ mod tests {
     }
 
     #[test]
-    fn migrate_legacy_bounds_converts_shared_domains_and_preserves_coordinate_roots() {
-        let mut scene = FigureTree::new();
-        let contents =
-            scene.set_contents(Box::new(RectangleFigure::new(100.0, 50.0, 500.0, 400.0)));
-        let parent = scene.add_child_to(
-            contents,
-            Box::new(TestFigureWithInsets::new(
-                130.0,
-                80.0,
-                200.0,
-                150.0,
-                (5.0, 7.0, 0.0, 0.0),
-            )),
-        );
-        let legacy_root = scene.add_child_to(
-            parent,
-            Box::new(RectangleFigure::new(150.0, 100.0, 80.0, 60.0)),
-        );
-        let child = scene.add_child_to(
-            legacy_root,
-            Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
-        );
-
-        let changed = scene
-            .migrate_legacy_bounds_to_parent_local(&std::collections::HashSet::from([legacy_root]));
-
-        assert_eq!(changed, 2);
-        assert_eq!(
-            scene.figure_bounds(parent),
-            Some(Rectangle::new(30.0, 30.0, 200.0, 150.0))
-        );
-        assert_eq!(
-            scene.figure_bounds(legacy_root),
-            Some(Rectangle::new(13.0, 15.0, 80.0, 60.0))
-        );
-        assert_eq!(
-            scene.figure_bounds(child),
-            Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
-        );
-    }
-
-    #[test]
     fn moved_figure_damage_uses_old_and_new_projected_visual_bounds() {
         let mut scene = FigureTree::new();
         let contents = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
@@ -4291,7 +4193,7 @@ mod tests {
                 Rectangle::new(-5.0, -6.0, 30.0, 32.0),
             )),
         );
-        let mut updates = crate::SceneUpdateManager::new();
+        let mut updates = crate::UpdateManager::new();
 
         assert!(scene.set_bounds_with_update(&mut updates, figure, 70.0, 60.0, 20.0, 20.0,));
 

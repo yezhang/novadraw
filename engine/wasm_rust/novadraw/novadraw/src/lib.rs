@@ -35,12 +35,12 @@ pub use novadraw_scene::{
     RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
     Rectangle, RectangleBorder, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime,
     ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext,
-    SceneNovadrawContext, SceneUpdateManager, ScrollBarFigure, ScrollBarVisibility,
-    ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
-    ScrollPaneLayout, Shape, StackLayout, StyleOverride, ToolbarLayout, ToolbarOrientation,
-    TriangleFigure, Updatable, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
-    ViewportError, ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint,
-    XYLayout, ZoomError, ZoomEvent, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
+    SceneNovadrawContext, ScrollBarFigure, ScrollBarVisibility, ScrollDeltaKind, ScrollOrientation,
+    ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, Shape, StackLayout,
+    StyleOverride, ToolbarLayout, ToolbarOrientation, TriangleFigure, Updatable, UpdateEvent,
+    UpdateListener, UpdateManager, ValidatingListener, ValidationError, ViewportError,
+    ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, XYConstraint, XYLayout, ZoomEvent,
+    ZoomManager, ZoomScrollPolicy,
 };
 
 pub mod border {

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
-    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, SceneUpdateManager,
-    Updatable, ZoomManager,
+    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, Updatable,
+    UpdateManager, ZoomManager,
 };
 use serde::Serialize;
 
@@ -355,7 +355,7 @@ fn build_viewport_tree() -> FigureTree {
             )),
         );
     }
-    let mut updates = SceneUpdateManager::new();
+    let mut updates = UpdateManager::new();
     ZoomManager::new(scalable, viewport.clone())
         .set_zoom(&mut tree, &mut updates, 1.5)
         .expect("set viewport zoom");
