@@ -135,6 +135,8 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 
 ### R8.3 Context、坐标与失效文档清理
 
+状态：`completed`
+
 工作：
 
 - 删除已经没有调用方的旧 context 和旧坐标模式；
@@ -148,7 +150,17 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 - `doc/00-index.md` 不链接失效文档；
 - 不通过修改规范文档来掩盖实现偏差。
 
+完成记录：
+
+- `b9fb878`：删除 `SceneUpdateManager` alias 和一次性旧 bounds 迁移入口，修正
+  parent-local 坐标映射，并归档旧执行清单与 bounds 迁移计划；
+- `afcc7f5`：将 Figure callback context 收敛为具体 `EventContext<'a>`，删除
+  `NovadrawContext` / `SceneNovadrawContext` 双层旧 API；
+- workspace fmt、check、Clippy `-D warnings` 与全量测试通过。
+
 ### R8.4 性能复测
+
+状态：`completed`
 
 使用 R8.0 的相同命令和环境复测：
 
@@ -161,7 +173,15 @@ rg -n '\b(BlockId|FigureBlock|FigureGraph)\b' \
 若结果明显退化，先定位原因，不以扩大阈值通过门禁。性能结论必须给出前后数据，
 不能只给主观判断。
 
+结果记录：
+
+- [`../verification/performance/r8-baseline-2026-09-02.md`](../verification/performance/r8-baseline-2026-09-02.md)
+- command 数与 R8.0 基线完全一致；
+- 三次追加复测的 median-of-medians 均未超过 15% 回归阈值。
+
 ### R8.5 扩展边界验证
+
+状态：`in_progress`
 
 工作：
 
