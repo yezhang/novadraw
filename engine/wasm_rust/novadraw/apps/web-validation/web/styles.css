@@ -73,6 +73,8 @@ main {
 .theme-tabs {
   display: flex;
   gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
   border-bottom: 1px solid #b7c1ca;
 }
 
@@ -87,6 +89,7 @@ main {
   color: #52606d;
   font-size: 13px;
   font-weight: 650;
+  white-space: nowrap;
 }
 
 .theme-tabs button[aria-selected="true"] {

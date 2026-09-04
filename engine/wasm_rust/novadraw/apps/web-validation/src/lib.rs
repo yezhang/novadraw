@@ -17,9 +17,8 @@ use novadraw_apps::{
     adapt_key_input,
 };
 use novadraw_demo_scenes::{
-    DemoTheme, SceneEntry,
+    DemoSuite, SceneSpec, ValidationKind, catalog,
     focus::{FOCUS_TRAVERSAL_SCENE_TITLE, FocusProbeSpec, build_focus_traversal_scene},
-    web_themes,
 };
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -34,7 +33,8 @@ use web_sys::{
 
 const INPUT_THEME_ID: &str = "input";
 const INPUT_THEME_TITLE: &str = "Input";
-const THEME_BUTTON_IDS: [&str; 3] = ["theme-input", "theme-shape", "theme-viewport"];
+const INPUT_SCENE_WIDTH: u32 = 800;
+const INPUT_SCENE_HEIGHT: u32 = 500;
 
 #[derive(Default)]
 struct ProbeState {
@@ -477,26 +477,25 @@ impl RenderBackend for ValidationBackend {
     }
 }
 
-fn input_theme(probe: Rc<ProbeState>) -> DemoTheme {
+fn input_theme(probe: Rc<ProbeState>) -> DemoSuite {
     let scene_probe = probe.clone();
-    let scenes: Vec<SceneEntry> = vec![(
+    let scenes = vec![SceneSpec::new(
+        "focus-traversal",
         FOCUS_TRAVERSAL_SCENE_TITLE,
-        Box::new(move || {
+        (INPUT_SCENE_WIDTH, INPUT_SCENE_HEIGHT),
+        ValidationKind::Interactive,
+        move || {
             build_focus_traversal_scene(|spec| {
                 Box::new(WebProbeFigure::from_focus_spec(spec, scene_probe.clone()))
             })
             .0
-        }),
+        },
     )];
 
-    DemoTheme {
-        id: INPUT_THEME_ID,
-        title: INPUT_THEME_TITLE,
-        scenes,
-    }
+    DemoSuite::new(INPUT_THEME_ID, INPUT_THEME_TITLE, scenes)
 }
 
-fn theme_selection(window: &Window, themes: &[DemoTheme]) -> (usize, usize) {
+fn theme_selection(window: &Window, themes: &[DemoSuite]) -> (usize, usize) {
     let parameters = window
         .location()
         .search()
@@ -509,19 +508,25 @@ fn theme_selection(window: &Window, themes: &[DemoTheme]) -> (usize, usize) {
         .unwrap_or_default();
     let scene_index = parameters
         .and_then(|query| query.get("scene"))
-        .and_then(|value| value.parse::<usize>().ok())
+        .and_then(|value| {
+            value.parse::<usize>().ok().or_else(|| {
+                themes[theme_index]
+                    .scenes
+                    .iter()
+                    .position(|scene| scene.id == value)
+            })
+        })
         .filter(|index| *index < themes[theme_index].scenes.len())
         .unwrap_or_default();
     (theme_index, scene_index)
 }
 
 fn create_scene(
-    themes: &mut [DemoTheme],
+    themes: &mut [DemoSuite],
     theme_index: usize,
     scene_index: usize,
 ) -> novadraw::FigureTree {
-    let scene = &mut themes[theme_index].scenes[scene_index].1;
-    scene()
+    themes[theme_index].scenes[scene_index].build()
 }
 
 struct WebValidationApp {
@@ -533,7 +538,7 @@ struct WebValidationApp {
     backend: ValidationBackend,
     input: WebInputAdapter,
     probe: Rc<ProbeState>,
-    themes: Vec<DemoTheme>,
+    themes: Vec<DemoSuite>,
     current_theme: usize,
     current_scene: usize,
     redraw_pending: Rc<Cell<bool>>,
@@ -550,8 +555,12 @@ impl WebValidationApp {
     ) -> Self {
         let probe = Rc::new(ProbeState::default());
         let mut themes = vec![input_theme(probe.clone())];
-        themes.extend(web_themes());
+        themes.extend(catalog());
         let (current_theme, current_scene) = theme_selection(&window, &themes);
+        let (width, height) = themes[current_theme].scenes[current_scene].logical_size;
+        let _ = canvas
+            .style()
+            .set_property("aspect-ratio", &format!("{width} / {height}"));
         let graph = create_scene(&mut themes, current_theme, current_scene);
 
         let redraw_pending = Rc::new(Cell::new(false));
@@ -610,6 +619,15 @@ impl WebValidationApp {
         self.runtime.request_full_redraw();
     }
 
+    fn apply_scene_size(&self) {
+        let (width, height) =
+            self.themes[self.current_theme].scenes[self.current_scene].logical_size;
+        let _ = self
+            .canvas
+            .style()
+            .set_property("aspect-ratio", &format!("{width} / {height}"));
+    }
+
     fn switch_theme(&mut self, theme_index: usize) {
         if theme_index >= self.themes.len() {
             return;
@@ -648,7 +666,8 @@ impl WebValidationApp {
             self.current_theme,
             self.current_scene,
         ));
-        self.runtime.request_full_redraw();
+        self.apply_scene_size();
+        self.sync_surface();
         self.update_navigation();
         self.request_and_render();
     }
@@ -659,15 +678,18 @@ impl WebValidationApp {
         set_text(
             &self.document,
             "scene-title",
-            theme.scenes[self.current_scene].0,
+            theme.scenes[self.current_scene].title,
         );
         set_text(
             &self.document,
             "scene-count",
             &format!("{}/{}", self.current_scene + 1, theme.scenes.len()),
         );
-        for (index, id) in THEME_BUTTON_IDS.iter().enumerate() {
-            if let Some(button) = self.document.get_element_by_id(id) {
+        for (index, suite) in self.themes.iter().enumerate() {
+            if let Some(button) = self
+                .document
+                .get_element_by_id(&format!("theme-{}", suite.id))
+            {
                 let _ = button.set_attribute(
                     "aria-selected",
                     if index == self.current_theme {
@@ -910,6 +932,32 @@ fn set_text(document: &Document, id: &str, value: &str) {
     }
 }
 
+fn install_theme_buttons(
+    document: &Document,
+    themes: &[DemoSuite],
+) -> Result<Vec<HtmlButtonElement>, JsValue> {
+    let container = document
+        .get_element_by_id("theme-tabs")
+        .ok_or_else(|| JsValue::from_str("missing element #theme-tabs"))?;
+    let markup = themes
+        .iter()
+        .enumerate()
+        .map(|(index, theme)| {
+            format!(
+                r#"<button id="theme-{}" type="button" role="tab" aria-selected="{}">{}</button>"#,
+                theme.id,
+                index == 0,
+                theme.title
+            )
+        })
+        .collect::<String>();
+    container.set_inner_html(&markup);
+    themes
+        .iter()
+        .map(|theme| element(document, &format!("theme-{}", theme.id)))
+        .collect()
+}
+
 fn register_event(
     target: &web_sys::EventTarget,
     name: &str,
@@ -1028,8 +1076,8 @@ async fn start_async() -> Result<(), JsValue> {
     register_event(scale_button.as_ref(), "click", &app, |app, _event| {
         app.toggle_scale()
     })?;
-    for (theme_index, id) in THEME_BUTTON_IDS.iter().enumerate() {
-        let button: HtmlButtonElement = element(&document, id)?;
+    let theme_buttons = install_theme_buttons(&document, &app.borrow().themes)?;
+    for (theme_index, button) in theme_buttons.into_iter().enumerate() {
         register_event(button.as_ref(), "click", &app, move |app, _event| {
             app.switch_theme(theme_index)
         })?;
