@@ -292,6 +292,8 @@ D1.5c 自动验证结果：
 - 通用 Native app 与 editor 均通过 Runtime traversal 入口处理 Tab/Shift+Tab；
 - Web 仅在 `FocusTraversalOutcome::Moved` 时调用 `preventDefault`，boundary 保留浏览器
   默认焦点移动；
+- Native 与 Web 复用同一 `A → Group(B → Skip → C) → D` 验证树，实际有效顺序为
+  `A → B → C → D`，可观察非聚焦容器下钻和 disabled candidate 跳过；
 - Headless public contract 覆盖 forward、backward 和双向 boundary；
 - `cargo test --workspace`、核心 Clippy、Web target check 与 release wasm-bindgen
   打包通过；
