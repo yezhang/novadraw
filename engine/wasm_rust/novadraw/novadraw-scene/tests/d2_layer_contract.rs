@@ -1,0 +1,227 @@
+use slotmap::Key;
+
+use novadraw_scene::{
+    FigureTree, LayerError, LayerFigure, LayerKey, LayerPlacement, LayeredPane, Rectangle,
+    RectangleFigure, Runtime,
+};
+
+fn key(value: &str) -> LayerKey {
+    LayerKey::new(value).expect("test layer key must be valid")
+}
+
+#[test]
+fn transparent_layer_returns_descendant_but_never_itself() {
+    let mut tree = FigureTree::new();
+    let layer = tree.set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)));
+
+    assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
+
+    let child = tree.add_child_to(
+        layer,
+        Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0)),
+    );
+    assert_eq!(tree.hit_test_simple((25.0, 25.0)), Some(child));
+}
+
+#[test]
+fn layered_pane_rejects_duplicate_keys_and_generic_add() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
+    let pane = runtime
+        .add_layered_pane(root, Rectangle::new(0.0, 0.0, 200.0, 120.0))
+        .expect("pane should be added")
+        .pane_id();
+    let content = key("content");
+
+    let layer = {
+        let mut handle = runtime.layered_pane(pane).expect("pane handle");
+        let layer = handle
+            .add_layer(
+                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                content.clone(),
+                LayerPlacement::Last,
+            )
+            .expect("first key should be accepted");
+        assert_eq!(
+            handle.add_layer(
+                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                content,
+                LayerPlacement::Last,
+            ),
+            Err(LayerError::DuplicateKey)
+        );
+        assert_eq!(
+            handle.add_layer(
+                Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
+                key("not-layer"),
+                LayerPlacement::Last,
+            ),
+            Err(LayerError::NotLayer)
+        );
+        layer
+    };
+
+    let bypass = runtime.add_figure(pane, Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)));
+    assert_eq!(bypass, novadraw_scene::FigureId::null());
+    assert!(!runtime.remove_figure(pane, layer));
+    assert_eq!(
+        runtime
+            .layered_pane(pane)
+            .expect("pane handle")
+            .layer_ids()
+            .expect("consistent state")
+            .len(),
+        1
+    );
+}
+
+#[test]
+fn runtime_registers_layered_pane_used_as_contents() {
+    let mut runtime = Runtime::empty();
+    let pane = runtime.set_contents(Box::new(LayeredPane::new(0.0, 0.0, 160.0, 100.0)));
+    let layer = runtime
+        .layered_pane(pane)
+        .expect("contents pane should be registered")
+        .add_layer(
+            Box::new(LayerFigure::new(0.0, 0.0, 160.0, 100.0)),
+            key("content"),
+            LayerPlacement::Last,
+        )
+        .expect("typed add should work");
+
+    assert_eq!(runtime.tree().parent_id(layer), Some(pane));
+}
+
+#[test]
+fn layer_order_drives_reverse_z_hit_testing() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
+    let pane = runtime
+        .add_layered_pane(root, Rectangle::new(0.0, 0.0, 200.0, 120.0))
+        .expect("pane should be added")
+        .pane_id();
+    let lower_key = key("lower");
+    let middle_key = key("middle");
+    let upper_key = key("upper");
+
+    let (lower, middle, upper) = {
+        let mut handle = runtime.layered_pane(pane).expect("pane handle");
+        let lower = handle
+            .add_layer(
+                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                lower_key.clone(),
+                LayerPlacement::Last,
+            )
+            .expect("lower layer");
+        let upper = handle
+            .add_layer(
+                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                upper_key.clone(),
+                LayerPlacement::Last,
+            )
+            .expect("upper layer");
+        let middle = handle
+            .add_layer(
+                Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),
+                middle_key,
+                LayerPlacement::Before(upper_key.clone()),
+            )
+            .expect("middle layer");
+        assert_eq!(
+            handle.layer_ids().expect("ordered layers"),
+            vec![lower, middle, upper]
+        );
+        (lower, middle, upper)
+    };
+    let lower_child = runtime.add_figure(
+        lower,
+        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+    );
+    let upper_child = runtime.add_figure(
+        upper,
+        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+    );
+    let _middle_child = runtime.add_figure(
+        middle,
+        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+    );
+
+    assert_eq!(
+        runtime.tree().hit_test_simple((20.0, 20.0)),
+        Some(upper_child)
+    );
+
+    runtime
+        .layered_pane(pane)
+        .expect("pane handle")
+        .move_layer(&lower_key, LayerPlacement::After(upper_key))
+        .expect("move should succeed");
+
+    assert_eq!(
+        runtime.tree().hit_test_simple((20.0, 20.0)),
+        Some(lower_child)
+    );
+}
+
+#[test]
+fn reparent_and_remove_update_both_membership_indexes() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 160.0)));
+    let left = runtime
+        .add_layered_pane(root, Rectangle::new(0.0, 0.0, 140.0, 160.0))
+        .expect("left pane")
+        .pane_id();
+    let right = runtime
+        .add_layered_pane(root, Rectangle::new(160.0, 0.0, 140.0, 160.0))
+        .expect("right pane")
+        .pane_id();
+    let old_key = key("old");
+    let new_key = key("new");
+    let layer = runtime
+        .layered_pane(left)
+        .expect("left handle")
+        .add_layer(
+            Box::new(LayerFigure::new(0.0, 0.0, 140.0, 160.0)),
+            old_key.clone(),
+            LayerPlacement::Last,
+        )
+        .expect("layer");
+
+    assert!(!runtime.reparent(layer, right));
+    assert_eq!(runtime.tree().parent_id(layer), Some(left));
+
+    runtime
+        .layered_pane(right)
+        .expect("right handle")
+        .reparent_layer(layer, new_key.clone(), LayerPlacement::Last)
+        .expect("reparent should succeed");
+
+    assert_eq!(
+        runtime
+            .layered_pane(left)
+            .expect("left handle")
+            .layer(&old_key),
+        Err(LayerError::UnknownKey)
+    );
+    assert_eq!(
+        runtime
+            .layered_pane(right)
+            .expect("right handle")
+            .layer(&new_key),
+        Ok(layer)
+    );
+
+    let removed = runtime
+        .layered_pane(right)
+        .expect("right handle")
+        .remove_layer(&new_key)
+        .expect("remove should succeed");
+    assert_eq!(removed, layer);
+    assert_eq!(runtime.tree().parent_id(layer), None);
+}
+
+#[test]
+fn layer_key_rejects_empty_values() {
+    assert!(LayerKey::new("").is_err());
+    assert_eq!(LayerKey::new("content").unwrap().as_str(), "content");
+}

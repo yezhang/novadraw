@@ -119,6 +119,15 @@ pub enum ChildClippingStrategy {
 pub enum ChildPolicy {
     Multiple,
     Single,
+    Layered,
+}
+
+/// Controls whether a Figure may be returned by hit-testing after its children.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum HitParticipation {
+    #[default]
+    SelfAndDescendants,
+    DescendantsOnly,
 }
 
 /// 构造期几何兼容 trait。
@@ -324,6 +333,10 @@ pub trait Figure: AsAny {
         x >= 0.0 && x <= bounds.width && y >= 0.0 && y <= bounds.height
     }
 
+    fn hit_participation(&self) -> HitParticipation {
+        HitParticipation::SelfAndDescendants
+    }
+
     /// 返回当前 NodeState border-box 对应的 node-local 可见边界。
     fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
         Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
@@ -385,7 +398,14 @@ pub trait Figure: AsAny {
     fn container(&self) -> Option<&dyn FigureContainer> {
         None
     }
+
+    fn layer(&self) -> Option<&dyn Layer> {
+        None
+    }
 }
+
+/// Marker capability for Figures accepted by a LayeredPane.
+pub trait Layer {}
 
 /// Figure 的可选容器能力。
 pub trait FigureContainer {

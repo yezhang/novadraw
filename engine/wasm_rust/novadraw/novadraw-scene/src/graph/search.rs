@@ -1,7 +1,7 @@
 use std::{collections::HashSet, error::Error, fmt};
 
 use super::{FigureId, FigureTree, NodeState, point_in_rect};
-use crate::Figure;
+use crate::{Figure, HitParticipation};
 
 /// Read-only view of the current node passed to a tree search strategy.
 #[derive(Clone, Copy)]
@@ -244,7 +244,9 @@ impl FigureTree {
             }
         }
 
-        let result = search.accept(context).then(|| (id, path.clone()));
+        let result = (node.figure.hit_participation() == HitParticipation::SelfAndDescendants
+            && search.accept(context))
+        .then(|| (id, path.clone()));
         path.pop();
         result
     }

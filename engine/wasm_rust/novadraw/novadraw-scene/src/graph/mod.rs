@@ -56,6 +56,8 @@ pub enum GraphMutationError {
     CycleDetected,
     DuplicateChild,
     ChildLimitExceeded { limit: usize },
+    LayerKeyRequired,
+    LayerChildRequired,
     InvalidParentRelation,
     DepthLimitExceeded { limit: usize },
 }
@@ -70,6 +72,8 @@ impl fmt::Display for GraphMutationError {
             Self::ChildLimitExceeded { limit } => {
                 write!(f, "parent accepts at most {limit} direct child")
             }
+            Self::LayerKeyRequired => write!(f, "layered pane mutations require a layer key"),
+            Self::LayerChildRequired => write!(f, "layered pane accepts only Layer figures"),
             Self::InvalidParentRelation => write!(f, "child is not attached to expected parent"),
             Self::DepthLimitExceeded { limit } => {
                 write!(f, "figure tree depth exceeds limit {limit}")
@@ -715,6 +719,15 @@ impl FigureTree {
         figure: Box<dyn super::Figure>,
         parent_id: FigureId,
     ) -> Result<FigureId, GraphMutationError> {
+        self.new_block_with_parent_admission(figure, parent_id, false)
+    }
+
+    fn new_block_with_parent_admission(
+        &mut self,
+        figure: Box<dyn super::Figure>,
+        parent_id: FigureId,
+        layer_admission: bool,
+    ) -> Result<FigureId, GraphMutationError> {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
         let parent_depth = self
@@ -723,8 +736,17 @@ impl FigureTree {
             .map(|parent| parent.depth)
             .ok_or(GraphMutationError::ParentNotFound)?;
         let parent = &self.blocks[parent_id];
-        if parent.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
-            return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+        match parent.child_policy() {
+            ChildPolicy::Single if !parent.children.is_empty() => {
+                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+            }
+            ChildPolicy::Layered if !layer_admission => {
+                return Err(GraphMutationError::LayerKeyRequired);
+            }
+            ChildPolicy::Layered if figure.layer().is_none() => {
+                return Err(GraphMutationError::LayerChildRequired);
+            }
+            _ => {}
         }
         let depth = parent_depth
             .checked_add(1)
@@ -762,12 +784,35 @@ impl FigureTree {
         Ok(id)
     }
 
+    pub(crate) fn add_layer_child(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        parent_id: FigureId,
+        figure: Box<dyn super::Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        let child_id = self.new_block_with_parent_admission(figure, parent_id, true)?;
+        let visual_bounds = self.blocks[child_id].visual_bounds();
+        self.mark_invalid(update_manager, parent_id);
+        update_manager.add_dirty_region(child_id, visual_bounds);
+        self.mark_invalid(update_manager, child_id);
+        Ok(child_id)
+    }
+
     fn attach_child_checked(
         &mut self,
         parent_id: FigureId,
         child_id: FigureId,
     ) -> Result<(), GraphMutationError> {
-        let new_depth = self.validate_attachment(parent_id, child_id)?;
+        self.attach_child_checked_admission(parent_id, child_id, false)
+    }
+
+    fn attach_child_checked_admission(
+        &mut self,
+        parent_id: FigureId,
+        child_id: FigureId,
+        layer_admission: bool,
+    ) -> Result<(), GraphMutationError> {
+        let new_depth = self.validate_attachment_admission(parent_id, child_id, layer_admission)?;
 
         self.blocks[parent_id].children.push(child_id);
         {
@@ -827,6 +872,15 @@ impl FigureTree {
         parent_id: FigureId,
         child_id: FigureId,
     ) -> Result<usize, GraphMutationError> {
+        self.validate_attachment_admission(parent_id, child_id, false)
+    }
+
+    fn validate_attachment_admission(
+        &self,
+        parent_id: FigureId,
+        child_id: FigureId,
+        layer_admission: bool,
+    ) -> Result<usize, GraphMutationError> {
         let parent = self
             .blocks
             .get(parent_id)
@@ -841,8 +895,17 @@ impl FigureTree {
         if parent.children.contains(&child_id) {
             return Err(GraphMutationError::DuplicateChild);
         }
-        if parent.child_policy() == ChildPolicy::Single && !parent.children.is_empty() {
-            return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+        match parent.child_policy() {
+            ChildPolicy::Single if !parent.children.is_empty() => {
+                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+            }
+            ChildPolicy::Layered if !layer_admission => {
+                return Err(GraphMutationError::LayerKeyRequired);
+            }
+            ChildPolicy::Layered if self.blocks[child_id].figure.layer().is_none() => {
+                return Err(GraphMutationError::LayerChildRequired);
+            }
+            _ => {}
         }
 
         let new_depth =
@@ -926,8 +989,40 @@ impl FigureTree {
         if !self.blocks.contains_key(child) {
             return false;
         }
+        if self
+            .blocks
+            .get(parent)
+            .is_some_and(|node| node.child_policy() == ChildPolicy::Layered)
+        {
+            return false;
+        }
 
-        if !self.detach_child(parent, child) {
+        self.remove_child_internal(update_manager, parent, child)
+    }
+
+    pub(crate) fn remove_layer_child(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        parent: FigureId,
+        child: FigureId,
+    ) -> bool {
+        if self
+            .blocks
+            .get(parent)
+            .is_none_or(|node| node.child_policy() != ChildPolicy::Layered)
+        {
+            return false;
+        }
+        self.remove_child_internal(update_manager, parent, child)
+    }
+
+    fn remove_child_internal(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        parent: FigureId,
+        child: FigureId,
+    ) -> bool {
+        if !self.blocks.contains_key(child) || !self.detach_child(parent, child) {
             return false;
         }
 
@@ -962,6 +1057,9 @@ impl FigureTree {
         let Some(old_parent) = old_parent else {
             return false;
         };
+        if self.blocks[old_parent].child_policy() == ChildPolicy::Layered {
+            return false;
+        }
         if !self.contains_direct_child(old_parent, child)
             || self.contains_direct_child(new_parent, child)
         {
@@ -979,6 +1077,40 @@ impl FigureTree {
             return false;
         }
 
+        self.mark_invalid(update_manager, new_parent);
+        update_manager.add_dirty_region(child, visual_bounds);
+        self.repaint(update_manager, new_parent, None);
+        true
+    }
+
+    pub(crate) fn reparent_layer_child(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        child: FigureId,
+        new_parent: FigureId,
+    ) -> bool {
+        let Some(old_parent) = self.blocks.get(child).and_then(|block| block.parent) else {
+            return false;
+        };
+        if old_parent == new_parent
+            || !self.contains_direct_child(old_parent, child)
+            || self.contains_direct_child(new_parent, child)
+            || self
+                .validate_attachment_admission(new_parent, child, true)
+                .is_err()
+        {
+            return false;
+        }
+        let visual_bounds = self.blocks[child].visual_bounds();
+        self.detach_child(old_parent, child);
+        self.mark_invalid(update_manager, old_parent);
+        self.repaint(update_manager, old_parent, None);
+        if self
+            .attach_child_checked_admission(new_parent, child, true)
+            .is_err()
+        {
+            return false;
+        }
         self.mark_invalid(update_manager, new_parent);
         update_manager.add_dirty_region(child, visual_bounds);
         self.repaint(update_manager, new_parent, None);
@@ -1636,6 +1768,18 @@ impl FigureTree {
     /// 获取块
     pub fn get_block(&self, id: FigureId) -> Option<&FigureNode> {
         self.blocks.get(id)
+    }
+
+    pub(crate) fn is_layered_pane(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|node| node.child_policy() == ChildPolicy::Layered)
+    }
+
+    pub(crate) fn is_layer_figure(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|node| node.figure.layer().is_some())
     }
 
     pub(crate) fn block(&self, id: FigureId) -> Option<&FigureNode> {

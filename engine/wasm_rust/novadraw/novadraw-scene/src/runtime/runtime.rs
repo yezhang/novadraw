@@ -1,14 +1,18 @@
+use std::collections::HashMap;
+
 use novadraw_render::{
     BackendCapabilities, DamageMode, FontData, FrameId, ImageData, NdCanvas, RenderOutcome,
     RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
 };
 
+use crate::container::layer::LayeredPaneState;
 use crate::{
     CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
     FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    ImageId, InteractionState, Key, KeyModifiers, MouseButton, PendingMutations, ResourceError,
-    ResourceRegistry, ResourceStatus, SceneDispatchContext, TreeOrderFocusTraversal, UpdateEvent,
-    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
+    ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey, LayerPlacement,
+    LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle, ResourceError,
+    ResourceRegistry, ResourceStatus, SceneDispatchContext, StackLayout, TreeOrderFocusTraversal,
+    UpdateEvent, UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
@@ -24,6 +28,7 @@ pub struct Runtime {
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
     resources: ResourceRegistry,
+    layered_panes: HashMap<FigureId, LayeredPaneState>,
 }
 
 struct InFlightFrame {
@@ -33,7 +38,7 @@ struct InFlightFrame {
 
 impl Runtime {
     pub fn new(tree: FigureTree) -> Self {
-        Self {
+        let mut runtime = Self {
             tree,
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
@@ -45,7 +50,10 @@ impl Runtime {
             in_flight: None,
             last_surface: None,
             resources: ResourceRegistry::new(),
-        }
+            layered_panes: HashMap::new(),
+        };
+        runtime.initialize_layered_panes();
+        runtime
     }
 
     pub fn empty() -> Self {
@@ -80,6 +88,7 @@ impl Runtime {
 
     pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
         let id = self.tree.set_contents(figure);
+        self.register_layered_pane(id);
         self.retain_interactive_figures();
         self.full_redraw_pending = true;
         self.tree.mark_invalid(&mut self.updates, id);
@@ -88,7 +97,223 @@ impl Runtime {
     }
 
     pub fn add_figure(&mut self, parent: FigureId, figure: Box<dyn Figure>) -> FigureId {
-        self.tree.add_child(&mut self.updates, parent, figure)
+        let id = self.tree.add_child(&mut self.updates, parent, figure);
+        self.register_layered_pane(id);
+        id
+    }
+
+    pub fn add_layered_pane(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<LayeredPaneHandle<'_>, LayerError> {
+        let pane_id = self.tree.try_add_child_to(
+            parent,
+            Box::new(LayeredPane::new(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+            )),
+        )?;
+        self.register_layered_pane(pane_id);
+        self.tree.mark_invalid(&mut self.updates, parent);
+        self.tree.mark_invalid(&mut self.updates, pane_id);
+        self.tree.repaint(&mut self.updates, pane_id, None);
+        Ok(LayeredPaneHandle::new(pane_id, self))
+    }
+
+    pub fn layered_pane(&mut self, pane_id: FigureId) -> Result<LayeredPaneHandle<'_>, LayerError> {
+        if !self.tree.is_layered_pane(pane_id) || !self.tree.is_attached(pane_id) {
+            return Err(LayerError::UnknownPane);
+        }
+        self.layered_panes.entry(pane_id).or_default();
+        Ok(LayeredPaneHandle::new(pane_id, self))
+    }
+
+    pub(crate) fn add_layer(
+        &mut self,
+        pane_id: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<FigureId, LayerError> {
+        self.ensure_layered_pane(pane_id)?;
+        if figure.layer().is_none() {
+            return Err(LayerError::NotLayer);
+        }
+        let child_is_layered_pane = figure
+            .container()
+            .is_some_and(|container| container.child_policy() == crate::ChildPolicy::Layered);
+        let state = self
+            .layered_panes
+            .get(&pane_id)
+            .ok_or(LayerError::InconsistentState)?;
+        if state.contains_key(&key) {
+            return Err(LayerError::DuplicateKey);
+        }
+        let target_index = self.resolve_layer_index(pane_id, state, &placement, None)?;
+        let child = self
+            .tree
+            .add_layer_child(&mut self.updates, pane_id, figure)?;
+        let last_index = self
+            .tree
+            .child_order(pane_id)
+            .map_or(0, |order| order.len().saturating_sub(1));
+        if target_index != last_index {
+            let _ = self.tree.move_child_to_index(pane_id, child, target_index);
+        }
+        self.layered_panes
+            .get_mut(&pane_id)
+            .expect("validated layered pane state must exist")
+            .insert(key, child);
+        if child_is_layered_pane {
+            self.register_layered_pane(child);
+        }
+        Ok(child)
+    }
+
+    pub(crate) fn remove_layer(
+        &mut self,
+        pane_id: FigureId,
+        key: &LayerKey,
+    ) -> Result<FigureId, LayerError> {
+        self.ensure_layered_pane(pane_id)?;
+        let child = self.layer(pane_id, key)?;
+        if self.tree.parent_id(child) != Some(pane_id) {
+            return Err(LayerError::InconsistentState);
+        }
+        if !self
+            .tree
+            .remove_layer_child(&mut self.updates, pane_id, child)
+        {
+            return Err(LayerError::InconsistentState);
+        }
+        self.layered_panes
+            .get_mut(&pane_id)
+            .expect("validated layered pane state must exist")
+            .remove_key(key);
+        self.retain_runtime_state();
+        Ok(child)
+    }
+
+    pub(crate) fn move_layer(
+        &mut self,
+        pane_id: FigureId,
+        key: &LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<bool, LayerError> {
+        self.ensure_layered_pane(pane_id)?;
+        let state = self
+            .layered_panes
+            .get(&pane_id)
+            .ok_or(LayerError::InconsistentState)?;
+        let child = state.layer(key).ok_or(LayerError::UnknownKey)?;
+        let target_index = self.resolve_layer_index(pane_id, state, &placement, Some(child))?;
+        let Some(old_index) = self.tree.child_z_index(pane_id, child) else {
+            return Err(LayerError::InconsistentState);
+        };
+        if old_index == target_index {
+            return Ok(false);
+        }
+        if !self.tree.move_child_to_index(pane_id, child, target_index) {
+            return Err(LayerError::InconsistentState);
+        }
+        self.tree.repaint(&mut self.updates, pane_id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn reparent_layer(
+        &mut self,
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<bool, LayerError> {
+        self.ensure_layered_pane(new_pane)?;
+        if !self.tree.is_layer_figure(child) {
+            return Err(LayerError::NotLayer);
+        }
+        let target_state = self
+            .layered_panes
+            .get(&new_pane)
+            .ok_or(LayerError::InconsistentState)?;
+        if target_state.contains_key(&key) {
+            return Err(LayerError::DuplicateKey);
+        }
+        if target_state.contains_child(child) {
+            return Err(LayerError::AlreadyLayerMember);
+        }
+        let target_index = self.resolve_layer_index(new_pane, target_state, &placement, None)?;
+        let old_parent = self
+            .tree
+            .parent_id(child)
+            .ok_or(LayerError::InconsistentState)?;
+        if self.tree.is_layered_pane(old_parent)
+            && self
+                .layered_panes
+                .get(&old_parent)
+                .is_none_or(|state| !state.contains_child(child))
+        {
+            return Err(LayerError::InconsistentState);
+        }
+        if !self
+            .tree
+            .reparent_layer_child(&mut self.updates, child, new_pane)
+        {
+            return Ok(false);
+        }
+        if let Some(state) = self.layered_panes.get_mut(&old_parent) {
+            state.remove_child(child);
+        }
+        self.layered_panes
+            .get_mut(&new_pane)
+            .expect("validated layered pane state must exist")
+            .insert(key, child);
+        let last_index = self
+            .tree
+            .child_order(new_pane)
+            .map_or(0, |order| order.len().saturating_sub(1));
+        if target_index != last_index {
+            let _ = self.tree.move_child_to_index(new_pane, child, target_index);
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn layer(&self, pane_id: FigureId, key: &LayerKey) -> Result<FigureId, LayerError> {
+        self.layered_panes
+            .get(&pane_id)
+            .ok_or(LayerError::InconsistentState)?
+            .layer(key)
+            .ok_or(LayerError::UnknownKey)
+    }
+
+    pub(crate) fn layer_key(
+        &self,
+        pane_id: FigureId,
+        child: FigureId,
+    ) -> Result<LayerKey, LayerError> {
+        self.layered_panes
+            .get(&pane_id)
+            .ok_or(LayerError::InconsistentState)?
+            .key(child)
+            .cloned()
+            .ok_or(LayerError::UnknownKey)
+    }
+
+    pub(crate) fn layer_ids(&self, pane_id: FigureId) -> Result<Vec<FigureId>, LayerError> {
+        let state = self
+            .layered_panes
+            .get(&pane_id)
+            .ok_or(LayerError::InconsistentState)?;
+        let order = self
+            .tree
+            .child_order(pane_id)
+            .ok_or(LayerError::UnknownPane)?;
+        if order.len() != state.len() || order.iter().any(|child| !state.contains_child(*child)) {
+            return Err(LayerError::InconsistentState);
+        }
+        Ok(order)
     }
 
     pub fn remove_figure(&mut self, parent: FigureId, child: FigureId) -> bool {
@@ -375,7 +600,87 @@ impl Runtime {
         result
     }
 
+    fn ensure_layered_pane(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
+        if !self.tree.is_layered_pane(pane_id) || !self.tree.is_attached(pane_id) {
+            return Err(LayerError::UnknownPane);
+        }
+        self.layered_panes.entry(pane_id).or_default();
+        Ok(())
+    }
+
+    fn initialize_layered_panes(&mut self) {
+        let Some(contents) = self.tree.get_contents() else {
+            return;
+        };
+        let mut ids = vec![contents];
+        ids.extend(self.tree.descendant_ids(contents).unwrap_or_default());
+        for id in ids {
+            self.register_layered_pane(id);
+        }
+    }
+
+    fn register_layered_pane(&mut self, pane_id: FigureId) {
+        if !self.tree.is_layered_pane(pane_id) {
+            return;
+        }
+        if self.tree.get_block_layout_manager(pane_id).is_none() {
+            self.tree
+                .set_block_layout_manager(pane_id, Box::new(StackLayout));
+        }
+        self.layered_panes.entry(pane_id).or_default();
+    }
+
+    fn resolve_layer_index(
+        &self,
+        pane_id: FigureId,
+        state: &LayeredPaneState,
+        placement: &LayerPlacement,
+        moving: Option<FigureId>,
+    ) -> Result<usize, LayerError> {
+        let order = self
+            .tree
+            .child_order(pane_id)
+            .ok_or(LayerError::UnknownPane)?;
+        let filtered: Vec<_> = order
+            .into_iter()
+            .filter(|child| Some(*child) != moving)
+            .collect();
+        match placement {
+            LayerPlacement::Last => Ok(filtered.len()),
+            LayerPlacement::Before(reference) | LayerPlacement::After(reference) => {
+                let reference_child = state.layer(reference).ok_or(LayerError::UnknownKey)?;
+                if Some(reference_child) == moving {
+                    return self
+                        .tree
+                        .child_z_index(pane_id, reference_child)
+                        .ok_or(LayerError::InconsistentState);
+                }
+                let index = filtered
+                    .iter()
+                    .position(|child| *child == reference_child)
+                    .ok_or(LayerError::InconsistentState)?;
+                if matches!(placement, LayerPlacement::After(_)) {
+                    Ok(index + 1)
+                } else {
+                    Ok(index)
+                }
+            }
+        }
+    }
+
+    fn retain_runtime_state(&mut self) {
+        let tree = &self.tree;
+        self.layered_panes.retain(|pane, state| {
+            if !tree.is_attached(*pane) || !tree.is_layered_pane(*pane) {
+                return false;
+            }
+            state.retain_children(|child| tree.parent_id(child) == Some(*pane));
+            true
+        });
+    }
+
     fn retain_interactive_figures(&mut self) {
+        self.retain_runtime_state();
         self.interaction.reconcile_non_focus(&self.tree);
         self.resources
             .retain_dependencies(|id| self.tree.is_attached(id));
