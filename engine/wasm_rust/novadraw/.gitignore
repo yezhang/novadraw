@@ -1,10 +1,10 @@
 # Screenshot directories
-apps/*/screenshot/
+apps/**/screenshot/
 screenshot/
 
 # Build outputs
 target/
-apps/web-validation/dist/
+apps/web/web-validation/dist/
 
 # Runtime logs
 log/

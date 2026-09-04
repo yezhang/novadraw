@@ -4,7 +4,7 @@
 `WebPlatformHost` 和渲染后端。Vello WebGPU 是默认后端，Canvas2D 是诊断基线。
 
 完整环境准备、操作步骤、通过标准和故障定位见
-[`../../doc/verification/manual/web-platform.md`](../../doc/verification/manual/web-platform.md)。
+[`../../../doc/verification/manual/web-platform.md`](../../../doc/verification/manual/web-platform.md)。
 
 快速启动：
 

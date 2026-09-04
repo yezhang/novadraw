@@ -6,4 +6,4 @@ PORT="${PORT:-4173}"
 
 exec python3 -m http.server "$PORT" \
   --bind 127.0.0.1 \
-  --directory "$ROOT/apps/web-validation/dist"
+  --directory "$ROOT/apps/web/web-validation/dist"

@@ -39,4 +39,4 @@ PASS coordinate_root
 ```
 
 完整的人工动作、颜色状态和通过标准见
-[`doc/verification/manual/core-pipeline.md`](../../doc/verification/manual/core-pipeline.md)。
+[`doc/verification/manual/core-pipeline.md`](../../../doc/verification/manual/core-pipeline.md)。

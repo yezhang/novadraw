@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${CARGO_TARGET_DIR:-$ROOT/target}"
 WASM_BINDGEN="${WASM_BINDGEN:-$ROOT/target/wasm-tools/bin/wasm-bindgen}"
-DIST="$ROOT/apps/web-validation/dist"
+WEB_APP="$ROOT/apps/web/web-validation"
+DIST="$WEB_APP/dist"
 
 if [[ ! -x "$WASM_BINDGEN" ]]; then
   echo "wasm-bindgen not found at $WASM_BINDGEN" >&2
@@ -19,7 +20,7 @@ mkdir -p "$DIST/pkg"
   "$TARGET/wasm32-unknown-unknown/release/web_validation.wasm" \
   --target web \
   --out-dir "$DIST/pkg"
-cp "$ROOT/apps/web-validation/web/index.html" "$DIST/index.html"
-cp "$ROOT/apps/web-validation/web/styles.css" "$DIST/styles.css"
+cp "$WEB_APP/web/index.html" "$DIST/index.html"
+cp "$WEB_APP/web/styles.css" "$DIST/styles.css"
 
 echo "Built $DIST"
