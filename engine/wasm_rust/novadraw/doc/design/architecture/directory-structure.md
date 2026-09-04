@@ -168,7 +168,7 @@ novadraw-platform-winit
 novadraw-platform-web
 novadraw-3d
 novadraw
-apps/*
+apps/{native,web,benchmarks}/*
 ```
 
 不要求每个逻辑层最终都成为 crate。只有满足以下条件才拆分：

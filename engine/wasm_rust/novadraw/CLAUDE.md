@@ -19,7 +19,9 @@ novadraw-math/     - 数学运算
 novadraw-geometry/ - 几何计算
 novadraw-render/   - 渲染抽象
 novadraw-scene/    - 场景图、Figure
-apps/editor/       - 编辑器示例
+apps/native/       - winit/macOS/桌面应用
+apps/web/          - Wasm/浏览器应用
+apps/benchmarks/   - 无窗口性能基线
 ```
 
 ## 核心禁止事项

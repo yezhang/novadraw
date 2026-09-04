@@ -133,7 +133,7 @@ cargo test -p novadraw-scene validation_figure_effects_preserve_causal_order
 | `0`-`9` | 按索引切换到存在的场景 |
 | `Left` / `PageUp` | 上一个场景 |
 | `Right` / `PageDown` | 下一个场景 |
-| `S` | 保存当前帧到对应 `apps/<app>/screenshot/` |
+| `S` | 保存当前帧到对应 `apps/native/<app>/screenshot/` |
 | `U` | 切换 UpdateManager 与直接渲染，仅用于问题定位 |
 | `Esc` | 退出 |
 

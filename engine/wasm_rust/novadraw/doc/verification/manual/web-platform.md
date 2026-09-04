@@ -87,7 +87,7 @@ Boolean(navigator.gpu)
 预期退出码为 0，并生成：
 
 ```text
-apps/web-validation/dist/
+apps/web/web-validation/dist/
 ├── index.html
 ├── styles.css
 └── pkg/

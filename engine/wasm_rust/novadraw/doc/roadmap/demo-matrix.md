@@ -25,14 +25,14 @@
 |------|-----------|------|----------|--------------|
 | M1 | 无独立 demo | — | 仅类型单测 + Graphics 状态栈嵌套测试 | +30 |
 | M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 | +60 |
-| M3 | `clip-app` nested clip 场景 | `apps/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
-| M4 | `transform-app` ✅ | `apps/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
-| M5 | `layout-app` ✅ + `update-app` ✅ | `apps/layout-app`、`apps/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
-| M6 | `event-app` ✅ | `apps/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
+| M3 | `clip-app` nested clip 场景 | `apps/native/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
+| M4 | `transform-app` ✅ | `apps/native/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
+| M5 | `layout-app` ✅ + `update-app` ✅ | `apps/native/layout-app`、`apps/native/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
+| M6 | `event-app` ✅ | `apps/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
-| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/scroll-pane-demo`、`apps/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
-| M9 | `connections-demo` | `apps/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
-| M10 | `shape-app` + `border-app` + 待新增文本/Tooltip demo | `apps/shape-app`、`apps/border-app` | deferred builtin Figure + 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
+| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/native/scroll-pane-demo`、`apps/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
+| M9 | `connections-demo` | `apps/native/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
+| M10 | `shape-app` + `border-app` + 待新增文本/Tooltip demo | `apps/native/shape-app`、`apps/native/border-app` | deferred builtin Figure + 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
 
 **测试增量合计**：+1,100（基线 146，目标 ~1,250）
 
@@ -84,16 +84,16 @@
 
 ## Demo 完成清单（勾选区）
 
-- [x] M3 `apps/clip-app` nested clip 场景
-- [x] M4 `apps/transform-app`
-- [x] M5 `apps/layout-app`
-- [x] M5 `apps/update-app` stress 场景
-- [x] M6 `apps/event-app`
-- [x] M8 `apps/scroll-pane-demo`
-- [x] M8 `apps/viewport-app` 4 场景视觉验证
-- [ ] M9 `apps/connections-demo`
-- [ ] M10 `apps/shape-app`
-- [ ] M10 `apps/border-app`
+- [x] M3 `apps/native/clip-app` nested clip 场景
+- [x] M4 `apps/native/transform-app`
+- [x] M5 `apps/native/layout-app`
+- [x] M5 `apps/native/update-app` stress 场景
+- [x] M6 `apps/native/event-app`
+- [x] M8 `apps/native/scroll-pane-demo`
+- [x] M8 `apps/native/viewport-app` 4 场景视觉验证
+- [ ] M9 `apps/native/connections-demo`
+- [ ] M10 `apps/native/shape-app`
+- [ ] M10 `apps/native/border-app`
 - [ ] M10 文本/图像 demo（待新增）
 - [ ] M10 Tooltip demo（待新增）
 
@@ -106,7 +106,7 @@
 
 ### 节点编辑器探索 demo
 
-- **路径**：`apps/node-editor-demo`（暂定）
+- **路径**：`apps/native/node-editor-demo`（暂定）
 - **触发时机**：M1-M10 全部 `behavior_verified` 之后
 - **能力范围**：创建节点 / 拖拽 / 连接 / 删除 / 滚动+缩放 / Tooltip
 - **GEF helper**：`AutoexposeHelper` 在拖拽期间驱动 Viewport 自动滚动，属于本层，
