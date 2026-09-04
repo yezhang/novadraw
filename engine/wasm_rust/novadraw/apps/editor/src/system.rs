@@ -564,6 +564,8 @@ mod tests {
                 100.0, 100.0, 100.0, 100.0,
             ))),
         );
+        scene.set_focusable(target_id, true);
+        scene.set_focus_traversable(target_id, true);
         let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,
@@ -597,6 +599,8 @@ mod tests {
                 20.0, 30.0, 40.0, 40.0,
             ))),
         );
+        scene.set_focusable(target_id, true);
+        scene.set_focus_traversable(target_id, true);
         let core = EditorInteractionCore::from_scene_manager(SceneManager {
             scene,
             current_scene: SceneType::DpiTest,

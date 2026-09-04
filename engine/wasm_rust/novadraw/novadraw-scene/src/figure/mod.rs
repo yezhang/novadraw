@@ -422,10 +422,6 @@ pub trait FigureEventHandler {
         true
     }
 
-    fn wants_key_events(&self) -> bool {
-        false
-    }
-
     fn on_mouse_pressed(&self, _event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         false
     }

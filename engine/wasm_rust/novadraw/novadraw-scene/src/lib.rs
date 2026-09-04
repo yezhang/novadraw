@@ -67,8 +67,9 @@ pub use runtime::update::{
     UpdateListener, UpdateManager, ValidatingListener,
 };
 pub use runtime::{
+    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
     FontId, ImageId, InteractionState, PointerId, ResourceError, ResourceKind, ResourceRegistry,
-    ResourceStatus, Runtime,
+    ResourceStatus, Runtime, TreeOrderFocusTraversal,
 };
 pub use runtime::{context, event, mutation};
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};

@@ -4,10 +4,11 @@ use novadraw_render::{
 };
 
 use crate::{
-    CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FontId, ImageId,
-    InteractionState, Key, KeyModifiers, MouseButton, PendingMutations, ResourceError,
-    ResourceRegistry, ResourceStatus, SceneDispatchContext, UpdateEvent, UpdateListener,
-    UpdateManager, ValidationError, WheelEvent, ZoomEvent,
+    CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
+    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
+    ImageId, InteractionState, Key, KeyModifiers, MouseButton, PendingMutations, ResourceError,
+    ResourceRegistry, ResourceStatus, SceneDispatchContext, TreeOrderFocusTraversal, UpdateEvent,
+    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
@@ -15,6 +16,7 @@ pub struct Runtime {
     tree: FigureTree,
     interaction: InteractionState,
     interaction_dispatcher: EventDispatcher,
+    focus_traversal_policy: Box<dyn FocusTraversalPolicy>,
     updates: UpdateManager,
     mutations: PendingMutations,
     full_redraw_pending: bool,
@@ -35,6 +37,7 @@ impl Runtime {
             tree,
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
+            focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
             updates: UpdateManager::new(),
             mutations: PendingMutations::new(),
             full_redraw_pending: true,
@@ -95,7 +98,11 @@ impl Runtime {
     }
 
     pub fn reparent(&mut self, child: FigureId, new_parent: FigureId) -> bool {
-        self.tree.reparent(&mut self.updates, child, new_parent)
+        let changed = self.tree.reparent(&mut self.updates, child, new_parent);
+        if changed {
+            self.retain_interactive_figures();
+        }
+        changed
     }
 
     pub fn set_bounds(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
@@ -129,6 +136,22 @@ impl Runtime {
             .tree
             .set_enabled_with_update(&mut self.updates, id, enabled);
         self.retain_interactive_figures();
+        changed
+    }
+
+    pub fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
+        let changed = self.tree.set_focusable(id, focusable);
+        if changed {
+            self.retain_interactive_figures();
+        }
+        changed
+    }
+
+    pub fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
+        let changed = self.tree.set_focus_traversable(id, traversable);
+        if changed {
+            self.retain_interactive_figures();
+        }
         changed
     }
 
@@ -286,8 +309,45 @@ impl Runtime {
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
     }
 
-    pub fn release_focus(&mut self) {
-        self.dispatch(|dispatcher, ctx| dispatcher.release_focus(ctx));
+    pub fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {
+        self.validate_direct_focus(target)?;
+        Ok(self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(target))))
+    }
+
+    pub fn clear_focus(&mut self) -> FocusChange {
+        self.dispatch(|dispatcher, ctx| dispatcher.release_focus(ctx))
+    }
+
+    pub fn release_focus(&mut self) -> FocusChange {
+        self.clear_focus()
+    }
+
+    pub fn traverse_focus(&mut self, direction: FocusTraversalDirection) -> FocusTraversalOutcome {
+        let Some(scope) = self.tree.get_contents() else {
+            return FocusTraversalOutcome::Boundary;
+        };
+        let candidate = self.focus_traversal_policy.traverse(
+            &self.tree,
+            scope,
+            self.interaction.focus_owner(),
+            direction,
+        );
+        let Some(candidate) = candidate else {
+            return FocusTraversalOutcome::Boundary;
+        };
+        let in_scope = candidate == scope || self.tree.is_ancestor_of(scope, candidate);
+        if !in_scope || !self.tree.can_traverse_focus(candidate) {
+            return FocusTraversalOutcome::Boundary;
+        }
+
+        match self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(candidate))) {
+            FocusChange::Changed { .. } => FocusTraversalOutcome::Moved(candidate),
+            FocusChange::Unchanged => FocusTraversalOutcome::Boundary,
+        }
+    }
+
+    pub fn set_focus_traversal_policy(&mut self, policy: Box<dyn FocusTraversalPolicy>) {
+        self.focus_traversal_policy = policy;
     }
 
     pub fn cancel_gestures(&mut self) {
@@ -295,10 +355,39 @@ impl Runtime {
     }
 
     /// Applies all callback effects and structural mutations before returning.
-    fn dispatch(
+    fn dispatch<R>(
         &mut self,
-        action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>),
-    ) {
+        action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
+    ) -> R {
+        let result = {
+            let mut context = SceneDispatchContext::new(
+                &mut self.tree,
+                &mut self.interaction,
+                &mut self.updates,
+                &mut self.mutations,
+            );
+            action(&mut self.interaction_dispatcher, &mut context)
+        };
+        let mutations = self.mutations.drain();
+        self.tree
+            .apply_pending_mutations(&mut self.updates, mutations);
+        self.retain_interactive_figures();
+        result
+    }
+
+    fn retain_interactive_figures(&mut self) {
+        self.interaction.reconcile_non_focus(&self.tree);
+        self.resources
+            .retain_dependencies(|id| self.tree.is_attached(id));
+
+        let invalid_focus = self
+            .interaction
+            .focus_owner()
+            .is_some_and(|id| !self.tree.can_retain_focus(id));
+        if !invalid_focus {
+            return;
+        }
+
         {
             let mut context = SceneDispatchContext::new(
                 &mut self.tree,
@@ -306,18 +395,33 @@ impl Runtime {
                 &mut self.updates,
                 &mut self.mutations,
             );
-            action(&mut self.interaction_dispatcher, &mut context);
+            self.interaction_dispatcher.set_focus(&mut context, None);
         }
         let mutations = self.mutations.drain();
         self.tree
             .apply_pending_mutations(&mut self.updates, mutations);
-        self.retain_interactive_figures();
-    }
-
-    fn retain_interactive_figures(&mut self) {
-        self.interaction.reconcile(&self.tree);
+        self.interaction.reconcile_non_focus(&self.tree);
         self.resources
             .retain_dependencies(|id| self.tree.is_attached(id));
+    }
+
+    fn validate_direct_focus(&self, target: FigureId) -> Result<(), FocusError> {
+        if self.tree.get_block(target).is_none() {
+            return Err(FocusError::UnknownFigure(target));
+        }
+        if !self.tree.is_attached(target) {
+            return Err(FocusError::Detached(target));
+        }
+        if !self.tree.is_effectively_visible(target) {
+            return Err(FocusError::Hidden(target));
+        }
+        if !self.tree.is_effectively_enabled(target) {
+            return Err(FocusError::Disabled(target));
+        }
+        if !self.tree.is_focusable(target) {
+            return Err(FocusError::NotFocusable(target));
+        }
+        Ok(())
     }
 
     fn invalidate_resource_dependents(&mut self, dependents: Vec<FigureId>) {
@@ -446,9 +550,78 @@ impl Default for Runtime {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FigureEvent, RectangleFigure};
+    use crate::{
+        Bounded, EventContext, FigureEvent, FigureEventHandler, FocusEvent, FocusEventKind,
+        Rectangle, RectangleFigure,
+    };
     use novadraw_core::Color;
+    use slotmap::Key;
     use std::sync::{Arc, Mutex};
+
+    struct FocusProbeFigure {
+        bounds: Rectangle,
+        events: Arc<Mutex<Vec<FocusEvent>>>,
+    }
+
+    impl Bounded for FocusProbeFigure {
+        fn bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+            self.bounds = Rectangle::new(x, y, width, height);
+        }
+
+        fn name(&self) -> &'static str {
+            "FocusProbeFigure"
+        }
+    }
+
+    impl Figure for FocusProbeFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for FocusProbeFigure {
+        fn on_focus_gained(&self, event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
+            self.events.lock().unwrap().push(*event);
+            true
+        }
+
+        fn on_focus_lost(&self, event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
+            self.events.lock().unwrap().push(*event);
+            true
+        }
+    }
+
+    fn focused_probe_runtime() -> (Runtime, FigureId, FigureId, Arc<Mutex<Vec<FocusEvent>>>) {
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let mut tree = FigureTree::new();
+        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let probe = tree.add_child_to(
+            root,
+            Box::new(FocusProbeFigure {
+                bounds: Rectangle::new(10.0, 10.0, 20.0, 20.0),
+                events: Arc::clone(&events),
+            }),
+        );
+        tree.set_focusable(probe, true);
+        let mut runtime = Runtime::new(tree);
+        assert!(matches!(
+            runtime.request_focus(probe),
+            Ok(FocusChange::Changed { .. })
+        ));
+        (runtime, root, probe, events)
+    }
 
     fn surface(width: u32, height: u32) -> SurfaceInfo {
         SurfaceInfo {
@@ -493,6 +666,160 @@ mod tests {
 
         assert_eq!(runtime.interaction().mouse_target(), Some(root));
         assert_eq!(runtime.tree().get_contents(), Some(root));
+    }
+
+    #[test]
+    fn direct_and_traversal_focus_eligibility_are_independent() {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let traversal_only =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let direct_only =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
+        runtime.set_focus_traversable(traversal_only, true);
+        runtime.set_focusable(direct_only, true);
+
+        assert_eq!(
+            runtime.request_focus(traversal_only),
+            Err(FocusError::NotFocusable(traversal_only))
+        );
+        assert_eq!(
+            runtime.traverse_focus(FocusTraversalDirection::Forward),
+            FocusTraversalOutcome::Moved(traversal_only)
+        );
+        assert_eq!(runtime.interaction().focus_owner(), Some(traversal_only));
+        assert_eq!(
+            runtime.traverse_focus(FocusTraversalDirection::Forward),
+            FocusTraversalOutcome::Boundary
+        );
+
+        assert!(matches!(
+            runtime.request_focus(direct_only),
+            Ok(FocusChange::Changed { .. })
+        ));
+        assert_eq!(runtime.interaction().focus_owner(), Some(direct_only));
+    }
+
+    #[test]
+    fn direct_focus_reports_structured_eligibility_errors_without_changing_owner() {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let target = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        runtime.set_focusable(root, true);
+        runtime.request_focus(root).unwrap();
+
+        assert_eq!(
+            runtime.request_focus(FigureId::null()),
+            Err(FocusError::UnknownFigure(FigureId::null()))
+        );
+        assert_eq!(
+            runtime.request_focus(target),
+            Err(FocusError::NotFocusable(target))
+        );
+        runtime.set_focusable(target, true);
+        runtime.set_visible(target, false);
+        assert_eq!(
+            runtime.request_focus(target),
+            Err(FocusError::Hidden(target))
+        );
+        runtime.set_visible(target, true);
+        runtime.set_enabled(target, false);
+        assert_eq!(
+            runtime.request_focus(target),
+            Err(FocusError::Disabled(target))
+        );
+        assert_eq!(runtime.interaction().focus_owner(), Some(root));
+
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        assert_eq!(
+            runtime.request_focus(target),
+            Err(FocusError::Detached(target))
+        );
+    }
+
+    #[test]
+    fn invalid_focus_owner_emits_one_lost_event_for_hide_disable_and_remove() {
+        enum Transition {
+            Hide,
+            Disable,
+            Remove,
+        }
+
+        for transition in [Transition::Hide, Transition::Disable, Transition::Remove] {
+            let (mut runtime, root, probe, events) = focused_probe_runtime();
+            match transition {
+                Transition::Hide => assert!(runtime.set_visible(probe, false)),
+                Transition::Disable => assert!(runtime.set_enabled(probe, false)),
+                Transition::Remove => assert!(runtime.remove_figure(root, probe)),
+            }
+
+            assert_eq!(runtime.interaction().focus_owner(), None);
+            assert_eq!(
+                *events.lock().unwrap(),
+                vec![
+                    FocusEvent {
+                        kind: FocusEventKind::Gained,
+                        related_target: None,
+                    },
+                    FocusEvent {
+                        kind: FocusEventKind::Lost,
+                        related_target: None,
+                    },
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn reparent_under_hidden_ancestor_releases_focus() {
+        let (mut runtime, root, probe, events) = focused_probe_runtime();
+        let hidden_parent =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(40.0, 40.0, 40.0, 40.0)));
+        runtime.set_visible(hidden_parent, false);
+
+        assert!(runtime.reparent(probe, hidden_parent));
+
+        assert_eq!(runtime.interaction().focus_owner(), None);
+        assert_eq!(
+            events.lock().unwrap().last(),
+            Some(&FocusEvent {
+                kind: FocusEventKind::Lost,
+                related_target: None,
+            })
+        );
+    }
+
+    #[test]
+    fn runtime_rejects_invalid_custom_policy_candidate() {
+        struct FixedPolicy(FigureId);
+
+        impl FocusTraversalPolicy for FixedPolicy {
+            fn traverse(
+                &mut self,
+                _tree: &FigureTree,
+                _scope: FigureId,
+                _current: Option<FigureId>,
+                _direction: FocusTraversalDirection,
+            ) -> Option<FigureId> {
+                Some(self.0)
+            }
+        }
+
+        let mut tree = FigureTree::new();
+        let detached = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        tree.set_focus_traversable(detached, true);
+        let scope = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let eligible =
+            tree.add_child_to(scope, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        tree.set_focus_traversable(eligible, true);
+        let mut runtime = Runtime::new(tree);
+        runtime.set_focus_traversal_policy(Box::new(FixedPolicy(detached)));
+
+        assert_eq!(
+            runtime.traverse_focus(FocusTraversalDirection::Forward),
+            FocusTraversalOutcome::Boundary
+        );
+        assert_eq!(runtime.interaction().focus_owner(), None);
     }
 
     #[test]

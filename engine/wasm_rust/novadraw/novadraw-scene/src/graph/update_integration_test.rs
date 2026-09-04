@@ -863,7 +863,7 @@ fn test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect()
 }
 
 #[test]
-fn test_apply_pending_remove_child_clears_interaction_state() {
+fn test_apply_pending_remove_child_clears_non_focus_interaction_state() {
     let (mut scene, mut update_manager) = new_scene();
     let mut interaction = InteractionState::default();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
@@ -880,7 +880,7 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
     let mut pending_mutations = PendingMutations::new();
     pending_mutations.enqueue(PendingMutation::remove_child(parent_id, child_id));
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
-    interaction.reconcile(&scene);
+    interaction.reconcile_non_focus(&scene);
 
     assert_eq!(scene.get_block(child_id).unwrap().parent, None);
     assert!(
@@ -893,7 +893,7 @@ fn test_apply_pending_remove_child_clears_interaction_state() {
     assert_eq!(interaction.mouse_target(), None);
     assert_eq!(interaction.cursor_target(), None);
     assert_eq!(interaction.hover_source(), None);
-    assert_eq!(interaction.focus_owner(), None);
+    assert_eq!(interaction.focus_owner(), Some(child_id));
     assert_eq!(interaction.captured(), None);
 }
 
@@ -922,7 +922,7 @@ fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
     pending_mutations.enqueue(PendingMutation::remove_child(right_id, child_id));
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
-    interaction.reconcile(&scene);
+    interaction.reconcile_non_focus(&scene);
     assert_eq!(scene.get_block(child_id).unwrap().parent, Some(left_id));
     assert!(
         scene

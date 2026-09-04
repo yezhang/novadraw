@@ -571,7 +571,9 @@ impl SceneManager {
             Color::rgba(0.10, 0.16, 0.24, 1.0),
             Color::rgba(0.98, 0.86, 0.22, 1.0),
         );
-        scene.add_child_to(root_id, Box::new(outer));
+        let probe = scene.add_child_to(root_id, Box::new(outer));
+        scene.set_focusable(probe, true);
+        scene.set_focus_traversable(probe, true);
     }
 }
 

@@ -53,10 +53,6 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
-    fn wants_key_events(&self) -> bool {
-        true
-    }
-
     fn on_mouse_pressed(
         &self,
         event: &MouseEvent,
@@ -171,13 +167,15 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
         root,
         Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
     );
-    graph.add_child_to(
+    let probe = graph.add_child_to(
         coordinate_root,
         Box::new(InputProbeFigure {
             bounds: Rectangle::new(10.0, 20.0, 50.0, 50.0),
             events: events.clone(),
         }),
     );
+    graph.set_focusable(probe, true);
+    graph.set_focus_traversable(probe, true);
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();

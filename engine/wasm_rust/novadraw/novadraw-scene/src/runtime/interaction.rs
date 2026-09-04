@@ -193,15 +193,15 @@ impl InteractionState {
         self.pointers.entry(pointer).or_default()
     }
 
-    pub fn reconcile(&mut self, tree: &FigureTree) {
-        self.retain_figures(|id| {
+    pub(crate) fn reconcile_non_focus(&mut self, tree: &FigureTree) {
+        self.retain_non_focus_figures(|id| {
             tree.is_attached(id)
                 && tree.is_effectively_visible(id)
                 && tree.is_effectively_enabled(id)
         });
     }
 
-    fn retain_figures(&mut self, mut eligible: impl FnMut(FigureId) -> bool) {
+    fn retain_non_focus_figures(&mut self, mut eligible: impl FnMut(FigureId) -> bool) {
         self.pointers.retain(|_, pointer| {
             pointer.target = pointer.target.filter(|id| eligible(*id));
             pointer.cursor_target = pointer.cursor_target.filter(|id| eligible(*id));
@@ -211,7 +211,6 @@ impl InteractionState {
                 || pointer.captured.is_some()
         });
         self.hover_source = self.hover_source.filter(|id| eligible(*id));
-        self.focus_owner = self.focus_owner.filter(|id| eligible(*id));
         self.hovered.retain(|id| eligible(*id));
         self.pressed.retain(|id| eligible(*id));
         self.gestures.retain(|_, state| {

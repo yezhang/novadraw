@@ -129,6 +129,8 @@ pub struct NodeState {
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
     pub(crate) is_opaque: bool,
+    pub(crate) is_focusable: bool,
+    pub(crate) is_focus_traversable: bool,
     pub(crate) is_valid: bool,
     pub(crate) preferred_size: Option<(f64, f64)>,
     pub(crate) minimum_size: Option<(f64, f64)>,
@@ -144,6 +146,8 @@ impl Default for NodeState {
             is_visible: true,
             is_enabled: true,
             is_opaque: false,
+            is_focusable: false,
+            is_focus_traversable: false,
             is_valid: false,
             preferred_size: None,
             minimum_size: None,
@@ -168,6 +172,14 @@ impl NodeState {
 
     pub fn is_opaque(&self) -> bool {
         self.is_opaque
+    }
+
+    pub fn is_focusable(&self) -> bool {
+        self.is_focusable
+    }
+
+    pub fn is_focus_traversable(&self) -> bool {
+        self.is_focus_traversable
     }
 
     pub fn is_valid(&self) -> bool {
@@ -1910,6 +1922,73 @@ impl FigureTree {
     /// 返回节点沿父链传播后的有效启用状态。
     pub fn is_effectively_enabled(&self, id: FigureId) -> bool {
         self.effective_flag_from(id, |block| block.is_enabled)
+    }
+
+    pub fn is_focusable(&self, id: FigureId) -> bool {
+        self.blocks.get(id).is_some_and(|block| block.is_focusable)
+    }
+
+    pub fn is_focus_traversable(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|block| block.is_focus_traversable)
+    }
+
+    pub fn can_request_focus(&self, id: FigureId) -> bool {
+        self.is_attached(id)
+            && self.is_effectively_visible(id)
+            && self.is_effectively_enabled(id)
+            && self.is_focusable(id)
+    }
+
+    pub fn can_traverse_focus(&self, id: FigureId) -> bool {
+        self.is_attached(id)
+            && self.is_effectively_visible(id)
+            && self.is_effectively_enabled(id)
+            && self.is_focus_traversable(id)
+    }
+
+    pub(crate) fn can_retain_focus(&self, id: FigureId) -> bool {
+        self.is_attached(id)
+            && self.is_effectively_visible(id)
+            && self.is_effectively_enabled(id)
+            && (self.is_focusable(id) || self.is_focus_traversable(id))
+    }
+
+    pub fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.is_focusable == focusable {
+            return false;
+        }
+        let old_value = block.is_focusable;
+        block.is_focusable = focusable;
+        self.record_property_change(
+            id,
+            "focusable",
+            PropertyValue::Bool(old_value),
+            PropertyValue::Bool(focusable),
+        );
+        true
+    }
+
+    pub fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.is_focus_traversable == traversable {
+            return false;
+        }
+        let old_value = block.is_focus_traversable;
+        block.is_focus_traversable = traversable;
+        self.record_property_change(
+            id,
+            "focus_traversable",
+            PropertyValue::Bool(old_value),
+            PropertyValue::Bool(traversable),
+        );
+        true
     }
 
     /// 设置块可见性。

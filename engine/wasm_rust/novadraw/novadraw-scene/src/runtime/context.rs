@@ -301,6 +301,10 @@ impl DispatchContext for SceneDispatchContext<'_> {
         self.interaction.set_focus_owner(id);
     }
 
+    fn can_request_focus(&self, target_id: FigureId) -> bool {
+        self.scene.can_request_focus(target_id)
+    }
+
     fn captured(&self) -> Option<FigureId> {
         self.interaction.captured()
     }
@@ -338,16 +342,6 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
     fn apply_zoom_fallback(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
         self.apply_zoom_manager(target_id, event)
-    }
-
-    fn wants_key_events(&self, target_id: FigureId) -> bool {
-        self.scene.is_effectively_visible(target_id)
-            && self.scene.is_effectively_enabled(target_id)
-            && self
-                .scene
-                .block(target_id)
-                .and_then(|block| block.figure.event_handler())
-                .is_some_and(|handler| handler.wants_key_events())
     }
 
     fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool {

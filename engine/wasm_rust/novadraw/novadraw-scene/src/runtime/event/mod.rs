@@ -1,5 +1,6 @@
 use novadraw_geometry::Point;
 
+use super::focus::FocusChange;
 use crate::FigureId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -252,6 +253,7 @@ pub enum FocusEventKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FocusEvent {
     pub kind: FocusEventKind,
+    pub related_target: Option<FigureId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -284,6 +286,9 @@ pub trait DispatchContext {
     fn set_pressed(&mut self, id: FigureId, pressed: bool);
     fn focus_owner(&self) -> Option<FigureId>;
     fn set_focus_owner(&mut self, id: Option<FigureId>);
+    fn can_request_focus(&self, _target_id: FigureId) -> bool {
+        false
+    }
     fn captured(&self) -> Option<FigureId>;
     fn set_captured(&mut self, id: Option<FigureId>);
     fn gesture_target(&self, _session_id: GestureSessionId) -> Option<FigureId> {
@@ -299,9 +304,6 @@ pub trait DispatchContext {
         false
     }
     fn apply_zoom_fallback(&mut self, _target_id: FigureId, _event: &ZoomEvent) -> bool {
-        false
-    }
-    fn wants_key_events(&self, _target_id: FigureId) -> bool {
         false
     }
     /// 将事件投递给 target。
@@ -375,24 +377,33 @@ impl EventDispatcher {
         ctx.set_mouse_target(next_target);
     }
 
-    fn update_focus(&mut self, ctx: &mut dyn DispatchContext, requested: Option<FigureId>) {
-        let next = requested.filter(|target| ctx.wants_key_events(*target));
+    fn update_focus(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        next: Option<FigureId>,
+    ) -> FocusChange {
         let previous = ctx.focus_owner();
         if previous == next {
-            return;
+            return FocusChange::Unchanged;
         }
+        ctx.set_focus_owner(next);
         if let Some(previous) = previous {
             let lost = Event::Focus(FocusEvent {
                 kind: FocusEventKind::Lost,
+                related_target: next,
             });
             let _ = ctx.dispatch_to_target(Some(previous), &lost);
         }
-        ctx.set_focus_owner(next);
         if let Some(next) = next {
             let gained = Event::Focus(FocusEvent {
                 kind: FocusEventKind::Gained,
+                related_target: previous,
             });
             let _ = ctx.dispatch_to_target(Some(next), &gained);
+        }
+        FocusChange::Changed {
+            previous,
+            current: next,
         }
     }
 
@@ -431,7 +442,9 @@ impl EventDispatcher {
             if let Some(target) = target {
                 ctx.set_pressed(target, true);
             }
-            self.update_focus(ctx, target);
+            if target.is_some_and(|target| ctx.can_request_focus(target)) {
+                self.update_focus(ctx, target);
+            }
         }
     }
 
@@ -565,12 +578,27 @@ impl EventDispatcher {
         let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
     }
 
-    pub fn request_focus(&mut self, ctx: &mut dyn DispatchContext, target: Option<FigureId>) {
-        self.update_focus(ctx, target);
+    pub fn request_focus(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        target: FigureId,
+    ) -> FocusChange {
+        if !ctx.can_request_focus(target) {
+            return FocusChange::Unchanged;
+        }
+        self.update_focus(ctx, Some(target))
     }
 
-    pub fn release_focus(&mut self, ctx: &mut dyn DispatchContext) {
-        self.update_focus(ctx, None);
+    pub fn release_focus(&mut self, ctx: &mut dyn DispatchContext) -> FocusChange {
+        self.update_focus(ctx, None)
+    }
+
+    pub(crate) fn set_focus(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        target: Option<FigureId>,
+    ) -> FocusChange {
+        self.update_focus(ctx, target)
     }
 }
 
@@ -590,7 +618,8 @@ mod tests {
         scroll_fallbacks: Vec<(FigureId, WheelEvent)>,
         zoom_fallbacks: Vec<(FigureId, ZoomEvent)>,
         handled: bool,
-        wants_key_events: bool,
+        can_request_focus: bool,
+        focus_owner_snapshots: Vec<Option<FigureId>>,
     }
 
     impl MockDispatchContext {
@@ -606,7 +635,8 @@ mod tests {
                 scroll_fallbacks: Vec::new(),
                 zoom_fallbacks: Vec::new(),
                 handled: false,
-                wants_key_events: false,
+                can_request_focus: false,
+                focus_owner_snapshots: Vec::new(),
             }
         }
     }
@@ -670,11 +700,12 @@ mod tests {
             true
         }
 
-        fn wants_key_events(&self, _target_id: FigureId) -> bool {
-            self.wants_key_events
+        fn can_request_focus(&self, _target_id: FigureId) -> bool {
+            self.can_request_focus
         }
 
         fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool {
+            self.focus_owner_snapshots.push(self.focus_owner);
             self.dispatched.push((target_id, *event));
             self.handled
         }
@@ -809,7 +840,7 @@ mod tests {
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
         ctx.handled = true;
-        ctx.wants_key_events = true;
+        ctx.can_request_focus = true;
 
         dispatcher.dispatch_mouse_pressed(&mut ctx, 4.0, 4.0, MouseButton::Left);
         dispatcher.dispatch_key_pressed(&mut ctx, Key::Character('a'), KeyModifiers::default());
@@ -819,6 +850,7 @@ mod tests {
             *event
                 == Event::Focus(FocusEvent {
                     kind: FocusEventKind::Gained,
+                    related_target: None,
                 })
         }));
         assert_eq!(
@@ -832,6 +864,70 @@ mod tests {
                 }),
             ))
         );
+    }
+
+    #[test]
+    fn handled_press_on_ineligible_target_preserves_existing_focus() {
+        let mut dispatcher = EventDispatcher;
+        let mut scene = FigureTree::new();
+        let old_focus = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let target = scene.add_child_to(
+            old_focus,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)),
+        );
+        let mut ctx = MockDispatchContext::new(Some(target));
+        ctx.focus_owner = Some(old_focus);
+        ctx.handled = true;
+
+        dispatcher.dispatch_mouse_pressed(&mut ctx, 2.0, 2.0, MouseButton::Left);
+
+        assert_eq!(ctx.focus_owner(), Some(old_focus));
+        assert!(
+            !ctx.dispatched
+                .iter()
+                .any(|(_, event)| matches!(event, Event::Focus(_)))
+        );
+    }
+
+    #[test]
+    fn focus_transition_commits_owner_before_lost_and_gained_events() {
+        let mut dispatcher = EventDispatcher;
+        let mut scene = FigureTree::new();
+        let previous = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let next = scene.add_child_to(previous, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let mut ctx = MockDispatchContext::new(None);
+        ctx.focus_owner = Some(previous);
+        ctx.can_request_focus = true;
+
+        let change = dispatcher.request_focus(&mut ctx, next);
+
+        assert_eq!(
+            change,
+            FocusChange::Changed {
+                previous: Some(previous),
+                current: Some(next),
+            }
+        );
+        assert_eq!(
+            ctx.dispatched,
+            vec![
+                (
+                    Some(previous),
+                    Event::Focus(FocusEvent {
+                        kind: FocusEventKind::Lost,
+                        related_target: Some(next),
+                    }),
+                ),
+                (
+                    Some(next),
+                    Event::Focus(FocusEvent {
+                        kind: FocusEventKind::Gained,
+                        related_target: Some(previous),
+                    }),
+                ),
+            ]
+        );
+        assert_eq!(ctx.focus_owner_snapshots, vec![Some(next), Some(next)]);
     }
 
     #[test]

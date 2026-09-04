@@ -5,6 +5,7 @@
 
 pub mod context;
 pub mod event;
+pub mod focus;
 pub mod interaction;
 pub mod mutation;
 pub mod resource;
@@ -13,6 +14,10 @@ pub mod resource;
 pub mod runtime;
 pub mod update;
 
+pub use focus::{
+    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
+    TreeOrderFocusTraversal,
+};
 pub use interaction::{InteractionState, PointerId};
 pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,

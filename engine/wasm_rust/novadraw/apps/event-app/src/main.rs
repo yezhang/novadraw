@@ -109,10 +109,6 @@ impl FigureEventHandler for EventProbeFigure {
         true
     }
 
-    fn wants_key_events(&self) -> bool {
-        true
-    }
-
     fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event, ctx);
         true
@@ -221,7 +217,7 @@ fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState>>) 
         root
     };
     let state = Arc::new(Mutex::new(ProbeState::default()));
-    graph.add_child_to(
+    let probe = graph.add_child_to(
         parent,
         Box::new(EventProbeFigure::new(
             if local_coordinates {
@@ -232,6 +228,8 @@ fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState>>) 
             state.clone(),
         )),
     );
+    graph.set_focusable(probe, true);
+    graph.set_focus_traversable(probe, true);
     (graph, state)
 }
 

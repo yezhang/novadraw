@@ -156,10 +156,6 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn wants_key_events(&self) -> bool {
-        true
-    }
-
     fn on_mouse_pressed(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         self.state.pressed.set(true);
         self.record_pointer(ctx);
@@ -447,10 +443,12 @@ fn input_theme(probe: Rc<ProbeState>) -> DemoTheme {
                 LOGICAL_HEIGHT,
                 Color::hex("#eef1f4"),
             )));
-            graph.add_child_to(
+            let probe = graph.add_child_to(
                 root,
                 Box::new(WebProbeFigure::new(PROBE_BOUNDS, scene_probe.clone())),
             );
+            graph.set_focusable(probe, true);
+            graph.set_focus_traversable(probe, true);
             graph
         }),
     )];
