@@ -27,6 +27,7 @@
 
 ## 非规范提案
 
+- [`architecture/layer-and-freeform.md`](architecture/layer-and-freeform.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

@@ -28,14 +28,15 @@ Novadraw 已具备完整的核心执行骨架：
 
 > 核心运行时完整，Draw2D 核心框架公共面与产品能力尚未完整。
 
-主要阻塞项：
+当前阻塞项：
 
-1. D1.1 启动时 selection 兼容状态仍位于 FigureTree，并由渲染主流程绘制；
-2. D1.2 启动时 Bounded/Updatable 兼容 capability 尚未完成去留决策；
-3. Figure style 尚未覆盖 font、cursor、tooltip 等继承属性；
-4. 部分公开 Graphics API 是静默 no-op；
-5. TreeSearch、Layer/Freeform 与资源生命周期仍缺少稳定协议；
-6. M9 Connection 体系和 M10 文本/图像/控件尚未实现。
+1. D2 Layer/Freeform 尚未完成契约评审与实现；
+2. M9 Connection 体系尚未实现；
+3. M10 文本、图像与控件产品面尚未完成；
+4. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
+
+D1 启动时识别出的 selection、兼容 capability、Figure style、公开 no-op、
+TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
 
 ## 2. 执行原则
 
@@ -325,17 +326,77 @@ D1 最终验证结果：
 
 ## 5. D2：Layer 与 Freeform 基础
 
-状态：`not_started`
+状态：`contract_review`
 
 目标：
 
 - LayerFigure 与 LayeredPane；
-- FreeformLayerFigure、FreeformLayout 和 freeform extent；
+- FreeformLayerFigure、FreeformLayeredPane、ScalableFreeformLayeredPane、
+  FreeformLayout 和 freeform extent；
 - 负坐标内容范围与 origin 变化通知；
 - layer key、稳定 Z-order 与 layer 查询；
 - viewport/zoom 嵌套下的 paint、hit-test、event point 和 damage。
 
 D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF EditPart 或 Tool。
+
+候选契约：
+
+- [`../design/architecture/layer-and-freeform.md`](../design/architecture/layer-and-freeform.md)
+
+`api_semantics`：
+
+- `figure.tree`
+- `hit_test.search`
+- `clipping.strategy`
+- `coordinate.conversion`
+- `layout.manager`
+- `update_manager.two_phase`
+- `damage.repaint`
+- `notification.property`
+- `viewport.scroll_zoom`
+- `layer.freeform`
+
+执行批次：
+
+1. **D2.0 契约接受**
+   - 完成候选契约评审；
+   - 新增 ADR 接受关键取舍；
+   - 同步 tree-search、coordinate、static architecture 和 UpdateManager SSOT。
+2. **D2.1 Layer 基础**
+   - Layer capability、HitParticipation 与默认透明命中；
+   - LayerKey、LayeredPaneState 和 LayeredPaneHandle 命名操作；
+   - Runtime-only 公开 topology mutation；
+   - key 唯一性、before/after 与原子失败契约。
+3. **D2.2 Freeform extent**
+   - LayoutState 中的可选 FreeformState 派生缓存；
+   - 正负坐标、空容器和 nested freeform 范围；
+   - bottom-up 失效传播与单 generation 线性重算；
+   - FreeformLayeredPane 与 `ChildClippingStrategy::OverflowVisible`；
+   - typed property extent notification。
+4. **D2.3 FreeformLayout**
+   - typed rectangle constraint；
+   - intrinsic size fallback；
+   - 保留负坐标的 LayoutSnapshot/LayoutOutput 提交。
+5. **D2.4 Viewport / Zoom 集成**
+   - freeform extent 与内容原点处 viewport baseline 合并；
+   - content-domain RangeModel 与非零/负 minimum；
+   - ScalableFreeformLayeredPane 复用现有 scale state；
+   - scale、origin、range、damage 同事务更新。
+6. **D2.5 Demo 与人工验收**
+   - 新增共享 Native/Web 场景；
+   - layer 顺序、透明命中、四方向滚动与缩放；
+   - Headless 契约、macOS/Web 人工验收与文档收口。
+
+评审点：
+
+- freeform extent 是 child content domain 中的派生状态，不是第二份 bounds；
+- 不递归改写普通 child bounds，但保留 nested freeform extent/envelope 传播；
+- LayeredPane 不建立平行于 FigureTree 的 layer topology；
+- Layer membership 独立于 LayoutManager，children 顺序仍是唯一 Z-order；
+- Freeform overflow 在 paint、hit-test 和 damage 中使用同一 clipping strategy；
+- FreeformLayout 默认保留负坐标，不在运行时自动平移已有 children；
+- extent 通知必须在 layout、viewport range 和 damage 稳定后发送；
+- ConnectionLayer 只能在 M9 扩展 Layer capability，不能反向引入 Connection 状态。
 
 完成门禁：
 
