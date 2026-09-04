@@ -1,12 +1,52 @@
 use slotmap::Key;
 
 use novadraw_scene::{
-    FigureTree, LayerError, LayerFigure, LayerKey, LayerPlacement, LayeredPane, Rectangle,
-    RectangleFigure, Runtime,
+    EventContext, Figure, FigureEventHandler, FigureTree, LayerError, LayerFigure, LayerKey,
+    LayerPlacement, LayeredPane, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,
 };
 
 fn key(value: &str) -> LayerKey {
     LayerKey::new(value).expect("test layer key must be valid")
+}
+
+struct EnqueueLayersFigure {
+    bounds: Rectangle,
+    pane: novadraw_scene::FigureId,
+}
+
+impl Figure for EnqueueLayersFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "EnqueueLayersFigure"
+    }
+
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for EnqueueLayersFigure {
+    fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+        let first = key("callback-first");
+        let second = key("callback-second");
+        ctx.add_layer_later(
+            self.pane,
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            first.clone(),
+            LayerPlacement::Last,
+        );
+        ctx.add_layer_later(
+            self.pane,
+            Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+            second.clone(),
+            LayerPlacement::Last,
+        );
+        ctx.move_layer_later(self.pane, first, LayerPlacement::After(second));
+        true
+    }
 }
 
 #[test]
@@ -224,4 +264,31 @@ fn reparent_and_remove_update_both_membership_indexes() {
 fn layer_key_rejects_empty_values() {
     assert!(LayerKey::new("").is_err());
     assert_eq!(LayerKey::new("content").unwrap().as_str(), "content");
+}
+
+#[test]
+fn callback_layer_mutations_commit_in_fifo_order() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 240.0, 120.0)));
+    let pane = runtime
+        .add_layered_pane(root, Rectangle::new(120.0, 0.0, 100.0, 80.0))
+        .expect("pane")
+        .pane_id();
+    runtime.add_figure(
+        root,
+        Box::new(EnqueueLayersFigure {
+            bounds: Rectangle::new(0.0, 0.0, 100.0, 80.0),
+            pane,
+        }),
+    );
+
+    runtime.dispatch_mouse_pressed(20.0, 20.0, MouseButton::Left);
+
+    let handle = runtime.layered_pane(pane).expect("pane handle");
+    let first = handle.layer(&key("callback-first")).expect("first layer");
+    let second = handle.layer(&key("callback-second")).expect("second layer");
+    assert_eq!(
+        handle.layer_ids().expect("ordered layers"),
+        vec![second, first]
+    );
 }

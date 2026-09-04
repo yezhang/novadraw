@@ -4,9 +4,10 @@ use novadraw_geometry::Point;
 
 use crate::{
     DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree, GestureSessionId,
-    InteractionState, MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect,
-    PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle, ScalableLayeredPaneFigure,
-    ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
+    InteractionState, LayerKey, LayerPlacement, MouseEventKind, MouseLocationZoomScrollPolicy,
+    NotificationEffect, PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle,
+    ScalableLayeredPaneFigure, ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent,
+    ZoomEvent, ZoomManager,
     mutation::{MutationContext, PendingMutation},
 };
 
@@ -107,6 +108,34 @@ impl<'a> EventContext<'a> {
     /// Enqueues a reparent operation for application after top-level dispatch.
     pub fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         MutationContext::reparent_later(self, child, new_parent);
+    }
+
+    pub fn add_layer_later(
+        &mut self,
+        pane: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        MutationContext::add_layer_later(self, pane, figure, key, placement);
+    }
+
+    pub fn remove_layer_later(&mut self, pane: FigureId, key: LayerKey) {
+        MutationContext::remove_layer_later(self, pane, key);
+    }
+
+    pub fn move_layer_later(&mut self, pane: FigureId, key: LayerKey, placement: LayerPlacement) {
+        MutationContext::move_layer_later(self, pane, key, placement);
+    }
+
+    pub fn reparent_layer_later(
+        &mut self,
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        MutationContext::reparent_layer_later(self, child, new_pane, key, placement);
     }
 }
 

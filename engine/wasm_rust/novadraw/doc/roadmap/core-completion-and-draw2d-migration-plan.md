@@ -400,16 +400,17 @@ D2.1 首批执行结果：
   Z-order；
 - 泛型 add/remove/reparent 无法绕过 LayeredPane key 与 child capability 门禁；
 - LayeredPane 默认接入 StackLayout，作为 contents 或 nested layer 时均可注册；
-- `d2_layer_contract` 6 项通过，覆盖透明命中、key 唯一、before/after、逆序命中、
-  泛型绕过拒绝、跨 pane reparent、remove 和 contents 注册；
+- callback keyed layer mutation 已接入 effect queue，add/remove/move/reparent 与普通
+  mutation 共享 FIFO 提交；
+- `d2_layer_contract` 7 项通过，覆盖透明命中、key 唯一、before/after、逆序命中、
+  泛型绕过拒绝、跨 pane reparent、remove、contents 注册和 callback FIFO；
 - `cargo check -p novadraw-scene` 与
   `cargo clippy -p novadraw-scene --lib -- -D warnings` 通过；
 - workspace/full-test 门禁受当前沙箱禁止执行 Xcode clang 阻断，不是代码诊断失败。
 
 D2.1 剩余：
 
-- 将 callback 中的 keyed layer mutation 接入 effect queue；
-- 完成非 Layer 场景的公开 FigureTree topology 写入口向 Runtime 迁移；
+- 完成公开 FigureTree topology 写入口向 Runtime/显式 builder 的迁移；
 - 全量测试环境恢复后补跑 workspace 门禁。
 
 评审点：

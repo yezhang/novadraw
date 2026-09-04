@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{Figure, FigureId};
+use crate::{Figure, FigureId, LayerKey, LayerPlacement};
 
 pub(crate) struct PendingMutation {
     kind: PendingMutationKind,
@@ -18,6 +18,27 @@ pub(crate) enum PendingMutationKind {
     Reparent {
         child: FigureId,
         new_parent: FigureId,
+    },
+    AddLayerFigure {
+        pane: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    },
+    RemoveLayer {
+        pane: FigureId,
+        key: LayerKey,
+    },
+    MoveLayer {
+        pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    },
+    ReparentLayer {
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
     },
 }
 
@@ -38,6 +59,58 @@ impl PendingMutation {
         Self {
             kind: PendingMutationKind::Reparent { child, new_parent },
         }
+    }
+
+    pub(crate) fn add_layer_figure(
+        pane: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::AddLayerFigure {
+                pane,
+                figure,
+                key,
+                placement,
+            },
+        }
+    }
+
+    pub(crate) fn remove_layer(pane: FigureId, key: LayerKey) -> Self {
+        Self {
+            kind: PendingMutationKind::RemoveLayer { pane, key },
+        }
+    }
+
+    pub(crate) fn move_layer(pane: FigureId, key: LayerKey, placement: LayerPlacement) -> Self {
+        Self {
+            kind: PendingMutationKind::MoveLayer {
+                pane,
+                key,
+                placement,
+            },
+        }
+    }
+
+    pub(crate) fn reparent_layer(
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Self {
+        Self {
+            kind: PendingMutationKind::ReparentLayer {
+                child,
+                new_pane,
+                key,
+                placement,
+            },
+        }
+    }
+
+    pub(crate) fn from_kind(kind: PendingMutationKind) -> Self {
+        Self { kind }
     }
 
     pub(crate) fn into_kind(self) -> PendingMutationKind {
@@ -81,5 +154,37 @@ pub(crate) trait MutationContext {
 
     fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         self.enqueue_mutation(PendingMutation::reparent(child, new_parent));
+    }
+
+    fn add_layer_later(
+        &mut self,
+        pane: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        self.enqueue_mutation(PendingMutation::add_layer_figure(
+            pane, figure, key, placement,
+        ));
+    }
+
+    fn remove_layer_later(&mut self, pane: FigureId, key: LayerKey) {
+        self.enqueue_mutation(PendingMutation::remove_layer(pane, key));
+    }
+
+    fn move_layer_later(&mut self, pane: FigureId, key: LayerKey, placement: LayerPlacement) {
+        self.enqueue_mutation(PendingMutation::move_layer(pane, key, placement));
+    }
+
+    fn reparent_layer_later(
+        &mut self,
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        self.enqueue_mutation(PendingMutation::reparent_layer(
+            child, new_pane, key, placement,
+        ));
     }
 }

@@ -6,6 +6,7 @@ use novadraw_render::{
 };
 
 use crate::container::layer::LayeredPaneState;
+use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
     CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
     FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
@@ -594,8 +595,7 @@ impl Runtime {
             action(&mut self.interaction_dispatcher, &mut context)
         };
         let mutations = self.mutations.drain();
-        self.tree
-            .apply_pending_mutations(&mut self.updates, mutations);
+        self.apply_runtime_mutations(mutations);
         self.retain_interactive_figures();
         result
     }
@@ -606,6 +606,41 @@ impl Runtime {
         }
         self.layered_panes.entry(pane_id).or_default();
         Ok(())
+    }
+
+    fn apply_runtime_mutations(&mut self, mutations: Vec<PendingMutation>) -> bool {
+        let mut changed = false;
+        for mutation in mutations {
+            changed |= match mutation.into_kind() {
+                PendingMutationKind::AddLayerFigure {
+                    pane,
+                    figure,
+                    key,
+                    placement,
+                } => self.add_layer(pane, figure, key, placement).is_ok(),
+                PendingMutationKind::RemoveLayer { pane, key } => {
+                    self.remove_layer(pane, &key).is_ok()
+                }
+                PendingMutationKind::MoveLayer {
+                    pane,
+                    key,
+                    placement,
+                } => self.move_layer(pane, &key, placement).unwrap_or(false),
+                PendingMutationKind::ReparentLayer {
+                    child,
+                    new_pane,
+                    key,
+                    placement,
+                } => self
+                    .reparent_layer(child, new_pane, key, placement)
+                    .unwrap_or(false),
+                kind => self.tree.apply_pending_mutations(
+                    &mut self.updates,
+                    vec![PendingMutation::from_kind(kind)],
+                ),
+            };
+        }
+        changed
     }
 
     fn initialize_layered_panes(&mut self) {
@@ -703,8 +738,7 @@ impl Runtime {
             self.interaction_dispatcher.set_focus(&mut context, None);
         }
         let mutations = self.mutations.drain();
-        self.tree
-            .apply_pending_mutations(&mut self.updates, mutations);
+        self.apply_runtime_mutations(mutations);
         self.interaction.reconcile_non_focus(&self.tree);
         self.resources
             .retain_dependencies(|id| self.tree.is_attached(id));
@@ -750,8 +784,7 @@ impl Runtime {
 
         let mutations = self.mutations.drain();
         if !mutations.is_empty() {
-            self.tree
-                .apply_pending_mutations(&mut self.updates, mutations);
+            self.apply_runtime_mutations(mutations);
             self.retain_interactive_figures();
         }
 

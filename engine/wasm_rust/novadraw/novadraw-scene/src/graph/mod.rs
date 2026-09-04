@@ -681,6 +681,10 @@ impl FigureTree {
                 kind @ PendingMutationKind::AddChildFigure { .. } => {
                     self.apply_add_mutation(update_manager, kind)
                 }
+                PendingMutationKind::AddLayerFigure { .. }
+                | PendingMutationKind::RemoveLayer { .. }
+                | PendingMutationKind::MoveLayer { .. }
+                | PendingMutationKind::ReparentLayer { .. } => false,
             };
         }
 
