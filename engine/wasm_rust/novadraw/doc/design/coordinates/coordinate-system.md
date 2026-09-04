@@ -196,6 +196,16 @@ client box 同时用于：
 自定义 child clipping policy 可以放宽默认裁剪，但必须同时定义 paint 和 hit-test
 行为，不能只修改其中一条路径。
 
+Freeform 容器使用 `ChildClippingStrategy::OverflowVisible`：
+
+- 继承进入容器的 effective ancestor clip；
+- 不再与当前容器的 client box 相交；
+- paint children、hit-test descent 和 damage projection 共用该 effective clip；
+- 最近的普通 clipping ancestor 或 Viewport 仍可截断内容。
+
+该策略只改变 child overflow，不使当前 Figure 自身越过 ancestor clip，也不允许
+命中不可逆 transform 分支。
+
 ## 8. Paint
 
 每个节点的绘制按以下顺序应用坐标：
@@ -222,9 +232,10 @@ Figure 自身只使用 local coordinates。具体后端可以把 `Affine2D` 转�
 ```text
 root
 → inverse edge transform into node local
-→ visible / clip / local hit-shape check
+→ visible / policy-aware branch containment
 → inverse child-content transform
 → children in reverse Z-order
+→ self participation / local hit-shape
 → deepest eligible target
 ```
 

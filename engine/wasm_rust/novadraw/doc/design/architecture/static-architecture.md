@@ -20,6 +20,7 @@ Runtime
 ├── InteractionState
 ├── EventDispatcher
 ├── UpdateManager
+├── LayeredPaneStates
 └── MutationQueue
     │
     ├── RecordingCanvas ──> RenderSubmission ──> RenderBackend
@@ -76,6 +77,10 @@ FigureTree 负责：
 - 防止环和跨 Runtime ID；
 - attach、detach、remove 和 reparent；
 - 祖先、后代和树序查询。
+
+FigureTree 对外提供只读树查询。add、remove、reparent 和 reorder 等底层 mutation
+primitive 限于 crate 内部，由 Runtime 在事务中调用；公开 topology 写入不得绕过
+Runtime 的 interaction cleanup、container state、validation 和 damage 协议。
 
 FigureTree 不拥有：
 
@@ -142,6 +147,7 @@ pub trait Figure {
     fn paint(&self, ctx: &mut PaintContext<'_>);
     fn intrinsic_size(&self, constraints: MeasureConstraints) -> Size;
     fn hit_test(&self, local_point: Point) -> bool;
+    fn hit_participation(&self) -> HitParticipation;
 
     fn event_handler(&mut self) -> Option<&mut dyn FigureEventHandler> {
         None
@@ -161,6 +167,9 @@ pub trait Figure {
 - 不使用 blanket impl 锁死具体 Shape 的定制空间；
 - 核心 Figure 不默认要求 `Send + Sync`。
 
+`HitParticipation` 是只读类型行为，默认允许 self 与 descendants。LayerFigure 返回
+`DescendantsOnly`，使容器自身不成为 target，但不能以 `hit_test = false` 剪掉子树。
+
 ### 3.3 盒模型
 
 ```text
@@ -178,6 +187,7 @@ pub struct LayoutState {
     manager: Box<dyn LayoutManager>,
     constraints: HashMap<FigureId, Box<dyn LayoutConstraint>>,
     cache: LayoutCache,
+    freeform: Option<FreeformState>,
 }
 ```
 
@@ -188,8 +198,24 @@ pub struct LayoutState {
 - remove/reparent 必须清除旧 parent 的 constraint；
 - cache 属于具体容器的布局结果，不属于 FigureTree 全局状态；
 - LayoutManager 不长期持有 FigureTree。
+- FreeformState 是由 topology、geometry 和 edge transform 派生的 generation cache，
+  不保存第二份 bounds，也不由具体 Figure 自行遍历 children 计算。
 
-### 4.2 LayoutManager
+### 4.2 LayeredPaneState
+
+Layer key 是 parent-child 关系身份，不是 LayoutConstraint。Runtime 按 pane
+`FigureId` 保存：
+
+```text
+LayeredPaneState
+├── by_key: LayerKey -> FigureId
+└── by_child: FigureId -> LayerKey
+```
+
+children 顺序仍由 FigureTree 唯一保存。LayeredPaneState 不复制 Z-order；remove、
+reparent 和 pane detach 必须在同一 Runtime mutation 中清理双向 lookup。
+
+### 4.3 LayoutManager
 
 ```rust
 pub trait LayoutManager {
@@ -218,7 +244,7 @@ child bounds 和后续 invalidation。这样布局计算不需要同时借用 ma
 约束可以类型擦除，但 LayoutManager 必须验证 constraint 类型并返回结构化错误，
 不能依靠 unchecked downcast。
 
-### 4.3 尺寸解析
+### 4.4 尺寸解析
 
 ```text
 explicit override
@@ -267,6 +293,7 @@ pub struct Runtime {
     updates: UpdateManager,
     mutations: MutationQueue,
     resources: ResourceRegistry,
+    layered_panes: HashMap<FigureId, LayeredPaneState>,
 }
 ```
 
@@ -278,6 +305,7 @@ Runtime 对外提供命名操作，例如：
 ```text
 set_contents
 add_figure / remove_figure / reparent
+layered_pane / add_layer / remove_layer / move_layer
 set_bounds / set_visible / set_enabled
 dispatch_input
 resize_logical_viewport

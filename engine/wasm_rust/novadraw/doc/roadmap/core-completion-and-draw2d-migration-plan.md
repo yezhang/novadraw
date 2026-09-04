@@ -326,7 +326,7 @@ D1 最终验证结果：
 
 ## 5. D2：Layer 与 Freeform 基础
 
-状态：`contract_review`
+状态：`in_progress`
 
 目标：
 
@@ -339,7 +339,7 @@ D1 最终验证结果：
 
 D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF EditPart 或 Tool。
 
-候选契约：
+规范契约：
 
 - [`../design/architecture/layer-and-freeform.md`](../design/architecture/layer-and-freeform.md)
 
@@ -359,10 +359,12 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
 执行批次：
 
 1. **D2.0 契约接受**
+   - 状态：`complete`；
    - 完成候选契约评审；
-   - 新增 ADR 接受关键取舍；
+   - ADR-004 接受关键取舍；
    - 同步 tree-search、coordinate、static architecture 和 UpdateManager SSOT。
 2. **D2.1 Layer 基础**
+   - 状态：`in_progress`；
    - Layer capability、HitParticipation 与默认透明命中；
    - LayerKey、LayeredPaneState 和 LayeredPaneHandle 命名操作；
    - Runtime-only 公开 topology mutation；

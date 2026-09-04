@@ -85,6 +85,8 @@ freeze invalid generation
 → measure container
 → calculate LayoutOutput
 → atomically apply child bounds
+→ recompute dirty freeform extents bottom-up
+→ update dependent viewport envelope and RangeModel
 → collect newly generated invalidations
 → repeat until stable
 ```
@@ -92,6 +94,10 @@ freeze invalid generation
 Runtime 先构造不可变 `LayoutSnapshot`，再调用 LayoutManager 把结果写入
 `LayoutOutput`。布局器借用释放后统一提交，避免 LayoutManager 同时借用自身状态和
 整棵树，也避免在遍历中重入修改树。
+
+Freeform extent 和 dependent RangeModel 属于同一收敛循环。正常完成条件是 invalid
+set、dirty freeform extent 与 pending range update 同时为空。同一 generation 中每个
+dirty freeform host 最多重算一次；禁止每个 host 各自扫描完整后代树。
 
 ### 4.1 收敛
 
@@ -116,6 +122,10 @@ dirty source 由以下操作产生：
 - scroll/zoom；
 - 资源完成；
 - surface 恢复或 resize。
+
+Freeform extent rectangle 本身不是视觉内容，单纯 extent 变化不产生整块 damage。
+实际 Figure 几何变化继续记录 old/new visual area；若 extent 收缩使 RangeModel clamp
+改变 viewport origin，则 viewport client area 必须进入 damage。
 
 dirty region 必须带来源坐标域：
 
@@ -200,6 +210,10 @@ Figure paint 只写入 RecordingCanvas，不访问平台 surface 或 GPU 对象�
 - per-node state isolation；
 - shared coordinate and clip protocol。
 
+Freeform 的 `ChildClippingStrategy::OverflowVisible` 继承有效 ancestor clip，但不与
+当前 freeform client box 相交。paint、hit-test 和 damage 必须使用同一个 effective
+clip。
+
 ## 9. RenderSubmission
 
 ```rust
@@ -263,6 +277,8 @@ did_submit(result)
 ```
 
 - Figure 几何通知不混入 update listener；
+- freeform 事务的 typed property 顺序固定为 child geometry/layout →
+  FreeformExtent → RangeModel bounds → clamped view location；
 - listener effect 延迟到内部可变借用释放后执行；
 - listener 的发生顺序必须可观测；
 - listener 不能重入当前 update transaction。

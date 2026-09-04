@@ -80,15 +80,25 @@ FigureTree::hit_test_excluding(point, excluded)
 
 ```text
 effective visible/enabled
-→ precise geometry
+→ inverse edge transform into node local
+→ policy-aware branch containment
 → strategy.prune
-→ client-area 与 child transform
+→ effective child clip 与 child transform
 → children reverse z-order
-→ strategy.accept(current)
+→ self participation / precise geometry / strategy.accept(current)
 ```
 
 `accept` 只决定当前节点能否作为结果；`prune` 同时排除当前节点和整个子树。
 策略不能绕过 visibility、enabled、几何、裁剪、坐标转换或深度上限。
+
+默认 branch containment 要求 point 命中当前节点 precise geometry，并位于允许下降的
+client clip。`HitParticipation::DescendantsOnly` 只禁止当前节点成为结果，不等价于
+`precise_hit = false`，也不自动剪掉 children。
+
+`ChildClippingStrategy::OverflowVisible` 是 Freeform 容器的显式变体：branch
+containment 使用进入容器的有效 ancestor clip，不再与当前 client box 相交，因此可以
+搜索 border-box 外的负坐标 descendants。paint、hit-test 和 damage 必须使用同一个
+effective clip；普通容器继续使用默认 client clip。
 
 事件 target、cursor、tooltip 和 gesture 必须复用同一遍历内核，仅通过内部
 `TreeSearch` 策略表达各自的接受条件，不再维护第二套递归算法。

@@ -1,12 +1,12 @@
 # Layer 与 Freeform 契约
 
-类型：`proposal`
+类型：`normative-design`
 
-状态：`review`
+状态：`approved`
 
-本文定义 D2 的候选架构。评审通过并由 ADR 接受后，本文改为
-`normative-design`，同步相关 SSOT，再开始 Rust 实现。本文只定义 Draw2D 行为语义
-到 Novadraw 的映射，不复制 Java 继承结构。
+本文定义 D2 的规范架构，由
+[`ADR-004`](../../adr/adr-004-layer-and-freeform-contract.md) 接受。本文只定义
+Draw2D 行为语义到 Novadraw 的映射，不复制 Java 继承结构。
 
 ## 1. 目标与边界
 
@@ -392,8 +392,7 @@ view-location 通知。所有回调观察到的查询值都必须来自同一个
 
 ## 8. 对现有规范的增量
 
-提案获批后必须先新增 ADR 接受第 12 节决策，再同步更新现有规范，不能只增加具体
-Figure：
+ADR-004 已接受第 12 节决策，并已同步更新以下现有规范：
 
 - `tree-search-and-focus.md`：把 branch containment、child descent 与 self accept
   分开。顺序调整为 effective state → coordinate inverse → policy-aware branch
@@ -409,8 +408,9 @@ Figure：
 - `update-manager.md`：把 dirty freeform extent 和 dependent RangeModel 纳入
   validation 收敛条件。
 
-在这些 SSOT 增量获批前，`HitParticipation`、`LayeredPaneState` 和
-`ChildClippingStrategy::OverflowVisible` 都只是候选名称，不构成已发布 API。
+`HitParticipation`、`LayeredPaneState` 和
+`ChildClippingStrategy::OverflowVisible` 是规范契约名称；具体 Rust 模块路径可在
+不改变语义的前提下调整。
 
 ## 9. 所有权与扩展点
 
@@ -474,7 +474,7 @@ extent cache 或提前发送的通知。
 - 10,000 层深度边界、单 generation 线性重算与大规模 layer 查询基线；
 - macOS、Web 和 Headless 组合验证。
 
-## 12. 待评审决策
+## 12. 已接受决策
 
 ### 12.1 分类总览
 
