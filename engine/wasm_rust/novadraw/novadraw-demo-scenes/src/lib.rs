@@ -2,6 +2,7 @@
 
 use novadraw::FigureTree;
 
+pub mod focus;
 pub mod shape;
 pub mod viewport;
 

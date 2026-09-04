@@ -7,8 +7,8 @@ use std::rc::Rc;
 use novadraw::{
     BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, EventContext, Figure,
     FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MouseButton, NdCanvas,
-    PlatformHost, Rectangle, RectangleFigure, RenderBackend, RenderCommandKind, RenderOutcome,
-    RenderSubmission, Runtime, Shape, SurfaceInfo,
+    PlatformHost, Rectangle, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission,
+    Runtime, Shape, SurfaceInfo,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
@@ -16,7 +16,11 @@ use novadraw_apps::{
     AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode,
     adapt_key_input,
 };
-use novadraw_demo_scenes::{DemoTheme, SceneEntry, web_themes};
+use novadraw_demo_scenes::{
+    DemoTheme, SceneEntry,
+    focus::{FOCUS_TRAVERSAL_SCENE_TITLE, FocusProbeSpec, build_focus_traversal_scene},
+    web_themes,
+};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
@@ -28,24 +32,14 @@ use web_sys::{
     PointerEvent, WheelEvent as DomWheelEvent, Window,
 };
 
-const LOGICAL_WIDTH: f64 = 800.0;
-const LOGICAL_HEIGHT: f64 = 500.0;
-const PROBE_BOUNDS: Rectangle = Rectangle {
-    x: 250.0,
-    y: 150.0,
-    width: 300.0,
-    height: 200.0,
-};
 const INPUT_THEME_ID: &str = "input";
 const INPUT_THEME_TITLE: &str = "Input";
-const INPUT_SCENE_TITLE: &str = "Pointer, keyboard and wheel";
 const THEME_BUTTON_IDS: [&str; 3] = ["theme-input", "theme-shape", "theme-viewport"];
 
 #[derive(Default)]
 struct ProbeState {
-    hovered: Cell<bool>,
-    pressed: Cell<bool>,
-    focused: Cell<bool>,
+    hovered_label: RefCell<Option<&'static str>>,
+    focused_label: RefCell<Option<&'static str>>,
     pointer_events: Cell<u32>,
     key_events: Cell<u32>,
     wheel_events: Cell<u32>,
@@ -54,12 +48,25 @@ struct ProbeState {
 
 struct WebProbeFigure {
     bounds: Rectangle,
+    label: &'static str,
+    disabled_visual: bool,
+    hovered: Cell<bool>,
+    pressed: Cell<bool>,
+    focused: Cell<bool>,
     state: Rc<ProbeState>,
 }
 
 impl WebProbeFigure {
-    fn new(bounds: Rectangle, state: Rc<ProbeState>) -> Self {
-        Self { bounds, state }
+    fn from_focus_spec(spec: FocusProbeSpec, state: Rc<ProbeState>) -> Self {
+        Self {
+            bounds: spec.bounds,
+            label: spec.label,
+            disabled_visual: !spec.enabled,
+            hovered: Cell::new(false),
+            pressed: Cell::new(false),
+            focused: Cell::new(false),
+            state,
+        }
     }
 
     fn record_pointer(&self, ctx: &mut EventContext<'_>) {
@@ -94,11 +101,13 @@ impl Shape for WebProbeFigure {
     }
 
     fn fill_color(&self) -> Option<Color> {
-        let color = if self.state.pressed.get() {
+        let color = if self.disabled_visual {
+            "#95a5a6"
+        } else if self.pressed.get() {
             "#e74c3c"
-        } else if self.state.focused.get() {
+        } else if self.focused.get() {
             "#8e44ad"
-        } else if self.state.hovered.get() {
+        } else if self.hovered.get() {
             "#16a085"
         } else {
             "#2980b9"
@@ -147,6 +156,13 @@ impl Figure for WebProbeFigure {
 
     fn paint_figure(&self, canvas: &mut NdCanvas) {
         Shape::paint_figure(self, canvas);
+        canvas.fill_style(if self.disabled_visual {
+            Color::hex("#2c3e50")
+        } else {
+            Color::WHITE
+        });
+        canvas.font("18px sans-serif");
+        canvas.fill_text(self.label, 12.0, 30.0);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
@@ -160,13 +176,13 @@ impl FigureEventHandler for WebProbeFigure {
     }
 
     fn on_mouse_pressed(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.pressed.set(true);
+        self.pressed.set(true);
         self.record_pointer(ctx);
         true
     }
 
     fn on_mouse_released(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.pressed.set(false);
+        self.pressed.set(false);
         self.record_pointer(ctx);
         true
     }
@@ -182,13 +198,18 @@ impl FigureEventHandler for WebProbeFigure {
     }
 
     fn on_mouse_entered(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.hovered.set(true);
+        self.hovered.set(true);
+        *self.state.hovered_label.borrow_mut() = Some(self.label);
         self.record_pointer(ctx);
         true
     }
 
     fn on_mouse_exited(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.hovered.set(false);
+        self.hovered.set(false);
+        let is_current_hover = *self.state.hovered_label.borrow() == Some(self.label);
+        if is_current_hover {
+            *self.state.hovered_label.borrow_mut() = None;
+        }
         self.record_pointer(ctx);
         true
     }
@@ -213,13 +234,18 @@ impl FigureEventHandler for WebProbeFigure {
     }
 
     fn on_focus_gained(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.focused.set(true);
+        self.focused.set(true);
+        *self.state.focused_label.borrow_mut() = Some(self.label);
         ctx.repaint(None);
         true
     }
 
     fn on_focus_lost(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
-        self.state.focused.set(false);
+        self.focused.set(false);
+        let is_current_focus = *self.state.focused_label.borrow() == Some(self.label);
+        if is_current_focus {
+            *self.state.focused_label.borrow_mut() = None;
+        }
         ctx.repaint(None);
         true
     }
@@ -351,6 +377,24 @@ impl RenderBackend for Canvas2dBackend {
                         rect[1].y - rect[0].y,
                     );
                 }
+                RenderCommandKind::FillText {
+                    text,
+                    position,
+                    font,
+                    color,
+                    max_width,
+                    ..
+                } => {
+                    self.set_fill(*color);
+                    self.context.set_font(font);
+                    if let Some(max_width) = max_width {
+                        let _ = self
+                            .context
+                            .fill_text_with_max_width(text, position.x, position.y, *max_width);
+                    } else {
+                        let _ = self.context.fill_text(text, position.x, position.y);
+                    }
+                }
                 RenderCommandKind::Ellipse {
                     cx,
                     cy,
@@ -436,23 +480,12 @@ impl RenderBackend for ValidationBackend {
 fn input_theme(probe: Rc<ProbeState>) -> DemoTheme {
     let scene_probe = probe.clone();
     let scenes: Vec<SceneEntry> = vec![(
-        INPUT_SCENE_TITLE,
+        FOCUS_TRAVERSAL_SCENE_TITLE,
         Box::new(move || {
-            let mut graph = novadraw::FigureTree::new();
-            let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                LOGICAL_WIDTH,
-                LOGICAL_HEIGHT,
-                Color::hex("#eef1f4"),
-            )));
-            let probe = graph.add_child_to(
-                root,
-                Box::new(WebProbeFigure::new(PROBE_BOUNDS, scene_probe.clone())),
-            );
-            graph.set_focusable(probe, true);
-            graph.set_focus_traversable(probe, true);
-            graph
+            build_focus_traversal_scene(|spec| {
+                Box::new(WebProbeFigure::from_focus_spec(spec, scene_probe.clone()))
+            })
+            .0
         }),
     )];
 
@@ -690,17 +723,14 @@ impl WebValidationApp {
             self.probe.key_events.get()
         );
         set_text(&self.document, "runtime-status", &status);
-        set_text(
-            &self.document,
-            "pointer-status",
-            if self.probe.focused.get() {
-                "Focused"
-            } else if self.probe.hovered.get() {
-                "Hovered"
-            } else {
-                "Idle"
-            },
-        );
+        let pointer_status = if let Some(label) = *self.probe.focused_label.borrow() {
+            format!("Focused {label}")
+        } else if let Some(label) = *self.probe.hovered_label.borrow() {
+            format!("Hovered {label}")
+        } else {
+            "Idle".to_string()
+        };
+        set_text(&self.document, "pointer-status", &pointer_status);
         let last_key = self.probe.last_key.borrow();
         set_text(
             &self.document,

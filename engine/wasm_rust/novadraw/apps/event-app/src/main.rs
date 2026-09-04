@@ -10,6 +10,7 @@ use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,
 };
+use novadraw_demo_scenes::focus::{FocusProbeSpec, build_focus_traversal_scene};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -34,12 +35,28 @@ struct ProbeState {
 
 struct EventProbeFigure {
     bounds: Rectangle,
+    label: &'static str,
+    disabled_visual: bool,
     state: Arc<Mutex<ProbeState>>,
 }
 
 impl EventProbeFigure {
     fn new(bounds: Rectangle, state: Arc<Mutex<ProbeState>>) -> Self {
-        Self { bounds, state }
+        Self {
+            bounds,
+            label: "Probe",
+            disabled_visual: false,
+            state,
+        }
+    }
+
+    fn from_focus_spec(spec: FocusProbeSpec, state: Arc<Mutex<ProbeState>>) -> Self {
+        Self {
+            bounds: spec.bounds,
+            label: spec.label,
+            disabled_visual: !spec.enabled,
+            state,
+        }
     }
 
     fn record_mouse(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) {
@@ -87,7 +104,9 @@ impl Figure for EventProbeFigure {
 
     fn paint_figure(&self, canvas: &mut NdCanvas) {
         let state = self.state.lock().unwrap();
-        let color = if state.pressed {
+        let color = if self.disabled_visual {
+            Color::hex("#95a5a6")
+        } else if state.pressed {
             Color::hex("#e74c3c")
         } else if state.focused {
             Color::hex("#9b59b6")
@@ -97,6 +116,13 @@ impl Figure for EventProbeFigure {
             Color::hex("#3498db")
         };
         canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
+        canvas.fill_style(if self.disabled_visual {
+            Color::hex("#2c3e50")
+        } else {
+            Color::WHITE
+        });
+        canvas.font("18px sans-serif");
+        canvas.fill_text(self.label, 12.0, 30.0);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
@@ -241,10 +267,20 @@ fn coordinate_scene() -> FigureTree {
     probe_scene(true).0
 }
 
+fn focus_traversal_scene() -> FigureTree {
+    build_focus_traversal_scene(|spec| {
+        Box::new(EventProbeFigure::from_focus_spec(
+            spec,
+            Arc::new(Mutex::new(ProbeState::default())),
+        ))
+    })
+    .0
+}
+
 fn scenes() -> Vec<SceneEntry> {
     vec![
         ("pointer_capture", Box::new(pointer_scene)),
-        ("focus_keyboard", Box::new(pointer_scene)),
+        ("focus_keyboard", Box::new(focus_traversal_scene)),
         ("wheel_hover_double", Box::new(pointer_scene)),
         ("coordinate_root", Box::new(coordinate_scene)),
     ]
