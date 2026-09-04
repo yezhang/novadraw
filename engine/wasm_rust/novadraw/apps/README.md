@@ -65,6 +65,7 @@ novadraw/ (workspace)
 ├── novadraw-render/      ← 渲染后端
 ├── novadraw-scene/       ← 场景图、Figure 接口、UpdateManager
 ├── novadraw-apps/        ← 共享 DemoApp 框架
+├── novadraw-demo-scenes/ ← Native/Web 共用场景目录
 └── apps/
     ├── shape-app/        ← 图形类型验证
     ├── style-app/        ← 视觉属性验证
@@ -79,6 +80,11 @@ novadraw/ (workspace)
     ├── ndcanvas-app/     ← NdCanvas 底层 API 验证
     └── vello-app/        ← Vello 原始 API 验证
 ```
+
+各功能场景必须定义在 `novadraw-demo-scenes`，并通过稳定的 suite/scene ID 注册到
+catalog。`apps/*` 只保留 Native CLI、窗口运行和验证报告逻辑；
+`apps/web-validation` 通过同一 catalog 构造 Web 场景。平台输入适配、截图保存和
+DOM/winit 代码不得进入共享场景 crate。
 
 ## 运行所有测试
 

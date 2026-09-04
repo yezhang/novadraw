@@ -1,176 +1,16 @@
 use novadraw::{
-    Color, EventDispatcher, FigureTree, GesturePhase, GestureSessionId, InteractionState,
-    KeyModifiers, PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext,
-    ScrollBarVisibility, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
+    EventDispatcher, GesturePhase, GestureSessionId, InteractionState, KeyModifiers,
+    PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext, ScrollDeltaKind,
+    UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,
 };
-
-const WINDOW_WIDTH: f64 = 800.0;
-const WINDOW_HEIGHT: f64 = 600.0;
-const PANE_X: f64 = 120.0;
-const PANE_Y: f64 = 90.0;
-const PANE_WIDTH: f64 = 480.0;
-const PANE_HEIGHT: f64 = 340.0;
-const LARGE_CONTENT_WIDTH: f64 = 860.0;
-const LARGE_CONTENT_HEIGHT: f64 = 640.0;
-const SMALL_CONTENT_WIDTH: f64 = 240.0;
-const SMALL_CONTENT_HEIGHT: f64 = 160.0;
-const GRID_COLUMNS: usize = 8;
-const GRID_ROWS: usize = 6;
-const TILE_WIDTH: f64 = 82.0;
-const TILE_HEIGHT: f64 = 68.0;
-const TILE_GAP: f64 = 12.0;
-const INITIAL_SCROLL_X: f64 = 90.0;
-const INITIAL_SCROLL_Y: f64 = 70.0;
-const DEMO_SCALE: f64 = 1.5;
-
-type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
-
-fn color(hex: &str) -> Color {
-    Color::hex(hex)
-}
-
-fn base_scene() -> (FigureTree, novadraw::FigureId) {
-    let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        color("#eeeeee"),
-    )));
-    (graph, root)
-}
-
-fn add_grid(graph: &mut FigureTree, parent: novadraw::FigureId) {
-    for row in 0..GRID_ROWS {
-        for column in 0..GRID_COLUMNS {
-            let fill = match (row + column) % 4 {
-                0 => color("#2f80ed"),
-                1 => color("#27ae60"),
-                2 => color("#f2994a"),
-                _ => color("#9b51e0"),
-            };
-            graph.add_child_to(
-                parent,
-                Box::new(RectangleFigure::new_with_color(
-                    TILE_GAP + column as f64 * (TILE_WIDTH + TILE_GAP),
-                    TILE_GAP + row as f64 * (TILE_HEIGHT + TILE_GAP),
-                    TILE_WIDTH,
-                    TILE_HEIGHT,
-                    fill,
-                )),
-            );
-        }
-    }
-}
-
-fn scene_with_policy(
-    content_width: f64,
-    content_height: f64,
-    horizontal: ScrollBarVisibility,
-    vertical: ScrollBarVisibility,
-    initial_scroll: Option<(f64, f64)>,
-) -> FigureTree {
-    let (mut graph, root) = base_scene();
-    let pane = graph
-        .add_scroll_pane_to(
-            root,
-            Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
-        )
-        .expect("attach scroll pane");
-    let mut update_manager = UpdateManager::new();
-    pane.set_scroll_bar_visibility(&mut graph, &mut update_manager, horizontal, vertical)
-        .expect("set scrollbar visibility");
-    let contents = pane
-        .set_contents(
-            &mut graph,
-            &mut update_manager,
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                content_width,
-                content_height,
-                Color::WHITE,
-            )),
-        )
-        .expect("set scroll pane contents");
-    add_grid(&mut graph, contents);
-    graph.revalidate(pane.pane_id());
-    if let Some((x, y)) = initial_scroll {
-        pane.scroll_to(&mut graph, &mut update_manager, x, y)
-            .expect("set initial scroll");
-    }
-    graph
-}
-
-fn automatic_scene() -> FigureTree {
-    scene_with_policy(
-        LARGE_CONTENT_WIDTH,
-        LARGE_CONTENT_HEIGHT,
-        ScrollBarVisibility::Automatic,
-        ScrollBarVisibility::Automatic,
-        None,
-    )
-}
-
-fn scrolled_scene() -> FigureTree {
-    scene_with_policy(
-        LARGE_CONTENT_WIDTH,
-        LARGE_CONTENT_HEIGHT,
-        ScrollBarVisibility::Automatic,
-        ScrollBarVisibility::Automatic,
-        Some((INITIAL_SCROLL_X, INITIAL_SCROLL_Y)),
-    )
-}
-
-fn hidden_bars_scene() -> FigureTree {
-    scene_with_policy(
-        SMALL_CONTENT_WIDTH,
-        SMALL_CONTENT_HEIGHT,
-        ScrollBarVisibility::Automatic,
-        ScrollBarVisibility::Automatic,
-        None,
-    )
-}
-
-fn scalable_scene() -> FigureTree {
-    let (mut graph, root) = base_scene();
-    let pane = graph
-        .add_scroll_pane_to(
-            root,
-            Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
-        )
-        .expect("attach scroll pane");
-    let scalable = graph
-        .add_scalable_layered_pane_to(
-            pane.viewport().block_id(),
-            Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
-        )
-        .expect("attach scalable pane");
-    let mut update_manager = UpdateManager::new();
-    add_grid(&mut graph, scalable.block_id());
-    graph.revalidate(pane.pane_id());
-    ZoomManager::new(scalable, pane.viewport().clone())
-        .set_zoom(&mut graph, &mut update_manager, DEMO_SCALE)
-        .expect("set demo zoom");
-    pane.viewport()
-        .set_view_location(&mut graph, &mut update_manager, 0.0, 0.0)
-        .expect("reset demo view location");
-    graph
-}
-
-fn scenes() -> Vec<SceneEntry> {
-    vec![
-        ("automatic_scrollbars", Box::new(automatic_scene)),
-        ("scrolled_content", Box::new(scrolled_scene)),
-        ("automatic_hidden", Box::new(hidden_bars_scene)),
-        ("scalable_content", Box::new(scalable_scene)),
-    ]
-}
+use novadraw_demo_scenes::scroll_pane::{
+    DEMO_SCALE, LARGE_CONTENT_HEIGHT, LARGE_CONTENT_WIDTH, PANE_HEIGHT, PANE_WIDTH, PANE_X, PANE_Y,
+    base_scene,
+};
 
 fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
     let (mut graph, root) = base_scene();
@@ -464,7 +304,19 @@ fn main() {
         return;
     }
 
-    let scene_list = scenes();
+    let suite = novadraw_demo_scenes::scroll_pane::suite();
+    let screenshot_index = cli.screenshot.as_deref().map(|scenario| {
+        let normalized = scenario.replace('_', "-");
+        scenario
+            .parse::<usize>()
+            .ok()
+            .or_else(|| suite.scenes.iter().position(|scene| scene.id == normalized))
+            .unwrap_or_else(|| {
+                eprintln!("unknown screenshot scenario: {scenario}");
+                std::process::exit(2);
+            })
+    });
+    let scene_list = suite.into_entries();
     if cli.screenshot_all {
         run_demo_app_with_screenshot(
             "M8 Scroll Pane Verification",
@@ -473,15 +325,7 @@ fn main() {
             true,
         )
         .expect("run scroll-pane screenshots");
-    } else if let Some(scenario) = cli.screenshot {
-        let index = scenario
-            .parse::<usize>()
-            .ok()
-            .or_else(|| scene_list.iter().position(|(name, _)| *name == scenario))
-            .unwrap_or_else(|| {
-                eprintln!("unknown screenshot scenario: {scenario}");
-                std::process::exit(2);
-            });
+    } else if let Some(index) = screenshot_index {
         run_demo_app_with_scene_screenshot(
             "M8 Scroll Pane Verification",
             "scroll-pane-demo",

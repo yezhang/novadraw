@@ -2,7 +2,7 @@
 //!
 //! 用可视化场景验证 ViewportFigure 的 content 裁剪、origin、zoom 和嵌套父链协议。
 
-use crate::SceneEntry;
+use crate::{DemoSuite, SceneSpec, ValidationKind};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -291,19 +291,42 @@ fn create_scene_3_nested_viewports() -> novadraw::FigureTree {
     scene
 }
 
-pub fn scenes() -> Vec<SceneEntry> {
-    vec![
-        (
-            "clip_to_viewport",
-            Box::new(create_scene_0_clip_to_viewport),
-        ),
-        ("origin_scroll", Box::new(create_scene_1_origin_scroll)),
-        ("zoomed_content", Box::new(create_scene_2_zoomed_content)),
-        (
-            "nested_viewports",
-            Box::new(create_scene_3_nested_viewports),
-        ),
-    ]
+pub fn suite() -> DemoSuite {
+    let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
+    DemoSuite::new(
+        "viewport",
+        "Viewport",
+        vec![
+            SceneSpec::new(
+                "clip-to-viewport",
+                "clip_to_viewport",
+                size,
+                ValidationKind::Visual,
+                create_scene_0_clip_to_viewport,
+            ),
+            SceneSpec::new(
+                "origin-scroll",
+                "origin_scroll",
+                size,
+                ValidationKind::Visual,
+                create_scene_1_origin_scroll,
+            ),
+            SceneSpec::new(
+                "zoomed-content",
+                "zoomed_content",
+                size,
+                ValidationKind::Visual,
+                create_scene_2_zoomed_content,
+            ),
+            SceneSpec::new(
+                "nested-viewports",
+                "nested_viewports",
+                size,
+                ValidationKind::Visual,
+                create_scene_3_nested_viewports,
+            ),
+        ],
+    )
 }
 
 #[cfg(test)]

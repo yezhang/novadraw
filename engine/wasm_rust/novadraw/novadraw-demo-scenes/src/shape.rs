@@ -5,7 +5,7 @@
 //! - 属性维度: Fill, Stroke, LineCap, LineJoin
 //! - 组合维度: 混合图形, 父子嵌套, Z-order
 
-use crate::SceneEntry;
+use crate::{DemoSuite, SceneSpec, ValidationKind};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -1024,15 +1024,68 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 // 场景映射
 // ============================================================================
 
-pub fn scenes() -> Vec<SceneEntry> {
-    vec![
-        ("0:Rectangle Fill", Box::new(create_scene_0_rectangle_fill)),
-        ("1:Ellipse Fill", Box::new(create_scene_1_ellipse_fill)),
-        ("2:Rounded Rect", Box::new(create_scene_2_rounded_rect)),
-        ("3:Polyline", Box::new(create_scene_3_polyline)),
-        ("4:Mixed Shapes", Box::new(create_scene_8_mixed_shapes)),
-        ("5:Z-Order", Box::new(create_scene_9_zorder)),
-        ("6:Triangle", Box::new(create_scene_10_triangle)),
-        ("7:Parent-Child", Box::new(create_scene_11_parent_child)),
-    ]
+pub fn suite() -> DemoSuite {
+    let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
+    DemoSuite::new(
+        "shape",
+        "Shapes",
+        vec![
+            SceneSpec::new(
+                "rectangle-fill",
+                "0:Rectangle Fill",
+                size,
+                ValidationKind::Visual,
+                create_scene_0_rectangle_fill,
+            ),
+            SceneSpec::new(
+                "ellipse-fill",
+                "1:Ellipse Fill",
+                size,
+                ValidationKind::Visual,
+                create_scene_1_ellipse_fill,
+            ),
+            SceneSpec::new(
+                "rounded-rect",
+                "2:Rounded Rect",
+                size,
+                ValidationKind::Visual,
+                create_scene_2_rounded_rect,
+            ),
+            SceneSpec::new(
+                "polyline",
+                "3:Polyline",
+                size,
+                ValidationKind::Visual,
+                create_scene_3_polyline,
+            ),
+            SceneSpec::new(
+                "mixed-shapes",
+                "4:Mixed Shapes",
+                size,
+                ValidationKind::Visual,
+                create_scene_8_mixed_shapes,
+            ),
+            SceneSpec::new(
+                "z-order",
+                "5:Z-Order",
+                size,
+                ValidationKind::Visual,
+                create_scene_9_zorder,
+            ),
+            SceneSpec::new(
+                "triangle",
+                "6:Triangle",
+                size,
+                ValidationKind::Visual,
+                create_scene_10_triangle,
+            ),
+            SceneSpec::new(
+                "parent-child",
+                "7:Parent-Child",
+                size,
+                ValidationKind::Visual,
+                create_scene_11_parent_child,
+            ),
+        ],
+    )
 }

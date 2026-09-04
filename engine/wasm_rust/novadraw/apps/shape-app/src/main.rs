@@ -7,7 +7,7 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let title = "Shape App";
     let app_name = "shape-app";
-    let scenes = novadraw_demo_scenes::shape::scenes();
+    let scenes = novadraw_demo_scenes::shape::suite().into_entries();
 
     if args.len() > 1 {
         match args[1].as_str() {

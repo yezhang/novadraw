@@ -11,7 +11,7 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(2);
     });
-    let scenes = novadraw_demo_scenes::viewport::scenes();
+    let scenes = novadraw_demo_scenes::viewport::suite().into_entries();
 
     let result = if cli.screenshot_all {
         run_demo_app_with_screenshot(title, app_name, scenes, true)
