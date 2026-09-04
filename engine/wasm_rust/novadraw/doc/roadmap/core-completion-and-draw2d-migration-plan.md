@@ -245,7 +245,7 @@ D1.4c 执行结果：
 执行批次：
 
 1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`complete`；
-2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy，`not_started`；
+2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy，`complete`；
 3. D1.5c：Native/Web Tab traversal 和人工验收，`not_started`。
 
 评审点：
@@ -268,6 +268,22 @@ D1.5a 执行结果：
 - `prune` 在访问子树前执行，`accept` 在所有可命中子节点失败后决定当前节点；
 - 5 项内部搜索测试与 2 项 public API 契约测试通过；
 - `cargo test --workspace`、核心 Clippy 和 Web target check 通过。
+
+D1.5b 执行结果：
+
+- `NodeState` 新增互相独立且不继承的 `focusable` 与 `focus_traversable`，默认均为
+  `false`，变化产生 typed property event；
+- 新增 `FocusTraversalPolicy`、`TreeOrderFocusTraversal`、方向/结果类型与结构化
+  `FocusError`；
+- Runtime 提供 `request_focus`、`clear_focus`、`traverse_focus` 和 policy 替换入口；
+- 默认 policy 按 contents 子树稳定前序/逆序遍历，跳过 hidden/disabled 节点且不
+  wrap；
+- focus owner 先原子提交，再按 lost → gained 投递含 related target 的事件；
+- remove、hide、disable 和 reparent 到无效祖先均通过同一事务发出一次 FocusLost，
+  `InteractionState` 不再静默删除 owner；
+- 鼠标 handled target 不具备 direct focus 资格时保留旧 owner；
+- 10 项 focus 定向测试、1 项 public API 契约测试及 226 项 scene 单测通过；
+- `cargo test --workspace`、核心/公共契约 Clippy 和 Web target check 通过。
 
 D1 完成门禁：
 

@@ -249,7 +249,7 @@ Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。
 
 ### D1.5b Focus model
 
-状态：`not_started`
+状态：`complete`
 
 - 增加显式 focusable/focus_traversable 节点属性；
 - 引入默认 tree-order policy；
