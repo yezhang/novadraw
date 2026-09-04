@@ -35,16 +35,35 @@ NodeState.opaque  = 当前节点局部的绘制覆盖承诺，不继承
 
 ## 3. 绘制
 
+样式解析满足以下递推关系：
+
+```text
+Resolved(root)  = overlay(DefaultStyle, Local(root))
+Resolved(child) = overlay(Resolved(parent), Local(child))
+```
+
+因此绘制是携带父级已解析状态的树折叠，不是彼此独立的节点查询。递归进入 child 时，
+parent 的 resolved 状态已经存在于 graphics state 中；当前节点只需应用自己的 local
+override。
+
 递归绘制每个节点时：
 
 1. push parent graphics state；
-2. 应用当前节点的 ResolvedStyle；
+2. 只把当前节点的 FigureStyle local override 写入 graphics state；
 3. 调用 Figure 的类型专属绘制 hook；
-4. children 继承当前 graphics state；
+4. children 通过 graphics state 继承，得到与 ResolvedStyle 查询等价的绘制属性；
 5. pop state。
 
 Figure 的类型专属 paint 可以在自身 push/pop 范围内覆盖绘制参数，但不能修改
 NodeState 或让状态泄漏到 sibling。
+
+对每个节点重新遍历祖先链并不符合上述递推模型：它丢弃了遍历已经携带的父级上下文，
+形成第二条重复的解析路径。其性能后果是深树退化为 O(n²)，但性能不是选择该模型的
+首要依据。
+
+`FigureTree::resolved_style` 用于 cursor、tooltip 和外部随机查询。若未来允许从任意
+子树开始独立录制，应在子树入口解析一次 inherited style，再沿子树递推；不得让子树
+中的每个节点各自回溯祖先链。
 
 ## 4. 更新
 

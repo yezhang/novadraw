@@ -7,7 +7,6 @@ use novadraw_render::NdCanvas;
 use super::FigureId;
 use crate::ChildClippingStrategy;
 use crate::debug_render;
-use crate::style::ResolvedStyle;
 
 const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
 const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
@@ -21,22 +20,6 @@ impl<'a> FigureTreeRenderRef<'a> {
     /// 获取块
     pub(super) fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
-    }
-
-    fn resolved_style(&self, id: FigureId) -> Option<ResolvedStyle> {
-        self.blocks.get(id)?;
-        let mut chain = Vec::new();
-        let mut current = Some(id);
-        while let Some(node_id) = current {
-            let node = self.blocks.get(node_id)?;
-            chain.push(node_id);
-            current = node.parent;
-        }
-        let mut resolved = ResolvedStyle::default();
-        for node_id in chain.into_iter().rev() {
-            resolved.apply_override(&self.blocks[node_id].style);
-        }
-        Some(resolved)
     }
 }
 
@@ -113,11 +96,17 @@ impl<'a> FigureRenderer<'a> {
 
         // 1. 保存 parent state，并设置当前节点的 local state。
         self.gc.push_state();
-        if let Some(style) = self.scene.resolved_style(block_id) {
-            self.gc.set_foreground_color(style.foreground);
-            self.gc.set_background_color(style.background);
-            self.gc.set_alpha(style.alpha);
-            self.gc.font(&style.font);
+        if let Some(foreground) = block.style.foreground {
+            self.gc.set_foreground_color(foreground);
+        }
+        if let Some(background) = block.style.background {
+            self.gc.set_background_color(background);
+        }
+        if let Some(alpha) = block.style.alpha {
+            self.gc.set_alpha(alpha);
+        }
+        if let Some(font) = &block.style.font {
+            self.gc.font(font);
         }
         self.gc.translate(bounds.x, bounds.y);
 

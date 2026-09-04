@@ -67,7 +67,7 @@ Novadraw 已具备完整的核心执行骨架：
 
 ## 4. D1：核心公共协议收口
 
-状态：`in_progress`
+状态：`complete`
 
 ### D1.1 Selection 外移
 
@@ -229,7 +229,7 @@ D1.4c 执行结果：
 
 ### D1.5 树查询与焦点遍历
 
-状态：`in_progress`
+状态：`complete`
 
 目标：
 
@@ -246,7 +246,7 @@ D1.4c 执行结果：
 
 1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`complete`；
 2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy，`complete`；
-3. D1.5c：Native/Web Tab traversal 和人工验收，`manual_validation`。
+3. D1.5c：Native/Web Tab traversal 和人工验收，`complete`。
 
 评审点：
 
@@ -300,12 +300,28 @@ D1.5c 自动验证结果：
 - 人工门禁：
   [`../verification/manual/d1-focus-traversal.md`](../verification/manual/d1-focus-traversal.md)。
 
+D1.5c 人工验收记录：
+
+- 日期：2026-09-04；
+- 平台：macOS / Web；
+- 结果：PASS；
+- 失败项：无。
+
 D1 完成门禁：
 
 - 核心 public API 无静默 no-op；
 - FigureTree 只持有拓扑、节点与树级通知；
 - style、resource、search 和 focus 能支撑 M9/M10，且无产品特例；
 - R8 性能基线无超过既定阈值的回归。
+
+D1 最终验证结果：
+
+- 修复渲染时逐节点回溯祖先解析样式造成的深树 O(n²) 回归，改为 Draw2D 一致的
+  local style override + Graphics state inheritance；
+- R8 benchmark command 数与基线完全一致；
+- 三次追加复测的 median-of-medians 均未超过 15% 回归阈值；
+- `cargo test -p novadraw-scene --lib --tests`：227 项单测及 49 项契约测试通过；
+- `cargo clippy -p novadraw-scene --lib -- -D warnings`：通过。
 
 ## 5. D2：Layer 与 Freeform 基础
 

@@ -4470,6 +4470,21 @@ mod tests {
     }
 
     #[test]
+    fn default_style_does_not_emit_redundant_alpha_commands() {
+        let mut scene = FigureTree::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+
+        assert!(
+            scene
+                .render()
+                .commands()
+                .iter()
+                .all(|command| !matches!(&command.kind, RenderCommandKind::SetGlobalAlpha { .. }))
+        );
+    }
+
+    #[test]
     fn style_change_emits_typed_properties_and_queues_subtree_repaint() {
         let mut scene = FigureTree::new();
         let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));

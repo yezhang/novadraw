@@ -258,11 +258,11 @@ Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。
 
 ### D1.5c Platform traversal
 
-状态：`manual_validation`
+状态：`complete`
 
 - Native/Web adapter 接入 Tab/Shift+Tab；
 - Headless 覆盖 forward/backward/boundary；
-- 增加 macOS 和 Web 人工验收。
+- macOS 和 Web 人工验收于 2026-09-04 通过，无失败项。
 
 ## 10. 完成门禁
 
