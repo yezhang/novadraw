@@ -246,7 +246,7 @@ D1.4c 执行结果：
 
 1. D1.5a：TreeSearch、ExclusionSearch 和共享 hit-test traversal，`complete`；
 2. D1.5b：显式 focusable/focus_traversable 与 tree-order policy，`complete`；
-3. D1.5c：Native/Web Tab traversal 和人工验收，`not_started`。
+3. D1.5c：Native/Web Tab traversal 和人工验收，`manual_validation`。
 
 评审点：
 
@@ -284,6 +284,19 @@ D1.5b 执行结果：
 - 鼠标 handled target 不具备 direct focus 资格时保留旧 owner；
 - 10 项 focus 定向测试、1 项 public API 契约测试及 226 项 scene 单测通过；
 - `cargo test --workspace`、核心/公共契约 Clippy 和 Web target check 通过。
+
+D1.5c 自动验证结果：
+
+- `novadraw-apps` 新增共享 `adapt_key_input`，Tab keydown 映射为 forward/backward
+  traversal，Tab keyup 不再投递普通 key；
+- 通用 Native app 与 editor 均通过 Runtime traversal 入口处理 Tab/Shift+Tab；
+- Web 仅在 `FocusTraversalOutcome::Moved` 时调用 `preventDefault`，boundary 保留浏览器
+  默认焦点移动；
+- Headless public contract 覆盖 forward、backward 和双向 boundary；
+- `cargo test --workspace`、核心 Clippy、Web target check 与 release wasm-bindgen
+  打包通过；
+- 人工门禁：
+  [`../verification/manual/d1-focus-traversal.md`](../verification/manual/d1-focus-traversal.md)。
 
 D1 完成门禁：
 

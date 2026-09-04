@@ -17,6 +17,8 @@
 - [`manual/m8-viewport.md`](manual/m8-viewport.md)：Viewport、Scroll 与 Zoom；
 - [`manual/d1-selection.md`](manual/d1-selection.md)：selection 外移后的 editor 选择反馈；
 - [`manual/d1-figure-style.md`](manual/d1-figure-style.md)：FigureStyle 继承、覆盖与 cursor；
+- [`manual/d1-focus-traversal.md`](manual/d1-focus-traversal.md)：Native/Web
+  Tab/Shift+Tab 焦点遍历与边界；
 - [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、
   Vello WebGPU 与 Canvas2D 浏览器验收。
 - [`performance/r8-baseline-2026-09-02.md`](performance/r8-baseline-2026-09-02.md)：

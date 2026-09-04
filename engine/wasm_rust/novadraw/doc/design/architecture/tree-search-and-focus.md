@@ -258,7 +258,7 @@ Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。
 
 ### D1.5c Platform traversal
 
-状态：`not_started`
+状态：`manual_validation`
 
 - Native/Web adapter 接入 Tab/Shift+Tab；
 - Headless 覆盖 forward/backward/boundary；
