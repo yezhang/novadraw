@@ -1,8 +1,9 @@
 use std::time::Duration;
 
 use novadraw::{
-    FigureEvent, FigureId, Key, KeyModifiers, MouseButton, PlatformHost, RenderBackend,
-    RenderOutcome, Runtime, UpdateEvent, UpdateListener, WheelEvent, ZoomEvent,
+    FigureEvent, FigureId, FocusTraversalDirection, FocusTraversalOutcome, Key, KeyModifiers,
+    MouseButton, PlatformHost, RenderBackend, RenderOutcome, Runtime, UpdateEvent, UpdateListener,
+    WheelEvent, ZoomEvent,
 };
 use novadraw_apps::WinitPlatformHost;
 
@@ -194,6 +195,10 @@ impl EditorInteractionCore {
 
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
         self.runtime.dispatch_key_released(key, modifiers);
+    }
+
+    pub fn traverse_focus(&mut self, direction: FocusTraversalDirection) -> FocusTraversalOutcome {
+        self.runtime.traverse_focus(direction)
     }
 
     pub fn release_focus(&mut self) {
@@ -392,6 +397,10 @@ impl EditorRuntime {
 
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
         self.run_update_transaction(|core| core.dispatch_key_released(key, modifiers));
+    }
+
+    pub fn traverse_focus(&mut self, direction: FocusTraversalDirection) -> FocusTraversalOutcome {
+        self.run_update_transaction(|core| core.traverse_focus(direction))
     }
 
     pub fn release_focus(&mut self) {

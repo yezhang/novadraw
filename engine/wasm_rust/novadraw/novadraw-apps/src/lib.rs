@@ -36,7 +36,9 @@ pub use app::{
 };
 #[cfg(feature = "native")]
 pub use input::{AdaptedGesture, WinitGestureAdapter};
-pub use input::{WebInputAdapter, WebPointerInput, WebWheelDeltaMode};
+pub use input::{
+    AdaptedKeyInput, WebInputAdapter, WebPointerInput, WebWheelDeltaMode, adapt_key_input,
+};
 pub use platform::WebPlatformHost;
 #[cfg(feature = "native")]
 pub use platform::WinitPlatformHost;

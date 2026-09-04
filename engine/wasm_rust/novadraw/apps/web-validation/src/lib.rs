@@ -6,13 +6,16 @@ use std::rc::Rc;
 
 use novadraw::{
     BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, EventContext, Figure,
-    FigureEventHandler, Key, KeyModifiers, MouseButton, NdCanvas, PlatformHost, Rectangle,
-    RectangleFigure, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission, Runtime,
-    Shape, SurfaceInfo,
+    FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MouseButton, NdCanvas,
+    PlatformHost, Rectangle, RectangleFigure, RenderBackend, RenderCommandKind, RenderOutcome,
+    RenderSubmission, Runtime, Shape, SurfaceInfo,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
-use novadraw_apps::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
+use novadraw_apps::{
+    AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode,
+    adapt_key_input,
+};
 use novadraw_demo_scenes::{DemoTheme, SceneEntry, web_themes};
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -808,12 +811,30 @@ impl WebValidationApp {
             event.alt_key(),
             event.meta_key(),
         );
-        if pressed {
-            self.runtime.dispatch_key_pressed(key, modifiers);
-        } else {
-            self.runtime.dispatch_key_released(key, modifiers);
+        match adapt_key_input(key, pressed, modifiers) {
+            AdaptedKeyInput::FocusTraversal(direction) => {
+                if matches!(
+                    self.runtime.traverse_focus(direction),
+                    FocusTraversalOutcome::Moved(_)
+                ) {
+                    event.prevent_default();
+                    self.request_and_render();
+                }
+            }
+            AdaptedKeyInput::Key {
+                key,
+                pressed,
+                modifiers,
+            } => {
+                if pressed {
+                    self.runtime.dispatch_key_pressed(key, modifiers);
+                } else {
+                    self.runtime.dispatch_key_released(key, modifiers);
+                }
+                self.request_and_render();
+            }
+            AdaptedKeyInput::Ignored => {}
         }
-        self.request_and_render();
     }
 
     fn toggle_scale(&mut self) {

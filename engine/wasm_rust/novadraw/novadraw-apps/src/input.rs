@@ -4,7 +4,8 @@ use std::collections::HashMap;
 #[cfg(feature = "native")]
 use novadraw::ZoomEvent;
 use novadraw::{
-    GesturePhase, GestureSessionId, KeyModifiers, Point, PointerId, ScrollDeltaKind, WheelEvent,
+    FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, Point, PointerId,
+    ScrollDeltaKind, WheelEvent,
 };
 #[cfg(feature = "native")]
 use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
@@ -43,6 +44,35 @@ pub enum WebWheelDeltaMode {
     Pixel,
     Line,
     Page,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdaptedKeyInput {
+    FocusTraversal(FocusTraversalDirection),
+    Key {
+        key: Key,
+        pressed: bool,
+        modifiers: KeyModifiers,
+    },
+    Ignored,
+}
+
+pub fn adapt_key_input(key: Key, pressed: bool, modifiers: KeyModifiers) -> AdaptedKeyInput {
+    if key != Key::Tab {
+        return AdaptedKeyInput::Key {
+            key,
+            pressed,
+            modifiers,
+        };
+    }
+    if !pressed {
+        return AdaptedKeyInput::Ignored;
+    }
+    AdaptedKeyInput::FocusTraversal(if modifiers.shift {
+        FocusTraversalDirection::Backward
+    } else {
+        FocusTraversalDirection::Forward
+    })
 }
 
 #[derive(Debug, Default)]
@@ -261,6 +291,29 @@ fn valid_scale_factor(scale_factor: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tab_is_adapted_to_one_traversal_without_an_ordinary_key_release() {
+        assert_eq!(
+            adapt_key_input(Key::Tab, true, KeyModifiers::default()),
+            AdaptedKeyInput::FocusTraversal(FocusTraversalDirection::Forward)
+        );
+        assert_eq!(
+            adapt_key_input(
+                Key::Tab,
+                true,
+                KeyModifiers {
+                    shift: true,
+                    ..KeyModifiers::default()
+                },
+            ),
+            AdaptedKeyInput::FocusTraversal(FocusTraversalDirection::Backward)
+        );
+        assert_eq!(
+            adapt_key_input(Key::Tab, false, KeyModifiers::default()),
+            AdaptedKeyInput::Ignored
+        );
+    }
     use winit::dpi::PhysicalPosition;
 
     #[test]

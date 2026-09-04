@@ -5,7 +5,7 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::input::{AdaptedGesture, WinitGestureAdapter};
+use crate::input::{AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, adapt_key_input};
 use crate::platform::WinitPlatformHost;
 pub use novadraw::{
     BackendCapabilities, FigureEvent, FigureId, FigureTree, Key, KeyModifiers, MouseButton,
@@ -484,6 +484,16 @@ impl ApplicationHandler<()> for DemoApp {
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 let pressed = event.state == winit::event::ElementState::Pressed;
+                if map_key(event.physical_key) == Some(Key::Tab) {
+                    if let AdaptedKeyInput::FocusTraversal(direction) =
+                        adapt_key_input(Key::Tab, pressed, self.modifiers)
+                    {
+                        self.dispatch_input(|runtime| {
+                            runtime.traverse_focus(direction);
+                        });
+                    }
+                    return;
+                }
                 if !pressed {
                     if let Some(key) = map_key(event.physical_key) {
                         let modifiers = self.modifiers;

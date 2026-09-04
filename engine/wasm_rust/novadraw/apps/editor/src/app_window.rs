@@ -5,7 +5,9 @@ use crate::scene_manager::{DPI_TEST_PROBE_BOUNDS, SceneType};
 use crate::system::{EditorRuntime, RawPointerInput};
 use novadraw::backend::vello::VelloRenderer;
 use novadraw::{Key, KeyModifiers};
-use novadraw_apps::{AdaptedGesture, WinitGestureAdapter, WinitPlatformHost};
+use novadraw_apps::{
+    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,
+};
 use tracing::info;
 use winit::dpi;
 use winit::event::{ElementState, MouseButton as WinitMouseButton};
@@ -304,6 +306,17 @@ impl ApplicationHandler<()> for GraphicsApp {
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 let engine_key = map_key(event.physical_key);
+                if engine_key == Some(Key::Tab) {
+                    if let AdaptedKeyInput::FocusTraversal(direction) = adapt_key_input(
+                        Key::Tab,
+                        event.state == ElementState::Pressed,
+                        self.modifiers,
+                    ) && let Some(system) = &mut self.system
+                    {
+                        system.traverse_focus(direction);
+                    }
+                    return;
+                }
                 if let (Some(system), Some(key)) = (&mut self.system, engine_key) {
                     match event.state {
                         ElementState::Pressed => system.dispatch_key_pressed(key, self.modifiers),
