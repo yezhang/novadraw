@@ -92,7 +92,7 @@
 - [x] M6 `apps/native/event-app`
 - [x] M8 `apps/native/scroll-pane-demo`
 - [x] M8 `apps/native/viewport-app` 4 场景视觉验证
-- [ ] D2 `layer-freeform` Native/Web 人工验收（自动门禁已通过）
+- [ ] D2 `layer-freeform` Native/Web 人工验收（Native 已通过，Web 待验收）
 - [ ] M9 `apps/native/connections-demo`
 - [ ] M10 `apps/native/shape-app`
 - [ ] M10 `apps/native/border-app`

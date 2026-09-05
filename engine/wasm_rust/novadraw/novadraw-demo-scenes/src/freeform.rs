@@ -103,6 +103,31 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         (content, overlay)
     };
 
+    for x in (-100..=700).step_by(100) {
+        runtime.add_figure(
+            content_layer,
+            Box::new(RectangleFigure::new_with_color(
+                f64::from(x),
+                -80.0,
+                2.0,
+                520.0,
+                Color::hex("#dfe6ee"),
+            )),
+        );
+    }
+    for y in (-50..=450).step_by(100) {
+        runtime.add_figure(
+            content_layer,
+            Box::new(RectangleFigure::new_with_color(
+                -120.0,
+                f64::from(y),
+                820.0,
+                2.0,
+                Color::hex("#dfe6ee"),
+            )),
+        );
+    }
+
     for (bounds, fill) in [
         (
             Rectangle::new(CONTENT_MIN_X, CONTENT_MIN_Y, 100.0, 80.0),
@@ -233,7 +258,10 @@ pub fn suite() -> DemoSuite {
 mod tests {
     use std::sync::Arc;
 
-    use novadraw::{MouseLocationZoomScrollPolicy, Point};
+    use novadraw::{
+        GesturePhase, GestureSessionId, KeyModifiers, MouseLocationZoomScrollPolicy, Point,
+        ZoomEvent,
+    };
 
     use super::*;
 
@@ -312,5 +340,23 @@ mod tests {
         assert_eq!(viewport.view_location(), Point::new(30.0, 20.0));
         assert_eq!(viewport.horizontal_range().maximum, CONTENT_MAX_X);
         assert_eq!(viewport.vertical_range().maximum, CONTENT_MAX_Y);
+    }
+
+    #[test]
+    fn blank_viewport_area_routes_zoom_to_direct_scalable_contents() {
+        let demo = build_demo(1.0, (0.0, 0.0));
+        let scalable = demo.scalable.clone();
+        let mut runtime = Runtime::new(demo.graph);
+
+        runtime.dispatch_zoom(ZoomEvent::new(
+            PANE_X + 20.0,
+            PANE_Y + 20.0,
+            2.0,
+            GesturePhase::Impulse,
+            KeyModifiers::default(),
+            GestureSessionId::IMPULSE,
+        ));
+
+        assert_eq!(scalable.scale(), 2.0);
     }
 }

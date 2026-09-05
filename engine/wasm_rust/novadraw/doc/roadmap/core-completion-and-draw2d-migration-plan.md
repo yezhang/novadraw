@@ -460,9 +460,15 @@ D2.5 自动验证结果：
   content-domain anchor zoom 三项 headless case；
 - `novadraw-demo-scenes` 全量迁移到显式 `FigureTreeBuilder`，消除 D2.1 收窄原始
   topology mutator 后遗留的跨 crate 旧入口；
-- `novadraw-demo-scenes` 5 项测试和库级 Clippy 通过；
-- Native/Vello 与 Web 构建在当前沙箱中仍被 Xcode clang 执行权限阻断；
-- D2.5 保持 `in_progress`，等待 macOS 与 Web 人工视觉/交互验收。
+- 修复 Viewport 对 direct Freeform contents 追加 presentation-bounds clip 的问题，负/正
+  extent 边界内容在 Native 截图中均可见；
+- 空白 Viewport target 会把 zoom 路由到 direct scalable contents；场景增加坐标网格，
+  使 pinch anchor 可观察；
+- Native 截图改用 retained texture 离屏提交，不依赖 swapchain drawable，并统一输出到
+  `target/visual-verification/screenshots/`；
+- `novadraw-demo-scenes` 6 项测试、D2 Freeform 18 项、M8 Viewport 24 项及相关库级
+  Clippy 通过；
+- Native/Vello 人工复验通过；D2.5 保持 `in_progress`，等待 Web 人工视觉/交互验收。
 
 评审点：
 
