@@ -364,6 +364,11 @@ Direct contents 同时具备 Freeform 与 ScalableFigure capability 时，Viewpo
 上述 content-domain 公式。仅有外层 scalable wrapper、但未显式转发 Freeform
 capability 时，Viewport 不得越过 wrapper 猜测后代 extent。
 
+ViewportLayout 必须声明 child-first validation 依赖：先使 direct contents 的
+freeform extent 稳定，再计算本轮 envelope。若范围收缩使 RangeModel value 被 clamp，
+layout commit 必须同时提交 `viewLocation` property、coordinate-system change 以及
+viewport 和其父容器的 repaint；不能只修改 RangeModel 而遗漏变换失效与 damage。
+
 ## 7. 更新、Damage 与通知
 
 Freeform extent 重算进入既有 validation 收敛循环：

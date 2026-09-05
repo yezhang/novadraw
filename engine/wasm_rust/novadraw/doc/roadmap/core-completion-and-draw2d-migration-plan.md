@@ -30,7 +30,7 @@ Novadraw 已具备完整的核心执行骨架：
 
 当前阻塞项：
 
-1. D2 Layer/Freeform 尚未完成契约评审与实现；
+1. D2 Layer/Freeform 尚未完成 Demo 与人工验收；
 2. M9 Connection 体系尚未实现；
 3. M10 文本、图像与控件产品面尚未完成；
 4. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
@@ -382,7 +382,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - intrinsic size fallback；
    - 保留负坐标的 LayoutSnapshot/LayoutOutput 提交。
 5. **D2.4 Viewport / Zoom 集成**
-   - 状态：`not_started`；
+   - 状态：`complete`；
    - freeform extent 与内容原点处 viewport baseline 合并；
    - content-domain RangeModel 与非零/负 minimum；
    - ScalableFreeformLayeredPane 复用现有 scale state；
@@ -432,6 +432,24 @@ D2.3 执行结果：
 - layout 保留负 origin，无约束 child 保持现有 bounds；
 - constraint 类型错误在 LayoutOutput 提交前失败，不产生部分 child bounds 更新；
 - `d2_freeform_contract` 扩展至 13 项并全部通过。
+
+D2.4 执行结果：
+
+- 新增 `ScalableFreeformLayeredPane`，在同一 Figure 上组合 Layer、Freeform 与
+  ScalableFigure capability，并复用既有 `ScaleRuntime` / `ScaleHandle`；
+- Viewport 在 direct contents 具备 Freeform capability 时，先验证 child extent，再以
+  `union(freeform_extent, viewport_baseline)` 更新 content-domain RangeModel；
+- RangeModel 的 minimum、maximum、extent 与 value 均保持未缩放 content units，
+  Viewport child transform 统一执行 `(content_point - origin) * scale`；
+- ZoomManager 在 Freeform 模式使用 content-domain anchor 公式，fit 操作读取派生
+  extent；普通 Viewport 的既有 scaled-range 行为保持不变；
+- extent 收缩导致 origin clamp 时，通过 LayoutOutput 在同一 validation 事务提交
+  viewLocation property、coordinate-system change 以及 viewport/parent damage；
+- `d2_freeform_contract` 扩展至 17 项，`m8_viewport_contract` 24 项和
+  `d2_layer_contract` 7 项全部通过；
+- `cargo check -p novadraw-scene --tests` 与
+  `cargo clippy -p novadraw-scene --lib -- -D warnings` 通过；
+- 全包测试仍受当前沙箱禁止执行 Xcode clang 阻断，不是 Rust 代码诊断失败。
 
 评审点：
 
