@@ -5,6 +5,7 @@
 mod border_layout;
 mod fill_layout;
 mod flow_layout;
+mod freeform_layout;
 mod grid_layout;
 mod stack_layout;
 mod toolbar_layout;
@@ -13,6 +14,7 @@ mod xy_layout;
 pub use border_layout::{BorderConstraint, BorderLayout, BorderRegion};
 pub use fill_layout::FillLayout;
 pub use flow_layout::{FlowDirection, FlowLayout};
+pub use freeform_layout::{FreeformConstraint, FreeformConstraintError, FreeformLayout};
 pub use grid_layout::{GridAlignment, GridConstraint, GridLayout};
 pub use stack_layout::StackLayout;
 pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};

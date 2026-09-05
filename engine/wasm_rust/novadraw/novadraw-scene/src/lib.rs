@@ -49,9 +49,10 @@ pub use graph::{
 pub use host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
-    GridAlignment, GridConstraint, GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation,
-    LayoutManager, LayoutOutput, LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout,
-    ToolbarOrientation, XYConstraint, XYLayout,
+    FreeformConstraint, FreeformConstraintError, FreeformLayout, GridAlignment, GridConstraint,
+    GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
+    LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint,
+    XYLayout,
 };
 pub use novadraw_geometry::{Point, Rectangle};
 pub use runtime::context::{EventContext, SceneDispatchContext};

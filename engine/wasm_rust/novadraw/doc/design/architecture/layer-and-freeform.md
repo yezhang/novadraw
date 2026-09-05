@@ -300,15 +300,16 @@ domain 中的显式位置：
 
 ```rust
 pub struct FreeformConstraint {
-    pub origin: Point,
-    pub width: Option<f64>,
-    pub height: Option<f64>,
+    origin: Point,
+    width: Option<f64>,
+    height: Option<f64>,
 }
 ```
 
 `origin` 可为负；`None` 表示使用对应轴的 intrinsic size，`Some(0.0)` 是合法显式
-尺寸。不得使用 `-1` 或 zero 作为 fallback sentinel。显式负尺寸和非有限值在设置
-constraint 时拒绝。
+尺寸。约束通过校验构造器创建并以只读 accessor 访问，不得使用结构体字面量绕过
+校验。不得使用 `-1` 或 zero 作为 fallback sentinel；显式负尺寸和非有限值在构造时
+拒绝。
 
 默认策略不平移 children，不因新增更靠左或更靠上的 child 改写已有 child bounds。
 这保证持久化坐标、anchor 和事件坐标稳定。

@@ -377,10 +377,12 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - FreeformLayeredPane 与 `ChildClippingStrategy::OverflowVisible`；
    - typed property extent notification。
 4. **D2.3 FreeformLayout**
+   - 状态：`complete`；
    - typed rectangle constraint；
    - intrinsic size fallback；
    - 保留负坐标的 LayoutSnapshot/LayoutOutput 提交。
 5. **D2.4 Viewport / Zoom 集成**
+   - 状态：`not_started`；
    - freeform extent 与内容原点处 viewport baseline 合并；
    - content-domain RangeModel 与非零/负 minimum；
    - ScalableFreeformLayeredPane 复用现有 scale state；
@@ -422,6 +424,14 @@ D2.2 首批执行结果：
 - 新增 typed `freeform_extent` property 与区分 unknown/non-freeform/unvalidated 的查询错误；
 - `ChildClippingStrategy::OverflowVisible` 已统一接入 paint、hit-test 与 damage；
 - `d2_freeform_contract` 10 项、既有 clipping 回归和 14 项 damage repair 测试通过。
+
+D2.3 执行结果：
+
+- 新增 `FreeformConstraint` 校验构造器，区分 intrinsic fallback 与显式 zero；
+- `FreeformLayout` 从 LayoutSnapshot 计算 prospective extent，不读取 extent cache；
+- layout 保留负 origin，无约束 child 保持现有 bounds；
+- constraint 类型错误在 LayoutOutput 提交前失败，不产生部分 child bounds 更新；
+- `d2_freeform_contract` 扩展至 13 项并全部通过。
 
 评审点：
 

@@ -2,8 +2,9 @@ use slotmap::Key;
 
 use novadraw_render::RenderCommandKind;
 use novadraw_scene::{
-    FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformError, FreeformLayerFigure, NotificationEffect,
-    PropertyValue, Rectangle, RectangleFigure, UpdateManager,
+    FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
+    FreeformError, FreeformLayerFigure, FreeformLayout, LayoutError, NotificationEffect, Point,
+    PropertyValue, Rectangle, RectangleFigure, UpdateManager, XYConstraint,
 };
 
 #[test]
@@ -246,5 +247,96 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
     assert_eq!(
         canvas.damage().union(),
         Some(Rectangle::new(-40.0, -30.0, 15.0, 10.0))
+    );
+}
+
+#[test]
+fn freeform_constraint_rejects_invalid_values_and_accepts_explicit_zero() {
+    assert_eq!(
+        FreeformConstraint::at(Point::new(f64::NAN, 0.0)),
+        Err(FreeformConstraintError::NonFiniteOrigin)
+    );
+    assert_eq!(
+        FreeformConstraint::new(Point::new(0.0, 0.0), Some(-1.0), None),
+        Err(FreeformConstraintError::InvalidWidth)
+    );
+    assert_eq!(
+        FreeformConstraint::new(Point::new(0.0, 0.0), None, Some(f64::INFINITY)),
+        Err(FreeformConstraintError::InvalidHeight)
+    );
+    assert_eq!(
+        FreeformConstraint::fixed(Point::new(-5.0, -6.0), 0.0, 0.0)
+            .unwrap()
+            .width(),
+        Some(0.0)
+    );
+}
+
+#[test]
+fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
+    let mut tree = FigureTree::new();
+    let host = tree
+        .builder()
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+    let child = tree
+        .builder()
+        .add_child_to(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
+    tree.set_block_layout_manager(host, Box::new(FreeformLayout::new()));
+    tree.set_preferred_size(child, Some((40.0, 50.0)));
+    tree.set_constraint(
+        child,
+        FreeformConstraint::new(Point::new(-30.0, -20.0), None, Some(0.0)).unwrap(),
+    );
+
+    assert_eq!(tree.preferred_size(host, -1.0, -1.0), Some((40.0, 20.0)));
+    assert_eq!(
+        tree.freeform_extent(host),
+        Err(FreeformError::Unvalidated(host))
+    );
+
+    tree.revalidate(host);
+
+    assert_eq!(
+        tree.figure_bounds(child),
+        Some(Rectangle::new(-30.0, -20.0, 40.0, 0.0))
+    );
+    assert_eq!(
+        tree.freeform_extent(host),
+        Ok(Rectangle::new(-30.0, -20.0, 40.0, 0.0))
+    );
+}
+
+#[test]
+fn invalid_constraint_type_does_not_partially_commit_layout_output() {
+    let mut tree = FigureTree::new();
+    let host = tree
+        .builder()
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+    let first = tree
+        .builder()
+        .add_child_to(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
+    let second = tree
+        .builder()
+        .add_child_to(host, Box::new(RectangleFigure::new(5.0, 6.0, 7.0, 8.0)));
+    tree.set_block_layout_manager(host, Box::new(FreeformLayout::new()));
+    tree.set_constraint(
+        first,
+        FreeformConstraint::fixed(Point::new(20.0, 30.0), 40.0, 50.0).unwrap(),
+    );
+    tree.set_constraint(second, XYConstraint::at_size(60.0, 70.0, 80.0, 90.0));
+
+    let error = tree.try_revalidate(host).unwrap_err();
+
+    assert!(matches!(
+        error,
+        LayoutError::ConstraintTypeMismatch {
+            container,
+            child,
+            ..
+        } if container == host && child == second
+    ));
+    assert_eq!(
+        tree.figure_bounds(first),
+        Some(Rectangle::new(1.0, 2.0, 3.0, 4.0))
     );
 }
