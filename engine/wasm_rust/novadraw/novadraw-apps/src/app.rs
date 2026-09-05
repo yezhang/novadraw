@@ -20,10 +20,9 @@ pub use winit::keyboard::{KeyCode, PhysicalKey};
 pub use winit::window::WindowAttributes;
 pub use winit::{application::ApplicationHandler, window::WindowId};
 
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 const SCREENSHOT_RENDER_RETRY_LIMIT: usize = 8;
-const SCREENSHOT_RENDER_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(16);
 
 /// 演示应用
 ///
@@ -65,6 +64,7 @@ pub struct DemoApp {
     height: f64,
     use_update_manager: bool,
     screenshot_mode: Option<usize>,
+    screenshot_attempts: usize,
     cursor_position: Option<(f64, f64)>,
     modifiers: KeyModifiers,
     gesture_adapter: WinitGestureAdapter,
@@ -81,7 +81,9 @@ impl DemoApp {
         app_name: &str,
         screenshot_mode: Option<usize>,
     ) -> Self {
-        let default_scene = if screenshot_mode.is_some() { 0 } else { 4 };
+        let default_scene = screenshot_mode
+            .filter(|mode| *mode != usize::MAX)
+            .unwrap_or_else(|| if screenshot_mode.is_some() { 0 } else { 4 });
         Self {
             scenes,
             current_scene_idx: default_scene,
@@ -94,6 +96,7 @@ impl DemoApp {
             height,
             use_update_manager: true,
             screenshot_mode,
+            screenshot_attempts: 0,
             cursor_position: None,
             modifiers: KeyModifiers::default(),
             gesture_adapter: WinitGestureAdapter::new(),
@@ -162,6 +165,27 @@ impl DemoApp {
         outcome
     }
 
+    fn render_screenshot_frame(&mut self) -> RenderOutcome {
+        let Some(host) = &self.host else {
+            return RenderOutcome::Skipped;
+        };
+        let Some(renderer) = &mut self.renderer else {
+            return RenderOutcome::Skipped;
+        };
+        let Some(runtime) = &mut self.runtime else {
+            return RenderOutcome::Skipped;
+        };
+        runtime.request_full_redraw();
+        let surface = host.surface_info();
+        let Some(submission) = runtime.prepare_submission(surface, renderer.capabilities()) else {
+            return RenderOutcome::Skipped;
+        };
+        let frame_id = submission.frame_id;
+        let outcome = renderer.render_for_screenshot(&submission);
+        runtime.complete_submission(frame_id, outcome);
+        outcome
+    }
+
     fn dispatch_input(&mut self, action: impl FnOnce(&mut Runtime)) {
         let Some(runtime) = &mut self.runtime else {
             return;
@@ -186,16 +210,11 @@ impl DemoApp {
     /// 截图并保存到文件
     ///
     /// 使用 VelloRenderer 直接捕获渲染结果
-    /// 截图保存到 `{app目录}/screenshot/{app_name}_{scene}_{timestamp}.png`
+    /// 截图保存到 `target/visual-verification/screenshots/`。
     pub fn screenshot(&self, scene_name: &str) -> std::io::Result<std::path::PathBuf> {
-        // 获取应用根目录（通过 CARGO_MANIFEST_DIR 环境变量）
-        let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-            .map(std::path::PathBuf::from)
-            .or_else(|_| std::env::current_dir())
-            .unwrap_or_else(|_| std::path::PathBuf::from("."));
-
-        // 创建 screenshot 目录
-        let screenshot_dir = manifest_dir.join("screenshot");
+        let screenshot_dir = std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join("target/visual-verification/screenshots");
         std::fs::create_dir_all(&screenshot_dir)?;
 
         // 生成文件名：{app_name}_{scene}_{timestamp}.png
@@ -230,69 +249,47 @@ impl DemoApp {
     }
 
     /// 处理截图模式
-    fn handle_screenshot_mode(&mut self, mode: usize) {
-        // mode: usize::MAX = 截图所有场景, 其他值 = 截图指定场景
-        let scenes_to_capture: Vec<usize> = if mode == usize::MAX {
-            // 截图所有场景
-            (0..self.scenes.len()).collect()
-        } else {
-            // 截图指定场景
-            vec![mode]
-        };
+    fn handle_screenshot_mode(&mut self, mode: usize, event_loop: &ActiveEventLoop) {
+        let idx = self.current_scene_idx;
+        if idx >= self.scenes.len() {
+            error!("场景索引 {} 超出范围", idx);
+            std::process::exit(1);
+        }
 
-        info!(
-            "截图模式: {:?}, 场景数量: {}",
-            scenes_to_capture,
-            self.scenes.len()
-        );
-
-        let mut failed = false;
-        for idx in scenes_to_capture {
-            if idx >= self.scenes.len() {
-                warn!("场景索引 {} 超出范围", idx);
-                continue;
-            }
-
-            info!("截图场景 {}...", idx);
-
-            // 切换到目标场景
-            self.switch_scene(idx);
-
-            let presented = (0..SCREENSHOT_RENDER_RETRY_LIMIT).any(|_| match self.render() {
-                RenderOutcome::Presented => true,
-                RenderOutcome::Retry => {
-                    std::thread::sleep(SCREENSHOT_RENDER_RETRY_DELAY);
-                    false
-                }
-                RenderOutcome::Skipped => {
-                    std::thread::sleep(SCREENSHOT_RENDER_RETRY_DELAY);
-                    false
-                }
-            });
-            if !presented {
+        info!("截图场景 {}...", idx);
+        let presented = self.render_screenshot_frame() == RenderOutcome::Presented;
+        if !presented {
+            self.screenshot_attempts += 1;
+            if self.screenshot_attempts >= SCREENSHOT_RENDER_RETRY_LIMIT {
                 error!("场景 {} 未产生可截图帧", self.scenes[idx].0);
-                failed = true;
-                continue;
+                std::process::exit(1);
             }
+            if let Some(host) = &self.host {
+                host.request_redraw();
+            }
+            return;
+        }
+        self.screenshot_attempts = 0;
 
-            // 截图
-            let scene_name = self.scenes[idx].0;
-            match self.screenshot(scene_name) {
-                Ok(path) => {
-                    info!("截图成功: {}", path.display());
-                    // 分析截图
-                    self.analyze_screenshot(&path, scene_name);
-                }
-                Err(e) => {
-                    error!("截图失败: {}", e);
-                    failed = true;
-                }
+        let scene_name = self.scenes[idx].0;
+        match self.screenshot(scene_name) {
+            Ok(path) => {
+                info!("截图成功: {}", path.display());
+                self.analyze_screenshot(&path, scene_name);
+            }
+            Err(e) => {
+                error!("截图失败: {}", e);
+                std::process::exit(1);
             }
         }
 
+        if mode == usize::MAX && idx + 1 < self.scenes.len() {
+            self.switch_scene(idx + 1);
+            return;
+        }
         info!("截图完成，应用退出");
-        // 截图完成后退出应用
-        std::process::exit(i32::from(failed));
+        self.screenshot_mode = None;
+        event_loop.exit();
     }
 
     /// 分析截图结果
@@ -338,11 +335,6 @@ impl ApplicationHandler<()> for DemoApp {
             self.switch_scene(idx);
         }
 
-        // 截图模式处理
-        if let Some(screenshot_mode) = self.screenshot_mode {
-            self.handle_screenshot_mode(screenshot_mode);
-        }
-
         info!("应用启动: {}", self.title);
     }
 
@@ -357,6 +349,10 @@ impl ApplicationHandler<()> for DemoApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                if let Some(screenshot_mode) = self.screenshot_mode {
+                    self.handle_screenshot_mode(screenshot_mode, event_loop);
+                    return;
+                }
                 if let Some(host) = &self.host {
                     host.begin_redraw();
                 }

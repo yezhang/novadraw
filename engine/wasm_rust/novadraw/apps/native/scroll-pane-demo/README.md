@@ -10,6 +10,8 @@ cargo run -p scroll-pane-demo -- --verify
 cargo run -p scroll-pane-demo -- --screenshot-all
 ```
 
+截图输出到 `target/visual-verification/screenshots/`。
+
 ## 场景
 
 | 场景 | 验证内容 |

@@ -1100,6 +1100,69 @@ impl RenderBackend for VelloRenderer {
 }
 
 impl VelloRenderer {
+    /// Records a complete submission into the retained texture without acquiring
+    /// a window surface drawable.
+    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+    pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        self.resize(
+            submission.surface.pixel_width,
+            submission.surface.pixel_height,
+            submission.surface.scale_factor,
+        );
+        self.apply_pending_resize();
+        if self.surface_suspended {
+            return RenderOutcome::Skipped;
+        }
+
+        let (width, height) = self.current_surface_size();
+        let full = Rectangle::new(
+            0.0,
+            0.0,
+            width as f64 / self.scale_factor,
+            height as f64 / self.scale_factor,
+        );
+        self.scene = vello::Scene::new();
+        self.state_stack.clear();
+        self.state_stack.push(RenderState::default());
+        self.push_clip_layer(&RenderClip {
+            transform: Transform::IDENTITY,
+            rect: [
+                DVec2::new(full.x, full.y),
+                DVec2::new(full.x + full.width, full.y + full.height),
+            ],
+        });
+        for command in &submission.commands {
+            self.render_command(command);
+        }
+        self.scene.pop_layer();
+
+        self.ensure_retained_texture();
+        let retained_view = self
+            .retained_texture
+            .as_ref()
+            .expect("Retained texture not created")
+            .1
+            .clone();
+        let device_handle = &self.render_context.devices[self.surface.dev_id];
+        self.renderers[self.surface.dev_id]
+            .as_mut()
+            .expect("Vello renderer not created")
+            .render_to_texture(
+                &device_handle.device,
+                &device_handle.queue,
+                &self.scene,
+                &retained_view,
+                &vello::RenderParams {
+                    base_color: VelloColor::new(scratch_base_rgba(true)),
+                    width,
+                    height,
+                    antialiasing_method: AaConfig::Msaa16,
+                },
+            )
+            .expect("Failed to render screenshot texture");
+        RenderOutcome::Presented
+    }
+
     /// 截图并保存为 PNG 文件
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn screenshot(&self, path: &std::path::Path) -> std::io::Result<()> {
