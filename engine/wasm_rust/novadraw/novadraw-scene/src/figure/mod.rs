@@ -402,10 +402,17 @@ pub trait Figure: AsAny {
     fn layer(&self) -> Option<&dyn Layer> {
         None
     }
+
+    fn freeform(&self) -> Option<&dyn Freeform> {
+        None
+    }
 }
 
 /// Marker capability for Figures accepted by a LayeredPane.
 pub trait Layer {}
+
+/// Marker capability for Figures whose content extent is derived from descendants.
+pub trait Freeform {}
 
 /// Figure 的可选容器能力。
 pub trait FigureContainer {

@@ -90,6 +90,7 @@ pub enum PropertyValue {
     Color(Color),
     Cursor(CursorIcon),
     Point(Point),
+    Rectangle(Rectangle),
     Text(String),
     Block(Option<FigureId>),
     None,

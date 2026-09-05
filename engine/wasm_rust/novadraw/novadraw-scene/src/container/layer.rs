@@ -4,8 +4,8 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::{
-    Bounded, ChildPolicy, Figure, FigureContainer, FigureId, GraphMutationError, HitParticipation,
-    Layer, Runtime,
+    Bounded, ChildPolicy, Figure, FigureContainer, FigureId, Freeform, GraphMutationError,
+    HitParticipation, Layer, Runtime,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -182,6 +182,65 @@ impl FigureContainer for LayerFigure {}
 impl Layer for LayerFigure {}
 
 #[derive(Clone)]
+pub struct FreeformLayerFigure {
+    bounds: Rectangle,
+}
+
+impl FreeformLayerFigure {
+    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self {
+            bounds: Rectangle::new(x, y, width, height),
+        }
+    }
+}
+
+impl Bounded for FreeformLayerFigure {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "FreeformLayerFigure"
+    }
+}
+
+impl Figure for FreeformLayerFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "FreeformLayerFigure"
+    }
+
+    fn paint_figure(&self, _gc: &mut NdCanvas) {}
+
+    fn hit_participation(&self) -> HitParticipation {
+        HitParticipation::DescendantsOnly
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+
+    fn layer(&self) -> Option<&dyn Layer> {
+        Some(self)
+    }
+
+    fn freeform(&self) -> Option<&dyn Freeform> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for FreeformLayerFigure {}
+impl Layer for FreeformLayerFigure {}
+impl Freeform for FreeformLayerFigure {}
+
+#[derive(Clone)]
 pub struct LayeredPane {
     bounds: Rectangle,
 }
@@ -239,6 +298,70 @@ impl FigureContainer for LayeredPane {
 }
 
 impl Layer for LayeredPane {}
+
+#[derive(Clone)]
+pub struct FreeformLayeredPane {
+    bounds: Rectangle,
+}
+
+impl FreeformLayeredPane {
+    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self {
+            bounds: Rectangle::new(x, y, width, height),
+        }
+    }
+}
+
+impl Bounded for FreeformLayeredPane {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "FreeformLayeredPane"
+    }
+}
+
+impl Figure for FreeformLayeredPane {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "FreeformLayeredPane"
+    }
+
+    fn paint_figure(&self, _gc: &mut NdCanvas) {}
+
+    fn hit_participation(&self) -> HitParticipation {
+        HitParticipation::DescendantsOnly
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+
+    fn layer(&self) -> Option<&dyn Layer> {
+        Some(self)
+    }
+
+    fn freeform(&self) -> Option<&dyn Freeform> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for FreeformLayeredPane {
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Layered
+    }
+}
+
+impl Layer for FreeformLayeredPane {}
+impl Freeform for FreeformLayeredPane {}
 
 pub struct LayeredPaneHandle<'a> {
     pane_id: FigureId,

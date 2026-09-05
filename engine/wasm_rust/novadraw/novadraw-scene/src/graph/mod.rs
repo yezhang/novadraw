@@ -9,7 +9,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use novadraw_geometry::{Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
@@ -47,6 +47,50 @@ slotmap::new_key_type! {
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
 pub const DEFAULT_VALIDATION_BUDGET: usize = 10_000;
+pub const FREEFORM_EXTENT_PROPERTY: &str = "freeform_extent";
+
+fn finite_rectangle(rectangle: Rectangle) -> bool {
+    rectangle.x.is_finite()
+        && rectangle.y.is_finite()
+        && rectangle.width.is_finite()
+        && rectangle.height.is_finite()
+}
+
+fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rectangle> {
+    let corners = [
+        transform.transform_point(rectangle.x, rectangle.y),
+        transform.transform_point(rectangle.x + rectangle.width, rectangle.y),
+        transform.transform_point(rectangle.x, rectangle.y + rectangle.height),
+        transform.transform_point(
+            rectangle.x + rectangle.width,
+            rectangle.y + rectangle.height,
+        ),
+    ];
+    if corners
+        .iter()
+        .flat_map(|(x, y)| [x, y])
+        .any(|value| !value.is_finite())
+    {
+        return None;
+    }
+    let left = corners
+        .iter()
+        .map(|(x, _)| *x)
+        .fold(f64::INFINITY, f64::min);
+    let top = corners
+        .iter()
+        .map(|(_, y)| *y)
+        .fold(f64::INFINITY, f64::min);
+    let right = corners
+        .iter()
+        .map(|(x, _)| *x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let bottom = corners
+        .iter()
+        .map(|(_, y)| *y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    Some(Rectangle::new(left, top, right - left, bottom - top))
+}
 
 /// Figure 树结构变更失败。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -92,6 +136,25 @@ pub enum ValidationError {
         invalidation_chain: Vec<FigureId>,
     },
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FreeformError {
+    UnknownFigure(FigureId),
+    NotFreeform(FigureId),
+    Unvalidated(FigureId),
+}
+
+impl fmt::Display for FreeformError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
+            Self::NotFreeform(id) => write!(formatter, "Figure is not freeform: {id:?}"),
+            Self::Unvalidated(id) => write!(formatter, "freeform extent is not validated: {id:?}"),
+        }
+    }
+}
+
+impl Error for FreeformError {}
 
 impl fmt::Display for ValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -205,6 +268,38 @@ pub struct LayoutState {
     pub(crate) manager: Option<Box<dyn LayoutManager>>,
     pub(crate) constraints: std::collections::HashMap<FigureId, Box<dyn LayoutConstraint>>,
     cache: RefCell<LayoutCache>,
+    freeform: Option<FreeformState>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FreeformState {
+    cached_extent: Rectangle,
+    extent_generation: Option<u64>,
+    dirty: bool,
+}
+
+impl Default for FreeformState {
+    fn default() -> Self {
+        Self {
+            cached_extent: Rectangle::ZERO,
+            extent_generation: None,
+            dirty: true,
+        }
+    }
+}
+
+impl FreeformState {
+    pub fn cached_extent(&self) -> Rectangle {
+        self.cached_extent
+    }
+
+    pub fn extent_generation(&self) -> Option<u64> {
+        self.extent_generation
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -230,6 +325,13 @@ impl CachedMeasurement {
 }
 
 impl LayoutState {
+    fn for_figure(figure: &dyn super::Figure) -> Self {
+        Self {
+            freeform: figure.freeform().is_some().then(FreeformState::default),
+            ..Self::default()
+        }
+    }
+
     pub fn has_manager(&self) -> bool {
         self.manager.is_some()
     }
@@ -246,12 +348,19 @@ impl LayoutState {
         self.cache.borrow().validated_generation
     }
 
+    pub fn freeform_state(&self) -> Option<&FreeformState> {
+        self.freeform.as_ref()
+    }
+
     fn invalidate(&mut self, reason: LayoutInvalidation) {
         let cache = self.cache.get_mut();
         cache.generation = cache.generation.wrapping_add(1);
         cache.preferred = None;
         cache.minimum = None;
         cache.validated_generation = None;
+        if let Some(freeform) = self.freeform.as_mut() {
+            freeform.dirty = true;
+        }
         if let Some(manager) = self.manager.as_mut() {
             manager.invalidate(reason);
         }
@@ -790,6 +899,7 @@ impl FigureTree {
     ) -> Result<FigureId, GraphMutationError> {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
+        let layout = LayoutState::for_figure(figure.as_ref());
         let parent_depth = self
             .blocks
             .get(parent_id)
@@ -823,7 +933,7 @@ impl FigureTree {
             parent: Some(parent_id),
             depth,
             figure,
-            layout: LayoutState::default(),
+            layout,
             state: NodeState {
                 bounds,
                 insets,
@@ -1252,6 +1362,84 @@ impl FigureTree {
         }
     }
 
+    pub fn freeform_extent(&self, block_id: FigureId) -> Result<Rectangle, FreeformError> {
+        let block = self
+            .blocks
+            .get(block_id)
+            .ok_or(FreeformError::UnknownFigure(block_id))?;
+        let state = block
+            .layout
+            .freeform
+            .as_ref()
+            .ok_or(FreeformError::NotFreeform(block_id))?;
+        if state.extent_generation.is_none() {
+            return Err(FreeformError::Unvalidated(block_id));
+        }
+        Ok(state.cached_extent)
+    }
+
+    fn recompute_freeform_extent(&mut self, block_id: FigureId) -> Result<(), LayoutError> {
+        let dirty = self
+            .blocks
+            .get(block_id)
+            .and_then(|block| block.layout.freeform.as_ref())
+            .is_some_and(|state| state.dirty);
+        if !dirty {
+            return Ok(());
+        }
+
+        let children = self.blocks[block_id].children.clone();
+        let mut extent: Option<Rectangle> = None;
+        for child_id in children {
+            if self.blocks[child_id].layout.freeform.is_some() {
+                self.recompute_freeform_extent(child_id)?;
+            }
+            let child = &self.blocks[child_id];
+            let contribution = if let Some(state) = child.layout.freeform.as_ref() {
+                let child_extent = state.cached_extent;
+                let bounds = child.figure_bounds();
+                let transform = Affine2D::from_translation(bounds.x, bounds.y)
+                    * child.child_transform().affine();
+                transform_rectangle(transform, child_extent)
+                    .ok_or(LayoutError::NonFiniteGeometry { figure: child_id })?
+            } else {
+                child.figure_bounds()
+            };
+            if !finite_rectangle(contribution) {
+                return Err(LayoutError::NonFiniteGeometry { figure: child_id });
+            }
+            extent = Some(match extent {
+                Some(current) => current.union(contribution),
+                None => contribution,
+            });
+        }
+
+        let new_extent = extent.unwrap_or(Rectangle::ZERO);
+        let (old_extent, changed) = {
+            let block = &mut self.blocks[block_id];
+            let generation = block.layout.generation();
+            let state = block
+                .layout
+                .freeform
+                .as_mut()
+                .expect("dirty freeform state must exist");
+            let old_extent = state.cached_extent;
+            state.cached_extent = new_extent;
+            state.extent_generation = Some(generation);
+            state.dirty = false;
+            (old_extent, old_extent != new_extent)
+        };
+        if changed {
+            self.record_property_change(
+                block_id,
+                FREEFORM_EXTENT_PROPERTY,
+                PropertyValue::Rectangle(old_extent),
+                PropertyValue::Rectangle(new_extent),
+            );
+        }
+        Ok(())
+    }
+
     /// 执行更新（两阶段：布局 + 重绘）
     ///
     /// 对应 draw2d: DeferredUpdateManager.performUpdate()
@@ -1397,6 +1585,7 @@ impl FigureTree {
         }
 
         self.revalidate_children_with_update(update_manager, container_id)?;
+        self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
             if let Some(lifecycle) = block.figure.lifecycle() {
@@ -1500,6 +1689,7 @@ impl FigureTree {
         for child_id in children {
             self.try_revalidate(child_id)?;
         }
+        self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
             if let Some(lifecycle) = block.figure.lifecycle() {
@@ -2438,6 +2628,7 @@ impl FigureTree {
             });
         }
         self.emit_ancestor_moved(block_id);
+        self.mark_freeform_ancestor_extents_dirty(block_id);
     }
 
     fn emit_ancestor_moved(&mut self, ancestor_id: FigureId) {
@@ -2498,6 +2689,7 @@ impl FigureTree {
         if translate {
             self.emit_ancestor_moved(block_id);
         }
+        self.mark_freeform_ancestor_extents_dirty(block_id);
     }
 
     /// 设置节点 bounds 并进入 Draw2D 等价的更新链路。
@@ -2532,6 +2724,7 @@ impl FigureTree {
             return false;
         }
         let parent_id = block.parent;
+        let freeform_ancestor = self.nearest_freeform_ancestor(block_id);
         let visible = self.is_effectively_visible(block_id);
 
         if visible {
@@ -2548,6 +2741,8 @@ impl FigureTree {
 
         if resize {
             self.mark_invalid(update_manager, block_id);
+        } else if let Some(freeform_ancestor) = freeform_ancestor {
+            update_manager.add_invalid_figure(freeform_ancestor);
         }
 
         if visible {
@@ -2645,6 +2840,27 @@ impl FigureTree {
 }
 
 impl FigureTree {
+    fn nearest_freeform_ancestor(&self, block_id: FigureId) -> Option<FigureId> {
+        let parent = self.blocks.get(block_id)?.parent?;
+        self.blocks[parent].layout.freeform.as_ref()?;
+        Some(parent)
+    }
+
+    fn mark_freeform_ancestor_extents_dirty(&mut self, block_id: FigureId) {
+        let mut current = self.blocks.get(block_id).and_then(|block| block.parent);
+        while let Some(id) = current {
+            let Some(block) = self.blocks.get_mut(id) else {
+                break;
+            };
+            if block.layout.freeform.is_none() {
+                break;
+            }
+            block.is_valid = false;
+            block.layout.invalidate(LayoutInvalidation::Geometry);
+            current = block.parent;
+        }
+    }
+
     fn mark_validation_path_invalid(&mut self, block_id: FigureId) {
         self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Geometry);
     }

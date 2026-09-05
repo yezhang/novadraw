@@ -139,6 +139,9 @@ pub enum LayoutError {
         container: FigureId,
         child: FigureId,
     },
+    NonFiniteGeometry {
+        figure: FigureId,
+    },
 }
 
 impl fmt::Display for LayoutError {
@@ -155,6 +158,9 @@ impl fmt::Display for LayoutError {
             ),
             Self::InvalidChild { container, child } => {
                 write!(f, "{child:?} is not a direct child of {container:?}")
+            }
+            Self::NonFiniteGeometry { figure } => {
+                write!(f, "Figure {figure:?} produced non-finite layout geometry")
             }
         }
     }

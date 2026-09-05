@@ -23,27 +23,28 @@ pub mod style;
 
 pub use container::viewport;
 pub use container::{
-    DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, LayerError, LayerFigure, LayerKey,
-    LayerKeyError, LayerPlacement, LayeredPane, LayeredPaneHandle, MouseLocationZoomScrollPolicy,
-    RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel, RangeModelError,
-    RangeModelSnapshot, RangeProperty, ScalableFigure, ScalableLayeredPaneFigure, ScaleError,
-    ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
-    ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy,
-    ZoomViewportState,
+    DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, FreeformLayerFigure,
+    FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement,
+    LayeredPane, LayeredPaneHandle, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
+    RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
+    ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, ScrollBarFigure,
+    ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
+    ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
 };
 pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
 pub use figure::{
     AccessibleFigure, AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform,
     Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    HitParticipation, Layer, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
+    Freeform, HitParticipation, Layer, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
     RoundedRectangleFigure, Shape, TriangleFigure,
 };
 pub use graph as scene;
 pub use graph::{
-    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FigureId, FigureNode, FigureTree,
-    FigureTreeBuilder, GraphMutationError, IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState,
-    TreeQueryError, TreeSearch, TreeSearchContext, ValidationError,
+    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FigureId, FigureNode,
+    FigureTree, FigureTreeBuilder, FreeformError, FreeformState, GraphMutationError,
+    IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState, TreeQueryError, TreeSearch,
+    TreeSearchContext, ValidationError,
 };
 pub use host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
 pub use layout::{

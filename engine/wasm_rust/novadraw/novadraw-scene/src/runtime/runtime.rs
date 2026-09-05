@@ -10,10 +10,11 @@ use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
     CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
     FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey, LayerPlacement,
-    LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle, ResourceError,
-    ResourceRegistry, ResourceStatus, SceneDispatchContext, StackLayout, TreeOrderFocusTraversal,
-    UpdateEvent, UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
+    FreeformError, ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey,
+    LayerPlacement, LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle,
+    ResourceError, ResourceRegistry, ResourceStatus, SceneDispatchContext, StackLayout,
+    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
+    WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
@@ -63,6 +64,10 @@ impl Runtime {
 
     pub fn tree(&self) -> &FigureTree {
         &self.tree
+    }
+
+    pub fn freeform_extent(&self, figure: FigureId) -> Result<Rectangle, FreeformError> {
+        self.tree.freeform_extent(figure)
     }
 
     pub fn interaction(&self) -> &InteractionState {

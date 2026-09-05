@@ -370,7 +370,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - 构建期 FigureTreeBuilder、运行期 Runtime topology mutation；
    - key 唯一性、before/after 与原子失败契约。
 3. **D2.2 Freeform extent**
-   - 状态：`not_started`；
+   - 状态：`in_progress`；
    - LayoutState 中的可选 FreeformState 派生缓存；
    - 正负坐标、空容器和 nested freeform 范围；
    - bottom-up 失效传播与单 generation 线性重算；
@@ -412,6 +412,15 @@ D2.1 执行结果：
 - `cargo check -p novadraw-scene --tests` 与
   `cargo clippy -p novadraw-scene --lib -- -D warnings` 通过；
 - workspace/full-test 门禁受当前沙箱禁止执行 Xcode clang 阻断，不是代码诊断失败。
+
+D2.2 首批执行结果：
+
+- 新增 `Freeform` capability、`FreeformLayerFigure` 与 `FreeformLayeredPane`；
+- `LayoutState` 持有可选 `FreeformState`，缓存稳定 extent、generation 与 dirty 状态；
+- direct child border-box 与 nested freeform extent 按完整 edge transform 自底向上归并；
+- 空容器、负坐标、隐藏 child、presentation bounds 隔离和纯 translate 失效已覆盖；
+- 新增 typed `freeform_extent` property 与区分 unknown/non-freeform/unvalidated 的查询错误；
+- `d2_freeform_contract` 首批 6 项通过；OverflowVisible 三路径统一仍待下一批。
 
 评审点：
 

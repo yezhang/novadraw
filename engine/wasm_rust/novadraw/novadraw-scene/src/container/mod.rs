@@ -11,8 +11,8 @@ pub mod viewport;
 pub mod zoom;
 
 pub use layer::{
-    LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement, LayeredPane,
-    LayeredPaneHandle,
+    FreeformLayerFigure, FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError,
+    LayerPlacement, LayeredPane, LayeredPaneHandle,
 };
 pub use range_model::{
     DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
