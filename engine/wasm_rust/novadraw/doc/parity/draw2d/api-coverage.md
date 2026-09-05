@@ -289,7 +289,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 | `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height,set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
 | `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::{viewport,set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
 | `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments | `ScrollBarFigure` 与 Viewport 共享 RangeModel，支持 step/page/thumb drag；Lines/LogicalPixels 分级，wheel 未消费时沿祖先 fallback | verified | `m8_viewport_contract` + `scroll-pane-demo --verify` |
-| `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | `LayerFigure`、`LayeredPaneHandle`、`LayerKey` 与 `HitParticipation` 已验证；Freeform 类型与派生 `freeform_extent` 待 D2.2-D2.4 | partial | D2.1 Layer 契约完成；保留 nested extent/envelope 传播，不递归改写普通 child bounds |
+| `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | Layer 与 keyed pane 已验证；`FreeformLayerFigure`、`FreeformLayeredPane`、派生 extent、nested 映射和 OverflowVisible 已验证；FreeformLayout/Viewport 集成待 D2.3-D2.4 | partial | D2.1-D2.2 完成；不递归改写普通 child bounds |
 
 Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。
 

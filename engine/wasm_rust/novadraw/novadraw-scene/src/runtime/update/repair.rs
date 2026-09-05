@@ -17,7 +17,10 @@ use std::collections::HashMap;
 use novadraw_geometry::{Affine2D, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 
-use crate::graph::{FigureId, FigureTree};
+use crate::{
+    ChildClippingStrategy,
+    graph::{FigureId, FigureTree},
+};
 
 const DAMAGE_REGION_MERGE_AREA_THRESHOLD: f64 = 9.0;
 const DAMAGE_REGION_MAX_COUNT: usize = 8;
@@ -138,7 +141,8 @@ fn collect_parent_chain_steps(
         steps.push(DamagePropagationStep {
             transform: parent.child_transform().affine()
                 * Affine2D::from_translation(bounds.x, bounds.y),
-            clip: Some(parent.client_area()),
+            clip: (parent.child_clipping_strategy() != ChildClippingStrategy::OverflowVisible)
+                .then(|| parent.client_area()),
         });
         if Some(parent_id) == contents_id {
             let parent_bounds = parent.figure_bounds();

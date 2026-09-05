@@ -1,7 +1,7 @@
 use std::{collections::HashSet, error::Error, fmt};
 
 use super::{FigureId, FigureTree, NodeState, point_in_rect};
-use crate::{Figure, HitParticipation};
+use crate::{ChildClippingStrategy, Figure, HitParticipation};
 
 /// Read-only view of the current node passed to a tree search strategy.
 #[derive(Clone, Copy)]
@@ -218,10 +218,12 @@ impl FigureTree {
 
         let mut local_point = point;
         self.translate_from_parent(id, &mut local_point);
-        if !node
+        let self_hit = node
             .figure
-            .precise_hit(local_point.0, local_point.1, node.figure_bounds())
-        {
+            .precise_hit(local_point.0, local_point.1, node.figure_bounds());
+        let overflow_visible =
+            node.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
+        if !self_hit && !overflow_visible {
             return None;
         }
 
@@ -232,7 +234,7 @@ impl FigureTree {
 
         path.push(id);
         let client_area = node.client_area();
-        if point_in_rect(local_point, &client_area) {
+        if overflow_visible || point_in_rect(local_point, &client_area) {
             let mut child_point = local_point;
             if node.child_transform().apply_inverse_to(&mut child_point) {
                 for &child_id in node.children.iter().rev() {
@@ -244,7 +246,8 @@ impl FigureTree {
             }
         }
 
-        let result = (node.figure.hit_participation() == HitParticipation::SelfAndDescendants
+        let result = (self_hit
+            && node.figure.hit_participation() == HitParticipation::SelfAndDescendants
             && search.accept(context))
         .then(|| (id, path.clone()));
         path.pop();

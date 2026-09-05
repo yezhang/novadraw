@@ -161,6 +161,7 @@ impl<'a> FigureRenderer<'a> {
 
         let transform = block.child_transform();
         let client_area = block.client_area();
+        let clipping_strategy = block.child_clipping_strategy();
         let [a, b, c, d, e, f] = transform.affine().coeffs();
         debug_render!(
             "[RECUR] #{:02} paintClientArea transform({a},{b},{c},{d},{e},{f}) clip({},{},{},{})",
@@ -171,12 +172,14 @@ impl<'a> FigureRenderer<'a> {
             client_area.height
         );
         self.gc.push_state();
-        self.gc.clip_rect(
-            client_area.x,
-            client_area.y,
-            client_area.width,
-            client_area.height,
-        );
+        if clipping_strategy != ChildClippingStrategy::OverflowVisible {
+            self.gc.clip_rect(
+                client_area.x,
+                client_area.y,
+                client_area.width,
+                client_area.height,
+            );
+        }
         self.gc.transform(a, b, c, d, e, f);
 
         self.paint_children(block_id);
@@ -242,7 +245,8 @@ impl<'a> FigureRenderer<'a> {
                     );
                     self.paint(child_id);
                 }
-                ChildClippingStrategy::DoNotClipChildBounds => {
+                ChildClippingStrategy::DoNotClipChildBounds
+                | ChildClippingStrategy::OverflowVisible => {
                     debug_render!("[RECUR]     -> paint child without child bounds clip");
                     self.paint(child_id);
                 }

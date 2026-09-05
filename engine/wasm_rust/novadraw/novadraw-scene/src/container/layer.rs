@@ -4,8 +4,8 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::{
-    Bounded, ChildPolicy, Figure, FigureContainer, FigureId, Freeform, GraphMutationError,
-    HitParticipation, Layer, Runtime,
+    Bounded, ChildClippingStrategy, ChildPolicy, Figure, FigureContainer, FigureId, Freeform,
+    GraphMutationError, HitParticipation, Layer, Runtime,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -236,7 +236,11 @@ impl Figure for FreeformLayerFigure {
     }
 }
 
-impl FigureContainer for FreeformLayerFigure {}
+impl FigureContainer for FreeformLayerFigure {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        ChildClippingStrategy::OverflowVisible
+    }
+}
 impl Layer for FreeformLayerFigure {}
 impl Freeform for FreeformLayerFigure {}
 
@@ -355,6 +359,10 @@ impl Figure for FreeformLayeredPane {
 }
 
 impl FigureContainer for FreeformLayeredPane {
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        ChildClippingStrategy::OverflowVisible
+    }
+
     fn child_policy(&self) -> ChildPolicy {
         ChildPolicy::Layered
     }

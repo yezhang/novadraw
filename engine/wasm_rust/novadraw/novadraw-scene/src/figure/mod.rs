@@ -109,6 +109,8 @@ pub enum ChildClippingStrategy {
     ClipToChildBounds,
     /// 只保留父 clientArea 裁剪，不额外裁剪到 child bounds。
     DoNotClipChildBounds,
+    /// Freeform 策略：继承 ancestor clip，不应用当前 clientArea 或 child bounds clip。
+    OverflowVisible,
 }
 
 /// Figure 可接受的直接子节点数量策略。

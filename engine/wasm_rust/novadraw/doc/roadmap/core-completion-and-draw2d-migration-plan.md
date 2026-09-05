@@ -370,7 +370,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - 构建期 FigureTreeBuilder、运行期 Runtime topology mutation；
    - key 唯一性、before/after 与原子失败契约。
 3. **D2.2 Freeform extent**
-   - 状态：`in_progress`；
+   - 状态：`complete`；
    - LayoutState 中的可选 FreeformState 派生缓存；
    - 正负坐标、空容器和 nested freeform 范围；
    - bottom-up 失效传播与单 generation 线性重算；
@@ -420,7 +420,8 @@ D2.2 首批执行结果：
 - direct child border-box 与 nested freeform extent 按完整 edge transform 自底向上归并；
 - 空容器、负坐标、隐藏 child、presentation bounds 隔离和纯 translate 失效已覆盖；
 - 新增 typed `freeform_extent` property 与区分 unknown/non-freeform/unvalidated 的查询错误；
-- `d2_freeform_contract` 首批 6 项通过；OverflowVisible 三路径统一仍待下一批。
+- `ChildClippingStrategy::OverflowVisible` 已统一接入 paint、hit-test 与 damage；
+- `d2_freeform_contract` 10 项、既有 clipping 回归和 14 项 damage repair 测试通过。
 
 评审点：
 
