@@ -25,3 +25,9 @@ cargo install wasm-bindgen-cli \
 数字场景索引仍作为兼容入口保留。
 
 Canvas2D 对照入口为 <http://127.0.0.1:4173/?backend=canvas2d>。
+
+`layer-freeform` 场景中：
+
+- 普通滚轮或触控板双指滚动用于平移；
+- `Ctrl+wheel` 用于以指针位置为锚点缩放；
+- 浏览器上报为 `ctrlKey=true` wheel 的触控板 pinch 同样进入缩放链路。

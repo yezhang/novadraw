@@ -466,6 +466,8 @@ D2.5 自动验证结果：
   使 pinch anchor 可观察；
 - Native 截图改用 retained texture 离屏提交，不依赖 swapchain drawable，并统一输出到
   `target/visual-verification/screenshots/`；
+- WebInputAdapter 将浏览器 pinch / `Ctrl+wheel` 映射为带 CSS 逻辑坐标锚点的
+  `ZoomEvent`，普通 wheel 保持 scroll 语义；
 - `novadraw-demo-scenes` 6 项测试、D2 Freeform 18 项、M8 Viewport 24 项及相关库级
   Clippy 通过；
 - Native/Vello 人工复验通过；D2.5 保持 `in_progress`，等待 Web 人工视觉/交互验收。
