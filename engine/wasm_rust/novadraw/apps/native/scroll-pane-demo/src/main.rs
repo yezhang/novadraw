@@ -1,11 +1,16 @@
+use std::sync::Arc;
+
 use novadraw::{
     EventDispatcher, GesturePhase, GestureSessionId, InteractionState, KeyModifiers,
-    PendingMutations, Rectangle, RectangleFigure, SceneDispatchContext, ScrollDeltaKind,
-    UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
+    MouseLocationZoomScrollPolicy, PendingMutations, Point, Rectangle, RectangleFigure,
+    SceneDispatchContext, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,
+};
+use novadraw_demo_scenes::freeform::{
+    CONTENT_MAX_X, CONTENT_MAX_Y, CONTENT_MIN_X, CONTENT_MIN_Y, build_demo as build_freeform_demo,
 };
 use novadraw_demo_scenes::scroll_pane::{
     DEMO_SCALE, LARGE_CONTENT_HEIGHT, LARGE_CONTENT_WIDTH, PANE_HEIGHT, PANE_WIDTH, PANE_X, PANE_Y,
@@ -263,6 +268,107 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     ]))
 }
 
+fn verify_freeform_range() -> Result<VerificationMetrics, String> {
+    let demo = build_freeform_demo(1.0, (0.0, 0.0));
+    let extent = demo
+        .graph
+        .freeform_extent(demo.scalable.block_id())
+        .map_err(|error| error.to_string())?;
+    let horizontal = demo.pane.viewport().horizontal_range();
+    let vertical = demo.pane.viewport().vertical_range();
+    let expected = Rectangle::new(
+        CONTENT_MIN_X,
+        CONTENT_MIN_Y,
+        CONTENT_MAX_X - CONTENT_MIN_X,
+        CONTENT_MAX_Y - CONTENT_MIN_Y,
+    );
+    if extent != expected
+        || horizontal.minimum != CONTENT_MIN_X
+        || horizontal.maximum != CONTENT_MAX_X
+        || vertical.minimum != CONTENT_MIN_Y
+        || vertical.maximum != CONTENT_MAX_Y
+    {
+        return Err(format!(
+            "unexpected freeform extent/range: extent={extent:?}, horizontal={horizontal:?}, vertical={vertical:?}"
+        ));
+    }
+    Ok(metrics([
+        ("extent", format!("{extent:?}")),
+        ("horizontal", format!("{horizontal:?}")),
+        ("vertical", format!("{vertical:?}")),
+    ]))
+}
+
+fn verify_freeform_layer_hit_order() -> Result<VerificationMetrics, String> {
+    let demo = build_freeform_demo(1.0, (0.0, 0.0));
+    let overlap = Point::new(PANE_X + 150.0, PANE_Y + 120.0);
+    let target = demo.graph.hit_test_simple((overlap.x(), overlap.y()));
+    if target != Some(demo.upper_overlap) {
+        return Err(format!(
+            "top layer did not win reverse-Z hit test: target={target:?}"
+        ));
+    }
+    let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
+    let empty_target = demo.graph.hit_test_simple((empty.x(), empty.y()));
+    if empty_target == Some(demo.content_layer) || empty_target == Some(demo.overlay_layer) {
+        return Err("transparent layer became a hit target".to_string());
+    }
+    Ok(metrics([
+        ("overlap_target", format!("{target:?}")),
+        ("upper_overlap", format!("{:?}", demo.upper_overlap)),
+        ("empty_target", format!("{empty_target:?}")),
+    ]))
+}
+
+fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
+    let mut demo = build_freeform_demo(1.0, (0.0, 0.0));
+    let mut updates = UpdateManager::new();
+    let viewport = demo.pane.viewport().clone();
+    viewport
+        .set_view_location(&mut demo.graph, &mut updates, CONTENT_MIN_X, CONTENT_MIN_Y)
+        .map_err(|error| error.to_string())?;
+    if viewport.view_location() != Point::new(CONTENT_MIN_X, CONTENT_MIN_Y) {
+        return Err("freeform viewport could not reach negative range edge".to_string());
+    }
+    viewport
+        .set_view_location(&mut demo.graph, &mut updates, f64::MAX, f64::MAX)
+        .map_err(|error| error.to_string())?;
+    let horizontal = viewport.horizontal_range();
+    let vertical = viewport.vertical_range();
+    let expected_max = Point::new(
+        horizontal.maximum - horizontal.extent,
+        vertical.maximum - vertical.extent,
+    );
+    if viewport.view_location() != expected_max {
+        return Err("freeform viewport did not clamp at positive range edge".to_string());
+    }
+    viewport
+        .set_view_location(&mut demo.graph, &mut updates, 0.0, 0.0)
+        .map_err(|error| error.to_string())?;
+    let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
+    zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+    zoom.set_zoom_at(
+        &mut demo.graph,
+        &mut updates,
+        2.0,
+        Some(Point::new(60.0, 40.0)),
+    )
+    .map_err(|error| error.to_string())?;
+    if viewport.view_location() != Point::new(30.0, 20.0) {
+        return Err("freeform anchor zoom changed the anchored content point".to_string());
+    }
+    if viewport.horizontal_range().maximum != CONTENT_MAX_X
+        || viewport.vertical_range().maximum != CONTENT_MAX_Y
+    {
+        return Err("freeform zoom changed content-domain range bounds".to_string());
+    }
+    Ok(metrics([
+        ("positive_edge", format!("{expected_max:?}")),
+        ("zoom_origin", format!("{:?}", viewport.view_location())),
+        ("zoom", zoom.zoom().to_string()),
+    ]))
+}
+
 fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics {
     entries
         .into_iter()
@@ -270,7 +376,7 @@ fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics 
         .collect()
 }
 
-fn verification_cases() -> [VerificationCase; 4] {
+fn verification_cases() -> [VerificationCase; 7] {
     [
         VerificationCase {
             name: "auto_visibility",
@@ -287,6 +393,18 @@ fn verification_cases() -> [VerificationCase; 4] {
         VerificationCase {
             name: "pinch_anchor",
             run: verify_pinch_anchor,
+        },
+        VerificationCase {
+            name: "freeform_range",
+            run: verify_freeform_range,
+        },
+        VerificationCase {
+            name: "freeform_layer_hit_order",
+            run: verify_freeform_layer_hit_order,
+        },
+        VerificationCase {
+            name: "freeform_scroll_and_zoom",
+            run: verify_freeform_scroll_and_zoom,
         },
     ]
 }
@@ -310,7 +428,10 @@ fn main() {
         return;
     }
 
-    let suite = novadraw_demo_scenes::scroll_pane::suite();
+    let mut suite = novadraw_demo_scenes::scroll_pane::suite();
+    suite
+        .scenes
+        .extend(novadraw_demo_scenes::freeform::suite().scenes);
     let screenshot_index = cli.screenshot.as_deref().map(|scenario| {
         let normalized = scenario.replace('_', "-");
         scenario

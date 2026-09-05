@@ -1,0 +1,316 @@
+use novadraw::{
+    Color, FigureId, FigureTree, FreeformLayerFigure, LayerKey, LayerPlacement, Rectangle,
+    RectangleFigure, Runtime, ScaleHandle, ScrollBarVisibility, ScrollPaneHandle, UpdateManager,
+    ZoomManager,
+};
+
+use crate::{DemoSuite, SceneSpec, ValidationKind};
+
+pub const WINDOW_WIDTH: f64 = 800.0;
+pub const WINDOW_HEIGHT: f64 = 600.0;
+pub const PANE_X: f64 = 120.0;
+pub const PANE_Y: f64 = 90.0;
+pub const PANE_WIDTH: f64 = 480.0;
+pub const PANE_HEIGHT: f64 = 340.0;
+pub const CONTENT_MIN_X: f64 = -220.0;
+pub const CONTENT_MIN_Y: f64 = -160.0;
+pub const CONTENT_MAX_X: f64 = 780.0;
+pub const CONTENT_MAX_Y: f64 = 580.0;
+pub const OVERLAP_X: f64 = 80.0;
+pub const OVERLAP_Y: f64 = 70.0;
+pub const DEMO_SCALE: f64 = 1.5;
+
+const LAYER_WIDTH: f64 = 480.0;
+const LAYER_HEIGHT: f64 = 340.0;
+
+pub struct FreeformDemo {
+    pub graph: FigureTree,
+    pub pane: ScrollPaneHandle,
+    pub scalable: ScaleHandle,
+    pub content_layer: FigureId,
+    pub overlay_layer: FigureId,
+    pub lower_overlap: FigureId,
+    pub upper_overlap: FigureId,
+}
+
+fn key(value: &str) -> LayerKey {
+    LayerKey::new(value).expect("demo layer key must be valid")
+}
+
+pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            Color::hex("#eeeeee"),
+        )));
+    let pane = graph
+        .builder()
+        .add_scroll_pane_to(
+            root,
+            Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
+        )
+        .expect("attach freeform scroll pane");
+    let scalable = graph
+        .builder()
+        .add_scalable_freeform_layered_pane_to(
+            pane.viewport().block_id(),
+            Rectangle::new(0.0, 0.0, LAYER_WIDTH, LAYER_HEIGHT),
+        )
+        .expect("attach scalable freeform pane");
+    let mut updates = UpdateManager::new();
+    pane.set_scroll_bar_visibility(
+        &mut graph,
+        &mut updates,
+        ScrollBarVisibility::Always,
+        ScrollBarVisibility::Always,
+    )
+    .expect("set freeform scrollbar visibility");
+
+    let mut runtime = Runtime::new(graph);
+    let (content_layer, overlay_layer) = {
+        let mut layers = runtime
+            .layered_pane(scalable.block_id())
+            .expect("scalable freeform pane must be registered");
+        let content = layers
+            .add_layer(
+                Box::new(FreeformLayerFigure::new(
+                    0.0,
+                    0.0,
+                    LAYER_WIDTH,
+                    LAYER_HEIGHT,
+                )),
+                key("content"),
+                LayerPlacement::Last,
+            )
+            .expect("add content layer");
+        let overlay = layers
+            .add_layer(
+                Box::new(FreeformLayerFigure::new(
+                    0.0,
+                    0.0,
+                    LAYER_WIDTH,
+                    LAYER_HEIGHT,
+                )),
+                key("overlay"),
+                LayerPlacement::Last,
+            )
+            .expect("add overlay layer");
+        (content, overlay)
+    };
+
+    for (bounds, fill) in [
+        (
+            Rectangle::new(CONTENT_MIN_X, CONTENT_MIN_Y, 100.0, 80.0),
+            Color::hex("#2f80ed"),
+        ),
+        (
+            Rectangle::new(CONTENT_MAX_X - 100.0, CONTENT_MIN_Y, 100.0, 80.0),
+            Color::hex("#27ae60"),
+        ),
+        (
+            Rectangle::new(CONTENT_MIN_X, CONTENT_MAX_Y - 80.0, 100.0, 80.0),
+            Color::hex("#f2994a"),
+        ),
+        (
+            Rectangle::new(CONTENT_MAX_X - 100.0, CONTENT_MAX_Y - 80.0, 100.0, 80.0),
+            Color::hex("#9b51e0"),
+        ),
+    ] {
+        runtime.add_figure(
+            content_layer,
+            Box::new(RectangleFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                fill,
+            )),
+        );
+    }
+    let lower_overlap = runtime.add_figure(
+        content_layer,
+        Box::new(RectangleFigure::new_with_color(
+            OVERLAP_X,
+            OVERLAP_Y,
+            180.0,
+            130.0,
+            Color::hex("#eb5757"),
+        )),
+    );
+    let upper_overlap = runtime.add_figure(
+        overlay_layer,
+        Box::new(RectangleFigure::new_with_color(
+            OVERLAP_X + 45.0,
+            OVERLAP_Y + 35.0,
+            180.0,
+            130.0,
+            Color::hex("#56ccf2"),
+        )),
+    );
+
+    let mut graph = runtime.into_tree();
+    graph.revalidate(pane.pane_id());
+    let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
+    if scale != 1.0 {
+        zoom.set_zoom(&mut graph, &mut updates, scale)
+            .expect("set freeform demo scale");
+    }
+    pane.viewport()
+        .set_view_location(&mut graph, &mut updates, view_location.0, view_location.1)
+        .expect("set freeform demo view location");
+
+    FreeformDemo {
+        graph,
+        pane,
+        scalable,
+        content_layer,
+        overlay_layer,
+        lower_overlap,
+        upper_overlap,
+    }
+}
+
+fn layer_order_scene() -> FigureTree {
+    build_demo(1.0, (0.0, 0.0)).graph
+}
+
+fn negative_origin_scene() -> FigureTree {
+    build_demo(1.0, (CONTENT_MIN_X, CONTENT_MIN_Y)).graph
+}
+
+fn positive_extent_scene() -> FigureTree {
+    build_demo(1.0, (CONTENT_MAX_X, CONTENT_MAX_Y)).graph
+}
+
+fn zoomed_scene() -> FigureTree {
+    build_demo(DEMO_SCALE, (-40.0, -30.0)).graph
+}
+
+pub fn suite() -> DemoSuite {
+    let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
+    DemoSuite::new(
+        "layer-freeform",
+        "Layer / Freeform",
+        vec![
+            SceneSpec::new(
+                "layer-order",
+                "layer_order",
+                size,
+                ValidationKind::Interactive,
+                layer_order_scene,
+            ),
+            SceneSpec::new(
+                "negative-origin",
+                "negative_origin",
+                size,
+                ValidationKind::Interactive,
+                negative_origin_scene,
+            ),
+            SceneSpec::new(
+                "positive-extent",
+                "positive_extent",
+                size,
+                ValidationKind::Interactive,
+                positive_extent_scene,
+            ),
+            SceneSpec::new(
+                "zoomed-freeform",
+                "zoomed_freeform",
+                size,
+                ValidationKind::Interactive,
+                zoomed_scene,
+            ),
+        ],
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use novadraw::{MouseLocationZoomScrollPolicy, Point};
+
+    use super::*;
+
+    #[test]
+    fn shared_scene_preserves_extent_range_and_layer_hit_order() {
+        let demo = build_demo(1.0, (0.0, 0.0));
+        assert_eq!(
+            demo.graph.freeform_extent(demo.scalable.block_id()),
+            Ok(Rectangle::new(
+                CONTENT_MIN_X,
+                CONTENT_MIN_Y,
+                CONTENT_MAX_X - CONTENT_MIN_X,
+                CONTENT_MAX_Y - CONTENT_MIN_Y,
+            ))
+        );
+        assert_eq!(
+            demo.pane.viewport().horizontal_range().minimum,
+            CONTENT_MIN_X
+        );
+        assert_eq!(
+            demo.pane.viewport().horizontal_range().maximum,
+            CONTENT_MAX_X
+        );
+        assert_eq!(demo.pane.viewport().vertical_range().minimum, CONTENT_MIN_Y);
+        assert_eq!(demo.pane.viewport().vertical_range().maximum, CONTENT_MAX_Y);
+
+        let overlap = Point::new(PANE_X + 150.0, PANE_Y + 120.0);
+        assert_eq!(
+            demo.graph.hit_test_simple((overlap.x(), overlap.y())),
+            Some(demo.upper_overlap)
+        );
+        let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
+        let target = demo.graph.hit_test_simple((empty.x(), empty.y()));
+        assert_ne!(target, Some(demo.content_layer));
+        assert_ne!(target, Some(demo.overlay_layer));
+    }
+
+    #[test]
+    fn shared_scene_reaches_four_edges_and_preserves_zoom_anchor() {
+        let mut demo = build_demo(1.0, (0.0, 0.0));
+        let viewport = demo.pane.viewport().clone();
+        let mut updates = UpdateManager::new();
+
+        viewport
+            .set_view_location(&mut demo.graph, &mut updates, CONTENT_MIN_X, CONTENT_MIN_Y)
+            .unwrap();
+        assert_eq!(
+            viewport.view_location(),
+            Point::new(CONTENT_MIN_X, CONTENT_MIN_Y)
+        );
+        viewport
+            .set_view_location(&mut demo.graph, &mut updates, f64::MAX, f64::MAX)
+            .unwrap();
+        let horizontal = viewport.horizontal_range();
+        let vertical = viewport.vertical_range();
+        assert_eq!(
+            viewport.view_location(),
+            Point::new(
+                horizontal.maximum - horizontal.extent,
+                vertical.maximum - vertical.extent,
+            )
+        );
+
+        viewport
+            .set_view_location(&mut demo.graph, &mut updates, 0.0, 0.0)
+            .unwrap();
+        let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
+        zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+        zoom.set_zoom_at(
+            &mut demo.graph,
+            &mut updates,
+            2.0,
+            Some(Point::new(60.0, 40.0)),
+        )
+        .unwrap();
+        assert_eq!(viewport.view_location(), Point::new(30.0, 20.0));
+        assert_eq!(viewport.horizontal_range().maximum, CONTENT_MAX_X);
+        assert_eq!(viewport.vertical_range().maximum, CONTENT_MAX_Y);
+    }
+}

@@ -6,6 +6,7 @@ pub mod border;
 pub mod clip;
 pub mod event;
 pub mod focus;
+pub mod freeform;
 pub mod layout;
 pub mod ndcanvas;
 pub mod scroll_pane;
@@ -91,6 +92,7 @@ pub fn catalog() -> Vec<DemoSuite> {
         style::suite(),
         transform::suite(),
         viewport::suite(),
+        freeform::suite(),
         clip::suite(),
         layout::suite(),
         event::suite(),
