@@ -13,8 +13,8 @@ use novadraw::{
     command::{LineCap, LineJoin},
 };
 use novadraw_apps::{
-    AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode,
-    adapt_key_input,
+    AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
+    WebWheelDeltaMode, adapt_key_input,
 };
 use novadraw_demo_scenes::{
     DemoSuite, SceneSpec, ValidationKind, catalog,
@@ -834,7 +834,7 @@ impl WebValidationApp {
             2 => WebWheelDeltaMode::Page,
             _ => WebWheelDeltaMode::Pixel,
         };
-        if let Some(wheel) = self.input.adapt_wheel(
+        if let Some(gesture) = self.input.adapt_wheel_gesture(
             pointer,
             event.delta_x(),
             event.delta_y(),
@@ -848,7 +848,10 @@ impl WebValidationApp {
                 event.meta_key(),
             ),
         ) {
-            self.runtime.dispatch_scroll(wheel);
+            match gesture {
+                AdaptedGesture::Scroll(wheel) => self.runtime.dispatch_scroll(wheel),
+                AdaptedGesture::Zoom(zoom) => self.runtime.dispatch_zoom(zoom),
+            }
             self.request_and_render();
         }
     }

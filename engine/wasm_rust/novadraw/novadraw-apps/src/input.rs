@@ -1,21 +1,23 @@
 #[cfg(feature = "native")]
 use std::collections::HashMap;
 
-#[cfg(feature = "native")]
-use novadraw::ZoomEvent;
 use novadraw::{
     FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, Point, PointerId,
-    ScrollDeltaKind, WheelEvent,
+    ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
 #[cfg(feature = "native")]
 use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
 
-#[cfg(feature = "native")]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AdaptedGesture {
     Scroll(WheelEvent),
     Zoom(ZoomEvent),
 }
+
+const WEB_WHEEL_LINE_HEIGHT: f64 = 16.0;
+const WEB_WHEEL_ZOOM_SENSITIVITY: f64 = 0.002;
+const MIN_WEB_WHEEL_ZOOM_FACTOR: f64 = 0.5;
+const MAX_WEB_WHEEL_ZOOM_FACTOR: f64 = 2.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WebPointerInput {
@@ -79,6 +81,56 @@ pub fn adapt_key_input(key: Key, pressed: bool, modifiers: KeyModifiers) -> Adap
 pub struct WebInputAdapter;
 
 impl WebInputAdapter {
+    #[allow(clippy::too_many_arguments)]
+    pub fn adapt_wheel_gesture(
+        &self,
+        pointer: WebPointerInput,
+        delta_x: f64,
+        delta_y: f64,
+        delta_mode: WebWheelDeltaMode,
+        viewport_width: f64,
+        viewport_height: f64,
+        modifiers: KeyModifiers,
+    ) -> Option<AdaptedGesture> {
+        if !modifiers.control {
+            return self
+                .adapt_wheel(
+                    pointer,
+                    delta_x,
+                    delta_y,
+                    delta_mode,
+                    viewport_width,
+                    viewport_height,
+                    modifiers,
+                )
+                .map(AdaptedGesture::Scroll);
+        }
+
+        let point = pointer.logical_position()?;
+        if !delta_y.is_finite() {
+            return None;
+        }
+        let logical_delta_y = match delta_mode {
+            WebWheelDeltaMode::Pixel => delta_y,
+            WebWheelDeltaMode::Line => delta_y * WEB_WHEEL_LINE_HEIGHT,
+            WebWheelDeltaMode::Page => delta_y * viewport_height.max(0.0),
+        };
+        if !logical_delta_y.is_finite() || logical_delta_y == 0.0 {
+            return None;
+        }
+        let scale_factor = (-logical_delta_y * WEB_WHEEL_ZOOM_SENSITIVITY)
+            .exp()
+            .clamp(MIN_WEB_WHEEL_ZOOM_FACTOR, MAX_WEB_WHEEL_ZOOM_FACTOR);
+        Some(AdaptedGesture::Zoom(ZoomEvent::new(
+            point.x(),
+            point.y(),
+            scale_factor,
+            GesturePhase::Impulse,
+            modifiers,
+            GestureSessionId::IMPULSE,
+        )))
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn adapt_wheel(
         &self,
@@ -456,5 +508,71 @@ mod tests {
             .unwrap();
         assert_eq!(page.delta_kind, ScrollDeltaKind::LogicalPixels);
         assert_eq!(page.delta_y, 600.0);
+    }
+
+    #[test]
+    fn web_control_wheel_maps_to_anchored_zoom() {
+        let pointer = WebPointerInput {
+            pointer_id: 1,
+            client_x: 220.0,
+            client_y: 140.0,
+            canvas_left: 20.0,
+            canvas_top: 40.0,
+        };
+        let modifiers = KeyModifiers {
+            control: true,
+            ..KeyModifiers::default()
+        };
+        let gesture = WebInputAdapter
+            .adapt_wheel_gesture(
+                pointer,
+                0.0,
+                -100.0,
+                WebWheelDeltaMode::Pixel,
+                800.0,
+                600.0,
+                modifiers,
+            )
+            .unwrap();
+
+        let AdaptedGesture::Zoom(zoom) = gesture else {
+            panic!("control-wheel must produce a zoom gesture");
+        };
+        assert_eq!(zoom.entry_point(), Point::new(200.0, 100.0));
+        assert_eq!(zoom.phase, GesturePhase::Impulse);
+        assert_eq!(zoom.modifiers, modifiers);
+        assert_eq!(
+            zoom.scale_factor,
+            (100.0_f64 * WEB_WHEEL_ZOOM_SENSITIVITY).exp()
+        );
+    }
+
+    #[test]
+    fn web_plain_wheel_remains_scroll() {
+        let pointer = WebPointerInput {
+            pointer_id: 1,
+            client_x: 100.0,
+            client_y: 80.0,
+            canvas_left: 10.0,
+            canvas_top: 20.0,
+        };
+        let gesture = WebInputAdapter
+            .adapt_wheel_gesture(
+                pointer,
+                5.0,
+                -10.0,
+                WebWheelDeltaMode::Pixel,
+                800.0,
+                600.0,
+                KeyModifiers::default(),
+            )
+            .unwrap();
+
+        let AdaptedGesture::Scroll(wheel) = gesture else {
+            panic!("plain wheel must remain a scroll gesture");
+        };
+        assert_eq!(wheel.entry_point(), Point::new(90.0, 60.0));
+        assert_eq!(wheel.delta_x, 5.0);
+        assert_eq!(wheel.delta_y, -10.0);
     }
 }
