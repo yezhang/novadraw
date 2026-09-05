@@ -24,14 +24,16 @@ pub fn build_focus_traversal_scene(
     mut make_probe: impl FnMut(FocusProbeSpec) -> Box<dyn Figure>,
 ) -> (FigureTree, FocusTraversalSceneIds) {
     let mut tree = FigureTree::new();
-    let root = tree.set_contents(Box::new(RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        800.0,
-        500.0,
-        Color::hex("#eef1f4"),
-    )));
-    let a = tree.add_child_to(
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            800.0,
+            500.0,
+            Color::hex("#eef1f4"),
+        )));
+    let a = tree.builder().add_child_to(
         root,
         make_probe(FocusProbeSpec {
             label: "A · 1",
@@ -39,7 +41,7 @@ pub fn build_focus_traversal_scene(
             enabled: true,
         }),
     );
-    let group = tree.add_child_to(
+    let group = tree.builder().add_child_to(
         root,
         Box::new(RectangleFigure::new_with_color(
             220.0,
@@ -49,7 +51,7 @@ pub fn build_focus_traversal_scene(
             Color::hex("#dfe6e9"),
         )),
     );
-    let b = tree.add_child_to(
+    let b = tree.builder().add_child_to(
         group,
         make_probe(FocusProbeSpec {
             label: "B · 2",
@@ -57,7 +59,7 @@ pub fn build_focus_traversal_scene(
             enabled: true,
         }),
     );
-    let skip = tree.add_child_to(
+    let skip = tree.builder().add_child_to(
         group,
         make_probe(FocusProbeSpec {
             label: "Skip",
@@ -65,7 +67,7 @@ pub fn build_focus_traversal_scene(
             enabled: false,
         }),
     );
-    let c = tree.add_child_to(
+    let c = tree.builder().add_child_to(
         group,
         make_probe(FocusProbeSpec {
             label: "C · 3",
@@ -73,7 +75,7 @@ pub fn build_focus_traversal_scene(
             enabled: true,
         }),
     );
-    let d = tree.add_child_to(
+    let d = tree.builder().add_child_to(
         root,
         make_probe(FocusProbeSpec {
             label: "D · 4",

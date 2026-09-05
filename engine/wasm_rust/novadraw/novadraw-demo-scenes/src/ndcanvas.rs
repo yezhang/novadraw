@@ -61,14 +61,14 @@ impl Figure for TestFigure {
 fn create_scene_clear() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let _bg_id = scene.set_contents(Box::new(bg));
+    let _bg_id = scene.builder().set_contents(Box::new(bg));
     scene
 }
 
 fn create_scene_fill_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 直接调用 fill_rect
     let test = TestFigure::new("fill_rect", |gc| {
@@ -76,14 +76,14 @@ fn create_scene_fill_rect() -> novadraw::FigureTree {
         gc.fill_rect(300.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 1.0, 0.0, 1.0)); // 绿色
         gc.fill_rect(550.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 0.0, 1.0, 1.0)); // 蓝色
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_stroke_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 直接调用 stroke_rect
     let test = TestFigure::new("stroke_rect", |gc| {
@@ -118,14 +118,14 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             LineJoin::Bevel,
         );
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_ellipse() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 直接调用 ellipse
     let test = TestFigure::new("ellipse", |gc| {
@@ -166,14 +166,14 @@ fn create_scene_ellipse() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_line() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 直接调用 line
     let test = TestFigure::new("line", |gc| {
@@ -238,14 +238,14 @@ fn create_scene_line() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_polyline() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 直接调用 polyline
     let test = TestFigure::new("polyline", |gc| {
@@ -305,14 +305,14 @@ fn create_scene_polyline() -> novadraw::FigureTree {
         ];
         gc.polyline(&points8, Color::BLUE, 8.0, LineCap::Square, LineJoin::Miter);
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_line_join() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 测试不同连接样式
     let test = TestFigure::new("line_join", |gc| {
@@ -340,14 +340,14 @@ fn create_scene_line_join() -> novadraw::FigureTree {
         ];
         gc.polyline(&points3, Color::BLUE, 8.0, LineCap::Butt, LineJoin::Bevel);
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 
 fn create_scene_transform() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.set_contents(Box::new(bg));
+    let bg_id = scene.builder().set_contents(Box::new(bg));
 
     // 测试变换
     let test = TestFigure::new("transform", |gc| {
@@ -390,7 +390,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.add_child_to(bg_id, Box::new(test));
+    scene.builder().add_child_to(bg_id, Box::new(test));
     scene
 }
 

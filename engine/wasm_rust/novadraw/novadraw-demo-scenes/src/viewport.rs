@@ -31,7 +31,7 @@ fn empty_scene() -> (novadraw::FigureTree, novadraw::FigureId) {
         WINDOW_HEIGHT,
         color(0.94, 0.94, 0.94),
     );
-    let root_id = scene.set_contents(Box::new(root));
+    let root_id = scene.builder().set_contents(Box::new(root));
     (scene, root_id)
 }
 
@@ -47,9 +47,11 @@ fn add_viewport(
     zoom: f64,
 ) -> novadraw::FigureId {
     let viewport = scene
+        .builder()
         .add_viewport_to(parent_id, novadraw::Rectangle::new(x, y, width, height))
         .expect("attach viewport");
     let scalable = scene
+        .builder()
         .add_scalable_layered_pane_to(
             viewport.block_id(),
             novadraw::Rectangle::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT),
@@ -77,7 +79,7 @@ fn add_boundary(
 ) {
     let boundary = novadraw::RectangleFigure::new_with_color(x, y, width, height, transparent())
         .with_stroke(stroke, STROKE_WIDTH);
-    scene.add_child_to(parent_id, Box::new(boundary));
+    scene.builder().add_child_to(parent_id, Box::new(boundary));
 }
 
 fn add_rect(
@@ -86,7 +88,7 @@ fn add_rect(
     rect: novadraw::Rectangle,
     fill: novadraw::Color,
 ) {
-    scene.add_child_to(
+    scene.builder().add_child_to(
         parent_id,
         Box::new(novadraw::RectangleFigure::new_with_color(
             rect.x,
@@ -345,7 +347,7 @@ mod tests {
             (80.0, 60.0),
             zoom,
         );
-        let marker = scene.add_child_to(
+        let marker = scene.builder().add_child_to(
             content_parent,
             Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
         );

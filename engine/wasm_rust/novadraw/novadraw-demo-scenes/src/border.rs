@@ -17,7 +17,7 @@ const WINDOW_HEIGHT: f64 = 600.0;
 fn create_scene_4_rectangle_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     let rect1 = novadraw::RectangleFigure::new_with_color(
         50.0,
@@ -53,9 +53,9 @@ fn create_scene_4_rectangle_border() -> novadraw::FigureTree {
         6.0,
     ));
 
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
+    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
 
     scene
 }
@@ -64,7 +64,7 @@ fn create_scene_4_rectangle_border() -> novadraw::FigureTree {
 fn create_scene_5_border_with_insets() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 带 insets 的 RectangleBorder - insets 会影响子元素布局（需要布局系统支持）
     // 当前展示 insets 对边框位置的影响
@@ -102,9 +102,9 @@ fn create_scene_5_border_with_insets() -> novadraw::FigureTree {
             .with_insets(30.0, 30.0, 30.0, 30.0),
     );
 
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
+    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
 
     scene
 }
@@ -113,7 +113,7 @@ fn create_scene_5_border_with_insets() -> novadraw::FigureTree {
 fn create_scene_6_line_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     let rect1 = novadraw::RectangleFigure::new_with_color(
         50.0,
@@ -149,9 +149,9 @@ fn create_scene_6_line_border() -> novadraw::FigureTree {
         4.0,
     ));
 
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
+    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
 
     scene
 }
@@ -160,7 +160,7 @@ fn create_scene_6_line_border() -> novadraw::FigureTree {
 fn create_scene_7_margin_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // MarginBorder 用于绘制四边边框（通过设置 margin）
     let rect1 = novadraw::RectangleFigure::new_with_color(
@@ -197,9 +197,9 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
             .with_margins(15.0, 15.0, 15.0, 15.0),
     );
 
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
+    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
 
     scene
 }
@@ -212,7 +212,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
 fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 第一行：with_stroke (Shape 级别描边)
     // 描边绘制在图形边界上
@@ -241,9 +241,15 @@ fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
     )
     .with_stroke(novadraw::Color::rgba(0.2, 0.3, 0.5, 1.0), 8.0);
 
-    let _s1 = scene.add_child_to(container_id, Box::new(stroke1));
-    let _s2 = scene.add_child_to(container_id, Box::new(stroke2));
-    let _s3 = scene.add_child_to(container_id, Box::new(stroke3));
+    let _s1 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(stroke1));
+    let _s2 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(stroke2));
+    let _s3 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(stroke3));
 
     // 第二行：with_border (Border 装饰器)
     // 边框绘制在 paintBorder 阶段，可以有 insets 等高级特性
@@ -281,9 +287,15 @@ fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
         8.0,
     ));
 
-    let _b1 = scene.add_child_to(container_id, Box::new(border1));
-    let _b2 = scene.add_child_to(container_id, Box::new(border2));
-    let _b3 = scene.add_child_to(container_id, Box::new(border3));
+    let _b1 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(border1));
+    let _b2 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(border2));
+    let _b3 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(border3));
 
     // 第三行：同时有 border 和 outline（两者叠加）
     // 使用不同颜色：stroke=绿色（内），border=红色（外），insets=8 让两者分开
@@ -324,9 +336,9 @@ fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
             .with_insets(8.0, 8.0, 8.0, 8.0),
     );
 
-    let _both1 = scene.add_child_to(container_id, Box::new(both1));
-    let _both2 = scene.add_child_to(container_id, Box::new(both2));
-    let _both3 = scene.add_child_to(container_id, Box::new(both3));
+    let _both1 = scene.builder().add_child_to(container_id, Box::new(both1));
+    let _both2 = scene.builder().add_child_to(container_id, Box::new(both2));
+    let _both3 = scene.builder().add_child_to(container_id, Box::new(both3));
 
     scene
 }

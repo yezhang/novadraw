@@ -14,9 +14,9 @@ fn gray_background() -> RectangleFigure {
 
 pub fn baseline_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(gray_background()));
+    let root = graph.builder().set_contents(Box::new(gray_background()));
     for (x, color) in [(100.0, "#e74c3c"), (325.0, "#2ecc71"), (550.0, "#3498db")] {
-        graph.add_child_to(
+        graph.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new_with_color(
                 x,
@@ -50,10 +50,10 @@ fn partial_damage_scene() -> FigureTree {
 
 pub fn validation_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(gray_background()));
+    let root = graph.builder().set_contents(Box::new(gray_background()));
     graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
     for (index, color) in ["#9b59b6", "#f39c12", "#1abc9c"].iter().enumerate() {
-        let child = graph.add_child_to(
+        let child = graph.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new_with_color(
                 0.0,
@@ -74,7 +74,7 @@ pub fn validation_scene() -> FigureTree {
 
 pub fn stress_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(gray_background()));
+    let root = graph.builder().set_contents(Box::new(gray_background()));
     graph.set_block_layout_manager(
         root,
         Box::new(
@@ -85,7 +85,7 @@ pub fn stress_scene() -> FigureTree {
     );
     for index in 0..STRESS_FIGURE_COUNT {
         let channel = (index % 32) as f64 / 31.0;
-        graph.add_child_to(
+        graph.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new_with_color(
                 0.0,

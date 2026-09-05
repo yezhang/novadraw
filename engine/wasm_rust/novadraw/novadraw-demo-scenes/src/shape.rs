@@ -20,7 +20,7 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不同尺寸的填充矩形
     let rect_1 = novadraw::RectangleFigure::new_with_color(
@@ -59,11 +59,11 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.5, 0.1, 0.9, 1.0),
     );
 
-    scene.add_child_to(container_id, Box::new(rect_1));
-    scene.add_child_to(container_id, Box::new(rect_2));
-    scene.add_child_to(container_id, Box::new(rect_3));
-    scene.add_child_to(container_id, Box::new(rect_4));
-    scene.add_child_to(container_id, Box::new(rect_5));
+    scene.builder().add_child_to(container_id, Box::new(rect_1));
+    scene.builder().add_child_to(container_id, Box::new(rect_2));
+    scene.builder().add_child_to(container_id, Box::new(rect_3));
+    scene.builder().add_child_to(container_id, Box::new(rect_4));
+    scene.builder().add_child_to(container_id, Box::new(rect_5));
 
     scene
 }
@@ -74,7 +74,7 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不同尺寸的椭圆
     let ellipse_1 = novadraw::EllipseFigure::new_with_color(
@@ -113,11 +113,21 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
     );
 
-    scene.add_child_to(container_id, Box::new(ellipse_1));
-    scene.add_child_to(container_id, Box::new(ellipse_2));
-    scene.add_child_to(container_id, Box::new(ellipse_3));
-    scene.add_child_to(container_id, Box::new(ellipse_4));
-    scene.add_child_to(container_id, Box::new(ellipse_5));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_3));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_4));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_5));
 
     scene
 }
@@ -127,7 +137,7 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不同圆角半径的矩形
     let rect_0 = novadraw::RoundedRectangleFigure::new_with_color(
@@ -232,17 +242,35 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
     )
     .with_stroke(novadraw::Color::WHITE, 2.0);
 
-    scene.add_child_to(container_id, Box::new(rect_0));
-    scene.add_child_to(container_id, Box::new(rect_5));
-    scene.add_child_to(container_id, Box::new(rect_15));
-    scene.add_child_to(container_id, Box::new(rect_30));
-    scene.add_child_to(container_id, Box::new(rect_fill));
-    scene.add_child_to(container_id, Box::new(rect_stroke));
-    scene.add_child_to(container_id, Box::new(rect_both));
-    scene.add_child_to(container_id, Box::new(rect_sw_1));
-    scene.add_child_to(container_id, Box::new(rect_sw_4));
-    scene.add_child_to(container_id, Box::new(rect_sw_8));
-    scene.add_child_to(container_id, Box::new(rect_circle));
+    scene.builder().add_child_to(container_id, Box::new(rect_0));
+    scene.builder().add_child_to(container_id, Box::new(rect_5));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_15));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_30));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_fill));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_stroke));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_both));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_sw_1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_sw_4));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_sw_8));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_circle));
 
     scene
 }
@@ -259,7 +287,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::rgba(0.15, 0.15, 0.15, 1.0),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // ============================================================
     // 测试1: 不同点数的折线
@@ -268,7 +296,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     let line_2pt =
         novadraw::PolylineFigure::new_with_color(50.0, 40.0, 200.0, 40.0, novadraw::Color::WHITE)
             .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(line_2pt));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(line_2pt));
 
     // 3点折线（折线）
     let line_3pt = novadraw::PolylineFigure::from_points(vec![
@@ -277,7 +307,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw_geometry::Vec2::new(200.0, 80.0),
     ])
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(line_3pt));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(line_3pt));
 
     // 5点折线（多段折线）
     let line_5pt = novadraw::PolylineFigure::from_points(vec![
@@ -288,7 +320,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw_geometry::Vec2::new(250.0, 160.0),
     ])
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(line_5pt));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(line_5pt));
 
     // ============================================================
     // 测试2: 不同线宽
@@ -303,7 +337,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
             novadraw::Color::WHITE,
         )
         .with_width(w);
-        scene.add_child_to(container_id, Box::new(line));
+        scene.builder().add_child_to(container_id, Box::new(line));
     }
 
     // ============================================================
@@ -318,7 +352,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     )
     .with_width(8.0)
     .with_cap(novadraw::render::command::LineCap::Butt);
-    scene.add_child_to(container_id, Box::new(cap_butt));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(cap_butt));
 
     let cap_round = novadraw::PolylineFigure::new_with_color(
         200.0,
@@ -329,7 +365,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     )
     .with_width(8.0)
     .with_cap(novadraw::render::command::LineCap::Round);
-    scene.add_child_to(container_id, Box::new(cap_round));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(cap_round));
 
     let cap_square = novadraw::PolylineFigure::new_with_color(
         350.0,
@@ -340,7 +378,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     )
     .with_width(8.0)
     .with_cap(novadraw::render::command::LineCap::Square);
-    scene.add_child_to(container_id, Box::new(cap_square));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(cap_square));
 
     // ============================================================
     // 测试4: 不同连接样式 (LineJoin)
@@ -354,7 +394,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Miter)
     .with_color(novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0));
-    scene.add_child_to(container_id, Box::new(join_miter));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(join_miter));
 
     // 圆角连接
     let join_round = novadraw::PolylineFigure::from_points(vec![
@@ -365,7 +407,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Round)
     .with_color(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0));
-    scene.add_child_to(container_id, Box::new(join_round));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(join_round));
 
     // 斜切连接
     let join_bevel = novadraw::PolylineFigure::from_points(vec![
@@ -376,7 +420,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Bevel)
     .with_color(novadraw::Color::rgba(1.0, 0.0, 1.0, 1.0));
-    scene.add_child_to(container_id, Box::new(join_bevel));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(join_bevel));
 
     // ============================================================
     // 测试5: 水平/垂直/对角线
@@ -389,7 +435,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(h_line));
+    scene.builder().add_child_to(container_id, Box::new(h_line));
 
     let v_line = novadraw::PolylineFigure::new_with_color(
         700.0,
@@ -399,7 +445,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.2, 0.2, 0.9, 1.0),
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(v_line));
+    scene.builder().add_child_to(container_id, Box::new(v_line));
 
     let diag_45 = novadraw::PolylineFigure::new_with_color(
         500.0,
@@ -409,7 +455,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.2, 0.9, 0.2, 1.0),
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(diag_45));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(diag_45));
 
     let diag_135 = novadraw::PolylineFigure::new_with_color(
         650.0,
@@ -419,7 +467,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(diag_135));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(diag_135));
 
     // ============================================================
     // 测试6: 自相交折线
@@ -432,7 +482,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     ])
     .with_width(2.0)
     .with_color(novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0));
-    scene.add_child_to(container_id, Box::new(self_intersect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(self_intersect));
 
     // ============================================================
     // 测试7: 密集多段折线（波浪形）
@@ -446,7 +498,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     let wave = novadraw::PolylineFigure::from_points(points)
         .with_width(2.0)
         .with_color(novadraw::Color::rgba(0.0, 0.8, 1.0, 1.0));
-    scene.add_child_to(container_id, Box::new(wave));
+    scene.builder().add_child_to(container_id, Box::new(wave));
 
     // ============================================================
     // 测试8: 短折线（端点测试）
@@ -459,7 +511,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::WHITE,
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(short_1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(short_1));
 
     let short_2 = novadraw::PolylineFigure::new_with_color(
         640.0,
@@ -469,7 +523,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::WHITE,
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(short_2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(short_2));
 
     let short_3 = novadraw::PolylineFigure::new_with_color(
         680.0,
@@ -479,7 +535,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::WHITE,
     )
     .with_width(3.0);
-    scene.add_child_to(container_id, Box::new(short_3));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(short_3));
 
     // ============================================================
     // 测试9: 坐标边界（靠近边界）
@@ -492,7 +550,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
-    scene.add_child_to(container_id, Box::new(edge_1));
+    scene.builder().add_child_to(container_id, Box::new(edge_1));
 
     let edge_2 = novadraw::PolylineFigure::new_with_color(
         700.0,
@@ -502,7 +560,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
-    scene.add_child_to(container_id, Box::new(edge_2));
+    scene.builder().add_child_to(container_id, Box::new(edge_2));
 
     scene
 }
@@ -517,7 +575,7 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 组合1: 矩形 + 椭圆
     let rect_combo = novadraw::RectangleFigure::new_with_color(
@@ -671,24 +729,60 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
     )
     .with_stroke(novadraw::Color::rgba(0.5, 0.5, 0.5, 1.0), 1.0);
 
-    scene.add_child_to(container_id, Box::new(rect_combo));
-    scene.add_child_to(container_id, Box::new(ellipse_combo));
-    scene.add_child_to(container_id, Box::new(ellipse_combo2));
-    scene.add_child_to(container_id, Box::new(line_through));
-    scene.add_child_to(container_id, Box::new(container_rect));
-    scene.add_child_to(container_id, Box::new(inner_rect));
-    scene.add_child_to(container_id, Box::new(inner_ellipse));
-    scene.add_child_to(container_id, Box::new(inner_line));
-    scene.add_child_to(container_id, Box::new(complex_rect));
-    scene.add_child_to(container_id, Box::new(complex_ellipse));
-    scene.add_child_to(container_id, Box::new(complex_line1));
-    scene.add_child_to(container_id, Box::new(complex_line2));
-    scene.add_child_to(container_id, Box::new(complex_line3));
-    scene.add_child_to(container_id, Box::new(decor_line1));
-    scene.add_child_to(container_id, Box::new(decor_line2));
-    scene.add_child_to(container_id, Box::new(decor_line3));
-    scene.add_child_to(container_id, Box::new(border_outer));
-    scene.add_child_to(container_id, Box::new(border_inner));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(rect_combo));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_combo));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(ellipse_combo2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(line_through));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(container_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(inner_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(inner_ellipse));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(inner_line));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(complex_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(complex_ellipse));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(complex_line1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(complex_line2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(complex_line3));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(decor_line1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(decor_line2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(decor_line3));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(border_outer));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(border_inner));
 
     scene
 }
@@ -699,7 +793,7 @@ fn create_scene_9_zorder() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 底层图形（先添加）
     let bottom_rect = novadraw::RectangleFigure::new_with_color(
@@ -763,15 +857,33 @@ fn create_scene_9_zorder() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.8, 0.2, 0.2, 1.0),
     );
 
-    scene.add_child_to(container_id, Box::new(bottom_rect));
-    scene.add_child_to(container_id, Box::new(bottom_ellipse));
-    scene.add_child_to(container_id, Box::new(bottom_line));
-    scene.add_child_to(container_id, Box::new(mid_rect));
-    scene.add_child_to(container_id, Box::new(mid_ellipse));
-    scene.add_child_to(container_id, Box::new(top_rect));
-    scene.add_child_to(container_id, Box::new(marker_1));
-    scene.add_child_to(container_id, Box::new(marker_2));
-    scene.add_child_to(container_id, Box::new(marker_3));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(bottom_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(bottom_ellipse));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(bottom_line));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(mid_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(mid_ellipse));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(top_rect));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(marker_1));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(marker_2));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(marker_3));
 
     scene
 }
@@ -788,7 +900,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不同线宽的三角形测试
     let tri_w1 = novadraw::TriangleFigure::new_with_direction(
@@ -914,17 +1026,33 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
     .with_stroke_color(novadraw::Color::hex("#e91e63"))
     .with_stroke_width(3.0);
 
-    scene.add_child_to(container_id, Box::new(tri_w1));
-    scene.add_child_to(container_id, Box::new(tri_w3));
-    scene.add_child_to(container_id, Box::new(tri_w5));
-    scene.add_child_to(container_id, Box::new(tri_w10));
-    scene.add_child_to(container_id, Box::new(tri_w20));
-    scene.add_child_to(container_id, Box::new(tri_north));
-    scene.add_child_to(container_id, Box::new(tri_south));
-    scene.add_child_to(container_id, Box::new(tri_east));
-    scene.add_child_to(container_id, Box::new(tri_west));
-    scene.add_child_to(container_id, Box::new(tri_fill));
-    scene.add_child_to(container_id, Box::new(tri_stroke));
+    scene.builder().add_child_to(container_id, Box::new(tri_w1));
+    scene.builder().add_child_to(container_id, Box::new(tri_w3));
+    scene.builder().add_child_to(container_id, Box::new(tri_w5));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_w10));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_w20));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_north));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_south));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_east));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_west));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_fill));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(tri_stroke));
 
     scene
 }
@@ -935,7 +1063,7 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 父矩形
     let parent_rect = novadraw::RectangleFigure::new_with_color(
@@ -946,7 +1074,9 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.9, 0.5, 0.1, 0.3),
     )
     .with_stroke(novadraw::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0);
-    let parent_id = scene.add_child_to(container_id, Box::new(parent_rect));
+    let parent_id = scene
+        .builder()
+        .add_child_to(container_id, Box::new(parent_rect));
 
     // 子图形 - 直接添加到父矩形中
     let child_rect = novadraw::RectangleFigure::new_with_color(
@@ -972,9 +1102,15 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     )
     .with_width(3.0);
 
-    scene.add_child_to(parent_id, Box::new(child_rect));
-    scene.add_child_to(parent_id, Box::new(child_ellipse));
-    scene.add_child_to(parent_id, Box::new(child_line));
+    scene
+        .builder()
+        .add_child_to(parent_id, Box::new(child_rect));
+    scene
+        .builder()
+        .add_child_to(parent_id, Box::new(child_ellipse));
+    scene
+        .builder()
+        .add_child_to(parent_id, Box::new(child_line));
 
     // 另一个父容器
     let parent_rect2 = novadraw::RectangleFigure::new_with_color(
@@ -985,7 +1121,9 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.5, 0.2, 0.8, 0.3),
     )
     .with_stroke(novadraw::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0);
-    let parent_id2 = scene.add_child_to(container_id, Box::new(parent_rect2));
+    let parent_id2 = scene
+        .builder()
+        .add_child_to(container_id, Box::new(parent_rect2));
 
     // 子图形 - 更深层次
     let grandchild_rect = novadraw::RectangleFigure::new_with_color(
@@ -1003,8 +1141,12 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.8, 0.5, 0.2, 1.0),
     );
 
-    scene.add_child_to(parent_id2, Box::new(grandchild_rect));
-    scene.add_child_to(parent_id2, Box::new(grandchild_ellipse));
+    scene
+        .builder()
+        .add_child_to(parent_id2, Box::new(grandchild_rect));
+    scene
+        .builder()
+        .add_child_to(parent_id2, Box::new(grandchild_ellipse));
 
     // 独立图形（不嵌套）
     let standalone = novadraw::RectangleFigure::new_with_color(
@@ -1015,7 +1157,9 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.1, 0.7, 0.7, 1.0),
     )
     .with_stroke(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0);
-    scene.add_child_to(container_id, Box::new(standalone));
+    scene
+        .builder()
+        .add_child_to(container_id, Box::new(standalone));
 
     scene
 }

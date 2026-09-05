@@ -21,7 +21,7 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 设置 XYLayout
     let xy_layout = Box::new(novadraw::XYLayout::new());
@@ -49,7 +49,7 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
                 _ => "#95a5a6",
             }),
         );
-        let child_id = scene.add_child_to(container_id, Box::new(rect));
+        let child_id = scene.builder().add_child_to(container_id, Box::new(rect));
 
         // 设置约束（位置和尺寸）
         let constraint = novadraw::Rectangle::new(x, y, w, h);
@@ -77,7 +77,7 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 设置 FillLayout
     let fill_layout = Box::new(novadraw::FillLayout::new());
@@ -91,7 +91,7 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         100.0,
         novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
     );
-    let first_id = scene.add_child_to(container_id, Box::new(first));
+    let first_id = scene.builder().add_child_to(container_id, Box::new(first));
     // 设置约束让第一个子元素填充容器
     scene.set_constraint(
         first_id,
@@ -106,7 +106,7 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         50.0,
         novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
     );
-    let _second = scene.add_child_to(container_id, Box::new(second));
+    let _second = scene.builder().add_child_to(container_id, Box::new(second));
 
     if let Some(contents) = scene.get_contents() {
         scene.revalidate(contents);
@@ -128,7 +128,7 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 设置 FlowLayout
     let flow_layout = Box::new(
@@ -150,7 +150,7 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
 
         let rect =
             novadraw::RectangleFigure::new_with_color(0.0, 0.0, w, h, novadraw::Color::hex(color));
-        let _child_id = scene.add_child_to(container_id, Box::new(rect));
+        let _child_id = scene.builder().add_child_to(container_id, Box::new(rect));
     }
 
     if let Some(contents) = scene.get_contents() {
@@ -173,7 +173,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 外层：XYLayout
     let outer_layout = Box::new(novadraw::XYLayout::new());
@@ -195,7 +195,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
             h,
             novadraw::Color::rgba(0.9, 0.9, 0.9, 1.0),
         );
-        let region_id = scene.add_child_to(container_id, Box::new(rect));
+        let region_id = scene.builder().add_child_to(container_id, Box::new(rect));
 
         // 设置约束（外层 XYLayout）
         let constraint = novadraw::Rectangle::new(x, y, w, h);
@@ -213,7 +213,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
             h,
             novadraw::Color::rgba(0.2, 0.5, 0.9, 1.0),
         );
-        let child_id = scene.add_child_to(region_id, Box::new(child));
+        let child_id = scene.builder().add_child_to(region_id, Box::new(child));
 
         // 为子元素设置约束，让它填充整个区域
         let child_constraint = novadraw::Rectangle::new(0.0, 0.0, w, h);
@@ -240,7 +240,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 设置 XYLayout
     let xy_layout = Box::new(novadraw::XYLayout::new());
@@ -258,7 +258,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
             80.0,
             novadraw::Color::hex(color),
         );
-        let child_id = scene.add_child_to(container_id, Box::new(rect));
+        let child_id = scene.builder().add_child_to(container_id, Box::new(rect));
         child_ids.push(child_id);
     }
 
@@ -288,7 +288,7 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     scene.set_block_layout_manager(
         container_id,
@@ -310,7 +310,7 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
                 120.0,
                 novadraw::Color::rgba((col as f64 * 0.3) % 1.0, (row as f64 * 0.3) % 1.0, 0.6, 1.0),
             );
-            let child_id = scene.add_child_to(container_id, Box::new(rect));
+            let child_id = scene.builder().add_child_to(container_id, Box::new(rect));
             scene.set_constraint(child_id, novadraw::GridConstraint::fill());
         }
     }
@@ -324,13 +324,16 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
 
 fn create_scene_toolbar_layout() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let container_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
-    )));
+    let container_id =
+        scene
+            .builder()
+            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::Color::hex("#eeeeee"),
+            )));
     scene.set_block_layout_manager(
         container_id,
         Box::new(
@@ -343,7 +346,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
         .iter()
         .enumerate()
     {
-        let child = scene.add_child_to(
+        let child = scene.builder().add_child_to(
             container_id,
             Box::new(novadraw::RectangleFigure::new_with_color(
                 0.0,
@@ -361,16 +364,19 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
 
 fn create_scene_stack_layout() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let container_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-        80.0,
-        60.0,
-        640.0,
-        480.0,
-        novadraw::Color::hex("#eeeeee"),
-    )));
+    let container_id =
+        scene
+            .builder()
+            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                80.0,
+                60.0,
+                640.0,
+                480.0,
+                novadraw::Color::hex("#eeeeee"),
+            )));
     scene.set_block_layout_manager(container_id, Box::new(novadraw::StackLayout::new()));
     for color in ["#e74c3c", "#3498db", "#2ecc71"] {
-        scene.add_child_to(
+        scene.builder().add_child_to(
             container_id,
             Box::new(novadraw::RectangleFigure::new_with_color(
                 0.0,
@@ -398,7 +404,7 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不设置布局器，子元素保持原位
     let rect1 = novadraw::RectangleFigure::new_with_color(
@@ -423,9 +429,9 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
     );
 
-    let _r1 = scene.add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.add_child_to(container_id, Box::new(rect3));
+    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
 
     scene
 }
@@ -443,7 +449,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::hex("#eeeeee"),
     );
-    let container_id = scene.set_contents(Box::new(container));
+    let container_id = scene.builder().set_contents(Box::new(container));
 
     // 设置 BorderLayout
     let border_layout = Box::new(novadraw::BorderLayout::new());
@@ -465,7 +471,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         50.0,
         novadraw::Color::hex("#e74c3c"),
     );
-    let north_id = scene.add_child_to(container_id, Box::new(north));
+    let north_id = scene.builder().add_child_to(container_id, Box::new(north));
     // height < 0 表示 North
     scene.set_constraint(north_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, -60.0));
 
@@ -477,7 +483,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         50.0,
         novadraw::Color::hex("#2ecc71"),
     );
-    let south_id = scene.add_child_to(container_id, Box::new(south));
+    let south_id = scene.builder().add_child_to(container_id, Box::new(south));
     // height > 0 表示 South
     scene.set_constraint(south_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, 60.0));
 
@@ -489,7 +495,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         100.0,
         novadraw::Color::hex("#3498db"),
     );
-    let west_id = scene.add_child_to(container_id, Box::new(west));
+    let west_id = scene.builder().add_child_to(container_id, Box::new(west));
     // width < 0 表示 West
     scene.set_constraint(west_id, novadraw::Rectangle::new(0.0, 0.0, -100.0, 0.0));
 
@@ -501,7 +507,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         100.0,
         novadraw::Color::hex("#f1c40f"),
     );
-    let east_id = scene.add_child_to(container_id, Box::new(east));
+    let east_id = scene.builder().add_child_to(container_id, Box::new(east));
     // width > 0 表示 East
     scene.set_constraint(east_id, novadraw::Rectangle::new(0.0, 0.0, 100.0, 0.0));
 
@@ -513,7 +519,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         100.0,
         novadraw::Color::hex("#9b59b6"),
     );
-    let center_id = scene.add_child_to(container_id, Box::new(center));
+    let center_id = scene.builder().add_child_to(container_id, Box::new(center));
     // 默认 Center
     scene.set_constraint(center_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, 0.0));
 

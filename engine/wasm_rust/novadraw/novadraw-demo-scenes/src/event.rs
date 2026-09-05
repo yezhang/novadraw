@@ -216,15 +216,17 @@ impl FigureEventHandler for EventProbeFigure {
 
 pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState>>) {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        Color::hex("#eeeeee"),
-    )));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            Color::hex("#eeeeee"),
+        )));
     let parent = if local_coordinates {
-        graph.add_child_to(
+        graph.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new_with_color(
                 100.0,
@@ -238,7 +240,7 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
         root
     };
     let state = Arc::new(Mutex::new(ProbeState::default()));
-    let probe = graph.add_child_to(
+    let probe = graph.builder().add_child_to(
         parent,
         Box::new(EventProbeFigure::new(
             if local_coordinates {

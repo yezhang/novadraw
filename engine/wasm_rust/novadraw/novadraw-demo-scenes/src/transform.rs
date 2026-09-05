@@ -61,11 +61,11 @@ fn add_nested_roots(
     scene: &mut novadraw::FigureTree,
     contents: novadraw::FigureId,
 ) -> (novadraw::FigureId, novadraw::FigureId) {
-    let outer = scene.add_child_to(
+    let outer = scene.builder().add_child_to(
         contents,
         Box::new(coordinate_root(120.0, 90.0, 520.0, 400.0, OUTER_COLOR)),
     );
-    let inner = scene.add_child_to(
+    let inner = scene.builder().add_child_to(
         outer,
         Box::new(coordinate_root(70.0, 60.0, 330.0, 240.0, INNER_COLOR)),
     );
@@ -74,9 +74,9 @@ fn add_nested_roots(
 
 fn create_nested_coordinate_roots() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.set_contents(Box::new(background()));
+    let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
-    scene.add_child_to(
+    scene.builder().add_child_to(
         inner,
         Box::new(RectangleFigure::new_with_color(
             45.0,
@@ -91,10 +91,10 @@ fn create_nested_coordinate_roots() -> novadraw::FigureTree {
 
 fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.set_contents(Box::new(background()));
+    let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let local_bounds = Rectangle::new(45.0, 40.0, 150.0, 100.0);
-    let child = scene.add_child_to(
+    let child = scene.builder().add_child_to(
         inner,
         Box::new(
             RectangleFigure::from_bounds(local_bounds).with_stroke(Color::WHITE, BORDER_WIDTH),
@@ -110,7 +110,7 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
         Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height)
     );
 
-    scene.add_child_to(
+    scene.builder().add_child_to(
         contents,
         Box::new(
             RectangleFigure::new_with_color(
@@ -128,8 +128,8 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
 
 fn create_coordinate_root_move() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.set_contents(Box::new(background()));
-    scene.add_child_to(
+    let contents = scene.builder().set_contents(Box::new(background()));
+    scene.builder().add_child_to(
         contents,
         Box::new(
             RectangleFigure::new_with_color(
@@ -142,11 +142,11 @@ fn create_coordinate_root_move() -> novadraw::FigureTree {
             .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH),
         ),
     );
-    let coordinate_root = scene.add_child_to(
+    let coordinate_root = scene.builder().add_child_to(
         contents,
         Box::new(coordinate_root(120.0, 100.0, 300.0, 230.0, OUTER_COLOR)),
     );
-    scene.add_child_to(
+    scene.builder().add_child_to(
         coordinate_root,
         Box::new(RectangleFigure::new_with_color(
             35.0,
@@ -252,9 +252,9 @@ impl FigureEventHandler for TargetDomainFigure {
 
 fn create_event_point_reduction() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.set_contents(Box::new(background()));
+    let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
-    scene.add_child_to(
+    scene.builder().add_child_to(
         inner,
         Box::new(TargetDomainFigure {
             bounds: Rectangle::new(55.0, 50.0, 180.0, 110.0),

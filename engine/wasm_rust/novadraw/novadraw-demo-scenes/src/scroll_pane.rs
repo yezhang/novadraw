@@ -29,13 +29,15 @@ fn color(hex: &str) -> Color {
 
 pub fn base_scene() -> (FigureTree, novadraw::FigureId) {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        color("#eeeeee"),
-    )));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            color("#eeeeee"),
+        )));
     (graph, root)
 }
 
@@ -48,7 +50,7 @@ fn add_grid(graph: &mut FigureTree, parent: novadraw::FigureId) {
                 2 => color("#f2994a"),
                 _ => color("#9b51e0"),
             };
-            graph.add_child_to(
+            graph.builder().add_child_to(
                 parent,
                 Box::new(RectangleFigure::new_with_color(
                     TILE_GAP + column as f64 * (TILE_WIDTH + TILE_GAP),
@@ -71,6 +73,7 @@ fn scene_with_policy(
 ) -> FigureTree {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
@@ -134,12 +137,14 @@ fn hidden_bars_scene() -> FigureTree {
 fn scalable_scene() -> FigureTree {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .expect("attach scroll pane");
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
