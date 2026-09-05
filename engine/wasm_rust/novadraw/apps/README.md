@@ -19,7 +19,7 @@
 | Native | **style-app** | 视觉属性 | 8 | `cargo run -p style-app` |
 | Native | **transform-app** | M4 坐标域闭环 | 4 | `cargo run -p transform-app` |
 | Native | **viewport-app** | Viewport Figure 树语义 | 4 | `cargo run -p viewport-app` |
-| Native | **scroll-pane-demo** | M8 ScrollPane / RangeModel | 4 | `cargo run -p scroll-pane-demo` |
+| Native | **scroll-pane-demo** | M8 ScrollPane / RangeModel + D2 Layer / Freeform | 8 | `cargo run -p scroll-pane-demo` |
 | Native | **clip-app** | 裁剪机制 | 10 | `cargo run -p clip-app` |
 | Native | **layout-app** | 布局管理 | 10 | `cargo run -p layout-app` |
 | Native | **event-app** | 输入事件 | 4 | `cargo run -p event-app` |
@@ -28,7 +28,7 @@
 | Native | **editor** | 集成编辑器 | - | `cargo run -p editor` |
 | Native | **ndcanvas-app** | NdCanvas 底层 API | 8 | `cargo run -p ndcanvas-app` |
 | Native | **vello-app** | Vello 原始 API | 1 | `cargo run -p vello-app` |
-| Web | **web-validation** | 共享场景浏览器验证 | 69+ | `./scripts/build_web_validation.sh` |
+| Web | **web-validation** | 共享场景浏览器验证 | 73+ | `./scripts/build_web_validation.sh` |
 | Benchmark | **r8-perf** | FigureTree 性能基线 | - | `cargo run -p r8-perf` |
 
 ## 主题划分原则
@@ -41,7 +41,7 @@
 | 视觉属性 | style-app | Fill color, Stroke (width/color/cap/join), Alpha, LineJoin, Stroke vs Border |
 | 坐标域 | transform-app | 嵌套坐标根、absolute/relative 往返、坐标根移动、事件点降域 |
 | 视口 | viewport-app | ViewportFigure、content 裁剪、scroll、ScalableLayeredPane、嵌套 viewport |
-| 滚动容器 | scroll-pane-demo | RangeModel、ScrollPane、ScrollBar、wheel fallback、zoom |
+| 滚动容器 | scroll-pane-demo | RangeModel、ScrollPane、ScrollBar、wheel fallback、zoom、Layer/Freeform |
 | 裁剪 | clip-app | basic, nested, multi_layer, circle, path, transparent, animation |
 | 布局 | layout-app | XYLayout, FillLayout, FlowLayout, BorderLayout, 嵌套, 约束更新 |
 | 输入事件 | event-app | Mouse, Keyboard, Focus, capture、坐标根事件点 |

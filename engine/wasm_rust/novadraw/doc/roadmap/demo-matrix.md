@@ -31,6 +31,7 @@
 | M6 | `event-app` ✅ | `apps/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
 | M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/native/scroll-pane-demo`、`apps/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
+| D2 | `scroll-pane-demo` + Web `layer-freeform` suite | `apps/native/scroll-pane-demo`、`apps/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、content-domain range 与锚点缩放；自动门禁已通过，待人工验收 | — |
 | M9 | `connections-demo` | `apps/native/connections-demo` | 5 anchor × 3 router 组合矩阵 + 节点移动连线跟随测试 | +150 |
 | M10 | `shape-app` + `border-app` + 待新增文本/Tooltip demo | `apps/native/shape-app`、`apps/native/border-app` | deferred builtin Figure + 6 边框 + 文本布局 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
 
@@ -91,6 +92,7 @@
 - [x] M6 `apps/native/event-app`
 - [x] M8 `apps/native/scroll-pane-demo`
 - [x] M8 `apps/native/viewport-app` 4 场景视觉验证
+- [ ] D2 `layer-freeform` Native/Web 人工验收（自动门禁已通过）
 - [ ] M9 `apps/native/connections-demo`
 - [ ] M10 `apps/native/shape-app`
 - [ ] M10 `apps/native/border-app`

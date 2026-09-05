@@ -388,6 +388,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - ScalableFreeformLayeredPane 复用现有 scale state；
    - scale、origin、range、damage 同事务更新。
 6. **D2.5 Demo 与人工验收**
+   - 状态：`in_progress`（自动门禁完成，待人工验收）；
    - 新增共享 Native/Web 场景；
    - layer 顺序、透明命中、四方向滚动与缩放；
    - Headless 契约、macOS/Web 人工验收与文档收口。
@@ -450,6 +451,18 @@ D2.4 执行结果：
 - `cargo check -p novadraw-scene --tests` 与
   `cargo clippy -p novadraw-scene --lib -- -D warnings` 通过；
 - 全包测试仍受当前沙箱禁止执行 Xcode clang 阻断，不是 Rust 代码诊断失败。
+
+D2.5 自动验证结果：
+
+- 新增 `layer-freeform` 共享 suite，包含 layer order、negative origin、positive extent
+  和 zoomed freeform 四个 Native/Web 共用场景；
+- `scroll-pane-demo --verify` 新增 freeform range、透明层逆 Z 命中、四方向 clamp 与
+  content-domain anchor zoom 三项 headless case；
+- `novadraw-demo-scenes` 全量迁移到显式 `FigureTreeBuilder`，消除 D2.1 收窄原始
+  topology mutator 后遗留的跨 crate 旧入口；
+- `novadraw-demo-scenes` 5 项测试和库级 Clippy 通过；
+- Native/Vello 与 Web 构建在当前沙箱中仍被 Xcode clang 执行权限阻断；
+- D2.5 保持 `in_progress`，等待 macOS 与 Web 人工视觉/交互验收。
 
 评审点：
 
