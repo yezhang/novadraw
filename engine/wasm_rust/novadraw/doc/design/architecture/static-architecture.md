@@ -78,9 +78,10 @@ FigureTree 负责：
 - attach、detach、remove 和 reparent；
 - 祖先、后代和树序查询。
 
-FigureTree 对外提供只读树查询。add、remove、reparent 和 reorder 等底层 mutation
-primitive 限于 crate 内部，由 Runtime 在事务中调用；公开 topology 写入不得绕过
-Runtime 的 interaction cleanup、container state、validation 和 damage 协议。
+FigureTree 对外提供只读树查询。pre-Runtime 批量场景构建通过短生命周期
+FigureTreeBuilder 显式执行；进入 Runtime 后，add、remove、reparent 和 reorder
+统一由 Runtime 事务调用。底层 mutation primitive 限于 crate 内部，不得绕过
+interaction cleanup、container state、validation 和 damage 协议。
 
 FigureTree 不拥有：
 

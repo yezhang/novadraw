@@ -13,8 +13,12 @@ impl TreeSearch for NamedFigureSearch {
 #[test]
 fn public_search_strategy_filters_hit_test_without_changing_geometry_order() {
     let mut tree = FigureTree::new();
-    let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let child = tree.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = tree
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
 
     let hit = tree.hit_test_with(
         (20.0, 20.0),
@@ -29,8 +33,12 @@ fn public_search_strategy_filters_hit_test_without_changing_geometry_order() {
 #[test]
 fn public_exclusion_search_prunes_by_figure_id() {
     let mut tree = FigureTree::new();
-    let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let child = tree.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = tree
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
     let mut search = ExclusionSearch::new([child]);
 
     assert_eq!(

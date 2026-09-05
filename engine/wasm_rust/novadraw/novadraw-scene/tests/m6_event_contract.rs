@@ -162,12 +162,14 @@ impl InputProbeFigure {
 fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let events = Arc::new(Mutex::new(Vec::new()));
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
-    let coordinate_root = graph.add_child_to(
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    let coordinate_root = graph.builder().add_child_to(
         root,
         Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
     );
-    let probe = graph.add_child_to(
+    let probe = graph.builder().add_child_to(
         coordinate_root,
         Box::new(InputProbeFigure {
             bounds: Rectangle::new(10.0, 20.0, 50.0, 50.0),
@@ -235,15 +237,17 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let captured_events = Arc::new(Mutex::new(Vec::new()));
     let gesture_events = Arc::new(Mutex::new(Vec::new()));
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
-    graph.add_child_to(
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+    graph.builder().add_child_to(
         root,
         Box::new(InputProbeFigure {
             bounds: Rectangle::new(10.0, 10.0, 80.0, 80.0),
             events: Arc::clone(&captured_events),
         }),
     );
-    graph.add_child_to(
+    graph.builder().add_child_to(
         root,
         Box::new(InputProbeFigure {
             bounds: Rectangle::new(200.0, 100.0, 80.0, 80.0),

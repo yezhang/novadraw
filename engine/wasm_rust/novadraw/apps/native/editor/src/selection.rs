@@ -96,8 +96,10 @@ mod tests {
 
     fn scene() -> (FigureTree, FigureId) {
         let mut tree = FigureTree::new();
-        let root = tree.set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 300.0, 200.0)));
-        let child = tree.add_child_to(
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 300.0, 200.0)));
+        let child = tree.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new(30.0, 40.0, 100.0, 60.0)),
         );

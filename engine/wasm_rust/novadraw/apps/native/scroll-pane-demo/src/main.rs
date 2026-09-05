@@ -15,6 +15,7 @@ use novadraw_demo_scenes::scroll_pane::{
 fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
@@ -53,6 +54,7 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
 fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
@@ -93,19 +95,21 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
 fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, 400.0, 300.0),
         )
         .map_err(|error| error.to_string())?;
     let mut update_manager = UpdateManager::new();
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
     );
@@ -132,18 +136,20 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
 fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     let (mut graph, root) = base_scene();
     let pane = graph
+        .builder()
         .add_scroll_pane_to(
             root,
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(RectangleFigure::new(
             0.0,

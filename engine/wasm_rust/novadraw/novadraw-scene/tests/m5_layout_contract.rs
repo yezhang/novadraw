@@ -14,9 +14,15 @@ fn assert_rect(actual: Option<Rectangle>, expected: Rectangle) {
 #[test]
 fn stack_layout_places_every_child_in_the_client_area() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 200.0, 100.0)));
-    let first = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 30.0)));
-    let second = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 50.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 200.0, 100.0)));
+    let first = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 30.0)));
+    let second = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 50.0)));
     graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
 
     graph.revalidate(root);
@@ -29,9 +35,15 @@ fn stack_layout_places_every_child_in_the_client_area() {
 #[test]
 fn toolbar_layout_compresses_main_axis_and_stretches_minor_axis() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 170.0, 60.0)));
-    let first = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
-    let second = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 30.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 170.0, 60.0)));
+    let first = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
+    let second = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 30.0)));
     graph.set_minimum_size(first, Some((60.0, 10.0)));
     graph.set_minimum_size(second, Some((100.0, 10.0)));
     graph.set_block_layout_manager(
@@ -58,10 +70,18 @@ fn toolbar_layout_compresses_main_axis_and_stretches_minor_axis() {
 #[test]
 fn grid_layout_uses_track_maxima_and_fill_alignment() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
-    let first = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
-    let second = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 30.0)));
-    let third = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 60.0, 25.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let first = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
+    let second = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 30.0)));
+    let third = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 60.0, 25.0)));
     let fill_cell = GridConstraint {
         horizontal_alignment: GridAlignment::Fill,
         vertical_alignment: GridAlignment::Fill,
@@ -98,9 +118,15 @@ fn grid_layout_uses_track_maxima_and_fill_alignment() {
 #[test]
 fn grid_layout_honors_column_span_and_excess_space() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 210.0, 100.0)));
-    let spanning = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
-    let trailing = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 210.0, 100.0)));
+    let spanning = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
+    let trailing = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
     graph.set_constraint(spanning, GridConstraint::fill().with_span(2, 1));
     graph.set_constraint(trailing, GridConstraint::fill());
     graph.set_block_layout_manager(
@@ -128,11 +154,16 @@ fn grid_layout_honors_column_span_and_excess_space() {
 #[test]
 fn update_manager_completes_a_1024_figure_layout_transaction() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1024.0, 1024.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1024.0, 1024.0)));
     let mut children = Vec::new();
     for _ in 0..1024 {
-        children
-            .push(graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0))));
+        children.push(
+            graph
+                .builder()
+                .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0))),
+        );
     }
     graph.set_block_layout_manager(
         root,
@@ -195,8 +226,12 @@ impl LayoutManager for InvalidOutputLayout {
 #[test]
 fn layout_output_is_validated_before_any_change_is_committed() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
-    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
     graph.set_block_layout_manager(
         root,
         Box::new(InvalidOutputLayout {
@@ -224,8 +259,12 @@ fn layout_output_is_validated_before_any_change_is_committed() {
 #[test]
 fn wrong_constraint_type_is_reported_and_invalid_work_is_preserved() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
-    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
     graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
     graph.set_constraint(child, BorderConstraint::new(BorderRegion::Center));
     let mut updates = UpdateManager::new();
@@ -287,8 +326,12 @@ impl LayoutManager for CountingLayout {
 fn layout_measurements_are_cached_until_generation_changes() {
     let measurements = Arc::new(AtomicUsize::new(0));
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
     graph.set_block_layout_manager(
         root,
         Box::new(CountingLayout {
@@ -319,7 +362,9 @@ fn layout_measurements_are_cached_until_generation_changes() {
 fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
     let measurements = Arc::new(AtomicUsize::new(0));
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     graph.set_block_layout_manager(
         root,
         Box::new(CountingLayout {
@@ -371,8 +416,12 @@ impl LayoutManager for ReinvalidatingLayout {
 #[test]
 fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let child = graph.add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
     graph.set_block_layout_manager(root, Box::new(ReinvalidatingLayout { child }));
     let mut updates = UpdateManager::new();
     graph.mark_invalid(&mut updates, root);

@@ -8,7 +8,9 @@ use novadraw_render::NdCanvas;
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, border::Border,
 };
-use crate::{FigureId, FigureTree, GraphMutationError, PropertyValue, UpdateManager};
+use crate::{
+    FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue, UpdateManager,
+};
 
 fn valid_scale(scale: f64) -> bool {
     scale.is_finite() && scale > 0.0
@@ -316,7 +318,7 @@ impl FigureTree {
         })
     }
 
-    pub fn add_scalable_layered_pane_to(
+    pub(crate) fn add_scalable_layered_pane_to(
         &mut self,
         parent: FigureId,
         bounds: Rectangle,
@@ -325,5 +327,15 @@ impl FigureTree {
         let figure = ScalableLayeredPaneFigure::with_runtime(bounds, Arc::clone(&runtime));
         let block_id = self.try_add_child_to(parent, Box::new(figure))?;
         Ok(ScaleHandle { block_id, runtime })
+    }
+}
+
+impl FigureTreeBuilder<'_> {
+    pub fn add_scalable_layered_pane_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ScaleHandle, GraphMutationError> {
+        self.tree_mut().add_scalable_layered_pane_to(parent, bounds)
     }
 }

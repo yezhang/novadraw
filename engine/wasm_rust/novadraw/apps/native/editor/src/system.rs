@@ -560,14 +560,17 @@ mod tests {
 
     fn build_test_core() -> (EditorInteractionCore, FigureId) {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            400.0,
-            300.0,
-            Color::rgba(0.0, 0.0, 0.0, 0.0),
-        )));
-        let target_id = scene.add_child_to(
+        let root_id =
+            scene
+                .builder()
+                .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    400.0,
+                    300.0,
+                    Color::rgba(0.0, 0.0, 0.0, 0.0),
+                )));
+        let target_id = scene.builder().add_child_to(
             root_id,
             Box::new(TestInteractiveFigure::new(Rectangle::new(
                 100.0, 100.0, 100.0, 100.0,
@@ -585,14 +588,17 @@ mod tests {
 
     fn build_coordinate_root_test_core() -> (EditorInteractionCore, FigureId) {
         let mut scene = FigureTree::new();
-        let root_id = scene.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            400.0,
-            300.0,
-            Color::rgba(0.0, 0.0, 0.0, 0.0),
-        )));
-        let coordinate_root_id = scene.add_child_to(
+        let root_id =
+            scene
+                .builder()
+                .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    400.0,
+                    300.0,
+                    Color::rgba(0.0, 0.0, 0.0, 0.0),
+                )));
+        let coordinate_root_id = scene.builder().add_child_to(
             root_id,
             Box::new(novadraw::RectangleFigure::new_with_color(
                 100.0,
@@ -602,7 +608,7 @@ mod tests {
                 Color::rgba(0.2, 0.2, 0.2, 0.0),
             )),
         );
-        let target_id = scene.add_child_to(
+        let target_id = scene.builder().add_child_to(
             coordinate_root_id,
             Box::new(TestInteractiveFigure::new(Rectangle::new(
                 20.0, 30.0, 40.0, 40.0,

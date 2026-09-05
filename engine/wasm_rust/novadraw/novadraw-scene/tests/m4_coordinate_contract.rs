@@ -16,19 +16,21 @@ fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
 
 fn nested_coordinate_scene() -> (FigureTree, novadraw_scene::FigureId) {
     let mut graph = FigureTree::new();
-    let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
-    let outer = graph.add_child_to(
+    let contents = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+    let outer = graph.builder().add_child_to(
         contents,
         Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
     );
-    let inner = graph.add_child_to(
+    let inner = graph.builder().add_child_to(
         outer,
         Box::new(
             RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
                 .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
         ),
     );
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         inner,
         Box::new(RectangleFigure::new(10.0, 15.0, 60.0, 50.0)),
     );
@@ -159,19 +161,21 @@ impl FigureEventHandler for RecordingFigure {
 fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let recorded = Arc::new(Mutex::new(None));
     let mut graph = FigureTree::new();
-    let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
-    let outer = graph.add_child_to(
+    let contents = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+    let outer = graph.builder().add_child_to(
         contents,
         Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
     );
-    let inner = graph.add_child_to(
+    let inner = graph.builder().add_child_to(
         outer,
         Box::new(
             RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
                 .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
         ),
     );
-    let target = graph.add_child_to(
+    let target = graph.builder().add_child_to(
         inner,
         Box::new(RecordingFigure::new(
             Rectangle::new(10.0, 15.0, 60.0, 50.0),
@@ -209,12 +213,14 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
 #[test]
 fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let mut graph = FigureTree::new();
-    let contents = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
-    let coordinate_root = graph.add_child_to(
+    let contents = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+    let coordinate_root = graph.builder().add_child_to(
         contents,
         Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
     );
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         coordinate_root,
         Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
     );

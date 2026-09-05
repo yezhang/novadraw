@@ -9,8 +9,9 @@ use novadraw_render::NdCanvas;
 use crate::figure::{Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    EventContext, FigureId, FigureTree, GraphMutationError, MouseEvent, PropertyValue, RangeModel,
-    ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle, WheelEvent,
+    EventContext, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, MouseEvent,
+    PropertyValue, RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle,
+    WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
@@ -725,7 +726,7 @@ impl LayoutManager for ScrollPaneLayout {
 }
 
 impl FigureTree {
-    pub fn add_scroll_pane_to(
+    pub(crate) fn add_scroll_pane_to(
         &mut self,
         parent: FigureId,
         bounds: Rectangle,
@@ -781,5 +782,15 @@ impl FigureTree {
             vertical_scroll_bar,
             runtime,
         })
+    }
+}
+
+impl FigureTreeBuilder<'_> {
+    pub fn add_scroll_pane_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ScrollPaneHandle, ScrollPaneError> {
+        self.tree_mut().add_scroll_pane_to(parent, bounds)
     }
 }

@@ -128,7 +128,7 @@ impl SceneManager {
             Color::rgba(0.3, 0.3, 0.3, 1.0),
         );
         let root_size = (root_fig.bounds.width, root_fig.bounds.height);
-        let parent_id = scene.set_contents(Box::new(root_fig));
+        let parent_id = scene.builder().set_contents(Box::new(root_fig));
 
         // 角点手柄大小
         let handle_size = 20.0;
@@ -141,7 +141,7 @@ impl SceneManager {
             handle_size,
             Color::rgba(0.9, 0.2, 0.2, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(rect_tl));
+        scene.builder().add_child_to(parent_id, Box::new(rect_tl));
 
         // 右上角 - 绿色小正方形
         let rect_tr = RectangleFigure::new_with_color(
@@ -151,7 +151,7 @@ impl SceneManager {
             handle_size,
             Color::rgba(0.2, 0.8, 0.3, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(rect_tr));
+        scene.builder().add_child_to(parent_id, Box::new(rect_tr));
 
         // 左下角 - 蓝色小正方形
         let rect_bl = RectangleFigure::new_with_color(
@@ -161,7 +161,7 @@ impl SceneManager {
             handle_size,
             Color::rgba(0.2, 0.4, 0.9, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(rect_bl));
+        scene.builder().add_child_to(parent_id, Box::new(rect_bl));
 
         // 右下角 - 黄色小正方形
         let rect_br = RectangleFigure::new_with_color(
@@ -171,7 +171,7 @@ impl SceneManager {
             handle_size,
             Color::rgba(0.9, 0.8, 0.2, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(rect_br));
+        scene.builder().add_child_to(parent_id, Box::new(rect_br));
     }
 
     /// 场景 4：prim_translate 平移传播测试
@@ -186,7 +186,7 @@ impl SceneManager {
             200.0,
             Color::rgba(0.4, 0.2, 0.5, 1.0),
         );
-        let parent_id = scene.set_contents(Box::new(parent));
+        let parent_id = scene.builder().set_contents(Box::new(parent));
 
         // Child - 橙色（相对于父节点）
         let child = RectangleFigure::new_with_color(
@@ -196,7 +196,7 @@ impl SceneManager {
             80.0,
             Color::rgba(0.9, 0.5, 0.1, 1.0),
         );
-        let child_id = scene.add_child_to(parent_id, Box::new(child));
+        let child_id = scene.builder().add_child_to(parent_id, Box::new(child));
 
         // Grandchild - 青色（选中状态）
         let grandchild = RectangleFigure::new_with_color(
@@ -206,7 +206,7 @@ impl SceneManager {
             30.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        scene.add_child_to(child_id, Box::new(grandchild))
+        scene.builder().add_child_to(child_id, Box::new(grandchild))
     }
 
     /// 场景 3：不可见节点过滤测试
@@ -221,7 +221,7 @@ impl SceneManager {
             60.0,
             Color::rgba(0.9, 0.2, 0.2, 1.0),
         );
-        let root_id = scene.set_contents(Box::new(rect_a));
+        let root_id = scene.builder().set_contents(Box::new(rect_a));
 
         // Hidden B - 蓝色 (不可见)
         let rect_b = RectangleFigure::new_with_color(
@@ -231,7 +231,7 @@ impl SceneManager {
             60.0,
             Color::rgba(0.2, 0.4, 0.9, 1.0),
         );
-        let id_b = scene.add_child_to(root_id, Box::new(rect_b));
+        let id_b = scene.builder().add_child_to(root_id, Box::new(rect_b));
 
         // 设置不可见
         scene.set_visible(id_b, false);
@@ -244,7 +244,7 @@ impl SceneManager {
             60.0,
             Color::rgba(0.2, 0.8, 0.3, 1.0),
         );
-        scene.add_child_to(root_id, Box::new(rect_c));
+        scene.builder().add_child_to(root_id, Box::new(rect_c));
     }
 
     /// 场景 2：Z-order 叠加测试
@@ -259,7 +259,7 @@ impl SceneManager {
             200.0,
             Color::rgba(0.3, 0.3, 0.3, 1.0),
         );
-        let z_parent_id = scene.set_contents(Box::new(z_parent));
+        let z_parent_id = scene.builder().set_contents(Box::new(z_parent));
 
         // A - 先添加，红色
         let rect_a = RectangleFigure::new_with_color(
@@ -269,7 +269,7 @@ impl SceneManager {
             100.0,
             Color::rgba(0.9, 0.2, 0.2, 1.0),
         );
-        scene.add_child_to(z_parent_id, Box::new(rect_a));
+        scene.builder().add_child_to(z_parent_id, Box::new(rect_a));
 
         // B - 后添加，蓝色，会覆盖 A 的右下角
         let rect_b = RectangleFigure::new_with_color(
@@ -279,7 +279,7 @@ impl SceneManager {
             100.0,
             Color::rgba(0.2, 0.4, 0.9, 1.0),
         );
-        scene.add_child_to(z_parent_id, Box::new(rect_b));
+        scene.builder().add_child_to(z_parent_id, Box::new(rect_b));
     }
 
     /// 场景 1：嵌套父子结构测试
@@ -294,7 +294,7 @@ impl SceneManager {
             200.0,
             Color::rgba(0.4, 0.2, 0.5, 1.0),
         );
-        let parent_id = scene.set_contents(Box::new(parent));
+        let parent_id = scene.builder().set_contents(Box::new(parent));
 
         // Child - 橙色
         let child = RectangleFigure::new_with_color(
@@ -304,7 +304,7 @@ impl SceneManager {
             100.0,
             Color::rgba(0.9, 0.5, 0.1, 1.0),
         );
-        let child_id = scene.add_child_to(parent_id, Box::new(child));
+        let child_id = scene.builder().add_child_to(parent_id, Box::new(child));
 
         // Grandchild - 青色（选中）
         let grandchild = RectangleFigure::new_with_color(
@@ -314,7 +314,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        scene.add_child_to(child_id, Box::new(grandchild))
+        scene.builder().add_child_to(child_id, Box::new(grandchild))
     }
 
     /// 场景 2：嵌套场景（含透明根节点）
@@ -331,7 +331,7 @@ impl SceneManager {
             600.0,
             Color::rgba(0.0, 0.0, 0.0, 0.0),
         );
-        let root_id = scene.set_contents(Box::new(root));
+        let root_id = scene.builder().set_contents(Box::new(root));
 
         // Parent - 深紫色（与场景 1 相同尺寸：250x200）
         let parent = RectangleFigure::new_with_color(
@@ -341,7 +341,7 @@ impl SceneManager {
             200.0,
             Color::rgba(0.4, 0.2, 0.5, 1.0),
         );
-        let parent_id = scene.add_child_to(root_id, Box::new(parent));
+        let parent_id = scene.builder().add_child_to(root_id, Box::new(parent));
 
         // Child - 橙色（与场景 1 相同尺寸：150x100）
         let child = RectangleFigure::new_with_color(
@@ -351,7 +351,7 @@ impl SceneManager {
             100.0,
             Color::rgba(0.9, 0.5, 0.1, 1.0),
         );
-        let child_id = scene.add_child_to(parent_id, Box::new(child));
+        let child_id = scene.builder().add_child_to(parent_id, Box::new(child));
 
         // Grandchild - 青色（选中状态，与场景 1 相同尺寸：80x40）
         // 实际位置 = parent(350,50) + child(30,30) + gc(20,20) = (400, 100)
@@ -362,7 +362,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.1, 0.8, 0.8, 1.0),
         );
-        scene.add_child_to(child_id, Box::new(gc))
+        scene.builder().add_child_to(child_id, Box::new(gc))
     }
 
     /// 场景 6：裁剪测试
@@ -377,7 +377,7 @@ impl SceneManager {
             600.0,
             Color::rgba(0.0, 0.0, 0.0, 0.0),
         );
-        let root_id = scene.set_contents(Box::new(root));
+        let root_id = scene.builder().set_contents(Box::new(root));
 
         // Parent - 半透明蓝色容器 (100x100)
         let parent = RectangleFigure::new_with_color(
@@ -387,7 +387,7 @@ impl SceneManager {
             100.0,
             Color::rgba(0.2, 0.4, 0.8, 0.5),
         );
-        let parent_id = scene.add_child_to(root_id, Box::new(parent));
+        let parent_id = scene.builder().add_child_to(root_id, Box::new(parent));
 
         // Child 1 - 完全在父容器内 (绿色)
         let child1 = RectangleFigure::new_with_color(
@@ -397,7 +397,7 @@ impl SceneManager {
             30.0,
             Color::rgba(0.2, 0.8, 0.3, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(child1));
+        scene.builder().add_child_to(parent_id, Box::new(child1));
 
         // Child 2 - 超出父容器右边界 (红色)
         // 父容器 (350, 250, 100, 100)，右边界是 450
@@ -409,7 +409,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.9, 0.2, 0.2, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(child2));
+        scene.builder().add_child_to(parent_id, Box::new(child2));
 
         // Child 3 - 超出父容器下边界 (黄色)
         // 父容器下边界是 350
@@ -421,7 +421,7 @@ impl SceneManager {
             40.0,
             Color::rgba(0.9, 0.8, 0.2, 1.0),
         );
-        scene.add_child_to(parent_id, Box::new(child3));
+        scene.builder().add_child_to(parent_id, Box::new(child3));
     }
 
     /// 场景 7：椭圆图形测试
@@ -436,11 +436,11 @@ impl SceneManager {
             600.0,
             Color::rgba(0.1, 0.1, 0.1, 1.0),
         );
-        let root_id = scene.set_contents(Box::new(root));
+        let root_id = scene.builder().set_contents(Box::new(root));
 
         // 椭圆 1 - 红色填充，带白色边框
         let ellipse1 = EllipseFigure::new(150.0, 150.0, 100.0, 80.0).with_stroke(Color::WHITE, 2.0);
-        scene.add_child_to(root_id, Box::new(ellipse1));
+        scene.builder().add_child_to(root_id, Box::new(ellipse1));
 
         // 椭圆 2 - 蓝色填充，无边框
         let ellipse2 = EllipseFigure::new_with_color(
@@ -450,7 +450,7 @@ impl SceneManager {
             120.0,
             Color::rgba(0.2, 0.6, 0.9, 1.0),
         );
-        scene.add_child_to(root_id, Box::new(ellipse2));
+        scene.builder().add_child_to(root_id, Box::new(ellipse2));
 
         // 椭圆 3 - 绿色描边，无填充
         let ellipse3 = EllipseFigure::new_with_color(
@@ -461,7 +461,7 @@ impl SceneManager {
             Color::rgba(0.0, 0.0, 0.0, 0.0),
         )
         .with_stroke(Color::rgba(0.2, 0.8, 0.3, 1.0), 3.0);
-        scene.add_child_to(root_id, Box::new(ellipse3));
+        scene.builder().add_child_to(root_id, Box::new(ellipse3));
 
         // 圆形 - 正椭圆
         let circle = EllipseFigure::new_with_color(
@@ -472,7 +472,7 @@ impl SceneManager {
             Color::rgba(0.9, 0.6, 0.2, 1.0),
         )
         .with_stroke(Color::WHITE, 2.0);
-        scene.add_child_to(root_id, Box::new(circle));
+        scene.builder().add_child_to(root_id, Box::new(circle));
     }
 
     /// 场景 8：直线图形测试
@@ -487,7 +487,7 @@ impl SceneManager {
             600.0,
             Color::rgba(0.1, 0.1, 0.1, 1.0),
         );
-        let root_id = scene.set_contents(Box::new(root));
+        let root_id = scene.builder().set_contents(Box::new(root));
 
         // 水平线 - 红色
         let h_line = PolylineFigure::new_with_color(
@@ -498,7 +498,7 @@ impl SceneManager {
             Color::rgba(0.9, 0.3, 0.3, 1.0),
         )
         .with_width(3.0);
-        scene.add_child_to(root_id, Box::new(h_line));
+        scene.builder().add_child_to(root_id, Box::new(h_line));
 
         // 垂直线 - 蓝色
         let v_line = PolylineFigure::new_with_color(
@@ -509,7 +509,7 @@ impl SceneManager {
             Color::rgba(0.3, 0.3, 0.9, 1.0),
         )
         .with_width(3.0);
-        scene.add_child_to(root_id, Box::new(v_line));
+        scene.builder().add_child_to(root_id, Box::new(v_line));
 
         // 斜线 - 绿色
         let diag_line = PolylineFigure::new_with_color(
@@ -520,7 +520,7 @@ impl SceneManager {
             Color::rgba(0.3, 0.9, 0.3, 1.0),
         )
         .with_width(3.0);
-        scene.add_child_to(root_id, Box::new(diag_line));
+        scene.builder().add_child_to(root_id, Box::new(diag_line));
 
         // 反向斜线 - 橙色（测试反向坐标）
         let diag_line2 = PolylineFigure::new_with_color(
@@ -531,7 +531,7 @@ impl SceneManager {
             Color::rgba(0.9, 0.6, 0.2, 1.0),
         )
         .with_width(3.0);
-        scene.add_child_to(root_id, Box::new(diag_line2));
+        scene.builder().add_child_to(root_id, Box::new(diag_line2));
 
         // 粗线 - 紫色
         let thick_line = PolylineFigure::new_with_color(
@@ -542,12 +542,12 @@ impl SceneManager {
             Color::rgba(0.6, 0.3, 0.9, 1.0),
         )
         .with_width(8.0);
-        scene.add_child_to(root_id, Box::new(thick_line));
+        scene.builder().add_child_to(root_id, Box::new(thick_line));
 
         // 加粗白色细线
         let white_line = PolylineFigure::new_with_color(500.0, 300.0, 750.0, 550.0, Color::WHITE)
             .with_width(2.0);
-        scene.add_child_to(root_id, Box::new(white_line));
+        scene.builder().add_child_to(root_id, Box::new(white_line));
     }
 
     fn create_dpi_test_scene(scene: &mut FigureTree) {
@@ -558,7 +558,7 @@ impl SceneManager {
             600.0,
             Color::rgba(0.10, 0.12, 0.16, 1.0),
         );
-        let root_id = scene.set_contents(Box::new(root));
+        let root_id = scene.builder().set_contents(Box::new(root));
 
         let outer = InteractiveRectFigure::with_palette(
             DPI_TEST_PROBE_BOUNDS.x,
@@ -571,7 +571,7 @@ impl SceneManager {
             Color::rgba(0.10, 0.16, 0.24, 1.0),
             Color::rgba(0.98, 0.86, 0.22, 1.0),
         );
-        let probe = scene.add_child_to(root_id, Box::new(outer));
+        let probe = scene.builder().add_child_to(root_id, Box::new(outer));
         scene.set_focusable(probe, true);
         scene.set_focus_traversable(probe, true);
     }

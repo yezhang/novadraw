@@ -275,13 +275,15 @@ fn duration_ns(duration: std::time::Duration) -> u64 {
 
 fn root_tree() -> (FigureTree, novadraw::FigureId) {
     let mut tree = FigureTree::new();
-    let root = tree.set_contents(Box::new(RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        ROOT_WIDTH,
-        ROOT_HEIGHT,
-        Color::WHITE,
-    )));
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            ROOT_WIDTH,
+            ROOT_HEIGHT,
+            Color::WHITE,
+        )));
     (tree, root)
 }
 
@@ -290,7 +292,7 @@ fn build_large_tree() -> FigureTree {
     for index in 0..LARGE_TREE_FIGURES {
         let column = index % LARGE_TREE_COLUMNS;
         let row = index / LARGE_TREE_COLUMNS;
-        tree.add_child_to(
+        tree.builder().add_child_to(
             root,
             Box::new(RectangleFigure::new(
                 column as f64 * 8.0,
@@ -306,7 +308,9 @@ fn build_large_tree() -> FigureTree {
 fn build_deep_tree() -> FigureTree {
     let (mut tree, mut parent) = root_tree();
     for _ in 1..DEEP_TREE_DEPTH {
-        parent = tree.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+        parent = tree
+            .builder()
+            .add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
     }
     tree
 }
@@ -316,7 +320,7 @@ fn build_text_tree() -> FigureTree {
     for index in 0..TEXT_FIGURES {
         let row = index / 20;
         let column = index % 20;
-        tree.add_child_to(
+        tree.builder().add_child_to(
             root,
             Box::new(TextProbeFigure::new(
                 Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
@@ -330,9 +334,11 @@ fn build_text_tree() -> FigureTree {
 fn build_viewport_tree() -> FigureTree {
     let (mut tree, root) = root_tree();
     let viewport = tree
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 800.0, 560.0))
         .expect("attach viewport");
     let scalable = tree
+        .builder()
         .add_scalable_layered_pane_to(
             viewport.block_id(),
             Rectangle::new(0.0, 0.0, 2_048.0, 2_048.0),
@@ -341,7 +347,7 @@ fn build_viewport_tree() -> FigureTree {
     for index in 0..VIEWPORT_FIGURES {
         let column = index % VIEWPORT_COLUMNS;
         let row = index / VIEWPORT_COLUMNS;
-        tree.add_child_to(
+        tree.builder().add_child_to(
             scalable.block_id(),
             Box::new(RectangleFigure::new(
                 column as f64 * 56.0,

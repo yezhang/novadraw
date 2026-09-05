@@ -203,12 +203,14 @@ fn existing_product_figures_expose_border_api() {
 #[test]
 fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     let mut scene = FigureTree::new();
-    let root_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let bottom_id = scene.add_child_to(
+    let root_id = scene
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let bottom_id = scene.builder().add_child_to(
         root_id,
         Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 80.0)),
     );
-    let top_id = scene.add_child_to(
+    let top_id = scene.builder().add_child_to(
         root_id,
         Box::new(EllipseFigure::new(30.0, 30.0, 80.0, 80.0)),
     );
@@ -230,7 +232,7 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     assert_eq!(scene.child_z_index(root_id, top_id), Some(1));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(top_id));
 
-    assert!(scene.send_child_to_back(root_id, top_id));
+    assert!(scene.builder().send_child_to_back(root_id, top_id));
     assert_eq!(scene.child_order(root_id), Some(vec![top_id, bottom_id]));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(bottom_id));
 
@@ -246,12 +248,14 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
 #[test]
 fn m2_three_phase_paint_order_is_observable_from_product_api() {
     let mut scene = FigureTree::new();
-    let root_id = scene.set_contents(Box::new(PaintMarkerFigure::new(
-        Rectangle::new(0.0, 0.0, 100.0, 100.0),
-        ROOT_COLOR,
-        ROOT_BORDER_COLOR,
-    )));
-    scene.add_child_to(
+    let root_id = scene
+        .builder()
+        .set_contents(Box::new(PaintMarkerFigure::new(
+            Rectangle::new(0.0, 0.0, 100.0, 100.0),
+            ROOT_COLOR,
+            ROOT_BORDER_COLOR,
+        )));
+    scene.builder().add_child_to(
         root_id,
         Box::new(PaintMarkerFigure::new(
             Rectangle::new(10.0, 10.0, 40.0, 40.0),

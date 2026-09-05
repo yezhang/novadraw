@@ -90,8 +90,11 @@ fn range_model_listener_observes_changes_until_removed() {
 #[test]
 fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -119,8 +122,11 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
 #[test]
 fn viewport_handle_replaces_contents_without_leaving_two_children() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -150,8 +156,11 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
 #[test]
 fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -189,8 +198,11 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
 #[test]
 fn viewport_track_width_uses_available_width_until_content_minimum() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -216,15 +228,19 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
 #[test]
 fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     let child_color = Color::hex("#d7263d");
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(RectangleFigure::new_with_color(
             20.0,
@@ -295,8 +311,11 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
 #[test]
 fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -312,11 +331,15 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
 #[test]
 fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     assert!(graph.set_preferred_size(scalable.block_id(), Some((500.0, 300.0))));
@@ -370,8 +393,11 @@ impl FigureEventHandler for WheelIgnoringFigure {}
 
 fn large_scroll_pane_scene() -> (FigureTree, novadraw_scene::ScrollPaneHandle, UpdateManager) {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
+        .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
         .unwrap();
     let mut update_manager = UpdateManager::new();
@@ -382,7 +408,7 @@ fn large_scroll_pane_scene() -> (FigureTree, novadraw_scene::ScrollPaneHandle, U
             Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)),
         )
         .unwrap();
-    graph.add_child_to(
+    graph.builder().add_child_to(
         contents,
         Box::new(WheelIgnoringFigure {
             bounds: Rectangle::new(10.0, 10.0, 100.0, 80.0),
@@ -511,17 +537,21 @@ fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
 #[test]
 fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
+        .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, 640.0, 480.0),
         )
         .unwrap();
-    let child = graph.add_child_to(
+    let child = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(WheelIgnoringFigure {
             bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
@@ -563,17 +593,21 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
 #[test]
 fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
+        .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, 640.0, 480.0),
         )
         .unwrap();
-    let content = graph.add_child_to(
+    let content = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(WheelIgnoringFigure {
             bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
@@ -680,17 +714,21 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
 #[test]
 fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let pane = graph
+        .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(
             pane.viewport().block_id(),
             Rectangle::new(0.0, 0.0, 400.0, 300.0),
         )
         .unwrap();
-    let content = graph.add_child_to(
+    let content = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(WheelIgnoringFigure {
             bounds: Rectangle::new(0.0, 0.0, 400.0, 300.0),
@@ -814,11 +852,15 @@ fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
 #[test]
 fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     graph.revalidate(viewport.block_id());
@@ -863,11 +905,15 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
 #[test]
 fn zoom_manager_uses_configured_levels_for_step_zoom() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
     let viewport = graph
+        .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
         .unwrap();
     let scalable = graph
+        .builder()
         .add_scalable_layered_pane_to(viewport.block_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
     graph.revalidate(viewport.block_id());
@@ -912,18 +958,20 @@ fn viewport_border_insets_define_child_transform_and_client_extent() {
 #[test]
 fn viewport_rejects_a_second_contents_child_atomically() {
     let mut graph = FigureTree::new();
-    let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
-    let viewport = graph.add_child_to(
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+    let viewport = graph.builder().add_child_to(
         root,
         Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 200.0)),
     );
-    let first = graph.try_add_child_to(
+    let first = graph.builder().try_add_child_to(
         viewport,
         Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)),
     );
     assert!(first.is_ok());
 
-    let second = graph.try_add_child_to(
+    let second = graph.builder().try_add_child_to(
         viewport,
         Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
     );

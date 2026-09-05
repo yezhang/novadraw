@@ -158,10 +158,10 @@ LayeredPane 使用与 Viewport 单 child policy 相同层级的
 `ChildPolicy::Layered`。所有 add/reparent 入口都必须执行该 policy；缺少 LayerKey
 的泛型 topology 操作必须返回错误，不能绕过 LayeredPane 不变量。
 
-由于 membership 状态属于 Runtime，D2 之后公开拓扑写操作必须经过 Runtime mutation
-入口。FigureTree 的底层 add/remove/reparent primitive 只能作为 crate 内部事务步骤；
-公开只读树查询不受影响。callback effect 中若请求把 child 移入 LayeredPane，也必须
-携带 LayerKey 与 placement，否则整项 mutation 被拒绝。
+由于 membership 状态属于 Runtime，LayeredPane 写操作必须经过 Runtime mutation
+入口。普通场景的 pre-Runtime 批量构建使用显式 FigureTreeBuilder；FigureTree 的底层
+add/remove/reparent primitive 只能作为 crate 内部步骤。callback effect 中若请求把
+child 移入 LayeredPane，也必须携带 LayerKey 与 placement，否则整项 mutation 被拒绝。
 
 ### 3.4 普通与 Freeform LayeredPane
 
@@ -488,7 +488,7 @@ extent cache 或提前发送的通知。
 | 6. OverflowVisible | 目标等价，裁剪机制显式化并加强一致性 | 结果应等价 |
 | 7. RangeModel 使用 content domain | 用户效果等价，公开数值表示不同 | 否 |
 | 8. Scalable capability 组合 | 继承改组合 | 基本是 |
-| 9. Runtime-only topology mutation | 收窄修改入口，增强事务语义 | 否 |
+| 9. Builder/Runtime topology mutation | 收窄修改入口，增强事务语义 | 否 |
 
 “语义收窄”需要区分：
 
@@ -694,13 +694,14 @@ capability/state，不通过不透明 wrapper 查找后代 extent。
 - 错误 wrapper 若不转发 Freeform capability，会退回普通 Viewport 语义；
 - API 类型关系不再与 Draw2D 类继承一一对应。
 
-### 12.10 决策 9：公开 topology 写入统一经过 Runtime
+### 12.10 决策 9：构建期 Builder，运行期 Runtime
 
 **Draw2D：**调用方可以直接执行 `Figure.add/remove`，Figure 自己同步 parent、
 listeners、layout 和 UpdateManager。
 
-**Novadraw：**公开写入只能通过 Runtime mutation；FigureTree 保留公开只读查询和
-crate-private mutation primitive。callback 只能记录 effect。
+**Novadraw：**pre-Runtime 批量构建通过 FigureTreeBuilder；进入 Runtime 后公开写入
+只能通过 Runtime mutation。FigureTree 保留公开只读查询和 crate-private mutation
+primitive，callback 只能记录 effect。
 
 **分类：**修改入口与时序的语义收窄，同时显著增强事务保证。最终稳定树结构可以
 等价，但中间状态、重入能力和通知时序不等价。
@@ -717,5 +718,5 @@ crate-private mutation primitive。callback 只能记录 effect。
 - 调用简单 add/remove 的样板代码和概念成本增加；
 - callback 修改不会立即在当前调用栈中可见；
 - 某些底层批量算法需要专用复合 mutation，不能直接循环操作 FigureTree；
-- Runtime 成为强制依赖，独立使用 FigureTree 的写场景被取消；
+- 运行期写入强制依赖 Runtime；独立批量构建必须显式使用 builder；
 - 事务队列和校验会引入少量管理开销。

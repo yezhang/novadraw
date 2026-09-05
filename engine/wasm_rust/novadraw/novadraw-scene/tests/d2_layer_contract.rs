@@ -52,11 +52,13 @@ impl FigureEventHandler for EnqueueLayersFigure {
 #[test]
 fn transparent_layer_returns_descendant_but_never_itself() {
     let mut tree = FigureTree::new();
-    let layer = tree.set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)));
+    let layer = tree
+        .builder()
+        .set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)));
 
     assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
 
-    let child = tree.add_child_to(
+    let child = tree.builder().add_child_to(
         layer,
         Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0)),
     );

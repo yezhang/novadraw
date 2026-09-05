@@ -20,8 +20,8 @@ use crate::figure::{
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    DefaultRangeModel, FigureId, FigureTree, GraphMutationError, PropertyValue, RangeModel,
-    RangeModelError, RangeModelSnapshot, UpdateManager,
+    DefaultRangeModel, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue,
+    RangeModel, RangeModelError, RangeModelSnapshot, UpdateManager,
 };
 
 const DEFAULT_RANGE_MAXIMUM: f64 = i32::MAX as f64;
@@ -500,7 +500,7 @@ impl FigureTree {
     }
 
     /// Adds a Viewport Figure and returns its typed transactional handle.
-    pub fn add_viewport_to(
+    pub(crate) fn add_viewport_to(
         &mut self,
         parent: FigureId,
         bounds: Rectangle,
@@ -536,5 +536,15 @@ impl FigureTree {
             Box::new(ViewportLayout::new(Arc::clone(&runtime))),
         );
         Ok(ViewportHandle { block_id, runtime })
+    }
+}
+
+impl FigureTreeBuilder<'_> {
+    pub fn add_viewport_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ViewportHandle, GraphMutationError> {
+        self.tree_mut().add_viewport_to(parent, bounds)
     }
 }

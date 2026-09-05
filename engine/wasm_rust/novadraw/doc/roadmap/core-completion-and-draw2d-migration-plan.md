@@ -364,10 +364,10 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - ADR-004 接受关键取舍；
    - 同步 tree-search、coordinate、static architecture 和 UpdateManager SSOT。
 2. **D2.1 Layer 基础**
-   - 状态：`in_progress`；
+   - 状态：`complete`；
    - Layer capability、HitParticipation 与默认透明命中；
    - LayerKey、LayeredPaneState 和 LayeredPaneHandle 命名操作；
-   - Runtime-only 公开 topology mutation；
+   - 构建期 FigureTreeBuilder、运行期 Runtime topology mutation；
    - key 唯一性、before/after 与原子失败契约。
 3. **D2.2 Freeform extent**
    - 状态：`not_started`；
@@ -390,7 +390,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - layer 顺序、透明命中、四方向滚动与缩放；
    - Headless 契约、macOS/Web 人工验收与文档收口。
 
-D2.1 首批执行结果：
+D2.1 执行结果：
 
 - 新增 `LayerFigure`、`LayeredPane`、`Layer` marker 与
   `HitParticipation::DescendantsOnly`；
@@ -402,16 +402,16 @@ D2.1 首批执行结果：
 - LayeredPane 默认接入 StackLayout，作为 contents 或 nested layer 时均可注册；
 - callback keyed layer mutation 已接入 effect queue，add/remove/move/reparent 与普通
   mutation 共享 FIFO 提交；
+- 新增显式 `FigureTreeBuilder`，外部批量场景构建、Viewport、ScalablePane 和
+  ScrollPane 构造统一经 builder；FigureTree 底层 topology mutator 已收窄为
+  crate-private；
+- editor、scroll-pane-demo、R8 benchmark 与全部 public contract tests 已迁移到
+  builder API；
 - `d2_layer_contract` 7 项通过，覆盖透明命中、key 唯一、before/after、逆序命中、
   泛型绕过拒绝、跨 pane reparent、remove、contents 注册和 callback FIFO；
-- `cargo check -p novadraw-scene` 与
+- `cargo check -p novadraw-scene --tests` 与
   `cargo clippy -p novadraw-scene --lib -- -D warnings` 通过；
 - workspace/full-test 门禁受当前沙箱禁止执行 Xcode clang 阻断，不是代码诊断失败。
-
-D2.1 剩余：
-
-- 完成公开 FigureTree topology 写入口向 Runtime/显式 builder 的迁移；
-- 全量测试环境恢复后补跑 workspace 门禁。
 
 评审点：
 

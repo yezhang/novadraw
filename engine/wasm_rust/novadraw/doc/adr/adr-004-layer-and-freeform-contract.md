@@ -33,8 +33,8 @@ Novadraw 已由 ADR-003 确立 parent-local bounds、Runtime 事务入口、Figu
    ScalablePane 是 scale 的唯一真源。
 8. ScalableFreeformLayeredPane 在同一节点组合 LayeredPane、Freeform 和
    ScalableFigure capability，并复用现有 scale state。
-9. 公开 topology 写入统一经过 Runtime；FigureTree 仅公开只读查询，底层 mutation
-   primitive 限于 crate 内事务实现。
+9. pre-Runtime 批量构建使用显式 FigureTreeBuilder，运行期 topology 写入统一经过
+   Runtime；FigureTree 仅公开只读查询，底层 mutation primitive 限于 crate 内实现。
 
 完整语义、Draw2D 差异及逐项收益/代价见
 `doc/design/architecture/layer-and-freeform.md`。

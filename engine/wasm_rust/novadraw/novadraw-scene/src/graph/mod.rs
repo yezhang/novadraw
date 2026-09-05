@@ -440,11 +440,11 @@ impl FigureNode {
 ///
 /// // 创建根内容块（类似 Draw2d 的 setContents）
 /// let contents = RectangleFigure::new(0.0, 0.0, 100.0, 50.0);
-/// let contents_id = scene.set_contents(Box::new(contents));
+/// let contents_id = scene.builder().set_contents(Box::new(contents));
 ///
 /// // 添加子块到指定父块（类似 Draw2d 的 parent.addChild(child)）
 /// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0);
-/// scene.add_child_to(contents_id, Box::new(child));
+/// scene.builder().add_child_to(contents_id, Box::new(child));
 /// ```
 pub struct FigureTree {
     blocks: SlotMap<FigureId, FigureNode>,
@@ -456,7 +456,63 @@ pub struct FigureTree {
     notification_effects: NotificationQueue,
 }
 
+/// Explicit construction-only facade for building a Figure tree before Runtime ownership.
+pub struct FigureTreeBuilder<'a> {
+    tree: &'a mut FigureTree,
+}
+
+impl<'a> FigureTreeBuilder<'a> {
+    pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
+        self.tree.set_contents(figure)
+    }
+
+    pub fn add_child_to(&mut self, parent: FigureId, figure: Box<dyn super::Figure>) -> FigureId {
+        self.tree.add_child_to(parent, figure)
+    }
+
+    pub fn try_add_child_to(
+        &mut self,
+        parent: FigureId,
+        figure: Box<dyn super::Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        self.tree.try_add_child_to(parent, figure)
+    }
+
+    pub fn add_child_with_bounds(
+        &mut self,
+        parent: FigureId,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        color: novadraw_core::Color,
+    ) -> FigureId {
+        self.tree
+            .add_child_with_bounds(parent, x, y, width, height, color)
+    }
+
+    pub fn move_child_to_index(&mut self, parent: FigureId, child: FigureId, index: usize) -> bool {
+        self.tree.move_child_to_index(parent, child, index)
+    }
+
+    pub fn bring_child_to_front(&mut self, parent: FigureId, child: FigureId) -> bool {
+        self.tree.bring_child_to_front(parent, child)
+    }
+
+    pub fn send_child_to_back(&mut self, parent: FigureId, child: FigureId) -> bool {
+        self.tree.send_child_to_back(parent, child)
+    }
+
+    pub(crate) fn tree_mut(&mut self) -> &mut FigureTree {
+        self.tree
+    }
+}
+
 impl FigureTree {
+    pub fn builder(&mut self) -> FigureTreeBuilder<'_> {
+        FigureTreeBuilder { tree: self }
+    }
+
     /// 创建新场景图
     pub fn new() -> Self {
         let mut blocks = SlotMap::with_key();
@@ -555,7 +611,7 @@ impl FigureTree {
     /// 设置场景的根容器，后续添加的子块将作为此容器的子元素。
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
-    pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
+    pub(crate) fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
         if let Some(previous) = self.contents.take() {
             self.detach_child(self.root, previous);
         }
@@ -577,7 +633,7 @@ impl FigureTree {
     /// 对应 draw2d: parent.addChild(child) (不触发 revalidate)
     ///
     /// 与 `add_child()` 的区别：此方法不触发 revalidate()，用于批量构建场景。
-    pub fn add_child_to(
+    pub(crate) fn add_child_to(
         &mut self,
         parent_id: FigureId,
         figure: Box<dyn super::Figure>,
@@ -589,7 +645,7 @@ impl FigureTree {
     /// 尝试添加子块到指定父块。
     ///
     /// parent 不存在或深度超限时不分配节点、不修改 UUID 映射，并返回错误。
-    pub fn try_add_child_to(
+    pub(crate) fn try_add_child_to(
         &mut self,
         parent_id: FigureId,
         figure: Box<dyn super::Figure>,
@@ -612,12 +668,12 @@ impl FigureTree {
     /// use novadraw_scene::{figure::RectangleFigure, FigureTree};
     ///
     /// let mut scene = FigureTree::new();
-    /// let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+    /// let parent_id = scene.builder().set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     /// let color = Color::hex("#3498db");
     /// // 添加子节点，bounds 位于 parent content domain
-    /// let _child_id = scene.add_child_with_bounds(parent_id, 10.0, 10.0, 50.0, 50.0, color);
+    /// let _child_id = scene.builder().add_child_with_bounds(parent_id, 10.0, 10.0, 50.0, 50.0, color);
     /// ```
-    pub fn add_child_with_bounds(
+    pub(crate) fn add_child_with_bounds(
         &mut self,
         parent_id: FigureId,
         x: f64,
@@ -641,7 +697,7 @@ impl FigureTree {
     ///
     /// 用于交互式修改（如拖拽添加、动态插入节点），不适合批量构建场景。
     /// 批量构建使用 `add_child_to()` 以避免不必要的更新触发。
-    pub fn add_child(
+    pub(crate) fn add_child(
         &mut self,
         update_manager: &mut UpdateManager,
         parent_id: FigureId,
@@ -692,7 +748,7 @@ impl FigureTree {
     }
 
     /// Removes a direct child through the update transaction.
-    pub fn remove_child(
+    pub(crate) fn remove_child(
         &mut self,
         update_manager: &mut UpdateManager,
         parent: FigureId,
@@ -705,7 +761,7 @@ impl FigureTree {
     }
 
     /// Reparents a block through the update transaction.
-    pub fn reparent(
+    pub(crate) fn reparent(
         &mut self,
         update_manager: &mut UpdateManager,
         child: FigureId,
@@ -1833,7 +1889,7 @@ impl FigureTree {
     /// 将直接 child 移动到指定 z-order index。
     ///
     /// `index == 0` 表示最底层；`index == children.len() - 1` 表示最顶层。
-    pub fn move_child_to_index(
+    pub(crate) fn move_child_to_index(
         &mut self,
         parent_id: FigureId,
         child_id: FigureId,
@@ -1858,7 +1914,7 @@ impl FigureTree {
     }
 
     /// 将直接 child 移动到最高 z-order。
-    pub fn bring_child_to_front(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
+    pub(crate) fn bring_child_to_front(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         let Some(last_index) = self
             .blocks
             .get(parent_id)
@@ -1870,7 +1926,7 @@ impl FigureTree {
     }
 
     /// 将直接 child 移动到最低 z-order。
-    pub fn send_child_to_back(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
+    pub(crate) fn send_child_to_back(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         self.move_child_to_index(parent_id, child_id, 0)
     }
 
