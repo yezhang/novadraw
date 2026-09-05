@@ -18,7 +18,9 @@ pub use range_model::{
     DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
     RangeModelError, RangeModelSnapshot, RangeProperty,
 };
-pub use scalable::{ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleHandle};
+pub use scalable::{
+    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError, ScaleHandle,
+};
 pub use scroll_pane::{
     ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,
     ScrollPaneHandle, ScrollPaneLayout,

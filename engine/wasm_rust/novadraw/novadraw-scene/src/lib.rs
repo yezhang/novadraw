@@ -27,9 +27,10 @@ pub use container::{
     FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement,
     LayeredPane, LayeredPaneHandle, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
     RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
-    ScalableFigure, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, ScrollBarFigure,
-    ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle,
-    ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy, ZoomViewportState,
+    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError,
+    ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
+    ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy,
+    ZoomViewportState,
 };
 pub use figure::border;
 pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};

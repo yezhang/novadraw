@@ -408,6 +408,10 @@ pub trait Figure: AsAny {
     fn freeform(&self) -> Option<&dyn Freeform> {
         None
     }
+
+    fn content_scale(&self) -> Option<f64> {
+        None
+    }
 }
 
 /// Marker capability for Figures accepted by a LayeredPane.

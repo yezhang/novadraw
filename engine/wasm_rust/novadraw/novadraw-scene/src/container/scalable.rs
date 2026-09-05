@@ -6,7 +6,8 @@ use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildTransform, Figure, FigureContainer, border::Border,
+    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer, Freeform,
+    HitParticipation, Layer, border::Border,
 };
 use crate::{
     FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue, UpdateManager,
@@ -275,6 +276,10 @@ impl Figure for ScalableLayeredPaneFigure {
     fn container(&self) -> Option<&dyn FigureContainer> {
         Some(self)
     }
+
+    fn content_scale(&self) -> Option<f64> {
+        Some(self.scale())
+    }
 }
 
 impl FigureContainer for ScalableLayeredPaneFigure {
@@ -305,17 +310,205 @@ impl ScalableFigure for ScalableLayeredPaneFigure {
     }
 }
 
+#[derive(Clone)]
+pub struct ScalableFreeformLayeredPane {
+    bounds: Rectangle,
+    runtime: Arc<Mutex<ScaleRuntime>>,
+    border: Option<Arc<dyn Border>>,
+}
+
+impl ScalableFreeformLayeredPane {
+    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+        Self::with_runtime(
+            Rectangle::new(x, y, width, height),
+            Arc::new(Mutex::new(ScaleRuntime::new(width, height))),
+        )
+    }
+
+    fn with_runtime(bounds: Rectangle, runtime: Arc<Mutex<ScaleRuntime>>) -> Self {
+        Self {
+            bounds,
+            runtime,
+            border: None,
+        }
+    }
+
+    pub fn with_scale(self, scale: f64) -> Self {
+        let _ = lock_unpoisoned(&self.runtime).update_scale(scale);
+        self
+    }
+
+    pub fn with_border(mut self, border: impl Border + 'static) -> Self {
+        self.border = Some(Arc::new(border));
+        self
+    }
+
+    fn project_layout_size(&self, size: (f64, f64)) -> (f64, f64) {
+        let scale = self.scale();
+        let (top, left, bottom, right) = self.insets();
+        (
+            (size.0 - left - right).max(0.0) * scale + left + right,
+            (size.1 - top - bottom).max(0.0) * scale + top + bottom,
+        )
+    }
+}
+
+impl Bounded for ScalableFreeformLayeredPane {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "ScalableFreeformLayeredPane"
+    }
+
+    fn preferred_size(&self) -> (f64, f64) {
+        let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
+        self.project_layout_size(size)
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        let scale = self.scale();
+        let scale_hint = |hint: f64| if hint >= 0.0 { hint / scale } else { hint };
+        (scale_hint(w_hint), scale_hint(h_hint))
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.project_layout_size(size)
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        self.project_layout_size(size)
+    }
+
+    fn child_transform(&self) -> ChildTransform {
+        ChildTransform::uniform(self.scale(), 0.0, 0.0)
+    }
+
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        ChildClippingStrategy::OverflowVisible
+    }
+
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Layered
+    }
+
+    fn insets(&self) -> (f64, f64, f64, f64) {
+        self.border
+            .as_ref()
+            .map(|border| border.get_insets())
+            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+    }
+
+    fn client_area(&self) -> Rectangle {
+        let (top, left, bottom, right) = self.insets();
+        Rectangle::new(
+            left,
+            top,
+            (self.bounds.width - left - right).max(0.0),
+            (self.bounds.height - top - bottom).max(0.0),
+        )
+    }
+}
+
+impl Figure for ScalableFreeformLayeredPane {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ScalableFreeformLayeredPane"
+    }
+
+    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+        Bounded::insets(self)
+    }
+
+    fn intrinsic_size(&self) -> (f64, f64) {
+        Bounded::preferred_size(self)
+    }
+
+    fn paint_figure(&self, _gc: &mut NdCanvas) {}
+
+    fn get_border(&self) -> Option<&dyn Border> {
+        self.border.as_deref()
+    }
+
+    fn hit_participation(&self) -> HitParticipation {
+        HitParticipation::DescendantsOnly
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+
+    fn layer(&self) -> Option<&dyn Layer> {
+        Some(self)
+    }
+
+    fn freeform(&self) -> Option<&dyn Freeform> {
+        Some(self)
+    }
+
+    fn content_scale(&self) -> Option<f64> {
+        Some(self.scale())
+    }
+}
+
+impl FigureContainer for ScalableFreeformLayeredPane {
+    fn child_transform(&self) -> ChildTransform {
+        Bounded::child_transform(self)
+    }
+
+    fn child_clipping_strategy(&self) -> ChildClippingStrategy {
+        ChildClippingStrategy::OverflowVisible
+    }
+
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Layered
+    }
+
+    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        Bounded::layout_size_hints(self, w_hint, h_hint)
+    }
+
+    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+        Bounded::project_preferred_size(self, size)
+    }
+
+    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+        Bounded::project_minimum_size(self, size)
+    }
+}
+
+impl Layer for ScalableFreeformLayeredPane {}
+impl Freeform for ScalableFreeformLayeredPane {}
+
+impl ScalableFigure for ScalableFreeformLayeredPane {
+    fn scale(&self) -> f64 {
+        lock_unpoisoned(&self.runtime).scale
+    }
+}
+
 impl FigureTree {
     pub fn scale_handle(&self, block_id: FigureId) -> Option<ScaleHandle> {
-        let scalable = self
-            .block(block_id)?
-            .figure
-            .as_any()
-            .downcast_ref::<ScalableLayeredPaneFigure>()?;
-        Some(ScaleHandle {
-            block_id,
-            runtime: Arc::clone(&scalable.runtime),
-        })
+        let figure = &self.block(block_id)?.figure;
+        let runtime =
+            if let Some(scalable) = figure.as_any().downcast_ref::<ScalableLayeredPaneFigure>() {
+                Arc::clone(&scalable.runtime)
+            } else {
+                Arc::clone(
+                    &figure
+                        .as_any()
+                        .downcast_ref::<ScalableFreeformLayeredPane>()?
+                        .runtime,
+                )
+            };
+        Some(ScaleHandle { block_id, runtime })
     }
 
     pub(crate) fn add_scalable_layered_pane_to(
@@ -328,6 +521,17 @@ impl FigureTree {
         let block_id = self.try_add_child_to(parent, Box::new(figure))?;
         Ok(ScaleHandle { block_id, runtime })
     }
+
+    pub(crate) fn add_scalable_freeform_layered_pane_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ScaleHandle, GraphMutationError> {
+        let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
+        let figure = ScalableFreeformLayeredPane::with_runtime(bounds, Arc::clone(&runtime));
+        let block_id = self.try_add_child_to(parent, Box::new(figure))?;
+        Ok(ScaleHandle { block_id, runtime })
+    }
 }
 
 impl FigureTreeBuilder<'_> {
@@ -337,5 +541,14 @@ impl FigureTreeBuilder<'_> {
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
         self.tree_mut().add_scalable_layered_pane_to(parent, bounds)
+    }
+
+    pub fn add_scalable_freeform_layered_pane_to(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ScaleHandle, GraphMutationError> {
+        self.tree_mut()
+            .add_scalable_freeform_layered_pane_to(parent, bounds)
     }
 }
