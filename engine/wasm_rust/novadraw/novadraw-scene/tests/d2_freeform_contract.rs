@@ -279,6 +279,52 @@ fn overflow_visible_skips_host_clip_during_rendering() {
 }
 
 #[test]
+fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)));
+    let viewport = tree
+        .builder()
+        .add_viewport_to(root, Rectangle::new(0.0, 0.0, 100.0, 80.0))
+        .unwrap();
+    let mut updates = UpdateManager::new();
+    let freeform = viewport
+        .set_contents(
+            &mut tree,
+            &mut updates,
+            Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)),
+        )
+        .unwrap();
+    tree.builder().add_child_to(
+        freeform,
+        Box::new(RectangleFigure::new(-20.0, -10.0, 30.0, 20.0)),
+    );
+    tree.revalidate(viewport.block_id());
+    viewport
+        .set_view_location(&mut tree, &mut updates, -20.0, -10.0)
+        .unwrap();
+
+    let viewport_sized_clips = tree
+        .render()
+        .commands()
+        .iter()
+        .filter(|command| {
+            matches!(
+                command.kind,
+                RenderCommandKind::Clip { rect }
+                    if rect[0].x == 0.0
+                        && rect[0].y == 0.0
+                        && rect[1].x == 100.0
+                        && rect[1].y == 80.0
+            )
+        })
+        .count();
+
+    assert_eq!(viewport_sized_clips, 2);
+}
+
+#[test]
 fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
     let mut tree = FigureTree::new();
     let host = tree

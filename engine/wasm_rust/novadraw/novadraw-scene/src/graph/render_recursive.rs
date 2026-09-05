@@ -233,8 +233,10 @@ impl<'a> FigureRenderer<'a> {
             };
 
             self.gc.push_state();
-            match clipping_strategy {
-                ChildClippingStrategy::ClipToChildBounds => {
+            let child_overflow =
+                child_block.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
+            match (clipping_strategy, child_overflow) {
+                (ChildClippingStrategy::ClipToChildBounds, false) => {
                     let child_bounds = child_block.figure_bounds();
                     debug_render!("[RECUR]     -> clip to child bounds={:?}", child_bounds);
                     self.gc.clip_rect(
@@ -245,8 +247,7 @@ impl<'a> FigureRenderer<'a> {
                     );
                     self.paint(child_id);
                 }
-                ChildClippingStrategy::DoNotClipChildBounds
-                | ChildClippingStrategy::OverflowVisible => {
+                _ => {
                     debug_render!("[RECUR]     -> paint child without child bounds clip");
                     self.paint(child_id);
                 }

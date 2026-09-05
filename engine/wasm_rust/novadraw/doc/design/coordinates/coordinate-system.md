@@ -200,6 +200,7 @@ Freeform 容器使用 `ChildClippingStrategy::OverflowVisible`：
 
 - 继承进入容器的 effective ancestor clip；
 - 不再与当前容器的 client box 相交；
+- parent 到该 child 的 paint edge 不再追加 child presentation bounds clip；
 - paint children、hit-test descent 和 damage projection 共用该 effective clip；
 - 最近的普通 clipping ancestor 或 Viewport 仍可截断内容。
 

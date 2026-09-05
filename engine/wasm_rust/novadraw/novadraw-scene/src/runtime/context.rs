@@ -6,8 +6,7 @@ use crate::{
     DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree, GestureSessionId,
     InteractionState, LayerKey, LayerPlacement, MouseEventKind, MouseLocationZoomScrollPolicy,
     NotificationEffect, PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle,
-    ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScrollPaneFigure, UpdateManager,
-    ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
+    ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
     mutation::{MutationContext, PendingMutation},
 };
 
@@ -174,10 +173,17 @@ impl<'a> SceneDispatchContext<'a> {
     fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
         loop {
             let block = self.scene.block(target_id)?;
-            if block.figure.as_any().is::<ScalableLayeredPaneFigure>()
-                || block.figure.as_any().is::<ScalableFreeformLayeredPane>()
-            {
+            if self.scene.scale_handle(target_id).is_some() {
                 return Some(target_id);
+            }
+            if block.figure.as_any().is::<ViewportFigure>()
+                && let Some(contents) = self
+                    .scene
+                    .child_order(target_id)
+                    .and_then(|children| children.first().copied())
+                && self.scene.scale_handle(contents).is_some()
+            {
+                return Some(contents);
             }
             target_id = self.scene.parent_id(target_id)?;
         }
