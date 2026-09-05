@@ -1552,6 +1552,15 @@ impl FigureTree {
             return Ok(());
         }
 
+        let prevalidate_children = self.blocks[container_id]
+            .layout
+            .manager
+            .as_deref()
+            .is_some_and(LayoutManager::requires_valid_children_before_layout);
+        if prevalidate_children {
+            self.revalidate_children_with_update(update_manager, container_id)?;
+        }
+
         let layout_manager = self
             .blocks
             .get_mut(container_id)
@@ -1650,6 +1659,18 @@ impl FigureTree {
             return Ok(());
         }
 
+        let prevalidate_children = self.blocks[container_id]
+            .layout
+            .manager
+            .as_deref()
+            .is_some_and(LayoutManager::requires_valid_children_before_layout);
+        if prevalidate_children {
+            let children = self.blocks[container_id].children.clone();
+            for child_id in children {
+                self.try_revalidate(child_id)?;
+            }
+        }
+
         let layout_manager = self
             .blocks
             .get_mut(container_id)
@@ -1710,12 +1731,25 @@ impl FigureTree {
             let child_id = match change {
                 LayoutChange::Bounds(child_id, _)
                 | LayoutChange::Visibility(child_id, _)
-                | LayoutChange::Invalidate(child_id) => *child_id,
+                | LayoutChange::Invalidate(child_id) => Some(*child_id),
+                LayoutChange::Property { figure, .. }
+                | LayoutChange::CoordinateSystemChanged(figure)
+                | LayoutChange::Repaint(figure)
+                | LayoutChange::RepaintParent(figure) => {
+                    if *figure != container_id {
+                        return Err(LayoutError::InvalidChild {
+                            container: container_id,
+                            child: *figure,
+                        });
+                    }
+                    None
+                }
             };
-            if self
-                .blocks
-                .get(child_id)
-                .is_none_or(|child| child.parent != Some(container_id))
+            if let Some(child_id) = child_id
+                && self
+                    .blocks
+                    .get(child_id)
+                    .is_none_or(|child| child.parent != Some(container_id))
             {
                 return Err(LayoutError::InvalidChild {
                     container: container_id,
@@ -1751,6 +1785,25 @@ impl FigureTree {
                 LayoutChange::Invalidate(child_id) => {
                     self.mark_invalid(update_manager, child_id);
                 }
+                LayoutChange::Property {
+                    figure,
+                    property,
+                    old_value,
+                    new_value,
+                } => {
+                    self.record_property_change(figure, property, old_value, new_value);
+                }
+                LayoutChange::CoordinateSystemChanged(figure) => {
+                    self.record_coordinate_system_changed(figure);
+                }
+                LayoutChange::Repaint(figure) => {
+                    self.repaint(update_manager, figure, None);
+                }
+                LayoutChange::RepaintParent(figure) => {
+                    if let Some(parent) = self.parent_id(figure) {
+                        self.repaint(update_manager, parent, None);
+                    }
+                }
             }
         }
         Ok(())
@@ -1780,6 +1833,18 @@ impl FigureTree {
                 LayoutChange::Invalidate(child_id) => {
                     self.mark_validation_path_invalid(child_id);
                 }
+                LayoutChange::Property {
+                    figure,
+                    property,
+                    old_value,
+                    new_value,
+                } => {
+                    self.record_property_change(figure, property, old_value, new_value);
+                }
+                LayoutChange::CoordinateSystemChanged(figure) => {
+                    self.record_coordinate_system_changed(figure);
+                }
+                LayoutChange::Repaint(_) | LayoutChange::RepaintParent(_) => {}
             }
         }
         Ok(())
@@ -2971,6 +3036,16 @@ impl super::layout::LayoutContext for FigureTree {
         } else {
             Rectangle::new(0.0, 0.0, 0.0, 0.0)
         }
+    }
+
+    fn get_freeform_extent(&self, block_id: FigureId) -> Option<Rectangle> {
+        self.freeform_extent(block_id).ok()
+    }
+
+    fn get_content_scale(&self, block_id: FigureId) -> Option<f64> {
+        self.blocks
+            .get(block_id)
+            .and_then(|block| block.figure.content_scale())
     }
 }
 

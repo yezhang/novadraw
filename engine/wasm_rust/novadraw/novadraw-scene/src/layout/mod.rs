@@ -20,7 +20,7 @@ pub use stack_layout::StackLayout;
 pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
-use crate::graph::FigureId;
+use crate::{PropertyValue, graph::FigureId};
 use novadraw_geometry::Rectangle;
 use std::any::Any;
 use std::error::Error;
@@ -73,6 +73,14 @@ pub trait LayoutContext {
 
     /// 获取容器 client area 在子节点坐标域中的矩形。
     fn get_container_bounds(&self, container_id: FigureId) -> Rectangle;
+
+    fn get_freeform_extent(&self, _block_id: FigureId) -> Option<Rectangle> {
+        None
+    }
+
+    fn get_content_scale(&self, _block_id: FigureId) -> Option<f64> {
+        None
+    }
 }
 
 /// Immutable view of the scene used by one layout calculation.
@@ -127,6 +135,14 @@ impl<'a> LayoutSnapshot<'a> {
     pub fn container_bounds(&self, container_id: FigureId) -> Rectangle {
         self.source.get_container_bounds(container_id)
     }
+
+    pub fn freeform_extent(&self, block_id: FigureId) -> Option<Rectangle> {
+        self.source.get_freeform_extent(block_id)
+    }
+
+    pub fn content_scale(&self, block_id: FigureId) -> Option<f64> {
+        self.source.get_content_scale(block_id)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -178,11 +194,20 @@ pub enum LayoutInvalidation {
     ExplicitSize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum LayoutChange {
     Bounds(FigureId, Rectangle),
     Visibility(FigureId, bool),
     Invalidate(FigureId),
+    Property {
+        figure: FigureId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+    },
+    CoordinateSystemChanged(FigureId),
+    Repaint(FigureId),
+    RepaintParent(FigureId),
 }
 
 /// Buffered changes produced by a layout calculation.
@@ -206,6 +231,34 @@ impl LayoutOutput {
 
     pub fn invalidate(&mut self, child: FigureId) {
         self.changes.push(LayoutChange::Invalidate(child));
+    }
+
+    pub(crate) fn record_property_change(
+        &mut self,
+        figure: FigureId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+    ) {
+        self.changes.push(LayoutChange::Property {
+            figure,
+            property,
+            old_value,
+            new_value,
+        });
+    }
+
+    pub(crate) fn coordinate_system_changed(&mut self, figure: FigureId) {
+        self.changes
+            .push(LayoutChange::CoordinateSystemChanged(figure));
+    }
+
+    pub(crate) fn repaint(&mut self, figure: FigureId) {
+        self.changes.push(LayoutChange::Repaint(figure));
+    }
+
+    pub(crate) fn repaint_parent(&mut self, figure: FigureId) {
+        self.changes.push(LayoutChange::RepaintParent(figure));
     }
 
     pub fn is_empty(&self) -> bool {
@@ -252,4 +305,8 @@ pub trait LayoutManager {
     ) -> Result<(), LayoutError>;
 
     fn invalidate(&mut self, _reason: LayoutInvalidation) {}
+
+    fn requires_valid_children_before_layout(&self) -> bool {
+        false
+    }
 }

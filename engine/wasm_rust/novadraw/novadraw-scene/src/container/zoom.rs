@@ -5,8 +5,8 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    FigureTree, LayoutError, RangeModelSnapshot, ScaleError, ScaleHandle, UpdateManager,
-    ViewportError, ViewportHandle,
+    FigureTree, FreeformError, LayoutError, RangeModelSnapshot, ScaleError, ScaleHandle,
+    UpdateManager, ViewportError, ViewportHandle,
 };
 
 pub const DEFAULT_ZOOM_LEVELS: [f64; 8] = [0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
@@ -86,6 +86,7 @@ pub enum ZoomError {
     InvalidZoomLevels,
     MissingViewport,
     Layout(LayoutError),
+    Freeform(FreeformError),
     Scale(ScaleError),
     Viewport(ViewportError),
 }
@@ -102,6 +103,7 @@ impl fmt::Display for ZoomError {
             }
             Self::MissingViewport => write!(f, "zoom manager viewport does not exist"),
             Self::Layout(error) => error.fmt(f),
+            Self::Freeform(error) => error.fmt(f),
             Self::Scale(error) => error.fmt(f),
             Self::Viewport(error) => error.fmt(f),
         }
@@ -119,6 +121,12 @@ impl From<ScaleError> for ZoomError {
 impl From<LayoutError> for ZoomError {
     fn from(value: LayoutError) -> Self {
         Self::Layout(value)
+    }
+}
+
+impl From<FreeformError> for ZoomError {
+    fn from(value: FreeformError) -> Self {
+        Self::Freeform(value)
     }
 }
 
@@ -216,9 +224,15 @@ impl ZoomManager {
             .ok_or(ZoomError::MissingViewport)?;
         let client_area = block.client_area();
         let old_location = self.viewport.view_location();
-        let new_location = self.scroll_policy.calc_new_view_location(
+        let uses_content_domain = self.uses_content_domain(graph);
+        let policy_location = if uses_content_domain {
+            Point::new(old_location.x() * old_zoom, old_location.y() * old_zoom)
+        } else {
+            old_location
+        };
+        let policy_location = self.scroll_policy.calc_new_view_location(
             ZoomViewportState {
-                view_location: old_location,
+                view_location: policy_location,
                 width: client_area.width,
                 height: client_area.height,
                 anchor,
@@ -226,6 +240,14 @@ impl ZoomManager {
             old_zoom,
             new_zoom,
         );
+        let new_location = if uses_content_domain {
+            Point::new(
+                policy_location.x() / new_zoom,
+                policy_location.y() / new_zoom,
+            )
+        } else {
+            policy_location
+        };
         let old_horizontal = self.viewport.horizontal_range();
         let old_vertical = self.viewport.vertical_range();
 
@@ -317,28 +339,37 @@ impl ZoomManager {
         fit_height: bool,
     ) -> Result<bool, ZoomError> {
         let old_zoom = self.zoom();
-        let preferred = graph
-            .preferred_size(self.scalable.block_id(), -1.0, -1.0)
-            .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
-        let scalable_block = graph
-            .block(self.scalable.block_id())
-            .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
-        let (top, left, bottom, right) = scalable_block.state().insets();
+        graph.validate_with_update(update_manager, self.viewport.block_id())?;
+        let uses_content_domain = self.uses_content_domain(graph);
         let viewport = graph
             .block(self.viewport.block_id())
             .ok_or(ZoomError::MissingViewport)?
             .client_area();
-        let scaled_content_width = preferred.0 - left - right;
-        let scaled_content_height = preferred.1 - top - bottom;
-        if scaled_content_width <= 0.0
-            || scaled_content_height <= 0.0
+        let (content_width, content_height) = if uses_content_domain {
+            let extent = graph.freeform_extent(self.scalable.block_id())?;
+            (extent.width, extent.height)
+        } else {
+            let preferred = graph
+                .preferred_size(self.scalable.block_id(), -1.0, -1.0)
+                .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
+            let scalable_block = graph
+                .block(self.scalable.block_id())
+                .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
+            let (top, left, bottom, right) = scalable_block.state().insets();
+            (
+                (preferred.0 - left - right) / old_zoom,
+                (preferred.1 - top - bottom) / old_zoom,
+            )
+        };
+        if content_width <= 0.0
+            || content_height <= 0.0
             || viewport.width <= 0.0
             || viewport.height <= 0.0
         {
             return Err(ZoomError::InvalidZoom);
         }
-        let width_zoom = viewport.width * old_zoom / scaled_content_width;
-        let height_zoom = viewport.height * old_zoom / scaled_content_height;
+        let width_zoom = viewport.width / content_width;
+        let height_zoom = viewport.height / content_height;
         let new_zoom = match (fit_width, fit_height) {
             (true, true) => width_zoom.min(height_zoom),
             (true, false) => width_zoom,
@@ -365,6 +396,13 @@ impl ZoomManager {
             },
         )?;
         Ok(zoom_changed || location_changed)
+    }
+
+    fn uses_content_domain(&self, graph: &FigureTree) -> bool {
+        self.viewport.contents(graph) == Some(self.scalable.block_id())
+            && graph
+                .block(self.scalable.block_id())
+                .is_some_and(|block| block.figure.freeform().is_some())
     }
 
     fn min_zoom(&self) -> f64 {

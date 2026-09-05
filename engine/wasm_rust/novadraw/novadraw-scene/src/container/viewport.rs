@@ -31,6 +31,7 @@ struct ViewportRuntime {
     vertical: Arc<dyn RangeModel>,
     tracks_width: bool,
     tracks_height: bool,
+    content_scale: f64,
 }
 
 impl ViewportRuntime {
@@ -53,6 +54,7 @@ impl ViewportRuntime {
             vertical,
             tracks_width: false,
             tracks_height: false,
+            content_scale: 1.0,
         }
     }
 
@@ -65,6 +67,30 @@ fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn record_range_changes(
+    out: &mut LayoutOutput,
+    viewport: FigureId,
+    old_horizontal: RangeModelSnapshot,
+    old_vertical: RangeModelSnapshot,
+    new_horizontal: RangeModelSnapshot,
+    new_vertical: RangeModelSnapshot,
+) {
+    if old_horizontal == new_horizontal && old_vertical == new_vertical {
+        return;
+    }
+    if old_horizontal.value != new_horizontal.value || old_vertical.value != new_vertical.value {
+        out.record_property_change(
+            viewport,
+            "viewLocation",
+            PropertyValue::Point(Point::new(old_horizontal.value, old_vertical.value)),
+            PropertyValue::Point(Point::new(new_horizontal.value, new_vertical.value)),
+        );
+        out.coordinate_system_changed(viewport);
+    }
+    out.repaint(viewport);
+    out.repaint_parent(viewport);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -326,6 +352,51 @@ impl LayoutManager for ViewportLayout {
             return Ok(());
         };
         let area = snapshot.container_bounds(container);
+        if let Some(freeform_extent) = snapshot.freeform_extent(contents) {
+            let scale = snapshot.content_scale(contents).unwrap_or(1.0);
+            if !scale.is_finite() || scale <= 0.0 {
+                return Err(LayoutError::NonFiniteGeometry { figure: contents });
+            }
+            let baseline = Rectangle::new(0.0, 0.0, area.width / scale, area.height / scale);
+            let envelope = freeform_extent.union(baseline);
+            let horizontal_maximum = envelope.x + envelope.width;
+            let vertical_maximum = envelope.y + envelope.height;
+            if !baseline.width.is_finite()
+                || !baseline.height.is_finite()
+                || !envelope.x.is_finite()
+                || !envelope.y.is_finite()
+                || !horizontal_maximum.is_finite()
+                || !vertical_maximum.is_finite()
+            {
+                return Err(LayoutError::NonFiniteGeometry { figure: contents });
+            }
+            out.set_child_bounds(
+                contents,
+                Rectangle::new(0.0, 0.0, baseline.width, baseline.height),
+            );
+            let mut runtime = lock_unpoisoned(&self.runtime);
+            let old_horizontal = runtime.horizontal.snapshot();
+            let old_vertical = runtime.vertical.snapshot();
+            runtime.content_scale = scale;
+            runtime
+                .horizontal
+                .set_all(envelope.x, baseline.width, horizontal_maximum)
+                .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+            runtime
+                .vertical
+                .set_all(envelope.y, baseline.height, vertical_maximum)
+                .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+            record_range_changes(
+                out,
+                container,
+                old_horizontal,
+                old_vertical,
+                runtime.horizontal.snapshot(),
+                runtime.vertical.snapshot(),
+            );
+            return Ok(());
+        }
+
         let (tracks_width, tracks_height) = {
             let runtime = lock_unpoisoned(&self.runtime);
             (runtime.tracks_width, runtime.tracks_height)
@@ -344,10 +415,25 @@ impl LayoutManager for ViewportLayout {
         };
         out.set_child_bounds(contents, Rectangle::new(0.0, 0.0, width, height));
 
-        let runtime = lock_unpoisoned(&self.runtime);
+        let mut runtime = lock_unpoisoned(&self.runtime);
+        let old_horizontal = runtime.horizontal.snapshot();
+        let old_vertical = runtime.vertical.snapshot();
+        runtime.content_scale = 1.0;
         let _ = runtime.horizontal.set_all(0.0, area.width, width);
         let _ = runtime.vertical.set_all(0.0, area.height, height);
+        record_range_changes(
+            out,
+            container,
+            old_horizontal,
+            old_vertical,
+            runtime.horizontal.snapshot(),
+            runtime.vertical.snapshot(),
+        );
         Ok(())
+    }
+
+    fn requires_valid_children_before_layout(&self) -> bool {
+        true
     }
 }
 
@@ -418,8 +504,12 @@ impl Bounded for ViewportFigure {
     }
 
     fn child_transform(&self) -> ChildTransform {
-        let view_location = lock_unpoisoned(&self.runtime).view_location();
-        ChildTransform::translation(-view_location.x(), -view_location.y())
+        let runtime = lock_unpoisoned(&self.runtime);
+        let view_location = runtime.view_location();
+        ChildTransform::translation(
+            -view_location.x() * runtime.content_scale,
+            -view_location.y() * runtime.content_scale,
+        )
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
