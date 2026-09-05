@@ -22,6 +22,8 @@ pub const DEMO_SCALE: f64 = 1.5;
 
 const LAYER_WIDTH: f64 = 480.0;
 const LAYER_HEIGHT: f64 = 340.0;
+const GRID_STEP: f64 = 100.0;
+const GRID_LINE_WIDTH: f64 = 2.0;
 
 pub struct FreeformDemo {
     pub graph: FigureTree,
@@ -103,30 +105,55 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         (content, overlay)
     };
 
-    for x in (-100..=700).step_by(100) {
+    let mut x = CONTENT_MIN_X;
+    while x < CONTENT_MAX_X {
         runtime.add_figure(
             content_layer,
             Box::new(RectangleFigure::new_with_color(
-                f64::from(x),
-                -80.0,
-                2.0,
-                520.0,
+                x,
+                CONTENT_MIN_Y,
+                GRID_LINE_WIDTH,
+                CONTENT_MAX_Y - CONTENT_MIN_Y,
                 Color::hex("#dfe6ee"),
             )),
         );
+        x += GRID_STEP;
     }
-    for y in (-50..=450).step_by(100) {
+    runtime.add_figure(
+        content_layer,
+        Box::new(RectangleFigure::new_with_color(
+            CONTENT_MAX_X - GRID_LINE_WIDTH,
+            CONTENT_MIN_Y,
+            GRID_LINE_WIDTH,
+            CONTENT_MAX_Y - CONTENT_MIN_Y,
+            Color::hex("#dfe6ee"),
+        )),
+    );
+
+    let mut y = CONTENT_MIN_Y;
+    while y < CONTENT_MAX_Y {
         runtime.add_figure(
             content_layer,
             Box::new(RectangleFigure::new_with_color(
-                -120.0,
-                f64::from(y),
-                820.0,
-                2.0,
+                CONTENT_MIN_X,
+                y,
+                CONTENT_MAX_X - CONTENT_MIN_X,
+                GRID_LINE_WIDTH,
                 Color::hex("#dfe6ee"),
             )),
         );
+        y += GRID_STEP;
     }
+    runtime.add_figure(
+        content_layer,
+        Box::new(RectangleFigure::new_with_color(
+            CONTENT_MIN_X,
+            CONTENT_MAX_Y - GRID_LINE_WIDTH,
+            CONTENT_MAX_X - CONTENT_MIN_X,
+            GRID_LINE_WIDTH,
+            Color::hex("#dfe6ee"),
+        )),
+    );
 
     for (bounds, fill) in [
         (

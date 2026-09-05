@@ -30,10 +30,9 @@ Novadraw 已具备完整的核心执行骨架：
 
 当前阻塞项：
 
-1. D2 Layer/Freeform 尚未完成 Demo 与人工验收；
-2. M9 Connection 体系尚未实现；
-3. M10 文本、图像与控件产品面尚未完成；
-4. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
+1. M9 Connection 体系尚未实现；
+2. M10 文本、图像与控件产品面尚未完成；
+3. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
 
 D1 启动时识别出的 selection、兼容 capability、Figure style、公开 no-op、
 TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
@@ -326,7 +325,7 @@ D1 最终验证结果：
 
 ## 5. D2：Layer 与 Freeform 基础
 
-状态：`in_progress`
+状态：`complete`
 
 目标：
 
@@ -388,7 +387,7 @@ D2 是 ConnectionLayer 和大型编辑画布的前置条件，但不引入 GEF E
    - ScalableFreeformLayeredPane 复用现有 scale state；
    - scale、origin、range、damage 同事务更新。
 6. **D2.5 Demo 与人工验收**
-   - 状态：`in_progress`（自动门禁完成，待人工验收）；
+   - 状态：`complete`；
    - 新增共享 Native/Web 场景；
    - layer 顺序、透明命中、四方向滚动与缩放；
    - Headless 契约、macOS/Web 人工验收与文档收口。
@@ -470,7 +469,7 @@ D2.5 自动验证结果：
   `ZoomEvent`，普通 wheel 保持 scroll 语义；
 - `novadraw-demo-scenes` 6 项测试、D2 Freeform 18 项、M8 Viewport 24 项及相关库级
   Clippy 通过；
-- Native/Vello 人工复验通过；D2.5 保持 `in_progress`，等待 Web 人工视觉/交互验收。
+- Native/Vello 与 Web 人工视觉/交互验收均通过，D2.5 和 D2 总阶段完成。
 
 评审点：
 
