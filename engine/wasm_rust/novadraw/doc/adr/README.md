@@ -14,6 +14,7 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [002](adr-002-notification-effect-queue.md) | 采用 Draw2D 语义分层与 Zed 式 effect queue 的通知机制 | 已通过 | 2026-05-06 |
 | [003](adr-003-rust-runtime-and-geometry-boundaries.md) | Rust Runtime 所有权与二维几何边界 | 已通过 | 2026-08-30 |
 | [004](adr-004-layer-and-freeform-contract.md) | Layer 与 Freeform 范围契约 | 已通过 | 2026-09-04 |
+| [005](adr-005-connection-routing-contract.md) | Connection 路由与依赖状态边界 | 已通过 | 2026-09-06 |
 
 ## ADR 模板
 

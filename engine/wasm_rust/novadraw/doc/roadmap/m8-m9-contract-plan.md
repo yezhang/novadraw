@@ -114,7 +114,10 @@ extent >= 0
 
 - Anchor 使用 `FigureId` 引用 owner；
 - location/reference point 通过只读树和坐标查询取得；
+- Runtime 用 tracked SceneQuery 记录 geometry、named region 和 relative transform
+  dependency，不只按 owner 建索引；
 - owner 删除、reparent 或 transform 变化时引用可检测失效；
+- source/target 允许显式 unbound，半连接状态不绘制旧 route；
 - Anchor 不长期持有 FigureTree。
 
 ### Router
@@ -123,6 +126,8 @@ extent >= 0
 - 输入为 connection endpoints、constraints 和只读 scene query；
 - 输出为 point list、route metadata 或结构化错误；
 - Router 不直接修改 FigureTree 或 UpdateManager。
+- Router 通过 RouterId 在 Runtime registry 中共享；ConnectionLayer 提供 inherited
+  default，Connection 可显式 override。
 
 ### Connection Runtime
 
@@ -130,20 +135,24 @@ connection-specific 关系状态属于专用 runtime component，不塞入通用
 
 ```text
 ConnectionState
-├── source anchor
-├── target anchor
-├── router
+├── optional source anchor
+├── optional target anchor
+├── router binding
 ├── routing constraint
-└── route cache
+├── dependency tokens
+└── route generation / resolution status
 ```
 
-Connection Figure 只负责绘制、精确 hit-test 和内在样式。节点或 anchor 变化通过依赖
-索引使 route cache 失效。
+Connection Figure 保存 Runtime 已提交的局部 point list，并负责绘制、精确 hit-test
+和内在样式。节点或 anchor 变化通过 dependency token 使 route generation 失效。
+共享 Router 配置和 routing group state 归 RouterRegistry。
 
 ### Locator / Decoration
 
 - Locator 在 connection path 或 endpoint 上放置 child Figure；
 - Decoration 是普通 Figure；
+- path bounds 不包含 locator child；decoration 通过 subtree visual envelope 参与
+  damage/freeform extent；
 - 所有结果仍使用二维 parent-local bounds 和统一坐标转换。
 
 ## 6. M9 验证门禁
@@ -151,12 +160,14 @@ Connection Figure 只负责绘制、精确 hit-test 和内在样式。节点或 
 - Anchor location/reference；
 - owner move、resize、reparent 和 remove；
 - direct、bendpoint 和 orthogonal routing；
-- route cache invalidation；
+- route generation invalidation 与 unresolved 恢复；
+- tracked dependency 与 dependency cycle rejection；
+- ConnectionLayer inherited/explicit Router binding；
 - connection projected damage；
 - stroke-aware hit-test；
 - locator 和 endpoint decoration；
 - ConnectionLayer 的 paint/hit-test 顺序；
-- deep tree 和 viewport/zoom 嵌套；
+- deep tree、viewport/zoom 嵌套与 cross-viewport clip policy；
 - demo 与视觉断言。
 
 ## 7. 推进顺序

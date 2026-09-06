@@ -19,7 +19,7 @@
 | M6 | 事件分发与交互状态机 | [§M6](#m6-事件分发与交互状态机) | 输入状态机 + 端口 |
 | M7 | 通知语义分层 | [§M7](#m7-通知语义分层) | 六类 listener + UpdateListener |
 | M8 | Viewport / Scroll / Zoom | [§M8](#m8-viewport--scroll--zoom) | ScrollPane + RangeModel |
-| M9 | Connection / Anchor / Router | [§M9](#m9-connection--anchor--router) | 连线 + 4 anchor + 3 router |
+| M9 | Connection / Anchor / Router | [§M9](#m9-connection--anchor--router) | 连线 + 5 anchor + 3 router |
 | M10 | 常用 Figure 与文本/控件 | [§M10](#m10-常用-figure-与文本控件) | 6 边框 + 文本 + Tooltip + Accessible 基础 |
 
 ---
@@ -241,13 +241,13 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `Connection`
 - `PolylineConnection`
 
-### Anchor 实现（4 个）
+### Anchor 实现（5 个）
 
 | Anchor | g2 对应 |
 |--------|---------|
 | `ChopboxAnchor` | `ChopboxAnchor` |
 | `EllipseAnchor` | `EllipseAnchor` |
-| `SlopeAnchor` | `SlopeAnchor` |
+| `RoundedRectangleAnchor` | `RoundedRectangleAnchor` |
 | `LabelAnchor` | `LabelAnchor` |
 | `XYAnchor` | `XYAnchor` |
 

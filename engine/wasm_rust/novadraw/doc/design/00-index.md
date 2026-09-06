@@ -22,9 +22,10 @@
 5. [`architecture/resource-lifecycle.md`](architecture/resource-lifecycle.md)
 6. [`architecture/tree-search-and-focus.md`](architecture/tree-search-and-focus.md)
 7. [`architecture/layer-and-freeform.md`](architecture/layer-and-freeform.md)
-8. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
-9. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
-10. [`rendering/update-manager.md`](rendering/update-manager.md)
+8. [`architecture/connection-routing.md`](architecture/connection-routing.md)
+9. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
+10. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
+11. [`rendering/update-manager.md`](rendering/update-manager.md)
 
 ## 非规范提案
 
