@@ -93,7 +93,7 @@
 - [x] M8 `apps/native/scroll-pane-demo`
 - [x] M8 `apps/native/viewport-app` 4 场景视觉验证
 - [x] D2 `layer-freeform` Native/Web 人工验收
-- [x] M9 `apps/native/connections-demo`（自动截图/视觉复核完成，等待人工窗口签收）
+- [x] M9 `apps/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
 - [ ] M10 `apps/native/shape-app`
 - [ ] M10 `apps/native/border-app`
 - [ ] M10 文本/图像 demo（待新增）

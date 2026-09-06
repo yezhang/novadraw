@@ -297,12 +297,12 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `connection.figure` | `Connection.get/setSourceAnchor`, `get/setTargetAnchor` | `ConnectionRuntime` 持有 optional AnchorId、tracked dependencies 和 unresolved/rebind；ConnectionFigure 已接入原子 geometry commit | partial | M9.5 补 Locator/Decoration child |
-| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | partial | M9.4 增加 shared routing group state |
-| `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | partial | 外部 setPoints 不开放；M9.5 补 child envelope |
-| `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | partial | 不复制 Anchor listener；M9.3 验证真实 Figure geometry provider |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/单连接 Manhattan、RouterRegistry、typed constraint 与 Runtime invalidation 已实现 | partial | M9.4b Fan pipeline 与 shared Manhattan reservation |
-| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | 目标：Locator 消费已提交 route snapshot；保留 middle/indexed midpoint 语义，另增 path fraction | missing | child envelope 与 path bounds 分离 |
+| `connection.figure` | `Connection.get/setSourceAnchor`, `get/setTargetAnchor` | `ConnectionRuntime` 持有 optional AnchorId、tracked dependencies 和 unresolved/rebind；ConnectionFigure 已接入原子 geometry commit | verified | Locator/Decoration child 与未绑定恢复已覆盖 |
+| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
+| `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
+| `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | 不复制 Anchor listener；依赖变化由 Runtime 精确失效 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Manhattan/Fan、RouterRegistry、typed constraint 与 Runtime invalidation 已实现 | verified | obstacle reservation 与 ShortestPath 属于后续增强 |
+| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Locator 消费已提交 route snapshot；实现 endpoint、middle、indexed midpoint 和 path fraction | verified | child envelope 与 path bounds 已分离 |
 
 规范 Rust 契约、坐标域和错误模型见
 [`design/architecture/connection-routing.md`](../../design/architecture/connection-routing.md)；

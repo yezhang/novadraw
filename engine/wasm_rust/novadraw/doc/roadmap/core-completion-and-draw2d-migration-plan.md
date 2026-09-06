@@ -30,9 +30,8 @@ Novadraw 已具备完整的核心执行骨架：
 
 当前阻塞项：
 
-1. M9 Connection 体系尚未实现；
-2. M10 文本、图像与控件产品面尚未完成；
-3. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
+1. M10 文本、图像与控件产品面尚未完成；
+2. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
 
 D1 启动时识别出的 selection、兼容 capability、Figure style、公开 no-op、
 TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
@@ -238,7 +237,7 @@ D1.4c 执行结果：
 - 定义稳定、可配置的 focus traversal；
 - 保持普通输入单 target，不引入 DOM 式通用冒泡。
 
-候选契约：
+规范契约：
 
 - [`../design/architecture/tree-search-and-focus.md`](../design/architecture/tree-search-and-focus.md)
 
@@ -491,14 +490,14 @@ D2.5 自动验证结果：
 
 ## 6. M9：Connection 分批交付
 
-状态：`in_progress`
+状态：`complete`
 
 候选契约：
 
 - [`../design/architecture/connection-routing.md`](../design/architecture/connection-routing.md)
 - [`../adr/adr-005-connection-routing-contract.md`](../adr/adr-005-connection-routing-contract.md)
 
-ADR-005 已通过；M9.1-M9.2 已完成，下一批进入 ConnectionFigure。
+ADR-005 已通过；M9.1-M9.6 的契约、实现、自动验证和人工窗口验收均已完成。
 
 执行顺序：
 
@@ -530,13 +529,13 @@ ADR-005 已通过；M9.1-M9.2 已完成，下一批进入 ConnectionFigure。
    - RouterId scope 下的 routing group state、稳定 snapshot 与批量原子提交；
    - ShortestPathConnectionRouter 继续延后。
 5. **M9.5 Locator、Decoration 与 Layer**
-   - 状态：`behavior_verified`；
+   - 状态：`complete`；
    - Endpoint/Midpoint/Connection/PathFraction Locator；
    - polygon/polyline decoration；
    - ConnectionLayer inherited router 与 explicit override；
    - viewport/zoom/deep-tree 与 nested viewport clip policy 集成。
 6. **M9.6 产品验收**
-   - 状态：`awaiting_manual_acceptance`；
+   - 状态：`complete`；
    - `connections-demo`；
    - anchor × router 组合矩阵；
    - 节点移动、resize、reparent、remove、滚动和缩放视觉断言。
@@ -609,6 +608,7 @@ M9.4b-M9.6 执行结果：
 - 新增 `apps/native/connections-demo`，包含 anchor_matrix、bendpoint、manhattan、
   fan、moved_nodes、connection_layer 六场景；
 - 六场景逐场截图成功并完成视觉复核，无空白帧、端点漂移、非正交段或视口裁剪；
+- 六场景人工窗口验收通过，包含 anchor_matrix 箭头锐角和 bendpoint 转折点复核；
 - `m9_connection_contract` 12 项、`m9_connection_runtime` 10 项通过；
 - shared Manhattan obstacle reservation 和 nested cross-viewport connection clip
   仍属于后续增强，不阻塞当前无障碍 Router 产品基线。
