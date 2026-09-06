@@ -491,37 +491,127 @@ D2.5 自动验证结果：
 
 ## 6. M9：Connection 分批交付
 
-状态：`not_started`
+状态：`in_progress`
+
+候选契约：
+
+- [`../design/architecture/connection-routing.md`](../design/architecture/connection-routing.md)
+- [`../adr/adr-005-connection-routing-contract.md`](../adr/adr-005-connection-routing-contract.md)
+
+ADR-005 已通过；M9.1-M9.2 已完成，下一批进入 ConnectionFigure。
 
 执行顺序：
 
 1. **M9.1 Anchor/Router 纯计算契约**
-   - SceneQuery 只读输入；
-   - Anchor owner/reference/location；
-   - Router 输入、输出、constraint 和结构化错误。
+   - 状态：`complete`；
+   - tracked SceneQuery 只读输入与 dependency token；
+   - Anchor owner/reference/location、group key 与 named geometry；
+   - RouterId/RouterRegistry、输入、输出、constraint 和结构化错误。
 2. **M9.2 Connection runtime**
+   - 状态：`complete`；
    - ConnectionState；
-   - owner -> connection 依赖索引；
-   - route cache 与失效传播；
-   - owner remove/reparent 的失效处理。
+   - dependency token -> connection 反向索引；
+   - inherited/explicit Router binding 与 RouterRegistry；
+   - route generation、unresolved 状态与失效传播；
+   - owner remove/reparent 与 dependency cycle。
 3. **M9.3 Connection Figure**
+   - 状态：`complete`；
    - ConnectionFigure、PolylineConnection；
-   - point list 同时驱动 paint、stroke-aware hit-test 和 visual bounds；
-   - Direct、Chopbox、Ellipse、XY Anchor。
+   - Runtime 原子提交 local point list 与 path bounds；
+   - point list 同时驱动 paint、stroke-aware hit-test 和自身 visual bounds；
+   - locator child 通过独立 subtree visual envelope 参与 damage/freeform extent；
+   - Direct Router；
+   - XY、Chopbox、Ellipse、RoundedRectangle、Label Anchor。
 4. **M9.4 Router**
-   - BendpointConnectionRouter；
-   - ManhattanConnectionRouter；
-   - FanRouter；
+   - 状态：`complete`；
+   - BendpointConnectionRouter（完成）；
+   - ManhattanConnectionRouter（完成单连接正交路由，共享 reservation 延后）；
+   - base router + Fan post-processor pipeline；
+   - RouterId scope 下的 routing group state、稳定 snapshot 与批量原子提交；
    - ShortestPathConnectionRouter 继续延后。
 5. **M9.5 Locator、Decoration 与 Layer**
-   - Endpoint/Midpoint/Connection Locator；
+   - 状态：`behavior_verified`；
+   - Endpoint/Midpoint/Connection/PathFraction Locator；
    - polygon/polyline decoration；
-   - ConnectionLayer；
-   - viewport/zoom/deep-tree 集成。
+   - ConnectionLayer inherited router 与 explicit override；
+   - viewport/zoom/deep-tree 与 nested viewport clip policy 集成。
 6. **M9.6 产品验收**
+   - 状态：`awaiting_manual_acceptance`；
    - `connections-demo`；
    - anchor × router 组合矩阵；
    - 节点移动、resize、reparent、remove、滚动和缩放视觉断言。
+
+M9.1 执行结果：
+
+- 新增 `connection` 模块，公开 `ConnectionId`、`AnchorId`、`RouterId`、
+  `CoordinateSpace`、`DependencySubject` 和 `SceneQuery` 纯计算边界；
+- `SceneRead` 与 `TrackedSceneQuery` 分离只读数据源和 dependency tracking；
+- 新增 XY、Chopbox、Ellipse、RoundedRectangle 与 Label Anchor；Label 通过 named
+  `icon` geometry 解耦具体 LabelFigure；
+- 新增 `AnchorSemanticKey`，为后续 Fan group 提供 value identity，自定义 Anchor
+  缺省保留实例 identity；
+- 新增 `RoutingConstraint`、`RouteRequest`、`RouteOutput`、endpoint metadata 与
+  结构化错误，输出统一校验点数、有限性和首尾 endpoint 一致性；
+- 新增确定性的 `DirectRouter`，保持 source/target 双向 reference 语义；
+- `m9_connection_contract` 11 项通过，`novadraw-scene` 227 项库测试无回归。
+
+M9.2 执行结果：
+
+- Runtime 私有 `ConnectionRuntime` 统一持有 Anchor、Router、ConnectionState、
+  layer default 和 dependency reverse index；
+- `FigureTreeSceneRead` 负责 Figure local / child content / logical surface 映射，
+  normal 使用 inverse-transpose；
+- Runtime 公开 Anchor/Router 注册、Connection 状态绑定、constraint 设置、route
+  resolve、state/error 查询接口；
+- source/target 缺失进入 typed unresolved，重新绑定后回到 dirty；
+- route 成功原子替换 dependencies，失败合并已读取 dependencies，避免恢复后无法调度；
+- bounds、reparent、remove、contents replacement 和 deferred mutation 已接入失效与
+  detached ConnectionState 清理；
+- Router/Anchor 被引用时不可删除，Router 切换先校验 constraint，失败保持旧状态；
+- dependency generation drift 与 Connection 自身/子树依赖环均结构化拒绝；
+- `m9_connection_runtime` 6 项通过。
+
+M9.3 执行结果：
+
+- 新增 `ConnectionFigure` 与 `ConnectionFigureBehavior` capability；
+- Runtime route 输出在 parent child content domain 计算 path bounds，再规范化为
+  node-local points，与 NodeState bounds 同事务提交；
+- ConnectionFigure 使用 Polyline render command，命中采用 segment distance +
+  stroke/tolerance；
+- path bounds 只包含 points 与 stroke，locator/decorations 仍保留独立 subtree
+  envelope；
+- unresolved transition 清空已提交 points 和 bounds，并 damage 旧区域；
+- Connection Figure registration 强制 capability 检查，普通 Figure 不能伪装为
+  Connection；
+- `m9_connection_runtime` 增至 7 项，覆盖 paint command、local normalization、
+  precise hit、unresolved clear 与状态清理。
+
+M9.4a 执行结果：
+
+- 新增 `BendpointConstraint`、absolute/relative Bendpoint 和
+  `BendpointConnectionRouter`；
+- 首尾 Bendpoint 作为 source/target Anchor reference，与 Draw2D 行为一致；
+- RelativeBendpoint 使用 source/target reference、两侧 offset 和 `[0, 1]` weight；
+- 新增无障碍 `ManhattanConnectionRouter`，根据 Anchor normal 选择正交方向并删除
+  相邻重复点；
+- `m9_connection_runtime` 增至 9 项；Fan group/batch 与 shared Manhattan
+  reservation 留在 M9.4b。
+
+M9.4b-M9.6 执行结果：
+
+- FanRouter 使用 RouterId + 无向 AnchorGroupKey pair + routing-domain child order
+  形成稳定分组，增删连接后重新居中；
+- `ConnectionLocator::{Source,Target,Middle}`、MidpointLocator 和
+  PathFractionLocator 已实现，保留 Draw2D middle 语义；
+- 箭头 Decoration 作为 Connection 普通 child，由 Endpoint Locator 结果定位；
+- 新增透明 `ConnectionLayerFigure`，验证 inherited Router 与 explicit override
+  分层；
+- 新增 `apps/native/connections-demo`，包含 anchor_matrix、bendpoint、manhattan、
+  fan、moved_nodes、connection_layer 六场景；
+- 六场景逐场截图成功并完成视觉复核，无空白帧、端点漂移、非正交段或视口裁剪；
+- `m9_connection_contract` 12 项、`m9_connection_runtime` 10 项通过；
+- shared Manhattan obstacle reservation 和 nested cross-viewport connection clip
+  仍属于后续增强，不阻塞当前无障碍 Router 产品基线。
 
 ## 7. M10：Reusable Figure 分批交付
 

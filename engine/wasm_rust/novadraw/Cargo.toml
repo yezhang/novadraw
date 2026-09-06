@@ -23,6 +23,7 @@ members = [
   "apps/native/border-app",
   "apps/native/update-app",
   "apps/native/scroll-pane-demo",
+  "apps/native/connections-demo",
   "apps/web/web-validation",
   "apps/benchmarks/r8-perf",
 ]

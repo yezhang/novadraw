@@ -4,6 +4,7 @@ use novadraw::FigureTree;
 
 pub mod border;
 pub mod clip;
+pub mod connection;
 pub mod event;
 pub mod focus;
 pub mod freeform;
@@ -94,6 +95,7 @@ pub fn catalog() -> Vec<DemoSuite> {
         viewport::suite(),
         freeform::suite(),
         clip::suite(),
+        connection::suite(),
         layout::suite(),
         event::suite(),
         update::suite(),

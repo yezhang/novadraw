@@ -47,7 +47,7 @@
 | M6 | 事件分发与交互状态机 | `behavior_verified` | mouse/cursor/hover/capture/focus 分离；scroll/zoom gesture session 与 pointer capture 分轨，连续手势固定 target |
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
-| M9 | Connection / Anchor / Router | `not_started` | 尚无核心公开协议 |
+| M9 | Connection / Anchor / Router | `behavior_verified` | M9.1-M9.6、六场景 connections-demo 与截图复核完成；等待人工窗口签收 |
 | M10 | 常用 Figure 与文本/控件 | `not_started` | 部分 Figure/Border 可导出，仍属于 deferred surface |
 
 ## 当前执行顺序
