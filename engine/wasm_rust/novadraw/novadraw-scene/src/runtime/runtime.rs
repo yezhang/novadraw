@@ -5,16 +5,19 @@ use novadraw_render::{
     RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
 };
 
+use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
-    CursorIcon, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
+    AnchorGeometry, AnchorGeometryKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter,
+    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
+    DependencySubject, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
     FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
     FreeformError, ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey,
     LayerPlacement, LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle,
-    ResourceError, ResourceRegistry, ResourceStatus, SceneDispatchContext, StackLayout,
-    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
-    WheelEvent, ZoomEvent,
+    ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding, RouterId,
+    RoutingConstraint, SceneDispatchContext, StackLayout, TreeOrderFocusTraversal, UpdateEvent,
+    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
@@ -31,6 +34,9 @@ pub struct Runtime {
     last_surface: Option<SurfaceInfo>,
     resources: ResourceRegistry,
     layered_panes: HashMap<FigureId, LayeredPaneState>,
+    connections: ConnectionRuntime,
+    anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
+    connection_error: Option<ConnectionRuntimeError>,
 }
 
 struct InFlightFrame {
@@ -53,6 +59,9 @@ impl Runtime {
             last_surface: None,
             resources: ResourceRegistry::new(),
             layered_panes: HashMap::new(),
+            connections: ConnectionRuntime::new(),
+            anchor_geometries: HashMap::new(),
+            connection_error: None,
         };
         runtime.initialize_layered_panes();
         runtime
@@ -92,8 +101,199 @@ impl Runtime {
         &self.resources
     }
 
+    pub fn direct_connection_router(&self) -> RouterId {
+        self.connections.direct_router()
+    }
+
+    pub fn register_connection_anchor(&mut self, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
+        self.connections.register_anchor(anchor)
+    }
+
+    pub fn remove_connection_anchor(
+        &mut self,
+        anchor: AnchorId,
+    ) -> Result<Box<dyn ConnectionAnchor>, ConnectionRuntimeError> {
+        self.connections.remove_anchor(anchor)
+    }
+
+    pub fn set_anchor_geometry(
+        &mut self,
+        figure: FigureId,
+        key: AnchorGeometryKey,
+        geometry: AnchorGeometry,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        if !self.tree.is_attached(figure) {
+            return Err(ConnectionRuntimeError::UnknownFigure(figure));
+        }
+        let bounds = geometry.bounds();
+        if key.is_border_box()
+            || !bounds.x.is_finite()
+            || !bounds.y.is_finite()
+            || !bounds.width.is_finite()
+            || !bounds.height.is_finite()
+            || bounds.width <= 0.0
+            || bounds.height <= 0.0
+        {
+            return Err(ConnectionRuntimeError::InvalidAnchorGeometry);
+        }
+        self.anchor_geometries
+            .insert((figure, key.clone()), geometry);
+        self.connections
+            .invalidate_dependency(&DependencySubject::NamedAnchorRegion(figure, key))
+    }
+
+    pub fn register_connection_router(&mut self, router: Box<dyn ConnectionRouter>) -> RouterId {
+        self.connections.register_router(router)
+    }
+
+    pub fn remove_connection_router(
+        &mut self,
+        router: RouterId,
+    ) -> Result<Box<dyn ConnectionRouter>, ConnectionRuntimeError> {
+        self.connections.remove_router(router)
+    }
+
+    pub fn set_connection_layer_router(
+        &mut self,
+        layer: FigureId,
+        router: RouterId,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        if !self.tree.is_attached(layer) {
+            return Err(ConnectionRuntimeError::UnknownFigure(layer));
+        }
+        self.connections.set_layer_router(layer, router)
+    }
+
+    pub fn register_connection_state(
+        &mut self,
+        figure: FigureId,
+        source: Option<AnchorId>,
+        target: Option<AnchorId>,
+        router: RouterBinding,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Result<ConnectionId, ConnectionRuntimeError> {
+        if !self.tree.is_attached(figure) {
+            return Err(ConnectionRuntimeError::UnknownFigure(figure));
+        }
+        if !self.tree.is_connection_figure(figure) {
+            return Err(ConnectionRuntimeError::NotConnectionFigure(figure));
+        }
+        let connection = ConnectionId::from_figure(figure);
+        self.connections
+            .register_connection(connection, source, target, router, constraint)?;
+        Ok(connection)
+    }
+
+    pub fn remove_connection_state(
+        &mut self,
+        connection: ConnectionId,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.connections.remove_connection(connection)
+    }
+
+    pub fn connection_state(
+        &self,
+        connection: ConnectionId,
+    ) -> Result<ConnectionStateSnapshot, ConnectionRuntimeError> {
+        self.connections.state(connection)
+    }
+
+    pub fn set_connection_source(
+        &mut self,
+        connection: ConnectionId,
+        source: Option<AnchorId>,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        self.connections.set_source(connection, source)
+    }
+
+    pub fn set_connection_target(
+        &mut self,
+        connection: ConnectionId,
+        target: Option<AnchorId>,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        self.connections.set_target(connection, target)
+    }
+
+    pub fn set_connection_router_binding(
+        &mut self,
+        connection: ConnectionId,
+        router: RouterBinding,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        self.connections.set_router_binding(connection, router)
+    }
+
+    pub fn set_connection_constraint(
+        &mut self,
+        connection: ConnectionId,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.connections.set_constraint(connection, constraint)
+    }
+
+    pub fn resolve_connection_route(
+        &mut self,
+        connection: ConnectionId,
+        routing_space: CoordinateSpace,
+    ) -> Result<RouteOutput, ConnectionRuntimeError> {
+        let routing_order: Vec<_> = match routing_space {
+            CoordinateSpace::ChildContent(parent) => self
+                .tree
+                .child_order(parent)
+                .unwrap_or_default()
+                .into_iter()
+                .map(ConnectionId::from_figure)
+                .collect(),
+            _ => vec![connection],
+        };
+        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        let result = self
+            .connections
+            .route(connection, routing_space, &scene, &routing_order);
+        match result {
+            Ok(output) => {
+                if !self.tree.commit_connection_route(
+                    &mut self.updates,
+                    connection.figure(),
+                    output.points(),
+                ) {
+                    return Err(ConnectionRuntimeError::NotConnectionFigure(
+                        connection.figure(),
+                    ));
+                }
+                Ok(output)
+            }
+            Err(error) => {
+                self.tree
+                    .clear_connection_route(&mut self.updates, connection.figure());
+                Err(error)
+            }
+        }
+    }
+
+    pub fn invalidate_connection_dependency(
+        &mut self,
+        subject: &DependencySubject,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        self.connections.invalidate_dependency(subject)
+    }
+
+    pub fn dirty_connections(&self) -> Vec<ConnectionId> {
+        self.connections.dirty_connections()
+    }
+
+    pub fn last_connection_error(&self) -> Option<&ConnectionRuntimeError> {
+        self.connection_error.as_ref()
+    }
+
+    pub fn take_connection_error(&mut self) -> Option<ConnectionRuntimeError> {
+        self.connection_error.take()
+    }
+
     pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
         let id = self.tree.set_contents(figure);
+        if let Err(error) = self.connections.invalidate_all() {
+            self.connection_error = Some(error);
+        }
         self.register_layered_pane(id);
         self.retain_interactive_figures();
         self.full_redraw_pending = true;
@@ -199,6 +399,7 @@ impl Runtime {
             .get_mut(&pane_id)
             .expect("validated layered pane state must exist")
             .remove_key(key);
+        self.invalidate_connection_figure_change(child, true);
         self.retain_runtime_state();
         Ok(child)
     }
@@ -283,6 +484,7 @@ impl Runtime {
         if target_index != last_index {
             let _ = self.tree.move_child_to_index(new_pane, child, target_index);
         }
+        self.invalidate_connection_figure_change(child, true);
         Ok(true)
     }
 
@@ -324,6 +526,9 @@ impl Runtime {
 
     pub fn remove_figure(&mut self, parent: FigureId, child: FigureId) -> bool {
         let changed = self.tree.remove_child(&mut self.updates, parent, child);
+        if changed {
+            self.invalidate_connection_figure_change(child, true);
+        }
         self.retain_interactive_figures();
         changed
     }
@@ -331,6 +536,7 @@ impl Runtime {
     pub fn reparent(&mut self, child: FigureId, new_parent: FigureId) -> bool {
         let changed = self.tree.reparent(&mut self.updates, child, new_parent);
         if changed {
+            self.invalidate_connection_figure_change(child, true);
             self.retain_interactive_figures();
         }
         changed
@@ -350,6 +556,9 @@ impl Runtime {
             // The synthetic tree root has no drawable background to repair
             // pixels exposed by a moved or resized contents node.
             self.full_redraw_pending = true;
+        }
+        if changed {
+            self.invalidate_connection_figure_change(id, false);
         }
         changed
     }
@@ -639,6 +848,31 @@ impl Runtime {
                 } => self
                     .reparent_layer(child, new_pane, key, placement)
                     .unwrap_or(false),
+                PendingMutationKind::RemoveChild { parent, child } => {
+                    let removed = self.tree.apply_pending_mutations(
+                        &mut self.updates,
+                        vec![PendingMutation::from_kind(
+                            PendingMutationKind::RemoveChild { parent, child },
+                        )],
+                    );
+                    if removed {
+                        self.invalidate_connection_figure_change(child, true);
+                    }
+                    removed
+                }
+                PendingMutationKind::Reparent { child, new_parent } => {
+                    let reparented = self.tree.apply_pending_mutations(
+                        &mut self.updates,
+                        vec![PendingMutation::from_kind(PendingMutationKind::Reparent {
+                            child,
+                            new_parent,
+                        })],
+                    );
+                    if reparented {
+                        self.invalidate_connection_figure_change(child, true);
+                    }
+                    reparented
+                }
                 kind => self.tree.apply_pending_mutations(
                     &mut self.updates,
                     vec![PendingMutation::from_kind(kind)],
@@ -717,6 +951,19 @@ impl Runtime {
             state.retain_children(|child| tree.parent_id(child) == Some(*pane));
             true
         });
+        self.connections
+            .retain_connections(|connection| tree.is_attached(connection));
+        self.anchor_geometries
+            .retain(|(figure, _), _| tree.is_attached(*figure));
+    }
+
+    fn invalidate_connection_figure_change(&mut self, figure: FigureId, topology_changed: bool) {
+        if let Err(error) = self
+            .connections
+            .invalidate_figure_change(figure, topology_changed)
+        {
+            self.connection_error = Some(error);
+        }
     }
 
     fn retain_interactive_figures(&mut self) {

@@ -12,6 +12,7 @@
 
 #![allow(missing_docs)]
 
+pub mod connection;
 pub mod container;
 pub mod figure;
 pub mod graph;
@@ -21,6 +22,20 @@ pub mod log;
 pub mod runtime;
 pub mod style;
 
+pub use connection::{
+    AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorGeometryKeyError, AnchorGroupKey,
+    AnchorId, AnchorSemanticKey, AnchorSemanticKeyError, AnchorSite, Bendpoint,
+    BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionAnchor,
+    ConnectionFigure, ConnectionFigureBehavior, ConnectionId, ConnectionLayerFigure,
+    ConnectionLocator, ConnectionLocatorStrategy, ConnectionResolution, ConnectionRouter,
+    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, DependencyObservation,
+    DependencySubject, DirectRouter, EllipseAnchor, FAN_DEFAULT_SEPARATION, FanRouter,
+    FanRouterError, LabelAnchor, LocatorError, LocatorPlacement, ManhattanConnectionRouter,
+    MidpointLocator, PathFractionLocator, RoundedRectangleAnchor, RouteEnd, RouteEndpoint,
+    RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId,
+    RoutingConstraint, RoutingGroupQuery, SceneQuery, SceneQueryError, SceneRead,
+    TrackedSceneQuery, UnresolvedConnection, XYAnchor,
+};
 pub use container::viewport;
 pub use container::{
     DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, FreeformLayerFigure,

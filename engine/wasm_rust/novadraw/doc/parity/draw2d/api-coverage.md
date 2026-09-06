@@ -289,7 +289,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 | `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height,set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
 | `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::{viewport,set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
 | `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments | `ScrollBarFigure` 与 Viewport 共享 RangeModel，支持 step/page/thumb drag；Lines/LogicalPixels 分级，wheel 未消费时沿祖先 fallback | verified | `m8_viewport_contract` + `scroll-pane-demo --verify` |
-| `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | Layer、keyed pane、Freeform 类型、派生 extent、nested 映射、OverflowVisible、`FreeformLayout` 与 content-domain Viewport/Zoom 集成 | verified | D2.1-D2.4 自动契约通过；不递归改写普通 child bounds，D2.5 继续产品验收 |
+| `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | Layer、keyed pane、Freeform 类型、派生 extent、nested 映射、OverflowVisible、`FreeformLayout` 与 content-domain Viewport/Zoom 集成 | verified | D2.1-D2.5 自动契约与 Native/Web 人工验收通过；不递归改写普通 child bounds |
 
 Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。
 
@@ -297,38 +297,20 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `connection.figure` | `Connection.get/setSourceAnchor`, `get/setTargetAnchor` | 目标契约名继续使用 `ConnectionFigure::{source_anchor,target_anchor}` | missing | M9 首个 contract delta |
-| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | 目标契约名继续使用 `ConnectionRouter` / `RoutingConstraint` | missing | Router 不应塞进具体 connection 实现 |
-| `connection.figure` | `getPoints/setPoints` | 目标契约名继续使用 `PointList` + connection point cache | missing | point list 同时驱动 paint、hit-test、damage |
-| `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 目标契约名继续使用 `ConnectionAnchor` + anchor moved notification | missing | owner bounds 变化触发 reroute/repaint |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | 目标契约名继续使用 `ConnectionRouter::{route,invalidate,remove}` | missing | Manhattan/Bendpoint/ShortestPath/Fan router 可分批实现 |
-| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | 目标契约名继续使用 `ConnectionLocator` | missing | 用于 label/decorations child placement |
+| `connection.figure` | `Connection.get/setSourceAnchor`, `get/setTargetAnchor` | `ConnectionRuntime` 持有 optional AnchorId、tracked dependencies 和 unresolved/rebind；ConnectionFigure 已接入原子 geometry commit | partial | M9.5 补 Locator/Decoration child |
+| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | partial | M9.4 增加 shared routing group state |
+| `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | partial | 外部 setPoints 不开放；M9.5 补 child envelope |
+| `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | partial | 不复制 Anchor listener；M9.3 验证真实 Figure geometry provider |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/单连接 Manhattan、RouterRegistry、typed constraint 与 Runtime invalidation 已实现 | partial | M9.4b Fan pipeline 与 shared Manhattan reservation |
+| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | 目标：Locator 消费已提交 route snapshot；保留 middle/indexed midpoint 语义，另增 path fraction | missing | child envelope 与 path bounds 分离 |
 
-建议首批 Rust 契约草案：
+规范 Rust 契约、坐标域和错误模型见
+[`design/architecture/connection-routing.md`](../../design/architecture/connection-routing.md)；
+由 ADR-005 接受。
 
-```rust
-pub trait ConnectionAnchor {
-    fn owner(&self) -> Option<FigureId>;
-    fn location(&self, graph: &FigureTree, reference: Point) -> Point;
-    fn reference_point(&self, graph: &FigureTree) -> Point;
-}
-
-pub trait ConnectionRouter {
-    fn route(&self, graph: &FigureTree, connection: FigureId) -> PointList;
-    fn invalidate(&mut self, connection: FigureId);
-    fn set_constraint(&mut self, connection: FigureId, constraint: RoutingConstraint);
-    fn remove(&mut self, connection: FigureId);
-}
-
-pub trait ConnectionFigure: Figure {
-    fn source_anchor(&self) -> Option<&dyn ConnectionAnchor>;
-    fn target_anchor(&self) -> Option<&dyn ConnectionAnchor>;
-    fn connection_router(&self) -> Option<&dyn ConnectionRouter>;
-    fn points(&self) -> &PointList;
-}
-```
-
-Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`ConnectionAnchor.java`、`ConnectionRouter.java`、`Locator.java`、`AbstractRouter.java`。
+Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`ConnectionAnchor.java`、
+`ConnectionRouter.java`、`Locator.java`、`AbstractRouter.java`；方法级分析见
+[`reference/draw2d/figure/connection-routing.md`](../../reference/draw2d/figure/connection-routing.md)。
 
 ### M10 Reusable Figures / Text / Widgets
 

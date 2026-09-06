@@ -289,10 +289,15 @@ pub trait Bounded {
 /// ```
 pub trait AsAny {
     fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl<T: Any> AsAny for T {
     fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }
@@ -410,6 +415,16 @@ pub trait Figure: AsAny {
     }
 
     fn content_scale(&self) -> Option<f64> {
+        None
+    }
+
+    /// Returns optional Connection geometry behavior.
+    fn connection(&self) -> Option<&dyn crate::ConnectionFigureBehavior> {
+        None
+    }
+
+    /// Returns mutable Connection geometry behavior.
+    fn connection_mut(&mut self) -> Option<&mut dyn crate::ConnectionFigureBehavior> {
         None
     }
 }

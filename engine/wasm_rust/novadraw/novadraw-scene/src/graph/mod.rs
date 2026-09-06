@@ -9,7 +9,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use novadraw_geometry::{Affine2D, Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, PointList, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
@@ -2190,6 +2190,126 @@ impl FigureTree {
         self.blocks.get(id).map(FigureNode::figure_bounds)
     }
 
+    pub fn is_connection_figure(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|block| block.figure.connection().is_some())
+    }
+
+    pub fn connection_route_points(&self, id: FigureId) -> Option<&PointList> {
+        self.blocks
+            .get(id)?
+            .figure
+            .connection()
+            .map(|connection| connection.route_points())
+    }
+
+    pub fn connection_stroke_color(&self, id: FigureId) -> Option<novadraw_core::Color> {
+        self.blocks
+            .get(id)?
+            .figure
+            .connection()
+            .map(|connection| connection.connection_stroke_color())
+    }
+
+    pub(crate) fn commit_connection_route(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        parent_points: &PointList,
+    ) -> bool {
+        let Some((stroke_width, old_bounds, old_visual_bounds, parent_id, visible)) =
+            self.blocks.get(id).and_then(|block| {
+                block.figure.connection().map(|connection| {
+                    (
+                        connection.connection_stroke_width(),
+                        block.figure_bounds(),
+                        block.visual_bounds(),
+                        block.parent,
+                        self.is_effectively_visible(id),
+                    )
+                })
+            })
+        else {
+            return false;
+        };
+        let Some(point_bounds) = parent_points.bounds() else {
+            return false;
+        };
+        let path_bounds = point_bounds.inflate(stroke_width / 2.0, stroke_width / 2.0);
+        if !finite_rectangle(path_bounds) {
+            return false;
+        }
+        let mut local_points = parent_points.clone();
+        local_points.translate(-path_bounds.x, -path_bounds.y);
+
+        if visible {
+            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+        }
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        block.set_node_bounds(path_bounds);
+        let Some(connection) = block.figure.connection_mut() else {
+            return false;
+        };
+        connection.commit_route_points(local_points);
+
+        self.notify_block_changed(id);
+        self.emit_figure_event(FigureEvent::FigureMoved {
+            block_id: id,
+            old_bounds,
+            new_bounds: path_bounds,
+        });
+        self.mark_invalid(update_manager, id);
+        self.mark_freeform_ancestor_extents_dirty(id);
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
+        true
+    }
+
+    pub(crate) fn clear_connection_route(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+    ) -> bool {
+        let Some((old_bounds, old_visual_bounds, parent_id, visible)) =
+            self.blocks.get(id).and_then(|block| {
+                block.figure.connection().map(|_| {
+                    (
+                        block.figure_bounds(),
+                        block.visual_bounds(),
+                        block.parent,
+                        self.is_effectively_visible(id),
+                    )
+                })
+            })
+        else {
+            return false;
+        };
+        if visible {
+            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+        }
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        block.set_node_bounds(Rectangle::ZERO);
+        let Some(connection) = block.figure.connection_mut() else {
+            return false;
+        };
+        connection.commit_route_points(PointList::new());
+        self.notify_block_changed(id);
+        self.emit_figure_event(FigureEvent::FigureMoved {
+            block_id: id,
+            old_bounds,
+            new_bounds: Rectangle::ZERO,
+        });
+        self.mark_invalid(update_manager, id);
+        self.mark_freeform_ancestor_extents_dirty(id);
+        true
+    }
+
     /// 返回节点从 FigureTree 根节点开始计算的深度。
     pub fn block_depth(&self, id: FigureId) -> Option<usize> {
         self.blocks.get(id).map(|block| block.depth)
@@ -2901,6 +3021,15 @@ impl FigureTree {
         }
 
         Some(transform)
+    }
+
+    /// Returns the complete child-content to logical-surface transform.
+    pub fn child_content_to_surface_transform(
+        &self,
+        block_id: FigureId,
+    ) -> Option<novadraw_geometry::Affine2D> {
+        let block = self.blocks.get(block_id)?;
+        Some(self.local_to_surface_transform(block_id)? * block.child_transform().affine())
     }
 }
 
