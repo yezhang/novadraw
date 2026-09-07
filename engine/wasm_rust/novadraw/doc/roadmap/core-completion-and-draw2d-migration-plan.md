@@ -621,6 +621,10 @@ M10.1 正式契约：
 [`../design/architecture/reusable-shape-border.md`](../design/architecture/reusable-shape-border.md)。
 由 ADR-006 接受。
 
+M10.2 正式契约：
+[`../design/architecture/text-layout.md`](../design/architecture/text-layout.md)。
+由 ADR-007 接受，按 Text Core、Label、TitleBarBorder 三个原子增量执行。
+
 执行顺序：
 
 1. **M10.1 Reusable Shape 与 Border 产品化收口**
@@ -633,9 +637,9 @@ M10.1 正式契约：
      证明所需的最小 Graphics primitive；clipPath、shear、gradient、XOR 和高级
      stroke 不进入本批次。
 2. **M10.2 文本与 Label**
-   - 真实字体测量；
-   - LabelFigure 文本/图标、alignment、gap、truncate；
-   - TitleBarBorder 的文字测量、insets、preferred size 与绘制；
+   - M10.2a：Parley shaping、真实字体测量、不可变 TextLayout 与 Vello glyph runs；
+   - M10.2b：LabelFigure 文本/图标、alignment、gap、truncate；
+   - M10.2c：TitleBarBorder 的文字测量、insets、preferred size 与绘制；
    - preferred/min/max size 与布局缓存联动。
 3. **M10.3 ImageFigure 与资源**
    - ImageId；
@@ -668,6 +672,7 @@ M10.1 自动执行结果：
   M10.1 场景人工验收通过，其中 MarginBorder 通过非对称 inset 与 child client-area
   裁剪场景完成可视验证；
 - M10.1 完成，下一阶段进入 M10.2 文本、Label 与 TitleBarBorder。
+- M10.2 契约已由 ADR-007 接受，当前执行 M10.2a Text Core。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

@@ -324,10 +324,10 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`Runtime::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |
-| `border.protocol` | `LabeledBorder`, `TitleBarBorder` | 目标：TitleBarBorder 消费统一字体测量和 resolved style | missing | 与 M10.2 Text/Label 同批交付，不进入 M10.1 |
-| `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | 目标契约名继续使用 `LabelFigure` | missing | M10 必须补 preferred size 与 layout 交互 |
+| `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；契约由 ADR-007 接受 | designed | M10.2c 实现与验证 |
+| `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 消费 Parley `TextLayout` 快照，遵循完整文本 preferred size 与 ellipsis minimum size | designed | M10.2b 实现与验证 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | 目标契约名继续使用 `ImageFigure` + image resource id | missing | image change 后 revalidate/repaint |
-| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | 目标契约名继续使用 `TextFlowFigure` 或 `TextFlow` layout object | missing | 先做 basic wrapping/measure，不做富文本编辑器 |
+| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | Parley `TextEngine` + immutable `TextLayout` 作为基础；后续契约名继续使用 `TextFlowFigure` | designed | M10.2a 先交付 shaping/measure/glyph snapshot，不做富文本编辑器 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | 目标契约名继续使用 `ClickableFigure` / button model | missing | 依赖 M6 event 与 M7 notification |
 | `widgets.basic` | `Button` text/image constructors and default button style | 目标契约名继续使用 `ButtonFigure` 作为 `ClickableFigure + LabelFigure` 组合 | missing | 不引入完整 widget toolkit |
 
@@ -353,7 +353,7 @@ pub trait ClickableFigure: Figure {
 }
 ```
 
-Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`Polyline.java`、`Polygon.java`、`AbstractPointListShape.java`、`Label.java`、`ImageFigure.java`、`Clickable.java`、`Button.java`、`text/TextFlow.java`、`text/FlowFigure.java`。
+Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`Polyline.java`、`Polygon.java`、`AbstractPointListShape.java`、`Label.java`、`ImageFigure.java`、`Clickable.java`、`Button.java`、`text/TextFlow.java`、`text/FlowFigure.java`。M10.2 文本细节见 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)，Novadraw 契约见 [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)。
 
 ## Milestone 推进检查规则
 

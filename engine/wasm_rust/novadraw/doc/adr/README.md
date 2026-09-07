@@ -16,6 +16,7 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [004](adr-004-layer-and-freeform-contract.md) | Layer 与 Freeform 范围契约 | 已通过 | 2026-09-04 |
 | [005](adr-005-connection-routing-contract.md) | Connection 路由与依赖状态边界 | 已通过 | 2026-09-06 |
 | [006](adr-006-reusable-shape-border-contract.md) | Reusable Shape 与 Border 产品化边界 | 已通过 | 2026-09-07 |
+| [007](adr-007-parley-text-layout.md) | 采用 Parley 统一文本布局 | 已通过 | 2026-09-07 |
 
 ## ADR 模板
 

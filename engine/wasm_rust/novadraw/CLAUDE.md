@@ -8,7 +8,8 @@
 
 - **渲染后端**: vello (WebGPU)
 - **窗口/事件**: winit
-- **文本渲染**: cosmic-text
+- **文本布局**: Parley
+- **文本渲染**: Vello glyph runs
 - **构建工具**: cargo
 
 ### 模块结构
