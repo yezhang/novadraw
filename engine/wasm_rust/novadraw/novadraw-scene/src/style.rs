@@ -1,6 +1,6 @@
 use novadraw_core::Color;
 
-pub const DEFAULT_FONT_DESCRIPTOR: &str = "12px Inter";
+pub const DEFAULT_FONT_DESCRIPTOR: &str = "12px Inter Variable";
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum CursorIcon {

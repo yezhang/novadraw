@@ -32,9 +32,9 @@ pub use submission::{
     ResourcePayload, ResourceUpdate, SurfaceInfo,
 };
 pub use text::{
-    BuiltinFont, FontDescriptor, FontFaceRef, FontFaceResource, FontStyle, GlyphPaint, GlyphRun,
-    ParleyTextEngine, PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout,
-    TextLayoutEngine, TextLineMetrics,
+    BuiltinFont, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun, ParleyTextEngine,
+    PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
+    TextLineMetrics,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

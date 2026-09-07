@@ -1,8 +1,11 @@
 use novadraw_core::Color;
 use novadraw_render::{
-    FontDescriptor, GlyphPaint, NdCanvas, RenderBackend, RenderCommandKind, RenderOutcome,
-    RenderSubmission, SurfaceInfo, TextConstraints, TextEngine,
+    BuiltinFont, FontData, FontDescriptor, FrameId, GlyphPaint, NdCanvas, RenderBackend,
+    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourcePayload,
+    ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine,
 };
+use std::sync::Arc;
+use uuid::Uuid;
 
 #[derive(Default)]
 struct RecordingBackend {
@@ -25,6 +28,10 @@ impl RenderBackend for RecordingBackend {
 #[test]
 fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     let mut engine = TextEngine::new();
+    let font_id = ResourceId::new(Uuid::nil(), 1);
+    engine
+        .register_font(font_id, 1, BuiltinFont::Inter.bytes())
+        .unwrap();
     let layout = engine
         .layout(
             "backend neutral",
@@ -47,19 +54,31 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     assert!(!command.0.glyphs.is_empty());
     assert!(matches!(command.1, GlyphPaint::Fill(color) if *color == Color::BLACK));
 
-    let submission = canvas.to_submission_for_surface(SurfaceInfo {
-        logical_width: 200.0,
-        logical_height: 80.0,
-        pixel_width: 200,
-        pixel_height: 80,
-        scale_factor: 1.0,
-    });
-    assert_eq!(submission.font_faces.len(), 1);
+    let submission = canvas.to_submission_for_frame(
+        SurfaceInfo {
+            logical_width: 200.0,
+            logical_height: 80.0,
+            pixel_width: 200,
+            pixel_height: 80,
+            scale_factor: 1.0,
+        },
+        ResourceDelta {
+            added: vec![ResourceUpdate {
+                id: font_id,
+                revision: 1,
+                payload: ResourcePayload::Font(Arc::new(FontData::new(
+                    BuiltinFont::Inter.bytes().to_vec(),
+                ))),
+            }],
+            removed: Vec::new(),
+        },
+        FrameId::INITIAL,
+    );
 
     let mut backend = RecordingBackend::default();
     let outcome = backend.submit(&submission);
 
     assert_eq!(outcome, RenderOutcome::Presented);
     assert_eq!(backend.glyph_runs, layout.glyph_runs().len());
-    assert_eq!(layout.font_faces().len(), 1);
+    assert_eq!(submission.resources.added.len(), 1);
 }

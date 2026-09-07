@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
 use novadraw_render::{
-    BackendCapabilities, DamageMode, FontData, FontDescriptor, FrameId, ImageData, NdCanvas,
-    RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo, TextConstraints,
-    TextError, TextLayout, TextLayoutEngine,
+    BackendCapabilities, BuiltinFont, DamageMode, FontData, FontDescriptor, FrameId, ImageData,
+    NdCanvas, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
+    TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
 
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
@@ -37,6 +37,7 @@ pub struct Runtime {
     last_surface: Option<SurfaceInfo>,
     resources: ResourceRegistry,
     text: Box<dyn TextLayoutEngine>,
+    builtin_fonts: HashMap<BuiltinFont, FontId>,
     layered_panes: HashMap<FigureId, LayeredPaneState>,
     connections: ConnectionRuntime,
     anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
@@ -67,6 +68,7 @@ impl Runtime {
             last_surface: None,
             resources: ResourceRegistry::new(),
             text,
+            builtin_fonts: HashMap::new(),
             layered_panes: HashMap::new(),
             connections: ConnectionRuntime::new(),
             anchor_geometries: HashMap::new(),
@@ -108,6 +110,10 @@ impl Runtime {
 
     pub fn resources(&self) -> &ResourceRegistry {
         &self.resources
+    }
+
+    pub fn builtin_font(&self, font: BuiltinFont) -> Option<FontId> {
+        self.builtin_fonts.get(&font).copied()
     }
 
     pub fn text_revision(&self) -> u64 {
@@ -778,6 +784,16 @@ impl Runtime {
         self.resources.register_font()
     }
 
+    pub fn register_builtin_font(&mut self, builtin: BuiltinFont) -> Result<FontId, ResourceError> {
+        if let Some(id) = self.builtin_fonts.get(&builtin) {
+            return Ok(*id);
+        }
+        let id = self.register_font();
+        self.complete_font(id, FontData::new(builtin.bytes().to_vec()))?;
+        self.builtin_fonts.insert(builtin, id);
+        Ok(id)
+    }
+
     pub fn resource_status(
         &self,
         resource_id: ResourceId,
@@ -811,6 +827,12 @@ impl Runtime {
     }
 
     pub fn complete_font(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
+        let revision = self
+            .resources
+            .next_revision(id.resource_id(), crate::ResourceKind::Font)?;
+        self.text
+            .register_font(id.resource_id(), revision, font.bytes())
+            .map_err(|_| ResourceError::InvalidFontData)?;
         let dependents = self.resources.complete_font(id, font)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
@@ -821,12 +843,20 @@ impl Runtime {
         id: ResourceId,
         reason: impl Into<String>,
     ) -> Result<(), ResourceError> {
+        if self.resources.kind(id)? == crate::ResourceKind::Font {
+            self.text.remove_font(id);
+        }
         let dependents = self.resources.fail(id, reason)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
     }
 
     pub fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+        if self.resources.kind(id)? == crate::ResourceKind::Font {
+            self.text.remove_font(id);
+            self.builtin_fonts
+                .retain(|_, font_id| font_id.resource_id() != id);
+        }
         let dependents = self.resources.remove(id)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
@@ -1383,6 +1413,8 @@ mod tests {
     fn runtime_owns_an_isolated_text_layout_context() {
         let mut first = Runtime::empty();
         let mut second = Runtime::empty();
+        first.register_builtin_font(BuiltinFont::Inter).unwrap();
+        second.register_builtin_font(BuiltinFont::Inter).unwrap();
         let font = FontDescriptor::default();
 
         let first_layout = first
@@ -1399,6 +1431,103 @@ mod tests {
     }
 
     #[test]
+    fn builtin_fonts_require_explicit_runtime_registration() {
+        let mut runtime = Runtime::empty();
+        let font = FontDescriptor::default();
+
+        assert_eq!(runtime.builtin_font(BuiltinFont::Inter), None);
+        assert_eq!(
+            runtime.layout_text("text", &font, TextConstraints::UNBOUNDED),
+            Err(TextError::NoUsableFont)
+        );
+
+        let id = runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        assert_eq!(runtime.builtin_font(BuiltinFont::Inter), Some(id));
+        assert_eq!(
+            runtime.register_builtin_font(BuiltinFont::Inter).unwrap(),
+            id
+        );
+        assert!(
+            !runtime
+                .layout_text("text", &font, TextConstraints::UNBOUNDED)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn explicit_font_registration_is_included_in_the_next_submission() {
+        let mut runtime = Runtime::empty();
+        let id = runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+
+        let submission = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        assert_eq!(submission.resources.added.len(), 1);
+        assert_eq!(submission.resources.added[0].id, id.resource_id());
+        assert_eq!(submission.resources.added[0].revision, 1);
+        assert!(matches!(
+            &submission.resources.added[0].payload,
+            novadraw_render::ResourcePayload::Font(_)
+        ));
+    }
+
+    #[test]
+    fn invalid_font_replacement_preserves_the_ready_revision() {
+        let mut runtime = Runtime::empty();
+        let id = runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        runtime.resources.take_delta();
+
+        assert_eq!(
+            runtime.complete_font(id, FontData::new(vec![1, 2, 3])),
+            Err(ResourceError::InvalidFontData)
+        );
+        assert_eq!(
+            runtime.resource_status(id.resource_id()),
+            Ok(&ResourceStatus::Ready { revision: 1 })
+        );
+        assert!(runtime.resources.take_delta().is_empty());
+
+        let layout = runtime
+            .layout_text(
+                "text",
+                &FontDescriptor::default(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        assert!(
+            layout
+                .glyph_runs()
+                .iter()
+                .all(|run| run.font.resource_id() == id.resource_id() && run.font.revision() == 1)
+        );
+    }
+
+    #[test]
+    fn removing_a_builtin_font_removes_its_layout_and_backend_resources() {
+        let mut runtime = Runtime::empty();
+        let id = runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        runtime.resources.take_delta();
+
+        runtime.remove_resource(id.resource_id()).unwrap();
+
+        assert_eq!(runtime.builtin_font(BuiltinFont::Inter), None);
+        assert_eq!(
+            runtime.layout_text(
+                "text",
+                &FontDescriptor::default(),
+                TextConstraints::UNBOUNDED,
+            ),
+            Err(TextError::NoUsableFont)
+        );
+        assert_eq!(
+            runtime.resources.take_delta().removed,
+            vec![id.resource_id()]
+        );
+    }
+
+    #[test]
     fn runtime_accepts_a_non_parley_text_layout_engine() {
         struct StubTextEngine;
 
@@ -1407,9 +1536,16 @@ mod tests {
                 42
             }
 
-            fn register_font(&mut self, _bytes: Vec<u8>) -> Result<(), TextError> {
+            fn register_font(
+                &mut self,
+                _resource_id: ResourceId,
+                _revision: u64,
+                _bytes: &[u8],
+            ) -> Result<(), TextError> {
                 Ok(())
             }
+
+            fn remove_font(&mut self, _resource_id: ResourceId) {}
 
             fn layout(
                 &mut self,

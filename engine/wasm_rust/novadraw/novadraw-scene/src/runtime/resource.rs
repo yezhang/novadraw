@@ -54,6 +54,7 @@ pub enum ResourceError {
         actual: ResourceKind,
     },
     UnknownFigure,
+    InvalidFontData,
     RevisionExhausted,
 }
 
@@ -69,6 +70,7 @@ impl fmt::Display for ResourceError {
                 )
             }
             Self::UnknownFigure => formatter.write_str("dependent figure is not attached"),
+            Self::InvalidFontData => formatter.write_str("font data is empty or invalid"),
             Self::RevisionExhausted => formatter.write_str("resource revision is exhausted"),
         }
     }
@@ -127,6 +129,36 @@ impl ResourceRegistry {
             .get(key)
             .map(|entry| &entry.status)
             .ok_or(ResourceError::UnknownResource)
+    }
+
+    pub(crate) fn kind(&self, id: ResourceId) -> Result<ResourceKind, ResourceError> {
+        let key = self.key(id)?;
+        self.entries
+            .get(key)
+            .map(|entry| entry.kind)
+            .ok_or(ResourceError::UnknownResource)
+    }
+
+    pub(crate) fn next_revision(
+        &self,
+        id: ResourceId,
+        expected: ResourceKind,
+    ) -> Result<u64, ResourceError> {
+        let key = self.key(id)?;
+        let entry = self
+            .entries
+            .get(key)
+            .ok_or(ResourceError::UnknownResource)?;
+        if entry.kind != expected {
+            return Err(ResourceError::KindMismatch {
+                expected,
+                actual: entry.kind,
+            });
+        }
+        entry
+            .revision
+            .checked_add(1)
+            .ok_or(ResourceError::RevisionExhausted)
     }
 
     pub fn add_dependency(

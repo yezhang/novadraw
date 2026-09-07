@@ -4,7 +4,6 @@ use novadraw_geometry::Rectangle;
 use uuid::Uuid;
 
 use crate::command::{ImageData, RenderCommand};
-use crate::text::FontFaceResource;
 
 #[derive(Debug, Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct FrameId(u64);
@@ -87,12 +86,23 @@ impl ResourceId {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FontData {
-    pub bytes: Vec<u8>,
+    bytes: Arc<Vec<u8>>,
 }
 
 impl FontData {
     pub fn new(bytes: Vec<u8>) -> Self {
-        Self { bytes }
+        Self {
+            bytes: Arc::new(bytes),
+        }
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    #[cfg(any(feature = "vello", feature = "vello-web"))]
+    pub(crate) fn shared_bytes(&self) -> Arc<Vec<u8>> {
+        Arc::clone(&self.bytes)
     }
 }
 
@@ -213,7 +223,6 @@ pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
     pub resources: ResourceDelta,
-    pub font_faces: Vec<FontFaceResource>,
     pub surface: SurfaceInfo,
     pub frame_id: FrameId,
 }

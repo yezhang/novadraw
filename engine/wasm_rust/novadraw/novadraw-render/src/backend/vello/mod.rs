@@ -18,7 +18,7 @@ use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
-use crate::submission::DamageMode;
+use crate::submission::{DamageMode, ResourcePayload};
 use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
@@ -185,7 +185,7 @@ pub struct VelloRenderer {
     pending_resize: Option<(u32, u32, f64)>,
     /// 状态栈
     state_stack: Vec<RenderState>,
-    font_faces: HashMap<(u64, u64), vello::peniko::FontData>,
+    font_faces: HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -234,17 +234,17 @@ impl VelloRenderer {
         (self.surface.config.width, self.surface.config.height)
     }
 
-    fn sync_font_faces(&mut self, resources: &[crate::text::FontFaceResource]) {
-        for resource in resources {
-            let face = resource.face();
-            self.font_faces.insert(
-                (face.id(), face.revision()),
-                vello::peniko::FontData::new(
-                    vello::peniko::Blob::from_raw_parts(resource.shared_bytes(), face.id()),
-                    face.collection_index(),
-                ),
-            );
-        }
+    fn sync_font_faces(&mut self, resources: &crate::ResourceDelta) {
+        sync_font_face_cache(&mut self.font_faces, resources);
+    }
+
+    fn has_required_font_faces(&self, commands: &[RenderCommand]) -> bool {
+        commands.iter().all(|command| match &command.kind {
+            crate::RenderCommandKind::DrawGlyphRun { run, .. } => self
+                .font_faces
+                .contains_key(&(run.font.resource_id(), run.font.revision())),
+            _ => true,
+        })
     }
 
     fn apply_pending_resize(&mut self) {
@@ -954,13 +954,14 @@ impl VelloRenderer {
             }
 
             crate::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
-                let Some(font) = self
+                let Some(font_data) = self
                     .font_faces
-                    .get(&(run.font.id(), run.font.revision()))
+                    .get(&(run.font.resource_id(), run.font.revision()))
                     .cloned()
                 else {
                     return;
                 };
+                let font = vello::peniko::FontData::new(font_data, run.font.collection_index());
                 let transform = self.current_state().transform;
                 let scale_factor = self.scale_factor;
                 append_glyph_run(
@@ -1014,7 +1015,10 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_font_faces(&submission.font_faces);
+        self.sync_font_faces(&submission.resources);
+        if !self.has_required_font_faces(&submission.commands) {
+            return RenderOutcome::Retry;
+        }
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1191,7 +1195,10 @@ impl VelloRenderer {
     /// a window surface drawable.
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_font_faces(&submission.font_faces);
+        self.sync_font_faces(&submission.resources);
+        if !self.has_required_font_faces(&submission.commands) {
+            return RenderOutcome::Retry;
+        }
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1349,11 +1356,33 @@ impl VelloRenderer {
     }
 }
 
+fn sync_font_face_cache(
+    font_faces: &mut HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
+    resources: &crate::ResourceDelta,
+) {
+    for update in &resources.added {
+        if let ResourcePayload::Font(font) = &update.payload {
+            font_faces.retain(|(resource_id, _), _| resource_id != &update.id);
+            font_faces.insert(
+                (update.id, update.revision),
+                vello::peniko::Blob::new(font.shared_bytes()),
+            );
+        }
+    }
+    for id in &resources.removed {
+        font_faces.retain(|(resource_id, _), _| resource_id != id);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{FontDescriptor, TextConstraints, TextEngine};
+    use crate::{
+        BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourcePayload,
+        ResourceUpdate, TextConstraints, TextEngine,
+    };
     use novadraw_core::Color;
+    use uuid::Uuid;
 
     #[test]
     fn clip_restore_plan_replays_saved_outer_clip_after_reset() {
@@ -1480,6 +1509,10 @@ mod tests {
     #[test]
     fn positioned_glyph_run_is_encoded_into_the_vello_scene() {
         let mut engine = TextEngine::new();
+        let font_id = ResourceId::new(Uuid::nil(), 1);
+        engine
+            .register_font(font_id, 1, BuiltinFont::Inter.bytes())
+            .unwrap();
         let layout = engine
             .layout(
                 "Vello",
@@ -1490,13 +1523,8 @@ mod tests {
         let mut scene = vello::Scene::new();
 
         for run in layout.glyph_runs() {
-            let resource = layout
-                .font_faces()
-                .iter()
-                .find(|resource| resource.face() == &run.font)
-                .unwrap();
             let font = vello::peniko::FontData::new(
-                vello::peniko::Blob::from_raw_parts(resource.shared_bytes(), run.font.id()),
+                BuiltinFont::Inter.bytes().to_vec().into(),
                 run.font.collection_index(),
             );
             append_glyph_run(
@@ -1513,6 +1541,41 @@ mod tests {
         assert!(!scene.encoding().resources.glyph_runs.is_empty());
         assert!(!scene.encoding().resources.glyphs.is_empty());
         assert!(!scene.encoding().resources.patches.is_empty());
+    }
+
+    #[test]
+    fn font_cache_replacement_and_removal_discard_stale_revisions() {
+        let id = ResourceId::new(Uuid::nil(), 1);
+        let mut cache = HashMap::new();
+        cache.insert((id, 1), vello::peniko::Blob::new(Arc::new(vec![1_u8])));
+
+        sync_font_face_cache(
+            &mut cache,
+            &ResourceDelta {
+                added: vec![ResourceUpdate {
+                    id,
+                    revision: 2,
+                    payload: ResourcePayload::Font(Arc::new(FontData::new(vec![2]))),
+                }],
+                removed: Vec::new(),
+            },
+        );
+
+        assert!(!cache.contains_key(&(id, 1)));
+        assert!(cache.contains_key(&(id, 2)));
+
+        sync_font_face_cache(
+            &mut cache,
+            &ResourceDelta {
+                added: vec![ResourceUpdate {
+                    id,
+                    revision: 3,
+                    payload: ResourcePayload::Font(Arc::new(FontData::new(vec![3]))),
+                }],
+                removed: vec![id],
+            },
+        );
+        assert!(!cache.keys().any(|(resource_id, _)| *resource_id == id));
     }
 }
 

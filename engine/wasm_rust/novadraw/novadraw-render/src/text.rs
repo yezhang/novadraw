@@ -1,18 +1,20 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
 
 use parley::{FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty};
 
-const DEFAULT_FONT_FAMILY: &str = "Inter";
+use crate::ResourceId;
+
+const DEFAULT_FONT_FAMILY: &str = "Inter Variable";
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const DEFAULT_FONT_WEIGHT: f32 = 400.0;
 const INTER_FONT: &[u8] = include_bytes!("../../assets/fonts/InterVariable.ttf");
 const NOTO_SANS_SC_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansSC-VF.ttf");
 const JETBRAINS_MONO_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Regular.ttf");
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BuiltinFont {
     Inter,
     NotoSansSc,
@@ -20,15 +22,17 @@ pub enum BuiltinFont {
 }
 
 impl BuiltinFont {
+    pub const ALL: [Self; 3] = [Self::Inter, Self::NotoSansSc, Self::JetBrainsMono];
+
     pub const fn family(self) -> &'static str {
         match self {
-            Self::Inter => "Inter",
+            Self::Inter => "Inter Variable",
             Self::NotoSansSc => "Noto Sans SC",
             Self::JetBrainsMono => "JetBrains Mono",
         }
     }
 
-    fn bytes(self) -> &'static [u8] {
+    pub const fn bytes(self) -> &'static [u8] {
         match self {
             Self::Inter => INTER_FONT,
             Self::NotoSansSc => NOTO_SANS_SC_FONT,
@@ -36,12 +40,6 @@ impl BuiltinFont {
         }
     }
 }
-
-const BUILTIN_FONTS: [BuiltinFont; 3] = [
-    BuiltinFont::Inter,
-    BuiltinFont::NotoSansSc,
-    BuiltinFont::JetBrainsMono,
-];
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FontStyle {
@@ -178,22 +176,22 @@ pub struct TextLineMetrics {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FontFaceRef {
-    id: u64,
+    resource_id: ResourceId,
     revision: u64,
     collection_index: u32,
 }
 
 impl FontFaceRef {
-    pub const fn new(id: u64, revision: u64, collection_index: u32) -> Self {
+    pub const fn new(resource_id: ResourceId, revision: u64, collection_index: u32) -> Self {
         Self {
-            id,
+            resource_id,
             revision,
             collection_index,
         }
     }
 
-    pub fn id(&self) -> u64 {
-        self.id
+    pub const fn resource_id(&self) -> ResourceId {
+        self.resource_id
     }
 
     pub fn revision(&self) -> u64 {
@@ -202,37 +200,6 @@ impl FontFaceRef {
 
     pub fn collection_index(&self) -> u32 {
         self.collection_index
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FontFaceResource {
-    face: FontFaceRef,
-    bytes: Arc<Vec<u8>>,
-}
-
-impl FontFaceResource {
-    pub fn new(face: FontFaceRef, bytes: Vec<u8>) -> Result<Self, TextError> {
-        if bytes.is_empty() {
-            return Err(TextError::InvalidFontData);
-        }
-        Ok(Self {
-            face,
-            bytes: Arc::new(bytes),
-        })
-    }
-
-    pub fn face(&self) -> &FontFaceRef {
-        &self.face
-    }
-
-    pub fn bytes(&self) -> &[u8] {
-        &self.bytes
-    }
-
-    #[cfg(any(feature = "vello", feature = "vello-web"))]
-    pub(crate) fn shared_bytes(&self) -> Arc<Vec<u8>> {
-        Arc::clone(&self.bytes)
     }
 }
 
@@ -268,7 +235,6 @@ pub struct TextLayout {
     height: f32,
     lines: Vec<TextLineMetrics>,
     glyph_runs: Vec<GlyphRun>,
-    font_faces: Vec<FontFaceResource>,
 }
 
 impl TextLayout {
@@ -290,10 +256,6 @@ impl TextLayout {
 
     pub fn glyph_runs(&self) -> &[GlyphRun] {
         &self.glyph_runs
-    }
-
-    pub fn font_faces(&self) -> &[FontFaceResource] {
-        &self.font_faces
     }
 
     pub fn is_empty(&self) -> bool {
@@ -329,7 +291,14 @@ impl Error for TextError {}
 pub trait TextLayoutEngine {
     fn revision(&self) -> u64;
 
-    fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError>;
+    fn register_font(
+        &mut self,
+        resource_id: ResourceId,
+        revision: u64,
+        bytes: &[u8],
+    ) -> Result<(), TextError>;
+
+    fn remove_font(&mut self, resource_id: ResourceId);
 
     fn layout(
         &mut self,
@@ -342,8 +311,21 @@ pub trait TextLayoutEngine {
 pub struct ParleyTextEngine {
     font_context: FontContext,
     layout_context: LayoutContext<()>,
-    font_faces: HashMap<(u64, u32), FontFaceResource>,
+    registered_fonts: BTreeMap<ResourceId, RegisteredFont>,
+    registered_faces: Vec<RegisteredFace>,
+    resolved_faces: HashMap<(u64, u32), FontFaceRef>,
     revision: u64,
+}
+
+#[derive(Clone)]
+struct RegisteredFont {
+    revision: u64,
+    bytes: Arc<Vec<u8>>,
+}
+
+struct RegisteredFace {
+    face: FontFaceRef,
+    bytes: Arc<Vec<u8>>,
 }
 
 impl Default for ParleyTextEngine {
@@ -354,34 +336,27 @@ impl Default for ParleyTextEngine {
 
 impl ParleyTextEngine {
     pub fn new() -> Self {
-        let mut engine = Self {
-            font_context: FontContext::new(),
+        Self {
+            font_context: empty_font_context(),
             layout_context: LayoutContext::new(),
-            font_faces: HashMap::new(),
+            registered_fonts: BTreeMap::new(),
+            registered_faces: Vec::new(),
+            resolved_faces: HashMap::new(),
             revision: 0,
-        };
-        for font in BUILTIN_FONTS {
-            let bytes: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(font.bytes());
-            let registered = engine
-                .font_context
-                .collection
-                .register_fonts(parley::fontique::Blob::new(bytes), None);
-            assert!(
-                !registered.is_empty(),
-                "bundled {} font must be valid",
-                font.family()
-            );
         }
-        engine.revision = 1;
-        engine
     }
 
     pub fn revision(&self) -> u64 {
         TextLayoutEngine::revision(self)
     }
 
-    pub fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError> {
-        TextLayoutEngine::register_font(self, bytes)
+    pub fn register_font(
+        &mut self,
+        resource_id: ResourceId,
+        revision: u64,
+        bytes: &[u8],
+    ) -> Result<(), TextError> {
+        TextLayoutEngine::register_font(self, resource_id, revision, bytes)
     }
 
     pub fn layout(
@@ -399,19 +374,32 @@ impl TextLayoutEngine for ParleyTextEngine {
         self.revision
     }
 
-    fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError> {
-        if bytes.is_empty() {
+    fn register_font(
+        &mut self,
+        resource_id: ResourceId,
+        revision: u64,
+        bytes: &[u8],
+    ) -> Result<(), TextError> {
+        if !font_data_is_valid(bytes) {
             return Err(TextError::InvalidFontData);
         }
-        let registered = self
-            .font_context
-            .collection
-            .register_fonts(bytes.into(), None);
-        if registered.is_empty() {
-            return Err(TextError::InvalidFontData);
-        }
+        self.registered_fonts.insert(
+            resource_id,
+            RegisteredFont {
+                revision,
+                bytes: Arc::new(bytes.to_vec()),
+            },
+        );
+        self.rebuild_font_context();
         self.revision = self.revision.wrapping_add(1);
         Ok(())
+    }
+
+    fn remove_font(&mut self, resource_id: ResourceId) {
+        if self.registered_fonts.remove(&resource_id).is_some() {
+            self.rebuild_font_context();
+            self.revision = self.revision.wrapping_add(1);
+        }
     }
 
     fn layout(
@@ -456,7 +444,6 @@ impl TextLayoutEngine for ParleyTextEngine {
             })
             .collect();
         let mut glyph_runs = Vec::new();
-        let mut used_font_faces = HashMap::new();
         for line in layout.lines() {
             for item in line.items() {
                 let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
@@ -465,15 +452,21 @@ impl TextLayoutEngine for ParleyTextEngine {
                 let run = glyph_run.run();
                 let font = run.font();
                 let font_key = (font.data.id(), font.index);
-                let font_resource = self
-                    .font_faces
-                    .entry(font_key)
-                    .or_insert_with(|| FontFaceResource {
-                        face: FontFaceRef::new(font.data.id(), 1, font.index),
-                        bytes: Arc::new(font.data.data().to_vec()),
-                    })
-                    .clone();
-                used_font_faces.insert(font_key, font_resource.clone());
+                let font_face = if let Some(face) = self.resolved_faces.get(&font_key) {
+                    face.clone()
+                } else {
+                    let face = self
+                        .registered_faces
+                        .iter()
+                        .find(|registered| {
+                            registered.face.collection_index() == font.index
+                                && registered.bytes.as_slice() == font.data.data()
+                        })
+                        .map(|registered| registered.face.clone())
+                        .ok_or(TextError::NoUsableFont)?;
+                    self.resolved_faces.insert(font_key, face.clone());
+                    face
+                };
                 let mut x = glyph_run.offset();
                 let baseline = glyph_run.baseline();
                 let glyphs = glyph_run
@@ -489,7 +482,7 @@ impl TextLayoutEngine for ParleyTextEngine {
                     })
                     .collect();
                 glyph_runs.push(GlyphRun {
-                    font: font_resource.face().clone(),
+                    font: font_face,
                     font_size: run.font_size(),
                     normalized_coords: run.normalized_coords().to_vec(),
                     skew_degrees: run.synthesis().skew(),
@@ -507,17 +500,77 @@ impl TextLayoutEngine for ParleyTextEngine {
             height: layout.height(),
             lines,
             glyph_runs,
-            font_faces: used_font_faces.into_values().collect(),
         })
     }
 }
 
 pub type TextEngine = ParleyTextEngine;
 
+impl ParleyTextEngine {
+    fn rebuild_font_context(&mut self) {
+        let mut font_context = empty_font_context();
+        let mut registered_faces = Vec::new();
+        for (resource_id, registered_font) in &self.registered_fonts {
+            let font_bytes: Arc<dyn AsRef<[u8]> + Send + Sync> =
+                Arc::clone(&registered_font.bytes) as Arc<dyn AsRef<[u8]> + Send + Sync>;
+            let registered = font_context
+                .collection
+                .register_fonts(parley::fontique::Blob::new(font_bytes), None);
+            for (_, fonts) in registered {
+                registered_faces.extend(fonts.into_iter().map(|font| RegisteredFace {
+                    face: FontFaceRef::new(*resource_id, registered_font.revision, font.index()),
+                    bytes: Arc::clone(&registered_font.bytes),
+                }));
+            }
+        }
+        self.font_context = font_context;
+        self.registered_faces = registered_faces;
+        self.resolved_faces.clear();
+    }
+}
+
+fn empty_font_context() -> FontContext {
+    FontContext {
+        collection: parley::fontique::Collection::new(parley::fontique::CollectionOptions {
+            shared: false,
+            system_fonts: false,
+        }),
+        source_cache: parley::fontique::SourceCache::default(),
+    }
+}
+
+fn font_data_is_valid(bytes: &[u8]) -> bool {
+    if bytes.is_empty() {
+        return false;
+    }
+    let mut collection = parley::fontique::Collection::new(parley::fontique::CollectionOptions {
+        shared: false,
+        system_fonts: false,
+    });
+    !collection
+        .register_fonts(parley::fontique::Blob::new(Arc::new(bytes.to_vec())), None)
+        .is_empty()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use novadraw_core::Color;
+    use uuid::Uuid;
+
+    fn engine_with_builtins() -> TextEngine {
+        let mut engine = TextEngine::new();
+        for (index, font) in BuiltinFont::ALL.into_iter().enumerate() {
+            engine
+                .register_font(
+                    ResourceId::new(Uuid::nil(), index as u64 + 1),
+                    1,
+                    font.bytes(),
+                )
+                .unwrap();
+        }
+        engine
+    }
 
     #[test]
     fn parses_existing_figure_style_font_descriptor() {
@@ -537,21 +590,87 @@ mod tests {
     #[test]
     fn invalid_font_data_does_not_advance_revision() {
         let mut engine = TextEngine::new();
+        let id = ResourceId::new(Uuid::nil(), 1);
 
         assert_eq!(
-            engine.register_font(Vec::new()),
+            engine.register_font(id, 1, &[]),
             Err(TextError::InvalidFontData)
         );
         assert_eq!(
-            engine.register_font(vec![1, 2, 3]),
+            engine.register_font(id, 1, &[1, 2, 3]),
             Err(TextError::InvalidFontData)
         );
+        assert_eq!(engine.revision(), 0);
+    }
+
+    #[test]
+    fn invalid_replacement_preserves_the_registered_font() {
+        let mut engine = TextEngine::new();
+        let id = ResourceId::new(Uuid::nil(), 1);
+        engine
+            .register_font(id, 1, BuiltinFont::Inter.bytes())
+            .unwrap();
+
+        assert_eq!(
+            engine.register_font(id, 2, &[1, 2, 3]),
+            Err(TextError::InvalidFontData)
+        );
+        let layout = engine
+            .layout(
+                "text",
+                &FontDescriptor::default(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+
         assert_eq!(engine.revision(), 1);
+        assert!(
+            layout
+                .glyph_runs()
+                .iter()
+                .all(|run| run.font.resource_id() == id && run.font.revision() == 1)
+        );
+    }
+
+    #[test]
+    fn replacing_and_removing_a_font_rebuilds_the_font_context() {
+        let mut engine = TextEngine::new();
+        let id = ResourceId::new(Uuid::nil(), 1);
+        engine
+            .register_font(id, 1, BuiltinFont::Inter.bytes())
+            .unwrap();
+        engine
+            .register_font(id, 2, BuiltinFont::JetBrainsMono.bytes())
+            .unwrap();
+
+        let layout = engine
+            .layout(
+                "text",
+                &FontDescriptor::new(BuiltinFont::JetBrainsMono.family(), 12.0).unwrap(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        assert!(
+            layout
+                .glyph_runs()
+                .iter()
+                .all(|run| run.font.resource_id() == id && run.font.revision() == 2)
+        );
+
+        engine.remove_font(id);
+        assert_eq!(
+            engine.layout(
+                "text",
+                &FontDescriptor::new(BuiltinFont::JetBrainsMono.family(), 12.0).unwrap(),
+                TextConstraints::UNBOUNDED,
+            ),
+            Err(TextError::NoUsableFont)
+        );
     }
 
     #[test]
     fn parley_layout_produces_real_metrics_and_glyphs() {
-        let mut engine = TextEngine::new();
+        let mut engine = engine_with_builtins();
         let font = FontDescriptor::default();
         let layout = engine
             .layout("Wide ii", &font, TextConstraints::UNBOUNDED)
@@ -566,7 +685,7 @@ mod tests {
 
     #[test]
     fn bundled_fonts_cover_ui_cjk_and_monospace_roles() {
-        let mut engine = TextEngine::new();
+        let mut engine = engine_with_builtins();
         let cases = [
             ("Interface", BuiltinFont::Inter),
             ("绘图引擎", BuiltinFont::NotoSansSc),
@@ -591,7 +710,7 @@ mod tests {
 
     #[test]
     fn proportional_font_measurement_is_not_character_count_estimation() {
-        let mut engine = TextEngine::new();
+        let mut engine = engine_with_builtins();
         let font = FontDescriptor::default();
         let wide = engine
             .layout("WWWW", &font, TextConstraints::UNBOUNDED)
@@ -605,7 +724,7 @@ mod tests {
 
     #[test]
     fn width_constraint_breaks_text_into_multiple_lines() {
-        let mut engine = TextEngine::new();
+        let mut engine = engine_with_builtins();
         let font = FontDescriptor::default();
         let unbounded = engine
             .layout("alpha beta gamma", &font, TextConstraints::UNBOUNDED)
@@ -624,7 +743,7 @@ mod tests {
 
     #[test]
     fn canvas_records_positioned_glyph_runs_with_scoped_alpha() {
-        let mut engine = TextEngine::new();
+        let mut engine = engine_with_builtins();
         let layout = engine
             .layout(
                 "glyphs",
