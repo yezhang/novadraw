@@ -2,13 +2,15 @@
 //!
 //! 参考 HTML5 Canvas API 设计，生成可重放的渲染命令。
 
+use std::collections::HashMap;
+
 use glam::DVec2;
 use novadraw_core::Color;
 use novadraw_geometry::Transform;
 
 use crate::command::{Path, RenderCommand, RenderCommandKind};
 use crate::submission::{DamageSet, RenderSubmission};
-use crate::text::TextLayout;
+use crate::text::{FontFaceResource, TextLayout};
 
 const DEFAULT_FONT: &str = "sans-serif";
 const DEFAULT_FONT_SIZE: f64 = 12.0;
@@ -54,6 +56,7 @@ pub struct NdCanvas {
     current_path: Option<Path>,
     state: GraphicsState,
     state_stack: Vec<GraphicsState>,
+    font_faces: HashMap<(u64, u64), FontFaceResource>,
 }
 
 impl Default for NdCanvas {
@@ -70,6 +73,7 @@ impl NdCanvas {
             current_path: None,
             state: GraphicsState::default(),
             state_stack: Vec::new(),
+            font_faces: HashMap::new(),
         }
     }
 
@@ -559,6 +563,7 @@ impl NdCanvas {
             commands: self.commands.clone(),
             damage: self.damage.clone(),
             resources,
+            font_faces: self.font_faces.values().cloned().collect(),
             surface,
             frame_id,
         }
@@ -700,6 +705,12 @@ impl NdCanvas {
         y: f64,
         paint: crate::text::GlyphPaint,
     ) {
+        for resource in layout.font_faces() {
+            self.font_faces.insert(
+                (resource.face().id(), resource.face().revision()),
+                resource.clone(),
+            );
+        }
         for run in layout.glyph_runs() {
             if run.glyphs.is_empty() {
                 continue;

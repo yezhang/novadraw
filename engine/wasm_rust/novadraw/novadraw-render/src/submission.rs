@@ -4,6 +4,7 @@ use novadraw_geometry::Rectangle;
 use uuid::Uuid;
 
 use crate::command::{ImageData, RenderCommand};
+use crate::text::FontFaceResource;
 
 #[derive(Debug, Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct FrameId(u64);
@@ -212,6 +213,7 @@ pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
     pub resources: ResourceDelta,
+    pub font_faces: Vec<FontFaceResource>,
     pub surface: SurfaceInfo,
     pub frame_id: FrameId,
 }

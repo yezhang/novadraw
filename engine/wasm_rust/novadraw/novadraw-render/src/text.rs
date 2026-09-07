@@ -147,10 +147,17 @@ pub struct FontFaceRef {
     id: u64,
     revision: u64,
     collection_index: u32,
-    bytes: Arc<Vec<u8>>,
 }
 
 impl FontFaceRef {
+    pub const fn new(id: u64, revision: u64, collection_index: u32) -> Self {
+        Self {
+            id,
+            revision,
+            collection_index,
+        }
+    }
+
     pub fn id(&self) -> u64 {
         self.id
     }
@@ -161,6 +168,28 @@ impl FontFaceRef {
 
     pub fn collection_index(&self) -> u32 {
         self.collection_index
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FontFaceResource {
+    face: FontFaceRef,
+    bytes: Arc<Vec<u8>>,
+}
+
+impl FontFaceResource {
+    pub fn new(face: FontFaceRef, bytes: Vec<u8>) -> Result<Self, TextError> {
+        if bytes.is_empty() {
+            return Err(TextError::InvalidFontData);
+        }
+        Ok(Self {
+            face,
+            bytes: Arc::new(bytes),
+        })
+    }
+
+    pub fn face(&self) -> &FontFaceRef {
+        &self.face
     }
 
     pub fn bytes(&self) -> &[u8] {
@@ -205,6 +234,7 @@ pub struct TextLayout {
     height: f32,
     lines: Vec<TextLineMetrics>,
     glyph_runs: Vec<GlyphRun>,
+    font_faces: Vec<FontFaceResource>,
 }
 
 impl TextLayout {
@@ -226,6 +256,10 @@ impl TextLayout {
 
     pub fn glyph_runs(&self) -> &[GlyphRun] {
         &self.glyph_runs
+    }
+
+    pub fn font_faces(&self) -> &[FontFaceResource] {
+        &self.font_faces
     }
 
     pub fn is_empty(&self) -> bool {
@@ -274,7 +308,7 @@ pub trait TextLayoutEngine {
 pub struct ParleyTextEngine {
     font_context: FontContext,
     layout_context: LayoutContext<()>,
-    font_faces: HashMap<(u64, u32), FontFaceRef>,
+    font_faces: HashMap<(u64, u32), FontFaceResource>,
     revision: u64,
 }
 
@@ -374,6 +408,7 @@ impl TextLayoutEngine for ParleyTextEngine {
             })
             .collect();
         let mut glyph_runs = Vec::new();
+        let mut used_font_faces = HashMap::new();
         for line in layout.lines() {
             for item in line.items() {
                 let PositionedLayoutItem::GlyphRun(glyph_run) = item else {
@@ -382,16 +417,15 @@ impl TextLayoutEngine for ParleyTextEngine {
                 let run = glyph_run.run();
                 let font = run.font();
                 let font_key = (font.data.id(), font.index);
-                let font_face = self
+                let font_resource = self
                     .font_faces
                     .entry(font_key)
-                    .or_insert_with(|| FontFaceRef {
-                        id: font.data.id(),
-                        revision: 1,
-                        collection_index: font.index,
+                    .or_insert_with(|| FontFaceResource {
+                        face: FontFaceRef::new(font.data.id(), 1, font.index),
                         bytes: Arc::new(font.data.data().to_vec()),
                     })
                     .clone();
+                used_font_faces.insert(font_key, font_resource.clone());
                 let mut x = glyph_run.offset();
                 let baseline = glyph_run.baseline();
                 let glyphs = glyph_run
@@ -407,7 +441,7 @@ impl TextLayoutEngine for ParleyTextEngine {
                     })
                     .collect();
                 glyph_runs.push(GlyphRun {
-                    font: font_face,
+                    font: font_resource.face().clone(),
                     font_size: run.font_size(),
                     normalized_coords: run.normalized_coords().to_vec(),
                     skew_degrees: run.synthesis().skew(),
@@ -425,6 +459,7 @@ impl TextLayoutEngine for ParleyTextEngine {
             height: layout.height(),
             lines,
             glyph_runs,
+            font_faces: used_font_faces.into_values().collect(),
         })
     }
 }

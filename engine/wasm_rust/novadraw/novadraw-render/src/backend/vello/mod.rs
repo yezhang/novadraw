@@ -3,6 +3,7 @@
 //! 实现 RenderCommand 解释器，维护独立的状态栈。
 //! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
+use std::collections::HashMap;
 #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use std::sync::Arc;
 
@@ -98,6 +99,7 @@ fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
 fn append_glyph_run(
     scene: &mut vello::Scene,
     run: &GlyphRun,
+    font: &vello::peniko::FontData,
     origin: DVec2,
     paint: GlyphPaint,
     transform: &Transform,
@@ -116,10 +118,6 @@ fn append_glyph_run(
         color.b as f32,
         color.a as f32,
     ]);
-    let font = vello::peniko::FontData::new(
-        vello::peniko::Blob::from_raw_parts(run.font.shared_bytes(), run.font.id()),
-        run.font.collection_index(),
-    );
     let glyph_transform = run
         .skew_degrees
         .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
@@ -131,7 +129,7 @@ fn append_glyph_run(
         })
     };
     let builder = scene
-        .draw_glyphs(&font)
+        .draw_glyphs(font)
         .brush(color)
         .hint(false)
         .transform(affine)
@@ -187,6 +185,7 @@ pub struct VelloRenderer {
     pending_resize: Option<(u32, u32, f64)>,
     /// 状态栈
     state_stack: Vec<RenderState>,
+    font_faces: HashMap<(u64, u64), vello::peniko::FontData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -225,6 +224,7 @@ impl VelloRenderer {
             surface_suspended: false,
             pending_resize: None,
             state_stack: vec![RenderState::default()],
+            font_faces: HashMap::new(),
             retained_texture: None,
             scratch_texture: None,
         })
@@ -232,6 +232,19 @@ impl VelloRenderer {
 
     fn current_surface_size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
+    }
+
+    fn sync_font_faces(&mut self, resources: &[crate::text::FontFaceResource]) {
+        for resource in resources {
+            let face = resource.face();
+            self.font_faces.insert(
+                (face.id(), face.revision()),
+                vello::peniko::FontData::new(
+                    vello::peniko::Blob::from_raw_parts(resource.shared_bytes(), face.id()),
+                    face.collection_index(),
+                ),
+            );
+        }
     }
 
     fn apply_pending_resize(&mut self) {
@@ -941,11 +954,19 @@ impl VelloRenderer {
             }
 
             crate::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
+                let Some(font) = self
+                    .font_faces
+                    .get(&(run.font.id(), run.font.revision()))
+                    .cloned()
+                else {
+                    return;
+                };
                 let transform = self.current_state().transform;
                 let scale_factor = self.scale_factor;
                 append_glyph_run(
                     &mut self.scene,
                     run,
+                    &font,
                     *origin,
                     *paint,
                     &transform,
@@ -993,6 +1014,7 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        self.sync_font_faces(&submission.font_faces);
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1169,6 +1191,7 @@ impl VelloRenderer {
     /// a window surface drawable.
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+        self.sync_font_faces(&submission.font_faces);
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -1467,9 +1490,19 @@ mod tests {
         let mut scene = vello::Scene::new();
 
         for run in layout.glyph_runs() {
+            let resource = layout
+                .font_faces()
+                .iter()
+                .find(|resource| resource.face() == &run.font)
+                .unwrap();
+            let font = vello::peniko::FontData::new(
+                vello::peniko::Blob::from_raw_parts(resource.shared_bytes(), run.font.id()),
+                run.font.collection_index(),
+            );
             append_glyph_run(
                 &mut scene,
                 run,
+                &font,
                 DVec2::new(8.0, 12.0),
                 GlyphPaint::Fill(Color::BLACK),
                 &Transform::IDENTITY,
