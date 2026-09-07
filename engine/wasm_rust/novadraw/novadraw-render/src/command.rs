@@ -5,7 +5,7 @@
 use novadraw_core::Color;
 use novadraw_geometry::Transform;
 
-use crate::text::TextGlyphRun;
+use crate::text::{GlyphPaint, GlyphRun};
 
 /// 渲染命令
 ///
@@ -193,25 +193,18 @@ pub enum RenderCommandKind {
         alpha: f64,
     },
 
-    /// 绘制文字
+    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
     Text {
-        /// 文字内容
         text: String,
-        /// 位置（左上角）
         position: glam::DVec2,
-        /// 字体名称
         font: String,
-        /// 字体大小
         font_size: f64,
-        /// 文字颜色
         color: Color,
-        /// 是否填充背景
         fill_background: bool,
-        /// 背景颜色
         background_color: Option<Color>,
     },
 
-    /// 填充文字
+    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
     FillText {
         text: String,
         position: glam::DVec2,
@@ -221,7 +214,7 @@ pub enum RenderCommandKind {
         max_width: Option<f64>,
     },
 
-    /// 描边文字
+    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
     StrokeText {
         text: String,
         position: glam::DVec2,
@@ -231,10 +224,11 @@ pub enum RenderCommandKind {
         max_width: Option<f64>,
     },
 
-    /// 绘制已经完成 shaping 和定位的 glyph run。
-    GlyphRun {
-        run: TextGlyphRun,
+    /// 绘制 backend-neutral、已完成 shaping 和定位的 glyph run。
+    DrawGlyphRun {
+        run: GlyphRun,
         origin: glam::DVec2,
+        paint: GlyphPaint,
     },
 }
 

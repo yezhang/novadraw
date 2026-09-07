@@ -679,6 +679,10 @@ M10.1 自动执行结果：
 - ADR-007 已进一步收紧扩展边界：Parley 仅作为默认 `TextLayoutEngine` adapter，
   Command 必须迁移为 Novadraw 自有 glyph IR，`fill_text` / `stroke_text` 只作为
   lowering API；完成该收口后再进入 M10.2b LabelFigure。
+- 第一批 Command 收口已完成：Runtime 支持注入自定义 `TextLayoutEngine`，
+  `DrawGlyphRun`、`FontFaceRef`、`GlyphPaint` 与 positioned glyph 均为 Novadraw
+  自有类型，Vello 通过独立 adapter 消费；后续继续迁移 raw-string 指令和字体资源
+  submission。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

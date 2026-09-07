@@ -18,7 +18,7 @@ use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
 use crate::submission::DamageMode;
-use crate::text::TextGlyphRun;
+use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
@@ -97,8 +97,9 @@ fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
 
 fn append_glyph_run(
     scene: &mut vello::Scene,
-    run: &TextGlyphRun,
+    run: &GlyphRun,
     origin: DVec2,
+    paint: GlyphPaint,
     transform: &Transform,
     scale_factor: f64,
 ) {
@@ -106,31 +107,43 @@ fn append_glyph_run(
         return;
     }
     let affine = VelloRenderer::transform_to_affine(transform, scale_factor);
+    let color = match paint {
+        GlyphPaint::Fill(color) | GlyphPaint::Stroke { color, .. } => color,
+    };
     let color = VelloColor::new([
-        run.color.r as f32,
-        run.color.g as f32,
-        run.color.b as f32,
-        run.color.a as f32,
+        color.r as f32,
+        color.g as f32,
+        color.b as f32,
+        color.a as f32,
     ]);
+    let font = vello::peniko::FontData::new(
+        vello::peniko::Blob::from_raw_parts(run.font.shared_bytes(), run.font.id()),
+        run.font.collection_index(),
+    );
     let glyph_transform = run
         .skew_degrees
         .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
-    scene
-        .draw_glyphs(&run.font)
+    let glyphs = || {
+        run.glyphs.iter().map(|glyph| vello::Glyph {
+            id: glyph.id,
+            x: ((origin.x as f32) + glyph.x) * scale_factor as f32,
+            y: ((origin.y as f32) + glyph.y) * scale_factor as f32,
+        })
+    };
+    let builder = scene
+        .draw_glyphs(&font)
         .brush(color)
         .hint(false)
         .transform(affine)
         .glyph_transform(glyph_transform)
         .font_size(run.font_size * scale_factor as f32)
-        .normalized_coords(&run.normalized_coords)
-        .draw(
-            vello::peniko::Fill::NonZero,
-            run.glyphs.iter().map(|glyph| vello::Glyph {
-                id: glyph.id,
-                x: ((origin.x as f32) + glyph.x) * scale_factor as f32,
-                y: ((origin.y as f32) + glyph.y) * scale_factor as f32,
-            }),
-        );
+        .normalized_coords(&run.normalized_coords);
+    match paint {
+        GlyphPaint::Fill(_) => builder.draw(vello::peniko::Fill::NonZero, glyphs()),
+        GlyphPaint::Stroke { width, .. } => {
+            builder.draw(&Stroke::new(width * scale_factor), glyphs());
+        }
+    }
 }
 
 /// 渲染状态
@@ -927,10 +940,17 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &bez_path);
             }
 
-            crate::command::RenderCommandKind::GlyphRun { run, origin } => {
+            crate::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
                 let transform = self.current_state().transform;
                 let scale_factor = self.scale_factor;
-                append_glyph_run(&mut self.scene, run, *origin, &transform, scale_factor);
+                append_glyph_run(
+                    &mut self.scene,
+                    run,
+                    *origin,
+                    *paint,
+                    &transform,
+                    scale_factor,
+                );
             }
 
             // 其他命令暂未实现
@@ -1441,7 +1461,6 @@ mod tests {
             .layout(
                 "Vello",
                 &FontDescriptor::default(),
-                Color::BLACK,
                 TextConstraints::UNBOUNDED,
             )
             .unwrap();
@@ -1452,6 +1471,7 @@ mod tests {
                 &mut scene,
                 run,
                 DVec2::new(8.0, 12.0),
+                GlyphPaint::Fill(Color::BLACK),
                 &Transform::IDENTITY,
                 2.0,
             );

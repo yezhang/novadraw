@@ -656,23 +656,63 @@ impl NdCanvas {
     }
 
     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+        let Some(color) = self.state.stroke_color else {
+            return;
+        };
+        let color = self.color_with_global_alpha(color);
+        if color.a > 0.0 {
+            self.draw_glyph_runs(layout, x, y, crate::text::GlyphPaint::Fill(color));
+        }
+    }
+
+    pub fn fill_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+        let Some(color) = self.state.fill_color else {
+            return;
+        };
+        let color = self.color_with_global_alpha(color);
+        if color.a > 0.0 {
+            self.draw_glyph_runs(layout, x, y, crate::text::GlyphPaint::Fill(color));
+        }
+    }
+
+    pub fn stroke_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+        let Some(color) = self.state.stroke_color else {
+            return;
+        };
+        let color = self.color_with_global_alpha(color);
+        if color.a > 0.0 {
+            self.draw_glyph_runs(
+                layout,
+                x,
+                y,
+                crate::text::GlyphPaint::Stroke {
+                    color,
+                    width: self.state.stroke_width,
+                },
+            );
+        }
+    }
+
+    fn draw_glyph_runs(
+        &mut self,
+        layout: &TextLayout,
+        x: f64,
+        y: f64,
+        paint: crate::text::GlyphPaint,
+    ) {
         for run in layout.glyph_runs() {
             if run.glyphs.is_empty() {
                 continue;
             }
-            let mut run = run.clone();
-            run.color = self.color_with_global_alpha(run.color);
-            if run.color.a <= 0.0 {
-                continue;
-            }
-            self.create_command(RenderCommandKind::GlyphRun {
-                run,
+            self.create_command(RenderCommandKind::DrawGlyphRun {
+                run: run.clone(),
                 origin: DVec2::new(x, y),
+                paint,
             });
         }
     }
 
-    pub fn measure_text(&mut self, text: &str) -> f64 {
+    pub fn measure_text(&self, text: &str) -> f64 {
         text.chars().count() as f64 * self.state.font_size * AVERAGE_GLYPH_WIDTH_RATIO
     }
 

@@ -1,7 +1,8 @@
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
-use novadraw_core::Color;
 use parley::{FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty};
 
 const DEFAULT_FONT_FAMILY: &str = "sans-serif";
@@ -141,21 +142,60 @@ pub struct TextLineMetrics {
     pub advance: f32,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FontFaceRef {
+    id: u64,
+    revision: u64,
+    collection_index: u32,
+    bytes: Arc<Vec<u8>>,
+}
+
+impl FontFaceRef {
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    pub fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    pub fn collection_index(&self) -> u32 {
+        self.collection_index
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
+    #[cfg(any(feature = "vello", feature = "vello-web"))]
+    pub(crate) fn shared_bytes(&self) -> Arc<Vec<u8>> {
+        Arc::clone(&self.bytes)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct TextGlyph {
+pub struct PositionedGlyph {
     pub id: u32,
     pub x: f32,
     pub y: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct TextGlyphRun {
-    pub font: parley::FontData,
+pub struct GlyphRun {
+    pub font: FontFaceRef,
     pub font_size: f32,
     pub normalized_coords: Vec<i16>,
     pub skew_degrees: Option<f32>,
-    pub color: Color,
-    pub glyphs: Vec<TextGlyph>,
+    pub glyphs: Vec<PositionedGlyph>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum GlyphPaint {
+    Fill(novadraw_core::Color),
+    Stroke {
+        color: novadraw_core::Color,
+        width: f64,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -164,7 +204,7 @@ pub struct TextLayout {
     full_width: f32,
     height: f32,
     lines: Vec<TextLineMetrics>,
-    glyph_runs: Vec<TextGlyphRun>,
+    glyph_runs: Vec<GlyphRun>,
 }
 
 impl TextLayout {
@@ -184,7 +224,7 @@ impl TextLayout {
         &self.lines
     }
 
-    pub fn glyph_runs(&self) -> &[TextGlyphRun] {
+    pub fn glyph_runs(&self) -> &[GlyphRun] {
         &self.glyph_runs
     }
 
@@ -218,32 +258,66 @@ impl fmt::Display for TextError {
 
 impl Error for TextError {}
 
-pub struct TextEngine {
+pub trait TextLayoutEngine {
+    fn revision(&self) -> u64;
+
+    fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError>;
+
+    fn layout(
+        &mut self,
+        text: &str,
+        font: &FontDescriptor,
+        constraints: TextConstraints,
+    ) -> Result<TextLayout, TextError>;
+}
+
+pub struct ParleyTextEngine {
     font_context: FontContext,
     layout_context: LayoutContext<()>,
+    font_faces: HashMap<(u64, u32), FontFaceRef>,
     revision: u64,
 }
 
-impl Default for TextEngine {
+impl Default for ParleyTextEngine {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TextEngine {
+impl ParleyTextEngine {
     pub fn new() -> Self {
         Self {
             font_context: FontContext::new(),
             layout_context: LayoutContext::new(),
+            font_faces: HashMap::new(),
             revision: 0,
         }
     }
 
     pub fn revision(&self) -> u64 {
-        self.revision
+        TextLayoutEngine::revision(self)
     }
 
     pub fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError> {
+        TextLayoutEngine::register_font(self, bytes)
+    }
+
+    pub fn layout(
+        &mut self,
+        text: &str,
+        font: &FontDescriptor,
+        constraints: TextConstraints,
+    ) -> Result<TextLayout, TextError> {
+        TextLayoutEngine::layout(self, text, font, constraints)
+    }
+}
+
+impl TextLayoutEngine for ParleyTextEngine {
+    fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    fn register_font(&mut self, bytes: Vec<u8>) -> Result<(), TextError> {
         if bytes.is_empty() {
             return Err(TextError::InvalidFontData);
         }
@@ -258,11 +332,10 @@ impl TextEngine {
         Ok(())
     }
 
-    pub fn layout(
+    fn layout(
         &mut self,
         text: &str,
         font: &FontDescriptor,
-        color: Color,
         constraints: TextConstraints,
     ) -> Result<TextLayout, TextError> {
         font.validate()?;
@@ -307,12 +380,24 @@ impl TextEngine {
                     continue;
                 };
                 let run = glyph_run.run();
+                let font = run.font();
+                let font_key = (font.data.id(), font.index);
+                let font_face = self
+                    .font_faces
+                    .entry(font_key)
+                    .or_insert_with(|| FontFaceRef {
+                        id: font.data.id(),
+                        revision: 1,
+                        collection_index: font.index,
+                        bytes: Arc::new(font.data.data().to_vec()),
+                    })
+                    .clone();
                 let mut x = glyph_run.offset();
                 let baseline = glyph_run.baseline();
                 let glyphs = glyph_run
                     .glyphs()
                     .map(|glyph| {
-                        let positioned = TextGlyph {
+                        let positioned = PositionedGlyph {
                             id: glyph.id,
                             x: x + glyph.x,
                             y: baseline - glyph.y,
@@ -321,12 +406,11 @@ impl TextEngine {
                         positioned
                     })
                     .collect();
-                glyph_runs.push(TextGlyphRun {
-                    font: run.font().clone(),
+                glyph_runs.push(GlyphRun {
+                    font: font_face,
                     font_size: run.font_size(),
                     normalized_coords: run.normalized_coords().to_vec(),
                     skew_degrees: run.synthesis().skew(),
-                    color,
                     glyphs,
                 });
             }
@@ -345,9 +429,12 @@ impl TextEngine {
     }
 }
 
+pub type TextEngine = ParleyTextEngine;
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use novadraw_core::Color;
 
     #[test]
     fn parses_existing_figure_style_font_descriptor() {
@@ -384,7 +471,7 @@ mod tests {
         let mut engine = TextEngine::new();
         let font = FontDescriptor::default();
         let layout = engine
-            .layout("Wide ii", &font, Color::BLACK, TextConstraints::UNBOUNDED)
+            .layout("Wide ii", &font, TextConstraints::UNBOUNDED)
             .unwrap();
 
         assert!(layout.width() > 0.0);
@@ -399,10 +486,10 @@ mod tests {
         let mut engine = TextEngine::new();
         let font = FontDescriptor::default();
         let wide = engine
-            .layout("WWWW", &font, Color::BLACK, TextConstraints::UNBOUNDED)
+            .layout("WWWW", &font, TextConstraints::UNBOUNDED)
             .unwrap();
         let narrow = engine
-            .layout("iiii", &font, Color::BLACK, TextConstraints::UNBOUNDED)
+            .layout("iiii", &font, TextConstraints::UNBOUNDED)
             .unwrap();
 
         assert!(wide.width() > narrow.width());
@@ -413,18 +500,12 @@ mod tests {
         let mut engine = TextEngine::new();
         let font = FontDescriptor::default();
         let unbounded = engine
-            .layout(
-                "alpha beta gamma",
-                &font,
-                Color::BLACK,
-                TextConstraints::UNBOUNDED,
-            )
+            .layout("alpha beta gamma", &font, TextConstraints::UNBOUNDED)
             .unwrap();
         let constrained = engine
             .layout(
                 "alpha beta gamma",
                 &font,
-                Color::BLACK,
                 TextConstraints::new(Some(unbounded.width() / 2.0)).unwrap(),
             )
             .unwrap();
@@ -440,21 +521,22 @@ mod tests {
             .layout(
                 "glyphs",
                 &FontDescriptor::default(),
-                Color::rgba(0.2, 0.4, 0.6, 0.8),
                 TextConstraints::UNBOUNDED,
             )
             .unwrap();
         let mut canvas = crate::NdCanvas::new();
+        canvas.fill_style(Color::rgba(0.2, 0.4, 0.6, 0.8));
         canvas.global_alpha(0.5);
-        canvas.draw_text_layout(&layout, 10.0, 20.0);
+        canvas.fill_text_layout(&layout, 10.0, 20.0);
 
         let commands = canvas.commands();
         assert!(commands.len() > 1);
-        let crate::RenderCommandKind::GlyphRun { run, origin } = &commands[1].kind else {
+        let crate::RenderCommandKind::DrawGlyphRun { paint, run, origin } = &commands[1].kind
+        else {
             panic!("expected glyph run");
         };
         assert_eq!(*origin, glam::DVec2::new(10.0, 20.0));
-        assert_eq!(run.color.a, 0.4);
+        assert_eq!(*paint, GlyphPaint::Fill(Color::rgba(0.2, 0.4, 0.6, 0.4)));
         assert!(!run.glyphs.is_empty());
     }
 }

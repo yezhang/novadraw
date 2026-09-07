@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use novadraw_render::{
     BackendCapabilities, DamageMode, FontData, FontDescriptor, FrameId, ImageData, NdCanvas,
     RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo, TextConstraints,
-    TextEngine, TextError, TextLayout,
+    TextError, TextLayout, TextLayoutEngine,
 };
 
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
@@ -36,7 +36,7 @@ pub struct Runtime {
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
     resources: ResourceRegistry,
-    text: TextEngine,
+    text: Box<dyn TextLayoutEngine>,
     layered_panes: HashMap<FigureId, LayeredPaneState>,
     connections: ConnectionRuntime,
     anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
@@ -50,6 +50,10 @@ struct InFlightFrame {
 
 impl Runtime {
     pub fn new(tree: FigureTree) -> Self {
+        Self::with_text_layout_engine(tree, Box::new(novadraw_render::ParleyTextEngine::new()))
+    }
+
+    pub fn with_text_layout_engine(tree: FigureTree, text: Box<dyn TextLayoutEngine>) -> Self {
         let mut runtime = Self {
             tree,
             interaction: InteractionState::default(),
@@ -62,7 +66,7 @@ impl Runtime {
             in_flight: None,
             last_surface: None,
             resources: ResourceRegistry::new(),
-            text: TextEngine::new(),
+            text,
             layered_panes: HashMap::new(),
             connections: ConnectionRuntime::new(),
             anchor_geometries: HashMap::new(),
@@ -114,10 +118,9 @@ impl Runtime {
         &mut self,
         text: &str,
         font: &FontDescriptor,
-        color: novadraw_core::Color,
         constraints: TextConstraints,
     ) -> Result<TextLayout, TextError> {
-        self.text.layout(text, font, color, constraints)
+        self.text.layout(text, font, constraints)
     }
 
     pub fn direct_connection_router(&self) -> RouterId {
@@ -1383,26 +1386,55 @@ mod tests {
         let font = FontDescriptor::default();
 
         let first_layout = first
-            .layout_text(
-                "runtime text",
-                &font,
-                Color::BLACK,
-                TextConstraints::UNBOUNDED,
-            )
+            .layout_text("runtime text", &font, TextConstraints::UNBOUNDED)
             .unwrap();
         let second_layout = second
-            .layout_text(
-                "runtime text",
-                &font,
-                Color::BLACK,
-                TextConstraints::UNBOUNDED,
-            )
+            .layout_text("runtime text", &font, TextConstraints::UNBOUNDED)
             .unwrap();
 
         assert!(first_layout.width() > 0.0);
         assert_eq!(first_layout.width(), second_layout.width());
         assert_eq!(first.text_revision(), 0);
         assert_eq!(second.text_revision(), 0);
+    }
+
+    #[test]
+    fn runtime_accepts_a_non_parley_text_layout_engine() {
+        struct StubTextEngine;
+
+        impl TextLayoutEngine for StubTextEngine {
+            fn revision(&self) -> u64 {
+                42
+            }
+
+            fn register_font(&mut self, _bytes: Vec<u8>) -> Result<(), TextError> {
+                Ok(())
+            }
+
+            fn layout(
+                &mut self,
+                _text: &str,
+                _font: &FontDescriptor,
+                _constraints: TextConstraints,
+            ) -> Result<TextLayout, TextError> {
+                Ok(TextLayout::default())
+            }
+        }
+
+        let mut runtime =
+            Runtime::with_text_layout_engine(FigureTree::new(), Box::new(StubTextEngine));
+
+        assert_eq!(runtime.text_revision(), 42);
+        assert!(
+            runtime
+                .layout_text(
+                    "custom",
+                    &FontDescriptor::default(),
+                    TextConstraints::UNBOUNDED,
+                )
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
