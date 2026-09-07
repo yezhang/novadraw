@@ -664,8 +664,10 @@ M10.1 自动执行结果：
   transaction；
 - `m10_reusable_shape_border_contract` 12 项通过，`novadraw-scene` 229 项库测试及全部
   集成测试无回归；
-- `shape-app`、`border-app` 已加入 M10.1 场景。Native 自动截图在多场景轮转中停滞，
-  已产出的基础 Shape/Border 截图非空且无明显裁剪异常；完整截图与人工签收仍待闭合。
+- `shape-app`、`border-app` 已加入 M10.1 场景；基础 Shape/Border 截图复核和全部
+  M10.1 场景人工验收通过，其中 MarginBorder 通过非对称 inset 与 child client-area
+  裁剪场景完成可视验证；
+- M10.1 完成，下一阶段进入 M10.2 文本、Label 与 TitleBarBorder。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

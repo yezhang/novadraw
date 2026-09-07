@@ -94,8 +94,8 @@
 - [x] M8 `apps/native/viewport-app` 4 场景视觉验证
 - [x] D2 `layer-freeform` Native/Web 人工验收
 - [x] M9 `apps/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
-- [ ] M10 `apps/native/shape-app`（M10.1 场景与自动契约已接入，完整截图/人工签收待完成）
-- [ ] M10 `apps/native/border-app`（M10.1 场景与自动契约已接入，完整截图/人工签收待完成）
+- [x] M10.1 `apps/native/shape-app`（自动契约与人工窗口验收完成）
+- [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
 - [ ] M10 文本/图像 demo（待新增）
 - [ ] M10 Tooltip demo（待新增）
 
