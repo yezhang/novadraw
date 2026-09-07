@@ -20,6 +20,8 @@ pub mod command;
 pub mod context;
 /// 渲染提交协议模块
 pub mod submission;
+/// Text shaping and immutable layout snapshots.
+pub mod text;
 /// 渲染器 traits 模块
 pub mod traits;
 
@@ -28,6 +30,10 @@ pub use context::NdCanvas;
 pub use submission::{
     DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta, ResourceId,
     ResourcePayload, ResourceUpdate, SurfaceInfo,
+};
+pub use text::{
+    FontDescriptor, FontStyle, TextConstraints, TextEngine, TextError, TextGlyph, TextGlyphRun,
+    TextLayout, TextLineMetrics,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

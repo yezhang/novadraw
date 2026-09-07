@@ -48,7 +48,7 @@
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | M9.1-M9.6、六场景 connections-demo、截图复核与人工窗口验收均已完成 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1 Reusable Shape/Border 的契约、实现、12 项自动验证与 Native 人工验收已完成；下一阶段为 M10.2 Text/Label |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1 已完成；M10.2a Parley Text Core 已实现真实测量、glyph snapshot、Runtime 所有权与 Vello encoding，下一阶段为 M10.2b Label |
 
 ## 当前执行顺序
 

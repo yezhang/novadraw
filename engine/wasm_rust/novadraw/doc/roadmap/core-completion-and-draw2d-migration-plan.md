@@ -672,7 +672,11 @@ M10.1 自动执行结果：
   M10.1 场景人工验收通过，其中 MarginBorder 通过非对称 inset 与 child client-area
   裁剪场景完成可视验证；
 - M10.1 完成，下一阶段进入 M10.2 文本、Label 与 TitleBarBorder。
-- M10.2 契约已由 ADR-007 接受，当前执行 M10.2a Text Core。
+- M10.2 契约已由 ADR-007 接受；
+- M10.2a Text Core 已完成：Parley `TextEngine`、结构化 `FontDescriptor`、真实字体
+  measurement、line breaking、不可变 glyph snapshot、Runtime 独立所有权和 Vello
+  glyph encoding 已通过自动测试；
+- 下一阶段进入 M10.2b LabelFigure。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

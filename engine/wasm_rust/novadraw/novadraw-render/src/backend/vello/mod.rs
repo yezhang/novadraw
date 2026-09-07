@@ -18,6 +18,7 @@ use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
 use crate::submission::DamageMode;
+use crate::text::TextGlyphRun;
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
@@ -92,6 +93,44 @@ fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
     } else {
         [0.0, 0.0, 0.0, 0.0]
     }
+}
+
+fn append_glyph_run(
+    scene: &mut vello::Scene,
+    run: &TextGlyphRun,
+    origin: DVec2,
+    transform: &Transform,
+    scale_factor: f64,
+) {
+    if run.glyphs.is_empty() {
+        return;
+    }
+    let affine = VelloRenderer::transform_to_affine(transform, scale_factor);
+    let color = VelloColor::new([
+        run.color.r as f32,
+        run.color.g as f32,
+        run.color.b as f32,
+        run.color.a as f32,
+    ]);
+    let glyph_transform = run
+        .skew_degrees
+        .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
+    scene
+        .draw_glyphs(&run.font)
+        .brush(color)
+        .hint(false)
+        .transform(affine)
+        .glyph_transform(glyph_transform)
+        .font_size(run.font_size * scale_factor as f32)
+        .normalized_coords(&run.normalized_coords)
+        .draw(
+            vello::peniko::Fill::NonZero,
+            run.glyphs.iter().map(|glyph| vello::Glyph {
+                id: glyph.id,
+                x: ((origin.x as f32) + glyph.x) * scale_factor as f32,
+                y: ((origin.y as f32) + glyph.y) * scale_factor as f32,
+            }),
+        );
 }
 
 /// 渲染状态
@@ -888,6 +927,12 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &bez_path);
             }
 
+            crate::command::RenderCommandKind::GlyphRun { run, origin } => {
+                let transform = self.current_state().transform;
+                let scale_factor = self.scale_factor;
+                append_glyph_run(&mut self.scene, run, *origin, &transform, scale_factor);
+            }
+
             // 其他命令暂未实现
             _ => {}
         }
@@ -1264,6 +1309,8 @@ impl VelloRenderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{FontDescriptor, TextConstraints, TextEngine};
+    use novadraw_core::Color;
 
     #[test]
     fn clip_restore_plan_replays_saved_outer_clip_after_reset() {
@@ -1385,6 +1432,34 @@ mod tests {
         }
 
         assert_eq!(retained, next);
+    }
+
+    #[test]
+    fn positioned_glyph_run_is_encoded_into_the_vello_scene() {
+        let mut engine = TextEngine::new();
+        let layout = engine
+            .layout(
+                "Vello",
+                &FontDescriptor::default(),
+                Color::BLACK,
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        let mut scene = vello::Scene::new();
+
+        for run in layout.glyph_runs() {
+            append_glyph_run(
+                &mut scene,
+                run,
+                DVec2::new(8.0, 12.0),
+                &Transform::IDENTITY,
+                2.0,
+            );
+        }
+
+        assert!(!scene.encoding().resources.glyph_runs.is_empty());
+        assert!(!scene.encoding().resources.glyphs.is_empty());
+        assert!(!scene.encoding().resources.patches.is_empty());
     }
 }
 

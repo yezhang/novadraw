@@ -8,6 +8,7 @@ use novadraw_geometry::Transform;
 
 use crate::command::{Path, RenderCommand, RenderCommandKind};
 use crate::submission::{DamageSet, RenderSubmission};
+use crate::text::TextLayout;
 
 const DEFAULT_FONT: &str = "sans-serif";
 const DEFAULT_FONT_SIZE: f64 = 12.0;
@@ -652,6 +653,23 @@ impl NdCanvas {
             color,
             max_width: None,
         });
+    }
+
+    pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
+        for run in layout.glyph_runs() {
+            if run.glyphs.is_empty() {
+                continue;
+            }
+            let mut run = run.clone();
+            run.color = self.color_with_global_alpha(run.color);
+            if run.color.a <= 0.0 {
+                continue;
+            }
+            self.create_command(RenderCommandKind::GlyphRun {
+                run,
+                origin: DVec2::new(x, y),
+            });
+        }
     }
 
     pub fn measure_text(&mut self, text: &str) -> f64 {

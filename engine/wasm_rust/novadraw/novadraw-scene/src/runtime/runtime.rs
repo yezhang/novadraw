@@ -1,8 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
 use novadraw_render::{
-    BackendCapabilities, DamageMode, FontData, FrameId, ImageData, NdCanvas, RenderOutcome,
-    RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
+    BackendCapabilities, DamageMode, FontData, FontDescriptor, FrameId, ImageData, NdCanvas,
+    RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo, TextConstraints,
+    TextEngine, TextError, TextLayout,
 };
 
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
@@ -35,6 +36,7 @@ pub struct Runtime {
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
     resources: ResourceRegistry,
+    text: TextEngine,
     layered_panes: HashMap<FigureId, LayeredPaneState>,
     connections: ConnectionRuntime,
     anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
@@ -60,6 +62,7 @@ impl Runtime {
             in_flight: None,
             last_surface: None,
             resources: ResourceRegistry::new(),
+            text: TextEngine::new(),
             layered_panes: HashMap::new(),
             connections: ConnectionRuntime::new(),
             anchor_geometries: HashMap::new(),
@@ -101,6 +104,20 @@ impl Runtime {
 
     pub fn resources(&self) -> &ResourceRegistry {
         &self.resources
+    }
+
+    pub fn text_revision(&self) -> u64 {
+        self.text.revision()
+    }
+
+    pub fn layout_text(
+        &mut self,
+        text: &str,
+        font: &FontDescriptor,
+        color: novadraw_core::Color,
+        constraints: TextConstraints,
+    ) -> Result<TextLayout, TextError> {
+        self.text.layout(text, font, color, constraints)
     }
 
     pub fn direct_connection_router(&self) -> RouterId {
@@ -1357,6 +1374,35 @@ mod tests {
 
         assert_eq!(runtime.interaction().mouse_target(), Some(root));
         assert_eq!(runtime.tree().get_contents(), Some(root));
+    }
+
+    #[test]
+    fn runtime_owns_an_isolated_text_layout_context() {
+        let mut first = Runtime::empty();
+        let mut second = Runtime::empty();
+        let font = FontDescriptor::default();
+
+        let first_layout = first
+            .layout_text(
+                "runtime text",
+                &font,
+                Color::BLACK,
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        let second_layout = second
+            .layout_text(
+                "runtime text",
+                &font,
+                Color::BLACK,
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+
+        assert!(first_layout.width() > 0.0);
+        assert_eq!(first_layout.width(), second_layout.width());
+        assert_eq!(first.text_revision(), 0);
+        assert_eq!(second.text_revision(), 0);
     }
 
     #[test]

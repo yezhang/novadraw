@@ -5,6 +5,8 @@
 use novadraw_core::Color;
 use novadraw_geometry::Transform;
 
+use crate::text::TextGlyphRun;
+
 /// 渲染命令
 ///
 /// 包含一个渲染操作类型。
@@ -227,6 +229,12 @@ pub enum RenderCommandKind {
         font_size: f64,
         color: Color,
         max_width: Option<f64>,
+    },
+
+    /// 绘制已经完成 shaping 和定位的 glyph run。
+    GlyphRun {
+        run: TextGlyphRun,
+        origin: glam::DVec2,
     },
 }
 

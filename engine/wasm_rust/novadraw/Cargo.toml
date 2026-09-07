@@ -46,3 +46,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tracing-appender = "0.2"
 pollster = "0.4.0"
 stacker = "0.1.25"
+parley = "0.7.0"

@@ -6,10 +6,11 @@ pub use novadraw_core::Color;
 pub use novadraw_geometry::{Affine2D, Transform};
 
 pub use novadraw_render::{
-    BackendCapabilities, DamageMode, DamageSet, FontData, FrameId, ImageData, NdCanvas,
-    RenderBackend, RenderCapability, RenderCommand, RenderCommandKind, RenderOutcome,
-    RenderSubmission, ResourceDelta, ResourceId, ResourcePayload, ResourceUpdate, SurfaceInfo,
-    UnsupportedRenderCapability, command,
+    BackendCapabilities, DamageMode, DamageSet, FontData, FontDescriptor, FontStyle, FrameId,
+    ImageData, NdCanvas, RenderBackend, RenderCapability, RenderCommand, RenderCommandKind,
+    RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourcePayload, ResourceUpdate,
+    SurfaceInfo, TextConstraints, TextEngine, TextError, TextGlyph, TextGlyphRun, TextLayout,
+    TextLineMetrics, UnsupportedRenderCapability, command,
 };
 
 pub use novadraw_render as render;
