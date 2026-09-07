@@ -637,7 +637,8 @@ M10.2 正式契约：
      证明所需的最小 Graphics primitive；clipPath、shear、gradient、XOR 和高级
      stroke 不进入本批次。
 2. **M10.2 文本与 Label**
-   - M10.2a：Parley shaping、真实字体测量、不可变 TextLayout 与 Vello glyph runs；
+   - M10.2a：可替换 TextLayoutEngine、真实字体测量、不可变 TextLayout、
+     backend-neutral glyph IR 与 Vello adapter；
    - M10.2b：LabelFigure 文本/图标、alignment、gap、truncate；
    - M10.2c：TitleBarBorder 的文字测量、insets、preferred size 与绘制；
    - preferred/min/max size 与布局缓存联动。
@@ -673,10 +674,11 @@ M10.1 自动执行结果：
   裁剪场景完成可视验证；
 - M10.1 完成，下一阶段进入 M10.2 文本、Label 与 TitleBarBorder。
 - M10.2 契约已由 ADR-007 接受；
-- M10.2a Text Core 已完成：Parley `TextEngine`、结构化 `FontDescriptor`、真实字体
-  measurement、line breaking、不可变 glyph snapshot、Runtime 独立所有权和 Vello
-  glyph encoding 已通过自动测试；
-- 下一阶段进入 M10.2b LabelFigure。
+- M10.2a 已形成 Parley/Vello 可运行原型，真实 measurement、line breaking、Runtime
+  独立所有权和 Vello glyph encoding 已通过自动测试；
+- ADR-007 已进一步收紧扩展边界：Parley 仅作为默认 `TextLayoutEngine` adapter，
+  Command 必须迁移为 Novadraw 自有 glyph IR，`fill_text` / `stroke_text` 只作为
+  lowering API；完成该收口后再进入 M10.2b LabelFigure。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

@@ -325,9 +325,9 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`Runtime::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |
 | `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；契约由 ADR-007 接受 | designed | M10.2c 实现与验证 |
-| `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 消费 Parley `TextLayout` 快照，遵循完整文本 preferred size 与 ellipsis minimum size | designed | M10.2b 实现与验证 |
+| `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 消费 backend-neutral `TextLayout` 快照，遵循完整文本 preferred size 与 ellipsis minimum size | designed | M10.2b 实现与验证 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | 目标契约名继续使用 `ImageFigure` + image resource id | missing | image change 后 revalidate/repaint |
-| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | Parley `TextEngine` + immutable `TextLayout` 已交付 shaping、真实 measurement、line breaking、glyph snapshot 与 Vello encoding | partial | M10.2b 补 Label ellipsis；后续契约名继续使用 `TextFlowFigure`，不做富文本编辑器 |
+| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | 可替换 `TextLayoutEngine` + immutable `TextLayout` + backend-neutral glyph IR；Parley/Vello 为默认 adapters | partial | M10.2a 先移除 Command 中的 Parley 类型泄漏，再进入 M10.2b Label ellipsis |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | 目标契约名继续使用 `ClickableFigure` / button model | missing | 依赖 M6 event 与 M7 notification |
 | `widgets.basic` | `Button` text/image constructors and default button style | 目标契约名继续使用 `ButtonFigure` 作为 `ClickableFigure + LabelFigure` 组合 | missing | 不引入完整 widget toolkit |
 

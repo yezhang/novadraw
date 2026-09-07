@@ -15,10 +15,10 @@ M10.2 建立一条跨 native/web 一致的文本主链路：
 
 ```text
 text + resolved font + constraints
-→ Parley shaping/layout
+→ TextLayoutEngine（默认 Parley）
 → immutable TextLayout
-→ measurement / truncation / glyph command
-→ Vello glyph rasterization
+→ measurement / truncation / Novadraw glyph IR
+→ RenderBackend（默认 Vello）
 ```
 
 并在该主链路上交付：
@@ -42,23 +42,38 @@ M10.2 不包含：
 
 ## 3. 文本引擎
 
-采用 Parley 负责 font fallback、shaping、bidi、line breaking 和 glyph positioning。
-Vello 只消费已定位的 glyph runs。
-
-`TextEngine` 是显式拥有的可变服务：
+文本布局和字形绘制是两个独立替换边界：
 
 ```rust
-pub struct TextEngine {
+pub trait TextLayoutEngine {
+    fn layout(
+        &mut self,
+        request: &TextLayoutRequest,
+    ) -> Result<TextLayout, TextError>;
+}
+```
+
+默认 `ParleyTextEngine` 负责 font fallback、shaping、bidi、line breaking 和 glyph
+positioning。它实现上述 Novadraw trait，但 Parley 类型不得出现在 trait、
+`TextLayout` 或 RenderCommand 的公开字段中。
+
+文本引擎是显式拥有的可变服务：
+
+```rust
+pub struct ParleyTextEngine {
     font_context: parley::FontContext,
     layout_context: parley::LayoutContext<TextBrush>,
     revision: u64,
 }
 ```
 
-- Runtime/FigureTree 持有实例；
+- Runtime/FigureTree 持有 `Box<dyn TextLayoutEngine>`；
 - 测试可创建隔离实例；
 - 不使用 `static`、thread-local singleton 或隐藏全局 cache；
 - 注册字体时递增 revision，并使依赖该字体的布局失效。
+
+替换 Parley 只需实现 `TextLayoutEngine` 并产出相同的 Novadraw `TextLayout`。替换
+Vello 只需让新 RenderBackend 消费相同的 glyph command；两者互不依赖。
 
 ## 4. 字体描述
 
@@ -96,11 +111,48 @@ pub struct FontDescriptor {
 - truncated 标志；
 - text/font/constraint 对应的 revision key。
 
-glyph run 保存 font bytes、font collection index、font size、normalized coordinates 和
-glyph id/position。渲染命令引用该快照或复制其 run，不再把原始字符串交给 Vello
-backend 重新排版。
+glyph run 使用 Novadraw 自有类型，保存精确 `FontFaceRef`、font size、normalized
+coordinates、可选 synthesis 和 glyph id/position。`FontFaceRef` 包含资源身份、
+revision 和字体集合 index；字体字节由 RenderSubmission 资源增量传输，不在每条
+command 中重复保存。
 
-## 6. 测量与绘制同源
+`TextLayout` 可在引擎内部保存 source text、cluster mapping 和 accessibility 数据，
+但这些内容不进入最终绘制 command。
+
+## 6. Command IR
+
+规范底层文本指令只有一种：
+
+```rust
+pub enum RenderCommandKind {
+    DrawGlyphRun {
+        run: GlyphRun,
+        origin: Vec2,
+        paint: GlyphPaint,
+    },
+}
+```
+
+其中：
+
+- `GlyphRun`、`PositionedGlyph`、`FontFaceRef` 和 `GlyphPaint` 都由 Novadraw 定义；
+- 坐标和字号使用逻辑单位，backend 负责 DPI 映射；
+- 一个 command 只引用一个精确 font face；fallback 文本自然展开为多个 run；
+- fill 和 stroke 共享 glyph geometry，通过 `GlyphPaint` 区分；
+- command 不携带原始 text、font family 或 max width，这些都已在 layout 阶段解析；
+- backend 不执行 shaping、line breaking、ellipsis 或字体 fallback。
+
+现有名称按以下方式收口：
+
+- `Text` 底层 variant 删除；背景文字展开为 `FillRect + DrawGlyphRun`；
+- `fill_text` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 fill glyph runs；
+- `stroke_text` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 stroke glyph runs；
+- 旧的 raw-string API 在迁移期标记 deprecated，不作为 M10.2 产品路径。
+
+不支持 glyph primitive 的 backend 可以在自身内部把 glyph outline 转成 path，但不能
+要求上层把所有文本永久降级为 path。
+
+## 7. 测量与绘制同源
 
 同一个 `TextLayout` 同时用于：
 
@@ -109,12 +161,12 @@ backend 重新排版。
 - Label 中的文本位置；
 - TitleBarBorder 的 insets/preferred size；
 - `NdCanvas::draw_text_layout`；
-- Vello glyph command。
+- backend-neutral `DrawGlyphRun`。
 
 `NdCanvas::measure_text` 的字符平均宽度实现退出产品路径。旧
 `draw_text`/`fill_text` API 可在迁移期间保留，但 M10.2 Figure 不得依赖它们。
 
-## 7. LabelFigure
+## 8. LabelFigure
 
 LabelFigure 保存产品输入，不保存第二份通用样式：
 
@@ -143,7 +195,7 @@ foreground、background、alpha 和 font 继续来自 `ResolvedStyle`。
 截断以 grapheme-safe 的 UTF-8 边界产生最大可放置前缀，再追加 ellipsis；不得切断
 UTF-8 code point。具体断点由 Parley layout 结果决定，不使用平均字符宽度。
 
-## 8. TitleBarBorder
+## 9. TitleBarBorder
 
 TitleBarBorder 仍是不可变、可复用 Border。因为指标依赖 owner 的 resolved font，
 Border 协议增加显式 measurement context，而不是让 Border 持有 owner 或 Runtime：
@@ -162,7 +214,7 @@ BorderMetricsContext
 - alignment 只影响 paint；
 - label/font/padding 变化通过 replacement transaction 触发 revalidate + repaint。
 
-## 9. 更新与缓存
+## 10. 更新与缓存
 
 缓存 key 至少包含：
 
@@ -186,13 +238,14 @@ BorderMetricsContext
 
 相同值写入不得产生 validation、damage 或通知。
 
-## 10. 分批顺序
+## 11. 分批顺序
 
 ### M10.2a Text Core
 
 - 引入 Parley；
-- `TextEngine`、`FontDescriptor`、`TextLayout`；
-- glyph run render command；
+- `TextLayoutEngine`、默认 `ParleyTextEngine`、`FontDescriptor`、`TextLayout`；
+- Novadraw 自有 glyph IR 与 `DrawGlyphRun` command；
+- `fill_text` / `stroke_text` 高层 API lowering；
 - Vello backend glyph rasterization；
 - measurement/render snapshot 测试。
 
@@ -213,12 +266,15 @@ BorderMetricsContext
 每批独立提交。M10.2a 不以存在文本命令作为完成依据，必须证明实际 glyph command
 进入 Vello scene。
 
-## 11. 错误模型
+## 12. 错误模型
 
 - 非法字号或约束：`TextError::InvalidMetric`；
 - 字体描述无法解析：`TextError::InvalidFontDescriptor`；
 - 显式 FontId 未就绪：确定性 fallback，同时保留依赖；
 - shaping 无可用字体：`TextError::NoUsableFont`；
+- backend 缺少 FontFaceRef 对应 revision：结构化 missing-resource 错误；
+- backend 不支持 stroke glyph：通过 capability 拒绝或内部 outline fallback，禁止
+  静默忽略；
 - backend 收到空 glyph run：安全 no-op。
 
 不得 panic 或以平均字符宽度伪造成功结果。
