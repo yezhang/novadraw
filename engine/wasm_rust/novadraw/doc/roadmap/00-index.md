@@ -48,7 +48,7 @@
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | M9.1-M9.6、六场景 connections-demo、截图复核与人工窗口验收均已完成 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1 已完成；M10.2a 已有 Parley/Vello 原型，ADR-007 已收紧为可替换 TextLayoutEngine + backend-neutral glyph IR，当前先收口 Command 边界 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1 已完成；M10.2a 已建立可替换 TextLayoutEngine、backend-neutral glyph IR 与内置跨平台字体，当前迁移 raw-string 文本入口 |
 
 ## 当前执行顺序
 

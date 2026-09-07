@@ -5,9 +5,43 @@ use std::sync::Arc;
 
 use parley::{FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty};
 
-const DEFAULT_FONT_FAMILY: &str = "sans-serif";
+const DEFAULT_FONT_FAMILY: &str = "Inter";
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const DEFAULT_FONT_WEIGHT: f32 = 400.0;
+const INTER_FONT: &[u8] = include_bytes!("../../assets/fonts/InterVariable.ttf");
+const NOTO_SANS_SC_FONT: &[u8] = include_bytes!("../../assets/fonts/NotoSansSC-VF.ttf");
+const JETBRAINS_MONO_FONT: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Regular.ttf");
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BuiltinFont {
+    Inter,
+    NotoSansSc,
+    JetBrainsMono,
+}
+
+impl BuiltinFont {
+    pub const fn family(self) -> &'static str {
+        match self {
+            Self::Inter => "Inter",
+            Self::NotoSansSc => "Noto Sans SC",
+            Self::JetBrainsMono => "JetBrains Mono",
+        }
+    }
+
+    fn bytes(self) -> &'static [u8] {
+        match self {
+            Self::Inter => INTER_FONT,
+            Self::NotoSansSc => NOTO_SANS_SC_FONT,
+            Self::JetBrainsMono => JETBRAINS_MONO_FONT,
+        }
+    }
+}
+
+const BUILTIN_FONTS: [BuiltinFont; 3] = [
+    BuiltinFont::Inter,
+    BuiltinFont::NotoSansSc,
+    BuiltinFont::JetBrainsMono,
+];
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum FontStyle {
@@ -320,12 +354,26 @@ impl Default for ParleyTextEngine {
 
 impl ParleyTextEngine {
     pub fn new() -> Self {
-        Self {
+        let mut engine = Self {
             font_context: FontContext::new(),
             layout_context: LayoutContext::new(),
             font_faces: HashMap::new(),
             revision: 0,
+        };
+        for font in BUILTIN_FONTS {
+            let bytes: Arc<dyn AsRef<[u8]> + Send + Sync> = Arc::new(font.bytes());
+            let registered = engine
+                .font_context
+                .collection
+                .register_fonts(parley::fontique::Blob::new(bytes), None);
+            assert!(
+                !registered.is_empty(),
+                "bundled {} font must be valid",
+                font.family()
+            );
         }
+        engine.revision = 1;
+        engine
     }
 
     pub fn revision(&self) -> u64 {
@@ -498,7 +546,7 @@ mod tests {
             engine.register_font(vec![1, 2, 3]),
             Err(TextError::InvalidFontData)
         );
-        assert_eq!(engine.revision(), 0);
+        assert_eq!(engine.revision(), 1);
     }
 
     #[test]
@@ -514,6 +562,31 @@ mod tests {
         assert_eq!(layout.line_metrics().len(), 1);
         assert!(!layout.glyph_runs().is_empty());
         assert!(!layout.is_empty());
+    }
+
+    #[test]
+    fn bundled_fonts_cover_ui_cjk_and_monospace_roles() {
+        let mut engine = TextEngine::new();
+        let cases = [
+            ("Interface", BuiltinFont::Inter),
+            ("绘图引擎", BuiltinFont::NotoSansSc),
+            ("fn main()", BuiltinFont::JetBrainsMono),
+        ];
+
+        for (text, family) in cases {
+            let layout = engine
+                .layout(
+                    text,
+                    &FontDescriptor::new(family.family(), 14.0).unwrap(),
+                    TextConstraints::UNBOUNDED,
+                )
+                .unwrap();
+            assert!(
+                !layout.is_empty(),
+                "{} should produce glyphs",
+                family.family()
+            );
+        }
     }
 
     #[test]

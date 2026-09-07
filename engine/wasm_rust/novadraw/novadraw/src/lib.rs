@@ -6,7 +6,7 @@ pub use novadraw_core::Color;
 pub use novadraw_geometry::{Affine2D, Transform};
 
 pub use novadraw_render::{
-    BackendCapabilities, DamageMode, DamageSet, FontData, FontDescriptor, FontFaceRef,
+    BackendCapabilities, BuiltinFont, DamageMode, DamageSet, FontData, FontDescriptor, FontFaceRef,
     FontFaceResource, FontStyle, FrameId, GlyphPaint, GlyphRun, ImageData, NdCanvas,
     ParleyTextEngine, PositionedGlyph, RenderBackend, RenderCapability, RenderCommand,
     RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourcePayload,

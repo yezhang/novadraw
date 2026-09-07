@@ -1394,8 +1394,8 @@ mod tests {
 
         assert!(first_layout.width() > 0.0);
         assert_eq!(first_layout.width(), second_layout.width());
-        assert_eq!(first.text_revision(), 0);
-        assert_eq!(second.text_revision(), 0);
+        assert_eq!(first.text_revision(), 1);
+        assert_eq!(second.text_revision(), 1);
     }
 
     #[test]

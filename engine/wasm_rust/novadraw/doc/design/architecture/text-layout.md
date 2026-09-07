@@ -98,6 +98,15 @@ pub struct FontDescriptor {
 - FontId 表达字体字节的生命周期；
 - fallback 由 TextEngine 的字体集合决定。
 
+默认 TextLayoutEngine 内置并注册以下 OFL-1.1 字体：
+
+- Inter：默认 UI 与拉丁文本；
+- Noto Sans SC：简体中文及 CJK fallback；
+- JetBrains Mono：代码和技术标注。
+
+字体文件、许可证和校验值位于 `assets/fonts/`。应用注册字体可覆盖 family 选择，但
+不能改变内置 fallback 的可用性。
+
 ## 5. TextLayout
 
 `TextLayout` 是 shaping 完成后的不可变快照，至少包含：

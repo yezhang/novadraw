@@ -32,7 +32,7 @@ pub use submission::{
     ResourcePayload, ResourceUpdate, SurfaceInfo,
 };
 pub use text::{
-    FontDescriptor, FontFaceRef, FontFaceResource, FontStyle, GlyphPaint, GlyphRun,
+    BuiltinFont, FontDescriptor, FontFaceRef, FontFaceResource, FontStyle, GlyphPaint, GlyphRun,
     ParleyTextEngine, PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout,
     TextLayoutEngine, TextLineMetrics,
 };
