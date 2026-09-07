@@ -98,14 +98,16 @@ pub struct FontDescriptor {
 - FontId 表达字体字节的生命周期；
 - fallback 由 TextEngine 的字体集合决定。
 
-默认 TextLayoutEngine 内置并注册以下 OFL-1.1 字体：
+Novadraw 分发以下 OFL-1.1 内置字体，但 Runtime 启动时不自动注册：
 
 - Inter：默认 UI 与拉丁文本；
 - Noto Sans SC：简体中文及 CJK fallback；
 - JetBrains Mono：代码和技术标注。
 
-字体文件、许可证和校验值位于 `assets/fonts/`。应用注册字体可覆盖 family 选择，但
-不能改变内置 fallback 的可用性。
+字体文件、许可证和校验值位于 `assets/fonts/`。应用必须通过
+`Runtime::register_builtin_font` 显式选择需要的字体；这会同时更新 ResourceRegistry
+和 TextLayoutEngine。未注册字体不得通过系统字体隐式成功。Figure 可以继续从父级
+继承字体描述，因此通常只需在应用根节点或主题层指定一次。
 
 ## 5. TextLayout
 

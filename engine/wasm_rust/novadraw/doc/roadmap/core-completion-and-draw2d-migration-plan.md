@@ -683,8 +683,9 @@ M10.1 自动执行结果：
   `DrawGlyphRun`、`FontFaceRef`、`GlyphPaint` 与 positioned glyph 均为 Novadraw
   自有类型，Vello 通过独立 adapter 消费；后续继续迁移 raw-string 指令和字体资源
   submission。
-- 内置 Inter、Noto Sans SC 与 JetBrains Mono，覆盖 UI、CJK fallback 与技术标注；
-  字体资产使用 Git LFS，Native/Web 构建共享同一字体输入。
+- 提供可显式注册的 Inter、Noto Sans SC 与 JetBrains Mono，覆盖 UI、CJK fallback
+  与技术标注；Runtime 启动不自动注册字体，字体资产使用 Git LFS，Native/Web 构建
+  共享同一字体输入。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

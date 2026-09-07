@@ -56,6 +56,8 @@ breaking。测量和绘制若在不同层分别实现，会使 preferred size、
 12. 现有 CSS-like font 字符串仅作为迁移输入，文本核心使用结构化字体描述。
 13. 自定义字体继续通过 FontId/ResourceRegistry 管理生命周期。
 14. M10.2 不实现富文本编辑、caret、selection 或 IME。
+15. Runtime 启动时不自动注册字体；内置字体只是可选资源，应用必须显式注册并选择。
+    Figure 仍可继承祖先的字体描述，因而不要求每个 Figure 重复指定字体。
 
 完整契约见 `doc/design/architecture/text-layout.md`。
 
