@@ -23,9 +23,10 @@
 6. [`architecture/tree-search-and-focus.md`](architecture/tree-search-and-focus.md)
 7. [`architecture/layer-and-freeform.md`](architecture/layer-and-freeform.md)
 8. [`architecture/connection-routing.md`](architecture/connection-routing.md)
-9. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
-10. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
-11. [`rendering/update-manager.md`](rendering/update-manager.md)
+9. [`architecture/reusable-shape-border.md`](architecture/reusable-shape-border.md)
+10. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
+11. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
+12. [`rendering/update-manager.md`](rendering/update-manager.md)
 
 ## 非规范提案
 

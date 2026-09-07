@@ -6,7 +6,7 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, BorderBuilder, BorderStyle, DEFAULT_BORDER_WIDTH};
+use super::{Border, BorderBuilder, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle};
 
 /// 线条边框
 ///
@@ -26,11 +26,15 @@ pub struct LineBorder {
 impl LineBorder {
     /// 创建线条边框
     pub fn new(color: Color, width: f64) -> Self {
+        assert!(
+            width.is_finite() && width > 0.0,
+            "line border width must be finite and positive"
+        );
         Self {
             color,
             width,
             style: BorderStyle::Solid,
-            insets: (0.0, 0.0, 0.0, 0.0),
+            insets: (width, width, width, width),
         }
     }
 
@@ -43,6 +47,12 @@ impl LineBorder {
 
     /// 设置内边距
     pub fn with_insets(mut self, top: f64, left: f64, bottom: f64, right: f64) -> Self {
+        assert!(
+            [top, left, bottom, right]
+                .into_iter()
+                .all(|value| value.is_finite() && value >= 0.0),
+            "line border insets must be finite and non-negative"
+        );
         self.insets = (top, left, bottom, right);
         self
     }
@@ -60,13 +70,21 @@ impl Border for LineBorder {
     }
 
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        let half_width = self.width / 2.0;
+        self.paint_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), gc);
+    }
 
-        // 根据内边距计算实际边框区域
-        let x = figure_bounds.x + self.insets.1 + half_width;
-        let y = figure_bounds.y + self.insets.0 + half_width;
-        let width = figure_bounds.width - self.insets.1 - self.insets.3 - self.width;
-        let height = figure_bounds.height - self.insets.0 - self.insets.2 - self.width;
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: (f64, f64, f64, f64),
+        gc: &mut NdCanvas,
+    ) {
+        let figure_bounds = inset_rectangle(figure_bounds, incoming);
+        let half_width = self.width / 2.0;
+        let x = figure_bounds.x + half_width;
+        let y = figure_bounds.y + half_width;
+        let width = figure_bounds.width - self.width;
+        let height = figure_bounds.height - self.width;
 
         if width <= 0.0 || height <= 0.0 {
             return;
@@ -77,6 +95,10 @@ impl Border for LineBorder {
 
         // 绘制矩形边框（使用 stroke_rect）
         gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
+    }
+
+    fn is_opaque(&self) -> bool {
+        self.color.is_opaque()
     }
 
     fn get_color(&self) -> Color {

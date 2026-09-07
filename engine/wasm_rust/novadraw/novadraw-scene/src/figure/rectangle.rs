@@ -6,7 +6,9 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
+use super::{
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
+};
 
 /// 矩形图形
 ///
@@ -149,6 +151,14 @@ impl Figure for RectangleFigure {
         Bounded::insets(self)
     }
 
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle {
+            foreground: self.stroke_color,
+            background: Some(self.fill_color),
+            ..crate::FigureStyle::default()
+        }
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -165,6 +175,20 @@ impl Figure for RectangleFigure {
 
     fn container(&self) -> Option<&dyn FigureContainer> {
         Some(self)
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        Some(self)
+    }
+}
+
+impl BorderedFigure for RectangleFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
     }
 }
 
@@ -209,13 +233,7 @@ impl Shape for RectangleFigure {
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
-        gc.fill_rect(
-            0.0,
-            0.0,
-            self.bounds.width,
-            self.bounds.height,
-            self.fill_color,
-        );
+        gc.fill_rectangle(0.0, 0.0, self.bounds.width, self.bounds.height);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
@@ -238,16 +256,11 @@ impl Shape for RectangleFigure {
             // - 内边缘：x + sw/2 - sw/2 = x（原始左边界）
             // - 外边缘：x + w - sw/2 + sw/2 = x + w（原始右边界）
             // 这样描边正好填满原始 bounds
-            gc.stroke_rect(
-                x,
-                y,
-                width.max(0.0),
-                height.max(0.0),
-                color,
-                self.stroke_width,
-                self.line_cap,
-                self.line_join,
-            );
+            let _ = color;
+            gc.line_width(self.stroke_width);
+            gc.line_cap(self.line_cap);
+            gc.line_join(self.line_join);
+            gc.draw_rectangle(x, y, width.max(0.0), height.max(0.0));
         }
     }
 }

@@ -276,6 +276,10 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 **协议层要求**：见 `doc/parity/draw2d/api-coverage.md` 中 M10 相关 family。本节只列产品层清单。
 
+M10.1 不重新设计 M1 Graphics 基础契约。状态栈、坐标、裁剪和现有基础绘制命令保持
+冻结；本批次只收口 reusable Shape 与 Border 产品面。只有现有 path/command 无法
+正确表达具体 Figure 时，才允许增加经契约证明所需的最小 Graphics primitive。
+
 ### Reusable Figure surface
 
 - `RectangleFigure` 作为 active baseline 复查
@@ -288,16 +292,19 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 这些 deferred builtin Figure 在 M10 必须补齐与 `RectangleFigure` 等价的
 paint、hit-test、border、style 和更新协议证据；类型可导出不等于 M10 已完成。
 
-### Border 实现（6 个）
+### Border 实现（M10 共 6 个）
 
-| Border | g2 对应 |
-|--------|---------|
-| `LineBorder` | `LineBorder` |
-| `MarginBorder` | `MarginBorder` |
-| `TitleBarBorder` | `TitleBarBorder` |
-| `CompoundBorder` | `CompoundBorder` |
-| `EtchedBorder` | `EtchedBorder` |
-| `BevelBorder` | `BevelBorder` |
+| Border | g2 对应 | 交付阶段 |
+|--------|---------|---------|
+| `LineBorder` | `LineBorder` | M10.1 |
+| `MarginBorder` | `MarginBorder` | M10.1 |
+| `CompoundBorder` | `CompoundBorder` | M10.1 |
+| `EtchedBorder` | `EtchedBorder` | M10.1 |
+| `BevelBorder` | `BevelBorder` | M10.1 |
+| `TitleBarBorder` | `TitleBarBorder` | M10.2 |
+
+`TitleBarBorder` 仍属于 M10 产品范围，但因 insets、preferred size 和 paint 均依赖
+字体测量，随 M10.2 文本与 Label 一并交付，不进入 M10.1。
 
 可选附加：`FocusedBorder`
 

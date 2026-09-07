@@ -7,18 +7,23 @@ use std::{
     error::Error,
     fmt,
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
-use novadraw_geometry::{Affine2D, PointList, Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Translatable, Vec2};
 use novadraw_render::NdCanvas;
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
-use super::figure::{ChildClippingStrategy, ChildPolicy};
+use super::figure::{
+    ChildClippingStrategy, ChildPolicy, Direction, RoundedRectangleFigure, ShapeMutationError,
+    TriangleFigure, normalize_points,
+};
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
     LayoutSnapshot,
 };
+use crate::Border;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
@@ -899,6 +904,7 @@ impl FigureTree {
     ) -> Result<FigureId, GraphMutationError> {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
+        let style = figure.initial_style();
         let layout = LayoutState::for_figure(figure.as_ref());
         let parent_depth = self
             .blocks
@@ -937,6 +943,7 @@ impl FigureTree {
             state: NodeState {
                 bounds,
                 insets,
+                style,
                 ..NodeState::default()
             },
         });
@@ -2212,6 +2219,263 @@ impl FigureTree {
             .map(|connection| connection.connection_stroke_color())
     }
 
+    pub fn point_list_points(&self, id: FigureId) -> Option<Vec<Vec2>> {
+        let block = self.blocks.get(id)?;
+        let bounds = block.figure_bounds();
+        Some(
+            block
+                .figure
+                .point_list()?
+                .local_points()
+                .iter()
+                .map(|point| Vec2::new(point.x() + bounds.x, point.y() + bounds.y))
+                .collect(),
+        )
+    }
+
+    pub(crate) fn commit_point_list(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        parent_points: Vec<Vec2>,
+    ) -> Result<bool, ShapeMutationError> {
+        if parent_points
+            .iter()
+            .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(point_list) = block.figure.point_list() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old_points = self
+            .point_list_points(id)
+            .expect("validated point-list capability");
+        if old_points == parent_points {
+            return Ok(false);
+        }
+        let old_bounds = block.figure_bounds();
+        let old_visual_bounds = block.visual_bounds();
+        let parent_id = block.parent;
+        let visible = self.is_effectively_visible(id);
+        let (new_bounds, local_points) = normalize_points(
+            parent_points.clone(),
+            point_list.stroke_width(),
+            point_list.painted_minimum(),
+        );
+        if !finite_rectangle(new_bounds) {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+
+        if visible {
+            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+        }
+        let block = self
+            .blocks
+            .get_mut(id)
+            .ok_or(ShapeMutationError::UnknownFigure(id))?;
+        block.set_node_bounds(new_bounds);
+        block
+            .figure
+            .point_list_mut()
+            .ok_or(ShapeMutationError::WrongCapability(id))?
+            .commit_geometry(new_bounds, local_points);
+
+        self.notify_block_changed(id);
+        self.emit_figure_event(FigureEvent::FigureMoved {
+            block_id: id,
+            old_bounds,
+            new_bounds,
+        });
+        self.emit_property_event(PropertyChangeEvent {
+            block_id: id,
+            property: "points",
+            old_value: PropertyValue::PointList(old_points),
+            new_value: PropertyValue::PointList(parent_points),
+        });
+        self.mark_invalid(update_manager, id);
+        self.mark_freeform_ancestor_extents_dirty(id);
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn replace_border(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        border: Option<Arc<dyn Border>>,
+    ) -> Result<bool, ShapeMutationError> {
+        let metrics = border.as_deref().map(|border| {
+            let insets = border.get_insets();
+            let preferred = border.preferred_size();
+            (insets, preferred)
+        });
+        if metrics.is_some_and(|(insets, preferred)| {
+            [
+                insets.0,
+                insets.1,
+                insets.2,
+                insets.3,
+                preferred.0,
+                preferred.1,
+            ]
+            .into_iter()
+            .any(|value| !value.is_finite() || value < 0.0)
+        }) {
+            return Err(ShapeMutationError::NegativeMetric);
+        }
+        let (supports_border, same_border) =
+            self.blocks.get_mut(id).map_or((false, false), |block| {
+                match block.figure.bordered_mut() {
+                    Some(bordered) => {
+                        let same = match (bordered.border(), border.as_ref()) {
+                            (Some(old), Some(new)) => Arc::ptr_eq(old, new),
+                            (None, None) => true,
+                            _ => false,
+                        };
+                        (true, same)
+                    }
+                    None => (false, false),
+                }
+            });
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        if same_border {
+            return Ok(false);
+        }
+        if !supports_border {
+            return Err(ShapeMutationError::WrongCapability(id));
+        }
+        let old_bounds = block.figure_bounds();
+        let old_visual_bounds = block.visual_bounds();
+        let parent_id = block.parent;
+        let visible = self.is_effectively_visible(id);
+        let had_border = block.figure.get_border().is_some();
+
+        if visible {
+            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+        }
+        let has_border = {
+            let block = self
+                .blocks
+                .get_mut(id)
+                .ok_or(ShapeMutationError::UnknownFigure(id))?;
+            block
+                .figure
+                .bordered_mut()
+                .ok_or(ShapeMutationError::WrongCapability(id))?
+                .replace_border(border);
+            block.insets = block
+                .figure
+                .get_border()
+                .map(Border::get_insets)
+                .unwrap_or_default();
+            block.figure.get_border().is_some()
+        };
+
+        self.record_property_change(
+            id,
+            "border",
+            PropertyValue::Bool(had_border),
+            PropertyValue::Bool(has_border),
+        );
+        self.mark_invalid(update_manager, id);
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn set_corner_dimensions_with_update(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        dimensions: Dimension,
+    ) -> Result<bool, ShapeMutationError> {
+        if !dimensions.width.is_finite() || !dimensions.height.is_finite() {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        if dimensions.width < 0.0 || dimensions.height < 0.0 {
+            return Err(ShapeMutationError::NegativeMetric);
+        }
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(rounded) = block
+            .figure
+            .as_ref()
+            .as_any()
+            .downcast_ref::<RoundedRectangleFigure>()
+        else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old = rounded.corner_dimensions();
+        if old == dimensions {
+            return Ok(false);
+        }
+        self.blocks[id]
+            .figure
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<RoundedRectangleFigure>()
+            .expect("validated rounded rectangle capability")
+            .set_corner_dimensions(dimensions);
+        self.record_property_change(
+            id,
+            "corner_dimensions",
+            PropertyValue::Size(old),
+            PropertyValue::Size(dimensions),
+        );
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_triangle_direction_with_update(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        direction: Direction,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(triangle) = block
+            .figure
+            .as_ref()
+            .as_any()
+            .downcast_ref::<TriangleFigure>()
+        else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old = triangle.direction;
+        if old == direction {
+            return Ok(false);
+        }
+        self.blocks[id]
+            .figure
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<TriangleFigure>()
+            .expect("validated triangle capability")
+            .set_direction(direction);
+        self.record_property_change(
+            id,
+            "direction",
+            PropertyValue::Text(format!("{old:?}")),
+            PropertyValue::Text(format!("{direction:?}")),
+        );
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
     pub(crate) fn commit_connection_route(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -2337,6 +2601,12 @@ impl FigureTree {
 
     pub fn insets(&self, id: FigureId) -> Option<(f64, f64, f64, f64)> {
         self.blocks.get(id).map(|block| block.insets)
+    }
+
+    pub fn border_is_effectively_opaque(&self, id: FigureId) -> Option<bool> {
+        let block = self.blocks.get(id)?;
+        let border = block.figure.get_border()?;
+        Some(border.is_opaque() && self.resolved_style(id)?.alpha >= 1.0)
     }
 
     pub fn figure_style(&self, id: FigureId) -> Option<&FigureStyle> {
@@ -4679,8 +4949,8 @@ mod tests {
             "parent clientArea must be clipped by border insets: {signatures:?}"
         );
         assert!(
-            signatures.contains(&RenderSignature::StrokeRect([21.0, 11.0, 79.0, 69.0])),
-            "border must render in its inset-adjusted bounds"
+            signatures.contains(&RenderSignature::StrokeRect([1.0, 1.0, 119.0, 99.0])),
+            "border must render in the outer ring"
         );
 
         let child_fill_index = signatures
@@ -4690,7 +4960,7 @@ mod tests {
         let parent_border_index = signatures
             .iter()
             .position(|signature| {
-                *signature == RenderSignature::StrokeRect([21.0, 11.0, 79.0, 69.0])
+                *signature == RenderSignature::StrokeRect([1.0, 1.0, 119.0, 99.0])
             })
             .expect("parent border must be rendered");
         assert!(

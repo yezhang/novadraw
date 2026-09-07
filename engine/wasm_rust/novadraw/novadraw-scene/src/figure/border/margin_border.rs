@@ -15,10 +15,6 @@ use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH};
 ///
 /// 参考 draw2d: MarginBorder 提供内边距，不绘制可见内容。
 ///
-/// # 与 draw2d 的差异
-///
-/// draw2d 中 MarginBorder 的 paint() 为空，仅用于布局（提供 insets）。
-/// novadraw 当前未实现布局系统，所以 insets 效果不会体现。
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MarginBorder {
     /// 边框颜色
@@ -40,6 +36,10 @@ pub struct MarginBorder {
 impl MarginBorder {
     /// 创建边距边框
     pub fn new(color: Color, width: f64) -> Self {
+        assert!(
+            width.is_finite() && width >= 0.0,
+            "margin border compatibility width must be finite and non-negative"
+        );
         Self {
             color,
             width,
@@ -58,30 +58,37 @@ impl MarginBorder {
 
     /// 设置上边距
     pub fn with_top(mut self, top: f64) -> Self {
+        assert_valid_margin(top);
         self.top = top;
         self
     }
 
     /// 设置左边距
     pub fn with_left(mut self, left: f64) -> Self {
+        assert_valid_margin(left);
         self.left = left;
         self
     }
 
     /// 设置下边距
     pub fn with_bottom(mut self, bottom: f64) -> Self {
+        assert_valid_margin(bottom);
         self.bottom = bottom;
         self
     }
 
     /// 设置右边距
     pub fn with_right(mut self, right: f64) -> Self {
+        assert_valid_margin(right);
         self.right = right;
         self
     }
 
     /// 设置所有边距
     pub fn with_margins(mut self, top: f64, left: f64, bottom: f64, right: f64) -> Self {
+        for margin in [top, left, bottom, right] {
+            assert_valid_margin(margin);
+        }
         self.top = top;
         self.left = left;
         self.bottom = bottom;
@@ -94,6 +101,13 @@ impl MarginBorder {
         self.style = style;
         self
     }
+}
+
+fn assert_valid_margin(margin: f64) {
+    assert!(
+        margin.is_finite() && margin >= 0.0,
+        "margin border insets must be finite and non-negative"
+    );
 }
 
 impl Border for MarginBorder {

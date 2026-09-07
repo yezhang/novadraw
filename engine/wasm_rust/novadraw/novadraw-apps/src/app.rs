@@ -807,14 +807,14 @@ impl AppBuilder {
 /// fn create_rect_scene() -> novadraw::FigureTree {
 ///     let mut scene = novadraw::FigureTree::new();
 ///     let rect = novadraw::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
-///     scene.set_contents(Box::new(rect));
+///     scene.builder().set_contents(Box::new(rect));
 ///     scene
 /// }
 ///
 /// fn main() {
 ///     run_demo_app("My App", "rect-demo", vec![
 ///         ("Rectangle", Box::new(|| create_rect_scene())),
-///     ]);
+///     ]).expect("demo app failed");
 /// }
 /// ```
 #[allow(clippy::type_complexity)]

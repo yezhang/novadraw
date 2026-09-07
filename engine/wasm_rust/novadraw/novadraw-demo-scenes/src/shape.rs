@@ -1168,6 +1168,60 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 // 场景映射
 // ============================================================================
 
+fn create_m10_runtime_mutations() -> novadraw::FigureTree {
+    let mut runtime = novadraw::Runtime::empty();
+    let root = runtime.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        0.0,
+        0.0,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        novadraw::Color::hex("#eeeeee"),
+    )));
+    let polyline = runtime.add_figure(
+        root,
+        Box::new(
+            novadraw::PolylineFigure::from_points(vec![
+                novadraw_geometry::Vec2::new(70.0, 100.0),
+                novadraw_geometry::Vec2::new(210.0, 100.0),
+            ])
+            .with_color(novadraw::Color::hex("#2563eb"))
+            .with_width(5.0),
+        ),
+    );
+    let rounded = runtime.add_figure(
+        root,
+        Box::new(
+            novadraw::RoundedRectangleFigure::new_with_color(
+                300.0,
+                70.0,
+                180.0,
+                110.0,
+                12.0,
+                novadraw::Color::hex("#16a34a"),
+            )
+            .with_stroke(novadraw::Color::hex("#14532d"), 3.0),
+        ),
+    );
+    let triangle = runtime.add_figure(
+        root,
+        Box::new(
+            novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0)
+                .with_fill_color(novadraw::Color::hex("#f59e0b")),
+        ),
+    );
+
+    runtime
+        .insert_point(polyline, 1, novadraw_geometry::Vec2::new(140.0, 180.0))
+        .expect("valid polyline mutation");
+    runtime
+        .set_corner_dimensions(rounded, novadraw_geometry::Dimension::new(64.0, 28.0))
+        .expect("valid corner mutation");
+    runtime
+        .set_triangle_direction(triangle, novadraw::Direction::West)
+        .expect("valid direction mutation");
+    runtime.into_tree()
+}
+
 pub fn suite() -> DemoSuite {
     let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
     DemoSuite::new(
@@ -1229,6 +1283,13 @@ pub fn suite() -> DemoSuite {
                 size,
                 ValidationKind::Visual,
                 create_scene_11_parent_child,
+            ),
+            SceneSpec::new(
+                "m10-runtime-mutations",
+                "8:M10 Runtime Mutations",
+                size,
+                ValidationKind::Visual,
+                create_m10_runtime_mutations,
             ),
         ],
     )

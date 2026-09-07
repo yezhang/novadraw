@@ -6,7 +6,9 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
+use super::{
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
+};
 
 /// 椭圆图形
 ///
@@ -33,6 +35,16 @@ pub struct EllipseFigure {
 }
 
 impl EllipseFigure {
+    fn optimized_bounds(&self) -> Rectangle {
+        let line_inset = 1.0_f64.max(self.stroke_width) / 2.0;
+        Rectangle::new(
+            line_inset,
+            line_inset,
+            (self.bounds.width - line_inset * 2.0).max(0.0),
+            (self.bounds.height - line_inset * 2.0).max(0.0),
+        )
+    }
+
     /// 创建椭圆
     ///
     /// 椭圆外切于指定的 bounds 矩形
@@ -180,6 +192,14 @@ impl Figure for EllipseFigure {
         Bounded::insets(self)
     }
 
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle {
+            foreground: self.stroke_color,
+            background: Some(self.fill_color),
+            ..crate::FigureStyle::default()
+        }
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -207,6 +227,20 @@ impl Figure for EllipseFigure {
 
     fn container(&self) -> Option<&dyn FigureContainer> {
         Some(self)
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        Some(self)
+    }
+}
+
+impl BorderedFigure for EllipseFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
     }
 }
 
@@ -251,53 +285,18 @@ impl Shape for EllipseFigure {
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
-        // 填充使用完整的 bounds
-        let cx = self.bounds.width / 2.0;
-        let cy = self.bounds.height / 2.0;
-        let rx = self.bounds.width / 2.0;
-        let ry = self.bounds.height / 2.0;
-
-        gc.ellipse(
-            cx,
-            cy,
-            rx,
-            ry,
-            Some(self.fill_color),
-            None,
-            0.0,
-            self.line_cap,
-            self.line_join,
-        );
+        let bounds = self.optimized_bounds();
+        gc.fill_oval(bounds.x, bounds.y, bounds.width, bounds.height);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         if let Some(color) = self.stroke_color {
-            // 参考 draw2d Ellipse.outlineShape:
-            // 描边向内缩（inset），使描边完全在 bounds 内部
-            let line_inset = (1.0_f64).max(self.stroke_width) / 2.0;
-
-            // 向内缩 bounds（使用浮点数避免 floor/ceil 不对称）
-            let x = line_inset;
-            let y = line_inset;
-            let width = self.bounds.width - line_inset * 2.0;
-            let height = self.bounds.height - line_inset * 2.0;
-
-            let cx = x + width / 2.0;
-            let cy = y + height / 2.0;
-            let rx = width / 2.0;
-            let ry = height / 2.0;
-
-            gc.ellipse(
-                cx,
-                cy,
-                rx.max(0.0),
-                ry.max(0.0),
-                None,
-                Some(color),
-                0.0, // 使用 0.0 线宽，让描边完全落在 inset 区域内
-                self.line_cap,
-                self.line_join,
-            );
+            let bounds = self.optimized_bounds();
+            let _ = color;
+            gc.line_width(self.stroke_width);
+            gc.line_cap(self.line_cap);
+            gc.line_join(self.line_join);
+            gc.draw_oval(bounds.x, bounds.y, bounds.width, bounds.height);
         }
     }
 }

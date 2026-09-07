@@ -2,7 +2,10 @@
 //!
 //! 验证 Stroke (Shape 级别) 和 Border (装饰器级别) 的功能和区别。
 
-use novadraw::border::{LineBorder, MarginBorder, RectangleBorder};
+use novadraw::border::{
+    BevelBorder, BevelStyle, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
+    RectangleBorder,
+};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -162,7 +165,8 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene.builder().set_contents(Box::new(container));
 
-    // MarginBorder 用于绘制四边边框（通过设置 margin）
+    // 子 Figure 故意大于 client area，由父 Figure 的 margin client clip 截断。
+    // 因此露出的父背景宽度就是各方向的实际 margin。
     let rect1 = novadraw::RectangleFigure::new_with_color(
         50.0,
         50.0,
@@ -171,8 +175,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.9, 0.95, 1.0, 1.0),
     )
     .with_border(
-        MarginBorder::new(novadraw::Color::rgba(0.2, 0.3, 0.5, 1.0), 2.0)
-            .with_margins(5.0, 5.0, 5.0, 5.0),
+        MarginBorder::new(novadraw::Color::TRANSPARENT, 0.0).with_margins(10.0, 10.0, 10.0, 10.0),
     );
     let rect2 = novadraw::RectangleFigure::new_with_color(
         300.0,
@@ -182,8 +185,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.95, 0.9, 1.0, 1.0),
     )
     .with_border(
-        MarginBorder::new(novadraw::Color::rgba(0.5, 0.2, 0.3, 1.0), 3.0)
-            .with_margins(10.0, 10.0, 10.0, 10.0),
+        MarginBorder::new(novadraw::Color::TRANSPARENT, 0.0).with_margins(10.0, 20.0, 30.0, 40.0),
     );
     let rect3 = novadraw::RectangleFigure::new_with_color(
         550.0,
@@ -193,13 +195,43 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.95, 0.9, 1.0),
     )
     .with_border(
-        MarginBorder::new(novadraw::Color::rgba(0.3, 0.5, 0.2, 1.0), 4.0)
-            .with_margins(15.0, 15.0, 15.0, 15.0),
+        MarginBorder::new(novadraw::Color::TRANSPARENT, 0.0).with_margins(30.0, 40.0, 10.0, 20.0),
     );
 
-    let _r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
-    let _r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
-    let _r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
+    let r1 = scene.builder().add_child_to(container_id, Box::new(rect1));
+    let r2 = scene.builder().add_child_to(container_id, Box::new(rect2));
+    let r3 = scene.builder().add_child_to(container_id, Box::new(rect3));
+
+    scene.builder().add_child_to(
+        r1,
+        Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            200.0,
+            120.0,
+            novadraw::Color::hex("#2563eb"),
+        )),
+    );
+    scene.builder().add_child_to(
+        r2,
+        Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            200.0,
+            120.0,
+            novadraw::Color::hex("#7c3aed"),
+        )),
+    );
+    scene.builder().add_child_to(
+        r3,
+        Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            200.0,
+            120.0,
+            novadraw::Color::hex("#dc2626"),
+        )),
+    );
 
     scene
 }
@@ -343,6 +375,46 @@ fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
     scene
 }
 
+fn create_m10_composed_borders() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
+    let container_id =
+        scene
+            .builder()
+            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::Color::hex("#eeeeee"),
+            )));
+    let highlight = novadraw::Color::hex("#ffffff");
+    let shadow = novadraw::Color::hex("#4b5563");
+    let fill = novadraw::Color::hex("#dbeafe");
+
+    let compound = novadraw::RectangleFigure::new_with_color(60.0, 70.0, 190.0, 120.0, fill)
+        .with_border(CompoundBorder::new(
+            LineBorder::new(novadraw::Color::hex("#1d4ed8"), 3.0),
+            MarginBorder::new(novadraw::Color::TRANSPARENT, 1.0)
+                .with_margins(10.0, 10.0, 10.0, 10.0),
+        ));
+    let etched = novadraw::RectangleFigure::new_with_color(305.0, 70.0, 190.0, 120.0, fill)
+        .with_border(EtchedBorder::new(highlight, shadow));
+    let raised = novadraw::RectangleFigure::new_with_color(550.0, 70.0, 190.0, 120.0, fill)
+        .with_border(BevelBorder::new(BevelStyle::Raised, highlight, shadow, 2));
+    let lowered = novadraw::RectangleFigure::new_with_color(305.0, 250.0, 190.0, 120.0, fill)
+        .with_border(BevelBorder::new(BevelStyle::Lowered, highlight, shadow, 2));
+
+    for figure in [
+        Box::new(compound) as Box<dyn novadraw::Figure>,
+        Box::new(etched),
+        Box::new(raised),
+        Box::new(lowered),
+    ] {
+        scene.builder().add_child_to(container_id, figure);
+    }
+    scene
+}
+
 pub fn suite() -> DemoSuite {
     let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
     DemoSuite::new(
@@ -378,6 +450,12 @@ pub fn suite() -> DemoSuite {
                 "Stroke vs Border",
                 size,
                 create_scene_8_stroke_vs_border,
+            ),
+            SceneSpec::visual(
+                "m10-composed-borders",
+                "M10 Compound / Etched / Bevel",
+                size,
+                create_m10_composed_borders,
             ),
         ],
     )

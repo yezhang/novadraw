@@ -48,12 +48,16 @@ pub use container::{
     ZoomViewportState,
 };
 pub use figure::border;
-pub use figure::border::{Border, LineBorder, MarginBorder, RectangleBorder};
+pub use figure::border::{
+    BevelBorder, BevelStyle, Border, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
+    RectangleBorder,
+};
 pub use figure::{
-    AccessibleFigure, AsAny, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform,
-    Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    Freeform, HitParticipation, Layer, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
-    RoundedRectangleFigure, Shape, TriangleFigure,
+    AccessibleFigure, AsAny, BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy,
+    ChildTransform, Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler,
+    FigureLifecycle, Freeform, HitParticipation, Layer, PointListFigureBehavior, PolygonFigure,
+    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError,
+    TriangleFigure,
 };
 pub use graph as scene;
 pub use graph::{

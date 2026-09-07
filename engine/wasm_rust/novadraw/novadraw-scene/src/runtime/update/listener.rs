@@ -8,7 +8,7 @@
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
 use novadraw_core::Color;
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Dimension, Point, Rectangle};
 use novadraw_render::{DamageMode, FrameId, RenderOutcome};
 
 use crate::graph::FigureId;
@@ -90,6 +90,8 @@ pub enum PropertyValue {
     Color(Color),
     Cursor(CursorIcon),
     Point(Point),
+    PointList(Vec<Point>),
+    Size(Dimension),
     Rectangle(Rectangle),
     Text(String),
     Block(Option<FigureId>),

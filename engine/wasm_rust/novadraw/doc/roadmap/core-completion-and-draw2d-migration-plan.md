@@ -615,17 +615,27 @@ M9.4b-M9.6 执行结果：
 
 ## 7. M10：Reusable Figure 分批交付
 
-状态：`not_started`
+状态：`in_progress`
+
+M10.1 正式契约：
+[`../design/architecture/reusable-shape-border.md`](../design/architecture/reusable-shape-border.md)。
+由 ADR-006 接受。
 
 执行顺序：
 
-1. **M10.1 Graphics、Shape 与 Border**
-   - deferred shape 的精确 hit-test、visual bounds、style 和 update；
-   - Border preferred size、opaque；
-   - Compound、TitleBar、Etched、Bevel Border。
+1. **M10.1 Reusable Shape 与 Border 产品化收口**
+   - 冻结 M1 已验证的 Graphics 状态栈、坐标、裁剪和基础命令契约，不做重新设计；
+   - 以 RectangleFigure 为 baseline，补齐 deferred Figure 的精确 hit-test、
+     visual bounds、style 和 update 证据；
+   - 复用 FigureStyle 与具体 Figure 构造/更新入口，不默认扩张统一 Shape setter；
+   - 补齐 Border preferred size、opaque 语义以及 Compound、Etched、Bevel Border；
+   - 仅当具体 reusable Figure 无法基于现有 path/command 正确实现时，才增加经契约
+     证明所需的最小 Graphics primitive；clipPath、shear、gradient、XOR 和高级
+     stroke 不进入本批次。
 2. **M10.2 文本与 Label**
    - 真实字体测量；
    - LabelFigure 文本/图标、alignment、gap、truncate；
+   - TitleBarBorder 的文字测量、insets、preferred size 与绘制；
    - preferred/min/max size 与布局缓存联动。
 3. **M10.3 ImageFigure 与资源**
    - ImageId；
@@ -641,6 +651,21 @@ M9.4b-M9.6 执行结果：
    - AccessibleFigure 到 PlatformHost bridge。
 
 M10 不扩张为完整 widget toolkit，也不实现富文本编辑器。
+
+M10.1 自动执行结果：
+
+- 六类 reusable Figure 统一消费 FigureStyle，并补齐 Ellipse、RoundedRectangle、
+  Polyline、Polygon、Triangle 的精确命中和 Draw2D 绘制几何；
+- Polyline/Polygon 使用 node-local points 与派生 NodeState bounds，Runtime 提供
+  replace/insert/set/remove/clear 原子 mutation、失败回滚、damage 与 typed 通知；
+- Border 协议新增 preferred size、ring opacity 和累计 inset 绘制，完成 Line、
+  Margin、Compound、Etched、Raised/Lowered Bevel；
+- Border replacement、corner dimensions 与 triangle direction 进入 Runtime typed
+  transaction；
+- `m10_reusable_shape_border_contract` 12 项通过，`novadraw-scene` 229 项库测试及全部
+  集成测试无回归；
+- `shape-app`、`border-app` 已加入 M10.1 场景。Native 自动截图在多场景轮转中停滞，
+  已产出的基础 Shape/Border 截图非空且无明显裁剪异常；完整截图与人工签收仍待闭合。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

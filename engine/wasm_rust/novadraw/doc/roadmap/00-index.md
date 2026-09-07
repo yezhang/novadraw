@@ -48,7 +48,7 @@
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | M9.1-M9.6、六场景 connections-demo、截图复核与人工窗口验收均已完成 |
-| M10 | 常用 Figure 与文本/控件 | `not_started` | 部分 Figure/Border 可导出，仍属于 deferred surface |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1 契约、实现与 12 项自动验证已完成；完整 Native 截图和人工签收待闭合，M10.2-M10.5 尚未开始 |
 
 ## 当前执行顺序
 

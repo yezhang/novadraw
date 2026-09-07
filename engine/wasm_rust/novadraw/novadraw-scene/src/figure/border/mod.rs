@@ -3,10 +3,16 @@
 //! 参考 Eclipse Draw2D 的 Border 设计。
 //! Border 是可附加到 Figure 的装饰器，用于绘制边框效果。
 
+mod bevel_border;
+mod compound_border;
+mod etched_border;
 mod line_border;
 mod margin_border;
 mod rectangle_border;
 
+pub use bevel_border::{BevelBorder, BevelStyle};
+pub use compound_border::CompoundBorder;
+pub use etched_border::EtchedBorder;
 pub use line_border::LineBorder;
 pub use margin_border::MarginBorder;
 pub use rectangle_border::RectangleBorder;
@@ -32,11 +38,56 @@ pub trait Border: Send + Sync {
     /// 在给定的图形边界内绘制边框
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas);
 
+    /// 在调用方已经累计的 inset 内绘制。
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: (f64, f64, f64, f64),
+        gc: &mut NdCanvas,
+    ) {
+        self.paint(inset_rectangle(figure_bounds, incoming), gc);
+    }
+
+    /// Border 自身正确显示所需的最小外部尺寸。
+    fn preferred_size(&self) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
+    /// Border 配置是否完全覆盖其 border ring。
+    fn is_opaque(&self) -> bool {
+        false
+    }
+
     /// 获取边框颜色
-    fn get_color(&self) -> Color;
+    fn get_color(&self) -> Color {
+        Color::TRANSPARENT
+    }
 
     /// 获取边框宽度
-    fn get_width(&self) -> f64;
+    fn get_width(&self) -> f64 {
+        0.0
+    }
+}
+
+pub(crate) fn add_insets(
+    first: (f64, f64, f64, f64),
+    second: (f64, f64, f64, f64),
+) -> (f64, f64, f64, f64) {
+    (
+        first.0 + second.0,
+        first.1 + second.1,
+        first.2 + second.2,
+        first.3 + second.3,
+    )
+}
+
+pub(crate) fn inset_rectangle(bounds: Rectangle, insets: (f64, f64, f64, f64)) -> Rectangle {
+    Rectangle::new(
+        bounds.x + insets.1,
+        bounds.y + insets.0,
+        (bounds.width - insets.1 - insets.3).max(0.0),
+        (bounds.height - insets.0 - insets.2).max(0.0),
+    )
 }
 
 /// Border 样式

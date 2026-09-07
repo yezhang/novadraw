@@ -26,15 +26,16 @@ pub mod border;
 pub use ellipse::EllipseFigure;
 pub use polygon::PolygonFigure;
 pub use polyline::PolylineFigure;
+pub(crate) use polyline::normalize_points;
 pub use rectangle::RectangleFigure;
 pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
 pub use triangle::{Direction, TriangleFigure};
 
-use std::any::Any;
+use std::{any::Any, sync::Arc};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Affine2D, Rectangle, Translatable};
+use novadraw_geometry::{Affine2D, Rectangle, Translatable, Vec2};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
@@ -314,6 +315,11 @@ pub trait Figure: AsAny {
         (0.0, 0.0, 0.0, 0.0)
     }
 
+    /// Returns construction-time local style copied into NodeState on attach.
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle::default()
+    }
+
     /// ===== PaintSelf 阶段方法 =====
     /// 绘制自身（背景）
     ///
@@ -332,7 +338,15 @@ pub trait Figure: AsAny {
     /// 返回 Figure 的内在尺寸，供无 LayoutManager 时测量。
     fn intrinsic_size(&self) -> (f64, f64) {
         let bounds = self.initial_bounds();
-        (bounds.width, bounds.height)
+        let Some(border) = self.get_border() else {
+            return (bounds.width, bounds.height);
+        };
+        let (top, left, bottom, right) = border.get_insets();
+        let preferred = border.preferred_size();
+        (
+            (bounds.width + left + right).max(preferred.0),
+            (bounds.height + top + bottom).max(preferred.1),
+        )
     }
 
     /// 在 NodeState 当前 border-box 中执行精确命中。
@@ -427,7 +441,69 @@ pub trait Figure: AsAny {
     fn connection_mut(&mut self) -> Option<&mut dyn crate::ConnectionFigureBehavior> {
         None
     }
+
+    /// Returns optional point-list geometry behavior.
+    fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
+        None
+    }
+
+    /// Returns mutable point-list geometry behavior.
+    fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
+        None
+    }
+
+    /// Returns mutable Border ownership behavior.
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        None
+    }
 }
+
+/// Runtime-controlled point-list geometry capability.
+pub trait PointListFigureBehavior {
+    fn local_points(&self) -> &[Vec2];
+    fn stroke_width(&self) -> f64;
+    fn painted_minimum(&self) -> usize;
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Vec2>);
+}
+
+/// Runtime-controlled immutable Border replacement capability.
+pub trait BorderedFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>>;
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShapeMutationError {
+    UnknownFigure(FigureId),
+    WrongCapability(FigureId),
+    NonFiniteGeometry,
+    NegativeMetric,
+    PointIndexOutOfRange { index: usize, len: usize },
+}
+
+impl std::fmt::Display for ShapeMutationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::UnknownFigure(id) => write!(formatter, "unknown Figure: {id:?}"),
+            Self::WrongCapability(id) => {
+                write!(
+                    formatter,
+                    "Figure does not support this shape mutation: {id:?}"
+                )
+            }
+            Self::NonFiniteGeometry => write!(formatter, "geometry must be finite"),
+            Self::NegativeMetric => write!(formatter, "shape metrics must be non-negative"),
+            Self::PointIndexOutOfRange { index, len } => {
+                write!(
+                    formatter,
+                    "point index {index} is outside list length {len}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for ShapeMutationError {}
 
 /// Marker capability for Figures accepted by a LayeredPane.
 pub trait Layer {}

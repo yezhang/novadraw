@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use novadraw_render::{
     BackendCapabilities, DamageMode, FontData, FrameId, ImageData, NdCanvas, RenderOutcome,
@@ -9,16 +9,18 @@ use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
-    AnchorGeometry, AnchorGeometryKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter,
-    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
-    DependencySubject, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree, FocusChange,
-    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    FreeformError, ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey,
+    AnchorGeometry, AnchorGeometryKey, AnchorId, Border, ConnectionAnchor, ConnectionId,
+    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
+    DependencySubject, Direction, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree,
+    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
+    FontId, FreeformError, ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey,
     LayerPlacement, LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle,
     ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding, RouterId,
-    RoutingConstraint, SceneDispatchContext, StackLayout, TreeOrderFocusTraversal, UpdateEvent,
-    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
+    RoutingConstraint, SceneDispatchContext, ShapeMutationError, StackLayout,
+    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
+    WheelEvent, ZoomEvent,
 };
+use novadraw_geometry::{Dimension, Vec2};
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
 pub struct Runtime {
@@ -598,6 +600,105 @@ impl Runtime {
     pub fn set_figure_style(&mut self, id: FigureId, style: FigureStyle) -> bool {
         self.tree
             .set_figure_style_with_update(&mut self.updates, id, style)
+    }
+
+    pub fn point_list_points(&self, id: FigureId) -> Result<Vec<Vec2>, ShapeMutationError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        }
+        self.tree
+            .point_list_points(id)
+            .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    pub fn replace_points(
+        &mut self,
+        id: FigureId,
+        points: Vec<Vec2>,
+    ) -> Result<bool, ShapeMutationError> {
+        self.tree.commit_point_list(&mut self.updates, id, points)
+    }
+
+    pub fn insert_point(
+        &mut self,
+        id: FigureId,
+        index: usize,
+        point: Vec2,
+    ) -> Result<bool, ShapeMutationError> {
+        let mut points = self.point_list_points(id)?;
+        if index > points.len() {
+            return Err(ShapeMutationError::PointIndexOutOfRange {
+                index,
+                len: points.len(),
+            });
+        }
+        points.insert(index, point);
+        self.replace_points(id, points)
+    }
+
+    pub fn set_point(
+        &mut self,
+        id: FigureId,
+        index: usize,
+        point: Vec2,
+    ) -> Result<bool, ShapeMutationError> {
+        let mut points = self.point_list_points(id)?;
+        let len = points.len();
+        let Some(existing) = points.get_mut(index) else {
+            return Err(ShapeMutationError::PointIndexOutOfRange { index, len });
+        };
+        *existing = point;
+        self.replace_points(id, points)
+    }
+
+    pub fn remove_point(&mut self, id: FigureId, index: usize) -> Result<bool, ShapeMutationError> {
+        let mut points = self.point_list_points(id)?;
+        if index >= points.len() {
+            return Err(ShapeMutationError::PointIndexOutOfRange {
+                index,
+                len: points.len(),
+            });
+        }
+        points.remove(index);
+        self.replace_points(id, points)
+    }
+
+    pub fn clear_points(&mut self, id: FigureId) -> Result<bool, ShapeMutationError> {
+        self.replace_points(id, Vec::new())
+    }
+
+    pub fn set_border(
+        &mut self,
+        id: FigureId,
+        border: impl Border + 'static,
+    ) -> Result<bool, ShapeMutationError> {
+        self.replace_border(id, Some(Arc::new(border)))
+    }
+
+    pub fn replace_border(
+        &mut self,
+        id: FigureId,
+        border: Option<Arc<dyn Border>>,
+    ) -> Result<bool, ShapeMutationError> {
+        self.tree.replace_border(&mut self.updates, id, border)
+    }
+
+    pub fn set_corner_dimensions(
+        &mut self,
+        id: FigureId,
+        dimensions: Dimension,
+    ) -> Result<bool, ShapeMutationError> {
+        self.tree
+            .set_corner_dimensions_with_update(&mut self.updates, id, dimensions)
+    }
+
+    pub fn set_triangle_direction(
+        &mut self,
+        id: FigureId,
+        direction: Direction,
+    ) -> Result<bool, ShapeMutationError> {
+        self.tree
+            .set_triangle_direction_with_update(&mut self.updates, id, direction)
     }
 
     pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {

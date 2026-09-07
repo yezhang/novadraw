@@ -1,11 +1,14 @@
 //! 多边形图形
 
+use std::sync::Arc;
+
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
 use super::{
-    Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, PolylineFigure, Shape,
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
+    PointListFigureBehavior, PolylineFigure, Shape, polyline::point_segment_distance_squared,
 };
 
 /// 多边形图形
@@ -23,8 +26,10 @@ pub struct PolygonFigure {
 impl PolygonFigure {
     /// 创建多边形（从点列表）
     pub fn from_points(points: Vec<novadraw_geometry::Vec2>) -> Self {
+        let mut polyline = PolylineFigure::from_points(points);
+        polyline.renormalize_for_minimum(3);
         Self {
-            polyline: PolylineFigure::from_points(points),
+            polyline,
             fill_color: Color::hex("#3498db"),
         }
     }
@@ -47,8 +52,12 @@ impl PolygonFigure {
 
     /// 设置线条样式
     pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
+        let points = self.polyline.parent_points();
         self.polyline.stroke_color = color;
-        self.polyline.stroke_width = width;
+        self.polyline.stroke_width = width.max(0.0);
+        let (bounds, local_points) =
+            super::polyline::normalize_points(points, self.polyline.stroke_width, 3);
+        self.polyline.commit_geometry(bounds, local_points);
         self
     }
 
@@ -72,24 +81,7 @@ impl Bounded for PolygonFigure {
     }
 
     fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        // 多边形通过点定义，set_bounds 需要重新计算点位置
-        // 这里简化处理：平移现有点
-        let current_bounds = Bounded::bounds(&self.polyline);
-        if current_bounds.width == 0.0 || current_bounds.height == 0.0 {
-            return;
-        }
-        let scale_x = width / current_bounds.width;
-        let scale_y = height / current_bounds.height;
-        let dx = x - current_bounds.x;
-        let dy = y - current_bounds.y;
-
-        let new_points: Vec<novadraw_geometry::Vec2> = self
-            .polyline
-            .get_points()
-            .iter()
-            .map(|p| novadraw_geometry::Vec2::new((p.0.x + dx) * scale_x, (p.0.y + dy) * scale_y))
-            .collect();
-        self.polyline.set_points(new_points);
+        Bounded::set_bounds(&mut self.polyline, x, y, width, height);
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -118,6 +110,14 @@ impl Figure for PolygonFigure {
         Bounded::insets(self)
     }
 
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle {
+            foreground: Some(self.polyline.stroke_color),
+            background: Some(self.fill_color),
+            ..crate::FigureStyle::default()
+        }
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -128,12 +128,84 @@ impl Figure for PolygonFigure {
         Shape::paint_figure(&local, gc);
     }
 
+    fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {
+        let points = self.polyline.get_points();
+        if points.len() < 3 {
+            return false;
+        }
+        let local = |point: novadraw_geometry::Vec2| (point.x(), point.y());
+        let edge_tolerance = f64::EPSILON.sqrt();
+        if points.iter().enumerate().any(|(index, point)| {
+            let next = points[(index + 1) % points.len()];
+            let (x1, y1) = local(*point);
+            let (x2, y2) = local(next);
+            point_segment_distance_squared(x, y, x1, y1, x2, y2) <= edge_tolerance * edge_tolerance
+        }) {
+            return true;
+        }
+
+        let mut inside = false;
+        let mut previous = points.len() - 1;
+        for current in 0..points.len() {
+            let (current_x, current_y) = local(points[current]);
+            let (previous_x, previous_y) = local(points[previous]);
+            if (current_y > y) != (previous_y > y)
+                && x < (previous_x - current_x) * (y - current_y) / (previous_y - current_y)
+                    + current_x
+            {
+                inside = !inside;
+            }
+            previous = current;
+        }
+        inside
+    }
+
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
     }
 
     fn container(&self) -> Option<&dyn FigureContainer> {
         Some(self)
+    }
+
+    fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
+        Some(self)
+    }
+
+    fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
+        Some(self)
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        Some(self)
+    }
+}
+
+impl PointListFigureBehavior for PolygonFigure {
+    fn local_points(&self) -> &[novadraw_geometry::Vec2] {
+        self.polyline.get_points()
+    }
+
+    fn stroke_width(&self) -> f64 {
+        self.polyline.stroke_width
+    }
+
+    fn painted_minimum(&self) -> usize {
+        3
+    }
+
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<novadraw_geometry::Vec2>) {
+        self.polyline.commit_geometry(bounds, local_points);
+    }
+}
+
+impl BorderedFigure for PolygonFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        BorderedFigure::border(&self.polyline)
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        BorderedFigure::replace_border(&mut self.polyline, border)
     }
 }
 
@@ -150,7 +222,7 @@ impl Shape for PolygonFigure {
     }
 
     fn stroke_width(&self) -> f64 {
-        self.polyline.stroke_width()
+        Shape::stroke_width(&self.polyline)
     }
 
     fn fill_color(&self) -> Option<Color> {
@@ -186,39 +258,32 @@ impl Shape for PolygonFigure {
         // 使用 path API 构建闭合路径
         gc.begin_path();
         if let Some(first) = points.first() {
-            let bounds = self.bounds();
-            gc.move_to(first.0.x - bounds.x, first.0.y - bounds.y);
+            gc.move_to(first.x(), first.y());
         }
-        let bounds = self.bounds();
         for point in points.iter().skip(1) {
-            gc.line_to(point.0.x - bounds.x, point.0.y - bounds.y);
+            gc.line_to(point.x(), point.y());
         }
         gc.close_path();
 
-        // 设置填充颜色并填充
-        gc.fill_style(self.fill_color);
         gc.fill();
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         let points = self.polyline.get_points();
-        if points.len() < 2 {
+        if points.len() < 3 {
             return;
         }
 
         // 使用 path API 构建闭合路径（与 fill_shape 统一）
         gc.begin_path();
         if let Some(first) = points.first() {
-            let bounds = self.bounds();
-            gc.move_to(first.0.x - bounds.x, first.0.y - bounds.y);
+            gc.move_to(first.x(), first.y());
         }
-        let bounds = self.bounds();
         for point in points.iter().skip(1) {
-            gc.line_to(point.0.x - bounds.x, point.0.y - bounds.y);
+            gc.line_to(point.x(), point.y());
         }
         gc.close_path();
 
-        gc.stroke_style(self.polyline.stroke_color);
         gc.line_width(self.polyline.stroke_width);
         gc.line_cap(self.polyline.line_cap);
         gc.line_join(self.polyline.line_join);

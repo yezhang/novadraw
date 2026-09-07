@@ -30,7 +30,9 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
+use super::{
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
+};
 
 /// 三角形方向
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
@@ -226,17 +228,21 @@ impl TriangleFigure {
     /// 2. 主尖角完整，不被裁剪（在收缩后的边界内，考虑描边向外扩展）
     /// 3. 底部两角的裁剪由渲染器的 line join 行为自然产生
     fn compute_points(&self) -> [(f64, f64); 3] {
-        let mut r = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
+        let (top, left, bottom, right) = Bounded::insets(self);
+        let mut r = Rectangle::new(
+            left,
+            top,
+            (self.bounds.width - left - right).max(0.0),
+            (self.bounds.height - top - bottom).max(0.0),
+        );
 
         if r.width <= 0.0 || r.height <= 0.0 {
             return [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)];
         }
 
-        // 向内收缩 1px (对应 draw2d 的 r.resize(-1, -1))
-        r.x += 1.0;
-        r.y += 1.0;
-        r.width = (r.width - 2.0).max(0.0);
-        r.height = (r.height - 2.0).max(0.0);
+        // Draw2D Rectangle#resize(-1, -1) 只缩减尺寸，不平移原点。
+        r.width = (r.width - 1.0).max(0.0);
+        r.height = (r.height - 1.0).max(0.0);
 
         if r.width <= 0.0 || r.height <= 0.0 {
             return [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0)];
@@ -389,6 +395,14 @@ impl Figure for TriangleFigure {
         Bounded::insets(self)
     }
 
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle {
+            foreground: Some(self.stroke_color),
+            background: Some(self.fill_color),
+            ..crate::FigureStyle::default()
+        }
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -398,6 +412,13 @@ impl Figure for TriangleFigure {
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         local.invalidate();
         Shape::paint_figure(&local, gc);
+    }
+
+    fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
+        let mut local = self.clone();
+        local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        let points = local.compute_points();
+        point_in_triangle((x, y), points)
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -411,6 +432,33 @@ impl Figure for TriangleFigure {
     fn lifecycle(&mut self) -> Option<&mut dyn super::FigureLifecycle> {
         Some(self)
     }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        Some(self)
+    }
+}
+
+impl BorderedFigure for TriangleFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
+    }
+}
+
+fn point_in_triangle(point: (f64, f64), triangle: [(f64, f64); 3]) -> bool {
+    fn signed_area(a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> f64 {
+        (a.0 - c.0) * (b.1 - c.1) - (b.0 - c.0) * (a.1 - c.1)
+    }
+
+    let d1 = signed_area(point, triangle[0], triangle[1]);
+    let d2 = signed_area(point, triangle[1], triangle[2]);
+    let d3 = signed_area(point, triangle[2], triangle[0]);
+    let has_negative = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+    let has_positive = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
+    !(has_negative && has_positive)
 }
 
 impl super::FigureLifecycle for TriangleFigure {
@@ -485,7 +533,6 @@ impl Shape for TriangleFigure {
         gc.line_to(points[2].0, points[2].1);
         gc.close_path();
 
-        gc.fill_style(self.fill_color);
         gc.fill();
     }
 
@@ -499,7 +546,6 @@ impl Shape for TriangleFigure {
         gc.line_to(points[2].0, points[2].1);
         gc.close_path();
 
-        gc.stroke_style(self.stroke_color);
         gc.line_width(self.stroke_width);
         gc.line_cap(self.line_cap);
         gc.line_join(self.line_join);

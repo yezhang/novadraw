@@ -3,10 +3,12 @@
 use std::sync::Arc;
 
 use novadraw_core::Color;
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Dimension, Rectangle};
 use novadraw_render::NdCanvas;
 
-use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
+use super::{
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
+};
 
 /// 圆角矩形图形
 ///
@@ -16,8 +18,8 @@ use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Sha
 pub struct RoundedRectangleFigure {
     /// 边界矩形
     pub bounds: Rectangle,
-    /// 圆角半径
-    pub corner_radius: f64,
+    /// 圆角宽高，对应 Draw2D `corner.width/height`。
+    pub corner_dimensions: Dimension,
     /// 填充颜色
     pub fill_color: Color,
     /// 边框颜色
@@ -41,7 +43,7 @@ impl RoundedRectangleFigure {
     pub fn new(x: f64, y: f64, width: f64, height: f64, corner_radius: f64) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            corner_radius: corner_radius.max(0.0),
+            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
             fill_color: Color::hex("#9b59b6"),
             stroke_color: None,
             stroke_width: 0.0,
@@ -56,7 +58,7 @@ impl RoundedRectangleFigure {
     pub fn from_bounds(bounds: Rectangle, corner_radius: f64) -> Self {
         Self {
             bounds,
-            corner_radius: corner_radius.max(0.0),
+            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
             fill_color: Color::hex("#9b59b6"),
             stroke_color: None,
             stroke_width: 0.0,
@@ -78,7 +80,7 @@ impl RoundedRectangleFigure {
     ) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            corner_radius: corner_radius.max(0.0),
+            corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
             fill_color: color,
             stroke_color: None,
             stroke_width: 0.0,
@@ -121,7 +123,16 @@ impl RoundedRectangleFigure {
 
     /// 设置圆角半径
     pub fn set_corner_radius(&mut self, radius: f64) {
-        self.corner_radius = radius.max(0.0);
+        self.corner_dimensions = Dimension::new(radius.max(0.0), radius.max(0.0));
+    }
+
+    pub fn set_corner_dimensions(&mut self, dimensions: Dimension) {
+        self.corner_dimensions =
+            Dimension::new(dimensions.width.max(0.0), dimensions.height.max(0.0));
+    }
+
+    pub fn corner_dimensions(&self) -> Dimension {
+        self.corner_dimensions
     }
 }
 
@@ -164,6 +175,14 @@ impl Figure for RoundedRectangleFigure {
         Bounded::insets(self)
     }
 
+    fn initial_style(&self) -> crate::FigureStyle {
+        crate::FigureStyle {
+            foreground: self.stroke_color,
+            background: Some(self.fill_color),
+            ..crate::FigureStyle::default()
+        }
+    }
+
     fn paint_figure(&self, gc: &mut NdCanvas) {
         Shape::paint_figure(self, gc);
     }
@@ -174,12 +193,55 @@ impl Figure for RoundedRectangleFigure {
         Shape::paint_figure(&local, gc);
     }
 
+    fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
+        if x < 0.0 || y < 0.0 || x > bounds.width || y > bounds.height {
+            return false;
+        }
+        let radius_x = (self.corner_dimensions.width.min(bounds.width).max(0.0)) / 2.0;
+        let radius_y = (self.corner_dimensions.height.min(bounds.height).max(0.0)) / 2.0;
+        if radius_x == 0.0
+            || radius_y == 0.0
+            || (x >= radius_x && x <= bounds.width - radius_x)
+            || (y >= radius_y && y <= bounds.height - radius_y)
+        {
+            return true;
+        }
+
+        let center_x = if x < radius_x {
+            radius_x
+        } else {
+            bounds.width - radius_x
+        };
+        let center_y = if y < radius_y {
+            radius_y
+        } else {
+            bounds.height - radius_y
+        };
+        let dx = (x - center_x) / radius_x;
+        let dy = (y - center_y) / radius_y;
+        dx * dx + dy * dy <= 1.0
+    }
+
     fn get_border(&self) -> Option<&dyn Border> {
         Shape::get_border(self)
     }
 
     fn container(&self) -> Option<&dyn FigureContainer> {
         Some(self)
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        Some(self)
+    }
+}
+
+impl BorderedFigure for RoundedRectangleFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
     }
 }
 
@@ -241,7 +303,10 @@ impl Shape for RoundedRectangleFigure {
             let y = line_inset;
             let width = self.bounds.width - line_inset * 2.0;
             let height = self.bounds.height - line_inset * 2.0;
-            let radius = (self.corner_radius - line_inset).max(0.0);
+            let corner_dimensions = Dimension::new(
+                (self.corner_dimensions.width - line_inset).max(0.0),
+                (self.corner_dimensions.height - line_inset).max(0.0),
+            );
 
             if width <= 0.0 || height <= 0.0 {
                 return;
@@ -250,7 +315,7 @@ impl Shape for RoundedRectangleFigure {
             // 创建临时圆角矩形进行描边
             let temp_rect = RoundedRectangleFigure {
                 bounds: Rectangle::new(x, y, width, height),
-                corner_radius: radius,
+                corner_dimensions,
                 fill_color: Color::TRANSPARENT,
                 stroke_color: Some(color),
                 stroke_width: self.stroke_width, // 使用原始描边宽度
@@ -276,7 +341,8 @@ impl RoundedRectangleFigure {
         let y = self.bounds.y;
         let width = self.bounds.width;
         let height = self.bounds.height;
-        let radius = self.corner_radius;
+        let radius_x = self.corner_dimensions.width.min(width).max(0.0) / 2.0;
+        let radius_y = self.corner_dimensions.height.min(height).max(0.0) / 2.0;
 
         // 边界检查
         if width <= 0.0 || height <= 0.0 {
@@ -284,7 +350,7 @@ impl RoundedRectangleFigure {
         }
 
         // 如果没有圆角，退化为普通矩形
-        if radius <= 0.0 {
+        if radius_x <= 0.0 || radius_y <= 0.0 {
             if let Some(color) = fill_color {
                 gc.fill_rect(x, y, width, height, color);
             }
@@ -303,50 +369,47 @@ impl RoundedRectangleFigure {
             return;
         }
 
-        // 实际圆角半径不能超过矩形宽高的一半
-        let r = radius.min(width / 2.0).min(height / 2.0);
-
         // 使用 Path API 构建圆角矩形
         gc.begin_path();
 
         // 从左上角开始
-        gc.move_to(x + r, y);
+        gc.move_to(x + radius_x, y);
 
         // 上边
-        gc.line_to(x + width - r, y);
+        gc.line_to(x + width - radius_x, y);
 
         // 右上角圆弧
-        gc.quadratic_curve_to(x + width, y, x + width, y + r);
+        gc.quadratic_curve_to(x + width, y, x + width, y + radius_y);
 
         // 右边
-        gc.line_to(x + width, y + height - r);
+        gc.line_to(x + width, y + height - radius_y);
 
         // 右下角圆弧
-        gc.quadratic_curve_to(x + width, y + height, x + width - r, y + height);
+        gc.quadratic_curve_to(x + width, y + height, x + width - radius_x, y + height);
 
         // 下边
-        gc.line_to(x + r, y + height);
+        gc.line_to(x + radius_x, y + height);
 
         // 左下角圆弧
-        gc.quadratic_curve_to(x, y + height, x, y + height - r);
+        gc.quadratic_curve_to(x, y + height, x, y + height - radius_y);
 
         // 左边
-        gc.line_to(x, y + r);
+        gc.line_to(x, y + radius_y);
 
         // 左上角圆弧
-        gc.quadratic_curve_to(x, y, x + r, y);
+        gc.quadratic_curve_to(x, y, x + radius_x, y);
 
         gc.close_path();
 
         // 填充
         if let Some(color) = fill_color {
-            gc.fill_style(color);
+            let _ = color;
             gc.fill();
         }
 
         // 描边
         if let Some(color) = stroke_color {
-            gc.stroke_style(color);
+            let _ = color;
             gc.line_width(self.stroke_width);
             gc.line_cap(self.line_cap);
             gc.line_join(self.line_join);

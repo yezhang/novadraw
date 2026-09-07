@@ -27,6 +27,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - UpdateManager：[`design/rendering/update-manager.md`](design/rendering/update-manager.md)
 - Connection / Anchor / Router：
   [`design/architecture/connection-routing.md`](design/architecture/connection-routing.md)
+- Reusable Shape 与 Border：
+  [`design/architecture/reusable-shape-border.md`](design/architecture/reusable-shape-border.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：
