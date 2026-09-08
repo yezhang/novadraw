@@ -2,15 +2,16 @@ use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
     ActionEvent, ActionListener, ButtonFigure, ClickableFigure, ClickableKind, FigureId, Key,
-    KeyModifiers, MouseButton, NotificationEffect, PropertyValue, Rectangle, RectangleFigure,
-    Runtime, ToggleFigure,
+    KeyModifiers, ListenerDirective, MouseButton, NotificationEffect, PropertyValue, Rectangle,
+    RectangleFigure, Runtime, ToggleFigure,
 };
 
 struct ActionRecorder(Arc<Mutex<Vec<ActionEvent>>>);
 
 impl ActionListener for ActionRecorder {
-    fn action_performed(&self, event: ActionEvent) {
+    fn action_performed(&self, event: ActionEvent) -> ListenerDirective {
         self.0.lock().unwrap().push(event);
+        ListenerDirective::Keep
     }
 }
 

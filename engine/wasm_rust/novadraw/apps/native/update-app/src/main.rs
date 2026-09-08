@@ -3,9 +3,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use novadraw::{
-    BackendCapabilities, DamageMode, FigureEvent, FigureId, ImageData, NotificationEffect,
-    Rectangle, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent, UpdateListener, UpdateManager,
-    XYConstraint,
+    BackendCapabilities, DamageMode, FigureEvent, FigureId, ImageData, ListenerDirective,
+    NotificationEffect, Rectangle, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent,
+    UpdateListener, UpdateManager, XYConstraint,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -21,25 +21,28 @@ struct CaptureListener {
 }
 
 impl UpdateListener for CaptureListener {
-    fn on_update_event(&self, event: UpdateEvent) {
+    fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
         self.effects
             .lock()
             .unwrap()
             .push(NotificationEffect::EmitUpdate(event));
+        ListenerDirective::Keep
     }
 
-    fn on_figure_event(&self, event: FigureEvent) {
+    fn on_figure_event(&self, event: FigureEvent) -> ListenerDirective {
         self.effects
             .lock()
             .unwrap()
             .push(NotificationEffect::EmitFigure(event));
+        ListenerDirective::Keep
     }
 
-    fn on_notify(&self, block_id: FigureId) {
+    fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
         self.effects
             .lock()
             .unwrap()
             .push(NotificationEffect::Notify { block_id });
+        ListenerDirective::Keep
     }
 }
 
@@ -133,16 +136,22 @@ struct PanicOnceListener {
 }
 
 impl UpdateListener for PanicOnceListener {
-    fn on_update_event(&self, event: UpdateEvent) {
+    fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
         if matches!(event, UpdateEvent::Painting { .. })
             && !self.did_panic.swap(true, Ordering::SeqCst)
         {
             panic!("intentional verification panic");
         }
+        ListenerDirective::Keep
     }
 
-    fn on_figure_event(&self, _event: FigureEvent) {}
-    fn on_notify(&self, _block_id: FigureId) {}
+    fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+        ListenerDirective::Keep
+    }
+
+    fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+        ListenerDirective::Keep
+    }
 }
 
 fn verify_panic_recovery() -> Result<VerificationMetrics, String> {

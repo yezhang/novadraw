@@ -23,8 +23,8 @@ use crate::ValidationError;
 use crate::graph::FigureId;
 use crate::runtime::update::listener::{
     ActionListener, AncestorListener, CoordinateListener, FigureListener, LayoutListener,
-    ListenerId, NotificationEffect, NotificationQueue, PropertyChangeListener, UpdateEvent,
-    UpdateListener,
+    ListenerDirective, ListenerId, NotificationEffect, NotificationQueue, PropertyChangeListener,
+    UpdateEvent, UpdateListener,
 };
 use crate::runtime::update::repair::{
     compute_damage_union, merge_dirty_region, prepare_damage_set,
@@ -159,34 +159,35 @@ impl UpdateManager {
     }
 
     /// 向所有监听器分发 effect 队列中的事件
-    fn dispatch_effects(&self, effects: &[NotificationEffect]) {
+    fn dispatch_effects(&mut self, effects: &[NotificationEffect]) {
         for effect in effects {
             match effect {
                 NotificationEffect::Notify { block_id } => {
-                    for (_, listener) in &self.listeners {
-                        listener.on_notify(*block_id);
-                    }
+                    self.listeners.retain(|(_, listener)| {
+                        listener.on_notify(*block_id) == ListenerDirective::Keep
+                    });
                 }
                 NotificationEffect::EmitFigure(event) => {
-                    for (_, listener) in &self.listeners {
-                        listener.on_figure_event(*event);
-                    }
+                    self.listeners.retain(|(_, listener)| {
+                        listener.on_figure_event(*event) == ListenerDirective::Keep
+                    });
                     match event {
                         crate::FigureEvent::FigureMoved { .. } => {
-                            for (_, listener) in &self.figure_listeners {
-                                listener.figure_moved(*event);
-                            }
+                            self.figure_listeners.retain(|(_, listener)| {
+                                listener.figure_moved(*event) == ListenerDirective::Keep
+                            });
                         }
                         crate::FigureEvent::CoordinateSystemChanged { .. } => {
-                            for (_, listener) in &self.coordinate_listeners {
-                                listener.coordinate_system_changed(*event);
-                            }
+                            self.coordinate_listeners.retain(|(_, listener)| {
+                                listener.coordinate_system_changed(*event)
+                                    == ListenerDirective::Keep
+                            });
                         }
                     }
                 }
                 NotificationEffect::EmitUpdate(event) => {
-                    for (_, listener) in &self.listeners {
-                        listener.on_update_event(event.clone());
+                    self.listeners.retain(|(_, listener)| {
+                        let directive = listener.on_update_event(event.clone());
                         if let Some(validating_listener) = listener.as_validating_listener() {
                             match event {
                                 UpdateEvent::Validating => validating_listener.notify_validating(),
@@ -197,27 +198,28 @@ impl UpdateManager {
                                 | UpdateEvent::Submitted { .. } => {}
                             }
                         }
-                    }
+                        directive == ListenerDirective::Keep
+                    });
                 }
                 NotificationEffect::EmitAncestor(event) => {
-                    for (_, listener) in &self.ancestor_listeners {
-                        listener.ancestor_changed(*event);
-                    }
+                    self.ancestor_listeners.retain(|(_, listener)| {
+                        listener.ancestor_changed(*event) == ListenerDirective::Keep
+                    });
                 }
                 NotificationEffect::EmitProperty(event) => {
-                    for (_, listener) in &self.property_listeners {
-                        listener.property_changed(event);
-                    }
+                    self.property_listeners.retain(|(_, listener)| {
+                        listener.property_changed(event) == ListenerDirective::Keep
+                    });
                 }
                 NotificationEffect::EmitAction(event) => {
-                    for (_, listener) in &self.action_listeners {
-                        listener.action_performed(*event);
-                    }
+                    self.action_listeners.retain(|(_, listener)| {
+                        listener.action_performed(*event) == ListenerDirective::Keep
+                    });
                 }
                 NotificationEffect::EmitLayout(event) => {
-                    for (_, listener) in &self.layout_listeners {
-                        listener.layout_changed(*event);
-                    }
+                    self.layout_listeners.retain(|(_, listener)| {
+                        listener.layout_changed(*event) == ListenerDirective::Keep
+                    });
                 }
             }
         }
@@ -696,14 +698,19 @@ mod tests {
                 effects: std::sync::Arc<std::sync::Mutex<Vec<NotificationEffect>>>,
             }
             impl UpdateListener for CaptureUpdate {
-                fn on_update_event(&self, event: UpdateEvent) {
+                fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
                     self.effects
                         .lock()
                         .unwrap()
                         .push(NotificationEffect::EmitUpdate(event));
+                    ListenerDirective::Keep
                 }
-                fn on_figure_event(&self, _event: FigureEvent) {}
-                fn on_notify(&self, _block_id: FigureId) {}
+                fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+                    ListenerDirective::Keep
+                }
+                fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+                    ListenerDirective::Keep
+                }
             }
             manager.add_listener(Box::new(CaptureUpdate {
                 effects: effects.clone(),
@@ -747,11 +754,16 @@ mod tests {
             effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
         }
         impl UpdateListener for CapturePainting {
-            fn on_update_event(&self, event: UpdateEvent) {
+            fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
                 self.effects.lock().unwrap().push(event);
+                ListenerDirective::Keep
             }
-            fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: FigureId) {}
+            fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
+            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
         }
         manager.add_listener(Box::new(CapturePainting {
             effects: effects.clone(),
@@ -782,11 +794,16 @@ mod tests {
             effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
         }
         impl UpdateListener for CaptureUpdate {
-            fn on_update_event(&self, event: UpdateEvent) {
+            fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
                 self.effects.lock().unwrap().push(event);
+                ListenerDirective::Keep
             }
-            fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: FigureId) {}
+            fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
+            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
         }
         manager.add_listener(Box::new(CaptureUpdate {
             effects: effects.clone(),
@@ -823,11 +840,16 @@ mod tests {
             effects: std::sync::Arc<std::sync::Mutex<Vec<UpdateEvent>>>,
         }
         impl UpdateListener for CaptureUpdate {
-            fn on_update_event(&self, event: UpdateEvent) {
+            fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
                 self.effects.lock().unwrap().push(event);
+                ListenerDirective::Keep
             }
-            fn on_figure_event(&self, _event: FigureEvent) {}
-            fn on_notify(&self, _block_id: FigureId) {}
+            fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
+            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+                ListenerDirective::Keep
+            }
         }
         manager.add_listener(Box::new(CaptureUpdate {
             effects: effects.clone(),
@@ -905,23 +927,26 @@ mod tests {
             effects: Arc<std::sync::Mutex<Vec<NotificationEffect>>>,
         }
         impl UpdateListener for CaptureAll {
-            fn on_update_event(&self, event: UpdateEvent) {
+            fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
                 self.effects
                     .lock()
                     .unwrap()
                     .push(NotificationEffect::EmitUpdate(event));
+                ListenerDirective::Keep
             }
-            fn on_figure_event(&self, event: FigureEvent) {
+            fn on_figure_event(&self, event: FigureEvent) -> ListenerDirective {
                 self.effects
                     .lock()
                     .unwrap()
                     .push(NotificationEffect::EmitFigure(event));
+                ListenerDirective::Keep
             }
-            fn on_notify(&self, block_id: FigureId) {
+            fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
                 self.effects
                     .lock()
                     .unwrap()
                     .push(NotificationEffect::Notify { block_id });
+                ListenerDirective::Keep
             }
         }
         manager.add_listener(Box::new(CaptureAll {
@@ -970,32 +995,37 @@ mod tests {
     }
 
     impl FigureListener for TypedListener {
-        fn figure_moved(&self, _event: FigureEvent) {
+        fn figure_moved(&self, _event: FigureEvent) -> ListenerDirective {
             self.counts.lock().unwrap().figure += 1;
+            ListenerDirective::Keep
         }
     }
 
     impl CoordinateListener for TypedListener {
-        fn coordinate_system_changed(&self, _event: FigureEvent) {
+        fn coordinate_system_changed(&self, _event: FigureEvent) -> ListenerDirective {
             self.counts.lock().unwrap().coordinate += 1;
+            ListenerDirective::Keep
         }
     }
 
     impl AncestorListener for TypedListener {
-        fn ancestor_changed(&self, _event: AncestorEvent) {
+        fn ancestor_changed(&self, _event: AncestorEvent) -> ListenerDirective {
             self.counts.lock().unwrap().ancestor += 1;
+            ListenerDirective::Keep
         }
     }
 
     impl PropertyChangeListener for TypedListener {
-        fn property_changed(&self, _event: &PropertyChangeEvent) {
+        fn property_changed(&self, _event: &PropertyChangeEvent) -> ListenerDirective {
             self.counts.lock().unwrap().property += 1;
+            ListenerDirective::Keep
         }
     }
 
     impl LayoutListener for TypedListener {
-        fn layout_changed(&self, _event: LayoutEvent) {
+        fn layout_changed(&self, _event: LayoutEvent) -> ListenerDirective {
             self.counts.lock().unwrap().layout += 1;
+            ListenerDirective::Keep
         }
     }
 

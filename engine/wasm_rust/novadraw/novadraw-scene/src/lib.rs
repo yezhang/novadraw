@@ -89,8 +89,9 @@ pub use runtime::update;
 pub use runtime::update::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
-    ListenerId, NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyChangeListener,
-    PropertyValue, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
+    ListenerDirective, ListenerId, NotificationEffect, NotificationQueue, PropertyChangeEvent,
+    PropertyChangeListener, PropertyValue, UpdateEvent, UpdateListener, UpdateManager,
+    ValidatingListener,
 };
 pub use runtime::{
     FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,

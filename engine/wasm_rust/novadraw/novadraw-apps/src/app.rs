@@ -8,9 +8,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::input::{AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, adapt_key_input};
 use crate::platform::WinitPlatformHost;
 pub use novadraw::{
-    BackendCapabilities, FigureEvent, FigureId, FigureTree, Key, KeyModifiers, MouseButton,
-    NotificationEffect, PlatformHost, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
-    UpdateEvent, UpdateListener,
+    BackendCapabilities, FigureEvent, FigureId, FigureTree, Key, KeyModifiers, ListenerDirective,
+    MouseButton, NotificationEffect, PlatformHost, RenderBackend, RenderOutcome, Runtime,
+    SurfaceInfo, UpdateEvent, UpdateListener,
 };
 pub use novadraw_render::backend::vello::VelloRenderer;
 pub use winit::dpi::{LogicalSize, PhysicalSize};
@@ -38,16 +38,19 @@ type SceneCreator = Box<dyn FnMut() -> Runtime>;
 struct DemoUpdateListener;
 
 impl UpdateListener for DemoUpdateListener {
-    fn on_update_event(&self, event: UpdateEvent) {
+    fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective {
         tracing::debug!("[DemoApp] update event: {:?}", event);
+        ListenerDirective::Keep
     }
 
-    fn on_figure_event(&self, event: FigureEvent) {
+    fn on_figure_event(&self, event: FigureEvent) -> ListenerDirective {
         tracing::debug!("[DemoApp] figure event: {:?}", event);
+        ListenerDirective::Keep
     }
 
-    fn on_notify(&self, block_id: FigureId) {
+    fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
         tracing::debug!("[DemoApp] notify: {:?}", block_id);
+        ListenerDirective::Keep
     }
 }
 

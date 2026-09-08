@@ -17,14 +17,15 @@ use crate::mutation::{
     PendingMutation, PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
 };
 use crate::{
-    ActionListener, Alignment, AnchorGeometry, AnchorGeometryKey, AnchorId, Border,
-    ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId,
-    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
-    DependencySubject, Direction, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree,
-    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
-    FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
-    KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
-    LayeredPaneHandle, LayoutConstraint, LayoutManager, ListenerId, MouseButton, PendingMutations,
+    ActionListener, Alignment, AncestorListener, AnchorGeometry, AnchorGeometryKey, AnchorId,
+    Border, ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor,
+    ConnectionId, ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot,
+    CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, Direction, EventDispatcher,
+    Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
+    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
+    LayoutListener, LayoutManager, ListenerId, MouseButton, PendingMutations,
     PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry, ResourceStatus,
     RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
     ShapeMutationError, StackLayout, TextPlacement, TreeOrderFocusTraversal, UpdateEvent,
@@ -1361,8 +1362,20 @@ impl Runtime {
         self.tree
     }
 
-    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) {
-        self.updates.add_listener(listener);
+    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+        self.updates.add_listener(listener)
+    }
+
+    pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
+        self.updates.add_figure_listener(listener)
+    }
+
+    pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
+        self.updates.add_coordinate_listener(listener)
+    }
+
+    pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
+        self.updates.add_ancestor_listener(listener)
     }
 
     pub fn add_property_listener(
@@ -1374,6 +1387,10 @@ impl Runtime {
 
     pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
         self.updates.add_action_listener(listener)
+    }
+
+    pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
+        self.updates.add_layout_listener(listener)
     }
 
     pub fn remove_listener(&mut self, id: ListenerId) -> bool {
@@ -2800,13 +2817,18 @@ mod tests {
         struct CaptureUpdates(Arc<Mutex<Vec<UpdateEvent>>>);
 
         impl UpdateListener for CaptureUpdates {
-            fn on_update_event(&self, event: UpdateEvent) {
+            fn on_update_event(&self, event: UpdateEvent) -> crate::ListenerDirective {
                 self.0.lock().unwrap().push(event);
+                crate::ListenerDirective::Keep
             }
 
-            fn on_figure_event(&self, _event: FigureEvent) {}
+            fn on_figure_event(&self, _event: FigureEvent) -> crate::ListenerDirective {
+                crate::ListenerDirective::Keep
+            }
 
-            fn on_notify(&self, _block_id: FigureId) {}
+            fn on_notify(&self, _block_id: FigureId) -> crate::ListenerDirective {
+                crate::ListenerDirective::Keep
+            }
         }
 
         let events = Arc::new(Mutex::new(Vec::new()));

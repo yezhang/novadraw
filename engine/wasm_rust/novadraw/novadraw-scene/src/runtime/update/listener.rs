@@ -23,6 +23,13 @@ impl ListenerId {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ListenerDirective {
+    #[default]
+    Keep,
+    Remove,
+}
+
 /// Update Event - 更新事件
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateEvent {
@@ -232,13 +239,13 @@ impl NotificationQueue {
 /// - 视图同步：当 Figure 移动或坐标系统变化时更新视图状态
 pub trait UpdateListener {
     /// 通知 Update 层事件（验证、重绘阶段变化）
-    fn on_update_event(&self, event: UpdateEvent);
+    fn on_update_event(&self, event: UpdateEvent) -> ListenerDirective;
 
     /// 通知 Figure 层事件（FigureMoved, CoordinateSystemChanged）
-    fn on_figure_event(&self, event: FigureEvent);
+    fn on_figure_event(&self, event: FigureEvent) -> ListenerDirective;
 
     /// 通知块状态变化（Notify 语义）
-    fn on_notify(&self, block_id: FigureId);
+    fn on_notify(&self, block_id: FigureId) -> ListenerDirective;
 
     /// 检查是否为验证监听器
     fn as_validating_listener(&self) -> Option<&dyn ValidatingListener> {
@@ -258,34 +265,42 @@ pub trait ValidatingListener {
 }
 
 pub trait FigureListener {
-    fn figure_moved(&self, event: FigureEvent);
+    fn figure_moved(&self, event: FigureEvent) -> ListenerDirective;
 }
 
 pub trait CoordinateListener {
-    fn coordinate_system_changed(&self, event: FigureEvent);
+    fn coordinate_system_changed(&self, event: FigureEvent) -> ListenerDirective;
 }
 
 pub trait AncestorListener {
-    fn ancestor_changed(&self, event: AncestorEvent);
+    fn ancestor_changed(&self, event: AncestorEvent) -> ListenerDirective;
 }
 
 pub trait PropertyChangeListener {
-    fn property_changed(&self, event: &PropertyChangeEvent);
+    fn property_changed(&self, event: &PropertyChangeEvent) -> ListenerDirective;
 }
 
 pub trait ActionListener {
-    fn action_performed(&self, event: ActionEvent);
+    fn action_performed(&self, event: ActionEvent) -> ListenerDirective;
 }
 
 pub trait LayoutListener {
-    fn layout_changed(&self, event: LayoutEvent);
+    fn layout_changed(&self, event: LayoutEvent) -> ListenerDirective;
 }
 
 /// No-op 实现
 impl UpdateListener for () {
-    fn on_update_event(&self, _event: UpdateEvent) {}
-    fn on_figure_event(&self, _event: FigureEvent) {}
-    fn on_notify(&self, _block_id: FigureId) {}
+    fn on_update_event(&self, _event: UpdateEvent) -> ListenerDirective {
+        ListenerDirective::Keep
+    }
+
+    fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
+        ListenerDirective::Keep
+    }
+
+    fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+        ListenerDirective::Keep
+    }
 }
 
 impl ValidatingListener for () {

@@ -448,16 +448,19 @@ impl EditorRuntime {
 struct TraceUpdateListener;
 
 impl UpdateListener for TraceUpdateListener {
-    fn on_update_event(&self, event: UpdateEvent) {
+    fn on_update_event(&self, event: UpdateEvent) -> novadraw::ListenerDirective {
         tracing::info!("[Notification] update event: {:?}", event);
+        novadraw::ListenerDirective::Keep
     }
 
-    fn on_figure_event(&self, event: FigureEvent) {
+    fn on_figure_event(&self, event: FigureEvent) -> novadraw::ListenerDirective {
         tracing::info!("[Notification] figure event: {:?}", event);
+        novadraw::ListenerDirective::Keep
     }
 
-    fn on_notify(&self, block_id: FigureId) {
+    fn on_notify(&self, block_id: FigureId) -> novadraw::ListenerDirective {
         tracing::info!("[Notification] notify: {:?}", block_id);
+        novadraw::ListenerDirective::Keep
     }
 }
 
