@@ -821,11 +821,18 @@ D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写�
 
 ### D3.1 M9 已接受契约恢复
 
-状态：`not_started`
+状态：`in_progress`
+
+候选补充决策：
+[`../adr/adr-008-m9-contract-recovery.md`](../adr/adr-008-m9-contract-recovery.md)。
+
+ADR-008 当前为“提议”，经人工评审接受后才进入实现。
 
 决策：
 
 - 继续遵守 ADR-005，不把已接受的 shared routing 和 viewport topology 语义静默降级；
+- Manhattan scope 使用 RouterId + routing domain，Fan scope 才额外包含无向
+  AnchorGroupKey pair；
 - 实现 shared Manhattan row/column reservation、稳定 group snapshot、组级失效与
   批量原子提交；
 - Core 1.0 对 nested viewport 采用最小严格策略：相同有效 viewport chain 可继续路由，
