@@ -26,9 +26,10 @@ pub use query::{
 };
 pub use router::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionRouter, DirectRouter,
-    FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, ManhattanConnectionRouter, RouteEnd,
-    RouteEndpoint, RouteError, RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint,
-    RoutingGroupQuery,
+    FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, MANHATTAN_DEFAULT_LANE_SPACING,
+    MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RouteEnd, RouteEndpoint, RouteError,
+    RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint, RoutingGroupQuery,
+    RoutingGroupScope,
 };
 pub(crate) use runtime::ConnectionRuntime;
 pub use runtime::{

@@ -10,6 +10,22 @@ use super::{AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateS
 
 /// Default perpendicular spacing between neighboring Fan routes.
 pub const FAN_DEFAULT_SEPARATION: f64 = 16.0;
+/// Default logical distance between shared Manhattan lanes.
+pub const MANHATTAN_DEFAULT_LANE_SPACING: f64 = 2.0;
+/// Default minimum length retained for endpoint-adjacent Manhattan stubs.
+pub const MANHATTAN_DEFAULT_MINIMUM_STUB: f64 = 10.0;
+
+/// Scope used by Routers with cross-connection behavior.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum RoutingGroupScope {
+    /// Router calculations are independent.
+    #[default]
+    None,
+    /// Members share an unordered source/target Anchor pair.
+    AnchorPair,
+    /// All members using one RouterId in one routing domain share state.
+    RoutingDomain,
+}
 
 /// Router-specific constraint with checked runtime type information.
 pub trait RoutingConstraint: Any {
@@ -154,6 +170,15 @@ pub trait ConnectionRouter {
     /// Returns whether this Router requires a stable cross-connection group.
     fn requires_group(&self) -> bool {
         false
+    }
+
+    /// Returns the stable scope required by this Router.
+    fn routing_group_scope(&self) -> RoutingGroupScope {
+        if self.requires_group() {
+            RoutingGroupScope::AnchorPair
+        } else {
+            RoutingGroupScope::None
+        }
     }
 }
 
@@ -332,7 +357,18 @@ impl ConnectionRouter for ManhattanConnectionRouter {
         }
         points.push(target);
         remove_adjacent_duplicates(&mut points);
+        let group = request.group.ok_or(RouteError::UnsupportedRoutingGroup)?;
+        reserve_manhattan_lanes(&mut points, group, MANHATTAN_DEFAULT_LANE_SPACING);
+        remove_adjacent_duplicates(&mut points);
         RouteOutput::new(PointList::from_points(points), metadata)
+    }
+
+    fn requires_group(&self) -> bool {
+        true
+    }
+
+    fn routing_group_scope(&self) -> RoutingGroupScope {
+        RoutingGroupScope::RoutingDomain
     }
 }
 
@@ -506,6 +542,102 @@ fn horizontal_normal(normal: Vector) -> bool {
 
 fn remove_adjacent_duplicates(points: &mut Vec<Point>) {
     points.dedup_by(|left, right| left.approx_eq(*right, Precision::DEFAULT));
+}
+
+fn reserve_manhattan_lanes(points: &mut [Point], group: &dyn RoutingGroupQuery, lane_spacing: f64) {
+    if points.len() < 4 {
+        return;
+    }
+    let mut rows = Vec::new();
+    let mut columns = Vec::new();
+    for connection in group.ordered_connections() {
+        let Some(route) = group.route(*connection) else {
+            continue;
+        };
+        collect_internal_lanes(route.points().as_slice(), &mut rows, &mut columns);
+    }
+
+    for segment_index in 1..points.len() - 2 {
+        let start = points[segment_index];
+        let end = points[segment_index + 1];
+        if start.y().approx_eq(end.y(), Precision::DEFAULT) {
+            let adjacent = [points[segment_index - 1].y(), points[segment_index + 2].y()];
+            let lane = nearest_available_lane(
+                start.y(),
+                &rows,
+                adjacent,
+                lane_spacing,
+                MANHATTAN_DEFAULT_MINIMUM_STUB,
+            );
+            points[segment_index] = Point::new(start.x(), lane);
+            points[segment_index + 1] = Point::new(end.x(), lane);
+            rows.push(lane);
+        } else if start.x().approx_eq(end.x(), Precision::DEFAULT) {
+            let adjacent = [points[segment_index - 1].x(), points[segment_index + 2].x()];
+            let lane = nearest_available_lane(
+                start.x(),
+                &columns,
+                adjacent,
+                lane_spacing,
+                MANHATTAN_DEFAULT_MINIMUM_STUB,
+            );
+            points[segment_index] = Point::new(lane, start.y());
+            points[segment_index + 1] = Point::new(lane, end.y());
+            columns.push(lane);
+        }
+    }
+}
+
+fn collect_internal_lanes(points: &[Point], rows: &mut Vec<f64>, columns: &mut Vec<f64>) {
+    if points.len() < 4 {
+        return;
+    }
+    for segment_index in 1..points.len() - 2 {
+        let start = points[segment_index];
+        let end = points[segment_index + 1];
+        if start.y().approx_eq(end.y(), Precision::DEFAULT) {
+            rows.push(start.y());
+        } else if start.x().approx_eq(end.x(), Precision::DEFAULT) {
+            columns.push(start.x());
+        }
+    }
+}
+
+fn nearest_available_lane(
+    preferred: f64,
+    occupied: &[f64],
+    adjacent: [f64; 2],
+    spacing: f64,
+    minimum_stub: f64,
+) -> f64 {
+    let available = |candidate: f64| {
+        occupied
+            .iter()
+            .all(|lane| (candidate - lane).abs() + f64::EPSILON >= spacing)
+            && adjacent
+                .iter()
+                .all(|endpoint| (candidate - endpoint).abs() + f64::EPSILON >= minimum_stub)
+    };
+    if available(preferred) {
+        return preferred;
+    }
+    let geometry_steps = adjacent
+        .iter()
+        .map(|endpoint| ((preferred - endpoint).abs() + minimum_stub) / spacing)
+        .fold(0.0, f64::max)
+        .ceil() as usize;
+    for distance in 1..=occupied.len() + geometry_steps + 1 {
+        let offset = distance as f64 * spacing;
+        let lower = preferred - offset;
+        if available(lower) {
+            return lower;
+        }
+        let upper = preferred + offset;
+        if available(upper) {
+            return upper;
+        }
+    }
+    unreachable!("finite Manhattan lane constraints must leave an available lane")
 }
 
 /// Failure produced by a Router calculation.

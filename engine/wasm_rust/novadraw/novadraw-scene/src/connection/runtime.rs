@@ -5,7 +5,8 @@ use slotmap::SlotMap;
 use super::{
     AnchorGroupKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter, CoordinateSpace,
     DependencyObservation, DependencySubject, DirectRouter, RouteError, RouteOutput, RouteRequest,
-    RouterId, RoutingConstraint, RoutingGroupQuery, SceneRead, TrackedSceneQuery,
+    RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SceneRead,
+    TrackedSceneQuery,
 };
 use crate::{FigureId, MAX_TREE_DEPTH};
 
@@ -133,10 +134,31 @@ struct ConnectionState {
     router: RouterBinding,
     constraint: Option<Box<dyn RoutingConstraint>>,
     dependencies: HashMap<DependencySubject, u64>,
+    routing_space: Option<CoordinateSpace>,
     dirty_revision: u64,
     route_generation: u64,
     resolution: ConnectionResolution,
 }
+
+pub(crate) struct ConnectionRouteBatch {
+    pub(crate) outputs: Vec<(ConnectionId, RouteOutput)>,
+}
+
+pub(crate) struct ConnectionRouteBatchError {
+    pub(crate) affected: Vec<ConnectionId>,
+    pub(crate) error: ConnectionRuntimeError,
+}
+
+struct RouteCalculation {
+    connection: ConnectionId,
+    output: RouteOutput,
+    observations: Vec<DependencyObservation>,
+    next_generation: u64,
+}
+
+type TopologyObservations = Vec<DependencyObservation>;
+type ViewportChainResult =
+    Result<(Vec<FigureId>, TopologyObservations), (RouteError, TopologyObservations)>;
 
 /// Runtime-private ownership of Connection relationships and dependency state.
 pub(crate) struct ConnectionRuntime {
@@ -275,6 +297,7 @@ impl ConnectionRuntime {
             router,
             constraint,
             dependencies: HashMap::new(),
+            routing_space: None,
             dirty_revision: 1,
             route_generation: 0,
             resolution: ConnectionResolution::Dirty { revision: 1 },
@@ -388,88 +411,70 @@ impl ConnectionRuntime {
         routing_space: CoordinateSpace,
         source: &dyn SceneRead,
         routing_order: &[ConnectionId],
-    ) -> Result<RouteOutput, ConnectionRuntimeError> {
-        let (source_id, target_id, router_id) = {
+    ) -> Result<ConnectionRouteBatch, ConnectionRouteBatchError> {
+        let router_id = match self.route_input(connection) {
+            Ok((_, _, router)) => router,
+            Err(error) => {
+                return Err(self.fail_route_batch(vec![connection], error, Vec::new()));
+            }
+        };
+        let members =
+            match self.routing_group_members(connection, router_id, routing_space, routing_order) {
+                Ok(members) => members,
+                Err(error) => {
+                    return Err(self.fail_route_batch(vec![connection], error, Vec::new()));
+                }
+            };
+        let mut group = RuntimeRoutingGroup {
+            connections: members.clone(),
+            routes: HashMap::new(),
+        };
+        let mut calculations = Vec::with_capacity(members.len());
+
+        for member in &members {
+            let calculation = match self.calculate_route(*member, routing_space, source, &group) {
+                Ok(calculation) => calculation,
+                Err((error, observations)) => {
+                    let mut dependency_updates = calculations
+                        .iter()
+                        .map(|calculation: &RouteCalculation| {
+                            (calculation.connection, calculation.observations.clone())
+                        })
+                        .collect::<Vec<_>>();
+                    dependency_updates.push((*member, observations));
+                    return Err(self.fail_route_batch(members, error, dependency_updates));
+                }
+            };
+            group.routes.insert(*member, calculation.output.clone());
+            calculations.push(calculation);
+        }
+
+        for calculation in &calculations {
+            if let Err(error) =
+                self.replace_dependencies(calculation.connection, calculation.observations.clone())
+            {
+                return Err(ConnectionRouteBatchError {
+                    affected: members,
+                    error,
+                });
+            }
             let state = self
                 .states
-                .get(&connection)
-                .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
-            let Some(source_id) = state.source else {
-                let reason = UnresolvedConnection::MissingSource;
-                self.set_unresolved(connection, reason.clone())?;
-                return Err(ConnectionRuntimeError::Unresolved(reason));
+                .get_mut(&calculation.connection)
+                .expect("calculated connection state must remain registered");
+            state.routing_space = Some(routing_space);
+            state.route_generation = calculation.next_generation;
+            state.resolution = ConnectionResolution::Resolved {
+                generation: state.route_generation,
             };
-            let Some(target_id) = state.target else {
-                let reason = UnresolvedConnection::MissingTarget;
-                self.set_unresolved(connection, reason.clone())?;
-                return Err(ConnectionRuntimeError::Unresolved(reason));
-            };
-            (
-                source_id,
-                target_id,
-                self.resolve_router_binding(state.router)?,
-            )
-        };
-
-        let group = self.routing_group(connection, router_id, routing_order)?;
-        let result = {
-            let source_anchor = self
-                .anchors
-                .get(source_id)
-                .ok_or(ConnectionRuntimeError::UnknownAnchor(source_id))?;
-            let target_anchor = self
-                .anchors
-                .get(target_id)
-                .ok_or(ConnectionRuntimeError::UnknownAnchor(target_id))?;
-            let router = self.router(router_id)?;
-            let constraint = self
-                .states
-                .get(&connection)
-                .and_then(|state| state.constraint.as_deref());
-            let mut query = TrackedSceneQuery::new(source);
-            let output = router.route(RouteRequest {
-                connection,
-                routing_space,
-                source: source_anchor.as_ref(),
-                target: target_anchor.as_ref(),
-                constraint,
-                scene: &mut query,
-                group: group.as_ref().map(|group| group as &dyn RoutingGroupQuery),
-            });
-            (output, query.into_observations())
-        };
-
-        if dependency_cycle(connection, &result.1, source) {
-            self.merge_dependencies(connection, result.1)?;
-            let reason = UnresolvedConnection::RouteFailed(RouteError::DependencyCycle);
-            self.set_unresolved(connection, reason.clone())?;
-            return Err(ConnectionRuntimeError::Unresolved(reason));
         }
 
-        match result {
-            (Ok(output), observations) => {
-                let next_generation = self
-                    .states
-                    .get(&connection)
-                    .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?
-                    .route_generation
-                    .checked_add(1)
-                    .ok_or(ConnectionRuntimeError::GenerationExhausted)?;
-                self.replace_dependencies(connection, observations)?;
-                let state = self.state_mut(connection)?;
-                state.route_generation = next_generation;
-                state.resolution = ConnectionResolution::Resolved {
-                    generation: state.route_generation,
-                };
-                Ok(output)
-            }
-            (Err(error), observations) => {
-                self.merge_dependencies(connection, observations)?;
-                let reason = UnresolvedConnection::RouteFailed(error);
-                self.set_unresolved(connection, reason.clone())?;
-                Err(ConnectionRuntimeError::Unresolved(reason))
-            }
-        }
+        Ok(ConnectionRouteBatch {
+            outputs: calculations
+                .into_iter()
+                .map(|calculation| (calculation.connection, calculation.output))
+                .collect(),
+        })
     }
 
     pub(crate) fn invalidate_dependency(
@@ -544,29 +549,47 @@ impl ConnectionRuntime {
         Ok(())
     }
 
-    fn routing_group(
+    fn route_input(
         &self,
         connection: ConnectionId,
-        router_id: RouterId,
-        routing_order: &[ConnectionId],
-    ) -> Result<Option<RuntimeRoutingGroup>, ConnectionRuntimeError> {
-        if !self.router(router_id)?.requires_group() {
-            return Ok(None);
-        }
+    ) -> Result<(AnchorId, AnchorId, RouterId), ConnectionRuntimeError> {
         let state = self
             .states
             .get(&connection)
             .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
         let Some(source) = state.source else {
-            return Ok(None);
+            return Err(ConnectionRuntimeError::Unresolved(
+                UnresolvedConnection::MissingSource,
+            ));
         };
         let Some(target) = state.target else {
-            return Ok(None);
+            return Err(ConnectionRuntimeError::Unresolved(
+                UnresolvedConnection::MissingTarget,
+            ));
         };
-        let pair = (
-            self.anchor_group_key(source)?,
-            self.anchor_group_key(target)?,
-        );
+        Ok((source, target, self.resolve_router_binding(state.router)?))
+    }
+
+    fn routing_group_members(
+        &self,
+        connection: ConnectionId,
+        router_id: RouterId,
+        _routing_space: CoordinateSpace,
+        routing_order: &[ConnectionId],
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        let scope = self.router(router_id)?.routing_group_scope();
+        if scope == RoutingGroupScope::None {
+            return Ok(vec![connection]);
+        }
+        let requested_pair = if scope == RoutingGroupScope::AnchorPair {
+            let (source, target, _) = self.route_input(connection)?;
+            Some((
+                self.anchor_group_key(source)?,
+                self.anchor_group_key(target)?,
+            ))
+        } else {
+            None
+        };
         let mut connections = Vec::new();
         for candidate in routing_order {
             let Some(candidate_state) = self.states.get(candidate) else {
@@ -580,18 +603,120 @@ impl ConnectionRuntime {
             else {
                 continue;
             };
-            let candidate_pair = (
-                self.anchor_group_key(candidate_source)?,
-                self.anchor_group_key(candidate_target)?,
-            );
-            if unordered_pair_eq(&pair, &candidate_pair) {
-                connections.push(*candidate);
+            if let Some(requested_pair) = &requested_pair {
+                let candidate_pair = (
+                    self.anchor_group_key(candidate_source)?,
+                    self.anchor_group_key(candidate_target)?,
+                );
+                if !unordered_pair_eq(requested_pair, &candidate_pair) {
+                    continue;
+                }
             }
+            connections.push(*candidate);
         }
         if !connections.contains(&connection) {
             connections.push(connection);
         }
-        Ok(Some(RuntimeRoutingGroup { connections }))
+        Ok(connections)
+    }
+
+    fn calculate_route(
+        &self,
+        connection: ConnectionId,
+        routing_space: CoordinateSpace,
+        source: &dyn SceneRead,
+        group: &RuntimeRoutingGroup,
+    ) -> Result<RouteCalculation, (ConnectionRuntimeError, Vec<DependencyObservation>)> {
+        let (source_id, target_id, router_id) = self
+            .route_input(connection)
+            .map_err(|error| (error, Vec::new()))?;
+        let source_anchor = self
+            .anchors
+            .get(source_id)
+            .ok_or(ConnectionRuntimeError::UnknownAnchor(source_id))
+            .map_err(|error| (error, Vec::new()))?;
+        let target_anchor = self
+            .anchors
+            .get(target_id)
+            .ok_or(ConnectionRuntimeError::UnknownAnchor(target_id))
+            .map_err(|error| (error, Vec::new()))?;
+        let mut observations = validate_viewport_topology(
+            connection,
+            source_anchor.owner(),
+            target_anchor.owner(),
+            routing_space,
+            source,
+        )
+        .map_err(|(error, observations)| {
+            (
+                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error)),
+                observations,
+            )
+        })?;
+        let router = self
+            .router(router_id)
+            .map_err(|error| (error, observations.clone()))?;
+        let constraint = self
+            .states
+            .get(&connection)
+            .and_then(|state| state.constraint.as_deref());
+        let mut query = TrackedSceneQuery::new(source);
+        let output = router.route(RouteRequest {
+            connection,
+            routing_space,
+            source: source_anchor.as_ref(),
+            target: target_anchor.as_ref(),
+            constraint,
+            scene: &mut query,
+            group: (router.routing_group_scope() != RoutingGroupScope::None)
+                .then_some(group as &dyn RoutingGroupQuery),
+        });
+        observations.extend(query.into_observations());
+        if dependency_cycle(connection, &observations, source) {
+            return Err((
+                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
+                    RouteError::DependencyCycle,
+                )),
+                observations,
+            ));
+        }
+        let output = output.map_err(|error| {
+            (
+                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error)),
+                observations.clone(),
+            )
+        })?;
+        let next_generation = self
+            .states
+            .get(&connection)
+            .expect("route input validates the connection state")
+            .route_generation
+            .checked_add(1)
+            .ok_or(ConnectionRuntimeError::GenerationExhausted)
+            .map_err(|error| (error, observations.clone()))?;
+        Ok(RouteCalculation {
+            connection,
+            output,
+            observations,
+            next_generation,
+        })
+    }
+
+    fn fail_route_batch(
+        &mut self,
+        affected: Vec<ConnectionId>,
+        error: ConnectionRuntimeError,
+        dependency_updates: Vec<(ConnectionId, Vec<DependencyObservation>)>,
+    ) -> ConnectionRouteBatchError {
+        for (connection, observations) in dependency_updates {
+            let _ = self.merge_dependencies(connection, observations);
+        }
+        if let ConnectionRuntimeError::Unresolved(reason) = &error {
+            for connection in &affected {
+                let _ = self.set_unresolved(*connection, reason.clone());
+            }
+        }
+        ConnectionRouteBatchError { affected, error }
     }
 
     fn anchor_group_key(&self, anchor: AnchorId) -> Result<AnchorGroupKey, ConnectionRuntimeError> {
@@ -775,7 +900,7 @@ impl ConnectionRuntime {
         &mut self,
         subjects: &[DependencySubject],
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
-        let affected: Vec<_> = self
+        let directly_affected: Vec<_> = self
             .order
             .iter()
             .copied()
@@ -787,6 +912,7 @@ impl ConnectionRuntime {
                 })
             })
             .collect();
+        let affected = self.expand_group_invalidation(&directly_affected)?;
         for connection in &affected {
             self.next_dirty_revision(*connection)?;
         }
@@ -795,10 +921,74 @@ impl ConnectionRuntime {
         }
         Ok(affected)
     }
+
+    fn expand_group_invalidation(
+        &self,
+        directly_affected: &[ConnectionId],
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        let mut affected = Vec::new();
+        for candidate in &self.order {
+            let candidate_state = self
+                .states
+                .get(candidate)
+                .ok_or(ConnectionRuntimeError::UnknownConnection(*candidate))?;
+            let candidate_router = self.resolve_router_binding(candidate_state.router)?;
+            let candidate_scope = self.router(candidate_router)?.routing_group_scope();
+            let shares_group = directly_affected.iter().any(|direct| {
+                if candidate == direct {
+                    return true;
+                }
+                let Some(direct_state) = self.states.get(direct) else {
+                    return false;
+                };
+                let Ok(direct_router) = self.resolve_router_binding(direct_state.router) else {
+                    return false;
+                };
+                if candidate_router != direct_router
+                    || candidate_state.routing_space != direct_state.routing_space
+                {
+                    return false;
+                }
+                match candidate_scope {
+                    RoutingGroupScope::None => false,
+                    RoutingGroupScope::RoutingDomain => true,
+                    RoutingGroupScope::AnchorPair => self
+                        .states_share_anchor_pair(candidate_state, direct_state)
+                        .unwrap_or(false),
+                }
+            });
+            if shares_group {
+                affected.push(*candidate);
+            }
+        }
+        Ok(affected)
+    }
+
+    fn states_share_anchor_pair(
+        &self,
+        left: &ConnectionState,
+        right: &ConnectionState,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        let (Some(left_source), Some(left_target), Some(right_source), Some(right_target)) =
+            (left.source, left.target, right.source, right.target)
+        else {
+            return Ok(false);
+        };
+        let left_pair = (
+            self.anchor_group_key(left_source)?,
+            self.anchor_group_key(left_target)?,
+        );
+        let right_pair = (
+            self.anchor_group_key(right_source)?,
+            self.anchor_group_key(right_target)?,
+        );
+        Ok(unordered_pair_eq(&left_pair, &right_pair))
+    }
 }
 
 struct RuntimeRoutingGroup {
     connections: Vec<ConnectionId>,
+    routes: HashMap<ConnectionId, RouteOutput>,
 }
 
 impl RoutingGroupQuery for RuntimeRoutingGroup {
@@ -806,9 +996,73 @@ impl RoutingGroupQuery for RuntimeRoutingGroup {
         &self.connections
     }
 
-    fn route(&self, _connection: ConnectionId) -> Option<&RouteOutput> {
-        None
+    fn route(&self, connection: ConnectionId) -> Option<&RouteOutput> {
+        self.routes.get(&connection)
     }
+}
+
+fn validate_viewport_topology(
+    connection: ConnectionId,
+    source_owner: Option<FigureId>,
+    target_owner: Option<FigureId>,
+    _routing_space: CoordinateSpace,
+    scene: &dyn SceneRead,
+) -> Result<TopologyObservations, (RouteError, TopologyObservations)> {
+    let connection_parent = scene.parent_id(connection.figure()).ok_or_else(|| {
+        (
+            RouteError::UnsupportedViewportTopology,
+            Vec::<DependencyObservation>::new(),
+        )
+    })?;
+    let (connection_chain, mut observations) = viewport_chain(connection_parent, scene)?;
+    for owner in [source_owner, target_owner].into_iter().flatten() {
+        let (owner_chain, owner_observations) = viewport_chain(owner, scene)?;
+        observations.extend(owner_observations);
+        if owner_chain != connection_chain {
+            return Err((
+                RouteError::UnsupportedViewportTopology,
+                deduplicate_observations(observations),
+            ));
+        }
+    }
+    Ok(deduplicate_observations(observations))
+}
+
+fn viewport_chain(figure: FigureId, scene: &dyn SceneRead) -> ViewportChainResult {
+    let mut chain = Vec::new();
+    let mut observations = Vec::new();
+    let mut current = Some(figure);
+    for _ in 0..=MAX_TREE_DEPTH {
+        let Some(candidate) = current else {
+            return Ok((chain, observations));
+        };
+        let subject = DependencySubject::Topology(candidate);
+        observations.push(DependencyObservation {
+            generation: scene.dependency_generation(&subject),
+            subject,
+        });
+        if !scene.is_attached(candidate) {
+            return Err((RouteError::UnsupportedViewportTopology, observations));
+        }
+        if scene.is_viewport(candidate) {
+            chain.push(candidate);
+        }
+        current = scene.parent_id(candidate);
+    }
+    Err((RouteError::UnsupportedViewportTopology, observations))
+}
+
+fn deduplicate_observations(observations: TopologyObservations) -> TopologyObservations {
+    let mut generations = HashMap::new();
+    let mut result = Vec::new();
+    for observation in observations {
+        if generations.contains_key(&observation.subject) {
+            continue;
+        }
+        generations.insert(observation.subject.clone(), observation.generation);
+        result.push(observation);
+    }
+    result
 }
 
 fn unordered_pair_eq(

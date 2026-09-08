@@ -388,22 +388,39 @@ impl Runtime {
             .connections
             .route(connection, routing_space, &scene, &routing_order);
         match result {
-            Ok(output) => {
-                if !self.tree.commit_connection_route(
-                    &mut self.updates,
-                    connection.figure(),
-                    output.points(),
-                ) {
+            Ok(batch) => {
+                if batch
+                    .outputs
+                    .iter()
+                    .any(|(candidate, _)| !self.tree.is_connection_figure(candidate.figure()))
+                {
                     return Err(ConnectionRuntimeError::NotConnectionFigure(
                         connection.figure(),
                     ));
                 }
-                Ok(output)
+                let requested = batch
+                    .outputs
+                    .iter()
+                    .find_map(|(candidate, output)| {
+                        (*candidate == connection).then(|| output.clone())
+                    })
+                    .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
+                for (candidate, output) in batch.outputs {
+                    let committed = self.tree.commit_connection_route(
+                        &mut self.updates,
+                        candidate.figure(),
+                        output.points(),
+                    );
+                    debug_assert!(committed, "validated Connection batch must commit");
+                }
+                Ok(requested)
             }
-            Err(error) => {
-                self.tree
-                    .clear_connection_route(&mut self.updates, connection.figure());
-                Err(error)
+            Err(batch) => {
+                for affected in batch.affected {
+                    self.tree
+                        .clear_connection_route(&mut self.updates, affected.figure());
+                }
+                Err(batch.error)
             }
         }
     }

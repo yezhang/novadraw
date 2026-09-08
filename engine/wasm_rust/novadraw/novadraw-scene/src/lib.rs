@@ -30,10 +30,11 @@ pub use connection::{
     ConnectionLocator, ConnectionLocatorStrategy, ConnectionResolution, ConnectionRouter,
     ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, DependencyObservation,
     DependencySubject, DirectRouter, EllipseAnchor, FAN_DEFAULT_SEPARATION, FanRouter,
-    FanRouterError, LabelAnchor, LocatorError, LocatorPlacement, ManhattanConnectionRouter,
-    MidpointLocator, PathFractionLocator, RoundedRectangleAnchor, RouteEnd, RouteEndpoint,
-    RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId,
-    RoutingConstraint, RoutingGroupQuery, SceneQuery, SceneQueryError, SceneRead,
+    FanRouterError, LabelAnchor, LocatorError, LocatorPlacement, MANHATTAN_DEFAULT_LANE_SPACING,
+    MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, MidpointLocator,
+    PathFractionLocator, RoundedRectangleAnchor, RouteEnd, RouteEndpoint, RouteError,
+    RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId, RoutingConstraint,
+    RoutingGroupQuery, RoutingGroupScope, SceneQuery, SceneQueryError, SceneRead,
     TrackedSceneQuery, UnresolvedConnection, XYAnchor,
 };
 pub use container::viewport;

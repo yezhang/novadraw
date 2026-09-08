@@ -8,7 +8,7 @@ use std::{
 
 use novadraw_geometry::{Affine2D, Dimension, Point, Rectangle, Vector};
 
-use crate::{FigureId, FigureTree};
+use crate::{FigureId, FigureTree, ViewportFigure};
 
 /// Coordinate domain used by pure Anchor and Router calculations.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -141,6 +141,11 @@ pub trait SceneRead {
 
     /// Returns the direct parent of a Figure.
     fn parent_id(&self, figure: FigureId) -> Option<FigureId>;
+
+    /// Returns whether a Figure is a Viewport coordinate/clipping boundary.
+    fn is_viewport(&self, _figure: FigureId) -> bool {
+        false
+    }
 
     /// Returns the Figure-local border box.
     fn border_box(&self, figure: FigureId) -> Result<Rectangle, SceneQueryError>;
@@ -380,6 +385,12 @@ impl SceneRead for FigureTreeSceneRead<'_> {
 
     fn parent_id(&self, figure: FigureId) -> Option<FigureId> {
         self.tree.parent_id(figure)
+    }
+
+    fn is_viewport(&self, figure: FigureId) -> bool {
+        self.tree
+            .block(figure)
+            .is_some_and(|block| block.figure.as_any().is::<ViewportFigure>())
     }
 
     fn border_box(&self, figure: FigureId) -> Result<Rectangle, SceneQueryError> {
