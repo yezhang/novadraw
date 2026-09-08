@@ -95,6 +95,7 @@
 - [x] D2 `layer-freeform` Native/Web 人工验收
 - [x] M9 `apps/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
 - [x] D3.1 `connections-demo` 增量（`shared_manhattan`、`unsupported_viewport_topology` 自动截图、视觉复核与人工窗口验收通过）
+- [x] D3.2 `d3_runtime_mutation`（Runtime layout/constraint/size/Z-order/clipping 与 callback FIFO 自动契约）
 - [x] M10.1 `apps/native/shape-app`（自动契约与人工窗口验收完成）
 - [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
 - [x] M10.2-M10.3 `apps/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）

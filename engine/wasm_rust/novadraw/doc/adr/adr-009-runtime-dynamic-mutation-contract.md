@@ -91,9 +91,10 @@ Runtime add API，原子 indexed add 留待出现真实调用需求后单独设�
 
 ### 5. Clipping 真值进入 NodeState
 
-具体 Figure 的 `child_clipping_strategy()` 只作为 attach 时的初始值。Figure 加入
-树后，`NodeState` 保存并提供当前 clipping strategy，Runtime 可用
-`set_child_clipping_strategy` 替换枚举值。
+`NodeState` 保存 Runtime 显式设置的 clipping override。没有 override 时，仍委托
+具体 Figure 的 `child_clipping_strategy()`，以保持 Viewport/Scalable 等共享状态
+capability 的既有语义；Runtime 调用 `set_child_clipping_strategy` 后，节点 override
+成为当前 clipping strategy 的权威值。
 
 Core 1.0 只支持现有三种受控策略：
 

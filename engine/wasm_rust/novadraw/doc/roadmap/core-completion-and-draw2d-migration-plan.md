@@ -878,7 +878,7 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 
 ### D3.2 Runtime 动态 mutation 公共面
 
-状态：`in_progress`
+状态：`complete`
 
 目标：
 
@@ -909,9 +909,20 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 - 非法 parent/child、constraint type 和 index 的原子失败；
 - Runtime 公共路径与构建期 FigureTreeBuilder 的稳定结果一致。
 
+完成证据：
+
+- ADR-009 固定 Runtime mutation、constraint 预验证、NodeState clipping override
+  与 callback FIFO 契约；
+- `RuntimeMutationError` 和 deferred error queue 已形成公开失败模型；
+- `novadraw-scene/tests/d3_runtime_mutation.rs` 的 6 项契约测试通过；
+- M8 的 24 项 viewport/zoom 测试复验通过；
+- workspace、Clippy、WASM `novadraw` 与 `web-validation` 门禁通过；
+- 详细记录见
+  `doc/verification/reviews/d3-runtime-mutation-2026-09-08.md`。
+
 ### D3.3 M7 listener Runtime 公共面
 
-状态：`not_started`
+状态：`in_progress`
 
 目标：
 

@@ -202,8 +202,8 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `figure.tree` | `IFigure.add(IFigure)` | 构建期 `FigureTreeBuilder::{set_contents,add_child_to,try_add_child_to}`；运行期 `Runtime::{set_contents,add_figure}` | verified | 保持 child order、single/layer admission、no-cycle 与 10,000 层深度门禁 |
-| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | 构建期可组合 add + `move_child_to_index` / `set_constraint`；Runtime 尚无原子 indexed/constraint add | partial | D3.2 补 Runtime typed mutation；是否需要单入口原子 add 由契约测试决定 |
-| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `Runtime::{remove_figure,reparent}`、`FigureTree::parent_id`；callback 使用 `EventContext::{remove_child_later,reparent_later}` | partial | remove/reparent/parent 已可达；`removeAll` 与通用 callback mutation 在 D3.2 校准 |
+| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | 构建期可组合 add + index/constraint；Runtime 提供现有 child 的 `move_child_to_index/bring_child_to_front/send_child_to_back`，尚无原子 indexed add | partial | D3.2 已闭合动态 reorder；原子 indexed/constraint add 等待真实调用需求 |
+| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `Runtime::{remove_figure,reparent}`、`FigureTree::parent_id`；callback 使用 typed deferred mutation | partial | remove/reparent/parent 与 callback FIFO 已可达；`removeAll` convenience 延后 |
 | `figure.tree` | `getChildren()` | `FigureNode::children_count`、`FigureTree::child_order/descendant_ids` 提供稳定只读查询 | verified | 不暴露可修改内部 children 集合的引用 |
 | `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}` | verified | attach/detach 与资源、交互状态清理已有测试 |
 | `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`Runtime::{set_bounds,translate}` update-aware 修改 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源 |
@@ -221,8 +221,8 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `paint.protocol` | `IFigure.paint(Graphics)` | 实际 traversal 由 `FigureTree::render` 的内部递归实现承载；没有 public `Figure::paint` 或 renderer 替换入口 | verified | 保护 `render_recursive.rs` 主流程，只在协议不符时调整 |
-| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 由 renderer 固定执行，`Figure::paint_children` 当前公开 hook 不参与 traversal | partial | D3.2 删除或私有化误导性 no-op hook；不开放绕过树遍历的 child paint |
-| `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | `Bounded::child_clipping_strategy`; concrete figures 提供构造期策略；没有统一 Runtime setter 或任意多矩形 provider | partial | D3.2 补受控 Runtime replacement；任意多矩形 provider 延后到真实需求 |
+| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 只由递归 renderer 固定执行，误导性的 `Figure::paint_children` no-op 已删除 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
+| `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`Runtime::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `NdCanvas` | verified | Rust trait 不复制 Draw2D owner object 参数 |
 | `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 与 TitleBar owner snapshot 契约已覆盖 |
 | `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试 |
@@ -247,10 +247,10 @@ Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | FigureTree 内部语义与约束所有权已验证；Runtime 尚未暴露 update-aware set/remove | partial | D3.2 补 Runtime 公共事务和 callback pending mutation |
-| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | LayoutManager/LayoutContext 测量已验证；FigureTree size override 尚未形成 Runtime 公共 mutation | partial | D3.2 补 preferred/minimum/maximum set/clear |
+| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | parent-owned typed constraint；`Runtime::{set_layout_constraint,remove_layout_constraint}` 与 callback deferred mutation 在提交前校验 manager compatibility | verified | D3.2 原子失败、FIFO 与 validation queue 契约测试通过 |
+| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | LayoutManager/LayoutContext 测量；Runtime preferred/minimum/maximum override set/clear | verified | D3.2 覆盖有限非负校验、clear fallback 与 update-aware invalidation |
 | `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 无缓存布局采用图级 invalid path；`layout` 通过 `LayoutContext` 操作 children | verified | 缓存布局未来需重新声明 invalidate hook |
-| `layout.manager` | concrete layout implementations | 六类布局算法与构建期配置已验证；Runtime 尚不能动态替换 LayoutManager | partial | `m5_layout_contract` + `layout-app` 已覆盖算法，D3.2 补公共替换事务 |
+| `layout.manager` | concrete layout implementations | 六类布局算法、构建期配置与 Runtime 动态 replacement 已验证；新 manager 提交前校验已有 constraints | verified | `m5_layout_contract`、`d3_runtime_mutation` 与 `layout-app` |
 | `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureTree::{invalidate,mark_invalid,revalidate,perform_validation_cycle,is_valid}`，validation root、重复失效与回调延迟失效已闭合 | verified | hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
 | `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `UpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
 | `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | dirty 合并、根域传播、`DamageMode::{None,Full,Partial}` 与 retained frame 提交已闭合 | verified | exposed-rect overload 作为 P1 扩展 |

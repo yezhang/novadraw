@@ -82,9 +82,9 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 > 节点编辑器等 GEF 层能力不在 draw2d 核心 milestone 内，详见 `demo-matrix.md` 附录 A。
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；受影响 family ID 记录在 delta 的 `api_semantics` 字段，语义来源见 `doc/parity/draw2d/api-coverage.md`。
 
-当前执行顺序已在 2026-09-08 审计后重基线：M9 与 D3.1 已完成，当前执行
-`doc/roadmap/core-completion-and-draw2d-migration-plan.md` 的 D3.2 Runtime 动态
-mutation 公共面。完成 D3.2-D3.4 后再进入 M10.5。
+当前执行顺序已在 2026-09-08 审计后重基线：M9 与 D3.1-D3.2 已完成，当前执行
+`doc/roadmap/core-completion-and-draw2d-migration-plan.md` 的 D3.3 M7 listener
+Runtime 公共面。完成 D3.3-D3.4 后再进入 M10.5。
 
 ## 架构设计原则
 

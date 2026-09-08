@@ -53,8 +53,8 @@
 ## 当前执行顺序
 
 R8/R9、D0-D2 与 M10.1-M10.4 已完成。2026-09-08 审计发现 M9 正式契约和核心
-Runtime 公共面仍有缺口；D3.0-D3.1 已完成，M9 已恢复 `complete`，当前进入 D3.2
-Runtime 动态 mutation 公共面。后续按
+Runtime 公共面仍有缺口；D3.0-D3.2 已完成，M9 已恢复 `complete`，当前进入 D3.3
+M7 listener Runtime 公共面。后续按
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
 执行：
 
