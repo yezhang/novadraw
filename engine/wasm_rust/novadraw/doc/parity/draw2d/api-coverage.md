@@ -75,7 +75,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P0 | Damage / Repaint | `repaint/intersects/getUpdateManager` | dirty region / render invalidation | dirty region 合并、局部重绘、bounds 外裁剪 |
 | P0 | UpdateManager | `addInvalidFigure/addDirtyRegion/performValidation/performUpdate` | 两阶段更新调度 | Validation -> Damage Repair 顺序、批处理、root update |
 | P1 | Figure 属性 | `foreground/background/font/cursor/tooltip/opaque` | style/state storage | 本地属性、继承属性、opaque 背景、tooltip 查询 |
-| P1 | 监听器系统 | `FigureListener/AncestorListener/CoordinateListener/LayoutListener/PropertyChangeListener` | event/listener hooks | bounds 变化、ancestor 变化、layout 生命周期、属性变更 |
+| P1 | 监听器系统 | `FigureListener/AncestorListener/CoordinateListener/LayoutListener/PropertyChangeListener/ActionListener` | event/listener hooks | bounds 变化、ancestor 变化、layout 生命周期、属性变更、控件 action |
 | P1 | 输入事件 | `MouseListener/MouseMotionListener/MouseWheelListener/KeyListener/FocusListener` | engine event dispatch | target/source 点转换、capture、hover、drag、wheel、key |
 | P1 | EventDispatcher | `SWTEventDispatcher/EventDispatcher` | 平台输入适配 + 引擎分发 | apps 只适配平台事件，引擎负责命中和派发 |
 | P1 | Focus | `requestFocus/hasFocus/isFocusTraversable` | focus manager | focus owner、tab traversal、focus gained/lost |
@@ -128,6 +128,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `notification.figure` | Figure 通知 | Figure moved / bounds changed 等对象状态通知 |
 | `notification.coordinate` | Coordinate 通知 | coordinate root 或坐标系统变化通知 |
 | `notification.property` | Property 通知 | property change 语义 |
+| `notification.action` | Action 通知 | button-like action 发生事实与稳定 revision |
 | `notification.ancestor` | Ancestor 通知 | parent-chain add/remove/move 通知 |
 | `notification.layout_update` | Layout / Update 通知 | layout lifecycle、validating、painting phase 通知 |
 | `viewport.scroll_zoom` | Viewport / Scroll / Zoom | viewport、scroll pane、range model、zoom transform、content clip |
@@ -155,7 +156,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | M7 通知语义分层 | `notification.figure`, `notification.coordinate`, `notification.property`, `notification.ancestor`, `notification.layout_update` | `figure.lifecycle`, `validation.protocol`, `update_manager.two_phase` | Figure/Coordinate/Property/Ancestor/Input/Update 通知不混层 |
 | M8 Viewport / Scroll / Zoom | `viewport.scroll_zoom`, `clipping.strategy`, `coordinate.conversion`, `hit_test.search` | `damage.repaint`, `update_manager.two_phase`, `layer.freeform` | viewport 作为 Figure 树语义参与 paint、hit-test、坐标转换和 damage repair |
 | M9 Connection / Anchor / Router | `connection.figure`, `connection.anchor`, `connection.router`, `connection.locator` | `coordinate.conversion`, `damage.repaint`, `notification.ancestor`, `hit_test.search` | anchor 端点、router point list、node movement reroute、connection damage/hit-test |
-| M10 常用 Figure 与文本/控件 | `builtin.figures`, `border.protocol`, `text.flow`, `widgets.basic` | `layout.manager`, `event.input_listeners`, `figure.properties` | deferred builtin Figure 升级为完整 reusable surface；具体 Figure 只能消费核心协议，不引入特例 |
+| M10 常用 Figure 与文本/控件 | `builtin.figures`, `border.protocol`, `text.flow`, `widgets.basic`, `notification.action` | `layout.manager`, `event.input_listeners`, `figure.properties` | deferred builtin Figure 升级为完整 reusable surface；具体 Figure 只能消费核心协议，不引入特例 |
 
 ## 方法级 API 跟踪矩阵
 
@@ -273,7 +274,8 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 | `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `FigureListener` + `ListenerId` 注册/移除；`FigureEvent::FigureMoved` | verified | resize 仍沿用 Draw2D figureMoved 语义 |
 | `notification.ancestor` | `add/removeAncestorListener` | `AncestorListener` + Added/Moved/Removed typed events | verified | add/remove/reparent/ancestor move 已进入 effect queue |
 | `notification.coordinate` | `add/removeCoordinateListener` | `CoordinateListener` + `CoordinateSystemChanged` | verified | coordinate root 变换独立分发 |
-| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled 已接入；selection 属于 editor/GEF 层 | verified | M10 新 Figure 属性继续复用同一协议 |
+| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled 已接入；Toggle selected 是控件模型属性，与 editor selection 分离 | verified | M10 新 Figure 属性继续复用同一协议 |
+| `notification.action` | `ActionListener.actionPerformed` | `ActionListener` + `ActionEvent { block_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 Toggle 固定 selected change → action 顺序 |
 | `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `LayoutListener`、`ValidatingListener`、`UpdateListener` 分层注册，事务内保持因果顺序 | verified | listener remove 生命周期已有测试 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。
@@ -328,8 +330,8 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | cache/shaping、资源事务、LabelAnchor 与 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed；resource-referenced Image command | verified | Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
 | `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 text core 已提供可替换 engine、immutable layout metadata、唯一 glyph IR、真实测量/截断和 revision cache 基础 | partial | M10.2 基础范围 verified；完整多行 TextFlow/fragment/bidi API 按 P2 延后 |
-| `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | 目标契约名继续使用 `ClickableFigure` / button model | missing | 依赖 M6 event 与 M7 notification |
-| `widgets.basic` | `Button` text/image constructors and default button style | 目标契约名继续使用 `ButtonFigure` 作为 `ClickableFigure + LabelFigure` 组合 | missing | 不引入完整 widget toolkit |
+| `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
+| `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
 
 建议首批 Rust 契约草案：
 
@@ -346,14 +348,13 @@ pub struct ImageFigure {
     alignment: Alignment,
 }
 
-pub trait ClickableFigure: Figure {
-    fn do_click(&mut self, ctx: &mut EventContext<'_>);
-    fn is_selected(&self) -> bool;
-    fn set_selected(&mut self, selected: bool);
+pub trait ClickableBehavior {
+    fn clickable_model(&self) -> &ClickableModel;
+    fn clickable_model_mut(&mut self) -> &mut ClickableModel;
 }
 ```
 
-Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`Polyline.java`、`Polygon.java`、`AbstractPointListShape.java`、`Label.java`、`ImageFigure.java`、`Clickable.java`、`Button.java`、`text/TextFlow.java`、`text/FlowFigure.java`。M10.2 文本细节见 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)，Novadraw 契约见 [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)。
+Draw2D 证据入口：`Shape.java`、`RectangleFigure.java`、`Ellipse.java`、`Polyline.java`、`Polygon.java`、`AbstractPointListShape.java`、`Label.java`、`ImageFigure.java`、`Clickable.java`、`Button.java`、`Toggle.java`、`ButtonModel.java`、`ToggleModel.java`、`ClickableEventHandler.java`、`text/TextFlow.java`、`text/FlowFigure.java`。M10.2 文本细节见 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)，Novadraw 契约见 [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md) 与 [`../../design/architecture/basic-widgets.md`](../../design/architecture/basic-widgets.md)。
 
 ## Milestone 推进检查规则
 

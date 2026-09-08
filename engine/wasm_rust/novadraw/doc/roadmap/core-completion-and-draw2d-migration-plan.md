@@ -625,6 +625,9 @@ M10.2 正式契约：
 [`../design/architecture/text-layout.md`](../design/architecture/text-layout.md)。
 由 ADR-007 接受，按 Text Core、Label、TitleBarBorder 三个原子增量执行。
 
+M10.4 正式契约：
+[`../design/architecture/basic-widgets.md`](../design/architecture/basic-widgets.md)。
+
 执行顺序：
 
 1. **M10.1 Reusable Shape 与 Border 产品化收口**
@@ -712,6 +715,21 @@ M10.2/M10.3 完整性复审收口（2026-09-08）：
 - `TitleBarBorder` 派生 metrics 已移至 owner-scoped sidecar，共享实例双 owner 测试通过。
 - 字体 Failed/Ready/Removed 对 Label 与 TitleBar 的 engine revision 和重布局事务测试
   已通过。M10.2 与 M10.3 标记完成；完整 TextFlow/fragment/bidi API 仍按 P2 延后。
+
+M10.4 自动执行结果（2026-09-08）：
+
+- `ClickableFigure`、`ButtonFigure`、`ToggleFigure` 与 `ClickableModel` 已实现；
+  Button/Toggle 组合现有 `LabelFigure`，继续复用文本、图标、ellipsis 与资源契约。
+- pointer capture/pressed 与 keyboard pressed 在 `InteractionState` 内分源保存；
+  rollover、pressed、focus、enabled 仅作为 Runtime 派生绘制快照进入 Figure。
+- mouse release-inside、drag-out cancel、drag-back resume、Enter/Space、focus lost 与
+  disabled 行为及 ActionListener 事务 flush 已由 `m10_widget_contract` 十项测试固定。
+- Toggle 激活严格按 selected property change → typed `ActionEvent` 顺序进入同一
+  notification queue；programmatic `do_click` 复用同一事务。
+- `widgets-app` 的 Button_States、Toggle_States、Interactive_Widgets 三场景截图已
+  生成并复核；M10.4 达到 `behavior_verified`，等待人工窗口验收后标记 complete。
+- Repeat firing、ButtonGroup/radio 互斥与完整 widget toolkit 保持延后，不进入
+  M10.4 完成条件。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

@@ -31,6 +31,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/reusable-shape-border.md`](design/architecture/reusable-shape-border.md)
 - Text Layout、Label 与 TitleBarBorder：
   [`design/architecture/text-layout.md`](design/architecture/text-layout.md)
+- Clickable、Button 与 Toggle：
+  [`design/architecture/basic-widgets.md`](design/architecture/basic-widgets.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：

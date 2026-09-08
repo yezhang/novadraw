@@ -48,7 +48,7 @@
 | M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | M9.1-M9.6、六场景 connections-demo、截图复核与人工窗口验收均已完成 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.3 已完成；下一阶段为 M10.4 最小 Clickable/Button/Toggle，完整 TextFlow 保持 P2 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.3 已完成；M10.4 Clickable/Button/Toggle 已 behavior_verified，等待人工窗口验收；完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
