@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::Arc,
+};
 
 use novadraw_render::{
     BackendCapabilities, BuiltinFont, DamageMode, FontData, FontDescriptor, FrameId, ImageData,
@@ -10,20 +13,22 @@ use crate::PropertyValue;
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
-use crate::mutation::{PendingMutation, PendingMutationKind};
+use crate::mutation::{
+    PendingMutation, PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
+};
 use crate::{
     ActionListener, Alignment, AnchorGeometry, AnchorGeometryKey, AnchorId, Border,
-    ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionRouter,
-    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
+    ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId,
+    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
     DependencySubject, Direction, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree,
     FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
     FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
     KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
-    LayeredPaneHandle, ListenerId, MouseButton, PendingMutations, PropertyChangeListener,
-    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding,
-    RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError, StackLayout,
-    TextPlacement, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
-    ValidationError, WheelEvent, WidgetError, ZoomEvent,
+    LayeredPaneHandle, LayoutConstraint, LayoutManager, ListenerId, MouseButton, PendingMutations,
+    PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry, ResourceStatus,
+    RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
+    ShapeMutationError, StackLayout, TextPlacement, TreeOrderFocusTraversal, UpdateEvent,
+    UpdateListener, UpdateManager, ValidationError, WheelEvent, WidgetError, ZoomEvent,
 };
 use novadraw_geometry::{Dimension, Vec2};
 
@@ -46,6 +51,7 @@ pub struct Runtime {
     connections: ConnectionRuntime,
     anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
     connection_error: Option<ConnectionRuntimeError>,
+    deferred_mutation_errors: VecDeque<RuntimeMutationError>,
 }
 
 struct InFlightFrame {
@@ -77,6 +83,7 @@ impl Runtime {
             connections: ConnectionRuntime::new(),
             anchor_geometries: HashMap::new(),
             connection_error: None,
+            deferred_mutation_errors: VecDeque::new(),
         };
         runtime.initialize_layered_panes();
         runtime
@@ -699,6 +706,243 @@ impl Runtime {
             self.retain_interactive_figures();
         }
         changed
+    }
+
+    pub fn set_layout_manager(
+        &mut self,
+        container: FigureId,
+        manager: Box<dyn LayoutManager>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.replace_layout_manager(container, Some(manager))
+    }
+
+    pub fn clear_layout_manager(
+        &mut self,
+        container: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.replace_layout_manager(container, None)
+    }
+
+    fn replace_layout_manager(
+        &mut self,
+        container: FigureId,
+        manager: Option<Box<dyn LayoutManager>>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(container)?;
+        if let Some(manager) = manager.as_deref() {
+            self.tree
+                .validate_layout_manager_constraints(container, manager)?;
+        }
+        if !self.tree.replace_block_layout_manager(container, manager) {
+            return Ok(false);
+        }
+        self.tree.mark_invalid(&mut self.updates, container);
+        Ok(true)
+    }
+
+    pub fn set_layout_constraint<C>(
+        &mut self,
+        child: FigureId,
+        constraint: C,
+    ) -> Result<bool, RuntimeMutationError>
+    where
+        C: LayoutConstraint,
+    {
+        self.set_boxed_layout_constraint(child, Box::new(constraint))
+    }
+
+    fn set_boxed_layout_constraint(
+        &mut self,
+        child: FigureId,
+        constraint: Box<dyn LayoutConstraint>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(child)?;
+        let parent = self
+            .tree
+            .parent_id(child)
+            .ok_or(RuntimeMutationError::DetachedFigure(child))?;
+        if let Some(manager) = self.tree.get_block_layout_manager(parent) {
+            manager.validate_constraint(parent, child, constraint.as_ref())?;
+        }
+        if !self.tree.set_boxed_constraint(child, constraint) {
+            return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+        }
+        self.tree.mark_invalid(&mut self.updates, parent);
+        Ok(true)
+    }
+
+    pub fn remove_layout_constraint(
+        &mut self,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(child)?;
+        let parent = self
+            .tree
+            .parent_id(child)
+            .ok_or(RuntimeMutationError::DetachedFigure(child))?;
+        if !self.tree.remove_constraint(child) {
+            return Ok(false);
+        }
+        self.tree.mark_invalid(&mut self.updates, parent);
+        Ok(true)
+    }
+
+    pub fn set_preferred_size(
+        &mut self,
+        figure: FigureId,
+        size: (f64, f64),
+    ) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Preferred, Some(size))
+    }
+
+    pub fn clear_preferred_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Preferred, None)
+    }
+
+    pub fn set_minimum_size(
+        &mut self,
+        figure: FigureId,
+        size: (f64, f64),
+    ) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Minimum, Some(size))
+    }
+
+    pub fn clear_minimum_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Minimum, None)
+    }
+
+    pub fn set_maximum_size(
+        &mut self,
+        figure: FigureId,
+        size: (f64, f64),
+    ) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Maximum, Some(size))
+    }
+
+    pub fn clear_maximum_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.set_size_override(figure, SizeOverrideKind::Maximum, None)
+    }
+
+    fn set_size_override(
+        &mut self,
+        figure: FigureId,
+        kind: SizeOverrideKind,
+        size: Option<(f64, f64)>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(figure)?;
+        if let Some(size) = size
+            && (!size.0.is_finite() || !size.1.is_finite() || size.0 < 0.0 || size.1 < 0.0)
+        {
+            return Err(RuntimeMutationError::InvalidSize { figure, size });
+        }
+        let changed = match kind {
+            SizeOverrideKind::Preferred => self.tree.set_preferred_size(figure, size),
+            SizeOverrideKind::Minimum => self.tree.set_minimum_size(figure, size),
+            SizeOverrideKind::Maximum => self.tree.set_maximum_size(figure, size),
+        };
+        if changed {
+            self.tree.mark_invalid(&mut self.updates, figure);
+        }
+        Ok(changed)
+    }
+
+    pub fn move_child_to_index(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+        index: usize,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_child_order_mutation(parent, child, index)?;
+        if self.tree.child_z_index(parent, child) == Some(index) {
+            return Ok(false);
+        }
+        if !self.tree.move_child_to_index(parent, child, index) {
+            return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+        }
+        self.tree.repaint(&mut self.updates, parent, None);
+        if let Err(error) = self.connections.invalidate_all() {
+            self.connection_error = Some(error);
+        }
+        Ok(true)
+    }
+
+    pub fn bring_child_to_front(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        let child_count = self
+            .tree
+            .child_order(parent)
+            .ok_or(RuntimeMutationError::UnknownFigure(parent))?
+            .len();
+        let index = child_count
+            .checked_sub(1)
+            .ok_or(RuntimeMutationError::InvalidParentRelation { parent, child })?;
+        self.move_child_to_index(parent, child, index)
+    }
+
+    pub fn send_child_to_back(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.move_child_to_index(parent, child, 0)
+    }
+
+    pub fn set_child_clipping_strategy(
+        &mut self,
+        figure: FigureId,
+        strategy: ChildClippingStrategy,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(figure)?;
+        if !self.tree.set_child_clipping_strategy(figure, strategy) {
+            return Ok(false);
+        }
+        self.full_redraw_pending = true;
+        Ok(true)
+    }
+
+    pub fn take_deferred_mutation_errors(&mut self) -> Vec<RuntimeMutationError> {
+        self.deferred_mutation_errors.drain(..).collect()
+    }
+
+    fn validate_attached_figure(&self, figure: FigureId) -> Result<(), RuntimeMutationError> {
+        if self.tree.get_block(figure).is_none() {
+            return Err(RuntimeMutationError::UnknownFigure(figure));
+        }
+        if !self.tree.is_attached(figure) {
+            return Err(RuntimeMutationError::DetachedFigure(figure));
+        }
+        Ok(())
+    }
+
+    fn validate_child_order_mutation(
+        &self,
+        parent: FigureId,
+        child: FigureId,
+        index: usize,
+    ) -> Result<(), RuntimeMutationError> {
+        self.validate_attached_figure(parent)?;
+        self.validate_attached_figure(child)?;
+        if self.tree.is_layered_pane(parent) {
+            return Err(RuntimeMutationError::LayeredParent(parent));
+        }
+        let children = self
+            .tree
+            .child_order(parent)
+            .expect("attached Figure must have a child list");
+        if !children.contains(&child) {
+            return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+        }
+        if index >= children.len() {
+            return Err(RuntimeMutationError::InvalidChildIndex {
+                parent,
+                index,
+                child_count: children.len(),
+            });
+        }
+        Ok(())
     }
 
     pub fn set_bounds(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
@@ -1432,61 +1676,111 @@ impl Runtime {
     fn apply_runtime_mutations(&mut self, mutations: Vec<PendingMutation>) -> bool {
         let mut changed = false;
         for mutation in mutations {
-            changed |= match mutation.into_kind() {
-                PendingMutationKind::AddLayerFigure {
-                    pane,
-                    figure,
-                    key,
-                    placement,
-                } => self.add_layer(pane, figure, key, placement).is_ok(),
-                PendingMutationKind::RemoveLayer { pane, key } => {
-                    self.remove_layer(pane, &key).is_ok()
-                }
-                PendingMutationKind::MoveLayer {
-                    pane,
-                    key,
-                    placement,
-                } => self.move_layer(pane, &key, placement).unwrap_or(false),
-                PendingMutationKind::ReparentLayer {
-                    child,
-                    new_pane,
-                    key,
-                    placement,
-                } => self
-                    .reparent_layer(child, new_pane, key, placement)
-                    .unwrap_or(false),
-                PendingMutationKind::RemoveChild { parent, child } => {
-                    let removed = self.tree.apply_pending_mutations(
-                        &mut self.updates,
-                        vec![PendingMutation::from_kind(
-                            PendingMutationKind::RemoveChild { parent, child },
-                        )],
-                    );
-                    if removed {
-                        self.invalidate_connection_figure_change(child, true);
-                    }
-                    removed
-                }
-                PendingMutationKind::Reparent { child, new_parent } => {
-                    let reparented = self.tree.apply_pending_mutations(
-                        &mut self.updates,
-                        vec![PendingMutation::from_kind(PendingMutationKind::Reparent {
-                            child,
-                            new_parent,
-                        })],
-                    );
-                    if reparented {
-                        self.invalidate_connection_figure_change(child, true);
-                    }
-                    reparented
-                }
-                kind => self.tree.apply_pending_mutations(
-                    &mut self.updates,
-                    vec![PendingMutation::from_kind(kind)],
-                ),
-            };
+            match self.apply_runtime_mutation(mutation.into_kind()) {
+                Ok(mutation_changed) => changed |= mutation_changed,
+                Err(error) => self.deferred_mutation_errors.push_back(error),
+            }
         }
         changed
+    }
+
+    fn apply_runtime_mutation(
+        &mut self,
+        mutation: PendingMutationKind,
+    ) -> Result<bool, RuntimeMutationError> {
+        match mutation {
+            PendingMutationKind::SetLayoutManager { container, manager } => {
+                self.replace_layout_manager(container, manager)
+            }
+            PendingMutationKind::SetLayoutConstraint { child, constraint } => {
+                self.set_boxed_layout_constraint(child, constraint)
+            }
+            PendingMutationKind::RemoveLayoutConstraint { child } => {
+                self.remove_layout_constraint(child)
+            }
+            PendingMutationKind::SetSizeOverride { figure, kind, size } => {
+                self.set_size_override(figure, kind, size)
+            }
+            PendingMutationKind::MoveChildToIndex {
+                parent,
+                child,
+                index,
+            } => self.move_child_to_index(parent, child, index),
+            PendingMutationKind::BringChildToFront { parent, child } => {
+                self.bring_child_to_front(parent, child)
+            }
+            PendingMutationKind::SendChildToBack { parent, child } => {
+                self.send_child_to_back(parent, child)
+            }
+            PendingMutationKind::SetChildClippingStrategy { figure, strategy } => {
+                self.set_child_clipping_strategy(figure, strategy)
+            }
+            PendingMutationKind::AddLayerFigure {
+                pane,
+                figure,
+                key,
+                placement,
+            } => self
+                .add_layer(pane, figure, key, placement)
+                .map(|_| true)
+                .map_err(|_| RuntimeMutationError::Rejected),
+            PendingMutationKind::RemoveLayer { pane, key } => self
+                .remove_layer(pane, &key)
+                .map(|_| true)
+                .map_err(|_| RuntimeMutationError::Rejected),
+            PendingMutationKind::MoveLayer {
+                pane,
+                key,
+                placement,
+            } => self
+                .move_layer(pane, &key, placement)
+                .map_err(|_| RuntimeMutationError::Rejected),
+            PendingMutationKind::ReparentLayer {
+                child,
+                new_pane,
+                key,
+                placement,
+            } => self
+                .reparent_layer(child, new_pane, key, placement)
+                .map_err(|_| RuntimeMutationError::Rejected),
+            PendingMutationKind::RemoveChild { parent, child } => {
+                let removed = self.tree.apply_pending_mutations(
+                    &mut self.updates,
+                    vec![PendingMutation::from_kind(
+                        PendingMutationKind::RemoveChild { parent, child },
+                    )],
+                );
+                if !removed {
+                    return Err(RuntimeMutationError::Rejected);
+                }
+                self.invalidate_connection_figure_change(child, true);
+                Ok(true)
+            }
+            PendingMutationKind::Reparent { child, new_parent } => {
+                let reparented = self.tree.apply_pending_mutations(
+                    &mut self.updates,
+                    vec![PendingMutation::from_kind(PendingMutationKind::Reparent {
+                        child,
+                        new_parent,
+                    })],
+                );
+                if !reparented {
+                    return Err(RuntimeMutationError::Rejected);
+                }
+                self.invalidate_connection_figure_change(child, true);
+                Ok(true)
+            }
+            kind @ PendingMutationKind::AddChildFigure { .. } => {
+                if self.tree.apply_pending_mutations(
+                    &mut self.updates,
+                    vec![PendingMutation::from_kind(kind)],
+                ) {
+                    Ok(true)
+                } else {
+                    Err(RuntimeMutationError::Rejected)
+                }
+            }
+        }
     }
 
     fn initialize_layered_panes(&mut self) {
@@ -1698,11 +1992,7 @@ impl Runtime {
             || (canvas.damage().mode() == DamageMode::Partial
                 && !capabilities.supports_partial_damage())
         {
-            if canvas.commands().is_empty() {
-                canvas = self.tree.render();
-            } else {
-                canvas.damage_mut().set_full();
-            }
+            canvas = self.tree.render();
         }
 
         let frame_id = self.next_frame_id;
@@ -1749,8 +2039,11 @@ impl Runtime {
             return None;
         }
         if self.updates.is_update_queued() {
-            self.full_redraw_pending = false;
-            return Some(self.tree.perform_update(&mut self.updates));
+            let incremental = self.tree.perform_update(&mut self.updates);
+            if std::mem::take(&mut self.full_redraw_pending) {
+                return Some(self.tree.render());
+            }
+            return Some(incremental);
         }
         if std::mem::take(&mut self.full_redraw_pending) {
             return Some(self.tree.render());

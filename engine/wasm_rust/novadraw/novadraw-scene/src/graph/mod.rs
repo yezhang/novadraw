@@ -222,6 +222,7 @@ pub struct NodeState {
     pub(crate) preferred_size: Option<(f64, f64)>,
     pub(crate) minimum_size: Option<(f64, f64)>,
     pub(crate) maximum_size: Option<(f64, f64)>,
+    pub(crate) child_clipping_strategy: Option<ChildClippingStrategy>,
     pub(crate) style: FigureStyle,
 }
 
@@ -240,6 +241,7 @@ impl Default for NodeState {
             preferred_size: None,
             minimum_size: None,
             maximum_size: None,
+            child_clipping_strategy: None,
             style: FigureStyle::default(),
         }
     }
@@ -280,6 +282,10 @@ impl NodeState {
 
     pub fn style(&self) -> &FigureStyle {
         &self.style
+    }
+
+    pub fn child_clipping_strategy_override(&self) -> Option<ChildClippingStrategy> {
+        self.child_clipping_strategy
     }
 }
 
@@ -497,10 +503,12 @@ impl FigureNode {
     }
 
     pub(crate) fn child_clipping_strategy(&self) -> ChildClippingStrategy {
-        self.figure
-            .container()
-            .map(|container| container.child_clipping_strategy())
-            .unwrap_or(ChildClippingStrategy::ClipToChildBounds)
+        self.state.child_clipping_strategy.unwrap_or_else(|| {
+            self.figure
+                .container()
+                .map(|container| container.child_clipping_strategy())
+                .unwrap_or(ChildClippingStrategy::ClipToChildBounds)
+        })
     }
 
     fn child_policy(&self) -> ChildPolicy {
@@ -870,7 +878,15 @@ impl FigureTree {
                 PendingMutationKind::AddLayerFigure { .. }
                 | PendingMutationKind::RemoveLayer { .. }
                 | PendingMutationKind::MoveLayer { .. }
-                | PendingMutationKind::ReparentLayer { .. } => false,
+                | PendingMutationKind::ReparentLayer { .. }
+                | PendingMutationKind::SetLayoutManager { .. }
+                | PendingMutationKind::SetLayoutConstraint { .. }
+                | PendingMutationKind::RemoveLayoutConstraint { .. }
+                | PendingMutationKind::SetSizeOverride { .. }
+                | PendingMutationKind::MoveChildToIndex { .. }
+                | PendingMutationKind::BringChildToFront { .. }
+                | PendingMutationKind::SendChildToBack { .. }
+                | PendingMutationKind::SetChildClippingStrategy { .. } => false,
             };
         }
 
@@ -2009,6 +2025,28 @@ impl FigureTree {
         block.maximum_size = size;
         self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
         true
+    }
+
+    pub(crate) fn set_child_clipping_strategy(
+        &mut self,
+        block_id: FigureId,
+        strategy: ChildClippingStrategy,
+    ) -> bool {
+        let Some(block) = self.blocks.get_mut(block_id) else {
+            return false;
+        };
+        if block.child_clipping_strategy() == strategy {
+            return false;
+        }
+        block.state.child_clipping_strategy = Some(strategy);
+        self.notify_block_changed(block_id);
+        true
+    }
+
+    pub fn child_clipping_strategy(&self, block_id: FigureId) -> Option<ChildClippingStrategy> {
+        self.blocks
+            .get(block_id)
+            .map(FigureNode::child_clipping_strategy)
     }
 
     /// 渲染场景图
@@ -3306,6 +3344,36 @@ impl FigureTree {
         self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Structure);
     }
 
+    pub(crate) fn replace_block_layout_manager(
+        &mut self,
+        block_id: FigureId,
+        layout_manager: Option<Box<dyn LayoutManager>>,
+    ) -> bool {
+        let Some(block) = self.blocks.get_mut(block_id) else {
+            return false;
+        };
+        if block.layout.manager.is_none() && layout_manager.is_none() {
+            return false;
+        }
+        block.layout.manager = layout_manager;
+        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Structure);
+        true
+    }
+
+    pub(crate) fn validate_layout_manager_constraints(
+        &self,
+        block_id: FigureId,
+        layout_manager: &dyn LayoutManager,
+    ) -> Result<(), LayoutError> {
+        let Some(block) = self.blocks.get(block_id) else {
+            return Ok(());
+        };
+        for (child, constraint) in &block.layout.constraints {
+            layout_manager.validate_constraint(block_id, *child, constraint.as_ref())?;
+        }
+        Ok(())
+    }
+
     /// 获取指定块的布局管理器
     pub fn get_block_layout_manager(&self, block_id: FigureId) -> Option<&dyn LayoutManager> {
         self.blocks
@@ -3318,16 +3386,21 @@ impl FigureTree {
     where
         C: LayoutConstraint,
     {
+        self.set_boxed_constraint(child_id, Box::new(constraint))
+    }
+
+    pub(crate) fn set_boxed_constraint(
+        &mut self,
+        child_id: FigureId,
+        constraint: Box<dyn LayoutConstraint>,
+    ) -> bool {
         let Some(parent_id) = self.blocks.get(child_id).and_then(|child| child.parent) else {
             return false;
         };
         let Some(parent) = self.blocks.get_mut(parent_id) else {
             return false;
         };
-        parent
-            .layout
-            .constraints
-            .insert(child_id, Box::new(constraint));
+        parent.layout.constraints.insert(child_id, constraint);
         self.mark_validation_path_invalid_for(parent_id, LayoutInvalidation::Constraint);
         self.emit_layout_event(LayoutEvent {
             kind: LayoutEventKind::ConstraintChanged,

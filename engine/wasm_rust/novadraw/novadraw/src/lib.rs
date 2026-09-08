@@ -54,7 +54,7 @@ pub use novadraw_scene::{
     RectangleBorder, RectangleFigure, ResolvedStyle, ResourceError, ResourceKind, ResourceRegistry,
     ResourceStatus, RootFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouteError,
     RouteOutput, RouteRequest, RouterBinding, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope, Runtime, ScalableFigure, ScalableFreeformLayeredPane,
+    RoutingGroupScope, Runtime, RuntimeMutationError, ScalableFigure, ScalableFreeformLayeredPane,
     ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext, ScrollBarFigure,
     ScrollBarVisibility, ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,
     ScrollPaneHandle, ScrollPaneLayout, Shape, ShapeMutationError, StackLayout, TextPlacement,

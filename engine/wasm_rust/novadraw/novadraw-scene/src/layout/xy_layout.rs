@@ -3,7 +3,7 @@
 //! 参考 draw2d: XYLayout
 //! 使用约束（Rectangle）定位每个子元素。
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
@@ -121,6 +121,23 @@ impl Default for XYLayout {
 }
 
 impl LayoutManager for XYLayout {
+    fn validate_constraint(
+        &self,
+        container: FigureId,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        if constraint.as_any().is::<XYConstraint>() || constraint.as_any().is::<Rectangle>() {
+            return Ok(());
+        }
+        Err(LayoutError::ConstraintTypeMismatch {
+            container,
+            child,
+            expected: "XYConstraint or Rectangle",
+            actual: constraint.type_name(),
+        })
+    }
+
     fn get_preferred_size(
         &self,
         container: FigureId,

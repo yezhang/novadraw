@@ -153,6 +153,11 @@ pub enum LayoutError {
         expected: &'static str,
         actual: &'static str,
     },
+    UnsupportedConstraint {
+        container: FigureId,
+        child: FigureId,
+        actual: &'static str,
+    },
     InvalidChild {
         container: FigureId,
         child: FigureId,
@@ -173,6 +178,14 @@ impl fmt::Display for LayoutError {
             } => write!(
                 f,
                 "layout constraint type mismatch for child {child:?} in {container:?}: expected {expected}, got {actual}"
+            ),
+            Self::UnsupportedConstraint {
+                container,
+                child,
+                actual,
+            } => write!(
+                f,
+                "layout for {container:?} does not accept constraint {actual} for child {child:?}"
             ),
             Self::InvalidChild { container, child } => {
                 write!(f, "{child:?} is not a direct child of {container:?}")
@@ -271,6 +284,23 @@ impl LayoutOutput {
 /// 参考 draw2d: LayoutManager
 /// 用于计算和设置子元素的位置。
 pub trait LayoutManager {
+    /// Validates one parent-owned child constraint before a Runtime transaction commits it.
+    ///
+    /// Managers that consume constraints must override this method and accept every concrete
+    /// compatibility type that their layout implementation can read.
+    fn validate_constraint(
+        &self,
+        container: FigureId,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        Err(LayoutError::UnsupportedConstraint {
+            container,
+            child,
+            actual: constraint.type_name(),
+        })
+    }
+
     /// 获取首选大小
     ///
     /// 对应 draw2d: getPreferredSize(IFigure, int, int)

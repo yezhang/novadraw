@@ -1,6 +1,6 @@
 //! Grid layout with per-child alignment, span and excess-space constraints.
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
@@ -299,6 +299,23 @@ impl Default for GridLayout {
 }
 
 impl LayoutManager for GridLayout {
+    fn validate_constraint(
+        &self,
+        container: FigureId,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        if constraint.as_any().is::<GridConstraint>() {
+            return Ok(());
+        }
+        Err(LayoutError::ConstraintTypeMismatch {
+            container,
+            child,
+            expected: std::any::type_name::<GridConstraint>(),
+            actual: constraint.type_name(),
+        })
+    }
+
     fn get_preferred_size(
         &self,
         container: FigureId,

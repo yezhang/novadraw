@@ -3,7 +3,7 @@
 //! 参考 draw2d: BorderLayout
 //! 将容器划分为北、南、东、西、中五个区域。
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::FigureId;
 use novadraw_geometry::Rectangle;
 
@@ -180,6 +180,23 @@ impl Default for BorderLayout {
 }
 
 impl LayoutManager for BorderLayout {
+    fn validate_constraint(
+        &self,
+        container: FigureId,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        if constraint.as_any().is::<BorderConstraint>() || constraint.as_any().is::<Rectangle>() {
+            return Ok(());
+        }
+        Err(LayoutError::ConstraintTypeMismatch {
+            container,
+            child,
+            expected: "BorderConstraint or Rectangle",
+            actual: constraint.type_name(),
+        })
+    }
+
     fn get_preferred_size(
         &self,
         container: FigureId,

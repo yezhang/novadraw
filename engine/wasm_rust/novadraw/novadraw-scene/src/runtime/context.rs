@@ -3,11 +3,12 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree, GestureSessionId,
-    InteractionState, LayerKey, LayerPlacement, MouseEventKind, MouseLocationZoomScrollPolicy,
-    NotificationEffect, PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle,
-    ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
-    mutation::{MutationContext, PendingMutation},
+    ChildClippingStrategy, DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree,
+    GestureSessionId, InteractionState, LayerKey, LayerPlacement, LayoutManager, MouseEventKind,
+    MouseLocationZoomScrollPolicy, NotificationEffect, PendingMutations, PropertyChangeEvent,
+    PropertyValue, Rectangle, ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent,
+    ZoomEvent, ZoomManager,
+    mutation::{MutationContext, PendingMutation, SizeOverrideKind},
 };
 
 enum RuntimeEffect {
@@ -162,6 +163,88 @@ impl<'a> EventContext<'a> {
     /// Enqueues a reparent operation for application after top-level dispatch.
     pub fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
         MutationContext::reparent_later(self, child, new_parent);
+    }
+
+    pub fn set_layout_manager_later(
+        &mut self,
+        container: FigureId,
+        manager: Box<dyn LayoutManager>,
+    ) {
+        MutationContext::set_layout_manager_later(self, container, Some(manager));
+    }
+
+    pub fn clear_layout_manager_later(&mut self, container: FigureId) {
+        MutationContext::set_layout_manager_later(self, container, None);
+    }
+
+    pub fn set_layout_constraint_later<C>(&mut self, child: FigureId, constraint: C)
+    where
+        C: crate::LayoutConstraint,
+    {
+        MutationContext::set_layout_constraint_later(self, child, Box::new(constraint));
+    }
+
+    pub fn remove_layout_constraint_later(&mut self, child: FigureId) {
+        MutationContext::remove_layout_constraint_later(self, child);
+    }
+
+    pub fn set_preferred_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Preferred,
+            Some(size),
+        );
+    }
+
+    pub fn clear_preferred_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Preferred, None);
+    }
+
+    pub fn set_minimum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Minimum,
+            Some(size),
+        );
+    }
+
+    pub fn clear_minimum_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Minimum, None);
+    }
+
+    pub fn set_maximum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Maximum,
+            Some(size),
+        );
+    }
+
+    pub fn clear_maximum_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Maximum, None);
+    }
+
+    pub fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
+        MutationContext::move_child_to_index_later(self, parent, child, index);
+    }
+
+    pub fn bring_child_to_front_later(&mut self, parent: FigureId, child: FigureId) {
+        MutationContext::bring_child_to_front_later(self, parent, child);
+    }
+
+    pub fn send_child_to_back_later(&mut self, parent: FigureId, child: FigureId) {
+        MutationContext::send_child_to_back_later(self, parent, child);
+    }
+
+    pub fn set_child_clipping_strategy_later(
+        &mut self,
+        figure: FigureId,
+        strategy: ChildClippingStrategy,
+    ) {
+        MutationContext::set_child_clipping_strategy_later(self, figure, strategy);
     }
 
     pub fn add_layer_later(

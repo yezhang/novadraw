@@ -385,15 +385,6 @@ pub trait Figure: AsAny {
         Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
     }
 
-    /// ===== PaintChildren 相关方法 =====
-    /// 绘制子元素
-    ///
-    /// 对应 draw2d paintChildren(Graphics)
-    /// 默认行为由渲染器调度 PaintChildren 任务
-    fn paint_children(&self) {
-        // 默认行为由渲染器处理
-    }
-
     /// ===== PaintBorder 阶段方法 =====
     /// 获取边框
     ///

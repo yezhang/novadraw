@@ -2,7 +2,7 @@ use std::{error::Error, fmt};
 
 use novadraw_geometry::{Point, Rectangle};
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::graph::FigureId;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -121,6 +121,23 @@ impl FreeformLayout {
 }
 
 impl LayoutManager for FreeformLayout {
+    fn validate_constraint(
+        &self,
+        container: FigureId,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        if constraint.as_any().is::<FreeformConstraint>() {
+            return Ok(());
+        }
+        Err(LayoutError::ConstraintTypeMismatch {
+            container,
+            child,
+            expected: std::any::type_name::<FreeformConstraint>(),
+            actual: constraint.type_name(),
+        })
+    }
+
     fn get_preferred_size(
         &self,
         container: FigureId,

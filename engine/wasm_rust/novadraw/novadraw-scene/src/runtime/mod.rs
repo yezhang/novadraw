@@ -19,6 +19,7 @@ pub use focus::{
     TreeOrderFocusTraversal,
 };
 pub use interaction::{InteractionState, PointerId};
+pub use mutation::RuntimeMutationError;
 pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
