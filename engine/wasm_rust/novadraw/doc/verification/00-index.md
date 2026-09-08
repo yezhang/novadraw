@@ -11,6 +11,9 @@
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
+Draw2D Core 1.0 能力覆盖、公共 API 可达性与路线图一致性审计见
+[`reviews/draw2d-core-capability-audit-2026-09-08.md`](reviews/draw2d-core-capability-audit-2026-09-08.md)。
+
 ## 手工验证入口
 
 - [`manual/core-pipeline.md`](manual/core-pipeline.md)：M1-M7 核心渲染与事件链路；
@@ -19,6 +22,8 @@
 - [`manual/d1-figure-style.md`](manual/d1-figure-style.md)：FigureStyle 继承、覆盖与 cursor；
 - [`manual/d1-focus-traversal.md`](manual/d1-focus-traversal.md)：Native/Web
   Tab/Shift+Tab 焦点遍历与边界；
+- [`manual/m10-widgets.md`](manual/m10-widgets.md)：M10.4 Button/Toggle
+  pointer、keyboard 与状态视觉验收；
 - [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、
   Vello WebGPU 与 Canvas2D 浏览器验收。
 - [`performance/r8-baseline-2026-09-02.md`](performance/r8-baseline-2026-09-02.md)：

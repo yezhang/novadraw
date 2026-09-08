@@ -49,6 +49,13 @@
   - M1-M10 编号与状态入口：`doc/roadmap/00-index.md`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。
 
+### 当前执行门禁
+
+- M10.4 已完成；M10.5 暂停，必须先完成
+  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D3 审计收口。
+- M9 当前为 `in_progress`；shared Manhattan reservation 与 nested viewport policy
+  满足 ADR-005 后才能恢复为 `complete`。
+
 ### 架构分析边界
 
 - 架构设计优先从需求、第一性原理、draw2d/GEF 参考源码出发。

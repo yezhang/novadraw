@@ -90,8 +90,10 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P1 | Anchor | `ConnectionAnchor/ChopboxAnchor/EllipseAnchor/XYAnchor` | anchor trait | owner bounds 变化触发连接重算、参考点计算 |
 | P1 | Router | `ConnectionRouter/Manhattan/Bendpoint/ShortestPath` | router trait | route 输入输出、constraint、invalidate/remove |
 | P1 | Locator | `Locator/ConnectionLocator/EndpointLocator/MidpointLocator` | decoration/label placement | 在线段、端点、相对 bounds 上定位 child |
+| P1 | Widget 辅助 | `Button/Clickable/Toggle` | 基础交互 Figure | action、selected、pressed、rollover、focus |
+| P1 | Accessibility bridge | `Accessible/AccessibilityDispatcher` | engine snapshot + platform bridge | name、role、state、bounds、children、focus、action |
 | P2 | 文本 Flow | `FlowFigure/TextFlow/ParagraphTextLayout` | 富文本/段落布局 | inline/block flow、换行、文本测量 |
-| P2 | Widget 辅助 | `Button/Clickable/Toggle/Slider` 等 widgets | 可选控件库 | 交互控件，不应污染核心 draw2d 协议 |
+| P2 | 完整 Widget Toolkit | `ButtonGroup/CheckBox/RadioButton/Slider`、repeat firing | 可选控件库 | 不污染核心 draw2d 协议 |
 | P2 | 图布局 | `DirectedGraphLayout/CompoundDirectedGraphLayout` | 后续自动布局能力 | DAG/复合图布局，可作为独立算法模块 |
 | P2 | 打印 / 缩放 Graphics | `PrinterGraphics/ScaledGraphics` | backend adapter | 缩放代理、打印目标、非主线渲染后端 |
 | GEF 层 | Viewer 映射 | `EditPartViewer.findObjectAt` | 编辑器层，不进 draw2d core | Figure 到 app object / EditPart 映射 |
@@ -131,6 +133,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `notification.action` | Action 通知 | button-like action 发生事实与稳定 revision |
 | `notification.ancestor` | Ancestor 通知 | parent-chain add/remove/move 通知 |
 | `notification.layout_update` | Layout / Update 通知 | layout lifecycle、validating、painting phase 通知 |
+| `accessibility.bridge` | Accessibility 桥接 | engine-owned accessibility snapshot/delta 与平台 adapter |
 | `viewport.scroll_zoom` | Viewport / Scroll / Zoom | viewport、scroll pane、range model、zoom transform、content clip |
 | `layer.freeform` | Freeform / Layer | Layer、FreeformLayer、自由坐标内容范围 |
 | `connection.figure` | Connection | Connection、PolylineConnection、point list、connection layer |
@@ -156,7 +159,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | M7 通知语义分层 | `notification.figure`, `notification.coordinate`, `notification.property`, `notification.ancestor`, `notification.layout_update` | `figure.lifecycle`, `validation.protocol`, `update_manager.two_phase` | Figure/Coordinate/Property/Ancestor/Input/Update 通知不混层 |
 | M8 Viewport / Scroll / Zoom | `viewport.scroll_zoom`, `clipping.strategy`, `coordinate.conversion`, `hit_test.search` | `damage.repaint`, `update_manager.two_phase`, `layer.freeform` | viewport 作为 Figure 树语义参与 paint、hit-test、坐标转换和 damage repair |
 | M9 Connection / Anchor / Router | `connection.figure`, `connection.anchor`, `connection.router`, `connection.locator` | `coordinate.conversion`, `damage.repaint`, `notification.ancestor`, `hit_test.search` | anchor 端点、router point list、node movement reroute、connection damage/hit-test |
-| M10 常用 Figure 与文本/控件 | `builtin.figures`, `border.protocol`, `text.flow`, `widgets.basic`, `notification.action` | `layout.manager`, `event.input_listeners`, `figure.properties` | deferred builtin Figure 升级为完整 reusable surface；具体 Figure 只能消费核心协议，不引入特例 |
+| M10 常用 Figure 与文本/控件 | `builtin.figures`, `border.protocol`, `text.flow`, `widgets.basic`, `notification.action`, `accessibility.bridge` | `layout.manager`, `event.input_listeners`, `figure.properties` | deferred builtin Figure 升级为完整 reusable surface；具体 Figure 只能消费核心协议，不引入特例 |
 
 ## 方法级 API 跟踪矩阵
 
@@ -182,13 +185,13 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `graphics.context` | `Graphics.pushState/popState/restoreState` | `novadraw_render::NdCanvas::{push_state,pop_state,restore_state}` | verified | 保持 M1 state stack probe |
-| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,set_clip,reset_clip,clip_depth}`；没有 `clip_path/get_clip` public API | partial | M3/M8 检查 parent/client/viewport clip；`clipPath` 单独作为缺口 |
-| `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `NdCanvas::{translate,scale,rotate,transform,set_transform,reset_transform}`；没有 `shear/get_absolute_scale` | partial | `shear/absolute scale` 先作为 P1/P2 状态，不阻塞 M1 |
-| `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `NdCanvas::{line,draw_rectangle,draw_oval,draw_polygon,polyline}`；路径使用 `begin_path/move_to/line_to/.../stroke/fill` | partial | M10.1 只补 reusable Figure 消费侧契约测试，不重开 Graphics 基础设计 |
-| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | `NdCanvas::{fill_rectangle,fill_rect,fill_oval,fill_polygon,fill}`；`fillPath` 对应 path + `fill()`；`fillGradient` 缺 public parity | partial | M10.1 复用现有 fill/path；`fillGradient` 继续延后 |
-| `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | 暂无 `NdCanvas` public 等价方法；RoundedRectangleFigure 已用 path 表达 | missing | M10.1 先验证现有 path；仅有跨 Figure 复用证据时增加最小 primitive |
-| `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | `NdCanvas::{draw_string,draw_text,fill_text,stroke_text,font,measure_text}`；没有 `draw_text_layout/get_font_metrics/set_font` | partial | M10 前补 preferred size + text measure contract |
-| `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size}` | partial | M10 前补 image resource id、preferred size、paint contract |
+| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,set_clip,reset_clip,clip_depth}` 覆盖 Core 1.0 矩形裁剪；`getClip/clipPath` 未提供 | partial | 矩形 clip 已验证；clip 查询与 path clip 明确延后到出现真实产品需求 |
+| `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `NdCanvas::{translate,scale,rotate,transform,set_transform,reset_transform}`；任意 affine 可表达 shear，未提供 `getAbsoluteScale` convenience | partial | transform 语义已验证；状态查询 convenience 明确延后 |
+| `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `NdCanvas::{line,draw_rectangle,draw_oval,draw_polygon,polyline}`；路径使用 `begin_path/move_to/line_to/.../stroke/fill` | verified | M1 状态栈与 M10.1 reusable Figure 已覆盖实际消费路径 |
+| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | `NdCanvas::{fill_rectangle,fill_rect,fill_oval,fill_polygon,fill}`；`fillPath` 对应 path + `fill()` | partial | solid fill 已验证；gradient 明确延后 |
+| `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | `RoundedRectangleFigure` 通过通用 path + stroke/fill 等价表达，不增加 convenience primitive | verified | 除非出现新的跨 Figure 复用证据，否则不机械增加同名 API |
+| `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`NdCanvas::{draw_text_layout,fill_text_layout,stroke_text_layout}` 只消费 Runtime shaping 后的 `TextLayout` / `DrawGlyphRun` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
+| `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size}` 消费 `ImageResourceRef`；command 保留 `src_rect` 字段但当前产品入口只绘制完整 source | partial | 资源 revision、缩放与 ImageFigure 已验证；source rectangle 明确延后 |
 | `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,line_cap,line_join}`；line dash/miter、antialias、XOR 暂无 public parity | deferred | 高级 stroke/style 不进入 M1 完成门禁；未实现 API 不暴露静默 no-op |
 | `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw_geometry::{Point,Dimension,Rectangle,Insets,PointList,Transform,Precision*}`；`novadraw_math::{Mat3,Vec3}` | verified | `PointList` 需在 M9/M10 connection/point-list shape 中复查 |
 
@@ -198,17 +201,18 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `figure.tree` | `IFigure.add(IFigure)` | `FigureTree::{set_contents,add_child_to,try_add_child_to,add_child_with_bounds,add_child}` | verified | 保持 child order / no-cycle / 10,000 层深度门禁 probes |
-| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | indexed add 由 `add_child*` + `move_child_to_index` 组合表达；constraint add 由 `set_constraint` 分离表达 | partial | 若需要原子 indexed/constraint add，单独声明 API 或 probe |
-| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | 暂无直接 public remove/get_parent/set_parent；结构变更可经 `PendingMutations`、`apply_pending_mutations` 间接表达 | partial | M2 已完成核心拓扑；remove/reparent public parity 需独立跟踪 |
-| `figure.tree` | `getChildren()` | `FigureNode::children_count`, `FigureTree::child_order`；两者均由 crate root re-export | partial | 若产品 API 需要 child iterator，应明确公开入口 |
-| `figure.lifecycle` | `addNotify()`, `removeNotify()` | `Figure::{on_attached,on_detached}` | verified | 监听解绑与资源释放在 M7 再复查 |
-| `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `FigureTree::{figure_bounds,set_bounds,prim_translate}`，`Bounded::{bounds,set_bounds}`；bounds 实际由 `Box<dyn Figure>`/`Bounded` 持有，`FigureNode` 提供只读访问 | verified | M4/M5 复查 dirty rect 与 validation 联动 |
+| `figure.tree` | `IFigure.add(IFigure)` | 构建期 `FigureTreeBuilder::{set_contents,add_child_to,try_add_child_to}`；运行期 `Runtime::{set_contents,add_figure}` | verified | 保持 child order、single/layer admission、no-cycle 与 10,000 层深度门禁 |
+| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | 构建期可组合 add + `move_child_to_index` / `set_constraint`；Runtime 尚无原子 indexed/constraint add | partial | D3.2 补 Runtime typed mutation；是否需要单入口原子 add 由契约测试决定 |
+| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `Runtime::{remove_figure,reparent}`、`FigureTree::parent_id`；callback 使用 `EventContext::{remove_child_later,reparent_later}` | partial | remove/reparent/parent 已可达；`removeAll` 与通用 callback mutation 在 D3.2 校准 |
+| `figure.tree` | `getChildren()` | `FigureNode::children_count`、`FigureTree::child_order/descendant_ids` 提供稳定只读查询 | verified | 不暴露可修改内部 children 集合的引用 |
+| `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}` | verified | attach/detach 与资源、交互状态清理已有测试 |
+| `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`Runtime::{set_bounds,translate}` update-aware 修改 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源 |
 | `figure.box.client_area` | `getClientArea()`, `getClientArea(Rectangle)`, `getInsets()` | `Bounded::{client_area,insets}` | verified | M5 layout area、M8 viewport client area 继续复查 |
 | `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{set_visible,set_enabled,is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` | verified | M6 复查 disabled 对 event target 的策略 |
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |
 | `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | `TreeSearch`、`TreeSearchContext`、`ExclusionSearch`、`FigureTree::{hit_test_with,hit_test_excluding,find_in_subtree,ancestor_ids,descendant_ids,is_ancestor_of}` | verified | D1.5a：共享 hit-test traversal、prune 子树与稳定结构查询已有契约测试 |
-| `figure.properties` | `foreground/background/font/cursor/tooltip/opaque` | `FigureStyle`、`ResolvedStyle`、`FigureTree::{figure_style,resolved_style,set_figure_style,set_opaque}`、Runtime cursor/tooltip 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
+| `figure.properties` | `foreground/background/font/cursor/opaque` | `FigureStyle`、`ResolvedStyle`、Runtime update-aware style/opaque mutation 与 cursor 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
+| `figure.properties` | `tooltip` | FigureStyle tooltip 继承/关闭与 `Runtime::tooltip()` 当前 hover source 查询 | partial | M10.5 补 delay、show/hide、placement 与 PlatformHost effect |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
@@ -217,12 +221,12 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `paint.protocol` | `IFigure.paint(Graphics)` | 实际 traversal 由 `FigureTree::render` 的内部递归实现承载；没有 public `Figure::paint` 或 renderer 替换入口 | verified | 保护 `render_recursive.rs` 主流程，只在协议不符时调整 |
-| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；`paint_client_area` 是 renderer 内部流程，`Figure::paint_children` 是 hook 不是实际 child traversal | partial | 不把 `paint_children` 误记为真实 traversal API |
-| `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | `Bounded::child_clipping_strategy`; concrete figures 提供 `with_child_clipping_strategy` builder；没有统一 setter | partial | M8 viewport、M10 deferred figures 纳入时复查覆盖 |
-| `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 签名为 `paint(Rectangle, &mut NdCanvas)` | partial | 保持实际 Rust trait 名称 |
-| `border.protocol` | `Border.getPreferredSize/isOpaque` | 暂无 `Border` public 等价方法 | missing | M10 补 preferred size / opaque 语义和 tests |
-| `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `RectangleBorder`, `BorderBuilder`, `BorderStyle` | partial | M10 补更多 border 实现和产品入口 |
-| `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | `FigureTree::{repaint,repaint_all,set_bounds_with_update}` + `UpdateManager::add_dirty_region`; `erase` 是内部 helper，不作为 public API | partial | M5 必须闭合 old/new bounds damage、dirty merge 和 parent-chain 坐标 |
+| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 由 renderer 固定执行，`Figure::paint_children` 当前公开 hook 不参与 traversal | partial | D3.2 删除或私有化误导性 no-op hook；不开放绕过树遍历的 child paint |
+| `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | `Bounded::child_clipping_strategy`; concrete figures 提供构造期策略；没有统一 Runtime setter 或任意多矩形 provider | partial | D3.2 补受控 Runtime replacement；任意多矩形 provider 延后到真实需求 |
+| `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `NdCanvas` | verified | Rust trait 不复制 Draw2D owner object 参数 |
+| `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 与 TitleBar owner snapshot 契约已覆盖 |
+| `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试 |
+| `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | Runtime/FigureTree update-aware repaint、全量 repaint、old/new visual erase 与 `UpdateManager::add_dirty_region` | verified | `erase` 保持 Runtime 内部 helper；dirty merge、parent-chain 投影和 partial repair 已验证 |
 
 Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`LabeledBorder.java`。
 
@@ -243,10 +247,10 @@ Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | `FigureTree::{set_constraint,get_constraint,remove_constraint}`；约束由父节点持有并在 remove/reparent 时清理 | verified | 保持约束所有权与 child 生命周期 probes |
-| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | `LayoutManager::{get_preferred_size,get_minimum_size}`，`LayoutContext::{get_preferred_size,get_minimum_size,get_maximum_size}` | verified | 六布局共享尺寸协议；border/client area 由图上下文提供 |
+| `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | FigureTree 内部语义与约束所有权已验证；Runtime 尚未暴露 update-aware set/remove | partial | D3.2 补 Runtime 公共事务和 callback pending mutation |
+| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | LayoutManager/LayoutContext 测量已验证；FigureTree size override 尚未形成 Runtime 公共 mutation | partial | D3.2 补 preferred/minimum/maximum set/clear |
 | `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 无缓存布局采用图级 invalid path；`layout` 通过 `LayoutContext` 操作 children | verified | 缓存布局未来需重新声明 invalidate hook |
-| `layout.manager` | concrete layout implementations | `FlowLayout`, `BorderLayout`, `GridLayout`, `ToolbarLayout`, `XYLayout`, `StackLayout`；额外保留 `FillLayout` | verified | `m5_layout_contract` + `layout-app` |
+| `layout.manager` | concrete layout implementations | 六类布局算法与构建期配置已验证；Runtime 尚不能动态替换 LayoutManager | partial | `m5_layout_contract` + `layout-app` 已覆盖算法，D3.2 补公共替换事务 |
 | `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureTree::{invalidate,mark_invalid,revalidate,perform_validation_cycle,is_valid}`，validation root、重复失效与回调延迟失效已闭合 | verified | hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
 | `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `UpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
 | `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | dirty 合并、根域传播、`DamageMode::{None,Full,Partial}` 与 retained frame 提交已闭合 | verified | exposed-rect overload 作为 P1 扩展 |
@@ -259,11 +263,11 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 |---|---|---|---|---|
 | `event.dispatcher` | `dispatchMousePressed/Released/Moved` | `EventDispatcher::{receive,dispatch_mouse_pressed,dispatch_mouse_released,dispatch_mouse_moved}`，`Event::Mouse`, `MouseEventKind` | verified | target-domain callback 与 capture 状态测试 |
 | `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 由 `mouseTarget` 迁移触发；`hoverSource` 专用于 tooltip source；drag/hover/double-click 为显式 dispatcher API | verified | capture、mouse target、cursor target 与 tooltip hover source 分轨 |
-| `event.dispatcher` | `setRoot`, `setControl` | root 等价入口为 `Runtime::set_contents`；`PlatformHost` 仅提供 redraw/surface/cursor/IME/accessibility 服务，无 root/control setter | partial | apps 只做平台输入适配，root dispatch 留在引擎层 |
+| `event.dispatcher` | `setRoot`, `setControl` | `Runtime::set_contents` 管理 root；`PlatformHost` 注入平台服务，避免 dispatcher 持有原生 control | verified | 接受组合根 + host adapter 变体，apps 只做平台输入适配 |
 | `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `Runtime::{request_focus,clear_focus,traverse_focus}`、`InteractionState::focus_owner`、`FocusTraversalPolicy`、`FocusEvent` | verified | D1.5b 引擎 focus model 与 D1.5c Native/Web Tab traversal 已通过自动验证及 macOS/Web 人工验收 |
 | `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release 自动释放；`FigureTree::{captured,set_captured}` | verified | captured target 与 hoverSource 独立 |
 | `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`ZoomEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口；scroll/zoom session 固定 target | verified | Winit 只在 `novadraw-apps` 适配单位、DPI 与 phase；pointer capture 与 gesture session 分轨 |
-| `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor/accessibility 扩展 | deferred | cursor 可随 Figure properties；accessibility 不进当前核心门禁 |
+| `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor 已由 Runtime/PlatformHost 桥接；accessibility 只有名称 hook 与 revision 占位 | partial | Accessibility 属于 M10.5 Core 1.0 门禁 |
 
 Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`MouseEvent.java`、listener 接口。
 
@@ -271,12 +275,12 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `FigureListener` + `ListenerId` 注册/移除；`FigureEvent::FigureMoved` | verified | resize 仍沿用 Draw2D figureMoved 语义 |
-| `notification.ancestor` | `add/removeAncestorListener` | `AncestorListener` + Added/Moved/Removed typed events | verified | add/remove/reparent/ancestor move 已进入 effect queue |
-| `notification.coordinate` | `add/removeCoordinateListener` | `CoordinateListener` + `CoordinateSystemChanged` | verified | coordinate root 变换独立分发 |
+| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | UpdateManager 内部 `FigureListener` + `ListenerId` 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
+| `notification.ancestor` | `add/removeAncestorListener` | UpdateManager 内部 Added/Moved/Removed typed events 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
+| `notification.coordinate` | `add/removeCoordinateListener` | UpdateManager 内部 `CoordinateSystemChanged` 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
 | `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled 已接入；Toggle selected 是控件模型属性，与 editor selection 分离 | verified | M10 新 Figure 属性继续复用同一协议 |
 | `notification.action` | `ActionListener.actionPerformed` | `ActionListener` + `ActionEvent { block_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 Toggle 固定 selected change → action 顺序 |
-| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `LayoutListener`、`ValidatingListener`、`UpdateListener` 分层注册，事务内保持因果顺序 | verified | listener remove 生命周期已有测试 |
+| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | UpdateManager 内部分层与因果顺序已验证；Runtime 缺 LayoutListener 入口且 `add_update_listener` 不返回 `ListenerId` | partial | D3.3 补齐成对公共 API 与注销契约 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。
 
@@ -303,7 +307,8 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | 不复制 Anchor listener；依赖变化由 Runtime 精确失效 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Manhattan/Fan、RouterRegistry、typed constraint 与 Runtime invalidation 已实现 | verified | obstacle reservation 与 ShortestPath 属于后续增强 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与单连接 Manhattan 已实现；RouterRegistry、typed constraint 与 Runtime invalidation 已验证 | partial | D3.1 补 shared Manhattan reservation；ShortestPath 继续延后 |
+| `clipping.strategy` | nested viewport connection clipping / unsupported topology | 普通 viewport/zoom 路由已验证；`UnsupportedViewportTopology` 尚无实际产生路径 | partial | D3.1 采用 divergent viewport chain 明确拒绝的 Core 1.0 策略 |
 | `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Locator 消费已提交 route snapshot；实现 endpoint、middle、indexed midpoint 和 path fraction | verified | child envelope 与 path bounds 已分离 |
 
 规范 Rust 契约、坐标域和错误模型见
@@ -319,7 +324,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `builtin.figures` | `RectangleFigure` | `RectangleFigure::{new,from_bounds,new_with_color,with_stroke,with_local_coordinates,with_child_clipping_strategy,with_border,translate,set_bounds}` | verified | Rectangle 是 active core baseline，不属于 deferred |
-| `builtin.figures` | `Shape.setFill/setOutline/setLineWidth/setLineWidthFloat` | `Shape` trait 暴露 `fill_enabled/outline_enabled/stroke_width/...` getter；setter parity 由 concrete builders 分散提供 | partial | M10.1 默认复用 FigureStyle 与具体入口；只有统一 mutation 需求成立时才新增契约 |
+| `builtin.figures` | `Shape.setFill/setOutline/setLineWidth/setLineWidthFloat` | `Shape` trait 暴露只读能力；颜色走 Runtime FigureStyle，几何 stroke 参数由 concrete builders/mutation 提供 | partial | Core 1.0 接受具体类型入口；统一 Shape mutation 明确延后到跨 Figure 需求成立 |
 | `builtin.figures` | `Ellipse` | `EllipseFigure` + Runtime FigureStyle；optimized fill/outline bounds、精确椭圆命中 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | rounded rectangle | `RoundedRectangleFigure::{set_corner_dimensions,corner_dimensions}` + `Runtime::set_corner_dimensions`；二维圆角 path 与精确命中 | verified | 单值 radius 仅为等宽高 convenience |
 | `builtin.figures` | point-list shape mutators | `Runtime::{replace_points,insert_point,set_point,remove_point,clear_points}`；parent-domain 输入原子规范化为 local points + NodeState bounds | verified | 非有限输入与非法 index 无 partial commit |
@@ -332,6 +337,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 text core 已提供可替换 engine、immutable layout metadata、唯一 glyph IR、真实测量/截断和 revision cache 基础 | partial | M10.2 基础范围 verified；完整多行 TextFlow/fragment/bidi API 按 P2 延后 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
+| `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | 当前仅有 `AccessibleFigure::accessible_name` 与 `PlatformHost::update_accessibility(revision)` 骨架 | partial | M10.5 补 engine-owned snapshot/delta、role/state/bounds/children/focus/action |
 
 建议首批 Rust 契约草案：
 
@@ -654,7 +660,7 @@ Novadraw 对照：
 P2 能力和 GEF 层 API 只作为后续对照，不进入当前 draw2d core 主线：
 
 - 文本 flow：`FlowFigure`、`TextFlow`、`ParagraphTextLayout`
-- widget：`Button`、`Clickable`、`Toggle`、`Slider`
+- widget：`ButtonGroup`、radio/checkbox、repeat firing、`Slider`
 - 图布局：`DirectedGraphLayout`、`CompoundDirectedGraphLayout`
 - 后端适配：`PrinterGraphics`、`ScaledGraphics`
 - GEF 交互层：`EditPartViewer`、`Request`、`Tool`、`EditPolicy`、`Command`

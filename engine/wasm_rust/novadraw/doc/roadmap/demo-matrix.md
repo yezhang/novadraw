@@ -97,7 +97,7 @@
 - [x] M10.1 `apps/native/shape-app`（自动契约与人工窗口验收完成）
 - [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
 - [x] M10.2-M10.3 `apps/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）
-- [ ] M10.4 `apps/native/widgets-app`（自动契约与三场景截图已通过，等待人工窗口验收）
+- [x] M10.4 `apps/native/widgets-app`（自动契约、三场景截图与 macOS 人工窗口验收通过）
 - [ ] M10 Tooltip demo（待新增）
 
 ---

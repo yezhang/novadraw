@@ -45,14 +45,15 @@
 | M4 | 坐标域与变换闭环 | `behavior_verified` | `m4_coordinate_contract` 与 `transform-app` 已完成 |
 | M5 | Layout + Validation + UpdateManager | `behavior_verified` | 六布局、约束/尺寸、两阶段事务、panic 恢复、damage 与 1,024 Figure 契约测试已闭合 |
 | M6 | 事件分发与交互状态机 | `behavior_verified` | mouse/cursor/hover/capture/focus 分离；scroll/zoom gesture session 与 pointer capture 分轨，连续手势固定 target |
-| M7 | 通知语义分层 | `behavior_verified` | Figure/Coordinate/Ancestor/Property/Layout typed listener、移除生命周期及事务因果顺序已有测试 |
+| M7 | 通知语义分层 | `behavior_verified` | 内部 typed listener 与因果顺序已验证；Runtime 完整注册/注销公共面转入 D3.3 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
-| M9 | Connection / Anchor / Router | `complete` | M9.1-M9.6、六场景 connections-demo、截图复核与人工窗口验收均已完成 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.3 已完成；M10.4 Clickable/Button/Toggle 已 behavior_verified，等待人工窗口验收；完整 TextFlow 保持 P2 |
+| M9 | Connection / Anchor / Router | `in_progress` | 当前产品基线与人工验收已完成；ADR-005 的 shared Manhattan reservation 和 nested viewport policy 转入 D3.1 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.4 已完成；D3 审计收口后进入 M10.5，完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
-R8/R9、D0-D2 与 M9 已完成，当前进入 M10 Reusable Figure。后续按
+R8/R9、D0-D2 与 M10.1-M10.4 已完成。2026-09-08 审计发现 M9 正式契约和核心
+Runtime 公共面仍有缺口；D3.0 证据校准已完成，当前转入 D3.1 M9 契约恢复。后续按
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
 执行：
 
@@ -60,12 +61,13 @@ R8/R9、D0-D2 与 M9 已完成，当前进入 M10 Reusable Figure。后续按
 D0 路线图与证据校准
 → D1 核心公共协议收口
 → D2 Layer / Freeform
-→ M9 Connection
-→ M10 Reusable Figure
+→ M9 / M10.1-M10.4 产品基线
+→ D3 Draw2D Core 审计收口
+→ M10.5 Tooltip / Accessibility
 → Draw2D Core 1.0
 ```
 
-`D0-D2` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
+`D0-D3` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
 
 状态提升规则：

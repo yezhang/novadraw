@@ -8,7 +8,7 @@
 “Draw2D 核心产品能力完整”的执行顺序。
 
 本文不创建新的 milestone 编号。`M1-M10` 的编号与状态仍以
-[`00-index.md`](00-index.md) 为唯一入口；本文中的 `D0-D2` 是跨 milestone 的
+[`00-index.md`](00-index.md) 为唯一入口；本文中的 `D0-D3` 是跨 milestone 的
 architecture delta，用于消除后续 M9/M10 实现会放大的公共协议缺口。
 
 ## 1. 当前判断
@@ -30,8 +30,16 @@ Novadraw 已具备完整的核心执行骨架：
 
 当前阻塞项：
 
-1. M10 文本、图像与控件产品面尚未完成；
-2. M1-M8 仍需按产品清单和 demo 矩阵从 `behavior_verified` 收口到 `complete`。
+1. 2026-09-08 Draw2D Core 能力审计发现 API 覆盖账本、milestone 状态与实现证据
+   存在偏差；
+2. M9 已接受契约中的 shared Manhattan reservation 与 nested viewport policy
+   尚未闭合；
+3. Runtime 动态 layout/tree mutation 和 M7 listener 尚未形成完整公共面；
+4. M10.5 Tooltip、Accessibility bridge 尚未实现；
+5. M1-M8 及 M10 Web 仍需按产品清单和 demo 矩阵完成剩余验收。
+
+审计基线：
+[`../verification/reviews/draw2d-core-capability-audit-2026-09-08.md`](../verification/reviews/draw2d-core-capability-audit-2026-09-08.md)。
 
 D1 启动时识别出的 selection、兼容 capability、Figure style、公开 no-op、
 TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
@@ -490,14 +498,16 @@ D2.5 自动验证结果：
 
 ## 6. M9：Connection 分批交付
 
-状态：`complete`
+状态：`in_progress`
 
 候选契约：
 
 - [`../design/architecture/connection-routing.md`](../design/architecture/connection-routing.md)
 - [`../adr/adr-005-connection-routing-contract.md`](../adr/adr-005-connection-routing-contract.md)
 
-ADR-005 已通过；M9.1-M9.6 的契约、实现、自动验证和人工窗口验收均已完成。
+ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗口验收已完成。
+2026-09-08 审计确认 shared Manhattan reservation 与 nested viewport policy
+仍未满足已接受契约，M9 在 D3.1 完成前不得恢复为 `complete`。
 
 执行顺序：
 
@@ -522,9 +532,9 @@ ADR-005 已通过；M9.1-M9.6 的契约、实现、自动验证和人工窗口�
    - Direct Router；
    - XY、Chopbox、Ellipse、RoundedRectangle、Label Anchor。
 4. **M9.4 Router**
-   - 状态：`complete`；
+   - 状态：`in_progress`；
    - BendpointConnectionRouter（完成）；
-   - ManhattanConnectionRouter（完成单连接正交路由，共享 reservation 延后）；
+   - ManhattanConnectionRouter（单连接正交路由完成，共享 reservation 转入 D3.1）；
    - base router + Fan post-processor pipeline；
    - RouterId scope 下的 routing group state、稳定 snapshot 与批量原子提交；
    - ShortestPathConnectionRouter 继续延后。
@@ -533,9 +543,9 @@ ADR-005 已通过；M9.1-M9.6 的契约、实现、自动验证和人工窗口�
    - Endpoint/Midpoint/Connection/PathFraction Locator；
    - polygon/polyline decoration；
    - ConnectionLayer inherited router 与 explicit override；
-   - viewport/zoom/deep-tree 与 nested viewport clip policy 集成。
+   - viewport/zoom/deep-tree 已验证；nested viewport clip policy 转入 D3.1。
 6. **M9.6 产品验收**
-   - 状态：`complete`；
+   - 状态：`in_progress`；
    - `connections-demo`；
    - anchor × router 组合矩阵；
    - 节点移动、resize、reparent、remove、滚动和缩放视觉断言。
@@ -610,8 +620,8 @@ M9.4b-M9.6 执行结果：
 - 六场景逐场截图成功并完成视觉复核，无空白帧、端点漂移、非正交段或视口裁剪；
 - 六场景人工窗口验收通过，包含 anchor_matrix 箭头锐角和 bendpoint 转折点复核；
 - `m9_connection_contract` 12 项、`m9_connection_runtime` 10 项通过；
-- shared Manhattan obstacle reservation 和 nested cross-viewport connection clip
-  仍属于后续增强，不阻塞当前无障碍 Router 产品基线。
+- shared Manhattan obstacle reservation 和 nested cross-viewport connection policy
+  与 ADR-005 已接受范围不一致，转入 D3.1 收口；在完成前 M9 保持 `in_progress`。
 
 ## 7. M10：Reusable Figure 分批交付
 
@@ -653,12 +663,20 @@ M10.4 正式契约：
    - Clickable/Button/Toggle model；
    - pressed、rollover、selected 与 focus visual；
    - action/change notification。
-5. **M10.5 Tooltip、焦点与 Accessibility**
+5. **D3 Draw2D Core 审计收口**
+   - 校准语义账本与 milestone 状态；
+   - 恢复 M9 已接受契约；
+   - 补齐 Runtime mutation 与 listener 公共面。
+6. **M10.5 Tooltip、焦点与 Accessibility**
+   - 先建立独立设计契约；
    - hover delay 与 show/hide；
-   - 键盘遍历；
-   - AccessibleFigure 到 PlatformHost bridge。
+   - Runtime 拥有 tooltip 语义状态与 deadline，Host 只提供单调时间和 wake-up；
+   - 复用已验证的键盘遍历与 focus owner；
+   - Runtime 生成平台无关 accessibility snapshot/delta，PlatformHost 只做桥接；
+   - 最小 accessibility 数据包含 node id、name、role、state、bounds、children、
+     focus owner 和 default action。
 
-M10 不扩张为完整 widget toolkit，也不实现富文本编辑器。
+M10.5 在 D3 完成前不进入实现。M10 不扩张为完整 widget toolkit，也不实现富文本编辑器。
 
 M10.1 自动执行结果：
 
@@ -727,11 +745,181 @@ M10.4 自动执行结果（2026-09-08）：
 - Toggle 激活严格按 selected property change → typed `ActionEvent` 顺序进入同一
   notification queue；programmatic `do_click` 复用同一事务。
 - `widgets-app` 的 Button_States、Toggle_States、Interactive_Widgets 三场景截图已
-  生成并复核；M10.4 达到 `behavior_verified`，等待人工窗口验收后标记 complete。
+  生成并复核；2026-09-08 macOS 人工窗口验收通过，M10.4 标记 `complete`。
 - Repeat firing、ButtonGroup/radio 互斥与完整 widget toolkit 保持延后，不进入
   M10.4 完成条件。
 
-## 8. Draw2D Core 1.0 完成门禁
+## 8. D3：Draw2D Core 审计收口
+
+状态：`in_progress`
+
+D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写既有路线图，
+也不创建新的产品 milestone；目标是把 2026-09-08 审计发现的“实现存在但公共不可达”
+和“已接受契约与完成状态不一致”在继续扩展产品能力前收口。
+
+审计输入：
+[`../verification/reviews/draw2d-core-capability-audit-2026-09-08.md`](../verification/reviews/draw2d-core-capability-audit-2026-09-08.md)。
+
+执行原则：
+
+- 审计报告记录事实，不直接替代设计与 ADR；
+- 已完成且证据仍有效的 D0-D2、M9、M10 实现不推倒重做；
+- 发现契约冲突时，先明确保留、修订或延后的设计决策，再修改实现状态；
+- 不通过开放 `&mut FigureTree` 绕过 Runtime 事务边界；
+- 不为关闭账本 mechanically 复制 Draw2D 的全部方法名；
+- 每个批次独立提交，先契约和测试，再实现，最后更新状态。
+
+`api_semantics`：
+
+- `graphics.context`
+- `figure.tree`
+- `figure.lifecycle`
+- `figure.geometry.bounds`
+- `figure.properties`
+- `paint.protocol`
+- `border.protocol`
+- `layout.manager`
+- `damage.repaint`
+- `event.dispatcher`
+- `notification.figure`
+- `notification.coordinate`
+- `notification.property`
+- `notification.ancestor`
+- `notification.layout_update`
+- `connection.router`
+- `clipping.strategy`
+- `accessibility.bridge`
+
+### D3.0 审计吸收与证据校准
+
+状态：`complete`
+
+目标：
+
+- 将审计报告纳入 parity 与 verification 索引；
+- 逐项校准 API coverage 中已实现、公共不可达、等价表达和明确延后的状态；
+- 记录 M10.4 人工验收结果并保持 `complete`；
+- M9 在已接受契约恢复前从 `complete` 回退为 `in_progress`；
+- M7 保留 `behavior_verified`，但明确 UpdateManager 内部能力与 Runtime 公共面的差异。
+
+必须校准的陈旧项：
+
+- Figure remove/reparent/parent 查询；
+- Border preferred size 与 opaque；
+- text layout API 与已删除 raw-string API；
+- Compound、Etched、Bevel、TitleBar Border；
+- M7 listener 的 Runtime 可达性；
+- M9 shared reservation 与 nested viewport policy；
+- Accessibility 是否属于 M10 Core 1.0 门禁；
+- Graphics 子集中的等价 primitive 与明确延后项。
+
+完成门禁：
+
+- 审计、路线图、产品清单、demo 矩阵和 API coverage 不再互相矛盾；
+- 每个 P0/P1 `partial` 或 `missing` 都有执行批次、明确变体或延后理由；
+- 状态校准不以删除已接受契约来适配现状。
+
+### D3.1 M9 已接受契约恢复
+
+状态：`not_started`
+
+决策：
+
+- 继续遵守 ADR-005，不把已接受的 shared routing 和 viewport topology 语义静默降级；
+- 实现 shared Manhattan row/column reservation、稳定 group snapshot、组级失效与
+  批量原子提交；
+- Core 1.0 对 nested viewport 采用最小严格策略：相同有效 viewport chain 可继续路由，
+  不同 nested viewport chain 返回 `RouteError::UnsupportedViewportTopology`；
+- nearest-common-viewport clipping 和 ShortestPath Router 保持后续增强。
+
+验证：
+
+- 同一 RouterId、routing domain 和 AnchorGroupKey 下 reservation 稳定且无冲突；
+- child order 变化、连接增删和 endpoint 变化触发整组确定性重算；
+- 不同 RouterId 或 routing domain 不共享 reservation；
+- divergent nested viewport topology 真实产生结构化错误并清除旧 route；
+- 同一 viewport chain 的既有 route、locator、damage 和 viewport/zoom 行为无回归。
+
+完成门禁：
+
+- ADR-005、connection-routing、API coverage、实现和测试一致；
+- M9.4/M9.6 恢复为 `complete`；
+- 不以注释“后续增强”覆盖已接受且仍在 Core 1.0 范围内的契约。
+
+### D3.2 Runtime 动态 mutation 公共面
+
+状态：`not_started`
+
+目标：
+
+- Runtime 提供 typed、update-aware 的 layout manager replacement；
+- Runtime 提供 constraint set/remove；
+- Runtime 提供 preferred/minimum/maximum size set/clear；
+- Runtime 提供 child index、bring-to-front、send-to-back；
+- Runtime 提供受控 clipping strategy replacement，不开放可变策略对象；
+- 删除或私有化不参与真实 traversal 的 `Figure::paint_children` 公开 no-op；
+- callback 内对应操作通过 `PendingMutation` 保持 FIFO，不允许重入 FigureTree mutation。
+
+事务要求：
+
+- 参数与 capability 校验在提交前完成，失败不产生部分状态；
+- layout/constraint/size 变化正确触发 validation、ancestor extent 和 damage；
+- child-order 变化同步 paint order、逆序 hit-test、layer/routing group 与 connection
+  invalidation；
+- remove/reparent 后的 constraint、interaction、resource 和 connection 清理保持现有
+  Runtime 不变量；
+- 不公开裸 `&mut FigureTree`。
+
+验证：
+
+- layout replacement 与 constraint replacement；
+- size override set/clear；
+- ordinary child Z-order mutation；
+- callback deferred mutation FIFO；
+- 非法 parent/child、constraint type 和 index 的原子失败；
+- Runtime 公共路径与构建期 FigureTreeBuilder 的稳定结果一致。
+
+### D3.3 M7 listener Runtime 公共面
+
+状态：`not_started`
+
+目标：
+
+- Runtime 暴露 Figure、Coordinate、Ancestor、Property、Action、Layout 和 Update
+  listener 注册入口；
+- 所有注册入口返回 `ListenerId`；
+- `remove_listener` 统一注销所有 listener 类型；
+- 明确 callback 内注销策略：若不支持重入注销，则提供 deferred removal handle，
+  不能发生借用冲突或静默失败。
+
+验证：
+
+- 每类 listener 经 Runtime 注册后可观察对应提交后事件；
+- 注销后不再收到事件；
+- 重复注销返回稳定结果；
+- callback 请求注销时不破坏当前 effect 顺序；
+- listener 不能在通知中观察未提交或部分提交状态。
+
+### D3.4 D3 完成门禁
+
+状态：`not_started`
+
+- D3.0-D3.3 全部完成；
+- `cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test` 通过；
+- WASM `novadraw` 与 `web-validation` 构建通过；
+- M9 恢复 `complete`，M7 的公共面证据写回 API coverage；
+- Runtime 用户无需访问内部 FigureTree/UpdateManager 即可完成上述动态操作和订阅；
+- 完成后才启动 M10.5 Tooltip 与 Accessibility 契约。
+
+## 9. Draw2D Core 1.0 完成门禁
+
+D3 完成后的固定收口顺序：
+
+1. 完成 M10.5 Tooltip 与 Accessibility bridge；
+2. 完成仍处于 `behavior_verified` 的 M1-M8 产品与人工验收差额；
+3. 补齐 M10 Text/Image/Widget 的 Web 等价场景；
+4. 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
+5. 仅在以下门禁全部满足后声明 Draw2D Core 1.0。
 
 - M1-M10 全部达到 `complete`；
 - P0/P1 API family 不存在未解释的 `missing`；
@@ -744,7 +932,7 @@ M10.4 自动执行结果（2026-09-08）：
 满足这些条件后，才启动独立的 GEF roadmap，包括 EditPart、Viewer、Tool、Request、
 EditPolicy、Command、SelectionProvider 和 undo/redo command stack。
 
-## 9. 延后能力
+## 10. 延后能力
 
 以下能力不阻塞 Draw2D Core 1.0：
 

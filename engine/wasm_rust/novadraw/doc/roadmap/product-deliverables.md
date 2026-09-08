@@ -17,7 +17,7 @@
 | M4 | 坐标域与变换闭环 | [§M4](#m4-坐标域与变换闭环) | translate* 协议 + 入口域降域 |
 | M5 | Layout + Validation + UpdateManager | [§M5](#m5-layout--validation--updatemanager) | 6 布局 + 两阶段事务 |
 | M6 | 事件分发与交互状态机 | [§M6](#m6-事件分发与交互状态机) | 输入状态机 + 端口 |
-| M7 | 通知语义分层 | [§M7](#m7-通知语义分层) | 六类 listener + UpdateListener |
+| M7 | 通知语义分层 | [§M7](#m7-通知语义分层) | 七类 listener + UpdateListener |
 | M8 | Viewport / Scroll / Zoom | [§M8](#m8-viewport--scroll--zoom) | ScrollPane + RangeModel |
 | M9 | Connection / Anchor / Router | [§M9](#m9-connection--anchor--router) | 连线 + 5 anchor + 3 router |
 | M10 | 常用 Figure 与文本/控件 | [§M10](#m10-常用-figure-与文本控件) | 6 边框 + 文本 + Tooltip + Accessible 基础 |
@@ -182,7 +182,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 **协议层要求**：见 `doc/parity/draw2d/api-coverage.md` 中 M7 相关 family。本节只列产品层清单。
 
-### 六类 listener（不允许压扁成单一总线）
+### 七类 listener（不允许压扁成单一总线）
 
 1. `FigureListener` —— 几何变化（`figureMoved`）
 2. `CoordinateListener` —— 坐标域变化（`coordinateSystemChanged`）
@@ -190,6 +190,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 4. `AncestorListener` —— 祖先链变化
 5. `LayoutListener` —— 布局生命周期 hook
 6. Input listeners —— 输入分发末端 hook（与 M6 共享）
+7. `ActionListener` —— button-like action 发生事实（由 M10.4 提供首个产品消费者）
 
 ### UpdateListener（挂 UpdateManager，不挂 Figure）
 
