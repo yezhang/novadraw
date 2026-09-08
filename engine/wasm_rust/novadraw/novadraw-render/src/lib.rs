@@ -25,7 +25,10 @@ pub mod text;
 /// 渲染器 traits 模块
 pub mod traits;
 
-pub use command::{ImageData, LineCap, LineJoin, LineStyle, RenderCommand, RenderCommandKind};
+pub use command::{
+    ImageData, ImageDecodeError, ImageResourceRef, LineCap, LineJoin, LineStyle, RenderCommand,
+    RenderCommandKind,
+};
 pub use context::NdCanvas;
 pub use submission::{
     DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta, ResourceId,
@@ -34,7 +37,7 @@ pub use submission::{
 pub use text::{
     BuiltinFont, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun, ParleyTextEngine,
     PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
-    TextLineMetrics,
+    TextLayoutKey, TextLineMetrics,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

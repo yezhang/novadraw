@@ -39,6 +39,11 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
             TextConstraints::UNBOUNDED,
         )
         .unwrap();
+    assert_eq!(layout.visible_range(), 0.."backend neutral".len());
+    assert!(!layout.is_truncated());
+    assert_eq!(layout.key().text(), "backend neutral");
+    assert_eq!(layout.key().engine_revision(), engine.revision());
+    assert!(layout.baseline() > 0.0);
     let mut canvas = NdCanvas::new();
     canvas.set_foreground_color(Color::BLACK);
     canvas.draw_text_layout(&layout, 12.0, 24.0);

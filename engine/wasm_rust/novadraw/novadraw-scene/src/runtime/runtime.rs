@@ -2,24 +2,26 @@ use std::{collections::HashMap, sync::Arc};
 
 use novadraw_render::{
     BackendCapabilities, BuiltinFont, DamageMode, FontData, FontDescriptor, FrameId, ImageData,
-    NdCanvas, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, SurfaceInfo,
-    TextConstraints, TextError, TextLayout, TextLayoutEngine,
+    ImageDecodeError, NdCanvas, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId,
+    SurfaceInfo, TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
 
+use crate::PropertyValue;
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
+use crate::figure::border::BorderSnapshot;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
-    AnchorGeometry, AnchorGeometryKey, AnchorId, Border, ConnectionAnchor, ConnectionId,
+    Alignment, AnchorGeometry, AnchorGeometryKey, AnchorId, Border, ConnectionAnchor, ConnectionId,
     ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
     DependencySubject, Direction, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree,
     FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
-    FontId, FreeformError, ImageId, InteractionState, Key, KeyModifiers, LayerError, LayerKey,
-    LayerPlacement, LayeredPane, LayeredPaneHandle, MouseButton, PendingMutations, Rectangle,
-    ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding, RouterId,
-    RoutingConstraint, SceneDispatchContext, ShapeMutationError, StackLayout,
-    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
-    WheelEvent, ZoomEvent,
+    FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
+    KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
+    LayeredPaneHandle, MouseButton, PendingMutations, Rectangle, ResourceError, ResourceRegistry,
+    ResourceStatus, RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
+    ShapeMutationError, StackLayout, TextPlacement, TreeOrderFocusTraversal, UpdateEvent,
+    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
 };
 use novadraw_geometry::{Dimension, Vec2};
 
@@ -129,6 +131,104 @@ impl Runtime {
         self.text.layout(text, font, constraints)
     }
 
+    /// Refreshes immutable Label text snapshots from the current Runtime-owned text engine.
+    pub fn refresh_label_layouts(&mut self) -> Result<(), TextError> {
+        let changed = self
+            .tree
+            .refresh_label_layouts(self.text.as_mut(), &self.resources)?;
+        for figure in changed {
+            self.refresh_label_icon_geometry(figure);
+            self.tree.mark_invalid(&mut self.updates, figure);
+            self.tree.repaint(&mut self.updates, figure, None);
+        }
+        Ok(())
+    }
+
+    fn refresh_label_icon_geometry(&mut self, figure: FigureId) {
+        let key = AnchorGeometryKey::icon();
+        let next = self
+            .tree
+            .label(figure)
+            .and_then(LabelFigure::icon_bounds)
+            .filter(|bounds| bounds.width > 0.0 && bounds.height > 0.0)
+            .map(AnchorGeometry::Rectangle);
+        let map_key = (figure, key.clone());
+        let changed = match next {
+            Some(geometry) if self.anchor_geometries.get(&map_key) != Some(&geometry) => {
+                self.anchor_geometries.insert(map_key, geometry);
+                true
+            }
+            Some(_) => false,
+            None => self.anchor_geometries.remove(&map_key).is_some(),
+        };
+        if changed
+            && let Err(error) = self
+                .connections
+                .invalidate_dependency(&DependencySubject::NamedAnchorRegion(figure, key))
+        {
+            self.connection_error = Some(error);
+        }
+    }
+
+    fn refresh_image_figures(&mut self) {
+        for figure in self.tree.refresh_image_figures(&self.resources) {
+            self.tree.mark_invalid(&mut self.updates, figure);
+            self.tree.repaint(&mut self.updates, figure, None);
+        }
+    }
+
+    fn refresh_title_bar_borders(&mut self) -> Result<(), TextError> {
+        let Some(contents) = self.tree.get_contents() else {
+            return Ok(());
+        };
+        let mut figures = vec![contents];
+        figures.extend(self.tree.descendant_ids(contents).unwrap_or_default());
+        for figure in figures {
+            let Some(title) = self
+                .tree
+                .get_block(figure)
+                .and_then(|block| block.figure.get_border())
+                .and_then(Border::title_bar)
+                .map(|border| border.title().to_string())
+            else {
+                continue;
+            };
+            let style = self
+                .tree
+                .resolved_style(figure)
+                .expect("attached Figure style");
+            let font = FontDescriptor::parse(&style.font)?;
+            let cached = self
+                .tree
+                .border_snapshot(figure)
+                .map(BorderSnapshot::text_layout)
+                .is_some_and(|layout| {
+                    layout.key().text() == title
+                        && layout.key().font() == &font
+                        && layout.key().constraints() == TextConstraints::UNBOUNDED
+                        && layout.key().engine_revision() == self.text.revision()
+                });
+            if cached {
+                continue;
+            }
+            let layout = self
+                .text
+                .layout(&title, &font, TextConstraints::UNBOUNDED)?;
+            let snapshot = self
+                .tree
+                .get_block(figure)
+                .and_then(|block| block.figure.get_border())
+                .and_then(Border::title_bar)
+                .map(|border| BorderSnapshot::title_bar(border.measure(layout)))
+                .expect("title bar border was checked before measurement");
+            if self.tree.set_border_snapshot(figure, snapshot) {
+                self.tree.mark_invalid(&mut self.updates, figure);
+                self.tree.repaint(&mut self.updates, figure, None);
+            }
+        }
+        Ok(())
+    }
+
     pub fn direct_connection_router(&self) -> RouterId {
         self.connections.direct_router()
     }
@@ -168,6 +268,14 @@ impl Runtime {
             .insert((figure, key.clone()), geometry);
         self.connections
             .invalidate_dependency(&DependencySubject::NamedAnchorRegion(figure, key))
+    }
+
+    pub fn anchor_geometry(
+        &self,
+        figure: FigureId,
+        key: &AnchorGeometryKey,
+    ) -> Option<&AnchorGeometry> {
+        self.anchor_geometries.get(&(figure, key.clone()))
     }
 
     pub fn register_connection_router(&mut self, router: Box<dyn ConnectionRouter>) -> RouterId {
@@ -319,6 +427,8 @@ impl Runtime {
 
     pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
         let id = self.tree.set_contents(figure);
+        self.register_label_icon_dependency(id);
+        self.register_image_figure_dependency(id);
         if let Err(error) = self.connections.invalidate_all() {
             self.connection_error = Some(error);
         }
@@ -333,6 +443,8 @@ impl Runtime {
     pub fn add_figure(&mut self, parent: FigureId, figure: Box<dyn Figure>) -> FigureId {
         let id = self.tree.add_child(&mut self.updates, parent, figure);
         self.register_layered_pane(id);
+        self.register_label_icon_dependency(id);
+        self.register_image_figure_dependency(id);
         id
     }
 
@@ -628,6 +740,233 @@ impl Runtime {
             .set_figure_style_with_update(&mut self.updates, id, style)
     }
 
+    pub fn set_label_text(
+        &mut self,
+        id: FigureId,
+        text: impl Into<String>,
+    ) -> Result<bool, ShapeMutationError> {
+        let text = text.into();
+        let old = self.label(id)?.text().to_string();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "text",
+            PropertyValue::Text(old),
+            PropertyValue::Text(text.clone()),
+            |label| label.set_text(text),
+            true,
+        )
+    }
+
+    pub fn label_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+        self.label(id)?
+            .text_layout()
+            .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    pub fn title_bar_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        }
+        self.tree
+            .border_snapshot(id)
+            .map(BorderSnapshot::text_layout)
+            .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    pub fn set_label_icon(
+        &mut self,
+        id: FigureId,
+        icon: Option<ImageId>,
+    ) -> Result<bool, ShapeMutationError> {
+        let old = self.label(id)?.icon();
+        let changed = self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "icon",
+            old.map_or(PropertyValue::None, |value| {
+                PropertyValue::Text(format!("{value:?}"))
+            }),
+            icon.map_or(PropertyValue::None, |value| {
+                PropertyValue::Text(format!("{value:?}"))
+            }),
+            |label| label.set_icon(icon),
+            true,
+        )?;
+        if changed {
+            if let Some(old) = old {
+                let _ = self.resources.remove_dependency(old.resource_id(), id);
+            }
+            if let Some(icon) = icon {
+                self.add_resource_dependency(icon.resource_id(), id)
+                    .map_err(|_| ShapeMutationError::WrongCapability(id))?;
+            }
+        }
+        Ok(changed)
+    }
+
+    pub fn set_label_text_placement(
+        &mut self,
+        id: FigureId,
+        placement: TextPlacement,
+    ) -> Result<bool, ShapeMutationError> {
+        let old = self.label(id)?.text_placement();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "text_placement",
+            PropertyValue::Text(format!("{old:?}")),
+            PropertyValue::Text(format!("{placement:?}")),
+            |label| label.set_text_placement(placement),
+            true,
+        )
+    }
+
+    pub fn set_label_alignment(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        let old = self.label(id)?.label_alignment();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "label_alignment",
+            PropertyValue::Text(format!("{old:?}")),
+            PropertyValue::Text(format!("{alignment:?}")),
+            |label| label.set_label_alignment(alignment),
+            false,
+        )
+    }
+
+    pub fn set_label_text_alignment(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        let old = self.label(id)?.text_alignment();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "text_alignment",
+            PropertyValue::Text(format!("{old:?}")),
+            PropertyValue::Text(format!("{alignment:?}")),
+            |label| label.set_text_alignment(alignment),
+            false,
+        )
+    }
+
+    pub fn set_label_icon_alignment(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        let old = self.label(id)?.icon_alignment();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "icon_alignment",
+            PropertyValue::Text(format!("{old:?}")),
+            PropertyValue::Text(format!("{alignment:?}")),
+            |label| label.set_icon_alignment(alignment),
+            false,
+        )
+    }
+
+    pub fn set_label_icon_text_gap(
+        &mut self,
+        id: FigureId,
+        gap: f64,
+    ) -> Result<bool, ShapeMutationError> {
+        if !gap.is_finite() {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        if gap < 0.0 {
+            return Err(ShapeMutationError::NegativeMetric);
+        }
+        let old = self.label(id)?.icon_text_gap();
+        self.tree.mutate_label(
+            &mut self.updates,
+            id,
+            "icon_text_gap",
+            PropertyValue::Number(old),
+            PropertyValue::Number(gap),
+            |label| label.set_icon_text_gap(gap),
+            true,
+        )
+    }
+
+    pub fn set_image_figure(
+        &mut self,
+        id: FigureId,
+        image: ImageId,
+    ) -> Result<bool, ShapeMutationError> {
+        let previous = self
+            .tree
+            .image_figure(id)
+            .map(ImageFigure::image)
+            .ok_or_else(|| {
+                if self.tree.figure_bounds(id).is_some() {
+                    ShapeMutationError::WrongCapability(id)
+                } else {
+                    ShapeMutationError::UnknownFigure(id)
+                }
+            })?;
+        let changed = self.tree.set_image_figure(&mut self.updates, id, image)?;
+        if changed {
+            let _ = self.resources.remove_dependency(previous.resource_id(), id);
+            self.add_resource_dependency(image.resource_id(), id)
+                .map_err(|_| ShapeMutationError::WrongCapability(id))?;
+        }
+        Ok(changed)
+    }
+
+    pub fn set_image_alignment(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.tree
+            .set_image_alignment(&mut self.updates, id, alignment)
+    }
+
+    pub fn image_display_state(
+        &self,
+        id: FigureId,
+    ) -> Result<ImageDisplayState, ShapeMutationError> {
+        self.tree
+            .image_figure(id)
+            .map(ImageFigure::display_state)
+            .ok_or_else(|| {
+                if self.tree.figure_bounds(id).is_some() {
+                    ShapeMutationError::WrongCapability(id)
+                } else {
+                    ShapeMutationError::UnknownFigure(id)
+                }
+            })
+    }
+
+    fn label(&self, id: FigureId) -> Result<&LabelFigure, ShapeMutationError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        }
+        self.tree
+            .label(id)
+            .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    fn register_label_icon_dependency(&mut self, id: FigureId) {
+        if let Some(icon) = self.tree.label(id).and_then(LabelFigure::icon) {
+            let _ = self.resources.add_dependency(icon.resource_id(), id);
+        }
+    }
+
+    fn register_image_figure_dependency(&mut self, id: FigureId) {
+        if let Some(image) = self.tree.image_figure(id).map(ImageFigure::image) {
+            let _ = self.resources.add_dependency(image.resource_id(), id);
+        }
+    }
+
     pub fn point_list_points(&self, id: FigureId) -> Result<Vec<Vec2>, ShapeMutationError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(ShapeMutationError::UnknownFigure(id));
@@ -824,6 +1163,41 @@ impl Runtime {
         let dependents = self.resources.complete_image(id, image)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
+    }
+
+    pub fn complete_image_bytes(
+        &mut self,
+        id: ImageId,
+        bytes: &[u8],
+        scale: f64,
+    ) -> Result<(), ImageDecodeError> {
+        match ImageData::decode(bytes, scale) {
+            Ok(image) => self
+                .complete_image(id, image)
+                .map_err(|_| ImageDecodeError::ResourceUpdateFailed),
+            Err(error) => {
+                let _ = self.fail_resource(id.resource_id(), error.to_string());
+                Err(error)
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn complete_image_file(
+        &mut self,
+        id: ImageId,
+        path: impl AsRef<std::path::Path>,
+        scale: f64,
+    ) -> Result<(), ImageDecodeError> {
+        match ImageData::decode_file(path, scale) {
+            Ok(image) => self
+                .complete_image(id, image)
+                .map_err(|_| ImageDecodeError::ResourceUpdateFailed),
+            Err(error) => {
+                let _ = self.fail_resource(id.resource_id(), error.to_string());
+                Err(error)
+            }
+        }
     }
 
     pub fn complete_font(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
@@ -1200,6 +1574,10 @@ impl Runtime {
             self.full_redraw_pending = true;
             return None;
         }
+        self.refresh_image_figures();
+        if self.refresh_title_bar_borders().is_err() || self.refresh_label_layouts().is_err() {
+            return None;
+        }
 
         let has_resource_delta = self.resources.has_pending_delta();
         let mut canvas = if self.updates.is_update_queued() {
@@ -1266,6 +1644,10 @@ impl Runtime {
 
     /// Prepares an incremental frame when the runtime has pending work.
     pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
+        self.refresh_image_figures();
+        if self.refresh_title_bar_borders().is_err() || self.refresh_label_layouts().is_err() {
+            return None;
+        }
         if self.updates.is_update_queued() {
             self.full_redraw_pending = false;
             return Some(self.tree.perform_update(&mut self.updates));
@@ -1277,7 +1659,8 @@ impl Runtime {
     }
 
     /// Records the complete visible tree, independent of pending update state.
-    pub fn record_full_frame(&self) -> NdCanvas {
+    pub fn record_full_frame(&mut self) -> NdCanvas {
+        let _ = self.refresh_label_layouts();
         self.tree.render()
     }
 }

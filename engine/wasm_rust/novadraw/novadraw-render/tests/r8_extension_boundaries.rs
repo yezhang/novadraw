@@ -1,7 +1,8 @@
 use novadraw_render::{
-    BackendCapabilities, ImageData, NdCanvas, RenderCapability, RenderCommandKind,
-    UnsupportedRenderCapability,
+    BackendCapabilities, ImageResourceRef, NdCanvas, RenderCapability, RenderCommandKind,
+    ResourceId, UnsupportedRenderCapability,
 };
+use uuid::Uuid;
 
 #[test]
 fn projective_composition_requires_explicit_backend_support() {
@@ -24,7 +25,7 @@ fn projective_composition_requires_explicit_backend_support() {
 }
 
 struct Scene3DFrame {
-    color_target: ImageData,
+    color_target: ImageResourceRef,
 }
 
 fn compose_scene3d_frame(
@@ -35,13 +36,13 @@ fn compose_scene3d_frame(
     width: f64,
     height: f64,
 ) {
-    canvas.draw_image_with_size(&frame.color_target, x, y, width, height);
+    canvas.draw_image_with_size(frame.color_target, x, y, width, height);
 }
 
 #[test]
 fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
     let frame = Scene3DFrame {
-        color_target: ImageData::from_rgba(2, 2, vec![255; 16], 1.0),
+        color_target: ImageResourceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 2, 2, 1.0),
     };
     let mut canvas = NdCanvas::new();
 
@@ -57,7 +58,7 @@ fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
         panic!("Scene3D embedding must remain an ordinary 2D image command");
     };
 
-    assert_eq!((image.width, image.height), (2, 2));
+    assert_eq!((image.width(), image.height()), (2, 2));
     assert_eq!((dest_rect[0].x, dest_rect[0].y), (10.0, 20.0));
     assert_eq!((dest_rect[1].x, dest_rect[1].y), (310.0, 220.0));
     assert!(src_rect.is_none());

@@ -3,7 +3,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use novadraw_render::{
-    FontData, ImageData, ResourceDelta, ResourceId, ResourcePayload, ResourceUpdate,
+    FontData, ImageData, ImageResourceRef, ResourceDelta, ResourceId, ResourcePayload,
+    ResourceUpdate,
 };
 use slotmap::{Key, KeyData, SlotMap, new_key_type};
 use uuid::Uuid;
@@ -129,6 +130,24 @@ impl ResourceRegistry {
             .get(key)
             .map(|entry| &entry.status)
             .ok_or(ResourceError::UnknownResource)
+    }
+
+    pub(crate) fn image_ref(&self, id: ImageId) -> Option<ImageResourceRef> {
+        let key = self.key(id.resource_id()).ok()?;
+        let entry = self.entries.get(key)?;
+        let ResourceStatus::Ready { revision } = entry.status else {
+            return None;
+        };
+        let ResourcePayload::Image(image) = entry.payload.as_ref()? else {
+            return None;
+        };
+        Some(ImageResourceRef::new(
+            id.resource_id(),
+            revision,
+            image.width,
+            image.height,
+            image.scale,
+        ))
     }
 
     pub(crate) fn kind(&self, id: ResourceId) -> Result<ResourceKind, ResourceError> {

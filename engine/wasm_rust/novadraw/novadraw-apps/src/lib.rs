@@ -32,7 +32,8 @@ pub mod verification;
 #[cfg(feature = "native")]
 pub use app::{
     AppBuilder, DemoApp, run_demo_app, run_demo_app_with_scene_screenshot,
-    run_demo_app_with_screenshot,
+    run_demo_app_with_screenshot, run_runtime_demo_app, run_runtime_demo_app_with_scene_screenshot,
+    run_runtime_demo_app_with_screenshot,
 };
 #[cfg(feature = "native")]
 pub use input::WinitGestureAdapter;

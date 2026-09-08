@@ -186,6 +186,7 @@ pub struct VelloRenderer {
     /// 状态栈
     state_stack: Vec<RenderState>,
     font_faces: HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
+    images: HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -225,6 +226,7 @@ impl VelloRenderer {
             pending_resize: None,
             state_stack: vec![RenderState::default()],
             font_faces: HashMap::new(),
+            images: HashMap::new(),
             retained_texture: None,
             scratch_texture: None,
         })
@@ -234,15 +236,19 @@ impl VelloRenderer {
         (self.surface.config.width, self.surface.config.height)
     }
 
-    fn sync_font_faces(&mut self, resources: &crate::ResourceDelta) {
+    fn sync_resources(&mut self, resources: &crate::ResourceDelta) {
         sync_font_face_cache(&mut self.font_faces, resources);
+        sync_image_cache(&mut self.images, resources);
     }
 
-    fn has_required_font_faces(&self, commands: &[RenderCommand]) -> bool {
+    fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
         commands.iter().all(|command| match &command.kind {
             crate::RenderCommandKind::DrawGlyphRun { run, .. } => self
                 .font_faces
                 .contains_key(&(run.font.resource_id(), run.font.revision())),
+            crate::RenderCommandKind::Image { image, .. } => self
+                .images
+                .contains_key(&(image.resource_id(), image.revision())),
             _ => true,
         })
     }
@@ -975,6 +981,47 @@ impl VelloRenderer {
                 );
             }
 
+            crate::command::RenderCommandKind::Image {
+                image,
+                dest_rect,
+                src_rect,
+                alpha,
+            } => {
+                if src_rect.is_some() || image.width() == 0 || image.height() == 0 || *alpha <= 0.0
+                {
+                    return;
+                }
+                let Some(image_data) = self
+                    .images
+                    .get(&(image.resource_id(), image.revision()))
+                    .cloned()
+                else {
+                    return;
+                };
+                let width = dest_rect[1].x - dest_rect[0].x;
+                let height = dest_rect[1].y - dest_rect[0].y;
+                if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+                    return;
+                }
+                let image = vello::peniko::ImageBrush {
+                    image: image_data,
+                    sampler: vello::peniko::ImageSampler::default().with_alpha(*alpha as f32),
+                };
+                let scale_factor = self.scale_factor;
+                let local = vello::kurbo::Affine::new([
+                    width / image.image.width as f64 * scale_factor,
+                    0.0,
+                    0.0,
+                    height / image.image.height as f64 * scale_factor,
+                    dest_rect[0].x * scale_factor,
+                    dest_rect[0].y * scale_factor,
+                ]);
+                let affine =
+                    Self::transform_to_affine(&self.current_state().transform, scale_factor)
+                        * local;
+                self.scene.draw_image(&image, affine);
+            }
+
             // 其他命令暂未实现
             _ => {}
         }
@@ -1015,8 +1062,8 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_font_faces(&submission.resources);
-        if !self.has_required_font_faces(&submission.commands) {
+        self.sync_resources(&submission.resources);
+        if !self.has_required_resources(&submission.commands) {
             return RenderOutcome::Retry;
         }
         self.resize(
@@ -1195,8 +1242,8 @@ impl VelloRenderer {
     /// a window surface drawable.
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_font_faces(&submission.resources);
-        if !self.has_required_font_faces(&submission.commands) {
+        self.sync_resources(&submission.resources);
+        if !self.has_required_resources(&submission.commands) {
             return RenderOutcome::Retry;
         }
         self.resize(
@@ -1372,6 +1419,38 @@ fn sync_font_face_cache(
     for id in &resources.removed {
         font_faces.retain(|(resource_id, _), _| resource_id != id);
     }
+}
+
+fn sync_image_cache(
+    images: &mut HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
+    resources: &crate::ResourceDelta,
+) {
+    for update in &resources.added {
+        if let ResourcePayload::Image(image) = &update.payload {
+            images.retain(|(resource_id, _), _| resource_id != &update.id);
+            images.insert(
+                (update.id, update.revision),
+                vello::peniko::ImageData {
+                    data: image.pixels.clone().into(),
+                    format: vello::peniko::ImageFormat::Rgba8,
+                    alpha_type: vello::peniko::ImageAlphaType::Alpha,
+                    width: image.width,
+                    height: image.height,
+                },
+            );
+        }
+    }
+    for id in &resources.removed {
+        images.retain(|(resource_id, _), _| resource_id != id);
+    }
+}
+
+fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Renderer {
+    Renderer::new(
+        &render_cx.devices[surface.dev_id].device,
+        RendererOptions::default(),
+    )
+    .expect("Couldn't create renderer")
 }
 
 #[cfg(test)]
@@ -1577,12 +1656,56 @@ mod tests {
         );
         assert!(!cache.keys().any(|(resource_id, _)| *resource_id == id));
     }
-}
 
-fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Renderer {
-    Renderer::new(
-        &render_cx.devices[surface.dev_id].device,
-        RendererOptions::default(),
-    )
-    .expect("Couldn't create renderer")
+    #[test]
+    fn image_cache_replacement_and_removal_discard_stale_revisions() {
+        let id = ResourceId::new(Uuid::nil(), 2);
+        let mut cache = HashMap::new();
+
+        sync_image_cache(
+            &mut cache,
+            &ResourceDelta {
+                added: vec![ResourceUpdate {
+                    id,
+                    revision: 1,
+                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
+                        1,
+                        1,
+                        vec![255, 0, 0, 255],
+                        1.0,
+                    ))),
+                }],
+                removed: Vec::new(),
+            },
+        );
+        assert!(cache.contains_key(&(id, 1)));
+
+        sync_image_cache(
+            &mut cache,
+            &ResourceDelta {
+                added: vec![ResourceUpdate {
+                    id,
+                    revision: 2,
+                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
+                        1,
+                        1,
+                        vec![0, 0, 255, 255],
+                        1.0,
+                    ))),
+                }],
+                removed: Vec::new(),
+            },
+        );
+        assert!(!cache.contains_key(&(id, 1)));
+        assert!(cache.contains_key(&(id, 2)));
+
+        sync_image_cache(
+            &mut cache,
+            &ResourceDelta {
+                added: Vec::new(),
+                removed: vec![id],
+            },
+        );
+        assert!(!cache.keys().any(|(resource_id, _)| *resource_id == id));
+    }
 }

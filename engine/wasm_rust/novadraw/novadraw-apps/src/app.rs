@@ -33,7 +33,7 @@ const SCREENSHOT_RENDER_RETRY_LIMIT: usize = 8;
 /// - 事件处理
 ///
 // 场景创建函数类型
-type SceneCreator = Box<dyn FnMut() -> FigureTree>;
+type SceneCreator = Box<dyn FnMut() -> Runtime>;
 
 struct DemoUpdateListener;
 
@@ -108,7 +108,7 @@ impl DemoApp {
         if idx < self.scenes.len() {
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
-            let mut runtime = Runtime::new(creator());
+            let mut runtime = creator();
             runtime.add_update_listener(Box::new(DemoUpdateListener));
             self.runtime = Some(runtime);
             eprintln!("切换到场景: {}", self.scenes[idx].0);
@@ -649,7 +649,7 @@ mod tests {
     fn surface_change_requests_a_full_runtime_frame() {
         let mut app = DemoApp::new(
             "test",
-            vec![("empty", Box::new(FigureTree::new))],
+            vec![("empty", Box::new(Runtime::empty))],
             800.0,
             600.0,
             "test",
@@ -738,7 +738,9 @@ impl AppBuilder {
         name: &'static str,
         creator: impl FnMut() -> FigureTree + 'static,
     ) -> Self {
-        self.scenes.push((name, Box::new(creator)));
+        let mut creator = creator;
+        self.scenes
+            .push((name, Box::new(move || Runtime::new(creator()))));
         self
     }
 
@@ -747,6 +749,24 @@ impl AppBuilder {
     pub fn with_scenes_boxed(
         mut self,
         scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
+    ) -> Self {
+        self.scenes = scenes
+            .into_iter()
+            .map(|(name, mut creator)| {
+                (
+                    name,
+                    Box::new(move || Runtime::new(creator())) as SceneCreator,
+                )
+            })
+            .collect();
+        self
+    }
+
+    /// 批量添加由调用方显式配置 Runtime 的场景。
+    #[allow(clippy::type_complexity)]
+    pub fn with_runtime_scenes_boxed(
+        mut self,
+        scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
     ) -> Self {
         self.scenes = scenes;
         self
@@ -844,6 +864,59 @@ pub fn run_demo_app_with_scene_screenshot(
     scene_index: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     run_demo_app_with_options(title, app_name, scenes, false, Some(scene_index))
+}
+
+/// Runs demo scenes that explicitly configure their own [`Runtime`].
+#[allow(clippy::type_complexity)]
+pub fn run_runtime_demo_app(
+    title: &str,
+    app_name: &str,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    run_runtime_demo_app_with_options(title, app_name, scenes, false, None)
+}
+
+/// Runs explicit Runtime demo scenes and captures one or all scenarios.
+#[allow(clippy::type_complexity)]
+pub fn run_runtime_demo_app_with_screenshot(
+    title: &str,
+    app_name: &str,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
+    screenshot_all: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    run_runtime_demo_app_with_options(title, app_name, scenes, screenshot_all, None)
+}
+
+#[allow(clippy::type_complexity)]
+pub fn run_runtime_demo_app_with_scene_screenshot(
+    title: &str,
+    app_name: &str,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
+    scene_index: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    run_runtime_demo_app_with_options(title, app_name, scenes, false, Some(scene_index))
+}
+
+#[allow(clippy::type_complexity)]
+fn run_runtime_demo_app_with_options(
+    title: &str,
+    app_name: &str,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
+    screenshot_all: bool,
+    screenshot_scene: Option<usize>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut builder = AppBuilder::new(title)
+        .with_size(800.0, 600.0)
+        .with_app_name(app_name)
+        .with_runtime_scenes_boxed(scenes);
+
+    if screenshot_all {
+        builder = builder.with_screenshot(true);
+    } else if let Some(idx) = screenshot_scene {
+        builder = builder.with_screenshot_scene(idx);
+    }
+
+    builder.run()
 }
 
 #[allow(clippy::type_complexity)]

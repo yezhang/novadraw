@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::error::Error;
 use std::fmt;
+use std::ops::Range;
 use std::sync::Arc;
 
 use parley::{FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty};
@@ -235,6 +236,46 @@ pub struct TextLayout {
     height: f32,
     lines: Vec<TextLineMetrics>,
     glyph_runs: Vec<GlyphRun>,
+    visible_range: Range<usize>,
+    truncated: bool,
+    key: TextLayoutKey,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TextLayoutKey {
+    text: Arc<str>,
+    font: FontDescriptor,
+    constraints: TextConstraints,
+    engine_revision: u64,
+}
+
+impl Default for TextLayoutKey {
+    fn default() -> Self {
+        Self {
+            text: Arc::from(""),
+            font: FontDescriptor::default(),
+            constraints: TextConstraints::UNBOUNDED,
+            engine_revision: 0,
+        }
+    }
+}
+
+impl TextLayoutKey {
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    pub fn font(&self) -> &FontDescriptor {
+        &self.font
+    }
+
+    pub fn constraints(&self) -> TextConstraints {
+        self.constraints
+    }
+
+    pub fn engine_revision(&self) -> u64 {
+        self.engine_revision
+    }
 }
 
 impl TextLayout {
@@ -258,8 +299,48 @@ impl TextLayout {
         &self.glyph_runs
     }
 
+    pub fn visible_range(&self) -> Range<usize> {
+        self.visible_range.clone()
+    }
+
+    pub fn is_truncated(&self) -> bool {
+        self.truncated
+    }
+
+    pub fn key(&self) -> &TextLayoutKey {
+        &self.key
+    }
+
+    pub fn ascent(&self) -> f32 {
+        self.lines.first().map_or(0.0, |line| line.ascent)
+    }
+
+    pub fn descent(&self) -> f32 {
+        self.lines.first().map_or(0.0, |line| line.descent)
+    }
+
+    pub fn baseline(&self) -> f32 {
+        self.lines.first().map_or(0.0, |line| line.baseline)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.glyph_runs.iter().all(|run| run.glyphs.is_empty())
+    }
+
+    pub fn with_visibility(
+        mut self,
+        source: impl Into<Arc<str>>,
+        visible_range: Range<usize>,
+        truncated: bool,
+        full_width: f32,
+        constraints: TextConstraints,
+    ) -> Self {
+        self.key.text = source.into();
+        self.key.constraints = constraints;
+        self.visible_range = visible_range;
+        self.truncated = truncated;
+        self.full_width = full_width;
+        self
     }
 }
 
@@ -411,12 +492,14 @@ impl TextLayoutEngine for ParleyTextEngine {
         font.validate()?;
         TextConstraints::new(constraints.max_width)?;
 
-        let family = FontFamily::parse(&font.family)
+        FontFamily::parse(&font.family)
             .ok_or_else(|| TextError::InvalidFontDescriptor(font.family.clone()))?;
+        let fallback_stack = self.fallback_stack(&font.family);
+        let fallback_families = FontFamily::parse_list(&fallback_stack).collect::<Vec<_>>();
         let mut builder =
             self.layout_context
                 .ranged_builder(&mut self.font_context, text, 1.0, true);
-        builder.push_default(family);
+        builder.push_default(fallback_families.as_slice());
         builder.push_default(StyleProperty::FontSize(font.size));
         builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(
             font.weight,
@@ -500,6 +583,14 @@ impl TextLayoutEngine for ParleyTextEngine {
             height: layout.height(),
             lines,
             glyph_runs,
+            visible_range: 0..text.len(),
+            truncated: false,
+            key: TextLayoutKey {
+                text: Arc::from(text),
+                font: font.clone(),
+                constraints,
+                engine_revision: self.revision,
+            },
         })
     }
 }
@@ -507,6 +598,16 @@ impl TextLayoutEngine for ParleyTextEngine {
 pub type TextEngine = ParleyTextEngine;
 
 impl ParleyTextEngine {
+    fn fallback_stack(&mut self, preferred_family: &str) -> String {
+        let mut families = vec![preferred_family.to_string()];
+        for family in self.font_context.collection.family_names() {
+            if !families.iter().any(|candidate| candidate == family) {
+                families.push(family.to_string());
+            }
+        }
+        families.join(", ")
+    }
+
     fn rebuild_font_context(&mut self) {
         let mut font_context = empty_font_context();
         let mut registered_faces = Vec::new();
@@ -706,6 +807,25 @@ mod tests {
                 family.family()
             );
         }
+    }
+
+    #[test]
+    fn registered_cjk_font_falls_back_when_the_requested_font_lacks_glyphs() {
+        let mut engine = engine_with_builtins();
+        let layout = engine
+            .layout(
+                "中文",
+                &FontDescriptor::new(BuiltinFont::Inter.family(), 14.0).unwrap(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+
+        assert!(
+            layout
+                .glyph_runs()
+                .iter()
+                .any(|run| { run.font.resource_id() == ResourceId::new(Uuid::nil(), 2) })
+        );
     }
 
     #[test]

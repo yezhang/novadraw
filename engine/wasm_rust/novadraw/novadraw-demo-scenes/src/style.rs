@@ -8,12 +8,11 @@ const WINDOW_HEIGHT: f64 = 600.0;
 
 struct StyleProbeFigure {
     bounds: Rectangle,
-    text: &'static str,
 }
 
 impl StyleProbeFigure {
-    fn new(bounds: Rectangle, text: &'static str) -> Self {
-        Self { bounds, text }
+    fn new(bounds: Rectangle) -> Self {
+        Self { bounds }
     }
 }
 
@@ -30,7 +29,6 @@ impl Figure for StyleProbeFigure {
         canvas.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
         canvas.set_line_width(3.0);
         canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
-        canvas.stroke_text(self.text, 16.0, bounds.height / 2.0);
     }
 }
 
@@ -274,10 +272,9 @@ fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
     let parent = scene.builder().add_child_to(
         container_id,
-        Box::new(StyleProbeFigure::new(
-            Rectangle::new(80.0, 100.0, 640.0, 380.0),
-            "Parent style",
-        )),
+        Box::new(StyleProbeFigure::new(Rectangle::new(
+            80.0, 100.0, 640.0, 380.0,
+        ))),
     );
     scene.set_figure_style(
         parent,
@@ -293,17 +290,15 @@ fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
 
     scene.builder().add_child_to(
         parent,
-        Box::new(StyleProbeFigure::new(
-            Rectangle::new(40.0, 100.0, 240.0, 150.0),
-            "Inherited",
-        )),
+        Box::new(StyleProbeFigure::new(Rectangle::new(
+            40.0, 100.0, 240.0, 150.0,
+        ))),
     );
     let overridden = scene.builder().add_child_to(
         parent,
-        Box::new(StyleProbeFigure::new(
-            Rectangle::new(360.0, 100.0, 240.0, 150.0),
-            "Overridden",
-        )),
+        Box::new(StyleProbeFigure::new(Rectangle::new(
+            360.0, 100.0, 240.0, 150.0,
+        ))),
     );
     scene.set_figure_style(
         overridden,

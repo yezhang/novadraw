@@ -156,13 +156,6 @@ impl Figure for WebProbeFigure {
 
     fn paint_figure(&self, canvas: &mut NdCanvas) {
         Shape::paint_figure(self, canvas);
-        canvas.fill_style(if self.disabled_visual {
-            Color::hex("#2c3e50")
-        } else {
-            Color::WHITE
-        });
-        canvas.font("18px sans-serif");
-        canvas.fill_text(self.label, 12.0, 30.0);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
@@ -298,6 +291,14 @@ impl RenderBackend for Canvas2dBackend {
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+        if submission.commands.iter().any(|command| {
+            matches!(
+                command.kind,
+                RenderCommandKind::DrawGlyphRun { .. } | RenderCommandKind::Image { .. }
+            )
+        }) {
+            return RenderOutcome::Retry;
+        }
         self.resize(
             submission.surface.pixel_width,
             submission.surface.pixel_height,
@@ -376,24 +377,6 @@ impl RenderBackend for Canvas2dBackend {
                         rect[1].x - rect[0].x,
                         rect[1].y - rect[0].y,
                     );
-                }
-                RenderCommandKind::FillText {
-                    text,
-                    position,
-                    font,
-                    color,
-                    max_width,
-                    ..
-                } => {
-                    self.set_fill(*color);
-                    self.context.set_font(font);
-                    if let Some(max_width) = max_width {
-                        let _ = self
-                            .context
-                            .fill_text_with_max_width(text, position.x, position.y, *max_width);
-                    } else {
-                        let _ = self.context.fill_text(text, position.x, position.y);
-                    }
                 }
                 RenderCommandKind::Ellipse {
                     cx,

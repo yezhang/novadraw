@@ -2,9 +2,12 @@
 //!
 //! 定义了所有可用的渲染操作命令。
 
+use std::fmt;
+
 use novadraw_core::Color;
 use novadraw_geometry::Transform;
 
+use crate::submission::ResourceId;
 use crate::text::{GlyphPaint, GlyphRun};
 
 /// 渲染命令
@@ -183,45 +186,14 @@ pub enum RenderCommandKind {
 
     /// 绘制图像
     Image {
-        /// 图像数据
-        image: ImageData,
+        /// 精确的图像资源 revision。
+        image: ImageResourceRef,
         /// 目标矩形 [左上角, 右下角]
         dest_rect: [glam::DVec2; 2],
         /// 源矩形 [左上角, 右下角]，None 表示整个图像
         src_rect: Option<[glam::DVec2; 2]>,
         /// 绘制透明度
         alpha: f64,
-    },
-
-    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
-    Text {
-        text: String,
-        position: glam::DVec2,
-        font: String,
-        font_size: f64,
-        color: Color,
-        fill_background: bool,
-        background_color: Option<Color>,
-    },
-
-    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
-    FillText {
-        text: String,
-        position: glam::DVec2,
-        font: String,
-        font_size: f64,
-        color: Color,
-        max_width: Option<f64>,
-    },
-
-    /// Legacy raw-string command; migrate callers to DrawGlyphRun.
-    StrokeText {
-        text: String,
-        position: glam::DVec2,
-        font: String,
-        font_size: f64,
-        color: Color,
-        max_width: Option<f64>,
     },
 
     /// 绘制 backend-neutral、已完成 shaping 和定位的 glyph run。
@@ -451,6 +423,90 @@ pub struct ImageData {
     pub scale: f64,
 }
 
+/// Backend-neutral reference to an immutable image resource revision.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ImageResourceRef {
+    resource_id: ResourceId,
+    revision: u64,
+    width: u32,
+    height: u32,
+    scale: f64,
+}
+
+impl ImageResourceRef {
+    pub const fn new(
+        resource_id: ResourceId,
+        revision: u64,
+        width: u32,
+        height: u32,
+        scale: f64,
+    ) -> Self {
+        Self {
+            resource_id,
+            revision,
+            width,
+            height,
+            scale,
+        }
+    }
+
+    pub const fn resource_id(self) -> ResourceId {
+        self.resource_id
+    }
+
+    pub const fn revision(self) -> u64 {
+        self.revision
+    }
+
+    pub const fn width(self) -> u32 {
+        self.width
+    }
+
+    pub const fn height(self) -> u32 {
+        self.height
+    }
+
+    pub const fn scale(self) -> f64 {
+        self.scale
+    }
+
+    pub fn logical_size(self) -> (f64, f64) {
+        (
+            f64::from(self.width) / self.scale,
+            f64::from(self.height) / self.scale,
+        )
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ImageDecodeError {
+    EmptyInput,
+    UnsupportedFormat,
+    InvalidPng,
+    InvalidSvg,
+    InvalidScale,
+    RasterizationFailed,
+    ResourceUpdateFailed,
+    Io(String),
+}
+
+impl fmt::Display for ImageDecodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::EmptyInput => formatter.write_str("image data is empty"),
+            Self::UnsupportedFormat => formatter.write_str("image format is not supported"),
+            Self::InvalidPng => formatter.write_str("PNG data is invalid"),
+            Self::InvalidSvg => formatter.write_str("SVG data is invalid"),
+            Self::InvalidScale => formatter.write_str("image scale must be finite and positive"),
+            Self::RasterizationFailed => formatter.write_str("SVG rasterization failed"),
+            Self::ResourceUpdateFailed => formatter.write_str("image resource update failed"),
+            Self::Io(message) => write!(formatter, "image file could not be read: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for ImageDecodeError {}
+
 impl ImageData {
     /// 从 RGBA 像素数据创建
     pub fn from_rgba(width: u32, height: u32, pixels: Vec<u8>, scale: f64) -> Self {
@@ -460,5 +516,116 @@ impl ImageData {
             pixels,
             scale,
         }
+    }
+
+    pub fn decode(bytes: &[u8], scale: f64) -> Result<Self, ImageDecodeError> {
+        if bytes.is_empty() {
+            return Err(ImageDecodeError::EmptyInput);
+        }
+        if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+            return Self::decode_png(bytes, scale);
+        }
+        let first_non_whitespace = bytes
+            .iter()
+            .position(|byte| !byte.is_ascii_whitespace())
+            .unwrap_or(bytes.len());
+        let content = &bytes[first_non_whitespace..];
+        if content.starts_with(b"<svg") || content.starts_with(b"<?xml") {
+            return Self::decode_svg(bytes, scale);
+        }
+        Err(ImageDecodeError::UnsupportedFormat)
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn decode_file(
+        path: impl AsRef<std::path::Path>,
+        scale: f64,
+    ) -> Result<Self, ImageDecodeError> {
+        let bytes = std::fs::read(path).map_err(|error| ImageDecodeError::Io(error.to_string()))?;
+        Self::decode(&bytes, scale)
+    }
+
+    pub fn decode_png(bytes: &[u8], scale: f64) -> Result<Self, ImageDecodeError> {
+        validate_scale(scale)?;
+        let image = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+            .map_err(|_| ImageDecodeError::InvalidPng)?
+            .to_rgba8();
+        Ok(Self::from_rgba(
+            image.width(),
+            image.height(),
+            image.into_raw(),
+            scale,
+        ))
+    }
+
+    pub fn decode_svg(bytes: &[u8], scale: f64) -> Result<Self, ImageDecodeError> {
+        validate_scale(scale)?;
+        let mut options = resvg::usvg::Options::default();
+        {
+            let fontdb = options.fontdb_mut();
+            for font in crate::text::BuiltinFont::ALL {
+                fontdb.load_font_data(font.bytes().to_vec());
+            }
+            fontdb.set_sans_serif_family(crate::text::BuiltinFont::Inter.family());
+            fontdb.set_serif_family(crate::text::BuiltinFont::Inter.family());
+            fontdb.set_monospace_family(crate::text::BuiltinFont::JetBrainsMono.family());
+        }
+        let tree = resvg::usvg::Tree::from_data(bytes, &options)
+            .map_err(|_| ImageDecodeError::InvalidSvg)?;
+        let size = tree.size().to_int_size();
+        let mut pixmap = resvg::tiny_skia::Pixmap::new(size.width(), size.height())
+            .ok_or(ImageDecodeError::RasterizationFailed)?;
+        resvg::render(
+            &tree,
+            resvg::tiny_skia::Transform::default(),
+            &mut pixmap.as_mut(),
+        );
+        let mut pixels = pixmap.take();
+        unpremultiply_rgba(&mut pixels);
+        Ok(Self::from_rgba(size.width(), size.height(), pixels, scale))
+    }
+}
+
+fn validate_scale(scale: f64) -> Result<(), ImageDecodeError> {
+    if scale.is_finite() && scale > 0.0 {
+        Ok(())
+    } else {
+        Err(ImageDecodeError::InvalidScale)
+    }
+}
+
+fn unpremultiply_rgba(pixels: &mut [u8]) {
+    for pixel in pixels.chunks_exact_mut(4) {
+        let alpha = u32::from(pixel[3]);
+        if alpha == 0 || alpha == 255 {
+            continue;
+        }
+        for component in &mut pixel[..3] {
+            *component = ((u32::from(*component) * 255 + alpha / 2) / alpha).min(255) as u8;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::ImageEncoder;
+
+    #[test]
+    fn decodes_png_and_svg_into_rgba() {
+        let mut png_bytes = Vec::new();
+        image::codecs::png::PngEncoder::new(&mut png_bytes)
+            .write_image(&[255, 0, 0, 255], 1, 1, image::ExtendedColorType::Rgba8)
+            .unwrap();
+        let png = ImageData::decode(&png_bytes, 1.0).unwrap();
+        assert_eq!((png.width, png.height, png.pixels.len()), (1, 1, 4));
+
+        let svg = ImageData::decode(
+            br##"<?xml version="1.0"?><svg width="2" height="3" xmlns="http://www.w3.org/2000/svg"><rect width="2" height="3" fill="#ff0000"/></svg>"##,
+            2.0,
+        )
+        .unwrap();
+        assert_eq!((svg.width, svg.height, svg.scale), (2, 3, 2.0));
+        assert!(svg.pixels.iter().any(|pixel| *pixel != 0));
     }
 }

@@ -9,6 +9,7 @@ mod etched_border;
 mod line_border;
 mod margin_border;
 mod rectangle_border;
+mod title_bar_border;
 
 pub use bevel_border::{BevelBorder, BevelStyle};
 pub use compound_border::CompoundBorder;
@@ -16,10 +17,53 @@ pub use etched_border::EtchedBorder;
 pub use line_border::LineBorder;
 pub use margin_border::MarginBorder;
 pub use rectangle_border::RectangleBorder;
+pub use title_bar_border::TitleBarBorder;
 
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BorderSnapshot {
+    kind: BorderSnapshotKind,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum BorderSnapshotKind {
+    TitleBar(title_bar_border::TitleBarMetrics),
+}
+
+impl BorderSnapshot {
+    pub(crate) fn title_bar(metrics: title_bar_border::TitleBarMetrics) -> Self {
+        Self {
+            kind: BorderSnapshotKind::TitleBar(metrics),
+        }
+    }
+
+    pub(crate) fn insets(&self) -> (f64, f64, f64, f64) {
+        match &self.kind {
+            BorderSnapshotKind::TitleBar(metrics) => metrics.insets,
+        }
+    }
+
+    pub(crate) fn preferred_size(&self) -> (f64, f64) {
+        match &self.kind {
+            BorderSnapshotKind::TitleBar(metrics) => metrics.preferred,
+        }
+    }
+
+    pub(crate) fn text_layout(&self) -> &novadraw_render::TextLayout {
+        match &self.kind {
+            BorderSnapshotKind::TitleBar(metrics) => &metrics.layout,
+        }
+    }
+
+    fn title_bar_metrics(&self) -> Option<&title_bar_border::TitleBarMetrics> {
+        match &self.kind {
+            BorderSnapshotKind::TitleBar(metrics) => Some(metrics),
+        }
+    }
+}
 
 /// Border 边框 trait
 ///
@@ -48,6 +92,20 @@ pub trait Border: Send + Sync {
         self.paint(inset_rectangle(figure_bounds, incoming), gc);
     }
 
+    fn paint_snapshot(
+        &self,
+        figure_bounds: Rectangle,
+        snapshot: &BorderSnapshot,
+        gc: &mut NdCanvas,
+    ) {
+        match (self.title_bar(), snapshot.title_bar_metrics()) {
+            (Some(border), Some(metrics)) => {
+                border.paint_metrics(figure_bounds, metrics, gc);
+            }
+            _ => self.paint(figure_bounds, gc),
+        }
+    }
+
     /// Border 自身正确显示所需的最小外部尺寸。
     fn preferred_size(&self) -> (f64, f64) {
         (0.0, 0.0)
@@ -66,6 +124,11 @@ pub trait Border: Send + Sync {
     /// 获取边框宽度
     fn get_width(&self) -> f64 {
         0.0
+    }
+
+    /// Returns TitleBar-specific behavior when this Border owns a text-derived header.
+    fn title_bar(&self) -> Option<&TitleBarBorder> {
+        None
     }
 }
 

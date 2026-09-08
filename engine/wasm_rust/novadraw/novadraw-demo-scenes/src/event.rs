@@ -30,7 +30,6 @@ pub struct ProbeState {
 
 struct EventProbeFigure {
     bounds: Rectangle,
-    label: &'static str,
     disabled_visual: bool,
     state: Arc<Mutex<ProbeState>>,
 }
@@ -39,7 +38,6 @@ impl EventProbeFigure {
     fn new(bounds: Rectangle, state: Arc<Mutex<ProbeState>>) -> Self {
         Self {
             bounds,
-            label: "Probe",
             disabled_visual: false,
             state,
         }
@@ -48,7 +46,6 @@ impl EventProbeFigure {
     fn from_focus_spec(spec: FocusProbeSpec, state: Arc<Mutex<ProbeState>>) -> Self {
         Self {
             bounds: spec.bounds,
-            label: spec.label,
             disabled_visual: !spec.enabled,
             state,
         }
@@ -111,13 +108,6 @@ impl Figure for EventProbeFigure {
             Color::hex("#3498db")
         };
         canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
-        canvas.fill_style(if self.disabled_visual {
-            Color::hex("#2c3e50")
-        } else {
-            Color::WHITE
-        });
-        canvas.font("18px sans-serif");
-        canvas.fill_text(self.label, 12.0, 30.0);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {

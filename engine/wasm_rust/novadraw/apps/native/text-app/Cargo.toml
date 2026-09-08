@@ -1,0 +1,8 @@
+[package]
+name = "text-app"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+novadraw-apps = { path = "../../../novadraw-apps" }
+novadraw-demo-scenes = { path = "../../../novadraw-demo-scenes" }

@@ -3,10 +3,12 @@ use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
-    Bounded, Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, UpdateManager,
+    Bounded, BuiltinFont, Color, Figure, FigureTree, FontDescriptor, NdCanvas, Rectangle,
+    RectangleFigure, ResourceId, TextConstraints, TextEngine, TextLayout, UpdateManager,
     ZoomManager,
 };
 use serde::Serialize;
+use uuid::Uuid;
 
 const DEFAULT_WARMUP_ITERATIONS: usize = 1;
 const DEFAULT_SAMPLE_ITERATIONS: usize = 7;
@@ -92,12 +94,12 @@ struct ScenarioReport {
 
 struct TextProbeFigure {
     bounds: Rectangle,
-    text: String,
+    layout: TextLayout,
 }
 
 impl TextProbeFigure {
-    fn new(bounds: Rectangle, text: String) -> Self {
-        Self { bounds, text }
+    fn new(bounds: Rectangle, layout: TextLayout) -> Self {
+        Self { bounds, layout }
     }
 }
 
@@ -126,7 +128,7 @@ impl Figure for TextProbeFigure {
 
     fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
         canvas.fill_style(Color::BLACK);
-        canvas.fill_text(&self.text, 0.0, bounds.height);
+        canvas.fill_text_layout(&self.layout, 0.0, bounds.height);
     }
 }
 
@@ -317,6 +319,13 @@ fn build_deep_tree() -> FigureTree {
 
 fn build_text_tree() -> FigureTree {
     let (mut tree, root) = root_tree();
+    let mut text = TextEngine::new();
+    text.register_font(
+        ResourceId::new(Uuid::nil(), 1),
+        1,
+        BuiltinFont::Inter.bytes(),
+    )
+    .expect("benchmark font");
     for index in 0..TEXT_FIGURES {
         let row = index / 20;
         let column = index % 20;
@@ -324,7 +333,12 @@ fn build_text_tree() -> FigureTree {
             root,
             Box::new(TextProbeFigure::new(
                 Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
-                format!("label-{index:04}"),
+                text.layout(
+                    &format!("label-{index:04}"),
+                    &FontDescriptor::default(),
+                    TextConstraints::UNBOUNDED,
+                )
+                .expect("benchmark text layout"),
             )),
         );
     }

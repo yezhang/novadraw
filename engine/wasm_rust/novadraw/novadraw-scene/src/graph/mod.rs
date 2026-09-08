@@ -11,19 +11,20 @@ use std::{
 };
 
 use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Translatable, Vec2};
-use novadraw_render::NdCanvas;
+use novadraw_render::{NdCanvas, TextError, TextLayoutEngine};
 use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
 use super::figure::{
-    ChildClippingStrategy, ChildPolicy, Direction, RoundedRectangleFigure, ShapeMutationError,
-    TriangleFigure, normalize_points,
+    ChildClippingStrategy, ChildPolicy, Direction, ImageFigure, LabelFigure,
+    RoundedRectangleFigure, ShapeMutationError, TriangleFigure, normalize_points,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
     LayoutSnapshot,
 };
 use crate::Border;
+use crate::figure::border::BorderSnapshot;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::runtime::update::{
     AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
@@ -191,6 +192,18 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
+fn owner_scoped_border_size(content: (f64, f64), snapshot: Option<&BorderSnapshot>) -> (f64, f64) {
+    let Some(snapshot) = snapshot else {
+        return content;
+    };
+    let (top, left, bottom, right) = snapshot.insets();
+    let preferred = snapshot.preferred_size();
+    (
+        (content.0 + left + right).max(preferred.0),
+        (content.1 + top + bottom).max(preferred.1),
+    )
+}
+
 /// State shared by every Figure node.
 ///
 /// Concrete Figure implementations retain only type-specific data. Tree,
@@ -198,6 +211,7 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
 pub struct NodeState {
     pub(crate) bounds: Rectangle,
     pub(crate) insets: (f64, f64, f64, f64),
+    pub(crate) border_snapshot: Option<BorderSnapshot>,
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
     pub(crate) is_opaque: bool,
@@ -215,6 +229,7 @@ impl Default for NodeState {
         Self {
             bounds: Rectangle::ZERO,
             insets: (0.0, 0.0, 0.0, 0.0),
+            border_snapshot: None,
             is_visible: true,
             is_enabled: true,
             is_opaque: false,
@@ -1912,7 +1927,10 @@ impl FigureTree {
             });
             return Some(size);
         }
-        Some(block.figure.intrinsic_size())
+        Some(owner_scoped_border_size(
+            block.figure.intrinsic_size(),
+            block.border_snapshot.as_ref(),
+        ))
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
@@ -1940,7 +1958,10 @@ impl FigureTree {
             });
             return Some(size);
         }
-        Some(block.figure.intrinsic_size())
+        Some(owner_scoped_border_size(
+            block.figure.intrinsic_minimum_size(),
+            block.border_snapshot.as_ref(),
+        ))
     }
 
     /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
@@ -2371,6 +2392,7 @@ impl FigureTree {
                 .bordered_mut()
                 .ok_or(ShapeMutationError::WrongCapability(id))?
                 .replace_border(border);
+            block.border_snapshot = None;
             block.insets = block
                 .figure
                 .get_border()
@@ -2629,6 +2651,196 @@ impl FigureTree {
         Some(result)
     }
 
+    pub(crate) fn refresh_label_layouts(
+        &mut self,
+        text: &mut dyn TextLayoutEngine,
+        resources: &crate::ResourceRegistry,
+    ) -> Result<Vec<FigureId>, TextError> {
+        let labels = self
+            .blocks
+            .iter()
+            .filter_map(|(id, block)| {
+                block
+                    .figure
+                    .as_ref()
+                    .as_any()
+                    .is::<LabelFigure>()
+                    .then_some(id)
+            })
+            .collect::<Vec<_>>();
+        let mut changed = Vec::new();
+        for id in labels {
+            let style = self
+                .resolved_style(id)
+                .expect("attached label has resolved style");
+            let font = novadraw_render::FontDescriptor::parse(&style.font)?;
+            let bounds = self.blocks[id].client_area();
+            let label = self.blocks[id]
+                .figure
+                .as_mut()
+                .as_any_mut()
+                .downcast_mut::<LabelFigure>()
+                .expect("label type checked before mutable borrow");
+            let icon = label.icon().and_then(|id| resources.image_ref(id));
+            if label.refresh_layout(text, &font, bounds, icon)? {
+                changed.push(id);
+            }
+        }
+        Ok(changed)
+    }
+
+    pub(crate) fn refresh_image_figures(
+        &mut self,
+        resources: &crate::ResourceRegistry,
+    ) -> Vec<FigureId> {
+        let images = self
+            .blocks
+            .iter()
+            .filter_map(|(id, block)| {
+                block
+                    .figure
+                    .as_ref()
+                    .as_any()
+                    .is::<ImageFigure>()
+                    .then_some(id)
+            })
+            .collect::<Vec<_>>();
+        let mut changed = Vec::new();
+        for id in images {
+            let image = self.blocks[id]
+                .figure
+                .as_ref()
+                .as_any()
+                .downcast_ref::<ImageFigure>()
+                .expect("image type checked before refresh")
+                .image();
+            let Ok(status) = resources.status(image.resource_id()) else {
+                continue;
+            };
+            let image_ref = resources.image_ref(image);
+            let figure = self.blocks[id]
+                .figure
+                .as_mut()
+                .as_any_mut()
+                .downcast_mut::<ImageFigure>()
+                .expect("image type checked before refresh");
+            if figure.refresh(status, image_ref) {
+                changed.push(id);
+            }
+        }
+        changed
+    }
+
+    pub(crate) fn label(&self, id: FigureId) -> Option<&LabelFigure> {
+        self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
+    }
+
+    pub(crate) fn image_figure(&self, id: FigureId) -> Option<&ImageFigure> {
+        self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
+    }
+
+    pub(crate) fn set_image_figure(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        image: crate::ImageId,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(previous_image) = self.image_figure(id).map(ImageFigure::image) else {
+            return Err(if self.blocks.contains_key(id) {
+                ShapeMutationError::WrongCapability(id)
+            } else {
+                ShapeMutationError::UnknownFigure(id)
+            });
+        };
+        if previous_image == image {
+            return Ok(false);
+        }
+        self.blocks[id]
+            .figure
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<ImageFigure>()
+            .expect("image type checked before mutation")
+            .set_image(image);
+        self.record_property_change(
+            id,
+            "image",
+            PropertyValue::Text(format!("{previous_image:?}")),
+            PropertyValue::Text(format!("{image:?}")),
+        );
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_image_alignment(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        alignment: crate::Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(previous) = self.image_figure(id).map(ImageFigure::alignment) else {
+            return Err(if self.blocks.contains_key(id) {
+                ShapeMutationError::WrongCapability(id)
+            } else {
+                ShapeMutationError::UnknownFigure(id)
+            });
+        };
+        if previous == alignment {
+            return Ok(false);
+        }
+        self.blocks[id]
+            .figure
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<ImageFigure>()
+            .expect("image type checked before mutation")
+            .set_alignment(alignment);
+        self.record_property_change(
+            id,
+            "image_alignment",
+            PropertyValue::Text(format!("{previous:?}")),
+            PropertyValue::Text(format!("{alignment:?}")),
+        );
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn mutate_label(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+        mutate: impl FnOnce(&mut LabelFigure),
+        revalidate: bool,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        if !block.figure.as_ref().as_any().is::<LabelFigure>() {
+            return Err(ShapeMutationError::WrongCapability(id));
+        }
+        if old_value == new_value {
+            return Ok(false);
+        }
+        let label = self.blocks[id]
+            .figure
+            .as_mut()
+            .as_any_mut()
+            .downcast_mut::<LabelFigure>()
+            .expect("label type checked before mutation");
+        mutate(label);
+        self.record_property_change(id, property, old_value, new_value);
+        if revalidate {
+            self.mark_invalid(update_manager, id);
+        }
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
     pub fn set_insets(&mut self, id: FigureId, insets: (f64, f64, f64, f64)) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
@@ -2639,6 +2851,22 @@ impl FigureTree {
         block.insets = insets;
         self.mark_validation_path_invalid(id);
         self.notify_block_changed(id);
+        true
+    }
+
+    pub(crate) fn border_snapshot(&self, id: FigureId) -> Option<&BorderSnapshot> {
+        self.blocks.get(id)?.border_snapshot.as_ref()
+    }
+
+    pub(crate) fn set_border_snapshot(&mut self, id: FigureId, snapshot: BorderSnapshot) -> bool {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return false;
+        };
+        if block.border_snapshot.as_ref() == Some(&snapshot) {
+            return false;
+        }
+        block.insets = snapshot.insets();
+        block.border_snapshot = Some(snapshot);
         true
     }
 

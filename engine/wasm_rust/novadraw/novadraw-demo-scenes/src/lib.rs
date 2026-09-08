@@ -13,6 +13,7 @@ pub mod ndcanvas;
 pub mod scroll_pane;
 pub mod shape;
 pub mod style;
+pub mod text;
 pub mod transform;
 pub mod update;
 pub mod viewport;

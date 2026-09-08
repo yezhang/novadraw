@@ -14,6 +14,8 @@
 //! ```
 
 mod ellipse;
+mod image;
+mod label;
 mod polygon;
 mod polyline;
 mod rectangle;
@@ -24,6 +26,8 @@ mod triangle;
 pub mod border;
 
 pub use ellipse::EllipseFigure;
+pub use image::{ImageDisplayState, ImageFigure};
+pub use label::{Alignment, LabelFigure, TextPlacement};
 pub use polygon::PolygonFigure;
 pub use polyline::PolylineFigure;
 pub(crate) use polyline::normalize_points;
@@ -40,7 +44,7 @@ use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
 use crate::{EventContext, FigureId, FocusEvent, KeyEvent, MouseEvent, WheelEvent};
-use border::Border;
+use border::{Border, BorderSnapshot};
 
 const DEFAULT_MAXIMUM_DIMENSION: f64 = i32::MAX as f64;
 
@@ -349,6 +353,11 @@ pub trait Figure: AsAny {
         )
     }
 
+    /// Returns the Figure's intrinsic minimum size when no LayoutManager supplies one.
+    fn intrinsic_minimum_size(&self) -> (f64, f64) {
+        self.intrinsic_size()
+    }
+
     /// 在 NodeState 当前 border-box 中执行精确命中。
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
         x >= 0.0 && x <= bounds.width && y >= 0.0 && y <= bounds.height
@@ -397,6 +406,23 @@ pub trait Figure: AsAny {
             border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
         } else {
             self.paint_border(gc);
+        }
+    }
+
+    fn paint_border_snapshot_in_bounds(
+        &self,
+        gc: &mut NdCanvas,
+        bounds: Rectangle,
+        snapshot: Option<&BorderSnapshot>,
+    ) {
+        if let (Some(border), Some(snapshot)) = (self.get_border(), snapshot) {
+            border.paint_snapshot(
+                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                snapshot,
+                gc,
+            );
+        } else {
+            self.paint_border_in_bounds(gc, bounds);
         }
     }
 

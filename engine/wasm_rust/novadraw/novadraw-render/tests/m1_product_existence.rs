@@ -1,6 +1,7 @@
 use glam::DVec2;
 use novadraw_core::Color;
-use novadraw_render::{ImageData, LineStyle, NdCanvas, RenderCommandKind};
+use novadraw_render::{ImageResourceRef, LineStyle, NdCanvas, RenderCommandKind, ResourceId};
+use uuid::Uuid;
 
 #[test]
 fn m1_graphics_shape_and_style_entries_emit_commands() {
@@ -71,17 +72,14 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
 }
 
 #[test]
-fn m1_graphics_text_image_clip_and_alpha_entries_emit_commands() {
+fn m1_graphics_image_clip_and_alpha_entries_emit_commands() {
     let mut canvas = NdCanvas::new();
     canvas.set_background_color(Color::rgba(0.0, 1.0, 0.0, 0.8));
 
     canvas.set_alpha(0.5);
     canvas.set_clip(1.0, 2.0, 30.0, 40.0);
-    canvas.draw_text("drawText", 3.0, 4.0);
-    canvas.draw_string("drawString", 5.0, 6.0);
-
-    let image = ImageData::from_rgba(2, 2, vec![255; 16], 1.0);
-    canvas.draw_image(&image, 7.0, 8.0);
+    let image = ImageResourceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 2, 2, 1.0);
+    canvas.draw_image(image, 7.0, 8.0);
 
     let commands = canvas.commands();
     assert!(matches!(
@@ -92,22 +90,6 @@ fn m1_graphics_text_image_clip_and_alpha_entries_emit_commands() {
     assert!(matches!(commands[2].kind, RenderCommandKind::Clip { .. }));
     assert!(matches!(
         commands[3].kind,
-        RenderCommandKind::FillText {
-            ref text,
-            color,
-            ..
-        } if text == "drawText" && color.a == 0.4
-    ));
-    assert!(matches!(
-        commands[4].kind,
-        RenderCommandKind::FillText {
-            ref text,
-            color,
-            ..
-        } if text == "drawString" && color.a == 0.4
-    ));
-    assert!(matches!(
-        commands[5].kind,
         RenderCommandKind::Image { alpha, .. } if alpha == 0.5
     ));
 }

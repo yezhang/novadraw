@@ -50,13 +50,14 @@ pub use container::{
 pub use figure::border;
 pub use figure::border::{
     BevelBorder, BevelStyle, Border, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
-    RectangleBorder,
+    RectangleBorder, TitleBarBorder,
 };
 pub use figure::{
-    AccessibleFigure, AsAny, BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy,
-    ChildTransform, Direction, EllipseFigure, Figure, FigureContainer, FigureEventHandler,
-    FigureLifecycle, Freeform, HitParticipation, Layer, PointListFigureBehavior, PolygonFigure,
-    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError,
+    AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ChildClippingStrategy,
+    ChildPolicy, ChildTransform, Direction, EllipseFigure, Figure, FigureContainer,
+    FigureEventHandler, FigureLifecycle, Freeform, HitParticipation, ImageDisplayState,
+    ImageFigure, LabelFigure, Layer, PointListFigureBehavior, PolygonFigure, PolylineFigure,
+    RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError, TextPlacement,
     TriangleFigure,
 };
 pub use graph as scene;
