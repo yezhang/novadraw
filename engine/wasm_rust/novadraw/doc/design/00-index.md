@@ -31,6 +31,7 @@
 
 ## 非规范提案
 
+- [`architecture/derived-state-convergence.md`](architecture/derived-state-convergence.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

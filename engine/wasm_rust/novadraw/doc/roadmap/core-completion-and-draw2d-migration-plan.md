@@ -995,6 +995,11 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 
 状态：`in_progress`
 
+候选契约：
+
+- [`../design/architecture/derived-state-convergence.md`](../design/architecture/derived-state-convergence.md)
+- [`../adr/adr-011-derived-state-convergence.md`](../adr/adr-011-derived-state-convergence.md)
+
 目标：
 
 - connection dirty 自动进入正常 frame 的 reroute，不要求应用显式 resolve；

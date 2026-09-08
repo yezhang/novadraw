@@ -40,6 +40,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 候选方案不属于核心 SSOT：
 
+- 派生状态收敛事务：
+  [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
 - DisplayList 候选协议：[`design/rendering/display-list-protocol.md`](design/rendering/display-list-protocol.md)
 - DisplayList 探索计划：[`design/rendering/displaylist-implementation-plan.md`](design/rendering/displaylist-implementation-plan.md)
 
