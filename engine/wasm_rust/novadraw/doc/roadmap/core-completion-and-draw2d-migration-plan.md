@@ -922,7 +922,7 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 
 ### D3.3 M7 listener Runtime 公共面
 
-状态：`in_progress`
+状态：`complete`
 
 目标：
 
@@ -941,9 +941,20 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 - callback 请求注销时不破坏当前 effect 顺序；
 - listener 不能在通知中观察未提交或部分提交状态。
 
+完成证据：
+
+- ADR-010 固定七类 Runtime listener、统一 `ListenerId` 与
+  `ListenerDirective::{Keep, Remove}` self-removal 契约；
+- Runtime 已公开 Figure、Coordinate、Ancestor、Property、Action、Layout 和
+  Update listener 注册入口，全部返回 `ListenerId`；
+- `remove_listener` 对全部类别统一生效，重复注销返回 `false`；
+- `novadraw-scene/tests/d3_runtime_listener.rs` 的 4 项契约测试通过；
+- 详细记录见
+  `doc/verification/reviews/d3-runtime-listener-2026-09-08.md`。
+
 ### D3.4 D3 完成门禁
 
-状态：`not_started`
+状态：`complete`
 
 - D3.0-D3.3 全部完成；
 - `cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test` 通过；
@@ -951,6 +962,13 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 - M9 恢复 `complete`，M7 的公共面证据写回 API coverage；
 - Runtime 用户无需访问内部 FigureTree/UpdateManager 即可完成上述动态操作和订阅；
 - 完成后才启动 M10.5 Tooltip 与 Accessibility 契约。
+
+完成结果：
+
+- D3.0-D3.3 全部完成；
+- M9 已恢复 `complete`，M7 Runtime listener 公共面已写回覆盖账本；
+- Rust workspace、Clippy、WASM `novadraw` 与 `web-validation` 门禁通过；
+- 当前执行阶段切换到 M10.5 Tooltip 与 Accessibility。
 
 ## 9. Draw2D Core 1.0 完成门禁
 

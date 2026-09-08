@@ -17,6 +17,9 @@ Draw2D Core 1.0 能力覆盖、公共 API 可达性与路线图一致性审计�
 D3.2 Runtime 动态 mutation 的实现与自动门禁见
 [`reviews/d3-runtime-mutation-2026-09-08.md`](reviews/d3-runtime-mutation-2026-09-08.md)。
 
+D3.3 Runtime listener 公共面与 self-removal 语义验证见
+[`reviews/d3-runtime-listener-2026-09-08.md`](reviews/d3-runtime-listener-2026-09-08.md)。
+
 ## 手工验证入口
 
 - [`manual/core-pipeline.md`](manual/core-pipeline.md)：M1-M7 核心渲染与事件链路；

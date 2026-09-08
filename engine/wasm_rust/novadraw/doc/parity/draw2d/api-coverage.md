@@ -275,12 +275,12 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | UpdateManager 内部 `FigureListener` + `ListenerId` 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
-| `notification.ancestor` | `add/removeAncestorListener` | UpdateManager 内部 Added/Moved/Removed typed events 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
-| `notification.coordinate` | `add/removeCoordinateListener` | UpdateManager 内部 `CoordinateSystemChanged` 已验证；Runtime 无注册入口 | partial | D3.3 补 Runtime 公共注册/注销 |
-| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `PropertyChangeListener` + typed old/new value；visible/enabled 已接入；Toggle selected 是控件模型属性，与 editor selection 分离 | verified | M10 新 Figure 属性继续复用同一协议 |
-| `notification.action` | `ActionListener.actionPerformed` | `ActionListener` + `ActionEvent { block_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 Toggle 固定 selected change → action 顺序 |
-| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | UpdateManager 内部分层与因果顺序已验证；Runtime 缺 LayoutListener 入口且 `add_update_listener` 不返回 `ListenerId` | partial | D3.3 补齐成对公共 API 与注销契约 |
+| `notification.figure` | `add/removeFigureListener`; figure moved / bounds changed | `Runtime::add_figure_listener` + 统一 `remove_listener`；typed committed-state event | verified | D3.3 Runtime 注册、触发、注销与 self-removal 已验证 |
+| `notification.ancestor` | `add/removeAncestorListener` | `Runtime::add_ancestor_listener`；Added/Moved/Removed typed event | verified | D3.3 Runtime 公共路径已验证 |
+| `notification.coordinate` | `add/removeCoordinateListener` | `Runtime::add_coordinate_listener`；`CoordinateSystemChanged` typed event | verified | D3.3 Runtime 公共路径已验证 |
+| `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `Runtime::add_property_listener` + typed old/new value；Toggle selected 与 editor selection 分离 | verified | D3.3 统一 ListenerId、注销和 callback self-removal 已验证 |
+| `notification.action` | `ActionListener.actionPerformed` | `Runtime::add_action_listener` + `ActionEvent { block_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 顺序与 D3.3 self-removal 契约测试通过 |
+| `notification.layout_update` | `add/removeLayoutListener`, validating/painting | `Runtime::{add_layout_listener,add_update_listener}`；稳定事务边界分发且均返回 `ListenerId` | verified | D3.3 七类 listener 公共面与统一注销已闭合 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。
 

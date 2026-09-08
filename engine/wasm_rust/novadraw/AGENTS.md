@@ -51,10 +51,9 @@
 
 ### 当前执行门禁
 
-- M9 和 D3.1-D3.2 已完成；当前执行
-  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D3.3 M7
-  listener Runtime 公共面。
-- M10.5 暂停，必须先完成 D3.3-D3.4 审计收口。
+- M9 和 D3.1-D3.4 已完成；当前执行
+  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 M10.5 Tooltip
+  与 Accessibility 契约。
 
 ### 架构分析边界
 
