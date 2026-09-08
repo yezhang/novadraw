@@ -354,6 +354,14 @@ impl Figure for LabelFigure {
     fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
         Some(self)
     }
+
+    fn label(&self) -> Option<&LabelFigure> {
+        Some(self)
+    }
+
+    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
+        Some(self)
+    }
 }
 
 impl BorderedFigure for LabelFigure {

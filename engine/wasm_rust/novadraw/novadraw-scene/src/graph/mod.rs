@@ -16,8 +16,9 @@ use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
 use super::figure::{
-    ChildClippingStrategy, ChildPolicy, Direction, ImageFigure, LabelFigure,
-    RoundedRectangleFigure, ShapeMutationError, TriangleFigure, normalize_points,
+    ChildClippingStrategy, ChildPolicy, ClickableSnapshot, ClickableVisualState, Direction,
+    ImageFigure, LabelFigure, RoundedRectangleFigure, ShapeMutationError, TriangleFigure,
+    WidgetError, normalize_points,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
@@ -27,7 +28,7 @@ use crate::Border;
 use crate::figure::border::BorderSnapshot;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::runtime::update::{
-    AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
+    ActionEvent, AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
     NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
 };
 use crate::style::{FigureStyle, ResolvedStyle};
@@ -920,6 +921,8 @@ impl FigureTree {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
         let style = figure.initial_style();
+        let is_focusable = figure.initial_focusable();
+        let is_focus_traversable = figure.initial_focus_traversable();
         let layout = LayoutState::for_figure(figure.as_ref());
         let parent_depth = self
             .blocks
@@ -958,6 +961,8 @@ impl FigureTree {
             state: NodeState {
                 bounds,
                 insets,
+                is_focusable,
+                is_focus_traversable,
                 style,
                 ..NodeState::default()
             },
@@ -2659,14 +2664,7 @@ impl FigureTree {
         let labels = self
             .blocks
             .iter()
-            .filter_map(|(id, block)| {
-                block
-                    .figure
-                    .as_ref()
-                    .as_any()
-                    .is::<LabelFigure>()
-                    .then_some(id)
-            })
+            .filter_map(|(id, block)| block.figure.label().is_some().then_some(id))
             .collect::<Vec<_>>();
         let mut changed = Vec::new();
         for id in labels {
@@ -2677,10 +2675,8 @@ impl FigureTree {
             let bounds = self.blocks[id].client_area();
             let label = self.blocks[id]
                 .figure
-                .as_mut()
-                .as_any_mut()
-                .downcast_mut::<LabelFigure>()
-                .expect("label type checked before mutable borrow");
+                .label_mut()
+                .expect("label capability checked before mutable borrow");
             let icon = label.icon().and_then(|id| resources.image_ref(id));
             if label.refresh_layout(text, &font, bounds, icon)? {
                 changed.push(id);
@@ -2732,7 +2728,7 @@ impl FigureTree {
     }
 
     pub(crate) fn label(&self, id: FigureId) -> Option<&LabelFigure> {
-        self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
+        self.blocks.get(id)?.figure.label()
     }
 
     pub(crate) fn image_figure(&self, id: FigureId) -> Option<&ImageFigure> {
@@ -2820,7 +2816,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        if !block.figure.as_ref().as_any().is::<LabelFigure>() {
+        if block.figure.label().is_none() {
             return Err(ShapeMutationError::WrongCapability(id));
         }
         if old_value == new_value {
@@ -2828,10 +2824,8 @@ impl FigureTree {
         }
         let label = self.blocks[id]
             .figure
-            .as_mut()
-            .as_any_mut()
-            .downcast_mut::<LabelFigure>()
-            .expect("label type checked before mutation");
+            .label_mut()
+            .expect("label capability checked before mutation");
         mutate(label);
         self.record_property_change(id, property, old_value, new_value);
         if revalidate {
@@ -2839,6 +2833,127 @@ impl FigureTree {
         }
         self.repaint(update_manager, id, None);
         Ok(true)
+    }
+
+    pub(crate) fn clickable_snapshot(&self, id: FigureId) -> Option<ClickableSnapshot> {
+        self.blocks
+            .get(id)?
+            .figure
+            .clickable()
+            .map(|clickable| clickable.clickable_model().snapshot())
+    }
+
+    pub(crate) fn clickable_ids(&self) -> Vec<FigureId> {
+        self.blocks
+            .iter()
+            .filter_map(|(id, block)| block.figure.clickable().is_some().then_some(id))
+            .collect()
+    }
+
+    pub(crate) fn activate_clickable(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+    ) -> bool {
+        if !self.is_effectively_enabled(id) {
+            return false;
+        }
+        let Some(clickable) = self
+            .blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.clickable_mut())
+        else {
+            return false;
+        };
+        let (selection_change, revision) =
+            super::figure::widget::activate(clickable.clickable_model_mut());
+        self.notify_block_changed(id);
+        if let Some((old, new)) = selection_change {
+            self.emit_property_event(PropertyChangeEvent {
+                block_id: id,
+                property: "selected",
+                old_value: PropertyValue::Bool(old),
+                new_value: PropertyValue::Bool(new),
+            });
+        }
+        self.notification_effects.emit_action(ActionEvent {
+            block_id: id,
+            revision,
+        });
+        self.repaint(update_manager, id, None);
+        true
+    }
+
+    pub(crate) fn set_clickable_selected(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        selected: bool,
+    ) -> Result<bool, WidgetError> {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return Err(WidgetError::UnknownFigure(id));
+        };
+        let Some(clickable) = block.figure.clickable_mut() else {
+            return Err(WidgetError::WrongCapability(id));
+        };
+        let old = clickable.clickable_model().is_selected();
+        if !super::figure::widget::set_selected(clickable.clickable_model_mut(), selected) {
+            return Ok(false);
+        }
+        self.record_property_change(
+            id,
+            "selected",
+            PropertyValue::Bool(old),
+            PropertyValue::Bool(selected),
+        );
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_clickable_rollover_enabled(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        enabled: bool,
+    ) -> Result<bool, WidgetError> {
+        let Some(block) = self.blocks.get_mut(id) else {
+            return Err(WidgetError::UnknownFigure(id));
+        };
+        let Some(clickable) = block.figure.clickable_mut() else {
+            return Err(WidgetError::WrongCapability(id));
+        };
+        let old = clickable.clickable_model().rollover_enabled();
+        if !super::figure::widget::set_rollover_enabled(clickable.clickable_model_mut(), enabled) {
+            return Ok(false);
+        }
+        self.record_property_change(
+            id,
+            "rollover_enabled",
+            PropertyValue::Bool(old),
+            PropertyValue::Bool(enabled),
+        );
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn sync_clickable_visual(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        visual: ClickableVisualState,
+    ) -> bool {
+        let Some(clickable) = self
+            .blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.clickable_mut())
+        else {
+            return false;
+        };
+        if !super::figure::widget::sync_visual(clickable.clickable_model_mut(), visual) {
+            return false;
+        }
+        self.repaint(update_manager, id, None);
+        true
     }
 
     pub fn set_insets(&mut self, id: FigureId, insets: (f64, f64, f64, f64)) -> bool {

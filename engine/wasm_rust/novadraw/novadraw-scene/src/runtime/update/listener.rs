@@ -107,6 +107,12 @@ pub struct PropertyChangeEvent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ActionEvent {
+    pub block_id: FigureId,
+    pub revision: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LayoutEventKind {
     Invalidated,
     Started,
@@ -140,6 +146,8 @@ pub enum NotificationEffect {
     EmitAncestor(AncestorEvent),
     /// 通用属性变化。
     EmitProperty(PropertyChangeEvent),
+    /// Button-like Figure activation.
+    EmitAction(ActionEvent),
     /// 布局生命周期变化。
     EmitLayout(LayoutEvent),
 }
@@ -176,6 +184,10 @@ impl NotificationQueue {
 
     pub fn emit_property(&mut self, event: PropertyChangeEvent) {
         self.effects.push(NotificationEffect::EmitProperty(event));
+    }
+
+    pub fn emit_action(&mut self, event: ActionEvent) {
+        self.effects.push(NotificationEffect::EmitAction(event));
     }
 
     pub fn emit_layout(&mut self, event: LayoutEvent) {
@@ -259,6 +271,10 @@ pub trait AncestorListener {
 
 pub trait PropertyChangeListener {
     fn property_changed(&self, event: &PropertyChangeEvent);
+}
+
+pub trait ActionListener {
+    fn action_performed(&self, event: ActionEvent);
 }
 
 pub trait LayoutListener {

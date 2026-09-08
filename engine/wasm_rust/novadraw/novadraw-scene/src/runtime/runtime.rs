@@ -12,16 +12,18 @@ use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
 use crate::mutation::{PendingMutation, PendingMutationKind};
 use crate::{
-    Alignment, AnchorGeometry, AnchorGeometryKey, AnchorId, Border, ConnectionAnchor, ConnectionId,
-    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
+    ActionListener, Alignment, AnchorGeometry, AnchorGeometryKey, AnchorId, Border,
+    ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionRouter,
+    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, CursorIcon,
     DependencySubject, Direction, EventDispatcher, Figure, FigureId, FigureStyle, FigureTree,
     FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
     FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
     KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
-    LayeredPaneHandle, MouseButton, PendingMutations, Rectangle, ResourceError, ResourceRegistry,
-    ResourceStatus, RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
-    ShapeMutationError, StackLayout, TextPlacement, TreeOrderFocusTraversal, UpdateEvent,
-    UpdateListener, UpdateManager, ValidationError, WheelEvent, ZoomEvent,
+    LayeredPaneHandle, ListenerId, MouseButton, PendingMutations, PropertyChangeListener,
+    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding,
+    RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError, StackLayout,
+    TextPlacement, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
+    ValidationError, WheelEvent, WidgetError, ZoomEvent,
 };
 use novadraw_geometry::{Dimension, Vec2};
 
@@ -716,6 +718,7 @@ impl Runtime {
             .tree
             .set_enabled_with_update(&mut self.updates, id, enabled);
         self.retain_interactive_figures();
+        self.sync_clickable_visuals();
         changed
     }
 
@@ -762,6 +765,10 @@ impl Runtime {
         self.label(id)?
             .text_layout()
             .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    pub fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {
+        Ok(self.label(id)?.text())
     }
 
     pub fn title_bar_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
@@ -1097,6 +1104,63 @@ impl Runtime {
         self.updates.add_listener(listener);
     }
 
+    pub fn add_property_listener(
+        &mut self,
+        listener: Box<dyn PropertyChangeListener>,
+    ) -> ListenerId {
+        self.updates.add_property_listener(listener)
+    }
+
+    pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
+        self.updates.add_action_listener(listener)
+    }
+
+    pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+        self.updates.remove_listener(id)
+    }
+
+    pub fn clickable_snapshot(&self, id: FigureId) -> Result<ClickableSnapshot, WidgetError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(WidgetError::UnknownFigure(id));
+        }
+        self.tree
+            .clickable_snapshot(id)
+            .ok_or(WidgetError::WrongCapability(id))
+    }
+
+    pub fn do_click(&mut self, id: FigureId) -> Result<bool, WidgetError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(WidgetError::UnknownFigure(id));
+        }
+        if self.tree.clickable_snapshot(id).is_none() {
+            return Err(WidgetError::WrongCapability(id));
+        }
+        let changed = self.tree.activate_clickable(&mut self.updates, id);
+        self.sync_clickable_visuals();
+        Ok(changed)
+    }
+
+    pub fn set_clickable_selected(
+        &mut self,
+        id: FigureId,
+        selected: bool,
+    ) -> Result<bool, WidgetError> {
+        let changed = self
+            .tree
+            .set_clickable_selected(&mut self.updates, id, selected)?;
+        self.sync_clickable_visuals();
+        Ok(changed)
+    }
+
+    pub fn set_rollover_enabled(
+        &mut self,
+        id: FigureId,
+        enabled: bool,
+    ) -> Result<bool, WidgetError> {
+        self.tree
+            .set_clickable_rollover_enabled(&mut self.updates, id, enabled)
+    }
+
     pub fn has_pending_update(&self) -> bool {
         self.full_redraw_pending
             || self.updates.is_update_queued()
@@ -1336,6 +1400,7 @@ impl Runtime {
         let mutations = self.mutations.drain();
         self.apply_runtime_mutations(mutations);
         self.retain_interactive_figures();
+        self.sync_clickable_visuals();
         result
     }
 
@@ -1519,6 +1584,24 @@ impl Runtime {
         self.interaction.reconcile_non_focus(&self.tree);
         self.resources
             .retain_dependencies(|id| self.tree.is_attached(id));
+    }
+
+    fn sync_clickable_visuals(&mut self) {
+        let cursor_target = self.interaction.cursor_target();
+        let focus_owner = self.interaction.focus_owner();
+        for id in self.tree.clickable_ids() {
+            let hovered = cursor_target
+                .is_some_and(|target| target == id || self.tree.is_ancestor_of(id, target));
+            let visual = ClickableVisualState {
+                hovered,
+                pressed: self.interaction.is_keyboard_pressed(id)
+                    || (hovered && self.interaction.is_pointer_pressed(id)),
+                focused: focus_owner == Some(id),
+                enabled: self.tree.is_effectively_enabled(id),
+            };
+            self.tree
+                .sync_clickable_visual(&mut self.updates, id, visual);
+        }
     }
 
     fn validate_direct_focus(&self, target: FigureId) -> Result<(), FocusError> {

@@ -22,6 +22,7 @@ mod rectangle;
 mod root;
 mod rounded_rectangle;
 mod triangle;
+pub(crate) mod widget;
 
 pub mod border;
 
@@ -35,6 +36,10 @@ pub use rectangle::RectangleFigure;
 pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
 pub use triangle::{Direction, TriangleFigure};
+pub use widget::{
+    ButtonFigure, ClickableBehavior, ClickableFigure, ClickableKind, ClickableModel,
+    ClickableSnapshot, ClickableVisualState, ToggleFigure, WidgetError,
+};
 
 use std::{any::Any, sync::Arc};
 
@@ -324,6 +329,14 @@ pub trait Figure: AsAny {
         crate::FigureStyle::default()
     }
 
+    fn initial_focusable(&self) -> bool {
+        false
+    }
+
+    fn initial_focus_traversable(&self) -> bool {
+        false
+    }
+
     /// ===== PaintSelf 阶段方法 =====
     /// 绘制自身（背景）
     ///
@@ -480,6 +493,26 @@ pub trait Figure: AsAny {
 
     /// Returns mutable Border ownership behavior.
     fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
+        None
+    }
+
+    /// Returns optional label content, including labels composed into widgets.
+    fn label(&self) -> Option<&LabelFigure> {
+        None
+    }
+
+    /// Returns mutable label content, including labels composed into widgets.
+    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
+        None
+    }
+
+    /// Returns optional button-like interaction behavior.
+    fn clickable(&self) -> Option<&dyn ClickableBehavior> {
+        None
+    }
+
+    /// Returns mutable button-like interaction behavior.
+    fn clickable_mut(&mut self) -> Option<&mut dyn ClickableBehavior> {
         None
     }
 }

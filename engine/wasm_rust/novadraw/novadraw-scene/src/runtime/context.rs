@@ -11,10 +11,22 @@ use crate::{
 };
 
 enum RuntimeEffect {
-    Repaint { block_id: FigureId, rect: Rectangle },
+    Repaint {
+        block_id: FigureId,
+        rect: Rectangle,
+    },
     Notification(NotificationEffect),
     Invalidate(FigureId),
     Mutation(PendingMutation),
+    SetPressed {
+        block_id: FigureId,
+        pressed: bool,
+    },
+    SetKeyboardPressed {
+        block_id: FigureId,
+        key: Option<crate::Key>,
+    },
+    ActivateClickable(FigureId),
 }
 
 /// 引擎层通用的 Figure 回调上下文。
@@ -24,6 +36,8 @@ pub struct EventContext<'a> {
     target_id: FigureId,
     target_bounds: Rectangle,
     visual_bounds: Rectangle,
+    pointer_pressed: bool,
+    keyboard_pressed: Option<crate::Key>,
     effects: &'a mut Vec<RuntimeEffect>,
 }
 
@@ -32,12 +46,16 @@ impl<'a> EventContext<'a> {
         target_id: FigureId,
         target_bounds: Rectangle,
         visual_bounds: Rectangle,
+        pointer_pressed: bool,
+        keyboard_pressed: Option<crate::Key>,
         effects: &'a mut Vec<RuntimeEffect>,
     ) -> Self {
         Self {
             target_id,
             target_bounds,
             visual_bounds,
+            pointer_pressed,
+            keyboard_pressed,
             effects,
         }
     }
@@ -49,6 +67,43 @@ impl<'a> EventContext<'a> {
     /// Returns the target's current border box in its node-local coordinate domain.
     pub fn target_bounds(&self) -> Rectangle {
         self.target_bounds
+    }
+
+    pub fn is_pressed(&self) -> bool {
+        self.pointer_pressed || self.keyboard_pressed.is_some()
+    }
+
+    pub fn is_pointer_pressed(&self) -> bool {
+        self.pointer_pressed
+    }
+
+    pub fn set_pressed(&mut self, pressed: bool) {
+        self.pointer_pressed = pressed;
+        self.effects.push(RuntimeEffect::SetPressed {
+            block_id: self.target_id,
+            pressed,
+        });
+    }
+
+    pub fn is_keyboard_pressed(&self) -> bool {
+        self.keyboard_pressed.is_some()
+    }
+
+    pub fn keyboard_pressed_key(&self) -> Option<crate::Key> {
+        self.keyboard_pressed
+    }
+
+    pub fn set_keyboard_pressed(&mut self, key: Option<crate::Key>) {
+        self.keyboard_pressed = key;
+        self.effects.push(RuntimeEffect::SetKeyboardPressed {
+            block_id: self.target_id,
+            key,
+        });
+    }
+
+    pub fn activate_clickable(&mut self) {
+        self.effects
+            .push(RuntimeEffect::ActivateClickable(self.target_id));
     }
 
     pub fn repaint(&mut self, rect: Option<Rectangle>) {
@@ -388,12 +443,21 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let Some(block) = self.scene.block(target_id) else {
             return false;
         };
+        let pointer_pressed = self.interaction.is_pointer_pressed(target_id);
+        let keyboard_pressed = self.interaction.keyboard_pressed_key(target_id);
         let mut effects = Vec::new();
         let handled = {
             let bounds = block.figure_bounds();
             let target_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
             let visual_bounds = block.visual_bounds();
-            let mut ctx = EventContext::new(target_id, target_bounds, visual_bounds, &mut effects);
+            let mut ctx = EventContext::new(
+                target_id,
+                target_bounds,
+                visual_bounds,
+                pointer_pressed,
+                keyboard_pressed,
+                &mut effects,
+            );
             let Some(handler) = block.figure.event_handler() else {
                 return false;
             };
@@ -467,6 +531,15 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     self.scene.mark_invalid(self.update_manager, block_id);
                 }
                 RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
+                RuntimeEffect::SetPressed { block_id, pressed } => {
+                    self.interaction.set_pressed(block_id, pressed);
+                }
+                RuntimeEffect::SetKeyboardPressed { block_id, key } => {
+                    self.interaction.set_keyboard_pressed(block_id, key);
+                }
+                RuntimeEffect::ActivateClickable(block_id) => {
+                    self.scene.activate_clickable(self.update_manager, block_id);
+                }
             }
         }
 

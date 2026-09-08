@@ -22,8 +22,9 @@ use novadraw_render::NdCanvas;
 use crate::ValidationError;
 use crate::graph::FigureId;
 use crate::runtime::update::listener::{
-    AncestorListener, CoordinateListener, FigureListener, LayoutListener, ListenerId,
-    NotificationEffect, NotificationQueue, PropertyChangeListener, UpdateEvent, UpdateListener,
+    ActionListener, AncestorListener, CoordinateListener, FigureListener, LayoutListener,
+    ListenerId, NotificationEffect, NotificationQueue, PropertyChangeListener, UpdateEvent,
+    UpdateListener,
 };
 use crate::runtime::update::repair::{
     compute_damage_union, merge_dirty_region, prepare_damage_set,
@@ -59,6 +60,7 @@ pub struct UpdateManager {
     coordinate_listeners: Vec<(ListenerId, Box<dyn CoordinateListener>)>,
     ancestor_listeners: Vec<(ListenerId, Box<dyn AncestorListener>)>,
     property_listeners: Vec<(ListenerId, Box<dyn PropertyChangeListener>)>,
+    action_listeners: Vec<(ListenerId, Box<dyn ActionListener>)>,
     layout_listeners: Vec<(ListenerId, Box<dyn LayoutListener>)>,
     next_listener_id: u64,
     last_validation_error: Option<ValidationError>,
@@ -84,6 +86,7 @@ impl UpdateManager {
             coordinate_listeners: Vec::new(),
             ancestor_listeners: Vec::new(),
             property_listeners: Vec::new(),
+            action_listeners: Vec::new(),
             layout_listeners: Vec::new(),
             next_listener_id: 1,
             last_validation_error: None,
@@ -124,6 +127,12 @@ impl UpdateManager {
         id
     }
 
+    pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.action_listeners.push((id, listener));
+        id
+    }
+
     pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
         let id = self.allocate_listener_id();
         self.layout_listeners.push((id, listener));
@@ -136,6 +145,7 @@ impl UpdateManager {
             || remove_listener(&mut self.coordinate_listeners, id)
             || remove_listener(&mut self.ancestor_listeners, id)
             || remove_listener(&mut self.property_listeners, id)
+            || remove_listener(&mut self.action_listeners, id)
             || remove_listener(&mut self.layout_listeners, id)
     }
 
@@ -197,6 +207,11 @@ impl UpdateManager {
                 NotificationEffect::EmitProperty(event) => {
                     for (_, listener) in &self.property_listeners {
                         listener.property_changed(event);
+                    }
+                }
+                NotificationEffect::EmitAction(event) => {
+                    for (_, listener) in &self.action_listeners {
+                        listener.action_performed(*event);
                     }
                 }
                 NotificationEffect::EmitLayout(event) => {

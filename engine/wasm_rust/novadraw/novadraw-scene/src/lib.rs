@@ -53,12 +53,13 @@ pub use figure::border::{
     RectangleBorder, TitleBarBorder,
 };
 pub use figure::{
-    AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ChildClippingStrategy,
-    ChildPolicy, ChildTransform, Direction, EllipseFigure, Figure, FigureContainer,
-    FigureEventHandler, FigureLifecycle, Freeform, HitParticipation, ImageDisplayState,
-    ImageFigure, LabelFigure, Layer, PointListFigureBehavior, PolygonFigure, PolylineFigure,
-    RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError, TextPlacement,
-    TriangleFigure,
+    AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
+    ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
+    ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
+    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle, Freeform,
+    HitParticipation, ImageDisplayState, ImageFigure, LabelFigure, Layer, PointListFigureBehavior,
+    PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
+    ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use graph as scene;
 pub use graph::{
@@ -85,10 +86,10 @@ pub use runtime::event::{
 pub use runtime::mutation::PendingMutations;
 pub use runtime::update;
 pub use runtime::update::{
-    AncestorEvent, AncestorEventKind, AncestorListener, CoordinateListener, FigureEvent,
-    FigureListener, LayoutEvent, LayoutEventKind, LayoutListener, ListenerId, NotificationEffect,
-    NotificationQueue, PropertyChangeEvent, PropertyChangeListener, PropertyValue, UpdateEvent,
-    UpdateListener, UpdateManager, ValidatingListener,
+    ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
+    CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
+    ListenerId, NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyChangeListener,
+    PropertyValue, UpdateEvent, UpdateListener, UpdateManager, ValidatingListener,
 };
 pub use runtime::{
     FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,

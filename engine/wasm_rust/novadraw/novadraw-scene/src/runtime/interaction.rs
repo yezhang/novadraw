@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{FigureId, FigureTree, GestureSessionId};
+use crate::{FigureId, FigureTree, GestureSessionId, Key};
 
 #[derive(Clone, Copy, Default)]
 struct GestureState {
@@ -38,6 +38,7 @@ pub struct InteractionState {
     focus_owner: Option<FigureId>,
     hovered: HashSet<FigureId>,
     pressed: HashSet<FigureId>,
+    keyboard_pressed: HashMap<FigureId, Key>,
     gestures: HashMap<GestureSessionId, GestureState>,
 }
 
@@ -59,7 +60,19 @@ impl InteractionState {
     }
 
     pub fn is_pressed(&self, id: FigureId) -> bool {
+        self.pressed.contains(&id) || self.keyboard_pressed.contains_key(&id)
+    }
+
+    pub(crate) fn is_pointer_pressed(&self, id: FigureId) -> bool {
         self.pressed.contains(&id)
+    }
+
+    pub(crate) fn is_keyboard_pressed(&self, id: FigureId) -> bool {
+        self.keyboard_pressed.contains_key(&id)
+    }
+
+    pub(crate) fn keyboard_pressed_key(&self, id: FigureId) -> Option<Key> {
+        self.keyboard_pressed.get(&id).copied()
     }
 
     pub(crate) fn set_mouse_target(&mut self, id: Option<FigureId>) {
@@ -105,6 +118,17 @@ impl InteractionState {
             self.pressed.insert(id);
         } else {
             self.pressed.remove(&id);
+        }
+    }
+
+    pub(crate) fn set_keyboard_pressed(&mut self, id: FigureId, key: Option<Key>) {
+        match key {
+            Some(key) => {
+                self.keyboard_pressed.insert(id, key);
+            }
+            None => {
+                self.keyboard_pressed.remove(&id);
+            }
         }
     }
 
@@ -213,6 +237,7 @@ impl InteractionState {
         self.hover_source = self.hover_source.filter(|id| eligible(*id));
         self.hovered.retain(|id| eligible(*id));
         self.pressed.retain(|id| eligible(*id));
+        self.keyboard_pressed.retain(|id, _| eligible(*id));
         self.gestures.retain(|_, state| {
             state.target.is_none_or(&mut eligible)
                 && state.scroll_controller.flatten().is_none_or(&mut eligible)
