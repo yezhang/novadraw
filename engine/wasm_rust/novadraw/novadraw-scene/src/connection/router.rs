@@ -11,7 +11,7 @@ use super::{AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateS
 /// Default perpendicular spacing between neighboring Fan routes.
 pub const FAN_DEFAULT_SEPARATION: f64 = 16.0;
 /// Default logical distance between shared Manhattan lanes.
-pub const MANHATTAN_DEFAULT_LANE_SPACING: f64 = 2.0;
+pub const MANHATTAN_DEFAULT_LANE_SPACING: f64 = 8.0;
 /// Default minimum length retained for endpoint-adjacent Manhattan stubs.
 pub const MANHATTAN_DEFAULT_MINIMUM_STUB: f64 = 10.0;
 

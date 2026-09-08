@@ -5,9 +5,9 @@ use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
     ConnectionResolution, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace, DirectRouter,
-    FanRouter, FigureId, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
-    RectangleFigure, RouteError, RouteOutput, RouteRequest, RouterBinding, Runtime,
-    UnresolvedConnection, ViewportFigure,
+    FanRouter, FigureId, MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB,
+    ManhattanConnectionRouter, RectangleFigure, RouteError, RouteOutput, RouteRequest,
+    RouterBinding, Runtime, UnresolvedConnection, ViewportFigure,
 };
 
 struct ConstraintA;
@@ -477,7 +477,10 @@ fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
         .unwrap();
     let first_lane = first_output.points().get(1).unwrap().x();
     let second_lane = second_output.points().get(1).unwrap().x();
-    assert_eq!((first_lane - second_lane).abs(), 2.0);
+    assert_eq!(
+        (first_lane - second_lane).abs(),
+        MANHATTAN_DEFAULT_LANE_SPACING
+    );
 
     assert!(runtime.set_bounds(
         second_source,

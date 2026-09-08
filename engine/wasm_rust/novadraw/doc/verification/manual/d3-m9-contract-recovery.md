@@ -18,8 +18,9 @@ cargo run -p connections-demo
 检查：
 
 - 左右节点之间存在四条正交连接；
-- 四条连接的内部垂直 lane 可辨识地分离；
-- 每条连接保持水平首尾 stub，端点落在节点边缘；
+- 四条连接的内部垂直 lane 清晰分离，能逐条辨认；
+- 水平首尾 stub 允许完全重合，这是相同 Anchor endpoint 下的预期表现；
+- 每条连接的端点落在节点边缘；
 - 没有斜线、零长度折返、箭头错位或超出窗口的路径。
 
 ## unsupported_viewport_topology
