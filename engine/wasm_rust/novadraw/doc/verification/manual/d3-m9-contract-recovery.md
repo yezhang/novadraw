@@ -2,6 +2,11 @@
 
 类型：`verification`
 
+## 验收状态
+
+- `shared_manhattan`：PASS（2026-09-08）
+- `unsupported_viewport_topology`：待验收
+
 ## 启动
 
 ```bash
