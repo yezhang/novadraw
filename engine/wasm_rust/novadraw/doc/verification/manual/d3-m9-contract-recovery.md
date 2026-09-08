@@ -5,7 +5,8 @@
 ## 验收状态
 
 - `shared_manhattan`：PASS（2026-09-08）
-- `unsupported_viewport_topology`：待验收
+- `unsupported_viewport_topology`：PASS（2026-09-08）
+- 总体结果：PASS
 
 ## 启动
 

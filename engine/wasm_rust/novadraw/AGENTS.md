@@ -51,10 +51,10 @@
 
 ### 当前执行门禁
 
-- M10.4 已完成；M10.5 暂停，必须先完成
-  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D3 审计收口。
-- M9 当前为 `in_progress`；shared Manhattan reservation 与 nested viewport policy
-  满足 ADR-005 后才能恢复为 `complete`。
+- M9 和 D3.1 已完成；当前执行
+  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D3.2 Runtime
+  动态 mutation 公共面。
+- M10.5 暂停，必须先完成 D3.2-D3.4 审计收口。
 
 ### 架构分析边界
 

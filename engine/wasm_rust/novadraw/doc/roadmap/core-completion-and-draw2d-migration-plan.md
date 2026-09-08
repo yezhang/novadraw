@@ -498,7 +498,7 @@ D2.5 自动验证结果：
 
 ## 6. M9：Connection 分批交付
 
-状态：`in_progress`
+状态：`complete`
 
 候选契约：
 
@@ -506,8 +506,8 @@ D2.5 自动验证结果：
 - [`../adr/adr-005-connection-routing-contract.md`](../adr/adr-005-connection-routing-contract.md)
 
 ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗口验收已完成。
-2026-09-08 审计确认 shared Manhattan reservation 与 nested viewport policy
-仍未满足已接受契约，M9 在 D3.1 完成前不得恢复为 `complete`。
+2026-09-08 审计发现的 shared Manhattan reservation 与 nested viewport policy
+缺口已由 D3.1 闭合，M9 自动、视觉和人工门禁均已完成。
 
 执行顺序：
 
@@ -532,9 +532,9 @@ ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗�
    - Direct Router；
    - XY、Chopbox、Ellipse、RoundedRectangle、Label Anchor。
 4. **M9.4 Router**
-   - 状态：`behavior_verified`；
+   - 状态：`complete`；
    - BendpointConnectionRouter（完成）；
-   - ManhattanConnectionRouter（单连接正交路由完成，共享 reservation 转入 D3.1）；
+   - ManhattanConnectionRouter（单连接正交路由与 D3.1 shared reservation 完成）；
    - base router + Fan post-processor pipeline；
    - RouterId scope 下的 routing group state、稳定 snapshot 与批量原子提交；
    - ShortestPathConnectionRouter 继续延后。
@@ -543,9 +543,9 @@ ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗�
    - Endpoint/Midpoint/Connection/PathFraction Locator；
    - polygon/polyline decoration；
    - ConnectionLayer inherited router 与 explicit override；
-   - viewport/zoom/deep-tree 已验证；nested viewport clip policy 转入 D3.1。
+   - viewport/zoom/deep-tree 与 D3.1 strict viewport topology 已验证。
 6. **M9.6 产品验收**
-   - 状态：`in_progress`；
+   - 状态：`complete`；
    - `connections-demo`；
    - anchor × router 组合矩阵；
    - 节点移动、resize、reparent、remove、滚动和缩放视觉断言。
@@ -619,9 +619,9 @@ M9.4b-M9.6 执行结果：
   fan、moved_nodes、connection_layer 六场景；
 - 六场景逐场截图成功并完成视觉复核，无空白帧、端点漂移、非正交段或视口裁剪；
 - 六场景人工窗口验收通过，包含 anchor_matrix 箭头锐角和 bendpoint 转折点复核；
-- `m9_connection_contract` 12 项、`m9_connection_runtime` 10 项通过；
-- shared Manhattan obstacle reservation 和 nested cross-viewport connection policy
-  与 ADR-005 已接受范围不一致，转入 D3.1 收口；在完成前 M9 保持 `in_progress`。
+- `m9_connection_contract` 12 项、`m9_connection_runtime` 15 项通过；
+- D3.1 已完成 shared Manhattan reservation、严格 viewport topology、两项新增
+  Demo 场景的截图复核与人工窗口验收，M9 恢复为 `complete`。
 
 ## 7. M10：Reusable Figure 分批交付
 
@@ -821,12 +821,12 @@ D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写�
 
 ### D3.1 M9 已接受契约恢复
 
-状态：`behavior_verified`
+状态：`complete`
 
 补充决策：
 [`../adr/adr-008-m9-contract-recovery.md`](../adr/adr-008-m9-contract-recovery.md)。
 
-ADR-008 已通过，实现与自动验证已完成，等待新增场景人工验收。
+ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验收均已完成。
 
 决策：
 
@@ -841,7 +841,7 @@ ADR-008 已通过，实现与自动验证已完成，等待新增场景人工验
 
 验证：
 
-- 同一 RouterId、routing domain 和 AnchorGroupKey 下 reservation 稳定且无冲突；
+- 同一 RouterId 与 routing domain 下 Manhattan reservation 稳定且无冲突；
 - child order 变化、连接增删和 endpoint 变化触发整组确定性重算；
 - 不同 RouterId 或 routing domain 不共享 reservation；
 - divergent nested viewport topology 真实产生结构化错误并清除旧 route；
@@ -869,14 +869,16 @@ ADR-008 已通过，实现与自动验证已完成，等待新增场景人工验
   `unsupported_viewport_topology`，截图已生成并完成视觉复核；
 - 全量 workspace、Clippy、WASM `novadraw` 与 `web-validation` 门禁通过。
 
-剩余门禁：
+人工执行结果：
 
-- 对两个新增 connections-demo 场景执行 macOS 人工窗口验收；
-- 验收通过后将 D3.1、M9.4、M9.6 和 M9 恢复为 `complete`。
+- `shared_manhattan` 显示 4 条清晰分离的内部垂直 lane；相同 Anchor 的水平首尾
+  stub 按契约重合；
+- `unsupported_viewport_topology` 不绘制连接线、残留箭头或旧路径像素；
+- 场景切换无崩溃和脏区残影。
 
 ### D3.2 Runtime 动态 mutation 公共面
 
-状态：`not_started`
+状态：`in_progress`
 
 目标：
 
