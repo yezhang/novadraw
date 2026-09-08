@@ -5,8 +5,9 @@
 状态：`approved`
 
 本文定义 M9 的规范架构，由
-[`ADR-005`](../../adr/adr-005-connection-routing-contract.md) 接受。各分批只有在
-实现与验证完成后才视为已交付。
+[`ADR-005`](../../adr/adr-005-connection-routing-contract.md) 接受，并由
+[`ADR-008`](../../adr/adr-008-m9-contract-recovery.md) 细化 shared Manhattan scope
+与 Core 1.0 viewport topology。各分批只有在实现与验证完成后才视为已交付。
 
 ## 1. 目标与边界
 
@@ -345,7 +346,15 @@ Fan 只处理 base route 恰有两个有效端点的情况；已有 bendpoint �
 ### 6.2 跨连接策略状态
 
 Fan 和 Draw2D Manhattan row/column reservation 依赖多 connection 状态。它们不得
-读取全局单例或在 Figure 内维护隐藏表。
+读取全局单例或在 Figure 内维护隐藏表。两者的共享范围不同：
+
+```text
+ManhattanScope = RouterId + routing domain
+FanScope = RouterId + routing domain + unordered AnchorGroupKey pair
+```
+
+Manhattan reservation 覆盖同一 RouterId、同一 routing domain 的全部 connection，
+不能按 anchor pair 切组；Fan 只处理 source/target anchor pair 相同的 collision。
 
 M9.4 使用两阶段协议：
 
@@ -356,13 +365,26 @@ Runtime builds stable RoutingGroupSnapshot
 → Runtime commits all routes atomically
 ```
 
-group scope 至少包含 `RouterId`、routing domain parent 和规范化后的无向
-source/target `AnchorGroupKey` pair，避免同一个 RouterId 跨不同坐标域共享数值
-reservation。group 顺序由 ConnectionLayer 的 FigureTree child order 决定。Fan 的
-稳定 index、invalidate 后重排和 damage 必须基于该顺序，而不是 HashMap 迭代顺序。
-不同 RouterId 即使 endpoints 相同也不共享 reservation 或 Fan index。
+group 顺序由 routing domain parent 的 FigureTree child order 决定。不同 RouterId
+或 routing domain 永不共享 reservation；不同 AnchorGroupKey pair 不共享 Fan index。
 
 若单条 connection 的改变会影响组内其他 route，整个受影响 group 同事务失效并重算。
+
+### 6.3 Shared Manhattan Reservation
+
+Runtime 每次从完整 ManhattanScope snapshot 重新派生 row/column reservation，不在
+Router 内增量保存 `rowsUsed/colsUsed`：
+
+1. 按稳定 child order 解析 scope 内全部 endpoint 和单连接正交候选；
+2. 只调整可移动的内部水平/垂直 segment，不改变 endpoint 和首尾 stub；
+3. row 与 column 独立占用，候选 lane 与已占用 lane 的距离不得小于配置的
+   `lane_spacing`；
+4. 从期望 lane 按 `0, -1, +1, -2, +2, ...` 乘以 `lane_spacing` 的顺序搜索；
+5. 完整验证所有输出后一次性提交；任一成员失败则整组不提交。
+
+`lane_spacing` 与 `minimum_stub` 是 Router 的命名配置，单位为 routing-domain logical
+units。该机制只提供 Draw2D 风格的共享 lane reservation，不宣称提供 obstacle
+avoidance。
 
 ## 7. M9.1 错误模型
 
@@ -517,10 +539,14 @@ normalization 与 damage，不重复执行 Router；points 改变才发送 typed
   ConnectionRuntime 中注册默认 RouterId；
 - 同一 layer 的 children 顺序仍是 paint Z-order、逆序 hit-test 和 routing group
   稳定顺序；
-- nested viewport 连接使用显式 `ConnectionClipPolicy`。默认仅允许 endpoints 位于
-  同一有效 viewport chain；跨不同 nested viewport 的连接要么使用 nearest-common-
-  viewport clipping，要么返回 `UnsupportedViewportTopology`，不能只依赖
-  Freeform `OverflowVisible` 而泄漏到不可见区域。
+- Core 1.0 使用严格 viewport topology：从 connection parent、source owner、
+  target owner 分别向公共 Figure 树根提取有序 viewport chain，三者完全相同时允许
+  路由；任一 owner 位于不同 chain 时返回 `UnsupportedViewportTopology`。这样允许
+  ConnectionLayer 与节点作为公共 root 下的兄弟，同时拒绝真实 nested viewport
+  分叉。ownerless anchor 不声明 nested viewport 可见性，只受 connection 自身
+  ancestor chain 裁剪。
+- nearest-common-viewport clipping 留待独立 ADR；不能只依赖 Freeform
+  `OverflowVisible` 而让跨 viewport connection 泄漏到不可见区域。
 
 Decoration orientation 使用 routing domain 中最后一个非零 segment。若直接消费
 AnchorSite normal，法向量跨非均匀 scale/skew 时必须使用 inverse-transpose 规则；
@@ -583,10 +609,12 @@ M9.1 不以截图为完成门禁。
 3. 接受 `RouterRegistry`、RouterId、layer inherited binding 与 explicit override；
 4. 接受 dependency tokens、generation 和 resolution status 归
    `ConnectionRuntime`，已提交局部 points 归 `ConnectionFigure`；
-5. 接受 Fan / shared Manhattan 使用稳定 AnchorGroupKey、group snapshot 与批量原子
-   提交；
+5. 接受 Fan 与 shared Manhattan 使用不同 scope：Manhattan 为
+   `RouterId + routing domain`，Fan 再增加无向 AnchorGroupKey pair；两者均使用稳定
+   group snapshot 与批量原子提交；
 6. 接受 path bounds 与 decoration/subtree visual envelope 分离；
-7. 接受固定 validation DAG、dependency cycle 拒绝和 nested viewport clip policy；
+7. 接受固定 validation DAG、dependency cycle 拒绝和 Core 1.0 严格 viewport
+   topology；nearest-common-viewport clipping 延后；
 8. 接受保留 Draw2D locator 名称语义，另增 PathFractionLocator；
 9. 接受用 `RoundedRectangleAnchor` 替换无源码证据的 `SlopeAnchor`；
 10. 接受 `LabelAnchor` 查询 named icon region，避免 M9 依赖具体 M10 Label 类型。

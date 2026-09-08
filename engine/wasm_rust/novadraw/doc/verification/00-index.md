@@ -24,6 +24,8 @@ Draw2D Core 1.0 能力覆盖、公共 API 可达性与路线图一致性审计�
   Tab/Shift+Tab 焦点遍历与边界；
 - [`manual/m10-widgets.md`](manual/m10-widgets.md)：M10.4 Button/Toggle
   pointer、keyboard 与状态视觉验收；
+- [`manual/d3-m9-contract-recovery.md`](manual/d3-m9-contract-recovery.md)：D3.1
+  shared Manhattan 与严格 viewport topology 增量验收；
 - [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、
   Vello WebGPU 与 Canvas2D 浏览器验收。
 - [`performance/r8-baseline-2026-09-02.md`](performance/r8-baseline-2026-09-02.md)：

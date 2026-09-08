@@ -32,7 +32,7 @@
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
 | M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/native/scroll-pane-demo`、`apps/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
 | D2 | `scroll-pane-demo` ✅ + Web `layer-freeform` suite ✅ | `apps/native/scroll-pane-demo`、`apps/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、content-domain range 与锚点缩放；自动与人工验收通过 | — |
-| M9 | `connections-demo` | `apps/native/connections-demo` | 5 anchor + Direct/Bendpoint/Manhattan/Fan + Locator/Decoration + ConnectionLayer 六场景 | +150 |
+| M9 | `connections-demo` | `apps/native/connections-demo` | 5 anchor + Direct/Bendpoint/shared Manhattan/Fan + Locator/Decoration + ConnectionLayer + viewport topology 八场景 | +150 |
 | M10 | `shape-app` + `border-app` + `text-app` + `widgets-app` + 待新增 Tooltip demo | `apps/native/shape-app`、`apps/native/border-app`、`apps/native/text-app`、`apps/native/widgets-app` | deferred builtin Figure + 6 边框 + 文本布局 + Clickable/Button/Toggle 交互 + Tooltip 悬停延迟 + Accessible 键盘可达性 | +220 |
 
 **测试增量合计**：+1,100（基线 146，目标 ~1,250）
@@ -94,6 +94,7 @@
 - [x] M8 `apps/native/viewport-app` 4 场景视觉验证
 - [x] D2 `layer-freeform` Native/Web 人工验收
 - [x] M9 `apps/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
+- [ ] D3.1 `connections-demo` 增量（`shared_manhattan`、`unsupported_viewport_topology` 自动截图和视觉复核通过，等待人工窗口验收）
 - [x] M10.1 `apps/native/shape-app`（自动契约与人工窗口验收完成）
 - [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
 - [x] M10.2-M10.3 `apps/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）

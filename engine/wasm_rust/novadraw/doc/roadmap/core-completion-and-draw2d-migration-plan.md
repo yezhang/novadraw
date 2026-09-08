@@ -532,7 +532,7 @@ ADR-005 已通过；M9.1-M9.6 的当前产品基线、自动验证和人工窗�
    - Direct Router；
    - XY、Chopbox、Ellipse、RoundedRectangle、Label Anchor。
 4. **M9.4 Router**
-   - 状态：`in_progress`；
+   - 状态：`behavior_verified`；
    - BendpointConnectionRouter（完成）；
    - ManhattanConnectionRouter（单连接正交路由完成，共享 reservation 转入 D3.1）；
    - base router + Fan post-processor pipeline；
@@ -821,12 +821,12 @@ D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写�
 
 ### D3.1 M9 已接受契约恢复
 
-状态：`in_progress`
+状态：`behavior_verified`
 
-候选补充决策：
+补充决策：
 [`../adr/adr-008-m9-contract-recovery.md`](../adr/adr-008-m9-contract-recovery.md)。
 
-ADR-008 当前为“提议”，经人工评审接受后才进入实现。
+ADR-008 已通过，实现与自动验证已完成，等待新增场景人工验收。
 
 决策：
 
@@ -852,6 +852,27 @@ ADR-008 当前为“提议”，经人工评审接受后才进入实现。
 - ADR-005、connection-routing、API coverage、实现和测试一致；
 - M9.4/M9.6 恢复为 `complete`；
 - 不以注释“后续增强”覆盖已接受且仍在 Core 1.0 范围内的契约。
+
+自动执行结果：
+
+- `RoutingGroupScope` 明确区分 independent、AnchorPair 与 RoutingDomain；
+- Manhattan 按 RouterId + routing domain 的稳定 child order 计算完整 route batch，
+  row/column lane 使用命名 spacing 与 minimum stub，任一成员失败时整组不提交；
+- `ConnectionRuntime` 保存最近 routing space，targeted dependency invalidation 会扩展到
+  同 scope 全部成员；
+- topology 比较 connection parent、source owner、target owner 到公共树根的 viewport
+  chain；divergent chain 进入 `UnsupportedViewportTopology` unresolved transaction；
+- topology 恢复后整组重新 resolved，旧 route 在失败时已清除并 damage；
+- `m9_connection_runtime` 从 10 项扩展到 15 项，覆盖 scope 隔离、不同 anchor pair、
+  lane 回收、minimum stub、整组失败和 viewport 恢复；
+- `connections-demo` 新增 `shared_manhattan` 与
+  `unsupported_viewport_topology`，截图已生成并完成视觉复核；
+- 全量 workspace、Clippy、WASM `novadraw` 与 `web-validation` 门禁通过。
+
+剩余门禁：
+
+- 对两个新增 connections-demo 场景执行 macOS 人工窗口验收；
+- 验收通过后将 D3.1、M9.4、M9.6 和 M9 恢复为 `complete`。
 
 ### D3.2 Runtime 动态 mutation 公共面
 

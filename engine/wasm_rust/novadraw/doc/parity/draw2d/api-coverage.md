@@ -307,8 +307,8 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | 不复制 Anchor listener；依赖变化由 Runtime 精确失效 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与单连接 Manhattan 已实现；RouterRegistry、typed constraint 与 Runtime invalidation 已验证 | partial | D3.1 补 shared Manhattan reservation；ShortestPath 继续延后 |
-| `clipping.strategy` | nested viewport connection clipping / unsupported topology | 普通 viewport/zoom 路由已验证；`UnsupportedViewportTopology` 尚无实际产生路径 | partial | D3.1 采用 divergent viewport chain 明确拒绝的 Core 1.0 策略 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 已实现；Manhattan 按 RouterId + routing domain 批量 reservation，Fan 按 anchor pair 分组 | verified | 完整 scope 原子提交与定向失效已有测试；ShortestPath 继续延后 |
+| `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
 | `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Locator 消费已提交 route snapshot；实现 endpoint、middle、indexed midpoint 和 path fraction | verified | child envelope 与 path bounds 已分离 |
 
 规范 Rust 契约、坐标域和错误模型见

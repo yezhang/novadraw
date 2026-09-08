@@ -17,7 +17,7 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [005](adr-005-connection-routing-contract.md) | Connection 路由与依赖状态边界 | 已通过 | 2026-09-06 |
 | [006](adr-006-reusable-shape-border-contract.md) | Reusable Shape 与 Border 产品化边界 | 已通过 | 2026-09-07 |
 | [007](adr-007-parley-text-layout.md) | 可替换文本布局与后端无关 Glyph IR | 已通过 | 2026-09-07 |
-| [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 提议 | 2026-09-08 |
+| [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 已通过 | 2026-09-08 |
 
 ## ADR 模板
 

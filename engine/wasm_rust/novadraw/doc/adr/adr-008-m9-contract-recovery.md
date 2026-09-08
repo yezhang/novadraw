@@ -4,7 +4,7 @@
 
 ## 状态
 
-提议
+已通过
 
 ## 背景
 
@@ -93,8 +93,8 @@ group snapshot 重新派生 reservation：
 
 D3.1 不实现 nearest-common-viewport clipping。Core 1.0 采用保守规则：
 
-1. 从 routing domain 到 connection、source owner、target owner 分别提取有序
-   viewport chain；
+1. 从 connection parent、source owner、target owner 分别向公共 Figure 树根提取
+   有序 viewport chain；
 2. 三者 chain 完全相同时允许路由，绘制继续使用现有 ancestor clipping；
 3. 任一 owner 位于不同 nested viewport chain 时返回
    `RouteError::UnsupportedViewportTopology`；
