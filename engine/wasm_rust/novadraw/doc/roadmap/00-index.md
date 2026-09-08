@@ -48,13 +48,13 @@
 | M7 | 通知语义分层 | `complete` | 七类 typed listener、Runtime 注册/统一注销、稳定事务分发与 self-removal 已闭合 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | D3.1 shared Manhattan、严格 viewport topology、八场景截图与人工窗口验收已闭合 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.4 已完成；D3 审计收口后进入 M10.5，完整 TextFlow 保持 P2 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.4 已完成；D4 架构正确性收口后进入 M10.5，完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
-R8/R9、D0-D3 与 M10.1-M10.4 已完成。2026-09-08 审计发现的 M9 正式契约和核心
-Runtime 公共面缺口均已关闭；M7 与 M9 已恢复 `complete`，当前进入 M10.5 Tooltip
-与 Accessibility。后续按
+R8/R9、D0-D3 与 M10.1-M10.4 已完成。2026-09-08 长期架构审计确认的 P1 问题已
+纳入 D4；D4.0 已完成，当前进入 D4.1 派生状态收敛事务。M10.5 在 D4 完成后继续。
+后续按
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
 执行：
 
@@ -64,11 +64,12 @@ D0 路线图与证据校准
 → D2 Layer / Freeform
 → M9 / M10.1-M10.4 产品基线
 → D3 Draw2D Core 审计收口
+→ D4 长期架构正确性收口
 → M10.5 Tooltip / Accessibility
 → Draw2D Core 1.0
 ```
 
-`D0-D3` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
+`D0-D4` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
 
 状态提升规则：

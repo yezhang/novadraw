@@ -20,6 +20,10 @@ D3.2 Runtime 动态 mutation 的实现与自动门禁见
 D3.3 Runtime listener 公共面与 self-removal 语义验证见
 [`reviews/d3-runtime-listener-2026-09-08.md`](reviews/d3-runtime-listener-2026-09-08.md)。
 
+长期架构可持续性审计及 D4.0 当前 HEAD 校准见
+[`reviews/architecture-sustainability-review-2026-09-08.md`](reviews/architecture-sustainability-review-2026-09-08.md)
+和 [`reviews/d4-audit-calibration-2026-09-09.md`](reviews/d4-audit-calibration-2026-09-09.md)。
+
 ## 手工验证入口
 
 - [`manual/core-pipeline.md`](manual/core-pipeline.md)：M1-M7 核心渲染与事件链路；

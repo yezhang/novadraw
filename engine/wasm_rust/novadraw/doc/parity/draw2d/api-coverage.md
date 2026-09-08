@@ -127,6 +127,10 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `validation.protocol` | Validation | invalidate、invalidateTree、revalidate、validate、validation root |
 | `update_manager.two_phase` | UpdateManager | Validation -> Damage Repair 两阶段更新事务 |
 | `damage.repaint` | Damage / Repaint | repaint、dirty region、intersects、damage parent-chain 映射 |
+| `frame.preparation` | Frame preparation | 稳定派生状态、validation、damage、resource 与 in-flight submission 的因果边界 |
+| `runtime.identity` | Runtime 身份域 | 公开 handle 的 Runtime 归属与跨 Runtime 误用拒绝 |
+| `resource.lifecycle` | Resource 生命周期 | Pending/Ready/Failed/Removed、revision、提交顺序与 retry 恢复 |
+| `render.backend_session` | Backend session | backend 建立/重建、Ready 资源快照与完整场景恢复 |
 | `notification.figure` | Figure 通知 | Figure moved / bounds changed 等对象状态通知 |
 | `notification.coordinate` | Coordinate 通知 | coordinate root 或坐标系统变化通知 |
 | `notification.property` | Property 通知 | property change 语义 |
@@ -203,9 +207,9 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 |---|---|---|---|---|
 | `figure.tree` | `IFigure.add(IFigure)` | 构建期 `FigureTreeBuilder::{set_contents,add_child_to,try_add_child_to}`；运行期 `Runtime::{set_contents,add_figure}` | verified | 保持 child order、single/layer admission、no-cycle 与 10,000 层深度门禁 |
 | `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | 构建期可组合 add + index/constraint；Runtime 提供现有 child 的 `move_child_to_index/bring_child_to_front/send_child_to_back`，尚无原子 indexed add | partial | D3.2 已闭合动态 reorder；原子 indexed/constraint add 等待真实调用需求 |
-| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `Runtime::{remove_figure,reparent}`、`FigureTree::parent_id`；callback 使用 typed deferred mutation | partial | remove/reparent/parent 与 callback FIFO 已可达；`removeAll` convenience 延后 |
+| `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `Runtime::{remove_figure,reparent}`、`FigureTree::parent_id`；当前 remove 只 detach，slot 与 Figure 仍由 arena 持有 | partial | D4.3 区分 detach/reattach 与 dispose_subtree；`removeAll` convenience 延后 |
 | `figure.tree` | `getChildren()` | `FigureNode::children_count`、`FigureTree::child_order/descendant_ids` 提供稳定只读查询 | verified | 不暴露可修改内部 children 集合的引用 |
-| `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}` | verified | attach/detach 与资源、交互状态清理已有测试 |
+| `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}` 已验证；缺少释放 slot 与全部 side state 的 dispose 事务 | partial | D4.3 补 dispose_subtree、旧 visual envelope damage 与资源/连接/交互清理 |
 | `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`Runtime::{set_bounds,translate}` update-aware 修改 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源 |
 | `figure.box.client_area` | `getClientArea()`, `getClientArea(Rectangle)`, `getInsets()` | `Bounded::{client_area,insets}` | verified | M5 layout area、M8 viewport client area 继续复查 |
 | `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{set_visible,set_enabled,is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` | verified | M6 复查 disabled 对 event target 的策略 |
@@ -299,6 +303,15 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 
 Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、`ScrollBar.java`、`ScalableFigure.java`、`Layer.java`、`FreeformLayer.java`。
 
+### Runtime / Resource / Submission 横切契约
+
+| Family ID | Draw2D 方法级 API / 合理变体 | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
+|---|---|---|---|---|
+| `runtime.identity` | LightweightSystem/Figure 所属图实例隔离；跨图引用不得命中 | ResourceId 已有 namespace；FigureId 仍只有 SlotMap generation，两个 Runtime 可产生相同值 | partial | D4.3 为公开 Figure handle 增加 Runtime 身份域并拒绝 foreign mutation |
+| `resource.lifecycle` | 图像/字体状态变化必须按提交因果顺序到达 renderer | ResourceRegistry 有 revision 与 retry restore；ResourceDelta 分离 added/removed，Ready -> Failed -> Ready 可被 backend 最终删除 | partial | D4.2 定义有序操作或最终状态归约 |
+| `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | full redraw 只重录 commands，不重发 Ready 资源；新 backend cache 为空 | partial | D4.2 增加 session epoch 与 ready resource snapshot |
+| `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime 已有稳定 submission/in-flight；dirty connection 不自动 reroute，Label constrained layout 早于最终 parent layout | partial | D4.1 固定阶段收敛；D4.4 再细分 Idle/Suspended/AwaitingCompletion/Error |
+
 ### M9 Connection / Anchor / Router / Locator
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
@@ -307,7 +320,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | 不复制 Anchor listener；依赖变化由 Runtime 精确失效 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 已实现；Manhattan 按 RouterId + routing domain 批量 reservation，Fan 按 anchor pair 分组 | verified | 完整 scope 原子提交与定向失效已有测试；ShortestPath 继续延后 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；dirty state 尚未由正常 frame 自动消费 | partial | D4.1 补 Runtime 自动 reroute 收敛；ShortestPath 继续延后 |
 | `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
 | `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Locator 消费已提交 route snapshot；实现 endpoint、middle、indexed midpoint 和 path fraction | verified | child envelope 与 path bounds 已分离 |
 
@@ -334,7 +347,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 隔离共享实例 | verified | shared TitleBar 双 owner 字体指标契约测试 |
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | cache/shaping、资源事务、LabelAnchor 与 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed；resource-referenced Image command | verified | Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
-| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 text core 已提供可替换 engine、immutable layout metadata、唯一 glyph IR、真实测量/截断和 revision cache 基础 | partial | M10.2 基础范围 verified；完整多行 TextFlow/fragment/bidi API 按 P2 延后 |
+| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 已有 immutable layout metadata、glyph IR、真实测量/截断；最终 constrained shaping 当前早于 parent layout，外部 engine 无法构造非空 TextLayout | partial | D4.1 修复同帧收敛，D4.4 补受校验 builder；完整 fragment/bidi 按 P2 延后 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
 | `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | 当前仅有 `AccessibleFigure::accessible_name` 与 `PlatformHost::update_accessibility(revision)` 骨架 | partial | M10.5 补 engine-owned snapshot/delta、role/state/bounds/children/focus/action |

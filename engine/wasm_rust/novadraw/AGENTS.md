@@ -51,9 +51,9 @@
 
 ### 当前执行门禁
 
-- M9 和 D3.1-D3.4 已完成；当前执行
-  `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 M10.5 Tooltip
-  与 Accessibility 契约。
+- M9 和 D3.1-D3.4 已完成；长期架构审计的 P1 问题已纳入 D4。
+- 当前执行 `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D4.1
+  派生状态收敛事务；M10.5 在 D4 完成后继续。
 
 ### 架构分析边界
 

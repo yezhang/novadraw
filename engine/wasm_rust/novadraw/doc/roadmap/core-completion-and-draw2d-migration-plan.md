@@ -8,7 +8,7 @@
 “Draw2D 核心产品能力完整”的执行顺序。
 
 本文不创建新的 milestone 编号。`M1-M10` 的编号与状态仍以
-[`00-index.md`](00-index.md) 为唯一入口；本文中的 `D0-D3` 是跨 milestone 的
+[`00-index.md`](00-index.md) 为唯一入口；本文中的 `D0-D4` 是跨 milestone 的
 architecture delta，用于消除后续 M9/M10 实现会放大的公共协议缺口。
 
 ## 1. 当前判断
@@ -30,16 +30,16 @@ Novadraw 已具备完整的核心执行骨架：
 
 当前阻塞项：
 
-1. 2026-09-08 Draw2D Core 能力审计发现 API 覆盖账本、milestone 状态与实现证据
-   存在偏差；
-2. M9 已接受契约中的 shared Manhattan reservation 与 nested viewport policy
-   尚未闭合；
-3. Runtime 动态 layout/tree mutation 和 M7 listener 尚未形成完整公共面；
-4. M10.5 Tooltip、Accessibility bridge 尚未实现；
-5. M1-M8 及 M10 Web 仍需按产品清单和 demo 矩阵完成剩余验收。
+1. D3 已关闭原 Draw2D Core 审计中的 M9、Runtime mutation 与 listener 公共面缺口；
+2. 2026-09-08 长期架构审计复现了派生状态收敛、资源因果、Figure 生命周期与
+   Runtime 身份域等 P1 问题，现纳入 D4；
+3. M10.5 Tooltip、Accessibility bridge 在 D4 完成后继续；
+4. M1-M8 及 M10 Web 仍需按产品清单和 demo 矩阵完成剩余验收。
 
 审计基线：
-[`../verification/reviews/draw2d-core-capability-audit-2026-09-08.md`](../verification/reviews/draw2d-core-capability-audit-2026-09-08.md)。
+
+- [`../verification/reviews/draw2d-core-capability-audit-2026-09-08.md`](../verification/reviews/draw2d-core-capability-audit-2026-09-08.md)；
+- [`../verification/reviews/architecture-sustainability-review-2026-09-08.md`](../verification/reviews/architecture-sustainability-review-2026-09-08.md)。
 
 D1 启动时识别出的 selection、兼容 capability、Figure style、公开 no-op、
 TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
@@ -676,7 +676,7 @@ M10.4 正式契约：
    - 最小 accessibility 数据包含 node id、name、role、state、bounds、children、
      focus owner 和 default action。
 
-M10.5 在 D3 完成前不进入实现。M10 不扩张为完整 widget toolkit，也不实现富文本编辑器。
+M10.5 在 D4 完成前不进入实现。M10 不扩张为完整 widget toolkit，也不实现富文本编辑器。
 
 M10.1 自动执行结果：
 
@@ -751,7 +751,7 @@ M10.4 自动执行结果（2026-09-08）：
 
 ## 8. D3：Draw2D Core 审计收口
 
-状态：`in_progress`
+状态：`complete`
 
 D3 是 M10.4 与 M10.5 之间的跨 milestone architecture delta。它不重写既有路线图，
 也不创建新的产品 milestone；目标是把 2026-09-08 审计发现的“实现存在但公共不可达”
@@ -968,11 +968,123 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 - D3.0-D3.3 全部完成；
 - M9 已恢复 `complete`，M7 Runtime listener 公共面已写回覆盖账本；
 - Rust workspace、Clippy、WASM `novadraw` 与 `web-validation` 门禁通过；
-- 当前执行阶段切换到 M10.5 Tooltip 与 Accessibility。
+- D3 完成时已解除原审计阻塞；后续长期架构审计新增的 D4 现优先于 M10.5。
 
-## 9. Draw2D Core 1.0 完成门禁
+## 9. D4：长期架构正确性收口
 
-D3 完成后的固定收口顺序：
+状态：`in_progress`
+
+D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 正确性或稳定
+扩展面的 P1 问题。D4 不推倒 FigureTree/Runtime 主干，不恢复迭代渲染，也不提前
+扩张完整 widget toolkit、ShortestPath 或通用 3D。
+
+审计输入：
+[`../verification/reviews/architecture-sustainability-review-2026-09-08.md`](../verification/reviews/architecture-sustainability-review-2026-09-08.md)。
+
+### D4.0 审计证据校准
+
+状态：`complete`
+
+- 当前 HEAD 复跑独立 probe，A01-A07 输出与审计记录一致；
+- A08 的递归渲染逐节点 ancestor style 扫描仍由源码确认；
+- A09-A11 中不阻塞 Core 1.0 的模块拆分、完整输入协议与统一错误模型保留为后续
+  architecture delta，不混入当前修复；
+- D3.3/D3.4 已完成，不再作为本轮阻塞项。
+
+### D4.1 派生状态收敛事务
+
+状态：`in_progress`
+
+目标：
+
+- connection dirty 自动进入正常 frame 的 reroute，不要求应用显式 resolve；
+- 统一直接 mutation、callback 和 LayoutOutput geometry change 的 connection 失效入口；
+- 文本 natural measurement 先参与布局，最终 client area 确定后再生成 constrained
+  glyph snapshot；
+- viewport/range 等共享容器状态只在 layout output 校验通过后提交；
+- 使用有预算的固定阶段收敛，不引入通用 DAG 或无界重复帧。
+
+`api_semantics`：`layout.manager`、`validation.protocol`、
+`update_manager.two_phase`、`connection.figure`、`connection.router`、
+`text.flow`、`viewport.scroll_zoom`、`damage.repaint`。
+
+### D4.2 资源因果与 Backend Session
+
+状态：`not_started`
+
+目标：
+
+- ResourceDelta 保留同一 ResourceId 的真实操作顺序，或在提交前归约为可证明正确的
+  最终状态；
+- Ready -> Failed -> Ready 不得被 backend 解释为最终删除；
+- 定义 backend/session epoch 与 ready resource snapshot，支持同一 Runtime 的 backend
+  重建；
+- retry/in-flight 与资源 revision 继续保持原子确认；
+- 异步加载 request token、解码预算只定义契约，除非实现依赖已出现，不提前扩张。
+
+`api_semantics`：`resource.lifecycle`、`render.backend_session`、
+`frame.preparation`、`graphics.context`。
+
+### D4.3 Figure 生命周期与 Runtime 身份域
+
+状态：`not_started`
+
+目标：
+
+- 明确 detach、reattach 与 dispose_subtree 的不同所有权语义；
+- dispose 原子清理 tree slot、UUID、constraint、interaction、resource、connection、
+  layer lookup 和缓存；
+- 销毁前捕获旧 visual envelope，保证 retained surface 擦除；
+- 公开 Figure handle 携带 Runtime 身份域，拒绝跨 Runtime 的偶然同 key 操作；
+- editor undo/history 显式拥有 detached subtree，不由 arena 永久保留。
+
+`api_semantics`：`figure.tree`、`figure.lifecycle`、`runtime.identity`、
+`damage.repaint`。
+
+### D4.4 外部替换与错误边界
+
+状态：`not_started`
+
+目标：
+
+- 提供受校验的 `TextLayout` builder/from-parts，使外部 TextLayoutEngine 能构造
+  非空后端中立结果；
+- 用独立外部消费者验证非 Parley engine，而不是返回 Default 的占位实现；
+- 明确 RenderBackend 必需 command/capability 与不可恢复错误，不把永久 unsupported
+  伪装为 Retry；
+- 收敛 frame preparation 的 Idle/Suspended/AwaitingCompletion/Error 可区分结果。
+
+`api_semantics`：`text.flow`、`graphics.context`、`frame.preparation`、
+`render.backend_session`、`accessibility.bridge`。
+
+### D4.5 递归主线性能恢复
+
+状态：`not_started`
+
+目标：
+
+- 对标 Draw2D local style + Graphics state inheritance，移除每节点 ancestor style 扫描；
+- 保持递归主线、self/children/border 顺序和兄弟状态隔离；
+- 补 1k/10k deep tree Runtime 基准与完整 render/hit/validate 路径；
+- 性能修改前后提供同机、同工具链、同 command count 的统计证据。
+
+`api_semantics`：`paint.protocol`、`figure.properties`、
+`update_manager.two_phase`。
+
+### D4.6 D4 完成门禁
+
+状态：`not_started`
+
+- A01-A08 均完成、被明确降级或由新的可验证契约替代；
+- 正常 Runtime frame 不依赖应用手工 reroute 或第二次 full redraw；
+- 资源重建、跨 Runtime ID、dispose 和外部 text engine 均有公共 API 测试；
+- 深树性能恢复到新基线并通过 10,000 层全链路验证；
+- Rust、WASM、Headless 和既有 Native/Web 场景门禁通过；
+- 完成后进入 M10.5 Tooltip 与 Accessibility。
+
+## 10. Draw2D Core 1.0 完成门禁
+
+D4 完成后的固定收口顺序：
 
 1. 完成 M10.5 Tooltip 与 Accessibility bridge；
 2. 完成仍处于 `behavior_verified` 的 M1-M8 产品与人工验收差额；
@@ -991,7 +1103,7 @@ D3 完成后的固定收口顺序：
 满足这些条件后，才启动独立的 GEF roadmap，包括 EditPart、Viewer、Tool、Request、
 EditPolicy、Command、SelectionProvider 和 undo/redo command stack。
 
-## 10. 延后能力
+## 11. 延后能力
 
 以下能力不阻塞 Draw2D Core 1.0：
 
