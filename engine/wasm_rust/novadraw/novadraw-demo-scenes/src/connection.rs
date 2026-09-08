@@ -4,7 +4,7 @@ use novadraw::{
     ConnectionLocatorStrategy, CoordinateSpace, DirectRouter, EllipseAnchor, EllipseFigure,
     FAN_DEFAULT_SEPARATION, FanRouter, LabelAnchor, ManhattanConnectionRouter, PolygonFigure,
     Rectangle, RectangleFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouterBinding,
-    Runtime, XYAnchor,
+    Runtime, ViewportFigure, XYAnchor,
 };
 use novadraw_geometry::{Dimension, Point, Vector};
 
@@ -359,6 +359,125 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> novadraw::FigureTree {
     runtime.into_tree()
 }
 
+fn shared_manhattan_scene() -> novadraw::FigureTree {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(background()));
+    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let source = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new_with_color(
+            80.0,
+            250.0,
+            120.0,
+            70.0,
+            Color::rgba(0.20, 0.65, 0.56, 1.0),
+        )),
+    );
+    let target = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new_with_color(
+            600.0,
+            300.0,
+            120.0,
+            70.0,
+            Color::rgba(0.88, 0.40, 0.38, 1.0),
+        )),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let mut entries = Vec::new();
+    for index in 0..4 {
+        let connection_figure = runtime.add_figure(
+            root,
+            Box::new(connection(Color::rgba(
+                0.16 + index as f64 * 0.10,
+                0.30,
+                0.74 - index as f64 * 0.08,
+                1.0,
+            ))),
+        );
+        let connection_id = runtime
+            .register_connection_state(
+                connection_figure,
+                Some(source_anchor),
+                Some(target_anchor),
+                RouterBinding::Explicit { router },
+                None,
+            )
+            .unwrap();
+        entries.push((connection_id, connection_figure));
+    }
+    for (connection_id, connection_figure) in entries {
+        resolve_with_arrow(&mut runtime, connection_id, connection_figure, root);
+    }
+    runtime.into_tree()
+}
+
+fn unsupported_viewport_topology_scene() -> novadraw::FigureTree {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(background()));
+    let viewport = runtime.add_figure(
+        root,
+        Box::new(ViewportFigure::new(45.0, 90.0, 300.0, 360.0)),
+    );
+    let contents = runtime.add_figure(
+        viewport,
+        Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            500.0,
+            420.0,
+            Color::rgba(0.84, 0.90, 0.96, 1.0),
+        )),
+    );
+    let source = runtime.add_figure(
+        contents,
+        Box::new(RectangleFigure::new_with_color(
+            60.0,
+            135.0,
+            NODE_WIDTH,
+            NODE_HEIGHT,
+            Color::rgba(0.20, 0.65, 0.56, 1.0),
+        )),
+    );
+    let target = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new_with_color(
+            610.0,
+            250.0,
+            NODE_WIDTH,
+            NODE_HEIGHT,
+            Color::rgba(0.88, 0.40, 0.38, 1.0),
+        )),
+    );
+    let connection_figure = runtime.add_figure(
+        root,
+        Box::new(connection(Color::rgba(0.72, 0.18, 0.22, 1.0))),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection_id = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+    assert!(matches!(
+        runtime.resolve_connection_route(connection_id, CoordinateSpace::ChildContent(root)),
+        Err(novadraw::ConnectionRuntimeError::Unresolved(
+            novadraw::UnresolvedConnection::RouteFailed(
+                novadraw::RouteError::UnsupportedViewportTopology
+            )
+        ))
+    ));
+    runtime.into_tree()
+}
+
 fn fan_scene() -> novadraw::FigureTree {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
@@ -493,6 +612,12 @@ pub fn suite() -> DemoSuite {
             SceneSpec::visual("anchor-matrix", "anchor_matrix", (800, 600), anchor_matrix),
             SceneSpec::visual("bendpoint", "bendpoint", (800, 600), bendpoint_scene),
             SceneSpec::visual("manhattan", "manhattan", (800, 600), manhattan_scene),
+            SceneSpec::visual(
+                "shared-manhattan",
+                "shared_manhattan",
+                (800, 600),
+                shared_manhattan_scene,
+            ),
             SceneSpec::visual("fan", "fan", (800, 600), fan_scene),
             SceneSpec::visual("moved-nodes", "moved_nodes", (800, 600), moved_nodes_scene),
             SceneSpec::visual(
@@ -500,6 +625,12 @@ pub fn suite() -> DemoSuite {
                 "connection_layer",
                 (800, 600),
                 connection_layer_scene,
+            ),
+            SceneSpec::visual(
+                "unsupported-viewport-topology",
+                "unsupported_viewport_topology",
+                (800, 600),
+                unsupported_viewport_topology_scene,
             ),
         ],
     )

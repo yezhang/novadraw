@@ -5,8 +5,9 @@ use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
     ConnectionResolution, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace, DirectRouter,
-    FanRouter, FigureId, ManhattanConnectionRouter, RectangleFigure, RouteError, RouteOutput,
-    RouteRequest, RouterBinding, Runtime, UnresolvedConnection,
+    FanRouter, FigureId, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
+    RectangleFigure, RouteError, RouteOutput, RouteRequest, RouterBinding, Runtime,
+    UnresolvedConnection, ViewportFigure,
 };
 
 struct ConstraintA;
@@ -367,6 +368,10 @@ fn manhattan_router_emits_only_orthogonal_non_duplicate_segments() {
         assert_ne!(segment[0], segment[1]);
         assert!(segment[0].x() == segment[1].x() || segment[0].y() == segment[1].y());
     }
+    let segments = output.points().as_slice().windows(2).collect::<Vec<_>>();
+    for segment in [segments.first().unwrap(), segments.last().unwrap()] {
+        assert!((segment[1] - segment[0]).length() >= MANHATTAN_DEFAULT_MINIMUM_STUB);
+    }
 }
 
 #[test]
@@ -414,4 +419,316 @@ fn fan_router_uses_stable_child_order_and_recenters_after_removal() {
         .resolve_connection_route(connections[1], CoordinateSpace::ChildContent(root))
         .unwrap();
     assert_eq!(recentered.points().len(), 3);
+}
+
+#[test]
+fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
+    let (mut runtime, root, source, target, first_figure) = runtime_fixture();
+    assert!(runtime.set_bounds(
+        target,
+        novadraw_geometry::Rectangle::new(300.0, 70.0, 100.0, 60.0),
+    ));
+    let second_source = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new(20.0, 130.0, 80.0, 40.0)),
+    );
+    let second_target = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+    );
+    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let first_source_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let first_target_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let second_source_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(second_source)));
+    let second_target_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(second_target)));
+    let first = runtime
+        .register_connection_state(
+            first_figure,
+            Some(first_source_anchor),
+            Some(first_target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    let second = runtime
+        .register_connection_state(
+            second_figure,
+            Some(second_source_anchor),
+            Some(second_target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+
+    let first_output = runtime
+        .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    assert!(matches!(
+        runtime.connection_state(second).unwrap().resolution,
+        ConnectionResolution::Resolved { generation: 1 }
+    ));
+    let second_output = runtime
+        .resolve_connection_route(second, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let first_lane = first_output.points().get(1).unwrap().x();
+    let second_lane = second_output.points().get(1).unwrap().x();
+    assert_eq!((first_lane - second_lane).abs(), 2.0);
+
+    assert!(runtime.set_bounds(
+        second_source,
+        novadraw_geometry::Rectangle::new(25.0, 130.0, 80.0, 40.0),
+    ));
+    assert_eq!(runtime.dirty_connections(), vec![first, second]);
+    runtime
+        .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
+        .unwrap();
+
+    assert!(runtime.remove_figure(root, first_figure));
+    let recentered = runtime
+        .resolve_connection_route(second, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let expected_lane = (recentered.metadata().source.site.point.x()
+        + recentered.metadata().target.site.point.x())
+        / 2.0;
+    assert_eq!(recentered.points().get(1).unwrap().x(), expected_lane);
+}
+
+#[test]
+fn manhattan_reservations_are_isolated_by_router_id() {
+    let (mut runtime, root, source, target, first_figure) = runtime_fixture();
+    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let first_router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let second_router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let first = runtime
+        .register_connection_state(
+            first_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: first_router,
+            },
+            None,
+        )
+        .unwrap();
+    let second = runtime
+        .register_connection_state(
+            second_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: second_router,
+            },
+            None,
+        )
+        .unwrap();
+
+    let first_output = runtime
+        .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let second_output = runtime
+        .resolve_connection_route(second, CoordinateSpace::ChildContent(root))
+        .unwrap();
+
+    assert_eq!(
+        first_output.points().get(1).unwrap().x(),
+        second_output.points().get(1).unwrap().x()
+    );
+}
+
+#[test]
+fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
+    let mut tree = novadraw_scene::FigureTree::new();
+    let mut builder = tree.builder();
+    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
+    let viewport = builder.add_child_to(
+        root,
+        Box::new(ViewportFigure::new(20.0, 20.0, 240.0, 180.0)),
+    );
+    let contents = builder.add_child_to(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+    );
+    let source = builder.add_child_to(
+        contents,
+        Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+    );
+    let target = builder.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(400.0, 200.0, 100.0, 60.0)),
+    );
+    let connection_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
+    let mut runtime = Runtime::new(tree);
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.resolve_connection_route(connection, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::RouteFailed(RouteError::UnsupportedViewportTopology),
+        ))
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(connection_figure),
+        Some(novadraw_geometry::Rectangle::ZERO)
+    );
+
+    assert!(runtime.reparent(source, root));
+    let recovered = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    assert_eq!(recovered.points().len(), 2);
+}
+
+#[test]
+fn matching_viewport_topology_routes_normally() {
+    let mut tree = novadraw_scene::FigureTree::new();
+    let mut builder = tree.builder();
+    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
+    let viewport = builder.add_child_to(
+        root,
+        Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 220.0)),
+    );
+    let contents = builder.add_child_to(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 350.0)),
+    );
+    let source = builder.add_child_to(
+        contents,
+        Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+    );
+    let target = builder.add_child_to(
+        contents,
+        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+    );
+    let connection_figure = builder.add_child_to(contents, Box::new(ConnectionFigure::new()));
+    let mut runtime = Runtime::new(tree);
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    let output = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(contents))
+        .unwrap();
+    assert_eq!(output.points().len(), 2);
+}
+
+#[test]
+fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
+    let mut tree = novadraw_scene::FigureTree::new();
+    let mut builder = tree.builder();
+    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 700.0, 420.0)));
+    let valid_source =
+        builder.add_child_to(root, Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)));
+    let valid_target = builder.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(420.0, 90.0, 100.0, 60.0)),
+    );
+    let first_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
+    let viewport = builder.add_child_to(
+        root,
+        Box::new(ViewportFigure::new(20.0, 200.0, 260.0, 180.0)),
+    );
+    let contents = builder.add_child_to(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 420.0, 300.0)),
+    );
+    let invalid_source = builder.add_child_to(
+        contents,
+        Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 40.0)),
+    );
+    let invalid_target = builder.add_child_to(
+        root,
+        Box::new(RectangleFigure::new(440.0, 260.0, 100.0, 60.0)),
+    );
+    let second_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
+    let mut runtime = Runtime::new(tree);
+    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let valid_source_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(valid_source)));
+    let valid_target_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(valid_target)));
+    let invalid_source_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(invalid_source)));
+    let invalid_target_anchor =
+        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(invalid_target)));
+    let first = runtime
+        .register_connection_state(
+            first_figure,
+            Some(valid_source_anchor),
+            Some(valid_target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    let second = runtime
+        .register_connection_state(
+            second_figure,
+            Some(invalid_source_anchor),
+            Some(invalid_target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.resolve_connection_route(first, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::RouteFailed(RouteError::UnsupportedViewportTopology),
+        ))
+    );
+    for (connection, figure) in [(first, first_figure), (second, second_figure)] {
+        assert_eq!(
+            runtime.connection_state(connection).unwrap().resolution,
+            ConnectionResolution::Unresolved(UnresolvedConnection::RouteFailed(
+                RouteError::UnsupportedViewportTopology,
+            ))
+        );
+        assert_eq!(
+            runtime.tree().figure_bounds(figure),
+            Some(novadraw_geometry::Rectangle::ZERO)
+        );
+    }
+
+    assert!(runtime.reparent(invalid_source, root));
+    runtime
+        .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    for (connection, figure) in [(first, first_figure), (second, second_figure)] {
+        assert!(matches!(
+            runtime.connection_state(connection).unwrap().resolution,
+            ConnectionResolution::Resolved { .. }
+        ));
+        assert_ne!(
+            runtime.tree().figure_bounds(figure),
+            Some(novadraw_geometry::Rectangle::ZERO)
+        );
+    }
 }
