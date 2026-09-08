@@ -677,15 +677,41 @@ M10.1 自动执行结果：
 - M10.2a 已形成 Parley/Vello 可运行原型，真实 measurement、line breaking、Runtime
   独立所有权和 Vello glyph encoding 已通过自动测试；
 - ADR-007 已进一步收紧扩展边界：Parley 仅作为默认 `TextLayoutEngine` adapter，
-  Command 必须迁移为 Novadraw 自有 glyph IR，`fill_text` / `stroke_text` 只作为
-  lowering API；完成该收口后再进入 M10.2b LabelFigure。
+  Command 必须使用 Novadraw 自有 glyph IR；raw-string `fill_text` / `stroke_text`
+  不进入产品路径。
 - 第一批 Command 收口已完成：Runtime 支持注入自定义 `TextLayoutEngine`，
   `DrawGlyphRun`、`FontFaceRef`、`GlyphPaint` 与 positioned glyph 均为 Novadraw
-  自有类型，Vello 通过独立 adapter 消费；后续继续迁移 raw-string 指令和字体资源
-  submission。
+  自有类型，Vello 通过独立 adapter 消费；字体字节通过 resource delta 提交。
 - 提供可显式注册的 Inter、Noto Sans SC 与 JetBrains Mono，覆盖 UI、CJK fallback
   与技术标注；Runtime 启动不自动注册字体，字体资产使用 Git LFS，Native/Web 构建
   共享同一字体输入。
+- M10.2b 已完成：`LabelFigure` 在 Runtime 提交边界生成不可变 layout snapshot，
+  支持图标、四向 placement、alignment、gap 与 grapheme-safe ellipsis；已补
+  `text-app` 的字体/CJK fallback、截断、图标与 style inheritance 四场景截图复核。
+- Vello backend 已消费 `RenderCommandKind::Image`；Parley font stack 使用显式注册的
+  字体作为 deterministic fallback，CJK glyph 会从 Noto Sans SC face 输出。
+- M10.2c 已完成：`TitleBarBorder` 保持不可变配置，owner-scoped `BorderSnapshot`
+  保存派生 TextLayout/insets/preferred size；共享 Border 在不同 owner 字体下互不
+  覆盖，`text-app` TitleBarBorder 场景验证标题与 child content 分离。
+- M10.3 已完成：`ImageData` 支持 PNG/SVG 字节及 Native 文件路径解码，SVG 经 resvg
+  rasterize 并统一为非预乘 RGBA；`ImageFigure` 公开输入使用 `ImageId`，支持自然
+  尺寸、alignment、typed replacement 与 Pending/Ready/Failed 状态。`text-app`
+  Image_Resources 场景已完成 PNG、SVG 和状态视觉复核。
+
+M10.2/M10.3 完整性复审收口（2026-09-08）：
+
+- `TextLayout` 已包含 source/key、UTF-8 visible range、truncated、engine revision、
+  constraints 与首行 ascent/descent/baseline；Label cache 仅在测量输入变化时 shaping。
+- raw-string `Text` / `FillText` / `StrokeText` command 与 NdCanvas API 已删除，规范
+  文本 IR 唯一为 `DrawGlyphRun`。
+- Label 与 ImageFigure 不再缓存 `ImageData`；Image command 使用
+  `ImageResourceRef(ResourceId + revision + dimensions)`，Vello 按 revision 缓存、
+  替换和删除。
+- Label 已接入 Border client area、preferred/minimum size 与 `LabelAnchor` icon
+  named geometry。
+- `TitleBarBorder` 派生 metrics 已移至 owner-scoped sidecar，共享实例双 owner 测试通过。
+- 字体 Failed/Ready/Removed 对 Label 与 TitleBar 的 engine revision 和重布局事务测试
+  已通过。M10.2 与 M10.3 标记完成；完整 TextFlow/fragment/bidi API 仍按 P2 延后。
 
 ## 8. Draw2D Core 1.0 完成门禁
 

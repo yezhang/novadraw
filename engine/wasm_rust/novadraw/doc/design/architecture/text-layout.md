@@ -156,9 +156,9 @@ pub enum RenderCommandKind {
 现有名称按以下方式收口：
 
 - `Text` 底层 variant 删除；背景文字展开为 `FillRect + DrawGlyphRun`；
-- `fill_text` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 fill glyph runs；
-- `stroke_text` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 stroke glyph runs；
-- 旧的 raw-string API 在迁移期标记 deprecated，不作为 M10.2 产品路径。
+- `fill_text_layout` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 fill glyph runs；
+- `stroke_text_layout` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 stroke glyph runs；
+- raw-string `Text` / `FillText` / `StrokeText` command 与 NdCanvas API 已删除。
 
 不支持 glyph primitive 的 backend 可以在自身内部把 glyph outline 转成 path，但不能
 要求上层把所有文本永久降级为 path。
@@ -174,8 +174,8 @@ pub enum RenderCommandKind {
 - `NdCanvas::draw_text_layout`；
 - backend-neutral `DrawGlyphRun`。
 
-`NdCanvas::measure_text` 的字符平均宽度实现退出产品路径。旧
-`draw_text`/`fill_text` API 可在迁移期间保留，但 M10.2 Figure 不得依赖它们。
+`NdCanvas::measure_text` 的字符平均宽度实现以及旧 `draw_text`/`fill_text` API
+已删除；测量必须通过 Runtime-owned `TextLayoutEngine`。
 
 ## 8. LabelFigure
 
@@ -209,12 +209,14 @@ UTF-8 code point。具体断点由 Parley layout 结果决定，不使用平均�
 ## 9. TitleBarBorder
 
 TitleBarBorder 仍是不可变、可复用 Border。因为指标依赖 owner 的 resolved font，
-Border 协议增加显式 measurement context，而不是让 Border 持有 owner 或 Runtime：
+Runtime 使用 owner-scoped `BorderSnapshot` 保存测量结果，而不是让 Border 持有
+owner、Runtime 或共享派生状态：
 
 ```text
-BorderMetricsContext
-├── resolved font
-└── TextEngine access
+FigureNode::BorderSnapshot
+├── resolved font 对应的 TextLayout
+├── insets
+└── preferred size
 ```
 
 其规则为：
@@ -256,7 +258,7 @@ BorderMetricsContext
 - 引入 Parley；
 - `TextLayoutEngine`、默认 `ParleyTextEngine`、`FontDescriptor`、`TextLayout`；
 - Novadraw 自有 glyph IR 与 `DrawGlyphRun` command；
-- `fill_text` / `stroke_text` 高层 API lowering；
+- `fill_text_layout` / `stroke_text_layout` 高层 API lowering；
 - Vello backend glyph rasterization；
 - measurement/render snapshot 测试。
 
