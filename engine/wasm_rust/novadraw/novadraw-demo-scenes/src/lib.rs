@@ -17,6 +17,7 @@ pub mod text;
 pub mod transform;
 pub mod update;
 pub mod viewport;
+pub mod widget;
 
 pub type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
 pub type SceneFactory = Box<dyn FnMut() -> FigureTree>;

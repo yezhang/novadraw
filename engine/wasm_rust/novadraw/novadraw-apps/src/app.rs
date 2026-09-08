@@ -625,6 +625,7 @@ fn map_key(key: PhysicalKey) -> Option<Key> {
     };
     Some(match code {
         KeyCode::Enter => Key::Enter,
+        KeyCode::Space => Key::Character(' '),
         KeyCode::Escape => Key::Escape,
         KeyCode::Tab => Key::Tab,
         KeyCode::ArrowUp => Key::ArrowUp,
