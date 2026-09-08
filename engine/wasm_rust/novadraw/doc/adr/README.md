@@ -19,6 +19,7 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [007](adr-007-parley-text-layout.md) | 可替换文本布局与后端无关 Glyph IR | 已通过 | 2026-09-07 |
 | [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 已通过 | 2026-09-08 |
 | [009](adr-009-runtime-dynamic-mutation-contract.md) | Runtime 动态 Mutation 事务 | 已通过 | 2026-09-08 |
+| [010](adr-010-runtime-listener-lifecycle.md) | Runtime Listener 生命周期 | 已通过 | 2026-09-08 |
 
 ## ADR 模板
 
