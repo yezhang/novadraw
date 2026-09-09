@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`candidate`
+状态：`approved`
 
 范围：D4.1
 
@@ -83,33 +83,61 @@ Presentation snapshot 只依赖已经稳定的 geometry：
 Presentation refresh 只能产生 repaint，不能反向改变 intrinsic size、NodeState bounds、
 constraint 或 parent layout。违反该约束属于引擎 invariant error。
 
-## 4. 固定阶段
+## 4. 静态依赖层级与 typed worklist
 
 Runtime 使用单一 stabilization 入口，供产品 submission 与低层 frame 入口复用：
 
 ```text
 ApplyPendingMutations
 -> DrainCommittedChanges
--> repeat bounded convergence rounds
-   -> RefreshPreLayoutMetrics
-   -> ValidateLayoutTransaction
-   -> DrainCommittedChanges / InvalidateDependencies
-   -> ResolveDirtyRoutingGroups
-   -> DrainCommittedChanges / InvalidateDependencies
-   -> stop when no pre-layout, validation, route or geometry work remains
+-> drain typed work by fixed priority
+   -> IntrinsicMetrics
+   -> LayoutRoot
+   -> GeometryChangePropagation
+   -> RoutingGroup
+   -> PostRouteGeometry
+   -> stop when every work queue is empty
 -> FinalizePresentationSnapshots
 -> RepairDamageAndRecord
 -> FreezeSubmission
 -> FlushCommittedNotifications
 ```
 
-阶段不可由 app 重排。Runtime 可跳过没有 dirty work 的阶段，但不能在 geometry 稳定前
-记录 command，也不能在收敛中途 flush listener。
+依赖方向固定为：
 
-## 5. Committed change log
+```text
+source/resource
+  -> intrinsic metrics
+  -> layout geometry
+  -> route
+  -> locator / visual envelope / freeform extent / viewport range
+  -> presentation
+```
+
+Viewport 的 view/scale 投影变化在相同有效 viewport chain 内不得反向触发 content-domain
+route。Connection 的 route-derived bounds 不得反向成为 owner layout 的 intrinsic
+contribution。Anchor/Locator 的结构依赖环继续在注册或计算时拒绝。
+
+每类 work item 至少包含：
+
+```text
+kind
+subject
+source_revision
+observed_generation
+```
+
+队列按树顺序或 routing group 稳定顺序处理，并按
+`(kind, subject, source_revision, observed_generation)` 去重。处理后置工作时如果提交
+事实产生更高优先级工作，调度器回到该优先级继续排空；不重新扫描无 dirty work 的阶段。
+
+阶段不可由 app 重排。Runtime 不能在 worklist 排空前记录 command，也不能在稳定化
+中途 flush listener。固定优先级是内部静态依赖图，不是插件可注册的通用 DAG。
+
+## 5. Committed facts 与三类日志
 
 直接 Runtime API、callback mutation、LayoutOutput commit、route commit 与资源完成必须
-产出同一种有序内部 change log。最小 change 类型包括：
+产出同一种 committed fact。最小 fact 类型包括：
 
 ```text
 GeometryChanged
@@ -120,15 +148,22 @@ StyleOrContentChanged
 ResourceDependencyChanged
 ```
 
-change log 是一次已提交事实，不是可拦截回调。Runtime 的消费者包括：
+committed fact 是已提交事实，不是可拦截回调。它按用途投影为三个彼此独立的容器：
 
-- UpdateManager notification effect；
-- Connection dependency invalidation；
-- intrinsic/presentation cache invalidation；
-- freeform、viewport 与 damage propagation。
+1. `DerivedWorkSet`
+   - 内部调度使用；
+   - 按 subject、dirty reason 与 generation 合并；
+   - 驱动 Connection dependency、intrinsic/presentation cache、freeform 与 viewport。
+2. `NotificationJournal`
+   - 外部观察使用；
+   - 保持 committed mutation 的因果 FIFO；
+   - 只在 stable epoch 晋升后 flush。
+3. `DamageAccumulator`
+   - 保存 old/new visual envelope；
+   - 可以空间合并，但不得承担派生状态调度。
 
 同一事实不能由每个 Runtime API 各自手写一套 invalidation。Layout commit 绕过
-Runtime public setter 仍会产出相同 change。
+Runtime public setter 仍会产出相同 committed fact。
 
 ## 6. Layout 原子提交
 
@@ -147,7 +182,7 @@ calculate child bounds + built-in effects
 -> validate complete output
 -> capture old geometry/state
 -> commit child bounds and effects atomically
--> append committed changes
+-> append committed facts
 -> enqueue notifications
 ```
 
@@ -160,8 +195,9 @@ calculate child bounds + built-in effects
 - 正常动态更新不要求应用传入 routing space；
 - dirty connections 按 RouterId、routing domain 与 router-specific group key 形成稳定组；
 - 每组先用同一 stable scene snapshot 计算完整 batch，再原子提交；
-- geometry/topology change 由 committed change log 命中 dependency reverse index；
-- route commit 可能使 parent/freeform/viewport 再次 invalid，因此返回下一收敛 round；
+- geometry/topology fact 由 `DerivedWorkSet` 命中 dependency reverse index；
+- route commit 可能使 locator/freeform/viewport 再次 invalid，因此将对应 typed work
+  按固定优先级入队；
 - explicit resolve 仅保留为诊断/同步工具，不是产品正确性的前置步骤。
 
 一个 route group 失败不会回滚无关 group；失败 group 清除旧 geometry，进入稳定
@@ -182,19 +218,36 @@ Label/TitleBar preferred size 只读取 intrinsic metrics。presentation cache k
 这不要求通用 TextFlow 在 D4.1 完整实现；现有 Label 与 TitleBar 先遵守同一分层，
 后续 TextFlow 复用该协议。
 
-## 9. 收敛预算与错误
+## 9. Stable epoch、预算与错误
 
-Runtime 使用命名的 `DERIVED_STATE_ROUND_LIMIT`，初始策略值为 16。受支持的
-layout/viewport/route 反馈链应在 4 round 内稳定；额外预算用于诊断和未来组合，不能
-作为正常算法依赖。
+每次 source transaction 分配单调 `derivation_epoch`。Runtime 可以在该 epoch 内提交
+工作状态，但只有所有 typed work queue 排空后才将其晋升为 `stable_epoch`。
+RenderSubmission、listener 和 Accessibility snapshot 只能消费 stable epoch。
+
+预算至少同时覆盖：
+
+- 本次 epoch 的 state-changing commit 总数；
+- 同一 `(kind, subject, source_revision)` 的重复计算次数；
+- 最终 feedback/epoch 次数上限。
+
+`DERIVED_STATE_FEEDBACK_LIMIT = 16` 可以保留为最终 feedback 保险，但不得把“正常在
+4 round 内稳定”作为算法正确性的依据。正常支持链路应沿静态依赖方向完成；已知结构环
+必须提前拒绝，预算用于捕获 invariant 破坏、第三方策略不稳定或未知动态反馈。
 
 达到预算仍有工作时：
 
 - 不生成基于部分状态的新 submission；
 - 保留 pending work 与 full redraw 请求；
-- 记录结构化 `DerivationDidNotConverge`，包含 round 数和剩余 dirty categories；
+- 不晋升 stable epoch；
+- 记录结构化 `DerivationDidNotConverge`，包含阶段、subject、source revision、
+  observed generation、state-changing commit 数和剩余 dirty categories；
 - 不 flush 本次未形成稳定 frame 的 committed notification；
 - 不在渲染热路径打印日志。
+
+Source mutation 已经提交，不因派生失败回滚。后端继续保留上一 stable frame；当前
+epoch 的派生查询返回明确的 `NotStable`/preparation error，而不是伪装成新稳定结果。
+这不要求 Runtime 复制整棵旧场景。修复输入或策略后，Runtime 从保留的 dirty work
+重试。
 
 D4.1 形成内部 checked stabilization 结果；D4.4 再把 Idle、Suspended、
 AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
@@ -204,9 +257,7 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 `Runtime::has_pending_update` 至少合并：
 
 - pending callback mutations；
-- invalid layout roots；
-- dirty connection groups；
-- dirty intrinsic/presentation snapshots；
+- 非空 typed derived work queues；
 - resource delta；
 - damage/full redraw；
 - in-flight retry work。
@@ -217,7 +268,7 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 
 - 通知描述 committed facts；
 - 同一 source mutation 产生的 effects 保持因果 FIFO；
-- 收敛 round 中产生的 effects 暂存，稳定后一次 flush；
+- 同一 epoch 中产生的 effects 暂存，stable epoch 晋升后一次 flush；
 - listener 不能观察 route 已 dirty 但 geometry 尚未提交等中间状态；
 - unresolved route 是可观察的稳定结果，不属于部分提交。
 
@@ -226,11 +277,14 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 ### 新 LayoutManager
 
 只消费 LayoutSnapshot 并返回 LayoutOutput；不能获得 Runtime 或共享模型可变引用。
+内置容器可通过只写 `LayoutOutputBuilder` 产生 sealed typed effect。effect 在完整 output
+校验后由 Runtime 提交，不能自行读取可变 Runtime、重入 mutation 或同步通知。
 
 ### 新 Router
 
 只消费 SceneQuery/RouteRequest 并返回 RouteOutput；group scope 和 constraint compatibility
-由 Router trait 声明，提交仍归 Runtime。
+由 Router trait 声明，提交仍归 Runtime。Router 可以维护计算所需的私有 scratch state，
+但不能修改 ConnectionFigure 或 FigureTree。
 
 ### 新文本引擎
 
@@ -248,11 +302,14 @@ TextLayout/GlyphRun IR。D4.4 补齐外部非空构造器。
 - freeform + viewport + connection 组合在预算内稳定；
 - 非法 LayoutOutput 不修改 RangeModel，也不发 listener；
 - synthetic feedback cycle 命中预算且不提交 partial frame；
+- 同一 generation 的重复 work item 被合并；
+- route-only dirty work 使 `has_pending_update` 为 true；
+- 收敛失败时 render/listener 仍停留在上一 stable epoch；
 - prepare_submission、prepare_frame 与 record_full_frame 共用 stabilization 内核。
 
 ## 14. 非目标
 
-- 通用依赖 DAG scheduler；
+- 运行时可注册任意节点、任意边和任意 callback 的通用依赖 DAG scheduler；
 - 多线程/worker layout；
 - ShortestPath routing；
 - 完整 TextFlow/富文本编辑；

@@ -404,8 +404,10 @@ HeadlessHost  ── tests / deterministic replay
 pub struct RenderSubmission {
     commands: CommandStream,
     damage: Damage,
-    resources: ResourceDelta,
+    resources: ResourceSync,
     surface: SurfaceInfo,
+    session_id: BackendSessionId,
+    frame_id: FrameId,
 }
 
 pub trait RenderBackend {

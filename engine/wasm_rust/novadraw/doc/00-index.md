@@ -33,6 +33,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/text-layout.md`](design/architecture/text-layout.md)
 - Clickable、Button 与 Toggle：
   [`design/architecture/basic-widgets.md`](design/architecture/basic-widgets.md)
+- Runtime 派生状态收敛事务：
+  [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
+- 资源因果与 Backend Session：
+  [`design/architecture/resource-lifecycle.md`](design/architecture/resource-lifecycle.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：
@@ -40,8 +44,6 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 候选方案不属于核心 SSOT：
 
-- 派生状态收敛事务：
-  [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
 - DisplayList 候选协议：[`design/rendering/display-list-protocol.md`](design/rendering/display-list-protocol.md)
 - DisplayList 探索计划：[`design/rendering/displaylist-implementation-plan.md`](design/rendering/displaylist-implementation-plan.md)
 

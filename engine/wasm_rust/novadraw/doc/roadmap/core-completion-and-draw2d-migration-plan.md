@@ -993,9 +993,9 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 
 ### D4.1 派生状态收敛事务
 
-状态：`in_progress`
+状态：`complete`
 
-候选契约：
+正式契约：
 
 - [`../design/architecture/derived-state-convergence.md`](../design/architecture/derived-state-convergence.md)
 - [`../adr/adr-011-derived-state-convergence.md`](../adr/adr-011-derived-state-convergence.md)
@@ -1007,15 +1007,42 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 - 文本 natural measurement 先参与布局，最终 client area 确定后再生成 constrained
   glyph snapshot；
 - viewport/range 等共享容器状态只在 layout output 校验通过后提交；
-- 使用有预算的固定阶段收敛，不引入通用 DAG 或无界重复帧。
+- 使用静态类型化依赖层级、稳定去重 worklist 与 generation 增量收敛；预算只兜底
+  未知反馈环，不引入运行时可注册的通用 DAG 或无界重复帧。
 
 `api_semantics`：`layout.manager`、`validation.protocol`、
 `update_manager.two_phase`、`connection.figure`、`connection.router`、
 `text.flow`、`viewport.scroll_zoom`、`damage.repaint`。
 
+完成证据：
+
+- ADR-011 已通过；Runtime 的三个 frame recording 入口统一执行静态优先级
+  `DerivedWorkSet`，稳定化失败时不生成 submission；
+- Label cache 已拆分为 intrinsic metrics 与 presentation snapshot，首帧先完成 parent
+  layout，再按最终 client area 生成 glyph/ellipsis；
+- dirty Connection 已进入 `has_pending_update`，正常 frame 根据 connection parent
+  child-content domain 自动排空 routing group；
+- dependency generation reconciliation 覆盖 direct mutation、callback、LayoutOutput
+  geometry commit 与 routing-domain child order；
+- Viewport layout 只计算 sealed `ViewportLayoutEffect`，完整 LayoutOutput 校验通过后
+  才提交 RangeModel 与 content scale；
+- 新增首帧文本、自动 route、LayoutOutput route invalidation 和非法 Viewport output
+  无 side effect 回归测试；
+- `cargo fmt --all -- --check`、`cargo check --workspace`、
+  `cargo clippy --workspace -- -D warnings`、`cargo test --workspace` 与 WASM
+  `web-validation` check 通过。
+
+详细记录：
+[`../verification/reviews/d4-derived-state-convergence-2026-09-09.md`](../verification/reviews/d4-derived-state-convergence-2026-09-09.md)。
+
 ### D4.2 资源因果与 Backend Session
 
-状态：`not_started`
+状态：`complete`
+
+正式契约：
+
+- [`../design/architecture/resource-lifecycle.md`](../design/architecture/resource-lifecycle.md)
+- [`../adr/adr-012-resource-causality-and-backend-session.md`](../adr/adr-012-resource-causality-and-backend-session.md)
 
 目标：
 
@@ -1030,9 +1057,29 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 `api_semantics`：`resource.lifecycle`、`render.backend_session`、
 `frame.preparation`、`graphics.context`。
 
+完成证据：
+
+- ADR-012 已通过；`ResourceDelta` 使用单一有序
+  `ResourceOp::{Upsert,Remove}` 序列；
+- Ready -> Failed -> Ready 保持 Upsert -> Remove -> Upsert，Vello 严格按序更新
+  image/font cache；
+- `BackendSessionId` 使用 Runtime namespace + 单调 generation；跨 Runtime 切换替换
+  cache，同 Runtime 旧 generation 被拒绝；
+- 新 session 首帧使用 Ready `ResourceSnapshot`、完整 commands 与 Full damage；
+  Snapshot 每次应用前替换 cache，空 Snapshot 也保留清空语义；
+- delta Retry 恢复精确因果前缀，snapshot Retry 从 Registry 当前状态重新冻结；
+- completion 同时匹配 session/frame，session reset 后旧 completion 不影响当前工作；
+- Native editor 在 backend 重建时显式 reset session；普通 resize/full redraw 不重发
+  Ready snapshot；
+- `cargo run -p update-app -- --verify` 六项通过，Rust workspace、Clippy 与 WASM
+  `web-validation` 门禁通过。
+
+详细记录：
+[`../verification/reviews/d4-resource-causality-and-backend-session-2026-09-09.md`](../verification/reviews/d4-resource-causality-and-backend-session-2026-09-09.md)。
+
 ### D4.3 Figure 生命周期与 Runtime 身份域
 
-状态：`not_started`
+状态：`in_progress`
 
 目标：
 

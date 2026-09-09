@@ -293,7 +293,7 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportHandle::{contents,set_contents}`；`ChildPolicy::Single` 在 add/reparent 入口强制单 contents | verified | `m8_viewport_contract` 覆盖替换与原子拒绝 |
-| `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | `RangeModel` / `DefaultRangeModel`；Viewport 与 ScrollBar 在私有 runtime 中共享模型，公开 handle 提供 snapshot | verified | 不暴露可绕过 UpdateManager 的裸可变模型引用 |
+| `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | `RangeModel` / `DefaultRangeModel`；Viewport 与 ScrollBar 在私有 runtime 中共享模型，公开 handle 提供 snapshot | verified | ViewportLayout 通过 sealed typed effect 在完整 LayoutOutput 校验后提交 range/content scale |
 | `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `ViewportHandle::{view_location,set_view_location,set_horizontal_location,set_vertical_location,scroll_by}` | verified | clamp、property/coordinate effect 与 repaint 已覆盖 |
 | `viewport.scroll_zoom` | `ScalableFigure`、`AbstractZoomManager`、`IZoomScrollPolicy`、zoom levels、fit | `ScalableFigure`、`ScaleHandle`、`ZoomManager`、`ZoomScrollPolicy`、`DefaultScrollPolicy`、`MouseLocationZoomScrollPolicy` | verified | `setScale` 只失效；manager 执行 location → scale → validate → scroll；Viewport 不保存 zoom |
 | `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height,set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
@@ -308,9 +308,9 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | Family ID | Draw2D 方法级 API / 合理变体 | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `runtime.identity` | LightweightSystem/Figure 所属图实例隔离；跨图引用不得命中 | ResourceId 已有 namespace；FigureId 仍只有 SlotMap generation，两个 Runtime 可产生相同值 | partial | D4.3 为公开 Figure handle 增加 Runtime 身份域并拒绝 foreign mutation |
-| `resource.lifecycle` | 图像/字体状态变化必须按提交因果顺序到达 renderer | ResourceRegistry 有 revision 与 retry restore；ResourceDelta 分离 added/removed，Ready -> Failed -> Ready 可被 backend 最终删除 | partial | D4.2 定义有序操作或最终状态归约 |
-| `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | full redraw 只重录 commands，不重发 Ready 资源；新 backend cache 为空 | partial | D4.2 增加 session epoch 与 ready resource snapshot |
-| `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime 已有稳定 submission/in-flight；dirty connection 不自动 reroute，Label constrained layout 早于最终 parent layout | partial | D4.1 固定阶段收敛；D4.4 再细分 Idle/Suspended/AwaitingCompletion/Error |
+| `resource.lifecycle` | 图像/字体状态变化必须按提交因果顺序到达 renderer | ResourceRegistry revision + ordered `ResourceOp`；delta retry 恢复精确前缀，Ready -> Failed -> Ready 顺序闭合 | verified | D4.2 自动契约与 Vello cache 测试 |
+| `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | namespaced `BackendSessionId` + Ready snapshot + Full damage/commands；旧 completion 隔离 | verified | D4.2 backend 重建、snapshot retry 与 resize 隔离测试 |
+| `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime 三个 recording 入口共用 typed worklist；intrinsic -> layout -> route -> presentation 在 stable epoch 前收敛，失败不提交 frame | partial | D4.1 同帧一致性已闭合；D4.4 再公开 Idle/Suspended/AwaitingCompletion/Error |
 
 ### M9 Connection / Anchor / Router / Locator
 
@@ -320,7 +320,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | 不复制 Anchor listener；依赖变化由 Runtime 精确失效 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；dirty state 尚未由正常 frame 自动消费 | partial | D4.1 补 Runtime 自动 reroute 收敛；ShortestPath 继续延后 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；normal frame 自动按规范 parent routing space 消费 dirty group | verified | dependency generation 覆盖 direct、callback、LayoutOutput geometry 与 routing-domain child order；ShortestPath 继续延后 |
 | `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
 | `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Locator 消费已提交 route snapshot；实现 endpoint、middle、indexed midpoint 和 path fraction | verified | child envelope 与 path bounds 已分离 |
 
@@ -347,7 +347,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 隔离共享实例 | verified | shared TitleBar 双 owner 字体指标契约测试 |
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | cache/shaping、资源事务、LabelAnchor 与 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed；resource-referenced Image command | verified | Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
-| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 已有 immutable layout metadata、glyph IR、真实测量/截断；最终 constrained shaping 当前早于 parent layout，外部 engine 无法构造非空 TextLayout | partial | D4.1 修复同帧收敛，D4.4 补受校验 builder；完整 fragment/bidi 按 P2 延后 |
+| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | M10.2 已有 immutable layout metadata、glyph IR、真实测量/截断；Label intrinsic metrics 与最终 geometry presentation 已分层 | partial | D4.1 同帧收敛已闭合；D4.4 补受校验 builder；完整 fragment/bidi 按 P2 延后 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
 | `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | 当前仅有 `AccessibleFigure::accessible_name` 与 `PlatformHost::update_accessibility(revision)` 骨架 | partial | M10.5 补 engine-owned snapshot/delta、role/state/bounds/children/focus/action |

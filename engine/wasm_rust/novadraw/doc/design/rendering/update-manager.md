@@ -220,8 +220,9 @@ clip。
 pub struct RenderSubmission {
     pub commands: CommandStream,
     pub damage: Damage,
-    pub resources: ResourceDelta,
+    pub resources: ResourceSync,
     pub surface: SurfaceInfo,
+    pub session_id: BackendSessionId,
     pub frame_id: FrameId,
 }
 ```

@@ -52,8 +52,9 @@
 
 ## 当前执行顺序
 
-R8/R9、D0-D3 与 M10.1-M10.4 已完成。2026-09-08 长期架构审计确认的 P1 问题已
-纳入 D4；D4.0 已完成，当前进入 D4.1 派生状态收敛事务。M10.5 在 D4 完成后继续。
+R8/R9、D0-D3、D4.0-D4.2 与 M10.1-M10.4 已完成。2026-09-08 长期架构审计确认的
+其余 P1 问题继续由 D4 收口；当前进入 D4.3 Figure 生命周期与 Runtime 身份域。
+M10.5 在 D4 完成后继续。
 后续按
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
 执行：

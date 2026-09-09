@@ -20,7 +20,8 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 已通过 | 2026-09-08 |
 | [009](adr-009-runtime-dynamic-mutation-contract.md) | Runtime 动态 Mutation 事务 | 已通过 | 2026-09-08 |
 | [010](adr-010-runtime-listener-lifecycle.md) | Runtime Listener 生命周期 | 已通过 | 2026-09-08 |
-| [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 提议 | 2026-09-09 |
+| [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 已通过 | 2026-09-09 |
+| [012](adr-012-resource-causality-and-backend-session.md) | 资源因果日志与 Backend Session | 已通过 | 2026-09-09 |
 
 ## ADR 模板
 

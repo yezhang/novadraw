@@ -39,7 +39,7 @@ Runtime
 → RenderSubmission
    ├── CommandStream
    ├── Damage
-   ├── ResourceDelta
+   ├── ResourceSync
    └── SurfaceInfo
         │
         ├── direct backend adapter

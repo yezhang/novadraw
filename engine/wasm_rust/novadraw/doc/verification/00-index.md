@@ -24,6 +24,12 @@ D3.3 Runtime listener 公共面与 self-removal 语义验证见
 [`reviews/architecture-sustainability-review-2026-09-08.md`](reviews/architecture-sustainability-review-2026-09-08.md)
 和 [`reviews/d4-audit-calibration-2026-09-09.md`](reviews/d4-audit-calibration-2026-09-09.md)。
 
+D4.1 typed worklist、自动路由、文本双阶段与 Viewport 延迟提交验证见
+[`reviews/d4-derived-state-convergence-2026-09-09.md`](reviews/d4-derived-state-convergence-2026-09-09.md)。
+
+D4.2 ordered resource ops、Ready snapshot 与 Backend Session 验证见
+[`reviews/d4-resource-causality-and-backend-session-2026-09-09.md`](reviews/d4-resource-causality-and-backend-session-2026-09-09.md)。
+
 ## 手工验证入口
 
 - [`manual/core-pipeline.md`](manual/core-pipeline.md)：M1-M7 核心渲染与事件链路；
