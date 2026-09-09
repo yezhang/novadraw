@@ -295,6 +295,14 @@ impl EditorRuntime {
         }
     }
 
+    pub fn reset_backend_session(&mut self) {
+        self.core
+            .runtime
+            .reset_backend_session()
+            .expect("backend session id space exhausted");
+        self.host.request_redraw();
+    }
+
     pub fn is_scene(&self, scene_type: crate::scene_manager::SceneType) -> bool {
         self.core.current_scene == scene_type
     }
@@ -435,9 +443,10 @@ impl EditorRuntime {
         self.core
             .selection
             .append_feedback(self.core.runtime.tree(), &mut submission);
-        let frame_id = submission.frame_id;
         let outcome = renderer.submit(&submission);
-        self.core.runtime.complete_submission(frame_id, outcome);
+        self.core
+            .runtime
+            .complete_submission(submission.session_id, submission.frame_id, outcome);
         if outcome == RenderOutcome::Retry || self.core.runtime.has_pending_update() {
             self.host.request_redraw();
         }

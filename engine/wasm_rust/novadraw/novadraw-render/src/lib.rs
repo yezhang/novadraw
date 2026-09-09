@@ -31,8 +31,9 @@ pub use command::{
 };
 pub use context::NdCanvas;
 pub use submission::{
-    DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta, ResourceId,
-    ResourcePayload, ResourceUpdate, SurfaceInfo,
+    BackendSessionId, DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta,
+    ResourceId, ResourceOp, ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate,
+    SurfaceInfo,
 };
 pub use text::{
     BuiltinFont, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun, ParleyTextEngine,

@@ -20,6 +20,7 @@ pub use stack_layout::StackLayout;
 pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
+use crate::container::viewport::ViewportLayoutEffect;
 use crate::{PropertyValue, graph::FigureId};
 use novadraw_geometry::Rectangle;
 use std::any::Any;
@@ -221,6 +222,7 @@ pub(crate) enum LayoutChange {
     CoordinateSystemChanged(FigureId),
     Repaint(FigureId),
     RepaintParent(FigureId),
+    ViewportEffect(ViewportLayoutEffect),
 }
 
 /// Buffered changes produced by a layout calculation.
@@ -272,6 +274,10 @@ impl LayoutOutput {
 
     pub(crate) fn repaint_parent(&mut self, figure: FigureId) {
         self.changes.push(LayoutChange::RepaintParent(figure));
+    }
+
+    pub(crate) fn set_viewport_effect(&mut self, effect: ViewportLayoutEffect) {
+        self.changes.push(LayoutChange::ViewportEffect(effect));
     }
 
     pub fn is_empty(&self) -> bool {

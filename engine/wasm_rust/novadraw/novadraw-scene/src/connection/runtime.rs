@@ -496,6 +496,32 @@ impl ConnectionRuntime {
             .collect()
     }
 
+    pub(crate) fn invalidate_stale_dependencies(
+        &mut self,
+        source: &dyn SceneRead,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        let directly_affected = self
+            .order
+            .iter()
+            .copied()
+            .filter(|connection| {
+                self.states.get(connection).is_some_and(|state| {
+                    state.dependencies.iter().any(|(subject, generation)| {
+                        source.dependency_generation(subject) != *generation
+                    })
+                })
+            })
+            .collect::<Vec<_>>();
+        let affected = self.expand_group_invalidation(&directly_affected)?;
+        for connection in &affected {
+            self.next_dirty_revision(*connection)?;
+        }
+        for connection in &affected {
+            self.mark_dirty(*connection)?;
+        }
+        Ok(affected)
+    }
+
     pub(crate) fn invalidate_figure_change(
         &mut self,
         figure: FigureId,
@@ -653,6 +679,13 @@ impl ConnectionRuntime {
                 observations,
             )
         })?;
+        if let CoordinateSpace::ChildContent(routing_domain) = routing_space {
+            let subject = DependencySubject::Topology(routing_domain);
+            observations.push(DependencyObservation {
+                generation: source.dependency_generation(&subject),
+                subject,
+            });
+        }
         let router = self
             .router(router_id)
             .map_err(|error| (error, observations.clone()))?;

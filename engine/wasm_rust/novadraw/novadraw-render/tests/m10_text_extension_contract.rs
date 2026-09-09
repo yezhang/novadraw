@@ -1,8 +1,8 @@
 use novadraw_core::Color;
 use novadraw_render::{
     BuiltinFont, FontData, FontDescriptor, FrameId, GlyphPaint, NdCanvas, RenderBackend,
-    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourcePayload,
-    ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine,
+    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceOp,
+    ResourcePayload, ResourceSync, ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -68,14 +68,13 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
             scale_factor: 1.0,
         },
         ResourceDelta {
-            added: vec![ResourceUpdate {
+            ops: vec![ResourceOp::Upsert(ResourceUpdate {
                 id: font_id,
                 revision: 1,
                 payload: ResourcePayload::Font(Arc::new(FontData::new(
                     BuiltinFont::Inter.bytes().to_vec(),
                 ))),
-            }],
-            removed: Vec::new(),
+            })],
         },
         FrameId::INITIAL,
     );
@@ -85,5 +84,9 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
 
     assert_eq!(outcome, RenderOutcome::Presented);
     assert_eq!(backend.glyph_runs, layout.glyph_runs().len());
-    assert_eq!(submission.resources.added.len(), 1);
+    assert!(matches!(
+        submission.resources,
+        ResourceSync::Delta(ResourceDelta { ref ops })
+            if matches!(ops.as_slice(), [ResourceOp::Upsert(_)])
+    ));
 }

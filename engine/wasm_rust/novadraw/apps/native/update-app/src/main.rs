@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use novadraw::{
     BackendCapabilities, DamageMode, FigureEvent, FigureId, ImageData, ListenerDirective,
-    NotificationEffect, Rectangle, RenderOutcome, Runtime, SurfaceInfo, UpdateEvent,
+    NotificationEffect, Rectangle, RenderOutcome, ResourceSync, Runtime, SurfaceInfo, UpdateEvent,
     UpdateListener, UpdateManager, XYConstraint,
 };
 use novadraw_apps::{
@@ -219,12 +219,16 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .ok_or("initial submission was not prepared")?;
     if first.damage.mode() != DamageMode::Full
-        || first.resources.added.len() != 1
-        || first.resources.added[0].id != image.resource_id()
+        || !matches!(
+            &first.resources,
+            ResourceSync::Snapshot(snapshot)
+                if snapshot.ready.len() == 1
+                    && snapshot.ready[0].id == image.resource_id()
+        )
     {
         return Err("initial submission did not carry full damage and resources".to_string());
     }
-    if !runtime.complete_submission(first.frame_id, RenderOutcome::Retry) {
+    if !runtime.complete_submission(first.session_id, first.frame_id, RenderOutcome::Retry) {
         return Err("retry result was not accepted".to_string());
     }
 
@@ -232,12 +236,16 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .ok_or("retry submission was not prepared")?;
     if retry.damage.mode() != DamageMode::Full
-        || retry.resources.added.len() != 1
-        || retry.resources.added[0].id != image.resource_id()
+        || !matches!(
+            &retry.resources,
+            ResourceSync::Snapshot(snapshot)
+                if snapshot.ready.len() == 1
+                    && snapshot.ready[0].id == image.resource_id()
+        )
     {
         return Err("retry did not restore full damage and resources".to_string());
     }
-    if !runtime.complete_submission(retry.frame_id, RenderOutcome::Presented) {
+    if !runtime.complete_submission(retry.session_id, retry.frame_id, RenderOutcome::Presented) {
         return Err("presented result was not accepted".to_string());
     }
 

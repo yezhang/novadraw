@@ -5,8 +5,8 @@ use std::f64::consts::TAU;
 use std::rc::Rc;
 
 use novadraw::{
-    BackendCapabilities, Bounded, Color, CursorIcon, DamageMode, EventContext, Figure,
-    FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MouseButton, NdCanvas,
+    BackendCapabilities, BackendSessionId, Bounded, Color, CursorIcon, DamageMode, EventContext,
+    Figure, FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MouseButton, NdCanvas,
     PlatformHost, Rectangle, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission,
     Runtime, Shape, SurfaceInfo,
     backend::vello::VelloRenderer,
@@ -248,6 +248,7 @@ struct Canvas2dBackend {
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
     scale_factor: f64,
+    active_session: Option<BackendSessionId>,
 }
 
 impl Canvas2dBackend {
@@ -256,6 +257,7 @@ impl Canvas2dBackend {
             canvas,
             context,
             scale_factor: 1.0,
+            active_session: None,
         }
     }
 
@@ -291,6 +293,13 @@ impl RenderBackend for Canvas2dBackend {
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+        if self.active_session.is_some_and(|active| {
+            submission.session_id.runtime_namespace() == active.runtime_namespace()
+                && submission.session_id.generation() < active.generation()
+        }) {
+            return RenderOutcome::Skipped;
+        }
+        self.active_session = Some(submission.session_id);
         if submission.commands.iter().any(|command| {
             matches!(
                 command.kind,
@@ -709,10 +718,10 @@ impl WebValidationApp {
             self.update_status(DamageMode::None);
             return;
         };
-        let frame_id = submission.frame_id;
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);
-        self.runtime.complete_submission(frame_id, outcome);
+        self.runtime
+            .complete_submission(submission.session_id, submission.frame_id, outcome);
         self.frame_count += 1;
         self.update_status(damage);
     }

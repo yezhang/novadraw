@@ -27,6 +27,56 @@ impl FrameId {
     }
 }
 
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BackendSessionId {
+    runtime_namespace: Uuid,
+    generation: u64,
+}
+
+impl BackendSessionId {
+    pub const fn initial(runtime_namespace: Uuid) -> Self {
+        Self {
+            runtime_namespace,
+            generation: 1,
+        }
+    }
+
+    pub const fn new(runtime_namespace: Uuid, generation: u64) -> Option<Self> {
+        if generation == 0 {
+            None
+        } else {
+            Some(Self {
+                runtime_namespace,
+                generation,
+            })
+        }
+    }
+
+    pub const fn runtime_namespace(self) -> Uuid {
+        self.runtime_namespace
+    }
+
+    pub const fn generation(self) -> u64 {
+        self.generation
+    }
+
+    pub const fn next(self) -> Option<Self> {
+        match self.generation.checked_add(1) {
+            Some(generation) => Some(Self {
+                runtime_namespace: self.runtime_namespace,
+                generation,
+            }),
+            None => None,
+        }
+    }
+}
+
+impl Default for BackendSessionId {
+    fn default() -> Self {
+        Self::initial(Uuid::nil())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SurfaceInfo {
     pub logical_width: f64,
@@ -121,18 +171,62 @@ pub struct ResourceUpdate {
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ResourceDelta {
-    pub added: Vec<ResourceUpdate>,
-    pub removed: Vec<ResourceId>,
+    pub ops: Vec<ResourceOp>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResourceOp {
+    Upsert(ResourceUpdate),
+    Remove(ResourceId),
 }
 
 impl ResourceDelta {
     pub fn is_empty(&self) -> bool {
-        self.added.is_empty() && self.removed.is_empty()
+        self.ops.is_empty()
     }
 
     pub fn extend(&mut self, other: Self) {
-        self.added.extend(other.added);
-        self.removed.extend(other.removed);
+        self.ops.extend(other.ops);
+    }
+
+    pub fn upsert(&mut self, update: ResourceUpdate) {
+        self.ops.push(ResourceOp::Upsert(update));
+    }
+
+    pub fn remove(&mut self, id: ResourceId) {
+        self.ops.push(ResourceOp::Remove(id));
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ResourceSnapshot {
+    pub ready: Vec<ResourceUpdate>,
+}
+
+impl ResourceSnapshot {
+    pub fn is_empty(&self) -> bool {
+        self.ready.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ResourceSync {
+    Delta(ResourceDelta),
+    Snapshot(ResourceSnapshot),
+}
+
+impl Default for ResourceSync {
+    fn default() -> Self {
+        Self::Delta(ResourceDelta::default())
+    }
+}
+
+impl ResourceSync {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Delta(delta) => delta.is_empty(),
+            Self::Snapshot(_) => false,
+        }
     }
 }
 
@@ -222,8 +316,9 @@ impl DamageSet {
 pub struct RenderSubmission {
     pub commands: Vec<RenderCommand>,
     pub damage: DamageSet,
-    pub resources: ResourceDelta,
+    pub resources: ResourceSync,
     pub surface: SurfaceInfo,
+    pub session_id: BackendSessionId,
     pub frame_id: FrameId,
 }
 
@@ -286,19 +381,41 @@ mod tests {
             revision: 1,
             payload: ResourcePayload::Font(Arc::new(FontData::new(vec![1, 2, 3]))),
         };
-        let mut delta = ResourceDelta {
-            added: vec![image.clone()],
-            removed: vec![ResourceId::new(namespace, 2)],
-        };
-        delta.extend(ResourceDelta {
-            added: vec![font.clone()],
-            removed: vec![ResourceId::new(namespace, 4)],
-        });
+        let mut delta = ResourceDelta::default();
+        delta.upsert(image.clone());
+        delta.remove(ResourceId::new(namespace, 2));
+        let mut later = ResourceDelta::default();
+        later.upsert(font.clone());
+        later.remove(ResourceId::new(namespace, 4));
+        delta.extend(later);
 
-        assert_eq!(delta.added, vec![image, font]);
         assert_eq!(
-            delta.removed,
-            vec![ResourceId::new(namespace, 2), ResourceId::new(namespace, 4)]
+            delta.ops,
+            vec![
+                ResourceOp::Upsert(image),
+                ResourceOp::Remove(ResourceId::new(namespace, 2)),
+                ResourceOp::Upsert(font),
+                ResourceOp::Remove(ResourceId::new(namespace, 4)),
+            ]
         );
+    }
+
+    #[test]
+    fn backend_session_ids_are_non_zero_and_do_not_wrap() {
+        let namespace = Uuid::nil();
+        assert_eq!(BackendSessionId::new(namespace, 0), None);
+        let initial = BackendSessionId::initial(namespace);
+        assert_eq!(initial.generation(), 1);
+        assert_eq!(initial.next().unwrap().generation(), 2);
+        assert_eq!(
+            BackendSessionId::new(namespace, u64::MAX).unwrap().next(),
+            None
+        );
+    }
+
+    #[test]
+    fn empty_snapshot_still_represents_cache_replacement() {
+        assert!(!ResourceSync::Snapshot(ResourceSnapshot::default()).is_empty());
+        assert!(ResourceSync::Delta(ResourceDelta::default()).is_empty());
     }
 }

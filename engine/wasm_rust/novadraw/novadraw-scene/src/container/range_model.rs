@@ -238,7 +238,7 @@ fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-fn normalize_range(
+pub(crate) fn normalize_range(
     minimum: f64,
     extent: f64,
     maximum: f64,

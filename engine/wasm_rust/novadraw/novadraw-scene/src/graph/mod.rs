@@ -1787,6 +1787,15 @@ impl FigureTree {
                     }
                     None
                 }
+                LayoutChange::ViewportEffect(effect) => {
+                    if effect.viewport() != container_id {
+                        return Err(LayoutError::InvalidChild {
+                            container: container_id,
+                            child: effect.viewport(),
+                        });
+                    }
+                    None
+                }
             };
             if let Some(child_id) = child_id
                 && self
@@ -1847,6 +1856,7 @@ impl FigureTree {
                         self.repaint(update_manager, parent, None);
                     }
                 }
+                LayoutChange::ViewportEffect(effect) => effect.commit()?,
             }
         }
         Ok(())
@@ -1888,6 +1898,7 @@ impl FigureTree {
                     self.record_coordinate_system_changed(figure);
                 }
                 LayoutChange::Repaint(_) | LayoutChange::RepaintParent(_) => {}
+                LayoutChange::ViewportEffect(effect) => effect.commit()?,
             }
         }
         Ok(())
@@ -2694,7 +2705,7 @@ impl FigureTree {
         Some(result)
     }
 
-    pub(crate) fn refresh_label_layouts(
+    pub(crate) fn refresh_label_intrinsic_layouts(
         &mut self,
         text: &mut dyn TextLayoutEngine,
         resources: &crate::ResourceRegistry,
@@ -2710,13 +2721,35 @@ impl FigureTree {
                 .resolved_style(id)
                 .expect("attached label has resolved style");
             let font = novadraw_render::FontDescriptor::parse(&style.font)?;
-            let bounds = self.blocks[id].client_area();
             let label = self.blocks[id]
                 .figure
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
             let icon = label.icon().and_then(|id| resources.image_ref(id));
-            if label.refresh_layout(text, &font, bounds, icon)? {
+            if label.refresh_intrinsic(text, &font, icon)? {
+                changed.push(id);
+            }
+        }
+        Ok(changed)
+    }
+
+    pub(crate) fn refresh_label_presentations(
+        &mut self,
+        text: &mut dyn TextLayoutEngine,
+    ) -> Result<Vec<FigureId>, TextError> {
+        let labels = self
+            .blocks
+            .iter()
+            .filter_map(|(id, block)| block.figure.label().is_some().then_some(id))
+            .collect::<Vec<_>>();
+        let mut changed = Vec::new();
+        for id in labels {
+            let bounds = self.blocks[id].client_area();
+            let label = self.blocks[id]
+                .figure
+                .label_mut()
+                .expect("label capability checked before mutable borrow");
+            if label.refresh_presentation(text, bounds)? {
                 changed.push(id);
             }
         }

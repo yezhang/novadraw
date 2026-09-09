@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use novadraw_render::{
     FontData, ImageData, ImageResourceRef, ResourceDelta, ResourceId, ResourcePayload,
-    ResourceUpdate,
+    ResourceSnapshot, ResourceUpdate,
 };
 use slotmap::{Key, KeyData, SlotMap, new_key_type};
 use uuid::Uuid;
@@ -246,7 +246,7 @@ impl ResourceRegistry {
             .get_mut(key)
             .ok_or(ResourceError::UnknownResource)?;
         if matches!(entry.status, ResourceStatus::Ready { .. }) {
-            self.pending_delta.removed.push(id);
+            self.pending_delta.remove(id);
         }
         entry.status = ResourceStatus::Failed {
             reason: reason.into(),
@@ -262,7 +262,7 @@ impl ResourceRegistry {
             .remove(key)
             .ok_or(ResourceError::UnknownResource)?;
         if matches!(entry.status, ResourceStatus::Ready { .. }) {
-            self.pending_delta.removed.push(id);
+            self.pending_delta.remove(id);
         }
         Ok(entry.dependents)
     }
@@ -284,6 +284,29 @@ impl ResourceRegistry {
 
     pub fn has_pending_delta(&self) -> bool {
         !self.pending_delta.is_empty()
+    }
+
+    pub(crate) fn take_ready_snapshot(&mut self) -> ResourceSnapshot {
+        self.pending_delta = ResourceDelta::default();
+        let mut ready = self
+            .entries
+            .iter()
+            .filter_map(|(key, entry)| {
+                let ResourceStatus::Ready { revision } = entry.status else {
+                    return None;
+                };
+                Some(ResourceUpdate {
+                    id: ResourceId::new(self.namespace, key.data().as_ffi()),
+                    revision,
+                    payload: entry
+                        .payload
+                        .clone()
+                        .expect("Ready resource must own a payload"),
+                })
+            })
+            .collect::<Vec<_>>();
+        ready.sort_by_key(|update| update.id);
+        ResourceSnapshot { ready }
     }
 
     fn register(&mut self, kind: ResourceKind) -> ResourceId {
@@ -321,7 +344,7 @@ impl ResourceRegistry {
         entry.revision = revision;
         entry.status = ResourceStatus::Ready { revision };
         entry.payload = Some(payload.clone());
-        self.pending_delta.added.push(ResourceUpdate {
+        self.pending_delta.upsert(ResourceUpdate {
             id,
             revision,
             payload,
@@ -339,7 +362,7 @@ impl ResourceRegistry {
 
 #[cfg(test)]
 mod tests {
-    use novadraw_render::ImageData;
+    use novadraw_render::{ImageData, ResourceOp};
     use slotmap::KeyData;
 
     use super::*;
@@ -381,9 +404,12 @@ mod tests {
         let delta = registry.take_delta();
 
         assert_eq!(dependents, vec![dependent]);
-        assert_eq!(delta.added.len(), 1);
-        assert_eq!(delta.added[0].id, image.resource_id());
-        assert_eq!(delta.added[0].revision, 1);
+        assert_eq!(delta.ops.len(), 1);
+        let ResourceOp::Upsert(update) = &delta.ops[0] else {
+            panic!("completion must queue an upsert");
+        };
+        assert_eq!(update.id, image.resource_id());
+        assert_eq!(update.revision, 1);
         assert_eq!(
             registry.status(image.resource_id()),
             Ok(&ResourceStatus::Ready { revision: 1 })
@@ -427,7 +453,10 @@ mod tests {
             .fail(image.resource_id(), "decode invalidated")
             .unwrap();
 
-        assert_eq!(registry.take_delta().removed, vec![image.resource_id()]);
+        assert_eq!(
+            registry.take_delta().ops,
+            vec![ResourceOp::Remove(image.resource_id())]
+        );
     }
 
     #[test]
@@ -452,6 +481,58 @@ mod tests {
             registry.status(image.resource_id()),
             Ok(&ResourceStatus::Ready { revision: 2 })
         );
-        assert_eq!(registry.take_delta().added[0].revision, 2);
+        let delta = registry.take_delta();
+        let ResourceOp::Upsert(update) = &delta.ops[0] else {
+            panic!("recovery must queue an upsert");
+        };
+        assert_eq!(update.revision, 2);
+    }
+
+    #[test]
+    fn ready_failed_ready_preserves_backend_operation_order() {
+        let mut registry = ResourceRegistry::with_namespace(Uuid::nil());
+        let image = registry.register_image();
+        registry
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
+            .unwrap();
+        registry.fail(image.resource_id(), "transient").unwrap();
+        registry
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![0; 4], 1.0))
+            .unwrap();
+
+        let delta = registry.take_delta();
+        assert!(matches!(
+            delta.ops.as_slice(),
+            [
+                ResourceOp::Upsert(ResourceUpdate { revision: 1, .. }),
+                ResourceOp::Remove(id),
+                ResourceOp::Upsert(ResourceUpdate { revision: 2, .. }),
+            ] if *id == image.resource_id()
+        ));
+    }
+
+    #[test]
+    fn ready_snapshot_is_stable_and_supersedes_pending_ops() {
+        let mut registry = ResourceRegistry::with_namespace(Uuid::nil());
+        let first = registry.register_image();
+        let second = registry.register_image();
+        registry
+            .complete_image(second, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
+            .unwrap();
+        registry
+            .complete_image(first, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+
+        let snapshot = registry.take_ready_snapshot();
+
+        assert_eq!(
+            snapshot
+                .ready
+                .iter()
+                .map(|update| update.id)
+                .collect::<Vec<_>>(),
+            vec![first.resource_id(), second.resource_id()]
+        );
+        assert!(!registry.has_pending_delta());
     }
 }

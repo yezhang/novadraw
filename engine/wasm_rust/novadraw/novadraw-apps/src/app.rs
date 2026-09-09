@@ -159,9 +159,8 @@ impl DemoApp {
         let Some(submission) = runtime.prepare_submission(surface, renderer.capabilities()) else {
             return RenderOutcome::Skipped;
         };
-        let frame_id = submission.frame_id;
         let outcome = renderer.submit(&submission);
-        runtime.complete_submission(frame_id, outcome);
+        runtime.complete_submission(submission.session_id, submission.frame_id, outcome);
         if outcome == RenderOutcome::Retry {
             host.request_redraw();
         }
@@ -183,9 +182,8 @@ impl DemoApp {
         let Some(submission) = runtime.prepare_submission(surface, renderer.capabilities()) else {
             return RenderOutcome::Skipped;
         };
-        let frame_id = submission.frame_id;
         let outcome = renderer.render_for_screenshot(&submission);
-        runtime.complete_submission(frame_id, outcome);
+        runtime.complete_submission(submission.session_id, submission.frame_id, outcome);
         outcome
     }
 
@@ -662,7 +660,23 @@ mod tests {
         app.switch_scene(0);
 
         let runtime = app.runtime.as_mut().unwrap();
-        assert!(runtime.prepare_frame().is_some());
+        let submission = runtime
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: 800.0,
+                    logical_height: 600.0,
+                    pixel_width: 800,
+                    pixel_height: 600,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .unwrap();
+        assert!(runtime.complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            RenderOutcome::Presented
+        ));
         assert!(!runtime.has_pending_update());
 
         app.request_surface_redraw();
@@ -685,13 +699,21 @@ mod tests {
             .unwrap();
         assert!(!runtime.has_pending_update());
 
-        assert!(runtime.complete_submission(submission.frame_id, RenderOutcome::Skipped));
+        assert!(runtime.complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            RenderOutcome::Skipped
+        ));
         assert!(runtime.has_pending_update());
 
         let submission = runtime
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        assert!(runtime.complete_submission(submission.frame_id, RenderOutcome::Presented));
+        assert!(runtime.complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            RenderOutcome::Presented
+        ));
         assert!(!runtime.has_pending_update());
     }
 }

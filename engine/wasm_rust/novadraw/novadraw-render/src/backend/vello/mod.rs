@@ -175,6 +175,31 @@ fn clip_restore_plan<'a>(
     )
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BackendSessionTransition {
+    Initialize,
+    Continue,
+    Replace,
+    Stale,
+}
+
+fn backend_session_transition(
+    active: Option<crate::BackendSessionId>,
+    incoming: crate::BackendSessionId,
+) -> BackendSessionTransition {
+    match active {
+        None => BackendSessionTransition::Initialize,
+        Some(active) if incoming.runtime_namespace() != active.runtime_namespace() => {
+            BackendSessionTransition::Replace
+        }
+        Some(active) if incoming == active => BackendSessionTransition::Continue,
+        Some(active) if incoming.generation() > active.generation() => {
+            BackendSessionTransition::Replace
+        }
+        Some(_) => BackendSessionTransition::Stale,
+    }
+}
+
 pub struct VelloRenderer {
     render_context: RenderContext,
     renderers: Vec<Option<Renderer>>,
@@ -185,6 +210,7 @@ pub struct VelloRenderer {
     pending_resize: Option<(u32, u32, f64)>,
     /// 状态栈
     state_stack: Vec<RenderState>,
+    active_session: Option<crate::BackendSessionId>,
     font_faces: HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
     images: HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
@@ -225,6 +251,7 @@ impl VelloRenderer {
             surface_suspended: false,
             pending_resize: None,
             state_stack: vec![RenderState::default()],
+            active_session: None,
             font_faces: HashMap::new(),
             images: HashMap::new(),
             retained_texture: None,
@@ -236,9 +263,21 @@ impl VelloRenderer {
         (self.surface.config.width, self.surface.config.height)
     }
 
-    fn sync_resources(&mut self, resources: &crate::ResourceDelta) {
-        sync_font_face_cache(&mut self.font_faces, resources);
-        sync_image_cache(&mut self.images, resources);
+    fn sync_submission_resources(&mut self, submission: &crate::RenderSubmission) -> bool {
+        match backend_session_transition(self.active_session, submission.session_id) {
+            BackendSessionTransition::Stale => return false,
+            BackendSessionTransition::Continue => {}
+            BackendSessionTransition::Initialize | BackendSessionTransition::Replace => {
+                self.active_session = Some(submission.session_id);
+                self.font_faces.clear();
+                self.images.clear();
+                self.retained_texture = None;
+                self.scratch_texture = None;
+            }
+        }
+        sync_font_face_cache(&mut self.font_faces, &submission.resources);
+        sync_image_cache(&mut self.images, &submission.resources);
+        true
     }
 
     fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
@@ -1062,7 +1101,9 @@ impl RenderBackend for VelloRenderer {
     }
 
     fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_resources(&submission.resources);
+        if !self.sync_submission_resources(submission) {
+            return RenderOutcome::Skipped;
+        }
         if !self.has_required_resources(&submission.commands) {
             return RenderOutcome::Retry;
         }
@@ -1242,7 +1283,9 @@ impl VelloRenderer {
     /// a window surface drawable.
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
-        self.sync_resources(&submission.resources);
+        if !self.sync_submission_resources(submission) {
+            return RenderOutcome::Skipped;
+        }
         if !self.has_required_resources(&submission.commands) {
             return RenderOutcome::Retry;
         }
@@ -1405,43 +1448,71 @@ impl VelloRenderer {
 
 fn sync_font_face_cache(
     font_faces: &mut HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
-    resources: &crate::ResourceDelta,
+    resources: &crate::ResourceSync,
 ) {
-    for update in &resources.added {
-        if let ResourcePayload::Font(font) = &update.payload {
-            font_faces.retain(|(resource_id, _), _| resource_id != &update.id);
-            font_faces.insert(
-                (update.id, update.revision),
-                vello::peniko::Blob::new(font.shared_bytes()),
-            );
-        }
+    if matches!(resources, crate::ResourceSync::Snapshot(_)) {
+        font_faces.clear();
     }
-    for id in &resources.removed {
-        font_faces.retain(|(resource_id, _), _| resource_id != id);
+    let mut apply = |operation: &crate::ResourceOp| match operation {
+        crate::ResourceOp::Upsert(update) => {
+            if let ResourcePayload::Font(font) = &update.payload {
+                font_faces.retain(|(resource_id, _), _| resource_id != &update.id);
+                font_faces.insert(
+                    (update.id, update.revision),
+                    vello::peniko::Blob::new(font.shared_bytes()),
+                );
+            }
+        }
+        crate::ResourceOp::Remove(id) => {
+            font_faces.retain(|(resource_id, _), _| resource_id != id);
+        }
+    };
+    match resources {
+        crate::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        crate::ResourceSync::Snapshot(snapshot) => snapshot
+            .ready
+            .iter()
+            .cloned()
+            .map(crate::ResourceOp::Upsert)
+            .for_each(|operation| apply(&operation)),
     }
 }
 
 fn sync_image_cache(
     images: &mut HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
-    resources: &crate::ResourceDelta,
+    resources: &crate::ResourceSync,
 ) {
-    for update in &resources.added {
-        if let ResourcePayload::Image(image) = &update.payload {
-            images.retain(|(resource_id, _), _| resource_id != &update.id);
-            images.insert(
-                (update.id, update.revision),
-                vello::peniko::ImageData {
-                    data: image.pixels.clone().into(),
-                    format: vello::peniko::ImageFormat::Rgba8,
-                    alpha_type: vello::peniko::ImageAlphaType::Alpha,
-                    width: image.width,
-                    height: image.height,
-                },
-            );
-        }
+    if matches!(resources, crate::ResourceSync::Snapshot(_)) {
+        images.clear();
     }
-    for id in &resources.removed {
-        images.retain(|(resource_id, _), _| resource_id != id);
+    let mut apply = |operation: &crate::ResourceOp| match operation {
+        crate::ResourceOp::Upsert(update) => {
+            if let ResourcePayload::Image(image) = &update.payload {
+                images.retain(|(resource_id, _), _| resource_id != &update.id);
+                images.insert(
+                    (update.id, update.revision),
+                    vello::peniko::ImageData {
+                        data: image.pixels.clone().into(),
+                        format: vello::peniko::ImageFormat::Rgba8,
+                        alpha_type: vello::peniko::ImageAlphaType::Alpha,
+                        width: image.width,
+                        height: image.height,
+                    },
+                );
+            }
+        }
+        crate::ResourceOp::Remove(id) => {
+            images.retain(|(resource_id, _), _| resource_id != id);
+        }
+    };
+    match resources {
+        crate::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        crate::ResourceSync::Snapshot(snapshot) => snapshot
+            .ready
+            .iter()
+            .cloned()
+            .map(crate::ResourceOp::Upsert)
+            .for_each(|operation| apply(&operation)),
     }
 }
 
@@ -1457,8 +1528,9 @@ fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Re
 mod tests {
     use super::*;
     use crate::{
-        BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourcePayload,
-        ResourceUpdate, TextConstraints, TextEngine,
+        BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourceOp,
+        ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate, TextConstraints,
+        TextEngine,
     };
     use novadraw_core::Color;
     use uuid::Uuid;
@@ -1501,6 +1573,36 @@ mod tests {
 
         assert_eq!(pop_count, 1);
         assert!(clips_to_replay.is_empty());
+    }
+
+    #[test]
+    fn backend_session_transition_rejects_stale_generations() {
+        let first = crate::BackendSessionId::initial(Uuid::nil());
+        let second = first.next().unwrap();
+
+        assert_eq!(
+            backend_session_transition(None, first),
+            BackendSessionTransition::Initialize
+        );
+        assert_eq!(
+            backend_session_transition(Some(first), first),
+            BackendSessionTransition::Continue
+        );
+        assert_eq!(
+            backend_session_transition(Some(first), second),
+            BackendSessionTransition::Replace
+        );
+        assert_eq!(
+            backend_session_transition(Some(second), first),
+            BackendSessionTransition::Stale
+        );
+        assert_eq!(
+            backend_session_transition(
+                Some(first),
+                crate::BackendSessionId::initial(Uuid::from_u128(1))
+            ),
+            BackendSessionTransition::Replace
+        );
     }
 
     #[test]
@@ -1630,14 +1732,13 @@ mod tests {
 
         sync_font_face_cache(
             &mut cache,
-            &ResourceDelta {
-                added: vec![ResourceUpdate {
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![ResourceOp::Upsert(ResourceUpdate {
                     id,
                     revision: 2,
                     payload: ResourcePayload::Font(Arc::new(FontData::new(vec![2]))),
-                }],
-                removed: Vec::new(),
-            },
+                })],
+            }),
         );
 
         assert!(!cache.contains_key(&(id, 1)));
@@ -1645,14 +1746,16 @@ mod tests {
 
         sync_font_face_cache(
             &mut cache,
-            &ResourceDelta {
-                added: vec![ResourceUpdate {
-                    id,
-                    revision: 3,
-                    payload: ResourcePayload::Font(Arc::new(FontData::new(vec![3]))),
-                }],
-                removed: vec![id],
-            },
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![
+                    ResourceOp::Upsert(ResourceUpdate {
+                        id,
+                        revision: 3,
+                        payload: ResourcePayload::Font(Arc::new(FontData::new(vec![3]))),
+                    }),
+                    ResourceOp::Remove(id),
+                ],
+            }),
         );
         assert!(!cache.keys().any(|(resource_id, _)| *resource_id == id));
     }
@@ -1664,8 +1767,8 @@ mod tests {
 
         sync_image_cache(
             &mut cache,
-            &ResourceDelta {
-                added: vec![ResourceUpdate {
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![ResourceOp::Upsert(ResourceUpdate {
                     id,
                     revision: 1,
                     payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
@@ -1674,16 +1777,15 @@ mod tests {
                         vec![255, 0, 0, 255],
                         1.0,
                     ))),
-                }],
-                removed: Vec::new(),
-            },
+                })],
+            }),
         );
         assert!(cache.contains_key(&(id, 1)));
 
         sync_image_cache(
             &mut cache,
-            &ResourceDelta {
-                added: vec![ResourceUpdate {
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![ResourceOp::Upsert(ResourceUpdate {
                     id,
                     revision: 2,
                     payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
@@ -1692,20 +1794,84 @@ mod tests {
                         vec![0, 0, 255, 255],
                         1.0,
                     ))),
-                }],
-                removed: Vec::new(),
-            },
+                })],
+            }),
         );
         assert!(!cache.contains_key(&(id, 1)));
         assert!(cache.contains_key(&(id, 2)));
 
         sync_image_cache(
             &mut cache,
-            &ResourceDelta {
-                added: Vec::new(),
-                removed: vec![id],
-            },
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![ResourceOp::Remove(id)],
+            }),
         );
         assert!(!cache.keys().any(|(resource_id, _)| *resource_id == id));
+    }
+
+    #[test]
+    fn ordered_resource_ops_keep_the_latest_ready_image() {
+        let id = ResourceId::new(Uuid::nil(), 3);
+        let image = |revision, value| ResourceUpdate {
+            id,
+            revision,
+            payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
+                1,
+                1,
+                vec![value; 4],
+                1.0,
+            ))),
+        };
+        let mut cache = HashMap::new();
+
+        sync_image_cache(
+            &mut cache,
+            &ResourceSync::Delta(ResourceDelta {
+                ops: vec![
+                    ResourceOp::Upsert(image(1, 1)),
+                    ResourceOp::Remove(id),
+                    ResourceOp::Upsert(image(2, 2)),
+                ],
+            }),
+        );
+
+        assert!(!cache.contains_key(&(id, 1)));
+        assert!(cache.contains_key(&(id, 2)));
+    }
+
+    #[test]
+    fn resource_snapshot_replaces_a_partially_applied_cache() {
+        let stale = ResourceId::new(Uuid::nil(), 4);
+        let ready = ResourceId::new(Uuid::nil(), 5);
+        let mut cache = HashMap::new();
+        cache.insert(
+            (stale, 1),
+            vello::peniko::ImageData {
+                data: vec![1; 4].into(),
+                format: vello::peniko::ImageFormat::Rgba8,
+                alpha_type: vello::peniko::ImageAlphaType::Alpha,
+                width: 1,
+                height: 1,
+            },
+        );
+
+        sync_image_cache(
+            &mut cache,
+            &ResourceSync::Snapshot(ResourceSnapshot {
+                ready: vec![ResourceUpdate {
+                    id: ready,
+                    revision: 2,
+                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
+                        1,
+                        1,
+                        vec![2; 4],
+                        1.0,
+                    ))),
+                }],
+            }),
+        );
+
+        assert!(!cache.keys().any(|(id, _)| *id == stale));
+        assert!(cache.contains_key(&(ready, 2)));
     }
 }

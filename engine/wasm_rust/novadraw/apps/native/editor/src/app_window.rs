@@ -152,7 +152,9 @@ impl ApplicationHandler<()> for GraphicsApp {
         let renderer = VelloRenderer::new(Arc::clone(&window), logical_width, logical_height);
         self.renderer = Some(renderer);
 
-        if self.system.is_none() {
+        if let Some(system) = &mut self.system {
+            system.reset_backend_session();
+        } else {
             self.system = Some(EditorRuntime::new(WinitPlatformHost::new(window)));
         }
 

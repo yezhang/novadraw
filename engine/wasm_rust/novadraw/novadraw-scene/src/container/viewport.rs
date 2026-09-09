@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::NdCanvas;
 
+use super::range_model::normalize_range;
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
     border::Border,
@@ -60,6 +61,72 @@ impl ViewportRuntime {
 
     fn view_location(&self) -> Point {
         Point::new(self.horizontal.value(), self.vertical.value())
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct ViewportLayoutEffect {
+    viewport: FigureId,
+    contents: FigureId,
+    runtime: Arc<Mutex<ViewportRuntime>>,
+    content_scale: f64,
+    horizontal: RangeModelSnapshot,
+    vertical: RangeModelSnapshot,
+}
+
+impl fmt::Debug for ViewportLayoutEffect {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("ViewportLayoutEffect")
+            .field("viewport", &self.viewport)
+            .field("contents", &self.contents)
+            .field("content_scale", &self.content_scale)
+            .field("horizontal", &self.horizontal)
+            .field("vertical", &self.vertical)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for ViewportLayoutEffect {
+    fn eq(&self, other: &Self) -> bool {
+        self.viewport == other.viewport
+            && self.contents == other.contents
+            && Arc::ptr_eq(&self.runtime, &other.runtime)
+            && self.content_scale == other.content_scale
+            && self.horizontal == other.horizontal
+            && self.vertical == other.vertical
+    }
+}
+
+impl ViewportLayoutEffect {
+    pub(crate) fn viewport(&self) -> FigureId {
+        self.viewport
+    }
+
+    pub(crate) fn commit(&self) -> Result<(), LayoutError> {
+        let mut runtime = lock_unpoisoned(&self.runtime);
+        runtime
+            .horizontal
+            .set_all(
+                self.horizontal.minimum,
+                self.horizontal.extent,
+                self.horizontal.maximum,
+            )
+            .map_err(|_| LayoutError::NonFiniteGeometry {
+                figure: self.contents,
+            })?;
+        runtime
+            .vertical
+            .set_all(
+                self.vertical.minimum,
+                self.vertical.extent,
+                self.vertical.maximum,
+            )
+            .map_err(|_| LayoutError::NonFiniteGeometry {
+                figure: self.contents,
+            })?;
+        runtime.content_scale = self.content_scale;
+        Ok(())
     }
 }
 
@@ -374,25 +441,39 @@ impl LayoutManager for ViewportLayout {
                 contents,
                 Rectangle::new(0.0, 0.0, baseline.width, baseline.height),
             );
-            let mut runtime = lock_unpoisoned(&self.runtime);
+            let runtime = lock_unpoisoned(&self.runtime);
             let old_horizontal = runtime.horizontal.snapshot();
             let old_vertical = runtime.vertical.snapshot();
-            runtime.content_scale = scale;
-            runtime
-                .horizontal
-                .set_all(envelope.x, baseline.width, horizontal_maximum)
-                .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
-            runtime
-                .vertical
-                .set_all(envelope.y, baseline.height, vertical_maximum)
-                .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+            let new_horizontal = normalize_range(
+                envelope.x,
+                baseline.width,
+                horizontal_maximum,
+                old_horizontal.value,
+            )
+            .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+            let new_vertical = normalize_range(
+                envelope.y,
+                baseline.height,
+                vertical_maximum,
+                old_vertical.value,
+            )
+            .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+            drop(runtime);
+            out.set_viewport_effect(ViewportLayoutEffect {
+                viewport: container,
+                contents,
+                runtime: Arc::clone(&self.runtime),
+                content_scale: scale,
+                horizontal: new_horizontal,
+                vertical: new_vertical,
+            });
             record_range_changes(
                 out,
                 container,
                 old_horizontal,
                 old_vertical,
-                runtime.horizontal.snapshot(),
-                runtime.vertical.snapshot(),
+                new_horizontal,
+                new_vertical,
             );
             return Ok(());
         }
@@ -415,19 +496,29 @@ impl LayoutManager for ViewportLayout {
         };
         out.set_child_bounds(contents, Rectangle::new(0.0, 0.0, width, height));
 
-        let mut runtime = lock_unpoisoned(&self.runtime);
+        let runtime = lock_unpoisoned(&self.runtime);
         let old_horizontal = runtime.horizontal.snapshot();
         let old_vertical = runtime.vertical.snapshot();
-        runtime.content_scale = 1.0;
-        let _ = runtime.horizontal.set_all(0.0, area.width, width);
-        let _ = runtime.vertical.set_all(0.0, area.height, height);
+        let new_horizontal = normalize_range(0.0, area.width, width, old_horizontal.value)
+            .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+        let new_vertical = normalize_range(0.0, area.height, height, old_vertical.value)
+            .map_err(|_| LayoutError::NonFiniteGeometry { figure: contents })?;
+        drop(runtime);
+        out.set_viewport_effect(ViewportLayoutEffect {
+            viewport: container,
+            contents,
+            runtime: Arc::clone(&self.runtime),
+            content_scale: 1.0,
+            horizontal: new_horizontal,
+            vertical: new_vertical,
+        });
         record_range_changes(
             out,
             container,
             old_horizontal,
             old_vertical,
-            runtime.horizontal.snapshot(),
-            runtime.vertical.snapshot(),
+            new_horizontal,
+            new_vertical,
         );
         Ok(())
     }
@@ -636,5 +727,118 @@ impl FigureTreeBuilder<'_> {
         bounds: Rectangle,
     ) -> Result<ViewportHandle, GraphMutationError> {
         self.tree_mut().add_viewport_to(parent, bounds)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct CountingRangeListener(Arc<AtomicUsize>);
+
+    impl crate::RangeListener for CountingRangeListener {
+        fn range_changed(&self, _change: crate::RangeChange) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    struct InvalidViewportLayout {
+        inner: ViewportLayout,
+        invalid_child: FigureId,
+    }
+
+    impl LayoutManager for InvalidViewportLayout {
+        fn get_preferred_size(
+            &self,
+            container: FigureId,
+            w_hint: f64,
+            h_hint: f64,
+            snapshot: &LayoutSnapshot<'_>,
+        ) -> (f64, f64) {
+            self.inner
+                .get_preferred_size(container, w_hint, h_hint, snapshot)
+        }
+
+        fn get_minimum_size(
+            &self,
+            container: FigureId,
+            w_hint: f64,
+            h_hint: f64,
+            snapshot: &LayoutSnapshot<'_>,
+        ) -> (f64, f64) {
+            self.inner
+                .get_minimum_size(container, w_hint, h_hint, snapshot)
+        }
+
+        fn layout(
+            &mut self,
+            container: FigureId,
+            snapshot: &LayoutSnapshot<'_>,
+            out: &mut LayoutOutput,
+        ) -> Result<(), LayoutError> {
+            self.inner.layout(container, snapshot, out)?;
+            out.set_child_bounds(self.invalid_child, Rectangle::ZERO);
+            Ok(())
+        }
+
+        fn requires_valid_children_before_layout(&self) -> bool {
+            true
+        }
+    }
+
+    #[test]
+    fn invalid_layout_output_does_not_commit_viewport_range_effect() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(crate::RectangleFigure::new(
+                0.0, 0.0, 800.0, 600.0,
+            )));
+        let viewport = tree
+            .builder()
+            .add_viewport_to(root, Rectangle::new(0.0, 0.0, 300.0, 200.0))
+            .unwrap();
+        let mut updates = UpdateManager::new();
+        viewport
+            .set_contents(
+                &mut tree,
+                &mut updates,
+                Box::new(crate::RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+            )
+            .unwrap();
+        tree.revalidate(viewport.block_id());
+        let before_horizontal = viewport.horizontal_range();
+        let before_vertical = viewport.vertical_range();
+        let notifications = Arc::new(AtomicUsize::new(0));
+        let runtime = lock_unpoisoned(&viewport.runtime);
+        runtime
+            .horizontal
+            .add_listener(Arc::new(CountingRangeListener(Arc::clone(&notifications))));
+        runtime
+            .vertical
+            .add_listener(Arc::new(CountingRangeListener(Arc::clone(&notifications))));
+        drop(runtime);
+
+        tree.set_bounds(viewport.block_id(), 0.0, 0.0, 120.0, 90.0);
+        tree.set_block_layout_manager(
+            viewport.block_id(),
+            Box::new(InvalidViewportLayout {
+                inner: ViewportLayout::new(Arc::clone(&viewport.runtime)),
+                invalid_child: root,
+            }),
+        );
+        tree.mark_invalid(&mut updates, viewport.block_id());
+        updates.perform_validation(&mut tree);
+
+        assert!(matches!(
+            updates.last_validation_error(),
+            Some(crate::ValidationError::Layout(
+                LayoutError::InvalidChild { .. }
+            ))
+        ));
+        assert_eq!(viewport.horizontal_range(), before_horizontal);
+        assert_eq!(viewport.vertical_range(), before_vertical);
+        assert_eq!(notifications.load(Ordering::Relaxed), 0);
     }
 }

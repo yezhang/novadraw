@@ -1,13 +1,15 @@
 use std::{any::TypeId, marker::PhantomData};
 
 use novadraw_geometry::{Point, Vector};
-use novadraw_render::command::RenderCommandKind;
+use novadraw_render::{
+    BackendCapabilities, RenderOutcome, SurfaceInfo, command::RenderCommandKind,
+};
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
     ConnectionResolution, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace, DirectRouter,
     FanRouter, FigureId, MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB,
     ManhattanConnectionRouter, RectangleFigure, RouteError, RouteOutput, RouteRequest,
-    RouterBinding, Runtime, UnresolvedConnection, ViewportFigure,
+    RouterBinding, Runtime, UnresolvedConnection, ViewportFigure, XYConstraint, XYLayout,
 };
 
 struct ConstraintA;
@@ -39,6 +41,16 @@ fn runtime_fixture() -> (Runtime, FigureId, FigureId, FigureId, FigureId) {
     );
     let connection = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
     (runtime, root, source, target, connection)
+}
+
+fn surface() -> SurfaceInfo {
+    SurfaceInfo {
+        logical_width: 500.0,
+        logical_height: 300.0,
+        pixel_width: 500,
+        pixel_height: 300,
+        scale_factor: 1.0,
+    }
 }
 
 #[test]
@@ -138,6 +150,105 @@ fn removing_connection_figure_cleans_runtime_state() {
         runtime.connection_state(connection),
         Err(ConnectionRuntimeError::UnknownConnection(connection))
     );
+}
+
+#[test]
+fn normal_frame_automatically_resolves_dirty_connection_routes() {
+    let (mut runtime, _root, source, target, connection_figure) = runtime_fixture();
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    assert!(runtime.has_pending_update());
+    let initial = runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .expect("dirty route must schedule a frame");
+    runtime.complete_submission(
+        initial.session_id,
+        initial.frame_id,
+        RenderOutcome::Presented,
+    );
+    let initial_bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    assert!(!runtime.has_pending_update());
+
+    assert!(runtime.set_bounds(
+        source,
+        novadraw_geometry::Rectangle::new(80.0, 60.0, 80.0, 40.0),
+    ));
+    assert!(runtime.has_pending_update());
+    let moved = runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .expect("owner geometry change must reroute in the same frame");
+    runtime.complete_submission(moved.session_id, moved.frame_id, RenderOutcome::Presented);
+    assert_ne!(
+        runtime.tree().figure_bounds(connection_figure),
+        Some(initial_bounds)
+    );
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { .. }
+    ));
+    assert!(!runtime.has_pending_update());
+}
+
+#[test]
+fn layout_output_geometry_automatically_invalidates_and_reroutes() {
+    let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
+    runtime
+        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .unwrap();
+    runtime
+        .set_layout_constraint(source, XYConstraint::at_size(20.0, 30.0, 80.0, 40.0))
+        .unwrap();
+    runtime
+        .set_layout_constraint(target, XYConstraint::at_size(300.0, 170.0, 100.0, 60.0))
+        .unwrap();
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    runtime.prepare_frame().expect("initial stable frame");
+    let initial_bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
+
+    runtime
+        .set_layout_constraint(source, XYConstraint::at_size(90.0, 70.0, 80.0, 40.0))
+        .unwrap();
+    runtime
+        .prepare_frame()
+        .expect("layout commit must schedule route work");
+
+    assert_ne!(
+        runtime.tree().figure_bounds(connection_figure),
+        Some(initial_bounds)
+    );
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { generation: 2 }
+    ));
 }
 
 #[test]

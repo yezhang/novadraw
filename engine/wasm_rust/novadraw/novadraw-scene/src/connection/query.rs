@@ -520,6 +520,7 @@ impl SceneRead for FigureTreeSceneRead<'_> {
             DependencySubject::Topology(figure) => {
                 self.tree.parent_id(*figure).hash(&mut hasher);
                 self.tree.is_attached(*figure).hash(&mut hasher);
+                self.tree.child_order(*figure).hash(&mut hasher);
             }
         }
         hasher.finish()

@@ -5,7 +5,7 @@ use novadraw_render::{
 use novadraw_scene::{
     Alignment, AnchorGeometry, AnchorGeometryKey, Border, FigureStyle, FigureTree,
     ImageDisplayState, ImageFigure, LabelFigure, LineBorder, PropertyValue, Rectangle,
-    RectangleFigure, Runtime, TextPlacement, TitleBarBorder,
+    RectangleFigure, Runtime, StackLayout, TextPlacement, TitleBarBorder,
 };
 use std::sync::{
     Arc,
@@ -87,6 +87,30 @@ fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }) })
     );
+}
+
+#[test]
+fn first_submission_shapes_label_after_parent_layout() {
+    const TEXT: &str = "Hello world";
+    let mut runtime = Runtime::empty();
+    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
+    runtime
+        .set_layout_manager(root, Box::new(StackLayout::new()))
+        .unwrap();
+    let label = runtime.add_figure(root, Box::new(LabelFigure::new(TEXT)));
+
+    runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .expect("the stable first frame must be submitted");
+
+    assert_eq!(
+        runtime.tree().figure_bounds(label),
+        Some(Rectangle::new(0.0, 0.0, 320.0, 180.0))
+    );
+    let layout = runtime.label_text_layout(label).unwrap();
+    assert!(!layout.is_truncated());
+    assert_eq!(layout.visible_range(), 0..TEXT.len());
 }
 
 #[test]
@@ -296,7 +320,11 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
     let initial = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
-    runtime.complete_submission(initial.frame_id, novadraw_render::RenderOutcome::Presented);
+    runtime.complete_submission(
+        initial.session_id,
+        initial.frame_id,
+        novadraw_render::RenderOutcome::Presented,
+    );
     let initial_label_revision = runtime
         .label_text_layout(label)
         .unwrap()
@@ -314,7 +342,11 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
     let failed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
-    runtime.complete_submission(failed.frame_id, novadraw_render::RenderOutcome::Presented);
+    runtime.complete_submission(
+        failed.session_id,
+        failed.frame_id,
+        novadraw_render::RenderOutcome::Presented,
+    );
     assert!(
         runtime
             .label_text_layout(label)
@@ -342,6 +374,7 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
     runtime.complete_submission(
+        recovered.session_id,
         recovered.frame_id,
         novadraw_render::RenderOutcome::Presented,
     );
@@ -356,7 +389,11 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
     let removed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
-    runtime.complete_submission(removed.frame_id, novadraw_render::RenderOutcome::Presented);
+    runtime.complete_submission(
+        removed.session_id,
+        removed.frame_id,
+        novadraw_render::RenderOutcome::Presented,
+    );
     assert!(
         runtime
             .label_text_layout(label)
@@ -392,9 +429,11 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::FillRect { .. }))
     );
-    assert!(
-        runtime.complete_submission(pending.frame_id, novadraw_render::RenderOutcome::Presented)
-    );
+    assert!(runtime.complete_submission(
+        pending.session_id,
+        pending.frame_id,
+        novadraw_render::RenderOutcome::Presented
+    ));
 
     runtime
         .complete_image(image, ImageData::from_rgba(2, 1, vec![255; 8], 1.0))
@@ -412,7 +451,11 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::Image { .. }))
     );
-    assert!(runtime.complete_submission(ready.frame_id, novadraw_render::RenderOutcome::Presented));
+    assert!(runtime.complete_submission(
+        ready.session_id,
+        ready.frame_id,
+        novadraw_render::RenderOutcome::Presented
+    ));
 
     runtime
         .fail_resource(image.resource_id(), "load failed")

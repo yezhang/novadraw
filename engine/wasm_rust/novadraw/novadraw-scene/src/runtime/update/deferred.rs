@@ -380,14 +380,7 @@ impl UpdateManager {
     ) -> Result<(), ValidationError> {
         self.absorb_graph_effects(graph);
 
-        if self.has_pending_layout() {
-            self.notification_effects
-                .emit_update(UpdateEvent::Validating);
-            graph.perform_validation_cycle(self)?;
-            self.absorb_graph_effects(graph);
-            self.notification_effects
-                .emit_update(UpdateEvent::Validated);
-        }
+        self.perform_validation_phase(graph)?;
 
         self.update_queued = false;
         *dirty_snapshot = Some(self.take_dirty_snapshot());
@@ -413,6 +406,35 @@ impl UpdateManager {
         self.clear_dirty_and_flag();
         self.flush_notifications(graph);
         Ok(())
+    }
+
+    pub(crate) fn perform_validation_phase(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+    ) -> Result<(), ValidationError> {
+        if !self.has_pending_layout() {
+            return Ok(());
+        }
+        self.last_validation_error = None;
+        self.notification_effects
+            .emit_update(UpdateEvent::Validating);
+        match graph.perform_validation_cycle(self) {
+            Ok(()) => {
+                self.absorb_graph_effects(graph);
+                self.notification_effects
+                    .emit_update(UpdateEvent::Validated);
+                Ok(())
+            }
+            Err(error) => {
+                self.last_validation_error = Some(error.clone());
+                for block_id in graph.invalid_block_ids() {
+                    self.add_invalid_figure(block_id);
+                }
+                self.notification_effects.retain_semantic_effects();
+                self.clear_dirty_and_flag();
+                Err(error)
+            }
+        }
     }
 
     pub fn perform_update(&mut self, graph: &mut crate::graph::FigureTree, canvas: &mut NdCanvas) {

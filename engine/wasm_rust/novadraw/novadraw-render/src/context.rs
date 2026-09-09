@@ -543,11 +543,27 @@ impl NdCanvas {
         resources: crate::submission::ResourceDelta,
         frame_id: crate::submission::FrameId,
     ) -> RenderSubmission {
+        self.to_submission_for_session(
+            surface,
+            crate::submission::ResourceSync::Delta(resources),
+            crate::submission::BackendSessionId::default(),
+            frame_id,
+        )
+    }
+
+    pub fn to_submission_for_session(
+        &self,
+        surface: crate::submission::SurfaceInfo,
+        resources: crate::submission::ResourceSync,
+        session_id: crate::submission::BackendSessionId,
+        frame_id: crate::submission::FrameId,
+    ) -> RenderSubmission {
         RenderSubmission {
             commands: self.commands.clone(),
             damage: self.damage.clone(),
             resources,
             surface,
+            session_id,
             frame_id,
         }
     }

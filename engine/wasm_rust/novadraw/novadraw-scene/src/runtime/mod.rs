@@ -23,4 +23,4 @@ pub use mutation::RuntimeMutationError;
 pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
-pub use runtime::Runtime;
+pub use runtime::{BackendSessionError, Runtime};

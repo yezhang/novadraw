@@ -33,27 +33,41 @@ pub enum TextPlacement {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct LabelLayout {
-    key: LabelLayoutKey,
-    text: TextLayout,
-    text_origin: (f64, f64),
-    icon_origin: Option<(f64, f64)>,
+struct LabelIntrinsicLayout {
+    key: LabelIntrinsicKey,
+    full_text: TextLayout,
     preferred: (f64, f64),
     minimum: (f64, f64),
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct LabelLayoutKey {
+struct LabelPresentation {
+    key: LabelPresentationKey,
+    text: TextLayout,
+    text_origin: (f64, f64),
+    icon_origin: Option<(f64, f64)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct LabelIntrinsicKey {
     text_revision: u64,
     font: FontDescriptor,
     engine_revision: u64,
+    icon: Option<ImageResourceRef>,
+    placement: TextPlacement,
+    gap: f64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct LabelPresentationKey {
+    intrinsic: LabelIntrinsicKey,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
-    icon: Option<ImageResourceRef>,
-    placement: TextPlacement,
-    gap: f64,
+    label_alignment: Alignment,
+    text_alignment: Alignment,
+    icon_alignment: Alignment,
 }
 
 /// A single-line text and optional image label.
@@ -73,7 +87,8 @@ pub struct LabelFigure {
     icon_text_gap: f64,
     border: Option<Arc<dyn Border>>,
     icon_ref: Option<ImageResourceRef>,
-    layout: Option<LabelLayout>,
+    intrinsic: Option<LabelIntrinsicLayout>,
+    presentation: Option<LabelPresentation>,
 }
 
 impl LabelFigure {
@@ -90,7 +105,8 @@ impl LabelFigure {
             icon_text_gap: DEFAULT_ICON_TEXT_GAP,
             border: None,
             icon_ref: None,
-            layout: None,
+            intrinsic: None,
+            presentation: None,
         }
     }
 
@@ -138,11 +154,13 @@ impl LabelFigure {
     }
 
     pub fn text_layout(&self) -> Option<&TextLayout> {
-        self.layout.as_ref().map(|layout| &layout.text)
+        self.presentation
+            .as_ref()
+            .map(|presentation| &presentation.text)
     }
 
     pub(crate) fn icon_bounds(&self) -> Option<Rectangle> {
-        let origin = self.layout.as_ref()?.icon_origin?;
+        let origin = self.presentation.as_ref()?.icon_origin?;
         let (width, height) = self.icon_ref?.logical_size();
         Some(Rectangle::new(origin.0, origin.1, width, height))
     }
@@ -150,75 +168,65 @@ impl LabelFigure {
     pub fn set_text(&mut self, text: String) {
         self.text = text;
         self.text_revision = self.text_revision.wrapping_add(1);
-        self.layout = None;
+        self.intrinsic = None;
+        self.presentation = None;
     }
 
     pub fn set_icon(&mut self, icon: Option<ImageId>) {
         self.icon = icon;
-        self.layout = None;
+        self.intrinsic = None;
+        self.presentation = None;
     }
 
     pub fn set_text_placement(&mut self, placement: TextPlacement) {
         self.text_placement = placement;
-        self.layout = None;
+        self.intrinsic = None;
+        self.presentation = None;
     }
 
     pub fn set_label_alignment(&mut self, alignment: Alignment) {
         self.label_alignment = alignment;
+        self.presentation = None;
     }
 
     pub fn set_text_alignment(&mut self, alignment: Alignment) {
         self.text_alignment = alignment;
+        self.presentation = None;
     }
 
     pub fn set_icon_alignment(&mut self, alignment: Alignment) {
         self.icon_alignment = alignment;
+        self.presentation = None;
     }
 
     pub fn set_icon_text_gap(&mut self, gap: f64) {
         self.icon_text_gap = gap;
-        self.layout = None;
+        self.intrinsic = None;
+        self.presentation = None;
     }
 
-    pub(crate) fn refresh_layout(
+    pub(crate) fn refresh_intrinsic(
         &mut self,
         engine: &mut dyn TextLayoutEngine,
         font: &novadraw_render::FontDescriptor,
-        bounds: Rectangle,
         icon: Option<ImageResourceRef>,
     ) -> Result<bool, TextError> {
-        let key = LabelLayoutKey {
+        let key = LabelIntrinsicKey {
             text_revision: self.text_revision,
             font: font.clone(),
             engine_revision: engine.revision(),
-            x: bounds.x,
-            y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
             icon,
             placement: self.text_placement,
             gap: self.icon_text_gap,
         };
-        if let Some(layout) = self.layout.as_mut()
-            && layout.key == key
+        if self
+            .intrinsic
+            .as_ref()
+            .is_some_and(|intrinsic| intrinsic.key == key)
         {
-            let icon_size = icon.map(ImageResourceRef::logical_size);
-            let (text_origin, icon_origin) = positions(
-                bounds,
-                (layout.text.width() as f64, layout.text.height() as f64),
-                icon_size,
-                self.text_placement,
-                self.label_alignment,
-                self.text_alignment,
-                self.icon_alignment,
-                self.icon_text_gap,
-            );
-            let changed = layout.text_origin != text_origin || layout.icon_origin != icon_origin;
-            layout.text_origin = text_origin;
-            layout.icon_origin = icon_origin;
-            self.icon_ref = icon;
-            return Ok(changed);
+            return Ok(false);
         }
+
         let full = engine.layout(&self.text, font, TextConstraints::UNBOUNDED)?;
         let icon_size = icon.map(ImageResourceRef::logical_size);
         let preferred = combined_size(
@@ -238,13 +246,57 @@ impl LabelFigure {
             self.text_placement,
             self.icon_text_gap,
         );
+        let next = LabelIntrinsicLayout {
+            key,
+            full_text: full,
+            preferred,
+            minimum,
+        };
+        let changed = self.intrinsic.as_ref() != Some(&next);
+        self.intrinsic = Some(next);
+        self.presentation = None;
+        self.icon_ref = icon;
+        Ok(changed)
+    }
 
+    pub(crate) fn refresh_presentation(
+        &mut self,
+        engine: &mut dyn TextLayoutEngine,
+        bounds: Rectangle,
+    ) -> Result<bool, TextError> {
+        let Some(intrinsic) = self.intrinsic.as_ref() else {
+            return Ok(false);
+        };
+        let key = LabelPresentationKey {
+            intrinsic: intrinsic.key.clone(),
+            x: bounds.x,
+            y: bounds.y,
+            width: bounds.width,
+            height: bounds.height,
+            label_alignment: self.label_alignment,
+            text_alignment: self.text_alignment,
+            icon_alignment: self.icon_alignment,
+        };
+        if self
+            .presentation
+            .as_ref()
+            .is_some_and(|presentation| presentation.key == key)
+        {
+            return Ok(false);
+        }
+        let icon_size = self.icon_ref.map(ImageResourceRef::logical_size);
         let available =
             available_text_width(bounds, icon_size, self.text_placement, self.icon_text_gap);
-        let text = if available.is_some_and(|width| width < full.width() as f64) {
-            truncate(engine, &self.text, font, available.unwrap(), full.width())?
+        let text = if available.is_some_and(|width| width < intrinsic.full_text.width() as f64) {
+            truncate(
+                engine,
+                &self.text,
+                &intrinsic.key.font,
+                available.unwrap(),
+                intrinsic.full_text.width(),
+            )?
         } else {
-            full
+            intrinsic.full_text.clone()
         };
         let text_size = (text.width() as f64, text.height() as f64);
         let (text_origin, icon_origin) = positions(
@@ -257,36 +309,37 @@ impl LabelFigure {
             self.icon_alignment,
             self.icon_text_gap,
         );
-        let next = LabelLayout {
+        let next = LabelPresentation {
             key,
             text,
             text_origin,
             icon_origin,
-            preferred,
-            minimum,
         };
-        let changed = self.layout.as_ref() != Some(&next) || self.icon_ref != icon;
-        self.layout = Some(next);
-        self.icon_ref = icon;
+        let changed = self.presentation.as_ref() != Some(&next);
+        self.presentation = Some(next);
         Ok(changed)
     }
 
     pub(crate) fn preferred_size(&self) -> Option<(f64, f64)> {
-        self.layout.as_ref().map(|layout| layout.preferred)
+        self.intrinsic.as_ref().map(|intrinsic| intrinsic.preferred)
     }
 
     pub(crate) fn minimum_size(&self) -> Option<(f64, f64)> {
-        self.layout.as_ref().map(|layout| layout.minimum)
+        self.intrinsic.as_ref().map(|intrinsic| intrinsic.minimum)
     }
 
     pub(crate) fn paint_with_icon(&self, gc: &mut NdCanvas, icon: Option<ImageResourceRef>) {
-        let Some(layout) = &self.layout else {
+        let Some(presentation) = &self.presentation else {
             return;
         };
-        if let (Some(origin), Some(image)) = (layout.icon_origin, icon) {
+        if let (Some(origin), Some(image)) = (presentation.icon_origin, icon) {
             gc.draw_image(image, origin.0, origin.1);
         }
-        gc.draw_text_layout(&layout.text, layout.text_origin.0, layout.text_origin.1);
+        gc.draw_text_layout(
+            &presentation.text,
+            presentation.text_origin.0,
+            presentation.text_origin.1,
+        );
     }
 }
 

@@ -1,12 +1,13 @@
 use std::{
     collections::{HashMap, VecDeque},
+    fmt,
     sync::Arc,
 };
 
 use novadraw_render::{
-    BackendCapabilities, BuiltinFont, DamageMode, FontData, FontDescriptor, FrameId, ImageData,
-    ImageDecodeError, NdCanvas, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId,
-    SurfaceInfo, TextConstraints, TextError, TextLayout, TextLayoutEngine,
+    BackendCapabilities, BackendSessionId, BuiltinFont, DamageMode, FontData, FontDescriptor,
+    FrameId, ImageData, ImageDecodeError, NdCanvas, RenderOutcome, RenderSubmission, ResourceId,
+    ResourceSync, SurfaceInfo, TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
 
 use crate::PropertyValue;
@@ -33,6 +34,78 @@ use crate::{
 };
 use novadraw_geometry::{Dimension, Vec2};
 
+const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
+const DERIVED_WORK_KIND_COUNT: usize = 6;
+
+#[derive(Clone, Copy, Debug)]
+#[repr(usize)]
+enum DerivedWorkKind {
+    IntrinsicMetrics,
+    Layout,
+    DependencyInvalidation,
+    Routing,
+    PostRouteGeometry,
+    Presentation,
+}
+
+#[derive(Default)]
+struct DerivedWorkSet {
+    queued: [bool; DERIVED_WORK_KIND_COUNT],
+}
+
+impl DerivedWorkSet {
+    fn insert(&mut self, kind: DerivedWorkKind) {
+        self.queued[kind as usize] = true;
+    }
+
+    fn pop_next(&mut self) -> Option<DerivedWorkKind> {
+        const ORDER: [DerivedWorkKind; DERIVED_WORK_KIND_COUNT] = [
+            DerivedWorkKind::IntrinsicMetrics,
+            DerivedWorkKind::Layout,
+            DerivedWorkKind::DependencyInvalidation,
+            DerivedWorkKind::Routing,
+            DerivedWorkKind::PostRouteGeometry,
+            DerivedWorkKind::Presentation,
+        ];
+        ORDER.into_iter().find(|kind| {
+            let queued = &mut self.queued[*kind as usize];
+            std::mem::take(queued)
+        })
+    }
+}
+
+#[derive(Clone, Debug)]
+enum StabilizationError {
+    Text(TextError),
+    Validation(ValidationError),
+    DidNotConverge,
+}
+
+impl fmt::Display for StabilizationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Text(error) => error.fmt(formatter),
+            Self::Validation(error) => error.fmt(formatter),
+            Self::DidNotConverge => formatter.write_str("derived state did not converge"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BackendSessionError {
+    Exhausted,
+}
+
+impl fmt::Display for BackendSessionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exhausted => formatter.write_str("backend session id space is exhausted"),
+        }
+    }
+}
+
+impl std::error::Error for BackendSessionError {}
+
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
 pub struct Runtime {
     tree: FigureTree,
@@ -42,6 +115,8 @@ pub struct Runtime {
     updates: UpdateManager,
     mutations: PendingMutations,
     full_redraw_pending: bool,
+    backend_session_id: BackendSessionId,
+    session_sync_pending: bool,
     next_frame_id: FrameId,
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
@@ -53,11 +128,15 @@ pub struct Runtime {
     anchor_geometries: HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
     connection_error: Option<ConnectionRuntimeError>,
     deferred_mutation_errors: VecDeque<RuntimeMutationError>,
+    derivation_epoch: u64,
+    stable_epoch: u64,
+    last_stabilization_error: Option<StabilizationError>,
 }
 
 struct InFlightFrame {
+    session_id: BackendSessionId,
     id: FrameId,
-    resources: ResourceDelta,
+    resources: ResourceSync,
 }
 
 impl Runtime {
@@ -66,6 +145,8 @@ impl Runtime {
     }
 
     pub fn with_text_layout_engine(tree: FigureTree, text: Box<dyn TextLayoutEngine>) -> Self {
+        let resources = ResourceRegistry::new();
+        let backend_session_id = BackendSessionId::initial(resources.namespace());
         let mut runtime = Self {
             tree,
             interaction: InteractionState::default(),
@@ -74,10 +155,12 @@ impl Runtime {
             updates: UpdateManager::new(),
             mutations: PendingMutations::new(),
             full_redraw_pending: true,
+            backend_session_id,
+            session_sync_pending: true,
             next_frame_id: FrameId::INITIAL,
             in_flight: None,
             last_surface: None,
-            resources: ResourceRegistry::new(),
+            resources,
             text,
             builtin_fonts: HashMap::new(),
             layered_panes: HashMap::new(),
@@ -85,6 +168,9 @@ impl Runtime {
             anchor_geometries: HashMap::new(),
             connection_error: None,
             deferred_mutation_errors: VecDeque::new(),
+            derivation_epoch: 0,
+            stable_epoch: 0,
+            last_stabilization_error: None,
         };
         runtime.initialize_layered_panes();
         runtime
@@ -143,15 +229,31 @@ impl Runtime {
 
     /// Refreshes immutable Label text snapshots from the current Runtime-owned text engine.
     pub fn refresh_label_layouts(&mut self) -> Result<(), TextError> {
+        self.refresh_label_intrinsic_metrics()?;
+        self.refresh_label_presentations()?;
+        Ok(())
+    }
+
+    fn refresh_label_intrinsic_metrics(&mut self) -> Result<bool, TextError> {
         let changed = self
             .tree
-            .refresh_label_layouts(self.text.as_mut(), &self.resources)?;
+            .refresh_label_intrinsic_layouts(self.text.as_mut(), &self.resources)?;
+        let any_changed = !changed.is_empty();
         for figure in changed {
-            self.refresh_label_icon_geometry(figure);
             self.tree.mark_invalid(&mut self.updates, figure);
             self.tree.repaint(&mut self.updates, figure, None);
         }
-        Ok(())
+        Ok(any_changed)
+    }
+
+    fn refresh_label_presentations(&mut self) -> Result<bool, TextError> {
+        let changed = self.tree.refresh_label_presentations(self.text.as_mut())?;
+        let any_changed = !changed.is_empty();
+        for figure in changed {
+            self.refresh_label_icon_geometry(figure);
+            self.tree.repaint(&mut self.updates, figure, None);
+        }
+        Ok(any_changed)
     }
 
     fn refresh_label_icon_geometry(&mut self, figure: FigureId) {
@@ -180,19 +282,23 @@ impl Runtime {
         }
     }
 
-    fn refresh_image_figures(&mut self) {
-        for figure in self.tree.refresh_image_figures(&self.resources) {
+    fn refresh_image_figures(&mut self) -> bool {
+        let changed = self.tree.refresh_image_figures(&self.resources);
+        let any_changed = !changed.is_empty();
+        for figure in changed {
             self.tree.mark_invalid(&mut self.updates, figure);
             self.tree.repaint(&mut self.updates, figure, None);
         }
+        any_changed
     }
 
-    fn refresh_title_bar_borders(&mut self) -> Result<(), TextError> {
+    fn refresh_title_bar_borders(&mut self) -> Result<bool, TextError> {
         let Some(contents) = self.tree.get_contents() else {
-            return Ok(());
+            return Ok(false);
         };
         let mut figures = vec![contents];
         figures.extend(self.tree.descendant_ids(contents).unwrap_or_default());
+        let mut changed = false;
         for figure in figures {
             let Some(title) = self
                 .tree
@@ -232,11 +338,12 @@ impl Runtime {
                 .map(|border| BorderSnapshot::title_bar(border.measure(layout)))
                 .expect("title bar border was checked before measurement");
             if self.tree.set_border_snapshot(figure, snapshot) {
+                changed = true;
                 self.tree.mark_invalid(&mut self.updates, figure);
                 self.tree.repaint(&mut self.updates, figure, None);
             }
         }
-        Ok(())
+        Ok(changed)
     }
 
     pub fn direct_connection_router(&self) -> RouterId {
@@ -1441,8 +1548,12 @@ impl Runtime {
 
     pub fn has_pending_update(&self) -> bool {
         self.full_redraw_pending
+            || (self.session_sync_pending && self.in_flight.is_none())
             || self.updates.is_update_queued()
             || self.resources.has_pending_delta()
+            || !self.mutations.is_empty()
+            || !self.connections.dirty_connections().is_empty()
+            || self.derivation_epoch != self.stable_epoch
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {
@@ -1455,6 +1566,22 @@ impl Runtime {
 
     pub fn request_full_redraw(&mut self) {
         self.full_redraw_pending = true;
+    }
+
+    pub fn backend_session_id(&self) -> BackendSessionId {
+        self.backend_session_id
+    }
+
+    pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
+        let next = self
+            .backend_session_id
+            .next()
+            .ok_or(BackendSessionError::Exhausted)?;
+        self.backend_session_id = next;
+        self.in_flight = None;
+        self.session_sync_pending = true;
+        self.full_redraw_pending = true;
+        Ok(next)
     }
 
     pub fn register_image(&mut self) -> ImageId {
@@ -1960,6 +2087,144 @@ impl Runtime {
         }
     }
 
+    fn apply_pending_mutations_for_frame(&mut self) {
+        let mutations = self.mutations.drain();
+        if !mutations.is_empty() {
+            self.apply_runtime_mutations(mutations);
+            self.retain_interactive_figures();
+        }
+    }
+
+    fn invalidate_stale_connection_dependencies(&mut self) -> Result<bool, ConnectionRuntimeError> {
+        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        self.connections
+            .invalidate_stale_dependencies(&scene)
+            .map(|affected| !affected.is_empty())
+    }
+
+    fn resolve_dirty_connection_routes(&mut self) -> bool {
+        let dirty = self.connections.dirty_connections();
+        if dirty.is_empty() {
+            return false;
+        }
+        for connection in dirty {
+            if !matches!(
+                self.connections.state(connection),
+                Ok(ConnectionStateSnapshot {
+                    resolution: crate::ConnectionResolution::Dirty { .. },
+                    ..
+                })
+            ) {
+                continue;
+            }
+            let Some(parent) = self.tree.parent_id(connection.figure()) else {
+                self.connection_error =
+                    Some(ConnectionRuntimeError::UnknownFigure(connection.figure()));
+                continue;
+            };
+            if let Err(error) =
+                self.resolve_connection_route(connection, CoordinateSpace::ChildContent(parent))
+            {
+                self.connection_error = Some(error);
+            }
+        }
+        true
+    }
+
+    fn stabilize(&mut self) -> Result<(), StabilizationError> {
+        self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
+        self.last_stabilization_error = None;
+
+        let mut work = DerivedWorkSet::default();
+        let mut feedback_counts = [0_usize; DERIVED_WORK_KIND_COUNT];
+        work.insert(DerivedWorkKind::IntrinsicMetrics);
+        work.insert(DerivedWorkKind::Layout);
+        work.insert(DerivedWorkKind::DependencyInvalidation);
+        work.insert(DerivedWorkKind::Routing);
+        work.insert(DerivedWorkKind::Presentation);
+
+        while let Some(kind) = work.pop_next() {
+            let count = &mut feedback_counts[kind as usize];
+            *count += 1;
+            if *count > DERIVED_STATE_FEEDBACK_LIMIT {
+                return Err(StabilizationError::DidNotConverge);
+            }
+
+            match kind {
+                DerivedWorkKind::IntrinsicMetrics => {
+                    self.refresh_image_figures();
+                    self.refresh_title_bar_borders()
+                        .map_err(StabilizationError::Text)?;
+                    self.refresh_label_intrinsic_metrics()
+                        .map_err(StabilizationError::Text)?;
+                    if self.updates.has_pending_layout() {
+                        work.insert(DerivedWorkKind::Layout);
+                    }
+                }
+                DerivedWorkKind::Layout => {
+                    if self.updates.has_pending_layout() {
+                        self.updates
+                            .perform_validation_phase(&mut self.tree)
+                            .map_err(StabilizationError::Validation)?;
+                        work.insert(DerivedWorkKind::DependencyInvalidation);
+                        work.insert(DerivedWorkKind::Presentation);
+                    }
+                }
+                DerivedWorkKind::DependencyInvalidation => {
+                    if self
+                        .invalidate_stale_connection_dependencies()
+                        .map_err(|error| {
+                            self.connection_error = Some(error);
+                            StabilizationError::DidNotConverge
+                        })?
+                        || !self.connections.dirty_connections().is_empty()
+                    {
+                        work.insert(DerivedWorkKind::Routing);
+                    }
+                }
+                DerivedWorkKind::Routing => {
+                    if self.resolve_dirty_connection_routes() {
+                        work.insert(DerivedWorkKind::PostRouteGeometry);
+                    }
+                }
+                DerivedWorkKind::PostRouteGeometry => {
+                    if self.updates.has_pending_layout() {
+                        work.insert(DerivedWorkKind::Layout);
+                    }
+                    if !self.connections.dirty_connections().is_empty() {
+                        work.insert(DerivedWorkKind::Routing);
+                    }
+                    work.insert(DerivedWorkKind::Presentation);
+                }
+                DerivedWorkKind::Presentation => {
+                    if self
+                        .refresh_label_presentations()
+                        .map_err(StabilizationError::Text)?
+                    {
+                        work.insert(DerivedWorkKind::DependencyInvalidation);
+                    }
+                }
+            }
+        }
+
+        if self.updates.has_pending_layout() || !self.connections.dirty_connections().is_empty() {
+            return Err(StabilizationError::DidNotConverge);
+        }
+        self.stable_epoch = self.derivation_epoch;
+        Ok(())
+    }
+
+    fn try_stabilize(&mut self) -> bool {
+        match self.stabilize() {
+            Ok(()) => true,
+            Err(error) => {
+                self.last_stabilization_error = Some(error);
+                self.full_redraw_pending = true;
+                false
+            }
+        }
+    }
+
     /// Produces one complete renderer submission at a stable transaction boundary.
     pub fn prepare_submission(
         &mut self,
@@ -1970,11 +2235,7 @@ impl Runtime {
             return None;
         }
 
-        let mutations = self.mutations.drain();
-        if !mutations.is_empty() {
-            self.apply_runtime_mutations(mutations);
-            self.retain_interactive_figures();
-        }
+        self.apply_pending_mutations_for_frame();
 
         let surface_changed = self.last_surface != Some(surface);
         self.last_surface = Some(surface);
@@ -1985,15 +2246,14 @@ impl Runtime {
             self.full_redraw_pending = true;
             return None;
         }
-        self.refresh_image_figures();
-        if self.refresh_title_bar_borders().is_err() || self.refresh_label_layouts().is_err() {
+        if !self.try_stabilize() {
             return None;
         }
 
         let has_resource_delta = self.resources.has_pending_delta();
         let mut canvas = if self.updates.is_update_queued() {
             self.tree.perform_update(&mut self.updates)
-        } else if self.full_redraw_pending {
+        } else if self.full_redraw_pending || self.session_sync_pending {
             self.tree.render()
         } else if has_resource_delta {
             NdCanvas::new()
@@ -2006,6 +2266,7 @@ impl Runtime {
         }
 
         if self.full_redraw_pending
+            || self.session_sync_pending
             || (canvas.damage().mode() == DamageMode::Partial
                 && !capabilities.supports_partial_damage())
         {
@@ -2014,10 +2275,20 @@ impl Runtime {
 
         let frame_id = self.next_frame_id;
         self.next_frame_id = self.next_frame_id.next();
-        let resources = self.resources.take_delta();
-        let submission = canvas.to_submission_for_frame(surface, resources.clone(), frame_id);
+        let resources = if self.session_sync_pending {
+            ResourceSync::Snapshot(self.resources.take_ready_snapshot())
+        } else {
+            ResourceSync::Delta(self.resources.take_delta())
+        };
+        let submission = canvas.to_submission_for_session(
+            surface,
+            resources.clone(),
+            self.backend_session_id,
+            frame_id,
+        );
         self.full_redraw_pending = false;
         self.in_flight = Some(InFlightFrame {
+            session_id: self.backend_session_id,
             id: frame_id,
             resources,
         });
@@ -2030,18 +2301,33 @@ impl Runtime {
     }
 
     /// Completes the in-flight frame and restores work when presentation failed.
-    pub fn complete_submission(&mut self, frame_id: FrameId, outcome: RenderOutcome) -> bool {
+    pub fn complete_submission(
+        &mut self,
+        session_id: BackendSessionId,
+        frame_id: FrameId,
+        outcome: RenderOutcome,
+    ) -> bool {
         let Some(in_flight) = self.in_flight.take() else {
             return false;
         };
-        if in_flight.id != frame_id {
+        if in_flight.session_id != session_id || in_flight.id != frame_id {
             self.in_flight = Some(in_flight);
             return false;
         }
 
-        if outcome != RenderOutcome::Presented {
-            self.full_redraw_pending = true;
-            self.resources.restore_delta(in_flight.resources);
+        match (outcome, in_flight.resources) {
+            (RenderOutcome::Presented, ResourceSync::Snapshot(_)) => {
+                self.session_sync_pending = false;
+            }
+            (RenderOutcome::Presented, ResourceSync::Delta(_)) => {}
+            (_, ResourceSync::Delta(delta)) => {
+                self.full_redraw_pending = true;
+                self.resources.restore_delta(delta);
+            }
+            (_, ResourceSync::Snapshot(_)) => {
+                self.full_redraw_pending = true;
+                self.session_sync_pending = true;
+            }
         }
         self.updates
             .emit_update_event(UpdateEvent::Submitted { frame_id, outcome });
@@ -2051,8 +2337,8 @@ impl Runtime {
 
     /// Prepares an incremental frame when the runtime has pending work.
     pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
-        self.refresh_image_figures();
-        if self.refresh_title_bar_borders().is_err() || self.refresh_label_layouts().is_err() {
+        self.apply_pending_mutations_for_frame();
+        if !self.try_stabilize() {
             return None;
         }
         if self.updates.is_update_queued() {
@@ -2070,7 +2356,9 @@ impl Runtime {
 
     /// Records the complete visible tree, independent of pending update state.
     pub fn record_full_frame(&mut self) -> NdCanvas {
-        let _ = self.refresh_label_layouts();
+        self.apply_pending_mutations_for_frame();
+        self.stabilize()
+            .expect("full-frame recording requires stable derived state");
         self.tree.render()
     }
 }
@@ -2257,12 +2545,17 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
 
-        assert_eq!(submission.resources.added.len(), 1);
-        assert_eq!(submission.resources.added[0].id, id.resource_id());
-        assert_eq!(submission.resources.added[0].revision, 1);
         assert!(matches!(
-            &submission.resources.added[0].payload,
-            novadraw_render::ResourcePayload::Font(_)
+            &submission.resources,
+            ResourceSync::Snapshot(snapshot)
+                if matches!(
+                    snapshot.ready.as_slice(),
+                    [novadraw_render::ResourceUpdate {
+                        id: resource_id,
+                        revision: 1,
+                        payload: novadraw_render::ResourcePayload::Font(_),
+                    }] if *resource_id == id.resource_id()
+                )
         ));
     }
 
@@ -2315,8 +2608,8 @@ mod tests {
             Err(TextError::NoUsableFont)
         );
         assert_eq!(
-            runtime.resources.take_delta().removed,
-            vec![id.resource_id()]
+            runtime.resources.take_delta().ops,
+            vec![novadraw_render::ResourceOp::Remove(id.resource_id())]
         );
     }
 
@@ -2557,17 +2850,29 @@ mod tests {
             .unwrap();
         assert_eq!(first.frame_id, FrameId::INITIAL);
         assert_eq!(first.surface, surface(100, 100));
-        assert_eq!(first.resources.added.len(), 1);
-        assert_eq!(first.resources.added[0].id, image.resource_id());
+        assert!(matches!(
+            &first.resources,
+            ResourceSync::Snapshot(snapshot)
+                if snapshot.ready.len() == 1
+                    && snapshot.ready[0].id == image.resource_id()
+        ));
         assert_eq!(first.damage.mode(), DamageMode::Full);
-        assert!(runtime.complete_submission(first.frame_id, RenderOutcome::Presented));
+        assert!(runtime.complete_submission(
+            first.session_id,
+            first.frame_id,
+            RenderOutcome::Presented
+        ));
 
         runtime.request_full_redraw();
         let second = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(second.frame_id, first.frame_id.next());
-        assert!(runtime.complete_submission(second.frame_id, RenderOutcome::Presented));
+        assert!(runtime.complete_submission(
+            second.session_id,
+            second.frame_id,
+            RenderOutcome::Presented
+        ));
         assert!(
             runtime
                 .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -2582,7 +2887,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         let image = runtime.register_image();
         runtime
@@ -2594,8 +2903,15 @@ mod tests {
 
         assert_eq!(resource_only.damage.mode(), DamageMode::None);
         assert!(resource_only.commands.is_empty());
-        assert_eq!(resource_only.resources.added.len(), 1);
-        assert_eq!(resource_only.resources.added[0].id, image.resource_id());
+        assert!(matches!(
+            &resource_only.resources,
+            ResourceSync::Delta(delta)
+                if matches!(
+                    delta.ops.as_slice(),
+                    [novadraw_render::ResourceOp::Upsert(update)]
+                        if update.id == image.resource_id()
+                )
+        ));
     }
 
     #[test]
@@ -2607,7 +2923,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         let image = runtime.register_image();
         runtime
@@ -2625,7 +2945,15 @@ mod tests {
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        assert_eq!(submission.resources.added[0].id, image.resource_id());
+        assert!(matches!(
+            &submission.resources,
+            ResourceSync::Delta(delta)
+                if matches!(
+                    delta.ops.as_slice(),
+                    [novadraw_render::ResourceOp::Upsert(update)]
+                        if update.id == image.resource_id()
+                )
+        ));
         assert_ne!(submission.damage.mode(), DamageMode::None);
     }
 
@@ -2641,13 +2969,21 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(replacement.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            replacement.session_id,
+            replacement.frame_id,
+            RenderOutcome::Presented,
+        );
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
             .unwrap();
@@ -2667,7 +3003,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         runtime.set_bounds(
             child,
@@ -2677,7 +3017,11 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(partial.damage.mode(), DamageMode::Partial);
-        runtime.complete_submission(partial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            partial.session_id,
+            partial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         runtime.set_bounds(
             child,
@@ -2696,7 +3040,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         assert!(runtime.translate(root, 10.0, 10.0));
         let moved = runtime
@@ -2720,20 +3068,32 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        assert!(runtime.complete_submission(initial.frame_id, RenderOutcome::Retry));
+        assert!(runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Retry
+        ));
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(retry.damage.mode(), DamageMode::Full);
-        assert_eq!(retry.resources.added.len(), 1);
-        assert_eq!(retry.resources.added[0].id, image.resource_id());
-        runtime.complete_submission(retry.frame_id, RenderOutcome::Presented);
+        assert!(matches!(
+            &retry.resources,
+            ResourceSync::Snapshot(snapshot)
+                if snapshot.ready.len() == 1
+                    && snapshot.ready[0].id == image.resource_id()
+        ));
+        runtime.complete_submission(retry.session_id, retry.frame_id, RenderOutcome::Presented);
 
         let resized = runtime
             .prepare_submission(surface(120, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
         assert_eq!(resized.damage.mode(), DamageMode::Full);
+        assert!(matches!(
+            resized.resources,
+            ResourceSync::Delta(ref delta) if delta.is_empty()
+        ));
     }
 
     #[test]
@@ -2743,7 +3103,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         let image = runtime.register_image();
         runtime
@@ -2755,19 +3119,208 @@ mod tests {
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
             .unwrap();
-        runtime.complete_submission(first_update.frame_id, RenderOutcome::Retry);
+        runtime.complete_submission(
+            first_update.session_id,
+            first_update.frame_id,
+            RenderOutcome::Retry,
+        );
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        let revisions: Vec<_> = retry
-            .resources
-            .added
+        let ResourceSync::Delta(delta) = &retry.resources else {
+            panic!("incremental retry must carry a delta");
+        };
+        let revisions: Vec<_> = delta
+            .ops
             .iter()
-            .map(|update| update.revision)
+            .filter_map(|operation| match operation {
+                novadraw_render::ResourceOp::Upsert(update) => Some(update.revision),
+                novadraw_render::ResourceOp::Remove(_) => None,
+            })
             .collect();
 
         assert_eq!(revisions, vec![1, 2]);
+    }
+
+    #[test]
+    fn resource_state_transitions_preserve_order_within_one_delta() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let initial = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
+
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+        runtime
+            .fail_resource(image.resource_id(), "transient")
+            .unwrap();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
+            .unwrap();
+
+        let submission = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        let ResourceSync::Delta(delta) = &submission.resources else {
+            panic!("established session must use an incremental delta");
+        };
+        assert!(matches!(
+            delta.ops.as_slice(),
+            [
+                novadraw_render::ResourceOp::Upsert(novadraw_render::ResourceUpdate {
+                    revision: 1,
+                    ..
+                }),
+                novadraw_render::ResourceOp::Remove(id),
+                novadraw_render::ResourceOp::Upsert(novadraw_render::ResourceUpdate {
+                    revision: 2,
+                    ..
+                }),
+            ] if *id == image.resource_id()
+        ));
+    }
+
+    #[test]
+    fn backend_session_reset_rejects_old_completion_and_resends_ready_snapshot() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+        let old = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        let new_session = runtime.reset_backend_session().unwrap();
+        assert_ne!(new_session, old.session_id);
+        assert!(!runtime.complete_submission(
+            old.session_id,
+            old.frame_id,
+            RenderOutcome::Presented
+        ));
+
+        let replacement = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert_eq!(replacement.session_id, new_session);
+        assert_eq!(replacement.damage.mode(), DamageMode::Full);
+        assert!(matches!(
+            &replacement.resources,
+            ResourceSync::Snapshot(snapshot)
+                if snapshot.ready.len() == 1
+                    && snapshot.ready[0].id == image.resource_id()
+        ));
+        assert!(runtime.complete_submission(
+            replacement.session_id,
+            replacement.frame_id,
+            RenderOutcome::Presented
+        ));
+
+        runtime.request_full_redraw();
+        let redraw = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert_eq!(redraw.session_id, new_session);
+        assert!(matches!(
+            redraw.resources,
+            ResourceSync::Delta(ref delta) if delta.is_empty()
+        ));
+    }
+
+    #[test]
+    fn backend_sessions_are_namespaced_per_runtime() {
+        let first = Runtime::empty().backend_session_id();
+        let second = Runtime::empty().backend_session_id();
+
+        assert_ne!(first.runtime_namespace(), second.runtime_namespace());
+        assert_eq!(first.generation(), 1);
+        assert_eq!(second.generation(), 1);
+    }
+
+    #[test]
+    fn snapshot_retry_refreezes_current_registry_state() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+        let snapshot = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        runtime
+            .fail_resource(image.resource_id(), "transient")
+            .unwrap();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
+            .unwrap();
+        assert!(runtime.complete_submission(
+            snapshot.session_id,
+            snapshot.frame_id,
+            RenderOutcome::Retry
+        ));
+
+        let retry = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert!(matches!(
+            &retry.resources,
+            ResourceSync::Snapshot(snapshot)
+                if matches!(
+                    snapshot.ready.as_slice(),
+                    [novadraw_render::ResourceUpdate {
+                        revision: 2,
+                        ..
+                    }]
+                )
+        ));
+    }
+
+    #[test]
+    fn mutations_after_snapshot_freeze_remain_as_incremental_delta() {
+        let mut runtime = Runtime::empty();
+        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let image = runtime.register_image();
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
+            .unwrap();
+        let snapshot = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        runtime
+            .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
+            .unwrap();
+        assert!(runtime.complete_submission(
+            snapshot.session_id,
+            snapshot.frame_id,
+            RenderOutcome::Presented
+        ));
+
+        let delta = runtime
+            .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert!(matches!(
+            &delta.resources,
+            ResourceSync::Delta(delta)
+                if matches!(
+                    delta.ops.as_slice(),
+                    [novadraw_render::ResourceOp::Upsert(
+                        novadraw_render::ResourceUpdate { revision: 2, .. }
+                    )]
+                )
+        ));
     }
 
     #[test]
@@ -2777,7 +3330,11 @@ mod tests {
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(initial.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            RenderOutcome::Presented,
+        );
 
         let hidpi_surface = SurfaceInfo {
             logical_width: 100.0,
@@ -2839,7 +3396,11 @@ mod tests {
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
-        runtime.complete_submission(submission.frame_id, RenderOutcome::Presented);
+        runtime.complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            RenderOutcome::Presented,
+        );
 
         let events = events.lock().unwrap();
         let validated = events
