@@ -45,6 +45,7 @@ pub enum LayerPlacement {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LayerError {
+    Faulted,
     Graph(GraphMutationError),
     UnknownPane,
     NotLayer,
@@ -57,6 +58,7 @@ pub enum LayerError {
 impl fmt::Display for LayerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => write!(formatter, "Runtime is faulted"),
             Self::Graph(error) => error.fmt(formatter),
             Self::UnknownPane => write!(formatter, "layered pane does not exist"),
             Self::NotLayer => write!(formatter, "figure does not provide the Layer capability"),
@@ -106,12 +108,6 @@ impl LayeredPaneState {
     pub(crate) fn insert(&mut self, key: LayerKey, child: FigureId) {
         self.by_child.insert(child, key.clone());
         self.by_key.insert(key, child);
-    }
-
-    pub(crate) fn remove_key(&mut self, key: &LayerKey) -> Option<FigureId> {
-        let child = self.by_key.remove(key)?;
-        self.by_child.remove(&child);
-        Some(child)
     }
 
     pub(crate) fn remove_child(&mut self, child: FigureId) -> Option<LayerKey> {

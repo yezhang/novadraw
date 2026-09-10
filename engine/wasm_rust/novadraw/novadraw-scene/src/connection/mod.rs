@@ -37,13 +37,7 @@ pub use runtime::{
     UnresolvedConnection,
 };
 
-slotmap::new_key_type! {
-    /// Runtime-local identity of a registered Anchor binding.
-    pub struct AnchorId;
-
-    /// Runtime-local identity of a shared Router entry.
-    pub struct RouterId;
-}
+pub use crate::identity::{AnchorId, RouterId};
 
 /// Type-safe identity of a Figure carrying Connection behavior.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

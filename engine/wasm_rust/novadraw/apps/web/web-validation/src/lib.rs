@@ -5,10 +5,11 @@ use std::f64::consts::TAU;
 use std::rc::Rc;
 
 use novadraw::{
-    BackendCapabilities, BackendSessionId, Bounded, Color, CursorIcon, DamageMode, EventContext,
-    Figure, FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MouseButton, NdCanvas,
-    PlatformHost, Rectangle, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission,
-    Runtime, Shape, SurfaceInfo,
+    BackendCapabilities, BackendSessionDecision, BackendSessionGate, Bounded, Color, CursorIcon,
+    DamageMode, EventContext, Figure, FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers,
+    MouseButton, NdCanvas, PlatformHost, Rectangle, RenderBackend, RenderCapability,
+    RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo,
+    UnsupportedRenderCapability,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
 };
@@ -248,7 +249,7 @@ struct Canvas2dBackend {
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
     scale_factor: f64,
-    active_session: Option<BackendSessionId>,
+    session_gate: BackendSessionGate,
 }
 
 impl Canvas2dBackend {
@@ -257,7 +258,7 @@ impl Canvas2dBackend {
             canvas,
             context,
             scale_factor: 1.0,
-            active_session: None,
+            session_gate: BackendSessionGate::default(),
         }
     }
 
@@ -293,20 +294,34 @@ impl RenderBackend for Canvas2dBackend {
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
-        if self.active_session.is_some_and(|active| {
-            submission.session_id.runtime_namespace() == active.runtime_namespace()
-                && submission.session_id.generation() < active.generation()
-        }) {
-            return RenderOutcome::Skipped;
+        match self
+            .session_gate
+            .accept(submission.session_id, &submission.resources)
+        {
+            BackendSessionDecision::RejectStale | BackendSessionDecision::RejectMissingSnapshot => {
+                return RenderOutcome::Skipped;
+            }
+            BackendSessionDecision::Initialize
+            | BackendSessionDecision::Continue
+            | BackendSessionDecision::Replace => {}
         }
-        self.active_session = Some(submission.session_id);
-        if submission.commands.iter().any(|command| {
-            matches!(
-                command.kind,
-                RenderCommandKind::DrawGlyphRun { .. } | RenderCommandKind::Image { .. }
-            )
-        }) {
-            return RenderOutcome::Retry;
+        if submission
+            .commands
+            .iter()
+            .any(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
+        {
+            return RenderOutcome::Unsupported(UnsupportedRenderCapability {
+                capability: RenderCapability::GlyphRuns,
+            });
+        }
+        if submission
+            .commands
+            .iter()
+            .any(|command| matches!(command.kind, RenderCommandKind::Image { .. }))
+        {
+            return RenderOutcome::Unsupported(UnsupportedRenderCapability {
+                capability: RenderCapability::ImageResources,
+            });
         }
         self.resize(
             submission.surface.pixel_width,
@@ -513,11 +528,7 @@ fn theme_selection(window: &Window, themes: &[DemoSuite]) -> (usize, usize) {
     (theme_index, scene_index)
 }
 
-fn create_scene(
-    themes: &mut [DemoSuite],
-    theme_index: usize,
-    scene_index: usize,
-) -> novadraw::FigureTree {
+fn create_scene(themes: &mut [DemoSuite], theme_index: usize, scene_index: usize) -> Runtime {
     themes[theme_index].scenes[scene_index].build()
 }
 
@@ -553,7 +564,7 @@ impl WebValidationApp {
         let _ = canvas
             .style()
             .set_property("aspect-ratio", &format!("{width} / {height}"));
-        let graph = create_scene(&mut themes, current_theme, current_scene);
+        let runtime = create_scene(&mut themes, current_theme, current_scene);
 
         let redraw_pending = Rc::new(Cell::new(false));
         let host = WebPlatformHost::new(
@@ -588,7 +599,7 @@ impl WebValidationApp {
             window,
             document,
             canvas: canvas.clone(),
-            runtime: Runtime::new(graph),
+            runtime,
             host,
             backend,
             input: WebInputAdapter,
@@ -653,11 +664,7 @@ impl WebValidationApp {
 
     fn replace_scene(&mut self) {
         self.runtime.release_focus();
-        self.runtime = Runtime::new(create_scene(
-            &mut self.themes,
-            self.current_theme,
-            self.current_scene,
-        ));
+        self.runtime = create_scene(&mut self.themes, self.current_theme, self.current_scene);
         self.apply_scene_size();
         self.sync_surface();
         self.update_navigation();

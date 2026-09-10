@@ -271,7 +271,8 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
 fn verify_freeform_range() -> Result<VerificationMetrics, String> {
     let demo = build_freeform_demo(1.0, (0.0, 0.0));
     let extent = demo
-        .graph
+        .runtime
+        .tree()
         .freeform_extent(demo.scalable.block_id())
         .map_err(|error| error.to_string())?;
     let horizontal = demo.pane.viewport().horizontal_range();
@@ -302,14 +303,17 @@ fn verify_freeform_range() -> Result<VerificationMetrics, String> {
 fn verify_freeform_layer_hit_order() -> Result<VerificationMetrics, String> {
     let demo = build_freeform_demo(1.0, (0.0, 0.0));
     let overlap = Point::new(PANE_X + 150.0, PANE_Y + 120.0);
-    let target = demo.graph.hit_test_simple((overlap.x(), overlap.y()));
+    let target = demo
+        .runtime
+        .tree()
+        .hit_test_simple((overlap.x(), overlap.y()));
     if target != Some(demo.upper_overlap) {
         return Err(format!(
             "top layer did not win reverse-Z hit test: target={target:?}"
         ));
     }
     let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
-    let empty_target = demo.graph.hit_test_simple((empty.x(), empty.y()));
+    let empty_target = demo.runtime.tree().hit_test_simple((empty.x(), empty.y()));
     if empty_target == Some(demo.content_layer) || empty_target == Some(demo.overlay_layer) {
         return Err("transparent layer became a hit target".to_string());
     }
@@ -322,16 +326,15 @@ fn verify_freeform_layer_hit_order() -> Result<VerificationMetrics, String> {
 
 fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
     let mut demo = build_freeform_demo(1.0, (0.0, 0.0));
-    let mut updates = UpdateManager::new();
     let viewport = demo.pane.viewport().clone();
-    viewport
-        .set_view_location(&mut demo.graph, &mut updates, CONTENT_MIN_X, CONTENT_MIN_Y)
+    demo.runtime
+        .set_view_location(&viewport, CONTENT_MIN_X, CONTENT_MIN_Y)
         .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(CONTENT_MIN_X, CONTENT_MIN_Y) {
         return Err("freeform viewport could not reach negative range edge".to_string());
     }
-    viewport
-        .set_view_location(&mut demo.graph, &mut updates, f64::MAX, f64::MAX)
+    demo.runtime
+        .set_view_location(&viewport, f64::MAX, f64::MAX)
         .map_err(|error| error.to_string())?;
     let horizontal = viewport.horizontal_range();
     let vertical = viewport.vertical_range();
@@ -342,18 +345,14 @@ fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
     if viewport.view_location() != expected_max {
         return Err("freeform viewport did not clamp at positive range edge".to_string());
     }
-    viewport
-        .set_view_location(&mut demo.graph, &mut updates, 0.0, 0.0)
+    demo.runtime
+        .set_view_location(&viewport, 0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
     zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
-    zoom.set_zoom_at(
-        &mut demo.graph,
-        &mut updates,
-        2.0,
-        Some(Point::new(60.0, 40.0)),
-    )
-    .map_err(|error| error.to_string())?;
+    demo.runtime
+        .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
+        .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(30.0, 20.0) {
         return Err("freeform anchor zoom changed the anchored content point".to_string());
     }

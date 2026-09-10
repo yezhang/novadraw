@@ -23,8 +23,9 @@ use crate::ValidationError;
 use crate::graph::FigureId;
 use crate::runtime::update::listener::{
     ActionListener, AncestorListener, CoordinateListener, FigureListener, LayoutListener,
-    ListenerDirective, ListenerId, NotificationEffect, NotificationQueue, PropertyChangeListener,
-    UpdateEvent, UpdateListener,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
+    NotificationRecord, ObservationListener, PropertyChangeListener, StableSceneQuery, UpdateEvent,
+    UpdateListener,
 };
 use crate::runtime::update::repair::{
     compute_damage_union, merge_dirty_region, prepare_damage_set,
@@ -47,6 +48,8 @@ use crate::runtime::update::repair::{
 /// draw2d 的 DeferredUpdateManager 直接持有 root Figure 引用并调用其方法。
 /// 本实现由 Runtime 持有 manager，并在事务执行时显式传入 FigureTree。
 pub struct UpdateManager {
+    namespace: crate::RuntimeNamespace,
+    listener_owners: std::collections::HashMap<ListenerId, FigureId>,
     /// 脏区域映射：block_id -> 脏区域
     pub(crate) dirty_regions: std::collections::HashMap<FigureId, Rectangle>,
     /// 失效块队列
@@ -62,7 +65,10 @@ pub struct UpdateManager {
     property_listeners: Vec<(ListenerId, Box<dyn PropertyChangeListener>)>,
     action_listeners: Vec<(ListenerId, Box<dyn ActionListener>)>,
     layout_listeners: Vec<(ListenerId, Box<dyn LayoutListener>)>,
+    observation_listeners: Vec<(ListenerId, Box<dyn ObservationListener>)>,
     next_listener_id: u64,
+    next_notification_sequence: u64,
+    publication_epoch: u64,
     last_validation_error: Option<ValidationError>,
 }
 
@@ -73,9 +79,82 @@ impl Default for UpdateManager {
 }
 
 impl UpdateManager {
+    pub(crate) fn freeze_removed_damage(
+        &self,
+        tree: &crate::FigureTree,
+        ids: &[FigureId],
+    ) -> Vec<Rectangle> {
+        ids.iter()
+            .flat_map(|id| {
+                let visual = tree.get_block(*id).map(|node| node.visual_bounds());
+                visual
+                    .into_iter()
+                    .chain(self.dirty_regions.get(id).copied())
+                    .filter_map(|rect| super::repair::propagate_damage_to_root(tree, *id, rect))
+            })
+            .collect()
+    }
+
+    pub(crate) fn forget_figures(&mut self, ids: &std::collections::HashSet<FigureId>) {
+        self.invalid_blocks.retain(|id| !ids.contains(id));
+        self.dirty_regions.retain(|id, _| !ids.contains(id));
+    }
+
+    pub(crate) fn set_listener_scope(&mut self, id: ListenerId, scope: ListenerScope) -> bool {
+        let exists = self.listeners.iter().any(|(key, _)| *key == id)
+            || self.figure_listeners.iter().any(|(key, _)| *key == id)
+            || self.coordinate_listeners.iter().any(|(key, _)| *key == id)
+            || self.ancestor_listeners.iter().any(|(key, _)| *key == id)
+            || self.property_listeners.iter().any(|(key, _)| *key == id)
+            || self.action_listeners.iter().any(|(key, _)| *key == id)
+            || self.layout_listeners.iter().any(|(key, _)| *key == id)
+            || self.observation_listeners.iter().any(|(key, _)| *key == id);
+        if exists {
+            match scope {
+                ListenerScope::Runtime => {
+                    self.listener_owners.remove(&id);
+                }
+                ListenerScope::Figure(owner) => {
+                    self.listener_owners.insert(id, owner);
+                }
+            }
+        }
+        exists
+    }
+
+    pub(crate) fn retire_listeners(&mut self, ids: &std::collections::HashSet<FigureId>) -> Self {
+        let mut retired = Self::with_namespace(self.namespace);
+        let owners = &self.listener_owners;
+        macro_rules! retire {
+            ($field:ident) => {
+                let (removed, kept) = std::mem::take(&mut self.$field)
+                    .into_iter()
+                    .partition(|(id, _)| owners.get(id).is_some_and(|owner| ids.contains(owner)));
+                retired.$field = removed;
+                self.$field = kept;
+            };
+        }
+        retire!(listeners);
+        retire!(figure_listeners);
+        retire!(coordinate_listeners);
+        retire!(ancestor_listeners);
+        retire!(property_listeners);
+        retire!(action_listeners);
+        retire!(layout_listeners);
+        retire!(observation_listeners);
+        self.listener_owners.retain(|_, owner| !ids.contains(owner));
+        retired
+    }
+
     /// 创建新的场景更新管理器
     pub fn new() -> Self {
+        Self::with_namespace(crate::RuntimeNamespace::new())
+    }
+
+    pub(crate) fn with_namespace(namespace: crate::RuntimeNamespace) -> Self {
         Self {
+            namespace,
+            listener_owners: std::collections::HashMap::new(),
             dirty_regions: std::collections::HashMap::new(),
             invalid_blocks: Vec::new(),
             update_queued: false,
@@ -88,7 +167,10 @@ impl UpdateManager {
             property_listeners: Vec::new(),
             action_listeners: Vec::new(),
             layout_listeners: Vec::new(),
+            observation_listeners: Vec::new(),
             next_listener_id: 1,
+            next_notification_sequence: 1,
+            publication_epoch: 0,
             last_validation_error: None,
         }
     }
@@ -139,7 +221,17 @@ impl UpdateManager {
         id
     }
 
+    pub fn add_observation_listener(
+        &mut self,
+        listener: Box<dyn ObservationListener>,
+    ) -> ListenerId {
+        let id = self.allocate_listener_id();
+        self.observation_listeners.push((id, listener));
+        id
+    }
+
     pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+        self.listener_owners.remove(&id);
         remove_listener(&mut self.listeners, id)
             || remove_listener(&mut self.figure_listeners, id)
             || remove_listener(&mut self.coordinate_listeners, id)
@@ -147,10 +239,11 @@ impl UpdateManager {
             || remove_listener(&mut self.property_listeners, id)
             || remove_listener(&mut self.action_listeners, id)
             || remove_listener(&mut self.layout_listeners, id)
+            || remove_listener(&mut self.observation_listeners, id)
     }
 
     fn allocate_listener_id(&mut self) -> ListenerId {
-        let id = ListenerId::new(self.next_listener_id);
+        let id = ListenerId::new(self.namespace, self.next_listener_id);
         self.next_listener_id = self
             .next_listener_id
             .checked_add(1)
@@ -159,8 +252,27 @@ impl UpdateManager {
     }
 
     /// 向所有监听器分发 effect 队列中的事件
-    fn dispatch_effects(&mut self, effects: &[NotificationEffect]) {
+    fn dispatch_effects(
+        &mut self,
+        effects: &[NotificationEffect],
+        graph: &crate::FigureTree,
+        source_epoch: u64,
+    ) {
         for effect in effects {
+            let sequence = self.next_notification_sequence;
+            self.next_notification_sequence = self
+                .next_notification_sequence
+                .checked_add(1)
+                .expect("notification sequence space exhausted");
+            let record = NotificationRecord {
+                source_epoch,
+                sequence,
+                effect: effect.clone(),
+            };
+            let latest = StableSceneQuery::new(source_epoch, graph);
+            self.observation_listeners.retain(|(_, listener)| {
+                listener.observed(&record, latest) == ListenerDirective::Keep
+            });
             match effect {
                 NotificationEffect::Notify { block_id } => {
                     self.listeners.retain(|(_, listener)| {
@@ -235,7 +347,37 @@ impl UpdateManager {
     pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureTree) {
         self.absorb_graph_effects(graph);
         let effects = self.notification_effects.drain();
-        self.dispatch_effects(&effects);
+        self.dispatch_effects(&effects, graph, self.publication_epoch);
+        self.retain_live_listener_scopes();
+    }
+
+    pub(crate) fn flush_notifications_at(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+        stable_epoch: u64,
+    ) {
+        self.publication_epoch = stable_epoch;
+        self.flush_notifications(graph);
+    }
+
+    pub(crate) fn set_publication_epoch(&mut self, stable_epoch: u64) {
+        self.publication_epoch = stable_epoch;
+    }
+
+    fn retain_live_listener_scopes(&mut self) {
+        let live: std::collections::HashSet<_> = self
+            .listeners
+            .iter()
+            .map(|(id, _)| *id)
+            .chain(self.figure_listeners.iter().map(|(id, _)| *id))
+            .chain(self.coordinate_listeners.iter().map(|(id, _)| *id))
+            .chain(self.ancestor_listeners.iter().map(|(id, _)| *id))
+            .chain(self.property_listeners.iter().map(|(id, _)| *id))
+            .chain(self.action_listeners.iter().map(|(id, _)| *id))
+            .chain(self.layout_listeners.iter().map(|(id, _)| *id))
+            .chain(self.observation_listeners.iter().map(|(id, _)| *id))
+            .collect();
+        self.listener_owners.retain(|id, _| live.contains(id));
     }
 
     /// 添加脏区域

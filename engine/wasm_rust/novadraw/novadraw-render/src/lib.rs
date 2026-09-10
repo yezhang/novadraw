@@ -31,14 +31,14 @@ pub use command::{
 };
 pub use context::NdCanvas;
 pub use submission::{
-    BackendSessionId, DamageMode, DamageSet, FontData, FrameId, RenderSubmission, ResourceDelta,
-    ResourceId, ResourceOp, ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate,
-    SurfaceInfo,
+    BackendSessionDecision, BackendSessionGate, BackendSessionId, DamageMode, DamageSet, FontData,
+    FrameId, RenderSubmission, ResourceDelta, ResourceId, ResourceOp, ResourcePayload,
+    ResourceSnapshot, ResourceSync, ResourceUpdate, SurfaceInfo,
 };
 pub use text::{
     BuiltinFont, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun, ParleyTextEngine,
     PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
-    TextLayoutKey, TextLineMetrics,
+    TextLayoutKey, TextLayoutParts, TextLineMetrics,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

@@ -15,7 +15,7 @@ pub use novadraw::{
 pub use novadraw_render::backend::vello::VelloRenderer;
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
-pub use winit::event_loop::{ActiveEventLoop, EventLoop};
+pub use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 pub use winit::keyboard::{KeyCode, PhysicalKey};
 pub use winit::window::WindowAttributes;
 pub use winit::{application::ApplicationHandler, window::WindowId};
@@ -350,8 +350,7 @@ impl ApplicationHandler<()> for DemoApp {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(screenshot_mode) = self.screenshot_mode {
-                    self.handle_screenshot_mode(screenshot_mode, event_loop);
+                if self.screenshot_mode.is_some() {
                     return;
                 }
                 if let Some(host) = &self.host {
@@ -581,7 +580,14 @@ impl ApplicationHandler<()> for DemoApp {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if let Some(screenshot_mode) = self.screenshot_mode {
+            // Some platforms coalesce redraw requests issued from RedrawRequested.
+            // Drive batch capture from the event-loop boundary instead.
+            event_loop.set_control_flow(ControlFlow::Poll);
+            self.handle_screenshot_mode(screenshot_mode, event_loop);
+            return;
+        }
         if let Some(host) = &self.host {
             host.request_redraw();
         }
@@ -715,6 +721,61 @@ mod tests {
             RenderOutcome::Presented
         ));
         assert!(!runtime.has_pending_update());
+    }
+
+    #[test]
+    fn scene_switch_handoff_starts_each_runtime_with_a_snapshot_baseline() {
+        use novadraw::{BackendSessionDecision, BackendSessionGate, ResourceSync};
+
+        let mut app = DemoApp::new(
+            "test",
+            vec![
+                ("first", Box::new(Runtime::empty)),
+                ("second", Box::new(Runtime::empty)),
+            ],
+            100.0,
+            100.0,
+            "test",
+            None,
+        );
+        let surface = SurfaceInfo {
+            logical_width: 100.0,
+            logical_height: 100.0,
+            pixel_width: 100,
+            pixel_height: 100,
+            scale_factor: 1.0,
+        };
+        let mut gate = BackendSessionGate::default();
+
+        app.switch_scene(0);
+        let first = app
+            .runtime
+            .as_mut()
+            .unwrap()
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert!(matches!(&first.resources, ResourceSync::Snapshot(_)));
+        assert_eq!(
+            gate.accept(first.session_id, &first.resources),
+            BackendSessionDecision::Initialize
+        );
+
+        app.switch_scene(1);
+        let second = app
+            .runtime
+            .as_mut()
+            .unwrap()
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        assert_ne!(
+            first.session_id.runtime_namespace(),
+            second.session_id.runtime_namespace()
+        );
+        assert!(matches!(&second.resources, ResourceSync::Snapshot(_)));
+        assert_eq!(
+            gate.accept(second.session_id, &second.resources),
+            BackendSessionDecision::Replace
+        );
     }
 }
 
@@ -850,11 +911,11 @@ impl AppBuilder {
 /// ```rust,no_run
 /// use novadraw_apps::run_demo_app;
 ///
-/// fn create_rect_scene() -> novadraw::FigureTree {
-///     let mut scene = novadraw::FigureTree::new();
+/// fn create_rect_scene() -> novadraw::Runtime {
+///     let mut runtime = novadraw::Runtime::empty();
 ///     let rect = novadraw::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
-///     scene.builder().set_contents(Box::new(rect));
-///     scene
+///     runtime.set_contents(Box::new(rect));
+///     runtime
 /// }
 ///
 /// fn main() {
@@ -867,29 +928,29 @@ impl AppBuilder {
 pub fn run_demo_app(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_demo_app_with_options(title, app_name, scenes, false, None)
+    run_runtime_demo_app_with_options(title, app_name, scenes, false, None)
 }
 
 #[allow(clippy::type_complexity)]
 pub fn run_demo_app_with_screenshot(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
     screenshot_all: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_demo_app_with_options(title, app_name, scenes, screenshot_all, None)
+    run_runtime_demo_app_with_options(title, app_name, scenes, screenshot_all, None)
 }
 
 #[allow(clippy::type_complexity)]
 pub fn run_demo_app_with_scene_screenshot(
     title: &str,
     app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
+    scenes: Vec<(&'static str, Box<dyn FnMut() -> Runtime>)>,
     scene_index: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    run_demo_app_with_options(title, app_name, scenes, false, Some(scene_index))
+    run_runtime_demo_app_with_options(title, app_name, scenes, false, Some(scene_index))
 }
 
 /// Runs demo scenes that explicitly configure their own [`Runtime`].
@@ -935,28 +996,6 @@ fn run_runtime_demo_app_with_options(
         .with_size(800.0, 600.0)
         .with_app_name(app_name)
         .with_runtime_scenes_boxed(scenes);
-
-    if screenshot_all {
-        builder = builder.with_screenshot(true);
-    } else if let Some(idx) = screenshot_scene {
-        builder = builder.with_screenshot_scene(idx);
-    }
-
-    builder.run()
-}
-
-#[allow(clippy::type_complexity)]
-fn run_demo_app_with_options(
-    title: &str,
-    app_name: &str,
-    scenes: Vec<(&'static str, Box<dyn FnMut() -> FigureTree>)>,
-    screenshot_all: bool,
-    screenshot_scene: Option<usize>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut builder = AppBuilder::new(title)
-        .with_size(800.0, 600.0)
-        .with_app_name(app_name)
-        .with_scenes_boxed(scenes);
 
     if screenshot_all {
         builder = builder.with_screenshot(true);

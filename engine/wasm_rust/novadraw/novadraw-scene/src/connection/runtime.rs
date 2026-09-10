@@ -1,6 +1,6 @@
 use std::{collections::HashMap, error::Error, fmt};
 
-use slotmap::SlotMap;
+use crate::identity::{RuntimeArena, RuntimeNamespace};
 
 use super::{
     AnchorGroupKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter, CoordinateSpace,
@@ -59,6 +59,8 @@ pub struct ConnectionStateSnapshot {
 /// Failure produced by Connection Runtime state operations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ConnectionRuntimeError {
+    /// Owning Runtime is faulted and rejects further mutation.
+    Faulted,
     /// Figure identity is not attached to the Runtime tree.
     UnknownFigure(FigureId),
     /// Figure does not provide Connection geometry behavior.
@@ -93,6 +95,7 @@ pub enum ConnectionRuntimeError {
 impl fmt::Display for ConnectionRuntimeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(figure) => write!(formatter, "unknown Figure {figure:?}"),
             Self::NotConnectionFigure(figure) => {
                 write!(
@@ -140,6 +143,10 @@ struct ConnectionState {
     resolution: ConnectionResolution,
 }
 
+pub(crate) struct RetiredConnections {
+    _states: Vec<ConnectionState>,
+}
+
 pub(crate) struct ConnectionRouteBatch {
     pub(crate) outputs: Vec<(ConnectionId, RouteOutput)>,
 }
@@ -162,8 +169,8 @@ type ViewportChainResult =
 
 /// Runtime-private ownership of Connection relationships and dependency state.
 pub(crate) struct ConnectionRuntime {
-    anchors: SlotMap<AnchorId, Box<dyn ConnectionAnchor>>,
-    routers: SlotMap<RouterId, Box<dyn ConnectionRouter>>,
+    anchors: RuntimeArena<AnchorId, Box<dyn ConnectionAnchor>>,
+    routers: RuntimeArena<RouterId, Box<dyn ConnectionRouter>>,
     direct_router: RouterId,
     states: HashMap<ConnectionId, ConnectionState>,
     order: Vec<ConnectionId>,
@@ -178,11 +185,60 @@ impl Default for ConnectionRuntime {
 }
 
 impl ConnectionRuntime {
+    pub(crate) fn validate_disposal(&self) -> Result<(), ConnectionRuntimeError> {
+        for connection in &self.order {
+            self.next_dirty_revision(*connection)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn retire_figures(
+        &mut self,
+        ids: &std::collections::HashSet<FigureId>,
+    ) -> RetiredConnections {
+        let removed: Vec<_> = self
+            .order
+            .iter()
+            .copied()
+            .filter(|id| ids.contains(&id.figure()))
+            .collect();
+        let mut states = Vec::with_capacity(removed.len());
+        for connection in removed {
+            let state = self
+                .states
+                .remove(&connection)
+                .expect("registered connection");
+            self.remove_reverse_dependencies(connection, state.dependencies.keys());
+            states.push(state);
+        }
+        self.order.retain(|id| !ids.contains(&id.figure()));
+        self.layer_defaults.retain(|id, _| !ids.contains(id));
+        for &connection in &self.order {
+            let state = self
+                .states
+                .get_mut(&connection)
+                .expect("registered connection");
+            state.dirty_revision = state
+                .dirty_revision
+                .checked_add(1)
+                .expect("disposal prevalidated connection revisions");
+            state.resolution = ConnectionResolution::Dirty {
+                revision: state.dirty_revision,
+            };
+        }
+        RetiredConnections { _states: states }
+    }
+
     pub(crate) fn new() -> Self {
-        let mut routers: SlotMap<RouterId, Box<dyn ConnectionRouter>> = SlotMap::with_key();
+        Self::with_namespace(RuntimeNamespace::new())
+    }
+
+    pub(crate) fn with_namespace(namespace: RuntimeNamespace) -> Self {
+        let mut routers: RuntimeArena<RouterId, Box<dyn ConnectionRouter>> =
+            RuntimeArena::new(namespace);
         let direct_router = routers.insert(Box::new(DirectRouter));
         Self {
-            anchors: SlotMap::with_key(),
+            anchors: RuntimeArena::new(namespace),
             routers,
             direct_router,
             states: HashMap::new(),

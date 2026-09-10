@@ -242,6 +242,21 @@ pub struct TextLayout {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct TextLayoutParts {
+    pub text: String,
+    pub font: FontDescriptor,
+    pub constraints: TextConstraints,
+    pub engine_revision: u64,
+    pub width: f32,
+    pub full_width: f32,
+    pub height: f32,
+    pub lines: Vec<TextLineMetrics>,
+    pub glyph_runs: Vec<GlyphRun>,
+    pub visible_range: Range<usize>,
+    pub truncated: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct TextLayoutKey {
     text: Arc<str>,
     font: FontDescriptor,
@@ -279,6 +294,51 @@ impl TextLayoutKey {
 }
 
 impl TextLayout {
+    pub fn from_parts(parts: TextLayoutParts) -> Result<Self, TextError> {
+        parts.font.validate()?;
+        TextConstraints::new(parts.constraints.max_width)?;
+        validate_metric(parts.width)?;
+        validate_metric(parts.full_width)?;
+        validate_metric(parts.height)?;
+        validate_visible_range(&parts.text, &parts.visible_range, parts.truncated)?;
+        for line in &parts.lines {
+            validate_metric(line.ascent)?;
+            validate_metric(line.descent)?;
+            validate_finite(line.leading)?;
+            validate_metric(line.baseline)?;
+            validate_metric(line.advance)?;
+        }
+        for run in &parts.glyph_runs {
+            if !run.font_size.is_finite() || run.font_size <= 0.0 {
+                return Err(TextError::InvalidGlyphRun);
+            }
+            if run.skew_degrees.is_some_and(|skew| !skew.is_finite())
+                || run
+                    .glyphs
+                    .iter()
+                    .any(|glyph| !glyph.x.is_finite() || !glyph.y.is_finite())
+            {
+                return Err(TextError::InvalidGlyphRun);
+            }
+        }
+
+        Ok(Self {
+            width: parts.width,
+            full_width: parts.full_width,
+            height: parts.height,
+            lines: parts.lines,
+            glyph_runs: parts.glyph_runs,
+            visible_range: parts.visible_range,
+            truncated: parts.truncated,
+            key: TextLayoutKey {
+                text: Arc::from(parts.text),
+                font: parts.font,
+                constraints: parts.constraints,
+                engine_revision: parts.engine_revision,
+            },
+        })
+    }
+
     pub fn width(&self) -> f32 {
         self.width
     }
@@ -334,27 +394,35 @@ impl TextLayout {
         truncated: bool,
         full_width: f32,
         constraints: TextConstraints,
-    ) -> Self {
-        self.key.text = source.into();
+    ) -> Result<Self, TextError> {
+        let source = source.into();
+        TextConstraints::new(constraints.max_width)?;
+        validate_metric(full_width)?;
+        validate_visible_range(&source, &visible_range, truncated)?;
+        self.key.text = source;
         self.key.constraints = constraints;
         self.visible_range = visible_range;
         self.truncated = truncated;
         self.full_width = full_width;
-        self
+        Ok(self)
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextError {
+    RuntimeFaulted,
     InvalidFontDescriptor(String),
     InvalidFontData,
     InvalidMetric,
+    InvalidVisibleRange,
+    InvalidGlyphRun,
     NoUsableFont,
 }
 
 impl fmt::Display for TextError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RuntimeFaulted => formatter.write_str("Runtime is faulted"),
             Self::InvalidFontDescriptor(descriptor) => {
                 write!(formatter, "invalid font descriptor: {descriptor}")
             }
@@ -362,12 +430,51 @@ impl fmt::Display for TextError {
             Self::InvalidMetric => {
                 formatter.write_str("text metric must be finite and non-negative")
             }
+            Self::InvalidVisibleRange => {
+                formatter.write_str("visible text range must be ordered and on UTF-8 boundaries")
+            }
+            Self::InvalidGlyphRun => {
+                formatter.write_str("glyph run metrics must be finite and font size positive")
+            }
             Self::NoUsableFont => formatter.write_str("no usable font was found for the text"),
         }
     }
 }
 
 impl Error for TextError {}
+
+fn validate_metric(value: f32) -> Result<(), TextError> {
+    if value.is_finite() && value >= 0.0 {
+        Ok(())
+    } else {
+        Err(TextError::InvalidMetric)
+    }
+}
+
+fn validate_finite(value: f32) -> Result<(), TextError> {
+    if value.is_finite() {
+        Ok(())
+    } else {
+        Err(TextError::InvalidMetric)
+    }
+}
+
+fn validate_visible_range(
+    text: &str,
+    visible_range: &Range<usize>,
+    truncated: bool,
+) -> Result<(), TextError> {
+    let valid = visible_range.start <= visible_range.end
+        && visible_range.end <= text.len()
+        && text.is_char_boundary(visible_range.start)
+        && text.is_char_boundary(visible_range.end)
+        && (truncated || *visible_range == (0..text.len()));
+    if valid {
+        Ok(())
+    } else {
+        Err(TextError::InvalidVisibleRange)
+    }
+}
 
 pub trait TextLayoutEngine {
     fn revision(&self) -> u64;
@@ -577,7 +684,11 @@ impl TextLayoutEngine for ParleyTextEngine {
             return Err(TextError::NoUsableFont);
         }
 
-        Ok(TextLayout {
+        TextLayout::from_parts(TextLayoutParts {
+            text: text.to_owned(),
+            font: font.clone(),
+            constraints,
+            engine_revision: self.revision,
             width: layout.width(),
             full_width: layout.full_width(),
             height: layout.height(),
@@ -585,12 +696,6 @@ impl TextLayoutEngine for ParleyTextEngine {
             glyph_runs,
             visible_range: 0..text.len(),
             truncated: false,
-            key: TextLayoutKey {
-                text: Arc::from(text),
-                font: font.clone(),
-                constraints,
-                engine_revision: self.revision,
-            },
         })
     }
 }
@@ -885,5 +990,62 @@ mod tests {
         assert_eq!(*origin, glam::DVec2::new(10.0, 20.0));
         assert_eq!(*paint, GlyphPaint::Fill(Color::rgba(0.2, 0.4, 0.6, 0.4)));
         assert!(!run.glyphs.is_empty());
+    }
+
+    #[test]
+    fn external_layout_parts_reject_invalid_metrics_and_utf8_ranges() {
+        let mut invalid_metric = valid_layout_parts("text");
+        invalid_metric.width = f32::NAN;
+        assert_eq!(
+            TextLayout::from_parts(invalid_metric),
+            Err(TextError::InvalidMetric)
+        );
+
+        let mut invalid_range = valid_layout_parts("é");
+        invalid_range.visible_range = 0..1;
+        invalid_range.truncated = true;
+        assert_eq!(
+            TextLayout::from_parts(invalid_range),
+            Err(TextError::InvalidVisibleRange)
+        );
+
+        let mut invalid_run = valid_layout_parts("text");
+        invalid_run.glyph_runs[0].font_size = 0.0;
+        assert_eq!(
+            TextLayout::from_parts(invalid_run),
+            Err(TextError::InvalidGlyphRun)
+        );
+    }
+
+    fn valid_layout_parts(text: &str) -> TextLayoutParts {
+        TextLayoutParts {
+            text: text.to_owned(),
+            font: FontDescriptor::default(),
+            constraints: TextConstraints::UNBOUNDED,
+            engine_revision: 1,
+            width: 10.0,
+            full_width: 10.0,
+            height: 12.0,
+            lines: vec![TextLineMetrics {
+                ascent: 8.0,
+                descent: 2.0,
+                leading: 2.0,
+                baseline: 8.0,
+                advance: 10.0,
+            }],
+            glyph_runs: vec![GlyphRun {
+                font: FontFaceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 0),
+                font_size: 12.0,
+                normalized_coords: Vec::new(),
+                skew_degrees: None,
+                glyphs: vec![PositionedGlyph {
+                    id: 1,
+                    x: 0.0,
+                    y: 8.0,
+                }],
+            }],
+            visible_range: 0..text.len(),
+            truncated: false,
+        }
     }
 }

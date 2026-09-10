@@ -17,10 +17,13 @@ pub mod container;
 pub mod figure;
 pub mod graph;
 pub mod host;
+mod identity;
 pub mod layout;
 pub mod log;
 pub mod runtime;
 pub mod style;
+
+pub use identity::RuntimeNamespace;
 
 pub use connection::{
     AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorGeometryKeyError, AnchorGroupKey,
@@ -57,10 +60,11 @@ pub use figure::{
     AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
     ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
-    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle, Freeform,
-    HitParticipation, ImageDisplayState, ImageFigure, LabelFigure, Layer, PointListFigureBehavior,
-    PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape,
-    ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
+    FigureLifecycleContext, FigureMeasurement, Freeform, HitParticipation, ImageDisplayState,
+    ImageFigure, LabelFigure, Layer, MeasureConstraints, PointListFigureBehavior, PolygonFigure,
+    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError,
+    TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use graph as scene;
 pub use graph::{
@@ -89,14 +93,17 @@ pub use runtime::update;
 pub use runtime::update::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
-    ListenerDirective, ListenerId, NotificationEffect, NotificationQueue, PropertyChangeEvent,
-    PropertyChangeListener, PropertyValue, UpdateEvent, UpdateListener, UpdateManager,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
+    NotificationRecord, ObservationListener, PropertyChangeEvent, PropertyChangeListener,
+    PropertyValue, StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, UpdateManager,
     ValidatingListener,
 };
 pub use runtime::{
-    BackendSessionError, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
-    FocusTraversalPolicy, FontId, ImageId, InteractionState, PointerId, ResourceError,
-    ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
+    BackendSessionError, ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt,
+    FigureComponentContext, FigureComponentUpdate, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FramePreparation,
+    FramePreparationError, ImageId, InteractionState, PointerId, PreparedFigureUpdate,
+    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
     TreeOrderFocusTraversal,
 };
 pub use runtime::{context, event, mutation};

@@ -21,7 +21,7 @@ pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
 use crate::container::viewport::ViewportLayoutEffect;
-use crate::{PropertyValue, graph::FigureId};
+use crate::{FigureMeasurement, PropertyValue, graph::FigureId};
 use novadraw_geometry::Rectangle;
 use std::any::Any;
 use std::error::Error;
@@ -61,6 +61,11 @@ pub trait LayoutContext {
 
     /// 获取块的首选尺寸
     fn get_preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64);
+
+    fn get_measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        let (width, height) = self.get_preferred_size(block_id, w_hint, h_hint);
+        FigureMeasurement::new(width, height, None)
+    }
 
     /// 获取块的最小尺寸。
     fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
@@ -123,6 +128,10 @@ impl<'a> LayoutSnapshot<'a> {
 
     pub fn preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.source.get_preferred_size(block_id, w_hint, h_hint)
+    }
+
+    pub fn measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        self.source.get_measurement(block_id, w_hint, h_hint)
     }
 
     pub fn minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {

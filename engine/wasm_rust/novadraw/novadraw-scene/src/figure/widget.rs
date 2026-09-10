@@ -91,6 +91,7 @@ pub struct ClickableSnapshot {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WidgetError {
+    Faulted,
     UnknownFigure(crate::FigureId),
     WrongCapability(crate::FigureId),
 }
@@ -98,6 +99,7 @@ pub enum WidgetError {
 impl std::fmt::Display for WidgetError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure: {id:?}"),
             Self::WrongCapability(id) => {
                 write!(formatter, "Figure does not support widget behavior: {id:?}")

@@ -22,6 +22,20 @@ fn projective_composition_requires_explicit_backend_support() {
         ..BackendCapabilities::RETAINED_PARTIAL
     };
     assert_eq!(supported.require(capability), Ok(()));
+    assert_eq!(
+        BackendCapabilities::FULL_FRAME_ONLY.require(RenderCapability::GlyphRuns),
+        Err(UnsupportedRenderCapability {
+            capability: RenderCapability::GlyphRuns,
+        })
+    );
+    assert_eq!(
+        BackendCapabilities::RETAINED_PARTIAL.require(RenderCapability::GlyphRuns),
+        Ok(())
+    );
+    assert_eq!(
+        BackendCapabilities::RETAINED_PARTIAL.require(RenderCapability::ImageResources),
+        Ok(())
+    );
 }
 
 struct Scene3DFrame {

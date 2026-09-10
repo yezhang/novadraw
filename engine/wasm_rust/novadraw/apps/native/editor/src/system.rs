@@ -447,7 +447,9 @@ impl EditorRuntime {
         self.core
             .runtime
             .complete_submission(submission.session_id, submission.frame_id, outcome);
-        if outcome == RenderOutcome::Retry || self.core.runtime.has_pending_update() {
+        if !matches!(outcome, RenderOutcome::Unsupported(_))
+            && (outcome == RenderOutcome::Retry || self.core.runtime.has_pending_update())
+        {
             self.host.request_redraw();
         }
         outcome

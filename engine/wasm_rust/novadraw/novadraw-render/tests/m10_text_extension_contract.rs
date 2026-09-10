@@ -1,8 +1,10 @@
 use novadraw_core::Color;
 use novadraw_render::{
-    BuiltinFont, FontData, FontDescriptor, FrameId, GlyphPaint, NdCanvas, RenderBackend,
-    RenderCommandKind, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceOp,
-    ResourcePayload, ResourceSync, ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine,
+    BuiltinFont, FontData, FontDescriptor, FontFaceRef, FrameId, GlyphPaint, GlyphRun, NdCanvas,
+    PositionedGlyph, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission,
+    ResourceDelta, ResourceId, ResourceOp, ResourcePayload, ResourceSync, ResourceUpdate,
+    SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
+    TextLayoutParts, TextLineMetrics,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -10,6 +12,78 @@ use uuid::Uuid;
 #[derive(Default)]
 struct RecordingBackend {
     glyph_runs: usize,
+}
+
+#[derive(Default)]
+struct ExternalTextEngine {
+    face: Option<FontFaceRef>,
+    revision: u64,
+}
+
+impl TextLayoutEngine for ExternalTextEngine {
+    fn revision(&self) -> u64 {
+        self.revision
+    }
+
+    fn register_font(
+        &mut self,
+        resource_id: ResourceId,
+        revision: u64,
+        _bytes: &[u8],
+    ) -> Result<(), TextError> {
+        self.face = Some(FontFaceRef::new(resource_id, revision, 0));
+        self.revision = self.revision.wrapping_add(1);
+        Ok(())
+    }
+
+    fn remove_font(&mut self, resource_id: ResourceId) {
+        if self
+            .face
+            .as_ref()
+            .is_some_and(|face| face.resource_id() == resource_id)
+        {
+            self.face = None;
+            self.revision = self.revision.wrapping_add(1);
+        }
+    }
+
+    fn layout(
+        &mut self,
+        text: &str,
+        font: &FontDescriptor,
+        constraints: TextConstraints,
+    ) -> Result<TextLayout, TextError> {
+        let face = self.face.clone().ok_or(TextError::NoUsableFont)?;
+        TextLayout::from_parts(TextLayoutParts {
+            text: text.to_owned(),
+            font: font.clone(),
+            constraints,
+            engine_revision: self.revision,
+            width: 24.0,
+            full_width: 24.0,
+            height: 16.0,
+            lines: vec![TextLineMetrics {
+                ascent: 11.0,
+                descent: 3.0,
+                leading: 2.0,
+                baseline: 11.0,
+                advance: 24.0,
+            }],
+            glyph_runs: vec![GlyphRun {
+                font: face,
+                font_size: font.size,
+                normalized_coords: Vec::new(),
+                skew_degrees: None,
+                glyphs: vec![PositionedGlyph {
+                    id: 1,
+                    x: 0.0,
+                    y: 11.0,
+                }],
+            }],
+            visible_range: 0..text.len(),
+            truncated: false,
+        })
+    }
 }
 
 impl RenderBackend for RecordingBackend {
@@ -89,4 +163,33 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
         ResourceSync::Delta(ResourceDelta { ref ops })
             if matches!(ops.as_slice(), [ResourceOp::Upsert(_)])
     ));
+}
+
+#[test]
+fn external_text_engine_constructs_non_empty_backend_neutral_layout() {
+    let font_id = ResourceId::new(Uuid::nil(), 7);
+    let mut engine = ExternalTextEngine::default();
+    engine.register_font(font_id, 3, b"external-font").unwrap();
+    let layout = engine
+        .layout(
+            "external",
+            &FontDescriptor::default(),
+            TextConstraints::UNBOUNDED,
+        )
+        .unwrap();
+
+    assert!(!layout.is_empty());
+    assert_eq!(layout.key().text(), "external");
+    assert_eq!(layout.key().engine_revision(), engine.revision());
+    assert_eq!(layout.glyph_runs()[0].font.resource_id(), font_id);
+
+    let mut canvas = NdCanvas::new();
+    canvas.set_foreground_color(Color::BLACK);
+    canvas.draw_text_layout(&layout, 4.0, 12.0);
+    assert!(
+        canvas
+            .commands()
+            .iter()
+            .any(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
+    );
 }

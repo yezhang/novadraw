@@ -300,6 +300,7 @@ pub trait Bounded {
 pub trait AsAny {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn type_name(&self) -> &'static str;
 }
 
 impl<T: Any> AsAny for T {
@@ -309,6 +310,59 @@ impl<T: Any> AsAny for T {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MeasureConstraints {
+    max_width: Option<f64>,
+    max_height: Option<f64>,
+}
+
+impl MeasureConstraints {
+    pub const UNBOUNDED: Self = Self {
+        max_width: None,
+        max_height: None,
+    };
+
+    pub fn from_hints(width_hint: f64, height_hint: f64) -> Self {
+        Self {
+            max_width: (width_hint >= 0.0 && width_hint.is_finite()).then_some(width_hint),
+            max_height: (height_hint >= 0.0 && height_hint.is_finite()).then_some(height_hint),
+        }
+    }
+
+    pub const fn max_width(self) -> Option<f64> {
+        self.max_width
+    }
+
+    pub const fn max_height(self) -> Option<f64> {
+        self.max_height
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct FigureMeasurement {
+    pub width: f64,
+    pub height: f64,
+    pub baseline: Option<f64>,
+}
+
+impl FigureMeasurement {
+    pub const fn new(width: f64, height: f64, baseline: Option<f64>) -> Self {
+        Self {
+            width,
+            height,
+            baseline,
+        }
+    }
+
+    pub const fn size(self) -> (f64, f64) {
+        (self.width, self.height)
     }
 }
 
@@ -366,9 +420,19 @@ pub trait Figure: AsAny {
         )
     }
 
+    fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
+        let (width, height) = self.intrinsic_size();
+        FigureMeasurement::new(width, height, None)
+    }
+
     /// Returns the Figure's intrinsic minimum size when no LayoutManager supplies one.
     fn intrinsic_minimum_size(&self) -> (f64, f64) {
         self.intrinsic_size()
+    }
+
+    fn intrinsic_minimum_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
+        let (width, height) = self.intrinsic_minimum_size();
+        FigureMeasurement::new(width, height, None)
     }
 
     /// 在 NodeState 当前 border-box 中执行精确命中。
@@ -524,6 +588,7 @@ pub trait BorderedFigure {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ShapeMutationError {
+    Faulted,
     UnknownFigure(FigureId),
     WrongCapability(FigureId),
     NonFiniteGeometry,
@@ -534,6 +599,7 @@ pub enum ShapeMutationError {
 impl std::fmt::Display for ShapeMutationError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure: {id:?}"),
             Self::WrongCapability(id) => {
                 write!(
@@ -654,12 +720,19 @@ pub trait FigureEventHandler {
 }
 
 /// Figure 的可选树挂载生命周期能力。
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FigureLifecycleContext {
+    pub figure_id: FigureId,
+    pub parent_id: FigureId,
+    pub runtime_namespace: crate::RuntimeNamespace,
+}
+
 pub trait FigureLifecycle {
     /// Figure 挂载到父节点后的 hook，对应 Draw2D `addNotify()`。
-    fn on_attached(&mut self, _parent_id: FigureId) {}
+    fn on_attached(&mut self, _context: FigureLifecycleContext) {}
 
     /// Figure 从父节点移除前的 hook，对应 Draw2D `removeNotify()`。
-    fn on_detached(&mut self, _parent_id: FigureId) {}
+    fn on_detached(&mut self, _context: FigureLifecycleContext) {}
 
     /// Recomputes Figure-specific derived data after node geometry changes.
     fn validate(&mut self, _bounds: Rectangle) {}

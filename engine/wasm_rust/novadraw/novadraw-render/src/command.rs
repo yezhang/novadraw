@@ -204,6 +204,16 @@ pub enum RenderCommandKind {
     },
 }
 
+impl RenderCommandKind {
+    pub const fn required_capability(&self) -> Option<crate::RenderCapability> {
+        match self {
+            Self::Image { .. } => Some(crate::RenderCapability::ImageResources),
+            Self::DrawGlyphRun { .. } => Some(crate::RenderCapability::GlyphRuns),
+            _ => None,
+        }
+    }
+}
+
 /// 线帽样式
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum LineCap {

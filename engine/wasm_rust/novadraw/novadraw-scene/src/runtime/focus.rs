@@ -25,6 +25,7 @@ pub enum FocusTraversalOutcome {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FocusError {
+    Faulted,
     UnknownFigure(FigureId),
     Detached(FigureId),
     Hidden(FigureId),
@@ -35,6 +36,7 @@ pub enum FocusError {
 impl fmt::Display for FocusError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::UnknownFigure(id) => write!(formatter, "unknown Figure ID: {id:?}"),
             Self::Detached(id) => write!(formatter, "Figure is detached: {id:?}"),
             Self::Hidden(id) => write!(formatter, "Figure is not effectively visible: {id:?}"),

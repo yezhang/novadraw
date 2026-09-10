@@ -1,6 +1,6 @@
 //! 可由 Native DemoApp 和 Web Validation Host 共同使用的场景目录。
 
-use novadraw::FigureTree;
+use novadraw::{FigureTree, Runtime};
 
 pub mod border;
 pub mod clip;
@@ -19,8 +19,8 @@ pub mod update;
 pub mod viewport;
 pub mod widget;
 
-pub type SceneEntry = (&'static str, Box<dyn FnMut() -> FigureTree>);
-pub type SceneFactory = Box<dyn FnMut() -> FigureTree>;
+pub type SceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
+pub type SceneFactory = Box<dyn FnMut() -> Runtime>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValidationKind {
@@ -51,11 +51,30 @@ impl SceneSpec {
             title,
             logical_size,
             kind,
+            factory: Box::new({
+                let mut factory = factory;
+                move || Runtime::new(factory())
+            }),
+        }
+    }
+
+    pub fn runtime(
+        id: &'static str,
+        title: &'static str,
+        logical_size: (u32, u32),
+        kind: ValidationKind,
+        factory: impl FnMut() -> Runtime + 'static,
+    ) -> Self {
+        Self {
+            id,
+            title,
+            logical_size,
+            kind,
             factory: Box::new(factory),
         }
     }
 
-    pub fn build(&mut self) -> FigureTree {
+    pub fn build(&mut self) -> Runtime {
         (self.factory)()
     }
 
@@ -66,6 +85,15 @@ impl SceneSpec {
         factory: impl FnMut() -> FigureTree + 'static,
     ) -> Self {
         Self::new(id, title, logical_size, ValidationKind::Visual, factory)
+    }
+
+    pub fn runtime_visual(
+        id: &'static str,
+        title: &'static str,
+        logical_size: (u32, u32),
+        factory: impl FnMut() -> Runtime + 'static,
+    ) -> Self {
+        Self::runtime(id, title, logical_size, ValidationKind::Visual, factory)
     }
 
     fn into_entry(self) -> SceneEntry {
@@ -140,7 +168,7 @@ mod tests {
                     scene.id
                 );
                 assert!(
-                    scene.build().get_contents().is_some(),
+                    scene.build().tree().get_contents().is_some(),
                     "scene has no contents: {}/{}",
                     suite.id,
                     scene.id

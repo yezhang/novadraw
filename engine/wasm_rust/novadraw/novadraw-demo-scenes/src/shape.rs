@@ -1168,7 +1168,7 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 // 场景映射
 // ============================================================================
 
-fn create_m10_runtime_mutations() -> novadraw::FigureTree {
+fn create_m10_runtime_mutations() -> novadraw::Runtime {
     let mut runtime = novadraw::Runtime::empty();
     let root = runtime.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
         0.0,
@@ -1219,7 +1219,7 @@ fn create_m10_runtime_mutations() -> novadraw::FigureTree {
     runtime
         .set_triangle_direction(triangle, novadraw::Direction::West)
         .expect("valid direction mutation");
-    runtime.into_tree()
+    runtime
 }
 
 pub fn suite() -> DemoSuite {
@@ -1284,7 +1284,7 @@ pub fn suite() -> DemoSuite {
                 ValidationKind::Visual,
                 create_scene_11_parent_child,
             ),
-            SceneSpec::new(
+            SceneSpec::runtime(
                 "m10-runtime-mutations",
                 "8:M10 Runtime Mutations",
                 size,

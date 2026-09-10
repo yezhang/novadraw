@@ -479,7 +479,7 @@ fn truncate(
     let constraints = TextConstraints::new(Some(width as f32))?;
     let ellipsis = engine.layout(ELLIPSIS, font, TextConstraints::UNBOUNDED)?;
     if width < ellipsis.width() as f64 {
-        return Ok(ellipsis.with_visibility(source, 0..0, true, full_width, constraints));
+        return ellipsis.with_visibility(source, 0..0, true, full_width, constraints);
     }
     let graphemes = source.graphemes(true).collect::<Vec<_>>();
     let mut low = 0;
@@ -504,7 +504,7 @@ fn truncate(
             font,
             TextConstraints::UNBOUNDED,
         )
-        .map(|layout| {
+        .and_then(|layout| {
             layout.with_visibility(source, 0..visible.len(), true, full_width, constraints)
         })
 }

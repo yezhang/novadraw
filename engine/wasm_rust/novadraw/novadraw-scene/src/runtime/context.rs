@@ -43,6 +43,48 @@ pub struct EventContext<'a> {
 }
 
 impl<'a> EventContext<'a> {
+    pub(crate) fn retired_focus_lost(
+        node: &crate::FigureNode,
+        pending: &mut PendingMutations,
+        updates: &mut UpdateManager,
+        tree: &mut FigureTree,
+    ) {
+        let Some(handler) = node.figure.event_handler() else {
+            return;
+        };
+        let bounds = node.figure_bounds();
+        let mut effects = Vec::new();
+        let mut context = EventContext::new(
+            node.id,
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            false,
+            None,
+            &mut effects,
+        );
+        handler.on_focus_lost(
+            &crate::FocusEvent {
+                kind: crate::FocusEventKind::Lost,
+                related_target: None,
+            },
+            &mut context,
+        );
+        for effect in effects {
+            match effect {
+                RuntimeEffect::Mutation(mutation) => pending.enqueue(mutation),
+                RuntimeEffect::Notification(effect) => updates.enqueue_notification_effect(effect),
+                RuntimeEffect::Repaint { block_id, rect } if tree.is_attached(block_id) => {
+                    updates.add_dirty_region(block_id, rect);
+                }
+                RuntimeEffect::Invalidate(id) if tree.is_attached(id) => {
+                    tree.mark_invalid(updates, id);
+                }
+                // Input state requests for a disposed target cannot revive it.
+                _ => {}
+            }
+        }
+    }
+
     fn new(
         target_id: FigureId,
         target_bounds: Rectangle,

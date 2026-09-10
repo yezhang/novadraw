@@ -26,7 +26,7 @@ const GRID_STEP: f64 = 100.0;
 const GRID_LINE_WIDTH: f64 = 2.0;
 
 pub struct FreeformDemo {
-    pub graph: FigureTree,
+    pub runtime: Runtime,
     pub pane: ScrollPaneHandle,
     pub scalable: ScaleHandle,
     pub content_layer: FigureId,
@@ -205,19 +205,22 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         )),
     );
 
-    let mut graph = runtime.into_tree();
-    graph.revalidate(pane.pane_id());
+    runtime
+        .prepare_frame()
+        .expect("stabilize freeform demo before viewport configuration");
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     if scale != 1.0 {
-        zoom.set_zoom(&mut graph, &mut updates, scale)
+        runtime
+            .set_zoom_at(&zoom, scale, None)
             .expect("set freeform demo scale");
     }
-    pane.viewport()
-        .set_view_location(&mut graph, &mut updates, view_location.0, view_location.1)
+    runtime
+        .set_view_location(pane.viewport(), view_location.0, view_location.1)
         .expect("set freeform demo view location");
+    let _ = runtime.prepare_frame();
 
     FreeformDemo {
-        graph,
+        runtime,
         pane,
         scalable,
         content_layer,
@@ -227,20 +230,20 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     }
 }
 
-fn layer_order_scene() -> FigureTree {
-    build_demo(1.0, (0.0, 0.0)).graph
+fn layer_order_scene() -> Runtime {
+    build_demo(1.0, (0.0, 0.0)).runtime
 }
 
-fn negative_origin_scene() -> FigureTree {
-    build_demo(1.0, (CONTENT_MIN_X, CONTENT_MIN_Y)).graph
+fn negative_origin_scene() -> Runtime {
+    build_demo(1.0, (CONTENT_MIN_X, CONTENT_MIN_Y)).runtime
 }
 
-fn positive_extent_scene() -> FigureTree {
-    build_demo(1.0, (CONTENT_MAX_X, CONTENT_MAX_Y)).graph
+fn positive_extent_scene() -> Runtime {
+    build_demo(1.0, (CONTENT_MAX_X, CONTENT_MAX_Y)).runtime
 }
 
-fn zoomed_scene() -> FigureTree {
-    build_demo(DEMO_SCALE, (-40.0, -30.0)).graph
+fn zoomed_scene() -> Runtime {
+    build_demo(DEMO_SCALE, (-40.0, -30.0)).runtime
 }
 
 pub fn suite() -> DemoSuite {
@@ -249,28 +252,28 @@ pub fn suite() -> DemoSuite {
         "layer-freeform",
         "Layer / Freeform",
         vec![
-            SceneSpec::new(
+            SceneSpec::runtime(
                 "layer-order",
                 "layer_order",
                 size,
                 ValidationKind::Interactive,
                 layer_order_scene,
             ),
-            SceneSpec::new(
+            SceneSpec::runtime(
                 "negative-origin",
                 "negative_origin",
                 size,
                 ValidationKind::Interactive,
                 negative_origin_scene,
             ),
-            SceneSpec::new(
+            SceneSpec::runtime(
                 "positive-extent",
                 "positive_extent",
                 size,
                 ValidationKind::Interactive,
                 positive_extent_scene,
             ),
-            SceneSpec::new(
+            SceneSpec::runtime(
                 "zoomed-freeform",
                 "zoomed_freeform",
                 size,
@@ -296,7 +299,9 @@ mod tests {
     fn shared_scene_preserves_extent_range_and_layer_hit_order() {
         let demo = build_demo(1.0, (0.0, 0.0));
         assert_eq!(
-            demo.graph.freeform_extent(demo.scalable.block_id()),
+            demo.runtime
+                .tree()
+                .freeform_extent(demo.scalable.block_id()),
             Ok(Rectangle::new(
                 CONTENT_MIN_X,
                 CONTENT_MIN_Y,
@@ -317,11 +322,13 @@ mod tests {
 
         let overlap = Point::new(PANE_X + 150.0, PANE_Y + 120.0);
         assert_eq!(
-            demo.graph.hit_test_simple((overlap.x(), overlap.y())),
+            demo.runtime
+                .tree()
+                .hit_test_simple((overlap.x(), overlap.y())),
             Some(demo.upper_overlap)
         );
         let empty = Point::new(PANE_X + 20.0, PANE_Y + 20.0);
-        let target = demo.graph.hit_test_simple((empty.x(), empty.y()));
+        let target = demo.runtime.tree().hit_test_simple((empty.x(), empty.y()));
         assert_ne!(target, Some(demo.content_layer));
         assert_ne!(target, Some(demo.overlay_layer));
     }
@@ -330,17 +337,16 @@ mod tests {
     fn shared_scene_reaches_four_edges_and_preserves_zoom_anchor() {
         let mut demo = build_demo(1.0, (0.0, 0.0));
         let viewport = demo.pane.viewport().clone();
-        let mut updates = UpdateManager::new();
 
-        viewport
-            .set_view_location(&mut demo.graph, &mut updates, CONTENT_MIN_X, CONTENT_MIN_Y)
+        demo.runtime
+            .set_view_location(&viewport, CONTENT_MIN_X, CONTENT_MIN_Y)
             .unwrap();
         assert_eq!(
             viewport.view_location(),
             Point::new(CONTENT_MIN_X, CONTENT_MIN_Y)
         );
-        viewport
-            .set_view_location(&mut demo.graph, &mut updates, f64::MAX, f64::MAX)
+        demo.runtime
+            .set_view_location(&viewport, f64::MAX, f64::MAX)
             .unwrap();
         let horizontal = viewport.horizontal_range();
         let vertical = viewport.vertical_range();
@@ -352,18 +358,12 @@ mod tests {
             )
         );
 
-        viewport
-            .set_view_location(&mut demo.graph, &mut updates, 0.0, 0.0)
-            .unwrap();
+        demo.runtime.set_view_location(&viewport, 0.0, 0.0).unwrap();
         let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
         zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
-        zoom.set_zoom_at(
-            &mut demo.graph,
-            &mut updates,
-            2.0,
-            Some(Point::new(60.0, 40.0)),
-        )
-        .unwrap();
+        demo.runtime
+            .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
+            .unwrap();
         assert_eq!(viewport.view_location(), Point::new(30.0, 20.0));
         assert_eq!(viewport.horizontal_range().maximum, CONTENT_MAX_X);
         assert_eq!(viewport.vertical_range().maximum, CONTENT_MAX_Y);
@@ -371,11 +371,10 @@ mod tests {
 
     #[test]
     fn blank_viewport_area_routes_zoom_to_direct_scalable_contents() {
-        let demo = build_demo(1.0, (0.0, 0.0));
+        let mut demo = build_demo(1.0, (0.0, 0.0));
         let scalable = demo.scalable.clone();
-        let mut runtime = Runtime::new(demo.graph);
 
-        runtime.dispatch_zoom(ZoomEvent::new(
+        demo.runtime.dispatch_zoom(ZoomEvent::new(
             PANE_X + 20.0,
             PANE_Y + 20.0,
             2.0,

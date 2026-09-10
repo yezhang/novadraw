@@ -43,6 +43,11 @@ pub struct InteractionState {
 }
 
 impl InteractionState {
+    pub(crate) fn forget_figures(&mut self, ids: &HashSet<FigureId>) {
+        self.focus_owner = self.focus_owner.filter(|id| !ids.contains(id));
+        self.retain_non_focus_figures(|id| !ids.contains(&id));
+    }
+
     pub fn mouse_target(&self) -> Option<FigureId> {
         self.pointer_target(PointerId::PRIMARY)
     }

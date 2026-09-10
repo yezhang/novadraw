@@ -3,6 +3,10 @@ use std::{collections::HashSet, error::Error, fmt};
 use super::{FigureId, FigureTree, NodeState, point_in_rect};
 use crate::{ChildClippingStrategy, Figure, HitParticipation};
 
+const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
+const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
+const RECURSIVE_STACK_GROWTH: usize = 4 * 1024 * 1024;
+
 /// Read-only view of the current node passed to a tree search strategy.
 #[derive(Clone, Copy)]
 pub struct TreeSearchContext<'a> {
@@ -112,7 +116,7 @@ impl FigureTree {
     ) -> Option<(FigureId, Vec<FigureId>)> {
         let start_id = self.contents.unwrap_or(self.root);
         let mut path = Vec::new();
-        self.hit_test_from_with(start_id, point, &mut path, search)
+        self.hit_test_from_with(start_id, point, &mut path, search, 0)
     }
 
     /// Runs hit-testing while excluding complete subtrees rooted at the given IDs.
@@ -210,6 +214,23 @@ impl FigureTree {
         point: (f64, f64),
         path: &mut Vec<FigureId>,
         search: &mut dyn TreeSearch,
+        depth: usize,
+    ) -> Option<(FigureId, Vec<FigureId>)> {
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+                self.hit_test_from_with_inner(id, point, path, search, depth)
+            });
+        }
+        self.hit_test_from_with_inner(id, point, path, search, depth)
+    }
+
+    fn hit_test_from_with_inner(
+        &self,
+        id: FigureId,
+        point: (f64, f64),
+        path: &mut Vec<FigureId>,
+        search: &mut dyn TreeSearch,
+        depth: usize,
     ) -> Option<(FigureId, Vec<FigureId>)> {
         let node = self.blocks.get(id)?;
         if !node.is_visible || !node.is_enabled {
@@ -238,7 +259,8 @@ impl FigureTree {
             let mut child_point = local_point;
             if node.child_transform().apply_inverse_to(&mut child_point) {
                 for &child_id in node.children.iter().rev() {
-                    if let Some(hit) = self.hit_test_from_with(child_id, child_point, path, search)
+                    if let Some(hit) =
+                        self.hit_test_from_with(child_id, child_point, path, search, depth + 1)
                     {
                         return Some(hit);
                     }

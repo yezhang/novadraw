@@ -1,9 +1,9 @@
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
-    BorderConstraint, BorderRegion, ChildClippingStrategy, EventContext, Figure,
-    FigureEventHandler, FigureId, FigureTree, GridLayout, LayerFigure, LayerKey, LayerPlacement,
-    LayoutError, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,
-    RuntimeMutationError, XYConstraint, XYLayout,
+    BorderConstraint, BorderRegion, ChildClippingStrategy, ChildPolicy, EventContext, Figure,
+    FigureContainer, FigureEventHandler, FigureId, FigureTree, GraphMutationError, GridLayout,
+    LayerFigure, LayerKey, LayerPlacement, LayoutError, MouseButton, MouseEvent, Rectangle,
+    RectangleFigure, Runtime, RuntimeMutationError, XYConstraint, XYLayout,
 };
 
 #[test]
@@ -242,6 +242,44 @@ fn ordinary_child_order_api_rejects_layered_panes() {
 }
 
 #[test]
+fn checked_topology_mutations_preserve_error_categories() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let single = tree
+        .builder()
+        .add_child_to(root, Box::new(SingleChildFigure));
+    let mut runtime = Runtime::new(tree);
+    runtime
+        .try_add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+
+    assert_eq!(
+        runtime.try_add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),),
+        Err(RuntimeMutationError::Graph(
+            GraphMutationError::ChildLimitExceeded { limit: 1 }
+        ))
+    );
+
+    let (foreign_runtime, foreign_root, _) = runtime_with_child();
+    assert_eq!(
+        runtime.try_reparent(root, foreign_root),
+        Err(RuntimeMutationError::ForeignRuntime(foreign_root))
+    );
+    drop(foreign_runtime);
+
+    let child = runtime
+        .try_add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+    runtime.dispose_subtree(child).unwrap();
+    assert_eq!(
+        runtime.try_remove_figure(root, child),
+        Err(RuntimeMutationError::UnknownOrDisposedFigure(child))
+    );
+}
+
+#[test]
 fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
     let mut tree = FigureTree::new();
     let root = tree
@@ -327,5 +365,27 @@ impl FigureEventHandler for DeferredMutationFigure {
         context.set_preferred_size_later(self.child, (60.0, 70.0));
         context.set_minimum_size_later(self.child, (20.0, 30.0));
         true
+    }
+}
+
+struct SingleChildFigure;
+
+impl Figure for SingleChildFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 100.0, 100.0)
+    }
+
+    fn name(&self) -> &'static str {
+        "SingleChildFigure"
+    }
+
+    fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+}
+
+impl FigureContainer for SingleChildFigure {
+    fn child_policy(&self) -> ChildPolicy {
+        ChildPolicy::Single
     }
 }

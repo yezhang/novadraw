@@ -48,6 +48,7 @@ pub enum ResourceStatus {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ResourceError {
+    Faulted,
     WrongNamespace,
     UnknownResource,
     KindMismatch {
@@ -62,6 +63,7 @@ pub enum ResourceError {
 impl fmt::Display for ResourceError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::WrongNamespace => formatter.write_str("resource belongs to another runtime"),
             Self::UnknownResource => formatter.write_str("resource does not exist"),
             Self::KindMismatch { expected, actual } => {

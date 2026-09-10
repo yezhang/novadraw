@@ -230,6 +230,56 @@ impl ResourceSync {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BackendSessionDecision {
+    Initialize,
+    Continue,
+    Replace,
+    RejectStale,
+    RejectMissingSnapshot,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BackendSessionGate {
+    active: Option<BackendSessionId>,
+}
+
+impl BackendSessionGate {
+    pub const fn active_session(self) -> Option<BackendSessionId> {
+        self.active
+    }
+
+    pub fn accept(
+        &mut self,
+        incoming: BackendSessionId,
+        resources: &ResourceSync,
+    ) -> BackendSessionDecision {
+        let transition = match self.active {
+            None => BackendSessionDecision::Initialize,
+            Some(active) if incoming == active => BackendSessionDecision::Continue,
+            Some(active)
+                if incoming.runtime_namespace() == active.runtime_namespace()
+                    && incoming.generation() < active.generation() =>
+            {
+                BackendSessionDecision::RejectStale
+            }
+            Some(_) => BackendSessionDecision::Replace,
+        };
+        match transition {
+            BackendSessionDecision::Initialize | BackendSessionDecision::Replace
+                if !matches!(resources, ResourceSync::Snapshot(_)) =>
+            {
+                BackendSessionDecision::RejectMissingSnapshot
+            }
+            BackendSessionDecision::Initialize | BackendSessionDecision::Replace => {
+                self.active = Some(incoming);
+                transition
+            }
+            _ => transition,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub enum DamageMode {
     #[default]
@@ -417,5 +467,50 @@ mod tests {
     fn empty_snapshot_still_represents_cache_replacement() {
         assert!(!ResourceSync::Snapshot(ResourceSnapshot::default()).is_empty());
         assert!(ResourceSync::Delta(ResourceDelta::default()).is_empty());
+    }
+
+    #[test]
+    fn backend_session_gate_requires_snapshot_baselines_and_rejects_stale_generations() {
+        let first = BackendSessionId::initial(Uuid::from_u128(1));
+        let second = first.next().unwrap();
+        let other = BackendSessionId::initial(Uuid::from_u128(2));
+        let delta = ResourceSync::Delta(ResourceDelta::default());
+        let snapshot = ResourceSync::Snapshot(ResourceSnapshot::default());
+        let mut gate = BackendSessionGate::default();
+
+        assert_eq!(
+            gate.accept(first, &delta),
+            BackendSessionDecision::RejectMissingSnapshot
+        );
+        assert_eq!(gate.active_session(), None);
+        assert_eq!(
+            gate.accept(first, &snapshot),
+            BackendSessionDecision::Initialize
+        );
+        assert_eq!(gate.accept(first, &delta), BackendSessionDecision::Continue);
+        assert_eq!(
+            gate.accept(second, &delta),
+            BackendSessionDecision::RejectMissingSnapshot
+        );
+        assert_eq!(gate.active_session(), Some(first));
+        assert_eq!(
+            gate.accept(second, &snapshot),
+            BackendSessionDecision::Replace
+        );
+        assert_eq!(
+            gate.accept(first, &snapshot),
+            BackendSessionDecision::RejectStale
+        );
+        assert_eq!(gate.active_session(), Some(second));
+        assert_eq!(
+            gate.accept(other, &delta),
+            BackendSessionDecision::RejectMissingSnapshot
+        );
+        assert_eq!(gate.active_session(), Some(second));
+        assert_eq!(
+            gate.accept(other, &snapshot),
+            BackendSessionDecision::Replace
+        );
+        assert_eq!(gate.active_session(), Some(other));
     }
 }

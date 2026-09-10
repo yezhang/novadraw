@@ -1,5 +1,3 @@
-use slotmap::Key;
-
 use novadraw_scene::{
     EventContext, Figure, FigureEventHandler, FigureTree, LayerError, LayerFigure, LayerKey,
     LayerPlacement, LayeredPane, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,

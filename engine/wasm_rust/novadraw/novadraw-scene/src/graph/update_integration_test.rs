@@ -1,6 +1,5 @@
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
-use slotmap::Key;
 
 use crate::{
     BorderConstraint, BorderRegion, FigureId, FigureTree, GraphMutationError, InteractionState,

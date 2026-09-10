@@ -18,7 +18,7 @@ use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer, RendererOptions};
 
 use crate::command::RenderCommand;
-use crate::submission::{DamageMode, ResourcePayload};
+use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
 use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
@@ -175,31 +175,6 @@ fn clip_restore_plan<'a>(
     )
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum BackendSessionTransition {
-    Initialize,
-    Continue,
-    Replace,
-    Stale,
-}
-
-fn backend_session_transition(
-    active: Option<crate::BackendSessionId>,
-    incoming: crate::BackendSessionId,
-) -> BackendSessionTransition {
-    match active {
-        None => BackendSessionTransition::Initialize,
-        Some(active) if incoming.runtime_namespace() != active.runtime_namespace() => {
-            BackendSessionTransition::Replace
-        }
-        Some(active) if incoming == active => BackendSessionTransition::Continue,
-        Some(active) if incoming.generation() > active.generation() => {
-            BackendSessionTransition::Replace
-        }
-        Some(_) => BackendSessionTransition::Stale,
-    }
-}
-
 pub struct VelloRenderer {
     render_context: RenderContext,
     renderers: Vec<Option<Renderer>>,
@@ -210,7 +185,7 @@ pub struct VelloRenderer {
     pending_resize: Option<(u32, u32, f64)>,
     /// 状态栈
     state_stack: Vec<RenderState>,
-    active_session: Option<crate::BackendSessionId>,
+    session_gate: BackendSessionGate,
     font_faces: HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
     images: HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
@@ -251,7 +226,7 @@ impl VelloRenderer {
             surface_suspended: false,
             pending_resize: None,
             state_stack: vec![RenderState::default()],
-            active_session: None,
+            session_gate: BackendSessionGate::default(),
             font_faces: HashMap::new(),
             images: HashMap::new(),
             retained_texture: None,
@@ -264,11 +239,15 @@ impl VelloRenderer {
     }
 
     fn sync_submission_resources(&mut self, submission: &crate::RenderSubmission) -> bool {
-        match backend_session_transition(self.active_session, submission.session_id) {
-            BackendSessionTransition::Stale => return false,
-            BackendSessionTransition::Continue => {}
-            BackendSessionTransition::Initialize | BackendSessionTransition::Replace => {
-                self.active_session = Some(submission.session_id);
+        match self
+            .session_gate
+            .accept(submission.session_id, &submission.resources)
+        {
+            BackendSessionDecision::RejectStale | BackendSessionDecision::RejectMissingSnapshot => {
+                return false;
+            }
+            BackendSessionDecision::Continue => {}
+            BackendSessionDecision::Initialize | BackendSessionDecision::Replace => {
                 self.font_faces.clear();
                 self.images.clear();
                 self.retained_texture = None;
@@ -1098,6 +1077,8 @@ impl VelloRenderer {
 impl RenderBackend for VelloRenderer {
     fn capabilities(&self) -> BackendCapabilities {
         BackendCapabilities::RETAINED_PARTIAL
+            .with_glyph_runs()
+            .with_image_resources()
     }
 
     fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
@@ -1573,36 +1554,6 @@ mod tests {
 
         assert_eq!(pop_count, 1);
         assert!(clips_to_replay.is_empty());
-    }
-
-    #[test]
-    fn backend_session_transition_rejects_stale_generations() {
-        let first = crate::BackendSessionId::initial(Uuid::nil());
-        let second = first.next().unwrap();
-
-        assert_eq!(
-            backend_session_transition(None, first),
-            BackendSessionTransition::Initialize
-        );
-        assert_eq!(
-            backend_session_transition(Some(first), first),
-            BackendSessionTransition::Continue
-        );
-        assert_eq!(
-            backend_session_transition(Some(first), second),
-            BackendSessionTransition::Replace
-        );
-        assert_eq!(
-            backend_session_transition(Some(second), first),
-            BackendSessionTransition::Stale
-        );
-        assert_eq!(
-            backend_session_transition(
-                Some(first),
-                crate::BackendSessionId::initial(Uuid::from_u128(1))
-            ),
-            BackendSessionTransition::Replace
-        );
     }
 
     #[test]

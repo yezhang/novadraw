@@ -8,6 +8,7 @@ use novadraw_render::{
     BackendCapabilities, BackendSessionId, BuiltinFont, DamageMode, FontData, FontDescriptor,
     FrameId, ImageData, ImageDecodeError, NdCanvas, RenderOutcome, RenderSubmission, ResourceId,
     ResourceSync, SurfaceInfo, TextConstraints, TextError, TextLayout, TextLayoutEngine,
+    UnsupportedRenderCapability,
 };
 
 use crate::PropertyValue;
@@ -15,7 +16,9 @@ use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
 use crate::mutation::{
-    PendingMutation, PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
+    ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
+    FigureComponentUpdate, PendingMutation, PendingMutationKind, RuntimeMutationError,
+    SizeOverrideKind,
 };
 use crate::{
     ActionListener, Alignment, AncestorListener, AnchorGeometry, AnchorGeometryKey, AnchorId,
@@ -26,11 +29,12 @@ use crate::{
     FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
     ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
     LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
-    LayoutListener, LayoutManager, ListenerId, MouseButton, PendingMutations,
-    PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry, ResourceStatus,
-    RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
-    ShapeMutationError, StackLayout, TextPlacement, TreeOrderFocusTraversal, UpdateEvent,
-    UpdateListener, UpdateManager, ValidationError, WheelEvent, WidgetError, ZoomEvent,
+    LayoutListener, LayoutManager, ListenerId, ListenerScope, MouseButton, ObservationListener,
+    PendingMutations, PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry,
+    ResourceStatus, RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
+    ShapeMutationError, StableQueryError, StableSceneQuery, StackLayout, TextPlacement,
+    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
+    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
 use novadraw_geometry::{Dimension, Vec2};
 
@@ -74,31 +78,48 @@ impl DerivedWorkSet {
     }
 }
 
-#[derive(Clone, Debug)]
-enum StabilizationError {
+#[derive(Clone, Debug, PartialEq)]
+pub enum FramePreparationError {
+    Faulted,
     Text(TextError),
     Validation(ValidationError),
+    UnsupportedRenderCapability(UnsupportedRenderCapability),
     DidNotConverge,
 }
 
-impl fmt::Display for StabilizationError {
+impl fmt::Display for FramePreparationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::Text(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
+            Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
             Self::DidNotConverge => formatter.write_str("derived state did not converge"),
         }
     }
 }
 
+impl std::error::Error for FramePreparationError {}
+
+#[derive(Clone, Debug)]
+pub enum FramePreparation {
+    Ready(RenderSubmission),
+    Idle,
+    Suspended,
+    AwaitingCompletion,
+    Error(FramePreparationError),
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BackendSessionError {
+    Faulted,
     Exhausted,
 }
 
 impl fmt::Display for BackendSessionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::Exhausted => formatter.write_str("backend session id space is exhausted"),
         }
     }
@@ -130,7 +151,8 @@ pub struct Runtime {
     deferred_mutation_errors: VecDeque<RuntimeMutationError>,
     derivation_epoch: u64,
     stable_epoch: u64,
-    last_stabilization_error: Option<StabilizationError>,
+    last_stabilization_error: Option<FramePreparationError>,
+    faulted: bool,
 }
 
 struct InFlightFrame {
@@ -145,14 +167,15 @@ impl Runtime {
     }
 
     pub fn with_text_layout_engine(tree: FigureTree, text: Box<dyn TextLayoutEngine>) -> Self {
-        let resources = ResourceRegistry::new();
+        let namespace = tree.namespace();
+        let resources = ResourceRegistry::with_namespace(namespace.as_uuid());
         let backend_session_id = BackendSessionId::initial(resources.namespace());
         let mut runtime = Self {
             tree,
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
             focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
-            updates: UpdateManager::new(),
+            updates: UpdateManager::with_namespace(namespace),
             mutations: PendingMutations::new(),
             full_redraw_pending: true,
             backend_session_id,
@@ -164,15 +187,17 @@ impl Runtime {
             text,
             builtin_fonts: HashMap::new(),
             layered_panes: HashMap::new(),
-            connections: ConnectionRuntime::new(),
+            connections: ConnectionRuntime::with_namespace(namespace),
             anchor_geometries: HashMap::new(),
             connection_error: None,
             deferred_mutation_errors: VecDeque::new(),
             derivation_epoch: 0,
             stable_epoch: 0,
             last_stabilization_error: None,
+            faulted: false,
         };
         runtime.initialize_layered_panes();
+        runtime.activate_attached_figures();
         runtime
     }
 
@@ -224,14 +249,22 @@ impl Runtime {
         font: &FontDescriptor,
         constraints: TextConstraints,
     ) -> Result<TextLayout, TextError> {
-        self.text.layout(text, font, constraints)
+        if self.faulted {
+            return Err(TextError::RuntimeFaulted);
+        }
+        self.guarded(|runtime| runtime.text.layout(text, font, constraints))
     }
 
     /// Refreshes immutable Label text snapshots from the current Runtime-owned text engine.
     pub fn refresh_label_layouts(&mut self) -> Result<(), TextError> {
-        self.refresh_label_intrinsic_metrics()?;
-        self.refresh_label_presentations()?;
-        Ok(())
+        if self.faulted {
+            return Err(TextError::RuntimeFaulted);
+        }
+        self.guarded(|runtime| {
+            runtime.refresh_label_intrinsic_metrics()?;
+            runtime.refresh_label_presentations()?;
+            Ok(())
+        })
     }
 
     fn refresh_label_intrinsic_metrics(&mut self) -> Result<bool, TextError> {
@@ -351,17 +384,38 @@ impl Runtime {
     }
 
     pub fn register_connection_anchor(&mut self, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
-        self.connections.register_anchor(anchor)
+        self.try_register_connection_anchor(anchor)
+            .expect("cannot register an Anchor in a faulted Runtime")
+    }
+
+    pub fn try_register_connection_anchor(
+        &mut self,
+        anchor: Box<dyn ConnectionAnchor>,
+    ) -> Result<AnchorId, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            Ok(runtime.connections.register_anchor(anchor))
+        })
     }
 
     pub fn remove_connection_anchor(
         &mut self,
         anchor: AnchorId,
     ) -> Result<Box<dyn ConnectionAnchor>, ConnectionRuntimeError> {
-        self.connections.remove_anchor(anchor)
+        self.guarded_connection_mutation(|runtime| runtime.connections.remove_anchor(anchor))
     }
 
     pub fn set_anchor_geometry(
+        &mut self,
+        figure: FigureId,
+        key: AnchorGeometryKey,
+        geometry: AnchorGeometry,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            runtime.set_anchor_geometry_inner(figure, key, geometry)
+        })
+    }
+
+    fn set_anchor_geometry_inner(
         &mut self,
         figure: FigureId,
         key: AnchorGeometryKey,
@@ -396,17 +450,37 @@ impl Runtime {
     }
 
     pub fn register_connection_router(&mut self, router: Box<dyn ConnectionRouter>) -> RouterId {
-        self.connections.register_router(router)
+        self.try_register_connection_router(router)
+            .expect("cannot register a Router in a faulted Runtime")
+    }
+
+    pub fn try_register_connection_router(
+        &mut self,
+        router: Box<dyn ConnectionRouter>,
+    ) -> Result<RouterId, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            Ok(runtime.connections.register_router(router))
+        })
     }
 
     pub fn remove_connection_router(
         &mut self,
         router: RouterId,
     ) -> Result<Box<dyn ConnectionRouter>, ConnectionRuntimeError> {
-        self.connections.remove_router(router)
+        self.guarded_connection_mutation(|runtime| runtime.connections.remove_router(router))
     }
 
     pub fn set_connection_layer_router(
+        &mut self,
+        layer: FigureId,
+        router: RouterId,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(|runtime| {
+            runtime.set_connection_layer_router_inner(layer, router)
+        })
+    }
+
+    fn set_connection_layer_router_inner(
         &mut self,
         layer: FigureId,
         router: RouterId,
@@ -418,6 +492,19 @@ impl Runtime {
     }
 
     pub fn register_connection_state(
+        &mut self,
+        figure: FigureId,
+        source: Option<AnchorId>,
+        target: Option<AnchorId>,
+        router: RouterBinding,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Result<ConnectionId, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            runtime.register_connection_state_inner(figure, source, target, router, constraint)
+        })
+    }
+
+    fn register_connection_state_inner(
         &mut self,
         figure: FigureId,
         source: Option<AnchorId>,
@@ -441,7 +528,9 @@ impl Runtime {
         &mut self,
         connection: ConnectionId,
     ) -> Result<(), ConnectionRuntimeError> {
-        self.connections.remove_connection(connection)
+        self.guarded_connection_mutation(|runtime| {
+            runtime.connections.remove_connection(connection)
+        })
     }
 
     pub fn connection_state(
@@ -456,7 +545,9 @@ impl Runtime {
         connection: ConnectionId,
         source: Option<AnchorId>,
     ) -> Result<bool, ConnectionRuntimeError> {
-        self.connections.set_source(connection, source)
+        self.guarded_connection_mutation(|runtime| {
+            runtime.connections.set_source(connection, source)
+        })
     }
 
     pub fn set_connection_target(
@@ -464,7 +555,9 @@ impl Runtime {
         connection: ConnectionId,
         target: Option<AnchorId>,
     ) -> Result<bool, ConnectionRuntimeError> {
-        self.connections.set_target(connection, target)
+        self.guarded_connection_mutation(|runtime| {
+            runtime.connections.set_target(connection, target)
+        })
     }
 
     pub fn set_connection_router_binding(
@@ -472,7 +565,9 @@ impl Runtime {
         connection: ConnectionId,
         router: RouterBinding,
     ) -> Result<bool, ConnectionRuntimeError> {
-        self.connections.set_router_binding(connection, router)
+        self.guarded_connection_mutation(|runtime| {
+            runtime.connections.set_router_binding(connection, router)
+        })
     }
 
     pub fn set_connection_constraint(
@@ -480,10 +575,22 @@ impl Runtime {
         connection: ConnectionId,
         constraint: Option<Box<dyn RoutingConstraint>>,
     ) -> Result<(), ConnectionRuntimeError> {
-        self.connections.set_constraint(connection, constraint)
+        self.guarded_connection_mutation(move |runtime| {
+            runtime.connections.set_constraint(connection, constraint)
+        })
     }
 
     pub fn resolve_connection_route(
+        &mut self,
+        connection: ConnectionId,
+        routing_space: CoordinateSpace,
+    ) -> Result<RouteOutput, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(|runtime| {
+            runtime.resolve_connection_route_inner(connection, routing_space)
+        })
+    }
+
+    fn resolve_connection_route_inner(
         &mut self,
         connection: ConnectionId,
         routing_space: CoordinateSpace,
@@ -544,7 +651,9 @@ impl Runtime {
         &mut self,
         subject: &DependencySubject,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
-        self.connections.invalidate_dependency(subject)
+        self.guarded_connection_mutation(|runtime| {
+            runtime.connections.invalidate_dependency(subject)
+        })
     }
 
     pub fn dirty_connections(&self) -> Vec<ConnectionId> {
@@ -560,7 +669,34 @@ impl Runtime {
     }
 
     pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
-        let id = self.tree.set_contents(figure);
+        self.try_set_contents(figure)
+            .expect("cannot set contents on this Runtime")
+    }
+
+    pub fn try_set_contents(
+        &mut self,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        if self.faulted {
+            return Err(RuntimeMutationError::Faulted);
+        }
+        Ok(self.guarded(|runtime| runtime.set_contents_inner(figure)))
+    }
+
+    fn set_contents_inner(&mut self, figure: Box<dyn Figure>) -> FigureId {
+        self.connections
+            .validate_disposal()
+            .expect("connection revision space exhausted");
+        let previous = self.tree.get_contents();
+        let id = self
+            .tree
+            .try_add_child_to(self.tree.synthetic_root(), figure)
+            .expect("synthetic root accepts contents");
+        if let Some(previous) = previous {
+            self.dispose_subtree(previous)
+                .expect("prevalidated contents disposal");
+        }
+        self.tree.designate_contents(id);
         self.register_label_icon_dependency(id);
         self.register_image_figure_dependency(id);
         if let Err(error) = self.connections.invalidate_all() {
@@ -571,15 +707,47 @@ impl Runtime {
         self.full_redraw_pending = true;
         self.tree.mark_invalid(&mut self.updates, id);
         self.tree.repaint(&mut self.updates, id, None);
+        self.tree
+            .complete_attachment(id, self.tree.synthetic_root());
         id
     }
 
     pub fn add_figure(&mut self, parent: FigureId, figure: Box<dyn Figure>) -> FigureId {
-        let id = self.tree.add_child(&mut self.updates, parent, figure);
+        self.try_add_figure(parent, figure)
+            .unwrap_or_else(|_| FigureId::null())
+    }
+
+    pub fn try_add_figure(
+        &mut self,
+        parent: FigureId,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| runtime.try_add_figure_inner(parent, figure))
+    }
+
+    fn try_add_figure_inner(
+        &mut self,
+        parent: FigureId,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        self.validate_attached_figure(parent)?;
+        if self.tree.is_layered_pane(parent) {
+            return Err(RuntimeMutationError::LayeredParent(parent));
+        }
+        self.add_figure_inner(parent, figure)
+    }
+
+    fn add_figure_inner(
+        &mut self,
+        parent: FigureId,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        let id = self.tree.try_add_child(&mut self.updates, parent, figure)?;
         self.register_layered_pane(id);
         self.register_label_icon_dependency(id);
         self.register_image_figure_dependency(id);
-        id
+        self.tree.complete_attachment(id, parent);
+        Ok(id)
     }
 
     pub fn add_layered_pane(
@@ -587,6 +755,18 @@ impl Runtime {
         parent: FigureId,
         bounds: Rectangle,
     ) -> Result<LayeredPaneHandle<'_>, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        let pane_id = self.guarded(|runtime| runtime.add_layered_pane_inner(parent, bounds))?;
+        Ok(LayeredPaneHandle::new(pane_id, self))
+    }
+
+    fn add_layered_pane_inner(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<FigureId, LayerError> {
         let pane_id = self.tree.try_add_child_to(
             parent,
             Box::new(LayeredPane::new(
@@ -600,18 +780,40 @@ impl Runtime {
         self.tree.mark_invalid(&mut self.updates, parent);
         self.tree.mark_invalid(&mut self.updates, pane_id);
         self.tree.repaint(&mut self.updates, pane_id, None);
-        Ok(LayeredPaneHandle::new(pane_id, self))
+        self.tree.complete_attachment(pane_id, parent);
+        Ok(pane_id)
     }
 
     pub fn layered_pane(&mut self, pane_id: FigureId) -> Result<LayeredPaneHandle<'_>, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        self.guarded(|runtime| runtime.validate_layered_pane_handle(pane_id))?;
+        Ok(LayeredPaneHandle::new(pane_id, self))
+    }
+
+    fn validate_layered_pane_handle(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
         if !self.tree.is_layered_pane(pane_id) || !self.tree.is_attached(pane_id) {
             return Err(LayerError::UnknownPane);
         }
         self.layered_panes.entry(pane_id).or_default();
-        Ok(LayeredPaneHandle::new(pane_id, self))
+        Ok(())
     }
 
     pub(crate) fn add_layer(
+        &mut self,
+        pane_id: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<FigureId, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        self.guarded(|runtime| runtime.add_layer_inner(pane_id, figure, key, placement))
+    }
+
+    fn add_layer_inner(
         &mut self,
         pane_id: FigureId,
         figure: Box<dyn Figure>,
@@ -650,10 +852,22 @@ impl Runtime {
         if child_is_layered_pane {
             self.register_layered_pane(child);
         }
+        self.tree.complete_attachment(child, pane_id);
         Ok(child)
     }
 
     pub(crate) fn remove_layer(
+        &mut self,
+        pane_id: FigureId,
+        key: &LayerKey,
+    ) -> Result<FigureId, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        self.guarded(|runtime| runtime.remove_layer_inner(pane_id, key))
+    }
+
+    fn remove_layer_inner(
         &mut self,
         pane_id: FigureId,
         key: &LayerKey,
@@ -663,22 +877,24 @@ impl Runtime {
         if self.tree.parent_id(child) != Some(pane_id) {
             return Err(LayerError::InconsistentState);
         }
-        if !self
-            .tree
-            .remove_layer_child(&mut self.updates, pane_id, child)
-        {
-            return Err(LayerError::InconsistentState);
-        }
-        self.layered_panes
-            .get_mut(&pane_id)
-            .expect("validated layered pane state must exist")
-            .remove_key(key);
-        self.invalidate_connection_figure_change(child, true);
-        self.retain_runtime_state();
+        self.dispose_subtree(child)
+            .map_err(|_| LayerError::InconsistentState)?;
         Ok(child)
     }
 
     pub(crate) fn move_layer(
+        &mut self,
+        pane_id: FigureId,
+        key: &LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<bool, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        self.guarded(|runtime| runtime.move_layer_inner(pane_id, key, placement))
+    }
+
+    fn move_layer_inner(
         &mut self,
         pane_id: FigureId,
         key: &LayerKey,
@@ -705,6 +921,19 @@ impl Runtime {
     }
 
     pub(crate) fn reparent_layer(
+        &mut self,
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) -> Result<bool, LayerError> {
+        if self.faulted {
+            return Err(LayerError::Faulted);
+        }
+        self.guarded(|runtime| runtime.reparent_layer_inner(child, new_pane, key, placement))
+    }
+
+    fn reparent_layer_inner(
         &mut self,
         child: FigureId,
         new_pane: FigureId,
@@ -759,6 +988,8 @@ impl Runtime {
             let _ = self.tree.move_child_to_index(new_pane, child, target_index);
         }
         self.invalidate_connection_figure_change(child, true);
+        self.tree.complete_detachment(child, old_parent);
+        self.tree.complete_attachment(child, new_pane);
         Ok(true)
     }
 
@@ -799,21 +1030,322 @@ impl Runtime {
     }
 
     pub fn remove_figure(&mut self, parent: FigureId, child: FigureId) -> bool {
-        let changed = self.tree.remove_child(&mut self.updates, parent, child);
-        if changed {
-            self.invalidate_connection_figure_change(child, true);
+        self.try_remove_figure(parent, child).unwrap_or(false)
+    }
+
+    pub fn try_remove_figure(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| runtime.try_remove_figure_inner(parent, child))
+    }
+
+    fn try_remove_figure_inner(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(parent)?;
+        self.validate_attached_figure(child)?;
+        if self.tree.is_layered_pane(parent) {
+            return Err(RuntimeMutationError::LayeredParent(parent));
         }
-        self.retain_interactive_figures();
-        changed
+        if self.tree.parent_id(child) != Some(parent) {
+            return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+        }
+        self.dispose_subtree(child)?;
+        Ok(true)
+    }
+
+    pub fn is_faulted(&self) -> bool {
+        self.faulted
+    }
+
+    pub fn component_revision(&self, figure: FigureId) -> Result<u64, RuntimeMutationError> {
+        self.validate_attached_figure(figure)?;
+        Ok(self
+            .tree
+            .block(figure)
+            .expect("attached Figure must have a node")
+            .component_revision)
+    }
+
+    pub fn update_component<U>(
+        &mut self,
+        figure: FigureId,
+        update: U,
+    ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
+    where
+        U: FigureComponentUpdate,
+    {
+        self.validate_attached_figure(figure)?;
+        let (previous_revision, revision, bounds, actual, old_visual_bounds, visible) = {
+            let node = self
+                .tree
+                .block(figure)
+                .expect("attached Figure must have a node");
+            let actual = node.figure.as_ref().type_name();
+            if node
+                .figure
+                .as_ref()
+                .as_any()
+                .downcast_ref::<U::Figure>()
+                .is_none()
+            {
+                return Err(ComponentUpdateError::WrongFigureType {
+                    figure,
+                    expected: std::any::type_name::<U::Figure>(),
+                    actual,
+                });
+            }
+            let revision = node
+                .component_revision
+                .checked_add(1)
+                .ok_or(ComponentUpdateError::RevisionExhausted(figure))?;
+            (
+                node.component_revision,
+                revision,
+                node.figure_bounds(),
+                actual,
+                node.visual_bounds(),
+                self.tree.is_effectively_visible(figure),
+            )
+        };
+        let context = FigureComponentContext {
+            figure_id: figure,
+            component_revision: previous_revision,
+            bounds,
+        };
+
+        self.guarded(move |runtime| {
+            let prepared = {
+                let node = runtime
+                    .tree
+                    .block(figure)
+                    .expect("validated Figure must remain attached during update");
+                let target = node
+                    .figure
+                    .as_ref()
+                    .as_any()
+                    .downcast_ref::<U::Figure>()
+                    .ok_or(ComponentUpdateError::WrongFigureType {
+                        figure,
+                        expected: std::any::type_name::<U::Figure>(),
+                        actual,
+                    })?;
+                update
+                    .prepare(target, context)
+                    .map_err(ComponentUpdateError::Rejected)?
+            };
+
+            let invalidation = prepared.invalidation;
+            if visible {
+                runtime.updates.add_dirty_region(figure, old_visual_bounds);
+            }
+
+            let node = runtime
+                .tree
+                .block_mut(figure)
+                .expect("validated Figure must remain attached during update");
+            let target = node
+                .figure
+                .as_mut()
+                .as_any_mut()
+                .downcast_mut::<U::Figure>()
+                .expect("Figure type cannot change during component update");
+            U::commit(prepared.value, target);
+            node.component_revision = revision;
+
+            if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
+                runtime.tree.mark_invalid(&mut runtime.updates, figure);
+            }
+            if invalidation != ComponentInvalidation::Paint {
+                runtime.invalidate_connection_figure_change(figure, false);
+            }
+            runtime.tree.repaint(&mut runtime.updates, figure, None);
+
+            Ok(ComponentUpdateReceipt {
+                figure,
+                previous_revision,
+                revision,
+                invalidation,
+            })
+        })
+    }
+
+    pub fn dispose_subtree(&mut self, root: FigureId) -> Result<(), RuntimeMutationError> {
+        self.validate_attached_figure(root)?;
+        let ids = self
+            .tree
+            .disposal_ids(root)
+            .map_err(RuntimeMutationError::Graph)?;
+        let parent = self
+            .tree
+            .parent_id(root)
+            .ok_or(RuntimeMutationError::Graph(
+                crate::GraphMutationError::InvalidParentRelation,
+            ))?;
+        self.connections
+            .validate_disposal()
+            .map_err(|_| RuntimeMutationError::Rejected)?;
+        let synthetic_root = self.tree.synthetic_root();
+        self.guarded(|runtime| {
+            let damage = runtime.updates.freeze_removed_damage(&runtime.tree, &ids);
+            let removed: std::collections::HashSet<_> = ids.iter().copied().collect();
+            let focused = runtime
+                .interaction
+                .focus_owner()
+                .filter(|id| removed.contains(id));
+            let retired = runtime.tree.extract_subtree(&ids, &mut runtime.updates);
+            runtime.interaction.forget_figures(&removed);
+            runtime.updates.forget_figures(&removed);
+            let listeners = runtime.updates.retire_listeners(&removed);
+            let connections = runtime.connections.retire_figures(&removed);
+            runtime
+                .resources
+                .retain_dependencies(|id| !removed.contains(&id));
+            runtime.layered_panes.retain(|id, state| {
+                state.retain_children(|child| !removed.contains(&child));
+                !removed.contains(id)
+            });
+            runtime
+                .anchor_geometries
+                .retain(|(id, _), _| !removed.contains(id));
+            for rect in damage {
+                runtime.updates.add_dirty_region(synthetic_root, rect);
+            }
+            runtime.tree.mark_invalid(&mut runtime.updates, parent);
+            if let Some(node) = retired.nodes.iter().find(|node| Some(node.id) == focused) {
+                crate::EventContext::retired_focus_lost(
+                    node,
+                    &mut runtime.mutations,
+                    &mut runtime.updates,
+                    &mut runtime.tree,
+                );
+            }
+            retired.complete();
+            drop(connections);
+            drop(listeners);
+        });
+        Ok(())
+    }
+
+    fn guarded<T>(&mut self, operation: impl FnOnce(&mut Self) -> T) -> T {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self))) {
+            Ok(value) => value,
+            Err(payload) => {
+                self.faulted = true;
+                std::panic::resume_unwind(payload)
+            }
+        }
+    }
+
+    fn guarded_runtime_mutation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, RuntimeMutationError>,
+    ) -> Result<T, RuntimeMutationError> {
+        if self.faulted {
+            return Err(RuntimeMutationError::Faulted);
+        }
+        self.guarded(operation)
+    }
+
+    fn guarded_shape_mutation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, ShapeMutationError>,
+    ) -> Result<T, ShapeMutationError> {
+        if self.faulted {
+            return Err(ShapeMutationError::Faulted);
+        }
+        self.guarded(operation)
+    }
+
+    fn guarded_widget_mutation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, WidgetError>,
+    ) -> Result<T, WidgetError> {
+        if self.faulted {
+            return Err(WidgetError::Faulted);
+        }
+        self.guarded(operation)
+    }
+
+    fn guarded_connection_mutation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, ConnectionRuntimeError>,
+    ) -> Result<T, ConnectionRuntimeError> {
+        if self.faulted {
+            return Err(ConnectionRuntimeError::Faulted);
+        }
+        self.guarded(operation)
+    }
+
+    fn guarded_resource_mutation<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, ResourceError>,
+    ) -> Result<T, ResourceError> {
+        if self.faulted {
+            return Err(ResourceError::Faulted);
+        }
+        self.guarded(operation)
+    }
+
+    fn guarded_bool_mutation(&mut self, operation: impl FnOnce(&mut Self) -> bool) -> bool {
+        if self.faulted {
+            return false;
+        }
+        self.guarded(operation)
     }
 
     pub fn reparent(&mut self, child: FigureId, new_parent: FigureId) -> bool {
-        let changed = self.tree.reparent(&mut self.updates, child, new_parent);
+        self.try_reparent(child, new_parent).unwrap_or(false)
+    }
+
+    pub fn try_reparent(
+        &mut self,
+        child: FigureId,
+        new_parent: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| runtime.try_reparent_inner(child, new_parent))
+    }
+
+    fn try_reparent_inner(
+        &mut self,
+        child: FigureId,
+        new_parent: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(child)?;
+        self.validate_attached_figure(new_parent)?;
+        let old_parent = self.tree.parent_id(child);
+        if old_parent.is_some_and(|parent| self.tree.is_layered_pane(parent)) {
+            return Err(RuntimeMutationError::LayeredParent(
+                old_parent.expect("checked parent"),
+            ));
+        }
+        if self.tree.is_layered_pane(new_parent) {
+            return Err(RuntimeMutationError::LayeredParent(new_parent));
+        }
+        self.reparent_inner(child, new_parent)
+    }
+
+    fn reparent_inner(
+        &mut self,
+        child: FigureId,
+        new_parent: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        let old_parent = self.tree.parent_id(child);
+        let changed = self
+            .tree
+            .try_reparent(&mut self.updates, child, new_parent)?;
         if changed {
             self.invalidate_connection_figure_change(child, true);
             self.retain_interactive_figures();
+            self.tree
+                .complete_detachment(child, old_parent.expect("validated old parent"));
+            self.tree.complete_attachment(child, new_parent);
         }
-        changed
+        Ok(changed)
     }
 
     pub fn set_layout_manager(
@@ -832,6 +1364,16 @@ impl Runtime {
     }
 
     fn replace_layout_manager(
+        &mut self,
+        container: FigureId,
+        manager: Option<Box<dyn LayoutManager>>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.replace_layout_manager_inner(container, manager)
+        })
+    }
+
+    fn replace_layout_manager_inner(
         &mut self,
         container: FigureId,
         manager: Option<Box<dyn LayoutManager>>,
@@ -864,6 +1406,16 @@ impl Runtime {
         child: FigureId,
         constraint: Box<dyn LayoutConstraint>,
     ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.set_boxed_layout_constraint_inner(child, constraint)
+        })
+    }
+
+    fn set_boxed_layout_constraint_inner(
+        &mut self,
+        child: FigureId,
+        constraint: Box<dyn LayoutConstraint>,
+    ) -> Result<bool, RuntimeMutationError> {
         self.validate_attached_figure(child)?;
         let parent = self
             .tree
@@ -880,6 +1432,13 @@ impl Runtime {
     }
 
     pub fn remove_layout_constraint(
+        &mut self,
+        child: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| runtime.remove_layout_constraint_inner(child))
+    }
+
+    fn remove_layout_constraint_inner(
         &mut self,
         child: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
@@ -937,6 +1496,15 @@ impl Runtime {
         kind: SizeOverrideKind,
         size: Option<(f64, f64)>,
     ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| runtime.set_size_override_inner(figure, kind, size))
+    }
+
+    fn set_size_override_inner(
+        &mut self,
+        figure: FigureId,
+        kind: SizeOverrideKind,
+        size: Option<(f64, f64)>,
+    ) -> Result<bool, RuntimeMutationError> {
         self.validate_attached_figure(figure)?;
         if let Some(size) = size
             && (!size.0.is_finite() || !size.1.is_finite() || size.0 < 0.0 || size.1 < 0.0)
@@ -955,6 +1523,17 @@ impl Runtime {
     }
 
     pub fn move_child_to_index(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+        index: usize,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.move_child_to_index_inner(parent, child, index)
+        })
+    }
+
+    fn move_child_to_index_inner(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -979,10 +1558,12 @@ impl Runtime {
         parent: FigureId,
         child: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(parent)?;
+        self.validate_attached_figure(child)?;
         let child_count = self
             .tree
             .child_order(parent)
-            .ok_or(RuntimeMutationError::UnknownFigure(parent))?
+            .ok_or(RuntimeMutationError::UnknownOrDisposedFigure(parent))?
             .len();
         let index = child_count
             .checked_sub(1)
@@ -1016,8 +1597,17 @@ impl Runtime {
     }
 
     fn validate_attached_figure(&self, figure: FigureId) -> Result<(), RuntimeMutationError> {
+        if self.faulted {
+            return Err(RuntimeMutationError::Faulted);
+        }
+        if figure.namespace() != self.tree.namespace() {
+            return Err(RuntimeMutationError::ForeignRuntime(figure));
+        }
+        if figure == self.tree.synthetic_root() {
+            return Err(RuntimeMutationError::SyntheticRootOperation(figure));
+        }
         if self.tree.get_block(figure).is_none() {
-            return Err(RuntimeMutationError::UnknownFigure(figure));
+            return Err(RuntimeMutationError::UnknownOrDisposedFigure(figure));
         }
         if !self.tree.is_attached(figure) {
             return Err(RuntimeMutationError::DetachedFigure(figure));
@@ -1054,6 +1644,10 @@ impl Runtime {
     }
 
     pub fn set_bounds(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_bounds_inner(id, bounds))
+    }
+
+    fn set_bounds_inner(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
         let is_contents = self.tree.get_contents() == Some(id);
         let changed = self.tree.set_bounds_with_update(
             &mut self.updates,
@@ -1075,6 +1669,10 @@ impl Runtime {
     }
 
     pub fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_visible_inner(id, visible))
+    }
+
+    fn set_visible_inner(&mut self, id: FigureId, visible: bool) -> bool {
         let changed = self
             .tree
             .set_visible_with_update(&mut self.updates, id, visible);
@@ -1083,6 +1681,10 @@ impl Runtime {
     }
 
     pub fn set_enabled(&mut self, id: FigureId, enabled: bool) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_enabled_inner(id, enabled))
+    }
+
+    fn set_enabled_inner(&mut self, id: FigureId, enabled: bool) -> bool {
         let changed = self
             .tree
             .set_enabled_with_update(&mut self.updates, id, enabled);
@@ -1092,6 +1694,10 @@ impl Runtime {
     }
 
     pub fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_focusable_inner(id, focusable))
+    }
+
+    fn set_focusable_inner(&mut self, id: FigureId, focusable: bool) -> bool {
         let changed = self.tree.set_focusable(id, focusable);
         if changed {
             self.retain_interactive_figures();
@@ -1100,6 +1706,10 @@ impl Runtime {
     }
 
     pub fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_focus_traversable_inner(id, traversable))
+    }
+
+    fn set_focus_traversable_inner(&mut self, id: FigureId, traversable: bool) -> bool {
         let changed = self.tree.set_focus_traversable(id, traversable);
         if changed {
             self.retain_interactive_figures();
@@ -1108,6 +1718,10 @@ impl Runtime {
     }
 
     pub fn set_figure_style(&mut self, id: FigureId, style: FigureStyle) -> bool {
+        self.guarded_bool_mutation(move |runtime| runtime.set_figure_style_inner(id, style))
+    }
+
+    fn set_figure_style_inner(&mut self, id: FigureId, style: FigureStyle) -> bool {
         self.tree
             .set_figure_style_with_update(&mut self.updates, id, style)
     }
@@ -1118,6 +1732,14 @@ impl Runtime {
         text: impl Into<String>,
     ) -> Result<bool, ShapeMutationError> {
         let text = text.into();
+        self.guarded_shape_mutation(move |runtime| runtime.set_label_text_inner(id, text))
+    }
+
+    fn set_label_text_inner(
+        &mut self,
+        id: FigureId,
+        text: String,
+    ) -> Result<bool, ShapeMutationError> {
         let old = self.label(id)?.text().to_string();
         self.tree.mutate_label(
             &mut self.updates,
@@ -1155,6 +1777,14 @@ impl Runtime {
         id: FigureId,
         icon: Option<ImageId>,
     ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_inner(id, icon))
+    }
+
+    fn set_label_icon_inner(
+        &mut self,
+        id: FigureId,
+        icon: Option<ImageId>,
+    ) -> Result<bool, ShapeMutationError> {
         let old = self.label(id)?.icon();
         let changed = self.tree.mutate_label(
             &mut self.updates,
@@ -1186,6 +1816,14 @@ impl Runtime {
         id: FigureId,
         placement: TextPlacement,
     ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_text_placement_inner(id, placement))
+    }
+
+    fn set_label_text_placement_inner(
+        &mut self,
+        id: FigureId,
+        placement: TextPlacement,
+    ) -> Result<bool, ShapeMutationError> {
         let old = self.label(id)?.text_placement();
         self.tree.mutate_label(
             &mut self.updates,
@@ -1199,6 +1837,14 @@ impl Runtime {
     }
 
     pub fn set_label_alignment(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_alignment_inner(id, alignment))
+    }
+
+    fn set_label_alignment_inner(
         &mut self,
         id: FigureId,
         alignment: Alignment,
@@ -1220,6 +1866,14 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_text_alignment_inner(id, alignment))
+    }
+
+    fn set_label_text_alignment_inner(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
         let old = self.label(id)?.text_alignment();
         self.tree.mutate_label(
             &mut self.updates,
@@ -1237,6 +1891,14 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_alignment_inner(id, alignment))
+    }
+
+    fn set_label_icon_alignment_inner(
+        &mut self,
+        id: FigureId,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
         let old = self.label(id)?.icon_alignment();
         self.tree.mutate_label(
             &mut self.updates,
@@ -1250,6 +1912,14 @@ impl Runtime {
     }
 
     pub fn set_label_icon_text_gap(
+        &mut self,
+        id: FigureId,
+        gap: f64,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_text_gap_inner(id, gap))
+    }
+
+    fn set_label_icon_text_gap_inner(
         &mut self,
         id: FigureId,
         gap: f64,
@@ -1273,6 +1943,14 @@ impl Runtime {
     }
 
     pub fn set_image_figure(
+        &mut self,
+        id: FigureId,
+        image: ImageId,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(|runtime| runtime.set_image_figure_inner(id, image))
+    }
+
+    fn set_image_figure_inner(
         &mut self,
         id: FigureId,
         image: ImageId,
@@ -1302,8 +1980,11 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
-        self.tree
-            .set_image_alignment(&mut self.updates, id, alignment)
+        self.guarded_shape_mutation(|runtime| {
+            runtime
+                .tree
+                .set_image_alignment(&mut runtime.updates, id, alignment)
+        })
     }
 
     pub fn image_display_state(
@@ -1357,7 +2038,11 @@ impl Runtime {
         id: FigureId,
         points: Vec<Vec2>,
     ) -> Result<bool, ShapeMutationError> {
-        self.tree.commit_point_list(&mut self.updates, id, points)
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .commit_point_list(&mut runtime.updates, id, points)
+        })
     }
 
     pub fn insert_point(
@@ -1421,7 +2106,11 @@ impl Runtime {
         id: FigureId,
         border: Option<Arc<dyn Border>>,
     ) -> Result<bool, ShapeMutationError> {
-        self.tree.replace_border(&mut self.updates, id, border)
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .replace_border(&mut runtime.updates, id, border)
+        })
     }
 
     pub fn set_corner_dimensions(
@@ -1429,8 +2118,11 @@ impl Runtime {
         id: FigureId,
         dimensions: Dimension,
     ) -> Result<bool, ShapeMutationError> {
-        self.tree
-            .set_corner_dimensions_with_update(&mut self.updates, id, dimensions)
+        self.guarded_shape_mutation(|runtime| {
+            runtime
+                .tree
+                .set_corner_dimensions_with_update(&mut runtime.updates, id, dimensions)
+        })
     }
 
     pub fn set_triangle_direction(
@@ -1438,11 +2130,18 @@ impl Runtime {
         id: FigureId,
         direction: Direction,
     ) -> Result<bool, ShapeMutationError> {
-        self.tree
-            .set_triangle_direction_with_update(&mut self.updates, id, direction)
+        self.guarded_shape_mutation(|runtime| {
+            runtime
+                .tree
+                .set_triangle_direction_with_update(&mut runtime.updates, id, direction)
+        })
     }
 
     pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
+        self.guarded_bool_mutation(|runtime| runtime.set_opaque_inner(id, opaque))
+    }
+
+    fn set_opaque_inner(&mut self, id: FigureId, opaque: bool) -> bool {
         if !self.tree.set_opaque(id, opaque) {
             return false;
         }
@@ -1451,6 +2150,9 @@ impl Runtime {
     }
 
     pub fn translate(&mut self, id: FigureId, dx: f64, dy: f64) -> bool {
+        if self.faulted {
+            return false;
+        }
         let Some(bounds) = self.tree.figure_bounds(id) else {
             return false;
         };
@@ -1465,43 +2167,158 @@ impl Runtime {
         )
     }
 
-    pub fn into_tree(self) -> FigureTree {
-        self.tree
+    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+        self.add_update_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
-        self.updates.add_listener(listener)
+    pub fn add_update_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn UpdateListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
-        self.updates.add_figure_listener(listener)
+        self.add_figure_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_figure_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn FigureListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_figure_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
-        self.updates.add_coordinate_listener(listener)
+        self.add_coordinate_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_coordinate_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn CoordinateListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_coordinate_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
-        self.updates.add_ancestor_listener(listener)
+        self.add_ancestor_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_ancestor_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn AncestorListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_ancestor_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_property_listener(
         &mut self,
         listener: Box<dyn PropertyChangeListener>,
     ) -> ListenerId {
-        self.updates.add_property_listener(listener)
+        self.add_property_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_property_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn PropertyChangeListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_property_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
-        self.updates.add_action_listener(listener)
+        self.add_action_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_action_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn ActionListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_action_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
-        self.updates.add_layout_listener(listener)
+        self.add_layout_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_layout_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn LayoutListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_layout_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
+    }
+
+    pub fn add_observation_listener(
+        &mut self,
+        listener: Box<dyn ObservationListener>,
+    ) -> ListenerId {
+        self.add_observation_listener_scoped(ListenerScope::Runtime, listener)
+            .expect("Runtime listener scope is always valid")
+    }
+
+    pub fn add_observation_listener_scoped(
+        &mut self,
+        scope: ListenerScope,
+        listener: Box<dyn ObservationListener>,
+    ) -> Result<ListenerId, RuntimeMutationError> {
+        self.validate_listener_scope(scope)?;
+        let id = self.updates.add_observation_listener(listener);
+        debug_assert!(self.updates.set_listener_scope(id, scope));
+        Ok(id)
     }
 
     pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+        if self.faulted {
+            return false;
+        }
         self.updates.remove_listener(id)
+    }
+
+    fn validate_listener_scope(&self, scope: ListenerScope) -> Result<(), RuntimeMutationError> {
+        match scope {
+            ListenerScope::Runtime => {
+                if self.faulted {
+                    Err(RuntimeMutationError::Faulted)
+                } else {
+                    Ok(())
+                }
+            }
+            ListenerScope::Figure(owner) => self.validate_attached_figure(owner),
+        }
     }
 
     pub fn clickable_snapshot(&self, id: FigureId) -> Result<ClickableSnapshot, WidgetError> {
@@ -1514,6 +2331,10 @@ impl Runtime {
     }
 
     pub fn do_click(&mut self, id: FigureId) -> Result<bool, WidgetError> {
+        self.guarded_widget_mutation(|runtime| runtime.do_click_inner(id))
+    }
+
+    fn do_click_inner(&mut self, id: FigureId) -> Result<bool, WidgetError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(WidgetError::UnknownFigure(id));
         }
@@ -1530,6 +2351,14 @@ impl Runtime {
         id: FigureId,
         selected: bool,
     ) -> Result<bool, WidgetError> {
+        self.guarded_widget_mutation(|runtime| runtime.set_clickable_selected_inner(id, selected))
+    }
+
+    fn set_clickable_selected_inner(
+        &mut self,
+        id: FigureId,
+        selected: bool,
+    ) -> Result<bool, WidgetError> {
         let changed = self
             .tree
             .set_clickable_selected(&mut self.updates, id, selected)?;
@@ -1542,8 +2371,11 @@ impl Runtime {
         id: FigureId,
         enabled: bool,
     ) -> Result<bool, WidgetError> {
-        self.tree
-            .set_clickable_rollover_enabled(&mut self.updates, id, enabled)
+        self.guarded_widget_mutation(|runtime| {
+            runtime
+                .tree
+                .set_clickable_rollover_enabled(&mut runtime.updates, id, enabled)
+        })
     }
 
     pub fn has_pending_update(&self) -> bool {
@@ -1553,7 +2385,21 @@ impl Runtime {
             || self.resources.has_pending_delta()
             || !self.mutations.is_empty()
             || !self.connections.dirty_connections().is_empty()
+            || !self.tree.notification_effects().is_empty()
+            || !self.updates.notification_effects().is_empty()
             || self.derivation_epoch != self.stable_epoch
+    }
+
+    pub fn stable_query(&self) -> Result<StableSceneQuery<'_>, StableQueryError> {
+        if self.faulted {
+            return Err(StableQueryError::Faulted);
+        }
+        if self.has_pending_update() {
+            return Err(StableQueryError::NotStable {
+                latest_stable_epoch: self.stable_epoch,
+            });
+        }
+        Ok(StableSceneQuery::new(self.stable_epoch, &self.tree))
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {
@@ -1565,7 +2411,9 @@ impl Runtime {
     }
 
     pub fn request_full_redraw(&mut self) {
-        self.full_redraw_pending = true;
+        if !self.faulted {
+            self.full_redraw_pending = true;
+        }
     }
 
     pub fn backend_session_id(&self) -> BackendSessionId {
@@ -1573,6 +2421,9 @@ impl Runtime {
     }
 
     pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
+        if self.faulted {
+            return Err(BackendSessionError::Faulted);
+        }
         let next = self
             .backend_session_id
             .next()
@@ -1585,18 +2436,31 @@ impl Runtime {
     }
 
     pub fn register_image(&mut self) -> ImageId {
-        self.resources.register_image()
+        self.try_register_image()
+            .expect("cannot register an image in a faulted Runtime")
+    }
+
+    pub fn try_register_image(&mut self) -> Result<ImageId, ResourceError> {
+        self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_image()))
     }
 
     pub fn register_font(&mut self) -> FontId {
-        self.resources.register_font()
+        self.try_register_font()
+            .expect("cannot register a font in a faulted Runtime")
+    }
+
+    pub fn try_register_font(&mut self) -> Result<FontId, ResourceError> {
+        self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_font()))
     }
 
     pub fn register_builtin_font(&mut self, builtin: BuiltinFont) -> Result<FontId, ResourceError> {
+        if self.faulted {
+            return Err(ResourceError::Faulted);
+        }
         if let Some(id) = self.builtin_fonts.get(&builtin) {
             return Ok(*id);
         }
-        let id = self.register_font();
+        let id = self.try_register_font()?;
         self.complete_font(id, FontData::new(builtin.bytes().to_vec()))?;
         self.builtin_fonts.insert(builtin, id);
         Ok(id)
@@ -1614,6 +2478,9 @@ impl Runtime {
         resource_id: ResourceId,
         figure: FigureId,
     ) -> Result<(), ResourceError> {
+        if self.faulted {
+            return Err(ResourceError::Faulted);
+        }
         if !self.tree.is_attached(figure) {
             return Err(ResourceError::UnknownFigure);
         }
@@ -1625,10 +2492,16 @@ impl Runtime {
         resource_id: ResourceId,
         figure: FigureId,
     ) -> Result<bool, ResourceError> {
-        self.resources.remove_dependency(resource_id, figure)
+        self.guarded_resource_mutation(|runtime| {
+            runtime.resources.remove_dependency(resource_id, figure)
+        })
     }
 
     pub fn complete_image(&mut self, id: ImageId, image: ImageData) -> Result<(), ResourceError> {
+        self.guarded_resource_mutation(move |runtime| runtime.complete_image_inner(id, image))
+    }
+
+    fn complete_image_inner(&mut self, id: ImageId, image: ImageData) -> Result<(), ResourceError> {
         let dependents = self.resources.complete_image(id, image)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
@@ -1670,6 +2543,10 @@ impl Runtime {
     }
 
     pub fn complete_font(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
+        self.guarded_resource_mutation(move |runtime| runtime.complete_font_inner(id, font))
+    }
+
+    fn complete_font_inner(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
         let revision = self
             .resources
             .next_revision(id.resource_id(), crate::ResourceKind::Font)?;
@@ -1686,6 +2563,11 @@ impl Runtime {
         id: ResourceId,
         reason: impl Into<String>,
     ) -> Result<(), ResourceError> {
+        let reason = reason.into();
+        self.guarded_resource_mutation(move |runtime| runtime.fail_resource_inner(id, reason))
+    }
+
+    fn fail_resource_inner(&mut self, id: ResourceId, reason: String) -> Result<(), ResourceError> {
         if self.resources.kind(id)? == crate::ResourceKind::Font {
             self.text.remove_font(id);
         }
@@ -1695,6 +2577,10 @@ impl Runtime {
     }
 
     pub fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+        self.guarded_resource_mutation(|runtime| runtime.remove_resource_inner(id))
+    }
+
+    fn remove_resource_inner(&mut self, id: ResourceId) -> Result<(), ResourceError> {
         if self.resources.kind(id)? == crate::ResourceKind::Font {
             self.text.remove_font(id);
             self.builtin_fonts
@@ -1706,49 +2592,122 @@ impl Runtime {
     }
 
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
     }
 
     pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
     }
 
     pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_released(ctx, x, y, button));
     }
 
     pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| {
             dispatcher.dispatch_mouse_double_clicked(ctx, x, y, button)
         });
     }
 
     pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
     }
 
     pub fn dispatch_scroll(&mut self, event: WheelEvent) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
     }
 
+    pub fn set_view_location(
+        &mut self,
+        viewport: &ViewportHandle,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(viewport.block_id())?;
+            viewport
+                .set_view_location(&mut runtime.tree, &mut runtime.updates, x, y)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+
+    pub fn set_zoom_at(
+        &mut self,
+        zoom: &ZoomManager,
+        scale: f64,
+        anchor: Option<novadraw_geometry::Point>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(zoom.viewport().block_id())?;
+            runtime.validate_attached_figure(zoom.scalable().block_id())?;
+            zoom.set_zoom_at(&mut runtime.tree, &mut runtime.updates, scale, anchor)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+
+    pub fn fit_zoom_to_contents(
+        &mut self,
+        zoom: &ZoomManager,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(zoom.viewport().block_id())?;
+            runtime.validate_attached_figure(zoom.scalable().block_id())?;
+            zoom.fit_all(&mut runtime.tree, &mut runtime.updates)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+
     pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event));
     }
 
     pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
     }
 
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
     }
 
     pub fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {
+        if self.faulted {
+            return Err(FocusError::Faulted);
+        }
         self.validate_direct_focus(target)?;
         Ok(self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(target))))
     }
 
     pub fn clear_focus(&mut self) -> FocusChange {
+        if self.faulted {
+            return FocusChange::Unchanged;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.release_focus(ctx))
     }
 
@@ -1757,6 +2716,16 @@ impl Runtime {
     }
 
     pub fn traverse_focus(&mut self, direction: FocusTraversalDirection) -> FocusTraversalOutcome {
+        if self.faulted {
+            return FocusTraversalOutcome::Boundary;
+        }
+        self.guarded(|runtime| runtime.traverse_focus_inner(direction))
+    }
+
+    fn traverse_focus_inner(
+        &mut self,
+        direction: FocusTraversalDirection,
+    ) -> FocusTraversalOutcome {
         let Some(scope) = self.tree.get_contents() else {
             return FocusTraversalOutcome::Boundary;
         };
@@ -1781,15 +2750,28 @@ impl Runtime {
     }
 
     pub fn set_focus_traversal_policy(&mut self, policy: Box<dyn FocusTraversalPolicy>) {
-        self.focus_traversal_policy = policy;
+        if !self.faulted {
+            self.focus_traversal_policy = policy;
+        }
     }
 
     pub fn cancel_gestures(&mut self) {
+        if self.faulted {
+            return;
+        }
         self.dispatch(|dispatcher, ctx| dispatcher.cancel_gestures(ctx));
     }
 
     /// Applies all callback effects and structural mutations before returning.
     fn dispatch<R>(
+        &mut self,
+        action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
+    ) -> R {
+        assert!(!self.faulted, "cannot dispatch into a faulted Runtime");
+        self.guarded(|runtime| runtime.dispatch_inner(action))
+    }
+
+    fn dispatch_inner<R>(
         &mut self,
         action: impl FnOnce(&mut EventDispatcher, &mut SceneDispatchContext<'_>) -> R,
     ) -> R {
@@ -1888,41 +2870,13 @@ impl Runtime {
                 .reparent_layer(child, new_pane, key, placement)
                 .map_err(|_| RuntimeMutationError::Rejected),
             PendingMutationKind::RemoveChild { parent, child } => {
-                let removed = self.tree.apply_pending_mutations(
-                    &mut self.updates,
-                    vec![PendingMutation::from_kind(
-                        PendingMutationKind::RemoveChild { parent, child },
-                    )],
-                );
-                if !removed {
-                    return Err(RuntimeMutationError::Rejected);
-                }
-                self.invalidate_connection_figure_change(child, true);
-                Ok(true)
+                self.try_remove_figure(parent, child)
             }
             PendingMutationKind::Reparent { child, new_parent } => {
-                let reparented = self.tree.apply_pending_mutations(
-                    &mut self.updates,
-                    vec![PendingMutation::from_kind(PendingMutationKind::Reparent {
-                        child,
-                        new_parent,
-                    })],
-                );
-                if !reparented {
-                    return Err(RuntimeMutationError::Rejected);
-                }
-                self.invalidate_connection_figure_change(child, true);
-                Ok(true)
+                self.try_reparent(child, new_parent)
             }
-            kind @ PendingMutationKind::AddChildFigure { .. } => {
-                if self.tree.apply_pending_mutations(
-                    &mut self.updates,
-                    vec![PendingMutation::from_kind(kind)],
-                ) {
-                    Ok(true)
-                } else {
-                    Err(RuntimeMutationError::Rejected)
-                }
+            PendingMutationKind::AddChildFigure { parent, figure } => {
+                self.try_add_figure(parent, figure).map(|_| true)
             }
         }
     }
@@ -1935,6 +2889,12 @@ impl Runtime {
         ids.extend(self.tree.descendant_ids(contents).unwrap_or_default());
         for id in ids {
             self.register_layered_pane(id);
+        }
+    }
+
+    fn activate_attached_figures(&mut self) {
+        for (figure, parent) in self.tree.attached_ids_parent_first() {
+            self.tree.complete_attachment(figure, parent);
         }
     }
 
@@ -2131,7 +3091,7 @@ impl Runtime {
         true
     }
 
-    fn stabilize(&mut self) -> Result<(), StabilizationError> {
+    fn stabilize(&mut self) -> Result<(), FramePreparationError> {
         self.derivation_epoch = self.derivation_epoch.wrapping_add(1);
         self.last_stabilization_error = None;
 
@@ -2147,16 +3107,16 @@ impl Runtime {
             let count = &mut feedback_counts[kind as usize];
             *count += 1;
             if *count > DERIVED_STATE_FEEDBACK_LIMIT {
-                return Err(StabilizationError::DidNotConverge);
+                return Err(FramePreparationError::DidNotConverge);
             }
 
             match kind {
                 DerivedWorkKind::IntrinsicMetrics => {
                     self.refresh_image_figures();
                     self.refresh_title_bar_borders()
-                        .map_err(StabilizationError::Text)?;
+                        .map_err(FramePreparationError::Text)?;
                     self.refresh_label_intrinsic_metrics()
-                        .map_err(StabilizationError::Text)?;
+                        .map_err(FramePreparationError::Text)?;
                     if self.updates.has_pending_layout() {
                         work.insert(DerivedWorkKind::Layout);
                     }
@@ -2165,7 +3125,7 @@ impl Runtime {
                     if self.updates.has_pending_layout() {
                         self.updates
                             .perform_validation_phase(&mut self.tree)
-                            .map_err(StabilizationError::Validation)?;
+                            .map_err(FramePreparationError::Validation)?;
                         work.insert(DerivedWorkKind::DependencyInvalidation);
                         work.insert(DerivedWorkKind::Presentation);
                     }
@@ -2175,7 +3135,7 @@ impl Runtime {
                         .invalidate_stale_connection_dependencies()
                         .map_err(|error| {
                             self.connection_error = Some(error);
-                            StabilizationError::DidNotConverge
+                            FramePreparationError::DidNotConverge
                         })?
                         || !self.connections.dirty_connections().is_empty()
                     {
@@ -2199,7 +3159,7 @@ impl Runtime {
                 DerivedWorkKind::Presentation => {
                     if self
                         .refresh_label_presentations()
-                        .map_err(StabilizationError::Text)?
+                        .map_err(FramePreparationError::Text)?
                     {
                         work.insert(DerivedWorkKind::DependencyInvalidation);
                     }
@@ -2208,19 +3168,19 @@ impl Runtime {
         }
 
         if self.updates.has_pending_layout() || !self.connections.dirty_connections().is_empty() {
-            return Err(StabilizationError::DidNotConverge);
+            return Err(FramePreparationError::DidNotConverge);
         }
         self.stable_epoch = self.derivation_epoch;
         Ok(())
     }
 
-    fn try_stabilize(&mut self) -> bool {
+    fn try_stabilize(&mut self) -> Result<(), FramePreparationError> {
         match self.stabilize() {
-            Ok(()) => true,
+            Ok(()) => Ok(()),
             Err(error) => {
-                self.last_stabilization_error = Some(error);
+                self.last_stabilization_error = Some(error.clone());
                 self.full_redraw_pending = true;
-                false
+                Err(error)
             }
         }
     }
@@ -2231,8 +3191,33 @@ impl Runtime {
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
     ) -> Option<RenderSubmission> {
+        match self.prepare_submission_state(surface, capabilities) {
+            FramePreparation::Ready(submission) => Some(submission),
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion
+            | FramePreparation::Error(_) => None,
+        }
+    }
+
+    pub fn prepare_submission_state(
+        &mut self,
+        surface: SurfaceInfo,
+        capabilities: BackendCapabilities,
+    ) -> FramePreparation {
+        if self.faulted {
+            return FramePreparation::Error(FramePreparationError::Faulted);
+        }
+        self.guarded(|runtime| runtime.prepare_submission_state_inner(surface, capabilities))
+    }
+
+    fn prepare_submission_state_inner(
+        &mut self,
+        surface: SurfaceInfo,
+        capabilities: BackendCapabilities,
+    ) -> FramePreparation {
         if self.in_flight.is_some() {
-            return None;
+            return FramePreparation::AwaitingCompletion;
         }
 
         self.apply_pending_mutations_for_frame();
@@ -2244,11 +3229,12 @@ impl Runtime {
         }
         if !surface.is_renderable() {
             self.full_redraw_pending = true;
-            return None;
+            return FramePreparation::Suspended;
         }
-        if !self.try_stabilize() {
-            return None;
+        if let Err(error) = self.try_stabilize() {
+            return FramePreparation::Error(error);
         }
+        self.updates.set_publication_epoch(self.stable_epoch);
 
         let has_resource_delta = self.resources.has_pending_delta();
         let mut canvas = if self.updates.is_update_queued() {
@@ -2258,19 +3244,31 @@ impl Runtime {
         } else if has_resource_delta {
             NdCanvas::new()
         } else {
-            return None;
+            self.updates
+                .flush_notifications_at(&mut self.tree, self.stable_epoch);
+            return FramePreparation::Idle;
         };
-        if self.updates.last_validation_error().is_some() {
+        if let Some(error) = self.updates.last_validation_error().cloned() {
             self.full_redraw_pending = true;
-            return None;
+            return FramePreparation::Error(FramePreparationError::Validation(error));
         }
-
         if self.full_redraw_pending
             || self.session_sync_pending
             || (canvas.damage().mode() == DamageMode::Partial
                 && !capabilities.supports_partial_damage())
         {
             canvas = self.tree.render();
+        }
+        if let Some(error) = canvas.commands().iter().find_map(|command| {
+            command
+                .kind
+                .required_capability()
+                .and_then(|capability| capabilities.require(capability).err())
+        }) {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(
+                error,
+            ));
         }
 
         let frame_id = self.next_frame_id;
@@ -2296,12 +3294,25 @@ impl Runtime {
             frame_id,
             damage: submission.damage.mode(),
         });
-        self.updates.flush_notifications(&mut self.tree);
-        Some(submission)
+        self.updates
+            .flush_notifications_at(&mut self.tree, self.stable_epoch);
+        FramePreparation::Ready(submission)
     }
 
     /// Completes the in-flight frame and restores work when presentation failed.
     pub fn complete_submission(
+        &mut self,
+        session_id: BackendSessionId,
+        frame_id: FrameId,
+        outcome: RenderOutcome,
+    ) -> bool {
+        if self.faulted {
+            return false;
+        }
+        self.guarded(|runtime| runtime.complete_submission_inner(session_id, frame_id, outcome))
+    }
+
+    fn complete_submission_inner(
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,
@@ -2331,35 +3342,57 @@ impl Runtime {
         }
         self.updates
             .emit_update_event(UpdateEvent::Submitted { frame_id, outcome });
-        self.updates.flush_notifications(&mut self.tree);
+        self.updates
+            .flush_notifications_at(&mut self.tree, self.stable_epoch);
         true
     }
 
     /// Prepares an incremental frame when the runtime has pending work.
     pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
-        self.apply_pending_mutations_for_frame();
-        if !self.try_stabilize() {
+        if self.faulted {
             return None;
         }
-        if self.updates.is_update_queued() {
+        self.guarded(Self::prepare_frame_inner)
+    }
+
+    fn prepare_frame_inner(&mut self) -> Option<NdCanvas> {
+        self.apply_pending_mutations_for_frame();
+        if self.try_stabilize().is_err() {
+            return None;
+        }
+        self.updates.set_publication_epoch(self.stable_epoch);
+        let frame = if self.updates.is_update_queued() {
             let incremental = self.tree.perform_update(&mut self.updates);
             if std::mem::take(&mut self.full_redraw_pending) {
-                return Some(self.tree.render());
+                Some(self.tree.render())
+            } else {
+                Some(incremental)
             }
-            return Some(incremental);
-        }
-        if std::mem::take(&mut self.full_redraw_pending) {
-            return Some(self.tree.render());
-        }
-        None
+        } else if std::mem::take(&mut self.full_redraw_pending) {
+            Some(self.tree.render())
+        } else {
+            None
+        };
+        self.updates
+            .flush_notifications_at(&mut self.tree, self.stable_epoch);
+        frame
     }
 
     /// Records the complete visible tree, independent of pending update state.
     pub fn record_full_frame(&mut self) -> NdCanvas {
+        assert!(!self.faulted, "cannot record a faulted Runtime");
+        self.guarded(Self::record_full_frame_inner)
+    }
+
+    fn record_full_frame_inner(&mut self) -> NdCanvas {
         self.apply_pending_mutations_for_frame();
         self.stabilize()
             .expect("full-frame recording requires stable derived state");
-        self.tree.render()
+        self.updates.set_publication_epoch(self.stable_epoch);
+        let frame = self.tree.render();
+        self.updates
+            .flush_notifications_at(&mut self.tree, self.stable_epoch);
+        frame
     }
 }
 
@@ -2377,7 +3410,6 @@ mod tests {
         Rectangle, RectangleFigure,
     };
     use novadraw_core::Color;
-    use slotmap::Key;
     use std::sync::{Arc, Mutex};
 
     struct FocusProbeFigure {
@@ -2615,7 +3647,13 @@ mod tests {
 
     #[test]
     fn runtime_accepts_a_non_parley_text_layout_engine() {
-        struct StubTextEngine;
+        use novadraw_render::{
+            FontFaceRef, GlyphRun, PositionedGlyph, TextLayoutParts, TextLineMetrics,
+        };
+
+        struct StubTextEngine {
+            face: Option<FontFaceRef>,
+        }
 
         impl TextLayoutEngine for StubTextEngine {
             fn revision(&self) -> u64 {
@@ -2624,38 +3662,81 @@ mod tests {
 
             fn register_font(
                 &mut self,
-                _resource_id: ResourceId,
-                _revision: u64,
+                resource_id: ResourceId,
+                revision: u64,
                 _bytes: &[u8],
             ) -> Result<(), TextError> {
+                self.face = Some(FontFaceRef::new(resource_id, revision, 0));
                 Ok(())
             }
 
-            fn remove_font(&mut self, _resource_id: ResourceId) {}
+            fn remove_font(&mut self, resource_id: ResourceId) {
+                if self
+                    .face
+                    .as_ref()
+                    .is_some_and(|face| face.resource_id() == resource_id)
+                {
+                    self.face = None;
+                }
+            }
 
             fn layout(
                 &mut self,
-                _text: &str,
-                _font: &FontDescriptor,
-                _constraints: TextConstraints,
+                text: &str,
+                font: &FontDescriptor,
+                constraints: TextConstraints,
             ) -> Result<TextLayout, TextError> {
-                Ok(TextLayout::default())
+                let face = self.face.clone().ok_or(TextError::NoUsableFont)?;
+                TextLayout::from_parts(TextLayoutParts {
+                    text: text.to_owned(),
+                    font: font.clone(),
+                    constraints,
+                    engine_revision: self.revision(),
+                    width: 20.0,
+                    full_width: 20.0,
+                    height: 12.0,
+                    lines: vec![TextLineMetrics {
+                        ascent: 8.0,
+                        descent: 2.0,
+                        leading: 2.0,
+                        baseline: 8.0,
+                        advance: 20.0,
+                    }],
+                    glyph_runs: vec![GlyphRun {
+                        font: face,
+                        font_size: font.size,
+                        normalized_coords: Vec::new(),
+                        skew_degrees: None,
+                        glyphs: vec![PositionedGlyph {
+                            id: 1,
+                            x: 0.0,
+                            y: 8.0,
+                        }],
+                    }],
+                    visible_range: 0..text.len(),
+                    truncated: false,
+                })
             }
         }
 
-        let mut runtime =
-            Runtime::with_text_layout_engine(FigureTree::new(), Box::new(StubTextEngine));
+        let mut runtime = Runtime::with_text_layout_engine(
+            FigureTree::new(),
+            Box::new(StubTextEngine { face: None }),
+        );
+        let font_id = runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
 
         assert_eq!(runtime.text_revision(), 42);
-        assert!(
-            runtime
-                .layout_text(
-                    "custom",
-                    &FontDescriptor::default(),
-                    TextConstraints::UNBOUNDED,
-                )
-                .unwrap()
-                .is_empty()
+        let layout = runtime
+            .layout_text(
+                "custom",
+                &FontDescriptor::default(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        assert!(!layout.is_empty());
+        assert_eq!(
+            layout.glyph_runs()[0].font.resource_id(),
+            font_id.resource_id()
         );
     }
 
@@ -2724,7 +3805,7 @@ mod tests {
         runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         assert_eq!(
             runtime.request_focus(target),
-            Err(FocusError::Detached(target))
+            Err(FocusError::UnknownFigure(target))
         );
     }
 
@@ -3370,6 +4451,66 @@ mod tests {
     }
 
     #[test]
+    fn frame_preparation_reports_distinct_non_ready_states() {
+        let mut runtime = Runtime::empty();
+        let surface = surface(100, 100);
+        let FramePreparation::Ready(first) =
+            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL)
+        else {
+            panic!("initial frame must be ready");
+        };
+        assert!(matches!(
+            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::AwaitingCompletion
+        ));
+        assert!(runtime.complete_submission(
+            first.session_id,
+            first.frame_id,
+            RenderOutcome::Presented
+        ));
+        assert!(matches!(
+            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::Idle
+        ));
+        assert!(matches!(
+            runtime.prepare_submission_state(
+                SurfaceInfo {
+                    pixel_width: 0,
+                    ..surface
+                },
+                BackendCapabilities::RETAINED_PARTIAL
+            ),
+            FramePreparation::Suspended
+        ));
+        runtime.faulted = true;
+        assert!(matches!(
+            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::Error(FramePreparationError::Faulted)
+        ));
+    }
+
+    #[test]
+    fn frame_preparation_reports_permanent_backend_capability_mismatch() {
+        let mut runtime = Runtime::empty();
+        runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        runtime.set_contents(Box::new(crate::LabelFigure::new("unsupported")));
+
+        let preparation = runtime
+            .prepare_submission_state(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY);
+        assert!(
+            matches!(
+                preparation,
+                FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(
+                    UnsupportedRenderCapability {
+                        capability: novadraw_render::RenderCapability::GlyphRuns,
+                    }
+                ))
+            ),
+            "unexpected preparation state: {preparation:?}"
+        );
+    }
+
+    #[test]
     fn submission_notifications_are_flushed_in_causal_order() {
         struct CaptureUpdates(Arc<Mutex<Vec<UpdateEvent>>>);
 
@@ -3453,5 +4594,328 @@ mod tests {
         assert_eq!(runtime.tree.child_order(root).unwrap().len(), 1);
         assert!(runtime.tree.is_valid(root));
         assert!(!submission.commands.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod adr014_tests {
+    use super::*;
+    use crate::{ChopboxAnchor, DirectRouter, RectangleFigure};
+    use std::{cell::Cell, rc::Rc};
+
+    fn scene() -> (Runtime, FigureId) {
+        let mut runtime = Runtime::empty();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        (runtime, root)
+    }
+
+    #[test]
+    fn foreign_figure_does_not_read_or_modify_matching_local_slot() {
+        let (_first, foreign) = scene();
+        let (mut second, local) = scene();
+        let before = second.tree().figure_bounds(local);
+        assert!(second.tree().figure_bounds(foreign).is_none());
+        assert!(!second.set_bounds(foreign, Rectangle::new(1.0, 2.0, 3.0, 4.0)));
+        assert_eq!(second.tree().figure_bounds(local), before);
+    }
+
+    #[test]
+    fn foreign_registry_handles_do_not_remove_local_entries() {
+        let (mut first, first_root) = scene();
+        let (mut second, second_root) = scene();
+        let foreign_anchor =
+            first.register_connection_anchor(Box::new(ChopboxAnchor::new(first_root)));
+        let local_anchor =
+            second.register_connection_anchor(Box::new(ChopboxAnchor::new(second_root)));
+        let foreign_router = first.register_connection_router(Box::new(DirectRouter));
+        let local_router = second.register_connection_router(Box::new(DirectRouter));
+        assert!(second.remove_connection_anchor(foreign_anchor).is_err());
+        assert!(second.remove_connection_router(foreign_router).is_err());
+        assert!(second.remove_connection_anchor(local_anchor).is_ok());
+        assert!(second.remove_connection_router(local_router).is_ok());
+    }
+
+    #[test]
+    fn foreign_listener_does_not_unregister_local_subscription() {
+        let (mut first, foreign_owner) = scene();
+        let (mut second, _) = scene();
+        let foreign = first.add_update_listener(Box::new(()));
+        let local = second.add_update_listener(Box::new(()));
+        assert!(matches!(
+            second.add_update_listener_scoped(
+                ListenerScope::Figure(foreign_owner),
+                Box::new(())
+            ),
+            Err(RuntimeMutationError::ForeignRuntime(id)) if id == foreign_owner
+        ));
+        assert!(!second.remove_listener(foreign));
+        assert!(second.remove_listener(local));
+        assert!(!second.remove_listener(local));
+    }
+
+    struct DropProbe(Rc<Cell<usize>>);
+
+    impl Figure for DropProbe {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+
+        fn name(&self) -> &'static str {
+            "DropProbe"
+        }
+    }
+
+    impl Drop for DropProbe {
+        fn drop(&mut self) {
+            self.0.set(self.0.get() + 1);
+        }
+    }
+
+    #[test]
+    fn remove_releases_subtree_and_invalidates_old_ids() {
+        let (mut runtime, root) = scene();
+        let drops = Rc::new(Cell::new(0));
+        let child = runtime.add_figure(root, Box::new(DropProbe(Rc::clone(&drops))));
+        let grandchild = runtime.add_figure(child, Box::new(DropProbe(Rc::clone(&drops))));
+        assert!(runtime.remove_figure(root, child));
+        assert_eq!(drops.get(), 2);
+        assert!(runtime.tree().get_block(child).is_none());
+        assert!(runtime.tree().get_block(grandchild).is_none());
+        assert!(!runtime.remove_figure(root, child));
+    }
+
+    #[test]
+    fn dispose_supports_the_maximum_tree_depth() {
+        let mut tree = FigureTree::new();
+        let root = tree.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+        let mut deepest = root;
+        for _ in 1..crate::MAX_TREE_DEPTH {
+            deepest =
+                tree.add_child_to(deepest, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+        }
+        assert_eq!(tree.block_depth(deepest), Some(crate::MAX_TREE_DEPTH));
+
+        let mut runtime = Runtime::new(tree);
+        runtime.set_preferred_size(deepest, (2.0, 2.0)).unwrap();
+        let initial = runtime
+            .prepare_frame()
+            .expect("deep tree validation and render must complete");
+        assert!(!initial.commands().is_empty());
+        assert_eq!(runtime.tree().hit_test_simple((0.5, 0.5)), Some(deepest));
+        assert!(runtime.set_bounds(deepest, Rectangle::new(0.0, 0.0, 0.75, 0.75)));
+        assert!(
+            runtime.prepare_frame().is_some(),
+            "deep mutation must complete validation and render"
+        );
+        runtime.dispose_subtree(root).unwrap();
+
+        assert!(runtime.tree().get_contents().is_none());
+        assert!(runtime.tree().get_block(root).is_none());
+        assert!(runtime.tree().get_block(deepest).is_none());
+    }
+
+    #[test]
+    fn contents_replacement_releases_old_tree_and_preserves_namespace() {
+        let (mut runtime, root) = scene();
+        let drops = Rc::new(Cell::new(0));
+        runtime.add_figure(root, Box::new(DropProbe(Rc::clone(&drops))));
+        let replacement =
+            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)));
+        assert_eq!(drops.get(), 1);
+        assert!(runtime.tree().get_block(root).is_none());
+        assert_ne!(root, replacement);
+        assert_eq!(replacement.namespace(), root.namespace());
+        assert_eq!(runtime.resources().namespace(), root.namespace().as_uuid());
+        assert_eq!(
+            runtime.backend_session_id().runtime_namespace(),
+            root.namespace().as_uuid()
+        );
+    }
+
+    #[test]
+    fn disposal_removes_owned_listener_but_preserves_shared_registrations() {
+        let (mut runtime, root) = scene();
+        let owner = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let owned = runtime
+            .add_update_listener_scoped(ListenerScope::Figure(owner), Box::new(()))
+            .unwrap();
+        let global = runtime.add_update_listener(Box::new(()));
+        let router = runtime.register_connection_router(Box::new(DirectRouter));
+        let image = runtime.register_image();
+        runtime
+            .add_resource_dependency(image.resource_id(), owner)
+            .unwrap();
+        runtime.dispose_subtree(owner).unwrap();
+        assert!(!runtime.remove_listener(owned));
+        assert!(runtime.remove_listener(global));
+        assert!(runtime.remove_connection_router(router).is_ok());
+        assert!(matches!(
+            runtime.resource_status(image.resource_id()),
+            Ok(ResourceStatus::Pending)
+        ));
+    }
+
+    struct PanicOnDetach;
+    struct PanicOnAttachLayer;
+
+    impl Figure for PanicOnDetach {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+        fn name(&self) -> &'static str {
+            "PanicOnDetach"
+        }
+        fn lifecycle(&mut self) -> Option<&mut dyn crate::FigureLifecycle> {
+            Some(self)
+        }
+    }
+
+    impl crate::FigureLifecycle for PanicOnDetach {
+        fn on_detached(&mut self, _context: crate::FigureLifecycleContext) {
+            panic!("lifecycle fault probe");
+        }
+    }
+
+    impl Figure for PanicOnAttachLayer {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 10.0, 10.0)
+        }
+
+        fn name(&self) -> &'static str {
+            "PanicOnAttachLayer"
+        }
+
+        fn lifecycle(&mut self) -> Option<&mut dyn crate::FigureLifecycle> {
+            Some(self)
+        }
+
+        fn layer(&self) -> Option<&dyn crate::Layer> {
+            Some(self)
+        }
+    }
+
+    impl crate::FigureLifecycle for PanicOnAttachLayer {
+        fn on_attached(&mut self, _context: crate::FigureLifecycleContext) {
+            panic!("layer lifecycle fault probe");
+        }
+    }
+
+    impl crate::Layer for PanicOnAttachLayer {}
+
+    #[test]
+    fn lifecycle_panic_happens_after_extraction_and_blocks_recording() {
+        let (mut runtime, root) = scene();
+        let child = runtime.add_figure(root, Box::new(PanicOnDetach));
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            runtime.dispose_subtree(child).unwrap();
+        }));
+        assert!(failure.is_err());
+        assert!(runtime.is_faulted());
+        assert!(runtime.tree().get_block(child).is_none());
+        assert_eq!(runtime.tree().child_order(root), Some(vec![]));
+        assert!(runtime.prepare_frame().is_none());
+        assert!(matches!(
+            runtime.try_add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            Err(RuntimeMutationError::Faulted)
+        ));
+        assert!(matches!(
+            runtime.try_reparent(root, root),
+            Err(RuntimeMutationError::Faulted)
+        ));
+        assert!(matches!(
+            runtime.try_set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            Err(RuntimeMutationError::Faulted)
+        ));
+    }
+
+    #[test]
+    fn layered_lifecycle_panic_faults_runtime_after_structural_commit() {
+        let (mut runtime, root) = scene();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut pane = runtime
+                .add_layered_pane(root, Rectangle::new(0.0, 0.0, 100.0, 100.0))
+                .unwrap();
+            pane.add_layer(
+                Box::new(PanicOnAttachLayer),
+                LayerKey::new("fault-probe").unwrap(),
+                LayerPlacement::Last,
+            )
+            .unwrap();
+        }));
+        assert!(failure.is_err());
+        assert!(runtime.is_faulted());
+        assert!(runtime.prepare_frame().is_none());
+    }
+
+    #[test]
+    fn disposal_freezes_old_damage_before_the_node_is_removed() {
+        let (mut runtime, root) = scene();
+        let child =
+            runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 20.0, 10.0, 10.0)));
+        runtime.record_full_frame();
+        runtime.updates.dirty_regions.clear();
+        runtime.dispose_subtree(child).unwrap();
+        let frozen = runtime
+            .updates
+            .dirty_regions
+            .get(&runtime.tree.synthetic_root())
+            .unwrap();
+        assert!(frozen.x <= 20.0 && frozen.y <= 20.0);
+        assert!(frozen.x + frozen.width >= 30.0 && frozen.y + frozen.height >= 30.0);
+        assert!(runtime.tree().figure_bounds(child).is_none());
+    }
+
+    #[test]
+    fn reparent_preserves_identity_and_foreign_checked_mutation_is_rejected() {
+        let (mut runtime, root) = scene();
+        let left = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        let right = runtime.add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
+        let child = runtime.add_figure(left, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)));
+        assert!(runtime.reparent(child, right));
+        assert_eq!(runtime.tree().parent_id(child), Some(right));
+        let (_, foreign) = scene();
+        assert!(matches!(runtime.clear_preferred_size(foreign),
+            Err(RuntimeMutationError::ForeignRuntime(id)) if id == foreign));
+    }
+
+    #[test]
+    fn synthetic_root_is_rejected_by_public_lifecycle_mutations() {
+        let (mut runtime, root) = scene();
+        let synthetic_root = runtime.tree.synthetic_root();
+
+        assert_eq!(
+            runtime.dispose_subtree(synthetic_root),
+            Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
+        );
+        assert_eq!(
+            runtime.try_add_figure(
+                synthetic_root,
+                Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))
+            ),
+            Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
+        );
+        assert_eq!(
+            runtime.try_reparent(root, synthetic_root),
+            Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
+        );
+    }
+
+    #[test]
+    fn moving_runtime_preserves_registry_identity_and_state() {
+        let (mut runtime, _) = scene();
+        let image = runtime.register_image();
+        let listener = runtime.add_update_listener(Box::new(()));
+        let router = runtime.register_connection_router(Box::new(DirectRouter));
+        let session = runtime.backend_session_id();
+
+        let mut moved = runtime;
+
+        assert_eq!(moved.backend_session_id(), session);
+        assert_eq!(
+            moved.resource_status(image.resource_id()),
+            Ok(&ResourceStatus::Pending)
+        );
+        assert!(moved.remove_listener(listener));
+        assert!(moved.remove_connection_router(router).is_ok());
     }
 }

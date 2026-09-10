@@ -8,33 +8,19 @@ use super::FigureId;
 use crate::debug_render;
 use crate::{ChildClippingStrategy, ResolvedStyle};
 
+const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
 const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
-const RECURSIVE_STACK_GROWTH: usize = 2 * 1024 * 1024;
+const RECURSIVE_STACK_GROWTH: usize = 4 * 1024 * 1024;
 
 /// 场景图引用（用于渲染）
 pub(super) struct FigureTreeRenderRef<'a> {
-    pub(crate) blocks: &'a slotmap::SlotMap<FigureId, super::FigureNode>,
+    pub(crate) blocks: &'a crate::identity::RuntimeArena<FigureId, super::FigureNode>,
 }
 
 impl<'a> FigureTreeRenderRef<'a> {
     /// 获取块
     pub(super) fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
-    }
-
-    fn resolved_style(&self, id: FigureId) -> Option<ResolvedStyle> {
-        let mut chain = Vec::new();
-        let mut current = Some(id);
-        while let Some(node_id) = current {
-            let node = self.blocks.get(node_id)?;
-            chain.push(node_id);
-            current = node.parent;
-        }
-        let mut style = ResolvedStyle::default();
-        for node_id in chain.into_iter().rev() {
-            style.apply_override(&self.blocks[node_id].style);
-        }
-        Some(style)
     }
 }
 
@@ -72,7 +58,10 @@ impl<'a> FigureRenderer<'a> {
     ///
     /// 对应 draw2d Figure.paint() final。
     pub(super) fn render(&mut self, root_id: FigureId) {
-        self.paint(root_id);
+        let defaults = ResolvedStyle::default();
+        self.gc.set_foreground_color(defaults.foreground);
+        self.gc.set_background_color(defaults.background);
+        self.paint(root_id, 0);
     }
 
     /// 绘制 Figure
@@ -91,13 +80,17 @@ impl<'a> FigureRenderer<'a> {
     ///         ├─> paintBorder()
     ///         └─> popState()
     /// ```
-    fn paint(&mut self, block_id: FigureId) {
-        stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
-            self.paint_inner(block_id);
-        });
+    fn paint(&mut self, block_id: FigureId, depth: usize) {
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+                self.paint_inner(block_id, depth);
+            });
+        } else {
+            self.paint_inner(block_id, depth);
+        }
     }
 
-    fn paint_inner(&mut self, block_id: FigureId) {
+    fn paint_inner(&mut self, block_id: FigureId, depth: usize) {
         // 获取 block
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
@@ -111,12 +104,14 @@ impl<'a> FigureRenderer<'a> {
 
         // 1. 保存 parent state，并设置当前节点的 local state。
         self.gc.push_state();
-        if let Some(style) = self.scene.resolved_style(block_id) {
-            self.gc.set_foreground_color(style.foreground);
-            self.gc.set_background_color(style.background);
-            if style.alpha != 1.0 {
-                self.gc.set_alpha(style.alpha);
-            }
+        if let Some(foreground) = block.style.foreground {
+            self.gc.set_foreground_color(foreground);
+        }
+        if let Some(background) = block.style.background {
+            self.gc.set_background_color(background);
+        }
+        if let Some(alpha) = block.style.alpha {
+            self.gc.set_alpha(alpha);
         }
         self.gc.translate(bounds.x, bounds.y);
 
@@ -129,7 +124,7 @@ impl<'a> FigureRenderer<'a> {
         self.gc.pop_state();
 
         // 3. 绘制子元素区域。
-        self.paint_client_area(block_id);
+        self.paint_client_area(block_id, depth);
 
         // 4. 绘制边框
         // 注意：block 借用在此结束，可以安全重新获取
@@ -161,7 +156,7 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     ///   paintChildren(graphics);
     /// ```
-    fn paint_client_area(&mut self, block_id: FigureId) {
+    fn paint_client_area(&mut self, block_id: FigureId, depth: usize) {
         let block = match self.scene.get(block_id) {
             Some(b) if b.is_visible => b,
             _ => return,
@@ -193,7 +188,7 @@ impl<'a> FigureRenderer<'a> {
         }
         self.gc.transform(a, b, c, d, e, f);
 
-        self.paint_children(block_id);
+        self.paint_children(block_id, depth);
         self.gc.pop_state();
     }
 
@@ -217,7 +212,7 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     /// }
     /// ```
-    fn paint_children(&mut self, block_id: FigureId) {
+    fn paint_children(&mut self, block_id: FigureId, depth: usize) {
         let children: Vec<FigureId> = {
             let block = match self.scene.get(block_id) {
                 Some(b) if b.is_visible => b,
@@ -256,11 +251,11 @@ impl<'a> FigureRenderer<'a> {
                         child_bounds.width,
                         child_bounds.height,
                     );
-                    self.paint(child_id);
+                    self.paint(child_id, depth + 1);
                 }
                 _ => {
                     debug_render!("[RECUR]     -> paint child without child bounds clip");
-                    self.paint(child_id);
+                    self.paint(child_id, depth + 1);
                 }
             }
             self.gc.pop_state();

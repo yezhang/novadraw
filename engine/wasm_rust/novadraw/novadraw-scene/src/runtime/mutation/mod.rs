@@ -1,14 +1,137 @@
 use std::{collections::VecDeque, error::Error, fmt};
 
 use crate::{
-    ChildClippingStrategy, Figure, FigureId, LayerKey, LayerPlacement, LayoutConstraint,
-    LayoutError, LayoutManager,
+    ChildClippingStrategy, Figure, FigureId, GraphMutationError, LayerKey, LayerPlacement,
+    LayoutConstraint, LayoutError, LayoutManager,
 };
+
+pub trait FigureComponentUpdate {
+    type Figure: Figure + 'static;
+    type Prepared;
+    type Error;
+
+    fn prepare(
+        self,
+        current: &Self::Figure,
+        context: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error>;
+
+    fn commit(prepared: Self::Prepared, target: &mut Self::Figure);
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FigureComponentContext {
+    pub figure_id: FigureId,
+    pub component_revision: u64,
+    pub bounds: novadraw_geometry::Rectangle,
+}
+
+#[derive(Debug)]
+pub struct PreparedFigureUpdate<T> {
+    pub(crate) value: T,
+    pub(crate) invalidation: ComponentInvalidation,
+}
+
+impl<T> PreparedFigureUpdate<T> {
+    pub fn new(value: T) -> Self {
+        Self::layout_geometry_and_paint(value)
+    }
+
+    pub fn paint(value: T) -> Self {
+        Self {
+            value,
+            invalidation: ComponentInvalidation::Paint,
+        }
+    }
+
+    pub fn geometry_and_paint(value: T) -> Self {
+        Self {
+            value,
+            invalidation: ComponentInvalidation::GeometryAndPaint,
+        }
+    }
+
+    pub fn layout_geometry_and_paint(value: T) -> Self {
+        Self {
+            value,
+            invalidation: ComponentInvalidation::LayoutGeometryAndPaint,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ComponentInvalidation {
+    Paint,
+    GeometryAndPaint,
+    LayoutGeometryAndPaint,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ComponentUpdateReceipt {
+    pub figure: FigureId,
+    pub previous_revision: u64,
+    pub revision: u64,
+    pub invalidation: ComponentInvalidation,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ComponentUpdateError<E> {
+    Runtime(RuntimeMutationError),
+    WrongFigureType {
+        figure: FigureId,
+        expected: &'static str,
+        actual: &'static str,
+    },
+    RevisionExhausted(FigureId),
+    Rejected(E),
+}
+
+impl<E> From<RuntimeMutationError> for ComponentUpdateError<E> {
+    fn from(value: RuntimeMutationError) -> Self {
+        Self::Runtime(value)
+    }
+}
+
+impl<E: fmt::Display> fmt::Display for ComponentUpdateError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Runtime(error) => error.fmt(formatter),
+            Self::WrongFigureType {
+                figure,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "Figure {figure:?} has type {actual}, expected {expected}"
+            ),
+            Self::RevisionExhausted(figure) => {
+                write!(
+                    formatter,
+                    "component revision is exhausted for Figure {figure:?}"
+                )
+            }
+            Self::Rejected(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: Error + 'static> Error for ComponentUpdateError<E> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Runtime(error) => Some(error),
+            Self::Rejected(error) => Some(error),
+            Self::WrongFigureType { .. } | Self::RevisionExhausted(_) => None,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RuntimeMutationError {
-    UnknownFigure(FigureId),
+    ForeignRuntime(FigureId),
+    Faulted,
+    UnknownOrDisposedFigure(FigureId),
     DetachedFigure(FigureId),
+    SyntheticRootOperation(FigureId),
     InvalidParentRelation {
         parent: FigureId,
         child: FigureId,
@@ -24,14 +147,25 @@ pub enum RuntimeMutationError {
         size: (f64, f64),
     },
     Layout(LayoutError),
+    Graph(GraphMutationError),
     Rejected,
 }
 
 impl fmt::Display for RuntimeMutationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnknownFigure(figure) => write!(formatter, "unknown Figure ID: {figure:?}"),
+            Self::ForeignRuntime(figure) => write!(formatter, "foreign Runtime Figure: {figure:?}"),
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::UnknownOrDisposedFigure(figure) => {
+                write!(formatter, "unknown or disposed Figure ID: {figure:?}")
+            }
             Self::DetachedFigure(figure) => write!(formatter, "detached Figure: {figure:?}"),
+            Self::SyntheticRootOperation(figure) => {
+                write!(
+                    formatter,
+                    "operation is not allowed on synthetic root {figure:?}"
+                )
+            }
             Self::InvalidParentRelation { parent, child } => {
                 write!(formatter, "{child:?} is not a direct child of {parent:?}")
             }
@@ -54,6 +188,7 @@ impl fmt::Display for RuntimeMutationError {
                 "Figure {figure:?} size must be finite and non-negative, got {size:?}"
             ),
             Self::Layout(error) => error.fmt(formatter),
+            Self::Graph(error) => error.fmt(formatter),
             Self::Rejected => write!(formatter, "runtime mutation was rejected"),
         }
     }
@@ -64,6 +199,12 @@ impl Error for RuntimeMutationError {}
 impl From<LayoutError> for RuntimeMutationError {
     fn from(value: LayoutError) -> Self {
         Self::Layout(value)
+    }
+}
+
+impl From<GraphMutationError> for RuntimeMutationError {
+    fn from(value: GraphMutationError) -> Self {
+        Self::Graph(value)
     }
 }
 
@@ -277,10 +418,6 @@ impl PendingMutation {
                 placement,
             },
         }
-    }
-
-    pub(crate) fn from_kind(kind: PendingMutationKind) -> Self {
-        Self { kind }
     }
 
     pub(crate) fn into_kind(self) -> PendingMutationKind {

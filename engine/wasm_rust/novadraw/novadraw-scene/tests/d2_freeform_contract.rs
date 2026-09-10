@@ -1,5 +1,3 @@
-use slotmap::Key;
-
 use novadraw_render::RenderCommandKind;
 use novadraw_scene::{
     FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
@@ -13,7 +11,7 @@ use std::sync::Arc;
 fn scalable_freeform_viewport(
     layer_bounds: Rectangle,
 ) -> (
-    FigureTree,
+    Runtime,
     ViewportHandle,
     ScaleHandle,
     novadraw_scene::FigureId,
@@ -52,9 +50,8 @@ fn scalable_freeform_viewport(
             layer_bounds.height,
         )),
     );
-    let mut tree = runtime.into_tree();
-    tree.revalidate(viewport.block_id());
-    (tree, viewport, scalable, content)
+    runtime.prepare_frame();
+    (runtime, viewport, scalable, content)
 }
 
 #[test]
@@ -439,15 +436,15 @@ fn invalid_constraint_type_does_not_partially_commit_layout_output() {
 
 #[test]
 fn freeform_viewport_range_uses_unscaled_content_domain() {
-    let (tree, viewport, scalable, _) =
+    let (runtime, viewport, scalable, _) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
 
     assert_eq!(
-        tree.freeform_extent(scalable.block_id()),
+        runtime.tree().freeform_extent(scalable.block_id()),
         Ok(Rectangle::new(-100.0, -50.0, 500.0, 300.0))
     );
     assert_eq!(
-        tree.figure_bounds(scalable.block_id()),
+        runtime.tree().figure_bounds(scalable.block_id()),
         Some(Rectangle::new(0.0, 0.0, 300.0, 200.0))
     );
     assert_eq!(viewport.horizontal_range().minimum, -100.0);
@@ -460,14 +457,14 @@ fn freeform_viewport_range_uses_unscaled_content_domain() {
 
 #[test]
 fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
-    let (mut tree, viewport, scalable, _) =
+    let (mut runtime, viewport, scalable, _) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
-    let mut updates = UpdateManager::new();
     let mut zoom = ZoomManager::new(scalable.clone(), viewport.clone());
     zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
 
     assert!(
-        zoom.set_zoom_at(&mut tree, &mut updates, 2.0, Some(Point::new(60.0, 40.0)),)
+        runtime
+            .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
             .unwrap()
     );
 
@@ -479,7 +476,7 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
     assert_eq!(viewport.vertical_range().maximum, 250.0);
     assert_eq!(viewport.vertical_range().extent, 100.0);
     assert_eq!(
-        tree.figure_bounds(scalable.block_id()),
+        runtime.tree().figure_bounds(scalable.block_id()),
         Some(Rectangle::new(0.0, 0.0, 150.0, 100.0))
     );
     assert_eq!((60.0 - viewport.view_location().x()) * zoom.zoom(), 60.0);
@@ -488,12 +485,11 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
 
 #[test]
 fn freeform_fit_uses_derived_extent_instead_of_presentation_bounds() {
-    let (mut tree, viewport, scalable, _) =
+    let (mut runtime, viewport, scalable, _) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
-    let mut updates = UpdateManager::new();
     let zoom = ZoomManager::new(scalable, viewport.clone());
 
-    assert!(zoom.fit_all(&mut tree, &mut updates).unwrap());
+    assert!(runtime.fit_zoom_to_contents(&zoom).unwrap());
 
     assert_eq!(zoom.zoom(), 0.6);
     assert_eq!(viewport.view_location(), Point::new(-100.0, -50.0));
@@ -501,30 +497,14 @@ fn freeform_fit_uses_derived_extent_instead_of_presentation_bounds() {
 
 #[test]
 fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
-    let (mut tree, viewport, _, layer) =
+    let (mut runtime, viewport, _, layer) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 1000.0, 600.0));
-    let mut updates = UpdateManager::new();
-    viewport
-        .set_view_location(&mut tree, &mut updates, 600.0, 350.0)
-        .unwrap();
-    tree.perform_update(&mut updates);
-    tree.drain_notification_effects();
+    runtime.set_view_location(&viewport, 600.0, 350.0).unwrap();
+    runtime.prepare_frame();
 
-    assert!(tree.set_bounds_with_update(&mut updates, layer, -20.0, -10.0, 100.0, 80.0,));
-    updates.perform_validation(&mut tree);
+    assert!(runtime.set_bounds(layer, Rectangle::new(-20.0, -10.0, 100.0, 80.0)));
+    let canvas = runtime.prepare_frame().unwrap();
 
     assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));
-    assert!(updates.has_pending_repaint());
-    assert!(tree.drain_notification_effects().into_iter().any(|effect| {
-        matches!(
-            effect,
-            NotificationEffect::EmitProperty(event)
-                if event.block_id == viewport.block_id()
-                    && event.property == "viewLocation"
-                    && event.old_value == PropertyValue::Point(Point::new(600.0, 350.0))
-                    && event.new_value == PropertyValue::Point(Point::new(0.0, 0.0))
-        )
-    }));
-    let canvas = tree.perform_update(&mut updates);
     assert!(canvas.damage().union().is_some());
 }

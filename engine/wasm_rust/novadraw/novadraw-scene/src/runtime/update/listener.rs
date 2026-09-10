@@ -15,11 +15,27 @@ use crate::graph::FigureId;
 use crate::style::CursorIcon;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ListenerId(u64);
+pub struct ListenerId {
+    namespace: crate::RuntimeNamespace,
+    sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ListenerScope {
+    Runtime,
+    Figure(FigureId),
+}
 
 impl ListenerId {
-    pub(crate) fn new(value: u64) -> Self {
-        Self(value)
+    pub(crate) fn new(namespace: crate::RuntimeNamespace, sequence: u64) -> Self {
+        Self {
+            namespace,
+            sequence,
+        }
+    }
+
+    pub fn namespace(self) -> crate::RuntimeNamespace {
+        self.namespace
     }
 }
 
@@ -157,6 +173,67 @@ pub enum NotificationEffect {
     EmitAction(ActionEvent),
     /// 布局生命周期变化。
     EmitLayout(LayoutEvent),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct NotificationRecord {
+    pub source_epoch: u64,
+    pub sequence: u64,
+    pub effect: NotificationEffect,
+}
+
+#[derive(Clone, Copy)]
+pub struct StableSceneQuery<'a> {
+    epoch: u64,
+    tree: &'a crate::FigureTree,
+}
+
+impl<'a> StableSceneQuery<'a> {
+    pub(crate) fn new(epoch: u64, tree: &'a crate::FigureTree) -> Self {
+        Self { epoch, tree }
+    }
+
+    pub const fn epoch(self) -> u64 {
+        self.epoch
+    }
+
+    pub fn is_attached(self, figure: FigureId) -> bool {
+        self.tree.is_attached(figure)
+    }
+
+    pub fn bounds(self, figure: FigureId) -> Option<Rectangle> {
+        self.tree.figure_bounds(figure)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StableQueryError {
+    Faulted,
+    NotStable { latest_stable_epoch: u64 },
+}
+
+impl std::fmt::Display for StableQueryError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::NotStable {
+                latest_stable_epoch,
+            } => write!(
+                formatter,
+                "Runtime has unpublished work after stable epoch {latest_stable_epoch}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for StableQueryError {}
+
+pub trait ObservationListener {
+    fn observed(
+        &self,
+        record: &NotificationRecord,
+        latest: StableSceneQuery<'_>,
+    ) -> ListenerDirective;
 }
 
 /// 通知 effect 队列

@@ -6,12 +6,12 @@
 //!
 //! ```rust,ignore
 //! use novadraw_apps::run_demo_app;
-//! use novadraw::FigureTree;
+//! use novadraw::Runtime;
 //!
-//! fn create_scene() -> FigureTree {
-//!     let mut scene = FigureTree::new();
+//! fn create_scene() -> Runtime {
+//!     let mut runtime = Runtime::empty();
 //!     // 创建场景...
-//!     scene
+//!     runtime
 //! }
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {

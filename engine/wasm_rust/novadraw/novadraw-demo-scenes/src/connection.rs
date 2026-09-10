@@ -67,7 +67,7 @@ fn resolve_with_arrow(
     runtime.add_figure(connection_figure, Box::new(arrow));
 }
 
-fn anchor_matrix() -> novadraw::FigureTree {
+fn anchor_matrix() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let connection_ids: Vec<_> = (0..5)
@@ -245,10 +245,10 @@ fn anchor_matrix() -> novadraw::FigureTree {
             .unwrap();
         resolve_with_arrow(&mut runtime, connection_id, connection_figure, root);
     }
-    runtime.into_tree()
+    runtime
 }
 
-fn bendpoint_scene() -> novadraw::FigureTree {
+fn bendpoint_scene() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let connection_figure = runtime.add_figure(
@@ -297,14 +297,14 @@ fn bendpoint_scene() -> novadraw::FigureTree {
         )
         .unwrap();
     resolve_with_arrow(&mut runtime, id, connection_figure, root);
-    runtime.into_tree()
+    runtime
 }
 
-fn manhattan_scene() -> novadraw::FigureTree {
+fn manhattan_scene() -> Runtime {
     manhattan_scene_with_moved_nodes(false)
 }
 
-fn manhattan_scene_with_moved_nodes(moved: bool) -> novadraw::FigureTree {
+fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
@@ -356,10 +356,10 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> novadraw::FigureTree {
             .unwrap();
         resolve_with_arrow(&mut runtime, id, connection_figure, root);
     }
-    runtime.into_tree()
+    runtime
 }
 
-fn shared_manhattan_scene() -> novadraw::FigureTree {
+fn shared_manhattan_scene() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
@@ -410,10 +410,10 @@ fn shared_manhattan_scene() -> novadraw::FigureTree {
     for (connection_id, connection_figure) in entries {
         resolve_with_arrow(&mut runtime, connection_id, connection_figure, root);
     }
-    runtime.into_tree()
+    runtime
 }
 
-fn unsupported_viewport_topology_scene() -> novadraw::FigureTree {
+fn unsupported_viewport_topology_scene() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let viewport = runtime.add_figure(
@@ -475,10 +475,10 @@ fn unsupported_viewport_topology_scene() -> novadraw::FigureTree {
             )
         ))
     ));
-    runtime.into_tree()
+    runtime
 }
 
-fn fan_scene() -> novadraw::FigureTree {
+fn fan_scene() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let connection_figures: Vec<_> = (0..5)
@@ -543,14 +543,14 @@ fn fan_scene() -> novadraw::FigureTree {
     ) {
         resolve_with_arrow(&mut runtime, id, figure, root);
     }
-    runtime.into_tree()
+    runtime
 }
 
-fn moved_nodes_scene() -> novadraw::FigureTree {
+fn moved_nodes_scene() -> Runtime {
     manhattan_scene_with_moved_nodes(true)
 }
 
-fn connection_layer_scene() -> novadraw::FigureTree {
+fn connection_layer_scene() -> Runtime {
     let mut runtime = Runtime::empty();
     let root = runtime.set_contents(Box::new(background()));
     let layer = runtime.add_figure(
@@ -601,7 +601,7 @@ fn connection_layer_scene() -> novadraw::FigureTree {
         )
         .unwrap();
     resolve_with_arrow(&mut runtime, id, connection_figure, layer);
-    runtime.into_tree()
+    runtime
 }
 
 pub fn suite() -> DemoSuite {
@@ -609,24 +609,24 @@ pub fn suite() -> DemoSuite {
         "connection",
         "Connection / Anchor / Router",
         vec![
-            SceneSpec::visual("anchor-matrix", "anchor_matrix", (800, 600), anchor_matrix),
-            SceneSpec::visual("bendpoint", "bendpoint", (800, 600), bendpoint_scene),
-            SceneSpec::visual("manhattan", "manhattan", (800, 600), manhattan_scene),
-            SceneSpec::visual(
+            SceneSpec::runtime_visual("anchor-matrix", "anchor_matrix", (800, 600), anchor_matrix),
+            SceneSpec::runtime_visual("bendpoint", "bendpoint", (800, 600), bendpoint_scene),
+            SceneSpec::runtime_visual("manhattan", "manhattan", (800, 600), manhattan_scene),
+            SceneSpec::runtime_visual(
                 "shared-manhattan",
                 "shared_manhattan",
                 (800, 600),
                 shared_manhattan_scene,
             ),
-            SceneSpec::visual("fan", "fan", (800, 600), fan_scene),
-            SceneSpec::visual("moved-nodes", "moved_nodes", (800, 600), moved_nodes_scene),
-            SceneSpec::visual(
+            SceneSpec::runtime_visual("fan", "fan", (800, 600), fan_scene),
+            SceneSpec::runtime_visual("moved-nodes", "moved_nodes", (800, 600), moved_nodes_scene),
+            SceneSpec::runtime_visual(
                 "connection-layer",
                 "connection_layer",
                 (800, 600),
                 connection_layer_scene,
             ),
-            SceneSpec::visual(
+            SceneSpec::runtime_visual(
                 "unsupported-viewport-topology",
                 "unsupported_viewport_topology",
                 (800, 600),

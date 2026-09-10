@@ -36,6 +36,8 @@ pub use deferred::UpdateManager;
 pub use listener::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
-    ListenerDirective, ListenerId, NotificationEffect, NotificationQueue, PropertyChangeEvent,
-    PropertyChangeListener, PropertyValue, UpdateEvent, UpdateListener, ValidatingListener,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
+    NotificationRecord, ObservationListener, PropertyChangeEvent, PropertyChangeListener,
+    PropertyValue, StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener,
+    ValidatingListener,
 };

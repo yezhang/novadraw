@@ -10,6 +10,8 @@ use crate::submission::RenderSubmission;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RenderCapability {
     ProjectiveComposition,
+    GlyphRuns,
+    ImageResources,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,6 +36,8 @@ pub struct BackendCapabilities {
     pub partial_damage: bool,
     pub retained_surface: bool,
     pub projective_composition: bool,
+    pub glyph_runs: bool,
+    pub image_resources: bool,
 }
 
 impl BackendCapabilities {
@@ -41,12 +45,16 @@ impl BackendCapabilities {
         partial_damage: false,
         retained_surface: false,
         projective_composition: false,
+        glyph_runs: false,
+        image_resources: false,
     };
 
     pub const RETAINED_PARTIAL: Self = Self {
         partial_damage: true,
         retained_surface: true,
         projective_composition: false,
+        glyph_runs: true,
+        image_resources: true,
     };
 
     pub const fn supports_partial_damage(self) -> bool {
@@ -56,7 +64,19 @@ impl BackendCapabilities {
     pub const fn supports(self, capability: RenderCapability) -> bool {
         match capability {
             RenderCapability::ProjectiveComposition => self.projective_composition,
+            RenderCapability::GlyphRuns => self.glyph_runs,
+            RenderCapability::ImageResources => self.image_resources,
         }
+    }
+
+    pub const fn with_glyph_runs(mut self) -> Self {
+        self.glyph_runs = true;
+        self
+    }
+
+    pub const fn with_image_resources(mut self) -> Self {
+        self.image_resources = true;
+        self
     }
 
     pub fn require(self, capability: RenderCapability) -> Result<(), UnsupportedRenderCapability> {
@@ -79,6 +99,7 @@ pub enum RenderOutcome {
     Presented,
     Skipped,
     Retry,
+    Unsupported(UnsupportedRenderCapability),
 }
 
 /// 渲染后端 trait

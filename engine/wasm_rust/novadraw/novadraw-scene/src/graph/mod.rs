@@ -12,13 +12,12 @@ use std::{
 
 use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Translatable, Vec2};
 use novadraw_render::{NdCanvas, TextError, TextLayoutEngine};
-use slotmap::{Key, SlotMap};
 use uuid::Uuid;
 
 use super::figure::{
     ChildClippingStrategy, ChildPolicy, ClickableSnapshot, ClickableVisualState, Direction,
-    ImageFigure, LabelFigure, RoundedRectangleFigure, ShapeMutationError, TriangleFigure,
-    WidgetError, normalize_points,
+    FigureMeasurement, ImageFigure, LabelFigure, MeasureConstraints, RoundedRectangleFigure,
+    ShapeMutationError, TriangleFigure, WidgetError, normalize_points,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
@@ -26,7 +25,11 @@ use super::layout::{
 };
 use crate::Border;
 use crate::figure::border::BorderSnapshot;
-use crate::mutation::{PendingMutation, PendingMutationKind};
+pub use crate::identity::FigureId;
+use crate::identity::{RuntimeArena, RuntimeNamespace};
+#[cfg(test)]
+use crate::mutation::PendingMutation;
+use crate::mutation::PendingMutationKind;
 use crate::runtime::update::{
     ActionEvent, AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
     NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
@@ -46,14 +49,12 @@ pub mod bounds_test;
 #[cfg(test)]
 pub mod update_integration_test;
 
-slotmap::new_key_type! {
-    /// Runtime-local, generational identity of a Figure node.
-    pub struct FigureId;
-}
-
 /// Figure 树允许的最大深度。根节点深度为 0。
 pub const MAX_TREE_DEPTH: usize = 10_000;
 pub const DEFAULT_VALIDATION_BUDGET: usize = 10_000;
+const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
+const RECURSIVE_VALIDATION_STACK_RED_ZONE: usize = 128 * 1024;
+const RECURSIVE_VALIDATION_STACK_GROWTH: usize = 4 * 1024 * 1024;
 pub const FREEFORM_EXTENT_PROPERTY: &str = "freeform_extent";
 
 fn finite_rectangle(rectangle: Rectangle) -> bool {
@@ -422,6 +423,8 @@ pub struct FigureNode {
     pub(crate) depth: usize,
     /// 图形
     pub(crate) figure: Box<dyn super::Figure>,
+    /// Runtime 提交的私有组件状态版本。
+    pub(crate) component_revision: u64,
     /// 容器布局策略、关系约束和后续布局缓存的唯一归属。
     pub(crate) layout: LayoutState,
     /// 所有 Figure 共享的节点状态。
@@ -585,7 +588,7 @@ impl FigureNode {
 /// scene.builder().add_child_to(contents_id, Box::new(child));
 /// ```
 pub struct FigureTree {
-    blocks: SlotMap<FigureId, FigureNode>,
+    blocks: RuntimeArena<FigureId, FigureNode>,
     uuid_map: std::collections::HashMap<Uuid, FigureId>,
     /// 根块（内部使用）
     root: FigureId,
@@ -597,6 +600,29 @@ pub struct FigureTree {
 /// Explicit construction-only facade for building a Figure tree before Runtime ownership.
 pub struct FigureTreeBuilder<'a> {
     tree: &'a mut FigureTree,
+}
+
+pub(crate) struct RetiredSubtree {
+    pub(crate) nodes: Vec<FigureNode>,
+    parent_constraint: Option<Box<dyn LayoutConstraint>>,
+}
+
+impl RetiredSubtree {
+    pub(crate) fn complete(self) {
+        for mut node in self.nodes {
+            if let Some(parent) = node.parent
+                && let Some(lifecycle) = node.figure.lifecycle()
+            {
+                lifecycle.on_detached(crate::FigureLifecycleContext {
+                    figure_id: node.id,
+                    parent_id: parent,
+                    runtime_namespace: node.id.namespace(),
+                });
+            }
+            drop(node);
+        }
+        drop(self.parent_constraint);
+    }
 }
 
 impl<'a> FigureTreeBuilder<'a> {
@@ -647,13 +673,109 @@ impl<'a> FigureTreeBuilder<'a> {
 }
 
 impl FigureTree {
+    pub fn namespace(&self) -> RuntimeNamespace {
+        self.blocks.namespace()
+    }
+
+    pub(crate) fn synthetic_root(&self) -> FigureId {
+        self.root
+    }
+
+    pub(crate) fn complete_attachment(&mut self, figure: FigureId, parent: FigureId) {
+        let runtime_namespace = self.namespace();
+        if let Some(lifecycle) = self.blocks[figure].figure.lifecycle() {
+            lifecycle.on_attached(crate::FigureLifecycleContext {
+                figure_id: figure,
+                parent_id: parent,
+                runtime_namespace,
+            });
+        }
+    }
+
+    pub(crate) fn complete_detachment(&mut self, figure: FigureId, parent: FigureId) {
+        let runtime_namespace = self.namespace();
+        if let Some(lifecycle) = self.blocks[figure].figure.lifecycle() {
+            lifecycle.on_detached(crate::FigureLifecycleContext {
+                figure_id: figure,
+                parent_id: parent,
+                runtime_namespace,
+            });
+        }
+    }
+
+    pub(crate) fn attached_ids_parent_first(&self) -> Vec<(FigureId, FigureId)> {
+        let Some(contents) = self.contents else {
+            return Vec::new();
+        };
+        let mut ids = vec![(contents, self.root)];
+        for id in self.descendant_ids(contents).unwrap_or_default() {
+            if let Some(parent) = self.parent_id(id) {
+                ids.push((id, parent));
+            }
+        }
+        ids
+    }
+
+    pub(crate) fn designate_contents(&mut self, id: FigureId) {
+        assert_eq!(self.parent_id(id), Some(self.root));
+        self.contents = Some(id);
+    }
+
+    pub(crate) fn disposal_ids(&self, root: FigureId) -> Result<Vec<FigureId>, GraphMutationError> {
+        if root == self.root || !self.is_attached(root) {
+            return Err(GraphMutationError::InvalidParentRelation);
+        }
+        let mut ids = vec![root];
+        ids.extend(
+            self.descendant_ids(root)
+                .ok_or(GraphMutationError::ChildNotFound)?,
+        );
+        Ok(ids)
+    }
+
+    pub(crate) fn extract_subtree(
+        &mut self,
+        ids: &[FigureId],
+        updates: &mut UpdateManager,
+    ) -> RetiredSubtree {
+        let root = ids[0];
+        let parent = self.blocks[root].parent.expect("validated subtree parent");
+        let mut nodes = Vec::with_capacity(ids.len());
+        self.blocks[parent].children.retain(|id| *id != root);
+        let parent_constraint = self.blocks[parent].layout.constraints.remove(&root);
+        for &id in ids.iter().rev() {
+            let node = self.blocks.remove(id).expect("validated subtree node");
+            self.uuid_map.remove(&node.uuid);
+            nodes.push(node);
+        }
+        if self.contents == Some(root) {
+            self.contents = None;
+        }
+        // No component callbacks until Runtime has retired its other references.
+        updates.add_invalid_figure(parent);
+        self.emit_ancestor_event(AncestorEvent {
+            kind: AncestorEventKind::Removed,
+            block_id: root,
+            parent_id: parent,
+        });
+        self.emit_layout_event(LayoutEvent {
+            kind: LayoutEventKind::ChildRemoved,
+            container_id: parent,
+            child_id: Some(root),
+        });
+        RetiredSubtree {
+            nodes,
+            parent_constraint,
+        }
+    }
+
     pub fn builder(&mut self) -> FigureTreeBuilder<'_> {
         FigureTreeBuilder { tree: self }
     }
 
     /// 创建新场景图
     pub fn new() -> Self {
-        let mut blocks = SlotMap::with_key();
+        let mut blocks = RuntimeArena::new(RuntimeNamespace::new());
         let uuid = Uuid::new_v4();
         let root_bounds = Rectangle::ZERO;
 
@@ -664,6 +786,7 @@ impl FigureTree {
             parent: None,
             depth: 0,
             figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
+            component_revision: 0,
             layout: LayoutState::default(),
             state: NodeState {
                 bounds: root_bounds,
@@ -750,12 +873,14 @@ impl FigureTree {
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
     pub(crate) fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
-        if let Some(previous) = self.contents.take() {
-            self.detach_child(self.root, previous);
-        }
         let contents_id = self
             .new_block_with_parent(figure, self.root)
             .expect("FigureTree root must exist");
+        if let Some(previous) = self.contents {
+            let ids = self.disposal_ids(previous).expect("attached contents");
+            let mut updates = UpdateManager::with_namespace(self.namespace());
+            drop(self.extract_subtree(&ids, &mut updates));
+        }
         self.contents = Some(contents_id);
         self.invalidate();
         contents_id
@@ -835,25 +960,34 @@ impl FigureTree {
     ///
     /// 用于交互式修改（如拖拽添加、动态插入节点），不适合批量构建场景。
     /// 批量构建使用 `add_child_to()` 以避免不必要的更新触发。
+    #[cfg(test)]
     pub(crate) fn add_child(
         &mut self,
         update_manager: &mut UpdateManager,
         parent_id: FigureId,
         figure: Box<dyn super::Figure>,
     ) -> FigureId {
-        let child_id = match self.try_add_child_to(parent_id, figure) {
-            Ok(child_id) => child_id,
-            Err(_) => return FigureId::null(),
-        };
+        self.try_add_child(update_manager, parent_id, figure)
+            .unwrap_or_else(|_| FigureId::null())
+    }
+
+    pub(crate) fn try_add_child(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        parent_id: FigureId,
+        figure: Box<dyn super::Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        let child_id = self.try_add_child_to(parent_id, figure)?;
         let visual_bounds = self.blocks[child_id].visual_bounds();
 
         self.mark_invalid(update_manager, parent_id);
         update_manager.add_dirty_region(child_id, visual_bounds);
         self.mark_invalid(update_manager, child_id);
 
-        child_id
+        Ok(child_id)
     }
 
+    #[cfg(test)]
     pub(crate) fn apply_pending_mutations(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -907,16 +1041,34 @@ impl FigureTree {
     }
 
     /// Reparents a block through the update transaction.
-    pub(crate) fn reparent(
+    pub(crate) fn try_reparent(
         &mut self,
         update_manager: &mut UpdateManager,
         child: FigureId,
         new_parent: FigureId,
-    ) -> bool {
-        self.apply_reparent_mutation(
+    ) -> Result<bool, GraphMutationError> {
+        let old_parent = self
+            .blocks
+            .get(child)
+            .ok_or(GraphMutationError::ChildNotFound)?
+            .parent
+            .ok_or(GraphMutationError::InvalidParentRelation)?;
+        self.blocks
+            .get(new_parent)
+            .ok_or(GraphMutationError::ParentNotFound)?;
+        if old_parent == new_parent {
+            return Ok(false);
+        }
+        if self.blocks[old_parent].child_policy() == ChildPolicy::Layered {
+            return Err(GraphMutationError::LayerKeyRequired);
+        }
+        self.validate_attachment(new_parent, child)?;
+        let changed = self.apply_reparent_mutation(
             update_manager,
             PendingMutationKind::Reparent { child, new_parent },
-        )
+        );
+        debug_assert!(changed, "validated reparent must commit");
+        Ok(changed)
     }
 
     /// 创建带父块的块
@@ -973,6 +1125,7 @@ impl FigureTree {
             parent: Some(parent_id),
             depth,
             figure,
+            component_revision: 0,
             layout,
             state: NodeState {
                 bounds,
@@ -985,9 +1138,6 @@ impl FigureTree {
         });
         self.uuid_map.insert(uuid, id);
         self.blocks[parent_id].children.push(id);
-        if let Some(lifecycle) = self.blocks[id].figure.lifecycle() {
-            lifecycle.on_attached(parent_id);
-        }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
             block_id: id,
@@ -1032,9 +1182,6 @@ impl FigureTree {
             let child = &mut self.blocks[child_id];
             child.parent = Some(parent_id);
             child.is_valid = false;
-            if let Some(lifecycle) = child.figure.lifecycle() {
-                lifecycle.on_attached(parent_id);
-            }
         }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
@@ -1059,9 +1206,6 @@ impl FigureTree {
         parent.layout.constraints.remove(&child_id);
 
         if let Some(child) = self.blocks.get_mut(child_id) {
-            if let Some(lifecycle) = child.figure.lifecycle() {
-                lifecycle.on_detached(parent_id);
-            }
             child.parent = None;
             child.is_valid = false;
         }
@@ -1213,22 +1357,6 @@ impl FigureTree {
         self.remove_child_internal(update_manager, parent, child)
     }
 
-    pub(crate) fn remove_layer_child(
-        &mut self,
-        update_manager: &mut UpdateManager,
-        parent: FigureId,
-        child: FigureId,
-    ) -> bool {
-        if self
-            .blocks
-            .get(parent)
-            .is_none_or(|node| node.child_policy() != ChildPolicy::Layered)
-        {
-            return false;
-        }
-        self.remove_child_internal(update_manager, parent, child)
-    }
-
     fn remove_child_internal(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -1330,6 +1458,7 @@ impl FigureTree {
         true
     }
 
+    #[cfg(test)]
     fn apply_add_mutation(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -1584,6 +1713,43 @@ impl FigureTree {
         update_manager: &mut UpdateManager,
         container_id: FigureId,
     ) -> Result<(), LayoutError> {
+        let ancestors_visible = self
+            .parent_id(container_id)
+            .is_none_or(|parent| self.is_effectively_visible(parent));
+        self.revalidate_with_update_inner(update_manager, container_id, ancestors_visible, 0)
+    }
+
+    fn revalidate_with_update_inner(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        container_id: FigureId,
+        ancestors_visible: bool,
+        depth: usize,
+    ) -> Result<(), LayoutError> {
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(
+                RECURSIVE_VALIDATION_STACK_RED_ZONE,
+                RECURSIVE_VALIDATION_STACK_GROWTH,
+                || {
+                    self.revalidate_with_update_body(
+                        update_manager,
+                        container_id,
+                        ancestors_visible,
+                        depth,
+                    )
+                },
+            );
+        }
+        self.revalidate_with_update_body(update_manager, container_id, ancestors_visible, depth)
+    }
+
+    fn revalidate_with_update_body(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        container_id: FigureId,
+        ancestors_visible: bool,
+        depth: usize,
+    ) -> Result<(), LayoutError> {
         if self
             .blocks
             .get(container_id)
@@ -1591,7 +1757,7 @@ impl FigureTree {
         {
             return Ok(());
         }
-        if !self.is_effectively_visible(container_id) {
+        if !ancestors_visible || !self.blocks[container_id].is_visible {
             return Ok(());
         }
 
@@ -1601,7 +1767,7 @@ impl FigureTree {
             .as_deref()
             .is_some_and(LayoutManager::requires_valid_children_before_layout);
         if prevalidate_children {
-            self.revalidate_children_with_update(update_manager, container_id)?;
+            self.revalidate_children_with_update(update_manager, container_id, depth)?;
         }
 
         let layout_manager = self
@@ -1636,7 +1802,7 @@ impl FigureTree {
             });
         }
 
-        self.revalidate_children_with_update(update_manager, container_id)?;
+        self.revalidate_children_with_update(update_manager, container_id, depth)?;
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
@@ -1654,6 +1820,7 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         parent_id: FigureId,
+        parent_depth: usize,
     ) -> Result<(), LayoutError> {
         // 先收集子元素 ID，避免在迭代过程中同时持有不可变和可变引用
         let children: Vec<FigureId> = self
@@ -1663,7 +1830,7 @@ impl FigureTree {
             .unwrap_or_default();
 
         for child_id in children {
-            self.revalidate_with_update(update_manager, child_id)?;
+            self.revalidate_with_update_inner(update_manager, child_id, true, parent_depth + 1)?;
         }
         Ok(())
     }
@@ -1691,6 +1858,34 @@ impl FigureTree {
     }
 
     pub fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
+        let ancestors_visible = self
+            .parent_id(container_id)
+            .is_none_or(|parent| self.is_effectively_visible(parent));
+        self.try_revalidate_inner(container_id, ancestors_visible, 0)
+    }
+
+    fn try_revalidate_inner(
+        &mut self,
+        container_id: FigureId,
+        ancestors_visible: bool,
+        depth: usize,
+    ) -> Result<(), LayoutError> {
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(
+                RECURSIVE_VALIDATION_STACK_RED_ZONE,
+                RECURSIVE_VALIDATION_STACK_GROWTH,
+                || self.try_revalidate_body(container_id, ancestors_visible, depth),
+            );
+        }
+        self.try_revalidate_body(container_id, ancestors_visible, depth)
+    }
+
+    fn try_revalidate_body(
+        &mut self,
+        container_id: FigureId,
+        ancestors_visible: bool,
+        depth: usize,
+    ) -> Result<(), LayoutError> {
         if self
             .blocks
             .get(container_id)
@@ -1698,7 +1893,7 @@ impl FigureTree {
         {
             return Ok(());
         }
-        if !self.is_effectively_visible(container_id) {
+        if !ancestors_visible || !self.blocks[container_id].is_visible {
             return Ok(());
         }
 
@@ -1710,7 +1905,7 @@ impl FigureTree {
         if prevalidate_children {
             let children = self.blocks[container_id].children.clone();
             for child_id in children {
-                self.try_revalidate(child_id)?;
+                self.try_revalidate_inner(child_id, true, depth + 1)?;
             }
         }
 
@@ -1751,7 +1946,7 @@ impl FigureTree {
             .map(|block| block.children.clone())
             .unwrap_or_default();
         for child_id in children {
-            self.try_revalidate(child_id)?;
+            self.try_revalidate_inner(child_id, true, depth + 1)?;
         }
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
@@ -1960,9 +2155,37 @@ impl FigureTree {
             return Some(size);
         }
         Some(owner_scoped_border_size(
-            block.figure.intrinsic_size(),
+            block
+                .figure
+                .intrinsic_measurement(MeasureConstraints::from_hints(w_hint, h_hint))
+                .size(),
             block.border_snapshot.as_ref(),
         ))
+    }
+
+    pub fn measurement(
+        &self,
+        block_id: FigureId,
+        w_hint: f64,
+        h_hint: f64,
+    ) -> Option<FigureMeasurement> {
+        let block = self.blocks.get(block_id)?;
+        if block.preferred_size.is_some() || block.layout.manager.is_some() {
+            let (width, height) = self.preferred_size(block_id, w_hint, h_hint)?;
+            return Some(FigureMeasurement::new(width, height, None));
+        }
+        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
+        let mut measurement = block
+            .figure
+            .intrinsic_measurement(MeasureConstraints::from_hints(w_hint, h_hint));
+        if let Some(snapshot) = block.border_snapshot.as_ref() {
+            let (top, left, bottom, right) = snapshot.insets();
+            let preferred = snapshot.preferred_size();
+            measurement.width = (measurement.width + left + right).max(preferred.0);
+            measurement.height = (measurement.height + top + bottom).max(preferred.1);
+            measurement.baseline = measurement.baseline.map(|baseline| baseline + top);
+        }
+        Some(measurement)
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
@@ -1991,7 +2214,10 @@ impl FigureTree {
             return Some(size);
         }
         Some(owner_scoped_border_size(
-            block.figure.intrinsic_minimum_size(),
+            block
+                .figure
+                .intrinsic_minimum_measurement(MeasureConstraints::from_hints(w_hint, h_hint))
+                .size(),
             block.border_snapshot.as_ref(),
         ))
     }
@@ -2181,6 +2407,10 @@ impl FigureTree {
 
     pub(crate) fn block(&self, id: FigureId) -> Option<&FigureNode> {
         self.blocks.get(id)
+    }
+
+    pub(crate) fn block_mut(&mut self, id: FigureId) -> Option<&mut FigureNode> {
+        self.blocks.get_mut(id)
     }
 
     /// 返回指定父节点的 child 顺序。
@@ -3868,6 +4098,11 @@ impl super::layout::LayoutContext for FigureTree {
             .unwrap_or((0.0, 0.0))
     }
 
+    fn get_measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        self.measurement(block_id, w_hint, h_hint)
+            .unwrap_or_default()
+    }
+
     fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
         self.minimum_size(block_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
@@ -3910,10 +4145,10 @@ mod tests {
     use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape};
     use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
     use crate::{
-        EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureId, FigureLifecycle,
-        FigureTree, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
-        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure,
-        UpdateManager, ViewportFigure,
+        EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureLifecycle, FigureTree,
+        LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle, RootFigure,
+        RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure, UpdateManager,
+        ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
     use novadraw_geometry::Vec2;
@@ -4088,8 +4323,8 @@ mod tests {
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     enum LifecycleEvent {
-        Attached(FigureId),
-        Detached(FigureId),
+        Attached(crate::FigureLifecycleContext),
+        Detached(crate::FigureLifecycleContext),
     }
 
     impl LifecycleRecordingFigure {
@@ -4130,18 +4365,18 @@ mod tests {
     }
 
     impl FigureLifecycle for LifecycleRecordingFigure {
-        fn on_attached(&mut self, parent_id: FigureId) {
+        fn on_attached(&mut self, context: crate::FigureLifecycleContext) {
             self.events
                 .lock()
                 .unwrap()
-                .push(LifecycleEvent::Attached(parent_id));
+                .push(LifecycleEvent::Attached(context));
         }
 
-        fn on_detached(&mut self, parent_id: FigureId) {
+        fn on_detached(&mut self, context: crate::FigureLifecycleContext) {
             self.events
                 .lock()
                 .unwrap()
-                .push(LifecycleEvent::Detached(parent_id));
+                .push(LifecycleEvent::Detached(context));
         }
     }
 
@@ -4670,10 +4905,12 @@ mod tests {
     }
 
     #[test]
-    fn test_figure_lifecycle_hooks_fire_on_add_remove_and_reparent() {
+    fn test_figure_lifecycle_hooks_follow_runtime_realization_and_completion() {
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut scene = FigureTree::new();
-        let left_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let left_id =
+            scene.set_contents(Box::new(LifecycleRecordingFigure::new(Arc::clone(&events))));
+        let synthetic_root = scene.synthetic_root();
         let right_id = scene.add_child_to(
             left_id,
             Box::new(RectangleFigure::new(20.0, 20.0, 50.0, 50.0)),
@@ -4682,28 +4919,76 @@ mod tests {
             left_id,
             Box::new(LifecycleRecordingFigure::new(Arc::clone(&events))),
         );
-
-        assert_eq!(
-            *events.lock().unwrap(),
-            vec![LifecycleEvent::Attached(left_id)]
+        let grandchild_id = scene.add_child_to(
+            child_id,
+            Box::new(LifecycleRecordingFigure::new(Arc::clone(&events))),
         );
 
-        assert!(scene.detach_child(left_id, child_id));
+        assert!(events.lock().unwrap().is_empty());
+
+        let mut runtime = crate::Runtime::new(scene);
+        let namespace = child_id.namespace();
         assert_eq!(
             *events.lock().unwrap(),
             vec![
-                LifecycleEvent::Attached(left_id),
-                LifecycleEvent::Detached(left_id)
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: left_id,
+                    parent_id: synthetic_root,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: child_id,
+                    parent_id: left_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: grandchild_id,
+                    parent_id: child_id,
+                    runtime_namespace: namespace,
+                }),
             ]
         );
 
-        assert!(scene.attach_child_checked(right_id, child_id).is_ok());
+        assert!(runtime.reparent(child_id, right_id));
+        runtime.dispose_subtree(child_id).unwrap();
         assert_eq!(
             *events.lock().unwrap(),
             vec![
-                LifecycleEvent::Attached(left_id),
-                LifecycleEvent::Detached(left_id),
-                LifecycleEvent::Attached(right_id)
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: left_id,
+                    parent_id: synthetic_root,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: child_id,
+                    parent_id: left_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: grandchild_id,
+                    parent_id: child_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Detached(crate::FigureLifecycleContext {
+                    figure_id: child_id,
+                    parent_id: left_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Attached(crate::FigureLifecycleContext {
+                    figure_id: child_id,
+                    parent_id: right_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Detached(crate::FigureLifecycleContext {
+                    figure_id: grandchild_id,
+                    parent_id: child_id,
+                    runtime_namespace: namespace,
+                }),
+                LifecycleEvent::Detached(crate::FigureLifecycleContext {
+                    figure_id: child_id,
+                    parent_id: right_id,
+                    runtime_namespace: namespace,
+                }),
             ]
         );
     }
@@ -5810,6 +6095,48 @@ mod tests {
             .expect("styled descendant must paint");
 
         assert_eq!(color.a, 0.5);
+    }
+
+    #[test]
+    fn local_alpha_override_replaces_inherited_graphics_alpha() {
+        let mut scene = FigureTree::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        scene.set_figure_style(
+            parent,
+            FigureStyle {
+                alpha: Some(0.25),
+                ..FigureStyle::default()
+            },
+        );
+        let child = scene.add_child_to(
+            parent,
+            Box::new(AlphaStateFigure {
+                bounds: Rectangle::new(20.0, 0.0, 10.0, 10.0),
+            }),
+        );
+        scene.set_figure_style(
+            child,
+            FigureStyle {
+                alpha: Some(1.0),
+                ..FigureStyle::default()
+            },
+        );
+
+        let color = scene
+            .render()
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::FillRect { rect, color }
+                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
+                {
+                    Some(*color)
+                }
+                _ => None,
+            })
+            .expect("child paint must be emitted");
+
+        assert_eq!(color.a, 1.0);
     }
 
     #[test]

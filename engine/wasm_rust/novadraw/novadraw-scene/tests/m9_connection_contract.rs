@@ -8,7 +8,6 @@ use novadraw_scene::{
     PathFractionLocator, RoundedRectangleAnchor, RouteError, RouteOutput, RouteRequest,
     SceneQueryError, SceneRead, TrackedSceneQuery,
 };
-use slotmap::SlotMap;
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
 
@@ -135,8 +134,20 @@ impl SceneRead for QueryFixture {
 }
 
 fn figure_ids(count: usize) -> Vec<FigureId> {
-    let mut ids = SlotMap::<FigureId, ()>::with_key();
-    (0..count).map(|_| ids.insert(())).collect()
+    let mut tree = novadraw_scene::FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(novadraw_scene::RectangleFigure::new(
+            0.0, 0.0, 100.0, 100.0,
+        )));
+    (0..count)
+        .map(|_| {
+            tree.builder().add_child_to(
+                root,
+                Box::new(novadraw_scene::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+            )
+        })
+        .collect()
 }
 
 #[test]
