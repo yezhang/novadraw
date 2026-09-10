@@ -311,7 +311,7 @@ paint、hit-test、border、style 和更新协议证据；类型可导出不等�
 
 ### 文本 + 图像
 
-- `Label`（cosmic-text 集成）
+- `Label`（Parley 默认布局引擎 + backend-neutral Glyph IR，见 ADR-007）
 - 文本布局 + 截断 + align
 - `ImageFigure`
 - 字体管理

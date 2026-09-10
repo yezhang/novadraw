@@ -96,12 +96,14 @@ Runtime 先构造不可变 `LayoutSnapshot`，再调用 LayoutManager 把结果�
 整棵树，也避免在遍历中重入修改树。
 
 Freeform extent 和 dependent RangeModel 属于同一收敛循环。正常完成条件是 invalid
-set、dirty freeform extent 与 pending range update 同时为空。同一 generation 中每个
-dirty freeform host 最多重算一次；禁止每个 host 各自扫描完整后代树。
+set、dirty freeform extent 与 pending range update 同时为空。相同输入 generation
+合并重复工作；同一 source epoch 内输入改变后必须重新入队，不能丢弃反馈。
+禁止每个 host 各自扫描完整后代树。
 
 ### 4.1 收敛
 
-正常完成条件是 invalid set 为空。为防止错误 Figure/Layout 无限制造 invalid：
+局部 validation 完成不等于整个 frame 稳定；最终须满足 ADR-011 的全部 typed
+worklist 排空。为防止错误 Figure/Layout 无限制造 invalid：
 
 - 记录每个 generation 的处理次数和因果来源；
 - 使用可配置事务预算作为诊断保护；
@@ -250,6 +252,27 @@ pending work: empty → non-empty
 UpdateManager 不依赖 winit、DOM 或 OS run loop。同步更新事务和异步 redraw scheduling
 是两个不同概念。
 
+Runtime 的规范 preparation 入口返回可区分状态：
+
+```rust
+pub enum FramePreparation {
+    Ready(RenderSubmission),
+    Idle,
+    Suspended,
+    AwaitingCompletion,
+    Error(FramePreparationError),
+}
+```
+
+`prepare_submission -> Option<RenderSubmission>` 仅作为兼容入口；Host 需要诊断、
+调度或恢复决策时使用 `prepare_submission_state`，不能把 surface 暂停、等待 ack、
+无工作和稳定化失败都解释成 Idle。
+
+Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_capability`。
+永久缺失 GlyphRuns、ImageResources 或其他声明能力时返回
+`FramePreparation::Error(UnsupportedRenderCapability)`，不创建 in-flight frame；
+`Retry` 只表示资源暂缺、surface 恢复等同一 backend 上可能成功的瞬时条件。
+
 ## 11. Mutation 协作
 
 顶层更新前必须先提交已冻结的结构 mutation：
@@ -277,6 +300,15 @@ did_prepare(submission metadata)
 did_submit(result)
 ```
 
+这些名称是历史阶段事实，在稳定发布后回放，不是事前拦截接口。每条记录带
+revision/epoch、sequence 与必要 old/new 数据；查询只读最新 stable snapshot。
+内部绑定清理和必要组件 lifecycle 不依赖外部 listener。订阅 scope 遵循 ADR-014。
+
+D4.4 以 `NotificationRecord { source_epoch, sequence, effect }` 实现历史信封，
+`ObservationListener` 同时接收 `StableSceneQuery`。历史 effect 保留发生顺序和
+old/new payload，但查询始终指向 flush 时最新 stable epoch；存在未发布工作时
+`Runtime::stable_query` 返回 `NotStable`。
+
 - Figure 几何通知不混入 update listener；
 - freeform 事务的 typed property 顺序固定为 child geometry/layout →
   FreeformExtent → RangeModel bounds → clamped view location；
@@ -293,7 +325,7 @@ did_submit(result)
 | backend submit 失败 | 标记 surface state unknown，下轮 Full |
 | surface lost | 暂停提交，恢复后 Full |
 | invalid FigureId | 丢弃该 source 并记录其来源；不得访问复用节点 |
-| callback panic | 恢复 phase guard；是否继续由 Runtime panic policy 决定 |
+| callback panic | 恢复 phase guard 并默认 faulted，拒绝新提交，不承诺副作用回滚 |
 
 phase guard 必须使用作用域恢复机制，确保错误后 `is_updating` 不会永久为 true。
 

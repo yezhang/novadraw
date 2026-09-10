@@ -131,10 +131,9 @@ Effect 严格保持产生顺序。Runtime 可以合并 repaint 区域，但不�
 ```text
 完成全部 callback
 → freeze MutationQueue
-→ validate all referenced FigureId
-→ apply mutations FIFO
-→ invoke detach/attach lifecycle effects
-→ repair InteractionState references
+→ validate each mutation against its committed prefix
+→ commit engine topology/binding/interaction changes FIFO
+→ complete required component lifecycle outside structural commit
 → invalidate affected layout roots
 → damage old and new visual bounds
 ```
@@ -145,6 +144,10 @@ Effect 严格保持产生顺序。Runtime 可以合并 repaint 区域，但不�
 - 不保留属于旧 parent 的 layout constraint；
 - 不产生只覆盖一半操作的通知；
 - 返回结构化错误并继续维持 Runtime 可用状态。
+
+上述承诺针对可恢复的预验证错误。任意用户 callback/Drop panic 不保证回滚：
+恢复 guard 后默认 faulted，停止新提交。生命周期、共享绑定归属及 dispose 见
+[Figure 生命周期](figure-lifecycle.md)，不提供通用活对象自动迁移。
 
 不按 mutation 类型重新排序。调用者产生的 FIFO 顺序就是语义顺序；需要复合原子操作
 时应使用单个 `Reparent`、`ReplaceContents` 等高层 mutation。
@@ -363,7 +366,7 @@ worker 不直接修改 FigureTree。资源完成消息与输入一样，经顶�
 | validation 不收敛 | 返回诊断错误并保留工作 |
 | backend submit 失败 | 保留 full repaint 需求以便恢复 |
 | surface lost | 暂停提交，恢复后 full repaint |
-| callback panic | 恢复事务标志；是否隔离 panic 由嵌入策略决定 |
+| callback panic | 恢复事务标志并默认 faulted；拒绝新提交，不声称回滚外部副作用 |
 
 ## 17. 因果可观测性
 

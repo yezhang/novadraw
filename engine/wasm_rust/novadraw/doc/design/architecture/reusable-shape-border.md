@@ -81,13 +81,16 @@ RoundedRectangleFigure 当前可由 path 表达，因此
 
 pre-Runtime 构建可使用 Figure 构造器和 FigureTreeBuilder。Figure 进入 Runtime 后：
 
-- 通用 style 使用既有 Runtime/FigureTree style mutation；
+- 通用 style 使用 Runtime style mutation，构建期才可由 builder 写入；
 - bounds 使用既有 geometry mutation；
 - point list、corner dimensions 和 triangle direction 使用命名的 typed mutation；
 - Border replacement 使用 Runtime mutation。
 
 运行期不得向调用方暴露可变 PointList、可变 Border 引用或可绕过
 validation/damage 的具体 Figure 可变引用。
+
+命名 setter 不是封闭类型清单。按 ADR-014，自定义组件通过 owned typed update
+准备候选并统一发布 revision/facts；不要求为每个第三方 Shape 修改 Runtime。
 
 ### 3.4 Shape 是绘制辅助，不是第二棵对象树
 

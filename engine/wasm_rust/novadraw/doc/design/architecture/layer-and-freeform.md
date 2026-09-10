@@ -291,7 +291,8 @@ FreeformListener 或独立 listener 总线。
 阶段读取正在构造的 generation；查询 API 不通过 interior mutation 临时重算缓存。
 unknown ID 与不具备 Freeform capability 必须返回不同错误。
 
-同一 generation 中每个 dirty freeform host 最多重算一次。Nested freeform 按深度
+相同输入 generation 中每个 dirty freeform host 合并重复工作；同一 source epoch 内
+若 route/layout 改变输入，必须以新 generation 再次入队。Nested freeform 按深度
 从深到浅归并，禁止每个 host 各自重新扫描完整后代树而退化为 O(n²)。
 
 ## 5. FreeformLayout
@@ -617,7 +618,7 @@ FreeformListener 跟踪 child 变化并缓存 extent。
 **收益：**
 
 - 不建立 listener 对象链和回调重入；
-- 同一 generation 内可保证每个 dirty host 最多重算一次；
+- 相同输入 generation 合并重算；输入改变可在同一 source epoch 再次计算；
 - 更容易检测 O(n²) 和 non-converging validation；
 - 具体 Figure 继续只保存类型专属行为。
 

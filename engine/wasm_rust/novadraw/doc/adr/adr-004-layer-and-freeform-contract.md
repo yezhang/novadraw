@@ -25,8 +25,9 @@ Novadraw 已由 ADR-003 确立 parent-local bounds、Runtime 事务入口、Figu
    位于导入、导出或算法适配边界。
 4. LayeredPaneState 是 Runtime 私有关系状态，不属于 LayoutConstraint；FigureTree
    children 顺序仍是唯一 Z-order。
-5. FreeformState 是 LayoutState 的派生缓存；具体 Figure 不持有 bounds、child IDs
-   或 listener 对象链。
+5. FreeformState 是 LayoutState 的派生缓存；具体 Figure 不维护第二份 bounds、
+   child topology 或内部 listener 依赖链。组件关系引用可以显式声明，但不是树真值，
+   更新与失效遵循 ADR-014。
 6. Freeform 使用 ChildClippingStrategy::OverflowVisible；paint、hit-test 和 damage
    共享同一有效 clip，最终由 ancestor 或 Viewport 截断。
 7. RangeModel 的 minimum、maximum、extent 和 value 统一使用 content domain；
@@ -35,6 +36,9 @@ Novadraw 已由 ADR-003 确立 parent-local bounds、Runtime 事务入口、Figu
    ScalableFigure capability，并复用现有 scale state。
 9. pre-Runtime 批量构建使用显式 FigureTreeBuilder，运行期 topology 写入统一经过
    Runtime；FigureTree 仅公开只读查询，底层 mutation primitive 限于 crate 内实现。
+
+2026-09-10 校准：按 generation 去重指相同输入修订，不是整个 source epoch 只计算
+一次；后置阶段改变输入后必须重新入队，受 ADR-011 的稳定化预算约束。
 
 完整语义、Draw2D 差异及逐项收益/代价见
 `doc/design/architecture/layer-and-freeform.md`。

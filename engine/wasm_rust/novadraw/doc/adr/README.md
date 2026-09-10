@@ -8,6 +8,12 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 
 ## ADR 列表
 
+2026-09-10 已完成 001-013 的设计审计。当前修订裁决：
+[ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md)；
+[审计与逐项处置](../verification/reviews/adr-audit-2026-09-10.md)；
+[历史快照入口](../archive/adr-audit-2026-09-10/README.md)。
+001-012 保留合理主线并同步修订正文；新契约不等于代码已实现。
+
 | 编号 | 标题 | 状态 | 日期 |
 |------|------|------|------|
 | [001](adr-001-webgpu-rust-stack.md) | 使用 Rust + WebGPU 实现图形框架 | 已通过 | 2025-01-13 |
@@ -22,6 +28,14 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [010](adr-010-runtime-listener-lifecycle.md) | Runtime Listener 生命周期 | 已通过 | 2026-09-08 |
 | [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 已通过 | 2026-09-09 |
 | [012](adr-012-resource-causality-and-backend-session.md) | 资源因果日志与 Backend Session | 已通过 | 2026-09-09 |
+| [013](adr-013-figure-lifecycle-and-runtime-identity.md) | Figure 生命周期与 Runtime 身份域 | 已被 014 替换 | 2026-09-09 |
+| [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 扩展协议、生命周期与稳定发布边界修订 | 已接受，待实现 | 2026-09-10 |
+
+## 现行与历史隔离
+
+本目录正文只包含现行决策或替代指引。失效全文移至 `doc/archive/`，不在当前正文
+保留“历史候选仍可选”的叙述。追溯旧方案时显式进入归档，不默认检索归档。
+“已通过”表示设计效力；实现与验收状态只以 roadmap/verification 为准。
 
 ## ADR 模板
 

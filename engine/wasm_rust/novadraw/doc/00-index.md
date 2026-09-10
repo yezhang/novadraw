@@ -19,6 +19,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 ## 核心 SSOT
 
+- 2026-09-10 架构修订裁决：
+  [`adr/adr-014-extensibility-and-lifecycle-boundaries.md`](adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+- ADR-001 至 ADR-013 审计与替代关系：
+  [`verification/reviews/adr-audit-2026-09-10.md`](verification/reviews/adr-audit-2026-09-10.md)
 - Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)
 - 静态结构：[`design/architecture/static-architecture.md`](design/architecture/static-architecture.md)
 - 动态时序：[`design/architecture/dynamic-architecture.md`](design/architecture/dynamic-architecture.md)
@@ -37,6 +41,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
 - 资源因果与 Backend Session：
   [`design/architecture/resource-lifecycle.md`](design/architecture/resource-lifecycle.md)
+- Figure 生命周期与 Runtime 身份域：
+  [`design/architecture/figure-lifecycle.md`](design/architecture/figure-lifecycle.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：
@@ -51,7 +57,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 出现文档冲突时按以下顺序判断：
 
-1. 已接受 ADR 决定不可逆的关键取舍。
+1. 当前已接受 ADR 决定关键取舍；明确的替代关系优先，ADR-013 已由 ADR-014 替换。
+   设计决策可经有证据的修订取代，不把历史批准视为不可更改。
 2. `design/` 下标记为 `normative-design` 且范围更窄的专题契约优先于架构总览；
    `proposal` 不具有覆盖效力。
 3. `parity/` 只解释外部语义到 Novadraw 的映射，不覆盖 Novadraw 设计契约。
@@ -124,4 +131,6 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - 文件和目录使用小写 kebab-case；固定入口保留 `00-index.md`。
 - 移动文档后必须更新仓库内所有 Markdown 链接和 `AGENTS.md`、`CLAUDE.md`。
 - 已失效内容移入 `archive/`，不得继续被设计文档作为当前契约引用。
+- 默认检索排除 `doc/archive/`；只有历史追溯才显式读取。
+- 原始快照、SHA-256 和旧新映射保留在归档入口；不得将新设计写成已有实现证据。
 - 设计、路线图和审计报告分别维护，不在一篇文档中重复保存三套状态。

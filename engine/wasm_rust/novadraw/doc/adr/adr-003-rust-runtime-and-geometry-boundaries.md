@@ -6,6 +6,9 @@
 
 已通过
 
+2026-09-10 补充：[ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md) 明确
+自定义组件的 prepared update、必要 lifecycle 与 fault 边界；不改变本文坐标决策。
+
 ## 背景
 
 早期理想架构保留了 Draw2D 的行为语义，但仍混入若干 Java 对象模型和当前实现选择：
@@ -52,6 +55,14 @@ callback
 
 该决策细化 ADR-002 的 flush owner：Runtime 是 effect 和 mutation 的提交边界；
 UpdateManager 只负责 Validation、Damage Repair 和 frame preparation 的阶段协议。
+
+Runtime 协调通用提交，不枚举每种第三方 Figure 的私有字段。自定义内容更新采用
+owned typed update -> 只读准备候选 -> 完整校验 -> 统一发布 revision/facts。
+具体 API 必须由外部组件用例验证；不公开任意原地修改闭包来冒充可回滚事务。
+组件关系引用与树拓扑分开，后者仍只有 FigureTree 一份真值。
+
+source operation 原子性、derived output 原子性、stable publication 和 backend ack
+分别定义；不承诺任意用户副作用或 Drop 的事务回滚。扩展 panic 默认进入 faulted。
 
 ## 后果
 

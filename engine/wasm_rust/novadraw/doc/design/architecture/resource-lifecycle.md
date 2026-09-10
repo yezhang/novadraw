@@ -38,7 +38,9 @@ BackendSessionId
 
 BackendSessionId 标识一组 backend-local resource cache 与 retained surface 的生命周期，
 namespace 防止复用同一 backend 的两个 Runtime 被误认为同一 session；generation 只在
-同一 Runtime namespace 内比较。切换到不同 namespace 时 backend 必须替换 cache。
+同一 Runtime namespace 内比较。切换 namespace 无时间顺序，必须先由 Host 停止
+旧 producer 并排空/撤销旧提交，再替换 cache；不能仅凭不同 namespace 防止迟到包。
+2026-09-10 新接管契约见 ADR-014，尚需 D4.4 验证。
 
 ## 3. Registry 状态机
 
@@ -160,16 +162,27 @@ backend 处理规则：
 
 ```text
 no active session
-  -> accept session, initialize empty cache
+  -> require Snapshot + Full, initialize cache baseline
 same session
   -> consume normally
-newer session
-  -> clear resource cache + retained surface, accept session
-older session
+same namespace, newer generation
+  -> require Snapshot + Full, clear resource cache + retained surface
+same namespace, older generation
   -> reject as stale
+different namespace
+  -> Host serialized handoff, require Snapshot + Full
 ```
 
 同一 Runtime 仍只允许一个 in-flight submission。
+
+Host 不允许旧 Runtime 在 handoff 后继续投递；切回原 Runtime 也 reset session 并发送
+Snapshot。并发 handoff 需要额外的 activation token，当前 Core 不提供该能力。
+缺 snapshot 基线时返回结构化错误，不先破坏当前可用 cache。
+
+Backend 实现通过共享 `BackendSessionGate` 执行上述接收规则。首次 session、同
+namespace 新 generation 或不同 namespace 接管若携带 Delta，返回
+`RejectMissingSnapshot`，并保持原 active session 不变；同 namespace 旧 generation
+返回 `RejectStale`。Vello 与 Web Canvas2D 使用同一 gate。
 
 ## 7. Freeze、ack 与 retry
 

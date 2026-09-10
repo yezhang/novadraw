@@ -51,9 +51,13 @@
 
 ### 当前执行门禁
 
-- M9、D3.1-D3.4 与 D4.1-D4.2 已完成；长期架构审计的其余 P1 问题继续由 D4 收口。
-- 当前执行 `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 D4.3
-  Figure 生命周期与 Runtime 身份域；M10.5 在 D4 完成后继续。
+- M9、D3.1-D3.4 与 D4.1-D4.6 已完成；最近一次长期架构审计的 A01-A08 已关闭。
+- 当前继续 `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 M10.5
+  Tooltip 与 Accessibility bridge。
+- 2026-09-10 架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
+  为准；ADR-013 已替换。D4.3-D4.6 门禁已完成，新设计不等于已实现。
+- 默认架构检索排除 `doc/archive/`；旧 ADR 全文只供显式历史追溯，不能用于当前设计。
+  审计入口：`doc/verification/reviews/adr-audit-2026-09-10.md`。
 
 ### 架构分析边界
 

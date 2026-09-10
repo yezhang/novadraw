@@ -1,0 +1,169 @@
+# ADR-013: Figure 生命周期与 Runtime 身份域
+
+类型：`architecture-decision`
+
+## 状态
+
+已通过
+
+## 背景
+
+长期架构审计确认两个相关问题：
+
+- FigureTree 的 remove 只断开 parent/children，不从 arena 释放 FigureNode；被移除
+  Figure 仍被 Runtime 强持有并继续参与部分全 arena 扫描；
+- `FigureId` 只有 SlotMap local generation。两个 Runtime 按相同顺序创建节点时可生成
+  相等 ID，将一个 Runtime 的 ID 传给另一个 Runtime 可能误操作后者节点。
+
+Draw2D 的 `Figure.remove()` 执行 removeNotify、layout remove、erase、parent 断开与
+revalidate，但 Java 对象是否存活由外部引用和 GC 决定。Novadraw 的 arena 是强所有者，
+不能把 Draw2D detach 直接当作 Rust 销毁协议。
+
+## 决策
+
+### 1. 公共身份与本地 arena key 分离
+
+Runtime 持有唯一 `RuntimeNamespace`。公共 `FigureId` 由 namespace 与 local
+generational key 组成：
+
+```text
+FigureId = RuntimeNamespace + LocalFigureId
+```
+
+公共 API 入口先校验 namespace；树内部遍历、SlotMap 和热路径继续使用紧凑
+`LocalFigureId`，不执行逐节点 UUID 查找。
+
+`ConnectionId` 继承 Figure 身份域。公开的 AnchorId、RouterId、ListenerId 等
+Runtime-local registry handle 同样必须具备 namespace 或在 facade 边界证明归属。
+
+Runtime namespace 不是业务身份。持久化 UUID、document object ID 和 undo/redo
+identity 由上层显式管理。
+
+### 2. 区分 reparent、detach 与 dispose
+
+- `reparent`：同一 Runtime 内移动 attached subtree，FigureId 不变；
+- `detach_subtree`：从 Runtime 提取为调用方拥有的 `DetachedSubtree`；
+- `dispose_subtree`：永久销毁 attached subtree，不返回节点。
+
+detach 会从 arena 提取节点，因此原 FigureId 立即失效。`DetachedSubtree` 使用自己的
+内部节点身份表达结构，不允许继续通过 Runtime API 操作。
+
+### 3. reattach 分配新 FigureId
+
+`attach_subtree` 消费 `DetachedSubtree`，在目标 Runtime 分配新 FigureId，并返回 root
+和 old-to-new/portable-node-to-new 映射。
+
+失败时必须把 `DetachedSubtree` 返还调用方，避免错误路径丢失所有权。reattach 不承诺
+恢复旧 runtime handle；稳定业务身份属于 document 层。
+
+### 4. 生命周期事务先计划后提交
+
+detach/dispose 在任何结构写入前完成：
+
+- namespace、attached、root 与深度校验；
+- subtree 闭包和边界引用分析；
+- 旧 visual envelope 快照；
+- sidecar cleanup/rebind plan；
+- lifecycle callback effect plan。
+
+提交阶段不得出现可恢复失败。销毁按 descendant-before-parent 顺序释放 arena 节点，
+并在同一事务清理：
+
+- parent constraint 与 child order；
+- focus、hover、capture、gesture 与 clickable 状态；
+- resource dependencies；
+- connection、anchor、router binding 与 locator 状态；
+- layer 双向 lookup；
+- listener association、UUID lookup 与派生缓存；
+- UpdateManager 中引用已销毁 Figure 的 invalid/damage source。
+
+旧 visual envelope 在删除前捕获，删除后仍进入 damage repair。
+
+### 5. 跨边界引用显式处理
+
+subtree 内部引用随 `DetachedSubtree` 携带并在 reattach 时映射到新 ID。
+
+指向 subtree 外部的引用作为 boundary reference 保存，reattach 时重新校验目标
+namespace 和存活状态。活动场景中的 Connection 若引用被 detach/dispose owner，应转为
+Unresolved 并进入正常派生状态收敛，不能保留悬空引用。
+
+Runtime listener registration 和其他 Runtime-owned observation 不随 DetachedSubtree
+迁移；Figure 对象自身拥有的行为状态随节点移动。
+
+### 6. contents replacement 必须声明旧树策略
+
+contents replacement 不得隐式永久保留旧 subtree。调用方必须选择：
+
+- dispose old contents；
+- detach and return old contents。
+
+兼容 convenience API 可以默认 dispose，但必须在名称和文档中明确。
+
+## 后果
+
+### 正面
+
+- foreign Runtime handle 在公共入口确定性失败；
+- remove 不再导致 arena 永久增长；
+- undo/history 可以真实拥有 detached subtree；
+- stale FigureId 不会在 reattach 后命中新节点；
+- dispose 与 retained-surface damage、connection fallback 保持同事务一致。
+
+### 代价
+
+- FigureId 与派生 handle 的公共表示发生 breaking change；
+- FigureTree 内部需要区分 public/local identity；
+- detach/reattach 需要迁移 subtree-local sidecar；
+- 所有 mutation、query、event 与 layout 扩展边界需要完成 namespace 审计。
+
+## 不采用
+
+### 继续使用裸 SlotMap FigureId
+
+SlotMap generation 只隔离同一 arena 的槽位复用，不隔离不同 Runtime。
+
+### 每个节点使用 UUID 做热路径查找
+
+这混淆运行时身份与持久化业务身份，并给遍历、布局和渲染增加不必要成本。
+
+### detach 后继续把节点保存在 Runtime arena
+
+这仍由 Runtime 强持有对象，无法解决内存生命周期问题；所谓外部所有权只是一枚标记。
+
+### reattach 恢复旧 FigureId
+
+SlotMap 删除后不能安全复活旧 generation。强行保留 key 会破坏 stale-handle 保证。
+
+### branded lifetime handle
+
+编译期品牌可隔离 Runtime，但生命周期会扩散到事件队列、异步结果、插件和 undo
+history，不适合作为当前公共 API。
+
+### 全局 ID 分配器
+
+需要进程全局状态，并把独立 Runtime 无谓耦合。
+
+## 与 Draw2D / GEF 的关系
+
+延续 Draw2D 的 addNotify/removeNotify、layout remove、erase 与 revalidate 顺序；额外的
+owned DetachedSubtree、arena disposal 和 namespaced handle 是 Rust 所有权模型下的
+合理迁移。
+
+GEF 的 EditPart deactivate 与 command/history 层负责编辑对象生命周期。Novadraw Core
+只提供可组合的 detach/dispose 基础协议，不在 D4.3 实现完整 GEF undo/redo stack。
+
+## 关系
+
+- 延续 ADR-003 Runtime 组合根；
+- 延续 ADR-010 listener lifecycle；
+- 延续 ADR-011 稳定化与 damage repair；
+- 使用 ADR-012 已建立的 Runtime namespace 概念；
+- 对应 D4.3 与 `figure.tree`、`figure.lifecycle`、`runtime.identity`、
+  `damage.repaint`。
+
+规范细节见
+[`../design/architecture/figure-lifecycle.md`](../design/architecture/figure-lifecycle.md)。
+
+## 日期
+
+2026-09-09

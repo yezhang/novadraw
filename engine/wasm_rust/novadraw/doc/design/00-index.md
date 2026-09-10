@@ -28,10 +28,16 @@
 11. [`coordinates/coordinate-system.md`](coordinates/coordinate-system.md)
 12. [`input/scroll-zoom-gesture-contract.md`](input/scroll-zoom-gesture-contract.md)
 13. [`rendering/update-manager.md`](rendering/update-manager.md)
+14. [`architecture/derived-state-convergence.md`](architecture/derived-state-convergence.md)
+15. [`architecture/figure-lifecycle.md`](architecture/figure-lifecycle.md)
+
+2026-09-10 的跨专题修订以
+[ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
+新增设计尚待实现，不沿用旧验证结果推断完成。
 
 ## 非规范提案
 
-- [`architecture/derived-state-convergence.md`](architecture/derived-state-convergence.md)
+- [`architecture/component-update.md`](architecture/component-update.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

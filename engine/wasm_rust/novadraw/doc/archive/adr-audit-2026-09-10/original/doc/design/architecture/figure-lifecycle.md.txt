@@ -1,0 +1,194 @@
+# Figure 生命周期与 Runtime 身份
+
+类型：`normative-design`
+
+状态：`approved`
+
+范围：D4.3
+
+## 1. 身份模型
+
+```rust
+pub struct RuntimeNamespace(Uuid);
+
+struct LocalFigureId(/* SlotMap generation key */);
+
+pub struct FigureId {
+    runtime: RuntimeNamespace,
+    local: LocalFigureId,
+}
+```
+
+RuntimeNamespace 在 FigureTree 创建时生成，Runtime 接管 FigureTree 后沿用该 namespace。
+ResourceRegistry 与 BackendSessionId 使用同一 namespace。
+
+公共 API 必须先比较 namespace，再访问 arena。内部可信路径使用 LocalFigureId。
+
+错误至少区分：
+
+```text
+ForeignRuntime { expected, actual }
+UnknownOrDisposedFigure
+DetachedFigure
+SyntheticRootOperation
+```
+
+不为已销毁 ID 永久保留 tombstone；同 Runtime 的 stale generation 归入
+UnknownOrDisposedFigure。
+
+## 2. 生命周期状态
+
+```text
+Attached(Runtime)
+  ├── reparent ───────────────> Attached(same Runtime, same FigureId)
+  ├── detach_subtree ─────────> DetachedSubtree (old FigureId invalid)
+  └── dispose_subtree ────────> Dropped (old FigureId invalid)
+
+DetachedSubtree
+  ├── attach_subtree ─────────> Attached(target Runtime, new FigureId)
+  └── drop ───────────────────> Dropped
+```
+
+DetachedSubtree 是 owned value，不引用 Runtime，不通过全局状态执行 Drop 清理。
+
+## 3. DetachedSubtree 内容
+
+DetachedSubtree 保存：
+
+- Figure 对象；
+- NodeState、style、size overrides 与 child clipping；
+- subtree 内 parent/child 顺序；
+- subtree 内 layout manager 与 constraints；
+- subtree 内可迁移的 connection/anchor/locator 描述；
+- 可选业务 identity metadata；
+- boundary reference descriptors。
+
+不保存：
+
+- Runtime listener registrations；
+- focus、hover、capture 或 gesture ownership；
+- pending notification/damage/worklist；
+- backend resource cache；
+- 旧 FigureId 作为可再次操作的句柄。
+
+DetachedSubtree 内部使用私有 `DetachedNodeId`。attach 成功后返回映射：
+
+```rust
+pub struct AttachResult {
+    pub root: FigureId,
+    pub nodes: DetachedIdMap,
+}
+```
+
+attach 失败返回：
+
+```rust
+pub struct AttachFailure {
+    pub error: LifecycleError,
+    pub subtree: DetachedSubtree,
+}
+```
+
+## 4. dispose 事务
+
+### 4.1 Plan
+
+提交前只读计算：
+
+1. 校验 Runtime namespace、attached 状态与 synthetic root 限制；
+2. 按稳定 preorder 收集 subtree，按 reverse order 生成删除顺序；
+3. 捕获 subtree 在 root domain 的旧 visual envelope；
+4. 找出 parent constraint、layer membership、resource dependency；
+5. 找出 subtree 内 connection/anchor/router/locator；
+6. 找出活动场景中指向 subtree owner 的外部 connection；
+7. 找出 interaction、listener、UUID 和 update work 引用；
+8. 生成无失败 cleanup plan。
+
+### 4.2 Commit
+
+```text
+detach lifecycle effects
+-> remove parent constraint and child link
+-> clear interaction ownership
+-> unregister subtree-owned runtime sidecars
+-> make external connections unresolved/dirty
+-> remove UUID and cache lookup
+-> remove arena nodes descendant-before-parent
+-> enqueue old visual envelope damage
+-> enqueue parent layout invalidation
+-> flush notification after stabilization
+```
+
+Commit 中不得执行用户回调。用户可观察 listener 在稳定事务完成后收到事件。
+
+## 5. detach 事务
+
+detach 使用与 dispose 相同的 Plan，并额外构造 DetachedSubtree：
+
+- move 出 Figure 与可迁移 node state；
+- 将 subtree-local FigureId 引用改写为 DetachedNodeId；
+- 将外部引用记录为 namespaced boundary reference；
+- 清理全部 Runtime-owned sidecar；
+- 从 arena 删除旧节点；
+- old FigureId 立即 stale。
+
+DetachedSubtree drop 直接释放其拥有对象，不需要 Runtime。
+
+## 6. attach 事务
+
+attach 分两段：
+
+1. 预分配目标 Runtime 的新 FigureId，并建立 DetachedNodeId -> FigureId 映射；
+2. 校验深度、parent capability、constraint、boundary reference 与连接拓扑；
+3. 全部校验通过后一次性写入 nodes、sidecar、parent link 与 lifecycle effects。
+
+失败不得消费 subtree。成功后：
+
+- attach lifecycle 按 parent-before-children；
+- parent layout invalid；
+- subtree intrinsic/layout/route/presentation 工作进入 D4.1 worklist；
+- damage 只记录新 visual envelope，旧 envelope 已在 detach 时处理。
+
+## 7. contents policy
+
+```rust
+pub enum OldContentsPolicy {
+    Dispose,
+    Detach,
+}
+```
+
+默认 `set_contents` 使用 Dispose。需要 undo/history 的调用方使用显式 detach 变体并接收
+DetachedSubtree。
+
+## 8. 引用规则
+
+- subtree-owned connection 随 subtree 迁移；
+- active external connection 指向 detached/disposed owner 时转 Unresolved；
+- detached boundary reference reattach 时若目标不存在，保留为 Unresolved；
+- ResourceId 不随 subtree 复制，作为 namespaced boundary reference 重新校验；
+- 跨 Runtime attach 不允许隐式携带旧 Runtime-local listener/anchor/router handle；
+- 新 Runtime 需要显式 resolver 才能恢复外部业务引用。
+
+## 9. 验证
+
+- 两个 Runtime 的首个 FigureId 不相等；
+- foreign Runtime query/mutation 返回 ForeignRuntime，目标 Runtime 无变化；
+- dispose 后 arena 数量下降且 Drop 发生；
+- stale FigureId 不能命中新节点；
+- dispose 前旧 visual envelope 在下一次 damage 中被擦除；
+- focus/hover/capture/resource/layer/connection/listener 不保留 stale ID；
+- detach 后 Runtime 不再拥有 Figure；
+- DetachedSubtree drop 释放全部 Figure；
+- reattach 返回全新 FigureId 和完整映射；
+- attach 失败返还原 DetachedSubtree；
+- contents replacement 默认不会累积旧 arena 节点；
+- 10,000 层边界保持现有递归限制。
+
+## 10. 非目标
+
+- 完整 GEF EditPart/CommandStack；
+- 文档持久化格式；
+- 跨进程 subtree 传输；
+- 保证 reattach 后 Runtime FigureId 不变；
+- 为已销毁 ID 永久保存诊断 tombstone。

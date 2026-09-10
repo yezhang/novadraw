@@ -56,11 +56,12 @@ FigureTree 的 direct mutation、LayoutOutput commit、route commit 和 callback
 
 内部失效不依赖 notification 回流，外部事件也不承担调度职责。
 
-### 3. 文本拆分 intrinsic 与 presentation
+### 3. 文本区分自然测量、约束测量与 presentation
 
-intrinsic metrics 不依赖最终 client width，用于 preferred/minimum size 与 parent layout。
-最终 geometry 稳定后才产生 constrained/ellipsis GlyphRun snapshot。presentation refresh
-只能 repaint，不能再次改变 layout contribution。
+2026-09-10 按 ADR-014 修订：Label/TitleBar 自然尺寸可独立于最终 client width；
+换行文本必须在 layout 阶段按父级约束测量高度/baseline 并保存对应 TextLayout，
+再 arrange。最终 ellipsis/alignment 等纯 presentation 只能 repaint；
+不能把需要反馈布局的换行放到 presentation，也不要求自然/约束测量共用同一快照。
 
 ### 4. Routing space 由树推导
 
@@ -71,6 +72,9 @@ dirty groups；显式 resolve 只保留为诊断工具，不再是应用正确�
 
 Layout calculation 不得写共享 RangeModel/ViewportRuntime 或同步通知。built-in container
 使用 sealed typed layout effects，并与 child bounds 在完整 output 校验后原子提交。
+
+sealed 限制引擎状态写入，不禁止外部组件通过受校验 prepared output 发布私有派生
+快照。不可变输入是行为契约，不表示 Rust `&self` 已禁止所有共享可变副作用。
 
 ### 6. Stable epoch、有限收敛与结构化失败
 

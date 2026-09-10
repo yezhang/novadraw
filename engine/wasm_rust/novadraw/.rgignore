@@ -1,0 +1,2 @@
+# Historical records are opt-in: use rg --no-ignore doc/archive for history.
+/doc/archive/

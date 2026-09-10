@@ -380,7 +380,9 @@ Router 内增量保存 `rowsUsed/colsUsed`：
 3. row 与 column 独立占用，候选 lane 与已占用 lane 的距离不得小于配置的
    `lane_spacing`；
 4. 从期望 lane 按 `0, -1, +1, -2, +2, ...` 乘以 `lane_spacing` 的顺序搜索；
-5. 完整验证所有输出后一次性提交；任一成员失败则整组不提交。
+5. 完整验证所有输出后一次性提交；任一成员失败则拒绝整个成功 batch。
+   运行期随后原子提交整组 unresolved、清空旧 route/reservation 并保留恢复依赖，
+   不保留伪装为有效的旧几何；与 ADR-014 一致。
 
 `lane_spacing` 与 `minimum_stub` 是 Router 的命名配置，单位为 routing-domain logical
 units。该机制只提供 Draw2D 风格的共享 lane reservation，不宣称提供 obstacle

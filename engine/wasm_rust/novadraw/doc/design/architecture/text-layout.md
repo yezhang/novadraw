@@ -67,7 +67,7 @@ pub struct ParleyTextEngine {
 }
 ```
 
-- Runtime/FigureTree 持有 `Box<dyn TextLayoutEngine>`；
+- Runtime 独占 `Box<dyn TextLayoutEngine>`；构建器只移交服务/配置，FigureTree 不拥有第二实例；
 - 测试可创建隔离实例；
 - 不使用 `static`、thread-local singleton 或隐藏全局 cache；
 - 注册字体时递增 revision，并使依赖该字体的布局失效。
@@ -130,6 +130,12 @@ command 中重复保存。
 `TextLayout` 可在引擎内部保存 source text、cluster mapping 和 accessibility 数据，
 但这些内容不进入最终绘制 command。
 
+外部 `TextLayoutEngine` 通过 `TextLayoutParts` 和 `TextLayout::from_parts` 构造该快照。
+构造器统一校验 FontDescriptor、TextConstraints、总体与逐行指标、glyph run 数值以及
+UTF-8 visible range；外部实现不能直接写入 `TextLayout` 私有字段绕过不变量。
+`with_visibility` 使用同一校验路径。独立非 Parley 引擎必须产生非空 GlyphRun 并通过
+Runtime/NdCanvas 消费，返回 `TextLayout::default()` 不构成替换能力验证。
+
 ## 6. Command IR
 
 规范底层文本指令只有一种：
@@ -165,7 +171,7 @@ pub enum RenderCommandKind {
 
 ## 7. 测量与绘制同源
 
-同一个 `TextLayout` 同时用于：
+相同内容、字体 revision 和约束下的 `TextLayout` 共同用于：
 
 - intrinsic/preferred/minimum size；
 - ellipsis 决策；
@@ -173,6 +179,13 @@ pub enum RenderCommandKind {
 - TitleBarBorder 的 insets/preferred size；
 - `NdCanvas::draw_text_layout`；
 - backend-neutral `DrawGlyphRun`。
+
+自然尺寸与受宽度约束的测量可以产生不同快照。换行高度/baseline 在 Layout 阶段
+通过 `measure(constraints)` 返回给 parent，arrange 后复用同约束结果绘制；
+单行 ellipsis/alignment 才是 paint-only presentation。详见 ADR-014，
+外部 TextLayout 构造与非 Parley 非空 IR 已完成 D4.4 验证；受宽度约束测量进入
+parent layout、arrange 与同约束 Glyph IR 的端到端契约也已通过外部 Figure/Layout
+集成测试。
 
 `NdCanvas::measure_text` 的字符平均宽度实现以及旧 `draw_text`/`fill_text` API
 已删除；测量必须通过 Runtime-owned `TextLayoutEngine`。
@@ -243,7 +256,8 @@ FigureNode::BorderSnapshot
 | 变化 | validation | damage |
 |---|---|---|
 | text/font/icon/gap/placement | 是 | old/new visual |
-| width constraint | 是 | old/new visual |
+| 测量 width constraint（换行影响高度） | 是 | old/new visual |
+| 单行 Label 最终 ellipsis width | 否（geometry 已由 layout 提交） | old/new visual |
 | alignment | 否 | old/new visual |
 | foreground/alpha | 否 | old/new visual |
 | font resource transition | 是 | old/new visual |

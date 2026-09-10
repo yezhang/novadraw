@@ -71,6 +71,9 @@ resolve every member input
 
 任一成员失败时不得提交部分 route 或部分 reservation。
 
+2026-09-10 澄清（ADR-014）：上述拒绝针对成功计算结果；运行期随后以完整失败批次
+清空组内旧 route/reservation 并标记 unresolved，保留恢复依赖。不是继续显示旧 route。
+
 ### 3. Reservation 是派生快照
 
 Runtime 不增量维护“释放后可能残留”的可变 row/column 表。每次 scope 重算时从完整
@@ -120,8 +123,8 @@ nearest-common-viewport clipping；不得在 D3.1 中扩张通用 clipping provi
 ## 错误与恢复
 
 - divergent viewport chain：`RouteError::UnsupportedViewportTopology`；
-- group snapshot 中任一输入失效：整组不提交；
-- 输出非有限、非正交或少于两个点：整组不提交；
+- group snapshot 中任一输入失效：拒绝成功 batch，原子提交整组 unresolved；
+- 输出非有限、非正交或少于两个点：拒绝成功 batch，原子提交整组 unresolved；
 - topology 或输入恢复后，dependency invalidation 使整组重新计算；
 - connection 删除或切换 RouterId 后，下一次完整 snapshot 自然释放其 reservation。
 

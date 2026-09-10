@@ -6,6 +6,9 @@
 
 范围：D4.1
 
+2026-09-10 修订：ADR-014 的约束测量与扩展发布边界已由 D4.4 独立实现和验证，
+不由旧 D4.1 验证报告自动覆盖。
+
 ## 1. 目标
 
 Runtime 接受一次 source mutation 后，应在同一次 frame preparation 中得到一致的：
@@ -61,6 +64,7 @@ Pre-layout state 不依赖最终 container width：
 
 Geometry state 由 LayoutSnapshot/LayoutOutput 与规范坐标链得到：
 
+- 依赖父级宽度约束的文本/组件测量高度、baseline 与布局快照；
 - NodeState bounds；
 - Freeform extent；
 - Viewport range、view location 与 child transform；
@@ -75,7 +79,7 @@ points 与 bounds；失败结果将受影响 group 转为 unresolved 并清除�
 
 Presentation snapshot 只依赖已经稳定的 geometry：
 
-- constrained/ellipsis text layout；
+- 与布局所用约束一致的 glyph snapshot、单行 ellipsis；
 - glyph origin 与 alignment；
 - ImageResourceRef 与最终 destination rectangle；
 - owner-scoped Border paint snapshot。
@@ -194,7 +198,8 @@ calculate child bounds + built-in effects
 - Connection 的规范 routing space 由其 parent child-content domain 推导；
 - 正常动态更新不要求应用传入 routing space；
 - dirty connections 按 RouterId、routing domain 与 router-specific group key 形成稳定组；
-- 每组先用同一 stable scene snapshot 计算完整 batch，再原子提交；
+- 每组先用当前 derivation epoch 内冻结的已提交几何快照计算完整 batch，再原子提交；
+  这是内部计算快照，不要求整个 epoch 已经晋升 stable，否则会形成调度循环；
 - geometry/topology fact 由 `DerivedWorkSet` 命中 dependency reverse index；
 - route commit 可能使 locator/freeform/viewport 再次 invalid，因此将对应 typed work
   按固定优先级入队；
@@ -203,20 +208,22 @@ calculate child bounds + built-in effects
 一个 route group 失败不会回滚无关 group；失败 group 清除旧 geometry，进入稳定
 unresolved 状态并保留用于恢复的 dependencies。
 
-## 8. 文本双阶段
+## 8. 文本测量与呈现
 
-文本 API 明确分为：
+文本 API 按依赖分为：
 
 1. `measure_intrinsic`：不使用最终 client width，产出 parent layout 所需 natural
    metrics；
-2. `layout_presentation`：使用稳定 client area，产出 wrapping/ellipsis/alignment 与
-   GlyphRun snapshot。
+2. `measure(constraints)`：在 Layout 阶段使用父级约束，产出换行后的高度、baseline
+   和不可变 TextLayout；约束改变可以使布局贡献改变；
+3. `layout_presentation`：使用已经 arrange 的 geometry 与同约束快照，产出
+   ellipsis/alignment 和 glyph placement，不再改变布局贡献。
 
-Label/TitleBar preferred size 只读取 intrinsic metrics。presentation cache key 可以包含
-最终 width/height，但 cache refresh 不得使 Figure revalidate。
+单行 Label/TitleBar preferred size 读取自然尺寸。presentation cache key 可以包含
+最终 width/height，但纯表现刷新不 revalidate。通用 TextFlow 的约束测量不得受此限制。
 
-这不要求通用 TextFlow 在 D4.1 完整实现；现有 Label 与 TitleBar 先遵守同一分层，
-后续 TextFlow 复用该协议。
+这不要求本轮实现完整 TextFlow；先以外部受约束测量用例验证扩展边界。父级提供约束、
+子级返回尺寸、再 arrange，不通过 presentation 后多次 full redraw 修补高度。
 
 ## 9. Stable epoch、预算与错误
 
@@ -280,6 +287,9 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 内置容器可通过只写 `LayoutOutputBuilder` 产生 sealed typed effect。effect 在完整 output
 校验后由 Runtime 提交，不能自行读取可变 Runtime、重入 mutation 或同步通知。
 
+第三方组件允许返回拥有候选值的私有派生快照，经统一 prepare/validate/publish 提交。
+不能只有内置类型能更新测量状态；但不得借此执行任意共享模型 mutation。
+
 ### 新 Router
 
 只消费 SceneQuery/RouteRequest 并返回 RouteOutput；group scope 和 constraint compatibility
@@ -288,8 +298,8 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 
 ### 新文本引擎
 
-分别支持 intrinsic measurement 与 constrained presentation；产出同一不可变
-TextLayout/GlyphRun IR。D4.4 补齐外部非空构造器。
+分别支持 natural/constrained measurement 与 presentation；相同输入和约束复用
+不可变 TextLayout/GlyphRun IR。D4.4 已补齐外部非空构造器与约束测量验证。
 
 ## 13. 验证
 

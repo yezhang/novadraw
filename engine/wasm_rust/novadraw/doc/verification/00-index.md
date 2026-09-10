@@ -8,6 +8,23 @@
 - `performance/`：可重复执行的性能基线与前后对比
 - `checklists/`：开发与验证检查清单
 
+ADR-001 至 ADR-013 的设计审计、源码证据、旧新映射与剩余门禁见
+[`reviews/adr-audit-2026-09-10.md`](reviews/adr-audit-2026-09-10.md)。
+这是设计审计，不是新增 Runtime 验证；历史通过记录不能覆盖 ADR-014 新契约。
+
+ADR-014 首批实验实现、同树 Runtime 重包装身份复活及暂停门禁见
+[`reviews/adr014-implementation-gate-2026-09-10.md`](reviews/adr014-implementation-gate-2026-09-10.md)。
+
+ADR-014 D4.4 的结构化 topology 错误、外部 TextLayout、frame 状态与 backend
+session baseline 增量见
+[`reviews/adr014-d4.4-increment-2026-09-10.md`](reviews/adr014-d4.4-increment-2026-09-10.md)。
+
+ADR-014 D4.5 的递归 style/validation 性能恢复、1k/10k 前后基准与全链路深度门禁见
+[`reviews/adr014-d4.5-performance-2026-09-10.md`](reviews/adr014-d4.5-performance-2026-09-10.md)。
+
+ADR-014 D4.6 的 A01-A08 关闭矩阵与 Rust/WASM/Headless/Native 最终门禁见
+[`reviews/adr014-d4.6-completion-2026-09-10.md`](reviews/adr014-d4.6-completion-2026-09-10.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

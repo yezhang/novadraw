@@ -82,10 +82,16 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 > 节点编辑器等 GEF 层能力不在 draw2d 核心 milestone 内，详见 `demo-matrix.md` 附录 A。
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；受影响 family ID 记录在 delta 的 `api_semantics` 字段，语义来源见 `doc/parity/draw2d/api-coverage.md`。
 
-当前执行顺序已在 2026-09-09 长期架构审计后再次校准：M9、D3.1-D3.4 与
-D4.1-D4.2 已完成，当前执行
-`doc/roadmap/core-completion-and-draw2d-migration-plan.md` 的 D4.3 Figure 生命周期
-与 Runtime 身份域。完成 D4 后再进入 M10.5 Tooltip 与 Accessibility。
+当前执行顺序已在 2026-09-10 ADR-014 收口后再次校准：M9、D3.1-D3.4 与
+D4.1-D4.6 已完成，最近一次长期架构审计的 A01-A08 已关闭。当前继续
+`doc/roadmap/core-completion-and-draw2d-migration-plan.md` 的 M10.5 Tooltip 与
+Accessibility bridge。
+
+2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
+为准，旧 ADR-013 已替换。D4.3-D4.6 的组件接口、引用归属、生命周期、测量、
+稳定通知、递归性能与最终回归门禁已完成验证；新设计仍必须以实现证据为准。
+默认架构检索排除 `doc/archive/`；只有显式历史追溯才读取旧全文。
+完整审计入口：`doc/verification/reviews/adr-audit-2026-09-10.md`。
 
 ## 架构设计原则
 

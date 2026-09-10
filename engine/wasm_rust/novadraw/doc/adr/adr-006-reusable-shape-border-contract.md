@@ -59,6 +59,10 @@ Novadraw 需要保留这些行为语义，同时维持 Runtime 原子事务、No
 完整契约见
 `doc/design/architecture/reusable-shape-border.md`。
 
+2026-09-10 补充（ADR-014）：内置 typed setter 不构成封闭 Figure 类型清单。
+自定义 Shape/组件内容采用 prepared update，经统一 revision/facts/damage 协议提交，
+不要求 Runtime 为每个外部类型新增分支。不可变 Border replacement 主线不变。
+
 ## 后果
 
 ### 正面

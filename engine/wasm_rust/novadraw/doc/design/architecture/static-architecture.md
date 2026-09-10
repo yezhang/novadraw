@@ -316,6 +316,11 @@ prepare_frame
 不得同时向调用者暴露 `&mut FigureTree`、`&mut InteractionState` 和
 `&mut UpdateManager`，否则调用者可以绕过原子事务。
 
+内置命名操作不是封闭类型清单。第三方组件内容按 ADR-014 通过 owned typed update、
+只读候选准备和统一校验/发布更新；Runtime 不为外部 Figure 枚举私有字段。
+布局约束测量和私有派生快照也需通过统一发布协议，不允许任意原地修改闭包。
+运行期文本服务归 Runtime；FigureTree 不拥有第二个 TextLayoutEngine。
+
 ## 7. 回调上下文
 
 Figure 回调使用无 Runtime 可变借用的上下文：

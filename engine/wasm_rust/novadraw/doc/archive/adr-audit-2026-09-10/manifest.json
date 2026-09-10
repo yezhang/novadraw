@@ -1,0 +1,200 @@
+[
+  {
+    "source": "doc/adr/adr-001-webgpu-rust-stack.md",
+    "snapshot": "original/doc/adr/adr-001-webgpu-rust-stack.md.txt",
+    "bytes": 964,
+    "sha256": "3765489f9da6a1b876cbc0a33c05526b6a9039a683402239bd22563c0c53a205"
+  },
+  {
+    "source": "doc/adr/adr-002-notification-effect-queue.md",
+    "snapshot": "original/doc/adr/adr-002-notification-effect-queue.md.txt",
+    "bytes": 7312,
+    "sha256": "57ab1a093f624a0a07fd089be3f3284fb118c63e9f60973dd2e1cf76937305fc"
+  },
+  {
+    "source": "doc/adr/adr-003-rust-runtime-and-geometry-boundaries.md",
+    "snapshot": "original/doc/adr/adr-003-rust-runtime-and-geometry-boundaries.md.txt",
+    "bytes": 4191,
+    "sha256": "822d5228dec501c5a412972bc153e1df977af044e72f72b0fc2ab5a18721203c"
+  },
+  {
+    "source": "doc/adr/adr-004-layer-and-freeform-contract.md",
+    "snapshot": "original/doc/adr/adr-004-layer-and-freeform-contract.md.txt",
+    "bytes": 3968,
+    "sha256": "41704507d6a9f6c642019a0d11b4b2d72092b01705d68990233508794223f9c5"
+  },
+  {
+    "source": "doc/adr/adr-005-connection-routing-contract.md",
+    "snapshot": "original/doc/adr/adr-005-connection-routing-contract.md.txt",
+    "bytes": 6655,
+    "sha256": "ad07d4a7bce0c689c1bfa2eef8637e52b0d54d72ca5f04786b292ddceacf4680"
+  },
+  {
+    "source": "doc/adr/adr-006-reusable-shape-border-contract.md",
+    "snapshot": "original/doc/adr/adr-006-reusable-shape-border-contract.md.txt",
+    "bytes": 5619,
+    "sha256": "8359c11a303dfc23517b14f5d43c2074abab1008e83028bec7d2f1488c46bf01"
+  },
+  {
+    "source": "doc/adr/adr-007-parley-text-layout.md",
+    "snapshot": "original/doc/adr/adr-007-parley-text-layout.md.txt",
+    "bytes": 6172,
+    "sha256": "ae9a526cf4fcfff2d0fb858da4e99fb7edd31e367f87b70d324f3eccfa3010f1"
+  },
+  {
+    "source": "doc/adr/adr-008-m9-contract-recovery.md",
+    "snapshot": "original/doc/adr/adr-008-m9-contract-recovery.md.txt",
+    "bytes": 7709,
+    "sha256": "5a2523894e2a8c959c8d82bfb330bc5c70fb9087e13a45435eff25f37d28beeb"
+  },
+  {
+    "source": "doc/adr/adr-009-runtime-dynamic-mutation-contract.md",
+    "snapshot": "original/doc/adr/adr-009-runtime-dynamic-mutation-contract.md.txt",
+    "bytes": 8284,
+    "sha256": "b0e6849787b4b6fe53454f4be11ef3c343dfcca142dee08652b711bdd6f87182"
+  },
+  {
+    "source": "doc/adr/adr-010-runtime-listener-lifecycle.md",
+    "snapshot": "original/doc/adr/adr-010-runtime-listener-lifecycle.md.txt",
+    "bytes": 5446,
+    "sha256": "7f311c848954abdddcdffc2d09472d7b296db99bd4371c7c86faff8edee4221d"
+  },
+  {
+    "source": "doc/adr/adr-011-derived-state-convergence.md",
+    "snapshot": "original/doc/adr/adr-011-derived-state-convergence.md.txt",
+    "bytes": 6844,
+    "sha256": "65acdb27f512394af89d6351d6e97180fa0ff41d9e2993432e304419ef76abce"
+  },
+  {
+    "source": "doc/adr/adr-012-resource-causality-and-backend-session.md",
+    "snapshot": "original/doc/adr/adr-012-resource-causality-and-backend-session.md.txt",
+    "bytes": 7024,
+    "sha256": "cf9084ed032ab5d4c2dc9a60fdf05eb96039ef19bde4c2f587a6be817c99d187"
+  },
+  {
+    "source": "doc/adr/adr-013-figure-lifecycle-and-runtime-identity.md",
+    "snapshot": "original/doc/adr/adr-013-figure-lifecycle-and-runtime-identity.md.txt",
+    "bytes": 6331,
+    "sha256": "fe8b2461e51b838859135058248fb81e036c32a1f259db70c47cc34123f2edba"
+  },
+  {
+    "source": "doc/adr/README.md",
+    "snapshot": "original/doc/adr/README.md.txt",
+    "bytes": 2267,
+    "sha256": "3ddd85e2d30f673c6a9b6e88b91062de5a424291d65529a8a4e479440e910772"
+  },
+  {
+    "source": "doc/00-index.md",
+    "snapshot": "original/doc/00-index.md.txt",
+    "bytes": 7072,
+    "sha256": "139f0156b82cd2f6cbaa85ed763ccf7be2e89f04890e2f308d88179549c6656c"
+  },
+  {
+    "source": "doc/design/00-index.md",
+    "snapshot": "original/doc/design/00-index.md.txt",
+    "bytes": 2059,
+    "sha256": "b359fd19cfb1daf0ed7963686659b58c9340a1d2414e2e879a03ea2145a7e3aa"
+  },
+  {
+    "source": "doc/design/architecture/figure-lifecycle.md",
+    "snapshot": "original/doc/design/architecture/figure-lifecycle.md.txt",
+    "bytes": 6086,
+    "sha256": "a3c027f0ea3793d7d9dc7faa026ce6f36f0e76ee219f10ae7503db1ffa9d8a35"
+  },
+  {
+    "source": "doc/design/architecture/derived-state-convergence.md",
+    "snapshot": "original/doc/design/architecture/derived-state-convergence.md.txt",
+    "bytes": 11991,
+    "sha256": "251542b6bc83664ecd5a4c595254cbc0dcb3376a4b064f912e91cbdeb97d2908"
+  },
+  {
+    "source": "doc/design/architecture/text-layout.md",
+    "snapshot": "original/doc/design/architecture/text-layout.md.txt",
+    "bytes": 9511,
+    "sha256": "3c3f06bd9c44ed7c93591acc355f6b4d633ed34f12dedff1698249c2cc41e6fc"
+  },
+  {
+    "source": "doc/design/architecture/static-architecture.md",
+    "snapshot": "original/doc/design/architecture/static-architecture.md.txt",
+    "bytes": 13399,
+    "sha256": "f6a1abad6527ed773ee090e4609179d365035f79cbf0366ce68aa15b15355b29"
+  },
+  {
+    "source": "doc/design/architecture/dynamic-architecture.md",
+    "snapshot": "original/doc/design/architecture/dynamic-architecture.md.txt",
+    "bytes": 11448,
+    "sha256": "ee71b058dbbe2d68ed7f37fcad02bcd3d019bc798a5fca06d3dfb74af736ccb0"
+  },
+  {
+    "source": "doc/design/architecture/resource-lifecycle.md",
+    "snapshot": "original/doc/design/architecture/resource-lifecycle.md.txt",
+    "bytes": 9272,
+    "sha256": "d1dff1ea342205a279a0811ea8a6efc5c0e9a956137e1d7a0fabf7aa68707568"
+  },
+  {
+    "source": "doc/design/architecture/layer-and-freeform.md",
+    "snapshot": "original/doc/design/architecture/layer-and-freeform.md.txt",
+    "bytes": 32550,
+    "sha256": "4bb78f521b6bb755da4cb92baff3ec3755cee707e62d5ebaf53f31e9d842d6e8"
+  },
+  {
+    "source": "doc/design/architecture/connection-routing.md",
+    "snapshot": "original/doc/design/architecture/connection-routing.md.txt",
+    "bytes": 25648,
+    "sha256": "2fd39c082df07b0a9b597dca3679a7ad7f0647b96332df2595179a57524563ec"
+  },
+  {
+    "source": "doc/design/rendering/update-manager.md",
+    "snapshot": "original/doc/design/rendering/update-manager.md.txt",
+    "bytes": 9445,
+    "sha256": "13a81add7aa0e16f1294dc82186f3ee8a74cdcf1476e51e320ea3ac01a341b03"
+  },
+  {
+    "source": "doc/parity/draw2d/notification-mapping.md",
+    "snapshot": "original/doc/parity/draw2d/notification-mapping.md.txt",
+    "bytes": 15208,
+    "sha256": "198a5244118fd39f263e2596d3adac27d69bb39cbac7b97f6a9b32874a17b0a3"
+  },
+  {
+    "source": "doc/parity/draw2d/api-coverage.md",
+    "snapshot": "original/doc/parity/draw2d/api-coverage.md.txt",
+    "bytes": 55920,
+    "sha256": "a8440cce38b9f881068d9f2132e7a34816d96bc42c19526b8408cb842dccdf27"
+  },
+  {
+    "source": "doc/roadmap/core-completion-and-draw2d-migration-plan.md",
+    "snapshot": "original/doc/roadmap/core-completion-and-draw2d-migration-plan.md.txt",
+    "bytes": 55636,
+    "sha256": "58308d668855e06b1463dae2b91d30019f53f146e1ea3be3178ab8e62acd107b"
+  },
+  {
+    "source": "doc/roadmap/00-index.md",
+    "snapshot": "original/doc/roadmap/00-index.md.txt",
+    "bytes": 5771,
+    "sha256": "fca46e05025544a75e19b9eed6f10b807de3b429c811e4f3e7ddc8c406eb8ecb"
+  },
+  {
+    "source": "AGENTS.md",
+    "snapshot": "original/AGENTS.md.txt",
+    "bytes": 7131,
+    "sha256": "62bad0adea4bfb3c5b69b1891de1ab0e7a3281850c7022fee1834f0688509e79"
+  },
+  {
+    "source": "CLAUDE.md",
+    "snapshot": "original/CLAUDE.md.txt",
+    "bytes": 9631,
+    "sha256": "93f58c11d61456348a6df8b05461c05883942356bcc198aa6e33cbf8922d3d11"
+  },
+  {
+    "source": "doc/roadmap/product-deliverables.md",
+    "snapshot": "original/doc/roadmap/product-deliverables.md.txt",
+    "bytes": 11332,
+    "sha256": "d4a4bdbe437d39df005f97c811651a2c145919fe0da3a259283421c78df8925a"
+  },
+  {
+    "source": "doc/design/architecture/reusable-shape-border.md",
+    "snapshot": "original/doc/design/architecture/reusable-shape-border.md.txt",
+    "bytes": 15414,
+    "sha256": "cd5b367a36dee75eceaf21477de9d7169c0c4292890603dfe4478861c01553c3"
+  }
+]

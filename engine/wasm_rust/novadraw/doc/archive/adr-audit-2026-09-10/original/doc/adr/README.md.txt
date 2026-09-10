@@ -1,0 +1,63 @@
+# 架构决策记录 (ADR)
+
+类型：`architecture-decision`
+
+## 什么是 ADR
+
+ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录项目中重要的设计决策及其上下文。
+
+## ADR 列表
+
+| 编号 | 标题 | 状态 | 日期 |
+|------|------|------|------|
+| [001](adr-001-webgpu-rust-stack.md) | 使用 Rust + WebGPU 实现图形框架 | 已通过 | 2025-01-13 |
+| [002](adr-002-notification-effect-queue.md) | 采用 Draw2D 语义分层与 Zed 式 effect queue 的通知机制 | 已通过 | 2026-05-06 |
+| [003](adr-003-rust-runtime-and-geometry-boundaries.md) | Rust Runtime 所有权与二维几何边界 | 已通过 | 2026-08-30 |
+| [004](adr-004-layer-and-freeform-contract.md) | Layer 与 Freeform 范围契约 | 已通过 | 2026-09-04 |
+| [005](adr-005-connection-routing-contract.md) | Connection 路由与依赖状态边界 | 已通过 | 2026-09-06 |
+| [006](adr-006-reusable-shape-border-contract.md) | Reusable Shape 与 Border 产品化边界 | 已通过 | 2026-09-07 |
+| [007](adr-007-parley-text-layout.md) | 可替换文本布局与后端无关 Glyph IR | 已通过 | 2026-09-07 |
+| [008](adr-008-m9-contract-recovery.md) | M9 共享 Manhattan 与 Viewport Topology 收口 | 已通过 | 2026-09-08 |
+| [009](adr-009-runtime-dynamic-mutation-contract.md) | Runtime 动态 Mutation 事务 | 已通过 | 2026-09-08 |
+| [010](adr-010-runtime-listener-lifecycle.md) | Runtime Listener 生命周期 | 已通过 | 2026-09-08 |
+| [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 已通过 | 2026-09-09 |
+| [012](adr-012-resource-causality-and-backend-session.md) | 资源因果日志与 Backend Session | 已通过 | 2026-09-09 |
+| [013](adr-013-figure-lifecycle-and-runtime-identity.md) | Figure 生命周期与 Runtime 身份域 | 已通过 | 2026-09-09 |
+
+## ADR 模板
+
+```markdown
+# ADR-XXX: [标题]
+
+## 状态
+
+[提议/已通过/已废弃/已替换]
+
+## 背景
+
+[描述问题和上下文]
+
+## 决策
+
+[描述选择的方案]
+
+## 后果
+
+### 正面
+- ...
+
+### 负面
+- ...
+
+## 参考
+- ...
+
+## 日期
+YYYY-MM-DD
+```
+
+## 创建新的 ADR
+
+1. 在 `doc/adr/` 目录创建新文件，命名格式：`adr-XXX-标题.md`
+2. 使用上述模板填写内容
+3. 更新本 README.md 添加条目

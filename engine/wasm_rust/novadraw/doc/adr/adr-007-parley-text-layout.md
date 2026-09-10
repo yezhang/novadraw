@@ -30,9 +30,10 @@ breaking。测量和绘制若在不同层分别实现，会使 preferred size、
 2. Novadraw 提供 `ParleyTextEngine` 作为默认实现，但 `TextLayoutEngine` 公共契约不得
    暴露 Parley 类型。
 3. Vello 是默认 RenderBackend，但 Command 和文本布局结果不得暴露 Vello 类型。
-4. `TextLayoutEngine` 由 Runtime/FigureTree 显式拥有，不使用全局或 thread-local
-   singleton。
-5. shaping 产出不可变 `TextLayout`；测量、截断和绘制共同消费该快照。
+4. `TextLayoutEngine` 运行期由 Runtime 显式独占；构建器只保存待移交服务/配置，
+   FigureTree 不是第二所有者，不使用全局或 thread-local singleton。
+5. shaping 产出不可变 `TextLayout`；相同输入与约束的测量、截断和绘制共用快照。
+   自然尺寸与受约束测量可以是不同快照，不能把 Label paint-only 规则推广到 TextFlow。
 6. Command 使用 Novadraw 自有的 backend-neutral glyph IR：
 
    ```text
@@ -60,6 +61,9 @@ breaking。测量和绘制若在不同层分别实现，会使 preferred size、
     Figure 仍可继承祖先的字体描述，因而不要求每个 Figure 重复指定字体。
 
 完整契约见 `doc/design/architecture/text-layout.md`。
+
+2026-09-10 修订边界见 [ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md)。
+受宽度约束的测量发生在布局阶段；最终 presentation 不偷偷改变已发布尺寸。
 
 ## 迁移要求
 
@@ -93,7 +97,7 @@ ADR 修订时的 M10.2a 原型仍有两处不符合最终边界：
 - 需要维护 Novadraw glyph IR 到各 backend 的适配层；
 - Figure intrinsic measurement 需要接入显式文本上下文；
 - 自定义字体注册需同步 TextEngine 与 ResourceRegistry；
-- 系统字体 fallback 的最终字形可能随平台变化，像素级测试需使用注册字体。
+- fallback 只使用显式注册字体集合；系统字体须先显式导入注册，像素测试固定字体字节。
 
 ## 不采用的方案
 

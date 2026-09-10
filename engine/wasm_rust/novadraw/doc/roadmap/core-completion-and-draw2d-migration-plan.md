@@ -972,7 +972,7 @@ ADR-008 已通过，实现、自动验证、截图复核和新增场景人工验
 
 ## 9. D4：长期架构正确性收口
 
-状态：`in_progress`
+状态：`complete`
 
 D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 正确性或稳定
 扩展面的 P1 问题。D4 不推倒 FigureTree/Runtime 主干，不恢复迭代渲染，也不提前
@@ -986,7 +986,7 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 状态：`complete`
 
 - 当前 HEAD 复跑独立 probe，A01-A07 输出与审计记录一致；
-- A08 的递归渲染逐节点 ancestor style 扫描仍由源码确认；
+- A08 的递归渲染逐节点 ancestor style 扫描在校准时由源码确认，后由 D4.5 关闭；
 - A09-A11 中不阻塞 Core 1.0 的模块拆分、完整输入协议与统一错误模型保留为后续
   architecture delta，不混入当前修复；
 - D3.3/D3.4 已完成，不再作为本轮阻塞项。
@@ -1079,23 +1079,64 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 
 ### D4.3 Figure 生命周期与 Runtime 身份域
 
-状态：`in_progress`
+状态：`complete`
+
+正式契约：
+
+- [`../design/architecture/figure-lifecycle.md`](../design/architecture/figure-lifecycle.md)
+- [`../adr/adr-014-extensibility-and-lifecycle-boundaries.md`](../adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+
+2026-09-10：首批身份隔离/dispose 已进入实现；同树 Runtime 重包装曾确认
+registry/session 身份复活，现已通过“场景工厂交付完整 Runtime、移除 into_tree”
+关闭该所有权门禁。证据与修正见
+[`../verification/reviews/adr014-implementation-gate-2026-09-10.md`](../verification/reviews/adr014-implementation-gate-2026-09-10.md)。
+FigureTree builder 已改为只构建拓扑，Runtime 接管后 parent-before-children 激活；
+动态 add/reparent 在结构与 sidecar 提交后 completion，dispose 在提取与清理后
+descendant-before-parent 停用。普通与 LayeredPane lifecycle panic 均进入
+Runtime faulted 边界；10,000 层最大深度 dispose 回归通过。
+不能按旧 ADR-013 恢复编码。
+原 D4.1/D4.2 complete 是原批次记录，不覆盖 ADR-014 的新增验证。
 
 目标：
 
-- 明确 detach、reattach 与 dispose_subtree 的不同所有权语义；
+- 闭合 reparent、dispose_subtree 和 contents replacement；撤回通用活对象
+  detach/reattach 自动迁移承诺，未支持能力明确拒绝；
 - dispose 原子清理 tree slot、UUID、constraint、interaction、resource、connection、
   layer lookup 和缓存；
 - 销毁前捕获旧 visual envelope，保证 retained surface 擦除；
 - 公开 Figure handle 携带 Runtime 身份域，拒绝跨 Runtime 的偶然同 key 操作；
-- editor undo/history 显式拥有 detached subtree，不由 arena 永久保留。
+- editor undo/history 保存模型操作，跨 Runtime 通过显式描述/工厂重建；
+- 清理按归属区分 Figure-scoped 与 Runtime-scoped listener、共享 Router/资源；
+- 结构提交、必要 lifecycle、稳定发布和析构分层；扩展 panic 后默认 faulted；
+- public/local ID、scope 与生命周期上下文接口评审通过后，再分步实现。
 
 `api_semantics`：`figure.tree`、`figure.lifecycle`、`runtime.identity`、
 `damage.repaint`。
 
 ### D4.4 外部替换与错误边界
 
-状态：`not_started`
+状态：`complete`
+
+2026-09-10 已完成：
+
+- topology `try_*` API 保留 namespace、disposed、synthetic root、parent relation
+  与 GraphMutationError 分类；
+- `TextLayoutParts` / `TextLayout::from_parts` 支持非 Parley 引擎构造非空 IR；
+- `FramePreparation` 区分 Ready、Idle、Suspended、AwaitingCompletion 与 Error；
+- command capability 在最终录制后校验，永久 unsupported 与 Retry 已结构化区分；
+- Vello/Web 使用统一 `BackendSessionGate`，首次或接管 Delta 因缺 Snapshot 被拒绝；
+- DemoApp 验证跨 Runtime 串行切换与 Snapshot 基线；
+- 既有 Manhattan group failure 契约测试已满足完整 unresolved batch 门禁。
+- 外部 Figure 的 owned typed component update、私有派生快照、revision 与统一失效
+  已通过独立集成测试，不增加 Runtime 具体 Figure 类型分支；
+- 扩展 mutation panic 统一进入 Runtime faulted 边界，各公共错误域结构化拒绝后续写入；
+- `FigureMeasurement` 将父级约束与 baseline 传入 LayoutSnapshot，外部 Figure/Layout
+  已验证受约束测量、arrange 和同约束 Glyph IR；
+- `NotificationRecord` 提供 source epoch 与全局 sequence，`StableSceneQuery` 明确只读
+  最新稳定场景，未发布工作返回 NotStable。
+
+验证记录：
+[`../verification/reviews/adr014-d4.4-increment-2026-09-10.md`](../verification/reviews/adr014-d4.4-increment-2026-09-10.md)。
 
 目标：
 
@@ -1105,13 +1146,27 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 - 明确 RenderBackend 必需 command/capability 与不可恢复错误，不把永久 unsupported
   伪装为 Retry；
 - 收敛 frame preparation 的 Idle/Suspended/AwaitingCompletion/Error 可区分结果。
+- 用外部自定义 Figure 验证 owned typed update、私有派生快照与统一失效，
+  不增加 Runtime 具体类型分支；首批接口与验收已实现，契约见
+  [`../design/architecture/component-update.md`](../design/architecture/component-update.md)，
+  后续扩展继续遵守其 prepared/commit 与 faulted 边界；
+- 验证受宽度约束的测量高度/baseline、arrange 与同约束 Glyph IR；
+- 验证历史事件 revision/sequence 与最新 stable query 不混淆；
+- 验证 route group 完整 unresolved 失败批次，不保留旧 reservation；
+- 验证 Host 串行 session handoff 和 Snapshot 基线，拒绝无基线 Delta。
 
 `api_semantics`：`text.flow`、`graphics.context`、`frame.preparation`、
-`render.backend_session`、`accessibility.bridge`。
+`render.backend_session`、`accessibility.bridge`、`figure.properties`、
+`layout.manager`、`notification.layout_update`、`connection.router`。
 
 ### D4.5 递归主线性能恢复
 
-状态：`not_started`
+状态：`complete`
+
+2026-09-10 已按 Draw2D local style + Graphics state inheritance 恢复线性样式传播，
+validation 同步移除逐节点 ancestor visibility 扫描。1k/10k release 基准、
+命令/结果计数等价和默认 debug 测试线程 10,000 层全链路均通过。证据见
+[`../verification/reviews/adr014-d4.5-performance-2026-09-10.md`](../verification/reviews/adr014-d4.5-performance-2026-09-10.md)。
 
 目标：
 
@@ -1125,7 +1180,11 @@ D4 处理 2026-09-08 长期架构审计中已经复现、且会影响 Core 1.0 �
 
 ### D4.6 D4 完成门禁
 
-状态：`not_started`
+状态：`complete`
+
+2026-09-10 A01-A08 关闭矩阵、10,000 层全链路、Rust/WASM/Headless/Native 门禁已通过。
+完整记录见
+[`../verification/reviews/adr014-d4.6-completion-2026-09-10.md`](../verification/reviews/adr014-d4.6-completion-2026-09-10.md)。
 
 - A01-A08 均完成、被明确降级或由新的可验证契约替代；
 - 正常 Runtime frame 不依赖应用手工 reroute 或第二次 full redraw；
@@ -1147,6 +1206,7 @@ D4 完成后的固定收口顺序：
 - M1-M10 全部达到 `complete`；
 - P0/P1 API family 不存在未解释的 `missing`；
 - public API 不包含静默 no-op 或占位成功；
+- ADR-014 新增契约均有当前证据，不以旧批次 complete 代替验证；
 - macOS、Web、Headless 自动与人工门禁通过；
 - 关键组合场景覆盖 layout、event、viewport、connection、text 和 resource；
 - API 文档、语义账本、产品清单和 demo 矩阵一致；

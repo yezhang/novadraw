@@ -60,10 +60,15 @@ backend/device cache 建立或重建时调用显式 session reset；surface resi
 
 backend 保存当前 session：
 
-- 首次看到 session：建立空 cache；
+- 首次看到 session：要求 Snapshot + Full 建立 cache 基线，不能接受 Delta 冒充基线；
 - 相同 session：消费增量；
-- 更大的 session：先清空 backend-local resource/retained-surface cache，再消费；
-- 更小的 session：作为 stale submission 拒绝。
+- 同 namespace 更大 generation：清空 backend-local cache，以 Snapshot + Full 重建；
+- 同 namespace 更小 generation：作为 stale submission 拒绝；
+- 不同 namespace：无大小/时间顺序，必须由 Host 串行 handoff 授权并重建基线。
+
+2026-09-10 修订（ADR-014）：Host 切换 Runtime 前停止旧 producer，并排空或撤销旧
+submission；重新切回旧 Runtime 也要 reset/snapshot。仅检查 incoming namespace
+不能拒绝所有跨 Runtime 迟到包。并发 handoff 尚不支持，未来须独立 activation token。
 
 ### 4. 新 session 首帧使用 Ready snapshot
 

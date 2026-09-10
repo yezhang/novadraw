@@ -52,9 +52,10 @@
 
 ## 当前执行顺序
 
-R8/R9、D0-D3、D4.0-D4.2 与 M10.1-M10.4 已完成。2026-09-08 长期架构审计确认的
-其余 P1 问题继续由 D4 收口；当前进入 D4.3 Figure 生命周期与 Runtime 身份域。
-M10.5 在 D4 完成后继续。
+R8/R9、D0-D4 与 M10.1-M10.4 已完成；2026-09-08/10 长期架构审计的 A01-A08
+已关闭。当前继续 M10.5 Tooltip 与 Accessibility bridge。
+2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
+scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 后续按
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
 执行：

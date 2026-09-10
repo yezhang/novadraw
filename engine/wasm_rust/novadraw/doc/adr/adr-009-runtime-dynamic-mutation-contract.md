@@ -43,11 +43,16 @@ set_child_clipping_strategy
 构建期 `FigureTreeBuilder` 继续提供低层批量组装入口；它不承担 Runtime
 事务语义。
 
+2026-09-10 补充：该清单不是自定义 Figure 的封闭写接口。外部组件采用 ADR-014
+的 owned typed update / prepared value，通过统一提交与失效协议更新私有内容。
+一般用户 callback 或 Drop 的 panic 不在可恢复参数错误的原子承诺内。
+
 ### 2. LayoutManager 在提交前校验 constraint
 
 `LayoutManager` 增加只读 `validate_constraint` 扩展点。内置 layout manager
-按实际支持的 constraint 类型实现该方法；自定义 manager 的默认实现保持兼容，
-仅在需要限制 constraint 时覆盖。
+按实际支持的 constraint 类型实现该方法；自定义 manager 必须声明接受任意合法
+constraint、仅接受指定类型或不接受 constraint。不能把未实现校验默认为验证成功。
+兼容适配器只能显式声明宽松策略；完整 LayoutOutput 仍须校验有限性与拓扑。
 
 设置 constraint 时：
 

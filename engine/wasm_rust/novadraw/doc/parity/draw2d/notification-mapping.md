@@ -421,7 +421,7 @@ add_listener(event_kind, callback)
 
 如果通知系统里没有与 `coordinateSystemChanged` 等价的概念，坐标闭包就很难被完整表达。
 
-### 12.4 更新事务通知应挂在 UpdateManager / SceneHost 层
+### 12.4 更新事务由 Runtime 对外观察
 
 这一点不应挂在 Figure 上。
 
@@ -429,12 +429,8 @@ add_listener(event_kind, callback)
 
 > repaint / validation / repair 是事务级事件，不是单对象属性变化。
 
-所以未来 Novadraw 如果做更新通知，更合理的位置应在：
-
-- `UpdateManager`
-- 或 `SceneHost + UpdateManager` 边界
-
-而不是直接做成 Figure listener。
+Novadraw 当前由 UpdateManager 记录阶段，Runtime 在稳定边界统一 flush，
+不再保留 SceneHost 等候选 owner。不能把这类事务通知当成 Figure 输入 listener。
 
 ---
 
@@ -460,7 +456,7 @@ Zed 与 Draw2D 的机制形式不同，但它们在核心原则上是接近的�
 
 ---
 
-## 14. Novadraw 当前落地
+## 14. Novadraw 映射与验证边界
 
 当前引擎已按语义拆分以下监听端口：
 
@@ -476,6 +472,11 @@ Zed 与 Draw2D 的机制形式不同，但它们在核心原则上是接近的�
 不依赖全局状态。所有变化先写入 `NotificationQueue`，再在更新事务末尾按发生顺序
 flush；validation 中产生的 Figure/Layout effect 位于 `Validating` 和 `Validated`
 之间。
+
+上述描述是原 D3.3 记录，不证明 2026-09-10 修订已经实现。按 ADR-014：
+延迟 Validating/Painting 是历史记录而非事前 hook；历史 payload 携带 revision/epoch，
+当前查询只读最新 stable scene；新增 Runtime/Figure owner scope 和 namespace 隔离
+仍待 D4 验证。内部失效、绑定清理和必要 lifecycle 不能依赖这些外部 observer。
 
 兼容入口 `UpdateListener::{on_figure_event,on_notify}` 暂时保留，但新增能力应优先
 使用对应 typed listener，避免重新形成单一总线。

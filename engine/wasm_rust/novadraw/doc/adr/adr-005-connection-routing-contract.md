@@ -32,8 +32,8 @@ UpdateManager 互相持有可变引用，破坏 Novadraw 的 Runtime 原子事�
 5. Router 由 `RouterRegistry` 通过 `RouterId` 共享。Connection 保存
    `RouterBinding::{Inherited, Explicit}`，ConnectionLayer 保存默认 Router；routing
    constraint 仍归单条 Connection；Router 切换与 constraint 兼容性校验原子执行；
-6. Direct、Bendpoint 和单连接 Manhattan 是确定性计算；Fan 与共享 reservation 使用
-   `RouterId + routing domain + AnchorGroupKey` 分组，通过稳定
+6. Direct、Bendpoint 和单连接 Manhattan 是确定性计算；按 ADR-008，Manhattan 使用
+   `RouterId + routing domain`，Fan 再加无向 `AnchorGroupKey pair` 分组，通过稳定
    `RoutingGroupSnapshot` 批量计算和原子提交；自定义 Anchor 没有 semantic key 时
    使用 Runtime 分配的 `AnchorId`；
 7. source / target 是可选 `AnchorBinding`。任一端缺失、owner 失效或依赖不可解析时，
@@ -59,6 +59,10 @@ UpdateManager 互相持有可变引用，破坏 Novadraw 的 Runtime 原子事�
 
 完整接口、坐标、错误和验证候选见
 `doc/design/architecture/connection-routing.md`。
+
+2026-09-10 校准（ADR-014）：失败不提交部分成功 route/reservation；运行期提交完整
+unresolved 失败批次并清空该组旧表现/预留，保留恢复依赖。删除 Connection 只解除
+binding 和组成员资格，不隐式销毁共享 Router、资源或 Runtime-scoped listener。
 
 ## 后果
 

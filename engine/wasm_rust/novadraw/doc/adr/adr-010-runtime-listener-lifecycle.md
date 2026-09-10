@@ -6,6 +6,10 @@
 
 已通过
 
+2026-09-10 按 [ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md) 修订；
+Runtime/Figure scope 已实现注册时声明与 dispose 清理，历史事件上下文和完整 fault
+契约尚待实现验证。
+
 ## 背景
 
 Novadraw 的 `UpdateManager` 已分别存储并分发 Update、Figure、Coordinate、
@@ -24,7 +28,8 @@ listener 对 Runtime 用户不可达，已实现的 M7 内部能力因此尚未�
 
 ### 1. Runtime 暴露完整注册面
 
-Runtime 提供以下入口，全部返回全局唯一的 `ListenerId`：
+Runtime 提供以下入口，全部返回带 Runtime namespace 和本地 generation 的 `ListenerId`，
+不使用进程全局分配器：
 
 ```text
 add_update_listener
@@ -39,9 +44,9 @@ add_layout_listener
 `remove_listener(ListenerId)` 统一搜索全部 listener 类别。首次成功移除返回 `true`，
 未知或已移除 ID 返回 `false`。
 
-Listener 仍是 Runtime 级订阅，不复制 Draw2D 每个 Figure 各自持有 listener list 的
-对象模型。事件 payload 中的 `FigureId`/`container_id` 是调用方过滤作用域的稳定
-依据。
+Listener 由 Runtime 统一存储，注册时声明 Runtime 或 Figure(owner) scope；
+前者显式注销，后者在 owner dispose 时自动注销。不复制每节点 listener list，
+也不能用 payload 过滤或 closure 捕获推断所有权。foreign ListenerId 不得注销本域对象。
 
 ### 2. Callback 使用返回值请求自注销
 
@@ -74,8 +79,9 @@ drain effects
   → remove listeners returning Remove
 ```
 
-因此 listener 不能观察未提交状态，也不能改变当前 effect 中其他 listener 的执行
-顺序。注销只影响后续 effect。
+listener 只能查询 flush 时最新 stable scene。每条 effect 携带发生时的 revision/epoch、
+sequence 和必要 old/new 数据，不能把最新查询视为历史事件发生时的全树状态。
+Validating/Painting 表示过去阶段事实，不提供事前拦截。注销只影响后续 effect。
 
 ### 4. UpdateListener 聚合回调保持完整
 
@@ -94,7 +100,8 @@ Listener callback 不接收 `&mut Runtime`、`&mut FigureTree` 或
 ## 错误与边界
 
 - `ListenerId` 分配溢出继续视为不可恢复的进程内 invariant violation；
-- listener panic 保持现有 panic 传播，不在 D3.3 中吞掉；
+- listener panic 不吞掉；恢复 phase guard 后 Runtime 默认 faulted，不再发布新提交；
+  不承诺外部副作用回滚或未送达 journal 自动重放；
 - 重复注销稳定返回 `false`；
 - self-removal 不产生额外通知 effect；
 - 注册新 listener、跨 listener 注销和 listener priority 不进入 D3.3。
@@ -106,7 +113,9 @@ Listener callback 不接收 `&mut Runtime`、`&mut FigureTree` 或
 - `remove_listener` 对全部类别有效，重复注销返回 `false`；
 - self-removal listener 收到当前 effect，但不收到同一 flush 的后续 effect；
 - self-removal 不跳过其他 listener，也不改变注册顺序；
-- listener callback 观察到的 FigureTree 已完成对应 mutation；
+- listener callback 查询最新 stable scene，历史 old/new 只来自事件 payload；
+- owner dispose 清理 Figure-scoped listener，但保留 Runtime-scoped listener；
+- foreign ListenerId 不会注销本域订阅，panic 后不能假装 Runtime 可继续呈现；
 - workspace、Clippy 和 WASM 门禁通过。
 
 ## 后果
