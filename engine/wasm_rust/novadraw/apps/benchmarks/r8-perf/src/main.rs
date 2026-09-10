@@ -14,7 +14,8 @@ const DEFAULT_WARMUP_ITERATIONS: usize = 1;
 const DEFAULT_SAMPLE_ITERATIONS: usize = 7;
 const LARGE_TREE_FIGURES: usize = 4_096;
 const LARGE_TREE_COLUMNS: usize = 64;
-const DEEP_TREE_DEPTH: usize = 10_000;
+const DEEP_TREE_SHALLOW_DEPTH: usize = 1_000;
+const DEEP_TREE_MAX_DEPTH: usize = 10_000;
 const TEXT_FIGURES: usize = 1_000;
 const VIEWPORT_FIGURES: usize = 1_024;
 const VIEWPORT_COLUMNS: usize = 32;
@@ -145,7 +146,12 @@ fn main() {
     let scenarios = vec![
         benchmark_large_tree_render(&cli),
         benchmark_large_tree_hit_test(&cli),
-        benchmark_deep_tree_render(&cli),
+        benchmark_deep_tree_render(&cli, DEEP_TREE_SHALLOW_DEPTH),
+        benchmark_deep_tree_render(&cli, DEEP_TREE_MAX_DEPTH),
+        benchmark_deep_tree_hit_test(&cli, DEEP_TREE_SHALLOW_DEPTH),
+        benchmark_deep_tree_hit_test(&cli, DEEP_TREE_MAX_DEPTH),
+        benchmark_deep_tree_validate(&cli, DEEP_TREE_SHALLOW_DEPTH),
+        benchmark_deep_tree_validate(&cli, DEEP_TREE_MAX_DEPTH),
         benchmark_text_recording(&cli),
         benchmark_viewport_render(&cli),
     ];
@@ -197,13 +203,52 @@ fn benchmark_large_tree_hit_test(cli: &Cli) -> ScenarioReport {
     )
 }
 
-fn benchmark_deep_tree_render(cli: &Cli) -> ScenarioReport {
+fn benchmark_deep_tree_render(cli: &Cli, depth: usize) -> ScenarioReport {
     benchmark_prepared(
-        "deep_tree_render_10000",
+        if depth == DEEP_TREE_MAX_DEPTH {
+            "deep_tree_render_10000"
+        } else {
+            "deep_tree_render_1000"
+        },
         cli,
-        build_deep_tree,
+        || build_deep_tree(depth),
         |tree| tree.render().commands().len(),
-        "Records the supported 10,000-level recursive tree boundary.",
+        "Records the supported recursive tree path.",
+    )
+}
+
+fn benchmark_deep_tree_hit_test(cli: &Cli, depth: usize) -> ScenarioReport {
+    benchmark_prepared(
+        if depth == DEEP_TREE_MAX_DEPTH {
+            "deep_tree_hit_test_10000"
+        } else {
+            "deep_tree_hit_test_1000"
+        },
+        cli,
+        || build_deep_tree(depth),
+        |tree| usize::from(tree.hit_test_simple((0.5, 0.5)).is_some()),
+        "Runs hit testing through the complete recursive tree path.",
+    )
+}
+
+fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
+    let mut alternate = false;
+    benchmark_prepared(
+        if depth == DEEP_TREE_MAX_DEPTH {
+            "deep_tree_validate_10000"
+        } else {
+            "deep_tree_validate_1000"
+        },
+        cli,
+        || build_deep_tree_with_leaf(depth),
+        |(tree, root, leaf)| {
+            alternate = !alternate;
+            let size = if alternate { 2.0 } else { 3.0 };
+            tree.set_preferred_size(*leaf, Some((size, size)));
+            tree.try_revalidate(*root).expect("validate deep tree");
+            usize::from(tree.is_valid(*leaf))
+        },
+        "Invalidates the deepest leaf and validates the complete recursive path.",
     )
 }
 
@@ -231,22 +276,22 @@ fn benchmark_prepared<T>(
     name: &'static str,
     cli: &Cli,
     prepare: impl FnOnce() -> T,
-    mut operation: impl FnMut(&T) -> usize,
+    mut operation: impl FnMut(&mut T) -> usize,
     notes: &'static str,
 ) -> ScenarioReport {
     let setup_start = Instant::now();
-    let value = prepare();
+    let mut value = prepare();
     let setup_ns = duration_ns(setup_start.elapsed());
 
     for _ in 0..cli.warmup_iterations {
-        black_box(operation(black_box(&value)));
+        black_box(operation(black_box(&mut value)));
     }
 
     let mut samples = Vec::with_capacity(cli.sample_iterations);
     let mut output = 0;
     for _ in 0..cli.sample_iterations {
         let start = Instant::now();
-        output = black_box(operation(black_box(&value)));
+        output = black_box(operation(black_box(&mut value)));
         samples.push(duration_ns(start.elapsed()));
     }
     samples.sort_unstable();
@@ -307,14 +352,19 @@ fn build_large_tree() -> FigureTree {
     tree
 }
 
-fn build_deep_tree() -> FigureTree {
+fn build_deep_tree(depth: usize) -> FigureTree {
+    build_deep_tree_with_leaf(depth).0
+}
+
+fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, novadraw::FigureId, novadraw::FigureId) {
     let (mut tree, mut parent) = root_tree();
-    for _ in 1..DEEP_TREE_DEPTH {
+    let root = parent;
+    for _ in 1..depth {
         parent = tree
             .builder()
             .add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
     }
-    tree
+    (tree, root, parent)
 }
 
 fn build_text_tree() -> FigureTree {
