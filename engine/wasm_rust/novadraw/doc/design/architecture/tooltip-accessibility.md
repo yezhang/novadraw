@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`accepted / behavior_verified`（macOS 人工交互签收待完成）
+状态：`accepted / complete`
 
 范围：M10.5；`figure.properties`、`event.dispatcher`、`accessibility.bridge`
 

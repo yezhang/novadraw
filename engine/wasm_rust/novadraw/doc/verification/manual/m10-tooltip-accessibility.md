@@ -2,7 +2,7 @@
 
 类型：`verification`
 
-状态：`pending`
+状态：`complete`
 
 ## 1. 启动
 
@@ -72,21 +72,26 @@ http://127.0.0.1:4173/?backend=vello
 ## 5. 验收记录
 
 ```text
-Commit:
-日期:
-操作系统:
-浏览器:
-GPU / WebGPU adapter:
+Commit: 54a0100 后续验收修订
+日期: 2026-09-11
+操作系统: macOS
+浏览器: Chrome
+GPU / WebGPU adapter: Vello WebGPU
 
-[ ] Native inherited/local source 与 delay
-[ ] Native replace/hide/timeout
-[ ] Native bottom/above/clamp
-[ ] Native Tab/Shift+Tab 与 Enter/Space
-[ ] Native resize 与窗口失焦
-[ ] Web Tooltip DOM
-[ ] Web accessibility tree
-[ ] Web Console / Network
+[x] Native inherited/local source 与 delay
+[x] Native replace/hide/timeout
+[x] Native bottom/above/clamp
+[x] Native Tab/Shift+Tab 与 Enter/Space
+[x] Native resize 与窗口失焦
+[x] Web Tooltip DOM
+[x] Web accessibility tree
+[x] Web Console / Network
 
-失败步骤与复现:
-结论: PASS / FAIL
+补充修复：
+
+- Tooltip 场景的 FigureStyle replacement 显式保留 scene/panel background；
+- 交互场景与预热截图场景分离，人工验收使用默认 500ms delay；
+- Native 首帧在临时 Skipped/Retry 后执行有界重试，无需等待鼠标事件触发 redraw。
+
+结论: PASS
 ```

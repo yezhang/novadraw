@@ -640,8 +640,7 @@ M10.4 正式契约：
 
 M10.5 正式契约：
 [`../design/architecture/tooltip-accessibility.md`](../design/architecture/tooltip-accessibility.md)。
-当前状态为 `behavior_verified`；M10.5a/b 与 M10.5c 自动门禁已完成，等待 macOS
-人工交互签收。
+状态：`complete`。M10.5a/b、M10.5c 自动门禁以及 macOS/Web 人工交互验收均已完成。
 
 执行顺序：
 
@@ -772,8 +771,8 @@ M10.5 自动执行结果（2026-09-10）：
   测试通过；workspace test、Clippy、WASM release build 通过；
 - `widgets-app` 新增 Tooltip/Accessibility 场景，Native/Vello 边界上翻截图已复核；
   Web Vello 实测 Tooltip DOM、4 个 accessibility 节点、零 console error；
-- macOS 实际 hover delay、source 切换、键盘 focus/default action 人工签收仍待执行，
-  因此 M10.5 与 M10 暂不提升为 `complete`。
+- 2026-09-11 macOS Tooltip、Accessibility/键盘和 Web 复核三组人工验收均通过，
+  M10.5 标记 `complete`；M10 总项仍等待后续 Web 等价场景后收口。
 
 ## 8. D3：Draw2D Core 审计收口
 
