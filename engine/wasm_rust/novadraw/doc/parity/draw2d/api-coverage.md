@@ -216,7 +216,7 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |
 | `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | `TreeSearch`、`TreeSearchContext`、`ExclusionSearch`、`FigureTree::{hit_test_with,hit_test_excluding,find_in_subtree,ancestor_ids,descendant_ids,is_ancestor_of}` | verified | D1.5a：共享 hit-test traversal、prune 子树与稳定结构查询已有契约测试 |
 | `figure.properties` | `foreground/background/font/cursor/opaque` | `FigureStyle`、`ResolvedStyle`、Runtime update-aware style/opaque mutation 与 cursor 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
-| `figure.properties` | `tooltip` | FigureStyle tooltip 继承/关闭与 `Runtime::tooltip()` 当前 hover source 查询 | partial | M10.5 补 delay、show/hide、placement 与 PlatformHost effect |
+| `figure.properties` | `tooltip` | FigureStyle tooltip 三态继承；Runtime-owned waiting/visible/hidden、单调 deadline、Show/Replace/Hide update 与共享边界 placement | verified | `m10_tooltip_contract`、Native overlay 截图与 Web DOM hover 验证 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
@@ -271,7 +271,7 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 | `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `Runtime::{request_focus,clear_focus,traverse_focus}`、`InteractionState::focus_owner`、`FocusTraversalPolicy`、`FocusEvent` | verified | D1.5b 引擎 focus model 与 D1.5c Native/Web Tab traversal 已通过自动验证及 macOS/Web 人工验收 |
 | `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release 自动释放；`FigureTree::{captured,set_captured}` | verified | captured target 与 hoverSource 独立 |
 | `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`ZoomEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口；scroll/zoom session 固定 target | verified | Winit 只在 `novadraw-apps` 适配单位、DPI 与 phase；pointer capture 与 gesture session 分轨 |
-| `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor 已由 Runtime/PlatformHost 桥接；accessibility 只有名称 hook 与 revision 占位 | partial | Accessibility 属于 M10.5 Core 1.0 门禁 |
+| `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor 与 Tooltip 经 PlatformHost effect；Runtime 从 stable scene 发布 accessibility Snapshot/Delta，Host 只做平台映射 | verified | M10.5 保留 engine semantics / platform adapter 分层 |
 
 Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`MouseEvent.java`、listener 接口。
 
@@ -350,7 +350,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | `MeasureConstraints` / `FigureMeasurement` 支持外部受宽度约束 Figure；父 layout 使用高度/baseline arrange 并复用同约束 Glyph IR | partial | D4.4 扩展边界已验证；完整 TextFlow fragment/bidi 按 P2 延后 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
-| `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | 当前仅有 `AccessibleFigure::accessible_name` 与 `PlatformHost::update_accessibility(revision)` 骨架 | partial | M10.5 补 engine-owned snapshot/delta、role/state/bounds/children/focus/action |
+| `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | namespaced node identity、name/description/value/role/state/bounds/children/focus、Snapshot/Delta 与受控 focus/default action | verified | `m10_accessibility_contract` 覆盖 stable publish、层级提升、Toggle action、dispose 与 10,000 层；完整原生 AT provider 延后 |
 
 建议首批 Rust 契约草案：
 

@@ -638,6 +638,11 @@ M10.2 正式契约：
 M10.4 正式契约：
 [`../design/architecture/basic-widgets.md`](../design/architecture/basic-widgets.md)。
 
+M10.5 正式契约：
+[`../design/architecture/tooltip-accessibility.md`](../design/architecture/tooltip-accessibility.md)。
+当前状态为 `behavior_verified`；M10.5a/b 与 M10.5c 自动门禁已完成，等待 macOS
+人工交互签收。
+
 执行顺序：
 
 1. **M10.1 Reusable Shape 与 Border 产品化收口**
@@ -748,6 +753,27 @@ M10.4 自动执行结果（2026-09-08）：
   生成并复核；2026-09-08 macOS 人工窗口验收通过，M10.4 标记 `complete`。
 - Repeat firing、ButtonGroup/radio 互斥与完整 widget toolkit 保持延后，不进入
   M10.4 完成条件。
+
+M10.5 自动执行结果（2026-09-10）：
+
+- Runtime-owned `TooltipController` 使用 Host 单调时间，完成 waiting/visible/hidden、
+  source 继承/显式关闭、内容替换、超时和输入取消状态机；
+- Native 使用最终 overlay command 合成 Tooltip，Web 使用共享 placement 的 DOM
+  popup；Winit/Web/Headless 共用 deadline、Show/Replace/Hide update；
+- `AccessibleFigure` 已扩展 name/description/value/role/default action，Label、
+  Button、Toggle 形成首批内置语义；
+- Runtime 从 stable scene 发布 namespaced accessibility Snapshot/Delta，覆盖 logical
+  bounds、层级提升、enabled/focus/pressed/selected 与 dispose removal；
+- accessibility focus/default action 分别复用 `request_focus` 与 `do_click`，保持
+  Toggle property change → ActionEvent 因果；
+- accessibility 投影沿递归携带 effective flags 与 surface transform，10,000 层
+  debug 全路径通过，未重新引入逐节点祖先扫描；
+- `m10_tooltip_contract`、`m10_accessibility_contract`、Host adapter 与 Native overlay
+  测试通过；workspace test、Clippy、WASM release build 通过；
+- `widgets-app` 新增 Tooltip/Accessibility 场景，Native/Vello 边界上翻截图已复核；
+  Web Vello 实测 Tooltip DOM、4 个 accessibility 节点、零 console error；
+- macOS 实际 hover delay、source 切换、键盘 focus/default action 人工签收仍待执行，
+  因此 M10.5 与 M10 暂不提升为 `complete`。
 
 ## 8. D3：Draw2D Core 审计收口
 

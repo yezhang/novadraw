@@ -48,12 +48,13 @@
 | M7 | 通知语义分层 | `complete` | 七类 typed listener、Runtime 注册/统一注销、稳定事务分发与 self-removal 已闭合 |
 | M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
 | M9 | Connection / Anchor / Router | `complete` | D3.1 shared Manhattan、严格 viewport topology、八场景截图与人工窗口验收已闭合 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.4 已完成；D4 架构正确性收口后进入 M10.5，完整 TextFlow 保持 P2 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.4 已完成；M10.5 Tooltip/Accessibility 已达 `behavior_verified`，等待 macOS 人工交互签收；完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
 R8/R9、D0-D4 与 M10.1-M10.4 已完成；2026-09-08/10 长期架构审计的 A01-A08
-已关闭。当前继续 M10.5 Tooltip 与 Accessibility bridge。
+已关闭。M10.5 自动、Native 截图与 Web 浏览器门禁已完成，当前等待 macOS 人工
+Tooltip/focus/action 签收。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 后续按

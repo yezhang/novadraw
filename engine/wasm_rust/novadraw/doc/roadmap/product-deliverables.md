@@ -323,8 +323,9 @@ paint、hit-test、border、style 和更新协议证据；类型可导出不等�
 
 ### Tooltip + Accessibility 基础
 
-- `TooltipHelper`（悬停延迟 + show/hide）
-- `Accessible` bridge **接口骨架**（仅键盘可达性，不做完整 ARIA）
+- Runtime-owned Tooltip（悬停延迟、show/replace/hide、超时与边界 placement）
+- engine-owned accessibility Snapshot/Delta（name、role、state、bounds、children、focus）
+- focus/default action 受控回流；不实现完整 ARIA 或原生 AT provider
 
 ### 测试增量预期
 

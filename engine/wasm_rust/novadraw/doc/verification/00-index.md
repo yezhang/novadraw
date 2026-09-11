@@ -25,6 +25,9 @@ ADR-014 D4.5 的递归 style/validation 性能恢复、1k/10k 前后基准与全
 ADR-014 D4.6 的 A01-A08 关闭矩阵与 Rust/WASM/Headless/Native 最终门禁见
 [`reviews/adr014-d4.6-completion-2026-09-10.md`](reviews/adr014-d4.6-completion-2026-09-10.md)。
 
+M10.5 Tooltip 状态机、Accessibility Snapshot/Delta、Native/Web bridge 与自动门禁见
+[`reviews/m10.5-tooltip-accessibility-2026-09-10.md`](reviews/m10.5-tooltip-accessibility-2026-09-10.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
@@ -57,6 +60,8 @@ D4.2 ordered resource ops、Ready snapshot 与 Backend Session 验证见
   Tab/Shift+Tab 焦点遍历与边界；
 - [`manual/m10-widgets.md`](manual/m10-widgets.md)：M10.4 Button/Toggle
   pointer、keyboard 与状态视觉验收；
+- [`manual/m10-tooltip-accessibility.md`](manual/m10-tooltip-accessibility.md)：M10.5
+  Tooltip delay/placement、Accessibility focus/default action 与 Web bridge；
 - [`manual/d3-m9-contract-recovery.md`](manual/d3-m9-contract-recovery.md)：D3.1
   shared Manhattan 与严格 viewport topology 增量验收；
 - [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、

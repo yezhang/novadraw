@@ -37,6 +37,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/text-layout.md`](design/architecture/text-layout.md)
 - Clickable、Button 与 Toggle：
   [`design/architecture/basic-widgets.md`](design/architecture/basic-widgets.md)
+- Tooltip 与 Accessibility Bridge：
+  [`design/architecture/tooltip-accessibility.md`](design/architecture/tooltip-accessibility.md)
 - Runtime 派生状态收敛事务：
   [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
 - 资源因果与 Backend Session：
