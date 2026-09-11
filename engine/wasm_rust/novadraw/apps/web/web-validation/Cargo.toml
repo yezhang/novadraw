@@ -30,6 +30,7 @@ features = [
   "KeyboardEvent",
   "Location",
   "PointerEvent",
+  "Performance",
   "UrlSearchParams",
   "WheelEvent",
   "Window",

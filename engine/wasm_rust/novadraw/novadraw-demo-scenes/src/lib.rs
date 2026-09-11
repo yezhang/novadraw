@@ -132,6 +132,7 @@ pub fn catalog() -> Vec<DemoSuite> {
         scroll_pane::suite(),
         border::suite(),
         ndcanvas::suite(),
+        widget::suite(),
     ]
 }
 

@@ -1,7 +1,11 @@
+use std::time::Duration;
+
 use novadraw::{
-    BuiltinFont, ButtonFigure, Color, FigureId, FigureStyle, LabelFigure, MouseButton, Rectangle,
-    RectangleFigure, Runtime, ToggleFigure,
+    BuiltinFont, ButtonFigure, Color, FigureId, FigureStyle, LabelFigure, MonotonicTime,
+    MouseButton, Rectangle, RectangleFigure, Runtime, ToggleFigure, TooltipTiming,
 };
+
+use crate::{DemoSuite, SceneSpec, ValidationKind};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -17,6 +21,18 @@ const CAPTION_COLOR: Color = Color {
     b: 0.42,
     a: 1.0,
 };
+const SCENE_BACKGROUND: Color = Color {
+    r: 0.94,
+    g: 0.95,
+    b: 0.97,
+    a: 1.0,
+};
+const INHERITED_PANEL_BACKGROUND: Color = Color {
+    r: 0.84,
+    g: 0.9,
+    b: 0.96,
+    a: 1.0,
+};
 
 pub type RuntimeSceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
@@ -25,7 +41,51 @@ pub fn entries() -> Vec<RuntimeSceneEntry> {
         ("Button_States", Box::new(button_states)),
         ("Toggle_States", Box::new(toggle_states)),
         ("Interactive_Widgets", Box::new(interactive_widgets)),
+        ("Tooltip_Boundary_Visual", Box::new(tooltip_boundary_visual)),
+        ("Tooltip_Accessibility", Box::new(tooltip_accessibility)),
     ]
+}
+
+pub fn suite() -> DemoSuite {
+    DemoSuite::new(
+        "widgets",
+        "Widgets",
+        vec![
+            SceneSpec::runtime_visual(
+                "button-states",
+                "Button States",
+                (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+                button_states,
+            ),
+            SceneSpec::runtime_visual(
+                "toggle-states",
+                "Toggle States",
+                (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+                toggle_states,
+            ),
+            SceneSpec::runtime(
+                "interactive-widgets",
+                "Interactive Widgets",
+                (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+                ValidationKind::Interactive,
+                interactive_widgets,
+            ),
+            SceneSpec::runtime(
+                "tooltip-boundary-visual",
+                "Tooltip Boundary Visual",
+                (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+                ValidationKind::Visual,
+                tooltip_boundary_visual,
+            ),
+            SceneSpec::runtime(
+                "tooltip-accessibility",
+                "Tooltip and Accessibility",
+                (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32),
+                ValidationKind::Interactive,
+                tooltip_accessibility,
+            ),
+        ],
+    )
 }
 
 fn runtime() -> Runtime {
@@ -42,7 +102,7 @@ fn root(runtime: &mut Runtime, title: &str) -> FigureId {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        Color::rgba(0.94, 0.95, 0.97, 1.0),
+        SCENE_BACKGROUND,
     )));
     let heading = runtime.add_figure(
         root,
@@ -177,4 +237,148 @@ fn interactive_widgets() -> Runtime {
         },
     );
     runtime
+}
+
+fn tooltip_accessibility() -> Runtime {
+    let mut runtime = runtime();
+    let root = root(&mut runtime, "Tooltip source and accessibility roles");
+    runtime.set_figure_style(
+        root,
+        FigureStyle {
+            background: Some(SCENE_BACKGROUND),
+            tooltip: Some(Some("Inherited from the scene root".to_string())),
+            ..FigureStyle::default()
+        },
+    );
+
+    let inherited_panel = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new_with_color(
+            70.0,
+            125.0,
+            300.0,
+            150.0,
+            INHERITED_PANEL_BACKGROUND,
+        )),
+    );
+    runtime.set_figure_style(
+        inherited_panel,
+        FigureStyle {
+            background: Some(INHERITED_PANEL_BACKGROUND),
+            tooltip: Some(Some("Inherited from the blue container".to_string())),
+            ..FigureStyle::default()
+        },
+    );
+    let inherited_label = runtime.add_figure(
+        inherited_panel,
+        Box::new(
+            LabelFigure::new("Inherited tooltip")
+                .with_bounds(Rectangle::new(35.0, 48.0, 230.0, 42.0)),
+        ),
+    );
+    runtime.set_figure_style(
+        inherited_label,
+        FigureStyle {
+            foreground: Some(TITLE_COLOR),
+            font: Some("18px Inter Variable".to_string()),
+            ..FigureStyle::default()
+        },
+    );
+
+    let button = add_button(
+        &mut runtime,
+        root,
+        "Accessible action",
+        Rectangle::new(440.0, 155.0, 230.0, 52.0),
+    );
+    runtime.set_figure_style(
+        button,
+        FigureStyle {
+            foreground: Some(TITLE_COLOR),
+            font: Some("16px Inter Variable".to_string()),
+            tooltip: Some(Some("Button role with a default action".to_string())),
+            ..FigureStyle::default()
+        },
+    );
+
+    let boundary = add_button(
+        &mut runtime,
+        root,
+        "Bottom edge",
+        Rectangle::new(620.0, 560.0, 150.0, 32.0),
+    );
+    runtime.set_figure_style(
+        boundary,
+        FigureStyle {
+            foreground: Some(TITLE_COLOR),
+            font: Some("15px Inter Variable".to_string()),
+            tooltip: Some(Some(
+                "Flips above and clamps inside the surface".to_string(),
+            )),
+            ..FigureStyle::default()
+        },
+    );
+    runtime
+}
+
+fn tooltip_boundary_visual() -> Runtime {
+    let mut runtime = tooltip_accessibility();
+    runtime
+        .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
+        .unwrap();
+    runtime.dispatch_mouse_moved(700.0, 565.0);
+    runtime.advance_time(MonotonicTime::ZERO).unwrap();
+    runtime
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tooltip_scene_starts_with_the_boundary_tooltip_visible() {
+        let runtime = tooltip_boundary_visual();
+        let tooltip = runtime.visible_tooltip().expect("visible tooltip");
+
+        assert_eq!(tooltip.text, "Flips above and clamps inside the surface");
+        assert_eq!(tooltip.anchor.x(), 700.0);
+        assert_eq!(tooltip.anchor.y(), 565.0);
+    }
+
+    #[test]
+    fn interactive_tooltip_scene_uses_the_default_hover_delay() {
+        let mut runtime = tooltip_accessibility();
+        runtime.dispatch_mouse_moved(400.0, 300.0);
+
+        assert_eq!(
+            runtime.next_wake_deadline(),
+            Some(MonotonicTime::from_micros(500_000))
+        );
+        assert!(runtime.visible_tooltip().is_none());
+    }
+
+    #[test]
+    fn tooltip_style_replacement_preserves_scene_and_panel_backgrounds() {
+        let runtime = tooltip_accessibility();
+        let root = runtime.tree().get_contents().expect("scene contents");
+        let panel = runtime
+            .tree()
+            .child_order(root)
+            .expect("root children")
+            .into_iter()
+            .find(|child| {
+                runtime.tree().figure_bounds(*child)
+                    == Some(Rectangle::new(70.0, 125.0, 300.0, 150.0))
+            })
+            .expect("inherited tooltip panel");
+
+        assert_eq!(
+            runtime.tree().resolved_style(root).unwrap().background,
+            SCENE_BACKGROUND
+        );
+        assert_eq!(
+            runtime.tree().resolved_style(panel).unwrap().background,
+            INHERITED_PANEL_BACKGROUND
+        );
+    }
 }

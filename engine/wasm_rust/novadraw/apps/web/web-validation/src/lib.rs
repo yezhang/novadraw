@@ -1,17 +1,20 @@
 #![cfg(target_arch = "wasm32")]
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::f64::consts::TAU;
 use std::rc::Rc;
 
 use novadraw::{
+    AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate,
     BackendCapabilities, BackendSessionDecision, BackendSessionGate, Bounded, Color, CursorIcon,
     DamageMode, EventContext, Figure, FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers,
-    MouseButton, NdCanvas, PlatformHost, Rectangle, RenderBackend, RenderCapability,
-    RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo,
+    MonotonicTime, MouseButton, NdCanvas, PlatformHost, Rectangle, RenderBackend, RenderCapability,
+    RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo, TooltipUpdate,
     UnsupportedRenderCapability,
     backend::vello::VelloRenderer,
     command::{LineCap, LineJoin},
+    place_tooltip,
 };
 use novadraw_apps::{
     AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
@@ -28,8 +31,8 @@ use wasm_bindgen_futures::spawn_local;
 #[cfg(target_arch = "wasm32")]
 use web_sys::UrlSearchParams;
 use web_sys::{
-    CanvasRenderingContext2d, Document, Event, HtmlButtonElement, HtmlCanvasElement, KeyboardEvent,
-    PointerEvent, WheelEvent as DomWheelEvent, Window,
+    CanvasRenderingContext2d, Document, Element, Event, HtmlButtonElement, HtmlCanvasElement,
+    HtmlElement, KeyboardEvent, PointerEvent, WheelEvent as DomWheelEvent, Window,
 };
 
 const INPUT_THEME_ID: &str = "input";
@@ -45,6 +48,13 @@ struct ProbeState {
     key_events: Cell<u32>,
     wheel_events: Cell<u32>,
     last_key: RefCell<String>,
+}
+
+#[derive(Default)]
+struct WebAccessibilityState {
+    nodes: HashMap<AccessibilityNodeId, AccessibilityNode>,
+    root: Option<AccessibilityNodeId>,
+    revision: u64,
 }
 
 struct WebProbeFigure {
@@ -547,6 +557,7 @@ struct WebValidationApp {
     redraw_pending: Rc<Cell<bool>>,
     frame_count: u64,
     scale_override: Option<f64>,
+    clock_origin_millis: f64,
 }
 
 impl WebValidationApp {
@@ -555,7 +566,7 @@ impl WebValidationApp {
         document: Document,
         canvas: HtmlCanvasElement,
         backend: ValidationBackend,
-    ) -> Self {
+    ) -> Rc<RefCell<Self>> {
         let probe = Rc::new(ProbeState::default());
         let mut themes = vec![input_theme(probe.clone())];
         themes.extend(catalog());
@@ -567,50 +578,101 @@ impl WebValidationApp {
         let runtime = create_scene(&mut themes, current_theme, current_scene);
 
         let redraw_pending = Rc::new(Cell::new(false));
-        let host = WebPlatformHost::new(
-            SurfaceInfo::default(),
-            {
-                let pending = redraw_pending.clone();
-                move || pending.set(true)
-            },
-            {
-                let canvas = canvas.clone();
-                move |cursor| {
-                    let value = match cursor {
-                        CursorIcon::Pointer => "pointer",
-                        CursorIcon::Crosshair => "crosshair",
-                        CursorIcon::Text => "text",
-                        CursorIcon::Move => "move",
-                        CursorIcon::NotAllowed => "not-allowed",
-                        CursorIcon::EastWestResize => "ew-resize",
-                        CursorIcon::NorthSouthResize => "ns-resize",
-                        CursorIcon::NorthEastSouthWestResize => "nesw-resize",
-                        CursorIcon::NorthWestSouthEastResize => "nwse-resize",
-                        CursorIcon::Default => "default",
-                    };
-                    let _ = canvas.style().set_property("cursor", value);
-                }
-            },
-            |_| {},
-            |_| {},
-        );
+        let tooltip: HtmlElement =
+            element(&document, "novadraw-tooltip").expect("tooltip element must exist");
+        let accessibility_tree: HtmlElement = element(&document, "novadraw-accessibility-tree")
+            .expect("accessibility tree element must exist");
+        let accessibility_state = Rc::new(RefCell::new(WebAccessibilityState::default()));
+        let wake_generation = Rc::new(Cell::new(0_u64));
+        let clock_origin_millis = browser_now(&window);
 
-        Self {
-            window,
-            document,
-            canvas: canvas.clone(),
-            runtime,
-            host,
-            backend,
-            input: WebInputAdapter,
-            probe,
-            themes,
-            current_theme,
-            current_scene,
-            redraw_pending,
-            frame_count: 0,
-            scale_override: None,
-        }
+        Rc::new_cyclic(|weak: &std::rc::Weak<RefCell<Self>>| {
+            let host = WebPlatformHost::new(
+                SurfaceInfo::default(),
+                {
+                    let pending = redraw_pending.clone();
+                    move || pending.set(true)
+                },
+                {
+                    let canvas = canvas.clone();
+                    move |cursor| {
+                        let value = match cursor {
+                            CursorIcon::Pointer => "pointer",
+                            CursorIcon::Crosshair => "crosshair",
+                            CursorIcon::Text => "text",
+                            CursorIcon::Move => "move",
+                            CursorIcon::NotAllowed => "not-allowed",
+                            CursorIcon::EastWestResize => "ew-resize",
+                            CursorIcon::NorthSouthResize => "ns-resize",
+                            CursorIcon::NorthEastSouthWestResize => "nesw-resize",
+                            CursorIcon::NorthWestSouthEastResize => "nwse-resize",
+                            CursorIcon::Default => "default",
+                        };
+                        let _ = canvas.style().set_property("cursor", value);
+                    }
+                },
+                |_| {},
+                {
+                    let window = window.clone();
+                    let weak = weak.clone();
+                    let generation = wake_generation.clone();
+                    move |deadline| {
+                        let next_generation = generation.get().wrapping_add(1);
+                        generation.set(next_generation);
+                        let Some(deadline) = deadline else {
+                            return;
+                        };
+                        let now = web_monotonic_time(&window, clock_origin_millis);
+                        let delay_micros = deadline.as_micros().saturating_sub(now.as_micros());
+                        let delay_millis = delay_micros.div_ceil(1_000).min(i32::MAX as u64) as i32;
+                        let weak = weak.clone();
+                        let generation = generation.clone();
+                        let callback = Closure::once_into_js(move || {
+                            if generation.get() == next_generation
+                                && let Some(app) = weak.upgrade()
+                            {
+                                app.borrow_mut().on_runtime_wake();
+                            }
+                        });
+                        let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(
+                            callback.unchecked_ref(),
+                            delay_millis,
+                        );
+                    }
+                },
+                {
+                    let canvas = canvas.clone();
+                    let tooltip = tooltip.clone();
+                    move |update| update_web_tooltip(&canvas, &tooltip, update)
+                },
+                {
+                    let document = document.clone();
+                    let tree = accessibility_tree.clone();
+                    let state = accessibility_state.clone();
+                    move |update| {
+                        update_web_accessibility(&document, &tree, &mut state.borrow_mut(), update)
+                    }
+                },
+            );
+
+            RefCell::new(Self {
+                window,
+                document,
+                canvas: canvas.clone(),
+                runtime,
+                host,
+                backend,
+                input: WebInputAdapter,
+                probe,
+                themes,
+                current_theme,
+                current_scene,
+                redraw_pending,
+                frame_count: 0,
+                scale_override: None,
+                clock_origin_millis,
+            })
+        })
     }
 
     fn sync_surface(&mut self) {
@@ -663,8 +725,12 @@ impl WebValidationApp {
     }
 
     fn replace_scene(&mut self) {
+        self.advance_runtime_time();
+        self.runtime.pointer_exited();
+        self.sync_platform_effects();
         self.runtime.release_focus();
         self.runtime = create_scene(&mut self.themes, self.current_theme, self.current_scene);
+        self.advance_runtime_time();
         self.apply_scene_size();
         self.sync_surface();
         self.update_navigation();
@@ -716,12 +782,14 @@ impl WebValidationApp {
         self.host.set_cursor(self.runtime.cursor_icon());
         self.host.request_redraw();
         if !self.redraw_pending.replace(false) {
+            self.sync_platform_effects();
             return;
         }
         let Some(submission) = self
             .runtime
             .prepare_submission(self.host.surface_info(), self.backend.capabilities())
         else {
+            self.sync_platform_effects();
             self.update_status(DamageMode::None);
             return;
         };
@@ -729,8 +797,30 @@ impl WebValidationApp {
         let outcome = self.backend.submit(&submission);
         self.runtime
             .complete_submission(submission.session_id, submission.frame_id, outcome);
+        self.sync_platform_effects();
         self.frame_count += 1;
         self.update_status(damage);
+    }
+
+    fn advance_runtime_time(&mut self) {
+        let now = web_monotonic_time(&self.window, self.clock_origin_millis);
+        let _ = self.runtime.advance_time(now);
+    }
+
+    fn sync_platform_effects(&mut self) {
+        self.host.set_cursor(self.runtime.cursor_icon());
+        for update in self.runtime.take_tooltip_updates() {
+            self.host.update_tooltip(update);
+        }
+        for update in self.runtime.take_accessibility_updates() {
+            self.host.update_accessibility(update);
+        }
+        self.host.schedule_wake(self.runtime.next_wake_deadline());
+    }
+
+    fn on_runtime_wake(&mut self) {
+        self.advance_runtime_time();
+        self.request_and_render();
     }
 
     fn update_status(&self, damage: DamageMode) {
@@ -793,6 +883,7 @@ impl WebValidationApp {
     }
 
     fn on_pointer_move(&mut self, event: PointerEvent) {
+        self.advance_runtime_time();
         if let Some(point) = self.pointer_input(&event).logical_position() {
             self.runtime.dispatch_mouse_moved(point.x(), point.y());
             self.request_and_render();
@@ -800,6 +891,7 @@ impl WebValidationApp {
     }
 
     fn on_pointer_down(&mut self, event: PointerEvent) {
+        self.advance_runtime_time();
         let _ = self.canvas.focus();
         let _ = self.canvas.set_pointer_capture(event.pointer_id());
         if let Some(point) = self.pointer_input(&event).logical_position() {
@@ -811,6 +903,7 @@ impl WebValidationApp {
     }
 
     fn on_pointer_up(&mut self, event: PointerEvent) {
+        self.advance_runtime_time();
         if let Some(point) = self.pointer_input(&event).logical_position() {
             self.runtime
                 .dispatch_mouse_released(point.x(), point.y(), MouseButton::Left);
@@ -819,7 +912,14 @@ impl WebValidationApp {
         self.request_and_render();
     }
 
+    fn on_pointer_leave(&mut self) {
+        self.advance_runtime_time();
+        self.runtime.pointer_exited();
+        self.request_and_render();
+    }
+
     fn on_wheel(&mut self, event: DomWheelEvent) {
+        self.advance_runtime_time();
         event.prevent_default();
         let pointer = WebPointerInput {
             pointer_id: 0,
@@ -856,6 +956,7 @@ impl WebValidationApp {
     }
 
     fn on_key(&mut self, event: KeyboardEvent, pressed: bool) {
+        self.advance_runtime_time();
         let Some(key) = map_key(&event.key()) else {
             return;
         };
@@ -892,6 +993,7 @@ impl WebValidationApp {
     }
 
     fn toggle_scale(&mut self) {
+        self.advance_runtime_time();
         self.scale_override = Some(if self.host.surface_info().scale_factor < 1.5 {
             2.0
         } else {
@@ -900,6 +1002,140 @@ impl WebValidationApp {
         self.sync_surface();
         self.request_and_render();
     }
+}
+
+fn browser_now(window: &Window) -> f64 {
+    window.performance().map_or(0.0, |clock| clock.now())
+}
+
+fn web_monotonic_time(window: &Window, origin_millis: f64) -> MonotonicTime {
+    let elapsed_micros = ((browser_now(window) - origin_millis).max(0.0) * 1_000.0).round();
+    MonotonicTime::from_micros(elapsed_micros.min(u64::MAX as f64) as u64)
+}
+
+fn update_web_tooltip(canvas: &HtmlCanvasElement, tooltip: &HtmlElement, update: TooltipUpdate) {
+    let snapshot = match update {
+        TooltipUpdate::Show(snapshot) | TooltipUpdate::Replace(snapshot) => snapshot,
+        TooltipUpdate::Hide { .. } => {
+            let _ = tooltip.style().set_property("display", "none");
+            return;
+        }
+    };
+    tooltip.set_text_content(Some(&snapshot.text));
+    let _ = tooltip.style().set_property("display", "block");
+    let popup = tooltip.get_bounding_client_rect();
+    let canvas_bounds = canvas.get_bounding_client_rect();
+    let Some(placement) = place_tooltip(
+        snapshot.anchor,
+        (popup.width(), popup.height()),
+        Rectangle::new(0.0, 0.0, canvas_bounds.width(), canvas_bounds.height()),
+        snapshot.placement,
+    ) else {
+        let _ = tooltip.style().set_property("display", "none");
+        return;
+    };
+    let _ = tooltip
+        .style()
+        .set_property("left", &format!("{}px", canvas_bounds.left() + placement.x));
+    let _ = tooltip
+        .style()
+        .set_property("top", &format!("{}px", canvas_bounds.top() + placement.y));
+}
+
+fn update_web_accessibility(
+    document: &Document,
+    tree: &HtmlElement,
+    state: &mut WebAccessibilityState,
+    update: AccessibilityUpdate,
+) {
+    match update {
+        AccessibilityUpdate::Snapshot(snapshot) => {
+            state.nodes = snapshot
+                .nodes
+                .iter()
+                .cloned()
+                .map(|node| (node.id, node))
+                .collect();
+            state.root = Some(snapshot.root);
+            state.revision = snapshot.revision;
+        }
+        AccessibilityUpdate::Delta(delta) => {
+            if state.revision != delta.base_revision {
+                return;
+            }
+            for removed in delta.removed {
+                state.nodes.remove(&removed);
+            }
+            for node in delta.upserts {
+                state.nodes.insert(node.id, node);
+            }
+            if let Some(root) = state.root.and_then(|root| state.nodes.get_mut(&root)) {
+                root.children = delta.root_children;
+            }
+            state.revision = delta.revision;
+        }
+    }
+
+    tree.set_inner_html("");
+    if let Some(root) = state.root
+        && let Some(root_node) = state.nodes.get(&root)
+    {
+        for child in &root_node.children {
+            if let Some(element) = accessibility_element(document, state, *child, 1) {
+                let _ = tree.append_child(&element);
+            }
+        }
+    }
+    if let Some(body) = document.body() {
+        let _ = body.set_attribute("data-accessibility-revision", &state.revision.to_string());
+    }
+}
+
+fn accessibility_element(
+    document: &Document,
+    state: &WebAccessibilityState,
+    id: AccessibilityNodeId,
+    depth: usize,
+) -> Option<Element> {
+    if depth > novadraw::MAX_TREE_DEPTH {
+        return None;
+    }
+    let node = state.nodes.get(&id)?;
+    let element = document.create_element("div").ok()?;
+    let role = match node.role {
+        AccessibilityRole::Group => "group",
+        AccessibilityRole::Text => "text",
+        AccessibilityRole::Image => "img",
+        AccessibilityRole::Button | AccessibilityRole::ToggleButton => "button",
+    };
+    let _ = element.set_attribute("role", role);
+    let _ = element.set_attribute("aria-label", &node.name);
+    let _ = element.set_attribute(
+        "aria-disabled",
+        if node.state.enabled { "false" } else { "true" },
+    );
+    if node.role == AccessibilityRole::ToggleButton {
+        let _ = element.set_attribute(
+            "aria-pressed",
+            if node.state.selected { "true" } else { "false" },
+        );
+    }
+    if node.state.focusable {
+        let _ = element.set_attribute("tabindex", "-1");
+    }
+    let _ = element.set_attribute(
+        "data-bounds",
+        &format!(
+            "{},{},{},{}",
+            node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height
+        ),
+    );
+    for child in &node.children {
+        if let Some(child_element) = accessibility_element(document, state, *child, depth + 1) {
+            let _ = element.append_child(&child_element);
+        }
+    }
+    Some(element)
 }
 
 fn modifiers(control: bool, shift: bool, alt: bool, meta: bool) -> KeyModifiers {
@@ -1044,12 +1280,7 @@ async fn start_async() -> Result<(), JsValue> {
     canvas.set_height(surface.pixel_height);
     let backend = create_backend(&window, &canvas, surface).await?;
 
-    let app = Rc::new(RefCell::new(WebValidationApp::new(
-        window.clone(),
-        document.clone(),
-        canvas.clone(),
-        backend,
-    )));
+    let app = WebValidationApp::new(window.clone(), document.clone(), canvas.clone(), backend);
     let target: &web_sys::EventTarget = canvas.as_ref();
     register_event(target, "pointermove", &app, |app, event| {
         app.on_pointer_move(event.unchecked_into::<PointerEvent>())
@@ -1059,6 +1290,9 @@ async fn start_async() -> Result<(), JsValue> {
     })?;
     register_event(target, "pointerup", &app, |app, event| {
         app.on_pointer_up(event.unchecked_into::<PointerEvent>())
+    })?;
+    register_event(target, "pointerleave", &app, |app, _event| {
+        app.on_pointer_leave()
     })?;
     register_event(target, "wheel", &app, |app, event| {
         app.on_wheel(event.unchecked_into::<DomWheelEvent>())
@@ -1070,6 +1304,8 @@ async fn start_async() -> Result<(), JsValue> {
         app.on_key(event.unchecked_into::<KeyboardEvent>(), false)
     })?;
     register_event(target, "blur", &app, |app, _event| {
+        app.advance_runtime_time();
+        app.runtime.pointer_exited();
         app.runtime.release_focus();
         app.request_and_render();
     })?;

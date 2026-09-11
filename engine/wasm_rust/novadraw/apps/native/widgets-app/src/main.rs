@@ -4,7 +4,7 @@ use novadraw_apps::{
 };
 
 fn main() {
-    let title = "Widgets App - Clickable, Button, and Toggle";
+    let title = "Widgets App - Controls, Tooltip, and Accessibility";
     let app_name = "widgets-app";
     let cli = VerificationCli::parse().unwrap_or_else(|error| {
         eprintln!("{error}");

@@ -172,6 +172,31 @@ canvas:focus-visible {
   box-shadow: 0 0 0 3px rgb(37 99 235 / 22%);
 }
 
+#novadraw-tooltip {
+  position: fixed;
+  z-index: 10;
+  display: none;
+  max-width: 320px;
+  padding: 6px 8px;
+  border: 1px solid #1f2933;
+  border-radius: 4px;
+  background: #17202a;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.sr-only {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 aside {
   padding: 24px 20px;
   background: #ffffff;
