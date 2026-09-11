@@ -24,6 +24,7 @@ pub use winit::{application::ApplicationHandler, window::WindowId};
 use tracing::{error, info};
 
 const SCREENSHOT_RENDER_RETRY_LIMIT: usize = 8;
+const INITIAL_FRAME_RETRY_LIMIT: usize = 8;
 const TOOLTIP_HORIZONTAL_PADDING: f64 = 8.0;
 const TOOLTIP_VERTICAL_PADDING: f64 = 6.0;
 const TOOLTIP_BACKGROUND: Color = Color {
@@ -94,6 +95,8 @@ pub struct DemoApp {
     modifiers: KeyModifiers,
     gesture_adapter: WinitGestureAdapter,
     clock_origin: Instant,
+    initial_frame_presented: bool,
+    initial_frame_attempts: usize,
 }
 
 impl DemoApp {
@@ -127,6 +130,8 @@ impl DemoApp {
             modifiers: KeyModifiers::default(),
             gesture_adapter: WinitGestureAdapter::new(),
             clock_origin: Instant::now(),
+            initial_frame_presented: false,
+            initial_frame_attempts: 0,
         }
     }
 
@@ -142,6 +147,8 @@ impl DemoApp {
             let mut runtime = creator();
             runtime.add_update_listener(Box::new(DemoUpdateListener));
             self.runtime = Some(runtime);
+            self.initial_frame_presented = false;
+            self.initial_frame_attempts = 0;
             eprintln!("切换到场景: {}", self.scenes[idx].0);
 
             // 更新窗口标题显示当前场景（只显示场景名称）
@@ -172,7 +179,6 @@ impl DemoApp {
         let Some(host) = &self.host else {
             return RenderOutcome::Skipped;
         };
-        host.begin_redraw();
         let Some(renderer) = &mut self.renderer else {
             return RenderOutcome::Skipped;
         };
@@ -199,6 +205,7 @@ impl DemoApp {
         if outcome == RenderOutcome::Retry {
             host.request_redraw();
         }
+        self.record_interactive_frame_outcome(outcome);
         self.sync_platform_effects();
         outcome
     }
@@ -400,6 +407,8 @@ impl ApplicationHandler<()> for DemoApp {
 
         let renderer = VelloRenderer::new(window, self.width, self.height);
         self.renderer = Some(renderer);
+        self.initial_frame_presented = false;
+        self.initial_frame_attempts = 0;
         if is_backend_replacement && let Some(runtime) = &mut self.runtime {
             runtime
                 .reset_backend_session()
@@ -445,9 +454,6 @@ impl ApplicationHandler<()> for DemoApp {
             WindowEvent::RedrawRequested => {
                 if self.screenshot_mode.is_some() {
                     return;
-                }
-                if let Some(host) = &self.host {
-                    host.begin_redraw();
                 }
                 let _ = self.render();
             }
@@ -693,6 +699,13 @@ impl ApplicationHandler<()> for DemoApp {
             .is_some_and(|runtime| runtime.advance_time(now).unwrap_or(false));
         self.sync_platform_effects();
         if let Some(host) = &self.host {
+            if !self.initial_frame_presented
+                && self.initial_frame_attempts < INITIAL_FRAME_RETRY_LIMIT
+            {
+                event_loop.set_control_flow(ControlFlow::Poll);
+                host.request_redraw();
+                return;
+            }
             if let Some(deadline) = host.wake_deadline() {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(
                     self.clock_origin + Duration::from_micros(deadline.as_micros()),
@@ -712,6 +725,20 @@ impl ApplicationHandler<()> for DemoApp {
         }
         self.sync_platform_effects();
         self.renderer = None;
+    }
+}
+
+impl DemoApp {
+    fn record_interactive_frame_outcome(&mut self, outcome: RenderOutcome) {
+        if self.initial_frame_presented {
+            return;
+        }
+        if outcome == RenderOutcome::Presented {
+            self.initial_frame_presented = true;
+            self.initial_frame_attempts = 0;
+        } else {
+            self.initial_frame_attempts = self.initial_frame_attempts.saturating_add(1);
+        }
     }
 }
 
@@ -1050,6 +1077,23 @@ fn run_runtime_demo_app_with_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn initial_frame_remains_pending_until_presentation_succeeds() {
+        let mut app = DemoApp::new("test", Vec::new(), 100.0, 100.0, "test", None);
+
+        app.record_interactive_frame_outcome(RenderOutcome::Skipped);
+        assert!(!app.initial_frame_presented);
+        assert_eq!(app.initial_frame_attempts, 1);
+
+        app.record_interactive_frame_outcome(RenderOutcome::Retry);
+        assert!(!app.initial_frame_presented);
+        assert_eq!(app.initial_frame_attempts, 2);
+
+        app.record_interactive_frame_outcome(RenderOutcome::Presented);
+        assert!(app.initial_frame_presented);
+        assert_eq!(app.initial_frame_attempts, 0);
+    }
 
     #[test]
     fn visible_tooltip_lowers_to_native_overlay_commands() {

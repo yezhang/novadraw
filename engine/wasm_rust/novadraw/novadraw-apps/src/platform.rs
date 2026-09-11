@@ -1,5 +1,5 @@
 #[cfg(feature = "native")]
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(feature = "native")]
 use std::sync::{Arc, Mutex};
 
@@ -16,7 +16,6 @@ use winit::window::{CursorIcon as WinitCursorIcon, Window};
 #[cfg(feature = "native")]
 pub struct WinitPlatformHost {
     window: Arc<Window>,
-    redraw_pending: AtomicBool,
     accessibility_revision: AtomicU64,
     accessibility_update: Mutex<Option<AccessibilityUpdate>>,
     wake_deadline: Mutex<Option<MonotonicTime>>,
@@ -28,7 +27,6 @@ impl WinitPlatformHost {
     pub fn new(window: Arc<Window>) -> Self {
         Self {
             window,
-            redraw_pending: AtomicBool::new(false),
             accessibility_revision: AtomicU64::new(0),
             accessibility_update: Mutex::new(None),
             wake_deadline: Mutex::new(None),
@@ -42,11 +40,6 @@ impl WinitPlatformHost {
 
     pub fn window_arc(&self) -> Arc<Window> {
         Arc::clone(&self.window)
-    }
-
-    /// Marks the platform redraw request as consumed.
-    pub fn begin_redraw(&self) -> bool {
-        self.redraw_pending.swap(false, Ordering::AcqRel)
     }
 
     pub fn accessibility_revision(&self) -> u64 {
@@ -78,9 +71,9 @@ impl WinitPlatformHost {
 #[cfg(feature = "native")]
 impl PlatformHost for WinitPlatformHost {
     fn request_redraw(&self) {
-        if !self.redraw_pending.swap(true, Ordering::AcqRel) {
-            self.window.request_redraw();
-        }
+        // Winit coalesces duplicate redraw requests. Keeping a second pending
+        // flag here can strand a request that the platform deferred at startup.
+        self.window.request_redraw();
     }
 
     fn surface_info(&self) -> SurfaceInfo {
