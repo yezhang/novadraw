@@ -137,7 +137,7 @@ impl ApplicationHandler<()> for GraphicsApp {
                 event_loop
                     .create_window(
                         WindowAttributes::default()
-                            .with_title("Novadraw - 渲染验证 (按 0-9 切换场景, I 切换渲染模式)")
+                            .with_title("Novadraw - 渲染验证 (按 0-9 切换场景)")
                             .with_inner_size(dpi::LogicalSize::new(800, 600))
                             .with_resizable(true),
                     )
@@ -197,6 +197,12 @@ impl ApplicationHandler<()> for GraphicsApp {
                 );
                 if let Some(system) = &mut self.system {
                     let _ = system.dispatch_raw_mouse_moved(raw);
+                }
+            }
+            WindowEvent::CursorLeft { .. } => {
+                self.cursor_position = None;
+                if let Some(system) = &mut self.system {
+                    system.pointer_exited();
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -303,6 +309,7 @@ impl ApplicationHandler<()> for GraphicsApp {
                 self.gesture_adapter.cancel_all();
                 if let Some(system) = &mut self.system {
                     system.cancel_gestures();
+                    system.pointer_exited();
                     system.release_focus();
                 }
             }
@@ -468,7 +475,25 @@ impl ApplicationHandler<()> for GraphicsApp {
         }
     }
 
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let Some(system) = &mut self.system else {
+            event_loop.set_control_flow(ControlFlow::Wait);
+            return;
+        };
+        if system.advance_time() {
+            system.request_update();
+        }
+        if let Some(deadline) = system.next_wake_instant() {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+        } else {
+            event_loop.set_control_flow(ControlFlow::Wait);
+        }
+    }
+
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(system) = &mut self.system {
+            system.pointer_exited();
+        }
         self.renderer = None;
     }
 }

@@ -20,23 +20,27 @@ use crate::mutation::{
     FigureComponentUpdate, PendingMutation, PendingMutationKind, RuntimeMutationError,
     SizeOverrideKind,
 };
+use crate::runtime::accessibility::AccessibilityManager;
+use crate::runtime::tooltip::TooltipController;
 use crate::{
-    ActionListener, Alignment, AncestorListener, AnchorGeometry, AnchorGeometryKey, AnchorId,
-    Border, ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor,
-    ConnectionId, ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot,
-    CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, Direction, EventDispatcher,
-    Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
-    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
-    LayoutListener, LayoutManager, ListenerId, ListenerScope, MouseButton, ObservationListener,
-    PendingMutations, PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry,
-    ResourceStatus, RouteOutput, RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext,
-    ShapeMutationError, StableQueryError, StableSceneQuery, StackLayout, TextPlacement,
-    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
-    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
+    AccessibilityAction, AccessibilityError, AccessibilityNodeId, AccessibilitySnapshot,
+    AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
+    AnchorGeometryKey, AnchorId, Border, ChildClippingStrategy, ClickableSnapshot,
+    ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionRouter, ConnectionRuntimeError,
+    ConnectionStateSnapshot, CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject,
+    Direction, EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree,
+    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
+    FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
+    KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
+    LayeredPaneHandle, LayoutConstraint, LayoutListener, LayoutManager, ListenerId, ListenerScope,
+    MonotonicTime, MouseButton, ObservationListener, PendingMutations, PropertyChangeListener,
+    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding,
+    RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError, StableQueryError,
+    StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming,
+    TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
+    ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
-use novadraw_geometry::{Dimension, Vec2};
+use novadraw_geometry::{Dimension, Point, Vec2};
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
 const DERIVED_WORK_KIND_COUNT: usize = 6;
@@ -83,6 +87,7 @@ pub enum FramePreparationError {
     Faulted,
     Text(TextError),
     Validation(ValidationError),
+    Accessibility(AccessibilityError),
     UnsupportedRenderCapability(UnsupportedRenderCapability),
     DidNotConverge,
 }
@@ -93,6 +98,7 @@ impl fmt::Display for FramePreparationError {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::Text(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
+            Self::Accessibility(error) => error.fmt(formatter),
             Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
             Self::DidNotConverge => formatter.write_str("derived state did not converge"),
         }
@@ -132,6 +138,8 @@ pub struct Runtime {
     tree: FigureTree,
     interaction: InteractionState,
     interaction_dispatcher: EventDispatcher,
+    tooltip_controller: TooltipController,
+    accessibility: AccessibilityManager,
     focus_traversal_policy: Box<dyn FocusTraversalPolicy>,
     updates: UpdateManager,
     mutations: PendingMutations,
@@ -174,6 +182,8 @@ impl Runtime {
             tree,
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
+            tooltip_controller: TooltipController::default(),
+            accessibility: AccessibilityManager::default(),
             focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
             updates: UpdateManager::with_namespace(namespace),
             mutations: PendingMutations::new(),
@@ -229,6 +239,89 @@ impl Runtime {
             .hover_source()
             .and_then(|id| self.tree.resolved_style(id))
             .and_then(|style| style.tooltip)
+    }
+
+    pub fn set_tooltip_timing(&mut self, timing: TooltipTiming) -> Result<bool, TimeError> {
+        self.tooltip_controller.set_timing(timing)
+    }
+
+    pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
+        if self.faulted {
+            return Ok(false);
+        }
+        self.tooltip_controller.advance_time(now)
+    }
+
+    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+        self.tooltip_controller.next_wake_deadline()
+    }
+
+    pub fn visible_tooltip(&self) -> Option<&TooltipSnapshot> {
+        self.tooltip_controller.visible_snapshot()
+    }
+
+    pub fn take_tooltip_updates(&mut self) -> Vec<TooltipUpdate> {
+        self.tooltip_controller.take_updates()
+    }
+
+    pub fn accessibility_snapshot(&self) -> Option<&AccessibilitySnapshot> {
+        self.accessibility.snapshot()
+    }
+
+    pub fn take_accessibility_updates(&mut self) -> Vec<AccessibilityUpdate> {
+        self.accessibility.take_updates()
+    }
+
+    pub fn request_accessibility_snapshot(&mut self) {
+        self.accessibility.reset();
+    }
+
+    pub fn perform_accessibility_action(
+        &mut self,
+        node: AccessibilityNodeId,
+        action: AccessibilityAction,
+    ) -> Result<bool, AccessibilityError> {
+        if self.faulted {
+            return Err(AccessibilityError::RuntimeFaulted);
+        }
+        let figure = match node {
+            AccessibilityNodeId::Root(namespace) => {
+                if namespace != self.tree.namespace() {
+                    return Err(AccessibilityError::ForeignRuntime(node));
+                }
+                return Err(AccessibilityError::UnsupportedAction { node, action });
+            }
+            AccessibilityNodeId::Figure(figure) => {
+                if figure.namespace() != self.tree.namespace() {
+                    return Err(AccessibilityError::ForeignRuntime(node));
+                }
+                figure
+            }
+        };
+        let snapshot = self
+            .accessibility
+            .snapshot()
+            .ok_or(AccessibilityError::Unavailable(node))?;
+        let semantic_node = snapshot
+            .nodes
+            .iter()
+            .find(|candidate| candidate.id == node)
+            .ok_or(AccessibilityError::UnknownNode(node))?;
+        let focusable = semantic_node.state.focusable;
+        let default_action = semantic_node.default_action;
+        match action {
+            AccessibilityAction::Focus if focusable => self
+                .request_focus(figure)
+                .map(|change| matches!(change, FocusChange::Changed { .. }))
+                .map_err(|_| AccessibilityError::Unavailable(node)),
+            AccessibilityAction::Default
+                if default_action == Some(AccessibilityAction::Default) =>
+            {
+                self.do_click(figure)
+                    .map_err(|_| AccessibilityError::Unavailable(node))
+            }
+            _ => Err(AccessibilityError::UnsupportedAction { node, action }),
+        }
     }
 
     pub fn resources(&self) -> &ResourceRegistry {
@@ -697,6 +790,7 @@ impl Runtime {
                 .expect("prevalidated contents disposal");
         }
         self.tree.designate_contents(id);
+        self.accessibility.reset();
         self.register_label_icon_dependency(id);
         self.register_image_figure_dependency(id);
         if let Err(error) = self.connections.invalidate_all() {
@@ -1722,8 +1816,13 @@ impl Runtime {
     }
 
     fn set_figure_style_inner(&mut self, id: FigureId, style: FigureStyle) -> bool {
-        self.tree
-            .set_figure_style_with_update(&mut self.updates, id, style)
+        let changed = self
+            .tree
+            .set_figure_style_with_update(&mut self.updates, id, style);
+        if changed {
+            self.sync_tooltip();
+        }
+        changed
     }
 
     pub fn set_label_text(
@@ -2595,37 +2694,52 @@ impl Runtime {
         if self.faulted {
             return;
         }
+        self.tooltip_controller
+            .set_pointer_position(Point::new(x, y));
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
+        self.sync_tooltip();
     }
 
     pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
         if self.faulted {
             return;
         }
+        self.tooltip_controller
+            .set_pointer_position(Point::new(x, y));
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
+        self.tooltip_controller.dismiss();
     }
 
     pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
         if self.faulted {
             return;
         }
+        self.tooltip_controller
+            .set_pointer_position(Point::new(x, y));
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_released(ctx, x, y, button));
+        self.tooltip_controller.dismiss();
     }
 
     pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
         if self.faulted {
             return;
         }
+        self.tooltip_controller
+            .set_pointer_position(Point::new(x, y));
         self.dispatch(|dispatcher, ctx| {
             dispatcher.dispatch_mouse_double_clicked(ctx, x, y, button)
         });
+        self.tooltip_controller.dismiss();
     }
 
     pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
         if self.faulted {
             return;
         }
+        self.tooltip_controller
+            .set_pointer_position(Point::new(x, y));
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
+        self.sync_tooltip();
     }
 
     pub fn dispatch_scroll(&mut self, event: WheelEvent) {
@@ -2633,6 +2747,7 @@ impl Runtime {
             return;
         }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
+        self.tooltip_controller.dismiss();
     }
 
     pub fn set_view_location(
@@ -2687,6 +2802,7 @@ impl Runtime {
             return;
         }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
+        self.tooltip_controller.dismiss();
     }
 
     pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
@@ -2694,6 +2810,7 @@ impl Runtime {
             return;
         }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
+        self.tooltip_controller.dismiss();
     }
 
     pub fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {
@@ -2701,14 +2818,22 @@ impl Runtime {
             return Err(FocusError::Faulted);
         }
         self.validate_direct_focus(target)?;
-        Ok(self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(target))))
+        let change = self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(target)));
+        if matches!(change, FocusChange::Changed { .. }) {
+            self.tooltip_controller.dismiss();
+        }
+        Ok(change)
     }
 
     pub fn clear_focus(&mut self) -> FocusChange {
         if self.faulted {
             return FocusChange::Unchanged;
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.release_focus(ctx))
+        let change = self.dispatch(|dispatcher, ctx| dispatcher.release_focus(ctx));
+        if matches!(change, FocusChange::Changed { .. }) {
+            self.tooltip_controller.dismiss();
+        }
+        change
     }
 
     pub fn release_focus(&mut self) -> FocusChange {
@@ -2744,7 +2869,10 @@ impl Runtime {
         }
 
         match self.dispatch(|dispatcher, ctx| dispatcher.set_focus(ctx, Some(candidate))) {
-            FocusChange::Changed { .. } => FocusTraversalOutcome::Moved(candidate),
+            FocusChange::Changed { .. } => {
+                self.tooltip_controller.dismiss();
+                FocusTraversalOutcome::Moved(candidate)
+            }
             FocusChange::Unchanged => FocusTraversalOutcome::Boundary,
         }
     }
@@ -2760,6 +2888,18 @@ impl Runtime {
             return;
         }
         self.dispatch(|dispatcher, ctx| dispatcher.cancel_gestures(ctx));
+    }
+
+    pub fn pointer_exited(&mut self) {
+        if self.faulted {
+            return;
+        }
+        if let Some(point) = self.tooltip_controller.pointer_position() {
+            self.dispatch(|dispatcher, ctx| {
+                dispatcher.dispatch_pointer_exited(ctx, point.x(), point.y())
+            });
+        }
+        self.tooltip_controller.clear_pointer_position();
     }
 
     /// Applies all callback effects and structural mutations before returning.
@@ -2981,24 +3121,35 @@ impl Runtime {
             .interaction
             .focus_owner()
             .is_some_and(|id| !self.tree.can_retain_focus(id));
-        if !invalid_focus {
-            return;
+        if invalid_focus {
+            {
+                let mut context = SceneDispatchContext::new(
+                    &mut self.tree,
+                    &mut self.interaction,
+                    &mut self.updates,
+                    &mut self.mutations,
+                );
+                self.interaction_dispatcher.set_focus(&mut context, None);
+            }
+            let mutations = self.mutations.drain();
+            self.apply_runtime_mutations(mutations);
+            self.interaction.reconcile_non_focus(&self.tree);
+            self.resources
+                .retain_dependencies(|id| self.tree.is_attached(id));
+            self.tooltip_controller.dismiss();
         }
+        self.sync_tooltip();
+    }
 
-        {
-            let mut context = SceneDispatchContext::new(
-                &mut self.tree,
-                &mut self.interaction,
-                &mut self.updates,
-                &mut self.mutations,
-            );
-            self.interaction_dispatcher.set_focus(&mut context, None);
-        }
-        let mutations = self.mutations.drain();
-        self.apply_runtime_mutations(mutations);
-        self.interaction.reconcile_non_focus(&self.tree);
-        self.resources
-            .retain_dependencies(|id| self.tree.is_attached(id));
+    fn sync_tooltip(&mut self) {
+        let source = if self.interaction.captured().is_none() {
+            self.interaction
+                .hover_source()
+                .and_then(|id| self.tree.tooltip_source(id))
+        } else {
+            None
+        };
+        self.tooltip_controller.reconcile(source);
     }
 
     fn sync_clickable_visuals(&mut self) {
@@ -3233,6 +3384,12 @@ impl Runtime {
         }
         if let Err(error) = self.try_stabilize() {
             return FramePreparation::Error(error);
+        }
+        if let Err(error) =
+            self.accessibility
+                .publish(&self.tree, &self.interaction, self.stable_epoch, surface)
+        {
+            return FramePreparation::Error(FramePreparationError::Accessibility(error));
         }
         self.updates.set_publication_epoch(self.stable_epoch);
 

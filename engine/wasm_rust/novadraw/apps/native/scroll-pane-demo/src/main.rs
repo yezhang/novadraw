@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use novadraw::{
-    EventDispatcher, GesturePhase, GestureSessionId, InteractionState, KeyModifiers,
-    MouseLocationZoomScrollPolicy, PendingMutations, Point, Rectangle, RectangleFigure,
-    SceneDispatchContext, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
+    GesturePhase, GestureSessionId, KeyModifiers, MouseLocationZoomScrollPolicy, Point, Rectangle,
+    RectangleFigure, Runtime, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -39,8 +38,9 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
     )
     .map_err(|error| error.to_string())?;
     graph.revalidate(pane.pane_id());
-    if !graph.is_visible(pane.horizontal_scroll_bar())
-        || !graph.is_visible(pane.vertical_scroll_bar())
+    let runtime = Runtime::new(graph);
+    if !runtime.tree().is_visible(pane.horizontal_scroll_bar())
+        || !runtime.tree().is_visible(pane.vertical_scroll_bar())
     {
         return Err("automatic policy did not expose both scrollbars".to_string());
     }
@@ -78,18 +78,8 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
     )
     .map_err(|error| error.to_string())?;
     graph.revalidate(pane.pane_id());
-    let mut interaction = InteractionState::default();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_mouse_wheel(&mut context, PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0);
-    }
+    let mut runtime = Runtime::new(graph);
+    runtime.dispatch_scroll(WheelEvent::new(PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0));
     let location = pane.viewport().view_location();
     if location.y() <= 0.0 {
         return Err("wheel did not change vertical view location".to_string());
@@ -113,20 +103,21 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
             Rectangle::new(0.0, 0.0, 400.0, 300.0),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = UpdateManager::new();
     let child = graph.builder().add_child_to(
         scalable.block_id(),
         Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
     );
     graph.revalidate(pane.pane_id());
-    ZoomManager::new(scalable.clone(), pane.viewport().clone())
-        .set_zoom(&mut graph, &mut update_manager, DEMO_SCALE)
+    let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .set_zoom_at(&zoom, DEMO_SCALE, None)
         .map_err(|error| error.to_string())?;
-    pane.viewport()
-        .set_view_location(&mut graph, &mut update_manager, 0.0, 0.0)
+    runtime
+        .set_view_location(pane.viewport(), 0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let mut point = novadraw::Point::new(0.0, 0.0);
-    graph.translate_to_absolute_mut(child, &mut point);
+    runtime.tree().translate_to_absolute_mut(child, &mut point);
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;
     if point != novadraw::Point::new(expected_x, expected_y) {
@@ -164,32 +155,20 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         )),
     );
     graph.revalidate(pane.pane_id());
-    let mut interaction = InteractionState::default();
-    let mut update_manager = UpdateManager::new();
-    let mut pending = PendingMutations::new();
-    let mut dispatcher = EventDispatcher;
+    let mut runtime = Runtime::new(graph);
     let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_zoom(
-            &mut context,
-            ZoomEvent::new(
-                anchor.x(),
-                anchor.y(),
-                DEMO_SCALE,
-                GesturePhase::Impulse,
-                KeyModifiers::default(),
-                GestureSessionId::IMPULSE,
-            ),
-        );
-    }
+    runtime.dispatch_zoom(ZoomEvent::new(
+        anchor.x(),
+        anchor.y(),
+        DEMO_SCALE,
+        GesturePhase::Impulse,
+        KeyModifiers::default(),
+        GestureSessionId::IMPULSE,
+    ));
     let mut content_point = novadraw::Point::new(50.0, 40.0);
-    graph.translate_to_absolute_mut(child, &mut content_point);
+    runtime
+        .tree()
+        .translate_to_absolute_mut(child, &mut content_point);
     if content_point != anchor {
         return Err(format!(
             "pinch anchor moved from {anchor:?} to {content_point:?}"
@@ -202,53 +181,30 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     {
         return Err("pinch did not synchronize the scaled scroll range".to_string());
     }
-    {
-        let mut context = SceneDispatchContext::new(
-            &mut graph,
-            &mut interaction,
-            &mut update_manager,
-            &mut pending,
-        );
-        dispatcher.dispatch_scroll(
-            &mut context,
-            WheelEvent::with_details(
-                anchor.x(),
-                anchor.y(),
-                10_000.0,
-                10_000.0,
-                ScrollDeltaKind::LogicalPixels,
-                GesturePhase::Impulse,
-                KeyModifiers::default(),
-                GestureSessionId::IMPULSE,
-            ),
-        );
-    }
+    runtime.dispatch_scroll(WheelEvent::with_details(
+        anchor.x(),
+        anchor.y(),
+        10_000.0,
+        10_000.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Impulse,
+        KeyModifiers::default(),
+        GestureSessionId::IMPULSE,
+    ));
     if pane.viewport().view_location() != novadraw::Point::new(0.0, 0.0) {
         return Err("touchpad pan could not reach the scaled canvas origin".to_string());
     }
     let shrunk_scale = 0.5;
     let expanded_scale = 2.0;
     for target_scale in [shrunk_scale, expanded_scale] {
-        {
-            let mut context = SceneDispatchContext::new(
-                &mut graph,
-                &mut interaction,
-                &mut update_manager,
-                &mut pending,
-            );
-            dispatcher.dispatch_zoom(
-                &mut context,
-                ZoomEvent::new(
-                    anchor.x(),
-                    anchor.y(),
-                    target_scale / scalable.scale(),
-                    GesturePhase::Impulse,
-                    KeyModifiers::default(),
-                    GestureSessionId::IMPULSE,
-                ),
-            );
-        }
-        let _ = graph.perform_update(&mut update_manager);
+        runtime.dispatch_zoom(ZoomEvent::new(
+            anchor.x(),
+            anchor.y(),
+            target_scale / scalable.scale(),
+            GesturePhase::Impulse,
+            KeyModifiers::default(),
+            GestureSessionId::IMPULSE,
+        ));
     }
     let expected_width = LARGE_CONTENT_WIDTH * expanded_scale;
     let expected_height = LARGE_CONTENT_HEIGHT * expanded_scale;

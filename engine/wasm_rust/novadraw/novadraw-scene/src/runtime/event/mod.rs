@@ -475,6 +475,22 @@ impl EventDispatcher {
         self.dispatch_mouse_event(ctx, kind, x, y, MouseButton::None);
     }
 
+    pub fn dispatch_pointer_exited(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+        if let Some(previous_hover) = ctx.hover_source() {
+            ctx.set_hovered(previous_hover, false);
+            let exited = Event::Mouse(MouseEvent::new(
+                MouseEventKind::Exited,
+                x,
+                y,
+                MouseButton::None,
+            ));
+            let _ = ctx.dispatch_to_target(Some(previous_hover), &exited);
+        }
+        ctx.set_hover_source(None);
+        ctx.set_cursor_target(None);
+        ctx.set_mouse_target(ctx.captured());
+    }
+
     pub fn dispatch_mouse_double_clicked(
         &mut self,
         ctx: &mut dyn DispatchContext,

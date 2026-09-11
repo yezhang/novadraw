@@ -746,6 +746,26 @@ pub trait AccessibleFigure {
     fn accessible_name(&self) -> Option<&str> {
         None
     }
+
+    fn accessible_description(&self) -> Option<&str> {
+        None
+    }
+
+    fn accessible_value(&self) -> Option<&str> {
+        None
+    }
+
+    fn accessible_role(&self) -> crate::AccessibilityRole {
+        crate::AccessibilityRole::Group
+    }
+
+    fn accessible_default_action(&self) -> Option<crate::AccessibilityAction> {
+        None
+    }
+
+    fn accessibility_hidden(&self) -> bool {
+        false
+    }
 }
 
 // ============================================================================

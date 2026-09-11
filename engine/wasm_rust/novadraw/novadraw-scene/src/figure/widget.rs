@@ -8,8 +8,14 @@ use novadraw_render::{
 };
 
 use super::border::{BevelBorder, BevelStyle, Border};
-use super::{Bounded, ChildPolicy, Figure, FigureContainer, FigureEventHandler, LabelFigure};
-use crate::{EventContext, FigureStyle, Key, KeyEvent, MouseButton, MouseEvent};
+use super::{
+    AccessibleFigure, Bounded, ChildPolicy, Figure, FigureContainer, FigureEventHandler,
+    LabelFigure,
+};
+use crate::{
+    AccessibilityAction, AccessibilityRole, EventContext, FigureStyle, Key, KeyEvent, MouseButton,
+    MouseEvent,
+};
 
 const BUTTON_PADDING: f64 = 6.0;
 const BUTTON_BEVEL_WIDTH: u32 = 2;
@@ -530,6 +536,10 @@ impl Figure for ButtonFigure {
     fn label_mut(&mut self) -> Option<&mut LabelFigure> {
         Some(&mut self.label)
     }
+
+    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
+        Some(self)
+    }
 }
 
 impl Bounded for ButtonFigure {
@@ -553,6 +563,20 @@ impl ClickableBehavior for ButtonFigure {
 
     fn clickable_model_mut(&mut self) -> &mut ClickableModel {
         &mut self.model
+    }
+}
+
+impl AccessibleFigure for ButtonFigure {
+    fn accessible_name(&self) -> Option<&str> {
+        Some(self.label.text())
+    }
+
+    fn accessible_role(&self) -> AccessibilityRole {
+        AccessibilityRole::Button
+    }
+
+    fn accessible_default_action(&self) -> Option<AccessibilityAction> {
+        Some(AccessibilityAction::Default)
     }
 }
 
@@ -662,6 +686,10 @@ impl Figure for ToggleFigure {
     fn label_mut(&mut self) -> Option<&mut LabelFigure> {
         Some(&mut self.label)
     }
+
+    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
+        Some(self)
+    }
 }
 
 impl Bounded for ToggleFigure {
@@ -685,6 +713,20 @@ impl ClickableBehavior for ToggleFigure {
 
     fn clickable_model_mut(&mut self) -> &mut ClickableModel {
         &mut self.model
+    }
+}
+
+impl AccessibleFigure for ToggleFigure {
+    fn accessible_name(&self) -> Option<&str> {
+        Some(self.label.text())
+    }
+
+    fn accessible_role(&self) -> AccessibilityRole {
+        AccessibilityRole::ToggleButton
+    }
+
+    fn accessible_default_action(&self) -> Option<AccessibilityAction> {
+        Some(AccessibilityAction::Default)
     }
 }
 

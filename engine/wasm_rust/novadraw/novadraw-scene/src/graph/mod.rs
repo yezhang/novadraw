@@ -15,9 +15,9 @@ use novadraw_render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
 use super::figure::{
-    ChildClippingStrategy, ChildPolicy, ClickableSnapshot, ClickableVisualState, Direction,
-    FigureMeasurement, ImageFigure, LabelFigure, MeasureConstraints, RoundedRectangleFigure,
-    ShapeMutationError, TriangleFigure, WidgetError, normalize_points,
+    AccessibleFigure, ChildClippingStrategy, ChildPolicy, ClickableSnapshot, ClickableVisualState,
+    Direction, FigureMeasurement, ImageFigure, LabelFigure, MeasureConstraints,
+    RoundedRectangleFigure, ShapeMutationError, TriangleFigure, WidgetError, normalize_points,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
@@ -512,6 +512,16 @@ impl FigureNode {
                 .map(|container| container.child_clipping_strategy())
                 .unwrap_or(ChildClippingStrategy::ClipToChildBounds)
         })
+    }
+
+    pub(crate) fn accessible(&self) -> Option<&dyn AccessibleFigure> {
+        self.figure.accessible()
+    }
+
+    pub(crate) fn clickable_snapshot(&self) -> Option<ClickableSnapshot> {
+        self.figure
+            .clickable()
+            .map(|clickable| clickable.clickable_model().snapshot())
     }
 
     fn child_policy(&self) -> ChildPolicy {
@@ -2933,6 +2943,19 @@ impl FigureTree {
             result.apply_override(&self.blocks[node_id].style);
         }
         Some(result)
+    }
+
+    pub(crate) fn tooltip_source(&self, hit: FigureId) -> Option<(FigureId, String)> {
+        let mut current = Some(hit);
+        while let Some(id) = current {
+            let node = self.blocks.get(id)?;
+            match &node.style.tooltip {
+                Some(Some(text)) => return Some((id, text.clone())),
+                Some(None) => return None,
+                None => current = node.parent,
+            }
+        }
+        None
     }
 
     pub(crate) fn refresh_label_intrinsic_layouts(

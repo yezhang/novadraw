@@ -16,6 +16,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with(filter)
         .init();
 
-    let _ = start_app();
+    start_app()?;
     Ok(())
 }

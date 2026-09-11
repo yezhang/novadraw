@@ -1,9 +1,9 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use novadraw::{
     FigureEvent, FigureId, FocusTraversalDirection, FocusTraversalOutcome, Key, KeyModifiers,
-    MouseButton, PlatformHost, RenderBackend, RenderOutcome, Runtime, UpdateEvent, UpdateListener,
-    WheelEvent, ZoomEvent,
+    MonotonicTime, MouseButton, PlatformHost, RenderBackend, RenderOutcome, Runtime, UpdateEvent,
+    UpdateListener, WheelEvent, ZoomEvent,
 };
 use novadraw_apps::WinitPlatformHost;
 
@@ -285,6 +285,7 @@ impl EditorInteractionCore {
 pub struct EditorRuntime {
     core: EditorInteractionCore,
     host: WinitPlatformHost,
+    clock_origin: Instant,
 }
 
 impl EditorRuntime {
@@ -292,6 +293,7 @@ impl EditorRuntime {
         Self {
             core: EditorInteractionCore::new(),
             host,
+            clock_origin: Instant::now(),
         }
     }
 
@@ -308,6 +310,8 @@ impl EditorRuntime {
     }
 
     pub fn switch_scene(&mut self, scene_type: crate::scene_manager::SceneType) {
+        self.core.runtime.pointer_exited();
+        self.sync_platform_effects();
         self.core.replace_scene(scene_type);
         self.host.request_redraw();
     }
@@ -350,10 +354,46 @@ impl EditorRuntime {
 
     fn run_update_transaction<R>(&mut self, f: impl FnOnce(&mut EditorInteractionCore) -> R) -> R {
         let was_queued = self.core.runtime.has_pending_update();
+        let now = self.monotonic_time();
+        let _ = self.core.runtime.advance_time(now);
         let result = f(&mut self.core);
-        self.host.set_cursor(self.core.runtime.cursor_icon());
+        self.sync_platform_effects();
         self.schedule_update_if_transitioned(was_queued);
         result
+    }
+
+    fn monotonic_time(&self) -> MonotonicTime {
+        let micros = self.clock_origin.elapsed().as_micros();
+        MonotonicTime::from_micros(u64::try_from(micros).unwrap_or(u64::MAX))
+    }
+
+    fn sync_platform_effects(&mut self) {
+        self.host.set_cursor(self.core.runtime.cursor_icon());
+        for update in self.core.runtime.take_tooltip_updates() {
+            self.host.update_tooltip(update);
+        }
+        for update in self.core.runtime.take_accessibility_updates() {
+            self.host.update_accessibility(update);
+        }
+        self.host
+            .schedule_wake(self.core.runtime.next_wake_deadline());
+    }
+
+    pub fn advance_time(&mut self) -> bool {
+        let now = self.monotonic_time();
+        let changed = self.core.runtime.advance_time(now).unwrap_or(false);
+        self.sync_platform_effects();
+        changed
+    }
+
+    pub fn next_wake_instant(&self) -> Option<Instant> {
+        self.host
+            .wake_deadline()
+            .map(|deadline| self.clock_origin + Duration::from_micros(deadline.as_micros()))
+    }
+
+    pub fn pointer_exited(&mut self) {
+        self.run_update_transaction(|core| core.runtime.pointer_exited());
     }
 
     pub fn dispatch_raw_mouse_moved(&mut self, input: RawPointerInput) -> InteractionTrace {
@@ -433,11 +473,12 @@ impl EditorRuntime {
         if self.core.selection.reconcile(self.core.runtime.tree()) {
             self.core.runtime.request_full_redraw();
         }
-        let Some(mut submission) = self
+        let submission = self
             .core
             .runtime
-            .prepare_submission(self.host.surface_info(), renderer.capabilities())
-        else {
+            .prepare_submission(self.host.surface_info(), renderer.capabilities());
+        let Some(mut submission) = submission else {
+            self.sync_platform_effects();
             return RenderOutcome::Skipped;
         };
         self.core
@@ -447,6 +488,7 @@ impl EditorRuntime {
         self.core
             .runtime
             .complete_submission(submission.session_id, submission.frame_id, outcome);
+        self.sync_platform_effects();
         if !matches!(outcome, RenderOutcome::Unsupported(_))
             && (outcome == RenderOutcome::Retry || self.core.runtime.has_pending_update())
         {

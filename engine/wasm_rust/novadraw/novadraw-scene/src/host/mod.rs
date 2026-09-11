@@ -5,4 +5,4 @@
 
 mod scene_host;
 
-pub use scene_host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
+pub use scene_host::{HeadlessHost, ImeState, PlatformHost};

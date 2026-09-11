@@ -10,7 +10,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use crate::ImageId;
 
 use super::border::Border;
-use super::{BorderedFigure, Bounded, Figure};
+use super::{AccessibleFigure, BorderedFigure, Bounded, Figure};
 
 const DEFAULT_ICON_TEXT_GAP: f64 = 4.0;
 const ELLIPSIS: &str = "...";
@@ -414,6 +414,20 @@ impl Figure for LabelFigure {
 
     fn label_mut(&mut self) -> Option<&mut LabelFigure> {
         Some(self)
+    }
+
+    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
+        Some(self)
+    }
+}
+
+impl AccessibleFigure for LabelFigure {
+    fn accessible_name(&self) -> Option<&str> {
+        Some(&self.text)
+    }
+
+    fn accessible_role(&self) -> crate::AccessibilityRole {
+        crate::AccessibilityRole::Text
     }
 }
 

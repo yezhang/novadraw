@@ -5,17 +5,12 @@ use std::cell::{Cell, RefCell};
 use novadraw_geometry::Rectangle;
 use novadraw_render::SurfaceInfo;
 
-use crate::CursorIcon;
+use crate::{AccessibilityUpdate, CursorIcon, MonotonicTime, TooltipUpdate};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ImeState {
     pub enabled: bool,
     pub cursor_area: Option<Rectangle>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct AccessibilityUpdate {
-    pub revision: u64,
 }
 
 /// Narrow platform boundary. It schedules redraws and exposes platform state,
@@ -25,6 +20,8 @@ pub trait PlatformHost {
     fn surface_info(&self) -> SurfaceInfo;
     fn set_cursor(&self, cursor: CursorIcon);
     fn set_ime_state(&self, state: ImeState);
+    fn schedule_wake(&self, deadline: Option<MonotonicTime>);
+    fn update_tooltip(&self, update: TooltipUpdate);
     fn update_accessibility(&self, update: AccessibilityUpdate);
 }
 
@@ -35,6 +32,8 @@ pub struct HeadlessHost {
     redraw_pending: Cell<bool>,
     cursor: Cell<CursorIcon>,
     ime: Cell<ImeState>,
+    wake_deadline: Cell<Option<MonotonicTime>>,
+    tooltip_updates: RefCell<Vec<TooltipUpdate>>,
     accessibility_updates: RefCell<Vec<AccessibilityUpdate>>,
 }
 
@@ -46,6 +45,8 @@ impl HeadlessHost {
             redraw_pending: Cell::new(false),
             cursor: Cell::new(CursorIcon::Default),
             ime: Cell::new(ImeState::default()),
+            wake_deadline: Cell::new(None),
+            tooltip_updates: RefCell::new(Vec::new()),
             accessibility_updates: RefCell::new(Vec::new()),
         }
     }
@@ -68,6 +69,14 @@ impl HeadlessHost {
 
     pub fn ime_state(&self) -> ImeState {
         self.ime.get()
+    }
+
+    pub fn wake_deadline(&self) -> Option<MonotonicTime> {
+        self.wake_deadline.get()
+    }
+
+    pub fn tooltip_updates(&self) -> Vec<TooltipUpdate> {
+        self.tooltip_updates.borrow().clone()
     }
 
     pub fn accessibility_updates(&self) -> Vec<AccessibilityUpdate> {
@@ -95,6 +104,14 @@ impl PlatformHost for HeadlessHost {
         self.ime.set(state);
     }
 
+    fn schedule_wake(&self, deadline: Option<MonotonicTime>) {
+        self.wake_deadline.set(deadline);
+    }
+
+    fn update_tooltip(&self, update: TooltipUpdate) {
+        self.tooltip_updates.borrow_mut().push(update);
+    }
+
     fn update_accessibility(&self, update: AccessibilityUpdate) {
         self.accessibility_updates.borrow_mut().push(update);
     }
@@ -103,8 +120,9 @@ impl PlatformHost for HeadlessHost {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{RectangleFigure, Runtime};
+    use crate::{AccessibilityNodeId, AccessibilitySnapshot, RectangleFigure, Runtime};
     use novadraw_render::{BackendCapabilities, DamageMode};
+    use std::sync::Arc;
 
     #[test]
     fn headless_host_records_platform_effects_deterministically() {
@@ -123,7 +141,18 @@ mod tests {
             enabled: true,
             cursor_area: Some(Rectangle::new(10.0, 20.0, 2.0, 18.0)),
         });
-        host.update_accessibility(AccessibilityUpdate { revision: 3 });
+        host.schedule_wake(Some(MonotonicTime::from_micros(42)));
+        host.update_tooltip(TooltipUpdate::Hide { revision: 2 });
+        let runtime = Runtime::empty();
+        let root = AccessibilityNodeId::Root(runtime.tree().namespace());
+        let accessibility = AccessibilityUpdate::Snapshot(Arc::new(AccessibilitySnapshot {
+            revision: 3,
+            stable_epoch: 1,
+            root,
+            nodes: Vec::new(),
+            focus: None,
+        }));
+        host.update_accessibility(accessibility.clone());
 
         assert_eq!(host.redraw_request_count(), 1);
         assert!(host.take_redraw_request());
@@ -132,10 +161,12 @@ mod tests {
         assert_eq!(host.redraw_request_count(), 2);
         assert_eq!(host.cursor(), CursorIcon::Crosshair);
         assert!(host.ime_state().enabled);
+        assert_eq!(host.wake_deadline(), Some(MonotonicTime::from_micros(42)));
         assert_eq!(
-            host.accessibility_updates(),
-            vec![AccessibilityUpdate { revision: 3 }]
+            host.tooltip_updates(),
+            vec![TooltipUpdate::Hide { revision: 2 }]
         );
+        assert_eq!(host.accessibility_updates(), vec![accessibility]);
     }
 
     #[test]

@@ -73,7 +73,7 @@ pub use graph::{
     IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState, TreeQueryError, TreeSearch,
     TreeSearchContext, ValidationError,
 };
-pub use host::{AccessibilityUpdate, HeadlessHost, ImeState, PlatformHost};
+pub use host::{HeadlessHost, ImeState, PlatformHost};
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
     FreeformConstraint, FreeformConstraintError, FreeformLayout, GridAlignment, GridConstraint,
@@ -99,12 +99,16 @@ pub use runtime::update::{
     ValidatingListener,
 };
 pub use runtime::{
-    BackendSessionError, ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt,
-    FigureComponentContext, FigureComponentUpdate, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FramePreparation,
-    FramePreparationError, ImageId, InteractionState, PointerId, PreparedFigureUpdate,
-    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
-    TreeOrderFocusTraversal,
+    AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
+    AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
+    AccessibilityUpdate, BackendSessionError, ComponentInvalidation, ComponentUpdateError,
+    ComponentUpdateReceipt, DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY,
+    DEFAULT_TOOLTIP_SHOW_DELAY, FigureComponentContext, FigureComponentUpdate, FocusChange,
+    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
+    FramePreparation, FramePreparationError, ImageId, InteractionState, MonotonicTime, PointerId,
+    PreparedFigureUpdate, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime,
+    RuntimeMutationError, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming,
+    TooltipUpdate, TreeOrderFocusTraversal, place_tooltip,
 };
 pub use runtime::{context, event, mutation};
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
