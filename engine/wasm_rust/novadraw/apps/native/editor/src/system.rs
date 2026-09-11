@@ -469,7 +469,6 @@ impl EditorRuntime {
     }
 
     pub fn render(&mut self, renderer: &mut impl RenderBackend) -> RenderOutcome {
-        self.host.begin_redraw();
         if self.core.selection.reconcile(self.core.runtime.tree()) {
             self.core.runtime.request_full_redraw();
         }
