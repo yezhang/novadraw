@@ -29,7 +29,8 @@ cargo run -p widgets-app
    `Button role with a default action`，不重新等待 500ms。
 5. 先移出窗口隐藏，再移入 `Accessible action`；这次必须重新等待约 500ms。
 6. 移入 `Bottom edge`；Tooltip 应显示
-   `Flips above and clamps inside the surface`，位于按钮上方、右侧不越界且不遮挡按钮。
+   `Flips above and clamps inside the surface`，空间不足时翻到指针上方，不遮挡指针且不越出
+   surface。
 7. Tooltip 可见时分别执行鼠标按压、滚轮、任意按键和移出窗口；每次都应立即隐藏。
 8. 再次 hover 后保持不动，约 5 秒后应自动隐藏。
 9. 缩小并放大窗口后重复第 6 步；popup 始终不得越出 logical surface。

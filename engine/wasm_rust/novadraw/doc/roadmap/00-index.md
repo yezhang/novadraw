@@ -48,12 +48,12 @@
 | M7 | 通知语义分层 | `complete` | 七类 typed listener、Runtime 注册/统一注销、稳定事务分发与 self-removal 已闭合 |
 | M8 | Viewport / Scroll / Zoom | `complete` | 24 项契约、7 项无窗口 verification、Native 交互与 Web Vello 场景复核已完成 |
 | M9 | Connection / Anchor / Router | `complete` | D3.1 shared Manhattan、严格 viewport topology、八场景截图与人工窗口验收已闭合 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.5 已完成；当前补齐 Text/Image/Widget Web 等价场景；完整 TextFlow 保持 P2 |
+| M10 | 常用 Figure 与文本/控件 | `complete` | M10.1-M10.5 与 Text/Image/Widget Native/Web 等价验收已完成；完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
-R8/R9、D0-D4、M1-M9 与 M10.1-M10.5 已完成；2026-09-08/10 长期架构审计的
-A01-A08 已关闭。当前进入 M10 Text/Image/Widget Web 等价场景收口。
+R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08 已关闭。
+当前进入 Draw2D Core 1.0 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 后续按

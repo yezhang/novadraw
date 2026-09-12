@@ -35,6 +35,10 @@ macOS live resize 的 CAMetalLayer/Core Animation transaction 根因、失败方
 M1-M7 核心管线与 M8 Viewport/Scroll/Zoom 的自动、Native 和 Web 收口证据见
 [`reviews/m1-m8-manual-acceptance-2026-09-12.md`](reviews/m1-m8-manual-acceptance-2026-09-12.md)。
 
+M10 Text/Image/Widget 共享场景、WebGPU 资源状态、交互、Tooltip 与 accessibility
+等价验收见
+[`reviews/m10-web-equivalence-2026-09-13.md`](reviews/m10-web-equivalence-2026-09-13.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

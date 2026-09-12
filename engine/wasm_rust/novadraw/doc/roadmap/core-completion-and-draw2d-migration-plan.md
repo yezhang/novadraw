@@ -24,17 +24,17 @@ Novadraw 已具备完整的核心执行骨架：
 - Viewport、ScrollPane、RangeModel 与 ZoomManager；
 - PlatformHost、RenderBackend 与 headless 验证边界。
 
-但公共协议仍存在以下未收口项，因此当前结论是：
+M1-M10 产品能力现已完成，当前结论是：
 
-> 核心运行时完整，Draw2D 核心框架公共面与产品能力尚未完整。
+> Draw2D 核心框架公共面与产品能力完整，Core 1.0 尚待最终跨平台总审计。
 
 当前剩余收口项：
 
 1. D3 已关闭原 Draw2D Core 审计中的 M9、Runtime mutation 与 listener 公共面缺口；
-2. 2026-09-08 长期架构审计复现了派生状态收敛、资源因果、Figure 生命周期与
-   Runtime 身份域等 P1 问题，现纳入 D4；
-3. D4 与 M10.5 已完成，M1-M8 产品与人工验收差额已于 2026-09-12 收口；
-4. 当前补齐 M10 Text/Image/Widget Web 等价场景，随后执行 Core 1.0 总审计。
+2. D4 已关闭长期架构审计中的 A01-A08；
+3. M1-M8 产品与人工验收差额已于 2026-09-12 收口；
+4. M10 Text/Image/Widget Web 等价场景已于 2026-09-13 完成；
+5. 当前执行 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
 
 审计基线：
 
@@ -632,7 +632,7 @@ M9.4b-M9.6 执行结果：
 
 ## 7. M10：Reusable Figure 分批交付
 
-状态：`in_progress`
+状态：`complete`
 
 M10.1 正式契约：
 [`../design/architecture/reusable-shape-border.md`](../design/architecture/reusable-shape-border.md)。
@@ -779,7 +779,11 @@ M10.5 自动执行结果（2026-09-10）：
 - `widgets-app` 新增 Tooltip/Accessibility 场景，Native/Vello 边界上翻截图已复核；
   Web Vello 实测 Tooltip DOM、4 个 accessibility 节点、零 console error；
 - 2026-09-11 macOS Tooltip、Accessibility/键盘和 Web 复核三组人工验收均通过，
-  M10.5 标记 `complete`；M10 总项仍等待后续 Web 等价场景后收口。
+  M10.5 标记 `complete`；
+- 2026-09-13 Text/Image 六个共享场景与 Widget 五个共享场景完成 Web/Vello
+  等价验证，覆盖字体/CJK、ellipsis、图标 placement、style inheritance、
+  TitleBarBorder、图像资源四态、Button/Toggle、Tooltip placement 与 accessibility
+  DOM；M10 总项标记 `complete`。
 
 ## 8. D3：Draw2D Core 审计收口
 
@@ -1231,7 +1235,7 @@ D4 完成后的固定收口顺序：
 
 1. [x] 完成 M10.5 Tooltip 与 Accessibility bridge；
 2. [x] 完成 M1-M8 产品与人工验收差额；
-3. [ ] 补齐 M10 Text/Image/Widget 的 Web 等价场景；
+3. [x] 补齐 M10 Text/Image/Widget 的 Web 等价场景；
 4. [ ] 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
 5. [ ] 仅在以下门禁全部满足后声明 Draw2D Core 1.0。
 
