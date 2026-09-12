@@ -212,7 +212,8 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 - `Viewport` Figure（坐标系节点）
 - `ScrollPane` 容器
 - `RangeModel` 抽象
-- `ScrollBar` 模型（H+V）
+- `ScrollBar` 模型（H+V）：单次 press step、track page、thumb drag；按住 repeat
+  firing 随 P2 widget scheduler 延后
 - 鼠标滚轮
 
 ### Scalable 能力

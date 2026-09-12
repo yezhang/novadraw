@@ -28,13 +28,13 @@ Novadraw 已具备完整的核心执行骨架：
 
 > 核心运行时完整，Draw2D 核心框架公共面与产品能力尚未完整。
 
-当前阻塞项：
+当前剩余收口项：
 
 1. D3 已关闭原 Draw2D Core 审计中的 M9、Runtime mutation 与 listener 公共面缺口；
 2. 2026-09-08 长期架构审计复现了派生状态收敛、资源因果、Figure 生命周期与
    Runtime 身份域等 P1 问题，现纳入 D4；
-3. M10.5 Tooltip、Accessibility bridge 在 D4 完成后继续；
-4. M1-M8 及 M10 Web 仍需按产品清单和 demo 矩阵完成剩余验收。
+3. D4 与 M10.5 已完成，M1-M8 产品与人工验收差额已于 2026-09-12 收口；
+4. 当前补齐 M10 Text/Image/Widget Web 等价场景，随后执行 Core 1.0 总审计。
 
 审计基线：
 
@@ -71,6 +71,13 @@ TreeSearch 和资源生命周期问题均已在 D1.1-D1.5 中收口。
 - `00-index.md`、API 语义账本、产品清单和 demo 矩阵状态一致；
 - 每个 P0/P1 `partial` 或 `missing` 都有 milestone 或明确排除理由；
 - 不存在无 owner 的核心债务。
+
+2026-09-12 最终校准：
+
+- M1-M6 与 M8 自动、Native 和 Web 验收已完成，状态提升为 `complete`；
+- 验收记录见
+  [`../verification/reviews/m1-m8-manual-acceptance-2026-09-12.md`](../verification/reviews/m1-m8-manual-acceptance-2026-09-12.md)；
+- ScrollBar 按住 repeat firing 明确随 P2 widget scheduler 延后，不阻塞 M8。
 
 ## 4. D1：核心公共协议收口
 
@@ -1222,11 +1229,11 @@ validation 同步移除逐节点 ancestor visibility 扫描。1k/10k release 基
 
 D4 完成后的固定收口顺序：
 
-1. 完成 M10.5 Tooltip 与 Accessibility bridge；
-2. 完成仍处于 `behavior_verified` 的 M1-M8 产品与人工验收差额；
-3. 补齐 M10 Text/Image/Widget 的 Web 等价场景；
-4. 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
-5. 仅在以下门禁全部满足后声明 Draw2D Core 1.0。
+1. [x] 完成 M10.5 Tooltip 与 Accessibility bridge；
+2. [x] 完成 M1-M8 产品与人工验收差额；
+3. [ ] 补齐 M10 Text/Image/Widget 的 Web 等价场景；
+4. [ ] 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
+5. [ ] 仅在以下门禁全部满足后声明 Draw2D Core 1.0。
 
 - M1-M10 全部达到 `complete`；
 - P0/P1 API family 不存在未解释的 `missing`；

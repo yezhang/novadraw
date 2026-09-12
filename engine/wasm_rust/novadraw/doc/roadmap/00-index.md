@@ -39,21 +39,21 @@
 
 | Milestone | 标题 | 状态 | 当前证据或主要缺口 |
 |------|------|------|------|
-| M1 | 几何与 Graphics 基础 | `behavior_verified` | 几何与 Graphics 状态栈测试通过；高级 Graphics API 延后 |
-| M2 | Figure 树与盒模型 | `behavior_verified` | active Figure 的树、盒模型、生命周期与 z-order 已验证 |
-| M3 | 绘制遍历与裁剪闭环 | `behavior_verified` | `clip-app` 与 paint/hit-test 一致性测试已完成 |
-| M4 | 坐标域与变换闭环 | `behavior_verified` | `m4_coordinate_contract` 与 `transform-app` 已完成 |
-| M5 | Layout + Validation + UpdateManager | `behavior_verified` | 六布局、约束/尺寸、两阶段事务、panic 恢复、damage 与 1,024 Figure 契约测试已闭合 |
-| M6 | 事件分发与交互状态机 | `behavior_verified` | mouse/cursor/hover/capture/focus 分离；scroll/zoom gesture session 与 pointer capture 分轨，连续手势固定 target |
+| M1 | 几何与 Graphics 基础 | `complete` | 几何与 Graphics 状态栈测试、核心管线人工验收已完成；高级 Graphics API 明确延后 |
+| M2 | Figure 树与盒模型 | `complete` | active Figure 的树、盒模型、生命周期、z-order 与产品入口已验收 |
+| M3 | 绘制遍历与裁剪闭环 | `complete` | `clip-app` 固定/响应式祖先裁剪与 paint/hit-test 一致性已验收 |
+| M4 | 坐标域与变换闭环 | `complete` | `m4_coordinate_contract` 与 `transform-app` 自动/人工验收已完成 |
+| M5 | Layout + Validation + UpdateManager | `complete` | 六布局、两阶段事务、damage、1,024 Figure 与 root viewport resize 已验收 |
+| M6 | 事件分发与交互状态机 | `complete` | capture/focus/key/wheel/gesture session 与 target-domain 自动/人工验收已完成 |
 | M7 | 通知语义分层 | `complete` | 七类 typed listener、Runtime 注册/统一注销、稳定事务分发与 self-removal 已闭合 |
-| M8 | Viewport / Scroll / Zoom | `behavior_verified` | RangeModel、ViewportLayout、ZoomManager、ScrollPane/ScrollBar、手势缩放与 24 项契约测试已闭合；等待人工窗口签收后再评估 complete |
+| M8 | Viewport / Scroll / Zoom | `complete` | 24 项契约、7 项无窗口 verification、Native 交互与 Web Vello 场景复核已完成 |
 | M9 | Connection / Anchor / Router | `complete` | D3.1 shared Manhattan、严格 viewport topology、八场景截图与人工窗口验收已闭合 |
-| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.5 已完成；等待 M1-M8 验收差额后补齐 Text/Image/Widget Web 等价场景；完整 TextFlow 保持 P2 |
+| M10 | 常用 Figure 与文本/控件 | `in_progress` | M10.1-M10.5 已完成；当前补齐 Text/Image/Widget Web 等价场景；完整 TextFlow 保持 P2 |
 
 ## 当前执行顺序
 
-R8/R9、D0-D4 与 M10.1-M10.5 已完成；2026-09-08/10 长期架构审计的 A01-A08
-已关闭。当前进入仍处于 `behavior_verified` 的 M1-M6 与 M8 产品/人工验收差额收口。
+R8/R9、D0-D4、M1-M9 与 M10.1-M10.5 已完成；2026-09-08/10 长期架构审计的
+A01-A08 已关闭。当前进入 M10 Text/Image/Widget Web 等价场景收口。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 后续按

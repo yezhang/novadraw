@@ -2,6 +2,11 @@
 
 类型：`verification`
 
+状态：`complete`
+
+最近一次正式验收：
+[`../reviews/m1-m8-manual-acceptance-2026-09-12.md`](../reviews/m1-m8-manual-acceptance-2026-09-12.md)。
+
 本文用于签收 M8 的 Viewport、RangeModel、ScrollPane、ScrollBar、wheel fallback
 和 ScalableLayeredPane。M8 自动契约通过不等于窗口验收完成；M9 应在本文步骤全部
 通过后启动。

@@ -102,7 +102,7 @@
 - [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
 - [x] M10.2-M10.3 `apps/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）
 - [x] M10.4 `apps/native/widgets-app`（自动契约、三场景截图与 macOS 人工窗口验收通过）
-- [x] M10.5 `widgets-app` Tooltip/Accessibility 场景（自动契约、Native 边界上翻截图与 Web DOM/AX 验证完成；macOS 人工交互签收待执行）
+- [x] M10.5 `widgets-app` Tooltip/Accessibility 场景（自动契约、Native 边界上翻截图、macOS 人工交互与 Web DOM/AX 验证完成）
 
 ---
 

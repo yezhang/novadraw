@@ -2,6 +2,11 @@
 
 类型：`verification`
 
+状态：`complete`
+
+最近一次正式验收：
+[`../reviews/m1-m8-manual-acceptance-2026-09-12.md`](../reviews/m1-m8-manual-acceptance-2026-09-12.md)。
+
 本文给出 Novadraw 核心通用机制的最终态人工验收路径，覆盖 M1-M7 的绘制、
 Figure 树、裁剪、坐标域、事件分发、两阶段更新与通知。
 
