@@ -2,7 +2,7 @@
 
 类型：`roadmap`
 
-状态：`in_progress`
+状态：`complete`
 
 本文定义 R8/R9 架构迁移完成后，Novadraw 从“核心运行时主路径已验证”推进到
 “Draw2D 核心产品能力完整”的执行顺序。
@@ -26,15 +26,18 @@ Novadraw 已具备完整的核心执行骨架：
 
 M1-M10 产品能力现已完成，当前结论是：
 
-> Draw2D 核心框架公共面与产品能力完整，Core 1.0 尚待最终跨平台总审计。
+> Draw2D 核心框架公共面、产品能力与最终跨平台总审计均已完成。
 
-当前剩余收口项：
+最终收口结果：
 
 1. D3 已关闭原 Draw2D Core 审计中的 M9、Runtime mutation 与 listener 公共面缺口；
 2. D4 已关闭长期架构审计中的 A01-A08；
 3. M1-M8 产品与人工验收差额已于 2026-09-12 收口；
 4. M10 Text/Image/Widget Web 等价场景已于 2026-09-13 完成；
-5. 当前执行 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
+5. macOS/Web/Headless 总审计与 R9.4 capability 消融复查已于 2026-09-13 完成。
+
+最终审计：
+[`../verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md`](../verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md)。
 
 审计基线：
 
@@ -1236,8 +1239,8 @@ D4 完成后的固定收口顺序：
 1. [x] 完成 M10.5 Tooltip 与 Accessibility bridge；
 2. [x] 完成 M1-M8 产品与人工验收差额；
 3. [x] 补齐 M10 Text/Image/Widget 的 Web 等价场景；
-4. [ ] 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
-5. [ ] 仅在以下门禁全部满足后声明 Draw2D Core 1.0。
+4. [x] 在 macOS、Web、Headless 重新执行自动、视觉与人工总审计；
+5. [x] 以下门禁全部满足，Draw2D Core 1.0 完成。
 
 - M1-M10 全部达到 `complete`；
 - P0/P1 API family 不存在未解释的 `missing`；

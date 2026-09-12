@@ -13,4 +13,4 @@
 - [`r8-execution-plan.md`](r8-execution-plan.md)：R8 兼容名称清理、性能基线与扩展
   capability 的分批执行计划。
 - [`r9-ablation-simplification-plan.md`](r9-ablation-simplification-plan.md)：R8 后按
-  消融实验收窄公共 API 与重复包装的分批计划。
+  消融实验收窄公共 API 与重复包装的分批计划；R9.1-R9.4 已完成。

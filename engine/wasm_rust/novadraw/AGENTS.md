@@ -52,8 +52,8 @@
 ### 当前执行门禁
 
 - M1-M10、D3.1-D3.4 与 D4.1-D4.6 已完成；最近一次长期架构审计的 A01-A08 已关闭。
-- 当前执行 `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 中的 Draw2D
-  Core 1.0 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
+- 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
+  Core 1.0 完成。后续能力必须进入独立 GEF roadmap 或明确的 P2 delta。
 - 2026-09-10 架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
   为准；ADR-013 已替换。D4.3-D4.6 门禁已完成，新设计不等于已实现。
 - 默认架构检索排除 `doc/archive/`；旧 ADR 全文只供显式历史追溯，不能用于当前设计。

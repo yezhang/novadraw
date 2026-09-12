@@ -53,7 +53,8 @@
 ## 当前执行顺序
 
 R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08 已关闭。
-当前进入 Draw2D Core 1.0 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
+2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
+Core 1.0 完成。后续能力必须进入独立 GEF roadmap 或明确的 P2 delta。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 后续按

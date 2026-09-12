@@ -84,8 +84,8 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 
 当前执行顺序已在 2026-09-13 M10 Web 等价验收后再次校准：M1-M10、
 D3.1-D3.4 与 D4.1-D4.6 已完成，最近一次长期架构审计的 A01-A08 已关闭。
-当前执行 `doc/roadmap/core-completion-and-draw2d-migration-plan.md` 的 Draw2D
-Core 1.0 macOS/Web/Headless 总审计与 R9.4 capability 消融复查。
+macOS/Web/Headless 总审计与 R9.4 capability 消融复查已通过，Draw2D Core 1.0
+完成。后续能力必须进入独立 GEF roadmap 或明确的 P2 delta。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
 为准，旧 ADR-013 已替换。D4.3-D4.6 的组件接口、引用归属、生命周期、测量、

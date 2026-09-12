@@ -2,7 +2,7 @@
 
 类型：`migration-guide`
 
-状态：`approved`
+状态：`complete`
 
 本文在 R8 完成后，以消融实验方式收窄 Novadraw 的实现和公共 API。目标不是减少类型
 数量本身，而是删除没有独立语义或替换需求的暴露面，同时保持 Draw2D 行为语义、
@@ -94,7 +94,7 @@ Runtime 事务、跨平台边界和后续扩展能力。
 
 ### R9.4 条件项观察
 
-状态：`in_progress`
+状态：`completed`
 
 以下内容至少观察到 M10 或出现重复实现证据后再决定：
 
@@ -112,7 +112,20 @@ Runtime 事务、跨平台边界和后续扩展能力。
   `FigureLifecycle` 调用；
 - 删除 `Updatable` 及全部空实现，Triangle 派生缓存改用 inherent 方法并桥接
   `FigureLifecycle`；
-- `Bounded` 仍承载构造期/独立图元几何与容器尺寸投影，保留到 M10 后复查。
+- M10 完成后的消融复查确认 `Bounded` 仍承载构造期/独立图元可变几何，与树内
+  `NodeState` 运行时真源分离；保留，不允许用于绕过 Runtime mutation；
+- typed listener 分别固定 Figure、Coordinate、Ancestor、Property、Action、Layout
+  payload 与回调签名；合并会退化为调用方 enum 分派，保留；
+- `NodeState` 提供不依赖具体 Figure 的共享只读状态面，`FigureNode` 独立拥有拓扑、
+  LayoutState 与具体行为；物理合并不减少状态域或事务，保留；
+- `ResourceDelta` 的有序 op 序列是 Ready -> Failed -> Ready、Retry 前缀恢复和
+  backend session 因果的必要边界，不能归约为无序最终 map，保留；
+- Figure 输入、生命周期、accessibility capability 均有不实现该能力的 Figure，
+  `Option<capability>` 明确表达能力缺席；合并回宽 Figure trait 会恢复空方法，保留；
+- R9.4 未发现可继续删除且不损害独立语义的边界，条件观察关闭。
+
+最终证据：
+[`../verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md`](../verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md)。
 
 ## 4. 统一门禁
 

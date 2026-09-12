@@ -39,6 +39,10 @@ M10 Text/Image/Widget 共享场景、WebGPU 资源状态、交互、Tooltip 与 
 等价验收见
 [`reviews/m10-web-equivalence-2026-09-13.md`](reviews/m10-web-equivalence-2026-09-13.md)。
 
+Draw2D Core 1.0 的 Rust/Wasm/Headless/Native/Web 总审计、P0/P1 账本与 R9.4
+capability 消融结论见
+[`reviews/draw2d-core-1.0-final-audit-2026-09-13.md`](reviews/draw2d-core-1.0-final-audit-2026-09-13.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
