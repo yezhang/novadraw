@@ -317,8 +317,13 @@ ScalablePane 的 scale。fit width、fit height 和 fit all 只能由显式
 连续 resize 事件只保留最新 physical size。RenderBackend 在下一次 frame submission
 开始前原位配置既有 surface，并在同一帧重建尺寸相关纹理；禁止为每个 resize 事件
 销毁和重建平台 surface。macOS 的 Metal presentation layer 必须保持上一帧的左上
-逻辑原点（对应 Core Animation 的 bottom-left native gravity），不得在新尺寸帧
-present 前缩放旧 drawable。
+逻辑原点（对应 Core Animation 的 top-left contents gravity），不得在新尺寸帧
+present 前缩放旧 drawable；layer 背景色必须与后端 full-frame 清屏色一致，避免
+AppKit bounds 已变化而新 drawable 尚未 present 时透出白色窗口底层。
+resize 帧必须使用 transactional present，使 drawable 与 Core Animation 的窗口
+bounds transaction 同步；普通帧恢复非 transactional present，避免增加常态延迟。
+运行时证据、失败方案与依赖升级门禁见
+[macOS Live Resize 与 Core Animation Transaction 根因复盘](../../verification/reviews/macos-live-resize-transaction-2026-09-12.md)。
 
 DPI 改变可能同时改变 physical size 和 logical scale。Runtime 使用 logical units，
 RenderBackend 在提交边界接收 scale factor。

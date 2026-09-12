@@ -75,12 +75,31 @@ fn damage_rect_to_copy_region(
 }
 
 #[cfg(target_os = "macos")]
-fn keep_previous_drawable_unscaled(surface: &vello::wgpu::Surface<'_>) {
+fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
         return;
     };
     let layer = surface.render_layer().lock();
-    layer.setContentsGravity(unsafe { objc2_quartz_core::kCAGravityBottomLeft });
+    layer.setContentsGravity(unsafe { objc2_quartz_core::kCAGravityTopLeft });
+    layer.setOpaque(true);
+    let background = objc2_core_graphics::CGColor::new_srgb(
+        DEFAULT_BACKGROUND_COMPONENT,
+        DEFAULT_BACKGROUND_COMPONENT,
+        DEFAULT_BACKGROUND_COMPONENT,
+        1.0,
+    );
+    layer.setBackgroundColor(Some(&background));
+}
+
+#[cfg(target_os = "macos")]
+fn set_macos_transactional_present(surface: &vello::wgpu::Surface<'_>, enabled: bool) {
+    let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
+        return;
+    };
+    surface
+        .render_layer()
+        .lock()
+        .setPresentsWithTransaction(enabled);
 }
 
 fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
@@ -211,7 +230,7 @@ impl VelloRenderer {
             )
             .await?;
         #[cfg(target_os = "macos")]
-        keep_previous_drawable_unscaled(&surface.surface);
+        configure_macos_presentation_layer(&surface.surface);
 
         let mut renderers = vec![];
         renderers.resize_with(render_context.devices.len(), || None);
@@ -1093,6 +1112,8 @@ impl RenderBackend for VelloRenderer {
             submission.surface.pixel_height,
             submission.surface.scale_factor,
         );
+        #[cfg(target_os = "macos")]
+        let is_resize_frame = self.pending_resize.is_some();
         self.apply_pending_resize();
         if self.surface_suspended {
             return RenderOutcome::Skipped;
@@ -1139,11 +1160,17 @@ impl RenderBackend for VelloRenderer {
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
 
+        #[cfg(target_os = "macos")]
+        if is_resize_frame {
+            set_macos_transactional_present(&self.surface.surface, true);
+        }
         let surface_status = self.surface.surface.get_current_texture();
         let (surface_texture, reconfigure_after_present) = match surface_status {
             vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
             vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
             status => {
+                #[cfg(target_os = "macos")]
+                set_macos_transactional_present(&self.surface.surface, false);
                 let recovery =
                     surface_recovery(&status).expect("unavailable surface must define recovery");
                 return self.recover_surface(recovery, submission.surface);
@@ -1248,6 +1275,10 @@ impl RenderBackend for VelloRenderer {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
+        #[cfg(target_os = "macos")]
+        if is_resize_frame {
+            set_macos_transactional_present(&self.surface.surface, false);
+        }
         if reconfigure_after_present {
             self.render_context.configure_surface(&self.surface);
         }

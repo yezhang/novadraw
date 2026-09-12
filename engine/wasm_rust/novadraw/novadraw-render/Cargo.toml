@@ -25,6 +25,7 @@ vello = ["dep:vello", "dep:winit", "dep:pollster"]
 vello-web = ["dep:vello", "dep:web-sys"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3.2", features = ["CGColor"] }
 objc2-quartz-core = "0.3.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

@@ -28,6 +28,10 @@ ADR-014 D4.6 的 A01-A08 关闭矩阵与 Rust/WASM/Headless/Native 最终门禁�
 M10.5 Tooltip 状态机、Accessibility Snapshot/Delta、Native/Web bridge 与自动门禁见
 [`reviews/m10.5-tooltip-accessibility-2026-09-10.md`](reviews/m10.5-tooltip-accessibility-2026-09-10.md)。
 
+macOS live resize 的 CAMetalLayer/Core Animation transaction 根因、失败方案与升级
+回归门禁见
+[`reviews/macos-live-resize-transaction-2026-09-12.md`](reviews/macos-live-resize-transaction-2026-09-12.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
