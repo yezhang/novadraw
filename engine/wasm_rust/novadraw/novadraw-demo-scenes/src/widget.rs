@@ -33,6 +33,15 @@ const INHERITED_PANEL_BACKGROUND: Color = Color {
     b: 0.96,
     a: 1.0,
 };
+const TOOLTIP_BOUNDARY_X: f64 = 600.0;
+const TOOLTIP_BOUNDARY_Y: f64 = 535.0;
+const TOOLTIP_BOUNDARY_WIDTH: f64 = 150.0;
+const TOOLTIP_BOUNDARY_HEIGHT: f64 = 32.0;
+const TOOLTIP_POINTER_X: f64 = 700.0;
+const TOOLTIP_POINTER_Y: f64 = 550.0;
+const TOOLTIP_VISUAL_HIDE_DELAY: Duration = Duration::from_secs(3_600);
+#[cfg(test)]
+const WEB_MINIMUM_CONTENT_HEIGHT: f64 = 575.0;
 
 pub type RuntimeSceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
@@ -305,7 +314,12 @@ fn tooltip_accessibility() -> Runtime {
         &mut runtime,
         root,
         "Bottom edge",
-        Rectangle::new(620.0, 560.0, 150.0, 32.0),
+        Rectangle::new(
+            TOOLTIP_BOUNDARY_X,
+            TOOLTIP_BOUNDARY_Y,
+            TOOLTIP_BOUNDARY_WIDTH,
+            TOOLTIP_BOUNDARY_HEIGHT,
+        ),
     );
     runtime.set_figure_style(
         boundary,
@@ -324,9 +338,9 @@ fn tooltip_accessibility() -> Runtime {
 fn tooltip_boundary_visual() -> Runtime {
     let mut runtime = tooltip_accessibility();
     runtime
-        .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
+        .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, TOOLTIP_VISUAL_HIDE_DELAY).unwrap())
         .unwrap();
-    runtime.dispatch_mouse_moved(700.0, 565.0);
+    runtime.dispatch_mouse_moved(TOOLTIP_POINTER_X, TOOLTIP_POINTER_Y);
     runtime.advance_time(MonotonicTime::ZERO).unwrap();
     runtime
 }
@@ -341,8 +355,15 @@ mod tests {
         let tooltip = runtime.visible_tooltip().expect("visible tooltip");
 
         assert_eq!(tooltip.text, "Flips above and clamps inside the surface");
-        assert_eq!(tooltip.anchor.x(), 700.0);
-        assert_eq!(tooltip.anchor.y(), 565.0);
+        assert_eq!(tooltip.anchor.x(), TOOLTIP_POINTER_X);
+        assert_eq!(tooltip.anchor.y(), TOOLTIP_POINTER_Y);
+        assert!(TOOLTIP_BOUNDARY_Y + TOOLTIP_BOUNDARY_HEIGHT <= WEB_MINIMUM_CONTENT_HEIGHT);
+        assert_eq!(
+            runtime.next_wake_deadline(),
+            Some(MonotonicTime::from_micros(
+                TOOLTIP_VISUAL_HIDE_DELAY.as_micros() as u64
+            ))
+        );
     }
 
     #[test]

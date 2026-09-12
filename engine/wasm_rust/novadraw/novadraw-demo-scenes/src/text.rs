@@ -3,6 +3,8 @@ use novadraw::{
     Rectangle, RectangleFigure, Runtime, TextPlacement, TitleBarBorder,
 };
 
+use crate::{DemoSuite, SceneSpec};
+
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
 const PANEL_FILL: Color = Color {
@@ -35,18 +37,52 @@ const DOCUMENT_TOP: u32 = 3;
 const DOCUMENT_RIGHT: u32 = 26;
 const DOCUMENT_BOTTOM: u32 = 29;
 const FOLD_SIZE: u32 = 7;
+const IMAGE_CARD_LEFT: f64 = 35.0;
+const IMAGE_CARD_STRIDE: f64 = 180.0;
+const IMAGE_CARD_WIDTH: f64 = 160.0;
+#[cfg(test)]
+const WEB_MINIMUM_CONTENT_WIDTH: f64 = 760.0;
 
 pub type RuntimeSceneEntry = (&'static str, Box<dyn FnMut() -> Runtime>);
 
 pub fn entries() -> Vec<RuntimeSceneEntry> {
-    vec![
-        ("Typography_CJK", Box::new(typography_scene)),
-        ("Ellipsis", Box::new(ellipsis_scene)),
-        ("Icon_Placement", Box::new(icon_placement_scene)),
-        ("Style_Inheritance", Box::new(style_inheritance_scene)),
-        ("TitleBarBorder", Box::new(title_bar_border_scene)),
-        ("Image_Resources", Box::new(image_resources_scene)),
-    ]
+    suite().into_entries()
+}
+
+pub fn suite() -> DemoSuite {
+    let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
+    DemoSuite::new(
+        "text-image",
+        "Text / Image",
+        vec![
+            SceneSpec::runtime_visual("typography-cjk", "Typography_CJK", size, typography_scene),
+            SceneSpec::runtime_visual("ellipsis", "Ellipsis", size, ellipsis_scene),
+            SceneSpec::runtime_visual(
+                "icon-placement",
+                "Icon_Placement",
+                size,
+                icon_placement_scene,
+            ),
+            SceneSpec::runtime_visual(
+                "style-inheritance",
+                "Style_Inheritance",
+                size,
+                style_inheritance_scene,
+            ),
+            SceneSpec::runtime_visual(
+                "title-bar-border",
+                "TitleBarBorder",
+                size,
+                title_bar_border_scene,
+            ),
+            SceneSpec::runtime_visual(
+                "image-resources",
+                "Image_Resources",
+                size,
+                image_resources_scene,
+            ),
+        ],
+    )
 }
 
 fn runtime() -> Runtime {
@@ -372,18 +408,22 @@ fn style_inheritance_scene() -> Runtime {
 
 fn title_bar_border_scene() -> Runtime {
     let mut runtime = runtime();
+    let root = root(&mut runtime);
     let title_bar = TitleBarBorder::new(
         "TitleBarBorder measures text before layout",
         Color::rgba(0.08, 0.35, 0.62, 1.0),
     )
     .with_alignment(Alignment::Start)
     .with_padding(18.0, 8.0);
-    let root = runtime.set_contents(Box::new(
-        RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
-            .with_border(title_bar),
-    ));
-    runtime.set_figure_style(
+    let panel = runtime.add_figure(
         root,
+        Box::new(
+            RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
+                .with_border(title_bar),
+        ),
+    );
+    runtime.set_figure_style(
+        panel,
         FigureStyle {
             foreground: Some(Color::WHITE),
             font: Some("20px Inter Variable".to_string()),
@@ -391,7 +431,7 @@ fn title_bar_border_scene() -> Runtime {
         },
     );
     runtime.add_figure(
-        root,
+        panel,
         Box::new(RectangleFigure::new_with_color(
             0.0,
             0.0,
@@ -422,8 +462,12 @@ fn image_resources_scene() -> Runtime {
         .into_iter()
         .enumerate()
     {
-        let x = 45.0 + index as f64 * 190.0;
-        let card = panel(&mut runtime, root, Rectangle::new(x, 110.0, 165.0, 300.0));
+        let x = IMAGE_CARD_LEFT + index as f64 * IMAGE_CARD_STRIDE;
+        let card = panel(
+            &mut runtime,
+            root,
+            Rectangle::new(x, 110.0, IMAGE_CARD_WIDTH, 300.0),
+        );
         add_label(
             &mut runtime,
             card,
@@ -452,4 +496,80 @@ fn image_resources_scene() -> Runtime {
         );
     }
     runtime
+}
+
+#[cfg(test)]
+mod tests {
+    use novadraw::{BackendCapabilities, SurfaceInfo};
+
+    use super::*;
+
+    #[test]
+    fn shared_text_suite_builds_every_web_scene_with_required_resources() {
+        let mut suite = suite();
+        assert_eq!(suite.scenes.len(), 6);
+
+        for scene in &mut suite.scenes {
+            let mut runtime = scene.build();
+            let submission = runtime
+                .prepare_submission(
+                    SurfaceInfo {
+                        logical_width: WINDOW_WIDTH,
+                        logical_height: WINDOW_HEIGHT,
+                        pixel_width: WINDOW_WIDTH as u32,
+                        pixel_height: WINDOW_HEIGHT as u32,
+                        scale_factor: 1.0,
+                    },
+                    BackendCapabilities::RETAINED_PARTIAL
+                        .with_glyph_runs()
+                        .with_image_resources(),
+                )
+                .expect("text/image scene must produce a supported initial frame");
+
+            assert!(!submission.commands.is_empty(), "empty scene: {}", scene.id);
+        }
+    }
+
+    #[test]
+    fn title_bar_border_is_a_panel_below_the_host_contents() {
+        let runtime = title_bar_border_scene();
+        let root = runtime.tree().get_contents().expect("host contents");
+        let panel = runtime
+            .tree()
+            .child_order(root)
+            .expect("root children")
+            .into_iter()
+            .find(|child| {
+                runtime.tree().figure_bounds(*child)
+                    == Some(Rectangle::new(80.0, 100.0, 640.0, 300.0))
+            })
+            .expect("title bar panel");
+
+        assert_eq!(
+            runtime.tree().figure_bounds(root),
+            Some(Rectangle::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT))
+        );
+        assert_eq!(runtime.tree().child_order(panel).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn image_resource_cards_fit_the_standard_web_content_width() {
+        let runtime = image_resources_scene();
+        let root = runtime.tree().get_contents().expect("host contents");
+        let cards = runtime
+            .tree()
+            .child_order(root)
+            .expect("root children")
+            .into_iter()
+            .filter_map(|child| runtime.tree().figure_bounds(child))
+            .filter(|bounds| bounds.y == 110.0 && bounds.height == 300.0)
+            .collect::<Vec<_>>();
+
+        assert_eq!(cards.len(), 4);
+        assert!(
+            cards
+                .iter()
+                .all(|bounds| bounds.x + bounds.width <= WEB_MINIMUM_CONTENT_WIDTH)
+        );
+    }
 }
