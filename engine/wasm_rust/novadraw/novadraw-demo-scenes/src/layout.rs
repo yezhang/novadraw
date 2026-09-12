@@ -530,6 +530,70 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     scene
 }
 
+fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
+    const HEADER_HEIGHT: f64 = 72.0;
+    const FOOTER_HEIGHT: f64 = 56.0;
+    const SIDEBAR_WIDTH: f64 = 120.0;
+
+    let mut scene = novadraw::FigureTree::new();
+    let contents =
+        scene
+            .builder()
+            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                WINDOW_WIDTH,
+                WINDOW_HEIGHT,
+                novadraw::Color::hex("#20252b"),
+            )));
+    scene.set_block_layout_manager(
+        contents,
+        Box::new(novadraw::BorderLayout::with_sizes(
+            HEADER_HEIGHT,
+            FOOTER_HEIGHT,
+            SIDEBAR_WIDTH,
+            SIDEBAR_WIDTH,
+        )),
+    );
+
+    for (region, size, color) in [
+        (
+            novadraw::BorderRegion::North,
+            Some(HEADER_HEIGHT),
+            "#e74c3c",
+        ),
+        (
+            novadraw::BorderRegion::South,
+            Some(FOOTER_HEIGHT),
+            "#2ecc71",
+        ),
+        (novadraw::BorderRegion::West, Some(SIDEBAR_WIDTH), "#3498db"),
+        (novadraw::BorderRegion::East, Some(SIDEBAR_WIDTH), "#f1c40f"),
+        (novadraw::BorderRegion::Center, None, "#9b59b6"),
+    ] {
+        let child = scene.builder().add_child_to(
+            contents,
+            Box::new(novadraw::RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                10.0,
+                10.0,
+                novadraw::Color::hex(color),
+            )),
+        );
+        scene.set_constraint(
+            child,
+            size.map_or_else(
+                || novadraw::BorderConstraint::new(region),
+                |size| novadraw::BorderConstraint::with_size(region, size),
+            ),
+        );
+    }
+
+    scene.revalidate(contents);
+    scene
+}
+
 pub fn suite() -> DemoSuite {
     let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
     DemoSuite::new(
@@ -581,6 +645,54 @@ pub fn suite() -> DemoSuite {
                 size,
                 create_scene_border_layout,
             ),
+            SceneSpec::visual(
+                "root-viewport-resize",
+                "root_viewport_resize",
+                size,
+                create_scene_root_viewport_resize,
+            ),
         ],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use novadraw::{BackendCapabilities, Runtime, SurfaceInfo};
+
+    use super::*;
+
+    #[test]
+    fn root_viewport_resize_reflows_border_regions() {
+        let tree = create_scene_root_viewport_resize();
+        let contents = tree.get_contents().expect("contents");
+        let children = tree.child_order(contents).expect("layout children");
+        let north = children[0];
+        let center = children[4];
+        let mut runtime = Runtime::new(tree);
+        let surface = SurfaceInfo {
+            logical_width: 1_000.0,
+            logical_height: 700.0,
+            pixel_width: 1_000,
+            pixel_height: 700,
+            scale_factor: 1.0,
+        };
+
+        runtime.resize_logical_viewport(1_000.0, 700.0).unwrap();
+        runtime
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .expect("resize frame");
+
+        assert_eq!(
+            runtime.tree().figure_bounds(contents),
+            Some(novadraw::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
+        );
+        assert_eq!(
+            runtime.tree().figure_bounds(north),
+            Some(novadraw::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
+        );
+        assert_eq!(
+            runtime.tree().figure_bounds(center),
+            Some(novadraw::Rectangle::new(120.0, 72.0, 760.0, 572.0))
+        );
+    }
 }

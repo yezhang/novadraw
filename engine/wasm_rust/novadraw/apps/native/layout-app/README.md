@@ -24,10 +24,12 @@ cargo run -p layout-app
 | 7 | StackLayout | 所有子元素覆盖同一 client area |
 | 8 | No Layout | 无布局管理器的对照场景 |
 | 9 | BorderLayout | 北、南、东、西、中五区域 |
+| 10 | `root_viewport_resize` | 窗口 logical viewport 驱动 RootFigure 与五区布局重排 |
 
 ## 操作说明
 
 - 按数字键 `0`-`9` 切换场景
+- 按 `End` 进入 `root_viewport_resize`
 - 按 `ESC` 退出程序
 
 ## 布局类型说明

@@ -676,11 +676,11 @@ impl WebValidationApp {
     }
 
     fn sync_surface(&mut self) {
-        self.host.set_surface_info(measure_surface(
-            &self.window,
-            &self.canvas,
-            self.scale_override,
-        ));
+        let surface = measure_surface(&self.window, &self.canvas, self.scale_override);
+        self.host.set_surface_info(surface);
+        self.runtime
+            .resize_logical_viewport(surface.logical_width, surface.logical_height)
+            .expect("browser surface must provide a valid logical viewport");
         self.runtime.request_full_redraw();
     }
 

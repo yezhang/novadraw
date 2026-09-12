@@ -133,6 +133,28 @@ impl fmt::Display for BackendSessionError {
 
 impl std::error::Error for BackendSessionError {}
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum LogicalViewportResizeError {
+    Faulted,
+    InvalidSize { width: f64, height: f64 },
+}
+
+impl fmt::Display for LogicalViewportResizeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::InvalidSize { width, height } => {
+                write!(
+                    formatter,
+                    "invalid logical viewport size: {width} x {height}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for LogicalViewportResizeError {}
+
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
 pub struct Runtime {
     tree: FigureTree,
@@ -149,6 +171,7 @@ pub struct Runtime {
     next_frame_id: FrameId,
     in_flight: Option<InFlightFrame>,
     last_surface: Option<SurfaceInfo>,
+    logical_viewport: Option<Rectangle>,
     resources: ResourceRegistry,
     text: Box<dyn TextLayoutEngine>,
     builtin_fonts: HashMap<BuiltinFont, FontId>,
@@ -193,6 +216,7 @@ impl Runtime {
             next_frame_id: FrameId::INITIAL,
             in_flight: None,
             last_surface: None,
+            logical_viewport: None,
             resources,
             text,
             builtin_fonts: HashMap::new(),
@@ -799,7 +823,12 @@ impl Runtime {
         self.register_layered_pane(id);
         self.retain_interactive_figures();
         self.full_redraw_pending = true;
-        self.tree.mark_invalid(&mut self.updates, id);
+        let validation_root = if self.logical_viewport.is_some() {
+            self.tree.synthetic_root()
+        } else {
+            id
+        };
+        self.tree.mark_invalid(&mut self.updates, validation_root);
         self.tree.repaint(&mut self.updates, id, None);
         self.tree
             .complete_attachment(id, self.tree.synthetic_root());
@@ -2513,6 +2542,31 @@ impl Runtime {
         if !self.faulted {
             self.full_redraw_pending = true;
         }
+    }
+
+    pub fn logical_viewport(&self) -> Option<Rectangle> {
+        self.logical_viewport
+    }
+
+    pub fn resize_logical_viewport(
+        &mut self,
+        width: f64,
+        height: f64,
+    ) -> Result<bool, LogicalViewportResizeError> {
+        if self.faulted {
+            return Err(LogicalViewportResizeError::Faulted);
+        }
+        if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
+            return Err(LogicalViewportResizeError::InvalidSize { width, height });
+        }
+        let bounds = Rectangle::new(0.0, 0.0, width, height);
+        if self.logical_viewport == Some(bounds) {
+            return Ok(false);
+        }
+        self.logical_viewport = Some(bounds);
+        self.tree.resize_logical_viewport(&mut self.updates, bounds);
+        self.full_redraw_pending = true;
+        Ok(true)
     }
 
     pub fn backend_session_id(&self) -> BackendSessionId {

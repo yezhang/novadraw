@@ -290,8 +290,13 @@ pub struct EditorRuntime {
 
 impl EditorRuntime {
     pub fn new(host: WinitPlatformHost) -> Self {
+        let mut core = EditorInteractionCore::new();
+        let surface = host.surface_info();
+        core.runtime
+            .resize_logical_viewport(surface.logical_width, surface.logical_height)
+            .expect("platform surface must provide a valid logical viewport");
         Self {
-            core: EditorInteractionCore::new(),
+            core,
             host,
             clock_origin: Instant::now(),
         }
@@ -313,6 +318,7 @@ impl EditorRuntime {
         self.core.runtime.pointer_exited();
         self.sync_platform_effects();
         self.core.replace_scene(scene_type);
+        self.sync_logical_viewport();
         self.host.request_redraw();
     }
 
@@ -464,8 +470,17 @@ impl EditorRuntime {
     }
 
     pub fn surface_changed(&mut self) {
+        self.sync_logical_viewport();
         self.core.runtime.request_full_redraw();
         self.host.request_redraw();
+    }
+
+    fn sync_logical_viewport(&mut self) {
+        let surface = self.host.surface_info();
+        self.core
+            .runtime
+            .resize_logical_viewport(surface.logical_width, surface.logical_height)
+            .expect("platform surface must provide a valid logical viewport");
     }
 
     pub fn render(&mut self, renderer: &mut impl RenderBackend) -> RenderOutcome {

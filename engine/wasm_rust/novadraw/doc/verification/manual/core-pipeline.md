@@ -87,6 +87,7 @@ PASS notification_order
 PASS dirty_coalescing
 PASS panic_recovery
 PASS stress_1024
+PASS submission_lifecycle
 
 PASS pointer_capture
 PASS focus_keyboard
@@ -103,6 +104,7 @@ PASS coordinate_root
 - `panic_recovery` 证明监听器 panic 后更新管理器可恢复。
 - `stress_1024` 证明 1,024 Figure 的更新事务能够收敛；debug 构建耗时不作为
   性能基准。
+- `submission_lifecycle` 证明提交完成、重试与后端 session 状态不会丢失更新。
 - `pointer_capture`、`focus_keyboard`、`wheel_hover_double` 分别证明 capture、
   focus/key 和扩展鼠标事件状态机。
 - `coordinate_root` 证明入口点会转换为 target 所属坐标域。
@@ -225,6 +227,18 @@ cargo run -p transform-app
 
 ## 9. 递归绘制、Z-order 与裁剪
 
+先验证 logical viewport 到根布局的链路：
+
+```bash
+cargo run -p layout-app
+```
+
+按 `End` 进入 `root_viewport_resize`，反复放大和缩小窗口。红色 header 与绿色
+footer 必须始终贴住上下边缘并横向填满；蓝色和黄色 sidebar 保持固定宽度；紫色
+center 只改变剩余宽高。该场景证明窗口 logical size 已进入 Runtime，并通过
+RootFigure 的 StackLayout 触发 contents 与子布局重算。缩小窗口时，内容边缘与
+窗口容器之间不得出现白色拖影。
+
 启动：
 
 ```bash
@@ -238,6 +252,9 @@ cargo run -p clip-app
 3. 按 `2` 进入 `multi_layer_clip`。
 4. 观察红、绿、蓝三层区域逐层相交，最内层不能逃逸任一祖先裁剪。
 5. 在场景 `1`、`2` 间反复切换，并缩放窗口。
+6. 按 `End` 进入 `responsive_nested_clip`，反复缩放窗口。
+7. 观察黑框橙色父容器随中心区域改变尺寸；绿色和蓝色越界内容始终被动态父边界
+   裁剪，不能进入四周深色边栏。
 
 通过标准：
 
@@ -266,7 +283,8 @@ cargo run -p clip-app -- --screenshot=2
 - 两份 `target/visual-verification/*.json` 报告。
 - `update-app` 四个场景截图。
 - `transform-app` 四个场景截图。
-- `clip-app` 场景 1、2 截图。
+- `layout-app` 的 `root_viewport_resize` 初始窗口与缩放后人工结论。
+- `clip-app` 场景 1、2 及 `responsive_nested_clip` 截图。
 - `event-app` capture 拖出、focus 建立等交互状态的人工结论；静态截图不能替代。
 
 ### 10.1 验收记录模板
@@ -286,14 +304,15 @@ Commit:
 [ ] cargo test
 
 无窗口 verification:
-[ ] update-app 5/5 PASS，报告路径:
+[ ] update-app 6/6 PASS，报告路径:
 [ ] event-app 4/4 PASS，报告路径:
 
 窗口验收:
 [ ] update-app：切场景、partial damage、1,024 Figure、resize/恢复
 [ ] event-app：hover、press、capture 拖出释放、focus
 [ ] transform-app：嵌套、往返重合、坐标根移动、点击命中
-[ ] clip-app：nested clip、multi-layer clip、resize/恢复
+[ ] layout-app：root viewport resize 与五区布局重排
+[ ] clip-app：nested clip、multi-layer clip、responsive resize
 
 未通过项与复现步骤:
 结论: PASS / FAIL
@@ -308,7 +327,8 @@ Commit:
 - 更新 app 无空白帧、残影，Validation 结果和 1,024 Figure 场景完整。
 - 事件 app 的 hover、pressed、capture、release、focus 可见状态符合顺序。
 - transform app 的嵌套、往返重合、坐标根移动和点击命中均正确。
-- clip app 的两层和多层祖先裁剪均正确。
+- layout app 的根 viewport resize 能驱动 contents 和五区布局重排。
+- clip app 的固定与响应式多层祖先裁剪均正确。
 - 所有 app 在切场景、resize、最小化后恢复时无 panic、设备丢失后永久黑屏或状态卡死。
 
 失败时按最小范围归因：

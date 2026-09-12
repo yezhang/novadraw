@@ -1,5 +1,10 @@
 //! M4 坐标域与变换闭环验证。
 
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+
 use novadraw::{
     Bounded, Color, EventContext, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas,
     Point, Rectangle, RectangleFigure, Shape,
@@ -44,6 +49,12 @@ const OLD_BOUNDS_COLOR: Color = Color {
     r: 0.55,
     g: 0.55,
     b: 0.55,
+    a: 1.0,
+};
+const SELECTED_BORDER_COLOR: Color = Color {
+    r: 1.0,
+    g: 0.84,
+    b: 0.0,
     a: 1.0,
 };
 const BORDER_WIDTH: f64 = 3.0;
@@ -164,6 +175,7 @@ fn create_coordinate_root_move() -> novadraw::FigureTree {
 #[derive(Clone)]
 struct TargetDomainFigure {
     bounds: Rectangle,
+    selected: Arc<AtomicBool>,
 }
 
 impl Bounded for TargetDomainFigure {
@@ -226,12 +238,17 @@ impl Shape for TargetDomainFigure {
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
+        let color = if self.selected.load(Ordering::Acquire) {
+            SELECTED_BORDER_COLOR
+        } else {
+            Color::WHITE
+        };
         gc.stroke_rect(
             0.0,
             0.0,
             bounds.width,
             bounds.height,
-            Color::WHITE,
+            color,
             BORDER_WIDTH,
             LineCap::default(),
             LineJoin::default(),
@@ -240,10 +257,12 @@ impl Shape for TargetDomainFigure {
 }
 
 impl FigureEventHandler for TargetDomainFigure {
-    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         let point = Point::new(event.x, event.y);
         let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
         if local_bounds.contains(point) {
+            self.selected.store(true, Ordering::Release);
+            ctx.repaint(None);
             return true;
         }
         false
@@ -251,16 +270,23 @@ impl FigureEventHandler for TargetDomainFigure {
 }
 
 fn create_event_point_reduction() -> novadraw::FigureTree {
+    create_event_point_reduction_with_state().0
+}
+
+fn create_event_point_reduction_with_state()
+-> (novadraw::FigureTree, Arc<AtomicBool>, novadraw::FigureId) {
     let mut scene = novadraw::FigureTree::new();
     let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
-    scene.builder().add_child_to(
+    let selected = Arc::new(AtomicBool::new(false));
+    let target = scene.builder().add_child_to(
         inner,
         Box::new(TargetDomainFigure {
             bounds: Rectangle::new(55.0, 50.0, 180.0, 110.0),
+            selected: Arc::clone(&selected),
         }),
     );
-    scene
+    (scene, selected, target)
 }
 
 pub fn suite() -> DemoSuite {
@@ -295,4 +321,23 @@ pub fn suite() -> DemoSuite {
             ),
         ],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use novadraw::{MouseButton, Runtime};
+
+    use super::*;
+
+    #[test]
+    fn target_domain_click_selects_the_figure_after_parent_chain_reduction() {
+        let (tree, selected, target) = create_event_point_reduction_with_state();
+        let mut entry = Point::new(20.0, 20.0);
+        tree.translate_to_absolute_mut(target, &mut entry);
+        let mut runtime = Runtime::new(tree);
+
+        runtime.dispatch_mouse_pressed(entry.x(), entry.y(), MouseButton::Left);
+
+        assert!(selected.load(Ordering::Acquire));
+    }
 }

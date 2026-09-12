@@ -691,6 +691,24 @@ impl FigureTree {
         self.root
     }
 
+    pub(crate) fn resize_logical_viewport(
+        &mut self,
+        updates: &mut UpdateManager,
+        bounds: Rectangle,
+    ) -> bool {
+        if self.blocks[self.root].layout.manager.is_none() {
+            self.blocks[self.root].layout.manager = Some(Box::new(crate::StackLayout));
+        }
+        self.set_bounds_with_update(
+            updates,
+            self.root,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+        )
+    }
+
     pub(crate) fn complete_attachment(&mut self, figure: FigureId, parent: FigureId) {
         let runtime_namespace = self.namespace();
         if let Some(lifecycle) = self.blocks[figure].figure.lifecycle() {

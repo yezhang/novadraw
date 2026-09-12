@@ -24,10 +24,12 @@ cargo run -p clip-app
 | 7 | 裁剪动画 | 动态变化的裁剪区域 |
 | 8 | 裁剪性能 | 大量元素的裁剪效率 |
 | 9 | 反向裁剪 | 挖空效果的裁剪 |
+| 10 | `responsive_nested_clip` | 窗口 resize 后重新布局父容器并保持多层祖先裁剪 |
 
 ## 操作说明
 
 - 按数字键 `0`-`9` 切换场景
+- 按 `End` 进入 `responsive_nested_clip`
 - 按 `ESC` 退出程序
 
 ## 核心概念

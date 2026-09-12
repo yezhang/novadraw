@@ -147,6 +147,7 @@ impl DemoApp {
             let mut runtime = creator();
             runtime.add_update_listener(Box::new(DemoUpdateListener));
             self.runtime = Some(runtime);
+            self.sync_logical_viewport();
             self.initial_frame_presented = false;
             self.initial_frame_attempts = 0;
             eprintln!("切换到场景: {}", self.scenes[idx].0);
@@ -276,12 +277,24 @@ impl DemoApp {
     }
 
     fn request_surface_redraw(&mut self) {
+        self.sync_logical_viewport();
         if let Some(runtime) = &mut self.runtime {
             // A surface size change invalidates retained pixels even when scene state is unchanged.
             runtime.request_full_redraw();
         }
         if let Some(host) = &self.host {
             host.request_redraw();
+        }
+    }
+
+    fn sync_logical_viewport(&mut self) {
+        let Some(surface) = self.host.as_ref().map(PlatformHost::surface_info) else {
+            return;
+        };
+        if let Some(runtime) = &mut self.runtime {
+            runtime
+                .resize_logical_viewport(surface.logical_width, surface.logical_height)
+                .expect("platform surface must provide a valid logical viewport");
         }
     }
 

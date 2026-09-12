@@ -24,7 +24,8 @@ cargo run -p scroll-pane-demo -- --verify \
 
 - 四项仓库门禁退出码均为 0。
 - `scroll-pane-demo` 输出 `PASS auto_visibility`、`PASS wheel_scroll`、
-  `PASS scale_chain`、`PASS pinch_anchor`。
+  `PASS scale_chain`、`PASS pinch_anchor`、`PASS freeform_range`、
+  `PASS freeform_layer_hit_order`、`PASS freeform_scroll_and_zoom`。
 - JSON 顶层 `"passed": true`。
 
 ## 2. Viewport 与 Scalable
@@ -81,6 +82,10 @@ cargo run -p scroll-pane-demo
 15. 鼠标按住可拖动目标时使用触控板滚动，确认 pointer capture 与 gesture session
     不互相抢占。
 
+Core 1.0 中端点按钮每次 mouse press 只执行一次 step；按住后的 repeat firing
+随完整 widget repeat scheduler 延后，不属于本次 M8 验收门禁。该差异不能影响
+单击 step、track page、thumb drag 或 RangeModel clamp。
+
 通过标准：
 
 - wheel 在普通 content 上未被消费时，由最近的 ScrollPane 处理。
@@ -125,7 +130,7 @@ Commit:
 图形设备 / 后端:
 
 [ ] 自动门禁全部通过
-[ ] scroll-pane-demo verification 4/4 PASS
+[ ] scroll-pane-demo verification 7/7 PASS
 [ ] viewport-app 四场景通过
 [ ] ScrollPane 自动显示/隐藏通过
 [ ] wheel fallback 通过

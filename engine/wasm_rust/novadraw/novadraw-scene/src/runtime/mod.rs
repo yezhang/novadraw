@@ -33,7 +33,10 @@ pub use mutation::{
 pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
-pub use runtime::{BackendSessionError, FramePreparation, FramePreparationError, Runtime};
+pub use runtime::{
+    BackendSessionError, FramePreparation, FramePreparationError, LogicalViewportResizeError,
+    Runtime,
+};
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,
     TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
