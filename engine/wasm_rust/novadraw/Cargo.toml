@@ -11,6 +11,7 @@ members = [
   "novadraw-apps",
   "novadraw-demo-scenes",
 
+  "apps/native/node-editor-demo",
   "apps/native/vello-app",
   "apps/native/shape-app",
   "apps/native/style-app",
