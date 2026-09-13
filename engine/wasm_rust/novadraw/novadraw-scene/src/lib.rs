@@ -84,9 +84,9 @@ pub use layout::{
 pub use novadraw_geometry::{Point, Rectangle};
 pub use runtime::context::{EventContext, SceneDispatchContext};
 pub use runtime::event::{
-    DispatchContext, Event, EventDispatcher, FocusEvent, FocusEventKind, GesturePhase,
-    GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
-    MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
+    DispatchContext, DispatchOutcome, Event, EventDispatcher, FocusEvent, FocusEventKind,
+    GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
 pub use runtime::mutation::PendingMutations;
 pub use runtime::update;

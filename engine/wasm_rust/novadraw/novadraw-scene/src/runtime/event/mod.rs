@@ -265,6 +265,39 @@ pub enum Event {
     Focus(FocusEvent),
 }
 
+/// Observable result of dispatching one normalized input event.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DispatchOutcome {
+    target: Option<FigureId>,
+    handled: bool,
+    capture: Option<FigureId>,
+}
+
+impl DispatchOutcome {
+    fn new(target: Option<FigureId>, handled: bool, capture: Option<FigureId>) -> Self {
+        Self {
+            target,
+            handled,
+            capture,
+        }
+    }
+
+    /// Returns the Figure that received the event.
+    pub const fn target(self) -> Option<FigureId> {
+        self.target
+    }
+
+    /// Returns whether a Figure handler or built-in Runtime fallback handled the event.
+    pub const fn is_handled(self) -> bool {
+        self.handled
+    }
+
+    /// Returns the primary pointer capture after dispatch.
+    pub const fn capture(self) -> Option<FigureId> {
+        self.capture
+    }
+}
+
 pub trait DispatchContext {
     fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId>;
     fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
@@ -414,10 +447,12 @@ impl EventDispatcher {
         x: f64,
         y: f64,
         button: MouseButton,
-    ) {
+    ) -> DispatchOutcome {
         self.refresh_mouse_target(ctx, x, y);
+        let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(kind, x, y, button));
-        let _ = ctx.dispatch_to_target(ctx.mouse_target(), &event);
+        let handled = ctx.dispatch_to_target(target, &event);
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 }
 
@@ -432,7 +467,7 @@ impl EventDispatcher {
         x: f64,
         y: f64,
         button: MouseButton,
-    ) {
+    ) -> DispatchOutcome {
         self.refresh_mouse_target(ctx, x, y);
         let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(MouseEventKind::Pressed, x, y, button));
@@ -446,6 +481,7 @@ impl EventDispatcher {
                 self.update_focus(ctx, target);
             }
         }
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
     pub fn dispatch_mouse_released(
@@ -454,25 +490,31 @@ impl EventDispatcher {
         x: f64,
         y: f64,
         button: MouseButton,
-    ) {
+    ) -> DispatchOutcome {
         self.refresh_mouse_target(ctx, x, y);
         let target = ctx.mouse_target();
         let event = Event::Mouse(MouseEvent::new(MouseEventKind::Released, x, y, button));
-        let _ = ctx.dispatch_to_target(target, &event);
+        let handled = ctx.dispatch_to_target(target, &event);
         if let Some(captured) = ctx.captured() {
             ctx.set_pressed(captured, false);
             ctx.set_captured(None);
             self.refresh_mouse_target(ctx, x, y);
         }
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
-    pub fn dispatch_mouse_moved(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+    pub fn dispatch_mouse_moved(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        x: f64,
+        y: f64,
+    ) -> DispatchOutcome {
         let kind = if ctx.captured().is_some() {
             MouseEventKind::Dragged
         } else {
             MouseEventKind::Moved
         };
-        self.dispatch_mouse_event(ctx, kind, x, y, MouseButton::None);
+        self.dispatch_mouse_event(ctx, kind, x, y, MouseButton::None)
     }
 
     pub fn dispatch_pointer_exited(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
@@ -497,11 +539,16 @@ impl EventDispatcher {
         x: f64,
         y: f64,
         button: MouseButton,
-    ) {
-        self.dispatch_mouse_event(ctx, MouseEventKind::DoubleClicked, x, y, button);
+    ) -> DispatchOutcome {
+        self.dispatch_mouse_event(ctx, MouseEventKind::DoubleClicked, x, y, button)
     }
 
-    pub fn dispatch_mouse_hover(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
+    pub fn dispatch_mouse_hover(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        x: f64,
+        y: f64,
+    ) -> DispatchOutcome {
         self.refresh_mouse_target(ctx, x, y);
         let event = Event::Mouse(MouseEvent::new(
             MouseEventKind::Hover,
@@ -509,7 +556,9 @@ impl EventDispatcher {
             y,
             MouseButton::None,
         ));
-        let _ = ctx.dispatch_to_target(ctx.hover_source(), &event);
+        let target = ctx.hover_source();
+        let handled = ctx.dispatch_to_target(target, &event);
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
     pub fn dispatch_mouse_wheel(
@@ -519,34 +568,42 @@ impl EventDispatcher {
         y: f64,
         delta_x: f64,
         delta_y: f64,
-    ) {
-        self.dispatch_scroll(ctx, WheelEvent::new(x, y, delta_x, delta_y));
+    ) -> DispatchOutcome {
+        self.dispatch_scroll(ctx, WheelEvent::new(x, y, delta_x, delta_y))
     }
 
-    pub fn dispatch_scroll(&mut self, ctx: &mut dyn DispatchContext, wheel_event: WheelEvent) {
+    pub fn dispatch_scroll(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        wheel_event: WheelEvent,
+    ) -> DispatchOutcome {
         if !wheel_event.x.is_finite()
             || !wheel_event.y.is_finite()
             || !wheel_event.delta_x.is_finite()
             || !wheel_event.delta_y.is_finite()
         {
-            return;
+            return DispatchOutcome::default();
         }
         let session_id = wheel_event.session_id;
         let phase = wheel_event.phase;
         let target = self.gesture_target(ctx, session_id, phase, wheel_event.x, wheel_event.y);
         let event = Event::Wheel(wheel_event);
         let handled = ctx.dispatch_to_target(target, &event);
-        if !handled && let Some(target) = target {
-            let _ = ctx.apply_scroll_fallback(target, &wheel_event);
-        }
+        let handled =
+            handled || target.is_some_and(|target| ctx.apply_scroll_fallback(target, &wheel_event));
         if phase.ends_session() {
             ctx.clear_gesture_target(session_id);
         }
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
-    pub fn dispatch_zoom(&mut self, ctx: &mut dyn DispatchContext, zoom_event: ZoomEvent) {
+    pub fn dispatch_zoom(
+        &mut self,
+        ctx: &mut dyn DispatchContext,
+        zoom_event: ZoomEvent,
+    ) -> DispatchOutcome {
         if !zoom_event.is_valid() {
-            return;
+            return DispatchOutcome::default();
         }
         let session_id = zoom_event.session_id;
         let phase = zoom_event.phase;
@@ -554,12 +611,12 @@ impl EventDispatcher {
             self.gesture_target(ctx, session_id, phase, zoom_event.x, zoom_event.y);
         let event = Event::Zoom(zoom_event);
         let handled = ctx.dispatch_to_target(initial_target, &event);
-        if !handled && let Some(initial_target) = initial_target {
-            let _ = ctx.apply_zoom_fallback(initial_target, &zoom_event);
-        }
+        let handled = handled
+            || initial_target.is_some_and(|target| ctx.apply_zoom_fallback(target, &zoom_event));
         if phase.ends_session() {
             ctx.clear_gesture_target(session_id);
         }
+        DispatchOutcome::new(initial_target, handled, ctx.captured())
     }
 
     pub fn cancel_gestures(&mut self, ctx: &mut dyn DispatchContext) {
@@ -571,13 +628,15 @@ impl EventDispatcher {
         ctx: &mut dyn DispatchContext,
         key: Key,
         modifiers: KeyModifiers,
-    ) {
+    ) -> DispatchOutcome {
+        let target = ctx.focus_owner();
         let event = Event::Key(KeyEvent {
             kind: KeyEventKind::Pressed,
             key,
             modifiers,
         });
-        let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
+        let handled = ctx.dispatch_to_target(target, &event);
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
     pub fn dispatch_key_released(
@@ -585,13 +644,15 @@ impl EventDispatcher {
         ctx: &mut dyn DispatchContext,
         key: Key,
         modifiers: KeyModifiers,
-    ) {
+    ) -> DispatchOutcome {
+        let target = ctx.focus_owner();
         let event = Event::Key(KeyEvent {
             kind: KeyEventKind::Released,
             key,
             modifiers,
         });
-        let _ = ctx.dispatch_to_target(ctx.focus_owner(), &event);
+        let handled = ctx.dispatch_to_target(target, &event);
+        DispatchOutcome::new(target, handled, ctx.captured())
     }
 
     pub fn request_focus(

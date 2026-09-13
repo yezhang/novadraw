@@ -2744,64 +2744,87 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) {
+    pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
+        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_moved(ctx, x, y));
         self.sync_tooltip();
+        outcome
     }
 
-    pub fn dispatch_mouse_pressed(&mut self, x: f64, y: f64, button: MouseButton) {
+    pub fn dispatch_mouse_pressed(
+        &mut self,
+        x: f64,
+        y: f64,
+        button: MouseButton,
+    ) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
+        let outcome =
+            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_pressed(ctx, x, y, button));
         self.tooltip_controller.dismiss();
+        outcome
     }
 
-    pub fn dispatch_mouse_released(&mut self, x: f64, y: f64, button: MouseButton) {
+    pub fn dispatch_mouse_released(
+        &mut self,
+        x: f64,
+        y: f64,
+        button: MouseButton,
+    ) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_released(ctx, x, y, button));
+        let outcome =
+            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_released(ctx, x, y, button));
         self.tooltip_controller.dismiss();
+        outcome
     }
 
-    pub fn dispatch_mouse_double_clicked(&mut self, x: f64, y: f64, button: MouseButton) {
+    pub fn dispatch_mouse_double_clicked(
+        &mut self,
+        x: f64,
+        y: f64,
+        button: MouseButton,
+    ) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        self.dispatch(|dispatcher, ctx| {
+        let outcome = self.dispatch(|dispatcher, ctx| {
             dispatcher.dispatch_mouse_double_clicked(ctx, x, y, button)
         });
         self.tooltip_controller.dismiss();
+        outcome
     }
 
-    pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) {
+    pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
         self.tooltip_controller
             .set_pointer_position(Point::new(x, y));
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
+        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_mouse_hover(ctx, x, y));
         self.sync_tooltip();
+        outcome
     }
 
-    pub fn dispatch_scroll(&mut self, event: WheelEvent) {
+    pub fn dispatch_scroll(&mut self, event: WheelEvent) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
+        let outcome = self.dispatch(|dispatcher, ctx| dispatcher.dispatch_scroll(ctx, event));
         self.tooltip_controller.dismiss();
+        outcome
     }
 
     pub fn set_view_location(
@@ -2844,27 +2867,39 @@ impl Runtime {
         })
     }
 
-    pub fn dispatch_zoom(&mut self, event: ZoomEvent) {
+    pub fn dispatch_zoom(&mut self, event: ZoomEvent) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event));
+        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event))
     }
 
-    pub fn dispatch_key_pressed(&mut self, key: Key, modifiers: KeyModifiers) {
+    pub fn dispatch_key_pressed(
+        &mut self,
+        key: Key,
+        modifiers: KeyModifiers,
+    ) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
+        let outcome =
+            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_pressed(ctx, key, modifiers));
         self.tooltip_controller.dismiss();
+        outcome
     }
 
-    pub fn dispatch_key_released(&mut self, key: Key, modifiers: KeyModifiers) {
+    pub fn dispatch_key_released(
+        &mut self,
+        key: Key,
+        modifiers: KeyModifiers,
+    ) -> crate::DispatchOutcome {
         if self.faulted {
-            return;
+            return crate::DispatchOutcome::default();
         }
-        self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
+        let outcome =
+            self.dispatch(|dispatcher, ctx| dispatcher.dispatch_key_released(ctx, key, modifiers));
         self.tooltip_controller.dismiss();
+        outcome
     }
 
     pub fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {

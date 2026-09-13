@@ -501,10 +501,10 @@ impl ApplicationHandler<()> for DemoApp {
                 let button = map_mouse_button(button);
                 self.dispatch_input(|runtime| match state {
                     winit::event::ElementState::Pressed => {
-                        runtime.dispatch_mouse_pressed(x / scale_factor, y / scale_factor, button)
+                        runtime.dispatch_mouse_pressed(x / scale_factor, y / scale_factor, button);
                     }
                     winit::event::ElementState::Released => {
-                        runtime.dispatch_mouse_released(x / scale_factor, y / scale_factor, button)
+                        runtime.dispatch_mouse_released(x / scale_factor, y / scale_factor, button);
                     }
                 });
             }
