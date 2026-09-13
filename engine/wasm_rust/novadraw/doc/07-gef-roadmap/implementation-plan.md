@@ -68,6 +68,8 @@
 
 ## G2：EditPart Tree 与 Viewer 投影
 
+状态：`complete`
+
 ### 设计批次
 
 1. 实现 namespaced generational EditPartId 和 PartArena。
@@ -75,7 +77,7 @@
 3. 固定 EditPartBehavior 和 EditPartFactory 的对象安全边界。
 4. 实现 model registry 与 visual registry。
 5. 实现 contents/root/content pane。
-6. 实现 refreshVisuals、refreshChildren、source/target connection refresh。
+6. 实现 refreshVisuals 与 refreshChildren。
 7. 将模型批次通知映射为确定的 refresh worklist。
 
 ### 自动门禁
@@ -83,10 +85,14 @@
 - 初始模型递归投影；
 - children reuse/reorder/create/remove；
 - compound Figure targeting 回溯到 owner part；
-- duplicate model/visual registration 原子拒绝；
+- duplicate model 原子拒绝；visual 只能由受限构建上下文创建并注册；
 - deactivate/unregister/dispose 顺序；
 - undo 后以新 EditPart/Figure 身份重建；
-- connection 被 source/target 双向发现但只创建一个 part。
+- revision gap、stale replay 与同 revision 多事件批次。
+
+阶段边界修正：source/target connection discovery、单 connection part 去重和
+connection layer 挂载必须共同交付，统一属于 G5。G2 只闭合模型 containment 投影，
+不在 G3 root layer 建立前引入临时连接挂载规则。
 
 ## G3：Selection、Targeting 与输入仲裁
 
@@ -124,13 +130,14 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
-1. ConnectionPart/NodePart 关系；
-2. CreateConnectionRequest start/end；
-3. source/target reconnect；
-4. endpoint 和 bendpoint handle；
-5. Connection Runtime binding；
-6. drag auto-expose；
-7. viewport/zoom 下 feedback 与 target。
+1. source/target connection discovery 与单 ConnectionPart 去重；
+2. ConnectionPart/NodePart 关系；
+3. CreateConnectionRequest start/end；
+4. source/target reconnect；
+5. endpoint 和 bendpoint handle；
+6. Connection Runtime binding；
+7. drag auto-expose；
+8. viewport/zoom 下 feedback 与 target。
 
 删除节点时，关联 connection 的处理必须由模型 Command 决定，不由 Figure dispose
 猜测业务级联关系。

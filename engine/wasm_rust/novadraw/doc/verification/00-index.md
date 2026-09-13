@@ -50,6 +50,10 @@ Editor G1 Model Adapter、Command/CompoundCommand、CommandStack、dirty/save �
 边界见
 [`reviews/g1-model-command-completion-2026-09-13.md`](reviews/g1-model-command-completion-2026-09-13.md)。
 
+Editor G2 EditPart identity/tree、Viewer registry、model notification 与增量
+containment 投影见
+[`reviews/g2-viewer-projection-completion-2026-09-13.md`](reviews/g2-viewer-projection-completion-2026-09-13.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

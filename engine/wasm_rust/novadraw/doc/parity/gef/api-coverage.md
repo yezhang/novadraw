@@ -24,19 +24,19 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | Family ID | GEF 代表 API / 概念 | Novadraw 目标 | 状态 | Milestone |
 |---|---|---|---|---|
 | `model.identity` | application model object identity | 应用提供稳定 `ModelId`，框架不拥有业务模型 | verified | G1 |
-| `model.notification` | model listener / property change | typed `ModelEvent` + revision + adapter drain；gap/batch replay 后续接入 Viewer | partial | G1/G2 |
+| `model.notification` | model listener / property change | typed `ModelEvent` + revision + adapter drain；Viewer 拒绝 gap/stale 并接受同 revision 有序批次 | verified | G1/G2 |
 | `command.protocol` | `Command`、`CompoundCommand` | typed model command、组合、结构化失败与 fault 边界 | verified | G1 |
 | `command.stack` | `CommandStack` | execute/undo/redo、redo flush、limit、drop、event journal | verified | G1 |
 | `command.dirty_state` | `markSaveLocation/isDirty` | history identity、branch、fault 与 save location | verified | G1 |
-| `part.identity` | EditPart object identity | namespaced generational `EditPartId` | specified | G2 |
-| `part.tree` | parent/children、source/target connections | `PartTree` 与 FigureTree 分离的 controller topology | specified | G2 |
-| `part.factory` | `EditPartFactory` | model/context 到 `EditPartBehavior` | specified | G2 |
-| `part.lifecycle` | addNotify/activate/deactivate/removeNotify | 注册、刷新、订阅、清理的固定顺序 | specified | G2 |
-| `part.visual` | createFigure/getFigure/getContentPane | Part 到主 Figure/content pane 的显式绑定 | specified | G2 |
-| `part.refresh` | refreshVisuals/refreshChildren/connections | 模型通知驱动增量投影 | specified | G2 |
-| `viewer.contents_root` | Viewer contents / RootEditPart | 无模型 root + 单 contents + root layer composition | specified | G2 |
-| `viewer.registry` | model/visual part maps | `ModelId -> EditPartId`、`FigureId -> VisualOwner` | specified | G2 |
-| `viewer.targeting` | `findObjectAt*` | Figure hit-test 后沿 ancestor 查 registry | specified | G3 |
+| `part.identity` | EditPart object identity | namespaced generational `EditPartId` | verified | G2 |
+| `part.tree` | parent/children、source/target connections | containment `PartTree` 与 FigureTree 身份分离；connection relation 后置 G5 | partial | G2/G5 |
+| `part.factory` | `EditPartFactory` | model/context 到 `EditPartBehavior` | verified | G2 |
+| `part.lifecycle` | addNotify/activate/deactivate/removeNotify | 创建、刷新、激活、停用、注销与重建的固定顺序 | verified | G2 |
+| `part.visual` | createFigure/getFigure/getContentPane | Part 到主 Figure/content pane 的显式绑定 | verified | G2 |
+| `part.refresh` | refreshVisuals/refreshChildren/connections | 通知驱动 visual/containment 增量投影；connection refresh 后置 G5 | partial | G2/G5 |
+| `viewer.contents_root` | Viewer contents / RootEditPart | 无模型 root + 单 model-backed contents | verified | G2 |
+| `viewer.registry` | model/visual part maps | `ModelId -> EditPartId`、`FigureId -> owner part` | verified | G2 |
+| `viewer.targeting` | `findObjectAt*` | visual ancestor registry 查询已验证；point hit-test 与 fallback 后置 G3 | partial | G2/G3 |
 | `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta | specified | G3 |
 | `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | specified | G3 |
 | `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | specified | G3 |

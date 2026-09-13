@@ -90,6 +90,7 @@ pub trait ModelAdapter {
     type Error: Error + 'static;
 
     fn root(&self) -> Self::ModelId;
+    fn revision(&self) -> ModelRevision;
     fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error>;
     fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>>;
 }
@@ -103,6 +104,10 @@ pub trait ModelAdapter {
 - source/target connection 关系；
 - 批量通知和稳定 revision；
 - 保存/加载后以新运行时身份重建。
+
+G2 只投影 containment。Connection 的 source/target 双向发现必须与 connection layer、
+Connection Runtime binding 和单 connection part 去重一起在 G5 引入，不能提前挂到
+临时父 Figure。
 
 ## 5. EditPart
 

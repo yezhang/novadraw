@@ -32,7 +32,7 @@
 |---|---|---|---|
 | G0 | 架构与工程启动 | `complete` | ADR、规范、语义账本、单 crate 骨架、workspace 门禁 |
 | G1 | Model Adapter 与 CommandStack | `complete` | 16 项契约覆盖 identity/revision、execute/undo/redo、compound、dirty/save 与 fault |
-| G2 | EditPart Tree 与 Viewer 投影 | `not_started` | factory、生命周期、registry、contents/root、增量 children/connection 同步 |
+| G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 |
 | G3 | Selection、Targeting 与输入仲裁 | `not_started` | 多选/primary/focus、visual targeting、Figure/Tool 消费与 capture |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `not_started` | create、move、resize、delete、feedback、undo/redo |
 | G5 | Connection 编辑与 Viewport 协作 | `not_started` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 |
@@ -92,13 +92,25 @@ git diff --check: PASS
 - `novadraw-editor/tests/g1_command_stack_contract.rs`；
 - `doc/verification/reviews/g1-model-command-completion-2026-09-13.md`。
 
-## G2 启动前必须固定的接口
+## G2 完成记录
 
-1. 模型通知批次、revision gap 和重放边界；
-2. EditPartId namespace 和 arena 所有者；
-3. PartNode 与用户行为 trait 的对象安全接口；
-4. Runtime 与 Viewer 的所有权关系；
-5. Figure input consumed outcome 是否需要 Core P2 delta。
+- [x] `ModelAdapter::revision` 与有序批次固定 gap、stale 和同 revision 多事件边界；
+- [x] `EditPartId` 使用 Viewer namespace + generational key，跨 Viewer 与退休句柄失效；
+- [x] `PartTree` 独立维护 controller containment，不复用 ModelId 或 FigureId；
+- [x] `EditPartBehavior` / `EditPartFactory` 固定对象安全扩展边界；
+- [x] `GraphicalViewer` 拥有 model、factory、PartTree、registry 与 Runtime；
+- [x] 初始递归投影和增量 reuse/reorder/create/remove/reparent 已闭合；
+- [x] primary Figure、content pane 和 ancestor visual owner 查询已闭合；
+- [x] duplicate model、revision gap/stale 与扩展失败进入结构化拒绝或 fault；
+- [x] remove、Viewer drop 与重建身份生命周期已验证。
+
+连接模型的 source/target 双向发现、connection part 去重和 connection layer 挂载统一在
+G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
+
+验证入口：
+
+- `novadraw-editor/tests/g2_viewer_projection_contract.rs`；
+- `doc/verification/reviews/g2-viewer-projection-completion-2026-09-13.md`。
 
 ## 最小毕业场景
 
