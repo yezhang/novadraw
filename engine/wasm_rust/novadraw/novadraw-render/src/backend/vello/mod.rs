@@ -1190,7 +1190,7 @@ impl RenderBackend for VelloRenderer {
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let base_color = VelloColor::new(scratch_base_rgba());
 
-        // 先把当前帧的脏区内容渲染到临时纹理，脏区外保持透明
+        // 使用 surface 背景重建临时纹理；后续只把 damage regions 复制到 retained texture。
         self.renderers[self.surface.dev_id]
             .as_mut()
             .unwrap()
