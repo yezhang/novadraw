@@ -46,6 +46,10 @@ capability 消融结论见
 Draw2D Core 到独立 Editor/GEF 层的启动条件、源码证据、缺口分级与 crate 边界见
 [`reviews/gef-readiness-analysis-2026-09-13.md`](reviews/gef-readiness-analysis-2026-09-13.md)。
 
+Editor G1 Model Adapter、Command/CompoundCommand、CommandStack、dirty/save 与 fault
+边界见
+[`reviews/g1-model-command-completion-2026-09-13.md`](reviews/g1-model-command-completion-2026-09-13.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

@@ -2,7 +2,7 @@
 
 类型：`roadmap`
 
-状态：`complete`
+状态：`in_progress`
 
 本目录承载 Draw2D Core 1.0 之后的独立 Editor 框架路线图。`G0-G6` 只属于本目录，
 不得与 Draw2D `M1-M10` 或历史 architecture delta `D0-D4` 混用。
@@ -31,7 +31,7 @@
 | Milestone | 标题 | 状态 | 完成门禁 |
 |---|---|---|---|
 | G0 | 架构与工程启动 | `complete` | ADR、规范、语义账本、单 crate 骨架、workspace 门禁 |
-| G1 | Model Adapter 与 CommandStack | `not_started` | model identity、execute/undo/redo、compound、dirty/save、失败语义 |
+| G1 | Model Adapter 与 CommandStack | `complete` | 16 项契约覆盖 identity/revision、execute/undo/redo、compound、dirty/save 与 fault |
 | G2 | EditPart Tree 与 Viewer 投影 | `not_started` | factory、生命周期、registry、contents/root、增量 children/connection 同步 |
 | G3 | Selection、Targeting 与输入仲裁 | `not_started` | 多选/primary/focus、visual targeting、Figure/Tool 消费与 capture |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `not_started` | create、move、resize、delete、feedback、undo/redo |
@@ -73,15 +73,32 @@ new-document local link check: PASS
 git diff --check: PASS
 ```
 
-## G1-G2 启动前必须固定的接口
+## G1 完成记录
 
-1. 应用模型借用方式和 `ModelId` 约束；
-2. 模型通知 revision、批次和重放边界；
-3. Command execute/undo/redo 失败后的 history 状态；
-4. EditPartId namespace 和 arena 所有者；
-5. PartNode 与用户行为 trait 的对象安全接口；
-6. Runtime 与 Viewer 的所有权关系；
-7. Figure input consumed outcome 是否需要 Core P2 delta。
+- [x] `ModelId` 由应用定义，要求 Copy/Eq/Hash/Debug，不使用 FigureId；
+- [x] `ModelRevision` 非零、单调且不回绕；
+- [x] `ModelEvent` 保存 revision、subject 和 typed payload；
+- [x] `ModelAdapter` 提供 root、稳定 child order 和 ordered event drain；
+- [x] `Command` 只操作应用模型，支持 canExecute/canUndo/canRedo 及显式拒绝；
+- [x] `CompoundCommand` 固定执行顺序、逆序 undo 和可恢复补偿；
+- [x] `CommandStack` 支持 execute/undo/redo、redo flush、undo limit、event journal；
+- [x] dirty/save 使用历史状态身份，不使用栈长度推断；
+- [x] rejected/recoverable failure 保留 history，未知状态、补偿失败和 panic 使 stack faulted；
+- [x] faulted stack 拒绝后续编辑、flush 和 save marking。
+
+验证入口：
+
+- `novadraw-editor/tests/g1_model_contract.rs`；
+- `novadraw-editor/tests/g1_command_stack_contract.rs`；
+- `doc/verification/reviews/g1-model-command-completion-2026-09-13.md`。
+
+## G2 启动前必须固定的接口
+
+1. 模型通知批次、revision gap 和重放边界；
+2. EditPartId namespace 和 arena 所有者；
+3. PartNode 与用户行为 trait 的对象安全接口；
+4. Runtime 与 Viewer 的所有权关系；
+5. Figure input consumed outcome 是否需要 Core P2 delta。
 
 ## 最小毕业场景
 

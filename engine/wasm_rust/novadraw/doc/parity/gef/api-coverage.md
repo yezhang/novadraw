@@ -23,11 +23,11 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 
 | Family ID | GEF 代表 API / 概念 | Novadraw 目标 | 状态 | Milestone |
 |---|---|---|---|---|
-| `model.identity` | application model object identity | 应用提供稳定 `ModelId`，框架不拥有业务模型 | specified | G1 |
-| `model.notification` | model listener / property change | adapter 提供有序模型事件和 revision | specified | G2 |
-| `command.protocol` | `Command`、`CompoundCommand` | typed model command、组合、结构化失败 | specified | G1 |
-| `command.stack` | `CommandStack` | execute/undo/redo、redo flush、limit、dispose | specified | G1 |
-| `command.dirty_state` | `markSaveLocation/isDirty` | save revision、dirty transition 和通知 | specified | G1 |
+| `model.identity` | application model object identity | 应用提供稳定 `ModelId`，框架不拥有业务模型 | verified | G1 |
+| `model.notification` | model listener / property change | typed `ModelEvent` + revision + adapter drain；gap/batch replay 后续接入 Viewer | partial | G1/G2 |
+| `command.protocol` | `Command`、`CompoundCommand` | typed model command、组合、结构化失败与 fault 边界 | verified | G1 |
+| `command.stack` | `CommandStack` | execute/undo/redo、redo flush、limit、drop、event journal | verified | G1 |
+| `command.dirty_state` | `markSaveLocation/isDirty` | history identity、branch、fault 与 save location | verified | G1 |
 | `part.identity` | EditPart object identity | namespaced generational `EditPartId` | specified | G2 |
 | `part.tree` | parent/children、source/target connections | `PartTree` 与 FigureTree 分离的 controller topology | specified | G2 |
 | `part.factory` | `EditPartFactory` | model/context 到 `EditPartBehavior` | specified | G2 |

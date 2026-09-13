@@ -87,10 +87,11 @@ EditPartId 使用 editor namespace + generational key。删除后旧 ID 必须�
 pub trait ModelAdapter {
     type ModelId: Copy + Eq + Hash + Debug + 'static;
     type Event;
+    type Error: Error + 'static;
 
     fn root(&self) -> Self::ModelId;
-    fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, ModelError>;
-    fn drain_events(&mut self) -> Vec<Self::Event>;
+    fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error>;
+    fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>>;
 }
 ```
 
@@ -247,6 +248,12 @@ prepare/can_execute
 
 首版不承诺对任意应用副作用做自动回滚。若 CompoundCommand 需要原子性，应由模型
 事务或 prepared command 明确提供，不能假设逐条 `undo` 永远成功。
+
+Command 返回普通 operation error 时，必须保证模型和 Command 保持调用前状态；
+无法保证时必须返回显式 unknown-state error。CompoundCommand 会补偿已成功的前缀，
+但补偿失败、unknown-state error 或扩展 panic 都会使 CommandStack faulted。Faulted
+stack 保持 dirty 并拒绝继续编辑、flush 或标记保存点，由 Host 重建模型与 Editor。
+Command 析构不得 panic；history trim/flush 不承诺恢复任意析构副作用。
 
 ## 10. Tool 与输入仲裁
 

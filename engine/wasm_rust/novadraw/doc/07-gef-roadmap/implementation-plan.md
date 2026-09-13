@@ -39,6 +39,8 @@
 
 ## G1：Model Adapter 与 CommandStack
 
+状态：`complete`
+
 ### 设计批次
 
 1. 用一个最小 diagram model 固定 `ModelId`、只读查询和通知接口。
@@ -56,6 +58,13 @@
 - save location 跨 execute/undo/redo 正确；
 - history flush 释放 owned resource；
 - panic/外部副作用不被错误宣称为可回滚。
+
+完成证据：
+
+- 16 项公开契约测试通过；
+- recoverable error 保持模型/命令前态的责任由 Command 契约明确；
+- unknown-state error、compound compensation failure 和 extension panic 均 fault stack；
+- Command API 不依赖 FigureId、Runtime 或平台类型。
 
 ## G2：EditPart Tree 与 Viewer 投影
 
