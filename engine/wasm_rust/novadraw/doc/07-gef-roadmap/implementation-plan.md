@@ -97,7 +97,7 @@ connection layer 挂载必须共同交付，统一属于 G5。G2 只闭合模型
 
 ## G3：Selection、Targeting 与输入仲裁
 
-状态：`behavior_verified`，等待检查点 A 人工验收。
+状态：`complete`。自动门禁与检查点 A 人工验收均通过。
 
 ### 设计批次
 

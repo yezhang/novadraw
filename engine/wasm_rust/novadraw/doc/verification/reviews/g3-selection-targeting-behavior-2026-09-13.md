@@ -4,9 +4,9 @@
 
 日期：2026-09-13
 
-状态：`behavior_verified`
+状态：`complete`
 
-人工门禁：`pending`
+人工门禁：`PASS`
 
 ## 1. 范围
 
@@ -83,10 +83,26 @@ feedback 穿透、contents fallback、widget consumed 和完整 pointer capture�
 - 窗口标题可显示 selection 数量。
 
 人工步骤见
-[`../manual/g3-selection-targeting.md`](../manual/g3-selection-targeting.md)。G3 只有收到
-检查点 A 的人工 PASS 后才能从 `behavior_verified` 提升为 `complete`。
+[`../manual/g3-selection-targeting.md`](../manual/g3-selection-targeting.md)。检查点 A
+的单选、多选、primary/toggle、widget arbitration、handle targeting 与 resize
+全部 PASS。
 
-## 6. 单测生成工作流
+## 6. 人工验收发现与修复
+
+验收额外发现两项同源视觉回归：
+
+- 删除 selection handle 后矩形描边出现残留增粗；
+- 多选 toggle 后 damage union 内出现黑色区域，resize 后消失。
+
+运行时证据确认 damage bounds 与 overlay 坐标正确，黑区只出现在 Partial frame。
+Vello scratch texture 原先对 Partial damage 使用透明 base color，但随后通过
+`copy_texture_to_texture` 直接覆盖 opaque retained texture，透明像素最终显示为黑色。
+
+修复后 Full/Partial scratch 均先恢复项目规定的 RGB(238,238,238) 不透明背景，再绘制
+scene 并复制 damage 区。相同 Partial damage 路径下黑区和描边残留均消失，不需要
+Full redraw；workspace 全量门禁与 Vello feature 定向测试通过。
+
+## 7. 单测生成工作流
 
 `bits-unit-test-gen` Step1-Step6 已执行。初始缺陷探测测试稳定证明
 `DispatchOutcome` 与 `SelectionModel` 缺失，随后由正式实现闭合。Step6 的

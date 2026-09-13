@@ -2,7 +2,7 @@
 
 类型：`manual-verification`
 
-状态：`ready_for_manual`
+状态：`complete`
 
 入口：
 
@@ -61,3 +61,9 @@ G3-B multi/primary/toggle: PASS
 G3-C widget arbitration/capture: PASS
 G3-D handle targeting/resize: PASS
 ```
+
+2026-09-13 人工验收结果：全部 PASS。
+
+验收期间发现 selection handle 删除后的 retained partial frame 可能用透明 scratch
+覆盖不透明背景，表现为描边残留或矩形黑区。修复后重复执行单选清空和多选 toggle，
+均无需 resize 即恢复正确背景与描边。

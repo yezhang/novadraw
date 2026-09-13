@@ -33,7 +33,7 @@
 | G0 | 架构与工程启动 | `complete` | ADR、规范、语义账本、单 crate 骨架、workspace 门禁 | 不需要 |
 | G1 | Model Adapter 与 CommandStack | `complete` | 16 项契约覆盖 identity/revision、execute/undo/redo、compound、dirty/save 与 fault | 不需要 |
 | G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 | 不需要 |
-| G3 | Selection、Targeting 与输入仲裁 | `behavior_verified` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：待人工确认** |
+| G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `not_started` | create、move、resize、delete、feedback、undo/redo | **检查点 B：首个可用编辑闭环** |
 | G5 | Connection 编辑与 Viewport 协作 | `not_started` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：图编辑主流程** |
 | G6 | 产品化与跨平台毕业 | `not_started` | 保存加载、Native/Web/Headless 等价、节点编辑器毕业场景 | **最终验收** |
@@ -130,7 +130,8 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 - [x] `DispatchOutcome` 公开 target、handled 与 capture；
 - [x] Figure widget consumed/capture 阻止 Editor selection fallback；
 - [x] `node-editor-demo` Native 窗口启动并完成截图级非空验证；
-- [ ] 检查点 A 人工验收。
+- [x] 检查点 A 人工验收；
+- [x] 修复 selection overlay 暴露的 Vello retained partial background 回归。
 
 自动验证入口：
 
