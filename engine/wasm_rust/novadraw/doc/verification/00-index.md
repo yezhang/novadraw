@@ -54,6 +54,11 @@ Editor G2 EditPart identity/tree、Viewer registry、model notification 与增�
 containment 投影见
 [`reviews/g2-viewer-projection-completion-2026-09-13.md`](reviews/g2-viewer-projection-completion-2026-09-13.md)。
 
+Editor G3 selection、targeting、root layers 与 Figure/Editor 输入仲裁见
+[`reviews/g3-selection-targeting-behavior-2026-09-13.md`](reviews/g3-selection-targeting-behavior-2026-09-13.md)；
+人工验收步骤见
+[`manual/g3-selection-targeting.md`](manual/g3-selection-targeting.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

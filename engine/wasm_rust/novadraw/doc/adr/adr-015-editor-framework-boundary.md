@@ -91,6 +91,10 @@ normalized input
 场景验证是否需要增加 `DispatchOutcome` 或统一输入入口；在证据出现前不修改
 Draw2D Runtime。
 
+G3 验证已确认 capture 状态不能完整替代 consumed outcome，因此接受最小 P2 delta：
+`Runtime::dispatch_*` 返回 target、handled 与 dispatch 后 capture。该结果只暴露既有
+dispatcher 事实，不引入 Tool、Request 或 EditPart 类型到 Draw2D Core。
+
 ### 6. 先建立契约账本和垂直切片
 
 GEF 能力使用独立 G0-G6 编号和语义覆盖账本，不复用 M1-M10。首个毕业切片必须覆盖：

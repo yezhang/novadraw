@@ -266,6 +266,7 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `event.dispatcher` | `dispatchMousePressed/Released/Moved` | `EventDispatcher::{receive,dispatch_mouse_pressed,dispatch_mouse_released,dispatch_mouse_moved}`，`Event::Mouse`, `MouseEventKind` | verified | target-domain callback 与 capture 状态测试 |
+| `event.dispatcher` | dispatcher consumed / capture result | `DispatchOutcome::{target,is_handled,capture}` 从 Runtime 返回平台无关的分发结果 | verified | Editor G3 P2 delta；不改变既有 Figure callback 或 capture 状态机 |
 | `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 由 `mouseTarget` 迁移触发；`hoverSource` 专用于 tooltip source；drag/hover/double-click 为显式 dispatcher API | verified | capture、mouse target、cursor target 与 tooltip hover source 分轨 |
 | `event.dispatcher` | `setRoot`, `setControl` | `Runtime::set_contents` 管理 root；`PlatformHost` 注入平台服务，避免 dispatcher 持有原生 control | verified | 接受组合根 + host adapter 变体，apps 只做平台输入适配 |
 | `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `Runtime::{request_focus,clear_focus,traverse_focus}`、`InteractionState::focus_owner`、`FocusTraversalPolicy`、`FocusEvent` | verified | D1.5b 引擎 focus model 与 D1.5c Native/Web Tab traversal 已通过自动验证及 macOS/Web 人工验收 |

@@ -97,22 +97,27 @@ connection layer 挂载必须共同交付，统一属于 G5。G2 只闭合模型
 
 ## G3：Selection、Targeting 与输入仲裁
 
+状态：`behavior_verified`，等待检查点 A 人工验收。
+
 ### 设计批次
 
 1. 实现有序 selection、primary selection 和 EditPart focus。
 2. 实现 handle 优先、part ancestor fallback、contents fallback。
 3. 建立 root/scalable/printable/primary/connection/handle/feedback layers。
-4. 用嵌入 Button 场景验证 Figure consumed/capture 与 Tool fallback。
-5. 若证据成立，为 Runtime 增加最小 DispatchOutcome P2 delta。
+4. 用嵌入 Button 场景验证 Figure consumed/capture 与 Editor fallback。
+5. 为 Runtime 增加最小 `DispatchOutcome` P2 delta，正式 Tool 在 G4 接入同一仲裁结果。
 
 ### 自动门禁
 
 - click/shift/control selection；
 - selection 删除自动 reconcile；
 - handle 不误映射到宿主 part；
-- Figure widget 消费后 Tool 不启动；
-- Tool capture 与 Figure capture 不冲突；
-- zoom 前后 targeting 与反馈坐标一致。
+- Figure widget 消费后 Editor fallback 不启动；
+- Figure capture 在完整 pointer gesture 内保持所有权；
+- scaled/unscaled layer 域与 handle/feedback targeting 顺序稳定。
+
+Viewport/zoom 下 Tool feedback 与 auto-expose 统一在 G5 验证，不在 G3 缺少
+Viewport 组合根时建立临时缩放协议。
 
 ## G4：Tool / Request / EditPolicy
 

@@ -36,15 +36,15 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `part.refresh` | refreshVisuals/refreshChildren/connections | 通知驱动 visual/containment 增量投影；connection refresh 后置 G5 | partial | G2/G5 |
 | `viewer.contents_root` | Viewer contents / RootEditPart | 无模型 root + 单 model-backed contents | verified | G2 |
 | `viewer.registry` | model/visual part maps | `ModelId -> EditPartId`、`FigureId -> owner part` | verified | G2 |
-| `viewer.targeting` | `findObjectAt*` | visual ancestor registry 查询已验证；point hit-test 与 fallback 后置 G3 | partial | G2/G3 |
-| `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta | specified | G3 |
-| `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | specified | G3 |
-| `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | specified | G3 |
+| `viewer.targeting` | `findObjectAt*` | point hit-test、handle 优先、feedback 穿透、ancestor 与 contents fallback | verified | G2/G3 |
+| `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta 与删除 reconcile | verified | G3 |
+| `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | verified | G3 |
+| `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | verified | G3 |
 | `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | specified | G4 |
 | `policy.protocol` | `EditPolicy`、role | target、command contribution、feedback | specified | G4 |
 | `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | specified | G4 |
 | `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | specified | G4 |
-| `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，Tool fallback | specified | G3 |
+| `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先；Editor fallback 已验证，正式 Tool 在 G4 复用 | partial | G3/G4 |
 | `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | specified | G4 |
 | `interaction.selection` | SelectionTool / marquee | click、modifier、多选、marquee | specified | G4 |
 | `interaction.create` | CreationTool / CreateRequest | 创建节点和 target validation | specified | G4 |

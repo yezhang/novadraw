@@ -275,8 +275,8 @@ Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Too
 6. release/cancel 清理 feedback 和 capture；
 7. 执行 Command 前先清除临时视觉。
 
-若 `Runtime::dispatch_*` 无法提供可靠消费结果，必须新增最小、平台无关的
-`DispatchOutcome`，不能在 app 层根据 hover 或 repaint 猜测。
+`Runtime::dispatch_*` 通过最小、平台无关的 `DispatchOutcome` 返回 target、handled
+与 dispatch 后 capture；Editor 不得在 app 层根据 hover 或 repaint 猜测消费结果。
 
 ## 11. 扩展点
 
