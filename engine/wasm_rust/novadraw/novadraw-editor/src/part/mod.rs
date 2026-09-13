@@ -99,7 +99,7 @@ pub struct PartTree<I> {
 }
 
 impl<I: Copy> PartTree<I> {
-    pub(crate) fn new(root_figure: FigureId) -> Self {
+    pub(crate) fn new(root_figure: FigureId, content_pane: FigureId) -> Self {
         let namespace = EditorNamespace::new();
         let mut nodes: SlotMap<DefaultKey, PartNode<I>> = SlotMap::with_key();
         let root = nodes.insert_with_key(|key| {
@@ -110,7 +110,7 @@ impl<I: Copy> PartTree<I> {
                 parent: None,
                 children: Vec::new(),
                 primary_figure: root_figure,
-                content_pane: root_figure,
+                content_pane,
                 visuals: vec![root_figure],
                 active: true,
             }
