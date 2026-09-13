@@ -8,8 +8,10 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 
 ## ADR 列表
 
-2026-09-10 已完成 001-013 的设计审计。当前修订裁决：
-[ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md)；
+2026-09-10 已完成 001-013 的设计审计。Draw2D Core 当前修订裁决：
+[ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md)。
+Draw2D Core 1.0 之后的 Editor 框架边界由
+[ADR-015](adr-015-editor-framework-boundary.md) 接受；
 [审计与逐项处置](../verification/reviews/adr-audit-2026-09-10.md)；
 [历史快照入口](../archive/adr-audit-2026-09-10/README.md)。
 001-012 保留合理主线并同步修订正文；新契约不等于代码已实现。
@@ -29,7 +31,8 @@ ADR (Architecture Decision Record) 是记录架构决策的文档，用于记录
 | [011](adr-011-derived-state-convergence.md) | Runtime 派生状态收敛事务 | 已通过 | 2026-09-09 |
 | [012](adr-012-resource-causality-and-backend-session.md) | 资源因果日志与 Backend Session | 已通过 | 2026-09-09 |
 | [013](adr-013-figure-lifecycle-and-runtime-identity.md) | Figure 生命周期与 Runtime 身份域 | 已被 014 替换 | 2026-09-09 |
-| [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 扩展协议、生命周期与稳定发布边界修订 | 已接受，待实现 | 2026-09-10 |
+| [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 扩展协议、生命周期与稳定发布边界修订 | 已接受，已验证 | 2026-09-10 |
+| [015](adr-015-editor-framework-boundary.md) | 独立 Editor 框架边界 | 已接受 | 2026-09-13 |
 
 ## 现行与历史隔离
 

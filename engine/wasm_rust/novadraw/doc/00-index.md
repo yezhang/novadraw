@@ -12,6 +12,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 | [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
 | [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
 | [`roadmap/`](roadmap/00-index.md) | 何时交付、当前到哪里？ | 里程碑与产品状态，不定义架构 |
+| [`07-gef-roadmap/`](07-gef-roadmap/00-index.md) | Editor/GEF 层何时交付、当前到哪里？ | G0-G6 里程碑与产品状态 |
 | [`strategy/`](strategy/00-index.md) | 为谁创造价值、如何验证？ | 产品与商业决策输入，不定义架构 |
 | [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
 | [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
@@ -45,6 +46,11 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/resource-lifecycle.md`](design/architecture/resource-lifecycle.md)
 - Figure 生命周期与 Runtime 身份域：
   [`design/architecture/figure-lifecycle.md`](design/architecture/figure-lifecycle.md)
+- Editor 框架边界：
+  [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
+- Editor 规范架构：[`design/editor/architecture.md`](design/editor/architecture.md)
+- GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
+- G0-G6 唯一编号与状态：[`07-gef-roadmap/00-index.md`](07-gef-roadmap/00-index.md)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：
@@ -120,6 +126,14 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 2. 更新 [`verification/reference/draw2d-source-audit.md`](verification/reference/draw2d-source-audit.md) 的审计基线或结论。
 3. 在 [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md) 更新受影响 family。
 4. 若改变 Novadraw 行为，先更新 `design/` 或 ADR，再修改测试和代码。
+
+### 开发 Editor / GEF 层
+
+1. [`verification/reviews/gef-readiness-analysis-2026-09-13.md`](verification/reviews/gef-readiness-analysis-2026-09-13.md)
+2. [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
+3. [`design/editor/architecture.md`](design/editor/architecture.md)
+4. [`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
+5. [`07-gef-roadmap/00-index.md`](07-gef-roadmap/00-index.md)
 
 ### 理解产品与商业价值
 

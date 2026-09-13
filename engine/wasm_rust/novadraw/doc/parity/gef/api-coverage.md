@@ -1,0 +1,94 @@
+# GEF 核心语义覆盖账本
+
+类型：`parity-contract`
+
+参考基线：Eclipse GEF Classic commit `4463d9d0ce13c19d10fbe769d29f28b7345a8cba`。
+
+本账本记录 GEF Classic 核心编辑语义到 `novadraw-editor` 的采用关系。它不是 Java
+API 翻译清单，也不把 Eclipse Workbench/JFace 集成列为框架核心。
+
+## 状态
+
+| 状态 | 含义 |
+|---|---|
+| `specified` | Novadraw 目标契约已定义，尚无行为实现证据 |
+| `partial` | 已有部分实现，但公共语义或验证未闭合 |
+| `verified` | 公开契约、实现和可重复验证均已闭合 |
+| `deferred` | 已明确后置，不计入当前 milestone |
+| `rejected` | 明确不采用，并记录替代方案 |
+
+crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执行公共行为。
+
+## 核心矩阵
+
+| Family ID | GEF 代表 API / 概念 | Novadraw 目标 | 状态 | Milestone |
+|---|---|---|---|---|
+| `model.identity` | application model object identity | 应用提供稳定 `ModelId`，框架不拥有业务模型 | specified | G1 |
+| `model.notification` | model listener / property change | adapter 提供有序模型事件和 revision | specified | G2 |
+| `command.protocol` | `Command`、`CompoundCommand` | typed model command、组合、结构化失败 | specified | G1 |
+| `command.stack` | `CommandStack` | execute/undo/redo、redo flush、limit、dispose | specified | G1 |
+| `command.dirty_state` | `markSaveLocation/isDirty` | save revision、dirty transition 和通知 | specified | G1 |
+| `part.identity` | EditPart object identity | namespaced generational `EditPartId` | specified | G2 |
+| `part.tree` | parent/children、source/target connections | `PartTree` 与 FigureTree 分离的 controller topology | specified | G2 |
+| `part.factory` | `EditPartFactory` | model/context 到 `EditPartBehavior` | specified | G2 |
+| `part.lifecycle` | addNotify/activate/deactivate/removeNotify | 注册、刷新、订阅、清理的固定顺序 | specified | G2 |
+| `part.visual` | createFigure/getFigure/getContentPane | Part 到主 Figure/content pane 的显式绑定 | specified | G2 |
+| `part.refresh` | refreshVisuals/refreshChildren/connections | 模型通知驱动增量投影 | specified | G2 |
+| `viewer.contents_root` | Viewer contents / RootEditPart | 无模型 root + 单 contents + root layer composition | specified | G2 |
+| `viewer.registry` | model/visual part maps | `ModelId -> EditPartId`、`FigureId -> VisualOwner` | specified | G2 |
+| `viewer.targeting` | `findObjectAt*` | Figure hit-test 后沿 ancestor 查 registry | specified | G3 |
+| `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta | specified | G3 |
+| `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | specified | G3 |
+| `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | specified | G3 |
+| `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | specified | G4 |
+| `policy.protocol` | `EditPolicy`、role | target、command contribution、feedback | specified | G4 |
+| `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | specified | G4 |
+| `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | specified | G4 |
+| `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，Tool fallback | specified | G3 |
+| `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | specified | G4 |
+| `interaction.selection` | SelectionTool / marquee | click、modifier、多选、marquee | specified | G4 |
+| `interaction.create` | CreationTool / CreateRequest | 创建节点和 target validation | specified | G4 |
+| `interaction.delete` | GroupRequest / component policy | 多选删除、连接清理、undo | specified | G4 |
+| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/reparent、feedback、undo | specified | G4 |
+| `connection.part` | ConnectionEditPart / NodeEditPart | source/target model relation到 Connection Runtime | specified | G5 |
+| `connection.create` | CreateConnectionRequest | start/end 两阶段请求和反馈 | specified | G5 |
+| `connection.reconnect` | ReconnectRequest | source/target 重连、合法性和 undo | specified | G5 |
+| `viewport.autoexpose` | AutoexposeHelper | 拖拽期间 Viewport 自动滚动 | specified | G5 |
+| `document.persistence` | 非 GEF 固定 API | 应用 serializer + 重建一致性门禁 | specified | G6 |
+| `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | G6+ |
+| `direct_edit` | DirectEditManager/Request | 文本编辑、IME、commit/cancel | deferred | G6+ |
+| `snap.guides` | SnapTo*/rulers/guides | grid/geometry/guide feedback | deferred | G6+ |
+| `palette` | PaletteRoot/Viewer/ToolEntry | 可选工具选择 UI，不属于核心闭环 | deferred | G6+ |
+| `tree.viewer` | TreeEditPart/TreeViewer | 非图形 viewer | rejected | - |
+| `workbench.integration` | Eclipse/JFace actions/properties | 由各平台产品集成替代 | rejected | - |
+
+## 核心语义
+
+### 三棵结构
+
+模型 containment、EditPart tree 和 FigureTree 是三套近似平行但身份独立的结构。
+Connection 是例外：它由 source/target part 发现，visual 放在 connection layer。
+
+### Targeting
+
+Viewer 使用通用 Figure hit-test，而不是只查 Figure event handler。命中内部 Figure
+后沿 ancestor 链查找首个已注册 visual owner；若没有 part，则回退到 contents。
+Handle targeting 必须先于普通 part targeting，并排除不相关 layer。
+
+### 命令
+
+Command 修改模型，不修改 EditPart/Figure。新 execute 清空 redo；undo/redo 产生模型
+通知并驱动同一 refresh 链路。Command history 不保存活 controller/view 句柄。
+
+### 输入
+
+Figure-native widget 和 Tool 必须共存。Figure 消费或 capture 后不再进入 Tool；Tool
+gesture 自身也必须保持 source/tracker 一致，直到 release/cancel。
+
+## 推进规则
+
+1. 每个 G milestone 必须列出受影响 Family ID。
+2. `specified -> partial` 需要公共 API 与至少一个自动契约测试。
+3. `partial -> verified` 需要失败路径、生命周期和端到端证据。
+4. 为 GEF 需求修改 Draw2D Core 时，必须新增明确 P2 delta，不能回写 M1-M10。
+5. `apps/native/editor-app` 的集成测试行为不计入本账本实现状态。

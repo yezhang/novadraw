@@ -1,0 +1,8 @@
+[package]
+name = "novadraw-editor"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+novadraw-geometry = { path = "../novadraw-geometry" }
+novadraw-scene = { path = "../novadraw-scene" }

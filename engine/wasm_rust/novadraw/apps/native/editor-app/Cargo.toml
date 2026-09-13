@@ -1,5 +1,5 @@
 [package]
-name = "editor"
+name = "editor-app"
 version.workspace = true
 edition.workspace = true
 

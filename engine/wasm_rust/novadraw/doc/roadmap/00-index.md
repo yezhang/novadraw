@@ -87,7 +87,9 @@ D0 路线图与证据校准
 
 - EditPart / EditPolicy / Tool / Command / Request / Viewer / Palette / Selection provider / Undo-redo command stack
 
-这些不在 draw2d 核心里程碑内。带"节点编辑器"性质的 demo 视为 GEF 层早期探索，详见 `demo-matrix.md` 附录。
+这些不在 draw2d 核心里程碑内。Draw2D Core 1.0 完成后，Editor 框架已进入独立
+[`G0-G6 路线图`](../07-gef-roadmap/00-index.md)。带"节点编辑器"性质的旧 demo
+仍只视为早期探索，不能作为 GEF milestone 的实现证据。
 
 ## 文档列表
 

@@ -10,7 +10,7 @@
 ## 1. 启动
 
 ```bash
-cargo run -p editor
+cargo run -p editor-app
 ```
 
 ## 2. 初始选择反馈

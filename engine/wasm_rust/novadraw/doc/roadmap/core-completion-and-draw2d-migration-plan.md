@@ -1254,6 +1254,10 @@ D4 完成后的固定收口顺序：
 满足这些条件后，才启动独立的 GEF roadmap，包括 EditPart、Viewer、Tool、Request、
 EditPolicy、Command、SelectionProvider 和 undo/redo command stack。
 
+上述条件已于 2026-09-13 满足。后续 Editor 实施状态迁移到
+[`../07-gef-roadmap/00-index.md`](../07-gef-roadmap/00-index.md)，本文不再追加
+GEF milestone。
+
 ## 11. 延后能力
 
 以下能力不阻塞 Draw2D Core 1.0：

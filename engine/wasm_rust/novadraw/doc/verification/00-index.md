@@ -43,6 +43,9 @@ Draw2D Core 1.0 的 Rust/Wasm/Headless/Native/Web 总审计、P0/P1 账本与 R9
 capability 消融结论见
 [`reviews/draw2d-core-1.0-final-audit-2026-09-13.md`](reviews/draw2d-core-1.0-final-audit-2026-09-13.md)。
 
+Draw2D Core 到独立 Editor/GEF 层的启动条件、源码证据、缺口分级与 crate 边界见
+[`reviews/gef-readiness-analysis-2026-09-13.md`](reviews/gef-readiness-analysis-2026-09-13.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

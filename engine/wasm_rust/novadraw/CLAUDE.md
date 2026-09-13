@@ -20,6 +20,7 @@ novadraw-math/     - 数学运算
 novadraw-geometry/ - 几何计算
 novadraw-render/   - 渲染抽象
 novadraw-scene/    - 场景图、Figure
+novadraw-editor/   - GEF 风格模型、控制器与编辑事务（G0 骨架）
 apps/native/       - winit/macOS/桌面应用
 apps/web/          - Wasm/浏览器应用
 apps/benchmarks/   - 无窗口性能基线
@@ -70,6 +71,8 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 | Novadraw 架构设计 | [doc/design/architecture/](doc/design/architecture/) |
 | Novadraw 坐标契约 | [doc/design/coordinates/](doc/design/coordinates/) |
 | 路线图（产品视图 + Demo 矩阵） | [doc/roadmap/](doc/roadmap/) |
+| Editor / GEF 架构 | [doc/design/editor/architecture.md](doc/design/editor/architecture.md) |
+| Editor / GEF 路线图 | [doc/07-gef-roadmap/00-index.md](doc/07-gef-roadmap/00-index.md) |
 
 ### Milestone 与路线图
 
@@ -85,7 +88,8 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 当前执行顺序已在 2026-09-13 M10 Web 等价验收后再次校准：M1-M10、
 D3.1-D3.4 与 D4.1-D4.6 已完成，最近一次长期架构审计的 A01-A08 已关闭。
 macOS/Web/Headless 总审计与 R9.4 capability 消融复查已通过，Draw2D Core 1.0
-完成。后续能力必须进入独立 GEF roadmap 或明确的 P2 delta。
+完成。Editor 框架已按 ADR-015 进入独立 G0-G6 roadmap，G0 架构与工程启动门禁已
+完成；Draw2D 后续能力必须进入明确的 P2 delta。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
 为准，旧 ADR-013 已替换。D4.3-D4.6 的组件接口、引用归属、生命周期、测量、

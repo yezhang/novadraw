@@ -398,7 +398,7 @@ cargo run -p transform-app
 ### 14.3 Editor
 
 ```bash
-cargo run -p editor
+cargo run -p editor-app
 ```
 
 1. 按 `0`：四个控制点分别贴合灰色矩形的四角。
@@ -512,7 +512,7 @@ cargo run -p border-app
 ### 15.4 Editor Selection Overlay
 
 ```bash
-cargo run -p editor
+cargo run -p editor-app
 ```
 
 1. 按 `1`：青色孙节点外显示黄色 selection outline，轮廓紧贴节点且不遮挡内容。
@@ -689,7 +689,7 @@ Windows/Linux 验证延期到对应跨平台应用开始开发、进入 CI 支�
 依次运行以下应用，确认启动、输入、场景切换、resize、最小化和恢复均正常：
 
 ```bash
-cargo run -p editor
+cargo run -p editor-app
 cargo run -p layout-app
 cargo run -p event-app
 cargo run -p update-app

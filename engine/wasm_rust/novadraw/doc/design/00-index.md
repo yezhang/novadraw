@@ -7,6 +7,7 @@
 
 - `architecture/`：组件职责、静态结构、动态时序和目录边界
 - `coordinates/`：坐标域、变换、命中、事件点与 damage 投影
+- `editor/`：模型、EditPart、Viewer、Tool、Request、Policy 与 Command
 - `input/`：平台无关输入与手势分发
 - `rendering/`：UpdateManager 与渲染提交协议；DisplayList 文件仅为 proposal
 
@@ -31,6 +32,7 @@
 14. [`architecture/derived-state-convergence.md`](architecture/derived-state-convergence.md)
 15. [`architecture/figure-lifecycle.md`](architecture/figure-lifecycle.md)
 16. [`architecture/tooltip-accessibility.md`](architecture/tooltip-accessibility.md)
+17. [`editor/architecture.md`](editor/architecture.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

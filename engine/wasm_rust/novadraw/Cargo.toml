@@ -7,10 +7,11 @@ members = [
   "novadraw-core",
   "novadraw-render",
   "novadraw-scene",
+  "novadraw-editor",
   "novadraw-apps",
   "novadraw-demo-scenes",
 
-  "apps/native/editor",
+  "apps/native/editor-app",
   "apps/native/vello-app",
   "apps/native/shape-app",
   "apps/native/style-app",
