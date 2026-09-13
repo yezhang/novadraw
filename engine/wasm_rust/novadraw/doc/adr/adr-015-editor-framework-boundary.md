@@ -58,8 +58,8 @@ selection、primary selection 和 EditPart focus 由 Viewer 拥有。它们不�
 `NodeState`、`InteractionState` 或具体 Figure。
 
 选择框、handle 和拖拽反馈使用独立 Figure layer 表达，通过 FigureTree 的规范坐标、
-命中和生命周期协议管理。现有 `apps/native/editor-app` 的单选与提交后命令描边只
-作为集成测试工具，不升级为框架实现。
+命中和生命周期协议管理。历史 Figure 级单选与提交后命令描边 probe 不属于框架实现，
+不作为 Editor 契约或迁移基础。
 
 ### 4. 单 crate 起步
 

@@ -91,4 +91,4 @@ gesture 自身也必须保持 source/tracker 一致，直到 release/cancel。
 2. `specified -> partial` 需要公共 API 与至少一个自动契约测试。
 3. `partial -> verified` 需要失败路径、生命周期和端到端证据。
 4. 为 GEF 需求修改 Draw2D Core 时，必须新增明确 P2 delta，不能回写 M1-M10。
-5. `apps/native/editor-app` 的集成测试行为不计入本账本实现状态。
+5. 独立 demo 或 probe 的应用行为不计入本账本实现状态。

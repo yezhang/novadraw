@@ -15,14 +15,15 @@
    `EditPartViewer`、`GraphicalViewerImpl`、`DomainEventDispatcher`、
    `EditPolicy`、`Tool`、`CommandStack` 和 root layer 实现。
 3. 对照 Draw2D API 账本、Core 1.0 最终审计、ADR-014 与当前 Rust public API。
-4. 抽查 `Runtime::tree()`、TreeSearch、运行期 mutation、LayeredPane 和
-   `apps/native/editor-app` selection 集成测试工具。
+4. 抽查 `Runtime::tree()`、TreeSearch、运行期 mutation、LayeredPane 和历史
+   Figure selection/input probe。
 5. 将发现分成 Draw2D Core 缺口、GEF 必需能力、可后置产品能力。
 
 ### 结论
 
 - Draw2D Core P0/P1 不存在阻塞 GEF 启动的未解释缺口。
-- 现有 editor app 只有 Figure 级单选和外置描边，不是 GEF 实现。
+- 历史 Figure selection/input probe 只有 Figure 级单选和外置描边，不是 GEF 实现，
+  已在 G3 启动后移除。
 - FigureTree 的通用 hit-test/ancestor query、Runtime mutation、Layer/Freeform、
   Viewport 和 Connection 足以承载首个 Editor 垂直切片。
 - Figure 与 Tool 的输入消费仲裁尚无公开 outcome，是 G1/G2 前必须验证的跨层边界。

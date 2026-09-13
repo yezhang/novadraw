@@ -25,7 +25,6 @@
 | Native | **event-app** | 输入事件 | 4 | `cargo run -p event-app` |
 | Native | **border-app** | Border 装饰器 | 5 | `cargo run -p border-app` |
 | Native | **update-app** | 更新生命周期 + 通知 | 4 | `cargo run -p update-app` |
-| Native | **editor-app** | Figure selection/input 集成测试工具，非 GEF 框架 | - | `cargo run -p editor-app` |
 | Native | **ndcanvas-app** | NdCanvas 底层 API | 8 | `cargo run -p ndcanvas-app` |
 | Native | **vello-app** | Vello 原始 API | 1 | `cargo run -p vello-app` |
 | Web | **web-validation** | 共享场景浏览器验证 | 73+ | `./scripts/build_web_validation.sh` |
@@ -78,7 +77,6 @@ novadraw/ (workspace)
 ├── novadraw-demo-scenes/ ← Native/Web 共用场景目录
 └── apps/
     ├── native/           ← winit/macOS/桌面宿主
-    │   ├── editor-app/
     │   ├── *-app/
     │   └── scroll-pane-demo/
     ├── web/

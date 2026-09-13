@@ -395,16 +395,10 @@ cargo run -p transform-app
 3. 按 `2`：移动父节点后，子节点保持相对位置，没有二次偏移。
 4. 按 `3`：点击红色目标的四角和中心，命中点与光标一致。
 
-### 14.3 Editor
+### 14.3 专项覆盖说明
 
-```bash
-cargo run -p editor-app
-```
-
-1. 按 `0`：四个控制点分别贴合灰色矩形的四角。
-2. 按 `1`、`2`：嵌套图形内部关系和尺寸一致；场景 2 为便于对照，整体位置刻意右移。
-3. 按 `5`，再按 `T`：父节点移动时后代整体移动，内部相对位置保持不变。
-4. 按 `9`：点击 DPI 探针中心和四边内侧，命中位置与光标一致。
+历史 Figure selection/input probe 已移除。图形树、变换、输入和 DPI 行为分别由
+`shape-app`、`transform-app` 与 `event-app` 的专项场景验证。
 
 ### 14.4 Viewport
 
@@ -509,19 +503,7 @@ cargo run -p border-app
 4. `MarginBorder`：边距递增，四边间距一致。
 5. `Stroke vs Border`：stroke、border 和组合三组没有错位、覆盖或异常裁剪。
 
-### 15.4 Editor Selection Overlay
-
-```bash
-cargo run -p editor-app
-```
-
-1. 按 `1`：青色孙节点外显示黄色 selection outline，轮廓紧贴节点且不遮挡内容。
-2. 按 `2`：透明根下的同尺寸孙节点显示相同 outline，无额外坐标偏移。
-3. 按 `5`：记录 outline 位置，连续按 `T`；图元与 outline 同步移动，旧位置无残影。
-4. 按 `9`：点击蓝色探针内部，出现黄色 outline；拖出图元后释放，outline 不偏移。
-5. 在 `1`、`2`、`5`、`9` 间切换，上一场景的选择状态不得泄漏到新场景。
-
-### 15.5 验收回复
+### 15.4 验收回复
 
 ```text
 R4: PASS
@@ -677,7 +659,7 @@ Windows/Linux 验证延期到对应跨平台应用开始开发、进入 CI 支�
 2. **目标平台基础输入验证**：在目标平台实机或 CI runner 上启动
    `event-app` 和至少一个图形 demo，验证窗口创建、Pointer、Wheel、Keyboard、resize
    与 Full damage。
-3. **发布前图形验收**：在真实目标机器及原生 GPU 驱动上运行 editor、
+3. **发布前图形验收**：在真实目标机器及原生 GPU 驱动上运行 `event-app`、
    `update-app`、`viewport-app` 和 `scroll-pane-demo`，覆盖 resize、DPI 缩放、最小化/
    恢复与 WebGPU/Vello 渲染。虚拟机可用于辅助人工检查，但不能替代此项验收。
 
@@ -689,7 +671,6 @@ Windows/Linux 验证延期到对应跨平台应用开始开发、进入 CI 支�
 依次运行以下应用，确认启动、输入、场景切换、resize、最小化和恢复均正常：
 
 ```bash
-cargo run -p editor-app
 cargo run -p layout-app
 cargo run -p event-app
 cargo run -p update-app
@@ -699,12 +680,9 @@ cargo run -p scroll-pane-demo
 
 重点检查：
 
-1. editor 左右方向键和 `PageUp`/`PageDown` 可循环切换场景；
-2. editor 场景 5 连续按 `T`，图形向右下移动且旧位置不留轨迹；
-3. editor 的点击、拖拽、hover 和键盘输入行为不变；
-4. 所有应用 resize 后首帧完整，无旧帧拉伸、残影、透明帧或黑帧；
-5. 最小化后恢复会产生 Full damage；
-6. `update-app` 按 `U` 切换增量与全量路径时画面一致。
+1. 所有应用 resize 后首帧完整，无旧帧拉伸、残影、透明帧或黑帧；
+2. 最小化后恢复会产生 Full damage；
+3. `update-app` 按 `U` 切换增量与全量路径时画面一致。
 
 ### 18.3 Event App Focus / Keyboard
 

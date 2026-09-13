@@ -585,7 +585,7 @@ Novadraw 对照：
 Novadraw 对照：
 
 - hit-test traversal 是引擎通用机制。
-- event target/source 点转换不能下放到 editor app。
+- event target/source 点转换不能下放到应用层。
 
 建议 probes：
 

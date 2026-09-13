@@ -46,7 +46,7 @@ Novadraw 基线：`0db62ea`
 - `FigureTree` search/ancestor query；
 - `Runtime` update-aware mutation；
 - Layer/Freeform、Viewport 和 Connection Runtime；
-- `apps/native/editor-app` selection/input/feedback 实现。
+- 当时尚存的 Figure selection/input/feedback probe。
 
 ## 3. 外部语义结论
 
@@ -127,9 +127,9 @@ Core 1.0 最终审计确认 M1-M10、P0/P1 和 ADR-014 门禁完成。当前 HEA
 - create/move/resize/delete/reconnect；
 - undo/redo、save/load。
 
-`apps/native/editor-app` 只保存 `Option<FigureId>` 单选，直接从
+该历史 probe 只保存 `Option<FigureId>` 单选，直接从
 `find_mouse_event_target_at` 选择 Figure，并在 RenderSubmission 后追加描边命令。
-它验证了 selection 外移和坐标链，但不具备上述框架语义。
+它不具备上述框架语义，已在 G3 启动后移除。
 
 ## 7. 必须先解决的跨层问题
 
@@ -164,7 +164,8 @@ Core 1.0 最终审计确认 M1-M10、P0/P1 和 ADR-014 门禁完成。当前 HEA
 - 规范设计：`doc/design/editor/architecture.md`；
 - 语义账本：`doc/parity/gef/api-coverage.md`；
 - 首个产品入口：`apps/native/node-editor-demo`；
-- 当前 `apps/native/editor-app` 保留为集成测试工具，后续由正式 demo 取代；
+- 不保留旧 Figure selection/input probe；正式产品验证由
+  `apps/native/node-editor-demo` 承担；
 - G0-G4 保持单 crate，不提前拆包。
 
 关键决策由
