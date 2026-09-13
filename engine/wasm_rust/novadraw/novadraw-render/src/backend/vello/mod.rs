@@ -102,17 +102,13 @@ fn set_macos_transactional_present(surface: &vello::wgpu::Surface<'_>, enabled: 
         .setPresentsWithTransaction(enabled);
 }
 
-fn scratch_base_rgba(full_damage: bool) -> [f32; 4] {
-    if full_damage {
-        [
-            DEFAULT_BACKGROUND_COMPONENT as f32,
-            DEFAULT_BACKGROUND_COMPONENT as f32,
-            DEFAULT_BACKGROUND_COMPONENT as f32,
-            1.0,
-        ]
-    } else {
-        [0.0, 0.0, 0.0, 0.0]
-    }
+fn scratch_base_rgba() -> [f32; 4] {
+    [
+        DEFAULT_BACKGROUND_COMPONENT as f32,
+        DEFAULT_BACKGROUND_COMPONENT as f32,
+        DEFAULT_BACKGROUND_COMPONENT as f32,
+        1.0,
+    ]
 }
 
 fn append_glyph_run(
@@ -1192,7 +1188,7 @@ impl RenderBackend for VelloRenderer {
         };
 
         let device_handle = &self.render_context.devices[self.surface.dev_id];
-        let base_color = VelloColor::new(scratch_base_rgba(damage.is_full()));
+        let base_color = VelloColor::new(scratch_base_rgba());
 
         // 先把当前帧的脏区内容渲染到临时纹理，脏区外保持透明
         self.renderers[self.surface.dev_id]
@@ -1350,7 +1346,7 @@ impl VelloRenderer {
                 &self.scene,
                 &retained_view,
                 &vello::RenderParams {
-                    base_color: VelloColor::new(scratch_base_rgba(true)),
+                    base_color: VelloColor::new(scratch_base_rgba()),
                     width,
                     height,
                     antialiasing_method: AaConfig::Msaa16,
@@ -1619,9 +1615,9 @@ mod tests {
     }
 
     #[test]
-    fn full_damage_uses_opaque_background_while_partial_damage_stays_transparent() {
+    fn scratch_uses_opaque_background_for_direct_retained_copy() {
         assert_eq!(
-            scratch_base_rgba(true),
+            scratch_base_rgba(),
             [
                 DEFAULT_BACKGROUND_COMPONENT as f32,
                 DEFAULT_BACKGROUND_COMPONENT as f32,
@@ -1629,7 +1625,6 @@ mod tests {
                 1.0,
             ]
         );
-        assert_eq!(scratch_base_rgba(false), [0.0, 0.0, 0.0, 0.0]);
     }
 
     #[test]
