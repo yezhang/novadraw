@@ -1,8 +1,8 @@
 //! Model-driven editing framework built on Novadraw's Figure runtime.
 //!
 //! G1 provides application model identity/notification boundaries and model-only command history.
-//! Later milestones add EditPart, Viewer, Tool, Request, Policy, and feedback behavior without
-//! moving application state into the Figure runtime.
+//! G2 adds EditPart topology and model-to-Figure projection without moving application state into
+//! the Figure runtime.
 
 #![deny(missing_docs)]
 
@@ -21,3 +21,8 @@ pub use command::{
     CommandStackEventKind, CompoundCommand,
 };
 pub use model::{ModelAdapter, ModelEvent, ModelRevision, ModelRevisionError};
+pub use part::{
+    EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
+    PartFactoryContext, PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
+};
+pub use viewer::{GraphicalViewer, ViewerError};

@@ -11,6 +11,7 @@ enum DiagramEvent {
 }
 
 struct DiagramAdapter {
+    revision: ModelRevision,
     events: Vec<ModelEvent<NodeId, DiagramEvent>>,
 }
 
@@ -21,6 +22,10 @@ impl ModelAdapter for DiagramAdapter {
 
     fn root(&self) -> Self::ModelId {
         NodeId(1)
+    }
+
+    fn revision(&self) -> ModelRevision {
+        self.revision
     }
 
     fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error> {
@@ -53,10 +58,12 @@ fn model_revision_rejects_zero_and_advances_without_wrapping() {
 fn model_adapter_exposes_stable_identity_children_and_ordered_events() {
     let first = ModelEvent::new(ModelRevision::initial(), NodeId(2), DiagramEvent::Renamed);
     let mut adapter = DiagramAdapter {
+        revision: ModelRevision::initial(),
         events: vec![first],
     };
 
     assert_eq!(adapter.root(), NodeId(1));
+    assert_eq!(adapter.revision(), ModelRevision::initial());
     assert_eq!(
         adapter.children(NodeId(1)).unwrap(),
         vec![NodeId(2), NodeId(3)]

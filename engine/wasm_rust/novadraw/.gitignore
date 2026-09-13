@@ -5,6 +5,7 @@ screenshot/
 # Build outputs
 target/
 apps/web/web-validation/dist/
+**/*.profraw
 
 # Runtime logs
 log/

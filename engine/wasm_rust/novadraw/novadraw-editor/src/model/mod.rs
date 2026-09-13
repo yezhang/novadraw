@@ -114,6 +114,9 @@ pub trait ModelAdapter {
     /// Returns the root model object projected by a Viewer.
     fn root(&self) -> Self::ModelId;
 
+    /// Returns the latest stable model revision represented by model queries.
+    fn revision(&self) -> ModelRevision;
+
     /// Returns direct model children in stable display order.
     fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error>;
 
