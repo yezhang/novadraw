@@ -57,8 +57,9 @@
 - 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
   Core 1.0 完成。Editor 框架已按 ADR-015 进入独立 G0-G6 roadmap，G0 架构启动与
   G1 Model Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
-  Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy 与 G5.1
-  Connection Projection 已完成，检查点 B 已通过人工验收；G5.2 是下一执行切片。
+  Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
+  Connection Projection 与 G5.2 Connection Creation 已完成，检查点 B 已通过人工验收；
+  G5.3 是下一执行切片。
   Draw2D 后续能力必须进入明确的 P2 delta。
 - 2026-09-10 架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
   为准；ADR-013 已替换。D4.3-D4.6 门禁已完成，新设计不等于已实现。
@@ -90,7 +91,7 @@
 - **渲染**: Vello (WebGPU)
 - **构建**: `cargo build && cargo test`
 - **模块**: `novadraw-core`, `novadraw-scene`, `novadraw-render`, `novadraw-math`,
-  `novadraw-editor`（G5.1 已完成，G5.2 待启动）
+  `novadraw-editor`（G5.2 已完成，G5.3 待启动）
 
 ## 交互方式原则（摘要）
 

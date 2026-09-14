@@ -74,7 +74,7 @@ pub use novadraw_scene::{
     TreeSearchContext, TriangleFigure, UnresolvedConnection, UpdateEvent, UpdateListener,
     UpdateManager, ValidatingListener, ValidationError, ViewportError, ViewportFigure,
     ViewportHandle, ViewportLayout, WheelEvent, WidgetError, XYAnchor, XYConstraint, XYLayout,
-    ZoomEvent, ZoomManager, ZoomScrollPolicy, place_tooltip,
+    ZoomEvent, ZoomManager, ZoomScrollPolicy, place_tooltip, rectangle_boundary_site,
 };
 
 pub mod border {

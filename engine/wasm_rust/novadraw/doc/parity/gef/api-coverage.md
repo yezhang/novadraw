@@ -51,7 +51,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
 | `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/G6+ |
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation，并绑定 Connection Runtime | verified | G5 |
-| `connection.create` | CreateConnectionRequest | start/end 两阶段请求和反馈 | specified | G5 |
+| `connection.create` | CreateConnectionRequest | source-locked start/end 两阶段 Tool、反馈、模型 Command 与 undo/redo | verified | G5 |
 | `connection.reconnect` | ReconnectRequest | source/target 重连、合法性和 undo | specified | G5 |
 | `viewport.autoexpose` | AutoexposeHelper | 拖拽期间 Viewport 自动滚动 | specified | G5 |
 | `document.persistence` | 非 GEF 固定 API | 应用 serializer + 重建一致性门禁 | specified | G6 |

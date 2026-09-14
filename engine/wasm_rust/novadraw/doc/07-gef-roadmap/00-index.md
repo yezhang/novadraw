@@ -175,19 +175,27 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 - [x] 完成 G5.1 身份、顺序、事务、失败与生命周期设计复核；
 - [x] 用户批准并冻结 G5.1 契约；
 - [x] 实现 existing connection projection 与 17 项自动契约；
-- [ ] 实现 create/reconnect/bendpoint；
+- [x] 实现 G5.2 两阶段 connection create 与 10 项自动契约；
+- [ ] 实现 reconnect/bendpoint；
 - [ ] 实现 viewport/zoom feedback 与 drag auto-expose；
 - [ ] 检查点 C 人工验收。
 
 设计评审入口：
 
 - `doc/reference/gef/connection-editing.md`；
-- `doc/design/editor/g5-connection-projection.md`。
+- `doc/design/editor/g5-connection-projection.md`；
+- `doc/design/editor/g5-connection-creation.md`。
 
 G5.1 自动验证入口：
 
 - `novadraw-editor/tests/g5_connection_projection_contract.rs`；
 - `doc/verification/reviews/g5-connection-projection-design-2026-09-14.md`。
+
+G5.2 自动与人工验证入口：
+
+- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
+- `doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md`；
+- `doc/verification/manual/g5-connection-creation.md`。
 
 ## 最小毕业场景
 

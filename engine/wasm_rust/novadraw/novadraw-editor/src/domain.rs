@@ -6,9 +6,9 @@ use novadraw_geometry::Point;
 use novadraw_scene::{DispatchOutcome, KeyModifiers, MouseButton};
 
 use crate::{
-    CommandStack, CommandStackError, EditPartFactory, EditorRequest, GraphicalViewer,
-    InteractionRevision, InteractionRevisionError, ModelAdapter, SelectionTool, ToolError,
-    ViewerError, ViewerInputOutcome,
+    CommandStack, CommandStackError, ConnectionCreationTool, CreationType, EditPartFactory,
+    EditorRequest, GraphicalViewer, InteractionRevision, InteractionRevisionError, ModelAdapter,
+    SelectionTool, ToolError, ViewerError, ViewerInputOutcome,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -94,24 +94,26 @@ impl DomainPointerRelease {
 }
 
 /// Owns one active Tool and the command history shared by an editor session.
-pub struct EditorDomain<A> {
+pub struct EditorDomain<A: ModelAdapter> {
     command_stack: CommandStack<A>,
     selection_tool: SelectionTool,
+    connection_tool: Option<ConnectionCreationTool<A>>,
     next_revision: InteractionRevision,
 }
 
-impl<A> Default for EditorDomain<A> {
+impl<A: ModelAdapter> Default for EditorDomain<A> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<A> EditorDomain<A> {
+impl<A: ModelAdapter> EditorDomain<A> {
     /// Creates a domain with an unlimited command history and SelectionTool active.
     pub fn new() -> Self {
         Self {
             command_stack: CommandStack::new(),
             selection_tool: SelectionTool::new(),
+            connection_tool: None,
             next_revision: InteractionRevision::initial(),
         }
     }
@@ -124,6 +126,15 @@ impl<A> EditorDomain<A> {
     /// Returns whether the active Tool owns a pointer gesture.
     pub const fn has_active_gesture(&self) -> bool {
         self.selection_tool.is_active()
+            || match &self.connection_tool {
+                Some(tool) => tool.is_started(),
+                None => false,
+            }
+    }
+
+    /// Returns whether the one-shot connection-creation Tool is armed.
+    pub const fn is_connection_creation_active(&self) -> bool {
+        self.connection_tool.is_some()
     }
 
     /// Allocates the next request revision.
@@ -138,6 +149,23 @@ impl<A> EditorDomain<A>
 where
     A: ModelAdapter + 'static,
 {
+    /// Cancels the current gesture and arms one connection-creation Tool.
+    pub fn activate_connection_creation<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        connection_type: CreationType,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        self.selection_tool.cancel(viewer)?;
+        if let Some(tool) = &mut self.connection_tool {
+            tool.cancel(viewer)?;
+        }
+        self.connection_tool = Some(ConnectionCreationTool::new(connection_type));
+        Ok(())
+    }
+
     /// Executes a policy-resolved Request and refreshes the model projection.
     pub fn execute_request<F>(
         &mut self,
@@ -147,6 +175,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.cancel_active_tools(viewer)?;
         let command = viewer
             .command_for_request(request)?
             .ok_or(EditorDomainError::NoCommand)?;
@@ -160,6 +189,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.cancel_active_tools(viewer)?;
         self.command_stack.undo(viewer.model_mut())?;
         viewer.refresh()?;
         Ok(())
@@ -170,6 +200,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.cancel_active_tools(viewer)?;
         self.command_stack.redo(viewer.model_mut())?;
         viewer.refresh()?;
         Ok(())
@@ -186,6 +217,21 @@ where
     where
         F: EditPartFactory<A>,
     {
+        if let Some(tool) = &mut self.connection_tool {
+            let revision = self.next_revision;
+            self.next_revision = revision.next()?;
+            let press = tool.pointer_pressed(viewer, location, button, modifiers, revision)?;
+            let completed = press.completed();
+            let (outcome, command) = press.into_parts();
+            if completed {
+                self.connection_tool = None;
+            }
+            if let Some(command) = command {
+                self.command_stack.execute(viewer.model_mut(), command)?;
+                viewer.refresh()?;
+            }
+            return Ok(outcome);
+        }
         Ok(self
             .selection_tool
             .pointer_pressed(viewer, location, button, modifiers)?)
@@ -201,6 +247,9 @@ where
         F: EditPartFactory<A>,
     {
         let revision = self.next_interaction_revision()?;
+        if let Some(tool) = &mut self.connection_tool {
+            return Ok(tool.pointer_moved(viewer, location, revision)?);
+        }
         Ok(self
             .selection_tool
             .pointer_moved(viewer, location, revision)?)
@@ -216,6 +265,12 @@ where
     where
         F: EditPartFactory<A>,
     {
+        if let Some(tool) = &mut self.connection_tool {
+            return Ok(DomainPointerRelease {
+                dispatch: tool.pointer_released(viewer, location, button),
+                command_executed: false,
+            });
+        }
         let revision = self.next_interaction_revision()?;
         let release = self
             .selection_tool
@@ -242,7 +297,21 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.cancel_active_tools(viewer)
+    }
+
+    fn cancel_active_tools<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
         self.selection_tool.cancel(viewer)?;
+        if let Some(tool) = &mut self.connection_tool {
+            tool.cancel(viewer)?;
+        }
+        self.connection_tool = None;
         Ok(())
     }
 }

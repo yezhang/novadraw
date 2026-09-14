@@ -1,16 +1,18 @@
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use novadraw::{
-    BuiltinFont, Color, Figure, KeyModifiers, MouseButton, PlatformHost, Point, Rectangle,
-    RectangleFigure, RenderBackend, RenderOutcome, RootFigure, backend::vello::VelloRenderer,
+    BuiltinFont, Color, ConnectionFigure, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
+    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure,
+    backend::vello::VelloRenderer, rectangle_boundary_site,
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
-    Command, CommandError, CreateRequest, CreationType, DeleteRequest, EditPartBehavior,
+    Command, CommandError, ConnectionCreation, ConnectionPartFactoryContext,
+    CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest, EditPartBehavior,
     EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual,
-    GraphicalViewer, HandleRole, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
-    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers, ResizeDirection,
-    VisualUpdateContext,
+    GraphicalViewer, HandleRole, ModelAdapter, ModelConnection, ModelEvent, ModelRevision,
+    PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers,
+    ResizeDirection, VisualUpdateContext,
 };
 use winit::{
     application::ApplicationHandler,
@@ -28,6 +30,7 @@ const MIN_NODE_SIZE: f64 = 32.0;
 const CREATED_NODE_WIDTH: f64 = 140.0;
 const CREATED_NODE_HEIGHT: f64 = 90.0;
 const CREATED_NODE_OFFSET: f64 = 18.0;
+const FIRST_CONNECTION_ID: u64 = 1_000;
 const PRIMARY_HANDLE_COLOR: Color = Color {
     r: 0.98,
     g: 0.78,
@@ -67,8 +70,10 @@ struct DemoModel {
     revision: ModelRevision,
     nodes: HashMap<NodeId, Node>,
     children: HashMap<NodeId, Vec<NodeId>>,
+    connections: Vec<ModelConnection<NodeId>>,
     events: Vec<ModelEvent<NodeId, DemoEvent>>,
     next_id: u64,
+    next_connection_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,8 +116,10 @@ impl DemoModel {
                 ),
             ]),
             children: HashMap::from([(NodeId(1), vec![NodeId(2), NodeId(3), NodeId(4)])]),
+            connections: Vec::new(),
             events: Vec::new(),
             next_id: 5,
+            next_connection_id: FIRST_CONNECTION_ID,
         }
     }
 
@@ -143,7 +150,7 @@ impl DemoModel {
         self.publish(NodeId(1));
     }
 
-    fn remove(&mut self, id: NodeId) -> (Node, usize) {
+    fn remove(&mut self, id: NodeId) -> RemovedNode {
         let children = self
             .children
             .get_mut(&NodeId(1))
@@ -154,9 +161,51 @@ impl DemoModel {
             .expect("delete command references a canvas child");
         children.remove(index);
         let node = self.nodes.remove(&id).expect("deleted node exists");
+        let mut connections = Vec::new();
+        for (connection_index, connection) in self.connections.iter().copied().enumerate() {
+            if connection.source() == id || connection.target() == id {
+                connections.push((connection_index, connection));
+            }
+        }
+        self.connections
+            .retain(|connection| connection.source() != id && connection.target() != id);
         self.publish(NodeId(1));
-        (node, index)
+        RemovedNode {
+            node,
+            index,
+            connections,
+        }
     }
+
+    fn restore(&mut self, id: NodeId, removed: RemovedNode) {
+        self.insert(id, removed.node, removed.index);
+        for (index, connection) in removed.connections {
+            self.connections.insert(index, connection);
+        }
+    }
+
+    fn insert_connection(&mut self, connection: ModelConnection<NodeId>, index: usize) {
+        self.connections.insert(index, connection);
+        self.next_connection_id = self.next_connection_id.max(connection.id().0 + 1);
+        self.publish(connection.id());
+    }
+
+    fn remove_connection(&mut self, id: NodeId) -> (ModelConnection<NodeId>, usize) {
+        let index = self
+            .connections
+            .iter()
+            .position(|connection| connection.id() == id)
+            .expect("connection command references a live connection");
+        let connection = self.connections.remove(index);
+        self.publish(id);
+        (connection, index)
+    }
+}
+
+struct RemovedNode {
+    node: Node,
+    index: usize,
+    connections: Vec<(usize, ModelConnection<NodeId>)>,
 }
 
 impl ModelAdapter for DemoModel {
@@ -174,6 +223,10 @@ impl ModelAdapter for DemoModel {
 
     fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error> {
         Ok(self.children.get(&model).cloned().unwrap_or_default())
+    }
+
+    fn connections(&self) -> Result<Vec<ModelConnection<Self::ModelId>>, Self::Error> {
+        Ok(self.connections.clone())
     }
 
     fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>> {
@@ -224,14 +277,14 @@ impl Command<DemoModel> for CreateNodeCommand {
     }
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        model.remove(self.id);
+        let _ = model.remove(self.id);
         Ok(())
     }
 }
 
 struct DeleteNodeCommand {
     id: NodeId,
-    removed: Option<(Node, usize)>,
+    removed: Option<RemovedNode>,
 }
 
 impl Command<DemoModel> for DeleteNodeCommand {
@@ -245,16 +298,161 @@ impl Command<DemoModel> for DeleteNodeCommand {
     }
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        let (node, index) = self
+        let removed = self
             .removed
             .take()
             .ok_or_else(|| CommandError::state_unknown("deleted node snapshot is missing"))?;
-        model.insert(self.id, node, index);
+        model.restore(self.id, removed);
         Ok(())
     }
 
     fn redo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
         self.execute(model)
+    }
+}
+
+struct CreateConnectionCommand {
+    connection: ModelConnection<NodeId>,
+    index: usize,
+}
+
+impl Command<DemoModel> for CreateConnectionCommand {
+    fn label(&self) -> &str {
+        "Create connection"
+    }
+
+    fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.insert_connection(self.connection, self.index);
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        let (connection, index) = model.remove_connection(self.connection.id());
+        if connection != self.connection || index != self.index {
+            return Err(CommandError::state_unknown(
+                "connection identity or order changed during undo",
+            ));
+        }
+        Ok(())
+    }
+}
+
+struct DeleteConnectionCommand {
+    id: NodeId,
+    removed: Option<(ModelConnection<NodeId>, usize)>,
+}
+
+impl Command<DemoModel> for DeleteConnectionCommand {
+    fn label(&self) -> &str {
+        "Delete connection"
+    }
+
+    fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        self.removed = Some(model.remove_connection(self.id));
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        let (connection, index) = self
+            .removed
+            .take()
+            .ok_or_else(|| CommandError::state_unknown("deleted connection snapshot is missing"))?;
+        model.insert_connection(connection, index);
+        Ok(())
+    }
+}
+
+struct DemoConnectionCreation {
+    source: NodeId,
+}
+
+impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
+    fn can_complete(
+        &self,
+        source: PolicyHost<NodeId>,
+        target: PolicyHost<NodeId>,
+        request: &CreateConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<bool, PolicyError> {
+        let source_is_shape = model
+            .nodes
+            .get(&source.model())
+            .is_some_and(|node| matches!(node.kind, NodeKind::Shape(_)));
+        let target_is_shape = model
+            .nodes
+            .get(&target.model())
+            .is_some_and(|node| matches!(node.kind, NodeKind::Shape(_)));
+        Ok(source.model() == self.source
+            && request.connection_type().as_str() == "connection"
+            && source_is_shape
+            && target_is_shape
+            && !model.connections.iter().any(|connection| {
+                connection.source() == source.model() && connection.target() == target.model()
+            }))
+    }
+
+    fn feedback(
+        &mut self,
+        source: PolicyHost<NodeId>,
+        target: Option<PolicyHost<NodeId>>,
+        request: &CreateConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let source_bounds = model.nodes[&source.model()].bounds;
+        let source_center = Point::new(
+            source_bounds.x + source_bounds.width / 2.0,
+            source_bounds.y + source_bounds.height / 2.0,
+        );
+        let reference = target.map_or(request.location(), |target| {
+            let bounds = model.nodes[&target.model()].bounds;
+            Point::new(
+                bounds.x + bounds.width / 2.0,
+                bounds.y + bounds.height / 2.0,
+            )
+        });
+        let source_point = rectangle_boundary_site(source_bounds, reference).point;
+        let target_point = target.map_or(request.location(), |target| {
+            rectangle_boundary_site(model.nodes[&target.model()].bounds, source_center).point
+        });
+        let line = PolylineFigure::new_with_color(
+            source_point.x(),
+            source_point.y(),
+            target_point.x(),
+            target_point.y(),
+            FEEDBACK_COLOR,
+        )
+        .with_width(3.0);
+        let mut feedback = vec![FeedbackVisual::scaled(Box::new(line))];
+        if let Some(target) = target {
+            let bounds = model.nodes[&target.model()].bounds;
+            let highlight = RectangleFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                Color::TRANSPARENT,
+            )
+            .with_stroke(FEEDBACK_COLOR, 3.0);
+            feedback.push(FeedbackVisual::scaled(Box::new(highlight)));
+        }
+        Ok(feedback)
+    }
+
+    fn command(
+        &mut self,
+        source: PolicyHost<NodeId>,
+        target: PolicyHost<NodeId>,
+        _request: &CreateConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<Box<dyn Command<DemoModel>>, PolicyError> {
+        Ok(Box::new(CreateConnectionCommand {
+            connection: ModelConnection::new(
+                NodeId(model.next_connection_id),
+                source.model(),
+                target.model(),
+            ),
+            index: model.connections.len(),
+        }))
     }
 }
 
@@ -304,7 +502,7 @@ impl EditPolicy<DemoModel> for NodePolicy {
                     removed: None,
                 })))
             }
-            EditorRequest::Create(_) => Ok(None),
+            EditorRequest::Create(_) | EditorRequest::CreateConnection(_) => Ok(None),
         }
     }
 
@@ -327,6 +525,42 @@ impl EditPolicy<DemoModel> for NodePolicy {
         )
         .with_stroke(FEEDBACK_COLOR, 2.0);
         Ok(vec![FeedbackVisual::scaled(Box::new(feedback))])
+    }
+}
+
+struct ConnectionPolicy;
+
+impl EditPolicy<DemoModel> for ConnectionPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::CreateConnection(_))
+    }
+
+    fn command(
+        &mut self,
+        _host: PolicyHost<NodeId>,
+        _request: &EditorRequest,
+        _model: &DemoModel,
+    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
+        Ok(None)
+    }
+
+    fn start_connection(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        request: &CreateConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<Option<Box<dyn ConnectionCreation<DemoModel>>>, PolicyError> {
+        let is_shape = model
+            .nodes
+            .get(&host.model())
+            .is_some_and(|node| matches!(node.kind, NodeKind::Shape(_)));
+        Ok(
+            (is_shape && request.connection_type().as_str() == "connection").then(|| {
+                Box::new(DemoConnectionCreation {
+                    source: host.model(),
+                }) as Box<dyn ConnectionCreation<DemoModel>>
+            }),
+        )
     }
 }
 
@@ -411,10 +645,69 @@ impl EditPartBehavior<DemoModel> for DemoPart {
     ) -> Result<Vec<PolicyInstallation<DemoModel>>, EditPartError> {
         Ok(match model.nodes[&model_id].kind {
             NodeKind::Canvas => vec![(PolicyRole::Layout, Box::new(CanvasPolicy))],
-            NodeKind::Shape(_) | NodeKind::Widget => {
-                vec![(PolicyRole::Component, Box::new(NodePolicy))]
-            }
+            NodeKind::Shape(_) => vec![
+                (PolicyRole::Component, Box::new(NodePolicy)),
+                (PolicyRole::ConnectionCreation, Box::new(ConnectionPolicy)),
+            ],
+            NodeKind::Widget => vec![(PolicyRole::Component, Box::new(NodePolicy))],
         })
+    }
+}
+
+struct DemoConnectionPart;
+
+struct ConnectionDeletePolicy;
+
+impl EditPolicy<DemoModel> for ConnectionDeletePolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::Delete(_))
+    }
+
+    fn command(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        request: &EditorRequest,
+        model: &DemoModel,
+    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
+        if !matches!(request, EditorRequest::Delete(_)) {
+            return Ok(None);
+        }
+        if !model
+            .connections
+            .iter()
+            .any(|connection| connection.id() == host.model())
+        {
+            return Err(PolicyError::operation(
+                "connection delete target no longer exists",
+            ));
+        }
+        Ok(Some(Box::new(DeleteConnectionCommand {
+            id: host.model(),
+            removed: None,
+        })))
+    }
+}
+
+impl EditPartBehavior<DemoModel> for DemoConnectionPart {
+    fn create_figure(
+        &mut self,
+        _model: &DemoModel,
+        _model_id: NodeId,
+    ) -> Result<Box<dyn Figure>, EditPartError> {
+        Ok(Box::new(
+            ConnectionFigure::new().with_stroke(Color::hex("#34495E"), 3.0),
+        ))
+    }
+
+    fn create_policies(
+        &mut self,
+        _model: &DemoModel,
+        _model_id: NodeId,
+    ) -> Result<Vec<PolicyInstallation<DemoModel>>, EditPartError> {
+        Ok(vec![(
+            PolicyRole::Component,
+            Box::new(ConnectionDeletePolicy),
+        )])
     }
 }
 
@@ -427,6 +720,14 @@ impl EditPartFactory<DemoModel> for DemoFactory {
         _model: &DemoModel,
     ) -> Result<Box<dyn EditPartBehavior<DemoModel>>, EditPartError> {
         Ok(Box::new(DemoPart))
+    }
+
+    fn create_connection(
+        &mut self,
+        _context: ConnectionPartFactoryContext<NodeId>,
+        _model: &DemoModel,
+    ) -> Result<Box<dyn EditPartBehavior<DemoModel>>, EditPartError> {
+        Ok(Box::new(DemoConnectionPart))
     }
 }
 
@@ -572,11 +873,30 @@ impl DemoApp {
             return;
         };
         window.set_title(&format!(
-            "Novadraw Node Editor - {} selected | undo {} redo {}",
+            "Novadraw Node Editor - {} selected | undo {} redo {}{}",
             viewer.selection().items().len(),
             self.domain.command_stack().undo_len(),
             self.domain.command_stack().redo_len(),
+            if self.domain.is_connection_creation_active() {
+                " | CONNECTION"
+            } else {
+                ""
+            },
         ));
+    }
+
+    fn activate_connection_creation(&mut self) {
+        let Some(viewer) = &mut self.viewer else {
+            return;
+        };
+        self.domain
+            .activate_connection_creation(
+                viewer,
+                CreationType::new("connection").expect("static connection type is valid"),
+            )
+            .expect("connection creation Tool must activate");
+        self.update_title();
+        self.request_redraw();
     }
 
     fn create_node(&mut self) {
@@ -621,9 +941,11 @@ impl DemoApp {
                 .next_interaction_revision()
                 .expect("interaction revision must remain available"),
         ));
-        self.domain
-            .execute_request(viewer, &request)
-            .expect("delete request must execute");
+        let result = self.domain.execute_request(viewer, &request);
+        if let Err(error) = result {
+            eprintln!("delete request rejected: {error}");
+            return;
+        }
         self.update_title();
         self.request_redraw();
     }
@@ -754,16 +1076,18 @@ impl ApplicationHandler<()> for DemoApp {
                 if let Some(viewer) = &mut self.viewer {
                     match state {
                         ElementState::Pressed => {
-                            let changed = self
-                                .domain
-                                .pointer_pressed(
-                                    viewer,
-                                    Point::new(x / scale, y / scale),
-                                    button,
-                                    self.modifiers,
-                                )
-                                .map(|outcome| outcome.selection().is_some())
-                                .unwrap_or(false);
+                            let changed = match self.domain.pointer_pressed(
+                                viewer,
+                                Point::new(x / scale, y / scale),
+                                button,
+                                self.modifiers,
+                            ) {
+                                Ok(outcome) => outcome.selection().is_some(),
+                                Err(error) => {
+                                    eprintln!("editor gesture rejected: {error}");
+                                    false
+                                }
+                            };
                             if changed {
                                 self.sync_selection_handles();
                                 self.update_title();
@@ -811,6 +1135,11 @@ impl ApplicationHandler<()> for DemoApp {
                     {
                         self.create_node();
                     }
+                    PhysicalKey::Code(KeyCode::KeyC)
+                        if !self.modifiers.control && !self.modifiers.meta =>
+                    {
+                        self.activate_connection_creation();
+                    }
                     PhysicalKey::Code(KeyCode::KeyZ)
                         if self.modifiers.control || self.modifiers.meta =>
                     {
@@ -853,10 +1182,12 @@ impl ApplicationHandler<()> for DemoApp {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("G4 manual validation:");
+    println!("G5.2 manual validation:");
     println!("  drag a selected shape to move it");
     println!("  drag a yellow corner handle to resize the primary shape");
     println!("  press N to create a shape; Delete/Backspace removes selection");
+    println!("  press C, then click a source shape and a target shape to connect");
+    println!("  Escape cancels the active connection gesture");
     println!("  Command/Control-Z undoes; add Shift to redo");
 
     let event_loop = EventLoop::new()?;

@@ -15,11 +15,11 @@ use novadraw_scene::{
 };
 
 use crate::{
-    Command, CompoundCommand, ConnectionPartFactoryContext, ConnectionPartId, EditPartError,
-    EditPartFactory, EditPartId, EditorNamespace, EditorRequest, FeedbackId, HandleId, HandleRole,
-    ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartTree, PartTreeError,
-    PolicyError, PolicyHost, SelectionDelta, SelectionModel, VisualBuildContext, VisualOwner,
-    VisualUpdateContext,
+    Command, CompoundCommand, ConnectionCreation, ConnectionPartFactoryContext, ConnectionPartId,
+    CreateConnectionRequest, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
+    EditorRequest, FeedbackId, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
+    PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, SelectionDelta,
+    SelectionModel, VisualBuildContext, VisualOwner, VisualUpdateContext,
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
 };
@@ -870,6 +870,20 @@ where
         })
     }
 
+    /// Dispatches a press without applying SelectionTool fallback.
+    pub fn dispatch_mouse_pressed_without_selection(
+        &mut self,
+        x: f64,
+        y: f64,
+        button: MouseButton,
+    ) -> ViewerInputOutcome {
+        ViewerInputOutcome {
+            dispatch: self.runtime.dispatch_mouse_pressed(x, y, button),
+            target: self.target_at(x, y),
+            selection: None,
+        }
+    }
+
     /// Dispatches pointer movement while preserving any Figure-owned capture.
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> DispatchOutcome {
         self.runtime.dispatch_mouse_moved(x, y)
@@ -1075,6 +1089,125 @@ where
             figures.push(figure);
         }
         Ok(figures)
+    }
+
+    /// Resolves one unambiguous source policy into a connection-creation plan.
+    pub fn start_connection_creation(
+        &mut self,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
+        let source = self.connection_endpoint_host(request.source())?;
+        let editor_request = EditorRequest::CreateConnection(request.clone());
+        let Some(roles) = self.policies.roles_mut(request.source()) else {
+            return Ok(None);
+        };
+        let mut accepted = None;
+        for policy in roles.values_mut() {
+            if !policy.understands(&editor_request) {
+                continue;
+            }
+            if let Some(plan) = policy.start_connection(source, request, &self.model)? {
+                if accepted.is_some() {
+                    return Err(PolicyError::operation(
+                        "multiple policies accepted connection creation",
+                    )
+                    .into());
+                }
+                accepted = Some(plan);
+            }
+        }
+        Ok(accepted)
+    }
+
+    /// Replaces connection-creation feedback for the latest target candidate.
+    pub fn show_connection_feedback(
+        &mut self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let source = self.connection_endpoint_host(request.source())?;
+        let target = self.valid_connection_target(plan, source, request)?;
+        let contributions = plan.feedback(source, target, request, &self.model)?;
+        let mut figures = Vec::with_capacity(contributions.len());
+        for feedback in contributions {
+            let (figure, scaled) = feedback.into_parts();
+            match self.add_feedback_visual(Some(request.source()), scaled, figure) {
+                Ok((_, figure)) => figures.push(figure),
+                Err(error) => {
+                    for figure in figures {
+                        let _ = self.remove_overlay_visual(figure);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(figures)
+    }
+
+    /// Builds the final connection Command when the current target is valid.
+    pub fn connection_command(
+        &self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        let source = self.connection_endpoint_host(request.source())?;
+        let Some(target) = self.valid_connection_target(plan, source, request)? else {
+            return Ok(None);
+        };
+        Ok(Some(plan.command(source, target, request, &self.model)?))
+    }
+
+    fn valid_connection_target(
+        &self,
+        plan: &dyn ConnectionCreation<A>,
+        source: PolicyHost<A::ModelId>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<PolicyHost<A::ModelId>>, ViewerError> {
+        let Some(target) = request.target_candidate() else {
+            return Ok(None);
+        };
+        let Some(target) = self.connection_target_host(target)? else {
+            return Ok(None);
+        };
+        if plan.can_complete(source, target, request, &self.model)? {
+            Ok(Some(target))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn connection_endpoint_host(
+        &self,
+        part: EditPartId,
+    ) -> Result<PolicyHost<A::ModelId>, ViewerError> {
+        self.validate_selectable(part)?;
+        if self
+            .parts
+            .get(part)
+            .is_none_or(|node| node.kind() != PartKind::Containment)
+        {
+            return Err(ViewerError::InvalidPart(part));
+        }
+        self.policy_host(part)
+    }
+
+    fn connection_target_host(
+        &self,
+        part: EditPartId,
+    ) -> Result<Option<PolicyHost<A::ModelId>>, ViewerError> {
+        if part.namespace() != self.namespace() {
+            return Err(ViewerError::InvalidPart(part));
+        }
+        let Some(node) = self.parts.get(part) else {
+            return Err(ViewerError::InvalidPart(part));
+        };
+        if !node.is_active() || node.kind() != PartKind::Containment {
+            return Ok(None);
+        }
+        self.policy_host(part).map(Some)
     }
 
     fn policy_host(&self, part: EditPartId) -> Result<PolicyHost<A::ModelId>, ViewerError> {

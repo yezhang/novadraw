@@ -6,9 +6,9 @@ use novadraw_geometry::{Dimension, Point, Vec2};
 use novadraw_scene::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
 
 use crate::{
-    ChangeBoundsRequest, EditPartFactory, EditPartId, EditorRequest, GraphicalViewer, HandleRole,
-    InteractionRevision, ModelAdapter, RequestModifiers, ResizeDirection, ViewerError,
-    ViewerInputOutcome, ViewerTarget,
+    ChangeBoundsRequest, Command, ConnectionCreation, CreateConnectionRequest, CreationType,
+    EditPartFactory, EditPartId, EditorRequest, GraphicalViewer, HandleRole, InteractionRevision,
+    ModelAdapter, RequestModifiers, ResizeDirection, ViewerError, ViewerInputOutcome, ViewerTarget,
 };
 
 const DRAG_START_DISTANCE: f64 = 2.0;
@@ -32,6 +32,29 @@ struct DragGesture {
 pub struct ToolRelease {
     dispatch: DispatchOutcome,
     request: Option<EditorRequest>,
+}
+
+/// Result of a press handled by the connection-creation Tool.
+pub struct ConnectionToolPress<A: ModelAdapter> {
+    outcome: ViewerInputOutcome,
+    command: Option<Box<dyn Command<A>>>,
+    completed: bool,
+}
+
+impl<A: ModelAdapter> ConnectionToolPress<A> {
+    /// Returns the underlying Viewer input result.
+    pub const fn outcome(&self) -> &ViewerInputOutcome {
+        &self.outcome
+    }
+
+    /// Returns whether the second stage completed successfully.
+    pub const fn completed(&self) -> bool {
+        self.completed
+    }
+
+    pub(crate) fn into_parts(self) -> (ViewerInputOutcome, Option<Box<dyn Command<A>>>) {
+        (self.outcome, self.command)
+    }
 }
 
 impl ToolRelease {
@@ -210,6 +233,177 @@ impl SelectionTool {
     pub fn cancel<A, F>(&mut self, viewer: &mut GraphicalViewer<A, F>) -> Result<(), ToolError>
     where
         A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        if let Some(mut gesture) = self.gesture.take() {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
+        Ok(())
+    }
+}
+
+struct ConnectionGesture<A: ModelAdapter> {
+    source: EditPartId,
+    connection_type: CreationType,
+    modifiers: RequestModifiers,
+    plan: Box<dyn ConnectionCreation<A>>,
+    feedback: Vec<FigureId>,
+}
+
+/// One-shot, two-stage connection-creation Tool.
+pub struct ConnectionCreationTool<A: ModelAdapter> {
+    connection_type: CreationType,
+    gesture: Option<ConnectionGesture<A>>,
+}
+
+impl<A: ModelAdapter> ConnectionCreationTool<A> {
+    /// Arms a Tool for one connection of the supplied application type.
+    pub fn new(connection_type: CreationType) -> Self {
+        Self {
+            connection_type,
+            gesture: None,
+        }
+    }
+
+    /// Returns whether the source stage has been accepted.
+    pub const fn is_started(&self) -> bool {
+        self.gesture.is_some()
+    }
+
+    /// Locks a source on the first press or produces a Command on a valid second press.
+    pub fn pointer_pressed<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        button: MouseButton,
+        modifiers: KeyModifiers,
+        revision: InteractionRevision,
+    ) -> Result<ConnectionToolPress<A>, ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        let outcome =
+            viewer.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button);
+        if outcome.dispatch().is_handled() || button != MouseButton::Left {
+            return Ok(ConnectionToolPress {
+                outcome,
+                command: None,
+                completed: false,
+            });
+        }
+        let ViewerTarget::Part(target) = outcome.target() else {
+            return Ok(ConnectionToolPress {
+                outcome,
+                command: None,
+                completed: false,
+            });
+        };
+
+        if let Some(gesture) = &mut self.gesture {
+            let request = CreateConnectionRequest::new(
+                gesture.connection_type.clone(),
+                gesture.source,
+                location,
+                gesture.modifiers,
+                revision,
+            )
+            .with_target_candidate(Some(target));
+            clear_feedback(viewer, &mut gesture.feedback)?;
+            let command = viewer.connection_command(gesture.plan.as_mut(), &request)?;
+            if command.is_some() {
+                self.gesture = None;
+                return Ok(ConnectionToolPress {
+                    outcome,
+                    command,
+                    completed: true,
+                });
+            }
+            gesture.feedback = viewer.show_connection_feedback(gesture.plan.as_mut(), &request)?;
+            return Ok(ConnectionToolPress {
+                outcome,
+                command: None,
+                completed: false,
+            });
+        }
+
+        let request = CreateConnectionRequest::new(
+            self.connection_type.clone(),
+            target,
+            location,
+            request_modifiers(modifiers),
+            revision,
+        );
+        let Some(mut plan) = viewer.start_connection_creation(&request)? else {
+            return Ok(ConnectionToolPress {
+                outcome,
+                command: None,
+                completed: false,
+            });
+        };
+        let feedback = viewer.show_connection_feedback(plan.as_mut(), &request)?;
+        self.gesture = Some(ConnectionGesture {
+            source: target,
+            connection_type: self.connection_type.clone(),
+            modifiers: request_modifiers(modifiers),
+            plan,
+            feedback,
+        });
+        Ok(ConnectionToolPress {
+            outcome,
+            command: None,
+            completed: false,
+        })
+    }
+
+    /// Updates the target candidate and replaces transient feedback.
+    pub fn pointer_moved<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<DispatchOutcome, ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        let Some(gesture) = &mut self.gesture else {
+            return Ok(dispatch);
+        };
+        let target = match viewer.target_at(location.x(), location.y()) {
+            ViewerTarget::Part(part) => Some(part),
+            ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
+        };
+        let request = CreateConnectionRequest::new(
+            gesture.connection_type.clone(),
+            gesture.source,
+            location,
+            gesture.modifiers,
+            revision,
+        )
+        .with_target_candidate(target);
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        gesture.feedback = viewer.show_connection_feedback(gesture.plan.as_mut(), &request)?;
+        Ok(dispatch)
+    }
+
+    /// Dispatches release without completing the two-press gesture.
+    pub fn pointer_released<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        button: MouseButton,
+    ) -> DispatchOutcome
+    where
+        F: EditPartFactory<A>,
+    {
+        viewer.dispatch_mouse_released(location.x(), location.y(), button)
+    }
+
+    /// Cancels the source-locked gesture and removes transient feedback.
+    pub fn cancel<F>(&mut self, viewer: &mut GraphicalViewer<A, F>) -> Result<(), ToolError>
+    where
         F: EditPartFactory<A>,
     {
         if let Some(mut gesture) = self.gesture.take() {

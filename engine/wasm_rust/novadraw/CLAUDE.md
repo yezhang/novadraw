@@ -90,8 +90,9 @@ D3.1-D3.4 与 D4.1-D4.6 已完成，最近一次长期架构审计的 A01-A08 �
 macOS/Web/Headless 总审计与 R9.4 capability 消融复查已通过，Draw2D Core 1.0
 完成。Editor 框架已按 ADR-015 进入独立 G0-G6 roadmap，G0 架构启动、G1 Model
 Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
-Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy 与 G5.1
-Connection Projection 已完成，检查点 B 已通过人工验收；G5.2 是下一执行切片。
+Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
+Connection Projection 与 G5.2 Connection Creation 已完成，检查点 B 已通过人工验收；
+G5.3 是下一执行切片。
 Draw2D 后续能力必须进入明确的 P2 delta。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`

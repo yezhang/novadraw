@@ -12,6 +12,7 @@ use crate::FigureId;
 pub use anchor::{
     AnchorError, AnchorGroupKey, AnchorSemanticKey, AnchorSemanticKeyError, AnchorSite,
     ChopboxAnchor, ConnectionAnchor, EllipseAnchor, LabelAnchor, RoundedRectangleAnchor, XYAnchor,
+    rectangle_boundary_site,
 };
 pub use figure::{ConnectionFigure, ConnectionFigureBehavior, ConnectionLayerFigure};
 pub use locator::{

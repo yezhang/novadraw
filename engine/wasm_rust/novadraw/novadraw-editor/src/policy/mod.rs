@@ -9,7 +9,9 @@ use std::{
 
 use novadraw_scene::Figure;
 
-use crate::{Command, EditPartId, EditorNamespace, EditorRequest, ModelAdapter};
+use crate::{
+    Command, CreateConnectionRequest, EditPartId, EditorNamespace, EditorRequest, ModelAdapter,
+};
 
 /// Stable role used to install an EditPolicy on one EditPart.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -22,6 +24,8 @@ pub enum PolicyRole {
     PrimaryDrag,
     /// Selection visual contribution.
     SelectionFeedback,
+    /// Source-owned two-stage connection creation.
+    ConnectionCreation,
     /// Application-defined role.
     Custom(Arc<str>),
 }
@@ -155,6 +159,16 @@ pub trait EditPolicy<A: ModelAdapter> {
         Ok(Vec::new())
     }
 
+    /// Creates a source-locked connection plan when this policy accepts the first stage.
+    fn start_connection(
+        &mut self,
+        _host: PolicyHost<A::ModelId>,
+        _request: &CreateConnectionRequest,
+        _model: &A,
+    ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, PolicyError> {
+        Ok(None)
+    }
+
     /// Activates policy resources after its host is active.
     fn activate(&mut self, _host: PolicyHost<A::ModelId>, _model: &A) -> Result<(), PolicyError> {
         Ok(())
@@ -166,6 +180,41 @@ pub trait EditPolicy<A: ModelAdapter> {
 
 /// One role-keyed policy declared by an EditPartBehavior.
 pub type PolicyInstallation<A> = (PolicyRole, Box<dyn EditPolicy<A>>);
+
+/// Source-locked, gesture-scoped preparation for one connection Command.
+///
+/// A creation plan stores application model identity, never Viewer or Runtime identity. It is
+/// discarded on cancel and enters the CommandStack only through the final Command it creates.
+pub trait ConnectionCreation<A: ModelAdapter> {
+    /// Returns whether the current target can complete this connection.
+    fn can_complete(
+        &self,
+        source: PolicyHost<A::ModelId>,
+        target: PolicyHost<A::ModelId>,
+        request: &CreateConnectionRequest,
+        model: &A,
+    ) -> Result<bool, PolicyError>;
+
+    /// Creates feedback for the current pointer and optional valid target.
+    fn feedback(
+        &mut self,
+        _source: PolicyHost<A::ModelId>,
+        _target: Option<PolicyHost<A::ModelId>>,
+        _request: &CreateConnectionRequest,
+        _model: &A,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        Ok(Vec::new())
+    }
+
+    /// Builds the final model-only Command for a valid target.
+    fn command(
+        &mut self,
+        source: PolicyHost<A::ModelId>,
+        target: PolicyHost<A::ModelId>,
+        request: &CreateConnectionRequest,
+        model: &A,
+    ) -> Result<Box<dyn Command<A>>, PolicyError>;
+}
 
 pub(crate) struct PolicyStore<A: ModelAdapter> {
     entries: HashMap<EditPartId, BTreeMap<PolicyRole, Box<dyn EditPolicy<A>>>>,

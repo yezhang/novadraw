@@ -4,7 +4,8 @@
 //! G2 adds EditPart topology and model-to-Figure projection without moving application state into
 //! the Figure runtime. G3 adds Viewer selection, targeting, root layers, and input arbitration.
 //! G4 adds typed editing requests, role-keyed policies, active Tools, and model Command execution.
-//! G5.1 adds ordered connection-model projection and Runtime routing bindings.
+//! G5.1 adds ordered connection-model projection and Runtime routing bindings. G5.2 adds
+//! source-locked, two-stage connection creation through model Commands.
 
 #![deny(missing_docs)]
 
@@ -32,15 +33,18 @@ pub use part::{
     PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
 };
 pub use policy::{
-    EditPolicy, FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    ConnectionCreation, EditPolicy, FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation,
+    PolicyRole,
 };
 pub use request::{
-    ChangeBoundsKind, ChangeBoundsRequest, CreateRequest, CreationType, CreationTypeError,
-    DeleteRequest, EditorRequest, InteractionRevision, InteractionRevisionError, RequestModifiers,
-    ResizeDirection,
+    ChangeBoundsKind, ChangeBoundsRequest, CreateConnectionRequest, CreateRequest, CreationType,
+    CreationTypeError, DeleteRequest, EditorRequest, InteractionRevision, InteractionRevisionError,
+    RequestModifiers, ResizeDirection,
 };
 pub use selection::{SelectionDelta, SelectionModel};
-pub use tool::{SelectionTool, ToolError, ToolRelease};
+pub use tool::{
+    ConnectionCreationTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,
+};
 pub use viewer::{
     GraphicalViewer, RootLayers, SelectionMode, ViewerError, ViewerInputOutcome, ViewerTarget,
 };

@@ -38,7 +38,7 @@ pub use connection::{
     PathFractionLocator, RoundedRectangleAnchor, RouteEnd, RouteEndpoint, RouteError,
     RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId, RoutingConstraint,
     RoutingGroupQuery, RoutingGroupScope, SceneQuery, SceneQueryError, SceneRead,
-    TrackedSceneQuery, UnresolvedConnection, XYAnchor,
+    TrackedSceneQuery, UnresolvedConnection, XYAnchor, rectangle_boundary_site,
 };
 pub use container::viewport;
 pub use container::{

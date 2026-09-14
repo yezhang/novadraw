@@ -6,7 +6,7 @@ use novadraw_scene::{
     ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
     DependencySubject, DirectRouter, EllipseAnchor, FigureId, LabelAnchor, MidpointLocator,
     PathFractionLocator, RoundedRectangleAnchor, RouteError, RouteOutput, RouteRequest,
-    SceneQueryError, SceneRead, TrackedSceneQuery,
+    SceneQueryError, SceneRead, TrackedSceneQuery, rectangle_boundary_site,
 };
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
@@ -161,6 +161,27 @@ fn named_anchor_geometry_key_rejects_empty_values() {
     assert_eq!(AnchorGeometryKey::icon().name(), Some("icon"));
     assert!(novadraw_scene::AnchorSemanticKey::new(None, "", Vec::new()).is_err());
     assert!(novadraw_scene::AnchorSemanticKey::new(None, "custom", Vec::new()).is_ok());
+}
+
+#[test]
+fn rectangle_boundary_site_projects_toward_the_reference() {
+    let bounds = Rectangle::new(10.0, 20.0, 100.0, 50.0);
+
+    let right = rectangle_boundary_site(bounds, Point::new(200.0, 45.0));
+    assert!(
+        right
+            .point
+            .approx_eq(Point::new(110.0, 45.0), TEST_PRECISION)
+    );
+    assert_eq!(right.outward_normal, Some(Vector::X));
+
+    let bottom = rectangle_boundary_site(bounds, Point::new(60.0, 200.0));
+    assert!(
+        bottom
+            .point
+            .approx_eq(Point::new(60.0, 70.0), TEST_PRECISION)
+    );
+    assert_eq!(bottom.outward_normal, Some(Vector::Y));
 }
 
 #[test]

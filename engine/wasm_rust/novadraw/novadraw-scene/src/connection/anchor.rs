@@ -251,12 +251,12 @@ impl ConnectionAnchor for ChopboxAnchor {
             reference_space,
             CoordinateSpace::FigureLocal(self.owner),
         )?;
-        let (point, normal) = rectangle_intersection(bounds, local_reference);
+        let site = rectangle_boundary_site(bounds, local_reference);
         map_site(
             scene,
             self.owner,
-            point,
-            normal,
+            site.point,
+            site.outward_normal,
             CoordinateSpace::FigureLocal(self.owner),
             output,
         )
@@ -572,11 +572,17 @@ fn map_site(
     })
 }
 
-fn rectangle_intersection(bounds: Rectangle, reference: Point) -> (Point, Option<Vector>) {
+/// Resolves the point where a ray from a rectangle's center toward `reference` meets its border.
+///
+/// When `reference` equals the center, the center is returned without an outward normal.
+pub fn rectangle_boundary_site(bounds: Rectangle, reference: Point) -> AnchorSite {
     let center = bounds.center();
     let delta = reference - center;
     if delta.length_squared() <= GEOMETRY_EPSILON * GEOMETRY_EPSILON {
-        return (center, None);
+        return AnchorSite {
+            point: center,
+            outward_normal: None,
+        };
     }
 
     let x_scale = if delta.x().abs() <= GEOMETRY_EPSILON {
@@ -596,7 +602,10 @@ fn rectangle_intersection(bounds: Rectangle, reference: Point) -> (Point, Option
     } else {
         Vector::new(0.0, delta.y().signum())
     };
-    (point, Some(normal))
+    AnchorSite {
+        point,
+        outward_normal: Some(normal),
+    }
 }
 
 fn ellipse_intersection(bounds: Rectangle, reference: Point) -> (Point, Option<Vector>) {
@@ -630,10 +639,11 @@ fn rounded_rectangle_intersection(
     let radius_x = (corner.width / 2.0).clamp(0.0, bounds.width / 2.0);
     let radius_y = (corner.height / 2.0).clamp(0.0, bounds.height / 2.0);
     if radius_x <= GEOMETRY_EPSILON || radius_y <= GEOMETRY_EPSILON {
-        return rectangle_intersection(bounds, reference);
+        let site = rectangle_boundary_site(bounds, reference);
+        return (site.point, site.outward_normal);
     }
 
-    let (box_point, _) = rectangle_intersection(bounds, reference);
+    let box_point = rectangle_boundary_site(bounds, reference).point;
     if point_in_rounded_rectangle(box_point, bounds, radius_x, radius_y) {
         return (
             box_point,

@@ -326,6 +326,73 @@ impl DeleteRequest {
     }
 }
 
+/// Two-stage intent to create one model connection.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreateConnectionRequest {
+    connection_type: CreationType,
+    source: EditPartId,
+    target_candidate: Option<EditPartId>,
+    location: Point,
+    modifiers: RequestModifiers,
+    revision: InteractionRevision,
+}
+
+impl CreateConnectionRequest {
+    /// Creates a source-locked connection request.
+    pub fn new(
+        connection_type: CreationType,
+        source: EditPartId,
+        location: Point,
+        modifiers: RequestModifiers,
+        revision: InteractionRevision,
+    ) -> Self {
+        Self {
+            connection_type,
+            source,
+            target_candidate: None,
+            location,
+            modifiers,
+            revision,
+        }
+    }
+
+    /// Returns the application-defined connection type.
+    pub const fn connection_type(&self) -> &CreationType {
+        &self.connection_type
+    }
+
+    /// Returns the source Part locked by the first stage.
+    pub const fn source(&self) -> EditPartId {
+        self.source
+    }
+
+    /// Returns the latest target candidate, if any.
+    pub const fn target_candidate(&self) -> Option<EditPartId> {
+        self.target_candidate
+    }
+
+    /// Sets the latest target candidate without changing the locked source.
+    pub fn with_target_candidate(mut self, target: Option<EditPartId>) -> Self {
+        self.target_candidate = target;
+        self
+    }
+
+    /// Returns the latest pointer location in the Viewer entry domain.
+    pub const fn location(&self) -> Point {
+        self.location
+    }
+
+    /// Returns the modifier snapshot captured when the gesture started.
+    pub const fn modifiers(&self) -> RequestModifiers {
+        self.modifiers
+    }
+
+    /// Returns the interaction revision.
+    pub const fn revision(&self) -> InteractionRevision {
+        self.revision
+    }
+}
+
 /// Closed set of editing requests implemented by the first editor vertical slice.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EditorRequest {
@@ -335,6 +402,8 @@ pub enum EditorRequest {
     Create(CreateRequest),
     /// Delete existing parts.
     Delete(DeleteRequest),
+    /// Create one model connection through a source-locked two-stage gesture.
+    CreateConnection(CreateConnectionRequest),
 }
 
 impl EditorRequest {
@@ -347,6 +416,7 @@ impl EditorRequest {
             },
             Self::Create(_) => "Create",
             Self::Delete(_) => "Delete",
+            Self::CreateConnection(_) => "Create connection",
         }
     }
 
@@ -356,6 +426,7 @@ impl EditorRequest {
             Self::ChangeBounds(request) => request.revision(),
             Self::Create(request) => request.revision(),
             Self::Delete(request) => request.revision(),
+            Self::CreateConnection(request) => request.revision(),
         }
     }
 
@@ -365,6 +436,7 @@ impl EditorRequest {
             Self::ChangeBounds(request) => request.parts(),
             Self::Create(request) => std::slice::from_ref(&request.parent),
             Self::Delete(request) => request.parts(),
+            Self::CreateConnection(request) => std::slice::from_ref(&request.source),
         }
     }
 }

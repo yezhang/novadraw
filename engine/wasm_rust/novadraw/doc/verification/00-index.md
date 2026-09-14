@@ -65,6 +65,10 @@ Editor G4 Tool/Request/EditPolicy 编辑闭环与检查点 B 结果见
 Editor G5.1 Connection Projection 的设计复核、实现和自动门禁见
 [`reviews/g5-connection-projection-design-2026-09-14.md`](reviews/g5-connection-projection-design-2026-09-14.md)。
 
+Editor G5.2 Connection Creation 的行为验证、自动门禁与 Native 人工验收入口见
+[`reviews/g5-connection-creation-behavior-2026-09-14.md`](reviews/g5-connection-creation-behavior-2026-09-14.md)
+和 [`manual/g5-connection-creation.md`](manual/g5-connection-creation.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
@@ -98,6 +102,8 @@ D4.2 ordered resource ops、Ready snapshot 与 Backend Session 验证见
   pointer、keyboard 与状态视觉验收；
 - [`manual/m10-tooltip-accessibility.md`](manual/m10-tooltip-accessibility.md)：M10.5
   Tooltip delay/placement、Accessibility focus/default action 与 Web bridge；
+- [`manual/g5-connection-creation.md`](manual/g5-connection-creation.md)：G5.2 两阶段
+  连接创建、取消、history、删除级联与渲染回归验收；
 - [`manual/d3-m9-contract-recovery.md`](manual/d3-m9-contract-recovery.md)：D3.1
   shared Manhattan 与严格 viewport topology 增量验收；
 - [`manual/web-platform.md`](manual/web-platform.md)：Wasm 构建、静态资源服务、
