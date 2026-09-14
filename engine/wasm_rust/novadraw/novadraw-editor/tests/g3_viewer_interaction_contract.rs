@@ -1,8 +1,8 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use novadraw_editor::{
-    EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,
-    ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
+    EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, HandleRole, ModelAdapter,
+    ModelEvent, ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
 };
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
@@ -247,7 +247,11 @@ fn handles_win_targeting_and_feedback_is_transparent() {
         .unwrap();
     assert_eq!(
         viewer.target_at(30.0, 30.0),
-        ViewerTarget::Handle { id: handle, owner }
+        ViewerTarget::Handle {
+            id: handle,
+            owner,
+            role: HandleRole::Selection,
+        }
     );
     assert!(viewer.remove_overlay_visual(feedback).unwrap());
 }

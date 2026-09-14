@@ -11,7 +11,7 @@ use novadraw_scene::{
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;
 
-use crate::ModelAdapter;
+use crate::{ModelAdapter, PolicyInstallation};
 
 /// Namespace shared by every EditPart handle owned by one Viewer.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -470,6 +470,15 @@ pub trait EditPartBehavior<A: ModelAdapter> {
         _context: &mut VisualBuildContext<'_>,
     ) -> Result<(), EditPartError> {
         Ok(())
+    }
+
+    /// Creates role-keyed policies before the initial visual refresh.
+    fn create_policies(
+        &mut self,
+        _model: &A,
+        _model_id: A::ModelId,
+    ) -> Result<Vec<PolicyInstallation<A>>, EditPartError> {
+        Ok(Vec::new())
     }
 
     /// Refreshes visual properties from the current application model.

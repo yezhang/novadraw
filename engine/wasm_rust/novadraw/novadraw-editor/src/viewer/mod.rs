@@ -1,6 +1,10 @@
 //! Viewer contents, registries, and model-to-Figure projection.
 
-use std::{collections::HashMap, error::Error, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+    fmt,
+};
 
 use novadraw_geometry::{Rectangle, Translatable};
 use novadraw_scene::{
@@ -10,10 +14,12 @@ use novadraw_scene::{
 };
 
 use crate::{
-    EditPartError, EditPartFactory, EditPartId, EditorNamespace, FeedbackId, HandleId,
-    ModelAdapter, ModelRevision, PartFactoryContext, PartTree, PartTreeError, SelectionDelta,
+    Command, CompoundCommand, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
+    EditorRequest, FeedbackId, HandleId, HandleRole, ModelAdapter, ModelRevision,
+    PartFactoryContext, PartTree, PartTreeError, PolicyError, PolicyHost, SelectionDelta,
     SelectionModel, VisualBuildContext, VisualOwner, VisualUpdateContext,
     part::{BehaviorStore, validate_runtime_namespace},
+    policy::PolicyStore,
 };
 
 const MAX_PART_TREE_DEPTH: usize = 10_000;
@@ -98,6 +104,8 @@ pub enum ViewerTarget {
         id: HandleId,
         /// EditPart manipulated by the handle.
         owner: EditPartId,
+        /// Interaction represented by the handle.
+        role: HandleRole,
     },
     /// No selectable visual was hit; the Viewer contents is the semantic fallback.
     Contents(EditPartId),
@@ -176,6 +184,8 @@ pub enum ViewerError {
     Runtime(RuntimeMutationError),
     /// Root layer construction or mutation failed.
     Layer(LayerError),
+    /// EditPolicy rejected a request or failed.
+    Policy(PolicyError),
     /// A selection or overlay operation referenced an invalid EditPart.
     InvalidPart(EditPartId),
     /// An expected behavior or registry entry was absent.
@@ -212,6 +222,7 @@ impl fmt::Display for ViewerError {
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
             Self::Layer(error) => error.fmt(formatter),
+            Self::Policy(error) => error.fmt(formatter),
             Self::InvalidPart(part) => write!(formatter, "invalid EditPart: {part:?}"),
             Self::InconsistentState => formatter.write_str("Viewer state is inconsistent"),
         }
@@ -225,6 +236,7 @@ impl Error for ViewerError {
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
             Self::Layer(error) => Some(error),
+            Self::Policy(error) => Some(error),
             _ => None,
         }
     }
@@ -251,6 +263,12 @@ impl From<RuntimeMutationError> for ViewerError {
 impl From<LayerError> for ViewerError {
     fn from(value: LayerError) -> Self {
         Self::Layer(value)
+    }
+}
+
+impl From<PolicyError> for ViewerError {
+    fn from(value: PolicyError) -> Self {
+        Self::Policy(value)
     }
 }
 
@@ -459,6 +477,7 @@ where
     root_layers: RootLayers,
     parts: PartTree<A::ModelId>,
     behaviors: BehaviorStore<A>,
+    policies: PolicyStore<A>,
     model_registry: HashMap<A::ModelId, EditPartId>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
@@ -497,6 +516,7 @@ where
             root_layers,
             parts,
             behaviors: BehaviorStore::new(namespace),
+            policies: PolicyStore::new(namespace),
             model_registry: HashMap::new(),
             visual_registry: HashMap::from([(root_layers.root(), VisualOwner::Part(root_part))]),
             selection: SelectionModel::new(),
@@ -656,8 +676,8 @@ where
                 return ViewerTarget::Contents(self.contents());
             };
             match self.visual_owner_or_ancestor(figure) {
-                Some((_, VisualOwner::Handle { id, owner })) => {
-                    return ViewerTarget::Handle { id, owner };
+                Some((_, VisualOwner::Handle { id, owner, role })) => {
+                    return ViewerTarget::Handle { id, owner, role };
                 }
                 Some((_, VisualOwner::Part(part)))
                     if part != self.root() && part != self.contents() =>
@@ -737,13 +757,23 @@ where
         owner: EditPartId,
         figure: Box<dyn Figure>,
     ) -> Result<(HandleId, FigureId), ViewerError> {
+        self.add_handle_visual_with_role(owner, HandleRole::Selection, figure)
+    }
+
+    /// Adds and registers a typed handle in the unscaled handle layer.
+    pub fn add_handle_visual_with_role(
+        &mut self,
+        owner: EditPartId,
+        role: HandleRole,
+        figure: Box<dyn Figure>,
+    ) -> Result<(HandleId, FigureId), ViewerError> {
         self.validate_selectable(owner)?;
         let figure = self
             .runtime
             .try_add_figure(self.root_layers.handles(), figure)?;
         let id = HandleId::new(self.namespace());
         self.visual_registry
-            .insert(figure, VisualOwner::Handle { id, owner });
+            .insert(figure, VisualOwner::Handle { id, owner, role });
         Ok((id, figure))
     }
 
@@ -825,6 +855,98 @@ where
                     .copied()
                     .map(|owner| (ancestor, owner))
             })
+    }
+
+    /// Resolves deterministic policy command contributions for a request.
+    pub fn command_for_request(
+        &mut self,
+        request: &EditorRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
+        let mut seen = HashSet::new();
+        let mut commands = Vec::new();
+        for &part in request.source_parts() {
+            self.validate_selectable(part)?;
+            if !seen.insert(part) {
+                return Err(
+                    PolicyError::operation("request contains a duplicate source part").into(),
+                );
+            }
+            let host = self.policy_host(part)?;
+            let Some(roles) = self.policies.roles_mut(part) else {
+                continue;
+            };
+            for policy in roles.values_mut() {
+                if policy.understands(request)
+                    && policy.target(host, request).is_some()
+                    && let Some(command) = policy.command(host, request, &self.model)?
+                {
+                    commands.push(command);
+                }
+            }
+        }
+        Ok(match commands.len() {
+            0 => None,
+            1 => commands.pop(),
+            _ => {
+                let mut compound = CompoundCommand::new(request.label());
+                for command in commands {
+                    compound.push(command);
+                }
+                Some(Box::new(compound))
+            }
+        })
+    }
+
+    /// Resolves and installs policy feedback in deterministic role order.
+    pub fn show_feedback_for_request(
+        &mut self,
+        request: &EditorRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let mut seen = HashSet::new();
+        let mut contributions = Vec::new();
+        for &part in request.source_parts() {
+            self.validate_selectable(part)?;
+            if !seen.insert(part) {
+                return Err(
+                    PolicyError::operation("request contains a duplicate source part").into(),
+                );
+            }
+            let host = self.policy_host(part)?;
+            let Some(roles) = self.policies.roles_mut(part) else {
+                continue;
+            };
+            for policy in roles.values_mut() {
+                if policy.understands(request) && policy.target(host, request).is_some() {
+                    contributions.extend(
+                        policy
+                            .feedback(host, request, &self.model)?
+                            .into_iter()
+                            .map(|feedback| (part, feedback)),
+                    );
+                }
+            }
+        }
+        let mut figures = Vec::with_capacity(contributions.len());
+        for (owner, feedback) in contributions {
+            let (figure, scaled) = feedback.into_parts();
+            let (_, figure) = self.add_feedback_visual(Some(owner), scaled, figure)?;
+            figures.push(figure);
+        }
+        Ok(figures)
+    }
+
+    fn policy_host(&self, part: EditPartId) -> Result<PolicyHost<A::ModelId>, ViewerError> {
+        let node = self.parts.get(part).ok_or(ViewerError::InvalidPart(part))?;
+        let model = node.model_id().ok_or(ViewerError::InvalidPart(part))?;
+        let parent_model = self
+            .parts
+            .parent(part)
+            .and_then(|parent| self.parts.get(parent))
+            .and_then(|parent| parent.model_id());
+        Ok(PolicyHost::new(part, model, parent_model))
     }
 
     /// Applies one validated notification batch to the EditPart and Figure projections.
@@ -928,6 +1050,7 @@ where
         let parent_figure = parent_node.content_pane();
         let context = PartFactoryContext::new(parent, parent_model, model_id);
         let mut behavior = self.factory.create(context, &self.model)?;
+        let policies = behavior.create_policies(&self.model, model_id)?;
         let primary = self.runtime.try_add_figure(
             parent_figure,
             behavior.create_figure(&self.model, model_id)?,
@@ -955,6 +1078,9 @@ where
             self.visual_registry.insert(visual, VisualOwner::Part(part));
         }
         self.behaviors.insert(part, behavior)?;
+        for (role, policy) in policies {
+            self.policies.install(part, role, policy)?;
+        }
         self.refresh_part_visuals(part)?;
         let activation = self
             .behaviors
@@ -969,6 +1095,17 @@ where
             return Err(error.into());
         }
         self.parts.set_active(part, true)?;
+        let host = self.policy_host(part)?;
+        if let Some(roles) = self.policies.roles_mut(part) {
+            for policy in roles.values_mut() {
+                if let Err(error) = policy.activate(host, &self.model) {
+                    for active in roles.values_mut() {
+                        active.deactivate(host, &self.model);
+                    }
+                    return Err(error.into());
+                }
+            }
+        }
 
         for child in snapshot.children_of(model_id)?.iter().copied() {
             self.create_subtree(part, child, snapshot)?;
@@ -1092,7 +1229,18 @@ where
         for id in ids.iter().copied() {
             let node = self.parts.get(id).ok_or(ViewerError::InconsistentState)?;
             let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
+            let parent_model = self
+                .parts
+                .parent(id)
+                .and_then(|parent| self.parts.get(parent))
+                .and_then(|parent| parent.model_id());
+            let host = PolicyHost::new(id, model_id, parent_model);
             let visuals = node.visuals().to_vec();
+            if let Some(roles) = self.policies.roles_mut(id) {
+                for policy in roles.values_mut() {
+                    policy.deactivate(host, &self.model);
+                }
+            }
             self.behaviors
                 .get_mut(id)
                 .ok_or(ViewerError::InconsistentState)?
@@ -1103,6 +1251,7 @@ where
             }
         }
         for id in ids.iter().rev().copied() {
+            self.policies.remove(id);
             self.behaviors.remove(id);
         }
         self.runtime.dispose_subtree(primary)?;
@@ -1124,15 +1273,27 @@ where
             return;
         };
         for id in ids {
-            let Some(model_id) = self.parts.get(id).and_then(|node| {
-                if node.is_active() {
-                    node.model_id()
-                } else {
-                    None
-                }
+            let Some(node) = self.parts.get(id) else {
+                continue;
+            };
+            let Some(model_id) = (if node.is_active() {
+                node.model_id()
+            } else {
+                None
             }) else {
                 continue;
             };
+            let parent_model = self
+                .parts
+                .parent(id)
+                .and_then(|parent| self.parts.get(parent))
+                .and_then(|parent| parent.model_id());
+            let host = PolicyHost::new(id, model_id, parent_model);
+            if let Some(roles) = self.policies.roles_mut(id) {
+                for policy in roles.values_mut() {
+                    policy.deactivate(host, &self.model);
+                }
+            }
             if let Some(behavior) = self.behaviors.get_mut(id) {
                 behavior.deactivate(&self.model, model_id);
             }

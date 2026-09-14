@@ -5,7 +5,7 @@
 
 use uuid::Uuid;
 
-use crate::{EditPartId, EditorNamespace};
+use crate::{EditPartId, EditorNamespace, ResizeDirection};
 
 macro_rules! overlay_id {
     ($name:ident, $description:literal) => {
@@ -35,6 +35,15 @@ macro_rules! overlay_id {
 overlay_id!(HandleId, "Identity of an interactive handle visual.");
 overlay_id!(FeedbackId, "Identity of a transient feedback visual.");
 
+/// Interaction role carried by a handle visual.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HandleRole {
+    /// Selection-only handle with no bounds operation.
+    Selection,
+    /// Resize handle for one edge or corner.
+    Resize(ResizeDirection),
+}
+
 /// Editor ownership associated with a registered Figure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VisualOwner {
@@ -46,6 +55,8 @@ pub enum VisualOwner {
         id: HandleId,
         /// EditPart manipulated by the handle.
         owner: EditPartId,
+        /// Interaction represented by the handle.
+        role: HandleRole,
     },
     /// Non-interactive transient feedback.
     Feedback {
