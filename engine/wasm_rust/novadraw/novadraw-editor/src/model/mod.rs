@@ -57,6 +57,36 @@ impl fmt::Display for ModelRevisionError {
 
 impl Error for ModelRevisionError {}
 
+/// One application connection in canonical visual order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ModelConnection<I> {
+    id: I,
+    source: I,
+    target: I,
+}
+
+impl<I: Copy> ModelConnection<I> {
+    /// Creates a connection descriptor from its model and endpoint identities.
+    pub const fn new(id: I, source: I, target: I) -> Self {
+        Self { id, source, target }
+    }
+
+    /// Returns the connection model identity.
+    pub const fn id(&self) -> I {
+        self.id
+    }
+
+    /// Returns the source endpoint model identity.
+    pub const fn source(&self) -> I {
+        self.source
+    }
+
+    /// Returns the target endpoint model identity.
+    pub const fn target(&self) -> I {
+        self.target
+    }
+}
+
 /// Ordered application model notification.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModelEvent<I, E> {
@@ -119,6 +149,11 @@ pub trait ModelAdapter {
 
     /// Returns direct model children in stable display order.
     fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error>;
+
+    /// Returns all model connections in stable connection-layer order.
+    fn connections(&self) -> Result<Vec<ModelConnection<Self::ModelId>>, Self::Error> {
+        Ok(Vec::new())
+    }
 
     /// Drains the next ordered notification batch.
     fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>>;

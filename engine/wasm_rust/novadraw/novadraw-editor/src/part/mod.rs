@@ -46,9 +46,55 @@ impl EditPartId {
     }
 }
 
+/// The structural role of an EditPart inside a Viewer.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PartKind {
+    /// Synthetic Viewer root with no application model.
+    Root,
+    /// Model-backed containment Part.
+    Containment,
+    /// Model-backed connection Part outside containment.
+    Connection,
+}
+
+/// Checked connection role for an [`EditPartId`].
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ConnectionPartId(EditPartId);
+
+impl ConnectionPartId {
+    /// Returns the canonical EditPart identity.
+    pub const fn edit_part(self) -> EditPartId {
+        self.0
+    }
+}
+
+/// Source and target EditParts bound to one connection Part.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConnectionEndpoints {
+    source: EditPartId,
+    target: EditPartId,
+}
+
+impl ConnectionEndpoints {
+    pub(crate) fn new(source: EditPartId, target: EditPartId) -> Self {
+        Self { source, target }
+    }
+
+    /// Returns the source endpoint Part.
+    pub const fn source(self) -> EditPartId {
+        self.source
+    }
+
+    /// Returns the target endpoint Part.
+    pub const fn target(self) -> EditPartId {
+        self.target
+    }
+}
+
 /// Read-only EditPart state stored by [`PartTree`].
 pub struct PartNode<I> {
     id: EditPartId,
+    kind: PartKind,
     model_id: Option<I>,
     parent: Option<EditPartId>,
     children: Vec<EditPartId>,
@@ -62,6 +108,11 @@ impl<I: Copy> PartNode<I> {
     /// Returns this part's identity.
     pub const fn id(&self) -> EditPartId {
         self.id
+    }
+
+    /// Returns this Part's structural role.
+    pub const fn kind(&self) -> PartKind {
+        self.kind
     }
 
     /// Returns the represented model identity, or `None` for the synthetic root part.
@@ -96,6 +147,10 @@ pub struct PartTree<I> {
     nodes: SlotMap<DefaultKey, PartNode<I>>,
     root: EditPartId,
     contents: Option<EditPartId>,
+    connections: Vec<ConnectionPartId>,
+    connection_endpoints: HashMap<ConnectionPartId, ConnectionEndpoints>,
+    outgoing: HashMap<EditPartId, Vec<ConnectionPartId>>,
+    incoming: HashMap<EditPartId, Vec<ConnectionPartId>>,
 }
 
 impl<I: Copy> PartTree<I> {
@@ -106,6 +161,7 @@ impl<I: Copy> PartTree<I> {
             let id = EditPartId::from_local(namespace, key.data());
             PartNode {
                 id,
+                kind: PartKind::Root,
                 model_id: None,
                 parent: None,
                 children: Vec::new(),
@@ -120,6 +176,10 @@ impl<I: Copy> PartTree<I> {
             nodes,
             root: EditPartId::from_local(namespace, root.data()),
             contents: None,
+            connections: Vec::new(),
+            connection_endpoints: HashMap::new(),
+            outgoing: HashMap::new(),
+            incoming: HashMap::new(),
         }
     }
 
@@ -145,12 +205,67 @@ impl<I: Copy> PartTree<I> {
 
     /// Returns a part's parent.
     pub fn parent(&self, id: EditPartId) -> Option<EditPartId> {
-        self.get(id).and_then(|node| node.parent)
+        self.get(id)
+            .filter(|node| node.kind != PartKind::Connection)
+            .and_then(|node| node.parent)
     }
 
     /// Returns direct children in stable display order.
     pub fn children(&self, id: EditPartId) -> Option<&[EditPartId]> {
-        self.get(id).map(|node| node.children.as_slice())
+        self.get(id)
+            .filter(|node| node.kind != PartKind::Connection)
+            .map(|node| node.children.as_slice())
+    }
+
+    /// Returns all connection Parts in connection-layer order.
+    pub fn connection_parts(&self) -> &[ConnectionPartId] {
+        &self.connections
+    }
+
+    /// Converts a general EditPart identity into a checked connection identity.
+    pub fn as_connection(&self, id: EditPartId) -> Result<ConnectionPartId, PartTreeError> {
+        let node = self.get(id).ok_or_else(|| self.invalid_part_error(id))?;
+        (node.kind == PartKind::Connection)
+            .then_some(ConnectionPartId(id))
+            .ok_or(PartTreeError::InvalidPartKind)
+    }
+
+    /// Returns the source and target of a connection Part.
+    pub fn connection_endpoints(
+        &self,
+        connection: ConnectionPartId,
+    ) -> Result<ConnectionEndpoints, PartTreeError> {
+        self.resolve_connection(connection)?;
+        self.connection_endpoints
+            .get(&connection)
+            .copied()
+            .ok_or(PartTreeError::ConnectionNotBound)
+    }
+
+    /// Returns connections whose source is the supplied containment Part.
+    pub fn source_connections(
+        &self,
+        endpoint: EditPartId,
+    ) -> Result<&[ConnectionPartId], PartTreeError> {
+        self.resolve_endpoint(endpoint)?;
+        Ok(self
+            .outgoing
+            .get(&endpoint)
+            .map(Vec::as_slice)
+            .unwrap_or_default())
+    }
+
+    /// Returns connections whose target is the supplied containment Part.
+    pub fn target_connections(
+        &self,
+        endpoint: EditPartId,
+    ) -> Result<&[ConnectionPartId], PartTreeError> {
+        self.resolve_endpoint(endpoint)?;
+        Ok(self
+            .incoming
+            .get(&endpoint)
+            .map(Vec::as_slice)
+            .unwrap_or_default())
     }
 
     pub(crate) fn insert(
@@ -170,6 +285,7 @@ impl<I: Copy> PartTree<I> {
             let id = EditPartId::from_local(namespace, key.data());
             PartNode {
                 id,
+                kind: PartKind::Containment,
                 model_id: Some(model_id),
                 parent: Some(parent),
                 children: Vec::new(),
@@ -182,6 +298,107 @@ impl<I: Copy> PartTree<I> {
         let id = EditPartId::from_local(namespace, key.data());
         self.nodes[parent_key].children.push(id);
         Ok(id)
+    }
+
+    pub(crate) fn insert_connection(
+        &mut self,
+        model_id: I,
+        primary_figure: FigureId,
+        content_pane: FigureId,
+        visuals: Vec<FigureId>,
+        source: EditPartId,
+        target: EditPartId,
+    ) -> Result<ConnectionPartId, PartTreeError> {
+        self.resolve_endpoint(source)?;
+        self.resolve_endpoint(target)?;
+        let namespace = self.namespace;
+        let key = self.nodes.insert_with_key(|key| {
+            let id = EditPartId::from_local(namespace, key.data());
+            PartNode {
+                id,
+                kind: PartKind::Connection,
+                model_id: Some(model_id),
+                parent: None,
+                children: Vec::new(),
+                primary_figure,
+                content_pane,
+                visuals,
+                active: false,
+            }
+        });
+        let connection = ConnectionPartId(EditPartId::from_local(namespace, key.data()));
+        self.connections.push(connection);
+        self.connection_endpoints
+            .insert(connection, ConnectionEndpoints::new(source, target));
+        self.rebuild_connection_indexes();
+        Ok(connection)
+    }
+
+    pub(crate) fn bind_connection(
+        &mut self,
+        connection: ConnectionPartId,
+        source: EditPartId,
+        target: EditPartId,
+    ) -> Result<bool, PartTreeError> {
+        self.resolve_connection(connection)?;
+        self.resolve_endpoint(source)?;
+        self.resolve_endpoint(target)?;
+        let endpoints = ConnectionEndpoints::new(source, target);
+        if self.connection_endpoints.get(&connection) == Some(&endpoints) {
+            return Ok(false);
+        }
+        self.connection_endpoints.insert(connection, endpoints);
+        self.rebuild_connection_indexes();
+        Ok(true)
+    }
+
+    pub(crate) fn unbind_connection(
+        &mut self,
+        connection: ConnectionPartId,
+    ) -> Result<bool, PartTreeError> {
+        self.resolve_connection(connection)?;
+        let removed = self.connection_endpoints.remove(&connection).is_some();
+        if removed {
+            self.rebuild_connection_indexes();
+        }
+        Ok(removed)
+    }
+
+    pub(crate) fn set_connection_order(
+        &mut self,
+        order: Vec<ConnectionPartId>,
+    ) -> Result<bool, PartTreeError> {
+        if order.len() != self.connections.len() {
+            return Err(PartTreeError::InvalidConnectionOrder);
+        }
+        let mut seen = std::collections::HashSet::with_capacity(order.len());
+        for connection in &order {
+            self.resolve_connection(*connection)?;
+            if !seen.insert(*connection) {
+                return Err(PartTreeError::InvalidConnectionOrder);
+            }
+        }
+        if order == self.connections {
+            return Ok(false);
+        }
+        self.connections = order;
+        self.rebuild_connection_indexes();
+        Ok(true)
+    }
+
+    pub(crate) fn retire_connection(
+        &mut self,
+        connection: ConnectionPartId,
+    ) -> Result<(), PartTreeError> {
+        let key = self.resolve_connection(connection)?;
+        if self.connection_endpoints.contains_key(&connection) {
+            return Err(PartTreeError::ConnectionStillBound);
+        }
+        self.connections
+            .retain(|candidate| *candidate != connection);
+        self.nodes.remove(key);
+        self.rebuild_connection_indexes();
+        Ok(())
     }
 
     pub(crate) fn designate_contents(&mut self, id: EditPartId) -> Result<(), PartTreeError> {
@@ -223,7 +440,10 @@ impl<I: Copy> PartTree<I> {
     }
 
     pub(crate) fn subtree_ids(&self, root: EditPartId) -> Result<Vec<EditPartId>, PartTreeError> {
-        self.resolve(root)?;
+        let key = self.resolve(root)?;
+        if self.nodes[key].kind == PartKind::Connection {
+            return Err(PartTreeError::InvalidPartKind);
+        }
         let mut result = Vec::new();
         let mut stack = vec![root];
         while let Some(id) = stack.pop() {
@@ -239,6 +459,12 @@ impl<I: Copy> PartTree<I> {
             return Err(PartTreeError::CannotRemoveRoot);
         }
         let ids = self.subtree_ids(root)?;
+        if ids.iter().any(|id| {
+            self.outgoing.get(id).is_some_and(|items| !items.is_empty())
+                || self.incoming.get(id).is_some_and(|items| !items.is_empty())
+        }) {
+            return Err(PartTreeError::EndpointInUse);
+        }
         let parent = self.parent(root).ok_or(PartTreeError::InvalidParent)?;
         let parent_key = self.resolve(parent)?;
         self.nodes[parent_key]
@@ -265,6 +491,49 @@ impl<I: Copy> PartTree<I> {
             .then_some(key)
             .ok_or(PartTreeError::UnknownPart)
     }
+
+    fn resolve_connection(
+        &self,
+        connection: ConnectionPartId,
+    ) -> Result<DefaultKey, PartTreeError> {
+        let key = self.resolve(connection.0)?;
+        (self.nodes[key].kind == PartKind::Connection)
+            .then_some(key)
+            .ok_or(PartTreeError::InvalidPartKind)
+    }
+
+    fn resolve_endpoint(&self, endpoint: EditPartId) -> Result<DefaultKey, PartTreeError> {
+        let key = self.resolve(endpoint)?;
+        (self.nodes[key].kind == PartKind::Containment)
+            .then_some(key)
+            .ok_or(PartTreeError::InvalidPartKind)
+    }
+
+    fn invalid_part_error(&self, id: EditPartId) -> PartTreeError {
+        if id.namespace == self.namespace {
+            PartTreeError::UnknownPart
+        } else {
+            PartTreeError::ForeignPart
+        }
+    }
+
+    fn rebuild_connection_indexes(&mut self) {
+        self.outgoing.clear();
+        self.incoming.clear();
+        for connection in self.connections.iter().copied() {
+            let Some(endpoints) = self.connection_endpoints.get(&connection).copied() else {
+                continue;
+            };
+            self.outgoing
+                .entry(endpoints.source)
+                .or_default()
+                .push(connection);
+            self.incoming
+                .entry(endpoints.target)
+                .or_default()
+                .push(connection);
+        }
+    }
 }
 
 /// Part topology mutation failure.
@@ -282,6 +551,16 @@ pub enum PartTreeError {
     InvalidIndex,
     /// Contents must be the direct child of the synthetic root.
     InvalidContents,
+    /// The Part does not have the role required by this operation.
+    InvalidPartKind,
+    /// The connection Part does not currently have both endpoint relations.
+    ConnectionNotBound,
+    /// The connection Part must be unbound before it is retired.
+    ConnectionStillBound,
+    /// Connection ordering must contain every live connection exactly once.
+    InvalidConnectionOrder,
+    /// A containment subtree is still referenced by a connection.
+    EndpointInUse,
     /// The synthetic root cannot be removed.
     CannotRemoveRoot,
 }
@@ -334,6 +613,67 @@ pub struct PartFactoryContext<I> {
     parent_part: EditPartId,
     parent_model: Option<I>,
     model_id: I,
+}
+
+/// Immutable creation context for a connection Part.
+#[derive(Clone, Copy, Debug)]
+pub struct ConnectionPartFactoryContext<I> {
+    root_part: EditPartId,
+    model_id: I,
+    source_part: EditPartId,
+    source_model: I,
+    target_part: EditPartId,
+    target_model: I,
+}
+
+impl<I: Copy> ConnectionPartFactoryContext<I> {
+    pub(crate) fn new(
+        root_part: EditPartId,
+        model_id: I,
+        source_part: EditPartId,
+        source_model: I,
+        target_part: EditPartId,
+        target_model: I,
+    ) -> Self {
+        Self {
+            root_part,
+            model_id,
+            source_part,
+            source_model,
+            target_part,
+            target_model,
+        }
+    }
+
+    /// Returns the synthetic root that owns the connection Part lifecycle.
+    pub const fn root_part(self) -> EditPartId {
+        self.root_part
+    }
+
+    /// Returns the represented connection model identity.
+    pub const fn model_id(self) -> I {
+        self.model_id
+    }
+
+    /// Returns the source endpoint Part.
+    pub const fn source_part(self) -> EditPartId {
+        self.source_part
+    }
+
+    /// Returns the source endpoint model identity.
+    pub const fn source_model(self) -> I {
+        self.source_model
+    }
+
+    /// Returns the target endpoint Part.
+    pub const fn target_part(self) -> EditPartId {
+        self.target_part
+    }
+
+    /// Returns the target endpoint model identity.
+    pub const fn target_model(self) -> I {
+        self.target_model
+    }
 }
 
 impl<I: Copy> PartFactoryContext<I> {
@@ -508,6 +848,18 @@ pub trait EditPartFactory<A: ModelAdapter> {
         context: PartFactoryContext<A::ModelId>,
         model: &A,
     ) -> Result<Box<dyn EditPartBehavior<A>>, EditPartError>;
+
+    /// Creates behavior for one connection model outside containment.
+    fn create_connection(
+        &mut self,
+        context: ConnectionPartFactoryContext<A::ModelId>,
+        model: &A,
+    ) -> Result<Box<dyn EditPartBehavior<A>>, EditPartError> {
+        self.create(
+            PartFactoryContext::new(context.root_part, None, context.model_id),
+            model,
+        )
+    }
 }
 
 pub(crate) struct BehaviorStore<A: ModelAdapter> {

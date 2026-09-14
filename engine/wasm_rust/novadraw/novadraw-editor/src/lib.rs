@@ -4,6 +4,7 @@
 //! G2 adds EditPart topology and model-to-Figure projection without moving application state into
 //! the Figure runtime. G3 adds Viewer selection, targeting, root layers, and input arbitration.
 //! G4 adds typed editing requests, role-keyed policies, active Tools, and model Command execution.
+//! G5.1 adds ordered connection-model projection and Runtime routing bindings.
 
 #![deny(missing_docs)]
 
@@ -24,10 +25,11 @@ pub use command::{
 };
 pub use domain::{DomainPointerRelease, EditorDomain, EditorDomainError};
 pub use feedback::{FeedbackId, HandleId, HandleRole, VisualOwner};
-pub use model::{ModelAdapter, ModelEvent, ModelRevision, ModelRevisionError};
+pub use model::{ModelAdapter, ModelConnection, ModelEvent, ModelRevision, ModelRevisionError};
 pub use part::{
-    EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
-    PartFactoryContext, PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
+    ConnectionEndpoints, ConnectionPartFactoryContext, ConnectionPartId, EditPartBehavior,
+    EditPartError, EditPartFactory, EditPartId, EditorNamespace, PartFactoryContext, PartKind,
+    PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
 };
 pub use policy::{
     EditPolicy, FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,

@@ -8,16 +8,18 @@ use std::{
 
 use novadraw_geometry::{Rectangle, Translatable};
 use novadraw_scene::{
-    DispatchOutcome, Figure, FigureId, FigureTree, KeyModifiers, LayerError, LayerFigure, LayerKey,
-    LayerPlacement, LayeredPane, MouseButton, Runtime, RuntimeMutationError,
-    ScalableFreeformLayeredPane, StackLayout,
+    AnchorId, ChopboxAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError,
+    CoordinateSpace, DispatchOutcome, Figure, FigureId, FigureTree, KeyModifiers, LayerError,
+    LayerFigure, LayerKey, LayerPlacement, LayeredPane, MouseButton, RouterBinding, Runtime,
+    RuntimeMutationError, ScalableFreeformLayeredPane, StackLayout,
 };
 
 use crate::{
-    Command, CompoundCommand, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
-    EditorRequest, FeedbackId, HandleId, HandleRole, ModelAdapter, ModelRevision,
-    PartFactoryContext, PartTree, PartTreeError, PolicyError, PolicyHost, SelectionDelta,
-    SelectionModel, VisualBuildContext, VisualOwner, VisualUpdateContext,
+    Command, CompoundCommand, ConnectionPartFactoryContext, ConnectionPartId, EditPartError,
+    EditPartFactory, EditPartId, EditorNamespace, EditorRequest, FeedbackId, HandleId, HandleRole,
+    ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartTree, PartTreeError,
+    PolicyError, PolicyHost, SelectionDelta, SelectionModel, VisualBuildContext, VisualOwner,
+    VisualUpdateContext,
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
 };
@@ -158,6 +160,30 @@ pub enum ViewerError {
     DuplicateVisual,
     /// The adapter root changed while the Viewer was active.
     RootChanged,
+    /// The model revision changed while a projection snapshot was being read.
+    SnapshotRevisionChanged,
+    /// The ordered connection snapshot contains a duplicate connection model.
+    DuplicateConnectionModel {
+        /// Debug representation of the duplicate connection model identity.
+        connection: String,
+    },
+    /// A connection endpoint is absent from the desired containment snapshot.
+    MissingConnectionEndpoint {
+        /// Debug representation of the connection model identity.
+        connection: String,
+        /// Debug representation of the missing endpoint model identity.
+        endpoint: String,
+    },
+    /// One model identity is used by both containment and connection projections.
+    ConnectionModelCollision {
+        /// Debug representation of the colliding model identity.
+        model: String,
+    },
+    /// A connection factory returned a Figure without Connection behavior.
+    InvalidConnectionFigure {
+        /// Debug representation of the connection model identity.
+        connection: String,
+    },
     /// A notification was older than the revision already projected.
     StaleRevision {
         /// Last successfully projected revision.
@@ -182,6 +208,8 @@ pub enum ViewerError {
     PartTree(PartTreeError),
     /// Figure Runtime mutation failed.
     Runtime(RuntimeMutationError),
+    /// Connection Runtime mutation or routing failed.
+    Connection(ConnectionRuntimeError),
     /// Root layer construction or mutation failed.
     Layer(LayerError),
     /// EditPolicy rejected a request or failed.
@@ -199,6 +227,36 @@ impl fmt::Display for ViewerError {
             Self::DuplicateModel => formatter.write_str("duplicate model identity"),
             Self::DuplicateVisual => formatter.write_str("duplicate visual registration"),
             Self::RootChanged => formatter.write_str("model root changed while Viewer was active"),
+            Self::SnapshotRevisionChanged => {
+                formatter.write_str("model revision changed while reading the projection snapshot")
+            }
+            Self::DuplicateConnectionModel { connection } => {
+                write!(
+                    formatter,
+                    "duplicate connection model identity {connection}"
+                )
+            }
+            Self::MissingConnectionEndpoint {
+                connection,
+                endpoint,
+            } => {
+                write!(
+                    formatter,
+                    "connection {connection} endpoint {endpoint} is absent from model containment"
+                )
+            }
+            Self::ConnectionModelCollision { model } => {
+                write!(
+                    formatter,
+                    "model identity {model} is both a containment and connection model"
+                )
+            }
+            Self::InvalidConnectionFigure { connection } => {
+                write!(
+                    formatter,
+                    "connection factory returned a non-connection Figure for model {connection}"
+                )
+            }
             Self::StaleRevision { applied, actual } => write!(
                 formatter,
                 "stale model revision {}; last applied revision is {}",
@@ -221,6 +279,7 @@ impl fmt::Display for ViewerError {
             Self::EditPart(error) => error.fmt(formatter),
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
+            Self::Connection(error) => error.fmt(formatter),
             Self::Layer(error) => error.fmt(formatter),
             Self::Policy(error) => error.fmt(formatter),
             Self::InvalidPart(part) => write!(formatter, "invalid EditPart: {part:?}"),
@@ -235,6 +294,7 @@ impl Error for ViewerError {
             Self::EditPart(error) => Some(error),
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
+            Self::Connection(error) => Some(error),
             Self::Layer(error) => Some(error),
             Self::Policy(error) => Some(error),
             _ => None,
@@ -260,6 +320,12 @@ impl From<RuntimeMutationError> for ViewerError {
     }
 }
 
+impl From<ConnectionRuntimeError> for ViewerError {
+    fn from(value: ConnectionRuntimeError) -> Self {
+        Self::Connection(value)
+    }
+}
+
 impl From<LayerError> for ViewerError {
     fn from(value: LayerError) -> Self {
         Self::Layer(value)
@@ -273,28 +339,64 @@ impl From<PolicyError> for ViewerError {
 }
 
 struct ModelSnapshot<I> {
+    revision: ModelRevision,
     root: I,
     children: HashMap<I, Vec<I>>,
     parents: HashMap<I, I>,
+    models: HashSet<I>,
+    connections: Vec<ModelConnection<I>>,
+    connection_indexes: HashMap<I, usize>,
 }
 
 impl<I> ModelSnapshot<I>
 where
-    I: Copy + Eq + std::hash::Hash,
+    I: Copy + Eq + std::hash::Hash + fmt::Debug,
 {
     fn capture<A>(model: &A) -> Result<Self, ViewerError>
     where
         A: ModelAdapter<ModelId = I>,
     {
+        let revision = model.revision();
         let root = model.root();
         let mut children = HashMap::new();
         let mut parents = HashMap::new();
-        let mut seen = std::collections::HashSet::new();
+        let mut seen = HashSet::new();
         Self::capture_subtree(model, root, 0, &mut seen, &mut children, &mut parents)?;
+        let connections = model
+            .connections()
+            .map_err(|error| ViewerError::Model(error.to_string()))?;
+        let mut connection_indexes = HashMap::with_capacity(connections.len());
+        for (index, connection) in connections.iter().enumerate() {
+            if connection_indexes.insert(connection.id(), index).is_some() {
+                return Err(ViewerError::DuplicateConnectionModel {
+                    connection: format!("{:?}", connection.id()),
+                });
+            }
+            if seen.contains(&connection.id()) {
+                return Err(ViewerError::ConnectionModelCollision {
+                    model: format!("{:?}", connection.id()),
+                });
+            }
+            for endpoint in [connection.source(), connection.target()] {
+                if !seen.contains(&endpoint) {
+                    return Err(ViewerError::MissingConnectionEndpoint {
+                        connection: format!("{:?}", connection.id()),
+                        endpoint: format!("{endpoint:?}"),
+                    });
+                }
+            }
+        }
+        if model.revision() != revision {
+            return Err(ViewerError::SnapshotRevisionChanged);
+        }
         Ok(Self {
+            revision,
             root,
             children,
             parents,
+            models: seen,
+            connections,
+            connection_indexes,
         })
     }
 
@@ -331,6 +433,16 @@ where
             .get(&model_id)
             .map(Vec::as_slice)
             .ok_or(ViewerError::InconsistentState)
+    }
+
+    fn contains_model(&self, model_id: I) -> bool {
+        self.models.contains(&model_id)
+    }
+
+    fn connection(&self, model_id: I) -> Option<ModelConnection<I>> {
+        self.connection_indexes
+            .get(&model_id)
+            .map(|index| self.connections[*index])
     }
 }
 
@@ -438,7 +550,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     let connection = add_layer(
         &mut runtime,
         printable,
-        Box::new(LayerFigure::new(
+        Box::new(ConnectionLayerFigure::new(
             bounds.x,
             bounds.y,
             bounds.width,
@@ -465,6 +577,17 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     ))
 }
 
+#[derive(Clone, Copy)]
+struct ConnectionProjection<I> {
+    part: ConnectionPartId,
+    connection: ConnectionId,
+    source_model: I,
+    target_model: I,
+    source_anchor: Option<AnchorId>,
+    target_anchor: Option<AnchorId>,
+    registered: bool,
+}
+
 /// Owns one application model projection, its EditPart tree, and its Figure Runtime.
 pub struct GraphicalViewer<A, F>
 where
@@ -479,6 +602,7 @@ where
     behaviors: BehaviorStore<A>,
     policies: PolicyStore<A>,
     model_registry: HashMap<A::ModelId, EditPartId>,
+    connection_projections: HashMap<A::ModelId, ConnectionProjection<A::ModelId>>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
     applied_revision: ModelRevision,
@@ -494,7 +618,7 @@ where
     /// Creates a Viewer and recursively projects the current model snapshot.
     pub fn new(mut model: A, factory: F, bounds: Rectangle) -> Result<Self, ViewerError> {
         let snapshot = ModelSnapshot::capture(&model)?;
-        let applied_revision = model.revision();
+        let applied_revision = snapshot.revision;
         let initial_events = model.drain_events();
         if let Some(event) = initial_events
             .iter()
@@ -518,6 +642,7 @@ where
             behaviors: BehaviorStore::new(namespace),
             policies: PolicyStore::new(namespace),
             model_registry: HashMap::new(),
+            connection_projections: HashMap::new(),
             visual_registry: HashMap::from([(root_layers.root(), VisualOwner::Part(root_part))]),
             selection: SelectionModel::new(),
             applied_revision,
@@ -526,6 +651,7 @@ where
         };
         let contents = viewer.create_subtree(root_part, snapshot.root, &snapshot)?;
         viewer.parts.designate_contents(contents)?;
+        viewer.synchronize_connections(&snapshot)?;
         Ok(viewer)
     }
 
@@ -634,6 +760,13 @@ where
     /// Resolves a model identity to its current EditPart.
     pub fn part_for_model(&self, model_id: A::ModelId) -> Option<EditPartId> {
         self.model_registry.get(&model_id).copied()
+    }
+
+    /// Resolves a connection model identity to its checked connection Part.
+    pub fn connection_part_for_model(&self, model_id: A::ModelId) -> Option<ConnectionPartId> {
+        self.connection_projections
+            .get(&model_id)
+            .map(|projection| projection.part)
     }
 
     /// Returns the axis-aligned surface bounds of a part's primary Figure.
@@ -973,13 +1106,21 @@ where
         }
 
         let snapshot = match ModelSnapshot::capture(&self.model) {
-            Ok(snapshot) if snapshot.root == self.model_root => snapshot,
-            Ok(_) => return self.fail(ViewerError::RootChanged),
+            Ok(snapshot) if snapshot.root != self.model_root => {
+                return self.fail(ViewerError::RootChanged);
+            }
+            Ok(snapshot) if snapshot.revision != final_revision => {
+                return self.fail(ViewerError::SnapshotRevisionChanged);
+            }
+            Ok(snapshot) => snapshot,
             Err(error) => return self.fail(error),
         };
-        let result = self
-            .remove_reparented_subtrees(&snapshot)
-            .and_then(|()| self.synchronize_subtree(self.contents(), snapshot.root, &snapshot));
+        let result = self.parts_to_retire(&snapshot).and_then(|retiring| {
+            self.prepare_connections_for_containment_change(&snapshot, &retiring)
+                .and_then(|()| self.remove_reparented_subtrees(&snapshot))
+                .and_then(|()| self.synchronize_subtree(self.contents(), snapshot.root, &snapshot))
+                .and_then(|()| self.synchronize_connections(&snapshot))
+        });
         match result {
             Ok(()) => {
                 self.applied_revision = final_revision;
@@ -1117,6 +1258,456 @@ where
             self.create_subtree(part, child, snapshot)?;
         }
         Ok(part)
+    }
+
+    fn create_connection_part(
+        &mut self,
+        descriptor: ModelConnection<A::ModelId>,
+    ) -> Result<ConnectionPartId, ViewerError> {
+        if self.model_registry.contains_key(&descriptor.id()) {
+            return Err(ViewerError::DuplicateModel);
+        }
+        let source_part = self
+            .model_registry
+            .get(&descriptor.source())
+            .copied()
+            .ok_or_else(|| ViewerError::MissingConnectionEndpoint {
+                connection: format!("{:?}", descriptor.id()),
+                endpoint: format!("{:?}", descriptor.source()),
+            })?;
+        let target_part = self
+            .model_registry
+            .get(&descriptor.target())
+            .copied()
+            .ok_or_else(|| ViewerError::MissingConnectionEndpoint {
+                connection: format!("{:?}", descriptor.id()),
+                endpoint: format!("{:?}", descriptor.target()),
+            })?;
+        let context = ConnectionPartFactoryContext::new(
+            self.root(),
+            descriptor.id(),
+            source_part,
+            descriptor.source(),
+            target_part,
+            descriptor.target(),
+        );
+        let mut behavior = self.factory.create_connection(context, &self.model)?;
+        let policies = behavior.create_policies(&self.model, descriptor.id())?;
+        let primary = self.runtime.try_add_figure(
+            self.root_layers.connection(),
+            behavior.create_figure(&self.model, descriptor.id())?,
+        )?;
+        if !self.runtime.tree().is_connection_figure(primary) {
+            self.runtime.dispose_subtree(primary)?;
+            return Err(ViewerError::InvalidConnectionFigure {
+                connection: format!("{:?}", descriptor.id()),
+            });
+        }
+        let mut build = VisualBuildContext::new(&mut self.runtime, primary);
+        if let Err(error) = behavior.configure_visual(&self.model, descriptor.id(), &mut build) {
+            let _ = self.runtime.dispose_subtree(primary);
+            return Err(error.into());
+        }
+        let (content_pane, visuals) = build.finish();
+        if visuals
+            .iter()
+            .any(|visual| self.visual_registry.contains_key(visual))
+        {
+            self.runtime.dispose_subtree(primary)?;
+            return Err(ViewerError::DuplicateVisual);
+        }
+        let source_figure = self
+            .parts
+            .get(source_part)
+            .ok_or(ViewerError::InconsistentState)?
+            .primary_figure();
+        let target_figure = self
+            .parts
+            .get(target_part)
+            .ok_or(ViewerError::InconsistentState)?
+            .primary_figure();
+        let source_anchor = self
+            .runtime
+            .try_register_connection_anchor(Box::new(ChopboxAnchor::new(source_figure)))?;
+        let target_anchor = match self
+            .runtime
+            .try_register_connection_anchor(Box::new(ChopboxAnchor::new(target_figure)))
+        {
+            Ok(anchor) => anchor,
+            Err(error) => {
+                let _ = self.runtime.remove_connection_anchor(source_anchor);
+                let _ = self.runtime.dispose_subtree(primary);
+                return Err(error.into());
+            }
+        };
+        let connection = match self.runtime.register_connection_state(
+            primary,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Inherited {
+                layer: self.root_layers.connection(),
+            },
+            None,
+        ) {
+            Ok(connection) => connection,
+            Err(error) => {
+                let _ = self.runtime.remove_connection_anchor(source_anchor);
+                let _ = self.runtime.remove_connection_anchor(target_anchor);
+                let _ = self.runtime.dispose_subtree(primary);
+                return Err(error.into());
+            }
+        };
+
+        let part = self.parts.insert_connection(
+            descriptor.id(),
+            primary,
+            content_pane,
+            visuals.clone(),
+            source_part,
+            target_part,
+        )?;
+        self.model_registry
+            .insert(descriptor.id(), part.edit_part());
+        for visual in visuals {
+            self.visual_registry
+                .insert(visual, VisualOwner::Part(part.edit_part()));
+        }
+        self.behaviors.insert(part.edit_part(), behavior)?;
+        self.connection_projections.insert(
+            descriptor.id(),
+            ConnectionProjection {
+                part,
+                connection,
+                source_model: descriptor.source(),
+                target_model: descriptor.target(),
+                source_anchor: Some(source_anchor),
+                target_anchor: Some(target_anchor),
+                registered: true,
+            },
+        );
+        let initialization = (|| {
+            for (role, policy) in policies {
+                self.policies.install(part.edit_part(), role, policy)?;
+            }
+            self.refresh_part_visuals(part.edit_part())?;
+            self.behaviors
+                .get_mut(part.edit_part())
+                .ok_or(ViewerError::InconsistentState)?
+                .activate(&self.model, descriptor.id())?;
+            self.parts.set_active(part.edit_part(), true)?;
+            let host = self.policy_host(part.edit_part())?;
+            if let Some(roles) = self.policies.roles_mut(part.edit_part()) {
+                for policy in roles.values_mut() {
+                    policy.activate(host, &self.model)?;
+                }
+            }
+            self.resolve_connection(connection)
+        })();
+        if let Err(error) = initialization {
+            self.remove_connection_part(part)?;
+            return Err(error);
+        }
+        Ok(part)
+    }
+
+    fn resolve_connection(&mut self, connection: ConnectionId) -> Result<(), ViewerError> {
+        match self.runtime.resolve_connection_route(
+            connection,
+            CoordinateSpace::ChildContent(self.root_layers.connection()),
+        ) {
+            Ok(_) | Err(ConnectionRuntimeError::Unresolved(_)) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    fn synchronize_connections(
+        &mut self,
+        snapshot: &ModelSnapshot<A::ModelId>,
+    ) -> Result<(), ViewerError> {
+        let mut order = Vec::with_capacity(snapshot.connections.len());
+        for descriptor in snapshot.connections.iter().copied() {
+            let connection = match self
+                .connection_projections
+                .get(&descriptor.id())
+                .map(|projection| projection.part)
+            {
+                Some(connection) => {
+                    self.bind_connection_part(descriptor)?;
+                    self.refresh_part_visuals(connection.edit_part())?;
+                    connection
+                }
+                None => self.create_connection_part(descriptor)?,
+            };
+            order.push(connection);
+        }
+        for (index, connection) in order.iter().copied().enumerate() {
+            let figure = self
+                .parts
+                .get(connection.edit_part())
+                .ok_or(ViewerError::InconsistentState)?
+                .primary_figure();
+            self.runtime
+                .move_child_to_index(self.root_layers.connection(), figure, index)?;
+        }
+        self.parts.set_connection_order(order)?;
+        Ok(())
+    }
+
+    fn bind_connection_part(
+        &mut self,
+        descriptor: ModelConnection<A::ModelId>,
+    ) -> Result<(), ViewerError> {
+        let source_part = self
+            .model_registry
+            .get(&descriptor.source())
+            .copied()
+            .ok_or_else(|| ViewerError::MissingConnectionEndpoint {
+                connection: format!("{:?}", descriptor.id()),
+                endpoint: format!("{:?}", descriptor.source()),
+            })?;
+        let target_part = self
+            .model_registry
+            .get(&descriptor.target())
+            .copied()
+            .ok_or_else(|| ViewerError::MissingConnectionEndpoint {
+                connection: format!("{:?}", descriptor.id()),
+                endpoint: format!("{:?}", descriptor.target()),
+            })?;
+        let mut current = self
+            .connection_projections
+            .get(&descriptor.id())
+            .copied()
+            .ok_or(ViewerError::InconsistentState)?;
+        if current.registered
+            && current.source_model == descriptor.source()
+            && current.target_model == descriptor.target()
+            && self.parts.connection_endpoints(current.part)?
+                == crate::ConnectionEndpoints::new(source_part, target_part)
+        {
+            return Ok(());
+        }
+        if current.registered {
+            self.detach_connection_binding(current.part, true, true)?;
+            current = self
+                .connection_projections
+                .get(&descriptor.id())
+                .copied()
+                .ok_or(ViewerError::InconsistentState)?;
+        }
+
+        let source_figure = self
+            .parts
+            .get(source_part)
+            .ok_or(ViewerError::InconsistentState)?
+            .primary_figure();
+        let target_figure = self
+            .parts
+            .get(target_part)
+            .ok_or(ViewerError::InconsistentState)?
+            .primary_figure();
+        let source_unchanged = current.source_model == descriptor.source();
+        let target_unchanged = current.target_model == descriptor.target();
+        let source_anchor = if source_unchanged {
+            current.source_anchor
+        } else {
+            None
+        }
+        .map(Ok)
+        .unwrap_or_else(|| {
+            self.runtime
+                .try_register_connection_anchor(Box::new(ChopboxAnchor::new(source_figure)))
+        })?;
+        let target_anchor = if target_unchanged {
+            current.target_anchor
+        } else {
+            None
+        }
+        .map(Ok)
+        .unwrap_or_else(|| {
+            self.runtime
+                .try_register_connection_anchor(Box::new(ChopboxAnchor::new(target_figure)))
+        })?;
+        self.parts
+            .bind_connection(current.part, source_part, target_part)?;
+        self.runtime.register_connection_state(
+            current.connection.figure(),
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Inherited {
+                layer: self.root_layers.connection(),
+            },
+            None,
+        )?;
+        let connection = current.connection;
+        let projection = self
+            .connection_projections
+            .get_mut(&descriptor.id())
+            .ok_or(ViewerError::InconsistentState)?;
+        projection.source_model = descriptor.source();
+        projection.target_model = descriptor.target();
+        projection.source_anchor = Some(source_anchor);
+        projection.target_anchor = Some(target_anchor);
+        projection.registered = true;
+        self.resolve_connection(connection)
+    }
+
+    fn parts_to_retire(
+        &self,
+        snapshot: &ModelSnapshot<A::ModelId>,
+    ) -> Result<HashSet<EditPartId>, ViewerError> {
+        let mut retiring = HashSet::new();
+        for part in self.parts.subtree_ids(self.contents())?.into_iter().skip(1) {
+            if retiring.contains(&part) {
+                continue;
+            }
+            let node = self.parts.get(part).ok_or(ViewerError::InconsistentState)?;
+            let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
+            let actual_parent = self
+                .parts
+                .parent(part)
+                .and_then(|parent| self.parts.get(parent))
+                .and_then(|parent| parent.model_id());
+            if !snapshot.contains_model(model_id)
+                || snapshot.parents.get(&model_id).copied() != actual_parent
+            {
+                retiring.extend(self.parts.subtree_ids(part)?);
+            }
+        }
+        Ok(retiring)
+    }
+
+    fn prepare_connections_for_containment_change(
+        &mut self,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        retiring: &HashSet<EditPartId>,
+    ) -> Result<(), ViewerError> {
+        let current = self.parts.connection_parts().to_vec();
+        for connection in current {
+            let model_id = self
+                .parts
+                .get(connection.edit_part())
+                .and_then(|node| node.model_id())
+                .ok_or(ViewerError::InconsistentState)?;
+            let Some(desired) = snapshot.connection(model_id) else {
+                self.remove_connection_part(connection)?;
+                continue;
+            };
+            let endpoints = self.parts.connection_endpoints(connection)?;
+            let projection = self
+                .connection_projections
+                .get(&model_id)
+                .ok_or(ViewerError::InconsistentState)?;
+            let source_changes = projection.source_model != desired.source()
+                || retiring.contains(&endpoints.source());
+            let target_changes = projection.target_model != desired.target()
+                || retiring.contains(&endpoints.target());
+            if source_changes || target_changes {
+                self.detach_connection_binding(connection, source_changes, target_changes)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn detach_connection_binding(
+        &mut self,
+        connection: ConnectionPartId,
+        remove_source: bool,
+        remove_target: bool,
+    ) -> Result<(), ViewerError> {
+        let model_id = self
+            .parts
+            .get(connection.edit_part())
+            .and_then(|node| node.model_id())
+            .ok_or(ViewerError::InconsistentState)?;
+        let projection = self
+            .connection_projections
+            .get(&model_id)
+            .ok_or(ViewerError::InconsistentState)?;
+        if projection.registered {
+            self.runtime
+                .remove_connection_state(projection.connection)?;
+        }
+        let source_anchor = remove_source.then_some(projection.source_anchor).flatten();
+        let target_anchor = remove_target.then_some(projection.target_anchor).flatten();
+        if let Some(anchor) = source_anchor {
+            self.runtime.remove_connection_anchor(anchor)?;
+        }
+        if let Some(anchor) = target_anchor {
+            self.runtime.remove_connection_anchor(anchor)?;
+        }
+        self.parts.unbind_connection(connection)?;
+        let projection = self
+            .connection_projections
+            .get_mut(&model_id)
+            .ok_or(ViewerError::InconsistentState)?;
+        projection.registered = false;
+        if remove_source {
+            projection.source_anchor = None;
+        }
+        if remove_target {
+            projection.target_anchor = None;
+        }
+        Ok(())
+    }
+
+    fn remove_connection_part(&mut self, connection: ConnectionPartId) -> Result<(), ViewerError> {
+        let part = connection.edit_part();
+        let node = self.parts.get(part).ok_or(ViewerError::InconsistentState)?;
+        let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
+        let primary = node.primary_figure();
+        let visuals = node.visuals().to_vec();
+        self.selection.reconcile(|selected| selected != part);
+        let overlays: Vec<_> = self
+            .visual_registry
+            .iter()
+            .filter_map(|(figure, owner)| match owner {
+                VisualOwner::Handle { owner, .. } if *owner == part => Some(*figure),
+                VisualOwner::Feedback {
+                    owner: Some(owner), ..
+                } if *owner == part => Some(*figure),
+                _ => None,
+            })
+            .collect();
+        for overlay in overlays {
+            if self.runtime.tree().is_attached(overlay) {
+                self.runtime.dispose_subtree(overlay)?;
+            }
+            self.visual_registry.remove(&overlay);
+        }
+        let host = PolicyHost::new(part, model_id, None);
+        if let Some(roles) = self.policies.roles_mut(part) {
+            for policy in roles.values_mut() {
+                policy.deactivate(host, &self.model);
+            }
+        }
+        self.behaviors
+            .get_mut(part)
+            .ok_or(ViewerError::InconsistentState)?
+            .deactivate(&self.model, model_id);
+        let projection = self
+            .connection_projections
+            .remove(&model_id)
+            .ok_or(ViewerError::InconsistentState)?;
+        if projection.registered {
+            self.runtime
+                .remove_connection_state(projection.connection)?;
+        }
+        if let Some(anchor) = projection.source_anchor {
+            self.runtime.remove_connection_anchor(anchor)?;
+        }
+        if let Some(anchor) = projection.target_anchor {
+            self.runtime.remove_connection_anchor(anchor)?;
+        }
+        self.parts.unbind_connection(connection)?;
+        self.model_registry.remove(&model_id);
+        for visual in visuals {
+            self.visual_registry.remove(&visual);
+        }
+        self.policies.remove(part);
+        self.behaviors.remove(part);
+        self.runtime.dispose_subtree(primary)?;
+        self.parts.retire_connection(connection)?;
+        Ok(())
     }
 
     fn synchronize_subtree(
@@ -1272,6 +1863,28 @@ where
     F: EditPartFactory<A>,
 {
     fn drop(&mut self) {
+        for connection in self.parts.connection_parts().to_vec() {
+            let part = connection.edit_part();
+            let Some(node) = self.parts.get(part) else {
+                continue;
+            };
+            let Some(model_id) = (if node.is_active() {
+                node.model_id()
+            } else {
+                None
+            }) else {
+                continue;
+            };
+            let host = PolicyHost::new(part, model_id, None);
+            if let Some(roles) = self.policies.roles_mut(part) {
+                for policy in roles.values_mut() {
+                    policy.deactivate(host, &self.model);
+                }
+            }
+            if let Some(behavior) = self.behaviors.get_mut(part) {
+                behavior.deactivate(&self.model, model_id);
+            }
+        }
         let Some(contents) = self.parts.contents() else {
             return;
         };
