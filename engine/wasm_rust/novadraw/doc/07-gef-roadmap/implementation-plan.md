@@ -138,6 +138,13 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
+状态：`in_progress`，G5.1 Connection Projection 契约提案等待评审。
+
+设计入口：
+
+- `doc/reference/gef/connection-editing.md`；
+- `doc/design/editor/g5-connection-projection.md`。
+
 1. source/target connection discovery 与单 ConnectionPart 去重；
 2. ConnectionPart/NodePart 关系；
 3. CreateConnectionRequest start/end；

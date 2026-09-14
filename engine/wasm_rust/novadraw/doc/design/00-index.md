@@ -43,5 +43,6 @@
 - [`architecture/component-update.md`](architecture/component-update.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
+- [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
 
 提案只有经过 ADR 接受后才能覆盖或扩展规范设计。

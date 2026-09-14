@@ -4,6 +4,9 @@
 
 > 基于 Eclipse GEF (Graphical Editing Framework) 架构设计分析
 
+ConnectionEditPart、连接发现、创建、重连与 auto-expose 的专项源码事实见
+[`connection-editing.md`](connection-editing.md)。
+
 ## 1. 概述
 
 GEF (Graphical Editing Framework) 是一个用于构建图形编辑器的框架，参考其架构设计可以为 Novadraw 提供清晰的架构指导。

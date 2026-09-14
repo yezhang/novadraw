@@ -9,6 +9,10 @@
 采用与差异见 [`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)，
 实施状态见 [`../../07-gef-roadmap/00-index.md`](../../07-gef-roadmap/00-index.md)。
 
+G5.1 ConnectionPart 投影的待评审细化方案见
+[`g5-connection-projection.md`](g5-connection-projection.md)。该提案在接受前不覆盖
+本文规范。
+
 ## 1. 目标与边界
 
 Editor 框架负责把应用模型、Novadraw Figure 和用户编辑行为连接成可撤销的事务：

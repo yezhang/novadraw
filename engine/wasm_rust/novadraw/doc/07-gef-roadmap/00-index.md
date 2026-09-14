@@ -35,7 +35,7 @@
 | G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 | 不需要 |
 | G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `complete` | create、move、resize、delete、feedback、undo/redo | **检查点 B：PASS** |
-| G5 | Connection 编辑与 Viewport 协作 | `not_started` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：图编辑主流程** |
+| G5 | Connection 编辑与 Viewport 协作 | `in_progress` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：图编辑主流程** |
 | G6 | 产品化与跨平台毕业 | `not_started` | 保存加载、Native/Web/Headless 等价、节点编辑器毕业场景 | **最终验收** |
 
 人工验收只在对应 milestone 的自动门禁通过后进行：
@@ -167,6 +167,21 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 - `cargo run -p node-editor-demo`；
 - `doc/verification/manual/g4-editing-loop.md`。
+
+## G5 当前记录
+
+- [x] 对标 GEF source/target discovery、registry 去重、ConnectionEditPart 生命周期；
+- [x] 形成 G5.1 Connection Projection 契约提案；
+- [ ] 完成 G5.1 设计评审；
+- [ ] 实现 existing connection projection 与自动契约；
+- [ ] 实现 create/reconnect/bendpoint；
+- [ ] 实现 viewport/zoom feedback 与 drag auto-expose；
+- [ ] 检查点 C 人工验收。
+
+设计评审入口：
+
+- `doc/reference/gef/connection-editing.md`；
+- `doc/design/editor/g5-connection-projection.md`。
 
 ## 最小毕业场景
 
