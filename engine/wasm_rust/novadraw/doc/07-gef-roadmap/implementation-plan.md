@@ -138,7 +138,8 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
-状态：`in_progress`，G5.1 Connection Projection 契约提案等待评审。
+状态：`in_progress`，G5.1 Connection Projection 已完成，下一步为 G5.2
+CreateConnectionRequest 与连接创建闭环。
 
 设计入口：
 

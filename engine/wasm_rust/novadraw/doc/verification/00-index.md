@@ -62,7 +62,7 @@ Editor G3 selection、targeting、root layers 与 Figure/Editor 输入仲裁见
 Editor G4 Tool/Request/EditPolicy 编辑闭环与检查点 B 结果见
 [`reviews/g4-editing-loop-behavior-2026-09-14.md`](reviews/g4-editing-loop-behavior-2026-09-14.md)。
 
-Editor G5.1 Connection Projection 提案的身份、顺序、事务和失败边界复核见
+Editor G5.1 Connection Projection 的设计复核、实现和自动门禁见
 [`reviews/g5-connection-projection-design-2026-09-14.md`](reviews/g5-connection-projection-design-2026-09-14.md)。
 
 本次目录治理和双向一致性结论见

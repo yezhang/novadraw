@@ -1,8 +1,8 @@
-# G5.1 Connection Projection 契约提案
+# G5.1 Connection Projection 契约
 
-类型：`proposal`
+类型：`normative-design`
 
-状态：`review_required`
+状态：`implemented`
 
 适用范围：G5 的模型连接发现、ConnectionPart 投影、关系索引、Connection Runtime
 绑定与生命周期。连接创建、重连、bendpoint 和 auto-expose 只定义依赖边界，不在

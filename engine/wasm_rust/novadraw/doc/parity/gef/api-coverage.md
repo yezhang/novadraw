@@ -29,11 +29,11 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `command.stack` | `CommandStack` | execute/undo/redo、redo flush、limit、drop、event journal | verified | G1 |
 | `command.dirty_state` | `markSaveLocation/isDirty` | history identity、branch、fault 与 save location | verified | G1 |
 | `part.identity` | EditPart object identity | namespaced generational `EditPartId` | verified | G2 |
-| `part.tree` | parent/children、source/target connections | containment `PartTree` 与 FigureTree 身份分离；connection relation 后置 G5 | partial | G2/G5 |
+| `part.tree` | parent/children、source/target connections | containment 与 connection relation 分离；受检 ConnectionPartId 共享 EditPart 身份域 | verified | G2/G5 |
 | `part.factory` | `EditPartFactory` | model/context 到 `EditPartBehavior` | verified | G2 |
 | `part.lifecycle` | addNotify/activate/deactivate/removeNotify | 创建、刷新、激活、停用、注销与重建的固定顺序 | verified | G2 |
 | `part.visual` | createFigure/getFigure/getContentPane | Part 到主 Figure/content pane 的显式绑定 | verified | G2 |
-| `part.refresh` | refreshVisuals/refreshChildren/connections | 通知驱动 visual/containment 增量投影；connection refresh 后置 G5 | partial | G2/G5 |
+| `part.refresh` | refreshVisuals/refreshChildren/connections | 通知驱动 visual、containment 与有序 connection snapshot 增量投影 | verified | G2/G5 |
 | `viewer.contents_root` | Viewer contents / RootEditPart | 无模型 root + 单 model-backed contents | verified | G2 |
 | `viewer.registry` | model/visual part maps | `ModelId -> EditPartId`、`FigureId -> owner part` | verified | G2 |
 | `viewer.targeting` | `findObjectAt*` | point hit-test、handle 优先、feedback 穿透、ancestor 与 contents fallback | verified | G2/G3 |
@@ -50,7 +50,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/G6+ |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
 | `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/G6+ |
-| `connection.part` | ConnectionEditPart / NodeEditPart | source/target model relation到 Connection Runtime | specified | G5 |
+| `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation，并绑定 Connection Runtime | verified | G5 |
 | `connection.create` | CreateConnectionRequest | start/end 两阶段请求和反馈 | specified | G5 |
 | `connection.reconnect` | ReconnectRequest | source/target 重连、合法性和 undo | specified | G5 |
 | `viewport.autoexpose` | AutoexposeHelper | 拖拽期间 Viewport 自动滚动 | specified | G5 |

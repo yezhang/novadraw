@@ -33,6 +33,7 @@
 15. [`architecture/figure-lifecycle.md`](architecture/figure-lifecycle.md)
 16. [`architecture/tooltip-accessibility.md`](architecture/tooltip-accessibility.md)
 17. [`editor/architecture.md`](editor/architecture.md)
+18. [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
@@ -43,6 +44,5 @@
 - [`architecture/component-update.md`](architecture/component-update.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
-- [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
 
 提案只有经过 ADR 接受后才能覆盖或扩展规范设计。

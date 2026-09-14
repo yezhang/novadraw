@@ -4,9 +4,9 @@
 
 日期：2026-09-14
 
-状态：`reviewed`
+状态：`complete`
 
-实现门禁：`pending_user_approval`
+实现门禁：`PASS`
 
 ## 1. 复核范围
 
@@ -16,7 +16,7 @@
 - 模型快照、确定性顺序、增量刷新和失败恢复；
 - G5.1 与 create/reconnect/bendpoint/auto-expose 后续切片的边界。
 
-设计提案：
+设计契约：
 [`../../design/editor/g5-connection-projection.md`](../../design/editor/g5-connection-projection.md)。
 
 ## 2. 已修正问题
@@ -96,5 +96,37 @@ ConnectionRuntime 已区分可恢复的 `UnresolvedConnection`。把所有 route
 
 ## 5. 结论
 
-修订后的 G5.1 提案没有已知架构阻塞项，满足扩展性、稳定性、GEF 语义映射和结构化
-失败要求。它仍是 `review_required` 提案；用户确认后才能进入契约测试与实现。
+修订后的 G5.1 契约没有已知架构阻塞项，满足扩展性、稳定性、GEF 语义映射和结构化
+失败要求。方案经用户确认后已完成实现。
+
+## 6. 实现证据
+
+公开契约：
+
+- `ModelConnection<I>` 与 `ModelAdapter::connections()`；
+- `PartKind`、受检 `ConnectionPartId` 和 `ConnectionEndpoints`；
+- 独立 connection order、outgoing 与 incoming 索引；
+- `ConnectionPartFactoryContext` 与 `EditPartFactory::create_connection()`；
+- `GraphicalViewer::connection_part_for_model()`；
+- 连接快照校验、connection-first teardown、增量 create/remove/rebind/reorder；
+- ConnectionLayer、ChopboxAnchor 与 inherited DirectRouter Runtime binding。
+
+自动验证：
+
+```text
+cargo fmt --all -- --check: PASS
+cargo check --workspace: PASS
+cargo clippy --workspace -- -D warnings: PASS
+cargo test --workspace: PASS
+git diff --check: PASS
+```
+
+`novadraw-editor/tests/g5_connection_projection_contract.rs` 共 17 项，覆盖初始投影、
+受检身份、self-loop、确定顺序、增量增删、reconnect 身份保持、endpoint geometry
+reroute、revision fence、结构错误、可恢复 unresolved route、失败回滚和
+connection-first drop。
+
+## 7. 后续
+
+G5.2 进入 `CreateConnectionRequest`、两阶段 Tool/Policy/Command 和创建 feedback。
+G5 整体仍为 `in_progress`，不提前开放检查点 C。
