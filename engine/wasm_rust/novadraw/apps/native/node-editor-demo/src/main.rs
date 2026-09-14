@@ -728,6 +728,7 @@ impl ApplicationHandler<()> for DemoApp {
                         .pointer_moved(viewer, Point::new(position.x / scale, position.y / scale))
                         .expect("pointer move must update the active Tool");
                 }
+                self.request_redraw();
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor = None;
@@ -800,6 +801,7 @@ impl ApplicationHandler<()> for DemoApp {
                                 .cancel_tool(viewer)
                                 .expect("gesture cancellation must succeed");
                         }
+                        self.request_redraw();
                     }
                     PhysicalKey::Code(KeyCode::Delete | KeyCode::Backspace) => {
                         self.delete_selection();

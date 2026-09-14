@@ -74,6 +74,23 @@ fn damage_rect_to_copy_region(
     (copy_width > 0 && copy_height > 0).then_some((x0, y0, copy_width, copy_height))
 }
 
+fn damage_rect_to_aligned_clip(
+    rect: Rectangle,
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+) -> Option<[DVec2; 2]> {
+    let (x, y, copy_width, copy_height) =
+        damage_rect_to_copy_region(rect, width, height, scale_factor)?;
+    Some([
+        DVec2::new(x as f64 / scale_factor, y as f64 / scale_factor),
+        DVec2::new(
+            (x + copy_width) as f64 / scale_factor,
+            (y + copy_height) as f64 / scale_factor,
+        ),
+    ])
+}
+
 #[cfg(target_os = "macos")]
 fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
@@ -1127,13 +1144,11 @@ impl RenderBackend for VelloRenderer {
             return RenderOutcome::Skipped;
         };
         let (width, height) = self.current_surface_size();
-        let clip_rect = [
-            DVec2::new(effective_damage.x, effective_damage.y),
-            DVec2::new(
-                effective_damage.x + effective_damage.width,
-                effective_damage.y + effective_damage.height,
-            ),
-        ];
+        let Some(clip_rect) =
+            damage_rect_to_aligned_clip(effective_damage, width, height, self.scale_factor)
+        else {
+            return RenderOutcome::Skipped;
+        };
 
         // self.scene.reset();
         self.scene = vello::Scene::new();
@@ -1636,6 +1651,19 @@ mod tests {
         assert_eq!(
             damage_rect_to_copy_region(Rectangle::new(4.5, 4.5, 2.0, 2.0), 6, 6, 2.0),
             None
+        );
+    }
+
+    #[test]
+    fn damage_clip_matches_outward_rounded_copy_pixels() {
+        assert_eq!(
+            damage_rect_to_aligned_clip(
+                Rectangle::new(118.21875, 225.1171875, 237.1953125, 183.3359375),
+                1_200,
+                900,
+                2.0,
+            ),
+            Some([DVec2::new(118.0, 225.0), DVec2::new(355.5, 408.5)])
         );
     }
 
