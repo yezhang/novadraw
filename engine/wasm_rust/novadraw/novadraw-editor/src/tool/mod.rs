@@ -24,6 +24,7 @@ struct DragGesture {
     parts: Vec<EditPartId>,
     kind: DragKind,
     modifiers: RequestModifiers,
+    collapse_on_click: Option<EditPartId>,
     feedback: Vec<FigureId>,
 }
 
@@ -110,15 +111,24 @@ impl SelectionTool {
             return Ok(outcome);
         }
 
-        let (parts, kind) = match outcome.target() {
+        let (parts, kind, collapse_on_click) = match outcome.target() {
             ViewerTarget::Part(part) if viewer.selection().items().contains(&part) => {
-                (viewer.selection().items().to_vec(), DragKind::Move)
+                let collapse = (!modifiers.shift
+                    && !modifiers.control
+                    && !modifiers.meta
+                    && viewer.selection().items().len() > 1)
+                    .then_some(part);
+                (
+                    viewer.selection().items().to_vec(),
+                    DragKind::Move,
+                    collapse,
+                )
             }
             ViewerTarget::Handle {
                 owner,
                 role: HandleRole::Resize(direction),
                 ..
-            } => (vec![owner], DragKind::Resize(direction)),
+            } => (vec![owner], DragKind::Resize(direction), None),
             ViewerTarget::Handle {
                 role: HandleRole::Selection,
                 ..
@@ -132,6 +142,7 @@ impl SelectionTool {
             parts,
             kind,
             modifiers: request_modifiers(modifiers),
+            collapse_on_click,
             feedback: Vec::new(),
         });
         Ok(outcome)
@@ -184,6 +195,12 @@ impl SelectionTool {
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
         let delta = location - gesture.start;
+        if delta.length() < DRAG_START_DISTANCE
+            && let Some(part) = gesture.collapse_on_click
+        {
+            viewer.replace_selection(part)?;
+            viewer.set_focus(Some(part))?;
+        }
         let request = (button == MouseButton::Left && delta.length() >= DRAG_START_DISTANCE)
             .then(|| change_bounds_request(&gesture, location, delta, revision));
         Ok(ToolRelease { dispatch, request })

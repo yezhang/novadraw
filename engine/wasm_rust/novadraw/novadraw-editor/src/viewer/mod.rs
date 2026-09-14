@@ -716,7 +716,13 @@ where
                     } else {
                         SelectionMode::Replace
                     };
-                    let delta = self.select_part(part, mode)?;
+                    let delta = if mode == SelectionMode::Replace
+                        && self.selection.items().contains(&part)
+                    {
+                        None
+                    } else {
+                        self.select_part(part, mode)?
+                    };
                     self.selection.set_focus(self.selection.primary());
                     delta
                 }

@@ -2,10 +2,10 @@ use std::{collections::HashMap, convert::Infallible};
 
 use novadraw_editor::{
     ChangeBoundsRequest, Command, CommandError, CreateRequest, CreationType, DeleteRequest,
-    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest,
-    FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter, ModelEvent,
-    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
-    RequestModifiers, ResizeDirection, VisualUpdateContext,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorDomainError,
+    EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
+    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
+    PolicyRole, RequestModifiers, ResizeDirection, ViewerError, VisualUpdateContext,
 };
 use novadraw_geometry::{Dimension, Point, Rectangle, Vec2};
 use novadraw_scene::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
@@ -513,4 +513,80 @@ fn resize_handle_commits_resize_request_without_changing_selection() {
         viewer.model().nodes[&FIRST].bounds,
         Rectangle::new(50.0, 60.0, 130.0, 100.0)
     );
+}
+
+#[test]
+fn selection_tool_preserves_multi_selection_for_drag_and_collapses_on_click() {
+    let mut viewer = viewer();
+    let first = viewer.part_for_model(FIRST).unwrap();
+    let second = viewer.part_for_model(SECOND).unwrap();
+    viewer.replace_selection(first).unwrap();
+    viewer.append_selection(second).unwrap();
+    let mut domain = EditorDomain::new();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(240.0, 100.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    assert_eq!(viewer.selection().items(), &[first, second]);
+    domain
+        .pointer_moved(&mut viewer, Point::new(260.0, 120.0))
+        .unwrap();
+    domain
+        .pointer_released(&mut viewer, Point::new(260.0, 120.0), MouseButton::Left)
+        .unwrap();
+    assert_eq!(
+        viewer.model().nodes[&FIRST].bounds,
+        Rectangle::new(70.0, 80.0, 100.0, 80.0)
+    );
+    assert_eq!(
+        viewer.model().nodes[&SECOND].bounds,
+        Rectangle::new(240.0, 100.0, 120.0, 90.0)
+    );
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_released(&mut viewer, Point::new(80.0, 90.0), MouseButton::Left)
+        .unwrap();
+    assert_eq!(viewer.selection().items(), &[first]);
+}
+
+#[test]
+fn policy_rejection_is_distinct_from_no_command_contribution() {
+    let mut viewer = viewer();
+    let mut domain = EditorDomain::new();
+    let rejected = EditorRequest::Create(CreateRequest::new(
+        viewer.contents(),
+        CreationType::new("unsupported").unwrap(),
+        Rectangle::new(10.0, 10.0, 50.0, 50.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    ));
+    assert!(matches!(
+        domain.execute_request(&mut viewer, &rejected),
+        Err(EditorDomainError::Viewer(ViewerError::Policy(_)))
+    ));
+
+    let no_contribution = EditorRequest::Create(CreateRequest::new(
+        viewer.part_for_model(FIRST).unwrap(),
+        CreationType::new("node").unwrap(),
+        Rectangle::new(10.0, 10.0, 50.0, 50.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    ));
+    assert!(matches!(
+        domain.execute_request(&mut viewer, &no_contribution),
+        Err(EditorDomainError::NoCommand)
+    ));
 }
