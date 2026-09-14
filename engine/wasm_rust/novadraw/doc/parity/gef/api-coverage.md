@@ -40,16 +40,16 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `viewer.selection` | SelectionProvider / SelectionManager | 有序多选、primary selection、typed delta 与删除 reconcile | verified | G3 |
 | `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | verified | G3 |
 | `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | verified | G3 |
-| `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | specified | G4 |
-| `policy.protocol` | `EditPolicy`、role | target、command contribution、feedback | specified | G4 |
-| `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | specified | G4 |
-| `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | specified | G4 |
-| `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先；Editor fallback 已验证，正式 Tool 在 G4 复用 | partial | G3/G4 |
-| `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | specified | G4 |
-| `interaction.selection` | SelectionTool / marquee | click、modifier、多选、marquee | specified | G4 |
-| `interaction.create` | CreationTool / CreateRequest | 创建节点和 target validation | specified | G4 |
-| `interaction.delete` | GroupRequest / component policy | 多选删除、连接清理、undo | specified | G4 |
-| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/reparent、feedback、undo | specified | G4 |
+| `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | verified | G4 |
+| `policy.protocol` | `EditPolicy`、role | target、command contribution、feedback | verified | G4 |
+| `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | verified | G4 |
+| `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | verified | G4 |
+| `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，SelectionTool 复用相同 outcome | verified | G3/G4 |
+| `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | verified | G4 |
+| `interaction.selection` | SelectionTool / marquee | click、modifier、多选与拖拽已闭合；marquee 后置 | partial | G3/G4/G6+ |
+| `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/G6+ |
+| `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
+| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/G6+ |
 | `connection.part` | ConnectionEditPart / NodeEditPart | source/target model relation到 Connection Runtime | specified | G5 |
 | `connection.create` | CreateConnectionRequest | start/end 两阶段请求和反馈 | specified | G5 |
 | `connection.reconnect` | ReconnectRequest | source/target 重连、合法性和 undo | specified | G5 |

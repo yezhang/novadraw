@@ -121,6 +121,8 @@ Viewport 组合根时建立临时缩放协议。
 
 ## G4：Tool / Request / EditPolicy
 
+状态：`behavior_verified`，等待检查点 B 人工验收。
+
 按垂直切片实现，不一次迁移全部 GEF 类：
 
 1. SelectionTool 与 drag tracker；
