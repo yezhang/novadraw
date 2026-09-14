@@ -34,7 +34,7 @@
 | G1 | Model Adapter 与 CommandStack | `complete` | 16 项契约覆盖 identity/revision、execute/undo/redo、compound、dirty/save 与 fault | 不需要 |
 | G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 | 不需要 |
 | G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
-| G4 | Tool / Request / EditPolicy 编辑闭环 | `behavior_verified` | create、move、resize、delete、feedback、undo/redo | **检查点 B：待人工确认** |
+| G4 | Tool / Request / EditPolicy 编辑闭环 | `complete` | create、move、resize、delete、feedback、undo/redo | **检查点 B：PASS** |
 | G5 | Connection 编辑与 Viewport 协作 | `not_started` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：图编辑主流程** |
 | G6 | 产品化与跨平台毕业 | `not_started` | 保存加载、Native/Web/Headless 等价、节点编辑器毕业场景 | **最终验收** |
 
@@ -155,7 +155,8 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 - [x] 模型通知驱动 Part refresh，undo/redo 复用相同投影链路；
 - [x] 多选 move 使用 `CompoundCommand`，单击不拖才折叠 selection；
 - [x] Native demo 支持 move、corner resize、N create、Delete 与 undo/redo；
-- [ ] 检查点 B 人工验收。
+- [x] 检查点 B 人工验收；
+- [x] 修复 Native feedback 帧调度与 retained partial 像素边界描边回归。
 
 自动验证入口：
 

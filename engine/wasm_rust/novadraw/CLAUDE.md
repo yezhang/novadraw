@@ -89,9 +89,9 @@ cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
 D3.1-D3.4 与 D4.1-D4.6 已完成，最近一次长期架构审计的 A01-A08 已关闭。
 macOS/Web/Headless 总审计与 R9.4 capability 消融复查已通过，Draw2D Core 1.0
 完成。Editor 框架已按 ADR-015 进入独立 G0-G6 roadmap，G0 架构启动、G1 Model
-Adapter/CommandStack、G2 EditPart Tree/Viewer 投影与 G3
-Selection/Targeting/Input Arbitration 已完成；G4 Tool/Request/EditPolicy 已通过
-自动门禁，等待检查点 B 人工验收；Draw2D 后续能力必须进入明确的 P2 delta。
+Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
+Selection/Targeting/Input Arbitration 与 G4 Tool/Request/EditPolicy 已完成，
+检查点 B 已通过人工验收；Draw2D 后续能力必须进入明确的 P2 delta。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
 为准，旧 ADR-013 已替换。D4.3-D4.6 的组件接口、引用归属、生命周期、测量、

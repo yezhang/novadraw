@@ -4,9 +4,9 @@
 
 日期：2026-09-14
 
-状态：`behavior_verified`
+状态：`complete`
 
-人工门禁：`pending`
+人工门禁：`PASS`
 
 ## 1. 范围
 
@@ -84,8 +84,18 @@ git diff --check: PASS
 - `Widget` 继续验证 Figure consumed/capture 优先。
 
 人工步骤见
-[`../manual/g4-editing-loop.md`](../manual/g4-editing-loop.md)。检查点 B 必须由人工确认，
-在此之前 G4 保持 `behavior_verified`。
+[`../manual/g4-editing-loop.md`](../manual/g4-editing-loop.md)。检查点 B 已于
+2026-09-14 通过人工确认。
+
+人工验收期间修复了两项运行时问题：
+
+- Native `CursorMoved` 在 Tool 更新 feedback 后请求下一帧，`Escape` 清理 feedback
+  后同样请求重绘；
+- retained partial 渲染的 clip 向外对齐到纹理复制使用的整数设备像素边界，避免
+  scratch 背景色覆盖 damage 逻辑边界外的 retained 像素。
+
+最终确认 move/resize feedback 实时且流畅，release/cancel 清理正确，重叠节点无
+背景色细描边。
 
 ## 6. 明确后置
 

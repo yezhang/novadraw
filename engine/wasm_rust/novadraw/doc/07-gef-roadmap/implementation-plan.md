@@ -121,7 +121,7 @@ Viewport 组合根时建立临时缩放协议。
 
 ## G4：Tool / Request / EditPolicy
 
-状态：`behavior_verified`，等待检查点 B 人工验收。
+状态：`complete`，检查点 B 已于 2026-09-14 通过人工验收。
 
 按垂直切片实现，不一次迁移全部 GEF 类：
 

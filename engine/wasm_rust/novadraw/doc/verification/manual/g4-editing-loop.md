@@ -2,7 +2,9 @@
 
 类型：`manual-verification`
 
-状态：`ready_for_manual`
+状态：`passed`
+
+验收日期：2026-09-14
 
 入口：
 
@@ -59,7 +61,7 @@ cargo run -p node-editor-demo
 ## F. 输入隔离与渲染回归
 
 1. 点击并拖出 `Widget` 后释放，确认没有启动 move Tool，也没有新增 history。
-2. 在 move/resize 中按 `Escape`，确认 feedback 清除且模型不变。
+2. 在 move/resize 中按 `Escape`，确认 feedback 清除且模型不变；既有 selection 保留。
 3. 调整窗口大小后重复 create/move/resize/delete。
 4. 确认没有黑区、描边残留、handle 错位或命中偏移。
 
