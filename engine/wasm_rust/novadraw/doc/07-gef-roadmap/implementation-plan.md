@@ -145,7 +145,7 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 - `doc/reference/gef/connection-editing.md`；
 - `doc/design/editor/g5-connection-projection.md`。
 
-1. source/target connection discovery 与单 ConnectionPart 去重；
+1. 有序 connection snapshot、source/target relation 与单 ConnectionPart 去重；
 2. ConnectionPart/NodePart 关系；
 3. CreateConnectionRequest start/end；
 4. source/target reconnect；

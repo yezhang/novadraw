@@ -170,9 +170,10 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 ## G5 当前记录
 
-- [x] 对标 GEF source/target discovery、registry 去重、ConnectionEditPart 生命周期；
+- [x] 对标 GEF source/target relation、registry 去重、ConnectionEditPart 生命周期；
 - [x] 形成 G5.1 Connection Projection 契约提案；
-- [ ] 完成 G5.1 设计评审；
+- [x] 完成 G5.1 身份、顺序、事务、失败与生命周期设计复核；
+- [ ] 用户批准并冻结 G5.1 契约；
 - [ ] 实现 existing connection projection 与自动契约；
 - [ ] 实现 create/reconnect/bendpoint；
 - [ ] 实现 viewport/zoom feedback 与 drag auto-expose；

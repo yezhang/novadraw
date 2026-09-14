@@ -18,7 +18,7 @@ Editor 总体约束见 [`architecture.md`](architecture.md)；底层连接契约
 G5.1 建立从应用连接模型到可路由 Connection Figure 的稳定投影：
 
 ```text
-Model source/target discovery
+Model ordered connection snapshot
 -> validated connection snapshot
 -> one ConnectionPart per connection ModelId
 -> source/target relation indexes
@@ -55,37 +55,38 @@ Model source/target discovery
    只替换关系和 Runtime binding。
 9. 连接删除由模型事实和 Command 决定，不能由节点 Figure dispose 推断业务级联。
 
-## 4. 模型发现契约
+## 4. 模型快照契约
 
-在 `ModelAdapter` 上增加带默认空实现的查询：
+在 `ModelAdapter` 上增加有序连接描述：
 
 ```rust
-fn source_connections(
-    &self,
-    model: Self::ModelId,
-) -> Result<Vec<Self::ModelId>, Self::Error>;
+pub struct ModelConnection<I> {
+    id: I,
+    source: I,
+    target: I,
+}
 
-fn target_connections(
+fn connections(
     &self,
-    model: Self::ModelId,
-) -> Result<Vec<Self::ModelId>, Self::Error>;
+) -> Result<Vec<ModelConnection<Self::ModelId>>, Self::Error>;
 ```
 
-默认返回空列表，以保持不使用连接的应用兼容。列表顺序必须稳定，元素是 connection
-ModelId。每次 Viewer refresh 在 containment 更新完成后，对全部 active containment
-parts 构造一个稳定连接快照。
+默认返回空列表，以保持不使用连接的应用兼容。返回顺序是 connection layer 的规范
+Z-order；`source` 与 `target` 是 endpoint model identity。Viewer 从这一个事实源派生
+outgoing/incoming 索引，不要求应用同时维护两份互为镜像的端点列表。
 
 快照规则：
 
-- 同一节点同一方向内禁止重复 connection ModelId；
-- 每个 connection ModelId 必须在全局恰好出现一次 source 和一次 target；
-- source/target 必须解析到当前 Viewer 的 active containment Part；
+- connection ModelId 在列表中必须唯一；
+- source/target 必须解析到同一快照中的 containment model；
 - connection ModelId 不得同时作为 containment model 注册；
 - source 与 target 可以是同一 Part；
-- connection layer 的确定顺序使用 source Part 的 containment preorder，再使用
-  source list 内顺序，不依赖 HashMap 迭代或 target refresh 先后。
+- endpoint 变化本身不隐式改变顺序；只有 adapter 返回列表的位置变化才改变 Z-order；
+- 同一模型快照重新加载必须产生相同的 connection layer 顺序。
 
-应用可以从集中式 edge store 计算这两个列表，不要求业务模型实际保存双向数组。
+这保留 GEF 的 source/target 关系语义，但不复制其“两侧分别枚举、依靠刷新顺序汇合”
+机制。Novadraw 的 `ModelAdapter` 已代表整个应用模型，直接返回有序完整描述可消除
+重复、遗漏和两侧顺序冲突，并保证保存加载后的视觉顺序一致。
 
 ## 5. Part 身份与关系
 
@@ -96,11 +97,22 @@ registry、selection、focus、policy 和 lifecycle 协议，但不共享 contai
 
 ```text
 connection: ConnectionPartId -> { source: EditPartId, target: EditPartId }
-outgoing: NodePartId -> ordered Vec<ConnectionPartId>
-incoming: NodePartId -> ordered Vec<ConnectionPartId>
+outgoing: EditPartId -> ordered Vec<ConnectionPartId>
+incoming: EditPartId -> ordered Vec<ConnectionPartId>
 ```
 
-`ConnectionPartId` 首版继续使用 `EditPartId`，不增加第二套 controller identity。
+`EditPartId` 是唯一 controller identity。`ConnectionPartId` 是其透明、受检的角色
+包装，不分配新 key 或 namespace：
+
+```rust
+pub struct ConnectionPartId(EditPartId);
+```
+
+包装值只能由 `PartTree::as_connection(EditPartId)` 在验证
+`PartKind::Connection` 后产生，并可无损投影回通用 `EditPartId`。selection 和通用
+registry 保存 `EditPartId`；connection 专用 API 接受 `ConnectionPartId`，在编译期
+阻止普通 containment Part 被误传。
+
 公开查询必须区分 containment 与 connection relation：
 
 - `parent/children` 只返回 containment；
@@ -112,7 +124,7 @@ incoming: NodePartId -> ordered Vec<ConnectionPartId>
 或 Figure 类型猜测 kind，也不允许把 connection 塞入 synthetic root 的 children
 来绕过关系建模。
 
-## 6. Factory 与 Anchor 扩展点
+## 6. Factory 与 Anchor 边界
 
 Factory 增加显式 connection 创建入口；默认可委托现有 model-to-behavior factory，
 但 Viewer 始终携带 `Connection` 创建上下文，不能依靠 downcast 判断：
@@ -122,16 +134,14 @@ PartCreationContext::Containment { parent }
 PartCreationContext::Connection { source, target }
 ```
 
-端点 Part 提供可选 anchor capability。输入至少包含：
+G5.1 只使用 endpoint primary Figure 的 ChopboxAnchor。anchor 对象由 Runtime 注册，
+Viewer 保存返回的 AnchorId，并负责随 ConnectionPart 生命周期释放。endpoint 未变化
+时保留原 AnchorId；只替换发生变化的一端。
 
-- endpoint Part host；
-- connection ModelId；
-- `ConnectionEnd::{Source, Target}`；
-- endpoint primary Figure；
-- 当前稳定模型只读引用。
-
-未提供自定义 anchor 时使用 endpoint primary Figure 的 ChopboxAnchor。anchor 对象由
-Runtime 注册，Viewer 只保存返回的 AnchorId，并负责随 ConnectionPart 生命周期释放。
+自定义 port/anchor 可能在 endpoint ModelId 不变时因连接属性变化而改变。若现在只暴露
+返回 `Box<dyn ConnectionAnchor>` 的工厂，就无法可靠判断 anchor 是否仍等价，并会迫使
+每次 refresh 重建 AnchorId。因此 G5.1 不提前稳定该扩展 API；G5.3 在真实 reconnect
+与 port 用例下定义带稳定 value key 的 endpoint anchor descriptor。
 
 G5.1 使用 connection layer 的 inherited router，不增加应用 router hook。Bendpoint
 constraint 与显式 router binding 在后续 G5 切片加入，避免一次固定过多 API。
@@ -141,20 +151,28 @@ constraint 与显式 router binding 在后续 G5 切片加入，避免一次固�
 每次 refresh 的顺序固定为：
 
 1. drain 并验证 model revision；
-2. 完成 containment create/remove/reparent；
-3. 枚举所有 active containment parts 的 source/target connections；
-4. 构造、去重并完整验证 connection snapshot；
-5. 计算 remove、retain/rebind、create 和 reorder plan；
-6. 清理待删除 connection 的 feedback、selection 和 focus；
-7. 解除并删除旧 Runtime connection state、anchors 和 Figure；
-8. 对保留项原子更新 endpoint indexes 与 Runtime bindings；
-9. 创建新 ConnectionPart，注册 model/visual，挂入 connection layer；
-10. 注册 anchors 和 connection state，使用 inherited router；
-11. 激活 policy/subscription，统一解析 route；
-12. 提交新的 Viewer revision。
+2. 构造 desired containment snapshot；
+3. 读取有序 connection snapshot，并在 desired containment 上解析 endpoint；
+4. 再次确认 snapshot revision 未漂移；
+5. 完整校验后计算 containment 与 connection 的联合变更计划；
+6. 清理受影响 connection 的 feedback、selection 和 focus；
+7. 先解除将删除或 rebind 的旧 Runtime connection state 与 endpoint anchor；
+8. 删除不再存在的 ConnectionPart；
+9. 应用 containment remove/reparent/create/reorder；
+10. 对保留项更新 endpoint indexes，并仅重建变化端的 anchor；
+11. 创建新 ConnectionPart，注册 model/visual，挂入 connection layer；
+12. 注册 Runtime connection state，使用 inherited router；
+13. 激活 policy/subscription，统一解析 route；
+14. 按模型列表顺序同步 connection layer；
+15. 提交新的 Viewer revision。
 
 所有扩展回调和可失败查询必须在可行范围内前置。计划阶段失败不得改变 Viewer；
 提交阶段若发生无法补偿的 Runtime/扩展失败，Viewer 进入 faulted，拒绝后续编辑。
+
+不能先完成 containment 删除再协调 connection。节点和关联 connection 在同一模型
+事务中删除时，旧 connection 必须先释放 Runtime binding 和 anchor，随后 endpoint
+Part 才能退休；reconnect 到新节点时则先解除旧端、应用 containment 计划，再绑定
+desired endpoint。
 
 ## 8. 生命周期
 
@@ -186,70 +204,83 @@ owner 和 layer 在 connection cleanup 期间仍有效。
 - connection 删除：完整退休，不保留旧运行时身份；
 - endpoint 改变：保留 Part/Figure 身份，原子替换一端关系和 anchor；
 - endpoint geometry 改变：由现有 ConnectionRuntime dependency invalidation reroute；
-- source list 重排：只改变 connection layer 顺序；
-- target list 重排：只改变 incoming 查询顺序，不改变视觉 Z-order；
+- connection snapshot 重排：同步 connection layer、outgoing 和 incoming 查询顺序；
 - connection visual 属性改变：调用 ConnectionPart behavior refresh，不重建 Part。
 
 由于 `ModelAdapter::Event` 对框架不透明，首版在每个已接受 notification batch 后执行
-一次全局 connection reconciliation。正确性优先于局部提示优化；只有基准证明该扫描
-成为瓶颈后，才考虑增加可选 typed change hints。
+一次 O(V + E) 的全局 connection reconciliation，并刷新 retained ConnectionPart 的
+模型视觉。正确性优先于局部提示优化；只有基准证明该扫描成为瓶颈后，才考虑增加
+可选 typed change hints。
 
 ## 10. 错误模型
 
 至少区分：
 
-- duplicate connection in one endpoint list；
-- missing source 或 missing target；
-- multiple sources 或 multiple targets；
-- endpoint 指向 foreign、retired 或非 containment Part；
+- duplicate connection ModelId；
+- missing source 或 missing target model；
+- endpoint 指向未进入 desired containment snapshot 的 model；
 - connection/containment model identity collision；
 - factory 返回非 Connection Figure；
-- anchor owner 无效或注册失败；
+- 默认 anchor owner 无效或注册失败；
 - connection layer 缺失；
-- Runtime binding、route 或 cleanup 失败；
+- Runtime binding 或 cleanup 失败；
 - extension panic。
 
 查询错误、重复和悬空端点必须包含 connection ModelId 与相关 endpoint ModelId 的可诊断
 表示，但公共错误不泄露内部 SlotMap key。
 
+错误分级：
+
+- adapter 查询失败、revision 漂移和快照结构不一致发生在计划阶段，不修改投影；
+- revision 漂移、稳定模型无法投影、注册失败、cleanup 失败或扩展 panic 使 Viewer
+  faulted；
+- ConnectionRuntime 返回的 `UnresolvedConnection` 是可恢复路由状态，保留
+  ConnectionPart 和 dependency observation，不升级为 Viewer fault；
+- 非有限 route 等违反底层连接契约的错误按 Runtime 既有错误分类处理。
+
 ## 11. 与 GEF 的对应与差异
 
 保留 GEF：
 
-- source/target 两侧发现；
-- Viewer registry 按模型身份去重；
+- source/target 作为独立关系；
+- Viewer registry 按 connection 模型身份去重；
 - ConnectionPart 独立于 containment；
 - connection layer 挂载；
-- endpoint Part 提供 anchor；
+- anchor 归属 endpoint 语义，首个切片使用标准 Chopbox fallback；
 - 生命周期与端点关系联动。
 
 Novadraw 差异：
 
 - 不允许刷新顺序产生可观察的半连接状态；
 - 先构造全局稳定快照，再原子协调；
+- 用单一有序 connection snapshot 代替两侧重复枚举；
 - 使用 namespaced generational identity，不使用对象地址；
+- `ConnectionPartId` 只是 `EditPartId` 的受检角色包装，不建立第二身份域；
 - 连接关系使用显式索引，不复用不对称 parent 指针；
+- G5.1 只固定 Chopbox fallback，不提前稳定缺少 value identity 的自定义 anchor API；
 - route 和依赖由现有 ConnectionRuntime 原子提交；
-- 确定性视觉顺序由 source preorder 和 source-list order 定义。
+- 确定性视觉顺序由模型 connection snapshot 显式定义。
 
 ## 12. 验证门禁
 
 新增 `g5_connection_projection_contract.rs`，至少覆盖：
 
-1. 初始 source/target discovery 只创建一个 ConnectionPart；
-2. source-first 与 target-first 枚举得到相同结果；
+1. 初始有序 connection snapshot 为每个模型只创建一个 ConnectionPart；
+2. `ConnectionPartId` 与 `EditPartId` 共用身份，但拒绝错误 PartKind；
 3. self-loop 只创建一个 Part，并同时进入 incoming/outgoing；
 4. connection layer 顺序稳定且不污染 containment children；
 5. 增量新增、删除与重排；
-6. reconnect 保留 Part/Figure identity 并替换 Runtime endpoint；
+6. reconnect 保留 Part/Figure identity、列表位置和未变化端 AnchorId；
 7. endpoint geometry 变化触发现有 Runtime reroute；
-8. duplicate、missing、multiple endpoint 在提交前拒绝；
+8. duplicate connection、missing endpoint 和 revision drift 在提交前拒绝；
 9. containment/connection ModelId 冲突拒绝；
-10. 节点删除未处理关联 connection 时 Viewer fault；
-11. ConnectionPart 删除清理 selection、focus、policy、anchors 和 Runtime state；
-12. Viewer drop 使用 connection-first 顺序且旧身份全部失效；
-13. factory/anchor/Runtime 失败不留下半注册对象；
-14. workspace fmt/check/clippy/test。
+10. 节点与关联 connection 同批删除时执行 connection-first cleanup；
+11. 节点删除未处理关联 connection 时 Viewer fault；
+12. ConnectionPart 删除清理 selection、focus、policy、anchors 和 Runtime state；
+13. unresolved route 保留可恢复 ConnectionPart，不使 Viewer fault；
+14. Viewer drop 使用 connection-first 顺序且旧身份全部失效；
+15. factory/anchor/Runtime 失败不留下半注册对象；
+16. workspace fmt/check/clippy/test。
 
 通过上述门禁后：
 

@@ -59,6 +59,12 @@ Editor G3 selection、targeting、root layers 与 Figure/Editor 输入仲裁见
 人工验收步骤见
 [`manual/g3-selection-targeting.md`](manual/g3-selection-targeting.md)。
 
+Editor G4 Tool/Request/EditPolicy 编辑闭环与检查点 B 结果见
+[`reviews/g4-editing-loop-behavior-2026-09-14.md`](reviews/g4-editing-loop-behavior-2026-09-14.md)。
+
+Editor G5.1 Connection Projection 提案的身份、顺序、事务和失败边界复核见
+[`reviews/g5-connection-projection-design-2026-09-14.md`](reviews/g5-connection-projection-design-2026-09-14.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 
