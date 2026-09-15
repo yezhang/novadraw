@@ -1,12 +1,12 @@
 use std::{collections::HashMap, convert::Infallible};
 
 use novadraw_editor::{
-    Command, CommandError, ConnectionCreation, ConnectionPartFactoryContext,
-    CreateConnectionRequest, CreationType, DeleteRequest, EditPartBehavior, EditPartError,
-    EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual, GraphicalViewer,
-    InteractionRevision, ModelAdapter, ModelConnection, ModelEvent, ModelRevision,
-    PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers,
-    ViewerError,
+    Command, CommandError, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
+    ConnectionReconnection, CreateConnectionRequest, CreationType, DeleteRequest, EditPartBehavior,
+    EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual,
+    GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter, ModelConnection, ModelEvent,
+    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    ReconnectConnectionRequest, RequestModifiers, ViewerError,
 };
 use novadraw_geometry::{Point, Rectangle};
 use novadraw_scene::{
@@ -78,6 +78,16 @@ impl DiagramModel {
         let connection = self.connections.remove(index);
         self.publish(id);
         (connection, index)
+    }
+
+    fn replace_connection(&mut self, connection: ModelConnection<ModelId>) {
+        let slot = self
+            .connections
+            .iter_mut()
+            .find(|candidate| candidate.id() == connection.id())
+            .unwrap();
+        *slot = connection;
+        self.publish(connection.id());
     }
 }
 
@@ -312,6 +322,100 @@ impl Command<DiagramModel> for DeleteEdgeCommand {
 
 struct ConnectionDeletePolicy;
 
+struct ReconnectEdgeCommand {
+    before: ModelConnection<ModelId>,
+    after: ModelConnection<ModelId>,
+}
+
+impl Command<DiagramModel> for ReconnectEdgeCommand {
+    fn label(&self) -> &str {
+        "Reconnect"
+    }
+
+    fn execute(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.replace_connection(self.after);
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.replace_connection(self.before);
+        Ok(())
+    }
+}
+
+struct EdgeReconnection {
+    before: ModelConnection<ModelId>,
+}
+
+impl ConnectionReconnection<DiagramModel> for EdgeReconnection {
+    fn can_complete(
+        &self,
+        _connection: PolicyHost<ModelId>,
+        _fixed: PolicyHost<ModelId>,
+        candidate: PolicyHost<ModelId>,
+        _request: &ReconnectConnectionRequest,
+        _model: &DiagramModel,
+    ) -> Result<bool, PolicyError> {
+        Ok(candidate.model() != WIDGET)
+    }
+
+    fn command(
+        &mut self,
+        _connection: PolicyHost<ModelId>,
+        fixed: PolicyHost<ModelId>,
+        candidate: PolicyHost<ModelId>,
+        request: &ReconnectConnectionRequest,
+        _model: &DiagramModel,
+    ) -> Result<Box<dyn Command<DiagramModel>>, PolicyError> {
+        let after = match request.endpoint() {
+            ConnectionEndpoint::Source => {
+                ModelConnection::new(self.before.id(), candidate.model(), fixed.model())
+            }
+            ConnectionEndpoint::Target => {
+                ModelConnection::new(self.before.id(), fixed.model(), candidate.model())
+            }
+        };
+        Ok(Box::new(ReconnectEdgeCommand {
+            before: self.before,
+            after,
+        }))
+    }
+}
+
+struct ConnectionReconnectPolicy;
+
+impl EditPolicy<DiagramModel> for ConnectionReconnectPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::ReconnectConnection(_))
+    }
+
+    fn command(
+        &mut self,
+        _host: PolicyHost<ModelId>,
+        _request: &EditorRequest,
+        _model: &DiagramModel,
+    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+        Ok(None)
+    }
+
+    fn start_reconnection(
+        &mut self,
+        host: PolicyHost<ModelId>,
+        _request: &ReconnectConnectionRequest,
+        model: &DiagramModel,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<DiagramModel>>>, PolicyError> {
+        Ok(model
+            .connections
+            .iter()
+            .find(|connection| connection.id() == host.model())
+            .copied()
+            .map(|before| {
+                Box::new(EdgeReconnection { before })
+                    as Box<dyn ConnectionReconnection<DiagramModel>>
+            }))
+    }
+}
+
 impl EditPolicy<DiagramModel> for ConnectionDeletePolicy {
     fn understands(&self, request: &EditorRequest) -> bool {
         matches!(request, EditorRequest::Delete(_))
@@ -344,10 +448,13 @@ impl EditPartBehavior<DiagramModel> for ConnectionPart {
         _model: &DiagramModel,
         _model_id: ModelId,
     ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
-        Ok(vec![(
-            PolicyRole::Component,
-            Box::new(ConnectionDeletePolicy),
-        )])
+        Ok(vec![
+            (PolicyRole::Component, Box::new(ConnectionDeletePolicy)),
+            (
+                PolicyRole::ConnectionReconnect,
+                Box::new(ConnectionReconnectPolicy),
+            ),
+        ])
     }
 }
 
@@ -593,6 +700,167 @@ fn selected_connection_deletes_and_undo_restores_the_same_model_identity() {
 }
 
 #[test]
+fn target_endpoint_handle_reconnects_and_undo_preserves_connection_part_identity() {
+    let mut viewer = viewer(false);
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+    click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    let original_part = connection.edit_part();
+    viewer
+        .add_handle_visual_with_role(
+            original_part,
+            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+        )
+        .unwrap();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(280.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(80.0, 90.0))
+        .unwrap();
+    let release = domain
+        .pointer_released(&mut viewer, Point::new(80.0, 90.0), MouseButton::Left)
+        .unwrap();
+
+    assert!(release.command_executed());
+    assert_eq!(
+        viewer.model().connections,
+        vec![ModelConnection::new(FIRST_EDGE, FIRST, FIRST)]
+    );
+    assert_eq!(
+        viewer
+            .connection_part_for_model(FIRST_EDGE)
+            .unwrap()
+            .edit_part(),
+        original_part
+    );
+
+    domain.undo(&mut viewer).unwrap();
+    assert_eq!(
+        viewer.model().connections,
+        vec![ModelConnection::new(FIRST_EDGE, FIRST, SECOND)]
+    );
+    assert_eq!(
+        viewer
+            .connection_part_for_model(FIRST_EDGE)
+            .unwrap()
+            .edit_part(),
+        original_part
+    );
+}
+
+#[test]
+fn source_endpoint_reconnects_while_invalid_drop_has_no_effect() {
+    let mut viewer = viewer(false);
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+    click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    viewer
+        .add_handle_visual_with_role(
+            connection.edit_part(),
+            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Source),
+            Box::new(RectangleFigure::new(75.0, 85.0, 10.0, 10.0)),
+        )
+        .unwrap();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(480.0, 90.0))
+        .unwrap();
+    let invalid = domain
+        .pointer_released(&mut viewer, Point::new(480.0, 90.0), MouseButton::Left)
+        .unwrap();
+    assert!(!invalid.command_executed());
+    assert_eq!(
+        viewer.model().connections,
+        vec![ModelConnection::new(FIRST_EDGE, FIRST, SECOND)]
+    );
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(80.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(280.0, 90.0))
+        .unwrap();
+    let valid = domain
+        .pointer_released(&mut viewer, Point::new(280.0, 90.0), MouseButton::Left)
+        .unwrap();
+    assert!(valid.command_executed());
+    assert_eq!(
+        viewer.model().connections,
+        vec![ModelConnection::new(FIRST_EDGE, SECOND, SECOND)]
+    );
+}
+
+#[test]
+fn reconnect_cancel_clears_feedback_without_model_change() {
+    let mut viewer = viewer(false);
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+    click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    viewer
+        .add_handle_visual_with_role(
+            connection.edit_part(),
+            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+        )
+        .unwrap();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(280.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(80.0, 90.0))
+        .unwrap();
+    assert!(domain.has_active_gesture());
+    domain.cancel_tool(&mut viewer).unwrap();
+
+    assert!(!domain.has_active_gesture());
+    assert_eq!(
+        viewer.model().connections,
+        vec![ModelConnection::new(FIRST_EDGE, FIRST, SECOND)]
+    );
+    assert!(
+        viewer
+            .runtime()
+            .tree()
+            .child_order(viewer.root_layers().scaled_feedback())
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn policy_can_accept_a_self_loop() {
     let mut viewer = viewer(false);
     let mut domain = EditorDomain::new();
@@ -604,6 +872,13 @@ fn policy_can_accept_a_self_loop() {
         viewer.model().connections,
         vec![ModelConnection::new(FIRST_EDGE, FIRST, FIRST)]
     );
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    let (source, target) = viewer
+        .connection_route_endpoints_in_surface(connection)
+        .unwrap();
+    assert_ne!(source, target);
+    assert!(source.x() >= 140.0);
+    assert!(target.x() >= 140.0);
 }
 
 #[test]

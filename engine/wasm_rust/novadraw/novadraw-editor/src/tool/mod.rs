@@ -6,9 +6,11 @@ use novadraw_geometry::{Dimension, Point, Vec2};
 use novadraw_scene::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
 
 use crate::{
-    ChangeBoundsRequest, Command, ConnectionCreation, CreateConnectionRequest, CreationType,
-    EditPartFactory, EditPartId, EditorRequest, GraphicalViewer, HandleRole, InteractionRevision,
-    ModelAdapter, RequestModifiers, ResizeDirection, ViewerError, ViewerInputOutcome, ViewerTarget,
+    ChangeBoundsRequest, Command, ConnectionCreation, ConnectionEndpoint, ConnectionPartId,
+    ConnectionReconnection, CreateConnectionRequest, CreationType, EditPartFactory, EditPartId,
+    EditorRequest, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
+    ReconnectConnectionRequest, RequestModifiers, ResizeDirection, ViewerError, ViewerInputOutcome,
+    ViewerTarget,
 };
 
 const DRAG_START_DISTANCE: f64 = 2.0;
@@ -39,6 +41,18 @@ pub struct ConnectionToolPress<A: ModelAdapter> {
     outcome: ViewerInputOutcome,
     command: Option<Box<dyn Command<A>>>,
     completed: bool,
+}
+
+/// Completion returned when an endpoint reconnect drag releases.
+pub struct ConnectionEndpointRelease<A: ModelAdapter> {
+    dispatch: DispatchOutcome,
+    command: Option<Box<dyn Command<A>>>,
+}
+
+impl<A: ModelAdapter> ConnectionEndpointRelease<A> {
+    pub(crate) fn into_parts(self) -> (DispatchOutcome, Option<Box<dyn Command<A>>>) {
+        (self.dispatch, self.command)
+    }
 }
 
 impl<A: ModelAdapter> ConnectionToolPress<A> {
@@ -156,6 +170,10 @@ impl SelectionTool {
                 role: HandleRole::Selection,
                 ..
             }
+            | ViewerTarget::Handle {
+                role: HandleRole::ConnectionEndpoint(_),
+                ..
+            }
             | ViewerTarget::Contents(_)
             | ViewerTarget::Part(_) => return Ok(outcome),
         };
@@ -254,6 +272,161 @@ struct ConnectionGesture<A: ModelAdapter> {
 pub struct ConnectionCreationTool<A: ModelAdapter> {
     connection_type: CreationType,
     gesture: Option<ConnectionGesture<A>>,
+}
+
+struct ReconnectGesture<A: ModelAdapter> {
+    start: Point,
+    modifiers: RequestModifiers,
+    plan: Box<dyn ConnectionReconnection<A>>,
+    feedback: Vec<FigureId>,
+}
+
+/// Drag Tool for moving one endpoint of an existing connection.
+pub struct ConnectionEndpointTool<A: ModelAdapter> {
+    connection: ConnectionPartId,
+    endpoint: ConnectionEndpoint,
+    gesture: Option<ReconnectGesture<A>>,
+}
+
+impl<A: ModelAdapter> ConnectionEndpointTool<A> {
+    /// Creates a Tool locked to one connection endpoint.
+    pub const fn new(connection: ConnectionPartId, endpoint: ConnectionEndpoint) -> Self {
+        Self {
+            connection,
+            endpoint,
+            gesture: None,
+        }
+    }
+
+    /// Returns whether the endpoint drag was accepted by a policy.
+    pub const fn is_active(&self) -> bool {
+        self.gesture.is_some()
+    }
+
+    /// Starts reconnect tracking from an endpoint handle press.
+    pub fn pointer_pressed<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        button: MouseButton,
+        modifiers: KeyModifiers,
+        revision: InteractionRevision,
+    ) -> Result<ViewerInputOutcome, ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        let outcome =
+            viewer.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button);
+        if outcome.dispatch().is_handled() || button != MouseButton::Left {
+            return Ok(outcome);
+        }
+        let request = ReconnectConnectionRequest::new(
+            self.connection,
+            self.endpoint,
+            location,
+            request_modifiers(modifiers),
+            revision,
+        );
+        if let Some(plan) = viewer.start_connection_reconnection(&request)? {
+            self.gesture = Some(ReconnectGesture {
+                start: location,
+                modifiers: request_modifiers(modifiers),
+                plan,
+                feedback: Vec::new(),
+            });
+        }
+        Ok(outcome)
+    }
+
+    /// Updates the endpoint candidate and transient feedback.
+    pub fn pointer_moved<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<DispatchOutcome, ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        let Some(gesture) = &mut self.gesture else {
+            return Ok(dispatch);
+        };
+        if (location - gesture.start).length() < DRAG_START_DISTANCE {
+            return Ok(dispatch);
+        }
+        let candidate = match viewer.target_at(location.x(), location.y()) {
+            ViewerTarget::Part(part) => Some(part),
+            ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
+        };
+        let request = ReconnectConnectionRequest::new(
+            self.connection,
+            self.endpoint,
+            location,
+            gesture.modifiers,
+            revision,
+        )
+        .with_target_candidate(candidate);
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        gesture.feedback = viewer.show_reconnection_feedback(gesture.plan.as_mut(), &request)?;
+        Ok(dispatch)
+    }
+
+    /// Clears feedback and returns a reconnect Command for a valid drop.
+    pub fn pointer_released<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        button: MouseButton,
+        revision: InteractionRevision,
+    ) -> Result<ConnectionEndpointRelease<A>, ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        let dispatch = viewer.dispatch_mouse_released(location.x(), location.y(), button);
+        let Some(mut gesture) = self.gesture.take() else {
+            return Ok(ConnectionEndpointRelease {
+                dispatch,
+                command: None,
+            });
+        };
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        if button != MouseButton::Left || (location - gesture.start).length() < DRAG_START_DISTANCE
+        {
+            return Ok(ConnectionEndpointRelease {
+                dispatch,
+                command: None,
+            });
+        }
+        let candidate = match viewer.target_at(location.x(), location.y()) {
+            ViewerTarget::Part(part) => Some(part),
+            ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
+        };
+        let request = ReconnectConnectionRequest::new(
+            self.connection,
+            self.endpoint,
+            location,
+            gesture.modifiers,
+            revision,
+        )
+        .with_target_candidate(candidate);
+        let command = viewer.reconnection_command(gesture.plan.as_mut(), &request)?;
+        Ok(ConnectionEndpointRelease { dispatch, command })
+    }
+
+    /// Cancels reconnect tracking and clears transient feedback.
+    pub fn cancel<F>(&mut self, viewer: &mut GraphicalViewer<A, F>) -> Result<(), ToolError>
+    where
+        F: EditPartFactory<A>,
+    {
+        if let Some(mut gesture) = self.gesture.take() {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
+        Ok(())
+    }
 }
 
 impl<A: ModelAdapter> ConnectionCreationTool<A> {

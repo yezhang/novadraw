@@ -4,7 +4,7 @@ use std::{error::Error, fmt, sync::Arc};
 
 use novadraw_geometry::{Dimension, Point, Rectangle, Vec2};
 
-use crate::EditPartId;
+use crate::{ConnectionPartId, EditPartId};
 
 /// Monotonic identity of one interaction update.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -91,6 +91,15 @@ pub enum ResizeDirection {
     West,
     /// Top-left corner.
     NorthWest,
+}
+
+/// Endpoint of a connection manipulated by a reconnect gesture.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConnectionEndpoint {
+    /// Move the source endpoint while preserving the target.
+    Source,
+    /// Move the target endpoint while preserving the source.
+    Target,
 }
 
 /// Bounds operation requested for selected parts.
@@ -337,6 +346,73 @@ pub struct CreateConnectionRequest {
     revision: InteractionRevision,
 }
 
+/// Typed intent to reconnect one endpoint of an existing connection.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReconnectConnectionRequest {
+    connection: ConnectionPartId,
+    endpoint: ConnectionEndpoint,
+    target_candidate: Option<EditPartId>,
+    location: Point,
+    modifiers: RequestModifiers,
+    revision: InteractionRevision,
+}
+
+impl ReconnectConnectionRequest {
+    /// Creates a source-locked reconnect request.
+    pub fn new(
+        connection: ConnectionPartId,
+        endpoint: ConnectionEndpoint,
+        location: Point,
+        modifiers: RequestModifiers,
+        revision: InteractionRevision,
+    ) -> Self {
+        Self {
+            connection,
+            endpoint,
+            target_candidate: None,
+            location,
+            modifiers,
+            revision,
+        }
+    }
+
+    /// Returns the connection whose endpoint is moving.
+    pub const fn connection(&self) -> ConnectionPartId {
+        self.connection
+    }
+
+    /// Returns the moving endpoint.
+    pub const fn endpoint(&self) -> ConnectionEndpoint {
+        self.endpoint
+    }
+
+    /// Returns the latest endpoint candidate.
+    pub const fn target_candidate(&self) -> Option<EditPartId> {
+        self.target_candidate
+    }
+
+    /// Replaces the latest endpoint candidate.
+    pub fn with_target_candidate(mut self, target: Option<EditPartId>) -> Self {
+        self.target_candidate = target;
+        self
+    }
+
+    /// Returns the latest pointer location.
+    pub const fn location(&self) -> Point {
+        self.location
+    }
+
+    /// Returns the modifiers captured when dragging started.
+    pub const fn modifiers(&self) -> RequestModifiers {
+        self.modifiers
+    }
+
+    /// Returns the interaction revision.
+    pub const fn revision(&self) -> InteractionRevision {
+        self.revision
+    }
+}
+
 impl CreateConnectionRequest {
     /// Creates a source-locked connection request.
     pub fn new(
@@ -404,6 +480,8 @@ pub enum EditorRequest {
     Delete(DeleteRequest),
     /// Create one model connection through a source-locked two-stage gesture.
     CreateConnection(CreateConnectionRequest),
+    /// Move one endpoint of an existing connection.
+    ReconnectConnection(ReconnectConnectionRequest),
 }
 
 impl EditorRequest {
@@ -417,6 +495,7 @@ impl EditorRequest {
             Self::Create(_) => "Create",
             Self::Delete(_) => "Delete",
             Self::CreateConnection(_) => "Create connection",
+            Self::ReconnectConnection(_) => "Reconnect connection",
         }
     }
 
@@ -427,6 +506,7 @@ impl EditorRequest {
             Self::Create(request) => request.revision(),
             Self::Delete(request) => request.revision(),
             Self::CreateConnection(request) => request.revision(),
+            Self::ReconnectConnection(request) => request.revision(),
         }
     }
 
@@ -437,6 +517,9 @@ impl EditorRequest {
             Self::Create(request) => std::slice::from_ref(&request.parent),
             Self::Delete(request) => request.parts(),
             Self::CreateConnection(request) => std::slice::from_ref(&request.source),
+            Self::ReconnectConnection(request) => {
+                std::slice::from_ref(request.connection.edit_part_ref())
+            }
         }
     }
 }

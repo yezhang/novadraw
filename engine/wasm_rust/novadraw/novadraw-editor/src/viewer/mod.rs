@@ -6,7 +6,7 @@ use std::{
     fmt,
 };
 
-use novadraw_geometry::{Rectangle, Translatable};
+use novadraw_geometry::{Point, Rectangle, Translatable};
 use novadraw_scene::{
     AnchorId, ChopboxAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError,
     CoordinateSpace, DispatchOutcome, Figure, FigureId, FigureTree, KeyModifiers, LayerError,
@@ -15,10 +15,11 @@ use novadraw_scene::{
 };
 
 use crate::{
-    Command, CompoundCommand, ConnectionCreation, ConnectionPartFactoryContext, ConnectionPartId,
-    CreateConnectionRequest, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
-    EditorRequest, FeedbackId, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
-    PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, SelectionDelta,
+    Command, CompoundCommand, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
+    ConnectionPartId, ConnectionReconnection, CreateConnectionRequest, EditPartError,
+    EditPartFactory, EditPartId, EditorNamespace, EditorRequest, FeedbackId, HandleId, HandleRole,
+    ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartKind, PartTree,
+    PartTreeError, PolicyError, PolicyHost, ReconnectConnectionRequest, SelectionDelta,
     SelectionModel, VisualBuildContext, VisualOwner, VisualUpdateContext,
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
@@ -769,6 +770,38 @@ where
             .map(|projection| projection.part)
     }
 
+    /// Converts an active Part into its checked connection role.
+    pub fn as_connection_part(&self, part: EditPartId) -> Option<ConnectionPartId> {
+        self.parts.as_connection(part).ok()
+    }
+
+    /// Returns the source and target Parts of a live connection.
+    pub fn connection_endpoints(
+        &self,
+        connection: ConnectionPartId,
+    ) -> Result<crate::ConnectionEndpoints, ViewerError> {
+        self.parts
+            .connection_endpoints(connection)
+            .map_err(Into::into)
+    }
+
+    /// Returns the resolved route's first and last points in logical surface coordinates.
+    pub fn connection_route_endpoints_in_surface(
+        &self,
+        connection: ConnectionPartId,
+    ) -> Option<(Point, Point)> {
+        let model = self.parts.get(connection.edit_part())?.model_id()?;
+        let projection = self.connection_projections.get(&model)?;
+        let figure = projection.connection.figure();
+        let points = self.runtime.tree().connection_route_points(figure)?;
+        let first = points.get(0)?;
+        let last = points.get(points.len().checked_sub(1)?)?;
+        let transform = self.runtime.tree().local_to_surface_transform(figure)?;
+        let (first_x, first_y) = transform.transform_point(first.x(), first.y());
+        let (last_x, last_y) = transform.transform_point(last.x(), last.y());
+        Some((Point::new(first_x, first_y), Point::new(last_x, last_y)))
+    }
+
     /// Returns the axis-aligned surface bounds of a part's primary Figure.
     pub fn part_bounds_in_surface(&self, part: EditPartId) -> Option<Rectangle> {
         let figure = self.parts.get(part)?.primary_figure();
@@ -1158,6 +1191,110 @@ where
             return Ok(None);
         };
         Ok(Some(plan.command(source, target, request, &self.model)?))
+    }
+
+    /// Resolves one unambiguous connection policy into a reconnect plan.
+    pub fn start_connection_reconnection(
+        &mut self,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
+        let connection = request.connection().edit_part();
+        let host = self.policy_host(connection)?;
+        let editor_request = EditorRequest::ReconnectConnection(request.clone());
+        let Some(roles) = self.policies.roles_mut(connection) else {
+            return Ok(None);
+        };
+        let mut accepted = None;
+        for policy in roles.values_mut() {
+            if !policy.understands(&editor_request) {
+                continue;
+            }
+            if let Some(plan) = policy.start_reconnection(host, request, &self.model)? {
+                if accepted.is_some() {
+                    return Err(
+                        PolicyError::operation("multiple policies accepted reconnection").into(),
+                    );
+                }
+                accepted = Some(plan);
+            }
+        }
+        Ok(accepted)
+    }
+
+    /// Replaces reconnect feedback for the latest endpoint candidate.
+    pub fn show_reconnection_feedback(
+        &mut self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let connection = self.policy_host(request.connection().edit_part())?;
+        let fixed = self.reconnection_fixed_host(request)?;
+        let candidate = self.valid_reconnection_target(plan, connection, fixed, request)?;
+        let contributions = plan.feedback(connection, fixed, candidate, request, &self.model)?;
+        let mut figures = Vec::with_capacity(contributions.len());
+        for feedback in contributions {
+            let (figure, scaled) = feedback.into_parts();
+            let (_, figure) =
+                self.add_feedback_visual(Some(request.connection().edit_part()), scaled, figure)?;
+            figures.push(figure);
+        }
+        Ok(figures)
+    }
+
+    /// Builds the final reconnect Command when the current candidate is valid.
+    pub fn reconnection_command(
+        &self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        let connection = self.policy_host(request.connection().edit_part())?;
+        let fixed = self.reconnection_fixed_host(request)?;
+        let Some(candidate) = self.valid_reconnection_target(plan, connection, fixed, request)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(plan.command(
+            connection,
+            fixed,
+            candidate,
+            request,
+            &self.model,
+        )?))
+    }
+
+    fn reconnection_fixed_host(
+        &self,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<PolicyHost<A::ModelId>, ViewerError> {
+        let endpoints = self.parts.connection_endpoints(request.connection())?;
+        let fixed = match request.endpoint() {
+            ConnectionEndpoint::Source => endpoints.target(),
+            ConnectionEndpoint::Target => endpoints.source(),
+        };
+        self.connection_endpoint_host(fixed)
+    }
+
+    fn valid_reconnection_target(
+        &self,
+        plan: &dyn ConnectionReconnection<A>,
+        connection: PolicyHost<A::ModelId>,
+        fixed: PolicyHost<A::ModelId>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<PolicyHost<A::ModelId>>, ViewerError> {
+        let Some(candidate) = request.target_candidate() else {
+            return Ok(None);
+        };
+        let Some(candidate) = self.connection_target_host(candidate)? else {
+            return Ok(None);
+        };
+        if plan.can_complete(connection, fixed, candidate, request, &self.model)? {
+            Ok(Some(candidate))
+        } else {
+            Ok(None)
+        }
     }
 
     fn valid_connection_target(

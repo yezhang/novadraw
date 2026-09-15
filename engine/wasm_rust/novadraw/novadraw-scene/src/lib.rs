@@ -37,8 +37,9 @@ pub use connection::{
     MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, MidpointLocator,
     PathFractionLocator, RoundedRectangleAnchor, RouteEnd, RouteEndpoint, RouteError,
     RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId, RoutingConstraint,
-    RoutingGroupQuery, RoutingGroupScope, SceneQuery, SceneQueryError, SceneRead,
-    TrackedSceneQuery, UnresolvedConnection, XYAnchor, rectangle_boundary_site,
+    RoutingGroupQuery, RoutingGroupScope, SELF_LOOP_DEFAULT_EXTENT, SceneQuery, SceneQueryError,
+    SceneRead, SelfLoopRouter, SelfLoopRouterError, TrackedSceneQuery, UnresolvedConnection,
+    XYAnchor, rectangle_boundary_site,
 };
 pub use container::viewport;
 pub use container::{

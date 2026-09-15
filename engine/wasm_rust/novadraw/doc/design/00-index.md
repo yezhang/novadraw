@@ -35,6 +35,7 @@
 17. [`editor/architecture.md`](editor/architecture.md)
 18. [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
 19. [`editor/g5-connection-creation.md`](editor/g5-connection-creation.md)
+20. [`editor/g5-connection-reconnect.md`](editor/g5-connection-reconnect.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

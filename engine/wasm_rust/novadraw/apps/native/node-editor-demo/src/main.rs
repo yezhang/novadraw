@@ -7,12 +7,12 @@ use novadraw::{
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
-    Command, CommandError, ConnectionCreation, ConnectionPartFactoryContext,
-    CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest, EditPartBehavior,
-    EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual,
-    GraphicalViewer, HandleRole, ModelAdapter, ModelConnection, ModelEvent, ModelRevision,
-    PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers,
-    ResizeDirection, VisualUpdateContext,
+    Command, CommandError, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
+    ConnectionReconnection, CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest,
+    FeedbackVisual, GraphicalViewer, HandleRole, ModelAdapter, ModelConnection, ModelEvent,
+    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    ReconnectConnectionRequest, RequestModifiers, ResizeDirection, VisualUpdateContext,
 };
 use winit::{
     application::ApplicationHandler,
@@ -200,6 +200,16 @@ impl DemoModel {
         self.publish(id);
         (connection, index)
     }
+
+    fn replace_connection(&mut self, connection: ModelConnection<NodeId>) {
+        let slot = self
+            .connections
+            .iter_mut()
+            .find(|candidate| candidate.id() == connection.id())
+            .expect("reconnect command references a live connection");
+        *slot = connection;
+        self.publish(connection.id());
+    }
 }
 
 struct RemovedNode {
@@ -340,6 +350,27 @@ impl Command<DemoModel> for CreateConnectionCommand {
 struct DeleteConnectionCommand {
     id: NodeId,
     removed: Option<(ModelConnection<NodeId>, usize)>,
+}
+
+struct ReconnectCommand {
+    before: ModelConnection<NodeId>,
+    after: ModelConnection<NodeId>,
+}
+
+impl Command<DemoModel> for ReconnectCommand {
+    fn label(&self) -> &str {
+        "Reconnect"
+    }
+
+    fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.replace_connection(self.after);
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.replace_connection(self.before);
+        Ok(())
+    }
 }
 
 impl Command<DemoModel> for DeleteConnectionCommand {
@@ -502,7 +533,9 @@ impl EditPolicy<DemoModel> for NodePolicy {
                     removed: None,
                 })))
             }
-            EditorRequest::Create(_) | EditorRequest::CreateConnection(_) => Ok(None),
+            EditorRequest::Create(_)
+            | EditorRequest::CreateConnection(_)
+            | EditorRequest::ReconnectConnection(_) => Ok(None),
         }
     }
 
@@ -658,6 +691,85 @@ struct DemoConnectionPart;
 
 struct ConnectionDeletePolicy;
 
+struct DemoReconnection {
+    before: ModelConnection<NodeId>,
+}
+
+impl ConnectionReconnection<DemoModel> for DemoReconnection {
+    fn can_complete(
+        &self,
+        _connection: PolicyHost<NodeId>,
+        fixed: PolicyHost<NodeId>,
+        candidate: PolicyHost<NodeId>,
+        request: &ReconnectConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<bool, PolicyError> {
+        let candidate_is_shape = model
+            .nodes
+            .get(&candidate.model())
+            .is_some_and(|node| matches!(node.kind, NodeKind::Shape(_)));
+        let (source, target) = match request.endpoint() {
+            ConnectionEndpoint::Source => (candidate.model(), fixed.model()),
+            ConnectionEndpoint::Target => (fixed.model(), candidate.model()),
+        };
+        Ok(candidate_is_shape
+            && !model.connections.iter().any(|connection| {
+                connection.id() != self.before.id()
+                    && connection.source() == source
+                    && connection.target() == target
+            }))
+    }
+
+    fn feedback(
+        &mut self,
+        _connection: PolicyHost<NodeId>,
+        fixed: PolicyHost<NodeId>,
+        candidate: Option<PolicyHost<NodeId>>,
+        request: &ReconnectConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let fixed_bounds = model.nodes[&fixed.model()].bounds;
+        let fixed_center = fixed_bounds.center();
+        let moving_reference = candidate.map_or(request.location(), |candidate| {
+            model.nodes[&candidate.model()].bounds.center()
+        });
+        let fixed_point = rectangle_boundary_site(fixed_bounds, moving_reference).point;
+        let moving_point = candidate.map_or(request.location(), |candidate| {
+            rectangle_boundary_site(model.nodes[&candidate.model()].bounds, fixed_center).point
+        });
+        let (start, end) = match request.endpoint() {
+            ConnectionEndpoint::Source => (moving_point, fixed_point),
+            ConnectionEndpoint::Target => (fixed_point, moving_point),
+        };
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::new_with_color(start.x(), start.y(), end.x(), end.y(), FEEDBACK_COLOR)
+                .with_width(3.0),
+        ))])
+    }
+
+    fn command(
+        &mut self,
+        _connection: PolicyHost<NodeId>,
+        fixed: PolicyHost<NodeId>,
+        candidate: PolicyHost<NodeId>,
+        request: &ReconnectConnectionRequest,
+        _model: &DemoModel,
+    ) -> Result<Box<dyn Command<DemoModel>>, PolicyError> {
+        let after = match request.endpoint() {
+            ConnectionEndpoint::Source => {
+                ModelConnection::new(self.before.id(), candidate.model(), fixed.model())
+            }
+            ConnectionEndpoint::Target => {
+                ModelConnection::new(self.before.id(), fixed.model(), candidate.model())
+            }
+        };
+        Ok(Box::new(ReconnectCommand {
+            before: self.before,
+            after,
+        }))
+    }
+}
+
 impl EditPolicy<DemoModel> for ConnectionDeletePolicy {
     fn understands(&self, request: &EditorRequest) -> bool {
         matches!(request, EditorRequest::Delete(_))
@@ -688,6 +800,39 @@ impl EditPolicy<DemoModel> for ConnectionDeletePolicy {
     }
 }
 
+struct ConnectionReconnectPolicy;
+
+impl EditPolicy<DemoModel> for ConnectionReconnectPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::ReconnectConnection(_))
+    }
+
+    fn command(
+        &mut self,
+        _host: PolicyHost<NodeId>,
+        _request: &EditorRequest,
+        _model: &DemoModel,
+    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
+        Ok(None)
+    }
+
+    fn start_reconnection(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _request: &ReconnectConnectionRequest,
+        model: &DemoModel,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<DemoModel>>>, PolicyError> {
+        Ok(model
+            .connections
+            .iter()
+            .find(|connection| connection.id() == host.model())
+            .copied()
+            .map(|before| {
+                Box::new(DemoReconnection { before }) as Box<dyn ConnectionReconnection<DemoModel>>
+            }))
+    }
+}
+
 impl EditPartBehavior<DemoModel> for DemoConnectionPart {
     fn create_figure(
         &mut self,
@@ -704,10 +849,13 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
         _model: &DemoModel,
         _model_id: NodeId,
     ) -> Result<Vec<PolicyInstallation<DemoModel>>, EditPartError> {
-        Ok(vec![(
-            PolicyRole::Component,
-            Box::new(ConnectionDeletePolicy),
-        )])
+        Ok(vec![
+            (PolicyRole::Component, Box::new(ConnectionDeletePolicy)),
+            (
+                PolicyRole::ConnectionReconnect,
+                Box::new(ConnectionReconnectPolicy),
+            ),
+        ])
     }
 }
 
@@ -795,6 +943,34 @@ impl DemoApp {
         let selected = viewer.selection().items().to_vec();
         let primary = viewer.selection().primary();
         for part in selected {
+            if let Some(connection) = viewer.as_connection_part(part) {
+                let Some((source, target)) =
+                    viewer.connection_route_endpoints_in_surface(connection)
+                else {
+                    continue;
+                };
+                for (point, endpoint) in [
+                    (source, ConnectionEndpoint::Source),
+                    (target, ConnectionEndpoint::Target),
+                ] {
+                    let handle = RectangleFigure::new_with_color(
+                        point.x() - HANDLE_SIZE / 2.0,
+                        point.y() - HANDLE_SIZE / 2.0,
+                        HANDLE_SIZE,
+                        HANDLE_SIZE,
+                        PRIMARY_HANDLE_COLOR,
+                    )
+                    .with_stroke(Color::BLACK, 1.0);
+                    if let Ok((_, figure)) = viewer.add_handle_visual_with_role(
+                        part,
+                        HandleRole::ConnectionEndpoint(endpoint),
+                        Box::new(handle),
+                    ) {
+                        self.handles.push(figure);
+                    }
+                }
+                continue;
+            }
             let Some(bounds) = viewer.part_bounds_in_surface(part) else {
                 continue;
             };

@@ -30,7 +30,7 @@ pub use router::{
     FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, MANHATTAN_DEFAULT_LANE_SPACING,
     MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RouteEnd, RouteEndpoint, RouteError,
     RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope,
+    RoutingGroupScope, SELF_LOOP_DEFAULT_EXTENT, SelfLoopRouter, SelfLoopRouterError,
 };
 pub(crate) use runtime::ConnectionRuntime;
 pub use runtime::{

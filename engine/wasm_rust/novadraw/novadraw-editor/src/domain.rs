@@ -6,9 +6,10 @@ use novadraw_geometry::Point;
 use novadraw_scene::{DispatchOutcome, KeyModifiers, MouseButton};
 
 use crate::{
-    CommandStack, CommandStackError, ConnectionCreationTool, CreationType, EditPartFactory,
-    EditorRequest, GraphicalViewer, InteractionRevision, InteractionRevisionError, ModelAdapter,
-    SelectionTool, ToolError, ViewerError, ViewerInputOutcome,
+    CommandStack, CommandStackError, ConnectionCreationTool, ConnectionEndpointTool, CreationType,
+    EditPartFactory, EditorRequest, GraphicalViewer, HandleRole, InteractionRevision,
+    InteractionRevisionError, ModelAdapter, SelectionTool, ToolError, ViewerError,
+    ViewerInputOutcome, ViewerTarget,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -98,6 +99,7 @@ pub struct EditorDomain<A: ModelAdapter> {
     command_stack: CommandStack<A>,
     selection_tool: SelectionTool,
     connection_tool: Option<ConnectionCreationTool<A>>,
+    endpoint_tool: Option<ConnectionEndpointTool<A>>,
     next_revision: InteractionRevision,
 }
 
@@ -114,6 +116,7 @@ impl<A: ModelAdapter> EditorDomain<A> {
             command_stack: CommandStack::new(),
             selection_tool: SelectionTool::new(),
             connection_tool: None,
+            endpoint_tool: None,
             next_revision: InteractionRevision::initial(),
         }
     }
@@ -128,6 +131,10 @@ impl<A: ModelAdapter> EditorDomain<A> {
         self.selection_tool.is_active()
             || match &self.connection_tool {
                 Some(tool) => tool.is_started(),
+                None => false,
+            }
+            || match &self.endpoint_tool {
+                Some(tool) => tool.is_active(),
                 None => false,
             }
     }
@@ -162,6 +169,10 @@ where
         if let Some(tool) = &mut self.connection_tool {
             tool.cancel(viewer)?;
         }
+        if let Some(tool) = &mut self.endpoint_tool {
+            tool.cancel(viewer)?;
+        }
+        self.endpoint_tool = None;
         self.connection_tool = Some(ConnectionCreationTool::new(connection_type));
         Ok(())
     }
@@ -232,6 +243,21 @@ where
             }
             return Ok(outcome);
         }
+        if let ViewerTarget::Handle {
+            owner,
+            role: HandleRole::ConnectionEndpoint(endpoint),
+            ..
+        } = viewer.target_at(location.x(), location.y())
+            && let Some(connection) = viewer.as_connection_part(owner)
+        {
+            let revision = self.next_interaction_revision()?;
+            let mut tool = ConnectionEndpointTool::new(connection, endpoint);
+            let outcome = tool.pointer_pressed(viewer, location, button, modifiers, revision)?;
+            if tool.is_active() {
+                self.endpoint_tool = Some(tool);
+            }
+            return Ok(outcome);
+        }
         Ok(self
             .selection_tool
             .pointer_pressed(viewer, location, button, modifiers)?)
@@ -247,6 +273,9 @@ where
         F: EditPartFactory<A>,
     {
         let revision = self.next_interaction_revision()?;
+        if let Some(tool) = &mut self.endpoint_tool {
+            return Ok(tool.pointer_moved(viewer, location, revision)?);
+        }
         if let Some(tool) = &mut self.connection_tool {
             return Ok(tool.pointer_moved(viewer, location, revision)?);
         }
@@ -265,6 +294,21 @@ where
     where
         F: EditPartFactory<A>,
     {
+        if let Some(mut tool) = self.endpoint_tool.take() {
+            let revision = self.next_interaction_revision()?;
+            let (dispatch, command) = tool
+                .pointer_released(viewer, location, button, revision)?
+                .into_parts();
+            let command_executed = command.is_some();
+            if let Some(command) = command {
+                self.command_stack.execute(viewer.model_mut(), command)?;
+                viewer.refresh()?;
+            }
+            return Ok(DomainPointerRelease {
+                dispatch,
+                command_executed,
+            });
+        }
         if let Some(tool) = &mut self.connection_tool {
             return Ok(DomainPointerRelease {
                 dispatch: tool.pointer_released(viewer, location, button),
@@ -312,6 +356,10 @@ where
             tool.cancel(viewer)?;
         }
         self.connection_tool = None;
+        if let Some(tool) = &mut self.endpoint_tool {
+            tool.cancel(viewer)?;
+        }
+        self.endpoint_tool = None;
         Ok(())
     }
 }

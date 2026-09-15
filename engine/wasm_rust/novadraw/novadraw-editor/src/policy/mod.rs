@@ -11,6 +11,7 @@ use novadraw_scene::Figure;
 
 use crate::{
     Command, CreateConnectionRequest, EditPartId, EditorNamespace, EditorRequest, ModelAdapter,
+    ReconnectConnectionRequest,
 };
 
 /// Stable role used to install an EditPolicy on one EditPart.
@@ -26,6 +27,8 @@ pub enum PolicyRole {
     SelectionFeedback,
     /// Source-owned two-stage connection creation.
     ConnectionCreation,
+    /// Reconnect one endpoint of an existing connection.
+    ConnectionReconnect,
     /// Application-defined role.
     Custom(Arc<str>),
 }
@@ -169,6 +172,16 @@ pub trait EditPolicy<A: ModelAdapter> {
         Ok(None)
     }
 
+    /// Creates a gesture-scoped reconnect plan when this policy accepts the request.
+    fn start_reconnection(
+        &mut self,
+        _host: PolicyHost<A::ModelId>,
+        _request: &ReconnectConnectionRequest,
+        _model: &A,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, PolicyError> {
+        Ok(None)
+    }
+
     /// Activates policy resources after its host is active.
     fn activate(&mut self, _host: PolicyHost<A::ModelId>, _model: &A) -> Result<(), PolicyError> {
         Ok(())
@@ -212,6 +225,41 @@ pub trait ConnectionCreation<A: ModelAdapter> {
         source: PolicyHost<A::ModelId>,
         target: PolicyHost<A::ModelId>,
         request: &CreateConnectionRequest,
+        model: &A,
+    ) -> Result<Box<dyn Command<A>>, PolicyError>;
+}
+
+/// Connection-owned, gesture-scoped preparation for one endpoint reconnect.
+pub trait ConnectionReconnection<A: ModelAdapter> {
+    /// Returns whether the candidate can replace the moving endpoint.
+    fn can_complete(
+        &self,
+        connection: PolicyHost<A::ModelId>,
+        fixed: PolicyHost<A::ModelId>,
+        candidate: PolicyHost<A::ModelId>,
+        request: &ReconnectConnectionRequest,
+        model: &A,
+    ) -> Result<bool, PolicyError>;
+
+    /// Creates feedback for the fixed endpoint and current candidate or pointer.
+    fn feedback(
+        &mut self,
+        _connection: PolicyHost<A::ModelId>,
+        _fixed: PolicyHost<A::ModelId>,
+        _candidate: Option<PolicyHost<A::ModelId>>,
+        _request: &ReconnectConnectionRequest,
+        _model: &A,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        Ok(Vec::new())
+    }
+
+    /// Builds the final model-only reconnect Command.
+    fn command(
+        &mut self,
+        connection: PolicyHost<A::ModelId>,
+        fixed: PolicyHost<A::ModelId>,
+        candidate: PolicyHost<A::ModelId>,
+        request: &ReconnectConnectionRequest,
         model: &A,
     ) -> Result<Box<dyn Command<A>>, PolicyError>;
 }

@@ -5,7 +5,7 @@
 
 use uuid::Uuid;
 
-use crate::{EditPartId, EditorNamespace, ResizeDirection};
+use crate::{ConnectionEndpoint, EditPartId, EditorNamespace, ResizeDirection};
 
 macro_rules! overlay_id {
     ($name:ident, $description:literal) => {
@@ -42,6 +42,8 @@ pub enum HandleRole {
     Selection,
     /// Resize handle for one edge or corner.
     Resize(ResizeDirection),
+    /// Draggable source or target endpoint of a connection.
+    ConnectionEndpoint(ConnectionEndpoint),
 }
 
 /// Editor ownership associated with a registered Figure.

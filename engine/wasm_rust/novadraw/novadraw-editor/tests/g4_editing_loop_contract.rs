@@ -236,7 +236,9 @@ impl EditPolicy<DiagramModel> for NodePolicy {
                     removed: None,
                 })))
             }
-            EditorRequest::Create(_) | EditorRequest::CreateConnection(_) => Ok(None),
+            EditorRequest::Create(_)
+            | EditorRequest::CreateConnection(_)
+            | EditorRequest::ReconnectConnection(_) => Ok(None),
         }
     }
 

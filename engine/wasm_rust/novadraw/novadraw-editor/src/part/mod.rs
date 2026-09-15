@@ -66,6 +66,10 @@ impl ConnectionPartId {
     pub const fn edit_part(self) -> EditPartId {
         self.0
     }
+
+    pub(crate) const fn edit_part_ref(&self) -> &EditPartId {
+        &self.0
+    }
 }
 
 /// Source and target EditParts bound to one connection Part.

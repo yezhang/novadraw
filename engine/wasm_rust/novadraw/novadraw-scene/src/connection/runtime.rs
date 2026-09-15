@@ -5,8 +5,8 @@ use crate::identity::{RuntimeArena, RuntimeNamespace};
 use super::{
     AnchorGroupKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter, CoordinateSpace,
     DependencyObservation, DependencySubject, DirectRouter, RouteError, RouteOutput, RouteRequest,
-    RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SceneRead,
-    TrackedSceneQuery,
+    RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SELF_LOOP_DEFAULT_EXTENT,
+    SceneRead, SelfLoopRouter, TrackedSceneQuery,
 };
 use crate::{FigureId, MAX_TREE_DEPTH};
 
@@ -236,7 +236,10 @@ impl ConnectionRuntime {
     pub(crate) fn with_namespace(namespace: RuntimeNamespace) -> Self {
         let mut routers: RuntimeArena<RouterId, Box<dyn ConnectionRouter>> =
             RuntimeArena::new(namespace);
-        let direct_router = routers.insert(Box::new(DirectRouter));
+        let direct_router = routers.insert(Box::new(
+            SelfLoopRouter::new(Box::new(DirectRouter), SELF_LOOP_DEFAULT_EXTENT)
+                .expect("default self-loop extent is valid"),
+        ));
         Self {
             anchors: RuntimeArena::new(namespace),
             routers,

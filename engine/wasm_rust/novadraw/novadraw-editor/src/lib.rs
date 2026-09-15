@@ -33,17 +33,19 @@ pub use part::{
     PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
 };
 pub use policy::{
-    ConnectionCreation, EditPolicy, FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation,
-    PolicyRole,
+    ConnectionCreation, ConnectionReconnection, EditPolicy, FeedbackVisual, PolicyError,
+    PolicyHost, PolicyInstallation, PolicyRole,
 };
 pub use request::{
-    ChangeBoundsKind, ChangeBoundsRequest, CreateConnectionRequest, CreateRequest, CreationType,
-    CreationTypeError, DeleteRequest, EditorRequest, InteractionRevision, InteractionRevisionError,
-    RequestModifiers, ResizeDirection,
+    ChangeBoundsKind, ChangeBoundsRequest, ConnectionEndpoint, CreateConnectionRequest,
+    CreateRequest, CreationType, CreationTypeError, DeleteRequest, EditorRequest,
+    InteractionRevision, InteractionRevisionError, ReconnectConnectionRequest, RequestModifiers,
+    ResizeDirection,
 };
 pub use selection::{SelectionDelta, SelectionModel};
 pub use tool::{
-    ConnectionCreationTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,
+    ConnectionCreationTool, ConnectionEndpointRelease, ConnectionEndpointTool, ConnectionToolPress,
+    SelectionTool, ToolError, ToolRelease,
 };
 pub use viewer::{
     GraphicalViewer, RootLayers, SelectionMode, ViewerError, ViewerInputOutcome, ViewerTarget,

@@ -138,14 +138,15 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
-状态：`in_progress`，G5.1 Connection Projection 与 G5.2 Connection Creation
-已完成，下一步为 G5.3 reconnect 与 endpoint handle。
+状态：`in_progress`，G5.1 Connection Projection、G5.2 Connection Creation 与
+G5.3 reconnect/endpoint handle 已完成，下一步为 G5.4 bendpoint。
 
 设计入口：
 
 - `doc/reference/gef/connection-editing.md`；
 - `doc/design/editor/g5-connection-projection.md`。
 - `doc/design/editor/g5-connection-creation.md`。
+- `doc/design/editor/g5-connection-reconnect.md`。
 
 1. 有序 connection snapshot、source/target relation 与单 ConnectionPart 去重；
 2. ConnectionPart/NodePart 关系；

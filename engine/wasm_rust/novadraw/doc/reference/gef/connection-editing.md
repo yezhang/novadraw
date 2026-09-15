@@ -107,3 +107,19 @@ cancel 或目标变化时随时停止。
 - `org.eclipse.gef/src/org/eclipse/gef/AutoexposeHelper.java`
 - `org.eclipse.gef/src/org/eclipse/gef/editparts/ViewportAutoexposeHelper.java`
 - `org.eclipse.gef/src/org/eclipse/gef/tools/TargetingTool.java`
+
+## 7. Self-loop 路由边界
+
+GEF 允许 source 与 target 指向同一个 EditPart，但 Draw2D
+`ConnectionRouter.NULL`/`NullConnectionRouter` 只请求两个 anchor location。相同 owner
+的 ChopboxAnchor 互相使用同一中心 reference 时会退化为重合点。`FanRouter` 对
+start/end 相等的 route 也直接返回，不生成回环。
+
+因此 GEF 的“self-loop 模型合法”不等于默认 router 会产生可见回环；应用需要显式
+router、bendpoint 或自定义 anchor 策略。
+
+源码：
+
+- `org.eclipse.draw2d/ConnectionRouter.NullConnectionRouter`；
+- `org.eclipse.draw2d/BendpointConnectionRouter`；
+- `org.eclipse.draw2d/FanRouter.handleCollision()`。
