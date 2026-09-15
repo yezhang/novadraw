@@ -98,6 +98,9 @@ Viewer 负责把 target `EditPartId` 解析成只读 `PolicyHost<ModelId>`。Too
 
 feedback 由 `ConnectionCreation` 贡献，并通过 Viewer 的标准 feedback layer 注册：
 
+- Viewer 使用 endpoint behavior 的 source/target Anchor descriptor 与 Runtime 只读
+  preview 计算 `ConnectionFeedbackRoute`；pointer 端使用 ownerless `XYAnchor`；
+- `feedback_with_route()` 优先消费该 route，避免应用重复按节点 bounds 猜测端点；
 - source-only 阶段至少可显示 source 到 pointer 的临时路径；
 - valid target 阶段可以附加 target highlight；
 - 每次更新先清除旧 feedback，再安装新 feedback；

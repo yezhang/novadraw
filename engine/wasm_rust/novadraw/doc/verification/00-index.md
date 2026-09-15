@@ -73,6 +73,9 @@ Editor G5.3 endpoint reconnect、self-loop route、自动门禁和 Native 人工
 [`reviews/g5-connection-reconnect-behavior-2026-09-15.md`](reviews/g5-connection-reconnect-behavior-2026-09-15.md)
 和 [`manual/g5-connection-reconnect.md`](manual/g5-connection-reconnect.md)。
 
+Connection 的 Draw2D/GEF 扩展边界整改、parity 状态修正与验证结果见
+[`reviews/connection-extensibility-correction-2026-09-15.md`](reviews/connection-extensibility-correction-2026-09-15.md)。
+
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。
 

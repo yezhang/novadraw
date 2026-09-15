@@ -147,6 +147,7 @@ G5.3 reconnect/endpoint handle 已完成，下一步为 G5.4 bendpoint。
 - `doc/design/editor/g5-connection-projection.md`。
 - `doc/design/editor/g5-connection-creation.md`。
 - `doc/design/editor/g5-connection-reconnect.md`。
+- `doc/design/editor/g5-connection-bendpoint.md`。
 
 1. 有序 connection snapshot、source/target relation 与单 ConnectionPart 去重；
 2. ConnectionPart/NodePart 关系；

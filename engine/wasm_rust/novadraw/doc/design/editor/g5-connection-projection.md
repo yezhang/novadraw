@@ -134,14 +134,11 @@ PartCreationContext::Containment { parent }
 PartCreationContext::Connection { source, target }
 ```
 
-G5.1 只使用 endpoint primary Figure 的 ChopboxAnchor。anchor 对象由 Runtime 注册，
-Viewer 保存返回的 AnchorId，并负责随 ConnectionPart 生命周期释放。endpoint 未变化
-时保留原 AnchorId；只替换发生变化的一端。
-
-自定义 port/anchor 可能在 endpoint ModelId 不变时因连接属性变化而改变。若现在只暴露
-返回 `Box<dyn ConnectionAnchor>` 的工厂，就无法可靠判断 anchor 是否仍等价，并会迫使
-每次 refresh 重建 AnchorId。因此 G5.1 不提前稳定该扩展 API；G5.3 在真实 reconnect
-与 port 用例下定义带稳定 value key 的 endpoint anchor descriptor。
+endpoint `EditPartBehavior` 分别提供 source/target Anchor descriptor。descriptor 包含
+稳定 `AnchorSemanticKey` 与 `Box<dyn ConnectionAnchor>`；相同 key 复用原 AnchorId，
+key 或 endpoint 变化时只替换对应端。未提供 descriptor 时 Viewer 使用 endpoint
+primary Figure 的 ChopboxAnchor fallback。anchor 对象由 Runtime 注册，Viewer 负责随
+ConnectionPart 生命周期释放。
 
 G5.1 使用 connection layer 的 inherited router，不增加应用 router hook。Bendpoint
 constraint 与显式 router binding 在后续 G5 切片加入，避免一次固定过多 API。
@@ -257,7 +254,8 @@ Novadraw 差异：
 - 使用 namespaced generational identity，不使用对象地址；
 - `ConnectionPartId` 只是 `EditPartId` 的受检角色包装，不建立第二身份域；
 - 连接关系使用显式索引，不复用不对称 parent 指针；
-- G5.1 只固定 Chopbox fallback，不提前稳定缺少 value identity 的自定义 anchor API；
+- endpoint behavior 提供带稳定 value identity 的 Anchor descriptor，Viewer 只保留
+  Chopbox fallback；
 - route 和依赖由现有 ConnectionRuntime 原子提交；
 - 确定性视觉顺序由模型 connection snapshot 显式定义。
 

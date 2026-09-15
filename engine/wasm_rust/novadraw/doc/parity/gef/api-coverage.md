@@ -50,9 +50,10 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/G6+ |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
 | `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/G6+ |
-| `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation，并绑定 Connection Runtime | verified | G5 |
-| `connection.create` | CreateConnectionRequest | source-locked start/end 两阶段 Tool、反馈、模型 Command 与 undo/redo | verified | G5 |
-| `connection.reconnect` | ReconnectRequest | endpoint handle、source/target 重连、合法性和 undo | verified | G5 |
+| `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
+| `connection.create` | CreateConnectionRequest / NodeEditPart request anchor | source-locked start/end 两阶段 Tool；endpoint behavior Anchor preview、反馈、模型 Command 与 undo/redo | verified | G5 |
+| `connection.reconnect` | ReconnectRequest / ConnectionEndpointEditPolicy | endpoint handle、稳定 Anchor descriptor preview、source/target 重连、合法性和 undo | verified | G5 |
+| `connection.bendpoint` | BendpointRequest / BendpointEditPolicy | create/move/delete handle、typed constraint、feedback 与 undo/redo；Connection behavior 选择应用注册的命名 Router，不污染 ModelAdapter | implemented | G5 |
 | `viewport.autoexpose` | AutoexposeHelper | 拖拽期间 Viewport 自动滚动 | specified | G5 |
 | `document.persistence` | 非 GEF 固定 API | 应用 serializer + 重建一致性门禁 | specified | G6 |
 | `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | G6+ |

@@ -25,18 +25,18 @@
 - invalid drop 与 Escape 无模型副作用并清理 feedback；
 - reconnect 保持 connection ModelId、ConnectionPart identity 和顺序；
 - delete/undo 与节点移动回归通过；
-- `SelfLoopRouter<DirectRouter>` 为 same-owner anchors 生成 owner 外侧四点回环；
+- Demo 使用公开 `ConnectionRouter` 扩展点实现并显式安装应用级 Router，为
+  same-owner anchors 生成 owner 外侧回环；
 - endpoint handles 读取已提交 route 首尾点，普通连接与 self-loop 均显示两个独立 handle。
 
 Draw2D `NullConnectionRouter` 对同 owner Chopbox anchors 会退化为重合点。Novadraw
-保留 `DirectRouter` 的两点等价语义，并通过默认可组合 wrapper 提供产品可用的
-self-loop 行为。
+保留 `DirectRouter` 的两点等价语义；是否实现可见回环、安装何种 Router 以及是否接受
+self-loop 均由应用决定，不计入 Draw2D/GEF parity。
 
 ## 自动门禁
 
-- `novadraw-editor/tests/g5_connection_creation_contract.rs`：13 项通过；
-- `novadraw-scene/tests/m9_connection_contract.rs`：包含 self-loop wrapper 委托与外侧
-  route 契约；
+- `novadraw-editor/tests/g5_connection_creation_contract.rs`：包含应用 Router 扩展与
+  外侧 route 契约；
 - workspace `fmt/check/clippy/test`：通过。
 
 ## 人工验收

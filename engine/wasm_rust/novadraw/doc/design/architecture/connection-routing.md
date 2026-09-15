@@ -122,12 +122,15 @@ Router 返回的所有 points、bendpoints 和 metadata geometry 都位于该 do
 提交 route 时：
 
 1. 验证所有 point 有限且至少包含两个点；
-2. 只由 point list、stroke、line cap/join 和 connection 自身 effect overflow 派生
-   parent-domain `path_bounds`；
-3. 以派生 bounds origin 把 point list 规范化为 Figure local points；
-4. 在同一 Runtime mutation 中更新 connection NodeState bounds 和
+2. Connection Figure 通过纯 `prepare_route_geometry()` 预计算 parent-domain
+   `path_bounds` 与 local points；内置折线按 stroke、cap/join 与显式 miter limit
+   计算，扩展 Figure 可提供自己的几何边界；
+3. Runtime 对整批 route geometry 与 Locator placement 完成无副作用预检；
+4. 只有整批预检成功后，才在同一 Runtime mutation 中更新 connection NodeState bounds 和
    `ConnectionFigure` 的局部 point list；
-5. 保存 old path/subtree envelope，待 locator child 完成后统一计算 projected damage。
+5. 随后提交 Runtime dependencies/generation/resolution；任一预检失败时整批进入
+   unresolved 并清除旧 route；
+6. 保存 old path/subtree envelope，待 locator child 完成后统一计算 projected damage。
 
 规范化后的 local point list 是已提交的表现几何真源，NodeState bounds 是同一次
 提交得到的 placement；ConnectionState 只保存 generation、dirty reason 和 resolution
@@ -523,8 +526,9 @@ normalization 与 damage，不重复执行 Router；points 改变才发送 typed
 
 ## 10. Locator、Decoration 与 Layer
 
-- Locator 输入稳定的已提交 route snapshot，输出 child 的 parent-local bounds 或
-  transform；
+- Locator 由 Runtime 绑定到 Connection 的直接 child，在 route preflight 中消费准备好的
+  local route，输出 child placement；成功提交时保持 child 尺寸并更新 parent-local
+  bounds；
 - source / target locator 使用首尾点；
 - `ConnectionLocator::Middle` 保留 Draw2D 语义：奇数点取中央点，偶数点取中央两个
   点所在 segment 的中点；
@@ -564,6 +568,7 @@ dominant axis 或返回结构化错误。
 - 新 routing group policy：提供确定性 snapshot 与批量输出；
 - 新 Decoration：普通 Figure + Locator；
 - 新 Connection 外观：实现受 Runtime 控制的 connection geometry capability。
+  capability 必须提供无副作用 geometry preparation，不能依赖 commit 后再修正 bounds；
 
 稳定边界：
 

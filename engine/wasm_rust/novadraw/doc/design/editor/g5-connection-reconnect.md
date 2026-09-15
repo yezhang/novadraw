@@ -41,8 +41,9 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 - candidate 必须是同 Viewer 的 active containment Part；
 - connection visual、contents、handle、feedback 和 retired Part 不是 endpoint；
 - self-loop 在框架层合法，业务 policy 可拒绝；
-- 默认 inherited router 通过 `SelfLoopRouter<DirectRouter>` 为 same-owner anchors
-  生成 owner 外侧回环；显式 bendpoint/router 约束优先；
+- Runtime 默认 inherited router 保持 `DirectRouter` 的 Draw2D 等价语义；
+- 需要可见 self-loop 的应用使用公开 `ConnectionRouter` 扩展点实现并在
+  ConnectionLayer 显式安装；该产品策略不进入 Draw2D/GEF parity；
 - final Command 只更新被移动的一端，保持 connection ModelId 和列表位置；
 - undo/redo 恢复相反端点并复用 G5.1 endpoint rebind。
 
@@ -73,7 +74,9 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 
 - source reconnect：target 端固定，source 端跟随 candidate/pointer；
 - target reconnect：source 端固定，target 端跟随 candidate/pointer；
-- endpoint 使用与稳定连接相同的边界 anchor 语义；
+- Viewer 使用与稳定连接相同的 endpoint behavior Anchor descriptor，通过 Runtime
+  只读 preview 产生 `ConnectionFeedbackRoute`；
+- 应用 `feedback_with_route()` 可保留当前 bendpoints，只替换移动端；
 - feedback 不参与 targeting；
 - invalid candidate 可显示自由端，但不能提交。
 
@@ -88,8 +91,9 @@ anchor 来显示反馈；临时路径位于 feedback layer，提交后由 G5.1 �
 ConnectionPart。
 
 Draw2D NullConnectionRouter 会让同 owner 的 Chopbox anchors 退化为重合点。
-Novadraw 保留 `DirectRouter` 的两点等价语义，另以可组合 `SelfLoopRouter` 包装默认
-inherited router，避免把产品策略硬编码进 DirectRouter 或 Demo。
+Novadraw 保留 `DirectRouter` 的两点等价语义，并开放 `ConnectionRouter`、
+`RouteRequest` 与 `RouteOutput` 供应用实现额外策略。是否允许 self-loop 及其具体路由
+均由应用决定，核心框架不提供或命名该产品策略。
 
 ## 7. 验证门禁
 
@@ -107,5 +111,5 @@ inherited router，避免把产品策略硬编码进 DirectRouter 或 Demo。
 10. undo/redo 恢复端点和身份；
 11. connection retirement 自动清理 endpoint handles 与 active gesture；
 12. workspace fmt/check/clippy/test；
-13. same-owner anchors 生成 owner 外侧的非退化 route，普通 route 仍委托 base router；
-14. endpoint handles 读取已提交 route 首尾点，self-loop 下不得重合。
+13. 应用 Router 可通过公共扩展点生成 owner 外侧的非退化 route；
+14. endpoint handles 始终读取已提交 route 首尾点。
