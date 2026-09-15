@@ -1,21 +1,22 @@
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use novadraw::{
-    Bendpoint, BendpointConnectionRouter, BendpointConstraint, BuiltinFont, Color,
-    ConnectionFigure, DirectRouter, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
-    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure,
-    backend::vello::VelloRenderer, rectangle_boundary_site,
+    AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, BuiltinFont,
+    Color, ConnectionFigure, CoordinateSpace, Figure, KeyModifiers, MouseButton, PlatformHost,
+    Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure,
+    XYAnchor, backend::vello::VelloRenderer, rectangle_boundary_site,
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
-    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
-    ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
-    ConnectionReconnection, ConnectionRouterKey, ConnectionRouterRegistration,
-    ConnectionRoutingDescriptor, CreateConnectionRequest, CreateRequest, CreationType,
-    DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain,
-    EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole, ModelAdapter, ModelConnection,
-    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
-    PolicyRole, ReconnectConnectionRequest, RequestModifiers, ResizeDirection, VisualUpdateContext,
+    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionAnchorContext,
+    ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
+    ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
+    ConnectionRouterRegistration, ConnectionRoutingDescriptor, CreateConnectionRequest,
+    CreateRequest, CreationType, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory,
+    EditPolicy, EditorDomain, EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole,
+    ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError,
+    PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers,
+    ResizeDirection, VisualUpdateContext,
 };
 use winit::{
     application::ApplicationHandler,
@@ -25,10 +26,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowAttributes, WindowId},
 };
-
-mod self_loop_router;
-
-use self_loop_router::VisibleSelfLoopRouter;
 
 const WIDTH: f64 = 820.0;
 const HEIGHT: f64 = 560.0;
@@ -41,11 +38,68 @@ const CREATED_NODE_HEIGHT: f64 = 90.0;
 const CREATED_NODE_OFFSET: f64 = 18.0;
 const FIRST_CONNECTION_ID: u64 = 1_000;
 const SELF_LOOP_EXTENT: f64 = 32.0;
+const SELF_LOOP_SOURCE_PORT_FRACTION: f64 = 0.25;
+const SELF_LOOP_TARGET_PORT_FRACTION: f64 = 0.75;
 const BENDPOINT_ROUTER_KEY: &str = "demo-bendpoint";
 
 fn bendpoint_router_key() -> ConnectionRouterKey {
     ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).expect("static Router key is valid")
 }
+
+fn default_self_loop_bendpoints(bounds: Rectangle) -> [Point; 2] {
+    let outer_x = bounds.x + bounds.width + SELF_LOOP_EXTENT;
+    [
+        Point::new(
+            outer_x,
+            bounds.y + bounds.height * SELF_LOOP_SOURCE_PORT_FRACTION,
+        ),
+        Point::new(
+            outer_x,
+            bounds.y + bounds.height * SELF_LOOP_TARGET_PORT_FRACTION,
+        ),
+    ]
+}
+
+fn self_loop_anchor_descriptor(
+    model: &DemoModel,
+    model_id: NodeId,
+    context: ConnectionAnchorContext<NodeId>,
+    fraction: f64,
+    source_endpoint: bool,
+    kind: &'static str,
+) -> Option<ConnectionAnchorDescriptor> {
+    if context.target_model() != Some(context.source_model()) || model_id != context.source_model()
+    {
+        return None;
+    }
+    let bounds = model.nodes.get(&model_id)?.bounds;
+    let bendpoint_y = context
+        .connection_model()
+        .and_then(|connection| model.bendpoints.get(&connection))
+        .and_then(|bendpoints| {
+            if source_endpoint {
+                bendpoints.first()
+            } else {
+                bendpoints.last()
+            }
+        })
+        .map(|point| point.y());
+    let point = Point::new(
+        bounds.x + bounds.width,
+        bendpoint_y.unwrap_or(bounds.y + bounds.height * fraction),
+    );
+    let key = AnchorSemanticKey::new(
+        Some(context.endpoint_figure()),
+        kind,
+        vec![point.x().to_bits(), point.y().to_bits()],
+    )
+    .expect("static self-loop Anchor kind is valid");
+    Some(ConnectionAnchorDescriptor::new(
+        key,
+        Box::new(XYAnchor::new(point, CoordinateSpace::LogicalSurface)),
+    ))
+}
+
 const PRIMARY_HANDLE_COLOR: Color = Color {
     r: 0.98,
     g: 0.78,
@@ -162,10 +216,26 @@ impl DemoModel {
     }
 
     fn set_bounds(&mut self, id: NodeId, bounds: Rectangle) {
-        self.nodes
+        let node = self
+            .nodes
             .get_mut(&id)
-            .expect("bounds command references a live node")
-            .bounds = bounds;
+            .expect("bounds command references a live node");
+        let dx = bounds.x - node.bounds.x;
+        let dy = bounds.y - node.bounds.y;
+        node.bounds = bounds;
+        if dx != 0.0 || dy != 0.0 {
+            for connection in self
+                .connections
+                .iter()
+                .filter(|connection| connection.source() == id && connection.target() == id)
+            {
+                if let Some(bendpoints) = self.bendpoints.get_mut(&connection.id()) {
+                    for point in bendpoints {
+                        *point = Point::new(point.x() + dx, point.y() + dy);
+                    }
+                }
+            }
+        }
         self.publish(id);
     }
 
@@ -219,8 +289,10 @@ impl DemoModel {
     }
 
     fn insert_connection(&mut self, connection: ModelConnection<NodeId>, index: usize) {
+        let bendpoints = self.bendpoints.remove(&connection.id()).unwrap_or_default();
+        let bendpoints = self.normalized_connection_bendpoints(connection, bendpoints);
         self.connections.insert(index, connection);
-        self.bendpoints.entry(connection.id()).or_default();
+        self.bendpoints.insert(connection.id(), bendpoints);
         self.next_connection_id = self.next_connection_id.max(connection.id().0 + 1);
         self.publish(connection.id());
     }
@@ -241,19 +313,40 @@ impl DemoModel {
         }
     }
 
-    fn replace_connection(&mut self, connection: ModelConnection<NodeId>) {
+    fn replace_connection(&mut self, connection: ModelConnection<NodeId>, bendpoints: Vec<Point>) {
+        let bendpoints = self.normalized_connection_bendpoints(connection, bendpoints);
         let slot = self
             .connections
             .iter_mut()
             .find(|candidate| candidate.id() == connection.id())
             .expect("reconnect command references a live connection");
         *slot = connection;
+        self.bendpoints.insert(connection.id(), bendpoints);
         self.publish(connection.id());
     }
 
     fn set_bendpoints(&mut self, connection: NodeId, bendpoints: Vec<Point>) {
         self.bendpoints.insert(connection, bendpoints);
         self.publish(connection);
+    }
+
+    fn normalized_connection_bendpoints(
+        &self,
+        connection: ModelConnection<NodeId>,
+        bendpoints: Vec<Point>,
+    ) -> Vec<Point> {
+        if connection.source() != connection.target() || bendpoints.len() >= 2 {
+            return bendpoints;
+        }
+        let defaults = default_self_loop_bendpoints(self.nodes[&connection.source()].bounds);
+        match bendpoints.as_slice() {
+            [] => defaults.to_vec(),
+            [point] if point.y() <= self.nodes[&connection.source()].bounds.center().y() => {
+                vec![*point, defaults[1]]
+            }
+            [point] => vec![defaults[0], *point],
+            _ => unreachable!("length checked above"),
+        }
     }
 }
 
@@ -406,6 +499,8 @@ struct DeleteConnectionCommand {
 struct ReconnectCommand {
     before: ModelConnection<NodeId>,
     after: ModelConnection<NodeId>,
+    before_bendpoints: Vec<Point>,
+    after_bendpoints: Vec<Point>,
 }
 
 struct SetBendpointsCommand {
@@ -436,12 +531,12 @@ impl Command<DemoModel> for ReconnectCommand {
     }
 
     fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        model.replace_connection(self.after);
+        model.replace_connection(self.after, self.after_bendpoints.clone());
         Ok(())
     }
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        model.replace_connection(self.before);
+        model.replace_connection(self.before, self.before_bendpoints.clone());
         Ok(())
     }
 }
@@ -797,6 +892,38 @@ impl EditPartBehavior<DemoModel> for DemoPart {
             NodeKind::Widget => vec![(PolicyRole::Component, Box::new(NodePolicy))],
         })
     }
+
+    fn source_connection_anchor(
+        &mut self,
+        model: &DemoModel,
+        model_id: NodeId,
+        context: ConnectionAnchorContext<NodeId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        Ok(self_loop_anchor_descriptor(
+            model,
+            model_id,
+            context,
+            SELF_LOOP_SOURCE_PORT_FRACTION,
+            true,
+            "demo-self-loop-source",
+        ))
+    }
+
+    fn target_connection_anchor(
+        &mut self,
+        model: &DemoModel,
+        model_id: NodeId,
+        context: ConnectionAnchorContext<NodeId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        Ok(self_loop_anchor_descriptor(
+            model,
+            model_id,
+            context,
+            SELF_LOOP_TARGET_PORT_FRACTION,
+            false,
+            "demo-self-loop-target",
+        ))
+    }
 }
 
 struct DemoConnectionPart;
@@ -895,7 +1022,7 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
         fixed: PolicyHost<NodeId>,
         candidate: PolicyHost<NodeId>,
         request: &ReconnectConnectionRequest,
-        _model: &DemoModel,
+        model: &DemoModel,
     ) -> Result<Box<dyn Command<DemoModel>>, PolicyError> {
         let after = match request.endpoint() {
             ConnectionEndpoint::Source => {
@@ -905,9 +1032,18 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
                 ModelConnection::new(self.before.id(), fixed.model(), candidate.model())
             }
         };
+        let before_bendpoints = model
+            .bendpoints
+            .get(&self.before.id())
+            .cloned()
+            .unwrap_or_default();
+        let after_bendpoints =
+            model.normalized_connection_bendpoints(after, before_bendpoints.clone());
         Ok(Box::new(ReconnectCommand {
             before: self.before,
             after,
+            before_bendpoints,
+            after_bendpoints,
         }))
     }
 }
@@ -1054,17 +1190,41 @@ fn apply_bendpoint_request(
     request: &BendpointRequest,
     before: &[Point],
 ) -> Result<Vec<Point>, PolicyError> {
+    apply_bendpoint_operation(
+        model,
+        connection_id,
+        request.operation(),
+        request.location(),
+        before,
+    )
+}
+
+fn apply_bendpoint_operation(
+    model: &DemoModel,
+    connection_id: NodeId,
+    operation: BendpointOperation,
+    location: Point,
+    before: &[Point],
+) -> Result<Vec<Point>, PolicyError> {
     let connection = model
         .connections
         .iter()
         .find(|connection| connection.id() == connection_id)
         .ok_or_else(|| PolicyError::operation("bendpoint connection no longer exists"))?;
+    let is_self_loop = connection.source() == connection.target();
     let mut after = before.to_vec();
-    match request.operation() {
+    match operation {
         BendpointOperation::Create { index } if index <= after.len() => {
-            after.insert(index, request.location());
+            after.insert(index, location);
         }
         BendpointOperation::Move { index } if index < after.len() => {
+            if is_self_loop && before.len() == 2 {
+                let bounds = model.nodes[&connection.source()].bounds;
+                let outer_x = location.x().max(bounds.x + bounds.width + SELF_LOOP_EXTENT);
+                after[index] = Point::new(outer_x, location.y());
+                after[1 - index] = Point::new(outer_x, before[1 - index].y());
+                return Ok(after);
+            }
             let previous = index
                 .checked_sub(1)
                 .and_then(|previous| before.get(previous).copied())
@@ -1073,16 +1233,23 @@ fn apply_bendpoint_request(
                 .get(index + 1)
                 .copied()
                 .unwrap_or_else(|| model.nodes[&connection.target()].bounds.center());
-            if point_segment_distance(request.location(), previous, next)
-                <= BENDPOINT_DELETE_TOLERANCE
+            if (!is_self_loop || before.len() > 2)
+                && point_segment_distance(location, previous, next) <= BENDPOINT_DELETE_TOLERANCE
             {
                 after.remove(index);
             } else {
-                after[index] = request.location();
+                after[index] = location;
             }
         }
-        BendpointOperation::Delete { index } if index < after.len() => {
+        BendpointOperation::Delete { index }
+            if index < after.len() && (!is_self_loop || after.len() > 2) =>
+        {
             after.remove(index);
+        }
+        BendpointOperation::Delete { index } if index < after.len() => {
+            return Err(PolicyError::operation(
+                "self-loop requires at least two bendpoints",
+            ));
         }
         BendpointOperation::Create { .. }
         | BendpointOperation::Move { .. }
@@ -1139,6 +1306,16 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
         model_id: NodeId,
     ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
         let bendpoints = model.bendpoints.get(&model_id).cloned().unwrap_or_default();
+        let connection = model
+            .connections
+            .iter()
+            .find(|connection| connection.id() == model_id)
+            .ok_or_else(|| EditPartError::operation("connection model no longer exists"))?;
+        if connection.source() == connection.target() && bendpoints.len() < 2 {
+            return Err(EditPartError::operation(
+                "self-loop requires two explicit bendpoints",
+            ));
+        }
         Ok(if bendpoints.is_empty() {
             ConnectionRoutingDescriptor::inherited()
         } else {
@@ -1169,10 +1346,7 @@ impl EditPartFactory<DemoModel> for DemoFactory {
     fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
         Ok(vec![ConnectionRouterRegistration::new(
             bendpoint_router_key(),
-            Box::new(
-                VisibleSelfLoopRouter::new(Box::new(BendpointConnectionRouter), SELF_LOOP_EXTENT)
-                    .expect("demo self-loop extent is valid"),
-            ),
+            Box::new(BendpointConnectionRouter),
         )])
     }
 
@@ -1550,15 +1724,6 @@ impl ApplicationHandler<()> for DemoApp {
                 Rectangle::new(0.0, 0.0, WIDTH, HEIGHT),
             )
             .expect("demo Viewer construction failed");
-            let connection_layer = viewer.root_layers().connection();
-            let self_loop_router = viewer.runtime_mut().register_connection_router(Box::new(
-                VisibleSelfLoopRouter::new(Box::new(DirectRouter), SELF_LOOP_EXTENT)
-                    .expect("default self-loop extent is valid"),
-            ));
-            viewer
-                .runtime_mut()
-                .set_connection_layer_router(connection_layer, self_loop_router)
-                .expect("demo self-loop Router installation failed");
             viewer
                 .runtime_mut()
                 .register_builtin_font(BuiltinFont::Inter)
@@ -1739,4 +1904,72 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.set_control_flow(ControlFlow::Wait);
     event_loop.run_app(&mut DemoApp::new())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn self_loop_owns_two_bendpoints_and_moving_one_preserves_the_other() {
+        let mut model = DemoModel::new();
+        let connection = ModelConnection::new(NodeId(1000), NodeId(2), NodeId(2));
+        model.insert_connection(connection, 0);
+        let before = model.bendpoints[&connection.id()].clone();
+        assert_eq!(before.len(), 2);
+
+        let after = apply_bendpoint_operation(
+            &model,
+            connection.id(),
+            BendpointOperation::Move { index: 0 },
+            Point::new(before[0].x() + 20.0, before[0].y() - 10.0),
+            &before,
+        )
+        .unwrap();
+        assert_eq!(after.len(), 2);
+        assert_ne!(after[0], before[0]);
+        assert_eq!(after[1].x(), after[0].x());
+        assert_eq!(after[1].y(), before[1].y());
+
+        model.set_bendpoints(connection.id(), after);
+        let before_move = model.bendpoints[&connection.id()].clone();
+        let old_bounds = model.nodes[&connection.source()].bounds;
+        model.set_bounds(
+            connection.source(),
+            Rectangle::new(
+                old_bounds.x + 15.0,
+                old_bounds.y + 25.0,
+                old_bounds.width,
+                old_bounds.height,
+            ),
+        );
+        assert_eq!(
+            model.bendpoints[&connection.id()],
+            before_move
+                .iter()
+                .map(|point| Point::new(point.x() + 15.0, point.y() + 25.0))
+                .collect::<Vec<_>>()
+        );
+
+        let mut viewer =
+            GraphicalViewer::new(model, DemoFactory, Rectangle::new(0.0, 0.0, WIDTH, HEIGHT))
+                .unwrap();
+        let part = viewer.connection_part_for_model(connection.id()).unwrap();
+        let route = viewer.connection_route_points_in_surface(part).unwrap();
+        assert_eq!(route.len(), 4);
+        assert!(route.windows(2).all(|segment| {
+            (segment[0].x() - segment[1].x()).abs() <= f64::EPSILON
+                || (segment[0].y() - segment[1].y()).abs() <= f64::EPSILON
+        }));
+        let move_roles = viewer
+            .connection_bendpoint_handle_sites(part)
+            .unwrap()
+            .into_iter()
+            .filter_map(|site| match site.role() {
+                HandleRole::BendpointMove(index) => Some(index),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(move_roles, vec![0, 1]);
+    }
 }
