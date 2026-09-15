@@ -30,8 +30,9 @@ Zest 的 self-loop、curve depth、LoopAnchor 和其他产品扩展不作为需�
    `ModelAdapter` 不规定 bendpoint 存储结构。
 7. `PartTree` 增量维护 outgoing/incoming；全量索引重建只发生在真实 connection
    order 变化时。
-8. 核心已删除 `SelfLoopRouter` 与默认 extent。Native demo 在应用目录实现可见
-   self-loop Router，并覆盖带单个 bendpoint 时端点仍独立的回归。
+8. 核心已删除 `SelfLoopRouter` 与默认 extent。Native demo 将 self-loop 建模为两个
+   显式 bendpoints，并使用标准 `BendpointConnectionRouter`；两个橙色拐角 handle
+   从创建完成起就是可独立移动、可 undo/redo 的模型事实。
 
 索引复杂度核算：旧实现初始插入 `E` 条连接会扫描
 `1 + 2 + ... + E = E(E+1)/2` 条记录；新实现执行 `E` 次增量 append。以

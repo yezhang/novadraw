@@ -13,6 +13,12 @@
 constraint。`ModelAdapter` 不规定应用如何存储 bendpoint；`ModelConnection` 继续只保存
 id/source/target，保持轻量 Copy 契约。
 
+Native demo 的产品策略要求 self-loop 从创建完成起持有两个显式 bendpoints；两个回环
+拐角因此都是普通 `BendpointMove` handle。两点共享节点右侧的外侧 x，source/target
+Anchor 位于节点右边界且 y 分别跟随首尾 bendpoint，使 route 始终保持水平、垂直、水平
+三段正交。移动一个拐角不得删除另一个，节点平移时两点随模型同步平移。该策略属于 demo
+模型，不上升为 Draw2D/GEF parity。
+
 Viewer 在投影 ConnectionPart 时读取 behavior 配置：
 
 - Factory 通过稳定 key 注册共享 Router，behavior 选择 inherited 或命名 Router；
@@ -98,5 +104,6 @@ Novadraw 差异：
 6. execute/undo/redo 保持 connection identity、endpoint 和列表位置；
 7. bendpoint 变化只更新 constraint 与 route；
 8. 非有限点和 revision drift 在提交前拒绝；
-9. self-loop + bendpoint 不被自动 self-loop route 覆盖；
+9. demo self-loop 的两个显式 bendpoints、正交 route、独立 move handles、节点平移和
+   undo/redo；
 10. workspace fmt/check/clippy/test。

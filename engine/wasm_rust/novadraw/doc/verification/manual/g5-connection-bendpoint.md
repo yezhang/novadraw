@@ -7,7 +7,7 @@
 入口：
 
 ```bash
-cargo run -p node-editor-demo
+cargo xtask manual g5.4
 ```
 
 ## A. 创建 Bendpoint
@@ -34,12 +34,15 @@ cargo run -p node-editor-demo
 ## D. Self-loop 与回归
 
 1. 创建或重连为 self-loop。
-2. 确认默认回环的每条线段中点都有青色 create handle。
-3. 确认自动路由生成的拐角没有橙色 move handle；它们不是模型 bendpoint。
-4. 使用任一青色 handle 创建一个显式 bendpoint。
-5. 确认应用注册的 bendpoint Router 保持 self-loop 两端独立。
-6. 删除最后一个 bendpoint，确认恢复应用安装的外侧 self-loop Router。
-7. 验证 endpoint reconnect、connection delete/undo 仍正常。
+2. 确认 self-loop 从创建完成起就拥有两个橙色 move handles；它们是模型中的两个显式
+   bendpoints，不是自动 Router 的视觉代理。
+3. 确认两个橙色 handles 共享节点右侧的外侧 x，路径为水平、垂直、水平三段直角线。
+4. 确认三个线段中点仍分别显示青色 create handle，两个黄色 endpoint handles 保持独立。
+5. 拖动任一橙色 handle，确认另一个橙色 handle 与对应拐角仍保留，且路径继续保持三段
+   直角线，不会退化为单 bendpoint 路径。
+6. undo/redo 该移动，确认每次只恢复被移动的拐角，路径始终保持正交。
+7. 移动 self-loop 所属节点，确认两个 bendpoints 与回环整体同步平移。
+8. 验证 endpoint reconnect、connection delete/undo 仍正常且完整恢复 bendpoint 快照。
 
 ## 结果模板
 
