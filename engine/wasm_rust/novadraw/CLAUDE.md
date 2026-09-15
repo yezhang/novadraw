@@ -112,13 +112,20 @@ Draw2D 后续能力必须进入明确的 P2 delta。
 3. **不考虑当前代码状态**：架构讨论独立于实现，代码应追随架构而非反之
 4. **契约与实现分离**：只在存在真实替换需求的边界使用 trait；核心算法可用具体类型和内部策略保持契约稳定
 5. **引擎层承载通用机制**：draw2d 风格的事件链路、坐标域切换和 Figure 回调上下文属于引擎语义，不属于应用层便利逻辑
+6. **严格限定对标范围**：只以 `org.eclipse.draw2d` 与 `org.eclipse.gef` 包为
+   框架语义和实现参考；`org.eclipse.zest` 是使用 Draw2D 扩展能力构建的上层产品，
+   不得用其源码、行为或扩展逻辑定义 Novadraw 的需求语义、架构或实现；
+   Novadraw 的扩展契约必须直接从 Draw2D/GEF 源码推导
 
 ### 架构设计执行规则
 
 **在做理想架构设计时，禁止扫描本项目的 rust 代码。**
 
 - 架构设计应从需求、第一性原理、g2/GEF 参考文档出发
-- 可以参考 g2 源码（`/Users/bytedance/Documents/code/GitHub/gef-classic`）和已有分析文档
+- 可以参考 g2 源码（`/Users/bytedance/Documents/code/GitHub/gef-classic`）中的
+  `org.eclipse.draw2d`、`org.eclipse.gef` 包和已有分析文档
+- 不得参考同仓库中 `org.eclipse.zest` 包的上层扩展逻辑；需要研究某项扩展能力时，
+  应追溯到 Draw2D/GEF 提供的基础契约与扩展点
 - 不扫描本项目代码是为了避免"现状偏差"，确保架构设计独立于当前实现
 
 ### g2 设计哲学
@@ -216,6 +223,8 @@ draw2d/GEF 的核心设计哲学：
 ## 参考代码
 
 - draw2d/GEF: `/Users/bytedance/Documents/code/GitHub/gef-classic`
+  - 允许：`org.eclipse.draw2d`、`org.eclipse.gef`
+  - 排除：`org.eclipse.zest` 上层扩展逻辑
 - SWT GC: `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt`
 - vello: `/Users/bytedance/Documents/code/GitHub/vello`
 - xilem: `/Users/bytedance/Documents/code/GitHub/xilem`

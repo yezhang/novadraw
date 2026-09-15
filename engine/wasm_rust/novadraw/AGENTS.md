@@ -35,6 +35,9 @@
 ### 参考源码路径
 
 - draw2d/GEF: `/Users/bytedance/Documents/code/GitHub/gef-classic`
+- 对标范围严格限定为该仓库中的 `org.eclipse.draw2d` 与 `org.eclipse.gef` 包；
+  `org.eclipse.zest` 是基于 Draw2D 的上层扩展，不得作为 Novadraw 的需求语义、
+  架构设计或实现逻辑参考
 - SWT GC: `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt`
 - vello: `/Users/bytedance/Documents/code/GitHub/vello`
 - xilem: `/Users/bytedance/Documents/code/GitHub/xilem`
@@ -69,6 +72,9 @@
 ### 架构分析边界
 
 - 架构设计优先从需求、第一性原理、draw2d/GEF 参考源码出发。
+- 第三方源码分析仅对标 `org.eclipse.draw2d` 与 `org.eclipse.gef`；不得用
+  `org.eclipse.zest` 的源码或行为作为 Novadraw 的需求、语义、架构或实现依据。
+  扩展能力必须直接从 Draw2D/GEF 的基础契约和扩展点确认。
 - 若任务是“理想架构设计”，禁止先扫描本项目实现，以避免现状偏差。
 - 若任务是“实现修复或落地”，必须先明确目标契约，再审阅本项目代码。
 
