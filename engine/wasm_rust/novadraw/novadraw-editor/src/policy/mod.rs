@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use novadraw_geometry::Point;
 use novadraw_scene::Figure;
 
 use crate::{
@@ -82,6 +83,29 @@ impl<I: Copy> PolicyHost<I> {
 pub struct FeedbackVisual {
     figure: Box<dyn Figure>,
     scaled: bool,
+}
+
+/// Source and target points resolved from endpoint Anchor providers for feedback.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConnectionFeedbackRoute {
+    source: Point,
+    target: Point,
+}
+
+impl ConnectionFeedbackRoute {
+    pub(crate) const fn new(source: Point, target: Point) -> Self {
+        Self { source, target }
+    }
+
+    /// Returns the feedback source endpoint in logical surface coordinates.
+    pub const fn source(self) -> Point {
+        self.source
+    }
+
+    /// Returns the feedback target endpoint in logical surface coordinates.
+    pub const fn target(self) -> Point {
+        self.target
+    }
 }
 
 impl FeedbackVisual {
@@ -219,6 +243,19 @@ pub trait ConnectionCreation<A: ModelAdapter> {
         Ok(Vec::new())
     }
 
+    /// Creates feedback using framework-resolved Anchor endpoints when available.
+    fn feedback_with_route(
+        &mut self,
+        source: PolicyHost<A::ModelId>,
+        target: Option<PolicyHost<A::ModelId>>,
+        request: &CreateConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        model: &A,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let _ = route;
+        self.feedback(source, target, request, model)
+    }
+
     /// Builds the final model-only Command for a valid target.
     fn command(
         &mut self,
@@ -251,6 +288,20 @@ pub trait ConnectionReconnection<A: ModelAdapter> {
         _model: &A,
     ) -> Result<Vec<FeedbackVisual>, PolicyError> {
         Ok(Vec::new())
+    }
+
+    /// Creates feedback using framework-resolved Anchor endpoints when available.
+    fn feedback_with_route(
+        &mut self,
+        connection: PolicyHost<A::ModelId>,
+        fixed: PolicyHost<A::ModelId>,
+        candidate: Option<PolicyHost<A::ModelId>>,
+        request: &ReconnectConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        model: &A,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let _ = route;
+        self.feedback(connection, fixed, candidate, request, model)
     }
 
     /// Builds the final model-only reconnect Command.

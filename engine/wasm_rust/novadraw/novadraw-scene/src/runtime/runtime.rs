@@ -26,19 +26,21 @@ use crate::{
     AccessibilityAction, AccessibilityError, AccessibilityNodeId, AccessibilitySnapshot,
     AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
     AnchorGeometryKey, AnchorId, Border, ChildClippingStrategy, ClickableSnapshot,
-    ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionRouter, ConnectionRuntimeError,
-    ConnectionStateSnapshot, CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject,
-    Direction, EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree,
-    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
-    FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key,
-    KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane,
-    LayeredPaneHandle, LayoutConstraint, LayoutListener, LayoutManager, ListenerId, ListenerScope,
-    MonotonicTime, MouseButton, ObservationListener, PendingMutations, PropertyChangeListener,
-    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteOutput, RouterBinding,
-    RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError, StableQueryError,
-    StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming,
-    TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
-    ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
+    ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionLocatorStrategy,
+    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateListener,
+    CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction, EventDispatcher,
+    Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
+    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
+    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
+    ObservationListener, PendingMutations, PropertyChangeListener, Rectangle, ResourceError,
+    ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput, RouteRequest,
+    RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError,
+    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
+    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
+    WidgetError, ZoomEvent, ZoomManager,
 };
 use novadraw_geometry::{Dimension, Point, Vec2};
 
@@ -697,6 +699,74 @@ impl Runtime {
         })
     }
 
+    /// Atomically replaces one Connection's Router binding and typed constraint.
+    pub fn set_connection_route_configuration(
+        &mut self,
+        connection: ConnectionId,
+        router: RouterBinding,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            runtime
+                .connections
+                .set_route_configuration(connection, router, constraint)
+        })
+    }
+
+    /// Binds a direct Connection child to a route-derived Locator.
+    pub fn set_connection_locator(
+        &mut self,
+        connection: ConnectionId,
+        child: FigureId,
+        strategy: Box<dyn ConnectionLocatorStrategy>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.guarded_connection_mutation(move |runtime| {
+            runtime.connections.state(connection)?;
+            if !runtime.tree.is_attached(child) {
+                return Err(ConnectionRuntimeError::UnknownFigure(child));
+            }
+            if runtime.tree.parent_id(child) != Some(connection.figure()) {
+                return Err(ConnectionRuntimeError::InvalidLocatorChild { connection, child });
+            }
+            runtime.connections.set_locator(connection, child, strategy)
+        })
+    }
+
+    /// Removes the Locator bound to a Connection child.
+    pub fn remove_connection_locator(
+        &mut self,
+        child: FigureId,
+    ) -> Result<bool, ConnectionRuntimeError> {
+        self.guarded_connection_mutation(|runtime| {
+            if !runtime.tree.is_attached(child) {
+                return Err(ConnectionRuntimeError::UnknownFigure(child));
+            }
+            Ok(runtime.connections.remove_locator(child))
+        })
+    }
+
+    /// Resolves a source/target Anchor pair without registering or mutating a Connection.
+    pub fn preview_connection_endpoints(
+        &self,
+        source: &dyn ConnectionAnchor,
+        target: &dyn ConnectionAnchor,
+        routing_space: CoordinateSpace,
+    ) -> Result<RouteMetadata, RouteError> {
+        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        let mut query = TrackedSceneQuery::new(&scene);
+        DirectRouter
+            .route(RouteRequest {
+                connection: ConnectionId::from_figure(self.tree.synthetic_root()),
+                routing_space,
+                source,
+                target,
+                constraint: None,
+                scene: &mut query,
+                group: None,
+            })
+            .map(|output| *output.metadata())
+    }
+
     pub fn resolve_connection_route(
         &mut self,
         connection: ConnectionId,
@@ -728,30 +798,111 @@ impl Runtime {
             .route(connection, routing_space, &scene, &routing_order);
         match result {
             Ok(batch) => {
-                if batch
-                    .outputs
-                    .iter()
-                    .any(|(candidate, _)| !self.tree.is_connection_figure(candidate.figure()))
-                {
-                    return Err(ConnectionRuntimeError::NotConnectionFigure(
-                        connection.figure(),
-                    ));
-                }
                 let requested = batch
-                    .outputs
+                    .calculations()
                     .iter()
-                    .find_map(|(candidate, output)| {
-                        (*candidate == connection).then(|| output.clone())
+                    .find_map(|calculation| {
+                        (calculation.connection() == connection)
+                            .then(|| calculation.output().clone())
                     })
                     .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
-                for (candidate, output) in batch.outputs {
-                    let committed = self.tree.commit_connection_route(
+                let mut prepared = Vec::with_capacity(batch.calculations().len());
+                for calculation in batch.calculations() {
+                    let candidate = calculation.connection();
+                    let Some(geometry) = self.tree.prepare_connection_route(
+                        candidate.figure(),
+                        calculation.output().points(),
+                    ) else {
+                        let reason = UnresolvedConnection::InvalidGeometry(candidate.figure());
+                        self.connections.reject_route_batch(&batch, reason.clone());
+                        for affected in batch.calculations() {
+                            self.tree.clear_connection_route(
+                                &mut self.updates,
+                                affected.connection().figure(),
+                            );
+                        }
+                        return Err(ConnectionRuntimeError::Unresolved(reason));
+                    };
+                    let placements = match self
+                        .connections
+                        .locator_placements(candidate, geometry.local_points())
+                    {
+                        Ok(placements) => placements,
+                        Err(reason) => {
+                            self.connections.reject_route_batch(&batch, reason.clone());
+                            for affected in batch.calculations() {
+                                self.tree.clear_connection_route(
+                                    &mut self.updates,
+                                    affected.connection().figure(),
+                                );
+                            }
+                            return Err(ConnectionRuntimeError::Unresolved(reason));
+                        }
+                    };
+                    let mut child_bounds = Vec::with_capacity(placements.len());
+                    for (child, placement) in placements {
+                        let finite_placement = [
+                            placement.point.x(),
+                            placement.point.y(),
+                            placement.reference.x(),
+                            placement.reference.y(),
+                        ]
+                        .into_iter()
+                        .all(f64::is_finite);
+                        let reason = if !finite_placement {
+                            Some(UnresolvedConnection::LocatorFailed {
+                                child,
+                                error: crate::LocatorError::NonFinitePlacement,
+                            })
+                        } else if self.tree.parent_id(child) != Some(candidate.figure()) {
+                            Some(UnresolvedConnection::InvalidLocatorChild(child))
+                        } else {
+                            None
+                        };
+                        if let Some(reason) = reason {
+                            self.connections.reject_route_batch(&batch, reason.clone());
+                            for affected in batch.calculations() {
+                                self.tree.clear_connection_route(
+                                    &mut self.updates,
+                                    affected.connection().figure(),
+                                );
+                            }
+                            return Err(ConnectionRuntimeError::Unresolved(reason));
+                        }
+                        let bounds = self
+                            .tree
+                            .figure_bounds(child)
+                            .expect("validated Locator child must remain attached");
+                        child_bounds.push((
+                            child,
+                            Rectangle::new(
+                                placement.point.x() - bounds.width / 2.0,
+                                placement.point.y() - bounds.height / 2.0,
+                                bounds.width,
+                                bounds.height,
+                            ),
+                        ));
+                    }
+                    prepared.push((candidate, geometry, child_bounds));
+                }
+                for (candidate, geometry, child_bounds) in prepared {
+                    self.tree.commit_prepared_connection_route(
                         &mut self.updates,
                         candidate.figure(),
-                        output.points(),
+                        geometry,
                     );
-                    debug_assert!(committed, "validated Connection batch must commit");
+                    for (child, bounds) in child_bounds {
+                        self.tree.set_bounds_with_update(
+                            &mut self.updates,
+                            child,
+                            bounds.x,
+                            bounds.y,
+                            bounds.width,
+                            bounds.height,
+                        );
+                    }
                 }
+                self.connections.commit_route_batch(&batch, routing_space);
                 Ok(requested)
             }
             Err(batch) => {

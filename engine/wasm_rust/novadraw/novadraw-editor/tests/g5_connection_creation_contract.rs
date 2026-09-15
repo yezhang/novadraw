@@ -1,17 +1,21 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::{any::TypeId, collections::HashMap, convert::Infallible};
 
 use novadraw_editor::{
-    Command, CommandError, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
-    ConnectionReconnection, CreateConnectionRequest, CreationType, DeleteRequest, EditPartBehavior,
-    EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual,
-    GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter, ModelConnection, ModelEvent,
-    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
-    ReconnectConnectionRequest, RequestModifiers, ViewerError,
+    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
+    ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
+    ConnectionReconnection, ConnectionRouterKey, ConnectionRouterRegistration,
+    ConnectionRoutingDescriptor, CreateConnectionRequest, CreationType, DeleteRequest,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest,
+    FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
+    ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
+    PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers, ViewerError,
 };
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Point, PointList, Rectangle, Vector};
 use novadraw_scene::{
-    ClickableFigure, ConnectionFigure, Figure, KeyModifiers, MouseButton, PolylineFigure,
-    RectangleFigure, RootFigure,
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
+    ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
+    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RouteMetadata, RouteOutput,
+    RouteRequest, RoutingGroupScope,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -19,6 +23,103 @@ const FIRST: ModelId = ModelId(2);
 const SECOND: ModelId = ModelId(3);
 const WIDGET: ModelId = ModelId(4);
 const FIRST_EDGE: ModelId = ModelId(100);
+const BENDPOINT_ROUTER_KEY: &str = "test-bendpoint";
+const SELF_LOOP_EXTENT: f64 = 32.0;
+
+fn bendpoint_router_key() -> ConnectionRouterKey {
+    ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).unwrap()
+}
+
+struct TestSelfLoopRouter {
+    base: Box<dyn ConnectionRouter>,
+}
+
+impl TestSelfLoopRouter {
+    fn new(base: Box<dyn ConnectionRouter>) -> Self {
+        Self { base }
+    }
+}
+
+impl ConnectionRouter for TestSelfLoopRouter {
+    fn route(&self, request: RouteRequest<'_>) -> Result<RouteOutput, RouteError> {
+        let RouteRequest {
+            connection,
+            routing_space,
+            source,
+            target,
+            constraint,
+            scene,
+            group,
+        } = request;
+        let same_owner = source
+            .owner()
+            .zip(target.owner())
+            .is_some_and(|(source, target)| source == target);
+        let base = self.base.route(RouteRequest {
+            connection,
+            routing_space,
+            source,
+            target,
+            constraint,
+            scene: &mut *scene,
+            group,
+        })?;
+        if !same_owner {
+            return Ok(base);
+        }
+        let center = source
+            .reference_point(scene, routing_space)
+            .map_err(RouteError::Source)?;
+        let source_reference = center + Vector::new(SELF_LOOP_EXTENT, -SELF_LOOP_EXTENT / 2.0);
+        let target_reference = center + Vector::new(SELF_LOOP_EXTENT, SELF_LOOP_EXTENT / 2.0);
+        let source_site = source
+            .location(scene, source_reference, routing_space, routing_space)
+            .map_err(RouteError::Source)?;
+        let target_site = target
+            .location(scene, target_reference, routing_space, routing_space)
+            .map_err(RouteError::Target)?;
+        let metadata = RouteMetadata {
+            source: RouteEndpoint {
+                reference: source_reference,
+                site: source_site,
+            },
+            target: RouteEndpoint {
+                reference: target_reference,
+                site: target_site,
+            },
+        };
+        let mut points = base.points().clone().into_vec();
+        points[0] = source_site.point;
+        let last = points.len() - 1;
+        points[last] = target_site.point;
+        if points.len() == 2 {
+            let outer_x = source_site.point.x().max(target_site.point.x()) + SELF_LOOP_EXTENT;
+            points = vec![
+                source_site.point,
+                Point::new(outer_x, source_site.point.y()),
+                Point::new(outer_x, target_site.point.y()),
+                target_site.point,
+            ];
+        }
+        RouteOutput::new(PointList::from_points(points), metadata)
+    }
+
+    fn constraint_type(&self) -> Option<TypeId> {
+        self.base.constraint_type()
+    }
+
+    fn constraint_type_name(&self) -> Option<&'static str> {
+        self.base.constraint_type_name()
+    }
+
+    fn requires_group(&self) -> bool {
+        self.base.requires_group()
+    }
+
+    fn routing_group_scope(&self) -> RoutingGroupScope {
+        self.base.routing_group_scope()
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ModelId(u64);
@@ -33,6 +134,7 @@ struct DiagramModel {
     children: Vec<ModelId>,
     bounds: HashMap<ModelId, Rectangle>,
     connections: Vec<ModelConnection<ModelId>>,
+    bendpoints: HashMap<ModelId, Vec<Point>>,
     events: Vec<ModelEvent<ModelId, DiagramEvent>>,
     next_connection: u64,
 }
@@ -49,6 +151,7 @@ impl DiagramModel {
                 (WIDGET, Rectangle::new(440.0, 60.0, 100.0, 80.0)),
             ]),
             connections: Vec::new(),
+            bendpoints: HashMap::new(),
             events: Vec::new(),
             next_connection: FIRST_EDGE.0,
         }
@@ -191,6 +294,29 @@ impl ConnectionCreation<DiagramModel> for EdgeCreation {
             start.y(),
             end.x(),
             end.y(),
+        )))];
+        if let Some(target) = target {
+            feedback.push(FeedbackVisual::scaled(Box::new(
+                RectangleFigure::from_bounds(model.bounds[&target.model()]),
+            )));
+        }
+        Ok(feedback)
+    }
+
+    fn feedback_with_route(
+        &mut self,
+        _source: PolicyHost<ModelId>,
+        target: Option<PolicyHost<ModelId>>,
+        _request: &CreateConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        model: &DiagramModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let route = route.ok_or_else(|| PolicyError::operation("missing Anchor preview route"))?;
+        let mut feedback = vec![FeedbackVisual::scaled(Box::new(PolylineFigure::new(
+            route.source().x(),
+            route.source().y(),
+            route.target().x(),
+            route.target().y(),
         )))];
         if let Some(target) = target {
             feedback.push(FeedbackVisual::scaled(Box::new(
@@ -359,6 +485,24 @@ impl ConnectionReconnection<DiagramModel> for EdgeReconnection {
         Ok(candidate.model() != WIDGET)
     }
 
+    fn feedback_with_route(
+        &mut self,
+        _connection: PolicyHost<ModelId>,
+        _fixed: PolicyHost<ModelId>,
+        _candidate: Option<PolicyHost<ModelId>>,
+        _request: &ReconnectConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        _model: &DiagramModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let route = route.ok_or_else(|| PolicyError::operation("missing Anchor preview route"))?;
+        Ok(vec![FeedbackVisual::scaled(Box::new(PolylineFigure::new(
+            route.source().x(),
+            route.source().y(),
+            route.target().x(),
+            route.target().y(),
+        )))])
+    }
+
     fn command(
         &mut self,
         _connection: PolicyHost<ModelId>,
@@ -416,6 +560,91 @@ impl EditPolicy<DiagramModel> for ConnectionReconnectPolicy {
     }
 }
 
+struct SetEdgeBendpointsCommand {
+    id: ModelId,
+    before: Vec<Point>,
+    after: Vec<Point>,
+}
+
+impl Command<DiagramModel> for SetEdgeBendpointsCommand {
+    fn label(&self) -> &str {
+        "Edit bendpoint"
+    }
+
+    fn execute(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.bendpoints.insert(self.id, self.after.clone());
+        model.publish(self.id);
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.bendpoints.insert(self.id, self.before.clone());
+        model.publish(self.id);
+        Ok(())
+    }
+}
+
+struct ConnectionBendpointPolicy;
+
+impl EditPolicy<DiagramModel> for ConnectionBendpointPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::Bendpoint(_))
+    }
+
+    fn command(
+        &mut self,
+        host: PolicyHost<ModelId>,
+        request: &EditorRequest,
+        model: &DiagramModel,
+    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+        let EditorRequest::Bendpoint(request) = request else {
+            return Ok(None);
+        };
+        let before = model
+            .bendpoints
+            .get(&host.model())
+            .cloned()
+            .unwrap_or_default();
+        let mut after = before.clone();
+        match request.operation() {
+            BendpointOperation::Create { index } if index <= after.len() => {
+                after.insert(index, request.location());
+            }
+            BendpointOperation::Move { index } if index < after.len() => {
+                after[index] = request.location();
+            }
+            BendpointOperation::Delete { index } if index < after.len() => {
+                after.remove(index);
+            }
+            _ => return Err(PolicyError::operation("invalid bendpoint index")),
+        }
+        Ok(Some(Box::new(SetEdgeBendpointsCommand {
+            id: host.model(),
+            before,
+            after,
+        })))
+    }
+
+    fn feedback(
+        &mut self,
+        _host: PolicyHost<ModelId>,
+        request: &EditorRequest,
+        _model: &DiagramModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let EditorRequest::Bendpoint(request) = request else {
+            return Ok(Vec::new());
+        };
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            RectangleFigure::new(
+                request.location().x() - 2.0,
+                request.location().y() - 2.0,
+                4.0,
+                4.0,
+            ),
+        ))])
+    }
+}
+
 impl EditPolicy<DiagramModel> for ConnectionDeletePolicy {
     fn understands(&self, request: &EditorRequest) -> bool {
         matches!(request, EditorRequest::Delete(_))
@@ -454,7 +683,40 @@ impl EditPartBehavior<DiagramModel> for ConnectionPart {
                 PolicyRole::ConnectionReconnect,
                 Box::new(ConnectionReconnectPolicy),
             ),
+            (
+                PolicyRole::custom("connection-bendpoint").unwrap(),
+                Box::new(ConnectionBendpointPolicy),
+            ),
         ])
+    }
+
+    fn connection_routing(
+        &mut self,
+        model: &DiagramModel,
+        model_id: ModelId,
+    ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
+        let bendpoints = model.bendpoints.get(&model_id).cloned().unwrap_or_default();
+        Ok(if bendpoints.is_empty() {
+            ConnectionRoutingDescriptor::inherited()
+        } else {
+            ConnectionRoutingDescriptor::registered(
+                bendpoint_router_key(),
+                Some(Box::new(BendpointConstraint::new(
+                    bendpoints
+                        .into_iter()
+                        .map(Bendpoint::Absolute)
+                        .collect::<Vec<_>>(),
+                ))),
+            )
+        })
+    }
+
+    fn connection_bendpoints(
+        &mut self,
+        model: &DiagramModel,
+        model_id: ModelId,
+    ) -> Result<Vec<Point>, EditPartError> {
+        Ok(model.bendpoints.get(&model_id).cloned().unwrap_or_default())
     }
 }
 
@@ -463,6 +725,13 @@ struct DiagramFactory {
 }
 
 impl EditPartFactory<DiagramModel> for DiagramFactory {
+    fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
+        Ok(vec![ConnectionRouterRegistration::new(
+            bendpoint_router_key(),
+            Box::new(TestSelfLoopRouter::new(Box::new(BendpointConnectionRouter))),
+        )])
+    }
+
     fn create(
         &mut self,
         _context: PartFactoryContext<ModelId>,
@@ -483,12 +752,21 @@ impl EditPartFactory<DiagramModel> for DiagramFactory {
 }
 
 fn viewer(duplicate_policy: bool) -> GraphicalViewer<DiagramModel, DiagramFactory> {
-    GraphicalViewer::new(
+    let mut viewer = GraphicalViewer::new(
         DiagramModel::new(),
         DiagramFactory { duplicate_policy },
         Rectangle::new(0.0, 0.0, 600.0, 400.0),
     )
-    .unwrap()
+    .unwrap();
+    let connection_layer = viewer.root_layers().connection();
+    let self_loop_router = viewer
+        .runtime_mut()
+        .register_connection_router(Box::new(TestSelfLoopRouter::new(Box::new(DirectRouter))));
+    viewer
+        .runtime_mut()
+        .set_connection_layer_router(connection_layer, self_loop_router)
+        .unwrap();
+    viewer
 }
 
 fn arm(
@@ -861,6 +1139,172 @@ fn reconnect_cancel_clears_feedback_without_model_change() {
 }
 
 #[test]
+fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
+    let mut viewer = viewer(false);
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+    click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    let original_part = connection.edit_part();
+    let initial_sites = viewer
+        .connection_bendpoint_handle_sites(connection)
+        .unwrap();
+    assert_eq!(initial_sites.len(), 1);
+    assert_eq!(initial_sites[0].role(), HandleRole::BendpointCreate(0));
+    let typed = BendpointRequest::new(
+        connection,
+        BendpointOperation::Create { index: 0 },
+        Point::new(180.0, 180.0),
+        RequestModifiers::default(),
+        InteractionRevision::initial(),
+    );
+    assert_eq!(typed.connection(), connection);
+    assert_eq!(typed.operation(), BendpointOperation::Create { index: 0 });
+    assert_eq!(typed.location(), Point::new(180.0, 180.0));
+
+    viewer
+        .add_handle_visual_with_role(
+            original_part,
+            HandleRole::BendpointCreate(0),
+            Box::new(RectangleFigure::new(175.0, 95.0, 10.0, 10.0)),
+        )
+        .unwrap();
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(180.0, 100.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(180.0, 180.0))
+        .unwrap();
+    domain
+        .pointer_released(&mut viewer, Point::new(180.0, 180.0), MouseButton::Left)
+        .unwrap();
+    assert_eq!(
+        viewer.model().bendpoints[&FIRST_EDGE],
+        vec![Point::new(180.0, 180.0)]
+    );
+    assert_eq!(
+        viewer
+            .connection_part_for_model(FIRST_EDGE)
+            .unwrap()
+            .edit_part(),
+        original_part
+    );
+    assert_eq!(
+        viewer
+            .connection_route_points_in_surface(connection)
+            .unwrap()
+            .len(),
+        3
+    );
+    let explicit_sites = viewer
+        .connection_bendpoint_handle_sites(connection)
+        .unwrap();
+    assert_eq!(
+        explicit_sites
+            .iter()
+            .map(|site| site.role())
+            .collect::<Vec<_>>(),
+        vec![
+            HandleRole::BendpointCreate(0),
+            HandleRole::BendpointMove(0),
+            HandleRole::BendpointCreate(1),
+        ]
+    );
+
+    viewer
+        .add_handle_visual_with_role(
+            original_part,
+            HandleRole::BendpointMove(0),
+            Box::new(RectangleFigure::new(175.0, 175.0, 10.0, 10.0)),
+        )
+        .unwrap();
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(180.0, 180.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain
+        .pointer_moved(&mut viewer, Point::new(200.0, 220.0))
+        .unwrap();
+    domain
+        .pointer_released(&mut viewer, Point::new(200.0, 220.0), MouseButton::Left)
+        .unwrap();
+    assert_eq!(
+        viewer.model().bendpoints[&FIRST_EDGE],
+        vec![Point::new(200.0, 220.0)]
+    );
+
+    let delete = EditorRequest::Bendpoint(BendpointRequest::new(
+        connection,
+        BendpointOperation::Delete { index: 0 },
+        Point::new(200.0, 220.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    ));
+    domain.execute_request(&mut viewer, &delete).unwrap();
+    assert!(viewer.model().bendpoints[&FIRST_EDGE].is_empty());
+    domain.undo(&mut viewer).unwrap();
+    assert_eq!(
+        viewer.model().bendpoints[&FIRST_EDGE],
+        vec![Point::new(200.0, 220.0)]
+    );
+}
+
+#[test]
+fn application_router_keeps_self_loop_endpoints_distinct_with_one_bendpoint() {
+    let mut viewer = viewer(false);
+    viewer
+        .model_mut()
+        .connections
+        .push(ModelConnection::new(FIRST_EDGE, FIRST, FIRST));
+    viewer
+        .model_mut()
+        .bendpoints
+        .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
+    viewer.model_mut().publish(FIRST_EDGE);
+    viewer.refresh().unwrap();
+
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    let route = viewer
+        .connection_route_points_in_surface(connection)
+        .unwrap();
+    assert_eq!(route.len(), 3);
+    assert_ne!(route.first(), route.last());
+}
+
+#[test]
+fn non_finite_model_bendpoint_is_rejected_before_projection() {
+    let mut model = DiagramModel::new();
+    model
+        .connections
+        .push(ModelConnection::new(FIRST_EDGE, FIRST, SECOND));
+    model
+        .bendpoints
+        .insert(FIRST_EDGE, vec![Point::new(f64::NAN, 10.0)]);
+
+    let result = GraphicalViewer::new(
+        model,
+        DiagramFactory {
+            duplicate_policy: false,
+        },
+        Rectangle::new(0.0, 0.0, 600.0, 400.0),
+    );
+    assert!(matches!(
+        result,
+        Err(ViewerError::InvalidConnectionBendpoint { .. })
+    ));
+}
+
+#[test]
 fn policy_can_accept_a_self_loop() {
     let mut viewer = viewer(false);
     let mut domain = EditorDomain::new();
@@ -879,6 +1323,15 @@ fn policy_can_accept_a_self_loop() {
     assert_ne!(source, target);
     assert!(source.x() >= 140.0);
     assert!(target.x() >= 140.0);
+    let sites = viewer
+        .connection_bendpoint_handle_sites(connection)
+        .unwrap();
+    assert_eq!(sites.len(), 3);
+    assert!(
+        sites
+            .iter()
+            .all(|site| site.role() == HandleRole::BendpointCreate(0))
+    );
 }
 
 #[test]

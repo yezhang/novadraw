@@ -6,17 +6,20 @@ use std::{
     fmt,
 };
 
-use novadraw_geometry::{Point, Rectangle, Translatable};
+use novadraw_geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw_scene::{
-    AnchorId, ChopboxAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError,
-    CoordinateSpace, DispatchOutcome, Figure, FigureId, FigureTree, KeyModifiers, LayerError,
-    LayerFigure, LayerKey, LayerPlacement, LayeredPane, MouseButton, RouterBinding, Runtime,
-    RuntimeMutationError, ScalableFreeformLayeredPane, StackLayout,
+    AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
+    ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome, Figure,
+    FigureId, FigureTree, KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement,
+    LayeredPane, MouseButton, RouterBinding, RouterId, Runtime, RuntimeMutationError,
+    ScalableFreeformLayeredPane, StackLayout, UnresolvedConnection, XYAnchor,
 };
 
 use crate::{
-    Command, CompoundCommand, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
-    ConnectionPartId, ConnectionReconnection, CreateConnectionRequest, EditPartError,
+    BendpointHandleSite, Command, CompoundCommand, ConnectionAnchorContext,
+    ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
+    ConnectionPartFactoryContext, ConnectionPartId, ConnectionReconnection, ConnectionRouterKey,
+    ConnectionRouterSelection, ConnectionRoutingDescriptor, CreateConnectionRequest, EditPartError,
     EditPartFactory, EditPartId, EditorNamespace, EditorRequest, FeedbackId, HandleId, HandleRole,
     ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartKind, PartTree,
     PartTreeError, PolicyError, PolicyHost, ReconnectConnectionRequest, SelectionDelta,
@@ -185,6 +188,11 @@ pub enum ViewerError {
         /// Debug representation of the connection model identity.
         connection: String,
     },
+    /// A connection bendpoint contains a non-finite coordinate.
+    InvalidConnectionBendpoint {
+        /// Debug representation of the connection model identity.
+        connection: String,
+    },
     /// A notification was older than the revision already projected.
     StaleRevision {
         /// Last successfully projected revision.
@@ -256,6 +264,12 @@ impl fmt::Display for ViewerError {
                 write!(
                     formatter,
                     "connection factory returned a non-connection Figure for model {connection}"
+                )
+            }
+            Self::InvalidConnectionBendpoint { connection } => {
+                write!(
+                    formatter,
+                    "connection {connection} has a non-finite bendpoint"
                 )
             }
             Self::StaleRevision { applied, actual } => write!(
@@ -578,7 +592,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     ))
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct ConnectionProjection<I> {
     part: ConnectionPartId,
     connection: ConnectionId,
@@ -586,6 +600,8 @@ struct ConnectionProjection<I> {
     target_model: I,
     source_anchor: Option<AnchorId>,
     target_anchor: Option<AnchorId>,
+    source_anchor_key: Option<AnchorSemanticKey>,
+    target_anchor_key: Option<AnchorSemanticKey>,
     registered: bool,
 }
 
@@ -604,6 +620,7 @@ where
     policies: PolicyStore<A>,
     model_registry: HashMap<A::ModelId, EditPartId>,
     connection_projections: HashMap<A::ModelId, ConnectionProjection<A::ModelId>>,
+    connection_routers: HashMap<ConnectionRouterKey, RouterId>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
     applied_revision: ModelRevision,
@@ -617,7 +634,7 @@ where
     F: EditPartFactory<A>,
 {
     /// Creates a Viewer and recursively projects the current model snapshot.
-    pub fn new(mut model: A, factory: F, bounds: Rectangle) -> Result<Self, ViewerError> {
+    pub fn new(mut model: A, mut factory: F, bounds: Rectangle) -> Result<Self, ViewerError> {
         let snapshot = ModelSnapshot::capture(&model)?;
         let applied_revision = snapshot.revision;
         let initial_events = model.drain_events();
@@ -630,7 +647,16 @@ where
                 actual: event.revision(),
             });
         }
-        let (runtime, root_layers) = create_root_layers(bounds)?;
+        let (mut runtime, root_layers) = create_root_layers(bounds)?;
+        let mut connection_routers = HashMap::new();
+        for registration in factory.connection_routers()? {
+            let (key, router) = registration.into_parts();
+            if connection_routers.contains_key(&key) {
+                return Err(EditPartError::operation("duplicate connection Router key").into());
+            }
+            let router = runtime.try_register_connection_router(router)?;
+            connection_routers.insert(key, router);
+        }
         let parts = PartTree::new(root_layers.root(), root_layers.primary());
         let namespace = parts.namespace();
         let root_part = parts.root();
@@ -644,6 +670,7 @@ where
             policies: PolicyStore::new(namespace),
             model_registry: HashMap::new(),
             connection_projections: HashMap::new(),
+            connection_routers,
             visual_registry: HashMap::from([(root_layers.root(), VisualOwner::Part(root_part))]),
             selection: SelectionModel::new(),
             applied_revision,
@@ -790,16 +817,99 @@ where
         &self,
         connection: ConnectionPartId,
     ) -> Option<(Point, Point)> {
+        let points = self.connection_route_points_in_surface(connection)?;
+        let first = *points.first()?;
+        let last = *points.last()?;
+        Some((first, last))
+    }
+
+    /// Returns all committed route points in logical surface coordinates.
+    pub fn connection_route_points_in_surface(
+        &self,
+        connection: ConnectionPartId,
+    ) -> Option<Vec<Point>> {
         let model = self.parts.get(connection.edit_part())?.model_id()?;
         let projection = self.connection_projections.get(&model)?;
         let figure = projection.connection.figure();
         let points = self.runtime.tree().connection_route_points(figure)?;
-        let first = points.get(0)?;
-        let last = points.get(points.len().checked_sub(1)?)?;
         let transform = self.runtime.tree().local_to_surface_transform(figure)?;
-        let (first_x, first_y) = transform.transform_point(first.x(), first.y());
-        let (last_x, last_y) = transform.transform_point(last.x(), last.y());
-        Some((Point::new(first_x, first_y), Point::new(last_x, last_y)))
+        Some(
+            points
+                .iter()
+                .map(|point| {
+                    let (x, y) = transform.transform_point(point.x(), point.y());
+                    Point::new(x, y)
+                })
+                .collect(),
+        )
+    }
+
+    /// Returns application-defined bendpoints for a live Connection Part.
+    pub fn connection_bendpoints(
+        &mut self,
+        connection: ConnectionPartId,
+    ) -> Result<Vec<Point>, ViewerError> {
+        let model_id = self
+            .parts
+            .get(connection.edit_part())
+            .and_then(|node| node.model_id())
+            .ok_or(ViewerError::InvalidPart(connection.edit_part()))?;
+        let bendpoints = self
+            .behaviors
+            .get_mut(connection.edit_part())
+            .ok_or(ViewerError::InconsistentState)?
+            .connection_bendpoints(&self.model, model_id)?;
+        if bendpoints
+            .iter()
+            .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        {
+            return Err(ViewerError::InvalidConnectionBendpoint {
+                connection: format!("{model_id:?}"),
+            });
+        }
+        Ok(bendpoints)
+    }
+
+    /// Derives GEF-style creation and move handle sites from committed route geometry.
+    pub fn connection_bendpoint_handle_sites(
+        &mut self,
+        connection: ConnectionPartId,
+    ) -> Result<Vec<BendpointHandleSite>, ViewerError> {
+        let route = self
+            .connection_route_points_in_surface(connection)
+            .ok_or(ViewerError::InconsistentState)?;
+        let routing_to_surface = self
+            .runtime
+            .tree()
+            .child_content_to_surface_transform(self.root_layers.connection())
+            .ok_or(ViewerError::InconsistentState)?;
+        let bendpoints = self
+            .connection_bendpoints(connection)?
+            .into_iter()
+            .map(|bendpoint| {
+                let (x, y) = routing_to_surface.transform_point(bendpoint.x(), bendpoint.y());
+                Point::new(x, y)
+            })
+            .collect::<Vec<_>>();
+        let mut sites = Vec::with_capacity(route.len().saturating_sub(1) + bendpoints.len());
+        let mut bendpoint_index = 0;
+        for segment in route.windows(2) {
+            sites.push(BendpointHandleSite::new(
+                HandleRole::BendpointCreate(bendpoint_index),
+                (segment[0] + segment[1]) / 2.0,
+            ));
+            if bendpoints
+                .get(bendpoint_index)
+                .is_some_and(|bendpoint| bendpoint.approx_eq(segment[1], Precision::DEFAULT))
+            {
+                sites.push(BendpointHandleSite::new(
+                    HandleRole::BendpointMove(bendpoint_index),
+                    segment[1],
+                ));
+                bendpoint_index += 1;
+            }
+        }
+        Ok(sites)
     }
 
     /// Returns the axis-aligned surface bounds of a part's primary Figure.
@@ -1163,7 +1273,17 @@ where
     ) -> Result<Vec<FigureId>, ViewerError> {
         let source = self.connection_endpoint_host(request.source())?;
         let target = self.valid_connection_target(plan, source, request)?;
-        let contributions = plan.feedback(source, target, request, &self.model)?;
+        let route = self.preview_connection_feedback_route(
+            None,
+            None,
+            Some(source.part()),
+            source.model(),
+            target.map(PolicyHost::part),
+            target.map(PolicyHost::model),
+            request.location(),
+        )?;
+        let contributions =
+            plan.feedback_with_route(source, target, request, route, &self.model)?;
         let mut figures = Vec::with_capacity(contributions.len());
         for feedback in contributions {
             let (figure, scaled) = feedback.into_parts();
@@ -1233,7 +1353,39 @@ where
         let connection = self.policy_host(request.connection().edit_part())?;
         let fixed = self.reconnection_fixed_host(request)?;
         let candidate = self.valid_reconnection_target(plan, connection, fixed, request)?;
-        let contributions = plan.feedback(connection, fixed, candidate, request, &self.model)?;
+        let endpoints = self.parts.connection_endpoints(request.connection())?;
+        let source = self.policy_host(endpoints.source())?;
+        let target = self.policy_host(endpoints.target())?;
+        let (source_part, source_model, target_part, target_model) = match request.endpoint() {
+            ConnectionEndpoint::Source => (
+                candidate.map(PolicyHost::part),
+                candidate.map_or(source.model(), PolicyHost::model),
+                Some(target.part()),
+                Some(target.model()),
+            ),
+            ConnectionEndpoint::Target => (
+                Some(source.part()),
+                source.model(),
+                candidate.map(PolicyHost::part),
+                candidate.map(PolicyHost::model),
+            ),
+        };
+        let connection_figure = self
+            .parts
+            .get(request.connection().edit_part())
+            .ok_or(ViewerError::InconsistentState)?
+            .primary_figure();
+        let route = self.preview_connection_feedback_route(
+            Some(connection.model()),
+            Some(connection_figure),
+            source_part,
+            source_model,
+            target_part,
+            target_model,
+            request.location(),
+        )?;
+        let contributions =
+            plan.feedback_with_route(connection, fixed, candidate, request, route, &self.model)?;
         let mut figures = Vec::with_capacity(contributions.len());
         for feedback in contributions {
             let (figure, scaled) = feedback.into_parts();
@@ -1242,6 +1394,70 @@ where
             figures.push(figure);
         }
         Ok(figures)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn preview_connection_feedback_route(
+        &mut self,
+        connection_model: Option<A::ModelId>,
+        connection_figure: Option<FigureId>,
+        source_part: Option<EditPartId>,
+        source_model: A::ModelId,
+        target_part: Option<EditPartId>,
+        target_model: Option<A::ModelId>,
+        pointer: Point,
+    ) -> Result<Option<ConnectionFeedbackRoute>, ViewerError> {
+        let source_anchor: Box<dyn ConnectionAnchor> = if let Some(source_part) = source_part {
+            self.build_connection_anchor_for_models(
+                ConnectionEndpoint::Source,
+                source_part,
+                connection_model,
+                source_model,
+                target_model,
+                connection_figure,
+            )?
+            .1
+        } else {
+            Box::new(XYAnchor::new(pointer, CoordinateSpace::LogicalSurface))
+        };
+        let target_anchor: Box<dyn ConnectionAnchor> =
+            if let (Some(target_part), Some(target_model)) = (target_part, target_model) {
+                self.build_connection_anchor_for_models(
+                    ConnectionEndpoint::Target,
+                    target_part,
+                    connection_model,
+                    source_model,
+                    Some(target_model),
+                    connection_figure,
+                )?
+                .1
+            } else {
+                Box::new(XYAnchor::new(pointer, CoordinateSpace::LogicalSurface))
+            };
+        let routing_space = CoordinateSpace::ChildContent(self.root_layers.connection());
+        let metadata = self
+            .runtime
+            .preview_connection_endpoints(
+                source_anchor.as_ref(),
+                target_anchor.as_ref(),
+                routing_space,
+            )
+            .map_err(|error| {
+                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error))
+            })?;
+        let transform = self
+            .runtime
+            .tree()
+            .child_content_to_surface_transform(self.root_layers.connection())
+            .ok_or(ViewerError::InconsistentState)?;
+        let source = metadata.source.site.point;
+        let target = metadata.target.site.point;
+        let (source_x, source_y) = transform.transform_point(source.x(), source.y());
+        let (target_x, target_y) = transform.transform_point(target.x(), target.y());
+        Ok(Some(ConnectionFeedbackRoute::new(
+            Point::new(source_x, source_y),
+            Point::new(target_x, target_y),
+        )))
     }
 
     /// Builds the final reconnect Command when the current candidate is valid.
@@ -1530,6 +1746,69 @@ where
         Ok(part)
     }
 
+    fn build_connection_anchor(
+        &mut self,
+        endpoint: ConnectionEndpoint,
+        endpoint_part: EditPartId,
+        descriptor: ModelConnection<A::ModelId>,
+        connection_figure: FigureId,
+    ) -> Result<(AnchorSemanticKey, Box<dyn ConnectionAnchor>), ViewerError> {
+        self.build_connection_anchor_for_models(
+            endpoint,
+            endpoint_part,
+            Some(descriptor.id()),
+            descriptor.source(),
+            Some(descriptor.target()),
+            Some(connection_figure),
+        )
+    }
+
+    fn build_connection_anchor_for_models(
+        &mut self,
+        endpoint: ConnectionEndpoint,
+        endpoint_part: EditPartId,
+        connection_model: Option<A::ModelId>,
+        source_model: A::ModelId,
+        target_model: Option<A::ModelId>,
+        connection_figure: Option<FigureId>,
+    ) -> Result<(AnchorSemanticKey, Box<dyn ConnectionAnchor>), ViewerError> {
+        let endpoint_node = self
+            .parts
+            .get(endpoint_part)
+            .ok_or(ViewerError::InconsistentState)?;
+        let endpoint_model = endpoint_node
+            .model_id()
+            .ok_or(ViewerError::InconsistentState)?;
+        let endpoint_figure = endpoint_node.primary_figure();
+        let context = ConnectionAnchorContext::new(
+            connection_model,
+            source_model,
+            target_model,
+            connection_figure,
+            endpoint_figure,
+        );
+        let behavior = self
+            .behaviors
+            .get_mut(endpoint_part)
+            .ok_or(ViewerError::InconsistentState)?;
+        let custom = match endpoint {
+            ConnectionEndpoint::Source => {
+                behavior.source_connection_anchor(&self.model, endpoint_model, context)?
+            }
+            ConnectionEndpoint::Target => {
+                behavior.target_connection_anchor(&self.model, endpoint_model, context)?
+            }
+        };
+        let descriptor = custom.unwrap_or_else(|| {
+            let anchor = ChopboxAnchor::new(endpoint_figure);
+            let key = anchor
+                .semantic_group_key()
+                .expect("ChopboxAnchor always provides semantic identity");
+            ConnectionAnchorDescriptor::new(key, Box::new(anchor))
+        });
+        Ok(descriptor.into_parts())
+    }
+
     fn create_connection_part(
         &mut self,
         descriptor: ModelConnection<A::ModelId>,
@@ -1563,6 +1842,10 @@ where
         );
         let mut behavior = self.factory.create_connection(context, &self.model)?;
         let policies = behavior.create_policies(&self.model, descriptor.id())?;
+        let bendpoints = behavior.connection_bendpoints(&self.model, descriptor.id())?;
+        Self::validate_connection_bendpoints(descriptor.id(), &bendpoints)?;
+        let routing = behavior.connection_routing(&self.model, descriptor.id())?;
+        let (router, constraint) = self.resolve_connection_routing(routing)?;
         let primary = self.runtime.try_add_figure(
             self.root_layers.connection(),
             behavior.create_figure(&self.model, descriptor.id())?,
@@ -1586,22 +1869,36 @@ where
             self.runtime.dispose_subtree(primary)?;
             return Err(ViewerError::DuplicateVisual);
         }
-        let source_figure = self
-            .parts
-            .get(source_part)
-            .ok_or(ViewerError::InconsistentState)?
-            .primary_figure();
-        let target_figure = self
-            .parts
-            .get(target_part)
-            .ok_or(ViewerError::InconsistentState)?
-            .primary_figure();
+        let (source_anchor_key, source_anchor_strategy) = match self.build_connection_anchor(
+            ConnectionEndpoint::Source,
+            source_part,
+            descriptor,
+            primary,
+        ) {
+            Ok(anchor) => anchor,
+            Err(error) => {
+                let _ = self.runtime.dispose_subtree(primary);
+                return Err(error);
+            }
+        };
+        let (target_anchor_key, target_anchor_strategy) = match self.build_connection_anchor(
+            ConnectionEndpoint::Target,
+            target_part,
+            descriptor,
+            primary,
+        ) {
+            Ok(anchor) => anchor,
+            Err(error) => {
+                let _ = self.runtime.dispose_subtree(primary);
+                return Err(error);
+            }
+        };
         let source_anchor = self
             .runtime
-            .try_register_connection_anchor(Box::new(ChopboxAnchor::new(source_figure)))?;
+            .try_register_connection_anchor(source_anchor_strategy)?;
         let target_anchor = match self
             .runtime
-            .try_register_connection_anchor(Box::new(ChopboxAnchor::new(target_figure)))
+            .try_register_connection_anchor(target_anchor_strategy)
         {
             Ok(anchor) => anchor,
             Err(error) => {
@@ -1614,10 +1911,8 @@ where
             primary,
             Some(source_anchor),
             Some(target_anchor),
-            RouterBinding::Inherited {
-                layer: self.root_layers.connection(),
-            },
-            None,
+            router,
+            constraint,
         ) {
             Ok(connection) => connection,
             Err(error) => {
@@ -1652,6 +1947,8 @@ where
                 target_model: descriptor.target(),
                 source_anchor: Some(source_anchor),
                 target_anchor: Some(target_anchor),
+                source_anchor_key: Some(source_anchor_key),
+                target_anchor_key: Some(target_anchor_key),
                 registered: true,
             },
         );
@@ -1746,38 +2043,54 @@ where
         let mut current = self
             .connection_projections
             .get(&descriptor.id())
-            .copied()
+            .cloned()
             .ok_or(ViewerError::InconsistentState)?;
+        let behavior = self
+            .behaviors
+            .get_mut(current.part.edit_part())
+            .ok_or(ViewerError::InconsistentState)?;
+        let bendpoints = behavior.connection_bendpoints(&self.model, descriptor.id())?;
+        Self::validate_connection_bendpoints(descriptor.id(), &bendpoints)?;
+        let routing = behavior.connection_routing(&self.model, descriptor.id())?;
+        let (router, constraint) = self.resolve_connection_routing(routing)?;
+        let (source_anchor_key, source_anchor_strategy) = self.build_connection_anchor(
+            ConnectionEndpoint::Source,
+            source_part,
+            descriptor,
+            current.connection.figure(),
+        )?;
+        let (target_anchor_key, target_anchor_strategy) = self.build_connection_anchor(
+            ConnectionEndpoint::Target,
+            target_part,
+            descriptor,
+            current.connection.figure(),
+        )?;
+        let source_reusable = current.source_model == descriptor.source()
+            && current.source_anchor.is_some()
+            && current.source_anchor_key.as_ref() == Some(&source_anchor_key);
+        let target_reusable = current.target_model == descriptor.target()
+            && current.target_anchor.is_some()
+            && current.target_anchor_key.as_ref() == Some(&target_anchor_key);
         if current.registered
-            && current.source_model == descriptor.source()
-            && current.target_model == descriptor.target()
+            && source_reusable
+            && target_reusable
             && self.parts.connection_endpoints(current.part)?
                 == crate::ConnectionEndpoints::new(source_part, target_part)
         {
+            self.configure_connection_route(current.connection, router, constraint)?;
+            self.resolve_connection(current.connection)?;
             return Ok(());
         }
         if current.registered {
-            self.detach_connection_binding(current.part, true, true)?;
+            self.detach_connection_binding(current.part, !source_reusable, !target_reusable)?;
             current = self
                 .connection_projections
                 .get(&descriptor.id())
-                .copied()
+                .cloned()
                 .ok_or(ViewerError::InconsistentState)?;
         }
 
-        let source_figure = self
-            .parts
-            .get(source_part)
-            .ok_or(ViewerError::InconsistentState)?
-            .primary_figure();
-        let target_figure = self
-            .parts
-            .get(target_part)
-            .ok_or(ViewerError::InconsistentState)?
-            .primary_figure();
-        let source_unchanged = current.source_model == descriptor.source();
-        let target_unchanged = current.target_model == descriptor.target();
-        let source_anchor = if source_unchanged {
+        let source_anchor = if source_reusable {
             current.source_anchor
         } else {
             None
@@ -1785,9 +2098,9 @@ where
         .map(Ok)
         .unwrap_or_else(|| {
             self.runtime
-                .try_register_connection_anchor(Box::new(ChopboxAnchor::new(source_figure)))
+                .try_register_connection_anchor(source_anchor_strategy)
         })?;
-        let target_anchor = if target_unchanged {
+        let target_anchor = if target_reusable {
             current.target_anchor
         } else {
             None
@@ -1795,7 +2108,7 @@ where
         .map(Ok)
         .unwrap_or_else(|| {
             self.runtime
-                .try_register_connection_anchor(Box::new(ChopboxAnchor::new(target_figure)))
+                .try_register_connection_anchor(target_anchor_strategy)
         })?;
         self.parts
             .bind_connection(current.part, source_part, target_part)?;
@@ -1803,10 +2116,8 @@ where
             current.connection.figure(),
             Some(source_anchor),
             Some(target_anchor),
-            RouterBinding::Inherited {
-                layer: self.root_layers.connection(),
-            },
-            None,
+            router,
+            constraint,
         )?;
         let connection = current.connection;
         let projection = self
@@ -1817,8 +2128,64 @@ where
         projection.target_model = descriptor.target();
         projection.source_anchor = Some(source_anchor);
         projection.target_anchor = Some(target_anchor);
+        projection.source_anchor_key = Some(source_anchor_key);
+        projection.target_anchor_key = Some(target_anchor_key);
         projection.registered = true;
         self.resolve_connection(connection)
+    }
+
+    fn resolve_connection_routing(
+        &self,
+        descriptor: ConnectionRoutingDescriptor,
+    ) -> Result<
+        (
+            RouterBinding,
+            Option<Box<dyn novadraw_scene::RoutingConstraint>>,
+        ),
+        ViewerError,
+    > {
+        let (selection, constraint) = descriptor.into_parts();
+        let binding = match selection {
+            ConnectionRouterSelection::Inherited => RouterBinding::Inherited {
+                layer: self.root_layers.connection(),
+            },
+            ConnectionRouterSelection::Registered(key) => RouterBinding::Explicit {
+                router: *self.connection_routers.get(&key).ok_or_else(|| {
+                    EditPartError::operation(format!(
+                        "unknown connection Router key {}",
+                        key.as_str()
+                    ))
+                })?,
+            },
+        };
+        Ok((binding, constraint))
+    }
+
+    fn validate_connection_bendpoints(
+        model_id: A::ModelId,
+        bendpoints: &[Point],
+    ) -> Result<(), ViewerError> {
+        if bendpoints
+            .iter()
+            .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        {
+            Err(ViewerError::InvalidConnectionBendpoint {
+                connection: format!("{model_id:?}"),
+            })
+        } else {
+            Ok(())
+        }
+    }
+
+    fn configure_connection_route(
+        &mut self,
+        connection: ConnectionId,
+        router: RouterBinding,
+        constraint: Option<Box<dyn novadraw_scene::RoutingConstraint>>,
+    ) -> Result<(), ViewerError> {
+        self.runtime
+            .set_connection_route_configuration(connection, router, constraint)?;
+        Ok(())
     }
 
     fn parts_to_retire(
@@ -1913,9 +2280,11 @@ where
         projection.registered = false;
         if remove_source {
             projection.source_anchor = None;
+            projection.source_anchor_key = None;
         }
         if remove_target {
             projection.target_anchor = None;
+            projection.target_anchor_key = None;
         }
         Ok(())
     }

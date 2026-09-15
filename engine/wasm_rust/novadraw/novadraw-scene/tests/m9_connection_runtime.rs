@@ -2,14 +2,16 @@ use std::{any::TypeId, marker::PhantomData};
 
 use novadraw_geometry::{Point, Vector};
 use novadraw_render::{
-    BackendCapabilities, RenderOutcome, SurfaceInfo, command::RenderCommandKind,
+    BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderOutcome, SurfaceInfo,
+    command::RenderCommandKind,
 };
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
-    ConnectionResolution, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace, DirectRouter,
-    FanRouter, FigureId, MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB,
-    ManhattanConnectionRouter, RectangleFigure, RouteError, RouteOutput, RouteRequest,
-    RouterBinding, Runtime, UnresolvedConnection, ViewportFigure, XYConstraint, XYLayout,
+    ConnectionLocator, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
+    CoordinateSpace, DirectRouter, FanRouter, FigureId, MANHATTAN_DEFAULT_LANE_SPACING,
+    MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RectangleFigure, RouteError,
+    RouteOutput, RouteRequest, RouterBinding, Runtime, UnresolvedConnection, ViewportFigure,
+    XYConstraint, XYLayout,
 };
 
 struct ConstraintA;
@@ -54,6 +56,149 @@ fn surface() -> SurfaceInfo {
 }
 
 #[test]
+fn inherited_router_defaults_to_draw2d_equivalent_direct_routing() {
+    let (mut runtime, root, source, _target, connection_figure) = runtime_fixture();
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Inherited { layer: root },
+            None,
+        )
+        .unwrap();
+
+    let output = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+
+    assert_eq!(output.points().len(), 2);
+    assert_eq!(output.points().get(0), output.points().get(1));
+}
+
+#[test]
+fn invalid_connection_geometry_never_commits_resolved_state() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
+    let source = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
+    let target = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+    );
+    let connection_figure = runtime.add_figure(
+        root,
+        Box::new(ConnectionFigure::new().with_stroke(novadraw_core::Color::BLACK, f64::INFINITY)),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.resolve_connection_route(connection, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::InvalidGeometry(connection_figure),
+        ))
+    );
+    assert_eq!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::InvalidGeometry(connection_figure))
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(connection_figure),
+        Some(novadraw_geometry::Rectangle::ZERO)
+    );
+    assert!(
+        runtime
+            .tree()
+            .connection_route_points(connection_figure)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn runtime_relocates_bound_connection_children_after_route_commit() {
+    let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
+    let label = runtime.add_figure(
+        connection_figure,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(connection, label, Box::new(ConnectionLocator::Middle))
+        .unwrap();
+
+    runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let points = runtime
+        .tree()
+        .connection_route_points(connection_figure)
+        .unwrap();
+    let expected = (points.get(0).unwrap() + points.get(1).unwrap()) / 2.0;
+    let label_bounds = runtime.tree().figure_bounds(label).unwrap();
+    assert_eq!(label_bounds.center(), expected);
+
+    let old_label_bounds = label_bounds;
+    assert!(runtime.set_bounds(
+        target,
+        novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
+    ));
+    runtime.prepare_frame().expect("reroute and Locator layout");
+    assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
+}
+
+#[test]
+fn connection_locator_rejects_non_child_targets() {
+    let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.set_connection_locator(connection, root, Box::new(ConnectionLocator::Middle)),
+        Err(ConnectionRuntimeError::InvalidLocatorChild {
+            connection,
+            child: root,
+        })
+    );
+}
+
+#[test]
 fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() {
     let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
@@ -75,7 +220,11 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
         .unwrap();
 
     assert_eq!(output.points().len(), 2);
-    let path_bounds = output.points().bounds().unwrap().inflate(1.0, 1.0);
+    let path_bounds = output
+        .points()
+        .bounds()
+        .unwrap()
+        .inflate(DEFAULT_STROKE_MITER_LIMIT, DEFAULT_STROKE_MITER_LIMIT);
     assert_eq!(
         runtime.tree().figure_bounds(connection_figure),
         Some(path_bounds)
@@ -381,9 +530,10 @@ fn incompatible_router_change_is_rejected_atomically() {
         .unwrap();
 
     assert!(matches!(
-        runtime.set_connection_router_binding(
+        runtime.set_connection_route_configuration(
             connection,
             RouterBinding::Explicit { router: router_b },
+            Some(Box::new(ConstraintA)),
         ),
         Err(ConnectionRuntimeError::ConstraintTypeMismatch { .. })
     ));

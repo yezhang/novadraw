@@ -1,7 +1,9 @@
+use std::{error::Error, fmt};
+
 use novadraw_core::Color;
-use novadraw_geometry::{Point, PointList, Rectangle};
+use novadraw_geometry::{Point, PointList, Rectangle, Translatable};
 use novadraw_render::{
-    NdCanvas,
+    DEFAULT_STROKE_MITER_LIMIT, NdCanvas,
     command::{LineCap, LineJoin},
 };
 
@@ -16,10 +18,80 @@ const DEFAULT_CONNECTION_COLOR: Color = Color {
 const DEFAULT_CONNECTION_WIDTH: f64 = 2.0;
 const DEFAULT_HIT_TOLERANCE: f64 = 3.0;
 
+/// Validated geometry prepared before a Connection route is committed.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PreparedConnectionGeometry {
+    path_bounds: Rectangle,
+    local_points: PointList,
+}
+
+impl PreparedConnectionGeometry {
+    /// Builds local route geometry from canonical parent-domain points and a visual outset.
+    pub fn from_parent_points(
+        parent_points: &PointList,
+        outset: f64,
+    ) -> Result<Self, ConnectionGeometryError> {
+        if parent_points.len() < 2 || !outset.is_finite() || outset < 0.0 {
+            return Err(ConnectionGeometryError);
+        }
+        let point_bounds = parent_points
+            .bounds()
+            .filter(|bounds| finite_rectangle(*bounds))
+            .ok_or(ConnectionGeometryError)?;
+        let path_bounds = point_bounds.inflate(outset, outset);
+        if !finite_rectangle(path_bounds) {
+            return Err(ConnectionGeometryError);
+        }
+        let mut local_points = parent_points.clone();
+        local_points.translate(-path_bounds.x, -path_bounds.y);
+        Ok(Self {
+            path_bounds,
+            local_points,
+        })
+    }
+
+    /// Returns the path bounds in the Connection parent's child-content domain.
+    pub const fn path_bounds(&self) -> Rectangle {
+        self.path_bounds
+    }
+
+    /// Returns route points normalized into the prepared path bounds.
+    pub const fn local_points(&self) -> &PointList {
+        &self.local_points
+    }
+
+    pub(crate) fn into_parts(self) -> (Rectangle, PointList) {
+        (self.path_bounds, self.local_points)
+    }
+}
+
+/// A Connection Figure rejected route geometry during preflight.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ConnectionGeometryError;
+
+impl fmt::Display for ConnectionGeometryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("connection geometry must be finite and contain at least two points")
+    }
+}
+
+impl Error for ConnectionGeometryError {}
+
 /// Mutable geometry boundary implemented by Connection Figures.
 pub trait ConnectionFigureBehavior {
     /// Returns committed node-local route points.
     fn route_points(&self) -> &PointList;
+
+    /// Prepares complete path geometry without mutating Figure or Runtime state.
+    fn prepare_route_geometry(
+        &self,
+        parent_points: &PointList,
+    ) -> Result<PreparedConnectionGeometry, ConnectionGeometryError> {
+        PreparedConnectionGeometry::from_parent_points(
+            parent_points,
+            self.connection_stroke_width() / 2.0,
+        )
+    }
 
     /// Replaces committed node-local route points.
     fn commit_route_points(&mut self, points: PointList);
@@ -106,6 +178,18 @@ impl ConnectionFigure {
 impl ConnectionFigureBehavior for ConnectionFigure {
     fn route_points(&self) -> &PointList {
         &self.points
+    }
+
+    fn prepare_route_geometry(
+        &self,
+        parent_points: &PointList,
+    ) -> Result<PreparedConnectionGeometry, ConnectionGeometryError> {
+        let radius = self.stroke_width / 2.0;
+        let outset = match self.line_join {
+            LineJoin::Miter => radius * DEFAULT_STROKE_MITER_LIMIT,
+            LineJoin::Round | LineJoin::Bevel => radius,
+        };
+        PreparedConnectionGeometry::from_parent_points(parent_points, outset)
     }
 
     fn commit_route_points(&mut self, points: PointList) {
@@ -256,6 +340,13 @@ fn finite_non_negative(value: f64) -> f64 {
     } else {
         0.0
     }
+}
+
+fn finite_rectangle(rectangle: Rectangle) -> bool {
+    rectangle.x.is_finite()
+        && rectangle.y.is_finite()
+        && rectangle.width.is_finite()
+        && rectangle.height.is_finite()
 }
 
 fn trim_polyline(points: &[Point], source_inset: f64, target_inset: f64) -> Vec<Point> {

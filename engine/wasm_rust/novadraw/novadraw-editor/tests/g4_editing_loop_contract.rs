@@ -238,7 +238,8 @@ impl EditPolicy<DiagramModel> for NodePolicy {
             }
             EditorRequest::Create(_)
             | EditorRequest::CreateConnection(_)
-            | EditorRequest::ReconnectConnection(_) => Ok(None),
+            | EditorRequest::ReconnectConnection(_)
+            | EditorRequest::Bendpoint(_) => Ok(None),
         }
     }
 

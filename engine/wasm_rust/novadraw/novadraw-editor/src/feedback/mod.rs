@@ -3,6 +3,7 @@
 //! Feedback is represented by Figures in explicit root layers so it shares canonical coordinate,
 //! clipping, hit-testing, and disposal behavior with the Draw2D runtime.
 
+use novadraw_geometry::Point;
 use uuid::Uuid;
 
 use crate::{ConnectionEndpoint, EditPartId, EditorNamespace, ResizeDirection};
@@ -44,6 +45,34 @@ pub enum HandleRole {
     Resize(ResizeDirection),
     /// Draggable source or target endpoint of a connection.
     ConnectionEndpoint(ConnectionEndpoint),
+    /// Draggable explicit bendpoint at a model index.
+    BendpointMove(usize),
+    /// Segment midpoint that creates a bendpoint at an insertion index.
+    BendpointCreate(usize),
+}
+
+/// One framework-derived bendpoint handle placement in logical surface coordinates.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct BendpointHandleSite {
+    role: HandleRole,
+    location: Point,
+}
+
+impl BendpointHandleSite {
+    /// Creates a handle placement.
+    pub const fn new(role: HandleRole, location: Point) -> Self {
+        Self { role, location }
+    }
+
+    /// Returns the interaction represented by the handle.
+    pub const fn role(self) -> HandleRole {
+        self.role
+    }
+
+    /// Returns the committed route location in logical surface coordinates.
+    pub const fn location(self) -> Point {
+        self.location
+    }
 }
 
 /// Editor ownership associated with a registered Figure.

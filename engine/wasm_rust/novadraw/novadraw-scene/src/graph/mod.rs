@@ -2810,17 +2810,31 @@ impl FigureTree {
         Ok(true)
     }
 
-    pub(crate) fn commit_connection_route(
+    pub(crate) fn prepare_connection_route(
+        &self,
+        id: FigureId,
+        parent_points: &PointList,
+    ) -> Option<crate::PreparedConnectionGeometry> {
+        self.blocks
+            .get(id)?
+            .figure
+            .connection()?
+            .prepare_route_geometry(parent_points)
+            .ok()
+    }
+
+    pub(crate) fn commit_prepared_connection_route(
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        parent_points: &PointList,
-    ) -> bool {
-        let Some((stroke_width, old_bounds, old_visual_bounds, parent_id, visible)) =
-            self.blocks.get(id).and_then(|block| {
-                block.figure.connection().map(|connection| {
+        geometry: crate::PreparedConnectionGeometry,
+    ) {
+        let (old_bounds, old_visual_bounds, parent_id, visible) = self
+            .blocks
+            .get(id)
+            .and_then(|block| {
+                block.figure.connection().map(|_| {
                     (
-                        connection.connection_stroke_width(),
                         block.figure_bounds(),
                         block.visual_bounds(),
                         block.parent,
@@ -2828,29 +2842,21 @@ impl FigureTree {
                     )
                 })
             })
-        else {
-            return false;
-        };
-        let Some(point_bounds) = parent_points.bounds() else {
-            return false;
-        };
-        let path_bounds = point_bounds.inflate(stroke_width / 2.0, stroke_width / 2.0);
-        if !finite_rectangle(path_bounds) {
-            return false;
-        }
-        let mut local_points = parent_points.clone();
-        local_points.translate(-path_bounds.x, -path_bounds.y);
+            .expect("prepared Connection geometry references a live Connection Figure");
+        let (path_bounds, local_points) = geometry.into_parts();
 
         if visible {
             self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
         }
-        let Some(block) = self.blocks.get_mut(id) else {
-            return false;
-        };
+        let block = self
+            .blocks
+            .get_mut(id)
+            .expect("prepared Connection geometry references a live Figure");
         block.set_node_bounds(path_bounds);
-        let Some(connection) = block.figure.connection_mut() else {
-            return false;
-        };
+        let connection = block
+            .figure
+            .connection_mut()
+            .expect("prepared Connection geometry references Connection behavior");
         connection.commit_route_points(local_points);
 
         self.notify_block_changed(id);
@@ -2864,7 +2870,6 @@ impl FigureTree {
         if visible {
             self.repaint(update_manager, id, None);
         }
-        true
     }
 
     pub(crate) fn clear_connection_route(

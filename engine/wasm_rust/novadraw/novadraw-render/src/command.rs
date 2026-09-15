@@ -10,6 +10,9 @@ use novadraw_geometry::Transform;
 use crate::submission::ResourceId;
 use crate::text::{GlyphPaint, GlyphRun};
 
+/// Default ratio between miter length and stroke radius.
+pub const DEFAULT_STROKE_MITER_LIMIT: f64 = 4.0;
+
 /// 渲染命令
 ///
 /// 包含一个渲染操作类型。

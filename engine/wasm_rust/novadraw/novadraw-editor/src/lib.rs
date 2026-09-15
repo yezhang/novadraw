@@ -25,27 +25,30 @@ pub use command::{
     CommandStackEventKind, CompoundCommand,
 };
 pub use domain::{DomainPointerRelease, EditorDomain, EditorDomainError};
-pub use feedback::{FeedbackId, HandleId, HandleRole, VisualOwner};
+pub use feedback::{BendpointHandleSite, FeedbackId, HandleId, HandleRole, VisualOwner};
 pub use model::{ModelAdapter, ModelConnection, ModelEvent, ModelRevision, ModelRevisionError};
 pub use part::{
-    ConnectionEndpoints, ConnectionPartFactoryContext, ConnectionPartId, EditPartBehavior,
-    EditPartError, EditPartFactory, EditPartId, EditorNamespace, PartFactoryContext, PartKind,
-    PartNode, PartTree, PartTreeError, VisualBuildContext, VisualUpdateContext,
+    ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionEndpoints,
+    ConnectionPartFactoryContext, ConnectionPartId, ConnectionRouterKey,
+    ConnectionRouterRegistration, ConnectionRouterSelection, ConnectionRoutingDescriptor,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditorNamespace,
+    PartFactoryContext, PartKind, PartNode, PartTree, PartTreeError, VisualBuildContext,
+    VisualUpdateContext,
 };
 pub use policy::{
-    ConnectionCreation, ConnectionReconnection, EditPolicy, FeedbackVisual, PolicyError,
-    PolicyHost, PolicyInstallation, PolicyRole,
+    ConnectionCreation, ConnectionFeedbackRoute, ConnectionReconnection, EditPolicy,
+    FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
 };
 pub use request::{
-    ChangeBoundsKind, ChangeBoundsRequest, ConnectionEndpoint, CreateConnectionRequest,
-    CreateRequest, CreationType, CreationTypeError, DeleteRequest, EditorRequest,
-    InteractionRevision, InteractionRevisionError, ReconnectConnectionRequest, RequestModifiers,
-    ResizeDirection,
+    BendpointOperation, BendpointRequest, ChangeBoundsKind, ChangeBoundsRequest,
+    ConnectionEndpoint, CreateConnectionRequest, CreateRequest, CreationType, CreationTypeError,
+    DeleteRequest, EditorRequest, InteractionRevision, InteractionRevisionError,
+    ReconnectConnectionRequest, RequestModifiers, ResizeDirection,
 };
 pub use selection::{SelectionDelta, SelectionModel};
 pub use tool::{
-    ConnectionCreationTool, ConnectionEndpointRelease, ConnectionEndpointTool, ConnectionToolPress,
-    SelectionTool, ToolError, ToolRelease,
+    ConnectionBendpointTool, ConnectionCreationTool, ConnectionEndpointRelease,
+    ConnectionEndpointTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,
 };
 pub use viewer::{
     GraphicalViewer, RootLayers, SelectionMode, ViewerError, ViewerInputOutcome, ViewerTarget,

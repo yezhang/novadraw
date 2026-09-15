@@ -2,11 +2,12 @@
 //!
 //! Part topology is separate from both application model containment and the Novadraw FigureTree.
 
-use std::{collections::HashMap, error::Error, fmt};
+use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
-    Figure, FigureId, FigureStyle, Runtime, RuntimeMutationError, RuntimeNamespace,
+    AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, Figure, FigureId, FigureStyle,
+    RoutingConstraint, Runtime, RuntimeMutationError, RuntimeNamespace,
 };
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;
@@ -152,6 +153,7 @@ pub struct PartTree<I> {
     root: EditPartId,
     contents: Option<EditPartId>,
     connections: Vec<ConnectionPartId>,
+    connection_positions: HashMap<ConnectionPartId, usize>,
     connection_endpoints: HashMap<ConnectionPartId, ConnectionEndpoints>,
     outgoing: HashMap<EditPartId, Vec<ConnectionPartId>>,
     incoming: HashMap<EditPartId, Vec<ConnectionPartId>>,
@@ -181,6 +183,7 @@ impl<I: Copy> PartTree<I> {
             root: EditPartId::from_local(namespace, root.data()),
             contents: None,
             connections: Vec::new(),
+            connection_positions: HashMap::new(),
             connection_endpoints: HashMap::new(),
             outgoing: HashMap::new(),
             incoming: HashMap::new(),
@@ -331,10 +334,13 @@ impl<I: Copy> PartTree<I> {
             }
         });
         let connection = ConnectionPartId(EditPartId::from_local(namespace, key.data()));
+        self.connection_positions
+            .insert(connection, self.connections.len());
         self.connections.push(connection);
         self.connection_endpoints
             .insert(connection, ConnectionEndpoints::new(source, target));
-        self.rebuild_connection_indexes();
+        self.outgoing.entry(source).or_default().push(connection);
+        self.incoming.entry(target).or_default().push(connection);
         Ok(connection)
     }
 
@@ -351,8 +357,22 @@ impl<I: Copy> PartTree<I> {
         if self.connection_endpoints.get(&connection) == Some(&endpoints) {
             return Ok(false);
         }
-        self.connection_endpoints.insert(connection, endpoints);
-        self.rebuild_connection_indexes();
+        if let Some(old) = self.connection_endpoints.insert(connection, endpoints) {
+            Self::remove_endpoint_connection(&mut self.outgoing, old.source, connection);
+            Self::remove_endpoint_connection(&mut self.incoming, old.target, connection);
+        }
+        Self::insert_endpoint_connection(
+            &mut self.outgoing,
+            &self.connection_positions,
+            source,
+            connection,
+        );
+        Self::insert_endpoint_connection(
+            &mut self.incoming,
+            &self.connection_positions,
+            target,
+            connection,
+        );
         Ok(true)
     }
 
@@ -361,11 +381,12 @@ impl<I: Copy> PartTree<I> {
         connection: ConnectionPartId,
     ) -> Result<bool, PartTreeError> {
         self.resolve_connection(connection)?;
-        let removed = self.connection_endpoints.remove(&connection).is_some();
-        if removed {
-            self.rebuild_connection_indexes();
-        }
-        Ok(removed)
+        let Some(endpoints) = self.connection_endpoints.remove(&connection) else {
+            return Ok(false);
+        };
+        Self::remove_endpoint_connection(&mut self.outgoing, endpoints.source, connection);
+        Self::remove_endpoint_connection(&mut self.incoming, endpoints.target, connection);
+        Ok(true)
     }
 
     pub(crate) fn set_connection_order(
@@ -386,6 +407,7 @@ impl<I: Copy> PartTree<I> {
             return Ok(false);
         }
         self.connections = order;
+        self.rebuild_connection_positions();
         self.rebuild_connection_indexes();
         Ok(true)
     }
@@ -400,8 +422,9 @@ impl<I: Copy> PartTree<I> {
         }
         self.connections
             .retain(|candidate| *candidate != connection);
+        self.connection_positions.remove(&connection);
         self.nodes.remove(key);
-        self.rebuild_connection_indexes();
+        self.rebuild_connection_positions();
         Ok(())
     }
 
@@ -538,6 +561,40 @@ impl<I: Copy> PartTree<I> {
                 .push(connection);
         }
     }
+
+    fn rebuild_connection_positions(&mut self) {
+        self.connection_positions.clear();
+        for (index, connection) in self.connections.iter().copied().enumerate() {
+            self.connection_positions.insert(connection, index);
+        }
+    }
+
+    fn insert_endpoint_connection(
+        index: &mut HashMap<EditPartId, Vec<ConnectionPartId>>,
+        positions: &HashMap<ConnectionPartId, usize>,
+        endpoint: EditPartId,
+        connection: ConnectionPartId,
+    ) {
+        let position = positions[&connection];
+        let connections = index.entry(endpoint).or_default();
+        let insertion = connections.partition_point(|candidate| positions[candidate] < position);
+        connections.insert(insertion, connection);
+    }
+
+    fn remove_endpoint_connection(
+        index: &mut HashMap<EditPartId, Vec<ConnectionPartId>>,
+        endpoint: EditPartId,
+        connection: ConnectionPartId,
+    ) {
+        let mut remove_entry = false;
+        if let Some(connections) = index.get_mut(&endpoint) {
+            connections.retain(|candidate| *candidate != connection);
+            remove_entry = connections.is_empty();
+        }
+        if remove_entry {
+            index.remove(&endpoint);
+        }
+    }
 }
 
 /// Part topology mutation failure.
@@ -628,6 +685,160 @@ pub struct ConnectionPartFactoryContext<I> {
     source_model: I,
     target_part: EditPartId,
     target_model: I,
+}
+
+/// Immutable endpoint context used to create a stable Connection Anchor descriptor.
+#[derive(Clone, Copy, Debug)]
+pub struct ConnectionAnchorContext<I> {
+    connection_model: Option<I>,
+    source_model: I,
+    target_model: Option<I>,
+    connection_figure: Option<FigureId>,
+    endpoint_figure: FigureId,
+}
+
+impl<I: Copy> ConnectionAnchorContext<I> {
+    pub(crate) const fn new(
+        connection_model: Option<I>,
+        source_model: I,
+        target_model: Option<I>,
+        connection_figure: Option<FigureId>,
+        endpoint_figure: FigureId,
+    ) -> Self {
+        Self {
+            connection_model,
+            source_model,
+            target_model,
+            connection_figure,
+            endpoint_figure,
+        }
+    }
+
+    /// Returns the represented connection model identity.
+    pub const fn connection_model(self) -> Option<I> {
+        self.connection_model
+    }
+
+    /// Returns the source endpoint model identity.
+    pub const fn source_model(self) -> I {
+        self.source_model
+    }
+
+    /// Returns the target endpoint model identity.
+    pub const fn target_model(self) -> Option<I> {
+        self.target_model
+    }
+
+    /// Returns the stable Connection Figure.
+    pub const fn connection_figure(self) -> Option<FigureId> {
+        self.connection_figure
+    }
+
+    /// Returns the endpoint Part's primary Figure.
+    pub const fn endpoint_figure(self) -> FigureId {
+        self.endpoint_figure
+    }
+}
+
+/// Application-provided Anchor strategy paired with a stable value key.
+pub struct ConnectionAnchorDescriptor {
+    key: AnchorSemanticKey,
+    anchor: Box<dyn ConnectionAnchor>,
+}
+
+/// Stable application key for a Router registered with one Viewer.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ConnectionRouterKey(Arc<str>);
+
+impl ConnectionRouterKey {
+    /// Creates a non-empty Router key.
+    pub fn new(value: impl AsRef<str>) -> Result<Self, EditPartError> {
+        let value = value.as_ref();
+        if value.is_empty() {
+            Err(EditPartError::operation(
+                "connection Router key must not be empty",
+            ))
+        } else {
+            Ok(Self(Arc::from(value)))
+        }
+    }
+
+    /// Returns the registered key text.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// One shared Router supplied by an [`EditPartFactory`].
+pub struct ConnectionRouterRegistration {
+    key: ConnectionRouterKey,
+    router: Box<dyn ConnectionRouter>,
+}
+
+impl ConnectionRouterRegistration {
+    /// Creates a named shared Router registration.
+    pub fn new(key: ConnectionRouterKey, router: Box<dyn ConnectionRouter>) -> Self {
+        Self { key, router }
+    }
+
+    pub(crate) fn into_parts(self) -> (ConnectionRouterKey, Box<dyn ConnectionRouter>) {
+        (self.key, self.router)
+    }
+}
+
+/// Router selection returned by a Connection Part behavior.
+pub enum ConnectionRouterSelection {
+    /// Use the owning ConnectionLayer's current Router.
+    Inherited,
+    /// Use one Router registered by the application factory.
+    Registered(ConnectionRouterKey),
+}
+
+/// Application-owned routing configuration for one Connection Part.
+pub struct ConnectionRoutingDescriptor {
+    selection: ConnectionRouterSelection,
+    constraint: Option<Box<dyn RoutingConstraint>>,
+}
+
+impl ConnectionRoutingDescriptor {
+    /// Uses the ConnectionLayer Router without a constraint.
+    pub const fn inherited() -> Self {
+        Self {
+            selection: ConnectionRouterSelection::Inherited,
+            constraint: None,
+        }
+    }
+
+    /// Uses a named shared Router and an optional typed constraint.
+    pub fn registered(
+        key: ConnectionRouterKey,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Self {
+        Self {
+            selection: ConnectionRouterSelection::Registered(key),
+            constraint,
+        }
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        ConnectionRouterSelection,
+        Option<Box<dyn RoutingConstraint>>,
+    ) {
+        (self.selection, self.constraint)
+    }
+}
+
+impl ConnectionAnchorDescriptor {
+    /// Creates a descriptor used to decide whether an existing AnchorId can be retained.
+    pub fn new(key: AnchorSemanticKey, anchor: Box<dyn ConnectionAnchor>) -> Self {
+        Self { key, anchor }
+    }
+
+    pub(crate) fn into_parts(self) -> (AnchorSemanticKey, Box<dyn ConnectionAnchor>) {
+        (self.key, self.anchor)
+    }
 }
 
 impl<I: Copy> ConnectionPartFactoryContext<I> {
@@ -825,6 +1036,44 @@ pub trait EditPartBehavior<A: ModelAdapter> {
         Ok(Vec::new())
     }
 
+    /// Returns the source Anchor selected by this endpoint Part for one stable connection.
+    fn source_connection_anchor(
+        &mut self,
+        _model: &A,
+        _model_id: A::ModelId,
+        _context: ConnectionAnchorContext<A::ModelId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        Ok(None)
+    }
+
+    /// Returns the target Anchor selected by this endpoint Part for one stable connection.
+    fn target_connection_anchor(
+        &mut self,
+        _model: &A,
+        _model_id: A::ModelId,
+        _context: ConnectionAnchorContext<A::ModelId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        Ok(None)
+    }
+
+    /// Returns the Router selection and typed constraint for a Connection Part.
+    fn connection_routing(
+        &mut self,
+        _model: &A,
+        _model_id: A::ModelId,
+    ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
+        Ok(ConnectionRoutingDescriptor::inherited())
+    }
+
+    /// Returns explicit bendpoint locations used by generic GEF bendpoint handles.
+    fn connection_bendpoints(
+        &mut self,
+        _model: &A,
+        _model_id: A::ModelId,
+    ) -> Result<Vec<novadraw_geometry::Point>, EditPartError> {
+        Ok(Vec::new())
+    }
+
     /// Refreshes visual properties from the current application model.
     fn refresh_visuals(
         &mut self,
@@ -846,6 +1095,11 @@ pub trait EditPartBehavior<A: ModelAdapter> {
 
 /// Factory for application-specific EditPart behavior.
 pub trait EditPartFactory<A: ModelAdapter> {
+    /// Creates shared Routers before the initial model projection.
+    fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
+        Ok(Vec::new())
+    }
+
     /// Creates behavior for one model object in a parent context.
     fn create(
         &mut self,

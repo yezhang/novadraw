@@ -4,11 +4,11 @@ use crate::identity::{RuntimeArena, RuntimeNamespace};
 
 use super::{
     AnchorGroupKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter, CoordinateSpace,
-    DependencyObservation, DependencySubject, DirectRouter, RouteError, RouteOutput, RouteRequest,
-    RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SELF_LOOP_DEFAULT_EXTENT,
-    SceneRead, SelfLoopRouter, TrackedSceneQuery,
+    DependencyObservation, DependencySubject, DirectRouter, LocatorError, LocatorPlacement,
+    RouteError, RouteOutput, RouteRequest, RouterId, RoutingConstraint, RoutingGroupQuery,
+    RoutingGroupScope, SceneRead, TrackedSceneQuery,
 };
-use crate::{FigureId, MAX_TREE_DEPTH};
+use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
 
 /// Selects either a ConnectionLayer default Router or an explicit Router.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -28,6 +28,17 @@ pub enum UnresolvedConnection {
     MissingTarget,
     /// Anchor or Router calculation failed.
     RouteFailed(RouteError),
+    /// The Connection Figure rejected prepared route geometry.
+    InvalidGeometry(FigureId),
+    /// A Connection child Locator could not resolve a placement.
+    LocatorFailed {
+        /// Child whose placement failed.
+        child: FigureId,
+        /// Pure locator failure.
+        error: LocatorError,
+    },
+    /// A registered Locator child no longer belongs to the Connection Figure.
+    InvalidLocatorChild(FigureId),
 }
 
 /// Current route lifecycle state.
@@ -86,6 +97,13 @@ pub enum ConnectionRuntimeError {
         /// Actual concrete type.
         actual: &'static str,
     },
+    /// Locator child is not a direct child of its Connection Figure.
+    InvalidLocatorChild {
+        /// Owning Connection.
+        connection: ConnectionId,
+        /// Child to be relocated.
+        child: FigureId,
+    },
     /// Connection cannot currently resolve both endpoints.
     Unresolved(UnresolvedConnection),
     /// A monotonic generation counter overflowed.
@@ -123,6 +141,10 @@ impl fmt::Display for ConnectionRuntimeError {
                 }
                 None => write!(formatter, "router does not accept constraint {actual}"),
             },
+            Self::InvalidLocatorChild { connection, child } => write!(
+                formatter,
+                "Figure {child:?} is not a direct child of Connection {connection:?}"
+            ),
             Self::Unresolved(reason) => write!(formatter, "Connection is unresolved: {reason:?}"),
             Self::GenerationExhausted => write!(formatter, "Connection generation exhausted"),
         }
@@ -148,7 +170,7 @@ pub(crate) struct RetiredConnections {
 }
 
 pub(crate) struct ConnectionRouteBatch {
-    pub(crate) outputs: Vec<(ConnectionId, RouteOutput)>,
+    calculations: Vec<RouteCalculation>,
 }
 
 pub(crate) struct ConnectionRouteBatchError {
@@ -156,11 +178,33 @@ pub(crate) struct ConnectionRouteBatchError {
     pub(crate) error: ConnectionRuntimeError,
 }
 
-struct RouteCalculation {
+pub(crate) struct RouteCalculation {
     connection: ConnectionId,
     output: RouteOutput,
     observations: Vec<DependencyObservation>,
     next_generation: u64,
+}
+
+struct ConnectionLocatorBinding {
+    connection: ConnectionId,
+    child: FigureId,
+    strategy: Box<dyn ConnectionLocatorStrategy>,
+}
+
+impl ConnectionRouteBatch {
+    pub(crate) fn calculations(&self) -> &[RouteCalculation] {
+        &self.calculations
+    }
+}
+
+impl RouteCalculation {
+    pub(crate) const fn connection(&self) -> ConnectionId {
+        self.connection
+    }
+
+    pub(crate) const fn output(&self) -> &RouteOutput {
+        &self.output
+    }
 }
 
 type TopologyObservations = Vec<DependencyObservation>;
@@ -176,6 +220,7 @@ pub(crate) struct ConnectionRuntime {
     order: Vec<ConnectionId>,
     by_dependency: HashMap<DependencySubject, Vec<ConnectionId>>,
     layer_defaults: HashMap<FigureId, RouterId>,
+    locators: Vec<ConnectionLocatorBinding>,
 }
 
 impl Default for ConnectionRuntime {
@@ -213,6 +258,9 @@ impl ConnectionRuntime {
         }
         self.order.retain(|id| !ids.contains(&id.figure()));
         self.layer_defaults.retain(|id, _| !ids.contains(id));
+        self.locators.retain(|binding| {
+            !ids.contains(&binding.connection.figure()) && !ids.contains(&binding.child)
+        });
         for &connection in &self.order {
             let state = self
                 .states
@@ -236,10 +284,7 @@ impl ConnectionRuntime {
     pub(crate) fn with_namespace(namespace: RuntimeNamespace) -> Self {
         let mut routers: RuntimeArena<RouterId, Box<dyn ConnectionRouter>> =
             RuntimeArena::new(namespace);
-        let direct_router = routers.insert(Box::new(
-            SelfLoopRouter::new(Box::new(DirectRouter), SELF_LOOP_DEFAULT_EXTENT)
-                .expect("default self-loop extent is valid"),
-        ));
+        let direct_router = routers.insert(Box::new(DirectRouter));
         Self {
             anchors: RuntimeArena::new(namespace),
             routers,
@@ -248,6 +293,7 @@ impl ConnectionRuntime {
             order: Vec::new(),
             by_dependency: HashMap::new(),
             layer_defaults: HashMap::new(),
+            locators: Vec::new(),
         }
     }
 
@@ -380,8 +426,62 @@ impl ConnectionRuntime {
             .remove(&connection)
             .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
         self.order.retain(|candidate| *candidate != connection);
+        self.locators
+            .retain(|binding| binding.connection != connection);
         self.remove_reverse_dependencies(connection, state.dependencies.keys());
         Ok(())
+    }
+
+    pub(crate) fn set_locator(
+        &mut self,
+        connection: ConnectionId,
+        child: FigureId,
+        strategy: Box<dyn ConnectionLocatorStrategy>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.state(connection)?;
+        self.next_dirty_revision(connection)?;
+        if let Some(binding) = self
+            .locators
+            .iter_mut()
+            .find(|binding| binding.child == child)
+        {
+            binding.connection = connection;
+            binding.strategy = strategy;
+        } else {
+            self.locators.push(ConnectionLocatorBinding {
+                connection,
+                child,
+                strategy,
+            });
+        }
+        self.mark_dirty(connection)
+    }
+
+    pub(crate) fn remove_locator(&mut self, child: FigureId) -> bool {
+        let old_len = self.locators.len();
+        self.locators.retain(|binding| binding.child != child);
+        self.locators.len() != old_len
+    }
+
+    pub(crate) fn locator_placements(
+        &self,
+        connection: ConnectionId,
+        points: &novadraw_geometry::PointList,
+    ) -> Result<Vec<(FigureId, LocatorPlacement)>, UnresolvedConnection> {
+        self.locators
+            .iter()
+            .filter(|binding| binding.connection == connection)
+            .map(|binding| {
+                binding
+                    .strategy
+                    .locate(points)
+                    .map(|placement| (binding.child, placement))
+                    .map_err(|error| UnresolvedConnection::LocatorFailed {
+                        child: binding.child,
+                        error,
+                    })
+            })
+            .collect()
     }
 
     pub(crate) fn state(
@@ -464,6 +564,22 @@ impl ConnectionRuntime {
         Ok(())
     }
 
+    pub(crate) fn set_route_configuration(
+        &mut self,
+        connection: ConnectionId,
+        binding: RouterBinding,
+        constraint: Option<Box<dyn RoutingConstraint>>,
+    ) -> Result<(), ConnectionRuntimeError> {
+        self.state(connection)?;
+        let router = self.resolve_router_binding(binding)?;
+        self.validate_constraint(router, constraint.as_deref())?;
+        self.invalidate_all()?;
+        let state = self.state_mut(connection)?;
+        state.router = binding;
+        state.constraint = constraint;
+        Ok(())
+    }
+
     pub(crate) fn route(
         &mut self,
         connection: ConnectionId,
@@ -508,32 +624,38 @@ impl ConnectionRuntime {
             calculations.push(calculation);
         }
 
-        for calculation in &calculations {
-            if let Err(error) =
-                self.replace_dependencies(calculation.connection, calculation.observations.clone())
-            {
-                return Err(ConnectionRouteBatchError {
-                    affected: members,
-                    error,
-                });
-            }
+        Ok(ConnectionRouteBatch { calculations })
+    }
+
+    pub(crate) fn commit_route_batch(
+        &mut self,
+        batch: &ConnectionRouteBatch,
+        routing_space: CoordinateSpace,
+    ) {
+        for calculation in batch.calculations() {
+            self.replace_dependencies(calculation.connection, calculation.observations.clone())
+                .expect("prepared route batch references registered connections");
             let state = self
                 .states
                 .get_mut(&calculation.connection)
-                .expect("calculated connection state must remain registered");
+                .expect("prepared route batch references registered connections");
             state.routing_space = Some(routing_space);
             state.route_generation = calculation.next_generation;
             state.resolution = ConnectionResolution::Resolved {
                 generation: state.route_generation,
             };
         }
+    }
 
-        Ok(ConnectionRouteBatch {
-            outputs: calculations
-                .into_iter()
-                .map(|calculation| (calculation.connection, calculation.output))
-                .collect(),
-        })
+    pub(crate) fn reject_route_batch(
+        &mut self,
+        batch: &ConnectionRouteBatch,
+        reason: UnresolvedConnection,
+    ) {
+        for calculation in batch.calculations() {
+            self.set_unresolved(calculation.connection, reason.clone())
+                .expect("prepared route batch references registered connections");
+        }
     }
 
     pub(crate) fn invalidate_dependency(
@@ -599,7 +721,28 @@ impl ConnectionRuntime {
             })
             .cloned()
             .collect();
-        self.invalidate_subjects(&affected_subjects)
+        let own_connection = ConnectionId::from_figure(figure);
+        let directly_affected = self
+            .order
+            .iter()
+            .copied()
+            .filter(|connection| {
+                *connection == own_connection
+                    || affected_subjects.iter().any(|subject| {
+                        self.by_dependency
+                            .get(subject)
+                            .is_some_and(|dependents| dependents.contains(connection))
+                    })
+            })
+            .collect::<Vec<_>>();
+        let affected = self.expand_group_invalidation(&directly_affected)?;
+        for connection in &affected {
+            self.next_dirty_revision(*connection)?;
+        }
+        for connection in &affected {
+            self.mark_dirty(*connection)?;
+        }
+        Ok(affected)
     }
 
     pub(crate) fn invalidate_all(&mut self) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {

@@ -14,8 +14,6 @@ pub const FAN_DEFAULT_SEPARATION: f64 = 16.0;
 pub const MANHATTAN_DEFAULT_LANE_SPACING: f64 = 8.0;
 /// Default minimum length retained for endpoint-adjacent Manhattan stubs.
 pub const MANHATTAN_DEFAULT_MINIMUM_STUB: f64 = 10.0;
-/// Default logical distance between a self-loop and its endpoint owner.
-pub const SELF_LOOP_DEFAULT_EXTENT: f64 = 32.0;
 
 /// Scope used by Routers with cross-connection behavior.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -212,94 +210,6 @@ impl ConnectionRouter for DirectRouter {
         )
     }
 }
-
-/// Router wrapper that gives same-owner endpoints a visible route outside their owner.
-pub struct SelfLoopRouter {
-    base: Box<dyn ConnectionRouter>,
-    extent: f64,
-}
-
-impl SelfLoopRouter {
-    /// Wraps another Router and uses `extent` for automatically generated self-loops.
-    pub fn new(base: Box<dyn ConnectionRouter>, extent: f64) -> Result<Self, SelfLoopRouterError> {
-        if !extent.is_finite() || extent <= 0.0 {
-            return Err(SelfLoopRouterError);
-        }
-        Ok(Self { base, extent })
-    }
-}
-
-impl ConnectionRouter for SelfLoopRouter {
-    fn route(&self, request: RouteRequest<'_>) -> Result<RouteOutput, RouteError> {
-        let same_owner = request
-            .source
-            .owner()
-            .zip(request.target.owner())
-            .is_some_and(|(source, target)| source == target);
-        if !same_owner || request.constraint.is_some() {
-            return self.base.route(request);
-        }
-
-        let center = request
-            .source
-            .reference_point(request.scene, request.routing_space)
-            .map_err(RouteError::Source)?;
-        let source_reference = center + Vector::new(self.extent, -self.extent / 2.0);
-        let target_reference = center + Vector::new(self.extent, self.extent / 2.0);
-        let metadata = resolve_endpoints(
-            request.source,
-            request.target,
-            request.scene,
-            request.routing_space,
-            Some(source_reference),
-            Some(target_reference),
-        )?;
-        let source = metadata.source.site.point;
-        let target = metadata.target.site.point;
-        let outer_x = source.x().max(target.x()) + self.extent;
-        let mut source_outer = Point::new(outer_x, source.y());
-        let mut target_outer = Point::new(outer_x, target.y());
-        if (source.y() - target.y()).abs() <= f64::EPSILON {
-            source_outer = Point::new(outer_x, source.y() - self.extent / 2.0);
-            target_outer = Point::new(outer_x, target.y() + self.extent / 2.0);
-        }
-        RouteOutput::new(
-            PointList::from_points(vec![source, source_outer, target_outer, target]),
-            metadata,
-        )
-    }
-
-    fn constraint_type(&self) -> Option<TypeId> {
-        self.base.constraint_type()
-    }
-
-    fn constraint_type_name(&self) -> Option<&'static str> {
-        self.base.constraint_type_name()
-    }
-
-    fn requires_group(&self) -> bool {
-        self.base.requires_group()
-    }
-
-    fn routing_group_scope(&self) -> RoutingGroupScope {
-        self.base.routing_group_scope()
-    }
-}
-
-/// Failure to construct a [`SelfLoopRouter`].
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SelfLoopRouterError;
-
-impl fmt::Display for SelfLoopRouterError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "self-loop extent must be finite and greater than zero"
-        )
-    }
-}
-
-impl Error for SelfLoopRouterError {}
 
 /// One Bendpoint in the Connection routing domain.
 #[derive(Clone, Copy, Debug, PartialEq)]

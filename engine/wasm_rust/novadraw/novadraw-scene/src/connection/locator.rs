@@ -139,6 +139,8 @@ pub enum LocatorError {
     InvalidFraction,
     /// Route has no non-zero length.
     DegenerateRoute,
+    /// Custom Locator returned a non-finite point or reference.
+    NonFinitePlacement,
 }
 
 impl fmt::Display for LocatorError {
@@ -156,6 +158,7 @@ impl fmt::Display for LocatorError {
             ),
             Self::InvalidFraction => write!(formatter, "path fraction must be in [0, 1]"),
             Self::DegenerateRoute => write!(formatter, "route has no non-zero length"),
+            Self::NonFinitePlacement => write!(formatter, "locator placement must be finite"),
         }
     }
 }

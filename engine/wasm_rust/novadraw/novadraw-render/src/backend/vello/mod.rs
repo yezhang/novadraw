@@ -683,6 +683,7 @@ impl VelloRenderer {
                     color.a as f32,
                 ]);
                 let stroke = Stroke::new(*width * self.scale_factor)
+                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
                     .with_caps(match cap {
                         crate::command::LineCap::Butt => Cap::Butt,
                         crate::command::LineCap::Round => Cap::Round,
@@ -720,6 +721,7 @@ impl VelloRenderer {
                 ]);
 
                 let stroke = Stroke::new(*width * self.scale_factor)
+                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
                     .with_caps(match cap {
                         crate::command::LineCap::Butt => Cap::Butt,
                         crate::command::LineCap::Round => Cap::Round,
@@ -761,6 +763,7 @@ impl VelloRenderer {
                 ]);
 
                 let stroke = Stroke::new(*width * self.scale_factor)
+                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
                     .with_caps(match cap {
                         crate::command::LineCap::Butt => Cap::Butt,
                         crate::command::LineCap::Round => Cap::Round,
@@ -832,6 +835,7 @@ impl VelloRenderer {
                         color.a as f32,
                     ]);
                     let stroke = Stroke::new(*stroke_width * self.scale_factor)
+                        .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
                         .with_caps(match cap {
                             crate::command::LineCap::Butt => Cap::Butt,
                             crate::command::LineCap::Round => Cap::Round,
@@ -948,6 +952,7 @@ impl VelloRenderer {
                     crate::command::LineJoin::Bevel => Join::Bevel,
                 };
                 let stroke = Stroke::new(width * self.scale_factor)
+                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
                     .with_caps(cap)
                     .with_join(join);
 

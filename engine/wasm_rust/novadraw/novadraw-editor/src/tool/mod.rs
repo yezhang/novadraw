@@ -6,11 +6,11 @@ use novadraw_geometry::{Dimension, Point, Vec2};
 use novadraw_scene::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
 
 use crate::{
-    ChangeBoundsRequest, Command, ConnectionCreation, ConnectionEndpoint, ConnectionPartId,
-    ConnectionReconnection, CreateConnectionRequest, CreationType, EditPartFactory, EditPartId,
-    EditorRequest, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
-    ReconnectConnectionRequest, RequestModifiers, ResizeDirection, ViewerError, ViewerInputOutcome,
-    ViewerTarget,
+    BendpointOperation, BendpointRequest, ChangeBoundsRequest, Command, ConnectionCreation,
+    ConnectionEndpoint, ConnectionPartId, ConnectionReconnection, CreateConnectionRequest,
+    CreationType, EditPartFactory, EditPartId, EditorRequest, GraphicalViewer, HandleRole,
+    InteractionRevision, ModelAdapter, ReconnectConnectionRequest, RequestModifiers,
+    ResizeDirection, ViewerError, ViewerInputOutcome, ViewerTarget,
 };
 
 const DRAG_START_DISTANCE: f64 = 2.0;
@@ -174,6 +174,10 @@ impl SelectionTool {
                 role: HandleRole::ConnectionEndpoint(_),
                 ..
             }
+            | ViewerTarget::Handle {
+                role: HandleRole::BendpointMove(_) | HandleRole::BendpointCreate(_),
+                ..
+            }
             | ViewerTarget::Contents(_)
             | ViewerTarget::Part(_) => return Ok(outcome),
         };
@@ -286,6 +290,136 @@ pub struct ConnectionEndpointTool<A: ModelAdapter> {
     connection: ConnectionPartId,
     endpoint: ConnectionEndpoint,
     gesture: Option<ReconnectGesture<A>>,
+}
+
+struct BendpointGesture {
+    connection: ConnectionPartId,
+    operation: BendpointOperation,
+    start: Point,
+    modifiers: RequestModifiers,
+    feedback: Vec<FigureId>,
+}
+
+/// Drag Tool for creating or moving one connection bendpoint.
+#[derive(Default)]
+pub struct ConnectionBendpointTool {
+    gesture: Option<BendpointGesture>,
+}
+
+impl ConnectionBendpointTool {
+    /// Creates an idle bendpoint Tool.
+    pub const fn new() -> Self {
+        Self { gesture: None }
+    }
+
+    /// Returns whether one bendpoint drag is active.
+    pub const fn is_active(&self) -> bool {
+        self.gesture.is_some()
+    }
+
+    /// Starts a bendpoint operation from a typed handle.
+    pub fn pointer_pressed<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        connection: ConnectionPartId,
+        operation: BendpointOperation,
+        location: Point,
+        button: MouseButton,
+        modifiers: KeyModifiers,
+    ) -> Result<ViewerInputOutcome, ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        let outcome =
+            viewer.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button);
+        if !outcome.dispatch().is_handled() && button == MouseButton::Left {
+            self.gesture = Some(BendpointGesture {
+                connection,
+                operation,
+                start: location,
+                modifiers: request_modifiers(modifiers),
+                feedback: Vec::new(),
+            });
+        }
+        Ok(outcome)
+    }
+
+    /// Updates bendpoint feedback after the drag threshold.
+    pub fn pointer_moved<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<DispatchOutcome, ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        let Some(gesture) = &mut self.gesture else {
+            return Ok(dispatch);
+        };
+        if (location - gesture.start).length() < DRAG_START_DISTANCE {
+            return Ok(dispatch);
+        }
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        let request = EditorRequest::Bendpoint(BendpointRequest::new(
+            gesture.connection,
+            gesture.operation,
+            location,
+            gesture.modifiers,
+            revision,
+        ));
+        gesture.feedback = viewer.show_feedback_for_request(&request)?;
+        Ok(dispatch)
+    }
+
+    /// Clears feedback and returns the final bendpoint request.
+    pub fn pointer_released<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        button: MouseButton,
+        revision: InteractionRevision,
+    ) -> Result<ToolRelease, ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        let dispatch = viewer.dispatch_mouse_released(location.x(), location.y(), button);
+        let Some(mut gesture) = self.gesture.take() else {
+            return Ok(ToolRelease {
+                dispatch,
+                request: None,
+            });
+        };
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        let request = (button == MouseButton::Left
+            && (location - gesture.start).length() >= DRAG_START_DISTANCE)
+            .then(|| {
+                EditorRequest::Bendpoint(BendpointRequest::new(
+                    gesture.connection,
+                    gesture.operation,
+                    location,
+                    gesture.modifiers,
+                    revision,
+                ))
+            });
+        Ok(ToolRelease { dispatch, request })
+    }
+
+    /// Cancels the bendpoint drag and clears transient feedback.
+    pub fn cancel<A, F>(&mut self, viewer: &mut GraphicalViewer<A, F>) -> Result<(), ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        if let Some(mut gesture) = self.gesture.take() {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
+        Ok(())
+    }
 }
 
 impl<A: ModelAdapter> ConnectionEndpointTool<A> {

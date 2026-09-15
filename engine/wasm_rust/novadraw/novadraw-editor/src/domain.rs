@@ -6,10 +6,10 @@ use novadraw_geometry::Point;
 use novadraw_scene::{DispatchOutcome, KeyModifiers, MouseButton};
 
 use crate::{
-    CommandStack, CommandStackError, ConnectionCreationTool, ConnectionEndpointTool, CreationType,
-    EditPartFactory, EditorRequest, GraphicalViewer, HandleRole, InteractionRevision,
-    InteractionRevisionError, ModelAdapter, SelectionTool, ToolError, ViewerError,
-    ViewerInputOutcome, ViewerTarget,
+    BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
+    ConnectionCreationTool, ConnectionEndpointTool, CreationType, EditPartFactory, EditorRequest,
+    GraphicalViewer, HandleRole, InteractionRevision, InteractionRevisionError, ModelAdapter,
+    SelectionTool, ToolError, ViewerError, ViewerInputOutcome, ViewerTarget,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -100,6 +100,7 @@ pub struct EditorDomain<A: ModelAdapter> {
     selection_tool: SelectionTool,
     connection_tool: Option<ConnectionCreationTool<A>>,
     endpoint_tool: Option<ConnectionEndpointTool<A>>,
+    bendpoint_tool: ConnectionBendpointTool,
     next_revision: InteractionRevision,
 }
 
@@ -117,6 +118,7 @@ impl<A: ModelAdapter> EditorDomain<A> {
             selection_tool: SelectionTool::new(),
             connection_tool: None,
             endpoint_tool: None,
+            bendpoint_tool: ConnectionBendpointTool::new(),
             next_revision: InteractionRevision::initial(),
         }
     }
@@ -137,6 +139,7 @@ impl<A: ModelAdapter> EditorDomain<A> {
                 Some(tool) => tool.is_active(),
                 None => false,
             }
+            || self.bendpoint_tool.is_active()
     }
 
     /// Returns whether the one-shot connection-creation Tool is armed.
@@ -173,6 +176,7 @@ where
             tool.cancel(viewer)?;
         }
         self.endpoint_tool = None;
+        self.bendpoint_tool.cancel(viewer)?;
         self.connection_tool = Some(ConnectionCreationTool::new(connection_type));
         Ok(())
     }
@@ -258,6 +262,25 @@ where
             }
             return Ok(outcome);
         }
+        if let ViewerTarget::Handle { owner, role, .. } =
+            viewer.target_at(location.x(), location.y())
+            && let Some(connection) = viewer.as_connection_part(owner)
+        {
+            let operation = match role {
+                HandleRole::BendpointMove(index) => BendpointOperation::Move { index },
+                HandleRole::BendpointCreate(index) => BendpointOperation::Create { index },
+                HandleRole::Selection
+                | HandleRole::Resize(_)
+                | HandleRole::ConnectionEndpoint(_) => {
+                    return Ok(self
+                        .selection_tool
+                        .pointer_pressed(viewer, location, button, modifiers)?);
+                }
+            };
+            return Ok(self
+                .bendpoint_tool
+                .pointer_pressed(viewer, connection, operation, location, button, modifiers)?);
+        }
         Ok(self
             .selection_tool
             .pointer_pressed(viewer, location, button, modifiers)?)
@@ -273,6 +296,11 @@ where
         F: EditPartFactory<A>,
     {
         let revision = self.next_interaction_revision()?;
+        if self.bendpoint_tool.is_active() {
+            return Ok(self
+                .bendpoint_tool
+                .pointer_moved(viewer, location, revision)?);
+        }
         if let Some(tool) = &mut self.endpoint_tool {
             return Ok(tool.pointer_moved(viewer, location, revision)?);
         }
@@ -304,6 +332,24 @@ where
                 self.command_stack.execute(viewer.model_mut(), command)?;
                 viewer.refresh()?;
             }
+            return Ok(DomainPointerRelease {
+                dispatch,
+                command_executed,
+            });
+        }
+        if self.bendpoint_tool.is_active() {
+            let revision = self.next_interaction_revision()?;
+            let release = self
+                .bendpoint_tool
+                .pointer_released(viewer, location, button, revision)?;
+            let dispatch = release.dispatch();
+            let request = release.into_request();
+            let command_executed = if let Some(request) = request {
+                self.execute_request(viewer, &request)?;
+                true
+            } else {
+                false
+            };
             return Ok(DomainPointerRelease {
                 dispatch,
                 command_executed,
@@ -360,6 +406,7 @@ where
             tool.cancel(viewer)?;
         }
         self.endpoint_tool = None;
+        self.bendpoint_tool.cancel(viewer)?;
         Ok(())
     }
 }

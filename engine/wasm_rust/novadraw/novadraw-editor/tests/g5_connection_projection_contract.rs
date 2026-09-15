@@ -6,14 +6,15 @@ use std::{
 };
 
 use novadraw_editor::{
-    ConnectionPartFactoryContext, EditPartBehavior, EditPartError, EditPartFactory,
-    GraphicalViewer, ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext,
-    PartKind, ViewerError, VisualUpdateContext,
+    ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionPartFactoryContext,
+    EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter,
+    ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PartKind, ViewerError,
+    VisualUpdateContext,
 };
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
-    ConnectionFigure, ConnectionId, ConnectionResolution, ConnectionRuntimeError, Figure,
-    RectangleFigure, RootFigure,
+    AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionResolution,
+    ConnectionRuntimeError, Figure, RectangleFigure, RootFigure,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -38,6 +39,7 @@ struct DiagramModel {
     connections: Vec<ModelConnection<ModelId>>,
     events: Vec<ModelEvent<ModelId, DiagramEvent>>,
     drift_during_connections: Cell<bool>,
+    anchor_versions: HashMap<ModelId, u64>,
 }
 
 impl DiagramModel {
@@ -54,6 +56,7 @@ impl DiagramModel {
             connections,
             events: Vec::new(),
             drift_during_connections: Cell::new(false),
+            anchor_versions: HashMap::new(),
         }
     }
 
@@ -135,6 +138,27 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     ) -> Result<(), EditPartError> {
         context.set_primary_bounds(model.bounds[&model_id])?;
         Ok(())
+    }
+
+    fn source_connection_anchor(
+        &mut self,
+        model: &DiagramModel,
+        model_id: ModelId,
+        context: ConnectionAnchorContext<ModelId>,
+    ) -> Result<Option<ConnectionAnchorDescriptor>, EditPartError> {
+        let Some(version) = model.anchor_versions.get(&model_id).copied() else {
+            return Ok(None);
+        };
+        let key = AnchorSemanticKey::new(
+            Some(context.endpoint_figure()),
+            "test-source-port",
+            vec![version],
+        )
+        .unwrap();
+        Ok(Some(ConnectionAnchorDescriptor::new(
+            key,
+            Box::new(ChopboxAnchor::new(context.endpoint_figure())),
+        )))
     }
 
     fn activate(&mut self, _model: &DiagramModel, model_id: ModelId) -> Result<(), EditPartError> {
@@ -426,6 +450,49 @@ fn reconnect_preserves_part_figure_order_and_unchanged_anchor() {
     assert_ne!(after.target, before.target);
     assert_eq!(endpoints.source(), viewer.part_for_model(FIRST).unwrap());
     assert_eq!(endpoints.target(), viewer.part_for_model(THIRD).unwrap());
+}
+
+#[test]
+fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end() {
+    let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
+    viewer.model_mut().anchor_versions.insert(FIRST, 1);
+    viewer.model_mut().publish();
+    viewer.refresh().unwrap();
+
+    let connection = viewer.connection_part_for_model(EDGE_A).unwrap();
+    let figure = viewer
+        .parts()
+        .get(connection.edit_part())
+        .unwrap()
+        .primary_figure();
+    let first = viewer
+        .runtime()
+        .connection_state(ConnectionId::from_figure(figure))
+        .unwrap();
+
+    viewer.model_mut().publish();
+    viewer.refresh().unwrap();
+    let same_key = viewer
+        .runtime()
+        .connection_state(ConnectionId::from_figure(figure))
+        .unwrap();
+    assert_eq!(same_key.source, first.source);
+    assert_eq!(same_key.target, first.target);
+
+    viewer.model_mut().anchor_versions.insert(FIRST, 2);
+    viewer.model_mut().publish();
+    viewer.refresh().unwrap();
+    let changed_key = viewer
+        .runtime()
+        .connection_state(ConnectionId::from_figure(figure))
+        .unwrap();
+    assert_ne!(changed_key.source, first.source);
+    assert_eq!(changed_key.target, first.target);
+    assert_eq!(
+        viewer.connection_part_for_model(EDGE_A),
+        Some(connection),
+        "anchor replacement must retain ConnectionPart identity"
+    );
 }
 
 #[test]

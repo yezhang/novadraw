@@ -102,6 +102,80 @@ pub enum ConnectionEndpoint {
     Target,
 }
 
+/// Mutation applied to an ordered connection bendpoint list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BendpointOperation {
+    /// Insert a bendpoint at the segment's insertion index.
+    Create {
+        /// Insertion index in the ordered bendpoint list.
+        index: usize,
+    },
+    /// Move an existing bendpoint.
+    Move {
+        /// Index in the ordered bendpoint list.
+        index: usize,
+    },
+    /// Remove an existing bendpoint.
+    Delete {
+        /// Index in the ordered bendpoint list.
+        index: usize,
+    },
+}
+
+/// Typed intent to mutate one connection bendpoint.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BendpointRequest {
+    connection: ConnectionPartId,
+    operation: BendpointOperation,
+    location: Point,
+    modifiers: RequestModifiers,
+    revision: InteractionRevision,
+}
+
+impl BendpointRequest {
+    /// Creates a bendpoint request.
+    pub fn new(
+        connection: ConnectionPartId,
+        operation: BendpointOperation,
+        location: Point,
+        modifiers: RequestModifiers,
+        revision: InteractionRevision,
+    ) -> Self {
+        Self {
+            connection,
+            operation,
+            location,
+            modifiers,
+            revision,
+        }
+    }
+
+    /// Returns the owning connection.
+    pub const fn connection(&self) -> ConnectionPartId {
+        self.connection
+    }
+
+    /// Returns the bendpoint mutation.
+    pub const fn operation(&self) -> BendpointOperation {
+        self.operation
+    }
+
+    /// Returns the latest pointer location.
+    pub const fn location(&self) -> Point {
+        self.location
+    }
+
+    /// Returns the modifier snapshot.
+    pub const fn modifiers(&self) -> RequestModifiers {
+        self.modifiers
+    }
+
+    /// Returns the interaction revision.
+    pub const fn revision(&self) -> InteractionRevision {
+        self.revision
+    }
+}
+
 /// Bounds operation requested for selected parts.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ChangeBoundsKind {
@@ -482,6 +556,8 @@ pub enum EditorRequest {
     CreateConnection(CreateConnectionRequest),
     /// Move one endpoint of an existing connection.
     ReconnectConnection(ReconnectConnectionRequest),
+    /// Create, move, or delete one connection bendpoint.
+    Bendpoint(BendpointRequest),
 }
 
 impl EditorRequest {
@@ -496,6 +572,7 @@ impl EditorRequest {
             Self::Delete(_) => "Delete",
             Self::CreateConnection(_) => "Create connection",
             Self::ReconnectConnection(_) => "Reconnect connection",
+            Self::Bendpoint(_) => "Edit bendpoint",
         }
     }
 
@@ -507,6 +584,7 @@ impl EditorRequest {
             Self::Delete(request) => request.revision(),
             Self::CreateConnection(request) => request.revision(),
             Self::ReconnectConnection(request) => request.revision(),
+            Self::Bendpoint(request) => request.revision(),
         }
     }
 
@@ -520,6 +598,7 @@ impl EditorRequest {
             Self::ReconnectConnection(request) => {
                 std::slice::from_ref(request.connection.edit_part_ref())
             }
+            Self::Bendpoint(request) => std::slice::from_ref(request.connection.edit_part_ref()),
         }
     }
 }

@@ -1,18 +1,21 @@
 use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use novadraw::{
-    BuiltinFont, Color, ConnectionFigure, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, BuiltinFont, Color,
+    ConnectionFigure, DirectRouter, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
     PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure,
     backend::vello::VelloRenderer, rectangle_boundary_site,
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
-    Command, CommandError, ConnectionCreation, ConnectionEndpoint, ConnectionPartFactoryContext,
-    ConnectionReconnection, CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest,
-    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest,
-    FeedbackVisual, GraphicalViewer, HandleRole, ModelAdapter, ModelConnection, ModelEvent,
-    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
-    ReconnectConnectionRequest, RequestModifiers, ResizeDirection, VisualUpdateContext,
+    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
+    ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
+    ConnectionReconnection, ConnectionRouterKey, ConnectionRouterRegistration,
+    ConnectionRoutingDescriptor, CreateConnectionRequest, CreateRequest, CreationType,
+    DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain,
+    EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole, ModelAdapter, ModelConnection,
+    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
+    PolicyRole, ReconnectConnectionRequest, RequestModifiers, ResizeDirection, VisualUpdateContext,
 };
 use winit::{
     application::ApplicationHandler,
@@ -23,18 +26,42 @@ use winit::{
     window::{Window, WindowAttributes, WindowId},
 };
 
+mod self_loop_router;
+
+use self_loop_router::VisibleSelfLoopRouter;
+
 const WIDTH: f64 = 820.0;
 const HEIGHT: f64 = 560.0;
 const HANDLE_SIZE: f64 = 10.0;
+const BENDPOINT_CREATE_HANDLE_SIZE: f64 = 7.0;
+const BENDPOINT_DELETE_TOLERANCE: f64 = 7.0;
 const MIN_NODE_SIZE: f64 = 32.0;
 const CREATED_NODE_WIDTH: f64 = 140.0;
 const CREATED_NODE_HEIGHT: f64 = 90.0;
 const CREATED_NODE_OFFSET: f64 = 18.0;
 const FIRST_CONNECTION_ID: u64 = 1_000;
+const SELF_LOOP_EXTENT: f64 = 32.0;
+const BENDPOINT_ROUTER_KEY: &str = "demo-bendpoint";
+
+fn bendpoint_router_key() -> ConnectionRouterKey {
+    ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).expect("static Router key is valid")
+}
 const PRIMARY_HANDLE_COLOR: Color = Color {
     r: 0.98,
     g: 0.78,
     b: 0.12,
+    a: 1.0,
+};
+const BENDPOINT_HANDLE_COLOR: Color = Color {
+    r: 0.94,
+    g: 0.42,
+    b: 0.12,
+    a: 1.0,
+};
+const BENDPOINT_CREATE_HANDLE_COLOR: Color = Color {
+    r: 0.1,
+    g: 0.72,
+    b: 0.72,
     a: 1.0,
 };
 const SECONDARY_HANDLE_COLOR: Color = Color {
@@ -71,6 +98,7 @@ struct DemoModel {
     nodes: HashMap<NodeId, Node>,
     children: HashMap<NodeId, Vec<NodeId>>,
     connections: Vec<ModelConnection<NodeId>>,
+    bendpoints: HashMap<NodeId, Vec<Point>>,
     events: Vec<ModelEvent<NodeId, DemoEvent>>,
     next_id: u64,
     next_connection_id: u64,
@@ -117,6 +145,7 @@ impl DemoModel {
             ]),
             children: HashMap::from([(NodeId(1), vec![NodeId(2), NodeId(3), NodeId(4)])]),
             connections: Vec::new(),
+            bendpoints: HashMap::new(),
             events: Vec::new(),
             next_id: 5,
             next_connection_id: FIRST_CONNECTION_ID,
@@ -164,7 +193,11 @@ impl DemoModel {
         let mut connections = Vec::new();
         for (connection_index, connection) in self.connections.iter().copied().enumerate() {
             if connection.source() == id || connection.target() == id {
-                connections.push((connection_index, connection));
+                connections.push((
+                    connection_index,
+                    connection,
+                    self.bendpoints.remove(&connection.id()).unwrap_or_default(),
+                ));
             }
         }
         self.connections
@@ -179,26 +212,33 @@ impl DemoModel {
 
     fn restore(&mut self, id: NodeId, removed: RemovedNode) {
         self.insert(id, removed.node, removed.index);
-        for (index, connection) in removed.connections {
+        for (index, connection, bendpoints) in removed.connections {
             self.connections.insert(index, connection);
+            self.bendpoints.insert(connection.id(), bendpoints);
         }
     }
 
     fn insert_connection(&mut self, connection: ModelConnection<NodeId>, index: usize) {
         self.connections.insert(index, connection);
+        self.bendpoints.entry(connection.id()).or_default();
         self.next_connection_id = self.next_connection_id.max(connection.id().0 + 1);
         self.publish(connection.id());
     }
 
-    fn remove_connection(&mut self, id: NodeId) -> (ModelConnection<NodeId>, usize) {
+    fn remove_connection(&mut self, id: NodeId) -> RemovedConnection {
         let index = self
             .connections
             .iter()
             .position(|connection| connection.id() == id)
             .expect("connection command references a live connection");
         let connection = self.connections.remove(index);
+        let bendpoints = self.bendpoints.remove(&id).unwrap_or_default();
         self.publish(id);
-        (connection, index)
+        RemovedConnection {
+            connection,
+            index,
+            bendpoints,
+        }
     }
 
     fn replace_connection(&mut self, connection: ModelConnection<NodeId>) {
@@ -210,12 +250,23 @@ impl DemoModel {
         *slot = connection;
         self.publish(connection.id());
     }
+
+    fn set_bendpoints(&mut self, connection: NodeId, bendpoints: Vec<Point>) {
+        self.bendpoints.insert(connection, bendpoints);
+        self.publish(connection);
+    }
 }
 
 struct RemovedNode {
     node: Node,
     index: usize,
-    connections: Vec<(usize, ModelConnection<NodeId>)>,
+    connections: Vec<(usize, ModelConnection<NodeId>, Vec<Point>)>,
+}
+
+struct RemovedConnection {
+    connection: ModelConnection<NodeId>,
+    index: usize,
+    bendpoints: Vec<Point>,
 }
 
 impl ModelAdapter for DemoModel {
@@ -337,8 +388,8 @@ impl Command<DemoModel> for CreateConnectionCommand {
     }
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        let (connection, index) = model.remove_connection(self.connection.id());
-        if connection != self.connection || index != self.index {
+        let removed = model.remove_connection(self.connection.id());
+        if removed.connection != self.connection || removed.index != self.index {
             return Err(CommandError::state_unknown(
                 "connection identity or order changed during undo",
             ));
@@ -349,12 +400,34 @@ impl Command<DemoModel> for CreateConnectionCommand {
 
 struct DeleteConnectionCommand {
     id: NodeId,
-    removed: Option<(ModelConnection<NodeId>, usize)>,
+    removed: Option<RemovedConnection>,
 }
 
 struct ReconnectCommand {
     before: ModelConnection<NodeId>,
     after: ModelConnection<NodeId>,
+}
+
+struct SetBendpointsCommand {
+    connection: NodeId,
+    before: Vec<Point>,
+    after: Vec<Point>,
+}
+
+impl Command<DemoModel> for SetBendpointsCommand {
+    fn label(&self) -> &str {
+        "Edit bendpoint"
+    }
+
+    fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.set_bendpoints(self.connection, self.after.clone());
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.set_bendpoints(self.connection, self.before.clone());
+        Ok(())
+    }
 }
 
 impl Command<DemoModel> for ReconnectCommand {
@@ -384,11 +457,13 @@ impl Command<DemoModel> for DeleteConnectionCommand {
     }
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
-        let (connection, index) = self
+        let removed = self
             .removed
             .take()
             .ok_or_else(|| CommandError::state_unknown("deleted connection snapshot is missing"))?;
-        model.insert_connection(connection, index);
+        let connection = removed.connection;
+        model.insert_connection(connection, removed.index);
+        model.bendpoints.insert(connection.id(), removed.bendpoints);
         Ok(())
     }
 }
@@ -469,6 +544,42 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
         Ok(feedback)
     }
 
+    fn feedback_with_route(
+        &mut self,
+        source: PolicyHost<NodeId>,
+        target: Option<PolicyHost<NodeId>>,
+        request: &CreateConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        model: &DemoModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let Some(route) = route else {
+            return self.feedback(source, target, request, model);
+        };
+        let line = PolylineFigure::new_with_color(
+            route.source().x(),
+            route.source().y(),
+            route.target().x(),
+            route.target().y(),
+            FEEDBACK_COLOR,
+        )
+        .with_width(3.0);
+        let mut feedback = vec![FeedbackVisual::scaled(Box::new(line))];
+        if let Some(target) = target {
+            let bounds = model.nodes[&target.model()].bounds;
+            feedback.push(FeedbackVisual::scaled(Box::new(
+                RectangleFigure::new_with_color(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    bounds.height,
+                    Color::TRANSPARENT,
+                )
+                .with_stroke(FEEDBACK_COLOR, 3.0),
+            )));
+        }
+        Ok(feedback)
+    }
+
     fn command(
         &mut self,
         source: PolicyHost<NodeId>,
@@ -535,7 +646,8 @@ impl EditPolicy<DemoModel> for NodePolicy {
             }
             EditorRequest::Create(_)
             | EditorRequest::CreateConnection(_)
-            | EditorRequest::ReconnectConnection(_) => Ok(None),
+            | EditorRequest::ReconnectConnection(_)
+            | EditorRequest::Bendpoint(_) => Ok(None),
         }
     }
 
@@ -747,6 +859,36 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
         ))])
     }
 
+    fn feedback_with_route(
+        &mut self,
+        connection: PolicyHost<NodeId>,
+        fixed: PolicyHost<NodeId>,
+        candidate: Option<PolicyHost<NodeId>>,
+        request: &ReconnectConnectionRequest,
+        route: Option<ConnectionFeedbackRoute>,
+        model: &DemoModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let Some(route) = route else {
+            return self.feedback(connection, fixed, candidate, request, model);
+        };
+        let mut points = Vec::new();
+        points.push(route.source());
+        points.extend(
+            model
+                .bendpoints
+                .get(&connection.model())
+                .into_iter()
+                .flatten()
+                .copied(),
+        );
+        points.push(route.target());
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::from_points(points)
+                .with_color(FEEDBACK_COLOR)
+                .with_width(3.0),
+        ))])
+    }
+
     fn command(
         &mut self,
         _connection: PolicyHost<NodeId>,
@@ -833,6 +975,134 @@ impl EditPolicy<DemoModel> for ConnectionReconnectPolicy {
     }
 }
 
+struct ConnectionBendpointPolicy;
+
+impl EditPolicy<DemoModel> for ConnectionBendpointPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::Bendpoint(_))
+    }
+
+    fn command(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        request: &EditorRequest,
+        model: &DemoModel,
+    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
+        let EditorRequest::Bendpoint(request) = request else {
+            return Ok(None);
+        };
+        let before = model
+            .bendpoints
+            .get(&host.model())
+            .cloned()
+            .unwrap_or_default();
+        let after = apply_bendpoint_request(model, host.model(), request, &before)?;
+        Ok((after != before).then(|| {
+            Box::new(SetBendpointsCommand {
+                connection: host.model(),
+                before,
+                after,
+            }) as Box<dyn Command<DemoModel>>
+        }))
+    }
+
+    fn feedback(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        request: &EditorRequest,
+        model: &DemoModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        let EditorRequest::Bendpoint(request) = request else {
+            return Ok(Vec::new());
+        };
+        let before = model
+            .bendpoints
+            .get(&host.model())
+            .cloned()
+            .unwrap_or_default();
+        let bendpoints = apply_bendpoint_request(model, host.model(), request, &before)?;
+        let connection = model
+            .connections
+            .iter()
+            .find(|connection| connection.id() == host.model())
+            .ok_or_else(|| PolicyError::operation("bendpoint connection no longer exists"))?;
+        let source_bounds = model.nodes[&connection.source()].bounds;
+        let target_bounds = model.nodes[&connection.target()].bounds;
+        let source_reference = bendpoints
+            .first()
+            .copied()
+            .unwrap_or_else(|| target_bounds.center());
+        let target_reference = bendpoints
+            .last()
+            .copied()
+            .unwrap_or_else(|| source_bounds.center());
+        let mut points = Vec::with_capacity(bendpoints.len() + 2);
+        points.push(rectangle_boundary_site(source_bounds, source_reference).point);
+        points.extend(bendpoints);
+        points.push(rectangle_boundary_site(target_bounds, target_reference).point);
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            PolylineFigure::from_points(points)
+                .with_color(FEEDBACK_COLOR)
+                .with_width(3.0),
+        ))])
+    }
+}
+
+fn apply_bendpoint_request(
+    model: &DemoModel,
+    connection_id: NodeId,
+    request: &BendpointRequest,
+    before: &[Point],
+) -> Result<Vec<Point>, PolicyError> {
+    let connection = model
+        .connections
+        .iter()
+        .find(|connection| connection.id() == connection_id)
+        .ok_or_else(|| PolicyError::operation("bendpoint connection no longer exists"))?;
+    let mut after = before.to_vec();
+    match request.operation() {
+        BendpointOperation::Create { index } if index <= after.len() => {
+            after.insert(index, request.location());
+        }
+        BendpointOperation::Move { index } if index < after.len() => {
+            let previous = index
+                .checked_sub(1)
+                .and_then(|previous| before.get(previous).copied())
+                .unwrap_or_else(|| model.nodes[&connection.source()].bounds.center());
+            let next = before
+                .get(index + 1)
+                .copied()
+                .unwrap_or_else(|| model.nodes[&connection.target()].bounds.center());
+            if point_segment_distance(request.location(), previous, next)
+                <= BENDPOINT_DELETE_TOLERANCE
+            {
+                after.remove(index);
+            } else {
+                after[index] = request.location();
+            }
+        }
+        BendpointOperation::Delete { index } if index < after.len() => {
+            after.remove(index);
+        }
+        BendpointOperation::Create { .. }
+        | BendpointOperation::Move { .. }
+        | BendpointOperation::Delete { .. } => {
+            return Err(PolicyError::operation("bendpoint index is out of range"));
+        }
+    }
+    Ok(after)
+}
+
+fn point_segment_distance(point: Point, start: Point, end: Point) -> f64 {
+    let segment = end - start;
+    let length_squared = segment.length_squared();
+    if length_squared <= f64::EPSILON {
+        return (point - start).length();
+    }
+    let projection = ((point - start).dot(segment) / length_squared).clamp(0.0, 1.0);
+    (point - (start + segment * projection)).length()
+}
+
 impl EditPartBehavior<DemoModel> for DemoConnectionPart {
     fn create_figure(
         &mut self,
@@ -855,13 +1125,57 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
                 PolicyRole::ConnectionReconnect,
                 Box::new(ConnectionReconnectPolicy),
             ),
+            (
+                PolicyRole::custom("connection-bendpoint")
+                    .expect("static bendpoint policy role is valid"),
+                Box::new(ConnectionBendpointPolicy),
+            ),
         ])
+    }
+
+    fn connection_routing(
+        &mut self,
+        model: &DemoModel,
+        model_id: NodeId,
+    ) -> Result<ConnectionRoutingDescriptor, EditPartError> {
+        let bendpoints = model.bendpoints.get(&model_id).cloned().unwrap_or_default();
+        Ok(if bendpoints.is_empty() {
+            ConnectionRoutingDescriptor::inherited()
+        } else {
+            ConnectionRoutingDescriptor::registered(
+                bendpoint_router_key(),
+                Some(Box::new(BendpointConstraint::new(
+                    bendpoints
+                        .into_iter()
+                        .map(Bendpoint::Absolute)
+                        .collect::<Vec<_>>(),
+                ))),
+            )
+        })
+    }
+
+    fn connection_bendpoints(
+        &mut self,
+        model: &DemoModel,
+        model_id: NodeId,
+    ) -> Result<Vec<Point>, EditPartError> {
+        Ok(model.bendpoints.get(&model_id).cloned().unwrap_or_default())
     }
 }
 
 struct DemoFactory;
 
 impl EditPartFactory<DemoModel> for DemoFactory {
+    fn connection_routers(&mut self) -> Result<Vec<ConnectionRouterRegistration>, EditPartError> {
+        Ok(vec![ConnectionRouterRegistration::new(
+            bendpoint_router_key(),
+            Box::new(
+                VisibleSelfLoopRouter::new(Box::new(BendpointConnectionRouter), SELF_LOOP_EXTENT)
+                    .expect("demo self-loop extent is valid"),
+            ),
+        )])
+    }
+
     fn create(
         &mut self,
         _context: PartFactoryContext<NodeId>,
@@ -944,9 +1258,10 @@ impl DemoApp {
         let primary = viewer.selection().primary();
         for part in selected {
             if let Some(connection) = viewer.as_connection_part(part) {
-                let Some((source, target)) =
-                    viewer.connection_route_endpoints_in_surface(connection)
-                else {
+                let Some(route) = viewer.connection_route_points_in_surface(connection) else {
+                    continue;
+                };
+                let Some((&source, &target)) = route.first().zip(route.last()) else {
                     continue;
                 };
                 for (point, endpoint) in [
@@ -968,6 +1283,27 @@ impl DemoApp {
                     ) {
                         self.handles.push(figure);
                     }
+                }
+                let bendpoint_sites = viewer
+                    .connection_bendpoint_handle_sites(connection)
+                    .unwrap_or_default();
+                for site in bendpoint_sites {
+                    let (size, color) = match site.role() {
+                        HandleRole::BendpointCreate(_) => {
+                            (BENDPOINT_CREATE_HANDLE_SIZE, BENDPOINT_CREATE_HANDLE_COLOR)
+                        }
+                        HandleRole::BendpointMove(_) => (HANDLE_SIZE, BENDPOINT_HANDLE_COLOR),
+                        _ => continue,
+                    };
+                    Self::add_bendpoint_handle(
+                        &mut self.handles,
+                        viewer,
+                        part,
+                        site.location(),
+                        site.role(),
+                        size,
+                        color,
+                    );
                 }
                 continue;
             }
@@ -1018,6 +1354,28 @@ impl DemoApp {
                     self.handles.push(figure);
                 }
             }
+        }
+    }
+
+    fn add_bendpoint_handle(
+        handles: &mut Vec<novadraw::FigureId>,
+        viewer: &mut DemoViewer,
+        owner: novadraw_editor::EditPartId,
+        point: Point,
+        role: HandleRole,
+        size: f64,
+        color: Color,
+    ) {
+        let handle = RectangleFigure::new_with_color(
+            point.x() - size / 2.0,
+            point.y() - size / 2.0,
+            size,
+            size,
+            color,
+        )
+        .with_stroke(Color::BLACK, 1.0);
+        if let Ok((_, figure)) = viewer.add_handle_visual_with_role(owner, role, Box::new(handle)) {
+            handles.push(figure);
         }
     }
 
@@ -1192,6 +1550,15 @@ impl ApplicationHandler<()> for DemoApp {
                 Rectangle::new(0.0, 0.0, WIDTH, HEIGHT),
             )
             .expect("demo Viewer construction failed");
+            let connection_layer = viewer.root_layers().connection();
+            let self_loop_router = viewer.runtime_mut().register_connection_router(Box::new(
+                VisibleSelfLoopRouter::new(Box::new(DirectRouter), SELF_LOOP_EXTENT)
+                    .expect("default self-loop extent is valid"),
+            ));
+            viewer
+                .runtime_mut()
+                .set_connection_layer_router(connection_layer, self_loop_router)
+                .expect("demo self-loop Router installation failed");
             viewer
                 .runtime_mut()
                 .register_builtin_font(BuiltinFont::Inter)
@@ -1358,11 +1725,13 @@ impl ApplicationHandler<()> for DemoApp {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("G5.2 manual validation:");
+    println!("G5.4 manual validation:");
     println!("  drag a selected shape to move it");
     println!("  drag a yellow corner handle to resize the primary shape");
     println!("  press N to create a shape; Delete/Backspace removes selection");
     println!("  press C, then click a source shape and a target shape to connect");
+    println!("  select a connection; drag cyan segment handles to create bendpoints");
+    println!("  drag orange bendpoint handles to move or collapse them");
     println!("  Escape cancels the active connection gesture");
     println!("  Command/Control-Z undoes; add Shift to redo");
 

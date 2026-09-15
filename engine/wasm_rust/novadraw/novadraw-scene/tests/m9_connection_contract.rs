@@ -6,7 +6,7 @@ use novadraw_scene::{
     ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
     DependencySubject, DirectRouter, EllipseAnchor, FigureId, LabelAnchor, MidpointLocator,
     PathFractionLocator, RoundedRectangleAnchor, RouteError, RouteOutput, RouteRequest,
-    SceneQueryError, SceneRead, SelfLoopRouter, TrackedSceneQuery, rectangle_boundary_site,
+    SceneQueryError, SceneRead, TrackedSceneQuery, rectangle_boundary_site,
 };
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
@@ -229,59 +229,6 @@ fn chopbox_anchor_maps_owner_geometry_into_requested_space() {
             ),
         ]
     );
-}
-
-#[test]
-fn self_loop_router_routes_same_owner_outside_and_delegates_other_pairs() {
-    let ids = figure_ids(3);
-    let owner = ids[0];
-    let other = ids[1];
-    let mut query = QueryFixture::default();
-    for (figure, origin) in [(owner, Point::new(10.0, 20.0)), (other, Point::ZERO)] {
-        query.insert(
-            figure,
-            origin,
-            AnchorGeometryKey::border_box(),
-            AnchorGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 50.0)),
-        );
-    }
-    let source = ChopboxAnchor::new(owner);
-    let same_target = ChopboxAnchor::new(owner);
-    let other_target = ChopboxAnchor::new(other);
-    let router = SelfLoopRouter::new(Box::new(DirectRouter), 32.0).unwrap();
-
-    let mut tracked = query.tracked();
-    let loop_route = router
-        .route(RouteRequest {
-            connection: ConnectionId::from_figure(ids[2]),
-            routing_space: CoordinateSpace::LogicalSurface,
-            source: &source,
-            target: &same_target,
-            constraint: None,
-            scene: &mut tracked,
-            group: None,
-        })
-        .unwrap();
-    assert_eq!(loop_route.points().len(), 4);
-    assert!(loop_route.points().iter().any(|point| point.x() > 110.0));
-    assert_ne!(
-        loop_route.points().get(0),
-        loop_route.points().get(loop_route.points().len() - 1)
-    );
-
-    let mut tracked = query.tracked();
-    let direct = router
-        .route(RouteRequest {
-            connection: ConnectionId::from_figure(ids[2]),
-            routing_space: CoordinateSpace::LogicalSurface,
-            source: &source,
-            target: &other_target,
-            constraint: None,
-            scene: &mut tracked,
-            group: None,
-        })
-        .unwrap();
-    assert_eq!(direct.points().len(), 2);
 }
 
 #[test]

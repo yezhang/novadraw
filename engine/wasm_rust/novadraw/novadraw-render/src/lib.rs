@@ -26,8 +26,8 @@ pub mod text;
 pub mod traits;
 
 pub use command::{
-    ImageData, ImageDecodeError, ImageResourceRef, LineCap, LineJoin, LineStyle, RenderCommand,
-    RenderCommandKind,
+    DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageResourceRef, LineCap, LineJoin,
+    LineStyle, RenderCommand, RenderCommandKind,
 };
 pub use context::NdCanvas;
 pub use submission::{
