@@ -4,8 +4,8 @@
 
 本目录只记录外部项目源码事实和有明确证据的架构归纳，不定义 Novadraw 行为。
 
-- `draw2d/`：Figure、布局、渲染、更新与架构公理
-- `gef/`：GEF 控制器、策略与命令体系
+- [`draw2d/`](draw2d/00-index.md)：Figure、布局、渲染、更新与架构公理
+- [`gef/`](gef/00-index.md)：GEF 控制器、策略与命令体系
 - `swt/`：SWT GC 平台实现
 - `zed/`：Zed 响应式通知机制
 

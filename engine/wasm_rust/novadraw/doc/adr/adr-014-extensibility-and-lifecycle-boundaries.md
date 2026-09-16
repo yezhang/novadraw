@@ -147,6 +147,6 @@ scoped subscription、测量快照等协议验证成本。严格 viewport topolo
 的有意限制，不宣称完全兼容 Draw2D 跨视口连线。
 
 新契约不修改既有验证记录，也不把 D4.1/D4.2 历史通过结果当作本修订已实现证据。
-新增门禁见 [D4 路线图](../roadmap/core-completion-and-draw2d-migration-plan.md)：
+历史门禁见 [D4 收口计划](../archive/core-completion-and-draw2d-migration-plan.md)：
 外部组件更新、scope 清理、panic/fault、宽度约束测量、group 失败和 session handoff。
 未证明对象安全接口、引用所有权或 panic 边界时，继续停止编码并回到设计。

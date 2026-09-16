@@ -50,7 +50,7 @@
 - **Draw2D API 语义覆盖账本**：`doc/parity/draw2d/api-coverage.md`
 - **产品交付清单 / Demo 矩阵**：`doc/roadmap/`
   - M1-M10 编号与状态入口：`doc/roadmap/00-index.md`
-- **Editor / GEF 路线图**：`doc/07-gef-roadmap/00-index.md`
+- **Editor / GEF 路线图**：`doc/roadmap/editor/00-index.md`
 - **Editor 架构 SSOT**：`doc/design/editor/architecture.md`
 - **可执行验证清单**：`verification/suites.toml`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。

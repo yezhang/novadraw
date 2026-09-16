@@ -12,7 +12,9 @@
 | Eclipse GEF Classic | `4463d9d0ce13c19d10fbe769d29f28b7345a8cba` | `org.eclipse.draw2d`、`org.eclipse.gef` 核心包与两者官方指南 |
 | 项目规范 | ADR-014、ADR-015、相应专题设计 | 实现目标；不能取代外部事实或实际运行证据 |
 
-快照见 [baseline.json](evidence/baseline.json)。其中收录 158 个 `novadraw*` crate 的
+快照见
+[`baseline.json`](../../../verification/evidence/draw2d-gef-semantic-audit-2026-09-16/baseline.json)。
+其中收录 158 个 `novadraw*` crate 的
 Rust 文件及 SHA-256，共 75,788 行，包含测试。清单表示审计边界，不表示逐行穷尽证明；
 各组报告单独说明实际阅读的方法、调用链及测试。Native/Web 和 xtask 入口另作验证。
 参考仓库存在 IDE/构建元数据变更，但本次限定的核心源码和官方 `guide-src` 与上述

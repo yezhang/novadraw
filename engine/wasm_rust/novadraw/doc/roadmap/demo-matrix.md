@@ -114,7 +114,7 @@
 
 > ⚠️ 以下 demo **不计入 draw2d 核心 milestone 完成判据**，不挂在 M1-M10 任何项下。
 > 它们用于验证 draw2d 协议层的承载能力，但其能力本身（创建/拖拽/连接/删除节点等）属于 GEF 层。
-> 当前 GEF 实施状态已迁移到 [`doc/07-gef-roadmap/`](../07-gef-roadmap/00-index.md)。
+> 当前 GEF 实施状态见 [`doc/roadmap/editor/`](editor/00-index.md)。
 
 ### 节点编辑器探索 demo
 
@@ -140,5 +140,5 @@
 3. 通过 contract probe 把缺口收口
 4. **禁止**为单独让 demo 跑通而在 apps 层堆便利方法
 
-GEF 层已经确认启动。后续新增状态只写入 `doc/07-gef-roadmap/`；本附录保留为
+GEF 层已经确认启动。后续新增状态只写入 `doc/roadmap/editor/`；本附录保留为
 Draw2D 阶段的历史边界说明。

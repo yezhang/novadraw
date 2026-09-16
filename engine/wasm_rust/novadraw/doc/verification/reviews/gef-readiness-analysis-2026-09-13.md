@@ -160,7 +160,7 @@ Core 1.0 最终审计确认 M1-M10、P0/P1 和 ADR-014 门禁完成。当前 HEA
 ## 9. 采用结论
 
 - crate：`novadraw-editor`；
-- 文档路线图：`doc/07-gef-roadmap/`；
+- 文档路线图：`doc/roadmap/editor/`；
 - 规范设计：`doc/design/editor/architecture.md`；
 - 语义账本：`doc/parity/gef/api-coverage.md`；
 - 首个产品入口：`apps/native/node-editor-demo`；
@@ -176,7 +176,7 @@ Core 1.0 最终审计确认 M1-M10、P0/P1 和 ADR-014 门禁完成。当前 HEA
 
 已创建：
 
-- `doc/07-gef-roadmap/`；
+- `doc/roadmap/editor/`；
 - `doc/design/editor/`；
 - `doc/parity/gef/`；
 - `doc/adr/adr-015-editor-framework-boundary.md`；

@@ -1,7 +1,17 @@
 # Novadraw 文档索引
 
+类型：`documentation-index`
+
 本目录按文档的**知识来源与规范效力**组织。技术主题是第二层分类，不能再把
 Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录。
+
+## 当前状态
+
+- Draw2D Core：M1-M10 已完成；后续能力进入明确的 P2 delta。
+- Editor：G0-G4 已完成，G5 自动门禁已完成，检查点 C 待人工验收；G6 尚未开始。
+- 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
+  [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md) 维护。
+- 可执行验证只在 [`../verification/suites.toml`](../verification/suites.toml) 维护。
 
 ## 权威边界
 
@@ -11,8 +21,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 | [`design/`](design/00-index.md) | Novadraw 应该如何工作？ | Novadraw 设计 SSOT |
 | [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
 | [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
-| [`roadmap/`](roadmap/00-index.md) | 何时交付、当前到哪里？ | 里程碑与产品状态，不定义架构 |
-| [`07-gef-roadmap/`](07-gef-roadmap/00-index.md) | Editor/GEF 层何时交付、当前到哪里？ | G0-G6 里程碑与产品状态 |
+| [`roadmap/`](roadmap/00-index.md) | Core 与 Editor 何时交付、当前到哪里？ | M1-M10 与 G0-G6 状态，不定义架构 |
 | [`strategy/`](strategy/00-index.md) | 为谁创造价值、如何验证？ | 产品与商业决策输入，不定义架构 |
 | [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
 | [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
@@ -52,12 +61,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Editor Viewport/Auto-expose：
   [`design/editor/g5-viewport-autoexpose.md`](design/editor/g5-viewport-autoexpose.md)
 - GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
-- G0-G6 唯一编号与状态：[`07-gef-roadmap/00-index.md`](07-gef-roadmap/00-index.md)
+- G0-G6 唯一编号与状态：[`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
 - 可执行验证 suite 与命令：[`../verification/suites.toml`](../verification/suites.toml)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
-- 当前核心收口与功能迁移顺序：
-  [`roadmap/core-completion-and-draw2d-migration-plan.md`](roadmap/core-completion-and-draw2d-migration-plan.md)
 
 候选方案不属于核心 SSOT：
 
@@ -86,6 +93,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 新增或大幅修改文档时，应在标题后的说明中明确以下类型之一：
 
+- `documentation-index`
 - `reference-analysis`
 - `normative-design`
 - `parity-contract`
@@ -113,15 +121,14 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 ### 开发 Viewport / Scroll / Zoom
 
 1. [`reference/draw2d/figure/scalable-zoom.md`](reference/draw2d/figure/scalable-zoom.md)
-2. [`roadmap/m8-m9-contract-plan.md`](roadmap/m8-m9-contract-plan.md)
-3. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
-4. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
+2. [`design/input/scroll-zoom-gesture-contract.md`](design/input/scroll-zoom-gesture-contract.md)
+3. [`verification/manual/m8-viewport.md`](verification/manual/m8-viewport.md)
 
 ### 验证 Web 平台
 
 1. [`adr/adr-001-webgpu-rust-stack.md`](adr/adr-001-webgpu-rust-stack.md)
 2. [`verification/manual/web-platform.md`](verification/manual/web-platform.md)
-3. [`migration/architecture-refactor-plan.md`](migration/architecture-refactor-plan.md)
+3. [`verification/reviews/m10-web-equivalence-2026-09-13.md`](verification/reviews/m10-web-equivalence-2026-09-13.md)
 
 ### 修改 Draw2D 对标语义
 
@@ -136,14 +143,13 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 2. [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
 3. [`design/editor/architecture.md`](design/editor/architecture.md)
 4. [`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
-5. [`07-gef-roadmap/00-index.md`](07-gef-roadmap/00-index.md)
+5. [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
 
 ### 理解产品与商业价值
 
 1. [`strategy/commercial-value-analysis.md`](strategy/commercial-value-analysis.md)
 2. [`roadmap/00-index.md`](roadmap/00-index.md)
 3. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
-4. [`roadmap/m8-m9-contract-plan.md`](roadmap/m8-m9-contract-plan.md)
 
 ## 命名与维护
 
@@ -151,5 +157,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - 移动文档后必须更新仓库内所有 Markdown 链接和 `AGENTS.md`、`CLAUDE.md`。
 - 已失效内容移入 `archive/`，不得继续被设计文档作为当前契约引用。
 - 默认检索排除 `doc/archive/`；只有历史追溯才显式读取。
+- 原始日志、JSON、探针和审计中间产物放在 `verification/evidence/`，不混入
+  `doc/` 的人读信息架构。
 - 原始快照、SHA-256 和旧新映射保留在归档入口；不得将新设计写成已有实现证据。
 - 设计、路线图和审计报告分别维护，不在一篇文档中重复保存三套状态。

@@ -1,10 +1,9 @@
-# 06-Roadmap 路线图
+# Novadraw 路线图
 
 类型：`roadmap`
 
-本目录承载 Novadraw 朝 draw2d 核心演进的里程碑定义、**产品视图**与
-**demo 视图**；相关 API 语义覆盖由
-`doc/parity/draw2d/api-coverage.md` 补充。
+本目录承载 Draw2D Core 与 Editor 两条交付路线。Core 使用 `M1-M10`，Editor 使用
+`G0-G6`；相关 API 语义覆盖由 `doc/parity/` 下的账本维护。
 
 ## 文档职能边界
 
@@ -14,8 +13,7 @@
 | `doc/parity/draw2d/api-coverage.md` | **语义账本**：draw2d API family、Novadraw 对照方向、覆盖状态与 milestone 映射 | 人读，架构与实现对齐入口 | 按语义收敛持续更新 |
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
-| `doc/roadmap/m8-m9-contract-plan.md` | **阶段计划**：Viewport 与 Connection 的交付边界和验证门禁 | 人读，不定义理想架构 | 推进 M8/M9 时 |
-| `doc/roadmap/core-completion-and-draw2d-migration-plan.md` | **当前执行计划**：R8/R9 后的核心收口 delta 与 M9/M10 分批顺序 | 人读，不创建新 milestone 编号 | 每个执行批次完成时 |
+| `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G6 编号、依赖和当前状态 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
 
 ## 编号唯一来源
 
@@ -50,27 +48,16 @@
 | M9 | Connection / Anchor / Router | `complete` | D3.1 shared Manhattan、严格 viewport topology、八场景截图与人工窗口验收已闭合 |
 | M10 | 常用 Figure 与文本/控件 | `complete` | M10.1-M10.5 与 Text/Image/Widget Native/Web 等价验收已完成；完整 TextFlow 保持 P2 |
 
-## 当前执行顺序
+## 当前执行方向
 
 R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08 已关闭。
 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
-Core 1.0 完成。后续能力必须进入独立 GEF roadmap 或明确的 P2 delta。
+Core 1.0 完成。后续能力必须进入 Editor roadmap 或明确的 P2 delta。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
-后续按
-[`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)
-执行：
-
-```text
-D0 路线图与证据校准
-→ D1 核心公共协议收口
-→ D2 Layer / Freeform
-→ M9 / M10.1-M10.4 产品基线
-→ D3 Draw2D Core 审计收口
-→ D4 长期架构正确性收口
-→ M10.5 Tooltip / Accessibility
-→ Draw2D Core 1.0
-```
+当前产品开发从 [`editor/00-index.md`](editor/00-index.md) 继续；已完成的 D0-D4、
+M8/M9 与 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为
+当前工作入口。
 
 `D0-D4` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
@@ -88,7 +75,7 @@ D0 路线图与证据校准
 - EditPart / EditPolicy / Tool / Command / Request / Viewer / Palette / Selection provider / Undo-redo command stack
 
 这些不在 draw2d 核心里程碑内。Draw2D Core 1.0 完成后，Editor 框架已进入独立
-[`G0-G6 路线图`](../07-gef-roadmap/00-index.md)。带"节点编辑器"性质的旧 demo
+[`G0-G6 路线图`](editor/00-index.md)。带"节点编辑器"性质的旧 demo
 仍只视为早期探索，不能作为 GEF milestone 的实现证据。
 
 ## 文档列表
@@ -97,5 +84,5 @@ D0 路线图与证据校准
 |------|------|
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
-| `m8-m9-contract-plan.md` | M8/M9 交付范围、前置契约与验收门禁 |
-| `core-completion-and-draw2d-migration-plan.md` | 当前核心收口与后续 Draw2D 功能迁移执行顺序 |
+| `editor/00-index.md` | Editor G0-G6 编号、状态和验收检查点 |
+| `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |

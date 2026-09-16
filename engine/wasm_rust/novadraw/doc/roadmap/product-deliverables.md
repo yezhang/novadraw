@@ -371,5 +371,5 @@ paint、hit-test、border、style 和更新协议证据；类型可导出不等�
 - Undo-redo command stack
 - "节点编辑器毕业 demo"（创建/拖拽/连接/删除节点）—— 这是 GEF 层能力，详见 `demo-matrix.md` 附录"GEF 层早期探索"
 
-这些能力已经进入独立 [`doc/07-gef-roadmap/`](../07-gef-roadmap/00-index.md)，继续与
+这些能力已经进入独立 [`doc/roadmap/editor/`](editor/00-index.md)，继续与
 Draw2D M1-M10 隔离。

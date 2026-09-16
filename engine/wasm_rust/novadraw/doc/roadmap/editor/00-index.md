@@ -1,4 +1,4 @@
-# 07-GEF / Editor 路线图
+# Editor / GEF 路线图
 
 类型：`roadmap`
 
@@ -9,13 +9,14 @@
 
 ## 文档边界
 
-- 外部 GEF 源码事实：`doc/reference/gef/`
-- Novadraw Editor 规范：`doc/design/editor/`
-- 采用与差异：`doc/parity/gef/api-coverage.md`
-- 关键架构决策：`doc/adr/adr-015-editor-framework-boundary.md`
+- 外部 GEF 源码事实：[`../../reference/gef/`](../../reference/gef/00-index.md)
+- Novadraw Editor 规范：[`../../design/editor/`](../../design/editor/00-index.md)
+- 采用与差异：[`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)
+- 关键架构决策：
+  [`../../adr/adr-015-editor-framework-boundary.md`](../../adr/adr-015-editor-framework-boundary.md)
 - 实施顺序和状态：本目录
-- 可执行验证定义：`verification/suites.toml`
-- 阶段验证：`doc/verification/`
+- 可执行验证定义：[`../../../verification/suites.toml`](../../../verification/suites.toml)
+- 阶段验证：[`../../verification/`](../../verification/00-index.md)
 
 ## 状态
 

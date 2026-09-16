@@ -70,13 +70,12 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 
 | 场景 | 文档 |
 |------|------|
-| Draw2D Figure 参考 | [doc/reference/draw2d/figure/](doc/reference/draw2d/figure/) |
-| Draw2D 渲染参考 | [doc/reference/draw2d/rendering/](doc/reference/draw2d/rendering/) |
-| Novadraw 架构设计 | [doc/design/architecture/](doc/design/architecture/) |
-| Novadraw 坐标契约 | [doc/design/coordinates/](doc/design/coordinates/) |
-| 路线图（产品视图 + Demo 矩阵） | [doc/roadmap/](doc/roadmap/) |
+| Draw2D 参考 | [doc/reference/draw2d/00-index.md](doc/reference/draw2d/00-index.md) |
+| Novadraw 架构设计 | [doc/design/architecture/00-index.md](doc/design/architecture/00-index.md) |
+| Novadraw 坐标契约 | [doc/design/coordinates/coordinate-system.md](doc/design/coordinates/coordinate-system.md) |
+| 路线图（Core + Editor） | [doc/roadmap/00-index.md](doc/roadmap/00-index.md) |
 | Editor / GEF 架构 | [doc/design/editor/architecture.md](doc/design/editor/architecture.md) |
-| Editor / GEF 路线图 | [doc/07-gef-roadmap/00-index.md](doc/07-gef-roadmap/00-index.md) |
+| Editor / GEF 路线图 | [doc/roadmap/editor/00-index.md](doc/roadmap/editor/00-index.md) |
 
 ### Milestone 与路线图
 

@@ -3,7 +3,8 @@
 类型：`roadmap`
 
 本文记录 M8/M9 的交付范围和验证门禁，不定义理想架构。架构契约以
-`doc/design/` 为准，里程碑状态以 [00-index.md](00-index.md) 为准。
+`doc/design/` 为准，里程碑状态以
+[`../roadmap/00-index.md`](../roadmap/00-index.md) 为准。
 
 R8/R9 完成后的实际推进顺序以
 [`core-completion-and-draw2d-migration-plan.md`](core-completion-and-draw2d-migration-plan.md)

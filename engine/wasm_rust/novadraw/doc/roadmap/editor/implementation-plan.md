@@ -3,7 +3,7 @@
 类型：`roadmap`
 
 本计划展开 G0-G6 的实施步骤。架构以
-[`../design/editor/architecture.md`](../design/editor/architecture.md) 为准；本文不
+[`../../design/editor/architecture.md`](../../design/editor/architecture.md) 为准；本文不
 通过任务描述改变架构。
 
 ## G0：架构与工程启动

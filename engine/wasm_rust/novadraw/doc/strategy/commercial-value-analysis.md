@@ -350,54 +350,46 @@ Novadraw 应避免仅以“更便宜的 yFiles”竞争。可持续差异应是�
 
 ## 9. 当前项目的商业成熟度
 
-根据当前路线图，M1-M8 已达到 `behavior_verified`，M9 和 M10 尚未完成。由此可将
-当前价值判断为：
+根据当前路线图，Draw2D Core M1-M10 已完成；Editor G0-G4 已完成，G5 自动门禁
+已通过，检查点 C 待人工验收，G6 尚未开始。由此可将当前价值判断为：
 
-| 维度 | 当前 | M9 完成后 | 最小 GEF 层完成后 |
+| 维度 | 当前 | 检查点 C 后 | G6 完成后 |
 |---|---:|---:|---:|
-| 技术资产 | 高 | 很高 | 很高 |
-| Rust 生态稀缺性 | 高 | 很高 | 很高 |
-| 用户可感知价值 | 中低 | 中 | 高 |
-| 可售 SDK 程度 | 低 | 中低 | 高 |
-| 竞争壁垒 | 中 | 中高 | 高 |
-| 短期收入能力 | 低 | 中低 | 中高 |
+| 技术资产 | 很高 | 很高 | 很高 |
+| Rust 生态稀缺性 | 很高 | 很高 | 很高 |
+| 用户可感知价值 | 中高 | 高 | 高 |
+| 可售 SDK 程度 | 中低 | 中 | 高 |
+| 竞争壁垒 | 中高 | 高 | 高 |
+| 短期收入能力 | 中低 | 中 | 中高 |
 
-该表是定性判断，不是估值模型。当前项目更接近高质量核心资产，而不是可直接采购的
+该表是定性判断，不是估值模型。项目已具备高质量图形核心和主要编辑闭环，但在 G6
+完成保存加载、Native/Web/Headless 等价与产品毕业前，仍不能视为可直接采购的完整
 商业 SDK。
 
-### 9.1 M1-M8 的商业作用
+### 9.1 Draw2D Core 的商业作用
 
-M1-M8 建立了正确性的基础：
+M1-M10 建立了正确性与基础产品能力：
 
 - 几何、Graphics 和 Figure 树；
 - paint、clip 和 hit-test 一致性；
 - 坐标域与事件点降域；
 - Layout、Validation 和 UpdateManager；
 - 输入状态机和通知分层；
-- Viewport、Scroll 和 Zoom。
+- Viewport、Scroll、Zoom、Connection、文本、基础 Figure 与可访问性。
 
 这些能力难以独立销售，但会显著降低后续产品的缺陷率和维护成本。
 
-### 9.2 M9 的商业作用
+### 9.2 Editor G1-G5 的商业作用
 
-M9 使项目第一次能够支撑具有业务关系的 Diagram。它是从图形内核到 Diagram SDK
-的转折点，但还不是完整编辑器。
+Model Adapter、CommandStack、EditPart、Viewer、Selection、Tool、Request、
+EditPolicy 和 Connection 编辑已经把图形内核推进为可交互 Diagram 框架。G5
+检查点 C 仍需验证完整图编辑主流程。
 
-### 9.3 M10 与 GEF 层的商业作用
+### 9.3 G6 的商业作用
 
-M10 的文本、基础 Figure、Tooltip 和 accessibility 影响实际节点的信息表达和可用性。
-后续最小 GEF 层至少需要：
-
-- model-view binding；
-- selection；
-- Tool / Request / Command；
-- undo/redo；
-- create、delete、move 和 reconnect；
-- clipboard；
-- serialization；
-- property editing 接口。
-
-没有这些能力，客户仍需要自行完成最昂贵的编辑器集成工作。
+G6 负责保存加载、重建身份和 Native/Web/Headless 等价，是从“框架能力可用”到
+“产品交付可验证”的边界。Clipboard、direct edit、IME 和 property editing 等能力
+仍可按明确的后续产品 delta 推进，不应回写 G0-G6 的既定完成定义。
 
 ## 10. 可持续护城河
 
@@ -663,7 +655,7 @@ Novadraw 具有三层商业价值：
 - [Draw2D API 语义覆盖账本](../parity/draw2d/api-coverage.md)
 - [M1-M10 路线图](../roadmap/00-index.md)
 - [产品交付清单](../roadmap/product-deliverables.md)
-- [M8-M9 Viewport 与 Connection 交付计划](../roadmap/m8-m9-contract-plan.md)
+- [Editor G0-G6 路线图](../roadmap/editor/00-index.md)
 - [GEF 核心原则](../reference/gef/core-principles.md)
 - [Draw2D 设计公理](../reference/draw2d/architecture/design-axioms.md)
 

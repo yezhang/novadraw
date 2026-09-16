@@ -4,7 +4,9 @@
 
 日期：2026-09-15
 
-本方案基于同目录语义审计，属于待评审实施建议，不替代现行 ADR、设计 SSOT 或路线图。
+本方案基于
+[`2026-09-15 审计证据`](../../verification/evidence/draw2d-gef-semantic-audit-2026-09-15/review_groups.md)
+形成，属于待评审实施建议，不替代现行 ADR、设计 SSOT 或路线图。
 实施时继续沿用 Draw2D 的 M1-M10、后续 P2 delta 与 Editor 的 G0-G6 编号体系。
 以下“批次”仅表达依赖顺序，不另建里程碑编号。
 

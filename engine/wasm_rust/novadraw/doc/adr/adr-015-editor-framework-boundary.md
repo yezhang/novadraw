@@ -131,5 +131,5 @@ GEF 能力使用独立 G0-G6 编号和语义覆盖账本，不复用 M1-M10。�
 - G3-G5：选择、工具、策略、反馈和连接编辑；
 - G6：Native/Web/Headless 总验收。
 
-路线图见 [`../07-gef-roadmap/00-index.md`](../07-gef-roadmap/00-index.md)，规范设计见
+路线图见 [`../roadmap/editor/00-index.md`](../roadmap/editor/00-index.md)，规范设计见
 [`../design/editor/architecture.md`](../design/editor/architecture.md)。

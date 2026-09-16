@@ -7,7 +7,7 @@
 本文件定义 `novadraw-editor` 的目标架构。GEF Classic 源码事实见
 [`../../reference/gef/core-principles.md`](../../reference/gef/core-principles.md)，
 采用与差异见 [`../../parity/gef/api-coverage.md`](../../parity/gef/api-coverage.md)，
-实施状态见 [`../../07-gef-roadmap/00-index.md`](../../07-gef-roadmap/00-index.md)。
+实施状态见 [`../../roadmap/editor/00-index.md`](../../roadmap/editor/00-index.md)。
 
 G5.1 ConnectionPart 投影的规范细化见
 [`g5-connection-projection.md`](g5-connection-projection.md)。

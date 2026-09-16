@@ -9,7 +9,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 
 它不是 Java API 迁移待办，也不是进度管理或任务编排文件。
 当前核心收口与功能迁移顺序见
-`doc/roadmap/core-completion-and-draw2d-migration-plan.md`。
+`doc/archive/core-completion-and-draw2d-migration-plan.md`。
 
 ## 使用原则
 

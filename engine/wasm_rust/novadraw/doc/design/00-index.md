@@ -5,9 +5,9 @@
 本目录包含 Novadraw 的规范设计和明确标记的候选提案；其中
 `normative-design` 文档构成行为与架构契约的 SSOT：
 
-- `architecture/`：组件职责、静态结构、动态时序和目录边界
+- [`architecture/`](architecture/00-index.md)：组件职责、静态结构、动态时序和目录边界
 - `coordinates/`：坐标域、变换、命中、事件点与 damage 投影
-- `editor/`：模型、EditPart、Viewer、Tool、Request、Policy 与 Command
+- [`editor/`](editor/00-index.md)：模型、EditPart、Viewer、Tool、Request、Policy 与 Command
 - `input/`：平台无关输入与手势分发
 - `rendering/`：UpdateManager 与渲染提交协议；DisplayList 文件仅为 proposal
 

@@ -6,7 +6,7 @@ mapping to milestones, source areas, documents, platforms, and artifacts.
 It does not define architecture or milestone completion state:
 
 - `doc/design/` and accepted ADRs define behavior.
-- `doc/roadmap/` and `doc/07-gef-roadmap/` define delivery state.
+- `doc/roadmap/` and `doc/roadmap/editor/` define delivery state.
 - `verification/suites.toml` defines how those claims are checked.
 - `doc/verification/` records manual procedures and historical results.
 
@@ -47,6 +47,9 @@ the first failing transition. Replay does not replace the manual Native/GPU acce
 
 All paths are relative to the Novadraw workspace. Generated evidence belongs under
 `target/verification/`; the manifest may name expected artifacts before they exist.
+
+Committed audit evidence belongs under `verification/evidence/<audit-id>/`. Keep human-readable
+conclusions in `doc/verification/`; do not place generated executables in either location.
 
 `cargo xtask docs` rejects:
 

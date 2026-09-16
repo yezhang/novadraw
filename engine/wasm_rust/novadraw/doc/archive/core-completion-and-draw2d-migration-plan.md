@@ -8,7 +8,7 @@
 “Draw2D 核心产品能力完整”的执行顺序。
 
 本文不创建新的 milestone 编号。`M1-M10` 的编号与状态仍以
-[`00-index.md`](00-index.md) 为唯一入口；本文中的 `D0-D4` 是跨 milestone 的
+[`../roadmap/00-index.md`](../roadmap/00-index.md) 为唯一入口；本文中的 `D0-D4` 是跨 milestone 的
 architecture delta，用于消除后续 M9/M10 实现会放大的公共协议缺口。
 
 ## 1. 当前判断
@@ -1255,7 +1255,7 @@ D4 完成后的固定收口顺序：
 EditPolicy、Command、SelectionProvider 和 undo/redo command stack。
 
 上述条件已于 2026-09-13 满足。后续 Editor 实施状态迁移到
-[`../07-gef-roadmap/00-index.md`](../07-gef-roadmap/00-index.md)，本文不再追加
+[`../roadmap/editor/00-index.md`](../roadmap/editor/00-index.md)，本文不再追加
 GEF milestone。
 
 ## 11. 延后能力
