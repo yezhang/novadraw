@@ -41,8 +41,12 @@ apps/benchmarks/   - 无窗口性能基线
 ## 提交前检查
 
 ```bash
-cargo fmt --check && cargo check && cargo clippy -- -D warnings && cargo test
+cargo xtask check --full
 ```
+
+验证命令、suite 与证据路径统一定义在 `verification/suites.toml`。使用
+`cargo xtask list` 查看入口，使用 `cargo xtask docs` 检查 manifest、文档引用与
+parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复制命令序列。
 
 ## Git 提交规范
 
@@ -92,7 +96,8 @@ macOS/Web/Headless 总审计与 R9.4 capability 消融复查已通过，Draw2D C
 Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
 Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
 Connection Projection、G5.2 Connection Creation 与 G5.3 Connection Reconnect 已完成，
-检查点 B 已通过人工验收；G5.4 是下一执行切片。
+G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；检查点 B
+已通过人工验收，检查点 C 待人工验收。
 Draw2D 后续能力必须进入明确的 P2 delta。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`

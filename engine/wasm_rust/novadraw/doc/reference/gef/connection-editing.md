@@ -100,7 +100,9 @@ anchor。`AbstractConnectionEditPart` 在 refresh 时向端点 NodeEditPart 查�
 TargetingTool 在连接创建、重连和普通 drag 的 hover 阶段查找
 `AutoexposeHelper`。`ViewportAutoexposeHelper` 只在指针位于 viewport 内部边缘带时
 生效，并依据时间增量推进滚动。helper 返回值只是继续调度提示，Tool 可在 release、
-cancel 或目标变化时随时停止。
+cancel 或目标变化时随时停止。每次 step 改变 viewport 后，
+`TargetingTool.handleAutoexpose()` 会重新执行等价的 pointer move 更新；
+`DragEditPartsTracker` 还会维护 source-relative start point，避免滚动改变拖拽基准。
 
 源码：
 

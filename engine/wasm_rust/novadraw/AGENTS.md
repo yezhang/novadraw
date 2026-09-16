@@ -52,6 +52,7 @@
   - M1-M10 编号与状态入口：`doc/roadmap/00-index.md`
 - **Editor / GEF 路线图**：`doc/07-gef-roadmap/00-index.md`
 - **Editor 架构 SSOT**：`doc/design/editor/architecture.md`
+- **可执行验证清单**：`verification/suites.toml`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。
 
 ### 当前执行门禁
@@ -62,7 +63,8 @@
   G1 Model Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
   Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
   Connection Projection、G5.2 Connection Creation 与 G5.3 Connection Reconnect
-  已完成，检查点 B 已通过人工验收；G5.4 是下一执行切片。
+  已完成，G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；
+  检查点 B 已通过人工验收，检查点 C 待人工验收。
   Draw2D 后续能力必须进入明确的 P2 delta。
 - 2026-09-10 架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
   为准；ADR-013 已替换。D4.3-D4.6 门禁已完成，新设计不等于已实现。
@@ -96,8 +98,9 @@
 - **语言**: Rust (Edition 2024)
 - **渲染**: Vello (WebGPU)
 - **构建**: `cargo build && cargo test`
+- **统一门禁**: `cargo xtask check --full`
 - **模块**: `novadraw-core`, `novadraw-scene`, `novadraw-render`, `novadraw-math`,
-  `novadraw-editor`（G5.3 已完成，G5.4 待启动）
+  `novadraw-editor`（G5.5 自动门禁已完成，检查点 C 待人工验收）
 
 ## 交互方式原则（摘要）
 

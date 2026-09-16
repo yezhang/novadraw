@@ -27,7 +27,7 @@ select ConnectionPart
 - stable `ConnectionPartId`；
 - `ConnectionEndpoint::{Source, Target}`；
 - optional target candidate `EditPartId`；
-- latest entry-domain location；
+- latest Connection routing-domain location；
 - modifier snapshot；
 - monotonic interaction revision。
 
@@ -42,8 +42,8 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 - connection visual、contents、handle、feedback 和 retired Part 不是 endpoint；
 - self-loop 在框架层合法，业务 policy 可拒绝；
 - Runtime 默认 inherited router 保持 `DirectRouter` 的 Draw2D 等价语义；
-- 需要可见 self-loop 的应用使用公开 `ConnectionRouter` 扩展点实现并在
-  ConnectionLayer 显式安装；该产品策略不进入 Draw2D/GEF parity；
+- 需要可见 self-loop 的应用通过公开 Anchor、Router 与 bendpoint 扩展点组合实现；
+  Native demo 使用两个显式 bendpoints，该产品策略不进入 Draw2D/GEF parity；
 - final Command 只更新被移动的一端，保持 connection ModelId 和列表位置；
 - undo/redo 恢复相反端点并复用 G5.1 endpoint rebind。
 
@@ -76,6 +76,8 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 - target reconnect：source 端固定，target 端跟随 candidate/pointer；
 - Viewer 使用与稳定连接相同的 endpoint behavior Anchor descriptor，通过 Runtime
   只读 preview 产生 `ConnectionFeedbackRoute`；
+- logical surface pointer 由 Viewer 按当前 viewport/zoom 转换到 Connection routing
+  domain；
 - 应用 `feedback_with_route()` 可保留当前 bendpoints，只替换移动端；
 - feedback 不参与 targeting；
 - invalid candidate 可显示自由端，但不能提交。

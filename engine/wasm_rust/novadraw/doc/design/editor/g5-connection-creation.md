@@ -108,8 +108,9 @@ feedback 由 `ConnectionCreation` 贡献，并通过 Viewer 的标准 feedback l
 - release 不提交，第二次有效 press 才提交；
 - cancel、focus loss、tool switch、source retirement 和成功提交都必须清空。
 
-G5.2 使用当前 model-scaled feedback 域。scroll/zoom 下 entry-domain 到 feedback-domain
-的转换与 drag auto-expose 在 G5.5 统一闭合，不能在 app 中复制 viewport 变换。
+G5.2 使用 model-scaled feedback 域。G5.5 已统一将 logical surface pointer 转换为
+Connection routing-domain request location，并在 scroll/zoom 后重新计算 target 与
+feedback；应用不得复制 viewport 变换。
 
 ## 7. 模型 Command
 
@@ -160,4 +161,4 @@ Novadraw 差异：
 13. workspace fmt/check/clippy/test。
 
 通过门禁后，`connection.create` 提升为 `verified`；`connection.reconnect`、
-`viewport.autoexpose` 继续保持 `specified`。G5.2 不单独开放检查点 C。
+`viewport.autoexpose` 由 G5.5 闭合。G5.2 不单独开放检查点 C。

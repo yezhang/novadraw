@@ -9,7 +9,7 @@
 入口：
 
 ```bash
-cargo run -p node-editor-demo
+cargo xtask manual g5.3
 ```
 
 ## A. Endpoint Handles

@@ -184,14 +184,16 @@ RootEditPart 不对应业务模型，默认建立：
 
 ```text
 root layered pane
-├── handle layer                 # 不随内容缩放
-├── feedback layer               # 不随内容缩放
-└── scalable layers
-    ├── grid layer
-    ├── printable layers
-    │   ├── primary layer
-    │   └── connection layer
-    └── scaled feedback layer
+├── viewport layer
+│   └── viewport
+│       └── scalable layers
+│           ├── grid layer
+│           ├── printable layers
+│           │   ├── primary layer
+│           │   └── connection layer
+│           └── scaled feedback layer
+├── feedback layer               # 不随内容缩放或滚动
+└── handle layer                 # 不随内容缩放或滚动
 ```
 
 首版可以不实现 grid/guide，但 layer key 和缩放域必须从开始就明确。

@@ -14,6 +14,7 @@
 - 采用与差异：`doc/parity/gef/api-coverage.md`
 - 关键架构决策：`doc/adr/adr-015-editor-framework-boundary.md`
 - 实施顺序和状态：本目录
+- 可执行验证定义：`verification/suites.toml`
 - 阶段验证：`doc/verification/`
 
 ## 状态
@@ -142,7 +143,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 人工验收入口：
 
-- `cargo run -p node-editor-demo`；
+- `cargo xtask manual g3`；
 - `doc/verification/manual/g3-selection-targeting.md`。
 
 ## G4 自动门禁记录
@@ -165,7 +166,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 人工验收入口：
 
-- `cargo run -p node-editor-demo`；
+- `cargo xtask manual g4`；
 - `doc/verification/manual/g4-editing-loop.md`。
 
 ## G5 当前记录
@@ -177,8 +178,8 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 - [x] 实现 existing connection projection 与 17 项自动契约；
 - [x] 实现 G5.2 两阶段 connection create 与 10 项自动契约；
 - [x] 实现 G5.3 reconnect 与 endpoint handle；
-- [ ] 实现 bendpoint；
-- [ ] 实现 viewport/zoom feedback 与 drag auto-expose；
+- [x] 实现 G5.4 bendpoint、typed constraint 与双折点正交 self-loop；
+- [x] 实现 G5.5 viewport/zoom feedback 与 drag auto-expose；
 - [ ] 检查点 C 人工验收。
 
 设计评审入口：
@@ -190,21 +191,45 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 G5.1 自动验证入口：
 
+- `cargo xtask verify g5.1`；
 - `novadraw-editor/tests/g5_connection_projection_contract.rs`；
 - `doc/verification/reviews/g5-connection-projection-design-2026-09-14.md`。
 
 G5.2 自动与人工验证入口：
 
+- `cargo xtask verify g5.2`；
+- `cargo xtask manual g5.2`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md`；
 - `doc/verification/manual/g5-connection-creation.md`。
 
 G5.3 自动与人工验证入口：
 
+- `cargo xtask verify g5.3`；
+- `cargo xtask manual g5.3`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
 - `novadraw-scene/tests/m9_connection_contract.rs`；
 - `doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md`；
 - `doc/verification/manual/g5-connection-reconnect.md`。
+
+G5.4 自动与人工验证入口：
+
+- `cargo xtask verify g5.4`；
+- `cargo xtask manual g5.4`；
+- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
+- `novadraw-scene/tests/m9_connection_contract.rs`；
+- `doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md`；
+- `doc/verification/manual/g5-connection-bendpoint.md`。
+
+G5.5 自动与人工验证入口：
+
+- `cargo xtask verify g5.5`；
+- `cargo xtask manual g5.5`；
+- `novadraw-editor/tests/g4_editing_loop_contract.rs`；
+- `novadraw-editor/tests/g5_connection_creation_contract.rs`；
+- `doc/design/editor/g5-viewport-autoexpose.md`；
+- `doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md`；
+- `doc/verification/manual/g5-viewport-autoexpose.md`。
 
 ## 最小毕业场景
 

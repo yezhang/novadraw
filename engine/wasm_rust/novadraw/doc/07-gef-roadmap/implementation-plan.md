@@ -138,8 +138,9 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
-状态：`in_progress`，G5.1 Connection Projection、G5.2 Connection Creation 与
-G5.3 reconnect/endpoint handle 已完成，下一步为 G5.4 bendpoint。
+状态：`in_progress`，G5.1 Connection Projection、G5.2 Connection Creation、G5.3
+reconnect/endpoint handle、G5.4 bendpoint 与 G5.5 viewport/auto-expose 自动门禁已完成，
+下一步为检查点 C 人工验收。
 
 设计入口：
 
@@ -148,6 +149,7 @@ G5.3 reconnect/endpoint handle 已完成，下一步为 G5.4 bendpoint。
 - `doc/design/editor/g5-connection-creation.md`。
 - `doc/design/editor/g5-connection-reconnect.md`。
 - `doc/design/editor/g5-connection-bendpoint.md`。
+- `doc/design/editor/g5-viewport-autoexpose.md`。
 
 1. 有序 connection snapshot、source/target relation 与单 ConnectionPart 去重；
 2. ConnectionPart/NodePart 关系；
@@ -165,7 +167,7 @@ G5.3 reconnect/endpoint handle 已完成，下一步为 G5.4 bendpoint。
 
 1. 定义示例 document schema 和 serializer；
 2. 保存/加载后重建 Editor/Runtime；
-3. 建立 headless interaction script；
+3. 将已有 G3-G5 `EditorHarness` Headless Replay 扩展到保存/加载；
 4. 建立 Native 节点编辑器；
 5. 建立 Web 等价场景；
 6. 加入截图、语义和 history 断言；

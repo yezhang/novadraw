@@ -16,18 +16,13 @@
 在 workspace 根目录执行：
 
 ```bash
-cargo fmt --check
-cargo check
-cargo clippy -- -D warnings
-cargo test
-
-cargo run -p scroll-pane-demo -- --verify \
-  --report=target/visual-verification/scroll-pane-demo.json
+cargo xtask check --full
+cargo xtask verify m8
 ```
 
 通过标准：
 
-- 四项仓库门禁退出码均为 0。
+- 完整仓库门禁退出码为 0。
 - `scroll-pane-demo` 输出 `PASS auto_visibility`、`PASS wheel_scroll`、
   `PASS scale_chain`、`PASS pinch_anchor`、`PASS freeform_range`、
   `PASS freeform_layer_hit_order`、`PASS freeform_scroll_and_zoom`。

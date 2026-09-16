@@ -1,0 +1,501 @@
+schema_version = 1
+evidence_root = "target/verification"
+
+[documentation]
+parity_ledgers = [
+  "doc/parity/draw2d/api-coverage.md",
+  "doc/parity/gef/api-coverage.md",
+]
+allowed_parity_statuses = [
+  "specified",
+  "partial",
+  "verified",
+  "deferred",
+  "rejected",
+]
+
+[commands."workspace.fmt"]
+description = "Check Rust formatting for the complete workspace"
+program = "cargo"
+args = ["fmt", "--all", "--", "--check"]
+
+[commands."workspace.check"]
+description = "Compile all workspace packages"
+program = "cargo"
+args = ["check", "--workspace"]
+
+[commands."workspace.clippy"]
+description = "Reject Clippy warnings in workspace targets"
+program = "cargo"
+args = ["clippy", "--workspace", "--", "-D", "warnings"]
+
+[commands."workspace.test"]
+description = "Run all workspace unit, integration, and documentation tests"
+program = "cargo"
+args = ["test", "--workspace"]
+
+[commands."verify.update"]
+description = "Run deterministic UpdateManager application probes"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "update-app",
+  "--",
+  "--verify",
+  "--report=target/verification/reports/update-app.json",
+]
+
+[commands."verify.event"]
+description = "Run deterministic event dispatch application probes"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "event-app",
+  "--",
+  "--verify",
+  "--report=target/verification/reports/event-app.json",
+]
+
+[commands."verify.scroll-pane"]
+description = "Run deterministic viewport, scroll, and zoom application probes"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "scroll-pane-demo",
+  "--",
+  "--verify",
+  "--report=target/verification/reports/scroll-pane-demo.json",
+]
+
+[commands."test.scene-dispatch"]
+description = "Run the public Figure/Editor dispatch outcome contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-scene", "--test", "p2_dispatch_outcome_contract"]
+
+[commands."test.scene-viewport"]
+description = "Run the M8 viewport contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-scene", "--test", "m8_viewport_contract"]
+
+[commands."test.scene-connection"]
+description = "Run the Draw2D connection, anchor, router, and locator contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-scene", "--test", "m9_connection_contract"]
+
+[commands."test.editor-g1-model"]
+description = "Run the G1 model adapter contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g1_model_contract"]
+
+[commands."test.editor-g1-command"]
+description = "Run the G1 command stack contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g1_command_stack_contract"]
+
+[commands."test.editor-g2"]
+description = "Run the G2 viewer projection contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g2_viewer_projection_contract"]
+
+[commands."test.editor-g3-selection"]
+description = "Run the G3 selection model contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g3_selection_contract"]
+
+[commands."test.editor-g3-interaction"]
+description = "Run the G3 viewer interaction contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g3_viewer_interaction_contract"]
+
+[commands."test.editor-g4"]
+description = "Run the G4 editing loop contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g4_editing_loop_contract"]
+
+[commands."test.editor-g5-projection"]
+description = "Run the G5 connection projection contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g5_connection_projection_contract"]
+
+[commands."test.editor-g5-editing"]
+description = "Run the G5 create, reconnect, and bendpoint contract"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--test", "g5_connection_creation_contract"]
+
+[commands."web.build"]
+description = "Build the Web validation application and wasm-bindgen output"
+program = "./scripts/build_web_validation.sh"
+
+[commands."web.serve"]
+description = "Serve the Web validation application on localhost"
+program = "./scripts/serve_web_validation.sh"
+
+[commands."native.node-editor"]
+description = "Open the Native Editor manual validation application"
+program = "cargo"
+args = ["run", "-p", "node-editor-demo"]
+
+[commands."replay.editor-g3"]
+description = "Replay selection, targeting, and widget arbitration without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g3",
+  "--report=target/verification/reports/node-editor-g3.json",
+]
+
+[commands."replay.editor-g4"]
+description = "Replay bounds editing and command history without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g4",
+  "--report=target/verification/reports/node-editor-g4.json",
+]
+
+[commands."replay.editor-g5.2"]
+description = "Replay connection creation and history without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g5.2",
+  "--report=target/verification/reports/node-editor-g5.2.json",
+]
+
+[commands."replay.editor-g5.3"]
+description = "Replay endpoint reconnect and history without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g5.3",
+  "--report=target/verification/reports/node-editor-g5.3.json",
+]
+
+[commands."replay.editor-g5.4"]
+description = "Replay bendpoint create, move, collapse, and history without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g5.4",
+  "--report=target/verification/reports/node-editor-g5.4.json",
+]
+
+[commands."replay.editor-g5.5"]
+description = "Replay viewport zoom and drag auto-expose without a window"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "node-editor-demo",
+  "--",
+  "--headless-replay=g5.5",
+  "--report=target/verification/reports/node-editor-g5.5.json",
+]
+
+[profiles.quick]
+description = "Formatting, workspace compilation, and lint feedback"
+commands = ["workspace.fmt", "workspace.check", "workspace.clippy"]
+
+[profiles.full]
+description = "Complete local submission gate"
+commands = [
+  "workspace.fmt",
+  "workspace.check",
+  "workspace.clippy",
+  "workspace.test",
+]
+
+[[suites]]
+id = "workspace.quality"
+title = "Workspace submission gate"
+milestone = "workspace"
+kind = "quality"
+layers = ["static", "contract"]
+platforms = ["host", "headless"]
+commands = [
+  "workspace.fmt",
+  "workspace.check",
+  "workspace.clippy",
+  "workspace.test",
+]
+paths = ["**/*.rs", "**/Cargo.toml", "Cargo.toml"]
+documents = ["CLAUDE.md"]
+artifacts = ["target/verification/runs"]
+
+[[suites]]
+id = "core.runtime"
+title = "Core update and event application contracts"
+milestone = "M1-M7"
+kind = "application"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["verify.update", "verify.event"]
+paths = [
+  "novadraw-scene/**",
+  "novadraw-apps/**",
+  "novadraw-demo-scenes/src/update.rs",
+  "novadraw-demo-scenes/src/event.rs",
+  "apps/native/update-app/**",
+  "apps/native/event-app/**",
+]
+documents = ["doc/verification/manual/core-pipeline.md"]
+artifacts = [
+  "target/verification/reports/update-app.json",
+  "target/verification/reports/event-app.json",
+]
+
+[[suites]]
+id = "m8.viewport-scroll-zoom"
+title = "Viewport, scroll, freeform, and zoom contracts"
+milestone = "M8"
+kind = "application"
+layers = ["contract", "headless", "visual"]
+platforms = ["host", "headless", "native-macos", "web"]
+commands = ["test.scene-viewport", "verify.scroll-pane"]
+paths = [
+  "novadraw-scene/src/container/**",
+  "novadraw-scene/tests/m8_viewport_contract.rs",
+  "novadraw-demo-scenes/src/viewport.rs",
+  "novadraw-demo-scenes/src/scroll_pane.rs",
+  "apps/native/viewport-app/**",
+  "apps/native/scroll-pane-demo/**",
+]
+documents = [
+  "doc/design/input/scroll-zoom-gesture-contract.md",
+  "doc/verification/manual/m8-viewport.md",
+]
+artifacts = ["target/verification/reports/scroll-pane-demo.json"]
+
+[[suites]]
+id = "g1.model-command"
+title = "Model adapter and command history"
+milestone = "G1"
+kind = "contract"
+layers = ["contract"]
+platforms = ["headless"]
+commands = ["test.editor-g1-model", "test.editor-g1-command"]
+paths = [
+  "novadraw-editor/src/model/**",
+  "novadraw-editor/src/command/**",
+  "novadraw-editor/tests/g1_*",
+]
+documents = ["doc/verification/reviews/g1-model-command-completion-2026-09-13.md"]
+
+[[suites]]
+id = "g2.viewer-projection"
+title = "EditPart tree and Viewer projection"
+milestone = "G2"
+kind = "contract"
+layers = ["contract"]
+platforms = ["headless"]
+commands = ["test.editor-g2"]
+paths = [
+  "novadraw-editor/src/part/**",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/g2_*",
+]
+documents = ["doc/verification/reviews/g2-viewer-projection-completion-2026-09-13.md"]
+
+[[suites]]
+id = "g3.selection-targeting"
+title = "Selection, targeting, and input arbitration"
+milestone = "G3"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = [
+  "test.scene-dispatch",
+  "test.editor-g3-selection",
+  "test.editor-g3-interaction",
+  "replay.editor-g3",
+]
+paths = [
+  "novadraw-editor/src/selection/**",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/g3_*",
+  "apps/native/node-editor-demo/**",
+]
+documents = ["doc/verification/reviews/g3-selection-targeting-behavior-2026-09-13.md"]
+artifacts = ["target/verification/reports/node-editor-g3.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g3-selection-targeting.md" }
+
+[[suites]]
+id = "g4.editing-loop"
+title = "Tool, request, policy, and command editing loop"
+milestone = "G4"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = ["test.editor-g4", "replay.editor-g4"]
+paths = [
+  "novadraw-editor/src/tool/**",
+  "novadraw-editor/src/request/**",
+  "novadraw-editor/src/policy/**",
+  "novadraw-editor/src/feedback/**",
+  "novadraw-editor/tests/g4_*",
+  "apps/native/node-editor-demo/**",
+]
+documents = ["doc/verification/reviews/g4-editing-loop-behavior-2026-09-14.md"]
+artifacts = ["target/verification/reports/node-editor-g4.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g4-editing-loop.md" }
+
+[[suites]]
+id = "g5.1.connection-projection"
+title = "Connection projection and lifecycle"
+milestone = "G5.1"
+kind = "contract"
+layers = ["contract"]
+platforms = ["headless"]
+commands = ["test.editor-g5-projection", "test.scene-connection"]
+paths = [
+  "novadraw-editor/src/part/**",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/g5_connection_projection_contract.rs",
+  "novadraw-scene/src/connection/**",
+  "novadraw-scene/tests/m9_connection_contract.rs",
+]
+documents = [
+  "doc/design/editor/g5-connection-projection.md",
+  "doc/verification/reviews/g5-connection-projection-design-2026-09-14.md",
+]
+
+[[suites]]
+id = "g5.2.connection-creation"
+title = "Two-stage connection creation"
+milestone = "G5.2"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = [
+  "test.editor-g5-editing",
+  "test.scene-connection",
+  "replay.editor-g5.2",
+]
+paths = [
+  "novadraw-editor/src/**",
+  "novadraw-editor/tests/g5_connection_creation_contract.rs",
+  "novadraw-scene/src/connection/**",
+  "apps/native/node-editor-demo/**",
+]
+documents = [
+  "doc/design/editor/g5-connection-creation.md",
+  "doc/verification/reviews/g5-connection-creation-behavior-2026-09-14.md",
+]
+artifacts = ["target/verification/reports/node-editor-g5.2.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g5-connection-creation.md" }
+
+[[suites]]
+id = "g5.3.connection-reconnect"
+title = "Connection endpoint reconnect"
+milestone = "G5.3"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = [
+  "test.editor-g5-editing",
+  "test.scene-connection",
+  "replay.editor-g5.3",
+]
+paths = [
+  "novadraw-editor/src/**",
+  "novadraw-editor/tests/g5_connection_creation_contract.rs",
+  "novadraw-scene/src/connection/**",
+  "apps/native/node-editor-demo/**",
+]
+documents = [
+  "doc/design/editor/g5-connection-reconnect.md",
+  "doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md",
+]
+artifacts = ["target/verification/reports/node-editor-g5.3.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g5-connection-reconnect.md" }
+
+[[suites]]
+id = "g5.4.connection-bendpoint"
+title = "Connection bendpoint create, move, and delete"
+milestone = "G5.4"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = [
+  "test.editor-g5-editing",
+  "test.scene-connection",
+  "replay.editor-g5.4",
+]
+paths = [
+  "novadraw-editor/src/**",
+  "novadraw-editor/tests/g5_connection_creation_contract.rs",
+  "novadraw-scene/src/connection/**",
+  "apps/native/node-editor-demo/**",
+]
+documents = [
+  "doc/design/editor/g5-connection-bendpoint.md",
+  "doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md",
+]
+artifacts = ["target/verification/reports/node-editor-g5.4.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g5-connection-bendpoint.md" }
+
+[[suites]]
+id = "g5.5.viewport-autoexpose"
+title = "Viewport-aware feedback and drag auto-expose"
+milestone = "G5.5"
+kind = "application"
+layers = ["contract", "visual", "platform"]
+platforms = ["headless", "native-macos"]
+commands = [
+  "test.editor-g3-interaction",
+  "test.editor-g4",
+  "test.editor-g5-editing",
+  "test.scene-viewport",
+  "replay.editor-g5.5",
+]
+paths = [
+  "novadraw-editor/src/**",
+  "novadraw-editor/tests/g3_viewer_interaction_contract.rs",
+  "novadraw-editor/tests/g4_editing_loop_contract.rs",
+  "novadraw-editor/tests/g5_connection_creation_contract.rs",
+  "novadraw-scene/src/container/**",
+  "novadraw-scene/tests/m8_viewport_contract.rs",
+  "apps/native/node-editor-demo/**",
+]
+documents = [
+  "doc/design/editor/g5-viewport-autoexpose.md",
+  "doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md",
+  "doc/verification/manual/g5-viewport-autoexpose.md",
+]
+artifacts = ["target/verification/reports/node-editor-g5.5.json"]
+manual = { command = "native.node-editor", document = "doc/verification/manual/g5-viewport-autoexpose.md" }
+
+[[suites]]
+id = "web.build"
+title = "Wasm and browser validation build"
+milestone = "platform-web"
+kind = "build"
+layers = ["static", "platform"]
+platforms = ["wasm", "web"]
+commands = ["web.build"]
+paths = [
+  "apps/web/web-validation/**",
+  "novadraw-demo-scenes/**",
+  "scripts/build_web_validation.sh",
+]
+documents = ["apps/web/web-validation/README.md"]
+artifacts = ["apps/web/web-validation/dist"]
+manual = { command = "web.serve", document = "doc/verification/manual/web-platform.md" }

@@ -2,7 +2,7 @@
 
 类型：`normative-design`
 
-状态：`target`
+状态：`implemented`
 
 适用范围：连接 bendpoint 模型投影、create/move/delete handles、拖动反馈和 history。
 
@@ -35,7 +35,7 @@ Viewer 在投影 ConnectionPart 时读取 behavior 配置：
 
 - `ConnectionPartId`；
 - `BendpointOperation::{Create { index }, Move { index }, Delete { index }}`；
-- pointer location；
+- Connection routing-domain pointer location；
 - modifier snapshot；
 - interaction revision。
 

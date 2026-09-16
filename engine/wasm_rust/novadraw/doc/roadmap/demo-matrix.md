@@ -51,10 +51,13 @@
 
 ### 统一 CLI
 
-- `cargo run -p update-app -- --verify`：验证 damage、通知顺序、dirty 合并、panic 恢复和 1,024 Figure 事务
-- `cargo run -p event-app -- --verify`：验证 capture、focus/keyboard、wheel/hover/double-click 和坐标根降域
-- `--scenario=<name>` 只运行指定场景，`--report=<path>` 输出机器可读 JSON
-- 默认报告：`target/visual-verification/update-app.json`、`target/visual-verification/event-app.json`
+- `cargo xtask list`：列出统一 profile 与 suite ID
+- `cargo xtask verify core.runtime`：验证 damage、通知顺序、dirty 合并、panic 恢复、
+  1,024 Figure 事务、capture、focus 和坐标根降域
+- `cargo xtask verify m8`：验证 Viewport、ScrollPane、Freeform 与 Zoom
+- `cargo xtask check --full`：运行完整 workspace 提交门禁
+- 命令与报告路径的唯一可执行定义：
+  [`../../verification/suites.toml`](../../verification/suites.toml)
 
 ### 帧率断言
 

@@ -81,7 +81,7 @@ Boolean(navigator.gpu)
 执行：
 
 ```bash
-./scripts/build_web_validation.sh
+cargo xtask verify web.build
 ```
 
 预期退出码为 0，并生成：
@@ -104,7 +104,7 @@ target/wasm-tools/bin/wasm-bindgen
 如需使用其他位置的同版本 CLI：
 
 ```bash
-WASM_BINDGEN="$(command -v wasm-bindgen)" ./scripts/build_web_validation.sh
+WASM_BINDGEN="$(command -v wasm-bindgen)" cargo xtask verify web.build
 ```
 
 ## 4. 启动资源服务
@@ -112,13 +112,13 @@ WASM_BINDGEN="$(command -v wasm-bindgen)" ./scripts/build_web_validation.sh
 在独立终端执行：
 
 ```bash
-./scripts/serve_web_validation.sh
+cargo xtask manual web.build
 ```
 
 默认监听 `127.0.0.1:4173`。端口占用时指定其他端口：
 
 ```bash
-PORT=4174 ./scripts/serve_web_validation.sh
+PORT=4174 cargo xtask manual web.build
 ```
 
 在另一个终端检查静态资源：

@@ -49,8 +49,11 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Editor 框架边界：
   [`adr/adr-015-editor-framework-boundary.md`](adr/adr-015-editor-framework-boundary.md)
 - Editor 规范架构：[`design/editor/architecture.md`](design/editor/architecture.md)
+- Editor Viewport/Auto-expose：
+  [`design/editor/g5-viewport-autoexpose.md`](design/editor/g5-viewport-autoexpose.md)
 - GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
 - G0-G6 唯一编号与状态：[`07-gef-roadmap/00-index.md`](07-gef-roadmap/00-index.md)
+- 可执行验证 suite 与命令：[`../verification/suites.toml`](../verification/suites.toml)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)
 - 当前核心收口与功能迁移顺序：

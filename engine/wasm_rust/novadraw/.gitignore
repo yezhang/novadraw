@@ -6,6 +6,7 @@ screenshot/
 target/
 apps/web/web-validation/dist/
 **/*.profraw
+doc/verification/reviews/**/evidence/*_probe
 
 # Runtime logs
 log/

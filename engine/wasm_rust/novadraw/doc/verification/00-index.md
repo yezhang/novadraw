@@ -8,6 +8,27 @@
 - `performance/`：可重复执行的性能基线与前后对比
 - `checklists/`：开发与验证检查清单
 
+## 自动化入口
+
+可执行命令、suite 到 milestone 的映射、证据路径和人工验收入口统一定义在
+[`../../verification/suites.toml`](../../verification/suites.toml)，schema 说明见
+[`../../verification/README.md`](../../verification/README.md)。
+
+```bash
+cargo xtask list
+cargo xtask docs
+cargo xtask check --quick
+cargo xtask check --full
+cargo xtask verify <suite-id>
+cargo xtask manual <suite-id>
+```
+
+本目录中的 review 保存历史结果，manual 保存人工观察步骤；二者不再定义独立的自动
+命令序列。新增或修改验证入口时先更新 manifest，再在 review 中引用稳定 suite ID。
+Editor G3-G5 suite 还会通过平台无关 `EditorHarness` 重放真实编辑链路，并将有序
+checkpoint 报告写入 `target/verification/reports/`；人工步骤只补充窗口、GPU 和
+输入设备体验。
+
 ADR-001 至 ADR-013 的设计审计、源码证据、旧新映射与剩余门禁见
 [`reviews/adr-audit-2026-09-10.md`](reviews/adr-audit-2026-09-10.md)。
 这是设计审计，不是新增 Runtime 验证；历史通过记录不能覆盖 ADR-014 新契约。
@@ -75,6 +96,14 @@ Editor G5.3 endpoint reconnect、self-loop route、自动门禁和 Native 人工
 
 Connection 的 Draw2D/GEF 扩展边界整改、parity 状态修正与验证结果见
 [`reviews/connection-extensibility-correction-2026-09-15.md`](reviews/connection-extensibility-correction-2026-09-15.md)。
+
+Editor G5.4 bendpoint 与 G5.5 viewport/zoom feedback、drag auto-expose 的实现证据见
+[`reviews/g5-connection-bendpoint-behavior-2026-09-15.md`](reviews/g5-connection-bendpoint-behavior-2026-09-15.md)
+和
+[`reviews/g5-viewport-autoexpose-behavior-2026-09-15.md`](reviews/g5-viewport-autoexpose-behavior-2026-09-15.md)；
+人工验收入口见
+[`manual/g5-connection-bendpoint.md`](manual/g5-connection-bendpoint.md) 和
+[`manual/g5-viewport-autoexpose.md`](manual/g5-viewport-autoexpose.md)。
 
 本次目录治理和双向一致性结论见
 [`reviews/design-code-audit-2026-08-29.md`](reviews/design-code-audit-2026-08-29.md)。

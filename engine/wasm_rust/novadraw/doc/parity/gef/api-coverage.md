@@ -53,8 +53,8 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
 | `connection.create` | CreateConnectionRequest / NodeEditPart request anchor | source-locked start/end 两阶段 Tool；endpoint behavior Anchor preview、反馈、模型 Command 与 undo/redo | verified | G5 |
 | `connection.reconnect` | ReconnectRequest / ConnectionEndpointEditPolicy | endpoint handle、稳定 Anchor descriptor preview、source/target 重连、合法性和 undo | verified | G5 |
-| `connection.bendpoint` | BendpointRequest / BendpointEditPolicy | create/move/delete handle、typed constraint、feedback 与 undo/redo；Connection behavior 选择应用注册的命名 Router，不污染 ModelAdapter | implemented | G5 |
-| `viewport.autoexpose` | AutoexposeHelper | 拖拽期间 Viewport 自动滚动 | specified | G5 |
+| `connection.bendpoint` | BendpointRequest / BendpointEditPolicy | create/move/delete handle、typed constraint、feedback 与 undo/redo；Connection behavior 选择应用注册的命名 Router，不污染 ModelAdapter | verified | G5 |
+| `viewport.autoexpose` | AutoexposeHelper / ViewportAutoexposeHelper | host 注入单调 elapsed，拖拽期间按 surface edge band 推进 Viewport，并重算 request、target 与 feedback | verified | G5 |
 | `document.persistence` | 非 GEF 固定 API | 应用 serializer + 重建一致性门禁 | specified | G6 |
 | `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | G6+ |
 | `direct_edit` | DirectEditManager/Request | 文本编辑、IME、commit/cancel | deferred | G6+ |

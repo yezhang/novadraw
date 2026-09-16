@@ -64,6 +64,21 @@
 当前主线不提供迭代渲染入口或 `I` 键切换。核心渲染管线的完整人工验收步骤见
 [`doc/verification/manual/core-pipeline.md`](../doc/verification/manual/core-pipeline.md)。
 
+`node-editor-demo` 的平台无关编辑链路可通过 Headless Replay 重放：
+
+```sh
+cargo xtask verify g3
+cargo xtask verify g4
+cargo xtask verify g5.2
+cargo xtask verify g5.3
+cargo xtask verify g5.4
+```
+
+Replay 与 Native 窗口共用 `EditorHarness`，覆盖真实
+Tool → Request → Command → Model → Viewer 投影链路；报告写入
+`target/verification/reports/`。真实窗口、GPU 提交与输入设备体验仍由对应 manual
+suite 验收。
+
 ## 架构设计
 
 ```
@@ -95,8 +110,7 @@ catalog。`apps/native/*` 只保留 Native CLI、窗口运行和验证报告逻�
 ## 运行所有测试
 
 ```sh
-cargo check --workspace
-cargo test --workspace
+cargo xtask check --full
 ```
 
 ## 添加新 App
@@ -104,4 +118,5 @@ cargo test --workspace
 1. 根据运行环境在 `apps/native/`、`apps/web/` 或 `apps/benchmarks/` 下创建目录
 2. 添加 `Cargo.toml` 和 `src/main.rs`
 3. 在 workspace `Cargo.toml` 中添加成员
-4. 更新本 README
+4. 在 `verification/suites.toml` 注册稳定的验证命令与 suite
+5. 更新本 README

@@ -14,8 +14,8 @@ cargo install wasm-bindgen-cli \
   --version 0.2.127 \
   --locked \
   --root target/wasm-tools
-./scripts/build_web_validation.sh
-./scripts/serve_web_validation.sh
+cargo xtask verify web.build
+cargo xtask manual web.build
 ```
 
 默认入口为 <http://127.0.0.1:4173/?backend=vello>。页面从

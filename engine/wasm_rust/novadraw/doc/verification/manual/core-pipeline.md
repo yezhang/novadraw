@@ -60,15 +60,12 @@ cd /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw
 依次执行：
 
 ```bash
-cargo fmt --check
-cargo check
-cargo clippy -- -D warnings
-cargo test
+cargo xtask check --full
 ```
 
 通过标准：
 
-- 四条命令均以退出码 0 结束。
+- profile 中的全部命令均以退出码 0 结束。
 - 不存在 panic、测试失败或 clippy warning。
 - 后续窗口异常如果不能通过这里复现，应优先检查窗口系统、GPU 和 surface。
 
@@ -77,11 +74,7 @@ cargo test
 先运行无窗口验证，并保留 JSON 报告：
 
 ```bash
-cargo run -p update-app -- --verify \
-  --report=target/visual-verification/update-app.json
-
-cargo run -p event-app -- --verify \
-  --report=target/visual-verification/event-app.json
+cargo xtask verify core.runtime
 ```
 
 终端必须按发生顺序出现以下结果：
@@ -285,7 +278,7 @@ cargo run -p clip-app -- --screenshot=2
 截图命令会在完成后自动退出，文件位于各 app 的 `screenshot/` 目录。交互后的状态
 使用窗口内 `S` 键留存。验收记录至少保留：
 
-- 两份 `target/visual-verification/*.json` 报告。
+- 两份 `target/verification/reports/*.json` 报告。
 - `update-app` 四个场景截图。
 - `transform-app` 四个场景截图。
 - `layout-app` 的 `root_viewport_resize` 初始窗口与缩放后人工结论。
@@ -303,14 +296,10 @@ Commit:
 图形设备 / 后端:
 
 自动门禁:
-[ ] cargo fmt --check
-[ ] cargo check
-[ ] cargo clippy -- -D warnings
-[ ] cargo test
+[ ] cargo xtask check --full
 
 无窗口 verification:
-[ ] update-app 6/6 PASS，报告路径:
-[ ] event-app 4/4 PASS，报告路径:
+[ ] cargo xtask verify core.runtime PASS，报告路径:
 
 窗口验收:
 [ ] update-app：切场景、partial damage、1,024 Figure、resize/恢复
