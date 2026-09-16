@@ -22,11 +22,13 @@ enum DragKind {
 }
 
 struct DragGesture {
-    start: Point,
+    start_surface: Point,
+    start_model: Point,
     parts: Vec<EditPartId>,
     kind: DragKind,
     modifiers: RequestModifiers,
     collapse_on_click: Option<EditPartId>,
+    drag_started: bool,
     feedback: Vec<FigureId>,
 }
 
@@ -129,6 +131,12 @@ impl SelectionTool {
         self.gesture.is_some()
     }
 
+    pub(crate) fn is_dragging(&self) -> bool {
+        self.gesture
+            .as_ref()
+            .is_some_and(|gesture| gesture.drag_started)
+    }
+
     /// Dispatches press to Figures first, then locks a stable drag source when eligible.
     pub fn pointer_pressed<A, F>(
         &mut self,
@@ -183,11 +191,13 @@ impl SelectionTool {
         };
 
         self.gesture = Some(DragGesture {
-            start: location,
+            start_surface: location,
+            start_model: viewer.model_point_from_surface(location)?,
             parts,
             kind,
             modifiers: request_modifiers(modifiers),
             collapse_on_click,
+            drag_started: false,
             feedback: Vec::new(),
         });
         Ok(outcome)
@@ -205,18 +215,33 @@ impl SelectionTool {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
-        let Some(gesture) = &mut self.gesture else {
-            return Ok(dispatch);
-        };
-        let delta = location - gesture.start;
-        if delta.length() < DRAG_START_DISTANCE {
-            return Ok(dispatch);
-        }
-
-        clear_feedback(viewer, &mut gesture.feedback)?;
-        let request = change_bounds_request(gesture, location, delta, revision);
-        gesture.feedback = viewer.show_feedback_for_request(&request)?;
+        self.refresh(viewer, location, revision)?;
         Ok(dispatch)
+    }
+
+    pub(crate) fn refresh<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<(), ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        let Some(gesture) = &mut self.gesture else {
+            return Ok(());
+        };
+        if (location - gesture.start_surface).length() < DRAG_START_DISTANCE {
+            return Ok(());
+        }
+        gesture.drag_started = true;
+        let model_location = viewer.model_point_from_surface(location)?;
+        let delta = model_location - gesture.start_model;
+        clear_feedback(viewer, &mut gesture.feedback)?;
+        let request = change_bounds_request(gesture, model_location, delta, revision);
+        gesture.feedback = viewer.show_feedback_for_request(&request)?;
+        Ok(())
     }
 
     /// Erases feedback and returns the final Request for command execution.
@@ -239,15 +264,18 @@ impl SelectionTool {
             });
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
-        let delta = location - gesture.start;
-        if delta.length() < DRAG_START_DISTANCE
+        let surface_delta = location - gesture.start_surface;
+        let model_location = viewer.model_point_from_surface(location)?;
+        let delta = model_location - gesture.start_model;
+        if surface_delta.length() < DRAG_START_DISTANCE
             && let Some(part) = gesture.collapse_on_click
         {
             viewer.replace_selection(part)?;
             viewer.set_focus(Some(part))?;
         }
-        let request = (button == MouseButton::Left && delta.length() >= DRAG_START_DISTANCE)
-            .then(|| change_bounds_request(&gesture, location, delta, revision));
+        let request = (button == MouseButton::Left
+            && surface_delta.length() >= DRAG_START_DISTANCE)
+            .then(|| change_bounds_request(&gesture, model_location, delta, revision));
         Ok(ToolRelease { dispatch, request })
     }
 
@@ -282,6 +310,7 @@ struct ReconnectGesture<A: ModelAdapter> {
     start: Point,
     modifiers: RequestModifiers,
     plan: Box<dyn ConnectionReconnection<A>>,
+    drag_started: bool,
     feedback: Vec<FigureId>,
 }
 
@@ -295,8 +324,9 @@ pub struct ConnectionEndpointTool<A: ModelAdapter> {
 struct BendpointGesture {
     connection: ConnectionPartId,
     operation: BendpointOperation,
-    start: Point,
+    start_surface: Point,
     modifiers: RequestModifiers,
+    drag_started: bool,
     feedback: Vec<FigureId>,
 }
 
@@ -315,6 +345,12 @@ impl ConnectionBendpointTool {
     /// Returns whether one bendpoint drag is active.
     pub const fn is_active(&self) -> bool {
         self.gesture.is_some()
+    }
+
+    pub(crate) fn is_dragging(&self) -> bool {
+        self.gesture
+            .as_ref()
+            .is_some_and(|gesture| gesture.drag_started)
     }
 
     /// Starts a bendpoint operation from a typed handle.
@@ -337,8 +373,9 @@ impl ConnectionBendpointTool {
             self.gesture = Some(BendpointGesture {
                 connection,
                 operation,
-                start: location,
+                start_surface: location,
                 modifiers: request_modifiers(modifiers),
+                drag_started: false,
                 feedback: Vec::new(),
             });
         }
@@ -357,12 +394,28 @@ impl ConnectionBendpointTool {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        self.refresh(viewer, location, revision)?;
+        Ok(dispatch)
+    }
+
+    pub(crate) fn refresh<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<(), ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
         let Some(gesture) = &mut self.gesture else {
-            return Ok(dispatch);
+            return Ok(());
         };
-        if (location - gesture.start).length() < DRAG_START_DISTANCE {
-            return Ok(dispatch);
+        if (location - gesture.start_surface).length() < DRAG_START_DISTANCE {
+            return Ok(());
         }
+        gesture.drag_started = true;
+        let location = viewer.connection_point_from_surface(gesture.connection, location)?;
         clear_feedback(viewer, &mut gesture.feedback)?;
         let request = EditorRequest::Bendpoint(BendpointRequest::new(
             gesture.connection,
@@ -372,7 +425,7 @@ impl ConnectionBendpointTool {
             revision,
         ));
         gesture.feedback = viewer.show_feedback_for_request(&request)?;
-        Ok(dispatch)
+        Ok(())
     }
 
     /// Clears feedback and returns the final bendpoint request.
@@ -395,17 +448,21 @@ impl ConnectionBendpointTool {
             });
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
-        let request = (button == MouseButton::Left
-            && (location - gesture.start).length() >= DRAG_START_DISTANCE)
-            .then(|| {
-                EditorRequest::Bendpoint(BendpointRequest::new(
-                    gesture.connection,
-                    gesture.operation,
-                    location,
-                    gesture.modifiers,
-                    revision,
-                ))
-            });
+        let surface_delta = location - gesture.start_surface;
+        let request = if button == MouseButton::Left
+            && surface_delta.length() >= DRAG_START_DISTANCE
+        {
+            let location = viewer.connection_point_from_surface(gesture.connection, location)?;
+            Some(EditorRequest::Bendpoint(BendpointRequest::new(
+                gesture.connection,
+                gesture.operation,
+                location,
+                gesture.modifiers,
+                revision,
+            )))
+        } else {
+            None
+        };
         Ok(ToolRelease { dispatch, request })
     }
 
@@ -437,6 +494,12 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         self.gesture.is_some()
     }
 
+    pub(crate) fn is_dragging(&self) -> bool {
+        self.gesture
+            .as_ref()
+            .is_some_and(|gesture| gesture.drag_started)
+    }
+
     /// Starts reconnect tracking from an endpoint handle press.
     pub fn pointer_pressed<F>(
         &mut self,
@@ -455,10 +518,11 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         if outcome.dispatch().is_handled() || button != MouseButton::Left {
             return Ok(outcome);
         }
+        let request_location = viewer.connection_routing_point_from_surface(location)?;
         let request = ReconnectConnectionRequest::new(
             self.connection,
             self.endpoint,
-            location,
+            request_location,
             request_modifiers(modifiers),
             revision,
         );
@@ -467,6 +531,7 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
                 start: location,
                 modifiers: request_modifiers(modifiers),
                 plan,
+                drag_started: false,
                 feedback: Vec::new(),
             });
         }
@@ -485,27 +550,43 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        self.refresh(viewer, location, revision)?;
+        Ok(dispatch)
+    }
+
+    pub(crate) fn refresh<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<(), ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
         let Some(gesture) = &mut self.gesture else {
-            return Ok(dispatch);
+            return Ok(());
         };
         if (location - gesture.start).length() < DRAG_START_DISTANCE {
-            return Ok(dispatch);
+            return Ok(());
         }
+        gesture.drag_started = true;
         let candidate = match viewer.target_at(location.x(), location.y()) {
             ViewerTarget::Part(part) => Some(part),
             ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
         };
+        let request_location = viewer.connection_routing_point_from_surface(location)?;
         let request = ReconnectConnectionRequest::new(
             self.connection,
             self.endpoint,
-            location,
+            request_location,
             gesture.modifiers,
             revision,
         )
         .with_target_candidate(candidate);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_reconnection_feedback(gesture.plan.as_mut(), &request)?;
-        Ok(dispatch)
+        Ok(())
     }
 
     /// Clears feedback and returns a reconnect Command for a valid drop.
@@ -539,10 +620,11 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
             ViewerTarget::Part(part) => Some(part),
             ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
         };
+        let request_location = viewer.connection_routing_point_from_surface(location)?;
         let request = ReconnectConnectionRequest::new(
             self.connection,
             self.endpoint,
-            location,
+            request_location,
             gesture.modifiers,
             revision,
         )
@@ -606,12 +688,13 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
                 completed: false,
             });
         };
+        let request_location = viewer.connection_routing_point_from_surface(location)?;
 
         if let Some(gesture) = &mut self.gesture {
             let request = CreateConnectionRequest::new(
                 gesture.connection_type.clone(),
                 gesture.source,
-                location,
+                request_location,
                 gesture.modifiers,
                 revision,
             )
@@ -637,7 +720,7 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
         let request = CreateConnectionRequest::new(
             self.connection_type.clone(),
             target,
-            location,
+            request_location,
             request_modifiers(modifiers),
             revision,
         );
@@ -675,24 +758,39 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_moved(location.x(), location.y());
+        self.refresh(viewer, location, revision)?;
+        Ok(dispatch)
+    }
+
+    pub(crate) fn refresh<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<(), ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
         let Some(gesture) = &mut self.gesture else {
-            return Ok(dispatch);
+            return Ok(());
         };
         let target = match viewer.target_at(location.x(), location.y()) {
             ViewerTarget::Part(part) => Some(part),
             ViewerTarget::Handle { .. } | ViewerTarget::Contents(_) => None,
         };
+        let request_location = viewer.connection_routing_point_from_surface(location)?;
         let request = CreateConnectionRequest::new(
             gesture.connection_type.clone(),
             gesture.source,
-            location,
+            request_location,
             gesture.modifiers,
             revision,
         )
         .with_target_candidate(target);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_connection_feedback(gesture.plan.as_mut(), &request)?;
-        Ok(dispatch)
+        Ok(())
     }
 
     /// Dispatches release without completing the two-press gesture.

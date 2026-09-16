@@ -1,4 +1,4 @@
-use std::{any::TypeId, collections::HashMap, convert::Infallible};
+use std::{any::TypeId, collections::HashMap, convert::Infallible, time::Duration};
 
 use novadraw_editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
@@ -752,10 +752,17 @@ impl EditPartFactory<DiagramModel> for DiagramFactory {
 }
 
 fn viewer(duplicate_policy: bool) -> GraphicalViewer<DiagramModel, DiagramFactory> {
+    viewer_with_bounds(duplicate_policy, Rectangle::new(0.0, 0.0, 600.0, 400.0))
+}
+
+fn viewer_with_bounds(
+    duplicate_policy: bool,
+    bounds: Rectangle,
+) -> GraphicalViewer<DiagramModel, DiagramFactory> {
     let mut viewer = GraphicalViewer::new(
         DiagramModel::new(),
         DiagramFactory { duplicate_policy },
-        Rectangle::new(0.0, 0.0, 600.0, 400.0),
+        bounds,
     )
     .unwrap();
     let connection_layer = viewer.root_layers().connection();
@@ -862,6 +869,54 @@ fn two_stage_tool_locks_source_preserves_selection_and_commits_after_feedback_cl
             .is_empty()
     );
     assert_eq!(domain.command_stack().undo_len(), 1);
+}
+
+#[test]
+fn connection_creation_autoexpose_keeps_source_locked_and_rebuilds_feedback() {
+    let mut viewer = viewer_with_bounds(false, Rectangle::new(0.0, 0.0, 320.0, 240.0));
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+
+    let edge = Point::new(315.0, 100.0);
+    domain.pointer_moved(&mut viewer, edge).unwrap();
+    assert!(domain.autoexpose_requested());
+    let feedback_count = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()
+        .len();
+    assert!(feedback_count > 0);
+    let revision = viewer.model().revision;
+    let tick = domain
+        .autoexpose_tick(&mut viewer, Duration::from_millis(30))
+        .unwrap();
+
+    assert!(tick.scrolled());
+    assert!(domain.has_active_gesture());
+    assert_eq!(viewer.model().revision, revision);
+    assert_eq!(
+        viewer
+            .runtime()
+            .tree()
+            .child_order(viewer.root_layers().scaled_feedback())
+            .unwrap()
+            .len(),
+        feedback_count
+    );
+
+    domain.cancel_tool(&mut viewer).unwrap();
+    assert!(!domain.autoexpose_requested());
+    assert!(
+        viewer
+            .runtime()
+            .tree()
+            .child_order(viewer.root_layers().scaled_feedback())
+            .unwrap()
+            .is_empty()
+    );
 }
 
 #[test]
@@ -1257,6 +1312,58 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
         viewer.model().bendpoints[&FIRST_EDGE],
         vec![Point::new(200.0, 220.0)]
     );
+}
+
+#[test]
+fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
+    let mut viewer = viewer(false);
+    viewer
+        .model_mut()
+        .connections
+        .push(ModelConnection::new(FIRST_EDGE, FIRST, SECOND));
+    viewer
+        .model_mut()
+        .bendpoints
+        .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
+    viewer.model_mut().publish(FIRST_EDGE);
+    viewer.refresh().unwrap();
+    viewer.runtime_mut().prepare_frame().unwrap();
+
+    let mut domain = EditorDomain::new();
+    assert!(
+        domain
+            .set_viewport_scale_at(&mut viewer, 2.0, Some(Point::new(0.0, 0.0)))
+            .unwrap()
+    );
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    let surface_site = Point::new(360.0, 360.0);
+    viewer
+        .add_handle_visual_with_role(
+            connection.edit_part(),
+            HandleRole::BendpointMove(0),
+            Box::new(RectangleFigure::new(355.0, 355.0, 10.0, 10.0)),
+        )
+        .unwrap();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            surface_site,
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    let moved_surface = Point::new(400.0, 300.0);
+    let expected = viewer
+        .connection_point_from_surface(connection, moved_surface)
+        .unwrap();
+    domain.pointer_moved(&mut viewer, moved_surface).unwrap();
+    domain
+        .pointer_released(&mut viewer, moved_surface, MouseButton::Left)
+        .unwrap();
+
+    assert_eq!(viewer.model().bendpoints[&FIRST_EDGE], vec![expected]);
+    assert_ne!(expected, moved_surface);
 }
 
 #[test]

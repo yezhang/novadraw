@@ -113,12 +113,11 @@ impl EditPartFactory<DiagramModel> for DiagramFactory {
 }
 
 fn viewer() -> GraphicalViewer<DiagramModel, DiagramFactory> {
-    GraphicalViewer::new(
-        DiagramModel::new(),
-        DiagramFactory,
-        Rectangle::new(0.0, 0.0, 640.0, 480.0),
-    )
-    .unwrap()
+    viewer_with_bounds(Rectangle::new(0.0, 0.0, 640.0, 480.0))
+}
+
+fn viewer_with_bounds(bounds: Rectangle) -> GraphicalViewer<DiagramModel, DiagramFactory> {
+    GraphicalViewer::new(DiagramModel::new(), DiagramFactory, bounds).unwrap()
 }
 
 #[test]
@@ -129,7 +128,15 @@ fn root_layers_have_stable_scaled_and_unscaled_z_order() {
 
     assert_eq!(
         tree.child_order(layers.root()).unwrap(),
-        vec![layers.scalable(), layers.feedback(), layers.handles()]
+        vec![layers.viewport_layer(), layers.feedback(), layers.handles()]
+    );
+    assert_eq!(
+        tree.child_order(layers.viewport_layer()).unwrap(),
+        vec![layers.viewport()]
+    );
+    assert_eq!(
+        tree.child_order(layers.viewport()).unwrap(),
+        vec![layers.scalable()]
     );
     assert_eq!(
         tree.child_order(layers.scalable()).unwrap(),
@@ -143,6 +150,22 @@ fn root_layers_have_stable_scaled_and_unscaled_z_order() {
         viewer.parts().get(viewer.root()).unwrap().content_pane(),
         layers.primary()
     );
+}
+
+#[test]
+fn viewport_scroll_changes_targeting_through_the_shared_transform_chain() {
+    let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 120.0, 100.0));
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let first = viewer.part_for_model(NodeId(2)).unwrap();
+    let second = viewer.part_for_model(NodeId(3)).unwrap();
+
+    assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(first));
+    assert!(
+        viewer
+            .set_viewport_origin(novadraw_geometry::Point::new(100.0, 0.0))
+            .unwrap()
+    );
+    assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(second));
 }
 
 #[test]

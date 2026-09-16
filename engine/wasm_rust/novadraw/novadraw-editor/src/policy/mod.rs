@@ -97,12 +97,12 @@ impl ConnectionFeedbackRoute {
         Self { source, target }
     }
 
-    /// Returns the feedback source endpoint in logical surface coordinates.
+    /// Returns the feedback source endpoint in the Connection routing domain.
     pub const fn source(self) -> Point {
         self.source
     }
 
-    /// Returns the feedback target endpoint in logical surface coordinates.
+    /// Returns the feedback target endpoint in the Connection routing domain.
     pub const fn target(self) -> Point {
         self.target
     }

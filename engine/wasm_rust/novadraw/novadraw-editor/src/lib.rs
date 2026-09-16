@@ -9,6 +9,7 @@
 
 #![deny(missing_docs)]
 
+mod autoexpose;
 mod command;
 mod domain;
 mod feedback;
@@ -20,6 +21,7 @@ mod selection;
 mod tool;
 mod viewer;
 
+pub use autoexpose::AutoexposeTick;
 pub use command::{
     Command, CommandError, CommandOperation, CommandStack, CommandStackError, CommandStackEvent,
     CommandStackEventKind, CompoundCommand,

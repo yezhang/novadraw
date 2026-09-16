@@ -6,7 +6,9 @@ use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_render::NdCanvas;
 
-use super::{Border, BorderBuilder, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle};
+use super::{
+    Border, BorderBuilder, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle, render_line_style,
+};
 
 /// 线条边框
 ///
@@ -93,7 +95,7 @@ impl Border for LineBorder {
         let cap = novadraw_render::command::LineCap::Butt;
         let join = novadraw_render::command::LineJoin::Miter;
 
-        // 绘制矩形边框（使用 stroke_rect）
+        gc.set_line_style(render_line_style(self.style));
         gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
     }
 

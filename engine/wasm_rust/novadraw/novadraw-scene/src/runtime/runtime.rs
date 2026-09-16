@@ -999,6 +999,32 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| runtime.try_add_figure_inner(parent, figure))
     }
 
+    /// Adds a Viewport Figure and returns its transactional handle.
+    pub fn add_viewport(
+        &mut self,
+        parent: FigureId,
+        bounds: Rectangle,
+    ) -> Result<ViewportHandle, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_attached_figure(parent)?;
+            if runtime.tree.is_layered_pane(parent) {
+                return Err(RuntimeMutationError::LayeredParent(parent));
+            }
+            let viewport = runtime.tree.add_viewport_to(parent, bounds)?;
+            runtime.tree.mark_invalid(&mut runtime.updates, parent);
+            runtime
+                .tree
+                .mark_invalid(&mut runtime.updates, viewport.block_id());
+            runtime
+                .tree
+                .repaint(&mut runtime.updates, viewport.block_id(), None);
+            runtime
+                .tree
+                .complete_attachment(viewport.block_id(), parent);
+            Ok(viewport)
+        })
+    }
+
     fn try_add_figure_inner(
         &mut self,
         parent: FigureId,
@@ -2679,6 +2705,20 @@ impl Runtime {
             });
         }
         Ok(StableSceneQuery::new(self.stable_epoch, &self.tree))
+    }
+
+    /// Converges pending derived state without recording or consuming a render frame.
+    ///
+    /// Hosts use this boundary when overlay geometry must be rebuilt from the latest layout
+    /// before the next renderer submission is frozen.
+    pub fn stabilize_for_query(&mut self) -> Result<(), FramePreparationError> {
+        if self.faulted {
+            return Err(FramePreparationError::Faulted);
+        }
+        self.guarded(|runtime| {
+            runtime.apply_pending_mutations_for_frame();
+            runtime.try_stabilize()
+        })
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {

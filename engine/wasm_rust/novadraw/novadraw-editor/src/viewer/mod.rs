@@ -4,15 +4,18 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
     fmt,
+    sync::Arc,
 };
 
 use novadraw_geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw_scene::{
     AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
     ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome, Figure,
-    FigureId, FigureTree, KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement,
-    LayeredPane, MouseButton, RouterBinding, RouterId, Runtime, RuntimeMutationError,
-    ScalableFreeformLayeredPane, StackLayout, UnresolvedConnection, XYAnchor,
+    FigureId, FigureTree, FramePreparationError, FreeformLayerFigure, FreeformLayeredPane,
+    KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement, LayeredPane, MouseButton,
+    MouseLocationZoomScrollPolicy, RouterBinding, RouterId, Runtime, RuntimeMutationError,
+    ScalableFreeformLayeredPane, StackLayout, UnresolvedConnection, ViewportHandle, XYAnchor,
+    ZoomManager,
 };
 
 use crate::{
@@ -29,7 +32,7 @@ use crate::{
 };
 
 const MAX_PART_TREE_DEPTH: usize = 10_000;
-const SCALABLE_LAYERS: &str = "scalable";
+const VIEWPORT_LAYER: &str = "viewport";
 const GRID_LAYER: &str = "grid";
 const PRINTABLE_LAYERS: &str = "printable";
 const PRIMARY_LAYER: &str = "primary";
@@ -42,6 +45,8 @@ const HANDLE_LAYER: &str = "handles";
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RootLayers {
     root: FigureId,
+    viewport_layer: FigureId,
+    viewport: FigureId,
     scalable: FigureId,
     grid: FigureId,
     printable: FigureId,
@@ -56,6 +61,16 @@ impl RootLayers {
     /// Returns the root layered pane.
     pub const fn root(self) -> FigureId {
         self.root
+    }
+
+    /// Returns the root layer that clips and positions the Viewport.
+    pub const fn viewport_layer(self) -> FigureId {
+        self.viewport_layer
+    }
+
+    /// Returns the Viewport containing all model-scaled layers.
+    pub const fn viewport(self) -> FigureId {
+        self.viewport
     }
 
     /// Returns the scalable layered pane.
@@ -217,6 +232,8 @@ pub enum ViewerError {
     PartTree(PartTreeError),
     /// Figure Runtime mutation failed.
     Runtime(RuntimeMutationError),
+    /// Runtime derived state could not converge for an Editor query.
+    RuntimePreparation(FramePreparationError),
     /// Connection Runtime mutation or routing failed.
     Connection(ConnectionRuntimeError),
     /// Root layer construction or mutation failed.
@@ -294,6 +311,7 @@ impl fmt::Display for ViewerError {
             Self::EditPart(error) => error.fmt(formatter),
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
+            Self::RuntimePreparation(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
             Self::Layer(error) => error.fmt(formatter),
             Self::Policy(error) => error.fmt(formatter),
@@ -309,6 +327,7 @@ impl Error for ViewerError {
             Self::EditPart(error) => Some(error),
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
+            Self::RuntimePreparation(error) => Some(error),
             Self::Connection(error) => Some(error),
             Self::Layer(error) => Some(error),
             Self::Policy(error) => Some(error),
@@ -332,6 +351,12 @@ impl From<PartTreeError> for ViewerError {
 impl From<RuntimeMutationError> for ViewerError {
     fn from(value: RuntimeMutationError) -> Self {
         Self::Runtime(value)
+    }
+}
+
+impl From<FramePreparationError> for ViewerError {
+    fn from(value: FramePreparationError) -> Self {
+        Self::RuntimePreparation(value)
     }
 }
 
@@ -485,16 +510,16 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         bounds.height,
     )));
     let mut runtime = Runtime::new(tree);
-    let scalable = add_layer(
+    let viewport_layer = add_layer(
         &mut runtime,
         root,
-        Box::new(ScalableFreeformLayeredPane::new(
+        Box::new(LayerFigure::new(
             bounds.x,
             bounds.y,
             bounds.width,
             bounds.height,
         )),
-        SCALABLE_LAYERS,
+        VIEWPORT_LAYER,
     )?;
     let feedback = add_layer(
         &mut runtime,
@@ -518,6 +543,16 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         )),
         HANDLE_LAYER,
     )?;
+    let viewport = runtime.add_viewport(viewport_layer, bounds)?;
+    let scalable = runtime.try_add_figure(
+        viewport.block_id(),
+        Box::new(ScalableFreeformLayeredPane::new(
+            0.0,
+            0.0,
+            bounds.width,
+            bounds.height,
+        )),
+    )?;
     let grid = add_layer(
         &mut runtime,
         scalable,
@@ -532,7 +567,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     let printable = add_layer(
         &mut runtime,
         scalable,
-        Box::new(LayeredPane::new(
+        Box::new(FreeformLayeredPane::new(
             bounds.x,
             bounds.y,
             bounds.width,
@@ -543,7 +578,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     let scaled_feedback = add_layer(
         &mut runtime,
         scalable,
-        Box::new(LayerFigure::new(
+        Box::new(FreeformLayerFigure::new(
             bounds.x,
             bounds.y,
             bounds.width,
@@ -554,7 +589,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
     let primary = add_layer(
         &mut runtime,
         printable,
-        Box::new(LayerFigure::new(
+        Box::new(FreeformLayerFigure::new(
             bounds.x,
             bounds.y,
             bounds.width,
@@ -574,12 +609,15 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         CONNECTION_LAYER,
     )?;
     runtime.set_layout_manager(root, Box::new(StackLayout::new()))?;
+    runtime.set_layout_manager(viewport_layer, Box::new(StackLayout::new()))?;
     runtime.set_layout_manager(scalable, Box::new(StackLayout::new()))?;
     runtime.set_layout_manager(printable, Box::new(StackLayout::new()))?;
     Ok((
         runtime,
         RootLayers {
             root,
+            viewport_layer,
+            viewport: viewport.block_id(),
             scalable,
             grid,
             printable,
@@ -728,6 +766,152 @@ where
     /// Returns mutable Runtime access for rendering and platform integration.
     pub fn runtime_mut(&mut self) -> &mut Runtime {
         &mut self.runtime
+    }
+
+    /// Returns the current root Viewport origin in content coordinates.
+    pub fn viewport_origin(&self) -> Result<Point, ViewerError> {
+        Ok(self.viewport_handle()?.view_location())
+    }
+
+    /// Returns the current model-content zoom factor.
+    pub fn viewport_scale(&self) -> Result<f64, ViewerError> {
+        Ok(self
+            .runtime
+            .tree()
+            .scale_handle(self.root_layers.scalable())
+            .ok_or(ViewerError::InconsistentState)?
+            .scale())
+    }
+
+    /// Returns the root Viewport client rectangle in logical surface coordinates.
+    pub fn viewport_bounds_in_surface(&self) -> Result<Rectangle, ViewerError> {
+        let viewport = self.root_layers.viewport();
+        let bounds = self
+            .runtime
+            .tree()
+            .figure_bounds(viewport)
+            .ok_or(ViewerError::InconsistentState)?;
+        let transform = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(viewport)
+            .ok_or(ViewerError::InconsistentState)?;
+        let mut client = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        client.transform(transform);
+        Ok(client)
+    }
+
+    /// Converts a logical surface point into the model-content coordinate domain.
+    pub fn model_point_from_surface(&self, point: Point) -> Result<Point, ViewerError> {
+        self.point_from_surface_in(self.root_layers.scalable(), point)
+    }
+
+    /// Converts a logical surface point into the shared Connection routing domain.
+    pub fn connection_routing_point_from_surface(
+        &self,
+        point: Point,
+    ) -> Result<Point, ViewerError> {
+        self.point_from_surface_in(self.root_layers.connection(), point)
+    }
+
+    /// Converts a logical surface point into one connection's routing domain.
+    pub fn connection_point_from_surface(
+        &self,
+        connection: ConnectionPartId,
+        point: Point,
+    ) -> Result<Point, ViewerError> {
+        self.parts
+            .get(connection.edit_part())
+            .ok_or(ViewerError::InvalidPart(connection.edit_part()))?;
+        self.connection_routing_point_from_surface(point)
+    }
+
+    /// Sets the root Viewport origin through the Runtime mutation boundary.
+    pub fn set_viewport_origin(&mut self, origin: Point) -> Result<bool, ViewerError> {
+        let viewport = self.viewport_handle()?;
+        Ok(self
+            .runtime
+            .set_view_location(&viewport, origin.x(), origin.y())?)
+    }
+
+    /// Sets content zoom while preserving an optional logical surface anchor.
+    pub fn set_viewport_scale_at(
+        &mut self,
+        scale: f64,
+        anchor: Option<Point>,
+    ) -> Result<bool, ViewerError> {
+        let viewport = self.viewport_handle()?;
+        let scalable = self
+            .runtime
+            .tree()
+            .scale_handle(self.root_layers.scalable())
+            .ok_or(ViewerError::InconsistentState)?;
+        let anchor = anchor
+            .map(|mut point| {
+                self.runtime
+                    .tree()
+                    .translate_to_relative(self.root_layers.viewport(), &mut point)
+                    .then_some(point)
+                    .ok_or(ViewerError::InconsistentState)
+            })
+            .transpose()?;
+        let mut zoom = ZoomManager::new(scalable, viewport);
+        if anchor.is_some() {
+            zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+        }
+        Ok(self.runtime.set_zoom_at(&zoom, scale, anchor)?)
+    }
+
+    pub(crate) fn scroll_viewport_by_surface_delta(
+        &mut self,
+        delta: novadraw_geometry::Vec2,
+    ) -> Result<bool, ViewerError> {
+        let transform = self
+            .runtime
+            .tree()
+            .child_content_to_surface_transform(self.root_layers.scalable())
+            .and_then(|transform| transform.inverse())
+            .ok_or(ViewerError::InconsistentState)?;
+        let (dx, dy) = transform.transform_vector(delta.x(), delta.y());
+        let viewport = self.viewport_handle()?;
+        let origin = viewport.view_location();
+        Ok(self
+            .runtime
+            .set_view_location(&viewport, origin.x() + dx, origin.y() + dy)?)
+    }
+
+    pub(crate) fn viewport_ranges(
+        &self,
+    ) -> Result<
+        (
+            novadraw_scene::RangeModelSnapshot,
+            novadraw_scene::RangeModelSnapshot,
+        ),
+        ViewerError,
+    > {
+        let viewport = self.viewport_handle()?;
+        Ok((viewport.horizontal_range(), viewport.vertical_range()))
+    }
+
+    fn point_from_surface_in(&self, figure: FigureId, point: Point) -> Result<Point, ViewerError> {
+        let transform = self
+            .runtime
+            .tree()
+            .child_content_to_surface_transform(figure)
+            .and_then(|transform| transform.inverse())
+            .ok_or(ViewerError::InconsistentState)?;
+        let (x, y) = transform.transform_point(point.x(), point.y());
+        if !x.is_finite() || !y.is_finite() {
+            return Err(ViewerError::InconsistentState);
+        }
+        Ok(Point::new(x, y))
+    }
+
+    fn viewport_handle(&self) -> Result<ViewportHandle, ViewerError> {
+        self.runtime
+            .tree()
+            .viewport_handle(self.root_layers.viewport())
+            .ok_or(ViewerError::InconsistentState)
     }
 
     /// Returns whether an extension or consistency failure has stopped projection.
@@ -1407,6 +1591,7 @@ where
         target_model: Option<A::ModelId>,
         pointer: Point,
     ) -> Result<Option<ConnectionFeedbackRoute>, ViewerError> {
+        let routing_space = CoordinateSpace::ChildContent(self.root_layers.connection());
         let source_anchor: Box<dyn ConnectionAnchor> = if let Some(source_part) = source_part {
             self.build_connection_anchor_for_models(
                 ConnectionEndpoint::Source,
@@ -1418,7 +1603,7 @@ where
             )?
             .1
         } else {
-            Box::new(XYAnchor::new(pointer, CoordinateSpace::LogicalSurface))
+            Box::new(XYAnchor::new(pointer, routing_space))
         };
         let target_anchor: Box<dyn ConnectionAnchor> =
             if let (Some(target_part), Some(target_model)) = (target_part, target_model) {
@@ -1432,9 +1617,8 @@ where
                 )?
                 .1
             } else {
-                Box::new(XYAnchor::new(pointer, CoordinateSpace::LogicalSurface))
+                Box::new(XYAnchor::new(pointer, routing_space))
             };
-        let routing_space = CoordinateSpace::ChildContent(self.root_layers.connection());
         let metadata = self
             .runtime
             .preview_connection_endpoints(
@@ -1445,18 +1629,9 @@ where
             .map_err(|error| {
                 ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error))
             })?;
-        let transform = self
-            .runtime
-            .tree()
-            .child_content_to_surface_transform(self.root_layers.connection())
-            .ok_or(ViewerError::InconsistentState)?;
-        let source = metadata.source.site.point;
-        let target = metadata.target.site.point;
-        let (source_x, source_y) = transform.transform_point(source.x(), source.y());
-        let (target_x, target_y) = transform.transform_point(target.x(), target.y());
         Ok(Some(ConnectionFeedbackRoute::new(
-            Point::new(source_x, source_y),
-            Point::new(target_x, target_y),
+            metadata.source.site.point,
+            metadata.target.site.point,
         )))
     }
 

@@ -53,8 +53,8 @@ pub use container::{
 };
 pub use figure::border;
 pub use figure::border::{
-    BevelBorder, BevelStyle, Border, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
-    RectangleBorder, TitleBarBorder,
+    BevelBorder, BevelStyle, Border, BorderStyle, CompoundBorder, EtchedBorder, LineBorder,
+    MarginBorder, RectangleBorder, TitleBarBorder,
 };
 pub use figure::{
     AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,

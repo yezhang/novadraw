@@ -9,4 +9,6 @@ novadraw-apps = { path = "../../../novadraw-apps" }
 novadraw-editor = { path = "../../../novadraw-editor" }
 novadraw-geometry = { path = "../../../novadraw-geometry" }
 pollster.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 winit.workspace = true

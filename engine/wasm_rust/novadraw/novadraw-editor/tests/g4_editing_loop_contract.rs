@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::{collections::HashMap, convert::Infallible, time::Duration};
 
 use novadraw_editor::{
     ChangeBoundsRequest, Command, CommandError, CreateRequest, CreationType, DeleteRequest,
@@ -351,12 +351,11 @@ impl EditPartFactory<DiagramModel> for DiagramFactory {
 }
 
 fn viewer() -> GraphicalViewer<DiagramModel, DiagramFactory> {
-    GraphicalViewer::new(
-        DiagramModel::new(),
-        DiagramFactory,
-        Rectangle::new(0.0, 0.0, 600.0, 400.0),
-    )
-    .unwrap()
+    viewer_with_bounds(Rectangle::new(0.0, 0.0, 640.0, 480.0))
+}
+
+fn viewer_with_bounds(bounds: Rectangle) -> GraphicalViewer<DiagramModel, DiagramFactory> {
+    GraphicalViewer::new(DiagramModel::new(), DiagramFactory, bounds).unwrap()
 }
 
 #[test]
@@ -476,6 +475,151 @@ fn selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup() {
         viewer.target_at(110.0, 115.0),
         novadraw_editor::ViewerTarget::Part(_)
     ));
+}
+
+#[test]
+fn autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta() {
+    let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    let start = Point::new(70.0, 80.0);
+    let edge = Point::new(315.0, 100.0);
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            start,
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain.pointer_moved(&mut viewer, edge).unwrap();
+    assert!(domain.autoexpose_requested());
+
+    let revision_before = viewer.model().revision;
+    let content_before = viewer.model_point_from_surface(edge).unwrap();
+    let tick = domain
+        .autoexpose_tick(&mut viewer, Duration::from_millis(30))
+        .unwrap();
+    assert!(tick.scrolled());
+    assert!(tick.continue_requested());
+    assert_eq!(viewer.model().revision, revision_before);
+    assert!(viewer.viewport_origin().unwrap().x() > 0.0);
+
+    let content_after = viewer.model_point_from_surface(edge).unwrap();
+    assert!(content_after.x() > content_before.x());
+    let release = domain
+        .pointer_released(&mut viewer, edge, MouseButton::Left)
+        .unwrap();
+    assert!(release.command_executed());
+    assert!(!domain.autoexpose_requested());
+    let expected_x = 50.0 + content_after.x() - start.x();
+    assert!((viewer.model().nodes[&FIRST].bounds.x - expected_x).abs() <= f64::EPSILON);
+
+    domain.undo(&mut viewer).unwrap();
+    assert_eq!(
+        viewer.model().nodes[&FIRST].bounds,
+        Rectangle::new(50.0, 60.0, 100.0, 80.0)
+    );
+}
+
+#[test]
+fn autoexpose_corner_scrolls_both_available_viewport_axes() {
+    let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    let start = Point::new(70.0, 80.0);
+    let corner = Point::new(315.0, 235.0);
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            start,
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain.pointer_moved(&mut viewer, corner).unwrap();
+    let before = viewer.viewport_origin().unwrap();
+    let tick = domain
+        .autoexpose_tick(&mut viewer, Duration::from_millis(30))
+        .unwrap();
+    let after = viewer.viewport_origin().unwrap();
+
+    assert!(tick.scrolled());
+    assert!(after.x() > before.x());
+    assert!(after.y() > before.y());
+}
+
+#[test]
+fn transient_feedback_expands_freeform_range_before_edge_scroll() {
+    let mut viewer = viewer();
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    let start = Point::new(70.0, 80.0);
+    let corner = Point::new(635.0, 475.0);
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            start,
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain.pointer_moved(&mut viewer, corner).unwrap();
+    assert_eq!(viewer.viewport_origin().unwrap(), Point::new(0.0, 0.0));
+
+    let tick = domain
+        .autoexpose_tick(&mut viewer, Duration::from_millis(30))
+        .unwrap();
+    let origin = viewer.viewport_origin().unwrap();
+
+    assert!(tick.scrolled());
+    assert!(origin.x() > 0.0);
+    assert!(origin.y() > 0.0);
+    let feedback_extent = viewer
+        .runtime()
+        .freeform_extent(viewer.root_layers().scaled_feedback())
+        .unwrap();
+    assert!(feedback_extent.x + feedback_extent.width > 640.0);
+    assert!(feedback_extent.y + feedback_extent.height > 480.0);
+}
+
+#[test]
+fn zoom_during_drag_preserves_the_content_point_under_the_pointer() {
+    let mut viewer = viewer();
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    let start = Point::new(70.0, 80.0);
+    let current = Point::new(110.0, 115.0);
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            start,
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    domain.pointer_moved(&mut viewer, current).unwrap();
+    let before_zoom = viewer.model_point_from_surface(current).unwrap();
+    assert!(
+        domain
+            .set_viewport_scale_at(&mut viewer, 2.0, Some(current))
+            .unwrap()
+    );
+    let after_zoom = viewer.model_point_from_surface(current).unwrap();
+    assert!((after_zoom.x() - before_zoom.x()).abs() <= f64::EPSILON);
+    assert!((after_zoom.y() - before_zoom.y()).abs() <= f64::EPSILON);
+
+    domain
+        .pointer_released(&mut viewer, current, MouseButton::Left)
+        .unwrap();
+    assert_eq!(
+        viewer.model().nodes[&FIRST].bounds,
+        Rectangle::new(90.0, 95.0, 100.0, 80.0)
+    );
 }
 
 #[test]

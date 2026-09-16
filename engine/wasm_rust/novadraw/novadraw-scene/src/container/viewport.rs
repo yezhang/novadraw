@@ -16,8 +16,8 @@ use novadraw_render::NdCanvas;
 
 use super::range_model::normalize_range;
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
-    border::Border,
+    BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure,
+    FigureContainer, border::Border,
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
@@ -642,13 +642,23 @@ impl Figure for ViewportFigure {
         Bounded::insets(self)
     }
 
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
+    fn paint_figure(&self, gc: &mut NdCanvas) {
+        gc.fill_rectangle(0.0, 0.0, self.bounds.width, self.bounds.height);
+    }
+
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+        gc.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+    }
 
     fn get_border(&self) -> Option<&dyn Border> {
         self.border.as_deref()
     }
 
     fn container(&self) -> Option<&dyn FigureContainer> {
+        Some(self)
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
         Some(self)
     }
 }
@@ -664,6 +674,16 @@ impl FigureContainer for ViewportFigure {
 
     fn child_policy(&self) -> ChildPolicy {
         ChildPolicy::Single
+    }
+}
+
+impl BorderedFigure for ViewportFigure {
+    fn border(&self) -> Option<&Arc<dyn Border>> {
+        self.border.as_ref()
+    }
+
+    fn replace_border(&mut self, border: Option<Arc<dyn Border>>) -> Option<Arc<dyn Border>> {
+        std::mem::replace(&mut self.border, border)
     }
 }
 

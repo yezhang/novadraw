@@ -1,10 +1,15 @@
-use std::{collections::HashMap, convert::Infallible, sync::Arc};
+use std::{
+    collections::HashMap,
+    convert::Infallible,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use novadraw::{
-    AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, BuiltinFont,
-    Color, ConnectionFigure, CoordinateSpace, Figure, KeyModifiers, MouseButton, PlatformHost,
-    Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure,
-    XYAnchor, backend::vello::VelloRenderer, rectangle_boundary_site,
+    AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, Color,
+    ConnectionFigure, CoordinateSpace, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
+    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure, XYAnchor,
+    backend::vello::VelloRenderer, rectangle_boundary_site,
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
@@ -12,20 +17,24 @@ use novadraw_editor::{
     ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
     ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
     ConnectionRouterRegistration, ConnectionRoutingDescriptor, CreateConnectionRequest,
-    CreateRequest, CreationType, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory,
-    EditPolicy, EditorDomain, EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole,
-    ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError,
-    PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers,
-    ResizeDirection, VisualUpdateContext,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorRequest, FeedbackVisual,
+    GraphicalViewer, ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest,
+    VisualUpdateContext,
 };
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
-    event::{ElementState, WindowEvent},
+    event::{ElementState, MouseScrollDelta, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowAttributes, WindowId},
 };
+
+mod harness;
+mod replay;
+
+use harness::EditorHarness;
 
 const WIDTH: f64 = 820.0;
 const HEIGHT: f64 = 560.0;
@@ -41,6 +50,9 @@ const SELF_LOOP_EXTENT: f64 = 32.0;
 const SELF_LOOP_SOURCE_PORT_FRACTION: f64 = 0.25;
 const SELF_LOOP_TARGET_PORT_FRACTION: f64 = 0.75;
 const BENDPOINT_ROUTER_KEY: &str = "demo-bendpoint";
+const AUTOEXPOSE_FRAME_INTERVAL: Duration = Duration::from_millis(16);
+const WHEEL_SCROLL_STEP: f64 = 32.0;
+const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 
 fn bendpoint_router_key() -> ConnectionRouterKey {
     ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).expect("static Router key is valid")
@@ -85,8 +97,8 @@ fn self_loop_anchor_descriptor(
         })
         .map(|point| point.y());
     let point = Point::new(
-        bounds.x + bounds.width,
-        bendpoint_y.unwrap_or(bounds.y + bounds.height * fraction),
+        bounds.width,
+        bendpoint_y.unwrap_or(bounds.y + bounds.height * fraction) - bounds.y,
     );
     let key = AnchorSemanticKey::new(
         Some(context.endpoint_figure()),
@@ -96,7 +108,10 @@ fn self_loop_anchor_descriptor(
     .expect("static self-loop Anchor kind is valid");
     Some(ConnectionAnchorDescriptor::new(
         key,
-        Box::new(XYAnchor::new(point, CoordinateSpace::LogicalSurface)),
+        Box::new(XYAnchor::new(
+            point,
+            CoordinateSpace::FigureLocal(context.endpoint_figure()),
+        )),
     ))
 }
 
@@ -1373,11 +1388,10 @@ struct DemoApp {
     window: Option<Arc<Window>>,
     host: Option<WinitPlatformHost>,
     renderer: Option<VelloRenderer>,
-    viewer: Option<DemoViewer>,
-    domain: EditorDomain<DemoModel>,
+    editor: Option<EditorHarness>,
     cursor: Option<(f64, f64)>,
     modifiers: KeyModifiers,
-    handles: Vec<novadraw::FigureId>,
+    last_autoexpose_step: Option<Instant>,
 }
 
 impl DemoApp {
@@ -1386,11 +1400,10 @@ impl DemoApp {
             window: None,
             host: None,
             renderer: None,
-            viewer: None,
-            domain: EditorDomain::new(),
+            editor: None,
             cursor: None,
             modifiers: KeyModifiers::default(),
-            handles: Vec::new(),
+            last_autoexpose_step: None,
         }
     }
 
@@ -1412,245 +1425,69 @@ impl DemoApp {
                 surface.scale_factor,
             );
         }
-        if let Some(viewer) = &mut self.viewer {
-            viewer
-                .runtime_mut()
+        if let Some(editor) = &mut self.editor {
+            editor
                 .resize_logical_viewport(surface.logical_width, surface.logical_height)
                 .expect("window size must be valid");
         }
         self.request_redraw();
     }
 
-    fn sync_selection_handles(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
-            return;
-        };
-        for figure in self.handles.drain(..) {
-            let _ = viewer.remove_overlay_visual(figure);
-        }
-        let selected = viewer.selection().items().to_vec();
-        let primary = viewer.selection().primary();
-        for part in selected {
-            if let Some(connection) = viewer.as_connection_part(part) {
-                let Some(route) = viewer.connection_route_points_in_surface(connection) else {
-                    continue;
-                };
-                let Some((&source, &target)) = route.first().zip(route.last()) else {
-                    continue;
-                };
-                for (point, endpoint) in [
-                    (source, ConnectionEndpoint::Source),
-                    (target, ConnectionEndpoint::Target),
-                ] {
-                    let handle = RectangleFigure::new_with_color(
-                        point.x() - HANDLE_SIZE / 2.0,
-                        point.y() - HANDLE_SIZE / 2.0,
-                        HANDLE_SIZE,
-                        HANDLE_SIZE,
-                        PRIMARY_HANDLE_COLOR,
-                    )
-                    .with_stroke(Color::BLACK, 1.0);
-                    if let Ok((_, figure)) = viewer.add_handle_visual_with_role(
-                        part,
-                        HandleRole::ConnectionEndpoint(endpoint),
-                        Box::new(handle),
-                    ) {
-                        self.handles.push(figure);
-                    }
-                }
-                let bendpoint_sites = viewer
-                    .connection_bendpoint_handle_sites(connection)
-                    .unwrap_or_default();
-                for site in bendpoint_sites {
-                    let (size, color) = match site.role() {
-                        HandleRole::BendpointCreate(_) => {
-                            (BENDPOINT_CREATE_HANDLE_SIZE, BENDPOINT_CREATE_HANDLE_COLOR)
-                        }
-                        HandleRole::BendpointMove(_) => (HANDLE_SIZE, BENDPOINT_HANDLE_COLOR),
-                        _ => continue,
-                    };
-                    Self::add_bendpoint_handle(
-                        &mut self.handles,
-                        viewer,
-                        part,
-                        site.location(),
-                        site.role(),
-                        size,
-                        color,
-                    );
-                }
-                continue;
-            }
-            let Some(bounds) = viewer.part_bounds_in_surface(part) else {
-                continue;
-            };
-            let color = if Some(part) == primary {
-                PRIMARY_HANDLE_COLOR
-            } else {
-                SECONDARY_HANDLE_COLOR
-            };
-            for (x, y, direction) in [
-                (bounds.x, bounds.y, ResizeDirection::NorthWest),
-                (
-                    bounds.x + bounds.width,
-                    bounds.y,
-                    ResizeDirection::NorthEast,
-                ),
-                (
-                    bounds.x,
-                    bounds.y + bounds.height,
-                    ResizeDirection::SouthWest,
-                ),
-                (
-                    bounds.x + bounds.width,
-                    bounds.y + bounds.height,
-                    ResizeDirection::SouthEast,
-                ),
-            ] {
-                let handle = RectangleFigure::new_with_color(
-                    x - HANDLE_SIZE / 2.0,
-                    y - HANDLE_SIZE / 2.0,
-                    HANDLE_SIZE,
-                    HANDLE_SIZE,
-                    color,
-                )
-                .with_stroke(Color::BLACK, 1.0);
-                let result = if Some(part) == primary {
-                    viewer.add_handle_visual_with_role(
-                        part,
-                        HandleRole::Resize(direction),
-                        Box::new(handle),
-                    )
-                } else {
-                    viewer.add_handle_visual(part, Box::new(handle))
-                };
-                if let Ok((_, figure)) = result {
-                    self.handles.push(figure);
-                }
-            }
-        }
-    }
-
-    fn add_bendpoint_handle(
-        handles: &mut Vec<novadraw::FigureId>,
-        viewer: &mut DemoViewer,
-        owner: novadraw_editor::EditPartId,
-        point: Point,
-        role: HandleRole,
-        size: f64,
-        color: Color,
-    ) {
-        let handle = RectangleFigure::new_with_color(
-            point.x() - size / 2.0,
-            point.y() - size / 2.0,
-            size,
-            size,
-            color,
-        )
-        .with_stroke(Color::BLACK, 1.0);
-        if let Ok((_, figure)) = viewer.add_handle_visual_with_role(owner, role, Box::new(handle)) {
-            handles.push(figure);
-        }
-    }
-
     fn render(&mut self) {
-        let (Some(viewer), Some(renderer), Some(host)) =
-            (&mut self.viewer, &mut self.renderer, &self.host)
+        let (Some(editor), Some(renderer), Some(host)) =
+            (&mut self.editor, &mut self.renderer, &self.host)
         else {
             return;
         };
-        let Some(submission) = viewer
+        let Some(submission) = editor
             .runtime_mut()
             .prepare_submission(host.surface_info(), renderer.capabilities())
         else {
             return;
         };
         let outcome = renderer.submit(&submission);
-        viewer.runtime_mut().complete_submission(
+        editor.runtime_mut().complete_submission(
             submission.session_id,
             submission.frame_id,
             outcome,
         );
-        if outcome == RenderOutcome::Retry || viewer.runtime().has_pending_update() {
+        if outcome == RenderOutcome::Retry || editor.runtime().has_pending_update() {
             host.request_redraw();
         }
     }
 
     fn update_title(&self) {
-        let (Some(window), Some(viewer)) = (&self.window, &self.viewer) else {
+        let (Some(window), Some(editor)) = (&self.window, &self.editor) else {
             return;
         };
-        window.set_title(&format!(
-            "Novadraw Node Editor - {} selected | undo {} redo {}{}",
-            viewer.selection().items().len(),
-            self.domain.command_stack().undo_len(),
-            self.domain.command_stack().redo_len(),
-            if self.domain.is_connection_creation_active() {
-                " | CONNECTION"
-            } else {
-                ""
-            },
-        ));
+        window.set_title(&format!("Novadraw Node Editor - {}", editor.title_status()));
     }
 
     fn activate_connection_creation(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
+        let Some(editor) = &mut self.editor else {
             return;
         };
-        self.domain
-            .activate_connection_creation(
-                viewer,
-                CreationType::new("connection").expect("static connection type is valid"),
-            )
+        editor
+            .activate_connection_creation()
             .expect("connection creation Tool must activate");
         self.update_title();
         self.request_redraw();
     }
 
     fn create_node(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
+        let Some(editor) = &mut self.editor else {
             return;
         };
-        let sequence = viewer.model().next_id.saturating_sub(5) as f64;
-        let offset = sequence * CREATED_NODE_OFFSET;
-        let request = EditorRequest::Create(CreateRequest::new(
-            viewer.contents(),
-            CreationType::new("shape").expect("static creation type is valid"),
-            Rectangle::new(
-                420.0 + offset,
-                330.0 + offset,
-                CREATED_NODE_WIDTH,
-                CREATED_NODE_HEIGHT,
-            ),
-            RequestModifiers::default(),
-            self.domain
-                .next_interaction_revision()
-                .expect("interaction revision must remain available"),
-        ));
-        self.domain
-            .execute_request(viewer, &request)
-            .expect("create request must execute");
-        self.sync_selection_handles();
+        editor.create_node().expect("create request must execute");
         self.update_title();
         self.request_redraw();
     }
 
     fn delete_selection(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
+        let Some(editor) = &mut self.editor else {
             return;
         };
-        let parts = viewer.selection().items().to_vec();
-        if parts.is_empty() {
-            return;
-        }
-        let request = EditorRequest::Delete(DeleteRequest::new(
-            parts,
-            self.domain
-                .next_interaction_revision()
-                .expect("interaction revision must remain available"),
-        ));
-        let result = self.domain.execute_request(viewer, &request);
-        if let Err(error) = result {
+        if let Err(error) = editor.delete_selection() {
             eprintln!("delete request rejected: {error}");
             return;
         }
@@ -1659,27 +1496,19 @@ impl DemoApp {
     }
 
     fn undo(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
+        let Some(editor) = &mut self.editor else {
             return;
         };
-        if self.domain.command_stack().undo_len() == 0 {
-            return;
-        }
-        self.domain.undo(viewer).expect("undo must execute");
-        self.sync_selection_handles();
+        editor.undo().expect("undo must execute");
         self.update_title();
         self.request_redraw();
     }
 
     fn redo(&mut self) {
-        let Some(viewer) = &mut self.viewer else {
+        let Some(editor) = &mut self.editor else {
             return;
         };
-        if self.domain.command_stack().redo_len() == 0 {
-            return;
-        }
-        self.domain.redo(viewer).expect("redo must execute");
-        self.sync_selection_handles();
+        editor.redo().expect("redo must execute");
         self.update_title();
         self.request_redraw();
     }
@@ -1712,23 +1541,13 @@ impl ApplicationHandler<()> for DemoApp {
         self.host = Some(WinitPlatformHost::new(Arc::clone(&window)));
         self.window = Some(window);
 
-        if let Some(viewer) = &mut self.viewer {
-            viewer
+        if let Some(editor) = &mut self.editor {
+            editor
                 .runtime_mut()
                 .reset_backend_session()
                 .expect("backend session reset failed");
         } else {
-            let mut viewer = GraphicalViewer::new(
-                DemoModel::new(),
-                DemoFactory,
-                Rectangle::new(0.0, 0.0, WIDTH, HEIGHT),
-            )
-            .expect("demo Viewer construction failed");
-            viewer
-                .runtime_mut()
-                .register_builtin_font(BuiltinFont::Inter)
-                .expect("built-in font registration failed");
-            self.viewer = Some(viewer);
+            self.editor = Some(EditorHarness::new().expect("demo editor construction failed"));
         }
         self.update_title();
         self.request_redraw();
@@ -1753,17 +1572,21 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|window| window.scale_factor())
                     .unwrap_or(1.0);
-                if let Some(viewer) = &mut self.viewer {
-                    self.domain
-                        .pointer_moved(viewer, Point::new(position.x / scale, position.y / scale))
+                if let Some(editor) = &mut self.editor {
+                    editor
+                        .pointer_moved(Point::new(position.x / scale, position.y / scale))
                         .expect("pointer move must update the active Tool");
+                    self.last_autoexpose_step = editor.autoexpose_requested().then(Instant::now);
                 }
                 self.request_redraw();
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor = None;
-                if let Some(viewer) = &mut self.viewer {
-                    viewer.pointer_exited();
+                self.last_autoexpose_step = None;
+                if let Some(editor) = &mut self.editor
+                    && let Err(error) = editor.pointer_exited()
+                {
+                    eprintln!("pointer exit cancellation rejected: {error}");
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -1781,37 +1604,73 @@ impl ApplicationHandler<()> for DemoApp {
                     winit::event::MouseButton::Right => MouseButton::Right,
                     _ => MouseButton::None,
                 };
-                if let Some(viewer) = &mut self.viewer {
+                if let Some(editor) = &mut self.editor {
                     match state {
                         ElementState::Pressed => {
-                            let changed = match self.domain.pointer_pressed(
-                                viewer,
+                            let changed = match editor.pointer_pressed(
                                 Point::new(x / scale, y / scale),
                                 button,
                                 self.modifiers,
                             ) {
-                                Ok(outcome) => outcome.selection().is_some(),
+                                Ok(changed) => changed,
                                 Err(error) => {
                                     eprintln!("editor gesture rejected: {error}");
                                     false
                                 }
                             };
                             if changed {
-                                self.sync_selection_handles();
                                 self.update_title();
                             }
                         }
                         ElementState::Released => {
-                            if let Err(error) = self.domain.pointer_released(
-                                viewer,
-                                Point::new(x / scale, y / scale),
-                                button,
-                            ) {
+                            self.last_autoexpose_step = None;
+                            if let Err(error) =
+                                editor.pointer_released(Point::new(x / scale, y / scale), button)
+                            {
                                 eprintln!("editor gesture rejected: {error}");
                             }
-                            self.sync_selection_handles();
                             self.update_title();
                         }
+                    }
+                }
+                self.request_redraw();
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let scale = self
+                    .window
+                    .as_ref()
+                    .map(|window| window.scale_factor())
+                    .unwrap_or(1.0);
+                let (dx, dy) = match delta {
+                    MouseScrollDelta::LineDelta(x, y) => (
+                        f64::from(x) * WHEEL_SCROLL_STEP,
+                        f64::from(y) * WHEEL_SCROLL_STEP,
+                    ),
+                    MouseScrollDelta::PixelDelta(position) => {
+                        (position.x / scale, position.y / scale)
+                    }
+                };
+                if let Some(editor) = &mut self.editor {
+                    let result = if self.modifiers.control || self.modifiers.meta {
+                        if dy == 0.0 {
+                            Ok(false)
+                        } else {
+                            let factor = if dy > 0.0 {
+                                WHEEL_ZOOM_FACTOR
+                            } else {
+                                WHEEL_ZOOM_FACTOR.recip()
+                            };
+                            let anchor = self
+                                .cursor
+                                .map(|(x, y)| Point::new(x / scale, y / scale))
+                                .unwrap_or_else(|| Point::new(WIDTH / 2.0, HEIGHT / 2.0));
+                            editor.zoom_by(factor, anchor)
+                        }
+                    } else {
+                        editor.scroll_by(-dx, -dy)
+                    };
+                    if let Err(error) = result {
+                        eprintln!("viewport update rejected: {error}");
                     }
                 }
                 self.request_redraw();
@@ -1828,9 +1687,10 @@ impl ApplicationHandler<()> for DemoApp {
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 match event.physical_key {
                     PhysicalKey::Code(KeyCode::Escape) => {
-                        if let Some(viewer) = &mut self.viewer {
-                            self.domain
-                                .cancel_tool(viewer)
+                        self.last_autoexpose_step = None;
+                        if let Some(editor) = &mut self.editor {
+                            editor
+                                .cancel_tool()
                                 .expect("gesture cancellation must succeed");
                         }
                         self.request_redraw();
@@ -1861,13 +1721,11 @@ impl ApplicationHandler<()> for DemoApp {
                 }
             }
             WindowEvent::Focused(false) => {
-                if let Some(viewer) = &mut self.viewer {
-                    self.domain
-                        .cancel_tool(viewer)
-                        .expect("focus loss must cancel Tool feedback");
-                    viewer.pointer_exited();
-                    viewer.runtime_mut().cancel_gestures();
-                    viewer.runtime_mut().release_focus();
+                self.last_autoexpose_step = None;
+                if let Some(editor) = &mut self.editor {
+                    editor
+                        .focus_lost()
+                        .expect("focus loss must cancel Tool state");
                 }
             }
             _ => {}
@@ -1875,28 +1733,75 @@ impl ApplicationHandler<()> for DemoApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        event_loop.set_control_flow(ControlFlow::Wait);
+        let Some(editor) = &mut self.editor else {
+            event_loop.set_control_flow(ControlFlow::Wait);
+            return;
+        };
+        if !editor.autoexpose_requested() {
+            self.last_autoexpose_step = None;
+            event_loop.set_control_flow(ControlFlow::Wait);
+            return;
+        }
+
+        let now = Instant::now();
+        let elapsed = self
+            .last_autoexpose_step
+            .replace(now)
+            .map_or(AUTOEXPOSE_FRAME_INTERVAL, |previous| {
+                now.saturating_duration_since(previous)
+            });
+        match editor.autoexpose_tick(elapsed) {
+            Ok(outcome) => {
+                if outcome.scrolled() {
+                    self.request_redraw();
+                }
+                if outcome.continue_requested() {
+                    event_loop
+                        .set_control_flow(ControlFlow::WaitUntil(now + AUTOEXPOSE_FRAME_INTERVAL));
+                } else {
+                    self.last_autoexpose_step = None;
+                    event_loop.set_control_flow(ControlFlow::Wait);
+                }
+            }
+            Err(error) => {
+                eprintln!("auto-expose rejected: {error}");
+                self.last_autoexpose_step = None;
+                editor
+                    .cancel_tool()
+                    .expect("failed auto-expose must cancel Tool state");
+                event_loop.set_control_flow(ControlFlow::Wait);
+            }
+        }
     }
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(viewer) = &mut self.viewer {
-            self.domain
-                .cancel_tool(viewer)
+        if let Some(editor) = &mut self.editor {
+            editor
+                .cancel_tool()
                 .expect("suspension must cancel Tool feedback");
-            viewer.pointer_exited();
+            editor
+                .pointer_exited()
+                .expect("suspension pointer exit must clear Tool feedback");
         }
         self.renderer = None;
     }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("G5.4 manual validation:");
+    if let Some(options) = replay::ReplayOptions::parse()? {
+        replay::run(options)?;
+        return Ok(());
+    }
+
+    println!("G5.5 manual validation:");
     println!("  drag a selected shape to move it");
     println!("  drag a yellow corner handle to resize the primary shape");
     println!("  press N to create a shape; Delete/Backspace removes selection");
     println!("  press C, then click a source shape and a target shape to connect");
     println!("  select a connection; drag cyan segment handles to create bendpoints");
     println!("  drag orange bendpoint handles to move or collapse them");
+    println!("  wheel scrolls; Command/Control-wheel zooms around the pointer");
+    println!("  keep dragging near an edge to auto-scroll without losing feedback");
     println!("  Escape cancels the active connection gesture");
     println!("  Command/Control-Z undoes; add Shift to redo");
 
@@ -1909,6 +1814,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use novadraw::{RenderCommandKind, command::LineStyle};
+    use novadraw_editor::HandleRole;
+
+    #[test]
+    fn viewport_guide_uses_light_background_and_dashed_outline() {
+        let mut harness = EditorHarness::new().unwrap();
+        let frame = harness.runtime_mut().prepare_frame().unwrap();
+
+        assert!(frame.commands().iter().any(|command| matches!(
+            command.kind,
+            RenderCommandKind::FillRect { color, .. } if color == Color::hex("#F8FAFC")
+        )));
+        assert!(frame.commands().iter().any(|command| matches!(
+            command.kind,
+            RenderCommandKind::StrokeRect {
+                color,
+                line_style: LineStyle::Dash,
+                ..
+            } if color == Color::hex("#94A3B8")
+        )));
+    }
 
     #[test]
     fn self_loop_owns_two_bendpoints_and_moving_one_preserves_the_other() {
@@ -1971,5 +1897,76 @@ mod tests {
             })
             .collect::<Vec<_>>();
         assert_eq!(move_roles, vec![0, 1]);
+    }
+
+    #[test]
+    fn viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let model_bounds = harness.node_bounds(3).unwrap();
+        harness
+            .click(model_bounds.center(), KeyModifiers::default())
+            .unwrap();
+        harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
+        harness.scroll_by(10_000.0, 10_000.0).unwrap();
+        harness.runtime_mut().prepare_frame();
+
+        assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
+
+        let bounds = harness.node_bounds_in_surface(3).unwrap();
+        let expected = [
+            Point::new(bounds.x, bounds.y),
+            Point::new(bounds.x + bounds.width, bounds.y),
+            Point::new(bounds.x, bounds.y + bounds.height),
+            Point::new(bounds.x + bounds.width, bounds.y + bounds.height),
+        ];
+        let centers = harness.handle_centers_in_surface();
+        assert_eq!(centers.len(), expected.len());
+        assert!(expected.iter().all(|point| {
+            centers
+                .iter()
+                .any(|center| (*center - *point).length() <= f64::EPSILON)
+        }));
+    }
+
+    #[test]
+    fn pointer_leave_cancels_autoexpose_and_clears_the_active_gesture() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let center = harness.node_bounds(2).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
+        let start = harness.node_bounds_in_surface(2).unwrap().center();
+        harness
+            .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(Point::new(815.0, 555.0)).unwrap();
+        assert!(harness.has_active_gesture());
+        assert!(harness.autoexpose_requested());
+        assert!(
+            harness
+                .autoexpose_tick(Duration::from_millis(30))
+                .unwrap()
+                .scrolled()
+        );
+
+        harness.pointer_exited().unwrap();
+
+        assert!(!harness.has_active_gesture());
+        assert!(!harness.autoexpose_requested());
+        let bounds = harness.node_bounds_in_surface(2).unwrap();
+        let expected = [
+            Point::new(bounds.x, bounds.y),
+            Point::new(bounds.x + bounds.width, bounds.y),
+            Point::new(bounds.x, bounds.y + bounds.height),
+            Point::new(bounds.x + bounds.width, bounds.y + bounds.height),
+        ];
+        let centers = harness.handle_centers_in_surface();
+        assert_eq!(centers.len(), expected.len());
+        assert!(expected.iter().all(|point| {
+            centers
+                .iter()
+                .any(|center| (*center - *point).length() <= f64::EPSILON)
+        }));
     }
 }

@@ -1,15 +1,15 @@
 //! Editor session coordination.
 
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, time::Duration};
 
 use novadraw_geometry::Point;
 use novadraw_scene::{DispatchOutcome, KeyModifiers, MouseButton};
 
 use crate::{
-    BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
+    AutoexposeTick, BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
     ConnectionCreationTool, ConnectionEndpointTool, CreationType, EditPartFactory, EditorRequest,
     GraphicalViewer, HandleRole, InteractionRevision, InteractionRevisionError, ModelAdapter,
-    SelectionTool, ToolError, ViewerError, ViewerInputOutcome, ViewerTarget,
+    SelectionTool, ToolError, ViewerError, ViewerInputOutcome, ViewerTarget, autoexpose,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -102,6 +102,8 @@ pub struct EditorDomain<A: ModelAdapter> {
     endpoint_tool: Option<ConnectionEndpointTool<A>>,
     bendpoint_tool: ConnectionBendpointTool,
     next_revision: InteractionRevision,
+    pointer: Option<Point>,
+    autoexpose_requested: bool,
 }
 
 impl<A: ModelAdapter> Default for EditorDomain<A> {
@@ -120,6 +122,8 @@ impl<A: ModelAdapter> EditorDomain<A> {
             endpoint_tool: None,
             bendpoint_tool: ConnectionBendpointTool::new(),
             next_revision: InteractionRevision::initial(),
+            pointer: None,
+            autoexpose_requested: false,
         }
     }
 
@@ -145,6 +149,11 @@ impl<A: ModelAdapter> EditorDomain<A> {
     /// Returns whether the one-shot connection-creation Tool is armed.
     pub const fn is_connection_creation_active(&self) -> bool {
         self.connection_tool.is_some()
+    }
+
+    /// Returns whether the host should schedule a viewport auto-expose step.
+    pub const fn autoexpose_requested(&self) -> bool {
+        self.autoexpose_requested
     }
 
     /// Allocates the next request revision.
@@ -232,6 +241,8 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.pointer = Some(location);
+        self.autoexpose_requested = false;
         if let Some(tool) = &mut self.connection_tool {
             let revision = self.next_revision;
             self.next_revision = revision.next()?;
@@ -240,6 +251,7 @@ where
             let (outcome, command) = press.into_parts();
             if completed {
                 self.connection_tool = None;
+                self.pointer = None;
             }
             if let Some(command) = command {
                 self.command_stack.execute(viewer.model_mut(), command)?;
@@ -296,20 +308,90 @@ where
         F: EditPartFactory<A>,
     {
         let revision = self.next_interaction_revision()?;
-        if self.bendpoint_tool.is_active() {
-            return Ok(self
-                .bendpoint_tool
-                .pointer_moved(viewer, location, revision)?);
+        let dispatch = if self.bendpoint_tool.is_active() {
+            self.bendpoint_tool
+                .pointer_moved(viewer, location, revision)?
+        } else if let Some(tool) = &mut self.endpoint_tool {
+            tool.pointer_moved(viewer, location, revision)?
+        } else if let Some(tool) = &mut self.connection_tool {
+            tool.pointer_moved(viewer, location, revision)?
+        } else {
+            self.selection_tool
+                .pointer_moved(viewer, location, revision)?
+        };
+        self.pointer = self.has_active_gesture().then_some(location);
+        self.autoexpose_requested =
+            self.supports_autoexpose() && autoexpose::detects(viewer, location)?;
+        Ok(dispatch)
+    }
+
+    /// Advances viewport auto-expose using host-provided monotonic elapsed time.
+    pub fn autoexpose_tick<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        elapsed: Duration,
+    ) -> Result<AutoexposeTick, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let Some(pointer) = self.pointer.filter(|_| self.supports_autoexpose()) else {
+            self.autoexpose_requested = false;
+            return Ok(AutoexposeTick::default());
+        };
+        let outcome = autoexpose::step(viewer, pointer, elapsed)?;
+        if outcome.scrolled() {
+            let revision = self.next_interaction_revision()?;
+            self.refresh_active_tool(viewer, pointer, revision)?;
         }
-        if let Some(tool) = &mut self.endpoint_tool {
-            return Ok(tool.pointer_moved(viewer, location, revision)?);
+        self.autoexpose_requested =
+            outcome.continue_requested() && autoexpose::detects(viewer, pointer)?;
+        Ok(AutoexposeTick::new(
+            outcome.scrolled(),
+            self.autoexpose_requested,
+        ))
+    }
+
+    /// Changes zoom and refreshes an active gesture at its fixed surface pointer.
+    pub fn set_viewport_scale_at<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        scale: f64,
+        anchor: Option<Point>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let changed = viewer.set_viewport_scale_at(scale, anchor)?;
+        if changed {
+            self.refresh_after_viewport_change(viewer)?;
         }
-        if let Some(tool) = &mut self.connection_tool {
-            return Ok(tool.pointer_moved(viewer, location, revision)?);
+        Ok(changed)
+    }
+
+    /// Changes the root Viewport origin and refreshes an active gesture.
+    pub fn set_viewport_origin<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        origin: Point,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let changed = viewer.set_viewport_origin(origin)?;
+        if changed {
+            self.refresh_after_viewport_change(viewer)?;
         }
-        Ok(self
-            .selection_tool
-            .pointer_moved(viewer, location, revision)?)
+        Ok(changed)
+    }
+
+    /// Clears pointer-derived scheduling when the pointer leaves the Viewer.
+    pub fn pointer_exited<F>(&mut self, viewer: &mut GraphicalViewer<A, F>)
+    where
+        F: EditPartFactory<A>,
+    {
+        self.pointer = None;
+        self.autoexpose_requested = false;
+        viewer.pointer_exited();
     }
 
     /// Releases the active gesture, clears feedback, and executes its Request.
@@ -322,6 +404,8 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.pointer = None;
+        self.autoexpose_requested = false;
         if let Some(mut tool) = self.endpoint_tool.take() {
             let revision = self.next_interaction_revision()?;
             let (dispatch, command) = tool
@@ -397,6 +481,8 @@ where
     where
         F: EditPartFactory<A>,
     {
+        self.pointer = None;
+        self.autoexpose_requested = false;
         self.selection_tool.cancel(viewer)?;
         if let Some(tool) = &mut self.connection_tool {
             tool.cancel(viewer)?;
@@ -407,6 +493,58 @@ where
         }
         self.endpoint_tool = None;
         self.bendpoint_tool.cancel(viewer)?;
+        Ok(())
+    }
+
+    fn supports_autoexpose(&self) -> bool {
+        self.selection_tool.is_dragging()
+            || self
+                .connection_tool
+                .as_ref()
+                .is_some_and(ConnectionCreationTool::is_started)
+            || self
+                .endpoint_tool
+                .as_ref()
+                .is_some_and(ConnectionEndpointTool::is_dragging)
+            || self.bendpoint_tool.is_dragging()
+    }
+
+    /// Recomputes the active Tool after an externally driven viewport layout change.
+    pub fn refresh_after_viewport_change<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let Some(pointer) = self.pointer else {
+            return Ok(());
+        };
+        let revision = self.next_interaction_revision()?;
+        self.refresh_active_tool(viewer, pointer, revision)?;
+        self.autoexpose_requested =
+            self.supports_autoexpose() && autoexpose::detects(viewer, pointer)?;
+        Ok(())
+    }
+
+    fn refresh_active_tool<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        revision: InteractionRevision,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        if self.bendpoint_tool.is_active() {
+            self.bendpoint_tool.refresh(viewer, location, revision)?;
+        } else if let Some(tool) = &mut self.endpoint_tool {
+            tool.refresh(viewer, location, revision)?;
+        } else if let Some(tool) = &mut self.connection_tool {
+            tool.refresh(viewer, location, revision)?;
+        } else {
+            self.selection_tool.refresh(viewer, location, revision)?;
+        }
         Ok(())
     }
 }

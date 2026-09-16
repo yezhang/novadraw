@@ -160,7 +160,7 @@ impl BendpointRequest {
         self.operation
     }
 
-    /// Returns the latest pointer location.
+    /// Returns the latest pointer location in the Connection routing domain.
     pub const fn location(&self) -> Point {
         self.location
     }
@@ -251,17 +251,17 @@ impl ChangeBoundsRequest {
         &self.parts
     }
 
-    /// Returns the latest pointer location in the Viewer entry domain.
+    /// Returns the latest pointer location in model-content coordinates.
     pub const fn location(&self) -> Point {
         self.location
     }
 
-    /// Returns the translation applied before resize.
+    /// Returns the model-content translation applied before resize.
     pub const fn move_delta(&self) -> Vec2 {
         self.move_delta
     }
 
-    /// Returns the width and height delta.
+    /// Returns the width and height delta in model-content units.
     pub const fn size_delta(&self) -> Dimension {
         self.size_delta
     }
@@ -471,7 +471,7 @@ impl ReconnectConnectionRequest {
         self
     }
 
-    /// Returns the latest pointer location.
+    /// Returns the latest pointer location in the Connection routing domain.
     pub const fn location(&self) -> Point {
         self.location
     }
@@ -527,7 +527,7 @@ impl CreateConnectionRequest {
         self
     }
 
-    /// Returns the latest pointer location in the Viewer entry domain.
+    /// Returns the latest pointer location in the Connection routing domain.
     pub const fn location(&self) -> Point {
         self.location
     }

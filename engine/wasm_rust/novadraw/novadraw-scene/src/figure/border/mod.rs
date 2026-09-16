@@ -167,6 +167,14 @@ pub enum BorderStyle {
     DashDot,
 }
 
+pub(crate) const fn render_line_style(style: BorderStyle) -> novadraw_render::LineStyle {
+    match style {
+        BorderStyle::Solid => novadraw_render::LineStyle::Solid,
+        BorderStyle::Dash | BorderStyle::DashDot => novadraw_render::LineStyle::Dash,
+        BorderStyle::Dot => novadraw_render::LineStyle::Dot,
+    }
+}
+
 /// 通用边框构建器
 ///
 /// 用于创建常见的边框类型。
