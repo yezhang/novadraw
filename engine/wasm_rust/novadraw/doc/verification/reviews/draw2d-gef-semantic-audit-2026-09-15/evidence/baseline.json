@@ -1,0 +1,864 @@
+{
+  "project": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw",
+  "repo": "/Users/bytedance/Documents/code/GitHub/drawjs",
+  "head": "6b83ac0fa980dc60fd1284607a51460858fa883b",
+  "status": " M engine/wasm_rust/novadraw/AGENTS.md\n M engine/wasm_rust/novadraw/CLAUDE.md\n M engine/wasm_rust/novadraw/apps/native/node-editor-demo/src/main.rs\n M engine/wasm_rust/novadraw/doc/07-gef-roadmap/implementation-plan.md\n M engine/wasm_rust/novadraw/doc/design/00-index.md\n M engine/wasm_rust/novadraw/doc/design/editor/g5-connection-reconnect.md\n M engine/wasm_rust/novadraw/doc/parity/gef/api-coverage.md\n M engine/wasm_rust/novadraw/doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md\n M engine/wasm_rust/novadraw/novadraw-editor/src/domain.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/feedback/mod.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/model/mod.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/request/mod.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/tool/mod.rs\n M engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs\n M engine/wasm_rust/novadraw/novadraw-editor/tests/g4_editing_loop_contract.rs\n M engine/wasm_rust/novadraw/novadraw-editor/tests/g5_connection_creation_contract.rs\n M engine/wasm_rust/novadraw/novadraw-render/src/backend/vello/mod.rs\n M engine/wasm_rust/novadraw/novadraw-render/src/command.rs\n M engine/wasm_rust/novadraw/novadraw-render/src/lib.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/connection/figure.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/connection/mod.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/connection/runtime.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs\n M engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs\n M engine/wasm_rust/novadraw/novadraw-scene/tests/m9_connection_runtime.rs\n M engine/wasm_rust/novadraw/novadraw/src/lib.rs\n?? engine/wasm_rust/novadraw/doc/design/editor/g5-connection-bendpoint.md\n?? engine/wasm_rust/novadraw/doc/verification/manual/g5-connection-bendpoint.md\n?? engine/wasm_rust/novadraw/doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/\n",
+  "diff_stat": " engine/wasm_rust/novadraw/AGENTS.md                |   6 +\n engine/wasm_rust/novadraw/CLAUDE.md                |  11 +-\n .../apps/native/node-editor-demo/src/main.rs       | 307 +++++++++++++++++++--\n .../doc/07-gef-roadmap/implementation-plan.md      |   1 +\n engine/wasm_rust/novadraw/doc/design/00-index.md   |   1 +\n .../doc/design/editor/g5-connection-reconnect.md   |  10 +-\n .../novadraw/doc/parity/gef/api-coverage.md        |   1 +\n .../g5-connection-reconnect-behavior-2026-09-15.md |   7 +-\n .../novadraw/novadraw-editor/src/domain.rs         |  55 +++-\n .../novadraw/novadraw-editor/src/feedback/mod.rs   |  29 ++\n .../wasm_rust/novadraw/novadraw-editor/src/lib.rs  |  14 +-\n .../novadraw/novadraw-editor/src/model/mod.rs      |   7 +\n .../novadraw/novadraw-editor/src/request/mod.rs    |  79 ++++++\n .../novadraw/novadraw-editor/src/tool/mod.rs       | 144 +++++++++-\n .../novadraw/novadraw-editor/src/viewer/mod.rs     | 215 +++++++++++++--\n .../tests/g4_editing_loop_contract.rs              |   3 +-\n .../tests/g5_connection_creation_contract.rs       | 280 ++++++++++++++++++-\n .../novadraw-render/src/backend/vello/mod.rs       |   5 +\n .../novadraw/novadraw-render/src/command.rs        |   3 +\n .../wasm_rust/novadraw/novadraw-render/src/lib.rs  |   4 +-\n .../novadraw-scene/src/connection/figure.rs        |  95 ++++++-\n .../novadraw/novadraw-scene/src/connection/mod.rs  |   5 +-\n .../novadraw-scene/src/connection/runtime.rs       |  69 +++--\n .../novadraw/novadraw-scene/src/graph/mod.rs       |  57 ++--\n .../wasm_rust/novadraw/novadraw-scene/src/lib.rs   |  22 +-\n .../novadraw/novadraw-scene/src/runtime/runtime.rs |  48 ++--\n .../novadraw-scene/tests/m9_connection_runtime.rs  |  82 +++++-\n engine/wasm_rust/novadraw/novadraw/src/lib.rs      |  15 +-\n 28 files changed, 1398 insertions(+), 177 deletions(-)\n",
+  "reference": "/Users/bytedance/Documents/code/GitHub/gef-classic",
+  "reference_head": "4463d9d0ce13c19d10fbe769d29f28b7345a8cba",
+  "reference_source_diff": "",
+  "files": [
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw/src/lib.rs",
+      "group": 1,
+      "sha256": "764d6ac6376f0ced2831bf10ef0094dd7904de1bd83f6a461642424623a7c53e",
+      "lines": 84
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-core/src/color.rs",
+      "group": 3,
+      "sha256": "38e41f4e8bd6521aab0842985bf7577b71051e1b330d236dee96f2bd29078b42",
+      "lines": 172
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-core/src/lib.rs",
+      "group": 3,
+      "sha256": "fd720ab981c654faa95ecf464aa10ad816966144a38e20d8d1cc62f74273d649",
+      "lines": 13
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-math/src/lib.rs",
+      "group": 3,
+      "sha256": "ed4a5b72b8b4756e128393ef8f4ac17d3d2bbdea819be66823ea634936cd9eab",
+      "lines": 16
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-math/src/mat3.rs",
+      "group": 3,
+      "sha256": "f1a48f860a643328b1cf545b0c5d210261c34351df39fcdfb18560b1ba2f80ae",
+      "lines": 267
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-math/src/vec3.rs",
+      "group": 3,
+      "sha256": "ab8a9e585ee4715e9501bf36e2ebcb5daa5c356001ffc4225463d41d709d786b",
+      "lines": 178
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/lib.rs",
+      "group": 3,
+      "sha256": "055cf9125a44649e396c6334ead5af881cbae83b3453f93539f88210ea2238d5",
+      "lines": 52
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/point_list.rs",
+      "group": 3,
+      "sha256": "0a0474d9155a19f89d0d8cfd244ab265a0c7b112f6a09e4c63f0935a728a6da8",
+      "lines": 218
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/precision.rs",
+      "group": 3,
+      "sha256": "6fee4de3ef7a7dfce9a796fedf9aa21ced7bc6053e9b5296264fc18c12827531",
+      "lines": 140
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/rect.rs",
+      "group": 3,
+      "sha256": "8d90283342607c7c57d39dde26e6d3d79faf783f7727dadfc0260329a00cfa3b",
+      "lines": 329
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/transform.rs",
+      "group": 3,
+      "sha256": "69b10bef80288d7f1419fe36b9d21099b65de27c870db3cb29c8664c6099e823",
+      "lines": 547
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/translatable.rs",
+      "group": 3,
+      "sha256": "65d4e1af597428b30a4ffa5d44eca25235a9063bc47e12e56e4a9070b6b51aa3",
+      "lines": 279
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/src/vec2.rs",
+      "group": 3,
+      "sha256": "f6bfbc9fe3ebee324caf9b6ed62750c38467c286c68139662230ad02dad6177d",
+      "lines": 272
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-geometry/tests/m1_product_existence.rs",
+      "group": 3,
+      "sha256": "3b90069db1346b70565e21e2e3858a70c03ab3adcba928b22ff47e324ca9a2b3",
+      "lines": 46
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/backend/mod.rs",
+      "group": 3,
+      "sha256": "3ffa31192a0660e9ecfe5e0a2ca0a59f9b108f174751daae1f8e32c3c7b166e9",
+      "lines": 12
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/backend/vello/mod.rs",
+      "group": 3,
+      "sha256": "211399afc442f30c2aea58f07c01eb308a8e8c85e72a0c984d4b5ebaa1dacadd",
+      "lines": 1887
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/command.rs",
+      "group": 3,
+      "sha256": "8605d4a78bf212a3e765371837324f04fc57c791ac26c37a5b2585e0b6ad05e4",
+      "lines": 644
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/context.rs",
+      "group": 3,
+      "sha256": "236811ea1d3f8097160b2f40eb5b5b74ecb467fd002759e462a98d73acd3fb90",
+      "lines": 922
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/lib.rs",
+      "group": 3,
+      "sha256": "5fea542ad85275cfb673e599abe0f4815034acbfa2062ca3a1c595380571889d",
+      "lines": 46
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/submission.rs",
+      "group": 3,
+      "sha256": "19e553ac063c1f1db3bb72d03967462b4c5eba0dbfa8cfeaa3b9a31a59b87e37",
+      "lines": 516
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/text.rs",
+      "group": 3,
+      "sha256": "5903b69ac38457993992bfb9f4536921f0350145bd3b4f62ca9d50d624068beb",
+      "lines": 1051
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/src/traits.rs",
+      "group": 3,
+      "sha256": "34b0d5223c0befe2c6b73eda1ad6a608ce8d25e316655be25014713bacfbb6da",
+      "lines": 126
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/tests/m10_text_extension_contract.rs",
+      "group": 3,
+      "sha256": "65c229856bf7fde91f99b298ae73b15ae5b3922a0ebe8f65b149c3cd915fccbf",
+      "lines": 195
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/tests/m1_product_existence.rs",
+      "group": 3,
+      "sha256": "acb8be4382aca36a931f7f01423eabf69e16981c8dfc7bf3aed918992354966e",
+      "lines": 95
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-render/tests/r8_extension_boundaries.rs",
+      "group": 3,
+      "sha256": "5a2a7546517a22fe1b27983ab1d40b1d33fa7e60ce7b64ea9207a4fa585471a7",
+      "lines": 79
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/anchor.rs",
+      "group": 4,
+      "sha256": "fa20fb6a3e20f2f8ef9122ca185a93dc2b143feec7bae87d08cef85f12bcab57",
+      "lines": 744
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/figure.rs",
+      "group": 4,
+      "sha256": "5d40e102a309c570a2bdea0c4db6aaad76fcc55f2929c0899fa9a6612a922a88",
+      "lines": 418
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/locator.rs",
+      "group": 4,
+      "sha256": "0b2e88a54bf5460b159143edd412d73a90049c63c3e8cd005e6d51d075e69e28",
+      "lines": 193
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/mod.rs",
+      "group": 4,
+      "sha256": "7932314a363561b88209b79698ee835fdaa4d06d835acf4228e100ce4533b460",
+      "lines": 63
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/query.rs",
+      "group": 4,
+      "sha256": "eaaede18f92eb2fe2d987ffe0700d26f12ce6e3d877355dd55d118f3c9296af7",
+      "lines": 630
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/router.rs",
+      "group": 4,
+      "sha256": "5f329e02b133f57d2eb996014a231e42032a7eee3fa205eb75757dc851b3a147",
+      "lines": 842
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/connection/runtime.rs",
+      "group": 4,
+      "sha256": "9c62ee884dba68925cf0267a8212208fc4a544bc015593b6ec8f7544d7e5966c",
+      "lines": 1236
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/layer.rs",
+      "group": 2,
+      "sha256": "6e941d19a99d902987911be6eef1d3cd3d7de3d2931352494889f3b3530b6c93",
+      "lines": 426
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/mod.rs",
+      "group": 2,
+      "sha256": "0112de74f9b9166fad666d0490e24380f6b9f9c5b695ad9070af312ab0b89711",
+      "lines": 31
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/range_model.rs",
+      "group": 2,
+      "sha256": "acebb2dfc9cb3b0ad6de1f4837b48fd0143a3e915b8d08e0c4fcc8ebb910ef15",
+      "lines": 275
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/scalable.rs",
+      "group": 2,
+      "sha256": "a829c2dba099d35cf2d7008f1ba7e580ff32f19d28a9716b47da7a11f074cf25",
+      "lines": 554
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/scroll_pane.rs",
+      "group": 2,
+      "sha256": "2bac826a4a5a29563d7a5e95e8e49982f2293aaf6ac94441696903428c6d02f2",
+      "lines": 796
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/viewport.rs",
+      "group": 2,
+      "sha256": "df1fbddd954610c4d33aeaaf2225302577baa7c76e945f40ba43fe20dda4e5c7",
+      "lines": 844
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/container/zoom.rs",
+      "group": 2,
+      "sha256": "1931e5164c5ef4b7aca9aa9788042d14483e5efedb99f395fd70784e52800ae0",
+      "lines": 433
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/bevel_border.rs",
+      "group": 3,
+      "sha256": "b9c9c6968f9b6d69f7c2dfcfd3cfaca624b70b29ebdd3df5a11c33b685ce4707",
+      "lines": 110
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/compound_border.rs",
+      "group": 3,
+      "sha256": "9b470da67c49090e7fac96a92b61cea51bfd3455be46bbe3123d50037ba5b01d",
+      "lines": 101
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/etched_border.rs",
+      "group": 3,
+      "sha256": "b11c60fac88236dafe69cc5504b0b4c679a39259b941af0d4a9daf30f8d09eb7",
+      "lines": 56
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/line_border.rs",
+      "group": 3,
+      "sha256": "9bb93bb67436dc775899c18fd03fa9dc742d71ab467a85222187dc9fa57baaf3",
+      "lines": 118
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/margin_border.rs",
+      "group": 3,
+      "sha256": "21df3c556e2005936471121b5ed3ff0c37f26ce93dab1e58cca47975df706788",
+      "lines": 134
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/mod.rs",
+      "group": 3,
+      "sha256": "42b7513302ea5469bd8dbf98e0f90f863e3a9c2a7e9283ddffdea0514b402f70",
+      "lines": 225
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/rectangle_border.rs",
+      "group": 3,
+      "sha256": "e9ae705a54a1e69e5ab4dc83cc0e12dbf0f625babe645e2945514f8c486701b2",
+      "lines": 108
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/title_bar_border.rs",
+      "group": 3,
+      "sha256": "36366435b8769fa638742f988be7715d8ddc13cc4fe3287c225c5255420a89ff",
+      "lines": 129
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/ellipse.rs",
+      "group": 3,
+      "sha256": "0b5981721f1a57b614e9497add84570cbd3430a39219dfc4eca3cf8bff358c1d",
+      "lines": 317
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/image.rs",
+      "group": 3,
+      "sha256": "17917b75d4556b6473e44bd0c89deaea937a3872a4f7003a98e88b8dbf4cad99",
+      "lines": 159
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/label.rs",
+      "group": 3,
+      "sha256": "9709dc2fb482911fa8d7502212383f21256c369dac057f769ff07aa96c1f061e",
+      "lines": 603
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs",
+      "group": 3,
+      "sha256": "e3db500266bfab5bf17b310b962e173b98838a5357043d2573d9102bfe1b7e76",
+      "lines": 964
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/polygon.rs",
+      "group": 3,
+      "sha256": "db1b03ead03682c20bbcecaf259a7e2eeba9e2d4a716c961cbd90da501f8e281",
+      "lines": 292
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/polyline.rs",
+      "group": 3,
+      "sha256": "dec83d9dd536e05ccc785aac81aa3d4a2f9d38d7aff83d02464809be1b30d8bf",
+      "lines": 427
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/rectangle.rs",
+      "group": 3,
+      "sha256": "113c73af503919eeb07508f91ae12d66751d067f402756175e2c4e357ada29a2",
+      "lines": 266
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/root.rs",
+      "group": 3,
+      "sha256": "73da9ca745017e069253098a123ff27d03d2f980de256bff1af7a114ae6cbf8e",
+      "lines": 159
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/rounded_rectangle.rs",
+      "group": 3,
+      "sha256": "c5a5354e6f14bee84f4a6b9fe51e625518749920290c04dd79ca66a3774d24ea",
+      "lines": 419
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/triangle.rs",
+      "group": 3,
+      "sha256": "1e3fb8fae87cfbb3b1e6cdd04b8a1fe4b80b2a0c3b3e01dc6607875ded0628ed",
+      "lines": 725
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/figure/widget.rs",
+      "group": 3,
+      "sha256": "773560566cf07d6cb7aed68efbdedac0ae5380228877fb4d08b1368f4d78c84f",
+      "lines": 749
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/graph/bounds_test.rs",
+      "group": 1,
+      "sha256": "71d56936c40a442e67e12edd29bac0fe074feb6f5b0790fb6c2121ee2b8e9979",
+      "lines": 1102
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs",
+      "group": 1,
+      "sha256": "800f035714c2eed21bf04320115739bce9ccc78abd3a72c21b5286d2accf4bd9",
+      "lines": 6238
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/graph/render_recursive.rs",
+      "group": 3,
+      "sha256": "404aea29de9cc52e84eebad92c64ff397cbc227fb47b5386cde82da3f658466b",
+      "lines": 264
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/graph/search.rs",
+      "group": 1,
+      "sha256": "d6c9e3d7ba0c97566e1b0a7da07b0aed5440d4420734a33badaa5070d1114b41",
+      "lines": 397
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/graph/update_integration_test.rs",
+      "group": 1,
+      "sha256": "ecbcb67a7e4eea2cd01c154ccb7dafe862eb98375e93acad2a89f4bed5785074",
+      "lines": 1141
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/host/mod.rs",
+      "group": 1,
+      "sha256": "a24e66dcf5bca59d392c37d6b6b7e188fb809fbce0bf667a2964cb3b7e5175d9",
+      "lines": 8
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/host/scene_host.rs",
+      "group": 1,
+      "sha256": "780301d226b0097ddd54f16c0f1909674dd6d36659ad4021785c54e568e51f02",
+      "lines": 195
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/identity.rs",
+      "group": 1,
+      "sha256": "c611befa187c12566d2792d7fdf5277ff1dd78fe168c6a0de82c94c058d2f102",
+      "lines": 163
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/border_layout.rs",
+      "group": 2,
+      "sha256": "21453d665dd9e101ae9e272404f6d761659040be9d3e70a04c6cc9dc44849662",
+      "lines": 444
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/fill_layout.rs",
+      "group": 2,
+      "sha256": "017466aadcc57e3017d6d9d254f5a765fe71901bcc6403122042c546bef59e40",
+      "lines": 85
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/flow_layout.rs",
+      "group": 2,
+      "sha256": "d0b629584b98bac2a96ce807d400dc497a21070c48aafa2a25c85e07deb596aa",
+      "lines": 351
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/freeform_layout.rs",
+      "group": 2,
+      "sha256": "81afec562ecaafdecf4cbabd65726a76d4f9b61a9672d80eb934b971e9c7dcbd",
+      "lines": 194
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/grid_layout.rs",
+      "group": 2,
+      "sha256": "6969bd07636ab410fba58dab74b1a25d9372725fb86deb07782af2b2d6daf1a3",
+      "lines": 480
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/mod.rs",
+      "group": 2,
+      "sha256": "9d078613249084ac4ca6498f8042a279637a1176ce99922783210d54a767ad38",
+      "lines": 357
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/stack_layout.rs",
+      "group": 2,
+      "sha256": "29d245059e83e6f047d0544ec4c0483f863511bd60cd0361c808f1850581bda4",
+      "lines": 71
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/toolbar_layout.rs",
+      "group": 2,
+      "sha256": "24e69b1aa40b2bf353894270cfb09dde2e75cf6d00e17229676963d9219ae381",
+      "lines": 208
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/layout/xy_layout.rs",
+      "group": 2,
+      "sha256": "75256a1ba916ef7a385581a2901ba82730e241983430573d142cd513df5db0e5",
+      "lines": 237
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs",
+      "group": 1,
+      "sha256": "4472787d7eb3839eb528bc33cf7a1ede014f58e99b1ef9d43972c45558d6df21",
+      "lines": 116
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/log.rs",
+      "group": 1,
+      "sha256": "893d91a25a891b7c3d14273c7f04688b0a8601e7bb68bd53ea1a0242f30ccbed",
+      "lines": 79
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/accessibility.rs",
+      "group": 1,
+      "sha256": "58037f7527ccd639aeccfeae9fb1e770cb4fef0c8eea8a75a3301e3582abed3f",
+      "lines": 422
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/context.rs",
+      "group": 1,
+      "sha256": "52ab1a8aad672344fab9fc0fc7b8d5722d95a7027b9f678facff0b73e9b15d22",
+      "lines": 980
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/event/mod.rs",
+      "group": 1,
+      "sha256": "7812d8b36d36b72386c5cf50cacddb21c11b075e8b9d74bfc3ef541053937234",
+      "lines": 1075
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/focus.rs",
+      "group": 1,
+      "sha256": "f2da5d234c864c594c27b201ade57b688b9aa927bb1c2ec83217fa641207deee",
+      "lines": 202
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/interaction.rs",
+      "group": 1,
+      "sha256": "87bf535763c20d3f3de70f62d569a062bac03902dd45fcab749b4151e4a7798c",
+      "lines": 286
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/mod.rs",
+      "group": 1,
+      "sha256": "b1404308bd7638a9a7e4af9a55f284c47046c141e4644598143aea2e6822188b",
+      "lines": 44
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/mutation/mod.rs",
+      "group": 1,
+      "sha256": "0fdb6d45d66edcb6967395bc4c7593ac4a8141a2c799ff9441d2526c8c92222c",
+      "lines": 548
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/resource.rs",
+      "group": 3,
+      "sha256": "4d83f37e0829fef876e3d68381279512cf8833862fc3071a1fb31695ba078a53",
+      "lines": 540
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs",
+      "group": 1,
+      "sha256": "16514731186e73d5c435873d86ed065166c092ec2bf4da541612eb13be883464",
+      "lines": 5179
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/tooltip.rs",
+      "group": 1,
+      "sha256": "ec7350a3e7d3442bdd6c631ad1e64dcbc58b54c90dacd51573166b898db527c2",
+      "lines": 515
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/deferred.rs",
+      "group": 2,
+      "sha256": "29f112ae315e755af803be0f10fd874f74aded071359dd929d2d2c49873873bf",
+      "lines": 1269
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/listener.rs",
+      "group": 2,
+      "sha256": "d91c3c8853584dc457b072541bf5e1ec4895802e5ee5059cb51e2427742db967",
+      "lines": 431
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/mod.rs",
+      "group": 2,
+      "sha256": "61dcf347c91c0f72263c9002ea039c2661ccbb31ea8e2980d2888736029d07f9",
+      "lines": 43
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/repair.rs",
+      "group": 2,
+      "sha256": "ddfe9e737e4d74ff75638a40e977905d3604c5661147c532e0118c89e2bf1e4f",
+      "lines": 519
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/src/style.rs",
+      "group": 1,
+      "sha256": "b44eedc4ba84eacbc125cbd9029f942e7a1c0ea00e8884bf94cf8a6088de28ba",
+      "lines": 77
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d1_focus_contract.rs",
+      "group": 1,
+      "sha256": "f72e846449aab9b73c176a369c1d3c176ca820de34748564c5733e9b0eaf72a0",
+      "lines": 52
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d1_tree_search_contract.rs",
+      "group": 1,
+      "sha256": "270da39796dd58a270aa37b14cf0a6497c79f0a2028522bc68e5496725e15088",
+      "lines": 52
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d2_freeform_contract.rs",
+      "group": 2,
+      "sha256": "a4ecc3e1fec2a193b7f717d3ed29bb7591dcc321b06873dc030dfb880df54e80",
+      "lines": 510
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d2_layer_contract.rs",
+      "group": 2,
+      "sha256": "ec8014d30a7dce5aacdaec1604c24ad0dda8c1a73e4e565408b20865f7c8e87b",
+      "lines": 294
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d3_runtime_listener.rs",
+      "group": 1,
+      "sha256": "8410d920fe3a26aea6b005f2400b50e45133ed9aa3c1077ced969ed605e6358b",
+      "lines": 239
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d3_runtime_mutation.rs",
+      "group": 1,
+      "sha256": "47aaa08fe0095e78457120934c5ae41510e3e334524d20d54664d208fc2bf97e",
+      "lines": 391
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d4_component_update.rs",
+      "group": 1,
+      "sha256": "93b78fda1cec94514f47cd95625a7c962fd38d9889b7105070b58e88985c8fa6",
+      "lines": 395
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d4_constrained_measurement.rs",
+      "group": 1,
+      "sha256": "0272a061dc078d802d4d71d9badba62cf0aee9b026015876f17023ebeb6c9ef2",
+      "lines": 172
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/d4_notification_epoch.rs",
+      "group": 1,
+      "sha256": "7c6be4a5330a93c75802f70f9ddbf7e8d925587f6cb6a1a19e1e642b585473e1",
+      "lines": 180
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m10_accessibility_contract.rs",
+      "group": 3,
+      "sha256": "dce568746fb9d9832621ce2dc672f14cf3cc9e48676010616f67c34d26ee9bb2",
+      "lines": 181
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m10_label_contract.rs",
+      "group": 3,
+      "sha256": "c4b5433bc4cec1cfa6364ce33074242b03f050fae6857dacec2d9196e7401ac2",
+      "lines": 482
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m10_reusable_shape_border_contract.rs",
+      "group": 3,
+      "sha256": "384d61e90168217def848582c8d22401b06b8459d13e505c1fa1e8c67644a127",
+      "lines": 403
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m10_tooltip_contract.rs",
+      "group": 3,
+      "sha256": "6a6ed7b68b56a012f28fa7348c4cb5de1b92a606e606818e13239aa650ea9717",
+      "lines": 116
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m10_widget_contract.rs",
+      "group": 3,
+      "sha256": "997b2013bae0b3d231649526a71af3d249898428007fe4634ebf986c8e44c116",
+      "lines": 269
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m2_product_existence.rs",
+      "group": 1,
+      "sha256": "6c7c03c32dc0c117a66af4edc03d310c96dd9bab8a6e6f1507bebf2551536c1a",
+      "lines": 286
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m4_coordinate_contract.rs",
+      "group": 1,
+      "sha256": "d2d46737dff66a05bfc3e893af26f4a3b0bdfc2c5ae5b02bae7876a46ac41754",
+      "lines": 272
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m5_layout_contract.rs",
+      "group": 2,
+      "sha256": "d1cc03d6865f6c3b17e080fb0fef19b7cd9bbef180c18defc75ca32500e145e6",
+      "lines": 441
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m6_event_contract.rs",
+      "group": 1,
+      "sha256": "b2648c14475b965bcaa179a832db06efd6ebb4fe01ea08d39acf4a87bf6aa339",
+      "lines": 317
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m8_viewport_contract.rs",
+      "group": 2,
+      "sha256": "afbdb324e04a095f3fe6c587919c791c0db5a2c555b815f1f31e7292e087ba29",
+      "lines": 981
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m9_connection_contract.rs",
+      "group": 4,
+      "sha256": "48e77dec1074d8bb4ca4669ea5ab17b0625c499775c39921b82493568df802ad",
+      "lines": 585
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/m9_connection_runtime.rs",
+      "group": 4,
+      "sha256": "148dbf5e6ac5e06307b3074299f8596726884a7b417d037c9a5721d710482f49",
+      "lines": 926
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/p2_dispatch_outcome_contract.rs",
+      "group": 1,
+      "sha256": "64c5acb635685fd82ed162db624f40da54a8ee7a4e1ff3b4ac80eda10dc95625",
+      "lines": 36
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-scene/tests/runtime_resize_contract.rs",
+      "group": 1,
+      "sha256": "a483babe17348033e0b50968812b1ddf51dcaa08b8b8fa720fadef3abfd59aea",
+      "lines": 92
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/command/mod.rs",
+      "group": 5,
+      "sha256": "622fdac7dedfdf7d5f543ccb5411239a0047bcbb99496d71cd27e8ea99878f7e",
+      "lines": 694
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/domain.rs",
+      "group": 6,
+      "sha256": "e47b13a8b0d767840895f75f9e48f072604affd40945470cc5d99a613f7fe7d9",
+      "lines": 412
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/feedback/mod.rs",
+      "group": 6,
+      "sha256": "065a9c575a3dfa52fba6bb55852e188e31c9bbea6e5c92e2b49eb00391d460de",
+      "lines": 110
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs",
+      "group": 6,
+      "sha256": "582ce339968696c3192a952eeba59210167f6bb170adce8db3eec34d2c5f873e",
+      "lines": 52
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/model/mod.rs",
+      "group": 5,
+      "sha256": "d556a8ec3a82ea7ea6c7dd2f226ccbd765f4a2d1f8b48fda672965cc5d606cdd",
+      "lines": 167
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/part/mod.rs",
+      "group": 5,
+      "sha256": "171f20417bd09af809ecff5b68cc99c58e9fab950d886f43a0b850fc78417ca1",
+      "lines": 922
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/policy/mod.rs",
+      "group": 6,
+      "sha256": "b28bb9dd92fb21fb734fb8b4cb6173b6348815b1fb3dd7bfa587581ad97a2af1",
+      "lines": 318
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/request/mod.rs",
+      "group": 6,
+      "sha256": "709d2113f8cbc27149393c3b809a36fae6fd9b5d8044524021d08fd0fb5783aa",
+      "lines": 604
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/selection/mod.rs",
+      "group": 6,
+      "sha256": "1b8cc3429df01407b716ca54bc0c5f6b8724fd937501a81f9d14b6d9ef0c714d",
+      "lines": 192
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/tool/mod.rs",
+      "group": 6,
+      "sha256": "ce9a884e1f2ea0d0e7323a797a3398949cbd329af30088fc01558b9c1b587199",
+      "lines": 788
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs",
+      "group": 6,
+      "sha256": "b37e06542baaa2b6bbe1596d87324d86bafb829e4b8d22da365dce3376e5fe39",
+      "lines": 2352
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g1_command_stack_contract.rs",
+      "group": 5,
+      "sha256": "30dfb0190d6edb5314f60694c72b3252ddc147fbed7e8afcc5839ea0861bafa5",
+      "lines": 487
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g1_model_contract.rs",
+      "group": 5,
+      "sha256": "aa6a1c980c6e074db024d21b0fb81d17147c5281f23299fe7cec0319488e1baf",
+      "lines": 78
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g2_viewer_projection_contract.rs",
+      "group": 5,
+      "sha256": "ddd8fd32f259de4e0336cf02a65431091380dfa96796274eca1ff7fb2db9c32e",
+      "lines": 483
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g3_selection_contract.rs",
+      "group": 6,
+      "sha256": "76e854e32de1b6edf77b792e31b73586af449fbdb49339c3c839e88e86087eca",
+      "lines": 45
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g3_viewer_interaction_contract.rs",
+      "group": 6,
+      "sha256": "981c28181b9a933c4c9a7a802bd07d5390a4b4ef7f6a3b5a768ed86580025689",
+      "lines": 297
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g4_editing_loop_contract.rs",
+      "group": 6,
+      "sha256": "9bfdb9229f72f28bd2192df2f7860f387805ec24aed3e887243cbddf519b5348",
+      "lines": 595
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g5_connection_creation_contract.rs",
+      "group": 6,
+      "sha256": "e26161d14d474966d25f7aaf8cf01b43a1cad9bfda6d1544580d5a287cbe5631",
+      "lines": 1186
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-editor/tests/g5_connection_projection_contract.rs",
+      "group": 5,
+      "sha256": "8d90aa552509d1b8976b57c4f58f91e92d74bb3558fadde6aead69ae2c025c2d",
+      "lines": 766
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/app.rs",
+      "group": 1,
+      "sha256": "c50b0c6536b55bf69bf395591167c11f4dc5c68dcef30cda2c0f3d1ce911e663",
+      "lines": 1279
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/input.rs",
+      "group": 1,
+      "sha256": "9dee0378344c008fe2c96394047ce62d8e9b906256f88bb48f5a0e6a687dd095",
+      "lines": 578
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/lib.rs",
+      "group": 1,
+      "sha256": "5ef132dfa345c6b85cceb717c5ea689ac0e82c00d4173d35009be952ac5ba330",
+      "lines": 49
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/platform.rs",
+      "group": 1,
+      "sha256": "c3536e93cef3f87f748f69d0ee7b2ebe124abbbf03cca004c5fca69fcbcc9155",
+      "lines": 305
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/prelude.rs",
+      "group": 1,
+      "sha256": "97fcdc8ab166b072028eba9fa175205f2449abfac66ddb780ed634cb870f87eb",
+      "lines": 17
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/novadraw-apps/src/verification.rs",
+      "group": 1,
+      "sha256": "55580938f24386314c493adfde28c62fc74ee30d3f6a99cdfd4313686b6514cd",
+      "lines": 130
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/apps/native/node-editor-demo/src/main.rs",
+      "group": 1,
+      "sha256": "03d35232c423db7a8c081f7235d124d315e5745c22c7e1a7111795a070b9187b",
+      "lines": 1634
+    },
+    {
+      "path": "engine/wasm_rust/novadraw/apps/web/web-validation/src/lib.rs",
+      "group": 1,
+      "sha256": "ca937737e79c81449ee43e9166259bfb59d388fc55c96035c10f14def5e001fb",
+      "lines": 1367
+    }
+  ]
+}

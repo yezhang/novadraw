@@ -1,0 +1,1294 @@
+{
+  "date": "2026-09-16",
+  "project": "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw",
+  "repo": "/Users/bytedance/Documents/code/GitHub/drawjs",
+  "head": "e8d54ac063d05c63abb9f2850365a837ec4e8c9d",
+  "scope": "Current working tree, including untracked Rust source; not diff-only",
+  "status": " M AGENTS.md\n M CLAUDE.md\n M Cargo.toml\n M apps/README.md\n M apps/native/node-editor-demo/Cargo.toml\n M apps/native/node-editor-demo/src/main.rs\n M apps/web/web-validation/README.md\n M doc/00-index.md\n M doc/07-gef-roadmap/00-index.md\n M doc/07-gef-roadmap/implementation-plan.md\n M doc/design/00-index.md\n M doc/design/editor/architecture.md\n M doc/design/editor/g5-connection-bendpoint.md\n M doc/design/editor/g5-connection-creation.md\n M doc/design/editor/g5-connection-reconnect.md\n M doc/parity/gef/api-coverage.md\n M doc/reference/gef/connection-editing.md\n M doc/roadmap/demo-matrix.md\n M doc/verification/00-index.md\n M doc/verification/manual/core-pipeline.md\n M doc/verification/manual/g3-selection-targeting.md\n M doc/verification/manual/g4-editing-loop.md\n M doc/verification/manual/g5-connection-creation.md\n M doc/verification/manual/g5-connection-reconnect.md\n M doc/verification/manual/m8-viewport.md\n M doc/verification/manual/web-platform.md\n M novadraw-editor/src/domain.rs\n M novadraw-editor/src/lib.rs\n M novadraw-editor/src/policy/mod.rs\n M novadraw-editor/src/request/mod.rs\n M novadraw-editor/src/tool/mod.rs\n M novadraw-editor/src/viewer/mod.rs\n M novadraw-editor/tests/g3_viewer_interaction_contract.rs\n M novadraw-editor/tests/g4_editing_loop_contract.rs\n M novadraw-editor/tests/g5_connection_creation_contract.rs\n M novadraw-scene/src/runtime/runtime.rs\n?? .cargo/\n?? apps/native/node-editor-demo/src/harness.rs\n?? apps/native/node-editor-demo/src/replay.rs\n?? doc/design/editor/g5-viewport-autoexpose.md\n?? doc/verification/manual/g5-viewport-autoexpose.md\n?? doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/\n?? doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-16/\n?? doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md\n?? doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md\n?? novadraw-editor/src/autoexpose.rs\n?? tools/\n?? verification/\n",
+  "reference_head": "4463d9d0ce13c19d10fbe769d29f28b7345a8cba",
+  "reference_source_diff": "",
+  "inventory_note": "Inventory defines scope; it is not a claim of line-by-line review.",
+  "files": [
+    {
+      "path": "novadraw/src/lib.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "0abafc0879cc13e98d19db97283fc2eec37dd92cca000e6eef39a28ead0e13ca",
+      "lines": 83
+    },
+    {
+      "path": "novadraw-apps/src/app.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "c50b0c6536b55bf69bf395591167c11f4dc5c68dcef30cda2c0f3d1ce911e663",
+      "lines": 1279
+    },
+    {
+      "path": "novadraw-apps/src/input.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "9dee0378344c008fe2c96394047ce62d8e9b906256f88bb48f5a0e6a687dd095",
+      "lines": 578
+    },
+    {
+      "path": "novadraw-apps/src/lib.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "5ef132dfa345c6b85cceb717c5ea689ac0e82c00d4173d35009be952ac5ba330",
+      "lines": 49
+    },
+    {
+      "path": "novadraw-apps/src/platform.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "c3536e93cef3f87f748f69d0ee7b2ebe124abbbf03cca004c5fca69fcbcc9155",
+      "lines": 305
+    },
+    {
+      "path": "novadraw-apps/src/prelude.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "97fcdc8ab166b072028eba9fa175205f2449abfac66ddb780ed634cb870f87eb",
+      "lines": 17
+    },
+    {
+      "path": "novadraw-apps/src/verification.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "55580938f24386314c493adfde28c62fc74ee30d3f6a99cdfd4313686b6514cd",
+      "lines": 130
+    },
+    {
+      "path": "novadraw-core/src/color.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "38e41f4e8bd6521aab0842985bf7577b71051e1b330d236dee96f2bd29078b42",
+      "lines": 172
+    },
+    {
+      "path": "novadraw-core/src/lib.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "fd720ab981c654faa95ecf464aa10ad816966144a38e20d8d1cc62f74273d649",
+      "lines": 13
+    },
+    {
+      "path": "novadraw-demo-scenes/src/border.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "3f6450ffbf9234fb75e7ed0be29bead113eac28c15aaf560493e4265dbfc8c1b",
+      "lines": 462
+    },
+    {
+      "path": "novadraw-demo-scenes/src/clip.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "efa14073c7424e32855487e712e40dd4b3670575131ba8af251a2fea0ba30692",
+      "lines": 470
+    },
+    {
+      "path": "novadraw-demo-scenes/src/connection.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "32f0fcac47a7c59d4fc71585c7266bb3cbba8f3e3f37911df6252d88343464ac",
+      "lines": 637
+    },
+    {
+      "path": "novadraw-demo-scenes/src/event.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "011a535a27b1aa8b4d1949ab4c6fbe4297924aa68161f0f5fffb91611a380fce",
+      "lines": 303
+    },
+    {
+      "path": "novadraw-demo-scenes/src/focus.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "ad8dab607ac77f8756ef77054de110f4e4f068f30b0ca435eaadd578ca9e0143",
+      "lines": 158
+    },
+    {
+      "path": "novadraw-demo-scenes/src/freeform.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "94ea0938ed37999e6a7ba9beafddc408ef9e3cb21bc271858b6d7da6dae0334a",
+      "lines": 388
+    },
+    {
+      "path": "novadraw-demo-scenes/src/layout.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "9a7db37ae4772561ee216791e02eb5e980ae14cdeeb8bb1069043e29c720c5e2",
+      "lines": 698
+    },
+    {
+      "path": "novadraw-demo-scenes/src/lib.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "e7296963b91514ceffe330d3fc96b387f422173e710d7ee70f2f88f59d2a381c",
+      "lines": 181
+    },
+    {
+      "path": "novadraw-demo-scenes/src/ndcanvas.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "65232b1f2d33f5551a0fbffe0fc617653a362900d2ac10806d906cff51f46b63",
+      "lines": 422
+    },
+    {
+      "path": "novadraw-demo-scenes/src/scroll_pane.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "471db17c7d05d3972f5cf87baa336f390a37d5c76b9cfa9242e3b4539f407205",
+      "lines": 201
+    },
+    {
+      "path": "novadraw-demo-scenes/src/shape.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "b9bd9a0692fcb98efe44db7708eb6ff5f5b878a13fdab4349143423fa3a80932",
+      "lines": 1296
+    },
+    {
+      "path": "novadraw-demo-scenes/src/style.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "79974d75f1959d508ae48efc2be767a051ed188271e4a9c9c84c0dd43807e01b",
+      "lines": 358
+    },
+    {
+      "path": "novadraw-demo-scenes/src/text.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "a8451ef844174c1eb250239155e4237fad93b435d1616e09f04c39d63273bc11",
+      "lines": 575
+    },
+    {
+      "path": "novadraw-demo-scenes/src/transform.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "5e5ccc6a93b1e58acc1c5a29d1a097adf7f4bd0bc8bec7045f0d51a0c32ba3c3",
+      "lines": 343
+    },
+    {
+      "path": "novadraw-demo-scenes/src/update.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "e69506425ee255a8f2ec055058ddf28dc86290a45b21687fba09e5d8223f178b",
+      "lines": 139
+    },
+    {
+      "path": "novadraw-demo-scenes/src/viewport.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "d632ff934f55eb7b070e5461310fd071f3f716aa646ecd5d0d7ff3d7127b445b",
+      "lines": 381
+    },
+    {
+      "path": "novadraw-demo-scenes/src/widget.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "321b01e85f93af9d6c7ac78360a3ac892e2be721f2af664d26054416bb3c4725",
+      "lines": 405
+    },
+    {
+      "path": "novadraw-editor/src/autoexpose.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "66be9df0a2a2688bcad86cd80623bc09802fda80f6c379545387266f6760d454",
+      "lines": 176
+    },
+    {
+      "path": "novadraw-editor/src/command/mod.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "622fdac7dedfdf7d5f543ccb5411239a0047bcbb99496d71cd27e8ea99878f7e",
+      "lines": 694
+    },
+    {
+      "path": "novadraw-editor/src/domain.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "b978eedfea1adfd72eb46bad7847b675cae48dd171f9ea26da06dc68dd205336",
+      "lines": 550
+    },
+    {
+      "path": "novadraw-editor/src/feedback/mod.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "065a9c575a3dfa52fba6bb55852e188e31c9bbea6e5c92e2b49eb00391d460de",
+      "lines": 110
+    },
+    {
+      "path": "novadraw-editor/src/lib.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "b27c292aa4bcc8c7df028e7f6851a2121396ed24592d5a8e397a9ca35ad803f7",
+      "lines": 57
+    },
+    {
+      "path": "novadraw-editor/src/model/mod.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "5d6c5b83039ab55e1ac8c8d286656714b1512fba6e0fe6ec5632f72e05358f3a",
+      "lines": 160
+    },
+    {
+      "path": "novadraw-editor/src/part/mod.rs",
+      "groups": [
+        5,
+        6
+      ],
+      "sha256": "66fea76c42d6464b6a3d5870060ecbb6703700c95c140a0650629652afee1cd5",
+      "lines": 1176
+    },
+    {
+      "path": "novadraw-editor/src/policy/mod.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "2651fb21dc0d54b955bca9c58c0fcad29781b5e6eed76d680f8b2f2602c5e71c",
+      "lines": 369
+    },
+    {
+      "path": "novadraw-editor/src/request/mod.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "10655c0cd9fc552efc3a22bd193238a874feb6ae97cdfedda3bf787a32281946",
+      "lines": 604
+    },
+    {
+      "path": "novadraw-editor/src/selection/mod.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "1b8cc3429df01407b716ca54bc0c5f6b8724fd937501a81f9d14b6d9ef0c714d",
+      "lines": 192
+    },
+    {
+      "path": "novadraw-editor/src/tool/mod.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "339f884867af3182046d5980d3ff4fbe2516a7ef6bef1d2ba0a31a223ca05906",
+      "lines": 886
+    },
+    {
+      "path": "novadraw-editor/src/viewer/mod.rs",
+      "groups": [
+        5,
+        6
+      ],
+      "sha256": "0f169cbc9ace635e572015f4b43e96ac4c518eda4a4681ad2d496ed12f84a541",
+      "lines": 2724
+    },
+    {
+      "path": "novadraw-editor/tests/g1_command_stack_contract.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "30dfb0190d6edb5314f60694c72b3252ddc147fbed7e8afcc5839ea0861bafa5",
+      "lines": 487
+    },
+    {
+      "path": "novadraw-editor/tests/g1_model_contract.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "aa6a1c980c6e074db024d21b0fb81d17147c5281f23299fe7cec0319488e1baf",
+      "lines": 78
+    },
+    {
+      "path": "novadraw-editor/tests/g2_viewer_projection_contract.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "ddd8fd32f259de4e0336cf02a65431091380dfa96796274eca1ff7fb2db9c32e",
+      "lines": 483
+    },
+    {
+      "path": "novadraw-editor/tests/g3_selection_contract.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "76e854e32de1b6edf77b792e31b73586af449fbdb49339c3c839e88e86087eca",
+      "lines": 45
+    },
+    {
+      "path": "novadraw-editor/tests/g3_viewer_interaction_contract.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "dfe56a2a7d8f1185a7c295eaa274bfd2622a5e431bfc44421902604bd4f5bffa",
+      "lines": 320
+    },
+    {
+      "path": "novadraw-editor/tests/g4_editing_loop_contract.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "e4cd895fb1f4b772316b751667c58b1ecd547237984a39db2b0728175e1b702f",
+      "lines": 704
+    },
+    {
+      "path": "novadraw-editor/tests/g5_connection_creation_contract.rs",
+      "groups": [
+        6
+      ],
+      "sha256": "84b8026b8791fa3eb260211230e9a7211557c9151a51a8e57d99fe346386d7ad",
+      "lines": 1484
+    },
+    {
+      "path": "novadraw-editor/tests/g5_connection_projection_contract.rs",
+      "groups": [
+        5
+      ],
+      "sha256": "62a53724bb81bc334dd6e585826d0cd4c545f555d583754e9b123050a45ec573",
+      "lines": 833
+    },
+    {
+      "path": "novadraw-geometry/src/lib.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "055cf9125a44649e396c6334ead5af881cbae83b3453f93539f88210ea2238d5",
+      "lines": 52
+    },
+    {
+      "path": "novadraw-geometry/src/point_list.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "0a0474d9155a19f89d0d8cfd244ab265a0c7b112f6a09e4c63f0935a728a6da8",
+      "lines": 218
+    },
+    {
+      "path": "novadraw-geometry/src/precision.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "6fee4de3ef7a7dfce9a796fedf9aa21ced7bc6053e9b5296264fc18c12827531",
+      "lines": 140
+    },
+    {
+      "path": "novadraw-geometry/src/rect.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "8d90283342607c7c57d39dde26e6d3d79faf783f7727dadfc0260329a00cfa3b",
+      "lines": 329
+    },
+    {
+      "path": "novadraw-geometry/src/transform.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "69b10bef80288d7f1419fe36b9d21099b65de27c870db3cb29c8664c6099e823",
+      "lines": 547
+    },
+    {
+      "path": "novadraw-geometry/src/translatable.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "65d4e1af597428b30a4ffa5d44eca25235a9063bc47e12e56e4a9070b6b51aa3",
+      "lines": 279
+    },
+    {
+      "path": "novadraw-geometry/src/vec2.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "f6bfbc9fe3ebee324caf9b6ed62750c38467c286c68139662230ad02dad6177d",
+      "lines": 272
+    },
+    {
+      "path": "novadraw-geometry/tests/m1_product_existence.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "3b90069db1346b70565e21e2e3858a70c03ab3adcba928b22ff47e324ca9a2b3",
+      "lines": 46
+    },
+    {
+      "path": "novadraw-math/src/lib.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "ed4a5b72b8b4756e128393ef8f4ac17d3d2bbdea819be66823ea634936cd9eab",
+      "lines": 16
+    },
+    {
+      "path": "novadraw-math/src/mat3.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "f1a48f860a643328b1cf545b0c5d210261c34351df39fcdfb18560b1ba2f80ae",
+      "lines": 267
+    },
+    {
+      "path": "novadraw-math/src/vec3.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "ab8a9e585ee4715e9501bf36e2ebcb5daa5c356001ffc4225463d41d709d786b",
+      "lines": 178
+    },
+    {
+      "path": "novadraw-render/src/backend/mod.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "3ffa31192a0660e9ecfe5e0a2ca0a59f9b108f174751daae1f8e32c3c7b166e9",
+      "lines": 12
+    },
+    {
+      "path": "novadraw-render/src/backend/vello/mod.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "211399afc442f30c2aea58f07c01eb308a8e8c85e72a0c984d4b5ebaa1dacadd",
+      "lines": 1887
+    },
+    {
+      "path": "novadraw-render/src/command.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "8605d4a78bf212a3e765371837324f04fc57c791ac26c37a5b2585e0b6ad05e4",
+      "lines": 644
+    },
+    {
+      "path": "novadraw-render/src/context.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "236811ea1d3f8097160b2f40eb5b5b74ecb467fd002759e462a98d73acd3fb90",
+      "lines": 922
+    },
+    {
+      "path": "novadraw-render/src/lib.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "5fea542ad85275cfb673e599abe0f4815034acbfa2062ca3a1c595380571889d",
+      "lines": 46
+    },
+    {
+      "path": "novadraw-render/src/submission.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "19e553ac063c1f1db3bb72d03967462b4c5eba0dbfa8cfeaa3b9a31a59b87e37",
+      "lines": 516
+    },
+    {
+      "path": "novadraw-render/src/text.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "5903b69ac38457993992bfb9f4536921f0350145bd3b4f62ca9d50d624068beb",
+      "lines": 1051
+    },
+    {
+      "path": "novadraw-render/src/traits.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "34b0d5223c0befe2c6b73eda1ad6a608ce8d25e316655be25014713bacfbb6da",
+      "lines": 126
+    },
+    {
+      "path": "novadraw-render/tests/m10_text_extension_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "65c229856bf7fde91f99b298ae73b15ae5b3922a0ebe8f65b149c3cd915fccbf",
+      "lines": 195
+    },
+    {
+      "path": "novadraw-render/tests/m1_product_existence.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "acb8be4382aca36a931f7f01423eabf69e16981c8dfc7bf3aed918992354966e",
+      "lines": 95
+    },
+    {
+      "path": "novadraw-render/tests/r8_extension_boundaries.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "5a2a7546517a22fe1b27983ab1d40b1d33fa7e60ce7b64ea9207a4fa585471a7",
+      "lines": 79
+    },
+    {
+      "path": "novadraw-scene/src/connection/anchor.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "fa20fb6a3e20f2f8ef9122ca185a93dc2b143feec7bae87d08cef85f12bcab57",
+      "lines": 744
+    },
+    {
+      "path": "novadraw-scene/src/connection/figure.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "5d40e102a309c570a2bdea0c4db6aaad76fcc55f2929c0899fa9a6612a922a88",
+      "lines": 418
+    },
+    {
+      "path": "novadraw-scene/src/connection/locator.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "766f52ef081e8e7b5ca400fbf478b98162761de0ae21140aa12aad6077cf08bf",
+      "lines": 196
+    },
+    {
+      "path": "novadraw-scene/src/connection/mod.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "df1474616152fabc62fc81ba3a17ab3f52b07163d5c21b598c367fc0df24bc18",
+      "lines": 63
+    },
+    {
+      "path": "novadraw-scene/src/connection/query.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "eaaede18f92eb2fe2d987ffe0700d26f12ce6e3d877355dd55d118f3c9296af7",
+      "lines": 630
+    },
+    {
+      "path": "novadraw-scene/src/connection/router.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "5982baf47c68e8cec43dca1b53b9f17d13ec21cf3d4fd1283f1a0838d22713c4",
+      "lines": 752
+    },
+    {
+      "path": "novadraw-scene/src/connection/runtime.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "52173030cc75a4742d141917a11bfc9be6d109da6015cb11f3f869ac05c2374c",
+      "lines": 1358
+    },
+    {
+      "path": "novadraw-scene/src/container/layer.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "6e941d19a99d902987911be6eef1d3cd3d7de3d2931352494889f3b3530b6c93",
+      "lines": 426
+    },
+    {
+      "path": "novadraw-scene/src/container/mod.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "0112de74f9b9166fad666d0490e24380f6b9f9c5b695ad9070af312ab0b89711",
+      "lines": 31
+    },
+    {
+      "path": "novadraw-scene/src/container/range_model.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "acebb2dfc9cb3b0ad6de1f4837b48fd0143a3e915b8d08e0c4fcc8ebb910ef15",
+      "lines": 275
+    },
+    {
+      "path": "novadraw-scene/src/container/scalable.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "a829c2dba099d35cf2d7008f1ba7e580ff32f19d28a9716b47da7a11f074cf25",
+      "lines": 554
+    },
+    {
+      "path": "novadraw-scene/src/container/scroll_pane.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "2bac826a4a5a29563d7a5e95e8e49982f2293aaf6ac94441696903428c6d02f2",
+      "lines": 796
+    },
+    {
+      "path": "novadraw-scene/src/container/viewport.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "df1fbddd954610c4d33aeaaf2225302577baa7c76e945f40ba43fe20dda4e5c7",
+      "lines": 844
+    },
+    {
+      "path": "novadraw-scene/src/container/zoom.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "1931e5164c5ef4b7aca9aa9788042d14483e5efedb99f395fd70784e52800ae0",
+      "lines": 433
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/bevel_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "b9c9c6968f9b6d69f7c2dfcfd3cfaca624b70b29ebdd3df5a11c33b685ce4707",
+      "lines": 110
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/compound_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "9b470da67c49090e7fac96a92b61cea51bfd3455be46bbe3123d50037ba5b01d",
+      "lines": 101
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/etched_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "b11c60fac88236dafe69cc5504b0b4c679a39259b941af0d4a9daf30f8d09eb7",
+      "lines": 56
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/line_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "9bb93bb67436dc775899c18fd03fa9dc742d71ab467a85222187dc9fa57baaf3",
+      "lines": 118
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/margin_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "21df3c556e2005936471121b5ed3ff0c37f26ce93dab1e58cca47975df706788",
+      "lines": 134
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/mod.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "42b7513302ea5469bd8dbf98e0f90f863e3a9c2a7e9283ddffdea0514b402f70",
+      "lines": 225
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/rectangle_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "e9ae705a54a1e69e5ab4dc83cc0e12dbf0f625babe645e2945514f8c486701b2",
+      "lines": 108
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/title_bar_border.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "36366435b8769fa638742f988be7715d8ddc13cc4fe3287c225c5255420a89ff",
+      "lines": 129
+    },
+    {
+      "path": "novadraw-scene/src/figure/ellipse.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "0b5981721f1a57b614e9497add84570cbd3430a39219dfc4eca3cf8bff358c1d",
+      "lines": 317
+    },
+    {
+      "path": "novadraw-scene/src/figure/image.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "17917b75d4556b6473e44bd0c89deaea937a3872a4f7003a98e88b8dbf4cad99",
+      "lines": 159
+    },
+    {
+      "path": "novadraw-scene/src/figure/label.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "9709dc2fb482911fa8d7502212383f21256c369dac057f769ff07aa96c1f061e",
+      "lines": 603
+    },
+    {
+      "path": "novadraw-scene/src/figure/mod.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "e3db500266bfab5bf17b310b962e173b98838a5357043d2573d9102bfe1b7e76",
+      "lines": 964
+    },
+    {
+      "path": "novadraw-scene/src/figure/polygon.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "db1b03ead03682c20bbcecaf259a7e2eeba9e2d4a716c961cbd90da501f8e281",
+      "lines": 292
+    },
+    {
+      "path": "novadraw-scene/src/figure/polyline.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "dec83d9dd536e05ccc785aac81aa3d4a2f9d38d7aff83d02464809be1b30d8bf",
+      "lines": 427
+    },
+    {
+      "path": "novadraw-scene/src/figure/rectangle.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "113c73af503919eeb07508f91ae12d66751d067f402756175e2c4e357ada29a2",
+      "lines": 266
+    },
+    {
+      "path": "novadraw-scene/src/figure/root.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "73da9ca745017e069253098a123ff27d03d2f980de256bff1af7a114ae6cbf8e",
+      "lines": 159
+    },
+    {
+      "path": "novadraw-scene/src/figure/rounded_rectangle.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "c5a5354e6f14bee84f4a6b9fe51e625518749920290c04dd79ca66a3774d24ea",
+      "lines": 419
+    },
+    {
+      "path": "novadraw-scene/src/figure/triangle.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "1e3fb8fae87cfbb3b1e6cdd04b8a1fe4b80b2a0c3b3e01dc6607875ded0628ed",
+      "lines": 725
+    },
+    {
+      "path": "novadraw-scene/src/figure/widget.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "773560566cf07d6cb7aed68efbdedac0ae5380228877fb4d08b1368f4d78c84f",
+      "lines": 749
+    },
+    {
+      "path": "novadraw-scene/src/graph/bounds_test.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "71d56936c40a442e67e12edd29bac0fe074feb6f5b0790fb6c2121ee2b8e9979",
+      "lines": 1102
+    },
+    {
+      "path": "novadraw-scene/src/graph/mod.rs",
+      "groups": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "sha256": "800f035714c2eed21bf04320115739bce9ccc78abd3a72c21b5286d2accf4bd9",
+      "lines": 6238
+    },
+    {
+      "path": "novadraw-scene/src/graph/render_recursive.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "404aea29de9cc52e84eebad92c64ff397cbc227fb47b5386cde82da3f658466b",
+      "lines": 264
+    },
+    {
+      "path": "novadraw-scene/src/graph/search.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "d6c9e3d7ba0c97566e1b0a7da07b0aed5440d4420734a33badaa5070d1114b41",
+      "lines": 397
+    },
+    {
+      "path": "novadraw-scene/src/graph/update_integration_test.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "ecbcb67a7e4eea2cd01c154ccb7dafe862eb98375e93acad2a89f4bed5785074",
+      "lines": 1141
+    },
+    {
+      "path": "novadraw-scene/src/host/mod.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "a24e66dcf5bca59d392c37d6b6b7e188fb809fbce0bf667a2964cb3b7e5175d9",
+      "lines": 8
+    },
+    {
+      "path": "novadraw-scene/src/host/scene_host.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "780301d226b0097ddd54f16c0f1909674dd6d36659ad4021785c54e568e51f02",
+      "lines": 195
+    },
+    {
+      "path": "novadraw-scene/src/identity.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "c611befa187c12566d2792d7fdf5277ff1dd78fe168c6a0de82c94c058d2f102",
+      "lines": 163
+    },
+    {
+      "path": "novadraw-scene/src/layout/border_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "21453d665dd9e101ae9e272404f6d761659040be9d3e70a04c6cc9dc44849662",
+      "lines": 444
+    },
+    {
+      "path": "novadraw-scene/src/layout/fill_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "017466aadcc57e3017d6d9d254f5a765fe71901bcc6403122042c546bef59e40",
+      "lines": 85
+    },
+    {
+      "path": "novadraw-scene/src/layout/flow_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "d0b629584b98bac2a96ce807d400dc497a21070c48aafa2a25c85e07deb596aa",
+      "lines": 351
+    },
+    {
+      "path": "novadraw-scene/src/layout/freeform_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "81afec562ecaafdecf4cbabd65726a76d4f9b61a9672d80eb934b971e9c7dcbd",
+      "lines": 194
+    },
+    {
+      "path": "novadraw-scene/src/layout/grid_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "6969bd07636ab410fba58dab74b1a25d9372725fb86deb07782af2b2d6daf1a3",
+      "lines": 480
+    },
+    {
+      "path": "novadraw-scene/src/layout/mod.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "9d078613249084ac4ca6498f8042a279637a1176ce99922783210d54a767ad38",
+      "lines": 357
+    },
+    {
+      "path": "novadraw-scene/src/layout/stack_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "29d245059e83e6f047d0544ec4c0483f863511bd60cd0361c808f1850581bda4",
+      "lines": 71
+    },
+    {
+      "path": "novadraw-scene/src/layout/toolbar_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "24e69b1aa40b2bf353894270cfb09dde2e75cf6d00e17229676963d9219ae381",
+      "lines": 208
+    },
+    {
+      "path": "novadraw-scene/src/layout/xy_layout.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "75256a1ba916ef7a385581a2901ba82730e241983430573d142cd513df5db0e5",
+      "lines": 237
+    },
+    {
+      "path": "novadraw-scene/src/lib.rs",
+      "groups": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "sha256": "13f8ad85747363fab68448b7fe7cfdd2c7acaa7a7677b74dfb0b1b131fd78495",
+      "lines": 115
+    },
+    {
+      "path": "novadraw-scene/src/log.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "893d91a25a891b7c3d14273c7f04688b0a8601e7bb68bd53ea1a0242f30ccbed",
+      "lines": 79
+    },
+    {
+      "path": "novadraw-scene/src/runtime/accessibility.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "58037f7527ccd639aeccfeae9fb1e770cb4fef0c8eea8a75a3301e3582abed3f",
+      "lines": 422
+    },
+    {
+      "path": "novadraw-scene/src/runtime/context.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "52ab1a8aad672344fab9fc0fc7b8d5722d95a7027b9f678facff0b73e9b15d22",
+      "lines": 980
+    },
+    {
+      "path": "novadraw-scene/src/runtime/event/mod.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "7812d8b36d36b72386c5cf50cacddb21c11b075e8b9d74bfc3ef541053937234",
+      "lines": 1075
+    },
+    {
+      "path": "novadraw-scene/src/runtime/focus.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "f2da5d234c864c594c27b201ade57b688b9aa927bb1c2ec83217fa641207deee",
+      "lines": 202
+    },
+    {
+      "path": "novadraw-scene/src/runtime/interaction.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "87bf535763c20d3f3de70f62d569a062bac03902dd45fcab749b4151e4a7798c",
+      "lines": 286
+    },
+    {
+      "path": "novadraw-scene/src/runtime/mod.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "b1404308bd7638a9a7e4af9a55f284c47046c141e4644598143aea2e6822188b",
+      "lines": 44
+    },
+    {
+      "path": "novadraw-scene/src/runtime/mutation/mod.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "0fdb6d45d66edcb6967395bc4c7593ac4a8141a2c799ff9441d2526c8c92222c",
+      "lines": 548
+    },
+    {
+      "path": "novadraw-scene/src/runtime/resource.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "4d83f37e0829fef876e3d68381279512cf8833862fc3071a1fb31695ba078a53",
+      "lines": 540
+    },
+    {
+      "path": "novadraw-scene/src/runtime/runtime.rs",
+      "groups": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "sha256": "1650f9ee5560e482ce44aae29468bc7e070c4836666b3c38f10862a352ee6aef",
+      "lines": 5344
+    },
+    {
+      "path": "novadraw-scene/src/runtime/tooltip.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "ec7350a3e7d3442bdd6c631ad1e64dcbc58b54c90dacd51573166b898db527c2",
+      "lines": 515
+    },
+    {
+      "path": "novadraw-scene/src/runtime/update/deferred.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "29f112ae315e755af803be0f10fd874f74aded071359dd929d2d2c49873873bf",
+      "lines": 1269
+    },
+    {
+      "path": "novadraw-scene/src/runtime/update/listener.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "d91c3c8853584dc457b072541bf5e1ec4895802e5ee5059cb51e2427742db967",
+      "lines": 431
+    },
+    {
+      "path": "novadraw-scene/src/runtime/update/mod.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "61dcf347c91c0f72263c9002ea039c2661ccbb31ea8e2980d2888736029d07f9",
+      "lines": 43
+    },
+    {
+      "path": "novadraw-scene/src/runtime/update/repair.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "ddfe9e737e4d74ff75638a40e977905d3604c5661147c532e0118c89e2bf1e4f",
+      "lines": 519
+    },
+    {
+      "path": "novadraw-scene/src/style.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "b44eedc4ba84eacbc125cbd9029f942e7a1c0ea00e8884bf94cf8a6088de28ba",
+      "lines": 77
+    },
+    {
+      "path": "novadraw-scene/tests/d1_focus_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "f72e846449aab9b73c176a369c1d3c176ca820de34748564c5733e9b0eaf72a0",
+      "lines": 52
+    },
+    {
+      "path": "novadraw-scene/tests/d1_tree_search_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "270da39796dd58a270aa37b14cf0a6497c79f0a2028522bc68e5496725e15088",
+      "lines": 52
+    },
+    {
+      "path": "novadraw-scene/tests/d2_freeform_contract.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "a4ecc3e1fec2a193b7f717d3ed29bb7591dcc321b06873dc030dfb880df54e80",
+      "lines": 510
+    },
+    {
+      "path": "novadraw-scene/tests/d2_layer_contract.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "ec8014d30a7dce5aacdaec1604c24ad0dda8c1a73e4e565408b20865f7c8e87b",
+      "lines": 294
+    },
+    {
+      "path": "novadraw-scene/tests/d3_runtime_listener.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "8410d920fe3a26aea6b005f2400b50e45133ed9aa3c1077ced969ed605e6358b",
+      "lines": 239
+    },
+    {
+      "path": "novadraw-scene/tests/d3_runtime_mutation.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "47aaa08fe0095e78457120934c5ae41510e3e334524d20d54664d208fc2bf97e",
+      "lines": 391
+    },
+    {
+      "path": "novadraw-scene/tests/d4_component_update.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "93b78fda1cec94514f47cd95625a7c962fd38d9889b7105070b58e88985c8fa6",
+      "lines": 395
+    },
+    {
+      "path": "novadraw-scene/tests/d4_constrained_measurement.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "0272a061dc078d802d4d71d9badba62cf0aee9b026015876f17023ebeb6c9ef2",
+      "lines": 172
+    },
+    {
+      "path": "novadraw-scene/tests/d4_notification_epoch.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "7c6be4a5330a93c75802f70f9ddbf7e8d925587f6cb6a1a19e1e642b585473e1",
+      "lines": 180
+    },
+    {
+      "path": "novadraw-scene/tests/m10_accessibility_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "dce568746fb9d9832621ce2dc672f14cf3cc9e48676010616f67c34d26ee9bb2",
+      "lines": 181
+    },
+    {
+      "path": "novadraw-scene/tests/m10_label_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "c4b5433bc4cec1cfa6364ce33074242b03f050fae6857dacec2d9196e7401ac2",
+      "lines": 482
+    },
+    {
+      "path": "novadraw-scene/tests/m10_reusable_shape_border_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "384d61e90168217def848582c8d22401b06b8459d13e505c1fa1e8c67644a127",
+      "lines": 403
+    },
+    {
+      "path": "novadraw-scene/tests/m10_tooltip_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "6a6ed7b68b56a012f28fa7348c4cb5de1b92a606e606818e13239aa650ea9717",
+      "lines": 116
+    },
+    {
+      "path": "novadraw-scene/tests/m10_widget_contract.rs",
+      "groups": [
+        3
+      ],
+      "sha256": "997b2013bae0b3d231649526a71af3d249898428007fe4634ebf986c8e44c116",
+      "lines": 269
+    },
+    {
+      "path": "novadraw-scene/tests/m2_product_existence.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "6c7c03c32dc0c117a66af4edc03d310c96dd9bab8a6e6f1507bebf2551536c1a",
+      "lines": 286
+    },
+    {
+      "path": "novadraw-scene/tests/m4_coordinate_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "d2d46737dff66a05bfc3e893af26f4a3b0bdfc2c5ae5b02bae7876a46ac41754",
+      "lines": 272
+    },
+    {
+      "path": "novadraw-scene/tests/m5_layout_contract.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "d1cc03d6865f6c3b17e080fb0fef19b7cd9bbef180c18defc75ca32500e145e6",
+      "lines": 441
+    },
+    {
+      "path": "novadraw-scene/tests/m6_event_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "b2648c14475b965bcaa179a832db06efd6ebb4fe01ea08d39acf4a87bf6aa339",
+      "lines": 317
+    },
+    {
+      "path": "novadraw-scene/tests/m8_viewport_contract.rs",
+      "groups": [
+        2
+      ],
+      "sha256": "afbdb324e04a095f3fe6c587919c791c0db5a2c555b815f1f31e7292e087ba29",
+      "lines": 981
+    },
+    {
+      "path": "novadraw-scene/tests/m9_connection_contract.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "df57d5b80317e5137e3112a10054414f97b64fac0347f75cec7f7f85e344686f",
+      "lines": 532
+    },
+    {
+      "path": "novadraw-scene/tests/m9_connection_runtime.rs",
+      "groups": [
+        4
+      ],
+      "sha256": "f1b3dce869f44609742f33cf03e58594b55f61837b063c213666c304b75e5e81",
+      "lines": 998
+    },
+    {
+      "path": "novadraw-scene/tests/p2_dispatch_outcome_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "64c5acb635685fd82ed162db624f40da54a8ee7a4e1ff3b4ac80eda10dc95625",
+      "lines": 36
+    },
+    {
+      "path": "novadraw-scene/tests/runtime_resize_contract.rs",
+      "groups": [
+        1
+      ],
+      "sha256": "a483babe17348033e0b50968812b1ddf51dcaa08b8b8fa720fadef3abfd59aea",
+      "lines": 92
+    }
+  ]
+}

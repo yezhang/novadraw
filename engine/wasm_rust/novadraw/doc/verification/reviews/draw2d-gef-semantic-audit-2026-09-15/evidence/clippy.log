@@ -1,0 +1,18 @@
+    Checking novadraw-render v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-render)
+    Checking novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+error: unused imports: `LocatorError` and `LocatorPlacement`
+ --> novadraw-scene/src/connection/runtime.rs:7:61
+  |
+7 |     DependencyObservation, DependencySubject, DirectRouter, LocatorError, LocatorPlacement,
+  |                                                             ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+  |
+  = note: `-D unused-imports` implied by `-D warnings`
+  = help: to override `-D warnings` add `#[allow(unused_imports)]`
+
+error: unused import: `ConnectionLocatorStrategy`
+  --> novadraw-scene/src/connection/runtime.rs:11:13
+   |
+11 | use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `novadraw-scene` (lib) due to 2 previous errors

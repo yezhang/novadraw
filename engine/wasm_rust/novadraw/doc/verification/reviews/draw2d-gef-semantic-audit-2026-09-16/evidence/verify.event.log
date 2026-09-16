@@ -1,0 +1,8 @@
+   Compiling event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/event-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.21s
+     Running `target/debug/event-app --verify --report=target/verification/reports/event-app.json`
+PASS pointer_capture
+PASS focus_keyboard
+PASS wheel_hover_double
+PASS coordinate_root
+REPORT target/verification/reports/event-app.json

@@ -1,0 +1,211 @@
+# Semantic review groups
+
+分组依据：业务功能与调用链。公共边界重复共享；测试文件用于验证证据，未逐个重写测试。
+
+## Group 1: Figure tree, identity, lifecycle, coordinates, events and platform input
+
+- engine/wasm_rust/novadraw/novadraw/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/bounds_test.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/search.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/update_integration_test.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/host/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/host/scene_host.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/identity.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/log.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/accessibility.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/context.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/event/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/focus.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/interaction.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/mutation/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/tooltip.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/style.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d1_focus_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d1_tree_search_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d3_runtime_listener.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d3_runtime_mutation.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d4_component_update.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d4_constrained_measurement.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d4_notification_epoch.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m2_product_existence.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m4_coordinate_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m6_event_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/p2_dispatch_outcome_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/runtime_resize_contract.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/app.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/input.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/platform.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/prelude.rs
+- engine/wasm_rust/novadraw/novadraw-apps/src/verification.rs
+- engine/wasm_rust/novadraw/apps/native/node-editor-demo/src/main.rs
+- engine/wasm_rust/novadraw/apps/web/web-validation/src/lib.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+
+## Group 2: Layout, validation, update, damage, viewport, freeform and zoom
+
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/layer.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/range_model.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/scalable.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/scroll_pane.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/viewport.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/container/zoom.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/border_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/fill_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/flow_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/freeform_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/grid_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/stack_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/toolbar_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/layout/xy_layout.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/deferred.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/listener.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/update/repair.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d2_freeform_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/d2_layer_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m5_layout_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m8_viewport_contract.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+
+## Group 3: Graphics, rendering, geometry, text, resources and reusable figures
+
+- engine/wasm_rust/novadraw/novadraw-core/src/color.rs
+- engine/wasm_rust/novadraw/novadraw-core/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-math/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-math/src/mat3.rs
+- engine/wasm_rust/novadraw/novadraw-math/src/vec3.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/point_list.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/precision.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/rect.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/transform.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/translatable.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/src/vec2.rs
+- engine/wasm_rust/novadraw/novadraw-geometry/tests/m1_product_existence.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/backend/mod.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/backend/vello/mod.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/command.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/context.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/submission.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/text.rs
+- engine/wasm_rust/novadraw/novadraw-render/src/traits.rs
+- engine/wasm_rust/novadraw/novadraw-render/tests/m10_text_extension_contract.rs
+- engine/wasm_rust/novadraw/novadraw-render/tests/m1_product_existence.rs
+- engine/wasm_rust/novadraw/novadraw-render/tests/r8_extension_boundaries.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/bevel_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/compound_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/etched_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/line_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/margin_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/rectangle_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/border/title_bar_border.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/ellipse.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/image.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/label.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/polygon.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/polyline.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/rectangle.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/root.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/rounded_rectangle.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/triangle.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/widget.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/render_recursive.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/resource.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m10_accessibility_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m10_label_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m10_reusable_shape_border_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m10_tooltip_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m10_widget_contract.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+
+## Group 4: Connection, anchor, router, locator and self-loop
+
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/anchor.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/figure.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/locator.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/query.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/router.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/connection/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m9_connection_contract.rs
+- engine/wasm_rust/novadraw/novadraw-scene/tests/m9_connection_runtime.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+
+## Group 5: GEF model, command history, EditPart lifecycle and projection
+
+- engine/wasm_rust/novadraw/novadraw-editor/src/command/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/model/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/part/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g1_command_stack_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g1_model_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g2_viewer_projection_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g5_connection_projection_contract.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+
+## Group 6: GEF viewer, selection, request, policy, tool and interactive editing
+
+- engine/wasm_rust/novadraw/novadraw-editor/src/domain.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/feedback/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/policy/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/request/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/selection/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/tool/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g3_selection_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g3_viewer_interaction_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g4_editing_loop_contract.rs
+- engine/wasm_rust/novadraw/novadraw-editor/tests/g5_connection_creation_contract.rs
+
+Shared boundaries:
+- engine/wasm_rust/novadraw/novadraw-scene/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/figure/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/graph/mod.rs
+- engine/wasm_rust/novadraw/novadraw-scene/src/runtime/runtime.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/lib.rs
+- engine/wasm_rust/novadraw/novadraw-editor/src/viewer/mod.rs

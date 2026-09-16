@@ -1,0 +1,19 @@
+   Compiling novadraw-render v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-render)
+   Compiling novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+   Compiling novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+   Compiling web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/web/web-validation)
+error[E0308]: mismatched types
+   --> apps/web/web-validation/src/lib.rs:950:13
+    |
+950 | /             match gesture {
+951 | |                 AdaptedGesture::Scroll(wheel) => self.runtime.dispatch_scroll(wheel),
+952 | |                 AdaptedGesture::Zoom(zoom) => self.runtime.dispatch_zoom(zoom),
+953 | |             }
+    | |             ^- help: consider using a semicolon here
+    | |_____________|
+    |               expected `()`, found `DispatchOutcome`
+
+For more information about this error, try `rustc --explain E0308`.
+error: could not compile `web-validation` (lib) due to 1 previous error

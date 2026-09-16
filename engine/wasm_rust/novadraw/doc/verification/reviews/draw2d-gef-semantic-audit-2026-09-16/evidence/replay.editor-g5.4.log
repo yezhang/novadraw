@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running `target/debug/node-editor-demo --headless-replay=g5.4 --report=target/verification/reports/node-editor-g5.4.json`
+PASS connection-bendpoint-and-history
+REPORT target/verification/reports/node-editor-g5.4.json

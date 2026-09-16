@@ -1,0 +1,19 @@
+{
+  "source_sha256": "2702d3bea7dbb8de4cec280e674cfb56454c0faad2cde171c9291c2f489211f2",
+  "libraries": {
+    "novadraw_editor": {
+      "path": "target/debug/deps/libnovadraw_editor-b082be946e573b8a.rlib",
+      "sha256": "aa647b32584957a1609b1552cdd2d17e2617b90e77f604c65ec3dfbd944d39c7"
+    },
+    "novadraw_scene": {
+      "path": "target/debug/deps/libnovadraw_scene-013a661ddf7eac10.rlib",
+      "sha256": "d5b2a5779fbbd994a0a77e39dfbef3139970f415682a1fc9e3e7a928c137feef"
+    },
+    "novadraw_geometry": {
+      "path": "target/debug/deps/libnovadraw_geometry-2bbe349b9730e6ca.rlib",
+      "sha256": "3fd9f2771a687f9aba440f19d5e06736fc26cccd792b567135a6b7f6961d15ae"
+    }
+  },
+  "build_exit_code": 0,
+  "exit_code": 0
+}

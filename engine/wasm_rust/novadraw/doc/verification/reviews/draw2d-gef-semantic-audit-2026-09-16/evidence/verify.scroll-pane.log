@@ -1,0 +1,11 @@
+   Compiling scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/scroll-pane-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.50s
+     Running `target/debug/scroll-pane-demo --verify --report=target/verification/reports/scroll-pane-demo.json`
+PASS auto_visibility
+PASS wheel_scroll
+PASS scale_chain
+PASS pinch_anchor
+PASS freeform_range
+PASS freeform_layer_hit_order
+PASS freeform_scroll_and_zoom
+REPORT target/verification/reports/scroll-pane-demo.json

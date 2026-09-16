@@ -1,0 +1,8 @@
+{
+  "source": "doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/evidence/event_probe.rs",
+  "source_sha256": "3a2fbe82657ad2b7383615a184357da91f2cdfdec4099cb1657825754687936c",
+  "library": "target/debug/deps/libnovadraw_scene-013a661ddf7eac10.rlib",
+  "library_sha256": "406e61d613d9e88df2e1c56d65769bef051f254f4aa42dde1d793e28141826dd",
+  "build_exit_code": 0,
+  "exit_code": 0
+}

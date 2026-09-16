@@ -1,0 +1,62 @@
+[
+  {
+    "command_id": "verify.update",
+    "exit_code": 0,
+    "seconds": 13.2,
+    "log": "verify.update.log"
+  },
+  {
+    "command_id": "verify.event",
+    "exit_code": 0,
+    "seconds": 3.11,
+    "log": "verify.event.log"
+  },
+  {
+    "command_id": "verify.scroll-pane",
+    "exit_code": 0,
+    "seconds": 4.14,
+    "log": "verify.scroll-pane.log"
+  },
+  {
+    "command_id": "replay.editor-g3",
+    "exit_code": 0,
+    "seconds": 8.38,
+    "log": "replay.editor-g3.log"
+  },
+  {
+    "command_id": "replay.editor-g4",
+    "exit_code": 0,
+    "seconds": 1.25,
+    "log": "replay.editor-g4.log"
+  },
+  {
+    "command_id": "replay.editor-g5.2",
+    "exit_code": 0,
+    "seconds": 1.29,
+    "log": "replay.editor-g5.2.log"
+  },
+  {
+    "command_id": "replay.editor-g5.3",
+    "exit_code": 0,
+    "seconds": 1.33,
+    "log": "replay.editor-g5.3.log"
+  },
+  {
+    "command_id": "replay.editor-g5.4",
+    "exit_code": 0,
+    "seconds": 1.3,
+    "log": "replay.editor-g5.4.log"
+  },
+  {
+    "command_id": "replay.editor-g5.5",
+    "exit_code": 0,
+    "seconds": 1.23,
+    "log": "replay.editor-g5.5.log"
+  },
+  {
+    "command_id": "web.build",
+    "exit_code": 101,
+    "seconds": 7.75,
+    "log": "web.build.log"
+  }
+]

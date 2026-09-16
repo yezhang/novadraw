@@ -1,0 +1,24 @@
+    Checking novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+    Checking novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+    Checking r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/benchmarks/r8-perf)
+error[E0204]: the trait `std::marker::Copy` cannot be implemented for this type
+   --> novadraw-editor/src/viewer/mod.rs:616:17
+    |
+616 | #[derive(Clone, Copy)]
+    |                 ^^^^
+...
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |     -------------------------------------------- this field does not implement `std::marker::Copy`
+    |
+note: the `std::marker::Copy` impl for `std::option::Option<novadraw_scene::AnchorSemanticKey>` requires that `novadraw_scene::AnchorSemanticKey: std::marker::Copy`
+   --> novadraw-editor/src/viewer/mod.rs:624:24
+    |
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0204`.
+error: could not compile `novadraw-editor` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

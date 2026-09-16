@@ -1,0 +1,15 @@
+   Compiling novadraw-render v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-render)
+   Compiling novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+   Compiling novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+   Compiling update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/update-app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.14s
+     Running `target/debug/update-app --verify --report=target/verification/reports/update-app.json`
+PASS damage_modes
+PASS notification_order
+PASS dirty_coalescing
+PASS panic_recovery
+PASS stress_1024
+PASS submission_lifecycle
+REPORT target/verification/reports/update-app.json

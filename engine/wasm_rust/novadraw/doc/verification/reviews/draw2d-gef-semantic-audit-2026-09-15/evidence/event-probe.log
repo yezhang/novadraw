@@ -1,0 +1,5 @@
+Command: rustc --edition=2024 doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/evidence/event_probe.rs -L dependency=target/debug/deps --extern novadraw_scene=target/debug/deps/libnovadraw_scene-3b5cb6ae1ea48e17.rlib -o doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/evidence/event_probe
+disabled_visible_generic_hit: expected_child=true actual_child=false actual_parent=true
+interactive_parent_target: true
+enter_over_noninteractive_child: expected=[Entered, Moved] actual=[Moved]
+same_mouse_target_child_to_parent: expected=[Moved] actual=[Entered, Moved]

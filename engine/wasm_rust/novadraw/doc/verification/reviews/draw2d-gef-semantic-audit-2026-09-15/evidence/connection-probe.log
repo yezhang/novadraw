@@ -1,0 +1,7 @@
+Command: rustc --edition=2024 doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/evidence/connection_probe.rs -L dependency=target/debug/deps --extern novadraw_scene=target/debug/deps/libnovadraw_scene-3b5cb6ae1ea48e17.rlib -o doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-15/evidence/connection_probe
+wide_self_loop owner=(0,0,400,40): PointList { points: [Vec2(DVec2(240.0, 0.0)), Vec2(DVec2(272.0, 0.0)), Vec2(DVec2(272.0, 40.0)), Vec2(DVec2(240.0, 40.0))] }
+has_point_beyond_owner_right: false
+opposite_fan_first: PointList { points: [Vec2(DVec2(0.0, 40.0)), Vec2(DVec2(50.0, 32.0)), Vec2(DVec2(100.0, 40.0))] }
+opposite_fan_second: PointList { points: [Vec2(DVec2(100.0, 40.0)), Vec2(DVec2(50.0, 32.0)), Vec2(DVec2(0.0, 40.0))] }
+opposite_fan_midpoints_equal: true
+old_fan_explicit_member_marked_dirty: expected=true actual=false

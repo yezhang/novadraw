@@ -1,0 +1,9 @@
+   Compiling novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/node-editor-demo)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.27s
+     Running `target/debug/node-editor-demo --headless-replay=g3 --report=target/verification/reports/node-editor-g3.json`
+PASS selection-and-widget-arbitration
+REPORT target/verification/reports/node-editor-g3.json

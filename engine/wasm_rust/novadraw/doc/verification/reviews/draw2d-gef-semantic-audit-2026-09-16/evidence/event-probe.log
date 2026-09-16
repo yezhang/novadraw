@@ -1,0 +1,4 @@
+disabled_visible_generic_hit: expected_child=true actual_child=false actual_parent=true
+interactive_parent_target: true
+enter_over_noninteractive_child: expected=[Entered, Moved] actual=[Moved]
+same_mouse_target_child_to_parent: expected=[Moved] actual=[Entered, Moved]

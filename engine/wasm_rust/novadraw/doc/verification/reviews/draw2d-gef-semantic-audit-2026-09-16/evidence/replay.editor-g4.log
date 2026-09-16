@@ -1,0 +1,4 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.41s
+     Running `target/debug/node-editor-demo --headless-replay=g4 --report=target/verification/reports/node-editor-g4.json`
+PASS bounds-editing-and-history
+REPORT target/verification/reports/node-editor-g4.json

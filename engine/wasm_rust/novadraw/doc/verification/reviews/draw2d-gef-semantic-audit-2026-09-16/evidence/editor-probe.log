@@ -1,0 +1,7 @@
+initial_failure: activated=[1] deactivated=[]
+policy_redirect: requested_target_model=3 actual_command_hosts=[2]
+projection_panic: caught=true viewer_faulted=false
+
+thread 'main' (85709422) panicked at /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/doc/verification/reviews/draw2d-gef-semantic-audit-2026-09-16/evidence/editor_probe.rs:71:13:
+audit refresh panic after mutation
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

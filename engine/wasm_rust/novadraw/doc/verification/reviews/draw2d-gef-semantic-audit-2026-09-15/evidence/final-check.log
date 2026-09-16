@@ -1,0 +1,31 @@
+    Checking novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+    Checking novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+    Checking novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+    Checking novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+    Checking novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+    Checking r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/benchmarks/r8-perf)
+error[E0204]: the trait `Copy` cannot be implemented for this type
+   --> novadraw-editor/src/viewer/mod.rs:616:17
+    |
+616 | #[derive(Clone, Copy)]
+    |                 ^^^^
+...
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |     -------------------------------------------- this field does not implement `Copy`
+    |
+note: the `Copy` impl for `Option<AnchorSemanticKey>` requires that `AnchorSemanticKey: Copy`
+   --> novadraw-editor/src/viewer/mod.rs:624:24
+    |
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0063]: missing fields `source_anchor_key` and `target_anchor_key` in initializer of `ConnectionProjection<_>`
+    --> novadraw-editor/src/viewer/mod.rs:1805:13
+     |
+1805 |             ConnectionProjection {
+     |             ^^^^^^^^^^^^^^^^^^^^ missing `source_anchor_key` and `target_anchor_key`
+
+Some errors have detailed explanations: E0063, E0204.
+For more information about an error, try `rustc --explain E0063`.
+error: could not compile `novadraw-editor` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...

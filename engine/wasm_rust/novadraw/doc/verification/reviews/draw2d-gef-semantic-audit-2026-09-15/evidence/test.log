@@ -1,0 +1,1122 @@
+   Compiling novadraw-render v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-render)
+   Compiling novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+warning: unused import: `LocatorPlacement`
+ --> novadraw-scene/src/connection/runtime.rs:7:75
+  |
+7 |     DependencyObservation, DependencySubject, DirectRouter, LocatorError, LocatorPlacement,
+  |                                                                           ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ConnectionLocatorStrategy`
+  --> novadraw-scene/src/connection/runtime.rs:11:13
+   |
+11 | use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+   Compiling novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+warning: `novadraw-scene` (lib) generated 2 warnings (run `cargo fix --lib -p novadraw-scene` to apply 2 suggestions)
+   Compiling web-validation v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/web/web-validation)
+   Compiling layout-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/layout-app)
+   Compiling viewport-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/viewport-app)
+   Compiling clip-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/clip-app)
+   Compiling update-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/update-app)
+warning: `novadraw-scene` (lib test) generated 2 warnings (2 duplicates)
+   Compiling transform-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/transform-app)
+   Compiling border-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/border-app)
+   Compiling event-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/event-app)
+   Compiling text-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/text-app)
+   Compiling node-editor-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/node-editor-demo)
+   Compiling connections-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/connections-demo)
+   Compiling widgets-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/widgets-app)
+   Compiling ndcanvas-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/ndcanvas-app)
+   Compiling style-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/style-app)
+   Compiling scroll-pane-demo v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/scroll-pane-demo)
+   Compiling shape-app v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/native/shape-app)
+   Compiling r8-perf v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/apps/benchmarks/r8-perf)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 38.11s
+     Running unittests src/main.rs (target/debug/deps/border_app-e921db4cf8187a88)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/clip_app-fcaaf81e655bfaad)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/connections_demo-6a035e05db3a94c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/event_app-38fd42bb20118908)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/layout_app-3699e4a4b5f6bd67)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/ndcanvas_app-acbeaf2ccbba4fe6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/node_editor_demo-3701b1396367bd92)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw-3108e3eecb7a11f1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_apps-25d52c35b0c7f4c8)
+
+running 13 tests
+test input::tests::tab_is_adapted_to_one_traversal_without_an_ordinary_key_release ... ok
+test app::tests::initial_frame_remains_pending_until_presentation_succeeds ... ok
+test input::tests::web_control_wheel_maps_to_anchored_zoom ... ok
+test input::tests::web_plain_wheel_remains_scroll ... ok
+test input::tests::line_delta_is_an_impulse_and_pixel_delta_uses_logical_pixels ... ok
+test input::tests::pinch_updates_share_a_session_until_the_gesture_ends ... ok
+test input::tests::web_pointer_coordinates_remain_in_css_logical_units ... ok
+test input::tests::web_wheel_delta_modes_map_to_engine_units ... ok
+test platform::tests::web_host_forwards_platform_effects_and_surface_changes ... ok
+test app::tests::unpresented_frame_restores_full_redraw_work ... ok
+test app::tests::surface_change_requests_a_full_runtime_frame ... ok
+test app::tests::scene_switch_handoff_starts_each_runtime_with_a_snapshot_baseline ... ok
+test app::tests::visible_tooltip_lowers_to_native_overlay_commands ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_core-2eec2fe4e066a064)
+
+running 5 tests
+test color::tests::test_hex_6_digits ... ok
+test color::tests::test_constants ... ok
+test color::tests::test_hex_8_digits ... ok
+test color::tests::test_with_alpha ... ok
+test color::tests::test_rgba ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_demo_scenes-dbf6325e0931e5f7)
+
+running 15 tests
+test focus::tests::shared_focus_scene_has_stable_nested_traversal_order ... ok
+test transform::tests::target_domain_click_selects_the_figure_after_parent_chain_reduction ... ok
+test layout::tests::root_viewport_resize_reflows_border_regions ... ok
+test clip::tests::responsive_clip_resizes_parent_without_rewriting_child_bounds ... ok
+test freeform::tests::shared_scene_preserves_extent_range_and_layer_hit_order ... ok
+test viewport::tests::zoom_scene_rebuilds_the_same_logical_content_without_scale_accumulation ... ok
+test freeform::tests::blank_viewport_area_routes_zoom_to_direct_scalable_contents ... ok
+test freeform::tests::shared_scene_reaches_four_edges_and_preserves_zoom_anchor ... ok
+test widget::tests::interactive_tooltip_scene_uses_the_default_hover_delay ... ok
+test text::tests::title_bar_border_is_a_panel_below_the_host_contents ... ok
+test widget::tests::tooltip_style_replacement_preserves_scene_and_panel_backgrounds ... ok
+test widget::tests::tooltip_scene_starts_with_the_boundary_tooltip_visible ... ok
+test text::tests::image_resource_cards_fit_the_standard_web_content_width ... ok
+test text::tests::shared_text_suite_builds_every_web_scene_with_required_resources ... ok
+test tests::catalog_has_unique_ids_and_buildable_scenes ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_editor-265290e94b8c2b25)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g1_command_stack_contract.rs (target/debug/deps/g1_command_stack_contract-a9359b64f1a213bb)
+
+running 14 tests
+test command_capabilities_reject_undo_and_redo_without_moving_history ... ok
+test command_stack_executes_undoes_redoes_and_reports_stable_events ... ok
+test compound_undo_failure_restores_the_executed_prefix ... ok
+test compound_command_rolls_back_executed_prefix_and_undoes_in_reverse_order ... ok
+test command_panic_faults_the_stack_and_blocks_later_operations ... ok
+test explicit_unknown_state_failure_faults_the_stack ... ok
+test dirty_state_tracks_history_identity_across_branching ... ok
+test command_query_panic_faults_the_stack_before_model_mutation ... ok
+test failed_compound_compensation_faults_the_stack ... ok
+test failed_redo_preserves_the_redo_entry_and_model_state ... ok
+test failed_undo_preserves_the_undo_entry_and_model_state ... ok
+test flush_drops_history_and_marks_the_current_document_clean ... ok
+test rejected_or_failed_execute_does_not_change_history_or_clear_redo ... ok
+test undo_limit_discards_oldest_history_without_changing_the_model ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g1_model_contract.rs (target/debug/deps/g1_model_contract-da865728ae412620)
+
+running 2 tests
+test model_revision_rejects_zero_and_advances_without_wrapping ... ok
+test model_adapter_exposes_stable_identity_children_and_ordered_events ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g2_viewer_projection_contract.rs (target/debug/deps/g2_viewer_projection_contract-56d4ef64db33a037)
+
+running 15 tests
+test duplicate_model_identity_is_rejected_during_initial_projection ... ok
+test initial_projection_absorbs_events_already_represented_by_the_snapshot ... ok
+test dropping_viewer_deactivates_every_live_part_in_preorder ... ok
+test revision_gap_faults_viewer_before_projection_changes ... ok
+test duplicate_model_identity_faults_refresh_before_projection_changes ... ok
+test root_part_is_not_a_model_part ... ok
+test reparenting_is_order_independent_and_rebuilds_the_moved_part ... ok
+test one_revision_may_carry_multiple_ordered_events ... ok
+test refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup ... ok
+test removing_and_readding_a_model_rebuilds_runtime_identity ... ok
+test part_ids_are_namespaced_and_rejected_by_another_viewer ... ok
+test stale_notification_faults_viewer_without_changing_projection ... ok
+test unregistered_internal_visual_resolves_through_its_registered_ancestor ... ok
+test viewer_projects_model_tree_and_registers_model_and_visual_identity ... ok
+test unknown_and_foreign_visuals_do_not_resolve_to_parts ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/g3_selection_contract.rs (target/debug/deps/g3_selection_contract-3e2dc2030f0a3fa0)
+
+running 3 tests
+test focus_is_independent_but_reconciled_with_retired_parts ... ok
+test toggle_and_clear_report_exact_selection_deltas ... ok
+test ordered_selection_keeps_the_last_selected_item_primary ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g3_viewer_interaction_contract.rs (target/debug/deps/g3_viewer_interaction_contract-482455cfbb4056b1)
+
+running 7 tests
+test root_layers_have_stable_scaled_and_unscaled_z_order ... ok
+test background_click_clears_visual_selection_to_contents_fallback ... ok
+test widget_consumption_blocks_editor_selection_fallback ... ok
+test handles_win_targeting_and_feedback_is_transparent ... ok
+test figure_capture_owns_the_complete_pointer_gesture ... ok
+test pointer_selection_preserves_order_primary_and_focus ... ok
+test removing_parts_reconciles_selection_focus_and_owned_overlays ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g4_editing_loop_contract.rs (target/debug/deps/g4_editing_loop_contract-04189bdfa806c021)
+
+running 7 tests
+test typed_change_bounds_request_preserves_operation_and_transforms_bounds ... ok
+test policy_rejection_is_distinct_from_no_command_contribution ... ok
+test domain_executes_compound_move_and_refreshes_then_undoes_and_redoes ... ok
+test create_and_delete_round_trip_through_policy_command_and_projection ... ok
+test resize_handle_commits_resize_request_without_changing_selection ... ok
+test selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup ... ok
+test selection_tool_preserves_multi_selection_for_drag_and_collapses_on_click ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/g5_connection_creation_contract.rs (target/debug/deps/g5_connection_creation_contract-4883892febb7c62b)
+
+running 15 tests
+test non_finite_model_bendpoint_is_rejected_before_projection ... ok
+test duplicate_source_plans_are_rejected_without_starting_a_gesture ... ok
+test reconnect_cancel_clears_feedback_without_model_change ... ok
+test history_transition_cancels_an_incomplete_connection_before_model_refresh ... ok
+test selected_connection_deletes_and_undo_restores_the_same_model_identity ... ok
+test committed_connection_undo_redo_preserves_model_identity_and_projection ... ok
+test invalid_target_keeps_gesture_and_escape_cancels_without_model_change ... ok
+test source_endpoint_reconnects_while_invalid_drop_has_no_effect ... ok
+test policy_can_accept_a_self_loop ... ok
+test typed_request_preserves_source_target_and_interaction_state ... ok
+test connection_visual_is_an_invalid_target_without_aborting_the_gesture ... ok
+test widget_consumed_press_does_not_start_or_complete_connection ... ok
+test bendpoint_create_move_delete_round_trips_without_rebuilding_connection ... ok
+test two_stage_tool_locks_source_preserves_selection_and_commits_after_feedback_cleanup ... ok
+test target_endpoint_handle_reconnects_and_undo_preserves_connection_part_identity ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/g5_connection_projection_contract.rs (target/debug/deps/g5_connection_projection_contract-9667d2074d2e88c8)
+
+running 17 tests
+test connection_and_containment_model_identity_collision_is_rejected ... ok
+test duplicate_and_missing_endpoint_snapshots_are_rejected ... ok
+test connection_factory_must_create_a_connection_figure ... ok
+test ordered_snapshot_projects_one_connection_part_outside_containment ... ok
+test connection_part_id_is_a_checked_view_of_edit_part_identity ... ok
+test node_and_connection_can_be_removed_in_one_model_revision ... ok
+test revision_drift_during_snapshot_is_rejected ... ok
+test dangling_endpoint_faults_before_existing_projection_changes ... ok
+test reconnect_preserves_part_figure_order_and_unchanged_anchor ... ok
+test failed_connection_activation_rolls_back_all_registrations ... ok
+test connection_add_and_remove_preserve_unrelated_part_identity ... ok
+test self_loop_is_indexed_once_at_both_ends ... ok
+test unresolved_route_keeps_a_live_recoverable_connection_part ... ok
+test model_order_drives_layer_and_relation_order_without_recreating_parts ... ok
+test viewer_drop_deactivates_connections_before_endpoint_parts ... ok
+test rejected_incremental_connection_creation_leaves_no_registration ... ok
+test endpoint_geometry_change_is_rerouted_by_runtime ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_geometry-e59daa2a5d2a4b31)
+
+running 45 tests
+test point_list::tests::empty_bounds_returns_none ... ok
+test precision::tests::precision_compares_floats_within_epsilon ... ok
+test point_list::tests::translate_and_scale_apply_to_all_points ... ok
+test point_list::tests::transformed_returns_new_point_list ... ok
+test point_list::tests::bounds_returns_minimum_rectangle_containing_all_points ... ok
+test precision::tests::point_rectangle_and_transform_support_approx_eq ... ok
+test precision::tests::precision_snaps_near_zero_values ... ok
+test rect::tests::test_contains ... ok
+test rect::tests::test_from_corners ... ok
+test rect::tests::test_intersects ... ok
+test rect::tests::test_union ... ok
+test transform::tests::post_concat_keeps_parent_scale_outside_child_translation ... ok
+test transform::tests::pre_concat_places_parent_before_existing_local_transform ... ok
+test transform::tests::test_coeffs ... ok
+test transform::tests::test_identity ... ok
+test transform::tests::test_inverse ... ok
+test transform::tests::test_multiplication_order ... ok
+test transform::tests::test_reverse_order ... ok
+test transform::tests::test_rotation ... ok
+test transform::tests::test_scale ... ok
+test transform::tests::test_then_chain ... ok
+test transform::tests::test_then_equivalent_to_multiply ... ok
+test transform::tests::test_then_rotate ... ok
+test transform::tests::test_then_rotate_about ... ok
+test transform::tests::test_then_scale ... ok
+test transform::tests::test_then_scale_about ... ok
+test transform::tests::test_then_scale_non_uniform ... ok
+test transform::tests::test_then_transform ... ok
+test transform::tests::test_then_transform_equivalent ... ok
+test transform::tests::test_then_translate ... ok
+test transform::tests::test_transform_vector ... ok
+test transform::tests::test_translation ... ok
+test translatable::tests::rectangle_affine_transform_returns_conservative_aabb ... ok
+test translatable::tests::test_point_scale ... ok
+test translatable::tests::test_point_translate ... ok
+test translatable::tests::test_point_translate_by_point ... ok
+test translatable::tests::test_rectangle_scale ... ok
+test translatable::tests::test_rectangle_translate ... ok
+test translatable::tests::test_rectangle_translate_by_size ... ok
+test vec2::tests::test_add ... ok
+test vec2::tests::test_div ... ok
+test vec2::tests::test_mul_scalar ... ok
+test vec2::tests::test_mul_vec ... ok
+test vec2::tests::test_neg ... ok
+test vec2::tests::test_sub ... ok
+
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m1_product_existence.rs (target/debug/deps/m1_product_existence-eabe11880ec82049)
+
+running 2 tests
+test m1_geometry_product_type_names_are_importable ... ok
+test m1_precision_aliases_keep_approx_eq_contract ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_math-82804eb870fc50d8)
+
+running 6 tests
+test mat3::tests::test_identity ... ok
+test mat3::tests::test_multiplication_order ... ok
+test mat3::tests::test_reverse_order ... ok
+test vec3::tests::test_cross ... ok
+test vec3::tests::test_new ... ok
+test mat3::tests::test_rotation ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_render-ba823e28da2a5375)
+
+running 39 tests
+test backend::vello::tests::fractional_damage_is_rounded_outward_for_retained_surface_copy ... ok
+test backend::vello::tests::damage_clip_matches_outward_rounded_copy_pixels ... ok
+test backend::vello::tests::clip_restore_plan_keeps_the_common_prefix ... ok
+test backend::vello::tests::clip_restore_plan_replays_saved_outer_clip_after_reset ... ok
+test backend::vello::tests::ordered_resource_ops_keep_the_latest_ready_image ... ok
+test backend::vello::tests::image_cache_replacement_and_removal_discard_stale_revisions ... ok
+test backend::vello::tests::partial_copy_produces_the_same_pixels_as_full_replacement ... ok
+test backend::vello::tests::resource_snapshot_replaces_a_partially_applied_cache ... ok
+test backend::vello::tests::surface_statuses_select_the_expected_recovery ... ok
+test backend::vello::tests::zero_surface_extent_suspends_rendering ... ok
+test backend::vello::tests::scratch_uses_opaque_background_for_direct_retained_copy ... ok
+test backend::vello::tests::font_cache_replacement_and_removal_discard_stale_revisions ... ok
+test context::tests::clip_reset_and_restore_are_visible_in_command_snapshot ... ok
+test context::tests::concat_transform_uses_parent_times_local_order ... ok
+test context::tests::draw_image_records_destination_and_alpha_snapshot ... ok
+test context::tests::first_command_promotes_unspecified_damage_to_full ... ok
+test context::tests::global_alpha_is_scoped_and_applied_to_shapes ... ok
+test context::tests::graphics_state_stack_restores_nested_clip_transform_and_stroke_state ... ok
+test context::tests::set_transform_and_reset_transform_emit_snapshot_commands ... ok
+test submission::tests::backend_session_gate_requires_snapshot_baselines_and_rejects_stale_generations ... ok
+test submission::tests::backend_session_ids_are_non_zero_and_do_not_wrap ... ok
+test submission::tests::damage_mode_distinguishes_none_full_and_partial ... ok
+test submission::tests::empty_snapshot_still_represents_cache_replacement ... ok
+test submission::tests::frame_ids_are_monotonic_and_skip_zero_after_wrap ... ok
+test submission::tests::resource_delta_preserves_append_order ... ok
+test submission::tests::surface_info_defaults_to_a_valid_logical_scale ... ok
+test text::tests::external_layout_parts_reject_invalid_metrics_and_utf8_ranges ... ok
+test text::tests::parses_existing_figure_style_font_descriptor ... ok
+test text::tests::invalid_font_data_does_not_advance_revision ... ok
+test text::tests::replacing_and_removing_a_font_rebuilds_the_font_context ... ok
+test text::tests::invalid_replacement_preserves_the_registered_font ... ok
+test backend::vello::tests::positioned_glyph_run_is_encoded_into_the_vello_scene ... ok
+test command::tests::decodes_png_and_svg_into_rgba ... ok
+test text::tests::registered_cjk_font_falls_back_when_the_requested_font_lacks_glyphs ... ok
+test text::tests::parley_layout_produces_real_metrics_and_glyphs ... ok
+test text::tests::canvas_records_positioned_glyph_runs_with_scoped_alpha ... ok
+test text::tests::width_constraint_breaks_text_into_multiple_lines ... ok
+test text::tests::proportional_font_measurement_is_not_character_count_estimation ... ok
+test text::tests::bundled_fonts_cover_ui_cjk_and_monospace_roles ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/m10_text_extension_contract.rs (target/debug/deps/m10_text_extension_contract-5c7fc49898394d30)
+
+running 2 tests
+test external_text_engine_constructs_non_empty_backend_neutral_layout ... ok
+test backend_neutral_layout_can_be_consumed_without_vello_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m1_product_existence.rs (target/debug/deps/m1_product_existence-2eb248d65a138f7c)
+
+running 2 tests
+test m1_graphics_image_clip_and_alpha_entries_emit_commands ... ok
+test m1_graphics_shape_and_style_entries_emit_commands ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/r8_extension_boundaries.rs (target/debug/deps/r8_extension_boundaries-5bb9f743231477d8)
+
+running 2 tests
+test projective_composition_requires_explicit_backend_support ... ok
+test scene3d_frame_embeds_through_the_existing_2d_image_boundary ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/novadraw_scene-6d23af931402c86a)
+
+running 262 tests
+test figure::tests::non_interactive_figure_needs_no_event_or_lifecycle_methods ... ok
+test figure::tests::singular_child_transform_has_no_inverse_mapping ... ok
+test connection::figure::tests::target_decoration_inset_trims_only_painted_geometry ... ok
+test connection::figure::tests::decoration_inset_can_cross_short_terminal_segments ... ok
+test figure::tests::shape_can_customize_figure_paint_behavior ... ok
+test figure::triangle::tests::test_different_directions ... ok
+test figure::ellipse::tests::contains_point_uses_ellipse_geometry_not_only_bounds ... ok
+test figure::triangle::tests::test_set_bounds_position_only_preserves_cache ... ok
+test figure::triangle::tests::test_invalidate_clears_cache ... ok
+test figure::triangle::tests::test_prim_translate_preserves_cache ... ok
+test figure::triangle::tests::test_set_bounds_size_change_clears_cache ... ok
+test figure::triangle::tests::test_set_direction_clears_cache ... ok
+test figure::triangle::tests::test_validate_computes_and_caches_points ... ok
+test figure::triangle::tests::test_validate_recomputes_when_bounds_change ... ok
+test graph::bounds_test::test_bounds_integrity ... ok
+test graph::bounds_test::test_client_area_resets_origin_for_coordinate_root ... ok
+test graph::bounds_test::test_contains_point_basic ... ok
+test graph::bounds_test::test_bounds_absolute_coordinates ... ok
+test graph::bounds_test::test_clip_test_scene_commands ... ok
+test container::viewport::tests::invalid_layout_output_does_not_commit_viewport_range_effect ... ok
+test graph::bounds_test::test_contains_point_boundary ... ok
+test graph::bounds_test::test_empty_bounds ... ok
+test graph::bounds_test::test_figure_set_bounds ... ok
+test graph::bounds_test::test_hit_test_prefers_topmost_deepest_child ... ok
+test graph::bounds_test::test_intersects_basic ... ok
+test graph::bounds_test::test_horizontal_layout_coords ... ok
+test graph::bounds_test::test_intersects_self ... ok
+test graph::bounds_test::test_local_coordinates_mode ... ok
+test graph::bounds_test::test_nested_structure_render_order ... ok
+test graph::bounds_test::test_prim_translate_nested_propagation ... ok
+test graph::bounds_test::test_prim_translate_propagates ... ok
+test graph::bounds_test::test_render_clips_parent_local_figure_to_client_area ... ok
+test graph::bounds_test::test_render_commands_after_translate ... ok
+test graph::bounds_test::test_render_commands_coords ... ok
+test graph::bounds_test::test_scene_set_bounds_basic ... ok
+test graph::bounds_test::test_scene_set_bounds_nested_propagation ... ok
+test graph::bounds_test::test_scene_set_bounds_position_only ... ok
+test graph::bounds_test::test_scene_set_bounds_size_only ... ok
+test graph::bounds_test::test_set_bounds ... ok
+test graph::bounds_test::test_set_bounds_affects_contains_point ... ok
+test graph::bounds_test::test_viewport_figure_render_uses_content_clip_and_transform ... ok
+test graph::search::tests::exclusion_search_prunes_the_complete_topmost_subtree ... ok
+test graph::search::tests::find_in_subtree_distinguishes_unknown_root_from_no_match ... ok
+test graph::search::tests::hit_test_checks_deepest_candidate_before_parent_acceptance ... ok
+test graph::search::tests::structural_prune_never_visits_descendants ... ok
+test graph::search::tests::structural_queries_have_stable_order_and_hide_the_synthetic_root ... ok
+test graph::tests::default_style_does_not_emit_redundant_alpha_commands ... ok
+test graph::tests::local_alpha_override_replaces_inherited_graphics_alpha ... ok
+test graph::tests::node_bounds_drive_rendering_without_writing_back_to_figure ... ok
+test graph::tests::moved_figure_damage_uses_old_and_new_projected_visual_bounds ... ok
+test graph::tests::node_style_inherits_each_unset_property_independently ... ok
+test graph::tests::replacing_contents_detaches_the_previous_root_subtree ... ok
+test graph::tests::resolved_style_is_applied_to_descendant_graphics_state ... ok
+test graph::tests::style_change_emits_typed_properties_and_queues_subtree_repaint ... ok
+test graph::tests::test_border_insets_define_client_area_clip_for_children ... ok
+test graph::tests::test_child_order_appends_children_back_to_front ... ok
+test graph::tests::test_custom_clipping_strategy_can_skip_child_bounds_clip ... ok
+test graph::tests::test_default_clipping_strategy_clips_children_to_child_bounds ... ok
+test graph::tests::test_find_mouse_event_target_at_prefers_deepest_interactive_figure ... ok
+test graph::tests::test_existing_figures_expose_child_clipping_strategy ... ok
+test graph::tests::test_find_mouse_event_target_at_skips_non_interactive_figures ... ok
+test graph::tests::test_find_mouse_event_target_at_translates_through_coordinate_root ... ok
+test graph::tests::test_hit_test_descends_only_through_parent_client_area ... ok
+test graph::tests::test_hit_test_translates_through_coordinate_root ... ok
+test graph::tests::test_hit_test_translates_through_viewport_figure ... ok
+test graph::tests::test_mouse_event_target_descends_only_through_parent_client_area ... ok
+test graph::tests::test_mouse_event_target_uses_same_border_inset_client_area_as_paint ... ok
+test graph::tests::test_figure_lifecycle_hooks_follow_runtime_realization_and_completion ... ok
+test graph::tests::test_paint_clip_and_hit_test_share_border_inset_client_area ... ok
+test graph::tests::test_prim_translate_basic ... ok
+test graph::tests::test_prim_translate_nested ... ok
+test graph::tests::test_prim_translate_records_coordinate_system_changed_effect ... ok
+test graph::tests::test_prim_translate_records_figure_moved_effects ... ok
+test graph::tests::test_render_order_nested ... ok
+test graph::tests::test_render_order_z_order ... ok
+test graph::tests::test_transform_accumulation ... ok
+test graph::tests::test_translate_from_parent_basic ... ok
+test graph::tests::test_translate_from_parent_with_insets ... ok
+test graph::tests::test_translate_to_absolute_mut_basic ... ok
+test graph::tests::test_translate_to_absolute_mut_includes_parent_insets ... ok
+test graph::tests::test_translate_to_absolute_mut_nested ... ok
+test graph::tests::test_translate_to_absolute_mut_nested_insets_follow_parent_chain_protocol ... ok
+test graph::tests::test_translate_to_absolute_mut_rect ... ok
+test graph::tests::test_translate_to_parent_basic ... ok
+test graph::tests::test_translate_to_parent_not_coordinate_root ... ok
+test graph::tests::test_translate_to_parent_with_insets ... ok
+test graph::tests::test_translate_to_relative_basic ... ok
+test graph::tests::test_translate_to_relative_nested ... ok
+test graph::tests::test_translate_to_relative_rect ... ok
+test graph::tests::test_translate_to_relative_roundtrips_target_coordinate_root ... ok
+test graph::tests::test_unclipped_children_restore_parent_graphics_state_between_siblings ... ok
+test graph::tests::test_visibility_filter ... ok
+test graph::tests::test_z_order_reorder_changes_topmost_hit_test_target ... ok
+test graph::tests::test_z_order_reorder_rejects_invalid_inputs_without_side_effects ... ok
+test graph::update_integration_test::disabled_parent_does_not_block_child_validation ... ok
+test graph::update_integration_test::enabling_disabled_subtree_starts_a_new_validation_transaction ... ok
+test graph::update_integration_test::pending_mutations_preserve_fifo_causality ... ok
+test graph::update_integration_test::test_add_child_marks_layout_invalid ... ok
+test graph::update_integration_test::test_add_child_triggers_updates ... ok
+test graph::update_integration_test::test_add_child_under_coordinate_root_repair_uses_child_coordinate_domain ... ok
+test graph::update_integration_test::test_apply_pending_add_child_figure_allocates_and_attaches_child ... ok
+test graph::update_integration_test::test_apply_pending_add_child_with_invalid_parent_has_no_side_effect ... ok
+test graph::update_integration_test::test_add_child_under_viewport_repair_uses_content_transform ... ok
+test graph::update_integration_test::test_apply_pending_remove_child_clears_non_focus_interaction_state ... ok
+test graph::update_integration_test::test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects ... ok
+test graph::update_integration_test::test_apply_pending_reparent_moves_child_between_containers ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_descendant_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_invalid_parent_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_to_self_keeps_original_tree ... ok
+test graph::update_integration_test::test_apply_pending_reparent_with_duplicate_new_parent_entry_has_no_side_effects ... ok
+test graph::update_integration_test::test_batch_construction_no_updates ... ok
+test graph::update_integration_test::test_batch_then_manual_update ... ok
+test graph::update_integration_test::test_clear_updates ... ok
+test graph::update_integration_test::test_direct_add_child_to_invalid_parent_has_no_side_effect ... ok
+test graph::update_integration_test::test_coordinate_root_move_repairs_old_and_new_parent_regions ... ok
+test graph::update_integration_test::test_direct_add_child_with_update_manager_invalid_parent_has_no_side_effect ... ok
+test graph::update_integration_test::test_effective_enabled_follows_parent_chain ... ok
+test graph::update_integration_test::test_effective_visibility_follows_parent_chain ... ok
+test graph::update_integration_test::test_empty_rect_ignored ... ok
+test graph::update_integration_test::test_explicit_size_overrides_take_precedence ... ok
+test graph::update_integration_test::test_hidden_block_skips_validation_but_drains_queue ... ok
+test graph::update_integration_test::test_hidden_parent_skips_child_validation_but_drains_queue ... ok
+test graph::update_integration_test::test_interaction_state_accessors ... ok
+test graph::update_integration_test::test_invisible_block_no_dirty_region ... ok
+test graph::update_integration_test::test_layout_constraint_is_owned_by_parent_and_typed ... ok
+test graph::update_integration_test::test_layout_repositions_descendants_via_set_bounds_protocol ... ok
+test graph::update_integration_test::test_mark_invalid_adds_to_queue ... ok
+test graph::update_integration_test::test_layout_uses_local_client_area_for_coordinate_root_container ... ok
+test graph::update_integration_test::test_mark_invalid_updates_block_validity ... ok
+test graph::update_integration_test::test_multiple_blocks_independent_dirty_regions ... ok
+test graph::update_integration_test::test_mark_invalid_with_repaint ... ok
+test graph::update_integration_test::test_multiple_repaints_merge_regions ... ok
+test graph::update_integration_test::test_perform_update_clears_dirty_regions ... ok
+test graph::update_integration_test::test_perform_update_marks_layout_valid ... ok
+test graph::update_integration_test::test_perform_update_two_phase ... ok
+test graph::update_integration_test::test_perform_update_uses_damage_region ... ok
+test graph::update_integration_test::test_repaint_adds_dirty_region ... ok
+test graph::update_integration_test::test_repaint_all ... ok
+test graph::update_integration_test::test_repaint_skips_effectively_invisible_child ... ok
+test graph::update_integration_test::test_repaint_uses_specified_rect ... ok
+test graph::update_integration_test::test_revalidate_flow ... ok
+test graph::update_integration_test::test_reparent_removes_constraint_owned_by_old_parent ... ok
+test graph::update_integration_test::test_showing_hidden_subtree_requeues_deferred_validation ... ok
+test graph::update_integration_test::test_try_add_child_to_invalid_parent_returns_error_without_side_effect ... ok
+test host::scene_host::tests::headless_host_records_platform_effects_deterministically ... ok
+test layout::border_layout::tests::test_border_layout_creation ... ok
+test graph::update_integration_test::test_validation_promotes_queued_child_to_highest_invalid_ancestor ... ok
+test layout::border_layout::tests::test_border_layout_with_sizes ... ok
+test host::scene_host::tests::headless_host_drives_a_deterministic_runtime_frame ... ok
+test layout::border_layout::tests::test_border_region_from_str ... ok
+test layout::flow_layout::tests::test_flow_layout_creation ... ok
+test layout::flow_layout::tests::test_flow_layout_with_direction ... ok
+test layout::flow_layout::tests::test_flow_layout_with_spacing ... ok
+test runtime::context::tests::test_scene_dispatch_context_defers_structure_mutation_until_after_callback ... ok
+test runtime::context::tests::test_scene_dispatch_context_translates_mouse_point_to_target_coordinate_domain ... ok
+test runtime::context::tests::test_scene_dispatch_context_uses_target_local_coordinate_domain ... ok
+test runtime::event::tests::focus_transition_commits_owner_before_lost_and_gained_events ... ok
+test runtime::event::tests::handled_press_on_ineligible_target_preserves_existing_focus ... ok
+test runtime::event::tests::test_captured_target_overrides_hit_target ... ok
+test runtime::event::tests::test_drag_uses_capture_while_hover_tracks_hit_target ... ok
+test runtime::event::tests::test_handled_press_assigns_focus_and_key_events_follow_focus_owner ... ok
+test runtime::event::tests::test_press_sets_capture_when_handled ... ok
+test runtime::event::tests::test_receive_updates_mouse_target ... ok
+test runtime::event::tests::test_release_uses_capture_and_then_clears_it ... ok
+test runtime::event::tests::test_wheel_hover_and_double_click_use_pointer_target ... ok
+test runtime::event::tests::unhandled_gestures_dispatch_once_before_specialized_fallback ... ok
+test runtime::focus::tests::focus_properties_are_local_typed_node_state ... ok
+test runtime::focus::tests::tree_order_policy_is_stable_bidirectional_and_has_boundaries ... ok
+test runtime::focus::tests::tree_order_policy_skips_hidden_and_disabled_candidates ... ok
+test runtime::interaction::tests::gesture_target_and_typed_controllers_share_one_session ... ok
+test runtime::resource::tests::completion_queues_payload_and_returns_dependents ... ok
+test runtime::resource::tests::dependency_reconciliation_removes_detached_figures ... ok
+test runtime::resource::tests::failed_ready_resource_releases_backend_copy ... ok
+test runtime::resource::tests::ready_failed_ready_preserves_backend_operation_order ... ok
+test runtime::resource::tests::ready_snapshot_is_stable_and_supersedes_pending_ops ... ok
+test runtime::resource::tests::recovery_after_failure_advances_revision ... ok
+test runtime::resource::tests::removed_slot_gets_a_new_generation_and_rejects_the_old_id ... ok
+test runtime::runtime::adr014_tests::contents_replacement_releases_old_tree_and_preserves_namespace ... ok
+test runtime::runtime::adr014_tests::disposal_freezes_old_damage_before_the_node_is_removed ... ok
+test runtime::runtime::adr014_tests::disposal_removes_owned_listener_but_preserves_shared_registrations ... ok
+test runtime::runtime::adr014_tests::foreign_figure_does_not_read_or_modify_matching_local_slot ... ok
+test runtime::runtime::adr014_tests::foreign_listener_does_not_unregister_local_subscription ... ok
+test runtime::runtime::adr014_tests::foreign_registry_handles_do_not_remove_local_entries ... ok
+test runtime::runtime::adr014_tests::moving_runtime_preserves_registry_identity_and_state ... ok
+test runtime::runtime::adr014_tests::remove_releases_subtree_and_invalidates_old_ids ... ok
+test runtime::runtime::adr014_tests::reparent_preserves_identity_and_foreign_checked_mutation_is_rejected ... ok
+test runtime::runtime::adr014_tests::synthetic_root_is_rejected_by_public_lifecycle_mutations ... ok
+test runtime::runtime::adr014_tests::layered_lifecycle_panic_faults_runtime_after_structural_commit ... ok
+test runtime::runtime::adr014_tests::lifecycle_panic_happens_after_extraction_and_blocks_recording ... ok
+test runtime::runtime::tests::backend_sessions_are_namespaced_per_runtime ... ok
+test runtime::runtime::tests::backend_session_reset_rejects_old_completion_and_resends_ready_snapshot ... ok
+test runtime::runtime::tests::backend_capability_promotes_partial_damage_to_full ... ok
+test runtime::runtime::tests::cursor_and_tooltip_resolve_from_the_current_pointer_targets ... ok
+test runtime::runtime::tests::direct_focus_reports_structured_eligibility_errors_without_changing_owner ... ok
+test runtime::runtime::tests::direct_and_traversal_focus_eligibility_are_independent ... ok
+test runtime::runtime::tests::dispatch_flushes_structural_mutations_before_returning ... ok
+test runtime::runtime::tests::dpi_change_updates_surface_metadata_and_forces_full_damage ... ok
+test runtime::runtime::tests::frame_preparation_reports_distinct_non_ready_states ... ok
+test runtime::runtime::tests::invalid_focus_owner_emits_one_lost_event_for_hide_disable_and_remove ... ok
+test runtime::runtime::tests::moving_contents_forces_full_damage_to_clear_exposed_pixels ... ok
+test runtime::runtime::tests::mutations_after_snapshot_freeze_remain_as_incremental_delta ... ok
+test runtime::runtime::tests::pending_mutations_are_applied_before_validation_and_recording ... ok
+test runtime::runtime::tests::reparent_under_hidden_ancestor_releases_focus ... ok
+test runtime::runtime::tests::replacing_contents_removes_resource_dependencies_from_detached_figures ... ok
+test runtime::runtime::tests::resource_completion_invalidates_and_repaints_dependent_figure ... ok
+test runtime::runtime::tests::resource_only_completion_produces_a_submission_without_scene_damage ... ok
+test runtime::runtime::tests::removing_a_builtin_font_removes_its_layout_and_backend_resources ... ok
+test runtime::runtime::tests::resource_state_transitions_preserve_order_within_one_delta ... ok
+test runtime::runtime::tests::explicit_font_registration_is_included_in_the_next_submission ... ok
+test runtime::runtime::tests::retry_restores_in_flight_resource_updates_before_newer_updates ... ok
+test runtime::runtime::tests::runtime_accepts_a_non_parley_text_layout_engine ... ok
+test runtime::runtime::tests::runtime_owns_interaction_state_separately_from_tree ... ok
+test runtime::runtime::tests::runtime_rejects_invalid_custom_policy_candidate ... ok
+test runtime::runtime::tests::snapshot_retry_refreezes_current_registry_state ... ok
+test runtime::runtime::tests::submission_notifications_are_flushed_in_causal_order ... ok
+test runtime::runtime::tests::surface_change_and_retry_force_full_damage ... ok
+test runtime::runtime::tests::submission_contains_surface_resources_and_monotonic_frame_id ... ok
+test runtime::runtime::tests::suspended_surface_preserves_full_redraw_request ... ok
+test runtime::tooltip::tests::placement_flips_and_clamps_to_surface ... ok
+test runtime::runtime::tests::invalid_font_replacement_preserves_the_ready_revision ... ok
+test runtime::tooltip::tests::rejects_clock_rollback_without_changing_deadline ... ok
+test runtime::tooltip::tests::waits_replaces_and_hides_on_deadlines ... ok
+test runtime::update::deferred::tests::test_clear ... ok
+test runtime::runtime::tests::builtin_fonts_require_explicit_runtime_registration ... ok
+test runtime::update::deferred::tests::test_clear_dirty_and_flag_preserves_next_cycle_work ... ok
+test runtime::update::deferred::tests::test_clipped_damage_notifies_without_rendering ... ok
+test runtime::update::deferred::tests::test_direct_invalid_queue_entry_invalidates_and_validates_graph_node ... ok
+test runtime::update::deferred::tests::test_dirty_region_merge ... ok
+test runtime::update::deferred::tests::test_dirty_region_tracking ... ok
+test runtime::update::deferred::tests::test_drain_invalid_blocks ... ok
+test runtime::update::deferred::tests::test_invalid_block_dedup ... ok
+test runtime::update::deferred::tests::test_invalid_block_queue ... ok
+test runtime::update::deferred::tests::test_invalid_region ... ok
+test runtime::runtime::tests::frame_preparation_reports_permanent_backend_capability_mismatch ... ok
+test runtime::update::deferred::tests::test_perform_update_records_update_phase_effects ... ok
+test runtime::update::deferred::tests::test_perform_update_writes_damage_set_to_canvas ... ok
+test runtime::update::deferred::tests::test_take_dirty_snapshot_freezes_current_cycle ... ok
+test runtime::update::deferred::tests::test_typed_listeners_dispatch_and_remove_independently ... ok
+test runtime::update::deferred::tests::test_update_notifications_report_root_domain_damage ... ok
+test runtime::update::deferred::tests::test_update_without_dirty_regions_skips_rendering ... ok
+test runtime::update::listener::tests::test_notification_queue_drains_at_transaction_boundary ... ok
+test runtime::update::listener::tests::test_notification_queue_separates_notify_and_typed_event ... ok
+test runtime::update::repair::tests::test_compute_damage_union_merges_multiple_rectangles ... ok
+test runtime::update::repair::tests::test_merge_dirty_region_rejects_invalid_rectangles ... ok
+test runtime::update::deferred::tests::test_update_panic_restores_manager_state_and_requeues_invalid_graph_nodes ... ok
+test runtime::update::deferred::tests::test_validation_figure_effects_preserve_causal_order ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_falls_back_to_union_when_region_count_exceeds_limit ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_merges_overlapping_and_touching_rects ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_keeps_separated_rects ... ok
+test runtime::update::repair::tests::test_normalize_damage_regions_merges_small_fragments_into_nearest_neighbor ... ok
+test runtime::update::repair::tests::test_parent_chain_multi_level_propagation ... ok
+test runtime::update::repair::tests::test_parent_chain_single_level_propagation ... ok
+test runtime::update::repair::tests::test_parent_chain_propagation_intersects_clip_regions ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_applies_root_clip ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_translates_through_parent_local_ancestors ... ok
+test runtime::update::repair::tests::test_write_damage_set_clears_canvas_for_empty_damage ... ok
+test runtime::update::repair::tests::test_propagate_damage_to_root_uses_figure_local_coordinate_roots ... ok
+test runtime::update::repair::tests::test_write_damage_set_preserves_regions_and_union ... ok
+test runtime::runtime::tests::runtime_owns_an_isolated_text_layout_context ... ok
+test graph::update_integration_test::test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effects ... ok
+test graph::update_integration_test::test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically ... ok
+test runtime::runtime::adr014_tests::dispose_supports_the_maximum_tree_depth ... ok
+
+test result: ok. 262 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.20s
+
+     Running tests/d1_focus_contract.rs (target/debug/deps/d1_focus_contract-bedd1f0eae84755b)
+
+running 1 test
+test public_runtime_focus_api_separates_direct_and_traversal_eligibility ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d1_tree_search_contract.rs (target/debug/deps/d1_tree_search_contract-bbe8dad80399afd8)
+
+running 2 tests
+test public_search_strategy_filters_hit_test_without_changing_geometry_order ... ok
+test public_exclusion_search_prunes_by_figure_id ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d2_freeform_contract.rs (target/debug/deps/d2_freeform_contract-a36b4edcd695b492)
+
+running 18 tests
+test freeform_constraint_rejects_invalid_values_and_accepts_explicit_zero ... ok
+test empty_freeform_extent_is_zero ... ok
+test freeform_extent_unions_positive_and_negative_child_bounds ... ok
+test child_move_keeps_old_stable_extent_until_revalidation ... ok
+test invalid_constraint_type_does_not_partially_commit_layout_output ... ok
+test freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback ... ok
+test freeform_query_distinguishes_unknown_non_freeform_and_unvalidated ... ok
+test nested_freeform_uses_derived_extent_not_presentation_bounds ... ok
+test normal_ancestor_still_clips_freeform_overflow ... ok
+test overflow_visible_allows_hits_outside_freeform_border_box ... ok
+test overflow_visible_damage_is_not_clipped_to_host_bounds ... ok
+test overflow_visible_skips_host_clip_during_rendering ... ok
+test viewport_does_not_clip_freeform_contents_to_presentation_bounds ... ok
+test visibility_does_not_change_freeform_extent ... ok
+test freeform_viewport_range_uses_unscaled_content_domain ... ok
+test freeform_fit_uses_derived_extent_instead_of_presentation_bounds ... ok
+test freeform_zoom_preserves_anchor_and_keeps_range_unscaled ... ok
+test freeform_extent_shrink_clamps_origin_and_repaints_viewport ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d2_layer_contract.rs (target/debug/deps/d2_layer_contract-70c0486a9a59ed3e)
+
+running 7 tests
+test layer_key_rejects_empty_values ... ok
+test transparent_layer_returns_descendant_but_never_itself ... ok
+test callback_layer_mutations_commit_in_fifo_order ... ok
+test reparent_and_remove_update_both_membership_indexes ... ok
+test layer_order_drives_reverse_z_hit_testing ... ok
+test runtime_registers_layered_pane_used_as_contents ... ok
+test layered_pane_rejects_duplicate_keys_and_generic_add ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d3_runtime_listener.rs (target/debug/deps/d3_runtime_listener-964ffd84a84ee8cd)
+
+running 4 tests
+test action_listener_can_remove_itself_after_the_current_action ... ok
+test pointer_dispatch_remains_available_after_listener_api_completion ... ok
+test listener_self_removal_finishes_current_effect_and_skips_later_effects ... ok
+test runtime_exposes_all_listener_categories_with_one_removal_namespace ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d3_runtime_mutation.rs (target/debug/deps/d3_runtime_mutation-a14f321809f52071)
+
+running 7 tests
+test callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix ... ok
+test runtime_child_order_controls_paint_and_reverse_hit_order_atomically ... ok
+test ordinary_child_order_api_rejects_layered_panes ... ok
+test runtime_replaces_layout_and_constraints_only_after_validation ... ok
+test runtime_size_overrides_are_checked_and_clearable ... ok
+test checked_topology_mutations_preserve_error_categories ... ok
+test runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d4_component_update.rs (target/debug/deps/d4_component_update-362d060e37078b8e)
+
+running 4 tests
+test component_update_rejects_wrong_foreign_and_disposed_targets ... ok
+test external_component_update_is_typed_atomic_and_conservatively_invalidated ... ok
+test component_prepare_or_commit_panic_faults_runtime ... ok
+test lifecycle_invalidation_panic_faults_all_public_mutation_domains ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/d4_constrained_measurement.rs (target/debug/deps/d4_constrained_measurement-7e14d26f794cecc7)
+
+running 1 test
+test constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/d4_notification_epoch.rs (target/debug/deps/d4_notification_epoch-a6176fa1f40b0fbc)
+
+running 1 test
+test historical_records_keep_event_order_while_queries_read_latest_stable_scene ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m10_accessibility_contract.rs (target/debug/deps/m10_accessibility_contract-7c49b3734496115f)
+
+running 4 tests
+test snapshot_promotes_accessible_children_through_decorative_figures ... ok
+test focus_and_default_actions_reuse_runtime_widget_transactions ... ok
+test dispose_removes_accessibility_identity_in_the_next_delta ... ok
+test accessibility_projection_supports_the_maximum_tree_depth ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.45s
+
+     Running tests/m10_label_contract.rs (target/debug/deps/m10_label_contract-cd950d40dd88bcfb)
+
+running 8 tests
+test image_figure_tracks_pending_ready_and_failed_resource_states ... ok
+test label_icon_gap_placement_and_typed_mutations_are_transactional ... ok
+test title_bar_border_uses_resolved_font_metrics_and_glyph_commands ... ok
+test first_submission_shapes_label_after_parent_layout ... ok
+test shared_title_bar_border_keeps_metrics_per_owner ... ok
+test label_cache_reshapes_only_when_measurement_inputs_change ... ok
+test label_uses_runtime_shaping_for_measurement_truncation_and_paint ... ok
+test font_failure_recovery_and_removal_refresh_label_and_title_snapshots ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/m10_reusable_shape_border_contract.rs (target/debug/deps/m10_reusable_shape_border_contract-e3ee85194a513cf6)
+
+running 12 tests
+test border_metrics_and_compound_formula_match_draw2d ... ok
+test rounded_rectangle_precise_hit_rejects_clipped_corner ... ok
+test polyline_precise_hit_uses_segment_distance ... ok
+test polygon_precise_hit_uses_closed_interior ... ok
+test ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width ... ok
+test etched_and_bevel_borders_expose_product_metrics_and_commands ... ok
+test compound_border_isolates_outer_state_and_offsets_inner_paint ... ok
+test triangle_uses_draw2d_resize_and_centering_geometry ... ok
+test reusable_shapes_consume_runtime_figure_style_as_color_truth ... ok
+test runtime_border_corner_and_direction_mutations_use_typed_transactions ... ok
+test runtime_point_mutations_commit_bounds_points_damage_and_notification_atomically ... ok
+test border_preferred_size_and_effective_opacity_join_figure_protocol ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m10_tooltip_contract.rs (target/debug/deps/m10_tooltip_contract-ad2947775c732f5c)
+
+running 3 tests
+test inherited_tooltip_uses_the_owning_ancestor_as_stable_source ... ok
+test explicit_disable_cancels_an_inherited_waiting_tooltip ... ok
+test visible_tooltip_replaces_content_and_press_hides_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m10_widget_contract.rs (target/debug/deps/m10_widget_contract-391128dac0d5d4f3)
+
+running 10 tests
+test keyboard_activation_requires_the_matching_release_key ... ok
+test selected_state_is_model_owned_and_programmatic_click_uses_same_transaction ... ok
+test button_exposes_composed_label_contract ... ok
+test mouse_release_inside_fires_action_and_owns_focus ... ok
+test keyboard_press_cannot_be_completed_by_an_unrelated_mouse_release ... ok
+test drag_out_cancels_action_and_drag_back_rearms_it ... ok
+test disabled_button_rejects_pointer_keyboard_and_programmatic_actions ... ok
+test enter_and_space_activate_only_after_matching_key_release ... ok
+test toggle_changes_selection_before_emitting_action ... ok
+test action_listener_flushes_at_the_update_transaction_boundary ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m2_product_existence.rs (target/debug/deps/m2_product_existence-75d02ce7864bd6ef)
+
+running 6 tests
+test existing_product_figures_expose_child_clipping_strategy_api ... ok
+test existing_product_figures_expose_border_api ... ok
+test m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles ... ok
+test deferred_builtin_figures_remain_importable_without_entering_the_m2_gate ... ok
+test m2_three_phase_paint_order_is_observable_from_product_api ... ok
+test architecture_level_runtime_types_are_public ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m4_coordinate_contract.rs (target/debug/deps/m4_coordinate_contract-21705054ca8da161)
+
+running 4 tests
+test m4_rectangle_roundtrip_preserves_extent_across_nested_coordinate_roots ... ok
+test m4_point_roundtrips_across_nested_coordinate_roots_with_insets ... ok
+test m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain ... ok
+test m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m5_layout_contract.rs (target/debug/deps/m5_layout_contract-264d102d2c6e03ba)
+
+running 10 tests
+test layout_output_is_validated_before_any_change_is_committed ... ok
+test wrong_constraint_type_is_reported_and_invalid_work_is_preserved ... ok
+test explicit_zero_size_is_not_treated_as_a_missing_measurement ... ok
+test stack_layout_places_every_child_in_the_client_area ... ok
+test non_converging_validation_returns_diagnostic_and_keeps_work_queued ... ok
+test layout_measurements_are_cached_until_generation_changes ... ok
+test grid_layout_honors_column_span_and_excess_space ... ok
+test toolbar_layout_compresses_main_axis_and_stretches_minor_axis ... ok
+test grid_layout_uses_track_maxima_and_fill_alignment ... ok
+test update_manager_completes_a_1024_figure_layout_transaction ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/m6_event_contract.rs (target/debug/deps/m6_event_contract-38942f7d0d0fa17b)
+
+running 2 tests
+test continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture ... ok
+test capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m8_viewport_contract.rs (target/debug/deps/m8_viewport_contract-e7a0130f838497cb)
+
+running 24 tests
+test range_model_rejects_invalid_input_without_partial_state ... ok
+test range_model_clamps_extent_and_value_atomically ... ok
+test range_model_listener_observes_changes_until_removed ... ok
+test scalable_layered_pane_rejects_invalid_scale_without_state_change ... ok
+test scalable_projects_explicit_unscaled_preferred_size_through_scale ... ok
+test scroll_pane_visibility_policy_controls_layout ... ok
+test scalable_layered_pane_composes_with_viewport_parent_transform ... ok
+test scroll_pane_resize_recomputes_automatic_visibility_and_range_extent ... ok
+test scroll_pane_automatic_policy_reserves_both_scroll_bars ... ok
+test unhandled_wheel_uses_nearest_scroll_pane_fallback ... ok
+test touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier ... ok
+test viewport_border_insets_define_child_transform_and_client_extent ... ok
+test vertical_scroll_bar_step_updates_shared_viewport_model ... ok
+test pinch_zoom_keeps_content_point_under_the_entry_anchor ... ok
+test viewport_handle_owns_contents_and_derives_ranges_from_layout ... ok
+test viewport_handle_replaces_contents_without_leaving_two_children ... ok
+test vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously ... ok
+test viewport_handle_scroll_clamps_and_repaints_the_viewport ... ok
+test viewport_rejects_a_second_contents_child_atomically ... ok
+test viewport_track_width_uses_available_width_until_content_minimum ... ok
+test zoom_manager_uses_configured_levels_for_step_zoom ... ok
+test zoom_manager_owns_zoom_limits_and_default_center_policy ... ok
+test zoomed_canvas_remains_reachable_at_every_scroll_range_edge ... ok
+test zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m9_connection_contract.rs (target/debug/deps/m9_connection_contract-e1efd32f49e230d3)
+
+running 14 tests
+test label_anchor_reads_named_icon_geometry ... ok
+test anchor_semantic_keys_group_equivalent_owner_geometry ... ok
+test direct_router_uses_opposite_reference_points ... ok
+test direct_router_rejects_constraints_without_partial_output ... ok
+test missing_named_geometry_is_a_structured_anchor_error ... ok
+test locators_preserve_topological_middle_and_arc_fraction_semantics ... ok
+test chopbox_anchor_maps_owner_geometry_into_requested_space ... ok
+test ellipse_and_rounded_rectangle_follow_their_actual_outlines ... ok
+test named_anchor_geometry_key_rejects_empty_values ... ok
+test rectangle_boundary_site_projects_toward_the_reference ... ok
+test route_output_rejects_short_and_non_finite_point_lists ... ok
+test route_rejects_dependency_generation_drift ... ok
+test self_loop_router_routes_same_owner_outside_and_delegates_other_pairs ... ok
+test xy_anchor_maps_from_its_declared_space ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/m9_connection_runtime.rs (target/debug/deps/m9_connection_runtime-f8cfa26f2294aecf)
+
+running 19 tests
+test invalid_connection_geometry_never_commits_resolved_state ... ok
+test inherited_router_defaults_to_draw2d_equivalent_direct_routing ... ok
+test manhattan_router_emits_only_orthogonal_non_duplicate_segments ... ok
+test divergent_viewport_topology_is_rejected_and_reparent_recovers ... ok
+test connection_cannot_anchor_to_its_own_subtree ... ok
+test incompatible_router_change_is_rejected_atomically ... ok
+test manhattan_reservations_are_isolated_by_router_id ... ok
+test bendpoint_router_preserves_absolute_and_relative_constraints ... ok
+test missing_endpoint_is_unresolved_and_binding_it_restores_dirty_state ... ok
+test removing_connection_figure_cleans_runtime_state ... ok
+test matching_viewport_topology_routes_normally ... ok
+test layout_output_geometry_automatically_invalidates_and_reroutes ... ok
+test shared_router_and_anchor_cannot_be_removed_while_referenced ... ok
+test manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically ... ok
+test resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty ... ok
+test unresolved_transition_clears_previously_committed_geometry ... ok
+test fan_router_uses_stable_child_order_and_recenters_after_removal ... ok
+test normal_frame_automatically_resolves_dirty_connection_routes ... ok
+test shared_manhattan_reserves_lanes_across_different_anchor_pairs ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/p2_dispatch_outcome_contract.rs (target/debug/deps/p2_dispatch_outcome_contract-e1f88655adbd6131)
+
+running 2 tests
+test unhandled_press_is_observable_for_editor_tool_fallback ... ok
+test handled_press_reports_target_and_capture_to_the_caller ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/runtime_resize_contract.rs (target/debug/deps/runtime_resize_contract-7aa66d9f888645f4)
+
+running 3 tests
+test logical_viewport_rejects_non_finite_and_negative_sizes ... ok
+test replacing_contents_after_resize_uses_the_current_logical_viewport ... ok
+test logical_viewport_resizes_contents_without_rewriting_child_world_coordinates ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/r8_perf-b3732a04f9fb711b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/scroll_pane_demo-9ea7812444ee0a5f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/shape_app-5281db77900ff1bd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/style_app-8cedd287be22b4f7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/text_app-ff6d3133c9f553ff)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/transform_app-9ab0d8e401edefe2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/update_app-db1753451dce3aaa)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/vello_app-67acd370a96f38e6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/viewport_app-c1aae921859cd9f4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/web_validation-8ae4a9435afbb151)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/widgets_app-9035cab8bce63066)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw_apps
+
+running 2 tests
+test novadraw-apps/src/lib.rs - (line 7) ... ignored
+test novadraw-apps/src/app.rs - app::run_demo_app (line 992) - compile ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 2.86s; merged doctests compilation took 2.54s
+   Doc-tests novadraw_core
+
+running 1 test
+test novadraw-core/src/color.rs - color::Color::hex (line 27) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 1.77s; merged doctests compilation took 1.35s
+   Doc-tests novadraw_demo_scenes
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw_editor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw_geometry
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw_math
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests novadraw_render
+
+running 1 test
+test novadraw-render/src/lib.rs - backend (line 21) ... ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 1.53s; merged doctests compilation took 1.23s
+   Doc-tests novadraw_scene
+
+running 3 tests
+test novadraw-scene/src/log.rs - log (line 7) ... ok
+test novadraw-scene/src/graph/mod.rs - graph::FigureTree (line 587) ... ok
+test novadraw-scene/src/graph/mod.rs - graph::FigureTree::add_child_with_bounds (line 957) ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+all doctests ran in 2.21s; merged doctests compilation took 1.86s
+   Doc-tests web_validation
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

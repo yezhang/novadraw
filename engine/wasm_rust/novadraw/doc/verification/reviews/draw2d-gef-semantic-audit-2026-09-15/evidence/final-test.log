@@ -1,0 +1,23 @@
+   Compiling novadraw-scene v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-scene)
+   Compiling novadraw v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw)
+   Compiling novadraw-editor v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-editor)
+   Compiling novadraw-apps v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-apps)
+   Compiling novadraw-demo-scenes v0.1.0 (/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/novadraw-demo-scenes)
+error[E0204]: the trait `Copy` cannot be implemented for this type
+   --> novadraw-editor/src/viewer/mod.rs:616:17
+    |
+616 | #[derive(Clone, Copy)]
+    |                 ^^^^
+...
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |     -------------------------------------------- this field does not implement `Copy`
+    |
+note: the `Copy` impl for `Option<AnchorSemanticKey>` requires that `AnchorSemanticKey: Copy`
+   --> novadraw-editor/src/viewer/mod.rs:624:24
+    |
+624 |     source_anchor_key: Option<AnchorSemanticKey>,
+    |                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0204`.
+error: could not compile `novadraw-editor` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
