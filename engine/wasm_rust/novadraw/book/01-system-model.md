@@ -42,7 +42,243 @@ Novadraw 从 Draw2D 保留行为语义，再用 Rust 所有权和显式事务重
 - [Draw2D 设计公理](../doc/reference/draw2d/architecture/design-axioms.md)
 - [GEF 核心原理](../doc/reference/gef/core-principles.md)
 
-## 1.3 静态职责
+## 1.3 总体渲染管线
+
+这里的“渲染管线”不只指最后的 GPU 绘制。它从一次平台输入、模型通知或应用修改
+开始，直到场景恢复稳定、生成渲染提交包、后端返回提交结果才结束。后续章节讨论的
+坐标、图形树、布局、输入、图层、连接和编辑框架，都位于这条因果链上。
+
+```mermaid
+flowchart TD
+    subgraph Input["1. 输入与编辑意图"]
+        Native[平台原始事件] --> Adapter[PlatformInputAdapter]
+        Adapter --> Event[逻辑单位 InputEvent]
+        Event --> InputEntry[GraphicalViewer 输入仲裁或 Runtime 直接入口]
+        InputEntry --> Dispatch[EventDispatcher]
+        Dispatch --> Interaction[InteractionState]
+        Dispatch --> Hit[FigureTree 命中测试]
+        Hit --> Callback[Figure + EventContext 回调]
+        Callback --> Effects[RuntimeEffect / PendingMutation]
+
+        Dispatch --> Outcome[DispatchOutcome]
+        Outcome -->|图形未处理且启用 Editor| Tool[Tool]
+        Tool --> Request[Request]
+        Request --> Policy[EditPolicy]
+        Policy --> Command[Command]
+        Command --> Stack[CommandStack]
+        Stack --> Model[应用模型]
+        Model --> ModelEvents[ModelAdapter 有序通知]
+        ModelEvents --> Viewer[GraphicalViewer.refresh]
+    end
+
+    subgraph Source["2. 运行时事务与场景事实"]
+        AppMutation[应用直接修改] --> Transaction[Runtime 顶层事务]
+        Effects --> Transaction
+        Viewer --> Transaction
+        Transaction --> Tree[FigureTree]
+        Tree --> Node[FigureNode]
+        Node --> State[NodeState]
+        Node --> LayoutState[LayoutState]
+        Node --> Behavior[Figure 行为]
+        Transaction --> Facts[已提交事实]
+        Facts --> Queues[失效集 / 脏区集 / 派生工作集 / 通知日志]
+        Queues --> Redraw[PlatformHost 请求重绘]
+    end
+
+    subgraph Stabilize["3. 帧准备与派生状态收敛"]
+        Redraw --> Prepare[Runtime.prepare_submission_state]
+        Prepare -->|Suspended / AwaitingCompletion / Error| NotReady[本轮不产生提交包]
+        Prepare --> Mutations[应用待处理结构修改]
+        Mutations --> Worklist[DerivedWorkKind 固定优先级工作列表]
+        Worklist --> Metrics[内在尺寸与资源状态]
+        Metrics --> Snapshot[LayoutSnapshot]
+        Snapshot --> Manager[LayoutManager]
+        Manager --> LayoutOutput[LayoutOutput]
+        LayoutOutput --> LayoutCommit[校验并原子提交布局]
+        LayoutCommit --> Dependencies[依赖失效传播]
+        Dependencies --> ConnectionRuntime[ConnectionRuntime]
+        ConnectionRuntime --> SceneQuery[SceneQuery + Anchor]
+        SceneQuery --> Router[Router + 分组快照]
+        Router --> RouteOutput[RouteOutput]
+        RouteOutput --> PreparedGeometry[PreparedConnectionGeometry]
+        PreparedGeometry --> RouteCommit[原子提交连接几何]
+        LayoutCommit --> Containers[Layer / Freeform extent / Viewport range]
+        RouteCommit --> Containers
+        Containers --> Presentation[文本、图像与边框呈现快照]
+        Presentation --> Stable[stable_epoch]
+        LayoutCommit -.产生新工作.-> Worklist
+        RouteCommit -.产生新工作.-> Worklist
+        Containers -.产生新工作.-> Worklist
+    end
+
+    subgraph Record["4. 重绘区域与命令录制"]
+        Stable --> Accessibility[发布无障碍快照]
+        Stable --> DirtySnapshot[UpdateManager 冻结脏区快照]
+        DirtySnapshot --> Damage[父链投影与裁剪]
+        Damage --> DamageSet[DamageSet]
+        Stable --> Renderer[FigureRenderer 递归遍历]
+        Renderer --> Canvas[NdCanvas]
+        Canvas --> Commands[RenderCommand 序列]
+        Commands --> Capability[BackendCapabilities 检查]
+    end
+
+    subgraph Submit["5. 提交、呈现与完成反馈"]
+        DamageSet --> Submission[RenderSubmission]
+        Capability --> Submission
+        Resources[ResourceSync] --> Submission
+        Surface[SurfaceInfo + session_id + frame_id] --> Submission
+        Submission --> StableNotify[发布 Prepared 与稳定场景通知]
+        StableNotify --> Ready[FramePreparation::Ready]
+        Ready --> SessionGate[BackendSessionGate]
+        SessionGate --> Backend[RenderBackend / Vello]
+        Backend -->|Presented| Pixels[平台绘制表面]
+        Backend --> Outcome[RenderOutcome]
+        Outcome --> Complete[Runtime.complete_submission]
+        Complete --> SubmittedNotify[发布 Submitted 通知]
+        SubmittedNotify -->|Presented| Done[完成当前帧]
+        SubmittedNotify -->|Retry / Skipped / Unsupported| Retry[恢复资源并请求全量重绘]
+        Retry --> Redraw
+    end
+
+    Prepare -->|Idle| IdleNotify[发布稳定场景通知]
+```
+
+### 一次输入如何形成一帧
+
+上面的流程图回答“数据经过哪些结构”，下面的时序图回答“这些结构按什么顺序互相
+调用”。它选择启用了 Editor 的最长路径；不使用 Editor 的应用会跳过
+`GraphicalViewer / EditorDomain`，由平台宿主直接把归一化输入交给 `Runtime`。
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as PlatformHost
+    participant Editor as GraphicalViewer / EditorDomain
+    participant Runtime
+    participant Figure
+    participant Model
+    participant Layout as LayoutManager
+    participant Connection as ConnectionRuntime
+    participant Update as UpdateManager
+    participant Renderer as FigureRenderer
+    participant Backend as RenderBackend
+
+    Host->>Editor: 归一化 InputEvent
+    Editor->>Runtime: 先执行图形核心输入分发
+    Runtime->>Runtime: EventDispatcher 读取 InteractionState
+    Runtime->>Runtime: FigureTree 命中测试与坐标降域
+    Runtime->>Figure: 使用 EventContext 回调目标
+    Figure-->>Runtime: RuntimeEffect / PendingMutation
+    Runtime->>Runtime: 按因果顺序提交效果与结构修改
+    Runtime-->>Editor: DispatchOutcome
+
+    alt 图形已处理或已捕获
+        Editor->>Editor: 不启动编辑工具
+    else 输入交给编辑框架
+        Editor->>Editor: Tool -> Request -> EditPolicy
+        Editor->>Model: CommandStack.execute(Command)
+        Model-->>Editor: ModelAdapter 有序通知
+        Editor->>Runtime: GraphicalViewer.refresh 投影场景变化
+    end
+
+    Runtime-->>Host: PlatformHost.request_redraw
+    Host->>Runtime: prepare_submission_state(surface, capabilities)
+
+    alt 表面暂停、前帧未完成或准备失败
+        Runtime-->>Host: Suspended / AwaitingCompletion / Error
+    else 进入帧准备
+        Runtime->>Runtime: 应用待处理修改并建立派生工作列表
+        loop 直到全部派生工作队列排空
+            Runtime->>Layout: layout(LayoutSnapshot, LayoutOutput)
+            Layout-->>Runtime: 候选子节点边界
+            Runtime->>Runtime: 校验并原子提交布局
+            Runtime->>Connection: 解析脏连接分组
+            Connection-->>Runtime: RouteOutput / PreparedConnectionGeometry
+            Runtime->>Runtime: 提交路径并更新图层、自由范围和视口
+        end
+        Runtime->>Runtime: 晋升 stable_epoch 并发布无障碍快照
+        Runtime->>Update: 冻结脏区并沿父链计算
+        Update-->>Runtime: DamageSet
+        Runtime->>Renderer: 递归遍历稳定 FigureTree
+        Renderer-->>Runtime: NdCanvas / RenderCommand
+        Runtime->>Runtime: 合入 ResourceSync、SurfaceInfo 和帧身份
+        Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
+        Host->>Backend: submit(RenderSubmission)
+        Backend-->>Host: RenderOutcome
+        Host->>Runtime: complete_submission(session_id, frame_id, outcome)
+        alt Presented
+            Runtime-->>Host: 完成当前帧
+        else Retry / Skipped / Unsupported
+            Runtime->>Runtime: 恢复资源状态并标记全量重绘
+            Runtime-->>Host: 请求下一次重绘
+        end
+    end
+```
+
+这张时序图表达的是协议顺序，不表示每一帧都会执行所有可选阶段：
+
+- 没有失效布局时，不调用具体 `LayoutManager`；
+- 没有脏连接时，不调用 `ConnectionRuntime` 路由；
+- 没有像素或资源变化时，帧准备可以返回 `Idle`；
+- 循环表示按固定优先级排空派生工作，不表示反复扫描整棵图形树；
+- `RenderSubmission` 返回给宿主前已经形成稳定场景，后端不能反向修改
+  `FigureTree`。
+
+总体流程有三类入口，但最终汇入同一个 `Runtime` 事务：
+
+1. **图形原生输入路径**：输入经过命中测试后调用一个 `Figure`；回调只记录效果，
+   运行时随后提交这些效果。
+2. **编辑框架路径**：图形未处理输入时，`Tool` 把输入解释成 `Request`，
+   `EditPolicy` 产生 `Command`，命令修改模型，再由 `GraphicalViewer` 把模型通知
+   投影回图形场景。
+3. **应用直接修改路径**：不经过编辑框架的命名操作直接进入 `Runtime` 事务。
+
+三条路径只能提交源状态变化或更新请求，不能直接拼装最终帧。源状态提交后，运行时
+按固定优先级收敛所有派生状态。布局提交可能使连接失效，连接路径变化又可能改变
+图层自由范围和视口范围，因此布局、连接和容器阶段都可能向工作列表追加新任务；
+只有工作列表排空后才能晋升 `stable_epoch`。
+
+稳定场景形成后，帧准备分成两条汇合支路：
+
+- `UpdateManager` 把节点本地脏区沿坐标父链投影并裁剪，得到 `DamageSet`；
+- `FigureRenderer` 递归遍历稳定的 `FigureTree`，向 `NdCanvas` 录制
+  `RenderCommand`。
+
+两者与资源同步、绘制表面及会话/帧身份一起组成 `RenderSubmission`。后端提交完成后
+必须把 `RenderOutcome` 交还 `Runtime::complete_submission`：成功时结束当前帧；重试
+或失败时恢复资源同步状态，并把下一帧提升为全量重绘。稳定场景通知在提交包准备好
+或确认本轮无帧可提交后发布；后端提交结果则在完成回调后发布，二者不是同一类通知。
+如果绘制表面暂停、前一帧尚未完成或稳定化失败，`FramePreparation` 会返回
+`Suspended`、`AwaitingCompletion` 或 `Error`，本轮不会产生不完整的提交包。
+
+### 管线阶段与后续章节
+
+| 阶段 | 关键数据结构 | 后续章节 |
+|---|---|---|
+| 几何事实与坐标传播 | `NodeState.bounds`、`Insets`、`ChildTransform`、各坐标域 | [第 2 章](02-geometry-and-coordinates.md) |
+| 图形树与绘制遍历 | `FigureTree`、`FigureNode`、`Figure`、`FigureRenderer`、`NdCanvas` | [第 3 章](03-figure-tree-and-rendering.md) |
+| 布局、稳定化与帧提交 | `LayoutSnapshot`、`LayoutManager`、`LayoutOutput`、`UpdateManager`、`DamageSet`、`RenderSubmission` | [第 4 章](04-layout-update-and-frame.md) |
+| 输入与持续交互状态 | `InputEvent`、`EventDispatcher`、`InteractionState`、`EventContext`、`DispatchOutcome` | [第 5 章](05-input-and-interaction.md) |
+| 图层、视口与滚动 | `LayeredPaneState`、`FreeformState`、`ViewportLayout`、`RangeModel`、`ZoomManager` | [第 6 章](06-layers-and-viewport.md) |
+| 连接派生几何 | `ConnectionRuntime`、`SceneQuery`、`Anchor`、`Router`、`RouteOutput` | [第 7 章](07-connections.md) |
+| 模型编辑闭环 | `ModelAdapter`、`EditPart`、`GraphicalViewer`、`Tool`、`Request`、`EditPolicy`、`CommandStack` | [第 8 章](08-editor-framework.md) |
+| 失败恢复与验证 | `FramePreparation`、`RenderOutcome`、故障锁定状态与验证套件 | [第 9 章](09-verification-and-extension.md) |
+
+总管线的主要代码入口：
+
+- 平台帧循环与后端提交：
+  [`novadraw-apps/src/app.rs`](../novadraw-apps/src/app.rs)
+- 帧准备、派生状态收敛与完成反馈：
+  [`Runtime::prepare_submission_state / stabilize / complete_submission`](../novadraw-scene/src/runtime/runtime.rs)
+- 图形树递归命令录制：
+  [`render_recursive.rs`](../novadraw-scene/src/graph/render_recursive.rs)
+- 渲染提交包与后端接口：
+  [`submission.rs`](../novadraw-render/src/submission.rs)、
+  [`traits.rs`](../novadraw-render/src/traits.rs)
+- 编辑框架输入仲裁与模型投影：
+  [`GraphicalViewer`](../novadraw-editor/src/viewer/mod.rs)
+
+## 1.4 静态职责
 
 ```mermaid
 flowchart TB
@@ -123,7 +359,7 @@ pub struct FigureNode {
 平台宿主负责平台事件循环、绘制表面生命周期和重绘调度；渲染后端只消费渲染提交包
 （`RenderSubmission`）。平台类型不进入图形行为、布局和事件协议。
 
-## 1.4 为什么使用 ID 引用树
+## 1.5 为什么使用 ID 引用树
 
 Java Draw2D 可以让对象互相保存引用。Rust 中如果 `Figure` 同时拥有父节点、子节点
 和管理器引用，会迅速形成自引用、别名可变借用与销毁顺序问题。
@@ -146,7 +382,7 @@ Novadraw 使用：
 外部持久化业务 ID 与运行时 `FigureId` 不同。跨场景运行时的默认迁移方式是从模型
 或描述重建，并获得新运行时身份。
 
-## 1.5 单线程核心与短借用
+## 1.6 单线程核心与短借用
 
 图形树、交互状态和更新事务默认由单个界面/运行时线程独占。核心对象不被统一
 包装成 `Arc<Mutex<_>>`，也不默认要求所有 Figure `Send + Sync`。
@@ -162,7 +398,7 @@ Novadraw 使用：
 
 这使线程安全成为边界策略，而不是所有领域对象的额外成本。
 
-## 1.6 因果事务
+## 1.7 因果事务
 
 **因果事务**是指运行时严格按效果产生的顺序收集、校验并提交一次操作的全部影响。
 `Runtime` 顶层事务按发生顺序处理：
@@ -203,7 +439,7 @@ enum RuntimeEffect {
 - [`RuntimeEffect`](../novadraw-scene/src/runtime/context.rs#L14-L31)
 - [`PendingMutation`](../novadraw-scene/src/runtime/mutation/mod.rs)
 
-## 1.7 稳定状态与可观察状态
+## 1.8 稳定状态与可观察状态
 
 一次**源状态修改**（source mutation，即直接来自应用或输入的原始变化）可以触发
 布局、连接重路由、自由范围、视口范围和文本呈现等多级派生计算。只有所有必需工作
@@ -230,7 +466,7 @@ enum RuntimeEffect {
 - [`Runtime::stabilize`](../novadraw-scene/src/runtime/runtime.rs#L3533-L3614)
 - [`Runtime::stable_query`](../novadraw-scene/src/runtime/runtime.rs#L2706-L2715)
 
-## 1.8 失败边界
+## 1.9 失败边界
 
 Novadraw 不承诺回滚任意用户代码副作用。原子性按层划分：
 
@@ -251,7 +487,7 @@ Novadraw 不承诺回滚任意用户代码副作用。原子性按层划分：
 - [总体架构](../doc/design/architecture/overview.md)
 - [动态协议](../doc/design/architecture/dynamic-architecture.md)
 
-## 1.9 本章检查清单
+## 1.10 本章检查清单
 
 理解一个新能力时先回答：
 
