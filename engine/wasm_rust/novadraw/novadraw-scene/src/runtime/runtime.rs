@@ -2484,7 +2484,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2500,7 +2501,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_figure_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2516,7 +2518,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_coordinate_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2532,7 +2535,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_ancestor_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2551,7 +2555,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_property_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2567,7 +2572,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_action_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2583,7 +2589,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_layout_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
@@ -2602,7 +2609,8 @@ impl Runtime {
     ) -> Result<ListenerId, RuntimeMutationError> {
         self.validate_listener_scope(scope)?;
         let id = self.updates.add_observation_listener(listener);
-        debug_assert!(self.updates.set_listener_scope(id, scope));
+        let scope_was_set = self.updates.set_listener_scope(id, scope);
+        debug_assert!(scope_was_set);
         Ok(id)
     }
 
