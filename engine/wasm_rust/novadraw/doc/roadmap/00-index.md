@@ -14,6 +14,7 @@
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G6 编号、依赖和当前状态 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
+| `doc/roadmap/p2-delta-backlog.md` | **P2 backlog**：Core 1.0 之后已确认、尚未进入实施的 delta | 人读，后续能力入口 | 每项状态变化时 |
 
 ## 编号唯一来源
 
@@ -86,3 +87,4 @@ M8/M9 与 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
 | `editor/00-index.md` | Editor G0-G6 编号、状态和验收检查点 |
 | `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |
+| `p2-delta-backlog.md` | 已确认但尚未进入实施的 P2 delta |
