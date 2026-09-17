@@ -41,7 +41,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `viewer.focus` | focus EditPart | 与 Figure keyboard focus 分离的 viewer state | verified | G3 |
 | `root.layers` | primary/connection/handle/feedback layers | keyed LayeredPane + scalable/unscaled feedback 域 | verified | G3 |
 | `request.protocol` | `Request` 及 typed subclasses | typed enum/struct，不使用 Any map 作为主协议 | verified | G4 |
-| `policy.protocol` | `EditPolicy`、role | target、command contribution、feedback | verified | G4 |
+| `policy.protocol` | `EditPolicy`、role | 候选 policy 解析首个 target；校验 target 后在目标 Part 聚合 command/feedback，并保留原 source | verified | G4 |
 | `tool.lifecycle` | `Tool` / `AbstractTool` | EditorDomain 级 active Tool 状态机 | verified | G4 |
 | `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | verified | G4 |
 | `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，SelectionTool 复用相同 outcome | verified | G3/G4 |
@@ -75,6 +75,11 @@ Connection 是例外：它由 source/target part 发现，visual 放在 connecti
 Viewer 使用通用 Figure hit-test，而不是只查 Figure event handler。命中内部 Figure
 后沿 ancestor 链查找首个已注册 visual owner；若没有 part，则回退到 contents。
 Handle targeting 必须先于普通 part targeting，并排除不相关 layer。
+
+命中候选不等于业务 target。候选 Part 的 policies 按稳定 role 顺序返回首个非空
+target；Viewer 校验其 namespace、生命周期和模型绑定，再在该 target 的 policies 上
+聚合 command 与 feedback。Request 的 source 不随重定向改变；多个 source 汇聚到同一
+target 时只聚合一次。
 
 ### 命令
 

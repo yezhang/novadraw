@@ -232,6 +232,18 @@ EditPolicy 通过稳定 role 安装到 PartNode。Policy 可以：
 - 贡献 Command；
 - 创建、更新和清除 source/target feedback。
 
+target 解析与贡献聚合是两个阶段：
+
+1. 对每个 Request source，把该 Part 视为候选，按稳定 role 顺序取首个非空 target；
+2. 校验 target 属于当前 Viewer、仍 active 且绑定模型；
+3. 保留 Request 中的原始 source 身份，在 target Part 的 policies 上聚合 Command 和
+   feedback；
+4. 多个 source 指向同一 target 时只聚合一次；target 不递归重定向。
+
+foreign、retired 或无模型 target 必须结构化拒绝，不能退回 source，也不能把 target
+仅当作“是否理解”的布尔值。feedback owner 使用解析后的 target，以便删除或失活时
+按真实归属清理。
+
 多个 Command contribution 的组合顺序必须确定；显式拒绝与“无贡献”必须区分。
 
 ## 9. Command 与 CommandStack

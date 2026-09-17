@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible, time::Duration};
+use std::{cell::RefCell, collections::HashMap, convert::Infallible, rc::Rc, time::Duration};
 
 use novadraw_editor::{
     ChangeBoundsRequest, Command, CommandError, CreateRequest, CreationType, DeleteRequest,
@@ -338,7 +338,58 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
     }
 }
 
-struct DiagramFactory;
+#[derive(Default)]
+struct PolicyRoutingState {
+    target: Option<novadraw_editor::EditPartId>,
+    command_hosts: Vec<NodeId>,
+    feedback_hosts: Vec<NodeId>,
+}
+
+struct RoutingPolicy {
+    state: Rc<RefCell<PolicyRoutingState>>,
+}
+
+impl EditPolicy<DiagramModel> for RoutingPolicy {
+    fn understands(&self, request: &EditorRequest) -> bool {
+        matches!(request, EditorRequest::Delete(_))
+    }
+
+    fn target(
+        &self,
+        host: PolicyHost<NodeId>,
+        request: &EditorRequest,
+    ) -> Option<novadraw_editor::EditPartId> {
+        self.understands(request)
+            .then(|| self.state.borrow().target.unwrap_or(host.part()))
+    }
+
+    fn command(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _request: &EditorRequest,
+        _model: &DiagramModel,
+    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+        self.state.borrow_mut().command_hosts.push(host.model());
+        Ok(None)
+    }
+
+    fn feedback(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _request: &EditorRequest,
+        model: &DiagramModel,
+    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        self.state.borrow_mut().feedback_hosts.push(host.model());
+        Ok(vec![FeedbackVisual::scaled(Box::new(
+            RectangleFigure::from_bounds(model.nodes[&host.model()].bounds),
+        ))])
+    }
+}
+
+#[derive(Default)]
+struct DiagramFactory {
+    policy_routing: Option<Rc<RefCell<PolicyRoutingState>>>,
+}
 
 impl EditPartFactory<DiagramModel> for DiagramFactory {
     fn create(
@@ -346,7 +397,13 @@ impl EditPartFactory<DiagramModel> for DiagramFactory {
         _context: PartFactoryContext<NodeId>,
         _model: &DiagramModel,
     ) -> Result<Box<dyn EditPartBehavior<DiagramModel>>, EditPartError> {
-        Ok(Box::new(DiagramPart))
+        Ok(if let Some(state) = &self.policy_routing {
+            Box::new(RoutingPart {
+                state: Rc::clone(state),
+            })
+        } else {
+            Box::new(DiagramPart)
+        })
     }
 }
 
@@ -355,7 +412,48 @@ fn viewer() -> GraphicalViewer<DiagramModel, DiagramFactory> {
 }
 
 fn viewer_with_bounds(bounds: Rectangle) -> GraphicalViewer<DiagramModel, DiagramFactory> {
-    GraphicalViewer::new(DiagramModel::new(), DiagramFactory, bounds).unwrap()
+    GraphicalViewer::new(DiagramModel::new(), DiagramFactory::default(), bounds).unwrap()
+}
+
+struct RoutingPart {
+    state: Rc<RefCell<PolicyRoutingState>>,
+}
+
+impl EditPartBehavior<DiagramModel> for RoutingPart {
+    fn create_figure(
+        &mut self,
+        model: &DiagramModel,
+        model_id: NodeId,
+    ) -> Result<Box<dyn Figure>, EditPartError> {
+        let bounds = model.nodes[&model_id].bounds;
+        Ok(Box::new(RectangleFigure::from_bounds(bounds)))
+    }
+
+    fn create_policies(
+        &mut self,
+        _model: &DiagramModel,
+        _model_id: NodeId,
+    ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
+        Ok(vec![(
+            PolicyRole::Component,
+            Box::new(RoutingPolicy {
+                state: Rc::clone(&self.state),
+            }),
+        )])
+    }
+}
+
+fn routing_viewer(
+    state: Rc<RefCell<PolicyRoutingState>>,
+) -> GraphicalViewer<DiagramModel, DiagramFactory> {
+    GraphicalViewer::new(
+        DiagramModel::new(),
+        DiagramFactory {
+            policy_routing: Some(state),
+        },
+        Rectangle::new(0.0, 0.0, 640.0, 480.0),
+    )
+    .unwrap()
 }
 
 #[test]
@@ -735,5 +833,58 @@ fn policy_rejection_is_distinct_from_no_command_contribution() {
     assert!(matches!(
         domain.execute_request(&mut viewer, &no_contribution),
         Err(EditorDomainError::NoCommand)
+    ));
+}
+
+#[test]
+fn policy_target_routes_command_and_feedback_to_the_resolved_part_once() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
+    let mut viewer = routing_viewer(Rc::clone(&state));
+    let first = viewer.part_for_model(FIRST).unwrap();
+    let second = viewer.part_for_model(SECOND).unwrap();
+    state.borrow_mut().target = Some(second);
+    let request = EditorRequest::Delete(DeleteRequest::new(
+        vec![first, second],
+        InteractionRevision::initial(),
+    ));
+
+    assert!(viewer.command_for_request(&request).unwrap().is_none());
+    assert_eq!(state.borrow().command_hosts, vec![SECOND]);
+
+    let feedback = viewer.show_feedback_for_request(&request).unwrap();
+    assert_eq!(state.borrow().feedback_hosts, vec![SECOND]);
+    assert_eq!(feedback.len(), 1);
+    assert_eq!(
+        viewer.visual_owner(feedback[0]).unwrap().owner_part(),
+        Some(second)
+    );
+}
+
+#[test]
+fn policy_target_rejects_foreign_and_stale_parts() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
+    let mut viewer = routing_viewer(Rc::clone(&state));
+    let source = viewer.part_for_model(FIRST).unwrap();
+    let request = EditorRequest::Delete(DeleteRequest::new(
+        vec![source],
+        InteractionRevision::initial(),
+    ));
+
+    let foreign_state = Rc::new(RefCell::new(PolicyRoutingState::default()));
+    let foreign_viewer = routing_viewer(foreign_state);
+    let foreign = foreign_viewer.part_for_model(SECOND).unwrap();
+    state.borrow_mut().target = Some(foreign);
+    assert!(matches!(
+        viewer.command_for_request(&request),
+        Err(ViewerError::InvalidPart(part)) if part == foreign
+    ));
+
+    let stale = viewer.part_for_model(SECOND).unwrap();
+    viewer.model_mut().remove(SECOND);
+    viewer.refresh().unwrap();
+    state.borrow_mut().target = Some(stale);
+    assert!(matches!(
+        viewer.show_feedback_for_request(&request),
+        Err(ViewerError::InvalidPart(part)) if part == stale
     ));
 }

@@ -1337,6 +1337,46 @@ where
             })
     }
 
+    fn resolve_policy_target(
+        &mut self,
+        candidate: EditPartId,
+        request: &EditorRequest,
+    ) -> Result<Option<EditPartId>, ViewerError> {
+        self.validate_selectable(candidate)?;
+        let host = self.policy_host(candidate)?;
+        let target = self.policies.roles_mut(candidate).and_then(|roles| {
+            roles
+                .values()
+                .find_map(|policy| policy.target(host, request))
+        });
+        if let Some(target) = target {
+            self.validate_selectable(target)?;
+        }
+        Ok(target)
+    }
+
+    fn resolve_policy_targets(
+        &mut self,
+        request: &EditorRequest,
+    ) -> Result<Vec<EditPartId>, ViewerError> {
+        let mut seen_sources = HashSet::new();
+        let mut seen_targets = HashSet::new();
+        let mut targets = Vec::new();
+        for &source in request.source_parts() {
+            if !seen_sources.insert(source) {
+                return Err(
+                    PolicyError::operation("request contains a duplicate source part").into(),
+                );
+            }
+            if let Some(target) = self.resolve_policy_target(source, request)?
+                && seen_targets.insert(target)
+            {
+                targets.push(target);
+            }
+        }
+        Ok(targets)
+    }
+
     /// Resolves deterministic policy command contributions for a request.
     pub fn command_for_request(
         &mut self,
@@ -1345,22 +1385,14 @@ where
     where
         A: 'static,
     {
-        let mut seen = HashSet::new();
         let mut commands = Vec::new();
-        for &part in request.source_parts() {
-            self.validate_selectable(part)?;
-            if !seen.insert(part) {
-                return Err(
-                    PolicyError::operation("request contains a duplicate source part").into(),
-                );
-            }
-            let host = self.policy_host(part)?;
-            let Some(roles) = self.policies.roles_mut(part) else {
+        for target in self.resolve_policy_targets(request)? {
+            let host = self.policy_host(target)?;
+            let Some(roles) = self.policies.roles_mut(target) else {
                 continue;
             };
             for policy in roles.values_mut() {
                 if policy.understands(request)
-                    && policy.target(host, request).is_some()
                     && let Some(command) = policy.command(host, request, &self.model)?
                 {
                     commands.push(command);
@@ -1385,26 +1417,19 @@ where
         &mut self,
         request: &EditorRequest,
     ) -> Result<Vec<FigureId>, ViewerError> {
-        let mut seen = HashSet::new();
         let mut contributions = Vec::new();
-        for &part in request.source_parts() {
-            self.validate_selectable(part)?;
-            if !seen.insert(part) {
-                return Err(
-                    PolicyError::operation("request contains a duplicate source part").into(),
-                );
-            }
-            let host = self.policy_host(part)?;
-            let Some(roles) = self.policies.roles_mut(part) else {
+        for target in self.resolve_policy_targets(request)? {
+            let host = self.policy_host(target)?;
+            let Some(roles) = self.policies.roles_mut(target) else {
                 continue;
             };
             for policy in roles.values_mut() {
-                if policy.understands(request) && policy.target(host, request).is_some() {
+                if policy.understands(request) {
                     contributions.extend(
                         policy
                             .feedback(host, request, &self.model)?
                             .into_iter()
-                            .map(|feedback| (part, feedback)),
+                            .map(|feedback| (target, feedback)),
                     );
                 }
             }
