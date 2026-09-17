@@ -294,9 +294,10 @@ fn removing_parts_reconciles_selection_focus_and_owned_overlays() {
 
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(3), NodeId(4)]);
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
     viewer.refresh().unwrap();
 
     assert!(viewer.selection().is_empty());

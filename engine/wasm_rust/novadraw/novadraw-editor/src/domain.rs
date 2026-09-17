@@ -203,7 +203,7 @@ where
         let command = viewer
             .command_for_request(request)?
             .ok_or(EditorDomainError::NoCommand)?;
-        self.command_stack.execute(viewer.model_mut(), command)?;
+        self.command_stack.execute(viewer.model_mut()?, command)?;
         viewer.refresh()?;
         Ok(())
     }
@@ -214,7 +214,7 @@ where
         F: EditPartFactory<A>,
     {
         self.cancel_active_tools(viewer)?;
-        self.command_stack.undo(viewer.model_mut())?;
+        self.command_stack.undo(viewer.model_mut()?)?;
         viewer.refresh()?;
         Ok(())
     }
@@ -225,7 +225,7 @@ where
         F: EditPartFactory<A>,
     {
         self.cancel_active_tools(viewer)?;
-        self.command_stack.redo(viewer.model_mut())?;
+        self.command_stack.redo(viewer.model_mut()?)?;
         viewer.refresh()?;
         Ok(())
     }
@@ -254,7 +254,7 @@ where
                 self.pointer = None;
             }
             if let Some(command) = command {
-                self.command_stack.execute(viewer.model_mut(), command)?;
+                self.command_stack.execute(viewer.model_mut()?, command)?;
                 viewer.refresh()?;
             }
             return Ok(outcome);
@@ -413,7 +413,7 @@ where
                 .into_parts();
             let command_executed = command.is_some();
             if let Some(command) = command {
-                self.command_stack.execute(viewer.model_mut(), command)?;
+                self.command_stack.execute(viewer.model_mut()?, command)?;
                 viewer.refresh()?;
             }
             return Ok(DomainPointerRelease {

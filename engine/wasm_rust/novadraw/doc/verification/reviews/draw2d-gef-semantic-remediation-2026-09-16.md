@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：6；
-- 待关闭：11；
+- 已关闭：7；
+- 待关闭：10；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -31,6 +31,7 @@
 | Native pointer leave 保留 capture | pointer leave 清理 capture 与 pointer pressed，并向原 `mouseTarget` 发送一次 Exited | `pointer_exit_clears_capture_and_exits_the_mouse_target`、`event-app:pointer_leave_cleanup`：PASS |
 | Policy target 身份未参与路由 | 候选 policy 解析首个 target；校验 target 后在目标 Part 聚合 command/feedback，同 target 去重 | `g4_editing_loop_contract::policy_target_*`、G3-G5.5 replay：PASS |
 | F13 Viewer 初始投影失败遗漏停用 | Viewer Drop 从 synthetic root 遍历实际 Part，并仅按 `PartNode::is_active` 停用已激活项，不再依赖 contents 最终提交 | `initial_projection_failure_deactivates_every_activated_part_once`、`late_initial_projection_failure_deactivates_the_complete_live_prefix_once`、`g2.viewer-projection`：PASS |
+| F15 Viewer 扩展 panic 绕过 fault | `refresh` 以 unwind guard 包围完整投影事务，panic 时先 fault 再继续 unwind；`model_mut` 在 fault 后拒绝业务写入 | `refresh_panic_faults_viewer_after_partial_visual_mutation`、`g2.viewer-projection`、`cargo xtask check --full`：PASS |
 
 release 定向测试：
 

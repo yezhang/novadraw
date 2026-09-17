@@ -4,6 +4,7 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
     fmt,
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     sync::Arc,
 };
 
@@ -748,9 +749,10 @@ where
         &self.model
     }
 
-    /// Returns mutable application model access for commands and host integration.
-    pub fn model_mut(&mut self) -> &mut A {
-        &mut self.model
+    /// Returns mutable application model access while the Viewer can still accept edits.
+    pub fn model_mut(&mut self) -> Result<&mut A, ViewerError> {
+        self.ensure_ready()?;
+        Ok(&mut self.model)
     }
 
     /// Returns the Figure Runtime.
@@ -1776,9 +1778,17 @@ where
 
     /// Applies one validated notification batch to the EditPart and Figure projections.
     pub fn refresh(&mut self) -> Result<bool, ViewerError> {
-        if self.faulted {
-            return Err(ViewerError::Faulted);
+        self.ensure_ready()?;
+        match catch_unwind(AssertUnwindSafe(|| self.refresh_projection())) {
+            Ok(result) => result,
+            Err(payload) => {
+                self.faulted = true;
+                resume_unwind(payload)
+            }
         }
+    }
+
+    fn refresh_projection(&mut self) -> Result<bool, ViewerError> {
         let events = self.model.drain_events();
         if events.is_empty() {
             if self.model.revision() == self.applied_revision {
@@ -1864,6 +1874,13 @@ where
     fn fail<T>(&mut self, error: ViewerError) -> Result<T, ViewerError> {
         self.faulted = true;
         Err(error)
+    }
+
+    fn ensure_ready(&self) -> Result<(), ViewerError> {
+        if self.faulted {
+            return Err(ViewerError::Faulted);
+        }
+        Ok(())
     }
 
     fn create_subtree(

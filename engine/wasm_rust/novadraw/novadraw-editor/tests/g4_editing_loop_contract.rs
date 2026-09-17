@@ -880,7 +880,7 @@ fn policy_target_rejects_foreign_and_stale_parts() {
     ));
 
     let stale = viewer.part_for_model(SECOND).unwrap();
-    viewer.model_mut().remove(SECOND);
+    viewer.model_mut().unwrap().remove(SECOND);
     viewer.refresh().unwrap();
     state.borrow_mut().target = Some(stale);
     assert!(matches!(

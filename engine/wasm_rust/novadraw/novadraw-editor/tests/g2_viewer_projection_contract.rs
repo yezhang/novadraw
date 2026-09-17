@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     convert::Infallible,
+    panic::{AssertUnwindSafe, catch_unwind},
     sync::{Arc, Mutex},
 };
 
@@ -26,6 +27,7 @@ struct DiagramModel {
     children: HashMap<NodeId, Vec<NodeId>>,
     bounds: HashMap<NodeId, Rectangle>,
     events: Vec<ModelEvent<NodeId, DiagramEvent>>,
+    panic_during_refresh: bool,
 }
 
 impl DiagramModel {
@@ -44,6 +46,7 @@ impl DiagramModel {
                 (NodeId(4), Rectangle::new(5.0, 5.0, 40.0, 30.0)),
             ]),
             events: Vec::new(),
+            panic_during_refresh: false,
         }
     }
 
@@ -117,6 +120,9 @@ impl EditPartBehavior<DiagramModel> for RectanglePart {
         context: &mut VisualUpdateContext<'_>,
     ) -> Result<(), EditPartError> {
         context.set_primary_bounds(model.bounds[&model_id])?;
+        if model.panic_during_refresh && model_id == NodeId(2) {
+            panic!("refresh extension panic");
+        }
         Ok(())
     }
 
@@ -241,13 +247,15 @@ fn refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup() {
 
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(3), NodeId(5)]);
     viewer
         .model_mut()
+        .unwrap()
         .bounds
         .insert(NodeId(5), Rectangle::new(20.0, 140.0, 80.0, 60.0));
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
     viewer.refresh().unwrap();
 
     let new_three = viewer.part_for_model(NodeId(3)).unwrap();
@@ -278,8 +286,8 @@ fn refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup() {
 fn revision_gap_faults_viewer_before_projection_changes() {
     let (mut viewer, _) = viewer();
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
-    viewer.model_mut().revision = ModelRevision::new(3).unwrap();
-    viewer.model_mut().events.push(ModelEvent::new(
+    viewer.model_mut().unwrap().revision = ModelRevision::new(3).unwrap();
+    viewer.model_mut().unwrap().events.push(ModelEvent::new(
         ModelRevision::new(3).unwrap(),
         NodeId(1),
         DiagramEvent::Changed,
@@ -301,9 +309,13 @@ fn one_revision_may_carry_multiple_ordered_events() {
     let (mut viewer, _) = viewer();
     let revision = viewer.model().revision.next().unwrap();
     let updated = Rectangle::new(160.0, 40.0, 120.0, 90.0);
-    viewer.model_mut().revision = revision;
-    viewer.model_mut().bounds.insert(NodeId(3), updated);
-    viewer.model_mut().events.extend([
+    viewer.model_mut().unwrap().revision = revision;
+    viewer
+        .model_mut()
+        .unwrap()
+        .bounds
+        .insert(NodeId(3), updated);
+    viewer.model_mut().unwrap().events.extend([
         ModelEvent::new(revision, NodeId(1), DiagramEvent::Changed),
         ModelEvent::new(revision, NodeId(3), DiagramEvent::Changed),
     ]);
@@ -342,7 +354,7 @@ fn initial_projection_absorbs_events_already_represented_by_the_snapshot() {
 fn stale_notification_faults_viewer_without_changing_projection() {
     let (mut viewer, _) = viewer();
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
-    viewer.model_mut().events.push(ModelEvent::new(
+    viewer.model_mut().unwrap().events.push(ModelEvent::new(
         ModelRevision::initial(),
         NodeId(1),
         DiagramEvent::Changed,
@@ -360,6 +372,34 @@ fn stale_notification_faults_viewer_without_changing_projection() {
 }
 
 #[test]
+fn refresh_panic_faults_viewer_after_partial_visual_mutation() {
+    let (mut viewer, _) = viewer();
+    let part = viewer.part_for_model(NodeId(2)).unwrap();
+    let primary = viewer.parts().get(part).unwrap().primary_figure();
+    let applied_revision = viewer.applied_revision();
+    let updated = Rectangle::new(30.0, 40.0, 120.0, 90.0);
+    viewer
+        .model_mut()
+        .unwrap()
+        .bounds
+        .insert(NodeId(2), updated);
+    viewer.model_mut().unwrap().panic_during_refresh = true;
+    viewer.model_mut().unwrap().publish(NodeId(2));
+
+    let panic = catch_unwind(AssertUnwindSafe(|| viewer.refresh()));
+
+    assert!(panic.is_err());
+    assert!(viewer.is_faulted());
+    assert_eq!(viewer.applied_revision(), applied_revision);
+    assert_eq!(
+        viewer.runtime().tree().figure_bounds(primary),
+        Some(updated)
+    );
+    assert!(matches!(viewer.refresh(), Err(ViewerError::Faulted)));
+    assert!(matches!(viewer.model_mut(), Err(ViewerError::Faulted)));
+}
+
+#[test]
 fn removing_and_readding_a_model_rebuilds_runtime_identity() {
     let (mut viewer, _) = viewer();
     let old_part = viewer.part_for_model(NodeId(2)).unwrap();
@@ -367,15 +407,17 @@ fn removing_and_readding_a_model_rebuilds_runtime_identity() {
 
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(3)]);
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
     viewer.refresh().unwrap();
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
     viewer.refresh().unwrap();
 
     let new_part = viewer.part_for_model(NodeId(2)).unwrap();
@@ -392,14 +434,20 @@ fn reparenting_is_order_independent_and_rebuilds_the_moved_part() {
     let old_part = viewer.part_for_model(NodeId(4)).unwrap();
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
-    viewer.model_mut().children.insert(NodeId(2), Vec::new());
     viewer
         .model_mut()
+        .unwrap()
+        .children
+        .insert(NodeId(2), Vec::new());
+    viewer
+        .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(3), vec![NodeId(4)]);
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
 
     viewer.refresh().unwrap();
 
@@ -476,9 +524,10 @@ fn duplicate_model_identity_faults_refresh_before_projection_changes() {
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
     viewer
         .model_mut()
+        .unwrap()
         .children
         .insert(NodeId(1), vec![NodeId(2), NodeId(2)]);
-    viewer.model_mut().publish(NodeId(1));
+    viewer.model_mut().unwrap().publish(NodeId(1));
 
     assert!(matches!(viewer.refresh(), Err(ViewerError::DuplicateModel)));
     assert!(viewer.is_faulted());

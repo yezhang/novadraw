@@ -1319,13 +1319,15 @@ fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
     let mut viewer = viewer(false);
     viewer
         .model_mut()
+        .unwrap()
         .connections
         .push(ModelConnection::new(FIRST_EDGE, FIRST, SECOND));
     viewer
         .model_mut()
+        .unwrap()
         .bendpoints
         .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
-    viewer.model_mut().publish(FIRST_EDGE);
+    viewer.model_mut().unwrap().publish(FIRST_EDGE);
     viewer.refresh().unwrap();
     viewer.runtime_mut().prepare_frame().unwrap();
 
@@ -1371,13 +1373,15 @@ fn application_router_keeps_self_loop_endpoints_distinct_with_one_bendpoint() {
     let mut viewer = viewer(false);
     viewer
         .model_mut()
+        .unwrap()
         .connections
         .push(ModelConnection::new(FIRST_EDGE, FIRST, FIRST));
     viewer
         .model_mut()
+        .unwrap()
         .bendpoints
         .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
-    viewer.model_mut().publish(FIRST_EDGE);
+    viewer.model_mut().unwrap().publish(FIRST_EDGE);
     viewer.refresh().unwrap();
 
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();

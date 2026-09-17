@@ -391,8 +391,8 @@ fn model_order_drives_layer_and_relation_order_without_recreating_parts() {
         .unwrap()
         .primary_figure();
 
-    viewer.model_mut().connections.reverse();
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().connections.reverse();
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
 
     assert_eq!(viewer.connection_part_for_model(EDGE_A), Some(first));
@@ -427,8 +427,8 @@ fn reconnect_preserves_part_figure_order_and_unchanged_anchor() {
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
 
-    viewer.model_mut().connections[0] = edge(EDGE_A, FIRST, THIRD);
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().connections[0] = edge(EDGE_A, FIRST, THIRD);
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
 
     let after_part = viewer.connection_part_for_model(EDGE_A).unwrap();
@@ -455,8 +455,8 @@ fn reconnect_preserves_part_figure_order_and_unchanged_anchor() {
 #[test]
 fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end() {
     let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
-    viewer.model_mut().anchor_versions.insert(FIRST, 1);
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().anchor_versions.insert(FIRST, 1);
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
 
     let connection = viewer.connection_part_for_model(EDGE_A).unwrap();
@@ -470,7 +470,7 @@ fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
 
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
     let same_key = viewer
         .runtime()
@@ -479,8 +479,8 @@ fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end()
     assert_eq!(same_key.source, first.source);
     assert_eq!(same_key.target, first.target);
 
-    viewer.model_mut().anchor_versions.insert(FIRST, 2);
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().anchor_versions.insert(FIRST, 2);
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
     let changed_key = viewer
         .runtime()
@@ -557,9 +557,10 @@ fn connection_add_and_remove_preserve_unrelated_part_identity() {
 
     viewer
         .model_mut()
+        .unwrap()
         .connections
         .push(edge(EDGE_A, FIRST, SECOND));
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
     let connection = viewer.connection_part_for_model(EDGE_A).unwrap();
     let figure = viewer
@@ -568,8 +569,8 @@ fn connection_add_and_remove_preserve_unrelated_part_identity() {
         .unwrap()
         .primary_figure();
 
-    viewer.model_mut().connections.clear();
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().connections.clear();
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
 
     assert_eq!(viewer.part_for_model(FIRST), Some(first));
@@ -589,10 +590,14 @@ fn node_and_connection_can_be_removed_in_one_model_revision() {
         .primary_figure();
     viewer.replace_selection(connection.edit_part()).unwrap();
 
-    viewer.model_mut().connections.clear();
-    viewer.model_mut().children.retain(|id| *id != SECOND);
-    viewer.model_mut().bounds.remove(&SECOND);
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().connections.clear();
+    viewer
+        .model_mut()
+        .unwrap()
+        .children
+        .retain(|id| *id != SECOND);
+    viewer.model_mut().unwrap().bounds.remove(&SECOND);
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
 
     assert!(viewer.parts().get(node).is_none());
@@ -677,9 +682,13 @@ fn dangling_endpoint_faults_before_existing_projection_changes() {
         .unwrap()
         .primary_figure();
 
-    viewer.model_mut().children.retain(|id| *id != SECOND);
-    viewer.model_mut().bounds.remove(&SECOND);
-    viewer.model_mut().publish();
+    viewer
+        .model_mut()
+        .unwrap()
+        .children
+        .retain(|id| *id != SECOND);
+    viewer.model_mut().unwrap().bounds.remove(&SECOND);
+    viewer.model_mut().unwrap().publish();
 
     assert!(matches!(
         viewer.refresh(),
@@ -738,9 +747,10 @@ fn endpoint_geometry_change_is_rerouted_by_runtime() {
 
     viewer
         .model_mut()
+        .unwrap()
         .bounds
         .insert(FIRST, Rectangle::new(80.0, 180.0, 100.0, 80.0));
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
     viewer.runtime_mut().prepare_frame().unwrap();
 
@@ -777,9 +787,10 @@ fn rejected_incremental_connection_creation_leaves_no_registration() {
 
     viewer
         .model_mut()
+        .unwrap()
         .connections
         .push(edge(EDGE_B, SECOND, THIRD));
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().publish();
 
     assert!(matches!(viewer.refresh(), Err(ViewerError::EditPart(_))));
     assert!(viewer.is_faulted());
@@ -815,9 +826,10 @@ fn failed_connection_activation_rolls_back_all_registrations() {
 
     viewer
         .model_mut()
+        .unwrap()
         .connections
         .push(edge(EDGE_B, SECOND, THIRD));
-    viewer.model_mut().publish();
+    viewer.model_mut().unwrap().publish();
 
     assert!(matches!(viewer.refresh(), Err(ViewerError::EditPart(_))));
     assert!(viewer.is_faulted());
