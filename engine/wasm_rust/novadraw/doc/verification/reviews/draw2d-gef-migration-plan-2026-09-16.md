@@ -22,6 +22,38 @@
 typed payload、prepared output与资源revision。无需复刻Java宽接口、继承层级、
 SWT类型、静态临时对象和任意对象别名。
 
+## 当前执行顺序（2026-09-17 校准）
+
+下面是阶段一至六的活动调度顺序，不创建新的 roadmap milestone。当前已关闭
+F01/F02/F03/F16/F17；剩余问题以整改状态页为准。
+
+| 顺序 | 工作包 | 范围与依赖 | 退出条件 |
+|---|---|---|---|
+| 0 | 冻结已关闭基线 | Web、listener scope、事件分轨、pointer leave、Policy target | 按主题原子提交；Core/G3/G4/G5.5/Web 与 workspace full gate 通过 |
+| 1A | Viewer 初始失败清理 | F13；先于后续 Editor 扩展和产品验收 | 任意 root/child factory、visual、activate 或 policy 安装失败时，所有已激活 Part 恰好 deactivate 一次，无残留 registry/visual |
+| 1B | Viewer panic 隔离 | F15；依赖 1A 的统一生命周期事实 | 从 model drain 到 projection commit 的扩展 panic 立即使 Viewer faulted；revision 不提交，后续写操作拒绝 |
+| 2A | Connection 失败恢复 | F10 | 首次退化 route/Locator 拒绝后保留本次 observation；owner 修复后自动重新调度并成功 |
+| 2B | Connection 路由方向 | F11 | A→B/B→A 与混合方向 Fan 线路不重合，删除后 lane 顺序稳定 |
+| 2C | Connection reparent 契约 | F12；实施前单独评审 constraint 坐标域迁移接口 | built-in constraint 在换父前完成域转换；不能迁移的 custom constraint 原子拒绝，旧 topology/route/binding 不变 |
+| 3A | 布局坐标真源 | F05 | node-local paint client box 与 child-content arrange area 分离，inset 只应用一次 |
+| 3B | Damage 与 BorderLayout | F04/F06；依赖 3A 的坐标约定 | freeform overflow old/new damage 完整；Border 各区预留与最终摆放使用同一尺寸 |
+| 3C | 资源与组合视觉 | F07/F09；F08 依赖 3A | Removed image 不再引用旧资源；Label 四方向正确；嵌套动态 Border 保留测量与绘制 |
+| 4 | G5 检查点 C | 依赖 1A/1B、2A-2C、3A，以及影响 retained visual 的 F04 | Native 验证 create/reconnect/bendpoint、scroll/zoom、auto-expose、取消和 undo/redo；通过只提升 G5，不关闭其他审计项 |
+| 5 | 开放 Editor 扩展端口 | 原阶段四 | 外部 crate 可增加 Tool/Tracker、typed Request、Policy/feedback、SelectionPolicy 与 RootLayerFactory，无需修改中心分支 |
+| 6 | 投影复杂度 | F14；正确性和扩展接口稳定后执行 | 无变化属性 refresh 不再产生 Θ(E²) 框架扫描；E=100/1,000/10,000 有操作计数与耗时证据 |
+| 7 | G6 产品毕业 | 依赖剩余 P1 全部关闭、检查点 C 和阶段五/六门禁 | serializer、保存重建、Native/Web/Headless 同事务与最终验收 |
+
+执行约束：
+
+- 1A 与 1B 同属 `viewer.rs`，必须串行、分主题提交，不能在一次大改中混合清理与
+  unwind 语义；
+- 2A 与 2B 可独立实现，但合并验证必须覆盖共享 Router batch；2C 未完成设计评审前
+  不修改 reparent；
+- 检查点 C 不等待 Tool 扩展或 F14 性能优化，但不得绕过 Connection、坐标和 retained
+  damage 的直接影响项；
+- F06/F07/F08/F09 不阻塞检查点 C 的既有节点编辑场景，仍必须在 G6 前关闭；
+- 每项先保留修复前反例，再提交根因修复与正向回归。
+
 ## 阶段一：稳定基线与关闭已有反例
 
 前置：固定本次audit快照与工作区改动，逐项核查整改记录；已经关闭的
