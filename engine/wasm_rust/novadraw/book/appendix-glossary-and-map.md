@@ -118,10 +118,29 @@
 
 - 布局协议：
   [`novadraw-scene/src/layout/mod.rs`](../novadraw-scene/src/layout/mod.rs)
+- 精确坐标布局：
+  [`novadraw-scene/src/layout/xy_layout.rs`](../novadraw-scene/src/layout/xy_layout.rs)
+- 单内容填充与多层堆叠布局：
+  [`fill_layout.rs`](../novadraw-scene/src/layout/fill_layout.rs)、
+  [`stack_layout.rs`](../novadraw-scene/src/layout/stack_layout.rs)
+- 五区、流式、网格与工具栏布局：
+  [`border_layout.rs`](../novadraw-scene/src/layout/border_layout.rs)、
+  [`flow_layout.rs`](../novadraw-scene/src/layout/flow_layout.rs)、
+  [`grid_layout.rs`](../novadraw-scene/src/layout/grid_layout.rs)、
+  [`toolbar_layout.rs`](../novadraw-scene/src/layout/toolbar_layout.rs)
+- 自由范围布局：
+  [`novadraw-scene/src/layout/freeform_layout.rs`](../novadraw-scene/src/layout/freeform_layout.rs)
+- 布局 demo 场景：
+  [`novadraw-demo-scenes/src/layout.rs`](../novadraw-demo-scenes/src/layout.rs)
+- 更新与裁剪中的布局场景：
+  [`update.rs`](../novadraw-demo-scenes/src/update.rs)、
+  [`clip.rs`](../novadraw-demo-scenes/src/clip.rs)
 - 图层（Layer）：
   [`novadraw-scene/src/container/layer.rs`](../novadraw-scene/src/container/layer.rs)
 - 视口（Viewport）：
   [`novadraw-scene/src/container/viewport.rs`](../novadraw-scene/src/container/viewport.rs)
+- 滚动面板专用布局：
+  [`novadraw-scene/src/container/scroll_pane.rs`](../novadraw-scene/src/container/scroll_pane.rs)
 - 范围模型（RangeModel）：
   [`novadraw-scene/src/container/range_model.rs`](../novadraw-scene/src/container/range_model.rs)
 - 可缩放容器（Scalable）：
