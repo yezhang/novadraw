@@ -950,7 +950,7 @@ impl WebValidationApp {
             match gesture {
                 AdaptedGesture::Scroll(wheel) => self.runtime.dispatch_scroll(wheel),
                 AdaptedGesture::Zoom(zoom) => self.runtime.dispatch_zoom(zoom),
-            }
+            };
             self.request_and_render();
         }
     }
