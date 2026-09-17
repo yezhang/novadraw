@@ -24,6 +24,9 @@
 | 2026-09-10 | [ADR-014 D4.5 性能](adr014-d4.5-performance-2026-09-10.md) |
 | 2026-09-10 | [ADR-014 D4.6 收口](adr014-d4.6-completion-2026-09-10.md) |
 | 2026-09-13 | [Draw2D Core 1.0 最终审计](draw2d-core-1.0-final-audit-2026-09-13.md) |
+| 2026-09-16 | [Draw2D / GEF 全量语义映射](draw2d-gef-semantic-mapping-2026-09-16.md) |
+| 2026-09-16 | [Draw2D / GEF 语义差异报告](draw2d-gef-semantic-differences-2026-09-16.md) |
+| 2026-09-16 | [Draw2D / GEF 迁移实施方案](draw2d-gef-migration-plan-2026-09-16.md) |
 
 ## 平台与产品验收
 
@@ -49,6 +52,7 @@
 | 2026-09-15 | [G5.4 Connection Bendpoint](g5-connection-bendpoint-behavior-2026-09-15.md) |
 | 2026-09-15 | [G5.5 Viewport Auto-expose](g5-viewport-autoexpose-behavior-2026-09-15.md) |
 | 2026-09-15 | [Connection 扩展边界整改](connection-extensibility-correction-2026-09-15.md) |
+| 2026-09-16 | [Draw2D / GEF 语义审计整改状态](draw2d-gef-semantic-remediation-2026-09-16.md) |
 
 完整语义审计的固定基线见
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)，

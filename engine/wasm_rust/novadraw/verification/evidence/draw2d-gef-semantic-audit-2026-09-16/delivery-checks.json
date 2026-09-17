@@ -1,0 +1,95 @@
+{
+  "original_date": "2026-09-16",
+  "delivery_date": "2026-09-17",
+  "original_head": "e8d54ac063d05c63abb9f2850365a837ec4e8c9d",
+  "delivery_head": "52d54a92b988fd8c20b229f0b7ba802f802c3dca",
+  "snapshot_findings": 17,
+  "final_severity": {
+    "P1": 16,
+    "P2": 1
+  },
+  "remediation_reported_closed": [
+    "F01",
+    "F02",
+    "F03",
+    "F16",
+    "F17"
+  ],
+  "remediation_reported_pending": 12,
+  "selected_html_findings": 5,
+  "inventory_files": 158,
+  "inventory_lines": 75788,
+  "source_drift": [
+    {
+      "path": "novadraw/src/lib.rs",
+      "baseline_sha256": "0abafc0879cc13e98d19db97283fc2eec37dd92cca000e6eef39a28ead0e13ca",
+      "current_sha256": "bccf18189e29255929a0d1c57059b5e696914e2003a844c1cebec029db696894"
+    },
+    {
+      "path": "novadraw-editor/src/autoexpose.rs",
+      "baseline_sha256": "66be9df0a2a2688bcad86cd80623bc09802fda80f6c379545387266f6760d454",
+      "current_sha256": "c3754fbb06f082c806ed14c9d3963173f113996b41d94148c1448610958c28d5"
+    },
+    {
+      "path": "novadraw-editor/src/viewer/mod.rs",
+      "baseline_sha256": "0f169cbc9ace635e572015f4b43e96ac4c518eda4a4681ad2d496ed12f84a541",
+      "current_sha256": "895e30a55484a48f55ecd2aa85557973d1f1690fc6e371de970e171c997bd3e0"
+    },
+    {
+      "path": "novadraw-editor/tests/g4_editing_loop_contract.rs",
+      "baseline_sha256": "e4cd895fb1f4b772316b751667c58b1ecd547237984a39db2b0728175e1b702f",
+      "current_sha256": "01a1b29a72d5c1bd4226392473a4184e1721a995a5ab8dd61e7607238517a1cc"
+    },
+    {
+      "path": "novadraw-scene/src/container/viewport.rs",
+      "baseline_sha256": "df1fbddd954610c4d33aeaaf2225302577baa7c76e945f40ba43fe20dda4e5c7",
+      "current_sha256": "c10cabf8cf1aced64c1d04f453a8ecef7128e5e5d1f63af964e740264b703160"
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/line_border.rs",
+      "baseline_sha256": "9bb93bb67436dc775899c18fd03fa9dc742d71ab467a85222187dc9fa57baaf3",
+      "current_sha256": "ca0097004131e46f4a06d58b9315b46b3429d0f3a73c5d780b79ca8c3cea7a82"
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/mod.rs",
+      "baseline_sha256": "42b7513302ea5469bd8dbf98e0f90f863e3a9c2a7e9283ddffdea0514b402f70",
+      "current_sha256": "e2eed4f5919e60ad1fe23b4056aebcad1f79105f69d97c5b8fe75f47458d0aec"
+    },
+    {
+      "path": "novadraw-scene/src/figure/border/rectangle_border.rs",
+      "baseline_sha256": "e9ae705a54a1e69e5ab4dc83cc0e12dbf0f625babe645e2945514f8c486701b2",
+      "current_sha256": "39836a3952a6e1902ffbe4085516eb937144d48d843ae066dc4bce557295228c"
+    },
+    {
+      "path": "novadraw-scene/src/lib.rs",
+      "baseline_sha256": "13f8ad85747363fab68448b7fe7cfdd2c7acaa7a7677b74dfb0b1b131fd78495",
+      "current_sha256": "1f3df2315d8be50479c179ae2855c58455035212d520fb02d8855c7a8ff12fbd"
+    },
+    {
+      "path": "novadraw-scene/src/runtime/context.rs",
+      "baseline_sha256": "52ab1a8aad672344fab9fc0fc7b8d5722d95a7027b9f678facff0b73e9b15d22",
+      "current_sha256": "8b9243c18ee03ed1b34ee942f9c0bb074ed9541ae91f1e1e86193f98599a873b"
+    },
+    {
+      "path": "novadraw-scene/src/runtime/event/mod.rs",
+      "baseline_sha256": "7812d8b36d36b72386c5cf50cacddb21c11b075e8b9d74bfc3ef541053937234",
+      "current_sha256": "f1d0fe7a7785722cf6c7c89275a4d9b4865dd4528921d81c1f9ce612f6d20b0e"
+    },
+    {
+      "path": "novadraw-scene/src/runtime/runtime.rs",
+      "baseline_sha256": "1650f9ee5560e482ce44aae29468bc7e070c4836666b3c38f10862a352ee6aef",
+      "current_sha256": "56856aad41f57dd97918aff28cdaef442d168f98fad6790045ef725855b4bef7"
+    },
+    {
+      "path": "novadraw-scene/tests/m6_event_contract.rs",
+      "baseline_sha256": "b2648c14475b965bcaa179a832db06efd6ebb4fe01ea08d39acf4a87bf6aa339",
+      "current_sha256": "6ada84a3a1250b57e8c035ab24f92de0e2cef645c6f54e40d2cbf7fd52337e43"
+    }
+  ],
+  "docs_check": {
+    "command": "cargo xtask docs",
+    "exit_code": 0,
+    "result": "PASS verification/suites.toml: 27 commands, 2 profiles, 13 suites"
+  },
+  "note": "Original probe/test logs are historical. Current source has changed; no claim of current full regression."
+}
