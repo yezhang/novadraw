@@ -36,7 +36,7 @@ P1 表示需优先修复，不代表所有平台、所有输入都会触发。�
 |---|---|---|---|
 | F01 | 交互父节点下无handler子节点：父漏收Entered，离开子节点时反而新增Entered | runtime/event/mod.rs:377–410（scene） | 执行；10/10；G1；后续已关闭 |
 | F02 | scope写入藏在debug_assert中，release下删除owner后订阅仍存活 | runtime/runtime.rs:2485–2488（scene；八类入口） | 静态；10/10；G1补充；后续已关闭 |
-| F03 | press→离窗→release被丢弃→重新进入，capture残留导致继续Dragged | novadraw-apps/src/app.rs:488–495 | P2/6，待验证风险；未实测平台序列；后续整改页已关闭 |
+| F03 | press→离窗→release被丢弃→重新进入，capture残留导致继续Dragged | apps/support/src/app.rs:488–495 | P2/6，待验证风险；未实测平台序列；后续整改页已关闭 |
 | F04 | freeform可见溢出child移动，旧damage被父visual bounds裁空，partial retained可留残影 | runtime/update/repair.rs:116–119（scene） | 静态；10/10；G2-F1 |
 | F05 | 100×100容器四边inset10，Stack child从surface(20,20)开始而非(10,10) | graph/mod.rs:4162–4164（scene） | 静态；10/10；G2-F2 |
 | F06 | 200高Border中South要求150，Center预留50而South实际只放100，产生空带 | layout/border_layout.rs:279–287（scene） | 静态；10/10；G2-F3 |

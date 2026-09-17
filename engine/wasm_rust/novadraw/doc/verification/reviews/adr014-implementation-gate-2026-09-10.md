@@ -36,7 +36,7 @@
 - `Runtime::with_text_layout_engine`：沿用 tree namespace，但重建 ResourceRegistry、
   ConnectionRuntime、UpdateManager 并把 backend generation 从初始值开始。
 - `Runtime::into_tree`：仅返回 tree，其他 Runtime-owned 状态被丢弃。
-- `novadraw-demo-scenes/src/connection.rs` 多个场景确实使用 Runtime 构建后 into_tree；
+- `apps/scenes/src/connection.rs` 多个场景确实使用 Runtime 构建后 into_tree；
   此 API 并非不可达或仅测试路径。
 
 最小序列：

@@ -131,10 +131,10 @@
 - 自由范围布局：
   [`novadraw-scene/src/layout/freeform_layout.rs`](../novadraw-scene/src/layout/freeform_layout.rs)
 - 布局 demo 场景：
-  [`novadraw-demo-scenes/src/layout.rs`](../novadraw-demo-scenes/src/layout.rs)
+  [`novadraw-demo-scenes/src/layout.rs`](../apps/scenes/src/layout.rs)
 - 更新与裁剪中的布局场景：
-  [`update.rs`](../novadraw-demo-scenes/src/update.rs)、
-  [`clip.rs`](../novadraw-demo-scenes/src/clip.rs)
+  [`update.rs`](../apps/scenes/src/update.rs)、
+  [`clip.rs`](../apps/scenes/src/clip.rs)
 - 图层（Layer）：
   [`novadraw-scene/src/container/layer.rs`](../novadraw-scene/src/container/layer.rs)
 - 视口（Viewport）：

@@ -444,7 +444,8 @@ fn title_bar_border_scene() -> Runtime {
 }
 
 fn image_resources_scene() -> Runtime {
-    const PNG: &[u8] = include_bytes!("../../screenshot/shape-app_0_Rectangle_Fill_1771989903.png");
+    const PNG: &[u8] =
+        include_bytes!("../../../screenshot/shape-app_0_Rectangle_Fill_1771989903.png");
     const SVG: &[u8] = include_bytes!("../assets/image-demo.svg");
 
     let mut runtime = runtime();

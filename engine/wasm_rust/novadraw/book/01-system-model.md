@@ -267,7 +267,7 @@ sequenceDiagram
 总管线的主要代码入口：
 
 - 平台帧循环与后端提交：
-  [`novadraw-apps/src/app.rs`](../novadraw-apps/src/app.rs)
+  [`novadraw-apps/src/app.rs`](../apps/support/src/app.rs)
 - 帧准备、派生状态收敛与完成反馈：
   [`Runtime::prepare_submission_state / stabilize / complete_submission`](../novadraw-scene/src/runtime/runtime.rs)
 - 图形树递归命令录制：

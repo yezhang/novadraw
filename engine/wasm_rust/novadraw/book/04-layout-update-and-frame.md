@@ -203,7 +203,7 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 `apps/native/*` 负责窗口、输入和场景切换，具体可复用场景集中在
 `novadraw-demo-scenes`。例如 `layout-app` 的入口只加载
 `novadraw_demo_scenes::layout::suite()`，布局器的安装代码实际位于
-[`novadraw-demo-scenes/src/layout.rs`](../novadraw-demo-scenes/src/layout.rs)。
+[`novadraw-demo-scenes/src/layout.rs`](../apps/scenes/src/layout.rs)。
 
 ### Demo 覆盖情况
 
@@ -352,10 +352,10 @@ graph.revalidate(pane.pane_id());
 相关入口：
 
 - [`layout-app`](../apps/native/layout-app/src/main.rs)
-- [`layout` demo 场景](../novadraw-demo-scenes/src/layout.rs)
-- [`update` demo 场景](../novadraw-demo-scenes/src/update.rs)
-- [`clip` demo 场景](../novadraw-demo-scenes/src/clip.rs)
-- [`viewport` demo 场景](../novadraw-demo-scenes/src/viewport.rs)
+- [`layout` demo 场景](../apps/scenes/src/layout.rs)
+- [`update` demo 场景](../apps/scenes/src/update.rs)
+- [`clip` demo 场景](../apps/scenes/src/clip.rs)
+- [`viewport` demo 场景](../apps/scenes/src/viewport.rs)
 - [`scroll-pane-demo`](../apps/native/scroll-pane-demo/src/main.rs)
 - [`node-editor-demo`](../apps/native/node-editor-demo/src/main.rs)
 

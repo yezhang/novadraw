@@ -8,8 +8,8 @@ members = [
   "novadraw-render",
   "novadraw-scene",
   "novadraw-editor",
-  "novadraw-apps",
-  "novadraw-demo-scenes",
+  "apps/support",
+  "apps/scenes",
   "tools/xtask",
 
   "apps/native/node-editor-demo",

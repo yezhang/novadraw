@@ -5,5 +5,5 @@ edition.workspace = true
 
 [dependencies]
 novadraw = { path = "../../../novadraw", features = ["vello"] }
-novadraw-apps = { path = "../../../novadraw-apps" }
-novadraw-demo-scenes = { path = "../../../novadraw-demo-scenes" }
+novadraw-apps = { path = "../../support" }
+novadraw-demo-scenes = { path = "../../scenes" }

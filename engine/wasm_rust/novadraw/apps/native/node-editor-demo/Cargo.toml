@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 novadraw = { path = "../../../novadraw", features = ["vello"] }
-novadraw-apps = { path = "../../../novadraw-apps" }
+novadraw-apps = { path = "../../support" }
 novadraw-editor = { path = "../../../novadraw-editor" }
 novadraw-geometry = { path = "../../../novadraw-geometry" }
 pollster.workspace = true

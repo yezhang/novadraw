@@ -7,6 +7,8 @@
 
 | 目录 | 职责 |
 |------|------|
+| `support/` | `novadraw-apps`：共享 DemoApp 框架和平台输入适配 |
+| `scenes/` | `novadraw-demo-scenes`：Native/Web 共用的无平台场景目录 |
 | `native/` | 基于 winit 的 macOS/桌面窗口应用 |
 | `web/` | Wasm + DOM/WebGPU 浏览器应用 |
 | `benchmarks/` | 无窗口性能基线，不属于 Native/Web UI |
@@ -89,9 +91,9 @@ novadraw/ (workspace)
 ├── novadraw-render/      ← 渲染后端
 ├── novadraw-scene/       ← 场景图、Figure 接口、UpdateManager
 ├── novadraw-editor/      ← GEF 风格模型、控制器与编辑事务
-├── novadraw-apps/        ← 共享 DemoApp 框架
-├── novadraw-demo-scenes/ ← Native/Web 共用场景目录
 └── apps/
+    ├── support/          ← novadraw-apps：共享 DemoApp 框架
+    ├── scenes/           ← novadraw-demo-scenes：Native/Web 共用场景
     ├── native/           ← winit/macOS/桌面宿主
     │   ├── node-editor-demo/
     │   ├── *-app/

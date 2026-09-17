@@ -250,9 +250,9 @@ platforms = ["host", "headless"]
 commands = ["verify.update", "verify.event"]
 paths = [
   "novadraw-scene/**",
-  "novadraw-apps/**",
-  "novadraw-demo-scenes/src/update.rs",
-  "novadraw-demo-scenes/src/event.rs",
+  "apps/support/**",
+  "apps/scenes/src/update.rs",
+  "apps/scenes/src/event.rs",
   "apps/native/update-app/**",
   "apps/native/event-app/**",
 ]
@@ -273,8 +273,8 @@ commands = ["test.scene-viewport", "verify.scroll-pane"]
 paths = [
   "novadraw-scene/src/container/**",
   "novadraw-scene/tests/m8_viewport_contract.rs",
-  "novadraw-demo-scenes/src/viewport.rs",
-  "novadraw-demo-scenes/src/scroll_pane.rs",
+  "apps/scenes/src/viewport.rs",
+  "apps/scenes/src/scroll_pane.rs",
   "apps/native/viewport-app/**",
   "apps/native/scroll-pane-demo/**",
 ]
@@ -493,7 +493,7 @@ platforms = ["wasm", "web"]
 commands = ["web.build"]
 paths = [
   "apps/web/web-validation/**",
-  "novadraw-demo-scenes/**",
+  "apps/scenes/**",
   "scripts/build_web_validation.sh",
 ]
 documents = ["apps/web/web-validation/README.md"]

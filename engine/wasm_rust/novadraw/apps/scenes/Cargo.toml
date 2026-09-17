@@ -6,5 +6,5 @@ description = "Novadraw 跨平台演示场景目录"
 
 [dependencies]
 glam.workspace = true
-novadraw = { path = "../novadraw", default-features = false }
-novadraw-geometry = { path = "../novadraw-geometry" }
+novadraw = { path = "../../novadraw", default-features = false }
+novadraw-geometry = { path = "../../novadraw-geometry" }
