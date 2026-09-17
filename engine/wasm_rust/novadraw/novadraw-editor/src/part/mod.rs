@@ -1084,7 +1084,7 @@ pub trait EditPartBehavior<A: ModelAdapter> {
         Ok(())
     }
 
-    /// Activates model observation after the complete initial projection exists.
+    /// Activates model observation after this Part's visual and policies are installed.
     fn activate(&mut self, _model: &A, _model_id: A::ModelId) -> Result<(), EditPartError> {
         Ok(())
     }

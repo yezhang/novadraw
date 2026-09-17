@@ -155,6 +155,26 @@ impl EditPartFactory<DiagramModel> for RectangleFactory {
     }
 }
 
+struct FailingChildFactory {
+    lifecycle: Arc<Mutex<Vec<String>>>,
+    fail_on: NodeId,
+}
+
+impl EditPartFactory<DiagramModel> for FailingChildFactory {
+    fn create(
+        &mut self,
+        context: PartFactoryContext<NodeId>,
+        _model: &DiagramModel,
+    ) -> Result<Box<dyn EditPartBehavior<DiagramModel>>, EditPartError> {
+        if context.model_id() == self.fail_on {
+            return Err(EditPartError::operation("child creation failed"));
+        }
+        Ok(Box::new(RectanglePart {
+            lifecycle: Arc::clone(&self.lifecycle),
+        }))
+    }
+}
+
 fn viewer() -> (
     GraphicalViewer<DiagramModel, RectangleFactory>,
     Arc<Mutex<Vec<String>>>,
@@ -403,6 +423,51 @@ fn duplicate_model_identity_is_rejected_during_initial_projection() {
         Rectangle::new(0.0, 0.0, 800.0, 600.0),
     );
     assert!(matches!(result, Err(ViewerError::DuplicateModel)));
+}
+
+#[test]
+fn initial_projection_failure_deactivates_every_activated_part_once() {
+    let lifecycle = Arc::new(Mutex::new(Vec::new()));
+    let result = GraphicalViewer::new(
+        DiagramModel::initial(),
+        FailingChildFactory {
+            lifecycle: Arc::clone(&lifecycle),
+            fail_on: NodeId(2),
+        },
+        Rectangle::new(0.0, 0.0, 800.0, 600.0),
+    );
+
+    assert!(result.is_err());
+    assert_eq!(
+        lifecycle.lock().unwrap().as_slice(),
+        ["activate:1", "deactivate:1"]
+    );
+}
+
+#[test]
+fn late_initial_projection_failure_deactivates_the_complete_live_prefix_once() {
+    let lifecycle = Arc::new(Mutex::new(Vec::new()));
+    let result = GraphicalViewer::new(
+        DiagramModel::initial(),
+        FailingChildFactory {
+            lifecycle: Arc::clone(&lifecycle),
+            fail_on: NodeId(3),
+        },
+        Rectangle::new(0.0, 0.0, 800.0, 600.0),
+    );
+
+    assert!(result.is_err());
+    assert_eq!(
+        lifecycle.lock().unwrap().as_slice(),
+        [
+            "activate:1",
+            "activate:2",
+            "activate:4",
+            "deactivate:1",
+            "deactivate:2",
+            "deactivate:4",
+        ]
+    );
 }
 
 #[test]

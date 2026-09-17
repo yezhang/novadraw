@@ -25,12 +25,12 @@ SWT类型、静态临时对象和任意对象别名。
 ## 当前执行顺序（2026-09-17 校准）
 
 下面是阶段一至六的活动调度顺序，不创建新的 roadmap milestone。当前已关闭
-F01/F02/F03/F16/F17；剩余问题以整改状态页为准。
+F01/F02/F03/F13/F16/F17；剩余问题以整改状态页为准。
 
 | 顺序 | 工作包 | 范围与依赖 | 退出条件 |
 |---|---|---|---|
 | 0 | 冻结已关闭基线 | Web、listener scope、事件分轨、pointer leave、Policy target | 按主题原子提交；Core/G3/G4/G5.5/Web 与 workspace full gate 通过 |
-| 1A | Viewer 初始失败清理 | F13；先于后续 Editor 扩展和产品验收 | 任意 root/child factory、visual、activate 或 policy 安装失败时，所有已激活 Part 恰好 deactivate 一次，无残留 registry/visual |
+| 1A（已关闭） | Viewer 初始失败清理 | F13；先于后续 Editor 扩展和产品验收 | 任意 root/child factory、visual、activate 或 policy 安装失败时，所有已激活 Part 恰好 deactivate 一次，无残留 registry/visual |
 | 1B | Viewer panic 隔离 | F15；依赖 1A 的统一生命周期事实 | 从 model drain 到 projection commit 的扩展 panic 立即使 Viewer faulted；revision 不提交，后续写操作拒绝 |
 | 2A | Connection 失败恢复 | F10 | 首次退化 route/Locator 拒绝后保留本次 observation；owner 修复后自动重新调度并成功 |
 | 2B | Connection 路由方向 | F11 | A→B/B→A 与混合方向 Fan 线路不重合，删除后 lane 顺序稳定 |

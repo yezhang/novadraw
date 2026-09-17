@@ -2724,13 +2724,10 @@ where
                 behavior.deactivate(&self.model, model_id);
             }
         }
-        let Some(contents) = self.parts.contents() else {
+        let Ok(ids) = self.parts.subtree_ids(self.parts.root()) else {
             return;
         };
-        let Ok(ids) = self.parts.subtree_ids(contents) else {
-            return;
-        };
-        for id in ids {
+        for id in ids.into_iter().skip(1) {
             let Some(node) = self.parts.get(id) else {
                 continue;
             };
