@@ -3431,9 +3431,13 @@ impl Runtime {
 
     fn sync_tooltip(&mut self) {
         let source = if self.interaction.captured().is_none() {
+            let source = self
+                .interaction
+                .cursor_target()
+                .and_then(|id| self.tree.tooltip_source(id));
             self.interaction
-                .hover_source()
-                .and_then(|id| self.tree.tooltip_source(id))
+                .set_hover_source(source.as_ref().map(|(id, _)| *id));
+            source
         } else {
             None
         };

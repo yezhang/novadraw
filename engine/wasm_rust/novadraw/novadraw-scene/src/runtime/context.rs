@@ -467,7 +467,10 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
-        self.scene.hit_test_simple((x, y))
+        self.scene
+            .hit_test_simple((x, y))
+            .and_then(|hit| self.scene.tooltip_source(hit))
+            .map(|(source, _)| source)
     }
 
     fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {

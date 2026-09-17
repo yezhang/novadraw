@@ -376,38 +376,40 @@ impl EventDispatcher {
     }
 
     fn refresh_mouse_target(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
-        let hit_target = ctx.find_mouse_event_target_at(x, y);
+        let captured = ctx.captured();
         ctx.set_cursor_target(ctx.find_cursor_target_at(x, y));
-        let hover_source = ctx.find_hover_source_at(x, y);
-
-        let previous_hover = ctx.hover_source();
-        if previous_hover != hover_source {
-            if let Some(previous_hover) = previous_hover {
-                ctx.set_hovered(previous_hover, false);
+        let hit_target = if captured.is_none() {
+            let hit_target = ctx.find_mouse_event_target_at(x, y);
+            ctx.set_hover_source(ctx.find_hover_source_at(x, y));
+            hit_target
+        } else {
+            None
+        };
+        let next_target = captured.or(hit_target);
+        let previous_target = ctx.mouse_target();
+        if previous_target != next_target {
+            if let Some(previous_target) = previous_target {
+                ctx.set_hovered(previous_target, false);
                 let exited = Event::Mouse(MouseEvent::new(
                     MouseEventKind::Exited,
                     x,
                     y,
                     MouseButton::None,
                 ));
-                let _ = ctx.dispatch_to_target(Some(previous_hover), &exited);
+                let _ = ctx.dispatch_to_target(Some(previous_target), &exited);
             }
-            ctx.set_hover_source(hover_source);
-            if let Some(hover_source) = hover_source {
-                ctx.set_hovered(hover_source, true);
+            ctx.set_mouse_target(next_target);
+            if let Some(next_target) = next_target {
+                ctx.set_hovered(next_target, true);
                 let entered = Event::Mouse(MouseEvent::new(
                     MouseEventKind::Entered,
                     x,
                     y,
                     MouseButton::None,
                 ));
-                let _ = ctx.dispatch_to_target(Some(hover_source), &entered);
+                let _ = ctx.dispatch_to_target(Some(next_target), &entered);
             }
         }
-
-        let captured = ctx.captured();
-        let next_target = captured.or(hit_target);
-        ctx.set_mouse_target(next_target);
     }
 
     fn update_focus(
@@ -518,19 +520,23 @@ impl EventDispatcher {
     }
 
     pub fn dispatch_pointer_exited(&mut self, ctx: &mut dyn DispatchContext, x: f64, y: f64) {
-        if let Some(previous_hover) = ctx.hover_source() {
-            ctx.set_hovered(previous_hover, false);
+        if let Some(captured) = ctx.captured() {
+            ctx.set_pressed(captured, false);
+            ctx.set_captured(None);
+        }
+        if let Some(previous_target) = ctx.mouse_target() {
+            ctx.set_hovered(previous_target, false);
             let exited = Event::Mouse(MouseEvent::new(
                 MouseEventKind::Exited,
                 x,
                 y,
                 MouseButton::None,
             ));
-            let _ = ctx.dispatch_to_target(Some(previous_hover), &exited);
+            let _ = ctx.dispatch_to_target(Some(previous_target), &exited);
         }
+        ctx.set_mouse_target(None);
         ctx.set_hover_source(None);
         ctx.set_cursor_target(None);
-        ctx.set_mouse_target(ctx.captured());
     }
 
     pub fn dispatch_mouse_double_clicked(
@@ -556,7 +562,7 @@ impl EventDispatcher {
             y,
             MouseButton::None,
         ));
-        let target = ctx.hover_source();
+        let target = ctx.mouse_target();
         let handled = ctx.dispatch_to_target(target, &event);
         DispatchOutcome::new(target, handled, ctx.captured())
     }
@@ -686,6 +692,8 @@ mod tests {
 
     struct MockDispatchContext {
         hit_target: Option<FigureId>,
+        cursor_hit: Option<FigureId>,
+        hover_hit: Option<FigureId>,
         mouse_target: Option<FigureId>,
         cursor_target: Option<FigureId>,
         hover_source: Option<FigureId>,
@@ -703,6 +711,8 @@ mod tests {
         fn new(hit_target: Option<FigureId>) -> Self {
             Self {
                 hit_target,
+                cursor_hit: hit_target,
+                hover_hit: hit_target,
                 mouse_target: None,
                 cursor_target: None,
                 hover_source: None,
@@ -721,6 +731,14 @@ mod tests {
     impl DispatchContext for MockDispatchContext {
         fn find_mouse_event_target_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
             self.hit_target
+        }
+
+        fn find_cursor_target_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
+            self.cursor_hit
+        }
+
+        fn find_hover_source_at(&self, _x: f64, _y: f64) -> Option<FigureId> {
+            self.hover_hit
         }
 
         fn mouse_target(&self) -> Option<FigureId> {
@@ -795,6 +813,8 @@ mod tests {
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
         ctx.hit_target = Some(target);
+        ctx.cursor_hit = Some(target);
+        ctx.hover_hit = Some(target);
 
         dispatcher.receive(&mut ctx, 10.0, 20.0);
 
@@ -812,6 +832,48 @@ mod tests {
                 MouseButton::None,
             ))
         );
+    }
+
+    #[test]
+    fn mouse_target_transitions_are_independent_of_cursor_and_hover_sources() {
+        let mut dispatcher = EventDispatcher;
+        let mut scene = FigureTree::new();
+        let event_target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let visual_hit = scene.add_child_to(
+            event_target,
+            Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)),
+        );
+        let mut ctx = MockDispatchContext::new(Some(event_target));
+        ctx.cursor_hit = Some(visual_hit);
+        ctx.hover_hit = Some(visual_hit);
+
+        dispatcher.receive(&mut ctx, 2.0, 2.0);
+
+        assert_eq!(ctx.mouse_target(), Some(event_target));
+        assert_eq!(ctx.cursor_target(), Some(visual_hit));
+        assert_eq!(ctx.hover_source(), Some(visual_hit));
+        assert_eq!(
+            ctx.dispatched,
+            vec![(
+                Some(event_target),
+                Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Entered,
+                    2.0,
+                    2.0,
+                    MouseButton::None,
+                )),
+            )]
+        );
+
+        ctx.dispatched.clear();
+        ctx.cursor_hit = Some(event_target);
+        ctx.hover_hit = Some(event_target);
+        dispatcher.receive(&mut ctx, 8.0, 8.0);
+
+        assert!(ctx.dispatched.is_empty());
+        assert_eq!(ctx.mouse_target(), Some(event_target));
+        assert_eq!(ctx.cursor_target(), Some(event_target));
+        assert_eq!(ctx.hover_source(), Some(event_target));
     }
 
     #[test]
@@ -862,9 +924,9 @@ mod tests {
 
         assert_eq!(ctx.captured(), None);
         assert_eq!(ctx.mouse_target(), None);
-        assert_eq!(ctx.dispatched[1].0, Some(target));
+        assert_eq!(ctx.dispatched[0].0, Some(target));
         assert_eq!(
-            ctx.dispatched[1].1,
+            ctx.dispatched[0].1,
             Event::Mouse(MouseEvent::new(
                 MouseEventKind::Released,
                 40.0,
@@ -873,7 +935,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            ctx.dispatched[0].1,
+            ctx.dispatched[1].1,
             Event::Mouse(MouseEvent::new(
                 MouseEventKind::Exited,
                 40.0,
@@ -884,7 +946,39 @@ mod tests {
     }
 
     #[test]
-    fn test_drag_uses_capture_while_hover_tracks_hit_target() {
+    fn pointer_exit_clears_capture_and_exits_the_mouse_target() {
+        let mut dispatcher = EventDispatcher;
+        let mut scene = FigureTree::new();
+        let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let tooltip_source =
+            scene.add_child_to(target, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
+        let mut ctx = MockDispatchContext::new(Some(target));
+        ctx.mouse_target = Some(target);
+        ctx.hover_source = Some(tooltip_source);
+        ctx.captured = Some(target);
+
+        dispatcher.dispatch_pointer_exited(&mut ctx, 12.0, 13.0);
+
+        assert_eq!(ctx.captured(), None);
+        assert_eq!(ctx.mouse_target(), None);
+        assert_eq!(ctx.cursor_target(), None);
+        assert_eq!(ctx.hover_source(), None);
+        assert_eq!(
+            ctx.dispatched,
+            vec![(
+                Some(target),
+                Event::Mouse(MouseEvent::new(
+                    MouseEventKind::Exited,
+                    12.0,
+                    13.0,
+                    MouseButton::None,
+                )),
+            )]
+        );
+    }
+
+    #[test]
+    fn test_drag_keeps_mouse_target_while_cursor_tracks_physical_hit() {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let root = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
@@ -894,7 +988,8 @@ mod tests {
 
         dispatcher.dispatch_mouse_moved(&mut ctx, 8.0, 8.0);
 
-        assert_eq!(ctx.hover_source(), Some(root));
+        assert_eq!(ctx.cursor_target(), Some(root));
+        assert_eq!(ctx.hover_source(), None);
         assert_eq!(ctx.mouse_target(), Some(captured));
         assert_eq!(
             ctx.dispatched.last(),
@@ -1012,20 +1107,24 @@ mod tests {
         let mut dispatcher = EventDispatcher;
         let mut scene = FigureTree::new();
         let target = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let hover_source =
+            scene.add_child_to(target, Box::new(RectangleFigure::new(1.0, 1.0, 4.0, 4.0)));
         let mut ctx = MockDispatchContext::new(Some(target));
+        ctx.hover_hit = Some(hover_source);
 
         dispatcher.dispatch_mouse_hover(&mut ctx, 2.0, 3.0);
         dispatcher.dispatch_mouse_wheel(&mut ctx, 2.0, 3.0, 0.0, -1.0);
         dispatcher.dispatch_mouse_double_clicked(&mut ctx, 2.0, 3.0, MouseButton::Left);
 
-        assert!(ctx.dispatched.iter().any(|(_, event)| {
-            matches!(
-                event,
-                Event::Mouse(MouseEvent {
-                    kind: MouseEventKind::Hover,
-                    ..
-                })
-            )
+        assert!(ctx.dispatched.iter().any(|(receiver, event)| {
+            *receiver == Some(target)
+                && matches!(
+                    event,
+                    Event::Mouse(MouseEvent {
+                        kind: MouseEventKind::Hover,
+                        ..
+                    })
+                )
         }));
         assert!(
             ctx.dispatched

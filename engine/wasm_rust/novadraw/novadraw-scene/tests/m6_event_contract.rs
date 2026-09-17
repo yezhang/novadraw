@@ -80,6 +80,24 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
+    fn on_mouse_moved(
+        &self,
+        event: &MouseEvent,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
+    ) -> bool {
+        self.record_mouse(event);
+        true
+    }
+
+    fn on_mouse_hover(
+        &self,
+        event: &MouseEvent,
+        _ctx: &mut novadraw_scene::EventContext<'_>,
+    ) -> bool {
+        self.record_mouse(event);
+        true
+    }
+
     fn on_mouse_entered(
         &self,
         event: &MouseEvent,
@@ -313,5 +331,52 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
             .filter(|event| matches!(event, RecordedInput::Wheel(..)))
             .count(),
         2
+    );
+}
+
+#[test]
+fn interactive_parent_remains_mouse_target_across_non_interactive_children() {
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+    let parent = graph.builder().add_child_to(
+        root,
+        Box::new(InputProbeFigure {
+            bounds: Rectangle::new(20.0, 20.0, 120.0, 100.0),
+            events: Arc::clone(&events),
+        }),
+    );
+    graph.builder().add_child_to(
+        parent,
+        Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 30.0)),
+    );
+    let mut update_manager = UpdateManager::new();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+
+    {
+        let mut ctx = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_mouse_moved(&mut ctx, 35.0, 35.0);
+        dispatcher.dispatch_mouse_hover(&mut ctx, 35.0, 35.0);
+        dispatcher.dispatch_mouse_moved(&mut ctx, 100.0, 80.0);
+    }
+
+    assert_eq!(interaction.mouse_target(), Some(parent));
+    assert_eq!(
+        *events.lock().unwrap(),
+        vec![
+            RecordedInput::Mouse(MouseEventKind::Entered, 15.0, 15.0),
+            RecordedInput::Mouse(MouseEventKind::Moved, 15.0, 15.0),
+            RecordedInput::Mouse(MouseEventKind::Hover, 15.0, 15.0),
+            RecordedInput::Mouse(MouseEventKind::Moved, 80.0, 60.0),
+        ]
     );
 }

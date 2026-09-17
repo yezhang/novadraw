@@ -20,14 +20,41 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
         &[
             MouseEventKind::Entered,
             MouseEventKind::Pressed,
-            MouseEventKind::Exited,
             MouseEventKind::Dragged,
             MouseEventKind::Released,
+            MouseEventKind::Exited,
         ],
     )?;
     if runtime.interaction().captured().is_some() {
         return Err("capture was not released".to_string());
     }
+    Ok(metrics([("events", events.len().to_string())]))
+}
+
+fn verify_pointer_leave_cleanup() -> Result<VerificationMetrics, String> {
+    let (graph, state) = probe_scene(false);
+    let mut runtime = Runtime::new(graph);
+    runtime.dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
+    runtime.pointer_exited();
+    runtime.dispatch_mouse_moved(700.0, 500.0);
+    let events = &state.lock().unwrap().events;
+    if runtime.interaction().captured().is_some() {
+        return Err("pointer leave retained capture".to_string());
+    }
+    if events
+        .iter()
+        .any(|event| matches!(event, ProbeEvent::Mouse(MouseEventKind::Dragged, ..)))
+    {
+        return Err(format!("pointer leave allowed a stale drag: {events:?}"));
+    }
+    assert_event_order(
+        events,
+        &[
+            MouseEventKind::Entered,
+            MouseEventKind::Pressed,
+            MouseEventKind::Exited,
+        ],
+    )?;
     Ok(metrics([("events", events.len().to_string())]))
 }
 
@@ -135,11 +162,15 @@ fn metrics<const N: usize>(entries: [(&str, String); N]) -> VerificationMetrics 
         .collect()
 }
 
-fn verification_cases() -> [VerificationCase; 4] {
+fn verification_cases() -> [VerificationCase; 5] {
     [
         VerificationCase {
             name: "pointer_capture",
             run: verify_pointer_capture,
+        },
+        VerificationCase {
+            name: "pointer_leave_cleanup",
+            run: verify_pointer_leave_cleanup,
         },
         VerificationCase {
             name: "focus_keyboard",
