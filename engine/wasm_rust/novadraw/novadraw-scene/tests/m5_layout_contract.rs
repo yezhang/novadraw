@@ -1,10 +1,10 @@
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
-    BorderConstraint, BorderRegion, FigureId, FigureTree, GridAlignment, GridConstraint,
-    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, LineBorder,
-    RectangleFigure, StackLayout, ToolbarLayout, UpdateManager, ValidationError, XYConstraint,
-    XYLayout,
+    BorderConstraint, BorderLayout, BorderRegion, FigureId, FigureTree, GridAlignment,
+    GridConstraint, GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot,
+    LineBorder, RectangleFigure, StackLayout, ToolbarLayout, UpdateManager, ValidationError,
+    XYConstraint, XYLayout,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -79,6 +79,65 @@ fn xy_layout_applies_container_insets_once() {
     let mut projected = Rectangle::new(0.0, 0.0, 20.0, 20.0);
     graph.translate_to_absolute_mut(child, &mut projected);
     assert_eq!(projected, Rectangle::new(15.0, 16.0, 20.0, 20.0));
+}
+
+#[test]
+fn border_layout_uses_the_reserved_south_size_for_placement() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let center = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    let south = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    graph.set_constraint(center, BorderConstraint::new(BorderRegion::Center));
+    graph.set_constraint(
+        south,
+        BorderConstraint::with_size(BorderRegion::South, 150.0),
+    );
+    graph.set_block_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)));
+
+    graph.revalidate(root);
+
+    assert_rect(
+        graph.figure_bounds(center),
+        Rectangle::new(0.0, 0.0, 200.0, 50.0),
+    );
+    assert_rect(
+        graph.figure_bounds(south),
+        Rectangle::new(0.0, 50.0, 200.0, 150.0),
+    );
+}
+
+#[test]
+fn border_layout_uses_the_reserved_east_size_for_placement() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let center = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    let east = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+    graph.set_constraint(center, BorderConstraint::new(BorderRegion::Center));
+    graph.set_constraint(east, BorderConstraint::with_size(BorderRegion::East, 150.0));
+    graph.set_block_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)));
+
+    graph.revalidate(root);
+
+    assert_rect(
+        graph.figure_bounds(center),
+        Rectangle::new(0.0, 0.0, 50.0, 200.0),
+    );
+    assert_rect(
+        graph.figure_bounds(east),
+        Rectangle::new(50.0, 0.0, 150.0, 200.0),
+    );
 }
 
 #[test]

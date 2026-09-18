@@ -267,29 +267,23 @@ impl LayoutManager for BorderLayout {
 
         // 第一次遍历：处理有明确约束的元素
         for (child_id, _current_bounds) in &children {
-            if let Some((region, requested_size)) =
-                border_constraint(snapshot, container, *child_id)?
-            {
+            if let Some((region, _)) = border_constraint(snapshot, container, *child_id)? {
                 let (x, y, w, h) = match region {
                     BorderRegion::North => {
                         allocated_regions[1] = true;
-                        let h = requested_size.unwrap_or(north_h).min(ch * 0.5);
-                        (cx, cy, cw, h)
+                        (cx, cy, cw, north_h)
                     }
                     BorderRegion::South => {
                         allocated_regions[2] = true;
-                        let h = requested_size.unwrap_or(south_h).min(ch * 0.5);
-                        (cx, cy + ch - h, cw, h)
+                        (cx, cy + ch - south_h, cw, south_h)
                     }
                     BorderRegion::East => {
                         allocated_regions[3] = true;
-                        let w = requested_size.unwrap_or(east_w).min(cw * 0.5);
-                        (cx + cw - w, center_y, w, center_h)
+                        (cx + cw - east_w, center_y, east_w, center_h)
                     }
                     BorderRegion::West => {
                         allocated_regions[4] = true;
-                        let w = requested_size.unwrap_or(west_w).min(cw * 0.5);
-                        (cx, center_y, w, center_h)
+                        (cx, center_y, west_w, center_h)
                     }
                     BorderRegion::Center => {
                         allocated_regions[0] = true;
