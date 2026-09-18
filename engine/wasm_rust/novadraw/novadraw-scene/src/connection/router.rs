@@ -425,6 +425,7 @@ impl ConnectionRouter for FanRouter {
         if length <= f64::EPSILON {
             return Ok(base);
         }
+        let direction = canonical_fan_direction(direction);
         let centered_index = index as f64 - (group.ordered_connections().len() as f64 - 1.0) / 2.0;
         if centered_index.abs() <= f64::EPSILON {
             return Ok(base);
@@ -450,6 +451,16 @@ impl ConnectionRouter for FanRouter {
 
     fn requires_group(&self) -> bool {
         true
+    }
+}
+
+fn canonical_fan_direction(direction: Vector) -> Vector {
+    let points_west = direction.x().abs() > direction.y().abs() && direction.x() < 0.0;
+    let points_north = direction.x().abs() <= direction.y().abs() && direction.y() < 0.0;
+    if points_west || points_north {
+        direction
+    } else {
+        Vector::new(-direction.x(), -direction.y())
     }
 }
 

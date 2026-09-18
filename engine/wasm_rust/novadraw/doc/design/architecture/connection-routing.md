@@ -345,6 +345,9 @@ endpoint resolution
 ```
 
 Fan 只处理 base route 恰有两个有效端点的情况；已有 bendpoint 的 route 保持不变。
+同一无向 AnchorGroupKey pair 中，Fan 先按主轴将几何方向规范为向西或向北，再从稳定
+child order 推导 lane offset。反向 connection 仍保留自己的 source/target 与 metadata
+顺序，但不能因端点方向翻转而同时翻转法向，导致不同 lane 重合。
 动画和诊断观察最终提交事件，不进入 pipeline，也不能替代 Router 输出。
 
 ### 6.2 跨连接策略状态

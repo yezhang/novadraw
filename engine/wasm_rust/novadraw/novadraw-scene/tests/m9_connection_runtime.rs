@@ -768,7 +768,51 @@ fn manhattan_router_emits_only_orthogonal_non_duplicate_segments() {
 }
 
 #[test]
-fn fan_router_uses_stable_child_order_and_recenters_after_removal() {
+fn fan_router_separates_bidirectional_connections() {
+    let (mut runtime, root, source, target, first_figure) = runtime_fixture();
+    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = runtime.register_connection_router(Box::new(
+        FanRouter::new(Box::new(DirectRouter), 16.0).unwrap(),
+    ));
+    let first = runtime
+        .register_connection_state(
+            first_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+    let second = runtime
+        .register_connection_state(
+            second_figure,
+            Some(target_anchor),
+            Some(source_anchor),
+            RouterBinding::Explicit { router },
+            None,
+        )
+        .unwrap();
+
+    let first_output = runtime
+        .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let second_output = runtime
+        .resolve_connection_route(second, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let first_middle = first_output.points().get(1).unwrap();
+    let second_middle = second_output.points().get(1).unwrap();
+
+    assert_eq!(first_output.points().len(), 3);
+    assert_eq!(second_output.points().len(), 3);
+    assert_eq!(first_output.points().get(0), second_output.points().get(2));
+    assert_eq!(first_output.points().get(2), second_output.points().get(0));
+    assert_ne!(first_middle, second_middle);
+}
+
+#[test]
+fn fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal() {
     let (mut runtime, root, source, target, first_figure) = runtime_fixture();
     let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
     let third_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
@@ -778,13 +822,17 @@ fn fan_router_uses_stable_child_order_and_recenters_after_removal() {
         FanRouter::new(Box::new(DirectRouter), 16.0).unwrap(),
     ));
     let mut connections = Vec::new();
-    for figure in [first_figure, second_figure, third_figure] {
+    for (figure, source, target) in [
+        (first_figure, source_anchor, target_anchor),
+        (second_figure, target_anchor, source_anchor),
+        (third_figure, source_anchor, target_anchor),
+    ] {
         connections.push(
             runtime
                 .register_connection_state(
                     figure,
-                    Some(source_anchor),
-                    Some(target_anchor),
+                    Some(source),
+                    Some(target),
                     RouterBinding::Explicit { router },
                     None,
                 )
@@ -808,10 +856,15 @@ fn fan_router_uses_stable_child_order_and_recenters_after_removal() {
 
     assert!(runtime.remove_figure(root, first_figure));
     assert_eq!(runtime.dirty_connections(), connections[1..]);
-    let recentered = runtime
+    let reverse = runtime
         .resolve_connection_route(connections[1], CoordinateSpace::ChildContent(root))
         .unwrap();
-    assert_eq!(recentered.points().len(), 3);
+    let forward = runtime
+        .resolve_connection_route(connections[2], CoordinateSpace::ChildContent(root))
+        .unwrap();
+    assert_eq!(reverse.points().len(), 3);
+    assert_eq!(forward.points().len(), 3);
+    assert_ne!(reverse.points().get(1), forward.points().get(1));
 }
 
 #[test]
