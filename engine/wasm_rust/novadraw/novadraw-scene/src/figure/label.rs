@@ -585,14 +585,14 @@ fn positions(
         TextPlacement::North | TextPlacement::South => {
             let y = aligned(bounds.y, bounds.height, total.1, label_alignment);
             let text_y = if placement == TextPlacement::North {
-                y + icon.1 + gap
-            } else {
                 y
+            } else {
+                y + icon.1 + gap
             };
             let icon_y = if placement == TextPlacement::North {
-                y
-            } else {
                 y + text.1 + gap
+            } else {
+                y
             };
             (
                 (

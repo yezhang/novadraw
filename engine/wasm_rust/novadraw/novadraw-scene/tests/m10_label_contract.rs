@@ -223,6 +223,91 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
 }
 
 #[test]
+fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
+    const GAP: f64 = 7.0;
+
+    for placement in [
+        TextPlacement::East,
+        TextPlacement::West,
+        TextPlacement::North,
+        TextPlacement::South,
+    ] {
+        let mut runtime = Runtime::empty();
+        runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let image = runtime.register_image();
+        runtime
+            .complete_image(
+                image,
+                ImageData::from_rgba(12, 8, vec![255; 12 * 8 * 4], 1.0),
+            )
+            .unwrap();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
+        let label = runtime.add_figure(
+            root,
+            Box::new(
+                LabelFigure::new("Placement")
+                    .with_icon(image)
+                    .with_bounds(Rectangle::new(0.0, 0.0, 160.0, 80.0)),
+            ),
+        );
+        runtime.set_label_text_placement(label, placement).unwrap();
+        runtime.set_label_icon_text_gap(label, GAP).unwrap();
+
+        let submission = runtime
+            .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+        let text = runtime.label_text_layout(label).unwrap();
+        let text_origin = submission
+            .commands
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::DrawGlyphRun { origin, .. } => Some(*origin),
+                _ => None,
+            })
+            .expect("Label must emit a glyph run");
+        let image_bounds = submission
+            .commands
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::Image { dest_rect, .. } => Some(*dest_rect),
+                _ => None,
+            })
+            .expect("Label must emit an image");
+        let Some(AnchorGeometry::Rectangle(icon_geometry)) =
+            runtime.anchor_geometry(label, &AnchorGeometryKey::icon())
+        else {
+            panic!("Label must expose its icon region");
+        };
+        assert_eq!(
+            *icon_geometry,
+            Rectangle::new(
+                image_bounds[0].x,
+                image_bounds[0].y,
+                image_bounds[1].x - image_bounds[0].x,
+                image_bounds[1].y - image_bounds[0].y,
+            )
+        );
+
+        match placement {
+            TextPlacement::East => assert_eq!(text_origin.x, image_bounds[1].x + GAP),
+            TextPlacement::West => {
+                assert_eq!(
+                    text_origin.x + f64::from(text.width()) + GAP,
+                    image_bounds[0].x
+                )
+            }
+            TextPlacement::North => {
+                assert_eq!(
+                    text_origin.y + f64::from(text.height()) + GAP,
+                    image_bounds[0].y
+                )
+            }
+            TextPlacement::South => assert_eq!(image_bounds[1].y + GAP, text_origin.y),
+        }
+    }
+}
+
+#[test]
 fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();

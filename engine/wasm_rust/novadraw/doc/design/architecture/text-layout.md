@@ -212,6 +212,7 @@ foreground、background、alpha 和 font 继续来自 `ResolvedStyle`。
 - 文本与图标都存在时才计 gap；
 - east/west：宽度相加，高度取最大；
 - north/south：高度相加，宽度取最大；
+- placement 表示文字相对图标的方向：North 文字在上，South 文字在下；
 - preferred size 使用完整文本；
 - minimum size 使用 `min(full text, ellipsis)`；
 - border insets 和 border preferred size 按现有盒模型合并。

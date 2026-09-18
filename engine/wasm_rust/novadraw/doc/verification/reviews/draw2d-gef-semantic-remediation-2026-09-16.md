@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：12；
-- 待关闭：5；
+- 已关闭：13；
+- 待关闭：4；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -37,6 +37,7 @@
 | G2-F3 Border 南/东区预留与摆放不一致 | BorderLayout 先确定各侧最终尺寸，再由 Center 与对应 child 共同消费；South/East 不再在摆放阶段重复应用半轴上限 | `border_layout_uses_the_reserved_south_size_for_placement`、`border_layout_uses_the_reserved_east_size_for_placement`、`m5_layout_contract`：PASS |
 | G3-F01 删除 Ready 图片后保留旧引用 | ImageFigure 对缺失资源进入 `Unavailable` 并清除旧 `ImageResourceRef`；共享 dependent 同帧刷新，Remove submission 不再携带旧 Image command | `removing_ready_image_clears_all_shared_figure_references`、`m10_label_contract`：PASS |
 | G3-F02 CompoundBorder 丢失 TitleBar owner 快照 | BorderSnapshot 与 Compound outer/inner 结构同构，递归解析、合成指标并按累计 inset 绘制；共享 Compound 仍按 owner 字体隔离 | `compound_border_resolves_title_bar_snapshots_at_every_nesting_position`、`shared_compound_title_bar_border_keeps_metrics_per_owner`、`m10_label_contract`、`m10_reusable_shape_border_contract`、`novadraw-scene` crate 测试：PASS |
+| G3-F03 Label North/South 方向反转 | TextPlacement 统一表示文字相对图标的方向；North 将文字置于图标上方，South 将文字置于图标下方 | `text_placement_positions_text_relative_to_icon_in_all_four_directions` 同时核对 glyph origin、Image command、gap 与 icon named geometry；`m10_label_contract`：PASS |
 
 release 定向测试：
 
