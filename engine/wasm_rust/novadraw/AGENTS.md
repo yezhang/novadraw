@@ -101,7 +101,9 @@
 - **语言**: Rust (Edition 2024)
 - **渲染**: Vello (WebGPU)
 - **构建**: `cargo build && cargo test`
-- **统一门禁**: `cargo xtask check --full`
+- **分层门禁**: 修改内环使用 crate 级 check/精确测试；功能切片运行对应 suite；
+  `cargo xtask check --quick` 用于同类整改批次，`cargo xtask check --full` 只在最终
+  提交、推送、合并或里程碑关闭前执行一次
 - **模块**: `novadraw-core`, `novadraw-scene`, `novadraw-render`, `novadraw-math`,
   `novadraw-editor`（G5.5 自动门禁已完成，检查点 C 待人工验收）
 
@@ -122,6 +124,7 @@
 - 深度交互仅在能降低误解、架构偏移或长期维护风险时主动展开。
 - 简单问答 / 小修改直接完成；Bug 修复先定位根因再修复验证；新功能先定义契约再测试实现；架构设计先澄清目标与约束。
 - 大范围或高风险修改遵循 Explore → Plan → Gate → Execute → Verify → Review。
+- 验证成本随风险逐级提升；不得在每个小修改后重复运行 workspace 全量门禁。
 
 ### 深度交互触发条件
 

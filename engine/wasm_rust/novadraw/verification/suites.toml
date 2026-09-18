@@ -211,14 +211,13 @@ args = [
 ]
 
 [profiles.quick]
-description = "Formatting, workspace compilation, and lint feedback"
-commands = ["workspace.fmt", "workspace.check", "workspace.clippy"]
+description = "Fast workspace formatting and compilation feedback"
+commands = ["workspace.fmt", "workspace.check"]
 
 [profiles.full]
 description = "Complete local submission gate"
 commands = [
   "workspace.fmt",
-  "workspace.check",
   "workspace.clippy",
   "workspace.test",
 ]
@@ -232,7 +231,6 @@ layers = ["static", "contract"]
 platforms = ["host", "headless"]
 commands = [
   "workspace.fmt",
-  "workspace.check",
   "workspace.clippy",
   "workspace.test",
 ]

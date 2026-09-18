@@ -38,11 +38,30 @@ apps/benchmarks/   - 无窗口性能基线
 - **禁止提前恢复迭代渲染**：递归渲染在 M1-M10 核心契约完备前，不得把迭代渲染重新接入代码主线；未来仅能作为性能专项 delta 从归档 tag 恢复并重新设计
 - **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于引擎 crate（如 `novadraw-scene`），`apps/*` 只做平台输入适配与示例编排
 
-## 提交前检查
+## 分层验证与提交门禁
+
+验证成本必须随变更风险逐级提升，不得在每个小修改后重复执行 workspace 全量门禁：
+
+1. **修改内环**：运行受影响 crate 的 `cargo check -p <crate>` 和精确定向测试；
+   Rust 格式使用 `cargo fmt --all` 或提交前的格式检查。
+2. **功能切片完成**：运行受影响 crate 的完整测试，以及
+   `cargo xtask verify <suite-id>` 对应的契约或应用门禁。
+3. **同类整改批次完成**：运行 `cargo xtask check --quick`。
+4. **最终提交、推送、合并或里程碑关闭前**：只需运行一次
+   `cargo xtask check --full`。
+
+纯文档变更默认只运行：
 
 ```bash
-cargo xtask check --full
+cargo xtask docs
+git diff --check
 ```
+
+修改 workspace/Cargo 配置、feature、公共跨 crate API、build script 或其他高扩散边界时，
+应提前提升到 workspace quick gate；只有在最终交付边界或定向验证无法覆盖风险时才提前
+运行 full gate。不得连续组合 `cargo test -p <crate> --lib` 与
+`cargo test -p <crate> --tests` 造成重复执行；需要完整 crate 验证时直接运行
+`cargo test -p <crate>`。
 
 验证命令、suite 与证据路径统一定义在 `verification/suites.toml`。使用
 `cargo xtask list` 查看入口，使用 `cargo xtask docs` 检查 manifest、文档引用与

@@ -26,6 +26,15 @@ cargo xtask manual g5.4
 Suite selectors accept either a complete ID or an unambiguous dotted prefix. `verify --all`
 deduplicates shared commands before execution.
 
+Use the profiles at different workflow boundaries:
+
+- `check --quick` runs workspace formatting and compilation for batch-level feedback.
+- `check --full` runs formatting, workspace Clippy, and all workspace tests once at the final
+  submission, push, merge, or milestone boundary. Clippy already performs the normal workspace
+  compilation pass, so the full profile does not run a separate redundant `cargo check`.
+- During the edit loop, prefer `cargo check -p <crate>`, an exact test, and the affected suite.
+- Documentation-only changes use `cargo xtask docs` and `git diff --check`.
+
 ## Editor Headless Replay
 
 The `g3`, `g4`, and `g5.2`-`g5.4` suites run `node-editor-demo` without creating a window. Native
