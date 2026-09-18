@@ -11,6 +11,7 @@ pub enum ImageDisplayState {
     Pending,
     Ready,
     Failed,
+    Unavailable,
 }
 
 #[derive(Clone)]
@@ -67,13 +68,14 @@ impl ImageFigure {
 
     pub(crate) fn refresh(
         &mut self,
-        status: &ResourceStatus,
+        status: Option<&ResourceStatus>,
         resource: Option<ImageResourceRef>,
     ) -> bool {
         let next_state = match status {
-            ResourceStatus::Pending => ImageDisplayState::Pending,
-            ResourceStatus::Ready { .. } => ImageDisplayState::Ready,
-            ResourceStatus::Failed { .. } => ImageDisplayState::Failed,
+            Some(ResourceStatus::Pending) => ImageDisplayState::Pending,
+            Some(ResourceStatus::Ready { .. }) => ImageDisplayState::Ready,
+            Some(ResourceStatus::Failed { .. }) => ImageDisplayState::Failed,
+            None => ImageDisplayState::Unavailable,
         };
         let next_resource = (next_state == ImageDisplayState::Ready)
             .then_some(resource)
@@ -145,6 +147,7 @@ impl Figure for ImageFigure {
                     Color::rgba(0.8, 0.1, 0.1, 1.0),
                 );
             }
+            (ImageDisplayState::Unavailable, _) => {}
             _ => {}
         }
     }

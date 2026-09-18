@@ -58,6 +58,10 @@ any      → Removed
 - Ready 产生 Upsert；
 - Ready -> Failed 与 Ready -> Removed 产生 Remove；
 - Pending/Failed -> Removed 没有 backend op；
+- 依赖已删除资源的 `ImageFigure` 在同一稳定化事务中进入 `Unavailable`，清除旧
+  `ImageResourceRef` 且不再生成 Image command；该状态不同于仍可完成的 Pending；
+- 同一资源的全部 Figure dependent 必须一起失效和刷新，不能留下引用旧 revision 的
+  局部派生快照；
 - unknown、namespace mismatch 和 kind mismatch 返回结构化错误；
 - worker 不直接修改 Registry、FigureTree 或 backend。
 

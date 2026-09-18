@@ -3061,9 +3061,7 @@ impl FigureTree {
                 .downcast_ref::<ImageFigure>()
                 .expect("image type checked before refresh")
                 .image();
-            let Ok(status) = resources.status(image.resource_id()) else {
-                continue;
-            };
+            let status = resources.status(image.resource_id()).ok();
             let image_ref = resources.image_ref(image);
             let figure = self.blocks[id]
                 .figure

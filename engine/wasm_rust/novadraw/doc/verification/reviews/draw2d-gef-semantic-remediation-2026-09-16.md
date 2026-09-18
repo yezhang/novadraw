@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：10；
-- 待关闭：7；
+- 已关闭：11；
+- 待关闭：6；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -35,6 +35,7 @@
 | G2-F1 Freeform 溢出 child 旧 damage 丢失 | 几何或拓扑变更前将旧 visual 沿当时父链冻结到 logical-surface 队列；repair 合并 frozen 与当前 local dirty，panic 时恢复两类快照 | `moving_overflow_visible_child_damages_old_and_new_surface_regions`、`test_update_panic_restores_frozen_surface_damage`、`novadraw-scene` crate 测试、`core.runtime`：PASS |
 | G2-F2 布局 client area 重复应用 inset | LayoutSnapshot 将 node-local client box 转成零原点 child-content 可用区；inset 只由 parent child transform 应用一次 | `stack_layout_applies_container_insets_once`、`xy_layout_applies_container_insets_once`、`m5_layout_contract`、`m8_viewport_contract`：PASS |
 | G2-F3 Border 南/东区预留与摆放不一致 | BorderLayout 先确定各侧最终尺寸，再由 Center 与对应 child 共同消费；South/East 不再在摆放阶段重复应用半轴上限 | `border_layout_uses_the_reserved_south_size_for_placement`、`border_layout_uses_the_reserved_east_size_for_placement`、`m5_layout_contract`：PASS |
+| G3-F01 删除 Ready 图片后保留旧引用 | ImageFigure 对缺失资源进入 `Unavailable` 并清除旧 `ImageResourceRef`；共享 dependent 同帧刷新，Remove submission 不再携带旧 Image command | `removing_ready_image_clears_all_shared_figure_references`、`m10_label_contract`：PASS |
 
 release 定向测试：
 

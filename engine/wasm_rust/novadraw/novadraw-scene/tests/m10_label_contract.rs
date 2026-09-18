@@ -480,3 +480,75 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
         }
     );
 }
+
+#[test]
+fn removing_ready_image_clears_all_shared_figure_references() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let image = runtime.register_image();
+    runtime
+        .complete_image(image, ImageData::from_rgba(2, 1, vec![255; 8], 1.0))
+        .unwrap();
+    let first = runtime.add_figure(
+        root,
+        Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))),
+    );
+    let second = runtime.add_figure(
+        root,
+        Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(80.0, 20.0, 40.0, 30.0))),
+    );
+
+    let ready = runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .unwrap();
+    assert_eq!(
+        ready
+            .commands
+            .iter()
+            .filter(|command| matches!(command.kind, RenderCommandKind::Image { .. }))
+            .count(),
+        2
+    );
+    assert!(runtime.complete_submission(
+        ready.session_id,
+        ready.frame_id,
+        novadraw_render::RenderOutcome::Presented
+    ));
+
+    runtime.remove_resource(image.resource_id()).unwrap();
+    let removed = runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .unwrap();
+
+    assert_eq!(
+        runtime.image_display_state(first),
+        Ok(ImageDisplayState::Unavailable)
+    );
+    assert_eq!(
+        runtime.image_display_state(second),
+        Ok(ImageDisplayState::Unavailable)
+    );
+    assert!(
+        removed
+            .commands
+            .iter()
+            .all(|command| !matches!(command.kind, RenderCommandKind::Image { .. }))
+    );
+    assert!(matches!(
+        &removed.resources,
+        novadraw_render::ResourceSync::Delta(delta)
+            if matches!(
+                delta.ops.as_slice(),
+                [novadraw_render::ResourceOp::Remove(id)] if *id == image.resource_id()
+            )
+    ));
+    assert!(runtime.complete_submission(
+        removed.session_id,
+        removed.frame_id,
+        novadraw_render::RenderOutcome::Presented
+    ));
+    assert!(matches!(
+        runtime.prepare_submission_state(surface(), BackendCapabilities::RETAINED_PARTIAL),
+        novadraw_scene::FramePreparation::Idle
+    ));
+}
