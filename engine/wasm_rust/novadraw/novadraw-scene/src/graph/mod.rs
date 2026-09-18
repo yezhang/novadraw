@@ -2531,6 +2531,19 @@ impl FigureTree {
         true
     }
 
+    pub(crate) fn set_child_order(&mut self, parent_id: FigureId, order: &[FigureId]) -> bool {
+        let Some(parent) = self.blocks.get_mut(parent_id) else {
+            return false;
+        };
+        if parent.children.as_slice() == order {
+            return false;
+        }
+        parent.children.clear();
+        parent.children.extend_from_slice(order);
+        self.notify_block_changed(parent_id);
+        true
+    }
+
     /// 将直接 child 移动到最高 z-order。
     pub(crate) fn bring_child_to_front(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         let Some(last_index) = self

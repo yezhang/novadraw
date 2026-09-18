@@ -143,6 +143,11 @@ pub enum RuntimeMutationError {
         index: usize,
         child_count: usize,
     },
+    /// A complete child order was not an exact permutation of the current direct children.
+    InvalidChildOrder {
+        /// Parent whose child order was rejected.
+        parent: FigureId,
+    },
     InvalidSize {
         figure: FigureId,
         size: (f64, f64),
@@ -185,6 +190,12 @@ impl fmt::Display for RuntimeMutationError {
                 formatter,
                 "child index {index} is outside parent {parent:?} child count {child_count}"
             ),
+            Self::InvalidChildOrder { parent } => {
+                write!(
+                    formatter,
+                    "child order is not an exact permutation of parent {parent:?}"
+                )
+            }
             Self::InvalidSize { figure, size } => write!(
                 formatter,
                 "Figure {figure:?} size must be finite and non-negative, got {size:?}"

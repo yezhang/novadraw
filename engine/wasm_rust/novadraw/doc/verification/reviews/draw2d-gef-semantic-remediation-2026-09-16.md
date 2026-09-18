@@ -2,7 +2,7 @@
 
 类型：`verification`
 
-状态：`in_progress`
+状态：`complete`
 
 日期：2026-09-16
 
@@ -16,10 +16,10 @@
 
 ## 当前结论
 
-- 已关闭：16；
-- 待关闭：1；
+- 已关闭：17；
+- 待关闭：0；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
-- G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
+- G6 尚未启动，不应在检查点 C 人工验收前提升状态。
 
 ## 已关闭
 
@@ -41,6 +41,7 @@
 | G4-F1 route 预检拒绝后丢失恢复依赖 | geometry/Locator 预检失败时先合并 batch 中各 calculation 的当前 observations，再转 Unresolved 并清理旧 route；不提交 generation、points 或 child placement | `first_locator_preflight_failure_recovers_when_an_observed_owner_moves`、`locator_preflight_failure_after_success_refreshes_recovery_dependencies`、`m9_connection_runtime`、`core.runtime`：PASS |
 | G4-F2 反向 Fan connection 重合 | 无向 Anchor pair 内按主轴规范统一向西/向北的几何方向，再应用稳定 child-order lane；各 connection 保留自身端点与 metadata 顺序 | `fan_router_separates_bidirectional_connections`、`fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal`、`m9_connection_runtime`、`m9_connection_contract`：PASS |
 | G4-F3 reparent 改变 absolute bendpoint 坐标含义 | topology commit 前将内置 BendpointConstraint 的 absolute 点从旧 parent child-content 映射到新域，relative 点保持不变；未知自定义 constraint 结构化原子拒绝 | `reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain`、`reparenting_connection_with_unknown_constraint_is_rejected_atomically`、`m9_connection_runtime`、`d3_runtime_mutation`：PASS |
+| G5-F02 未变化连接触发平方级投影 | Viewer 每批构造一次完整 connection Figure 顺序，Runtime 以一次 O(E) 比较/校验原子提交；等价 None/Bendpoint 路由配置 no-op，未变端点不主动 resolve | `unchanged_connection_projection_does_not_reroute_each_connection` 以 64 条独立连接确认属性 refresh 为 0 次 route；`runtime_child_order_controls_paint_and_reverse_hit_order_atomically`、`bendpoint_router_preserves_absolute_and_relative_constraints`、`g5.1.connection-projection`：PASS |
 
 release 定向测试：
 
@@ -52,10 +53,9 @@ cargo test -p novadraw-scene --release \
 
 ## 推进顺序
 
-1. 按反例逐项关闭剩余生命周期、布局、绘制、Connection 和 Viewer fault/复杂度问题；
-2. 每项保留修复前反例，新增自动回归并执行对应 suite；
-3. 完成 G5 检查点 C 人工验收；
-4. 再启动 G6 保存加载与 Native/Web/Headless 等价。
+1. 保留全部 17 条 P1 的反例与自动回归；
+2. 完成 G5 检查点 C 人工验收；
+3. 再启动 G6 保存加载与 Native/Web/Headless 等价。
 
 G5/G6 状态仍以
 [`../../roadmap/editor/00-index.md`](../../roadmap/editor/00-index.md) 为唯一入口。

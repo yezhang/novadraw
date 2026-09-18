@@ -2209,6 +2209,7 @@ where
         snapshot: &ModelSnapshot<A::ModelId>,
     ) -> Result<(), ViewerError> {
         let mut order = Vec::with_capacity(snapshot.connections.len());
+        let mut figure_order = Vec::with_capacity(snapshot.connections.len());
         for descriptor in snapshot.connections.iter().copied() {
             let connection = match self
                 .connection_projections
@@ -2222,17 +2223,16 @@ where
                 }
                 None => self.create_connection_part(descriptor)?,
             };
-            order.push(connection);
-        }
-        for (index, connection) in order.iter().copied().enumerate() {
             let figure = self
                 .parts
                 .get(connection.edit_part())
                 .ok_or(ViewerError::InconsistentState)?
                 .primary_figure();
-            self.runtime
-                .move_child_to_index(self.root_layers.connection(), figure, index)?;
+            order.push(connection);
+            figure_order.push(figure);
         }
+        self.runtime
+            .set_child_order(self.root_layers.connection(), &figure_order)?;
         self.parts.set_connection_order(order)?;
         Ok(())
     }
@@ -2294,8 +2294,9 @@ where
             && self.parts.connection_endpoints(current.part)?
                 == crate::ConnectionEndpoints::new(source_part, target_part)
         {
-            self.configure_connection_route(current.connection, router, constraint)?;
-            self.resolve_connection(current.connection)?;
+            if self.configure_connection_route(current.connection, router, constraint)? {
+                self.resolve_connection(current.connection)?;
+            }
             return Ok(());
         }
         if current.registered {
@@ -2399,10 +2400,10 @@ where
         connection: ConnectionId,
         router: RouterBinding,
         constraint: Option<Box<dyn novadraw_scene::RoutingConstraint>>,
-    ) -> Result<(), ViewerError> {
+    ) -> Result<bool, ViewerError> {
         self.runtime
-            .set_connection_route_configuration(connection, router, constraint)?;
-        Ok(())
+            .set_connection_route_configuration(connection, router, constraint)
+            .map_err(Into::into)
     }
 
     fn parts_to_retire(

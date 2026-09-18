@@ -122,8 +122,16 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert!(runtime.bring_child_to_front(root, bottom).unwrap());
     assert_eq!(runtime.tree().child_order(root), Some(vec![top, bottom]));
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(bottom));
+    assert!(!runtime.set_child_order(root, &[top, bottom]).unwrap());
 
     let before = runtime.tree().child_order(root);
+    let duplicate = runtime.set_child_order(root, &[top, top]).unwrap_err();
+    assert_eq!(
+        duplicate,
+        RuntimeMutationError::InvalidChildOrder { parent: root }
+    );
+    assert_eq!(runtime.tree().child_order(root), before);
+
     let invalid = runtime.move_child_to_index(root, bottom, 2).unwrap_err();
     assert_eq!(
         invalid,
@@ -134,7 +142,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
         }
     );
     assert_eq!(runtime.tree().child_order(root), before);
-    assert!(runtime.send_child_to_back(root, bottom).unwrap());
+    assert!(runtime.set_child_order(root, &[bottom, top]).unwrap());
     assert_eq!(runtime.tree().child_order(root), Some(vec![bottom, top]));
     assert!(runtime.bring_child_to_front(root, bottom).unwrap());
 

@@ -2,7 +2,10 @@ use std::{
     cell::Cell,
     collections::HashMap,
     convert::Infallible,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
 use novadraw_editor::{
@@ -14,7 +17,8 @@ use novadraw_editor::{
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
     AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionResolution,
-    ConnectionRuntimeError, Figure, RectangleFigure, RootFigure,
+    ConnectionRouter, ConnectionRuntimeError, DirectRouter, Figure, RectangleFigure, RootFigure,
+    RouteError, RouteOutput, RouteRequest,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -23,6 +27,18 @@ const SECOND: ModelId = ModelId(3);
 const THIRD: ModelId = ModelId(4);
 const EDGE_A: ModelId = ModelId(10);
 const EDGE_B: ModelId = ModelId(11);
+const LINEAR_REFRESH_CONNECTION_COUNT: u64 = 64;
+
+struct CountingRouter {
+    route_count: Arc<AtomicUsize>,
+}
+
+impl ConnectionRouter for CountingRouter {
+    fn route(&self, request: RouteRequest<'_>) -> Result<RouteOutput, RouteError> {
+        self.route_count.fetch_add(1, Ordering::Relaxed);
+        DirectRouter.route(request)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ModelId(u64);
@@ -410,6 +426,41 @@ fn model_order_drives_layer_and_relation_order_without_recreating_parts() {
             .source_connections(viewer.part_for_model(FIRST).unwrap())
             .unwrap(),
         &[second, first]
+    );
+}
+
+#[test]
+fn unchanged_connection_projection_does_not_reroute_each_connection() {
+    let connections = (0..LINEAR_REFRESH_CONNECTION_COUNT)
+        .map(|index| edge(ModelId(100 + index), FIRST, SECOND))
+        .collect();
+    let (mut viewer, _) = viewer_with(connections);
+    let route_count = Arc::new(AtomicUsize::new(0));
+    let router = viewer
+        .runtime_mut()
+        .register_connection_router(Box::new(CountingRouter {
+            route_count: Arc::clone(&route_count),
+        }));
+    let connection_layer = viewer.root_layers().connection();
+    viewer
+        .runtime_mut()
+        .set_connection_layer_router(connection_layer, router)
+        .unwrap();
+    viewer.runtime_mut().prepare_frame().unwrap();
+    assert_eq!(
+        route_count.load(Ordering::Relaxed),
+        LINEAR_REFRESH_CONNECTION_COUNT as usize
+    );
+    route_count.store(0, Ordering::Relaxed);
+
+    viewer.model_mut().unwrap().publish();
+    viewer.refresh().unwrap();
+    let _ = viewer.runtime_mut().prepare_frame();
+
+    assert_eq!(
+        route_count.load(Ordering::Relaxed),
+        0,
+        "an unchanged projection must not dirty or reroute connections"
     );
 }
 

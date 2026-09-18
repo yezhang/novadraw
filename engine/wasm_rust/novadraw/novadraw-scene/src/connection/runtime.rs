@@ -246,6 +246,21 @@ pub(crate) struct ConnectionRuntime {
     locators: Vec<ConnectionLocatorBinding>,
 }
 
+fn routing_constraints_equal(
+    current: Option<&dyn RoutingConstraint>,
+    replacement: Option<&dyn RoutingConstraint>,
+) -> bool {
+    match (current, replacement) {
+        (None, None) => true,
+        (Some(current), Some(replacement)) => current
+            .as_any()
+            .downcast_ref::<BendpointConstraint>()
+            .zip(replacement.as_any().downcast_ref::<BendpointConstraint>())
+            .is_some_and(|(current, replacement)| current == replacement),
+        _ => false,
+    }
+}
+
 impl Default for ConnectionRuntime {
     fn default() -> Self {
         Self::new()
@@ -592,15 +607,24 @@ impl ConnectionRuntime {
         connection: ConnectionId,
         binding: RouterBinding,
         constraint: Option<Box<dyn RoutingConstraint>>,
-    ) -> Result<(), ConnectionRuntimeError> {
+    ) -> Result<bool, ConnectionRuntimeError> {
         self.state(connection)?;
         let router = self.resolve_router_binding(binding)?;
         self.validate_constraint(router, constraint.as_deref())?;
+        let current = self
+            .states
+            .get(&connection)
+            .expect("validated Connection must retain state");
+        if current.router == binding
+            && routing_constraints_equal(current.constraint.as_deref(), constraint.as_deref())
+        {
+            return Ok(false);
+        }
         self.invalidate_all()?;
         let state = self.state_mut(connection)?;
         state.router = binding;
         state.constraint = constraint;
-        Ok(())
+        Ok(true)
     }
 
     pub(crate) fn prepare_reparent_constraint(

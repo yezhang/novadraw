@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt,
     sync::Arc,
 };
@@ -694,7 +694,7 @@ impl Runtime {
         connection: ConnectionId,
         router: RouterBinding,
         constraint: Option<Box<dyn RoutingConstraint>>,
-    ) -> Result<(), ConnectionRuntimeError> {
+    ) -> Result<bool, ConnectionRuntimeError> {
         self.guarded_connection_mutation(move |runtime| {
             runtime
                 .connections
@@ -1852,6 +1852,51 @@ impl Runtime {
         }
         if !self.tree.move_child_to_index(parent, child, index) {
             return Err(RuntimeMutationError::InvalidParentRelation { parent, child });
+        }
+        self.tree.repaint(&mut self.updates, parent, None);
+        if let Err(error) = self.connections.invalidate_all() {
+            self.connection_error = Some(error);
+        }
+        Ok(true)
+    }
+
+    /// Atomically replaces the complete direct-child order of a non-layered parent.
+    pub fn set_child_order(
+        &mut self,
+        parent: FigureId,
+        order: &[FigureId],
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| runtime.set_child_order_inner(parent, order))
+    }
+
+    fn set_child_order_inner(
+        &mut self,
+        parent: FigureId,
+        order: &[FigureId],
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(parent)?;
+        if self.tree.is_layered_pane(parent) {
+            return Err(RuntimeMutationError::LayeredParent(parent));
+        }
+        let current = self
+            .tree
+            .child_order(parent)
+            .expect("attached Figure must have a child list");
+        if current.as_slice() == order {
+            return Ok(false);
+        }
+        if current.len() != order.len() {
+            return Err(RuntimeMutationError::InvalidChildOrder { parent });
+        }
+        let mut seen = HashSet::with_capacity(order.len());
+        for child in order {
+            self.validate_attached_figure(*child)?;
+            if self.tree.parent_id(*child) != Some(parent) || !seen.insert(*child) {
+                return Err(RuntimeMutationError::InvalidChildOrder { parent });
+            }
+        }
+        if !self.tree.set_child_order(parent, order) {
+            return Err(RuntimeMutationError::InvalidChildOrder { parent });
         }
         self.tree.repaint(&mut self.updates, parent, None);
         if let Err(error) = self.connections.invalidate_all() {

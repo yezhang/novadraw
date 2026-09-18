@@ -209,6 +209,12 @@ owner 和 layer 在 connection cleanup 期间仍有效。
 模型视觉。正确性优先于局部提示优化；只有基准证明该扫描成为瓶颈后，才考虑增加
 可选 typed change hints。
 
+connection layer 顺序必须在每批中构造一次完整 FigureId 列表，并通过 Runtime 的
+受检批量顺序接口完成一次比较、排列校验和原子提交；禁止对每条 connection 调用单项
+reorder。端点和路由配置均未变化时，不得主动 resolve；无 constraint 以及内置
+`BendpointConstraint` 使用值语义识别等价配置，由正常 frame stabilization 只处理
+真正 dirty 的 route。
+
 ## 10. 错误模型
 
 至少区分：

@@ -722,7 +722,7 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
             Some(source_anchor),
             Some(target_anchor),
             RouterBinding::Explicit { router },
-            Some(Box::new(constraint)),
+            Some(Box::new(constraint.clone())),
         )
         .unwrap();
 
@@ -735,6 +735,22 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
     assert_eq!(output.points().get(2), Some(Point::new(205.0, 125.0)));
     assert_eq!(output.metadata().source.reference, Point::new(160.0, 80.0));
     assert_eq!(output.metadata().target.reference, Point::new(205.0, 125.0));
+
+    let resolved = runtime.connection_state(connection).unwrap().resolution;
+    assert!(
+        !runtime
+            .set_connection_route_configuration(
+                connection,
+                RouterBinding::Explicit { router },
+                Some(Box::new(constraint)),
+            )
+            .unwrap()
+    );
+    assert_eq!(
+        runtime.connection_state(connection).unwrap().resolution,
+        resolved,
+        "equivalent Bendpoint constraints must not invalidate a resolved route"
+    );
 }
 
 #[test]
