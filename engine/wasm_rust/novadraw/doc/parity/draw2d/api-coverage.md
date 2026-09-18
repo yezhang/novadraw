@@ -318,7 +318,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `connection.figure` | `Connection.get/setSourceAnchor`, `get/setTargetAnchor` | `ConnectionRuntime` 持有 optional AnchorId、tracked dependencies 和 unresolved/rebind；route batch 先完成 Figure geometry/Locator preflight，再原子提交 geometry 与 resolution | verified | 非有限 geometry 不得形成伪 Resolved |
-| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | ConnectionLayer 默认 Router、显式 override 和 Fan shared group 已覆盖 |
+| `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | reparent 前迁移内置 absolute bendpoint；无迁移协议的自定义 constraint 原子拒绝 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | route 计算或 geometry/Locator 预检失败均保留当前 observations，依赖恢复可自动重路由 |
 | `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；normal frame 自动按规范 parent routing space 消费 dirty group | verified | Fan 对无向 pair 使用统一主轴法向并覆盖双向/混合方向重排；ShortestPath 继续延后 |

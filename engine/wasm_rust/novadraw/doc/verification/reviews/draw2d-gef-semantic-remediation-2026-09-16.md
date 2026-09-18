@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：15；
-- 待关闭：2；
+- 已关闭：16；
+- 待关闭：1；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -40,6 +40,7 @@
 | G3-F03 Label North/South 方向反转 | TextPlacement 统一表示文字相对图标的方向；North 将文字置于图标上方，South 将文字置于图标下方 | `text_placement_positions_text_relative_to_icon_in_all_four_directions` 同时核对 glyph origin、Image command、gap 与 icon named geometry；`m10_label_contract`：PASS |
 | G4-F1 route 预检拒绝后丢失恢复依赖 | geometry/Locator 预检失败时先合并 batch 中各 calculation 的当前 observations，再转 Unresolved 并清理旧 route；不提交 generation、points 或 child placement | `first_locator_preflight_failure_recovers_when_an_observed_owner_moves`、`locator_preflight_failure_after_success_refreshes_recovery_dependencies`、`m9_connection_runtime`、`core.runtime`：PASS |
 | G4-F2 反向 Fan connection 重合 | 无向 Anchor pair 内按主轴规范统一向西/向北的几何方向，再应用稳定 child-order lane；各 connection 保留自身端点与 metadata 顺序 | `fan_router_separates_bidirectional_connections`、`fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal`、`m9_connection_runtime`、`m9_connection_contract`：PASS |
+| G4-F3 reparent 改变 absolute bendpoint 坐标含义 | topology commit 前将内置 BendpointConstraint 的 absolute 点从旧 parent child-content 映射到新域，relative 点保持不变；未知自定义 constraint 结构化原子拒绝 | `reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain`、`reparenting_connection_with_unknown_constraint_is_rejected_atomically`、`m9_connection_runtime`、`d3_runtime_mutation`：PASS |
 
 release 定向测试：
 

@@ -329,8 +329,10 @@ Bendpoint constraint 必须自带坐标语义：
 - `AbsoluteBendpoint` 位于 connection routing domain；
 - `RelativeBendpoint` 由 source/target reference、两端 offset 和 `[0, 1]` weight
   计算；
-- connection reparent 时，Runtime 要么把 absolute bendpoint 映射到新 routing
-  domain，要么原子拒绝 reparent，不能保持数值不变却改变空间含义。
+- connection reparent 时，Runtime 在 topology commit 前把内置 `BendpointConstraint`
+  的 absolute bendpoint 映射到新 routing domain，relative bendpoint 保持不变；
+- 未声明迁移语义的自定义 constraint 以结构化
+  `UnsupportedConstraintReparent` 原子拒绝，不能保持数值不变却改变空间含义。
 
 Direct、Bendpoint 和单连接 Manhattan 计算必须是确定性的：相同 snapshot、anchor、
 constraint 和 router config 产生相同输出。

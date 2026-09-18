@@ -1624,15 +1624,32 @@ impl Runtime {
         child: FigureId,
         new_parent: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
-        let old_parent = self.tree.parent_id(child);
+        let old_parent = self
+            .tree
+            .parent_id(child)
+            .ok_or(RuntimeMutationError::DetachedFigure(child))?;
+        let prepared_constraint = if old_parent == new_parent {
+            None
+        } else {
+            let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+            self.connections.prepare_reparent_constraint(
+                ConnectionId::from_figure(child),
+                CoordinateSpace::ChildContent(old_parent),
+                CoordinateSpace::ChildContent(new_parent),
+                &scene,
+            )?
+        };
         let changed = self
             .tree
             .try_reparent(&mut self.updates, child, new_parent)?;
         if changed {
+            if let Some(constraint) = prepared_constraint {
+                self.connections
+                    .commit_reparent_constraint(ConnectionId::from_figure(child), constraint);
+            }
             self.invalidate_connection_figure_change(child, true);
             self.retain_interactive_figures();
-            self.tree
-                .complete_detachment(child, old_parent.expect("validated old parent"));
+            self.tree.complete_detachment(child, old_parent);
             self.tree.complete_attachment(child, new_parent);
         }
         Ok(changed)

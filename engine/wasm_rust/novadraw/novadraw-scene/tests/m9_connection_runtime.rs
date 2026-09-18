@@ -11,7 +11,8 @@ use novadraw_scene::{
     CoordinateSpace, DirectRouter, FanRouter, FigureId, LocatorError,
     MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
     PathFractionLocator, RectangleFigure, RouteError, RouteOutput, RouteRequest, RouterBinding,
-    Runtime, UnresolvedConnection, ViewportFigure, XYConstraint, XYLayout,
+    Runtime, RuntimeMutationError, UnresolvedConnection, ViewportFigure, XYAnchor, XYConstraint,
+    XYLayout,
 };
 
 struct ConstraintA;
@@ -734,6 +735,102 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
     assert_eq!(output.points().get(2), Some(Point::new(205.0, 125.0)));
     assert_eq!(output.metadata().source.reference, Point::new(160.0, 80.0));
     assert_eq!(output.metadata().target.reference, Point::new(205.0, 125.0));
+}
+
+#[test]
+fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
+    let old_parent =
+        runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let new_parent = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
+    );
+    let connection_figure = runtime.add_figure(old_parent, Box::new(ConnectionFigure::new()));
+    let source_anchor = runtime.register_connection_anchor(Box::new(XYAnchor::new(
+        Point::new(10.0, 20.0),
+        CoordinateSpace::ChildContent(root),
+    )));
+    let target_anchor = runtime.register_connection_anchor(Box::new(XYAnchor::new(
+        Point::new(180.0, 80.0),
+        CoordinateSpace::ChildContent(root),
+    )));
+    let router = runtime.register_connection_router(Box::new(BendpointConnectionRouter));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit { router },
+            Some(Box::new(BendpointConstraint::new(vec![
+                Bendpoint::Absolute(Point::new(50.0, 30.0)),
+                Bendpoint::Relative {
+                    source_offset: Vector::new(10.0, 0.0),
+                    target_offset: Vector::new(-10.0, 0.0),
+                    weight: 0.5,
+                },
+            ]))),
+        )
+        .unwrap();
+
+    let initial = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(old_parent))
+        .unwrap();
+    assert_eq!(initial.points().get(1), Some(Point::new(50.0, 30.0)));
+
+    assert!(runtime.try_reparent(connection_figure, new_parent).unwrap());
+    let reparented = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(new_parent))
+        .unwrap();
+    assert_eq!(reparented.points().get(1), Some(Point::new(-50.0, 30.0)));
+    assert_eq!(
+        reparented.points().get(2),
+        initial
+            .points()
+            .get(2)
+            .map(|point| point - Vector::new(100.0, 0.0))
+    );
+}
+
+#[test]
+fn reparenting_connection_with_unknown_constraint_is_rejected_atomically() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
+    let old_parent =
+        runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    let new_parent = runtime.add_figure(
+        root,
+        Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
+    );
+    let connection_figure = runtime.add_figure(old_parent, Box::new(ConnectionFigure::new()));
+    let router =
+        runtime.register_connection_router(Box::new(TypedRouter::<ConstraintA>(PhantomData)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            None,
+            None,
+            RouterBinding::Explicit { router },
+            Some(Box::new(ConstraintA)),
+        )
+        .unwrap();
+    let before = runtime.connection_state(connection).unwrap();
+
+    assert!(matches!(
+        runtime.try_reparent(connection_figure, new_parent),
+        Err(RuntimeMutationError::Connection(
+            ConnectionRuntimeError::UnsupportedConstraintReparent {
+                connection: candidate,
+                ..
+            }
+        )) if candidate == connection
+    ));
+    assert_eq!(
+        runtime.tree().parent_id(connection_figure),
+        Some(old_parent)
+    );
+    assert_eq!(runtime.connection_state(connection).unwrap(), before);
 }
 
 #[test]

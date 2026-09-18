@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, error::Error, fmt};
 
+use crate::connection::ConnectionRuntimeError;
 use crate::{
     ChildClippingStrategy, Figure, FigureId, GraphMutationError, LayerKey, LayerPlacement,
     LayoutConstraint, LayoutError, LayoutManager,
@@ -148,6 +149,7 @@ pub enum RuntimeMutationError {
     },
     Layout(LayoutError),
     Graph(GraphMutationError),
+    Connection(ConnectionRuntimeError),
     Rejected,
 }
 
@@ -189,6 +191,7 @@ impl fmt::Display for RuntimeMutationError {
             ),
             Self::Layout(error) => error.fmt(formatter),
             Self::Graph(error) => error.fmt(formatter),
+            Self::Connection(error) => error.fmt(formatter),
             Self::Rejected => write!(formatter, "runtime mutation was rejected"),
         }
     }
@@ -205,6 +208,12 @@ impl From<LayoutError> for RuntimeMutationError {
 impl From<GraphMutationError> for RuntimeMutationError {
     fn from(value: GraphMutationError) -> Self {
         Self::Graph(value)
+    }
+}
+
+impl From<ConnectionRuntimeError> for RuntimeMutationError {
+    fn from(value: ConnectionRuntimeError) -> Self {
+        Self::Connection(value)
     }
 }
 

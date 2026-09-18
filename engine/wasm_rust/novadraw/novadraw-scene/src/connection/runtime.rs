@@ -3,10 +3,11 @@ use std::{collections::HashMap, error::Error, fmt};
 use crate::identity::{RuntimeArena, RuntimeNamespace};
 
 use super::{
-    AnchorGroupKey, AnchorId, ConnectionAnchor, ConnectionId, ConnectionRouter, CoordinateSpace,
-    DependencyObservation, DependencySubject, DirectRouter, LocatorError, LocatorPlacement,
-    RouteError, RouteOutput, RouteRequest, RouterId, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope, SceneRead, TrackedSceneQuery,
+    AnchorGroupKey, AnchorId, Bendpoint, BendpointConstraint, ConnectionAnchor, ConnectionId,
+    ConnectionRouter, CoordinateSpace, DependencyObservation, DependencySubject, DirectRouter,
+    LocatorError, LocatorPlacement, RouteError, RouteOutput, RouteRequest, RouterId,
+    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SceneQueryError, SceneRead,
+    TrackedSceneQuery,
 };
 use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
 
@@ -97,6 +98,20 @@ pub enum ConnectionRuntimeError {
         /// Actual concrete type.
         actual: &'static str,
     },
+    /// A custom constraint cannot preserve its meaning across routing domains.
+    UnsupportedConstraintReparent {
+        /// Connection whose parent would change.
+        connection: ConnectionId,
+        /// Concrete constraint type without a migration protocol.
+        actual: &'static str,
+    },
+    /// A built-in constraint could not be mapped into the new routing domain.
+    RoutingSpaceMapping {
+        /// Connection whose parent would change.
+        connection: ConnectionId,
+        /// Coordinate mapping failure.
+        error: SceneQueryError,
+    },
     /// Locator child is not a direct child of its Connection Figure.
     InvalidLocatorChild {
         /// Owning Connection.
@@ -141,6 +156,14 @@ impl fmt::Display for ConnectionRuntimeError {
                 }
                 None => write!(formatter, "router does not accept constraint {actual}"),
             },
+            Self::UnsupportedConstraintReparent { connection, actual } => write!(
+                formatter,
+                "Connection {connection:?} constraint {actual} cannot be reparented across routing domains"
+            ),
+            Self::RoutingSpaceMapping { connection, error } => write!(
+                formatter,
+                "Connection {connection:?} routing domain mapping failed: {error}"
+            ),
             Self::InvalidLocatorChild { connection, child } => write!(
                 formatter,
                 "Figure {child:?} is not a direct child of Connection {connection:?}"
@@ -578,6 +601,54 @@ impl ConnectionRuntime {
         state.router = binding;
         state.constraint = constraint;
         Ok(())
+    }
+
+    pub(crate) fn prepare_reparent_constraint(
+        &self,
+        connection: ConnectionId,
+        from: CoordinateSpace,
+        to: CoordinateSpace,
+        source: &dyn SceneRead,
+    ) -> Result<Option<Box<dyn RoutingConstraint>>, ConnectionRuntimeError> {
+        let Some(state) = self.states.get(&connection) else {
+            return Ok(None);
+        };
+        let Some(constraint) = state.constraint.as_deref() else {
+            return Ok(None);
+        };
+        let Some(constraint) = constraint.as_any().downcast_ref::<BendpointConstraint>() else {
+            return Err(ConnectionRuntimeError::UnsupportedConstraintReparent {
+                connection,
+                actual: constraint.type_name(),
+            });
+        };
+        let bendpoints = constraint
+            .bendpoints()
+            .iter()
+            .copied()
+            .map(|bendpoint| match bendpoint {
+                Bendpoint::Absolute(point) => source
+                    .map_point(point, from, to)
+                    .map(Bendpoint::Absolute)
+                    .map_err(|error| ConnectionRuntimeError::RoutingSpaceMapping {
+                        connection,
+                        error,
+                    }),
+                relative @ Bendpoint::Relative { .. } => Ok(relative),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(Box::new(BendpointConstraint::new(bendpoints))))
+    }
+
+    pub(crate) fn commit_reparent_constraint(
+        &mut self,
+        connection: ConnectionId,
+        constraint: Box<dyn RoutingConstraint>,
+    ) {
+        self.states
+            .get_mut(&connection)
+            .expect("prepared reparent references a registered Connection")
+            .constraint = Some(constraint);
     }
 
     pub(crate) fn route(
