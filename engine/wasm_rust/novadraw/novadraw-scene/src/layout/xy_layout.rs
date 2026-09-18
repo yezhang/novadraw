@@ -164,26 +164,17 @@ impl LayoutManager for XYLayout {
         snapshot: &LayoutSnapshot<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
-        // 获取容器的 bounds
         let children = snapshot.children(container);
         if children.is_empty() {
             return Ok(());
         }
 
-        // 获取容器的 bounds（用于计算 client area）
+        // LayoutSnapshot exposes the available rectangle in child-content coordinates.
         let container_bounds = snapshot.container_bounds(container);
-
-        // draw2d: getOrigin(parent) 返回 parent.getClientArea().getLocation()
-        // 在 draw2d 中，useLocalCoordinates() 默认返回 false
-        // client area = bounds - insets，默认 insets 为 0
-        // 所以 origin = bounds.location()
         let offset_x = container_bounds.x;
         let offset_y = container_bounds.y;
 
-        // XYLayout：将约束从"相对于 client area"转换为"相对于 bounds"
-        // draw2d: bounds = bounds.getTranslated(offset)
         for (child_id, _) in children {
-            // 获取约束（相对于 client area）
             if let Some(constraint) = xy_constraint(snapshot, container, child_id)? {
                 let preferred = snapshot.preferred_size(child_id, -1.0, -1.0);
                 let width = if constraint.width < 0.0 {
@@ -196,7 +187,6 @@ impl LayoutManager for XYLayout {
                 } else {
                     constraint.height
                 };
-                // 将约束平移 offset，得到相对于 bounds 的坐标
                 let new_bounds = Rectangle::new(
                     constraint.x + offset_x,
                     constraint.y + offset_y,

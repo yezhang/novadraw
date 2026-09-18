@@ -1,8 +1,10 @@
+use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
 use novadraw_scene::{
     BorderConstraint, BorderRegion, FigureId, FigureTree, GridAlignment, GridConstraint,
-    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, RectangleFigure,
-    StackLayout, ToolbarLayout, UpdateManager, ValidationError, XYLayout,
+    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, LineBorder,
+    RectangleFigure, StackLayout, ToolbarLayout, UpdateManager, ValidationError, XYConstraint,
+    XYLayout,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -30,6 +32,53 @@ fn stack_layout_places_every_child_in_the_client_area() {
     let expected = Rectangle::new(0.0, 0.0, 200.0, 100.0);
     assert_rect(graph.figure_bounds(first), expected);
     assert_rect(graph.figure_bounds(second), expected);
+}
+
+#[test]
+fn stack_layout_applies_container_insets_once() {
+    let mut graph = FigureTree::new();
+    let root = graph.builder().set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+            .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(10.0, 10.0, 10.0, 10.0)),
+    ));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+    graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
+
+    graph.revalidate(root);
+
+    assert_rect(
+        graph.figure_bounds(child),
+        Rectangle::new(0.0, 0.0, 80.0, 80.0),
+    );
+    let mut projected = Rectangle::new(0.0, 0.0, 80.0, 80.0);
+    graph.translate_to_absolute_mut(child, &mut projected);
+    assert_eq!(projected, Rectangle::new(10.0, 10.0, 80.0, 80.0));
+}
+
+#[test]
+fn xy_layout_applies_container_insets_once() {
+    let mut graph = FigureTree::new();
+    let root = graph.builder().set_contents(Box::new(
+        RectangleFigure::new(0.0, 0.0, 100.0, 100.0)
+            .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(10.0, 10.0, 10.0, 10.0)),
+    ));
+    let child = graph
+        .builder()
+        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+    graph.set_constraint(child, XYConstraint::at_size(5.0, 6.0, 20.0, 20.0));
+    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
+
+    graph.revalidate(root);
+
+    assert_rect(
+        graph.figure_bounds(child),
+        Rectangle::new(5.0, 6.0, 20.0, 20.0),
+    );
+    let mut projected = Rectangle::new(0.0, 0.0, 20.0, 20.0);
+    graph.translate_to_absolute_mut(child, &mut projected);
+    assert_eq!(projected, Rectangle::new(15.0, 16.0, 20.0, 20.0));
 }
 
 #[test]

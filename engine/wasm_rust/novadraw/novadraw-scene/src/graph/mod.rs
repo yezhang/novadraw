@@ -493,6 +493,11 @@ impl FigureNode {
         )
     }
 
+    pub(crate) fn child_layout_area(&self) -> Rectangle {
+        let client_area = self.client_area();
+        Rectangle::new(0.0, 0.0, client_area.width, client_area.height)
+    }
+
     pub(crate) fn child_transform(&self) -> super::ChildTransform {
         let (top, left, _, _) = self.state.insets;
         let figure_transform = self
@@ -4144,7 +4149,7 @@ impl super::layout::LayoutContext for FigureTree {
 
     fn get_container_bounds(&self, container_id: FigureId) -> Rectangle {
         if let Some(block) = self.blocks.get(container_id) {
-            block.client_area()
+            block.child_layout_area()
         } else {
             Rectangle::new(0.0, 0.0, 0.0, 0.0)
         }

@@ -193,6 +193,17 @@ client box 同时用于：
 - hit-test 是否继续下降到 children；
 - scroll/viewport 的可视范围。
 
+上述用途存在两个明确坐标表示：
+
+- node-local client box 保留 `(left, top)` 原点，供 paint、clip 与 hit-test 使用；
+- `LayoutSnapshot::container_bounds` 返回 child-content 域的可用区
+  `Rect(0, 0, client_width, client_height)`。
+
+parent 的 `child_transform` 负责把 child-content 原点映射到 node-local client box，
+因此 inset 只能在该变换中应用一次，不能再写入 child bounds。Viewport 的滚动原点与
+Scalable Figure 的 scale 仍由各自 child transform 和专用布局协议处理，不改变
+`container_bounds` 的零原点契约。
+
 自定义 child clipping policy 可以放宽默认裁剪，但必须同时定义 paint 和 hit-test
 行为，不能只修改其中一条路径。
 
