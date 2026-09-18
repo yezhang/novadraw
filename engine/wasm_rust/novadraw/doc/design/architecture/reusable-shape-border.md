@@ -314,6 +314,11 @@ opaque = outer.is_opaque && inner.is_opaque
 绘制时 outer 和 inner 使用隔离的 Graphics state。inner 的累计 inset 等于调用方
 inset 加 outer.insets。
 
+若任一子 Border 依赖 owner-scoped 派生状态，`CompoundBorder` 递归解析并保存与组合
+结构同构的 `BorderSnapshot`。组合指标和绘制均逐层选择动态快照或静态配置，不能由
+Runtime 识别并绕过顶层 Compound。Figure 的 content intrinsic measurement 与最终
+Border 指标分开合并，避免静态子 Border 被重复计入。
+
 ### 6.5 产品 Border
 
 - LineBorder：等宽四边，stroke 完全位于 bounds 内；

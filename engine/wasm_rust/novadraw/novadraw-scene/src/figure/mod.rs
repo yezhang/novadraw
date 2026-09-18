@@ -420,8 +420,22 @@ pub trait Figure: AsAny {
         )
     }
 
+    /// Returns intrinsic content size before Border metrics are applied.
+    ///
+    /// Figures with owner-dependent Borders and custom intrinsic measurement
+    /// should override this together with `intrinsic_content_measurement`.
+    fn intrinsic_content_size(&self) -> (f64, f64) {
+        let bounds = self.initial_bounds();
+        (bounds.width, bounds.height)
+    }
+
     fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
         let (width, height) = self.intrinsic_size();
+        FigureMeasurement::new(width, height, None)
+    }
+
+    fn intrinsic_content_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
+        let (width, height) = self.intrinsic_content_size();
         FigureMeasurement::new(width, height, None)
     }
 
@@ -430,8 +444,20 @@ pub trait Figure: AsAny {
         self.intrinsic_size()
     }
 
+    fn intrinsic_content_minimum_size(&self) -> (f64, f64) {
+        self.intrinsic_content_size()
+    }
+
     fn intrinsic_minimum_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
         let (width, height) = self.intrinsic_minimum_size();
+        FigureMeasurement::new(width, height, None)
+    }
+
+    fn intrinsic_content_minimum_measurement(
+        &self,
+        _constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        let (width, height) = self.intrinsic_content_minimum_size();
         FigureMeasurement::new(width, height, None)
     }
 

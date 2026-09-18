@@ -380,11 +380,17 @@ impl Figure for LabelFigure {
             self.border.as_deref(),
         )
     }
+    fn intrinsic_content_size(&self) -> (f64, f64) {
+        self.preferred_size().unwrap_or_default()
+    }
     fn intrinsic_minimum_size(&self) -> (f64, f64) {
         with_border_size(
             self.minimum_size().unwrap_or_default(),
             self.border.as_deref(),
         )
+    }
+    fn intrinsic_content_minimum_size(&self) -> (f64, f64) {
+        self.minimum_size().unwrap_or_default()
     }
     fn paint_figure(&self, gc: &mut NdCanvas) {
         self.paint_with_icon(gc, self.icon_ref);

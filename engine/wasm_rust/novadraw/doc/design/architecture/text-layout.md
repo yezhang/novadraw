@@ -227,10 +227,15 @@ owner、Runtime 或共享派生状态：
 
 ```text
 FigureNode::BorderSnapshot
-├── resolved font 对应的 TextLayout
-├── insets
-└── preferred size
+├── resolved insets / preferred size
+└── 与 Border 组合结构同构的动态子快照
+    └── resolved font 对应的 TextLayout
 ```
+
+`CompoundBorder` 必须递归解析 outer/inner 的 owner-scoped 快照，并用解析后的子指标执行
+与 Draw2D 相同的 inset、preferred size 和 paint 组合公式。静态子 Border 继续直接使用
+其配置指标；动态子 Border 使用当前 owner 的快照。快照只保存在 `FigureNode`，共享
+Border 实例不得缓存任何 owner 派生状态。
 
 其规则为：
 

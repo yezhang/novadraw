@@ -21,46 +21,83 @@ pub use title_bar_border::TitleBarBorder;
 
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
-use novadraw_render::NdCanvas;
+use novadraw_render::{FontDescriptor, NdCanvas, TextError, TextLayoutEngine};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BorderSnapshot {
     kind: BorderSnapshotKind,
+    insets: (f64, f64, f64, f64),
+    preferred: (f64, f64),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 enum BorderSnapshotKind {
     TitleBar(title_bar_border::TitleBarMetrics),
+    Compound {
+        outer: Option<Box<BorderSnapshot>>,
+        inner: Option<Box<BorderSnapshot>>,
+    },
 }
 
 impl BorderSnapshot {
     pub(crate) fn title_bar(metrics: title_bar_border::TitleBarMetrics) -> Self {
+        let insets = metrics.insets;
+        let preferred = metrics.preferred;
         Self {
             kind: BorderSnapshotKind::TitleBar(metrics),
+            insets,
+            preferred,
+        }
+    }
+
+    pub(crate) fn compound(
+        outer: Option<BorderSnapshot>,
+        inner: Option<BorderSnapshot>,
+        insets: (f64, f64, f64, f64),
+        preferred: (f64, f64),
+    ) -> Self {
+        Self {
+            kind: BorderSnapshotKind::Compound {
+                outer: outer.map(Box::new),
+                inner: inner.map(Box::new),
+            },
+            insets,
+            preferred,
         }
     }
 
     pub(crate) fn insets(&self) -> (f64, f64, f64, f64) {
-        match &self.kind {
-            BorderSnapshotKind::TitleBar(metrics) => metrics.insets,
-        }
+        self.insets
     }
 
     pub(crate) fn preferred_size(&self) -> (f64, f64) {
-        match &self.kind {
-            BorderSnapshotKind::TitleBar(metrics) => metrics.preferred,
-        }
+        self.preferred
     }
 
     pub(crate) fn text_layout(&self) -> &novadraw_render::TextLayout {
         match &self.kind {
             BorderSnapshotKind::TitleBar(metrics) => &metrics.layout,
+            BorderSnapshotKind::Compound { outer, inner } => outer
+                .as_deref()
+                .or(inner.as_deref())
+                .expect("compound snapshots contain a dynamic child")
+                .text_layout(),
         }
     }
 
     fn title_bar_metrics(&self) -> Option<&title_bar_border::TitleBarMetrics> {
         match &self.kind {
             BorderSnapshotKind::TitleBar(metrics) => Some(metrics),
+            BorderSnapshotKind::Compound { .. } => None,
+        }
+    }
+
+    fn compound_parts(&self) -> Option<(Option<&BorderSnapshot>, Option<&BorderSnapshot>)> {
+        match &self.kind {
+            BorderSnapshotKind::TitleBar(_) => None,
+            BorderSnapshotKind::Compound { outer, inner } => {
+                Some((outer.as_deref(), inner.as_deref()))
+            }
         }
     }
 }
@@ -98,12 +135,36 @@ pub trait Border: Send + Sync {
         snapshot: &BorderSnapshot,
         gc: &mut NdCanvas,
     ) {
-        match (self.title_bar(), snapshot.title_bar_metrics()) {
-            (Some(border), Some(metrics)) => {
-                border.paint_metrics(figure_bounds, metrics, gc);
-            }
-            _ => self.paint(figure_bounds, gc),
-        }
+        self.paint_snapshot_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), snapshot, gc);
+    }
+
+    /// Paints an owner-scoped snapshot inside the caller's accumulated insets.
+    #[doc(hidden)]
+    fn paint_snapshot_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: (f64, f64, f64, f64),
+        _snapshot: &BorderSnapshot,
+        gc: &mut NdCanvas,
+    ) {
+        self.paint_with_insets(figure_bounds, incoming, gc);
+    }
+
+    /// Resolves owner-dependent metrics without storing owner state in the Border.
+    #[doc(hidden)]
+    fn resolve_owner_snapshot(
+        &self,
+        _previous: Option<&BorderSnapshot>,
+        _font: &FontDescriptor,
+        _text: &mut dyn TextLayoutEngine,
+    ) -> Result<Option<BorderSnapshot>, TextError> {
+        Ok(None)
+    }
+
+    /// Returns whether this Border has owner-dependent metrics or paint state.
+    #[doc(hidden)]
+    fn has_owner_snapshot(&self) -> bool {
+        false
     }
 
     /// Border 自身正确显示所需的最小外部尺寸。

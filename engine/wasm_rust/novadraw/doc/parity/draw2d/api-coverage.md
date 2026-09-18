@@ -228,8 +228,8 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 | `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 只由递归 renderer 固定执行，误导性的 `Figure::paint_children` no-op 已删除 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`Runtime::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `NdCanvas` | verified | Rust trait 不复制 Draw2D owner object 参数 |
-| `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 与 TitleBar owner snapshot 契约已覆盖 |
-| `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试 |
+| `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 递归快照与共享 TitleBar 多 owner 契约已覆盖 |
+| `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试；动态子 Border 可位于任意组合深度 |
 | `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | Runtime/FigureTree update-aware repaint、全量 repaint、old/new visual erase 与 `UpdateManager::add_dirty_region` | verified | `erase` 保持 Runtime 内部 helper；dirty merge、parent-chain 投影和 partial repair 已验证 |
 
 Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`LabeledBorder.java`。
@@ -345,7 +345,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`Runtime::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |
-| `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 隔离共享实例 | verified | shared TitleBar 双 owner 字体指标契约测试 |
+| `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 按 Compound 结构递归组合并隔离共享实例 | verified | inner/outer/nested Compound 与 shared Compound 双 owner 字体指标契约测试 |
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | cache/shaping、资源事务、LabelAnchor 与 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed/Unavailable；resource-referenced Image command | verified | Ready resource 删除会清除所有 dependent 的旧引用；Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
 | `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | `MeasureConstraints` / `FigureMeasurement` 支持外部受宽度约束 Figure；父 layout 使用高度/baseline arrange 并复用同约束 Glyph IR | partial | D4.4 扩展边界已验证；完整 TextFlow fragment/bidi 按 P2 延后 |

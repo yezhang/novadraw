@@ -3,9 +3,9 @@ use novadraw_render::{
     SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
 };
 use novadraw_scene::{
-    Alignment, AnchorGeometry, AnchorGeometryKey, Border, FigureStyle, FigureTree,
-    ImageDisplayState, ImageFigure, LabelFigure, LineBorder, PropertyValue, Rectangle,
-    RectangleFigure, Runtime, StackLayout, TextPlacement, TitleBarBorder,
+    Alignment, AnchorGeometry, AnchorGeometryKey, Border, CompoundBorder, FigureStyle, FigureTree,
+    ImageDisplayState, ImageFigure, LabelFigure, LineBorder, MarginBorder, PropertyValue,
+    Rectangle, RectangleFigure, Runtime, StackLayout, TextPlacement, TitleBarBorder,
 };
 use std::sync::{
     Arc,
@@ -259,7 +259,74 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
 }
 
 #[test]
-fn shared_title_bar_border_keeps_metrics_per_owner() {
+fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
+    let borders: Vec<(Arc<dyn Border>, usize)> = vec![
+        (
+            Arc::new(CompoundBorder::new(
+                LineBorder::new(novadraw_core::Color::BLACK, 2.0),
+                TitleBarBorder::new("Inner", novadraw_core::Color::RED),
+            )),
+            1,
+        ),
+        (
+            Arc::new(CompoundBorder::new(
+                TitleBarBorder::new("Outer", novadraw_core::Color::RED),
+                LineBorder::new(novadraw_core::Color::BLACK, 2.0),
+            )),
+            1,
+        ),
+        (
+            Arc::new(CompoundBorder::new(
+                MarginBorder::new(novadraw_core::Color::TRANSPARENT, 1.0),
+                CompoundBorder::new(
+                    LineBorder::new(novadraw_core::Color::BLACK, 2.0),
+                    TitleBarBorder::new("Nested", novadraw_core::Color::RED),
+                ),
+            )),
+            1,
+        ),
+        (
+            Arc::new(CompoundBorder::new(
+                TitleBarBorder::new("First", novadraw_core::Color::RED),
+                CompoundBorder::new(
+                    LineBorder::new(novadraw_core::Color::BLACK, 2.0),
+                    TitleBarBorder::new("Second", novadraw_core::Color::BLUE),
+                ),
+            )),
+            2,
+        ),
+    ];
+
+    for (border, expected_glyph_runs) in borders {
+        let mut runtime = Runtime::empty();
+        runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 120.0)));
+        runtime.replace_border(root, Some(border)).unwrap();
+
+        let submission = runtime
+            .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+            .unwrap();
+
+        let (top, left, bottom, right) = runtime.tree().insets(root).unwrap();
+        assert!(top > 2.0);
+        assert_eq!(
+            runtime.tree().preferred_size(root, -1.0, -1.0),
+            Some((320.0 + left + right, 120.0 + top + bottom))
+        );
+        assert_eq!(
+            submission
+                .commands
+                .iter()
+                .filter(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
+                .count(),
+            expected_glyph_runs
+        );
+        assert!(runtime.title_bar_text_layout(root).is_ok());
+    }
+}
+
+#[test]
+fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
@@ -281,9 +348,9 @@ fn shared_title_bar_border_keeps_metrics_per_owner() {
             ..FigureStyle::default()
         },
     );
-    let shared: Arc<dyn Border> = Arc::new(TitleBarBorder::new(
-        "Shared",
-        novadraw_core::Color::rgba(0.1, 0.3, 0.6, 1.0),
+    let shared: Arc<dyn Border> = Arc::new(CompoundBorder::new(
+        LineBorder::new(novadraw_core::Color::BLACK, 2.0),
+        TitleBarBorder::new("Shared", novadraw_core::Color::rgba(0.1, 0.3, 0.6, 1.0)),
     ));
     runtime
         .replace_border(root, Some(Arc::clone(&shared)))
@@ -299,6 +366,8 @@ fn shared_title_bar_border_keeps_metrics_per_owner() {
     let root_top = runtime.tree().insets(root).unwrap().0;
     let child_top = runtime.tree().insets(child).unwrap().0;
     assert!(child_top > root_top);
+    assert_eq!(runtime.tree().insets(root).unwrap().1, 2.0);
+    assert_eq!(runtime.tree().insets(child).unwrap().1, 2.0);
 }
 
 #[test]

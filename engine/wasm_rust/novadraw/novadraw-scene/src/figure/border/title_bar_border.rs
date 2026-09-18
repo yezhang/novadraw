@@ -1,10 +1,12 @@
 use novadraw_core::Color;
 use novadraw_geometry::Rectangle;
-use novadraw_render::{NdCanvas, TextLayout};
+use novadraw_render::{
+    FontDescriptor, NdCanvas, TextConstraints, TextError, TextLayout, TextLayoutEngine,
+};
 
 use crate::Alignment;
 
-use super::Border;
+use super::{Border, BorderSnapshot, inset_rectangle};
 
 const DEFAULT_HORIZONTAL_PADDING: f64 = 8.0;
 const DEFAULT_VERTICAL_PADDING: f64 = 4.0;
@@ -110,6 +112,44 @@ impl Border for TitleBarBorder {
     }
 
     fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {}
+
+    fn paint_snapshot_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: (f64, f64, f64, f64),
+        snapshot: &BorderSnapshot,
+        gc: &mut NdCanvas,
+    ) {
+        if let Some(metrics) = snapshot.title_bar_metrics() {
+            self.paint_metrics(inset_rectangle(figure_bounds, incoming), metrics, gc);
+        }
+    }
+
+    fn resolve_owner_snapshot(
+        &self,
+        previous: Option<&BorderSnapshot>,
+        font: &FontDescriptor,
+        text: &mut dyn TextLayoutEngine,
+    ) -> Result<Option<BorderSnapshot>, TextError> {
+        let cached = previous
+            .and_then(BorderSnapshot::title_bar_metrics)
+            .map(|metrics| &metrics.layout)
+            .filter(|layout| {
+                layout.key().text() == self.title
+                    && layout.key().font() == font
+                    && layout.key().constraints() == TextConstraints::UNBOUNDED
+                    && layout.key().engine_revision() == text.revision()
+            });
+        let layout = match cached {
+            Some(layout) => layout.clone(),
+            None => text.layout(&self.title, font, TextConstraints::UNBOUNDED)?,
+        };
+        Ok(Some(BorderSnapshot::title_bar(self.measure(layout))))
+    }
+
+    fn has_owner_snapshot(&self) -> bool {
+        true
+    }
 
     fn preferred_size(&self) -> (f64, f64) {
         (0.0, 0.0)

@@ -2187,11 +2187,17 @@ impl FigureTree {
             });
             return Some(size);
         }
-        Some(owner_scoped_border_size(
+        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
+        let content = if block.border_snapshot.is_some() {
             block
                 .figure
-                .intrinsic_measurement(MeasureConstraints::from_hints(w_hint, h_hint))
-                .size(),
+                .intrinsic_content_measurement(constraints)
+                .size()
+        } else {
+            block.figure.intrinsic_measurement(constraints).size()
+        };
+        Some(owner_scoped_border_size(
+            content,
             block.border_snapshot.as_ref(),
         ))
     }
@@ -2208,9 +2214,12 @@ impl FigureTree {
             return Some(FigureMeasurement::new(width, height, None));
         }
         let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
-        let mut measurement = block
-            .figure
-            .intrinsic_measurement(MeasureConstraints::from_hints(w_hint, h_hint));
+        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
+        let mut measurement = if block.border_snapshot.is_some() {
+            block.figure.intrinsic_content_measurement(constraints)
+        } else {
+            block.figure.intrinsic_measurement(constraints)
+        };
         if let Some(snapshot) = block.border_snapshot.as_ref() {
             let (top, left, bottom, right) = snapshot.insets();
             let preferred = snapshot.preferred_size();
@@ -2246,11 +2255,20 @@ impl FigureTree {
             });
             return Some(size);
         }
-        Some(owner_scoped_border_size(
+        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
+        let content = if block.border_snapshot.is_some() {
             block
                 .figure
-                .intrinsic_minimum_measurement(MeasureConstraints::from_hints(w_hint, h_hint))
-                .size(),
+                .intrinsic_content_minimum_measurement(constraints)
+                .size()
+        } else {
+            block
+                .figure
+                .intrinsic_minimum_measurement(constraints)
+                .size()
+        };
+        Some(owner_scoped_border_size(
+            content,
             block.border_snapshot.as_ref(),
         ))
     }

@@ -444,7 +444,7 @@ impl Runtime {
         any_changed
     }
 
-    fn refresh_title_bar_borders(&mut self) -> Result<bool, TextError> {
+    fn refresh_owner_scoped_borders(&mut self) -> Result<bool, TextError> {
         let Some(contents) = self.tree.get_contents() else {
             return Ok(false);
         };
@@ -452,43 +452,32 @@ impl Runtime {
         figures.extend(self.tree.descendant_ids(contents).unwrap_or_default());
         let mut changed = false;
         for figure in figures {
-            let Some(title) = self
+            let has_owner_snapshot = self
                 .tree
                 .get_block(figure)
                 .and_then(|block| block.figure.get_border())
-                .and_then(Border::title_bar)
-                .map(|border| border.title().to_string())
-            else {
+                .is_some_and(Border::has_owner_snapshot);
+            if !has_owner_snapshot {
                 continue;
-            };
+            }
             let style = self
                 .tree
                 .resolved_style(figure)
                 .expect("attached Figure style");
             let font = FontDescriptor::parse(&style.font)?;
-            let cached = self
-                .tree
-                .border_snapshot(figure)
-                .map(BorderSnapshot::text_layout)
-                .is_some_and(|layout| {
-                    layout.key().text() == title
-                        && layout.key().font() == &font
-                        && layout.key().constraints() == TextConstraints::UNBOUNDED
-                        && layout.key().engine_revision() == self.text.revision()
-                });
-            if cached {
-                continue;
-            }
-            let layout = self
-                .text
-                .layout(&title, &font, TextConstraints::UNBOUNDED)?;
-            let snapshot = self
+            let previous = self.tree.border_snapshot(figure).cloned();
+            let Some(snapshot) = self
                 .tree
                 .get_block(figure)
                 .and_then(|block| block.figure.get_border())
-                .and_then(Border::title_bar)
-                .map(|border| BorderSnapshot::title_bar(border.measure(layout)))
-                .expect("title bar border was checked before measurement");
+                .map(|border| {
+                    border.resolve_owner_snapshot(previous.as_ref(), &font, self.text.as_mut())
+                })
+                .transpose()?
+                .flatten()
+            else {
+                continue;
+            };
             if self.tree.set_border_snapshot(figure, snapshot) {
                 changed = true;
                 self.tree.mark_invalid(&mut self.updates, figure);
@@ -3557,7 +3546,7 @@ impl Runtime {
             match kind {
                 DerivedWorkKind::IntrinsicMetrics => {
                     self.refresh_image_figures();
-                    self.refresh_title_bar_borders()
+                    self.refresh_owner_scoped_borders()
                         .map_err(FramePreparationError::Text)?;
                     self.refresh_label_intrinsic_metrics()
                         .map_err(FramePreparationError::Text)?;
