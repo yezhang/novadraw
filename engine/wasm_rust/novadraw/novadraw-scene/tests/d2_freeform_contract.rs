@@ -344,6 +344,33 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
 }
 
 #[test]
+fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 150.0)));
+    let host = tree.builder().add_child_to(
+        root,
+        Box::new(FreeformLayerFigure::new(20.0, 20.0, 20.0, 20.0)),
+    );
+    let child = tree
+        .builder()
+        .add_child_to(host, Box::new(RectangleFigure::new(60.0, 0.0, 10.0, 10.0)));
+    let mut updates = UpdateManager::new();
+
+    assert!(tree.set_bounds_with_update(&mut updates, child, 80.0, 0.0, 10.0, 10.0));
+    let canvas = tree.perform_update(&mut updates);
+
+    assert_eq!(
+        canvas.damage().regions(),
+        &[
+            Rectangle::new(80.0, 20.0, 10.0, 10.0),
+            Rectangle::new(100.0, 20.0, 10.0, 10.0),
+        ]
+    );
+}
+
+#[test]
 fn freeform_constraint_rejects_invalid_values_and_accepts_explicit_zero() {
     assert_eq!(
         FreeformConstraint::at(Point::new(f64::NAN, 0.0)),

@@ -6,7 +6,7 @@
 
 日期：2026-09-16
 
-最近更新：2026-09-17
+最近更新：2026-09-18
 
 本页追加记录
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)
@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：7；
-- 待关闭：10；
+- 已关闭：8；
+- 待关闭：9；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -32,6 +32,7 @@
 | Policy target 身份未参与路由 | 候选 policy 解析首个 target；校验 target 后在目标 Part 聚合 command/feedback，同 target 去重 | `g4_editing_loop_contract::policy_target_*`、G3-G5.5 replay：PASS |
 | F13 Viewer 初始投影失败遗漏停用 | Viewer Drop 从 synthetic root 遍历实际 Part，并仅按 `PartNode::is_active` 停用已激活项，不再依赖 contents 最终提交 | `initial_projection_failure_deactivates_every_activated_part_once`、`late_initial_projection_failure_deactivates_the_complete_live_prefix_once`、`g2.viewer-projection`：PASS |
 | F15 Viewer 扩展 panic 绕过 fault | `refresh` 以 unwind guard 包围完整投影事务，panic 时先 fault 再继续 unwind；`model_mut` 在 fault 后拒绝业务写入 | `refresh_panic_faults_viewer_after_partial_visual_mutation`、`g2.viewer-projection`、`cargo xtask check --full`：PASS |
+| G2-F1 Freeform 溢出 child 旧 damage 丢失 | 几何或拓扑变更前将旧 visual 沿当时父链冻结到 logical-surface 队列；repair 合并 frozen 与当前 local dirty，panic 时恢复两类快照 | `moving_overflow_visible_child_damages_old_and_new_surface_regions`、`test_update_panic_restores_frozen_surface_damage`、`novadraw-scene` crate 测试、`core.runtime`：PASS |
 
 release 定向测试：
 

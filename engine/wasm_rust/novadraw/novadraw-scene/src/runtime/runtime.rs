@@ -1441,7 +1441,9 @@ impl Runtime {
 
             let invalidation = prepared.invalidation;
             if visible {
-                runtime.updates.add_dirty_region(figure, old_visual_bounds);
+                runtime
+                    .updates
+                    .freeze_figure_damage(&runtime.tree, figure, old_visual_bounds);
             }
 
             let node = runtime
@@ -1489,7 +1491,6 @@ impl Runtime {
         self.connections
             .validate_disposal()
             .map_err(|_| RuntimeMutationError::Rejected)?;
-        let synthetic_root = self.tree.synthetic_root();
         self.guarded(|runtime| {
             let damage = runtime.updates.freeze_removed_damage(&runtime.tree, &ids);
             let removed: std::collections::HashSet<_> = ids.iter().copied().collect();
@@ -1513,7 +1514,7 @@ impl Runtime {
                 .anchor_geometries
                 .retain(|(id, _), _| !removed.contains(id));
             for rect in damage {
-                runtime.updates.add_dirty_region(synthetic_root, rect);
+                runtime.updates.add_frozen_surface_region(rect);
             }
             runtime.tree.mark_invalid(&mut runtime.updates, parent);
             if let Some(node) = retired.nodes.iter().find(|node| Some(node.id) == focused) {
@@ -5304,11 +5305,7 @@ mod adr014_tests {
         runtime.record_full_frame();
         runtime.updates.dirty_regions.clear();
         runtime.dispose_subtree(child).unwrap();
-        let frozen = runtime
-            .updates
-            .dirty_regions
-            .get(&runtime.tree.synthetic_root())
-            .unwrap();
+        let frozen = runtime.updates.frozen_surface_regions.first().unwrap();
         assert!(frozen.x <= 20.0 && frozen.y <= 20.0);
         assert!(frozen.x + frozen.width >= 30.0 && frozen.y + frozen.height >= 30.0);
         assert!(runtime.tree().figure_bounds(child).is_none());

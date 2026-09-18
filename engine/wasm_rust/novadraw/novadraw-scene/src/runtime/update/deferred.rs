@@ -52,6 +52,8 @@ pub struct UpdateManager {
     listener_owners: std::collections::HashMap<ListenerId, FigureId>,
     /// 脏区域映射：block_id -> 脏区域
     pub(crate) dirty_regions: std::collections::HashMap<FigureId, Rectangle>,
+    /// 几何或拓扑变更前投影并冻结的 logical-surface 脏区域。
+    pub(crate) frozen_surface_regions: Vec<Rectangle>,
     /// 失效块队列
     pub(crate) invalid_blocks: Vec<FigureId>,
     /// 是否有更新待处理
@@ -79,6 +81,20 @@ impl Default for UpdateManager {
 }
 
 impl UpdateManager {
+    pub(crate) fn freeze_figure_damage(
+        &mut self,
+        tree: &crate::FigureTree,
+        id: FigureId,
+        local_region: Rectangle,
+    ) -> bool {
+        let Some(surface_region) = super::repair::propagate_damage_to_root(tree, id, local_region)
+        else {
+            return false;
+        };
+        self.add_frozen_surface_region(surface_region);
+        true
+    }
+
     pub(crate) fn freeze_removed_damage(
         &self,
         tree: &crate::FigureTree,
@@ -156,6 +172,7 @@ impl UpdateManager {
             namespace,
             listener_owners: std::collections::HashMap::new(),
             dirty_regions: std::collections::HashMap::new(),
+            frozen_surface_regions: Vec::new(),
             invalid_blocks: Vec::new(),
             update_queued: false,
             updating: false,
@@ -394,6 +411,13 @@ impl UpdateManager {
         }
     }
 
+    pub(crate) fn add_frozen_surface_region(&mut self, rect: Rectangle) {
+        if rect.width > 0.0 && rect.height > 0.0 {
+            self.frozen_surface_regions.push(rect);
+            self.update_queued = true;
+        }
+    }
+
     /// 添加失效块
     ///
     /// 对应 draw2d: UpdateManager.addInvalidFigure()
@@ -420,7 +444,7 @@ impl UpdateManager {
 
     /// 检查是否有待处理的重绘
     pub fn has_pending_repaint(&self) -> bool {
-        !self.dirty_regions.is_empty()
+        !self.dirty_regions.is_empty() || !self.frozen_surface_regions.is_empty()
     }
 
     pub fn last_validation_error(&self) -> Option<&ValidationError> {
@@ -450,7 +474,11 @@ impl UpdateManager {
     ///
     /// 将所有脏区域合并为一个大的区域。
     pub fn compute_damage(&self) -> Rectangle {
-        compute_damage_union(self.dirty_regions.values())
+        compute_damage_union(
+            self.dirty_regions
+                .values()
+                .chain(self.frozen_surface_regions.iter()),
+        )
     }
 
     pub(crate) fn take_dirty_snapshot(&mut self) -> std::collections::HashMap<FigureId, Rectangle> {
@@ -460,6 +488,7 @@ impl UpdateManager {
     /// 清空所有待处理的更新
     pub fn clear(&mut self) {
         self.dirty_regions.clear();
+        self.frozen_surface_regions.clear();
         self.invalid_blocks.clear();
         self.update_queued = false;
         self.updating = false;
@@ -486,7 +515,7 @@ impl UpdateManager {
     /// 获取脏区域数量
     #[allow(dead_code)]
     pub fn dirty_count(&self) -> usize {
-        self.dirty_regions.len()
+        self.dirty_regions.len() + self.frozen_surface_regions.len()
     }
 
     /// 排空并返回所有待验证的块 ID
@@ -502,7 +531,9 @@ impl UpdateManager {
     /// 对应 draw2d: performUpdate 完成后清空队列。
     /// 由 FigureTree 在 repairDamage 完成后调用。
     pub fn clear_dirty_and_flag(&mut self) {
-        self.update_queued = !self.invalid_blocks.is_empty() || !self.dirty_regions.is_empty();
+        self.update_queued = !self.invalid_blocks.is_empty()
+            || !self.dirty_regions.is_empty()
+            || !self.frozen_surface_regions.is_empty();
     }
 
     fn restore_dirty_snapshot(
@@ -519,6 +550,7 @@ impl UpdateManager {
         graph: &mut crate::graph::FigureTree,
         canvas: &mut NdCanvas,
         dirty_snapshot: &mut Option<std::collections::HashMap<FigureId, Rectangle>>,
+        frozen_surface_snapshot: &mut Option<Vec<Rectangle>>,
     ) -> Result<(), ValidationError> {
         self.absorb_graph_effects(graph);
 
@@ -526,12 +558,21 @@ impl UpdateManager {
 
         self.update_queued = false;
         *dirty_snapshot = Some(self.take_dirty_snapshot());
+        *frozen_surface_snapshot = Some(std::mem::take(&mut self.frozen_surface_regions));
         let snapshot = dirty_snapshot
             .as_ref()
             .expect("dirty snapshot must exist during repair");
-        let damage = prepare_damage_set(graph, canvas, snapshot.iter());
+        let frozen_surface = frozen_surface_snapshot
+            .as_ref()
+            .expect("frozen surface snapshot must exist during repair");
+        let damage = prepare_damage_set(
+            graph,
+            canvas,
+            snapshot.iter(),
+            frozen_surface.iter().copied(),
+        );
 
-        if !snapshot.is_empty() {
+        if !snapshot.is_empty() || !frozen_surface.is_empty() {
             let reported_damage = damage.unwrap_or_else(|| Rectangle::new(0.0, 0.0, 0.0, 0.0));
             self.notification_effects
                 .emit_update(UpdateEvent::Painting {
@@ -587,8 +628,14 @@ impl UpdateManager {
         self.updating = true;
         self.last_validation_error = None;
         let mut dirty_snapshot = None;
+        let mut frozen_surface_snapshot = None;
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.perform_update_transaction(graph, canvas, &mut dirty_snapshot)
+            self.perform_update_transaction(
+                graph,
+                canvas,
+                &mut dirty_snapshot,
+                &mut frozen_surface_snapshot,
+            )
         }));
         self.updating = false;
 
@@ -605,6 +652,9 @@ impl UpdateManager {
             Err(payload) => {
                 if let Some(snapshot) = dirty_snapshot {
                     self.restore_dirty_snapshot(snapshot);
+                }
+                if let Some(snapshot) = frozen_surface_snapshot {
+                    self.frozen_surface_regions.extend(snapshot);
                 }
                 for block_id in graph.invalid_block_ids() {
                     self.add_invalid_figure(block_id);
@@ -635,7 +685,7 @@ fn remove_listener<T: ?Sized>(listeners: &mut Vec<(ListenerId, Box<T>)>, id: Lis
 mod tests {
     use super::*;
     use crate::{
-        AncestorEvent, AncestorListener, CoordinateListener, FigureEvent, FigureListener,
+        AncestorEvent, AncestorListener, CoordinateListener, Figure, FigureEvent, FigureListener,
         FigureTree, LayoutError, LayoutEvent, LayoutListener, LayoutManager, LayoutOutput,
         LayoutSnapshot, PropertyChangeEvent, PropertyChangeListener, RectangleFigure, StackLayout,
         XYConstraint, XYLayout, scene::FigureId, update::UpdateManager,
@@ -651,6 +701,22 @@ mod tests {
 
     struct PanicOnceLayout {
         did_panic: AtomicBool,
+    }
+
+    struct PanicPaintFigure;
+
+    impl Figure for PanicPaintFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 100.0, 100.0)
+        }
+
+        fn name(&self) -> &'static str {
+            "PanicPaintFigure"
+        }
+
+        fn paint_figure(&self, _gc: &mut NdCanvas) {
+            panic!("intentional paint panic");
+        }
     }
 
     impl LayoutManager for PanicOnceLayout {
@@ -1068,6 +1134,24 @@ mod tests {
         manager.perform_update(&mut graph, &mut NdCanvas::new());
         assert!(graph.is_valid(root_id));
         assert!(!manager.is_update_queued());
+    }
+
+    #[test]
+    fn test_update_panic_restores_frozen_surface_damage() {
+        let mut manager = UpdateManager::new();
+        let mut graph = FigureTree::new();
+        graph.set_contents(Box::new(PanicPaintFigure));
+        let frozen = Rectangle::new(10.0, 20.0, 30.0, 40.0);
+        manager.add_frozen_surface_region(frozen);
+
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            manager.perform_update(&mut graph, &mut NdCanvas::new());
+        }));
+
+        assert!(result.is_err());
+        assert_eq!(manager.frozen_surface_regions, vec![frozen]);
+        assert!(manager.has_pending_repaint());
+        assert!(manager.is_update_queued());
     }
 
     #[test]

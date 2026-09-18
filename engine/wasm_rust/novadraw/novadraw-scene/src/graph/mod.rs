@@ -2604,7 +2604,7 @@ impl FigureTree {
         }
 
         if visible {
-            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
         }
         let block = self
             .blocks
@@ -2685,14 +2685,13 @@ impl FigureTree {
         if !supports_border {
             return Err(ShapeMutationError::WrongCapability(id));
         }
-        let old_bounds = block.figure_bounds();
         let old_visual_bounds = block.visual_bounds();
         let parent_id = block.parent;
         let visible = self.is_effectively_visible(id);
         let had_border = block.figure.get_border().is_some();
 
         if visible {
-            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
         }
         let has_border = {
             let block = self
@@ -2846,7 +2845,7 @@ impl FigureTree {
         let (path_bounds, local_points) = geometry.into_parts();
 
         if visible {
-            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
         }
         let block = self
             .blocks
@@ -2892,7 +2891,7 @@ impl FigureTree {
             return false;
         };
         if visible {
-            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
         }
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
@@ -3562,10 +3561,9 @@ impl FigureTree {
         id: FigureId,
         visible: bool,
     ) -> bool {
-        let Some((old_bounds, old_visual_bounds, parent_id, was_effectively_visible)) =
+        let Some((old_visual_bounds, parent_id, was_effectively_visible)) =
             self.blocks.get(id).map(|block| {
                 (
-                    block.figure_bounds(),
                     block.visual_bounds(),
                     block.parent,
                     self.is_effectively_visible(id),
@@ -3579,7 +3577,7 @@ impl FigureTree {
         }
 
         if was_effectively_visible && !visible {
-            self.erase(update_manager, id, old_bounds, old_visual_bounds, parent_id);
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
         }
         self.mark_invalid(update_manager, parent_id.unwrap_or(id));
         if visible {
@@ -3908,13 +3906,7 @@ impl FigureTree {
         let visible = self.is_effectively_visible(block_id);
 
         if visible {
-            self.erase(
-                update_manager,
-                block_id,
-                old_bounds,
-                old_visual_bounds,
-                parent_id,
-            );
+            self.erase(update_manager, block_id, old_visual_bounds, parent_id);
         }
 
         self.set_bounds(block_id, x, y, width, height);
@@ -3936,22 +3928,13 @@ impl FigureTree {
         &self,
         update_manager: &mut UpdateManager,
         block_id: FigureId,
-        old_bounds: Rectangle,
-        mut old_visual_bounds: Rectangle,
+        old_visual_bounds: Rectangle,
         parent_id: Option<FigureId>,
     ) {
-        let Some(parent_id) = parent_id else {
-            return;
-        };
-        if !self.blocks.contains_key(block_id) || !self.blocks.contains_key(parent_id) {
+        if parent_id.is_none() || !self.blocks.contains_key(block_id) {
             return;
         }
-
-        old_visual_bounds.translate(old_bounds.x, old_bounds.y);
-        if let Some(parent) = self.blocks.get(parent_id) {
-            parent.child_transform().apply_to(&mut old_visual_bounds);
-        }
-        update_manager.add_dirty_region(parent_id, old_visual_bounds);
+        update_manager.freeze_figure_damage(self, block_id, old_visual_bounds);
     }
 
     /// 将 node-local 几何转换到 logical surface domain。

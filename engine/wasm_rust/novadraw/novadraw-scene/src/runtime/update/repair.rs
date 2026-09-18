@@ -98,10 +98,12 @@ pub(crate) fn prepare_damage_set<'a>(
     graph: &FigureTree,
     canvas: &mut NdCanvas,
     dirty_regions: impl IntoIterator<Item = (&'a FigureId, &'a Rectangle)>,
+    frozen_surface_regions: impl IntoIterator<Item = Rectangle>,
 ) -> Option<Rectangle> {
     let propagated_regions: Vec<Rectangle> = dirty_regions
         .into_iter()
         .filter_map(|(block_id, rect)| propagate_damage_to_root(graph, *block_id, *rect))
+        .chain(frozen_surface_regions)
         .collect();
     write_damage_set(canvas, propagated_regions)
 }
