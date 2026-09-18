@@ -653,6 +653,8 @@ impl ConnectionRuntime {
         reason: UnresolvedConnection,
     ) {
         for calculation in batch.calculations() {
+            self.merge_dependencies(calculation.connection, calculation.observations.clone())
+                .expect("prepared route batch references registered connections");
             self.set_unresolved(calculation.connection, reason.clone())
                 .expect("prepared route batch references registered connections");
         }

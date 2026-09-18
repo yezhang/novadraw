@@ -16,8 +16,8 @@
 
 ## 当前结论
 
-- 已关闭：13；
-- 待关闭：4；
+- 已关闭：14；
+- 待关闭：3；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 与优先 P1 整改前提升状态。
 
@@ -38,6 +38,7 @@
 | G3-F01 删除 Ready 图片后保留旧引用 | ImageFigure 对缺失资源进入 `Unavailable` 并清除旧 `ImageResourceRef`；共享 dependent 同帧刷新，Remove submission 不再携带旧 Image command | `removing_ready_image_clears_all_shared_figure_references`、`m10_label_contract`：PASS |
 | G3-F02 CompoundBorder 丢失 TitleBar owner 快照 | BorderSnapshot 与 Compound outer/inner 结构同构，递归解析、合成指标并按累计 inset 绘制；共享 Compound 仍按 owner 字体隔离 | `compound_border_resolves_title_bar_snapshots_at_every_nesting_position`、`shared_compound_title_bar_border_keeps_metrics_per_owner`、`m10_label_contract`、`m10_reusable_shape_border_contract`、`novadraw-scene` crate 测试：PASS |
 | G3-F03 Label North/South 方向反转 | TextPlacement 统一表示文字相对图标的方向；North 将文字置于图标上方，South 将文字置于图标下方 | `text_placement_positions_text_relative_to_icon_in_all_four_directions` 同时核对 glyph origin、Image command、gap 与 icon named geometry；`m10_label_contract`：PASS |
+| G4-F1 route 预检拒绝后丢失恢复依赖 | geometry/Locator 预检失败时先合并 batch 中各 calculation 的当前 observations，再转 Unresolved 并清理旧 route；不提交 generation、points 或 child placement | `first_locator_preflight_failure_recovers_when_an_observed_owner_moves`、`locator_preflight_failure_after_success_refreshes_recovery_dependencies`、`m9_connection_runtime`、`core.runtime`：PASS |
 
 release 定向测试：
 

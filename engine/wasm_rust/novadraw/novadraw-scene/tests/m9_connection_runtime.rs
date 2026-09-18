@@ -8,10 +8,10 @@ use novadraw_render::{
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
     ConnectionLocator, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
-    CoordinateSpace, DirectRouter, FanRouter, FigureId, MANHATTAN_DEFAULT_LANE_SPACING,
-    MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RectangleFigure, RouteError,
-    RouteOutput, RouteRequest, RouterBinding, Runtime, UnresolvedConnection, ViewportFigure,
-    XYConstraint, XYLayout,
+    CoordinateSpace, DirectRouter, FanRouter, FigureId, LocatorError,
+    MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
+    PathFractionLocator, RectangleFigure, RouteError, RouteOutput, RouteRequest, RouterBinding,
+    Runtime, UnresolvedConnection, ViewportFigure, XYConstraint, XYLayout,
 };
 
 struct ConstraintA;
@@ -170,6 +170,138 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     ));
     runtime.prepare_frame().expect("reroute and Locator layout");
     assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
+}
+
+#[test]
+fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
+    let source = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
+    let target = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
+    let connection_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let label = runtime.add_figure(
+        connection_figure,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(
+            connection,
+            label,
+            Box::new(PathFractionLocator::new(0.5).unwrap()),
+        )
+        .unwrap();
+
+    assert_eq!(
+        runtime.resolve_connection_route(connection, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::LocatorFailed {
+                child: label,
+                error: LocatorError::DegenerateRoute,
+            },
+        ))
+    );
+    assert!(
+        runtime
+            .connection_state(connection)
+            .unwrap()
+            .dependency_count
+            >= 4
+    );
+
+    assert!(runtime.set_bounds(
+        target,
+        novadraw_geometry::Rectangle::new(300.0, 170.0, 100.0, 60.0),
+    ));
+    assert_eq!(runtime.dirty_connections(), vec![connection]);
+    runtime
+        .prepare_frame()
+        .expect("owner movement must reroute");
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { generation: 1 }
+    ));
+}
+
+#[test]
+fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
+    let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
+    let label = runtime.add_figure(
+        connection_figure,
+        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+    );
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(
+            connection,
+            label,
+            Box::new(PathFractionLocator::new(0.5).unwrap()),
+        )
+        .unwrap();
+    runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+
+    assert!(runtime.set_bounds(
+        target,
+        novadraw_geometry::Rectangle::new(20.0, 30.0, 80.0, 40.0),
+    ));
+    assert!(matches!(
+        runtime.resolve_connection_route(connection, CoordinateSpace::ChildContent(root)),
+        Err(ConnectionRuntimeError::Unresolved(
+            UnresolvedConnection::LocatorFailed {
+                child,
+                error: LocatorError::DegenerateRoute,
+            },
+        )) if child == label
+    ));
+    runtime
+        .prepare_frame()
+        .expect("a rejected preflight with current observations must converge");
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Unresolved(UnresolvedConnection::LocatorFailed {
+            child,
+            error: LocatorError::DegenerateRoute,
+        }) if child == label
+    ));
+
+    assert!(runtime.set_bounds(
+        target,
+        novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
+    ));
+    assert_eq!(runtime.dirty_connections(), vec![connection]);
+    runtime
+        .prepare_frame()
+        .expect("updated dependency must reroute");
+    assert!(matches!(
+        runtime.connection_state(connection).unwrap().resolution,
+        ConnectionResolution::Resolved { generation: 2 }
+    ));
 }
 
 #[test]

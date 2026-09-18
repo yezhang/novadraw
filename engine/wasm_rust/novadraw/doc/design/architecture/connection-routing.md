@@ -129,7 +129,8 @@ Router 返回的所有 points、bendpoints 和 metadata geometry 都位于该 do
 4. 只有整批预检成功后，才在同一 Runtime mutation 中更新 connection NodeState bounds 和
    `ConnectionFigure` 的局部 point list；
 5. 随后提交 Runtime dependencies/generation/resolution；任一预检失败时整批进入
-   unresolved 并清除旧 route；
+   unresolved 并清除旧 route，同时合并各 calculation 已读取的当前 dependency
+   observations，使失败状态稳定且输入恢复后可自动重路由；
 6. 保存 old path/subtree envelope，待 locator child 完成后统一计算 projected damage。
 
 规范化后的 local point list 是已提交的表现几何真源，NodeState bounds 是同一次
