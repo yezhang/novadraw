@@ -12,6 +12,7 @@
 | 文档 | 主题 |
 |---|---|
 | [commercial-value-analysis.md](commercial-value-analysis.md) | Draw2D / GEF 与 Rust 生态的商业价值分析 |
+| [ai-era-relationship-editor-research.md](ai-era-relationship-editor-research.md) | AI 协作关系编辑器的外部调研、差异化与验证假设 |
 
 ## 使用原则
 
