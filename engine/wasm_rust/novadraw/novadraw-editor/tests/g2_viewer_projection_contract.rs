@@ -6,8 +6,9 @@ use std::{
 };
 
 use novadraw_editor::{
-    EditPartBehavior, EditPartError, EditPartFactory, EditPartId, GraphicalViewer, ModelAdapter,
-    ModelEvent, ModelRevision, PartFactoryContext, ViewerError, VisualBuildContext,
+    Command, EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy,
+    EditorRequest, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ViewerError, VisualBuildContext,
     VisualUpdateContext,
 };
 use novadraw_geometry::Rectangle;
@@ -164,6 +165,118 @@ impl EditPartFactory<DiagramModel> for RectangleFactory {
 struct FailingChildFactory {
     lifecycle: Arc<Mutex<Vec<String>>>,
     fail_on: NodeId,
+}
+
+struct ActivationPolicy {
+    name: &'static str,
+    fail: bool,
+    lifecycle: Arc<Mutex<Vec<String>>>,
+}
+
+impl EditPolicy<DiagramModel> for ActivationPolicy {
+    fn understands(&self, _request: &EditorRequest) -> bool {
+        false
+    }
+
+    fn command(
+        &mut self,
+        _host: PolicyHost<NodeId>,
+        _request: &EditorRequest,
+        _model: &DiagramModel,
+    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+        Ok(None)
+    }
+
+    fn activate(
+        &mut self,
+        _host: PolicyHost<NodeId>,
+        _model: &DiagramModel,
+    ) -> Result<(), PolicyError> {
+        self.lifecycle
+            .lock()
+            .unwrap()
+            .push(format!("policy-activate:{}", self.name));
+        if self.fail {
+            Err(PolicyError::operation("policy activation failed"))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn deactivate(&mut self, _host: PolicyHost<NodeId>, _model: &DiagramModel) {
+        self.lifecycle
+            .lock()
+            .unwrap()
+            .push(format!("policy-deactivate:{}", self.name));
+    }
+}
+
+struct PolicyActivationPart {
+    lifecycle: Arc<Mutex<Vec<String>>>,
+}
+
+impl EditPartBehavior<DiagramModel> for PolicyActivationPart {
+    fn create_figure(
+        &mut self,
+        model: &DiagramModel,
+        model_id: NodeId,
+    ) -> Result<Box<dyn Figure>, EditPartError> {
+        Ok(Box::new(RectangleFigure::from_bounds(
+            model.bounds[&model_id],
+        )))
+    }
+
+    fn create_policies(
+        &mut self,
+        _model: &DiagramModel,
+        _model_id: NodeId,
+    ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
+        ["a", "b", "c"]
+            .into_iter()
+            .map(|name| {
+                Ok((
+                    PolicyRole::custom(name)?,
+                    Box::new(ActivationPolicy {
+                        name,
+                        fail: name == "b",
+                        lifecycle: Arc::clone(&self.lifecycle),
+                    }) as Box<dyn EditPolicy<DiagramModel>>,
+                ))
+            })
+            .collect::<Result<Vec<_>, PolicyError>>()
+            .map_err(|error| EditPartError::operation(error.to_string()))
+    }
+
+    fn activate(&mut self, _model: &DiagramModel, model_id: NodeId) -> Result<(), EditPartError> {
+        self.lifecycle
+            .lock()
+            .unwrap()
+            .push(format!("activate:{}", model_id.0));
+        Ok(())
+    }
+
+    fn deactivate(&mut self, _model: &DiagramModel, model_id: NodeId) {
+        self.lifecycle
+            .lock()
+            .unwrap()
+            .push(format!("deactivate:{}", model_id.0));
+    }
+}
+
+struct PolicyActivationFactory {
+    lifecycle: Arc<Mutex<Vec<String>>>,
+}
+
+impl EditPartFactory<DiagramModel> for PolicyActivationFactory {
+    fn create(
+        &mut self,
+        _context: PartFactoryContext<NodeId>,
+        _model: &DiagramModel,
+    ) -> Result<Box<dyn EditPartBehavior<DiagramModel>>, EditPartError> {
+        Ok(Box::new(PolicyActivationPart {
+            lifecycle: Arc::clone(&self.lifecycle),
+        }))
+    }
 }
 
 impl EditPartFactory<DiagramModel> for FailingChildFactory {
@@ -514,6 +627,30 @@ fn late_initial_projection_failure_deactivates_the_complete_live_prefix_once() {
             "deactivate:1",
             "deactivate:2",
             "deactivate:4",
+        ]
+    );
+}
+
+#[test]
+fn policy_activation_failure_rolls_back_only_the_active_prefix_once() {
+    let lifecycle = Arc::new(Mutex::new(Vec::new()));
+    let result = GraphicalViewer::new(
+        DiagramModel::initial(),
+        PolicyActivationFactory {
+            lifecycle: Arc::clone(&lifecycle),
+        },
+        Rectangle::new(0.0, 0.0, 800.0, 600.0),
+    );
+
+    assert!(matches!(result, Err(ViewerError::Policy(_))));
+    assert_eq!(
+        lifecycle.lock().unwrap().as_slice(),
+        [
+            "activate:1",
+            "policy-activate:a",
+            "policy-activate:b",
+            "policy-deactivate:a",
+            "deactivate:1",
         ]
     );
 }

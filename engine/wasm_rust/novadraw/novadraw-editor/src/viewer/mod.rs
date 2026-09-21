@@ -1883,6 +1883,85 @@ where
         Ok(())
     }
 
+    fn activate_part(&mut self, part: EditPartId, model_id: A::ModelId) -> Result<(), ViewerError> {
+        self.behaviors
+            .get_mut(part)
+            .ok_or(ViewerError::InconsistentState)?
+            .activate(&self.model, model_id)?;
+        let host = match self.policy_host(part) {
+            Ok(host) => host,
+            Err(error) => {
+                self.behaviors
+                    .get_mut(part)
+                    .expect("behavior remains installed during activation")
+                    .deactivate(&self.model, model_id);
+                return Err(error);
+            }
+        };
+        let policy_error = self.policies.roles_mut(part).and_then(|roles| {
+            let mut activated = 0;
+            let error = roles.values_mut().find_map(|policy| {
+                policy
+                    .activate(host, &self.model)
+                    .map(|()| {
+                        activated += 1;
+                    })
+                    .err()
+            });
+            if error.is_some() {
+                for policy in roles.values_mut().take(activated).rev() {
+                    policy.deactivate(host, &self.model);
+                }
+            }
+            error
+        });
+        if let Some(error) = policy_error {
+            self.behaviors
+                .get_mut(part)
+                .expect("behavior remains installed during activation rollback")
+                .deactivate(&self.model, model_id);
+            return Err(error.into());
+        }
+        if let Err(error) = self.parts.set_active(part, true) {
+            if let Some(roles) = self.policies.roles_mut(part) {
+                for policy in roles.values_mut().rev() {
+                    policy.deactivate(host, &self.model);
+                }
+            }
+            self.behaviors
+                .get_mut(part)
+                .expect("behavior remains installed during activation rollback")
+                .deactivate(&self.model, model_id);
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
+    fn deactivate_part(&mut self, part: EditPartId) -> Result<(), ViewerError> {
+        let node = self.parts.get(part).ok_or(ViewerError::InconsistentState)?;
+        if !node.is_active() {
+            return Ok(());
+        }
+        let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
+        let parent_model = self
+            .parts
+            .parent(part)
+            .and_then(|parent| self.parts.get(parent))
+            .and_then(|parent| parent.model_id());
+        let host = PolicyHost::new(part, model_id, parent_model);
+        self.parts.set_active(part, false)?;
+        if let Some(roles) = self.policies.roles_mut(part) {
+            for policy in roles.values_mut() {
+                policy.deactivate(host, &self.model);
+            }
+        }
+        self.behaviors
+            .get_mut(part)
+            .ok_or(ViewerError::InconsistentState)?
+            .deactivate(&self.model, model_id);
+        Ok(())
+    }
+
     fn create_subtree(
         &mut self,
         parent: EditPartId,
@@ -1932,30 +2011,7 @@ where
             self.policies.install(part, role, policy)?;
         }
         self.refresh_part_visuals(part)?;
-        let activation = self
-            .behaviors
-            .get_mut(part)
-            .ok_or(ViewerError::InconsistentState)?
-            .activate(&self.model, model_id);
-        if let Err(error) = activation {
-            self.behaviors
-                .get_mut(part)
-                .expect("behavior exists until failed creation is discarded")
-                .deactivate(&self.model, model_id);
-            return Err(error.into());
-        }
-        self.parts.set_active(part, true)?;
-        let host = self.policy_host(part)?;
-        if let Some(roles) = self.policies.roles_mut(part) {
-            for policy in roles.values_mut() {
-                if let Err(error) = policy.activate(host, &self.model) {
-                    for active in roles.values_mut() {
-                        active.deactivate(host, &self.model);
-                    }
-                    return Err(error.into());
-                }
-            }
-        }
+        self.activate_part(part, model_id)?;
 
         for child in snapshot.children_of(model_id)?.iter().copied() {
             self.create_subtree(part, child, snapshot)?;
@@ -2174,17 +2230,7 @@ where
                 self.policies.install(part.edit_part(), role, policy)?;
             }
             self.refresh_part_visuals(part.edit_part())?;
-            self.behaviors
-                .get_mut(part.edit_part())
-                .ok_or(ViewerError::InconsistentState)?
-                .activate(&self.model, descriptor.id())?;
-            self.parts.set_active(part.edit_part(), true)?;
-            let host = self.policy_host(part.edit_part())?;
-            if let Some(roles) = self.policies.roles_mut(part.edit_part()) {
-                for policy in roles.values_mut() {
-                    policy.activate(host, &self.model)?;
-                }
-            }
+            self.activate_part(part.edit_part(), descriptor.id())?;
             self.resolve_connection(connection)
         })();
         if let Err(error) = initialization {
@@ -2531,16 +2577,7 @@ where
             }
             self.visual_registry.remove(&overlay);
         }
-        let host = PolicyHost::new(part, model_id, None);
-        if let Some(roles) = self.policies.roles_mut(part) {
-            for policy in roles.values_mut() {
-                policy.deactivate(host, &self.model);
-            }
-        }
-        self.behaviors
-            .get_mut(part)
-            .ok_or(ViewerError::InconsistentState)?
-            .deactivate(&self.model, model_id);
+        self.deactivate_part(part)?;
         let projection = self
             .connection_projections
             .remove(&model_id)
@@ -2683,22 +2720,8 @@ where
         for id in ids.iter().copied() {
             let node = self.parts.get(id).ok_or(ViewerError::InconsistentState)?;
             let model_id = node.model_id().ok_or(ViewerError::InconsistentState)?;
-            let parent_model = self
-                .parts
-                .parent(id)
-                .and_then(|parent| self.parts.get(parent))
-                .and_then(|parent| parent.model_id());
-            let host = PolicyHost::new(id, model_id, parent_model);
             let visuals = node.visuals().to_vec();
-            if let Some(roles) = self.policies.roles_mut(id) {
-                for policy in roles.values_mut() {
-                    policy.deactivate(host, &self.model);
-                }
-            }
-            self.behaviors
-                .get_mut(id)
-                .ok_or(ViewerError::InconsistentState)?
-                .deactivate(&self.model, model_id);
+            self.deactivate_part(id)?;
             self.model_registry.remove(&model_id);
             for visual in visuals {
                 self.visual_registry.remove(&visual);
