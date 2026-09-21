@@ -7,9 +7,9 @@ use std::{
 
 use novadraw::{
     AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, Color,
-    ConnectionFigure, CoordinateSpace, Figure, KeyModifiers, MouseButton, PlatformHost, Point,
-    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome, RootFigure, XYAnchor,
-    backend::vello::VelloRenderer, rectangle_boundary_site,
+    ConnectionFigure, CoordinateSpace, Figure, FreeformLayerFigure, KeyModifiers, MouseButton,
+    PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome,
+    XYAnchor, backend::vello::VelloRenderer, rectangle_boundary_site,
 };
 use novadraw_apps::WinitPlatformHost;
 use novadraw_editor::{
@@ -879,7 +879,7 @@ impl EditPartBehavior<DemoModel> for DemoPart {
     ) -> Result<Box<dyn Figure>, EditPartError> {
         let node = model.nodes[&model_id];
         Ok(match node.kind {
-            NodeKind::Canvas => Box::new(RootFigure::new(
+            NodeKind::Canvas => Box::new(FreeformLayerFigure::new(
                 node.bounds.x,
                 node.bounds.y,
                 node.bounds.width,
@@ -1917,6 +1917,35 @@ mod tests {
         assert!(
             resized_outline[1].y - resized_outline[0].y
                 > initial_outline[1].y - initial_outline[0].y
+        );
+    }
+
+    #[test]
+    fn resized_viewport_does_not_retain_the_initial_canvas_clip() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame().unwrap();
+        assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
+
+        let start = harness.node_bounds_in_surface(3).unwrap().center();
+        let end = Point::new(1_020.0, 690.0);
+        assert!(harness.drag(start, end, KeyModifiers::default()).unwrap());
+        let moved = harness.node_bounds_in_surface(3).unwrap();
+        assert!(moved.x > WIDTH);
+        assert!(moved.y > HEIGHT);
+        assert!(moved.x + moved.width < 1_200.0);
+        assert!(moved.y + moved.height < 800.0);
+
+        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        assert!(
+            frame.commands().iter().all(|command| {
+                !matches!(
+                    command.kind,
+                    RenderCommandKind::Clip { rect }
+                        if rect[1].x - rect[0].x == WIDTH
+                            && rect[1].y - rect[0].y == HEIGHT
+                )
+            }),
+            "the initial canvas bounds must not clip content inside the resized viewport"
         );
     }
 
