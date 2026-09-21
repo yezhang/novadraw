@@ -176,7 +176,8 @@ impl LayoutManager for XYLayout {
 
         for (child_id, _) in children {
             if let Some(constraint) = xy_constraint(snapshot, container, child_id)? {
-                let preferred = snapshot.preferred_size(child_id, -1.0, -1.0);
+                let preferred =
+                    snapshot.preferred_size(child_id, constraint.width, constraint.height);
                 let width = if constraint.width < 0.0 {
                     preferred.0
                 } else {

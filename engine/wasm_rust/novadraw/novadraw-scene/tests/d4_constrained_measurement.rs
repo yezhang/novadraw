@@ -4,7 +4,7 @@ use novadraw_render::{
 };
 use novadraw_scene::{
     Figure, FigureId, FigureMeasurement, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot,
-    MeasureConstraints, Rectangle, RectangleFigure, Runtime,
+    MeasureConstraints, Rectangle, RectangleFigure, Runtime, XYConstraint, XYLayout,
 };
 
 struct WrappedTextFigure {
@@ -169,4 +169,54 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
         })
         .collect();
     assert_eq!(recorded_runs, expected_runs);
+}
+
+#[test]
+fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
+    const WIDTH: f32 = 72.0;
+
+    let mut runtime = Runtime::empty();
+    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    let font = FontDescriptor::default();
+    let text = "alpha beta gamma delta";
+    let natural = runtime
+        .layout_text(text, &font, TextConstraints::UNBOUNDED)
+        .unwrap();
+    let constrained = runtime
+        .layout_text(text, &font, TextConstraints::new(Some(WIDTH)).unwrap())
+        .unwrap();
+    assert!(constrained.height() > natural.height());
+
+    let expected_height = f64::from(constrained.height());
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)));
+    let text_figure = runtime.add_figure(
+        root,
+        Box::new(WrappedTextFigure {
+            natural,
+            constrained,
+        }),
+    );
+    runtime
+        .set_layout_constraint(
+            text_figure,
+            XYConstraint::at_size(10.0, 12.0, f64::from(WIDTH), -1.0),
+        )
+        .unwrap();
+    runtime
+        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .unwrap();
+
+    runtime
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .unwrap();
+
+    assert_eq!(
+        runtime.tree().figure_bounds(text_figure),
+        Some(Rectangle::new(
+            10.0,
+            12.0,
+            f64::from(WIDTH),
+            expected_height,
+        ))
+    );
 }
