@@ -53,7 +53,7 @@ if node.child_transform().apply_inverse_to(&mut child_point) {
 ```
 
 代码锚点：
-[`FigureTree::hit_test_from_with_inner`](../novadraw-scene/src/graph/search.rs#L227-L277)。
+[`FigureTree::hit_test_from_with_inner`](../../novadraw-scene/src/graph/search.rs#L227-L277)。
 
 ## 5.3 容器命中与自身命中是两件事
 
@@ -145,7 +145,7 @@ if handled {
 捕获，再重新计算悬停目标。
 
 实际实现见
-[`EventDispatcher::dispatch_mouse_pressed/released`](../novadraw-scene/src/runtime/event/mod.rs#L464-L504)。
+[`EventDispatcher::dispatch_mouse_pressed/released`](../../novadraw-scene/src/runtime/event/mod.rs#L464-L504)。
 
 ## 5.8 焦点与键盘事件
 
@@ -181,9 +181,9 @@ if handled {
 
 代码锚点：
 
-- [`EventDispatcher::dispatch_scroll`](../novadraw-scene/src/runtime/event/mod.rs#L575-L598)
-- [`EventDispatcher::dispatch_zoom`](../novadraw-scene/src/runtime/event/mod.rs#L600-L620)
-- [Scroll/Zoom 输入规范](../doc/design/input/scroll-zoom-gesture-contract.md)
+- [`EventDispatcher::dispatch_scroll`](../../novadraw-scene/src/runtime/event/mod.rs#L575-L598)
+- [`EventDispatcher::dispatch_zoom`](../../novadraw-scene/src/runtime/event/mod.rs#L600-L620)
+- [Scroll/Zoom 输入规范](../../doc/design/input/scroll-zoom-gesture-contract.md)
 
 ## 5.10 事件上下文与效果队列
 
@@ -203,7 +203,7 @@ pub fn reparent_later(...);
 可以合并重绘区域，但不能重排有可观察差异的状态变化。
 
 代码锚点：
-[`EventContext`](../novadraw-scene/src/runtime/context.rs#L33-L325)。
+[`EventContext`](../../novadraw-scene/src/runtime/context.rs#L33-L325)。
 
 ## 5.11 分发结果是图形核心与编辑框架的仲裁边界
 
@@ -232,8 +232,8 @@ pub struct DispatchOutcome {
 
 代码锚点：
 
-- [`DispatchOutcome`](../novadraw-scene/src/runtime/event/mod.rs#L268-L299)
-- [`GraphicalViewer::dispatch_mouse_pressed`](../novadraw-editor/src/viewer/mod.rs#L1157-L1198)
+- [`DispatchOutcome`](../../novadraw-scene/src/runtime/event/mod.rs#L268-L299)
+- [`GraphicalViewer::dispatch_mouse_pressed`](../../novadraw-editor/src/viewer/mod.rs#L1157-L1198)
 
 ## 5.12 指针离开绘制表面
 
@@ -262,8 +262,8 @@ pub struct DispatchOutcome {
 
 ## 5.14 验证入口
 
-- [`m6_event_contract.rs`](../novadraw-scene/tests/m6_event_contract.rs)
-- [`p2_dispatch_outcome_contract.rs`](../novadraw-scene/tests/p2_dispatch_outcome_contract.rs)
-- [`d1_focus_contract.rs`](../novadraw-scene/tests/d1_focus_contract.rs)
-- [`g3_viewer_interaction_contract.rs`](../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
+- [`m6_event_contract.rs`](../../novadraw-scene/tests/m6_event_contract.rs)
+- [`p2_dispatch_outcome_contract.rs`](../../novadraw-scene/tests/p2_dispatch_outcome_contract.rs)
+- [`d1_focus_contract.rs`](../../novadraw-scene/tests/d1_focus_contract.rs)
+- [`g3_viewer_interaction_contract.rs`](../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
 - `cargo xtask run core.runtime`

@@ -11,5 +11,3 @@
 - [8. 编辑框架：从模型到可撤销编辑](08-editor-framework.md)
 - [9. 验证、失败模型与扩展方法](09-verification-and-extension.md)
 - [附录：术语与代码地图](appendix-glossary-and-map.md)
-- [书稿维护提示词](UPDATE_PROMPT.md)
-- [内容结构说明](OUTLINE.md)

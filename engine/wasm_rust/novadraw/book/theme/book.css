@@ -1,0 +1,13 @@
+@media print {
+  :root {
+    font-family: "PingFang SC", "Noto Sans CJK SC", sans-serif;
+  }
+
+  code {
+    font-family: "SFMono-Regular", "Menlo", monospace;
+  }
+
+  .chapter {
+    page-break-before: always;
+  }
+}

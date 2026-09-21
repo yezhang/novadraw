@@ -1,0 +1,32 @@
+[book]
+title = "Novadraw 图形引擎核心原理"
+authors = ["Novadraw Contributors"]
+language = "zh-CN"
+src = "src"
+
+[build]
+build-dir = "../target/book"
+create-missing = false
+
+[output.html]
+additional-css = ["theme/book.css"]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+
+[output.html.print]
+enable = true
+
+[output.pdf]
+browser-binary-path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+generate-document-outline = true
+margin-bottom = 0.55
+margin-left = 0.6
+margin-right = 0.6
+margin-top = 0.55
+paper-height = 11.69
+paper-width = 8.27
+print-background = true
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"

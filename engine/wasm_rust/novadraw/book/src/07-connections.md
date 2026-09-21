@@ -101,7 +101,7 @@ pub trait ConnectionAnchor {
 ```
 
 代码锚点：
-[`ConnectionAnchor`](../novadraw-scene/src/connection/anchor.rs)。
+[`ConnectionAnchor`](../../novadraw-scene/src/connection/anchor.rs)。
 
 锚点不注册监听器，不持有 `Runtime`，也不缓存构造时所属图形的矩形。它通过短生命
 周期的 `SceneQuery` 读取当前几何。
@@ -154,7 +154,7 @@ Topology(FigureId)
 - 失败前已读取的依赖仍可用于恢复调度。
 
 代码锚点：
-[`SceneQuery`](../novadraw-scene/src/connection/query.rs)。
+[`SceneQuery`](../../novadraw-scene/src/connection/query.rs)。
 
 ## 7.7 路由器是纯计算策略
 
@@ -179,8 +179,8 @@ pub trait ConnectionRouter {
 
 代码锚点：
 
-- [`ConnectionRouter`](../novadraw-scene/src/connection/router.rs)
-- [`RouteOutput`](../novadraw-scene/src/connection/router.rs)
+- [`ConnectionRouter`](../../novadraw-scene/src/connection/router.rs)
+- [`RouteOutput`](../../novadraw-scene/src/connection/router.rs)
 
 ## 7.8 四种核心路由
 
@@ -251,7 +251,7 @@ flowchart LR
 - 平移到节点本地域的点列表。
 
 实际实现见
-[`PreparedConnectionGeometry`](../novadraw-scene/src/connection/figure.rs)。
+[`PreparedConnectionGeometry`](../../novadraw-scene/src/connection/figure.rs)。
 
 ## 7.11 路由自动失效
 
@@ -281,7 +281,7 @@ flowchart LR
 空连接或未解析连接不绘制旧路径。
 
 代码锚点：
-[`ConnectionFigure`](../novadraw-scene/src/connection/figure.rs)。
+[`ConnectionFigure`](../../novadraw-scene/src/connection/figure.rs)。
 
 ## 7.13 自环连接
 
@@ -305,10 +305,10 @@ flowchart LR
 
 ## 7.15 验证入口
 
-- [`m9_connection_contract.rs`](../novadraw-scene/tests/m9_connection_contract.rs)
-- [`m9_connection_runtime.rs`](../novadraw-scene/tests/m9_connection_runtime.rs)
-- [`g5_connection_projection_contract.rs`](../novadraw-editor/tests/g5_connection_projection_contract.rs)
-- [`g5_connection_creation_contract.rs`](../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`m9_connection_contract.rs`](../../novadraw-scene/tests/m9_connection_contract.rs)
+- [`m9_connection_runtime.rs`](../../novadraw-scene/tests/m9_connection_runtime.rs)
+- [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run test.scene-connection`
 - 规范 SSOT：
-  [`connection-routing.md`](../doc/design/architecture/connection-routing.md)
+  [`connection-routing.md`](../../doc/design/architecture/connection-routing.md)

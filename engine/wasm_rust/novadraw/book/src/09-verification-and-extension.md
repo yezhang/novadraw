@@ -64,7 +64,7 @@ flowchart TB
 ## 9.3 统一验证入口
 
 命令与验证套件（suite）的唯一来源是
-[`verification/suites.toml`](../verification/suites.toml)。
+[`verification/suites.toml`](../../verification/suites.toml)。
 
 常用入口：
 

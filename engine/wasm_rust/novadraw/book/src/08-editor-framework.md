@@ -62,7 +62,7 @@ pub trait ModelAdapter {
 ```
 
 代码锚点：
-[`ModelAdapter`](../novadraw-editor/src/model/mod.rs)。
+[`ModelAdapter`](../../novadraw-editor/src/model/mod.rs)。
 
 模型不知道图形对象或查看器，图形对象也不知道模型。编辑部件和查看器负责投影。
 
@@ -97,9 +97,9 @@ flowchart LR
 
 代码锚点：
 
-- [`PartNode`](../novadraw-editor/src/part/mod.rs)
-- [`PartTree`](../novadraw-editor/src/part/mod.rs)
-- [`EditPartBehavior`](../novadraw-editor/src/part/mod.rs)
+- [`PartNode`](../../novadraw-editor/src/part/mod.rs)
+- [`PartTree`](../../novadraw-editor/src/part/mod.rs)
+- [`EditPartBehavior`](../../novadraw-editor/src/part/mod.rs)
 
 ## 8.5 连接编辑部件不是包含关系子节点
 
@@ -137,7 +137,7 @@ pub struct GraphicalViewer<A, F> {
 ```
 
 实际定义见
-[`GraphicalViewer`](../novadraw-editor/src/viewer/mod.rs#L646-L667)。
+[`GraphicalViewer`](../../novadraw-editor/src/viewer/mod.rs#L646-L667)。
 
 查看器负责：
 
@@ -170,7 +170,7 @@ pub struct GraphicalViewer<A, F> {
 无法补偿的扩展失败时，查看器进入故障锁定状态。
 
 代码锚点：
-[`GraphicalViewer::refresh`](../novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
+[`GraphicalViewer::refresh`](../../novadraw-editor/src/viewer/mod.rs#L1752-L1791)。
 
 ## 8.8 选择状态与视觉对象所有者
 
@@ -196,9 +196,9 @@ Feedback(FeedbackId, optional owner)
 
 代码锚点：
 
-- [`SelectionModel`](../novadraw-editor/src/selection/mod.rs)
-- [`VisualOwner`](../novadraw-editor/src/feedback/mod.rs)
-- [`GraphicalViewer::target_at`](../novadraw-editor/src/viewer/mod.rs#L1127-L1155)
+- [`SelectionModel`](../../novadraw-editor/src/selection/mod.rs)
+- [`VisualOwner`](../../novadraw-editor/src/feedback/mod.rs)
+- [`GraphicalViewer::target_at`](../../novadraw-editor/src/viewer/mod.rs#L1127-L1155)
 
 ## 8.9 编辑工具、请求、策略与命令
 
@@ -250,7 +250,7 @@ pub enum EditorRequest {
 ```
 
 实际定义：
-[`EditorRequest`](../novadraw-editor/src/request/mod.rs#L546-L603)。
+[`EditorRequest`](../../novadraw-editor/src/request/mod.rs#L546-L603)。
 
 ### 编辑策略（EditPolicy）
 
@@ -309,7 +309,7 @@ pub enum EditorRequest {
 - 补偿失败或代码恐慌导致故障锁定。
 
 实际历史提交逻辑见
-[`CommandStack::execute/undo/redo`](../novadraw-editor/src/command/mod.rs#L398-L574)。
+[`CommandStack::execute/undo/redo`](../../novadraw-editor/src/command/mod.rs#L398-L574)。
 
 `is_dirty` 比较当前历史身份与保存位置，而不是只判断撤销栈是否为空。
 
@@ -335,7 +335,7 @@ viewer.refresh()?;
 ```
 
 实际实现见
-[`EditorDomain::execute_request`](../novadraw-editor/src/domain.rs#L193-L209)。
+[`EditorDomain::execute_request`](../../novadraw-editor/src/domain.rs#L193-L209)。
 
 ## 8.13 连接编辑
 
@@ -374,14 +374,14 @@ viewer.refresh()?;
 
 ## 8.15 验证入口
 
-- [`g1_model_contract.rs`](../novadraw-editor/tests/g1_model_contract.rs)
-- [`g1_command_stack_contract.rs`](../novadraw-editor/tests/g1_command_stack_contract.rs)
-- [`g2_viewer_projection_contract.rs`](../novadraw-editor/tests/g2_viewer_projection_contract.rs)
-- [`g3_selection_contract.rs`](../novadraw-editor/tests/g3_selection_contract.rs)
-- [`g3_viewer_interaction_contract.rs`](../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
-- [`g4_editing_loop_contract.rs`](../novadraw-editor/tests/g4_editing_loop_contract.rs)
-- [`g5_connection_projection_contract.rs`](../novadraw-editor/tests/g5_connection_projection_contract.rs)
-- [`g5_connection_creation_contract.rs`](../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`g1_model_contract.rs`](../../novadraw-editor/tests/g1_model_contract.rs)
+- [`g1_command_stack_contract.rs`](../../novadraw-editor/tests/g1_command_stack_contract.rs)
+- [`g2_viewer_projection_contract.rs`](../../novadraw-editor/tests/g2_viewer_projection_contract.rs)
+- [`g3_selection_contract.rs`](../../novadraw-editor/tests/g3_selection_contract.rs)
+- [`g3_viewer_interaction_contract.rs`](../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
+- [`g4_editing_loop_contract.rs`](../../novadraw-editor/tests/g4_editing_loop_contract.rs)
+- [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
+- [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run replay.editor-g3`
 - `cargo xtask run replay.editor-g4`
 - `cargo xtask run replay.editor-g5.2`
@@ -391,6 +391,6 @@ viewer.refresh()?;
 
 规范依据：
 
-- [ADR-015](../doc/adr/adr-015-editor-framework-boundary.md)
-- [Editor 架构](../doc/design/editor/architecture.md)
-- [GEF 语义账本](../doc/parity/gef/api-coverage.md)
+- [ADR-015](../../doc/adr/adr-015-editor-framework-boundary.md)
+- [Editor 架构](../../doc/design/editor/architecture.md)
+- [GEF 语义账本](../../doc/parity/gef/api-coverage.md)

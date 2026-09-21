@@ -67,10 +67,10 @@ sequenceDiagram
 
 代码锚点：
 
-- [`LayoutSnapshot`](../novadraw-scene/src/layout/mod.rs)
-- [`LayoutOutput`](../novadraw-scene/src/layout/mod.rs)
-- [`LayoutManager`](../novadraw-scene/src/layout/mod.rs)
-- [`FigureTree::validate_layout_output`](../novadraw-scene/src/graph/mod.rs#L1991-L2036)
+- [`LayoutSnapshot`](../../novadraw-scene/src/layout/mod.rs)
+- [`LayoutOutput`](../../novadraw-scene/src/layout/mod.rs)
+- [`LayoutManager`](../../novadraw-scene/src/layout/mod.rs)
+- [`FigureTree::validate_layout_output`](../../novadraw-scene/src/graph/mod.rs#L1991-L2036)
 
 ## 4.3 布局约束属于父子关系
 
@@ -105,7 +105,7 @@ fn validate_constraint(
 ```
 
 代码锚点：
-[`XYLayout`](../novadraw-scene/src/layout/xy_layout.rs)。
+[`XYLayout`](../../novadraw-scene/src/layout/xy_layout.rs)。
 
 ## 4.4 当前具体布局管理器
 
@@ -131,7 +131,7 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 以下六个布局器构成产品交付清单中的通用布局基线：
 这里的“对标”表示职责和主要使用方式对应，不表示每个边界行为已经与 Draw2D 完全
 等价；精确语义状态仍以
-[`Draw2D API 语义覆盖账本`](../doc/parity/draw2d/api-coverage.md) 为准。
+[`Draw2D API 语义覆盖账本`](../../doc/parity/draw2d/api-coverage.md) 为准。
 
 | 布局器 | 子节点约束 | 实际作用 | 典型用途 |
 |---|---|---|---|
@@ -144,12 +144,12 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 
 这些布局器的代码入口：
 
-- [`XYLayout`](../novadraw-scene/src/layout/xy_layout.rs)
-- [`StackLayout`](../novadraw-scene/src/layout/stack_layout.rs)
-- [`BorderLayout`](../novadraw-scene/src/layout/border_layout.rs)
-- [`FlowLayout`](../novadraw-scene/src/layout/flow_layout.rs)
-- [`GridLayout`](../novadraw-scene/src/layout/grid_layout.rs)
-- [`ToolbarLayout`](../novadraw-scene/src/layout/toolbar_layout.rs)
+- [`XYLayout`](../../novadraw-scene/src/layout/xy_layout.rs)
+- [`StackLayout`](../../novadraw-scene/src/layout/stack_layout.rs)
+- [`BorderLayout`](../../novadraw-scene/src/layout/border_layout.rs)
+- [`FlowLayout`](../../novadraw-scene/src/layout/flow_layout.rs)
+- [`GridLayout`](../../novadraw-scene/src/layout/grid_layout.rs)
+- [`ToolbarLayout`](../../novadraw-scene/src/layout/toolbar_layout.rs)
 
 ### 两个引擎辅助布局器
 
@@ -160,8 +160,8 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 
 代码入口：
 
-- [`FillLayout`](../novadraw-scene/src/layout/fill_layout.rs)
-- [`FreeformLayout`](../novadraw-scene/src/layout/freeform_layout.rs)
+- [`FillLayout`](../../novadraw-scene/src/layout/fill_layout.rs)
+- [`FreeformLayout`](../../novadraw-scene/src/layout/freeform_layout.rs)
 
 `FillLayout` 是 Novadraw 的本地便利策略，不属于六个 Draw2D 对标布局器。
 `FreeformLayout` 与自由范围容器协作，但“自由范围”不表示跳过视口等祖先裁剪。
@@ -170,16 +170,84 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 
 | 布局器 | 所属容器 | 实际作用 |
 |---|---|---|
-| `ViewportLayout` | `ViewportFigure` | 管理唯一内容节点；根据是否跟踪视口宽高决定内容尺寸；结合内容缩放和自由范围更新水平、垂直范围模型，并把滚动原点钳制到合法区间 |
+| `ViewportLayout` | `ViewportFigure` | 安放唯一内容节点，计算可滚动范围，并让当前滚动位置始终可用 |
 | `ScrollPaneLayout` | `ScrollPaneFigure` | 同时排列视口、水平滚动条和垂直滚动条；根据“总是显示、从不显示、按需显示”策略求解滚动条可见性，并扣除滚动条厚度后确定最终视口大小 |
 
 这两个布局器由对应容器在构造时安装，通常不由应用单独创建：
 
-- [`ViewportLayout`](../novadraw-scene/src/container/viewport.rs)
-- [`ScrollPaneLayout`](../novadraw-scene/src/container/scroll_pane.rs)
+- [`ViewportLayout`](../../novadraw-scene/src/container/viewport.rs)
+- [`ScrollPaneLayout`](../../novadraw-scene/src/container/scroll_pane.rs)
 
 滚动条会互相影响可用空间：显示垂直滚动条可能导致水平空间不足，继而需要水平
 滚动条。因此 `ScrollPaneLayout` 会执行两轮可见性求解，让两个轴得到一致结果。
+
+#### ViewportLayout 到底做什么
+
+可以把 `ViewportFigure` 看作一块固定大小的观察窗，把它的唯一直接子节点看作窗外的
+内容。`ViewportLayout` 在每次 layout 时完成四件事：
+
+1. 决定内容在内容坐标域中的宽和高；
+2. 求出内容中哪些坐标可以被这扇窗看到；
+3. 将该范围写入水平和垂直 `RangeModel`；
+4. 若窗口变小或内容范围缩小，修正已经无法看到完整窗口的旧滚动位置。
+
+这里的“唯一”不是便利约定，而是 Viewport 的结构约束：它只变换、裁剪和滚动一个
+contents。多个需要重叠的图层应先组合成一个 LayeredPane 或其他内容根，再作为这个
+唯一 contents 放入 Viewport。
+
+**跟踪视口宽高**指内容是否随观察窗的可用尺寸重新测量和分配：
+
+- `tracks_width = true`：把视口客户区宽度作为内容的宽度 hint。普通内容会占用这份宽度，
+  但不会被压到小于自己的最小宽度。典型用途是表单、文本流或纵向列表，希望窗口变宽时
+  内容跟着变宽，通常不需要水平滚动。
+- `tracks_width = false`：内容按自己的首选宽度计算；若首选宽度大于视口，就保留这个
+  更宽的内容，从而产生水平滚动范围。典型用途是画布、表格或不能随窗口压缩的图形。
+- 高度的 `tracks_height` 使用同一规则。两个开关彼此独立，例如常见的纵向列表会跟踪
+  宽度但不跟踪高度。
+
+对于普通内容，设视口客户区宽度为 `W`、内容首选宽度为 `P`、最小宽度为 `M`：
+
+```text
+跟踪宽度：内容宽度 = max(W, M)
+不跟踪宽度：内容宽度 = max(W, P)
+```
+
+因此“跟踪”不等于无条件拉伸，也不等于关闭裁剪；它只改变内容采用视口尺寸还是首选尺寸
+作为布局依据。
+
+**结合内容缩放和自由范围**只发生在 contents 明确同时具有 Freeform 与 Scalable
+能力时。普通内容不需要这条规则。
+
+- 自由范围（`freeform_extent`）是内容子树实际占据的内容坐标范围，可能从负坐标开始，
+  也可能大于 contents 的 presentation bounds。
+- 缩放比例 `scale` 属于 contents。视口在屏幕上宽 `client_width`，在内容坐标中实际能
+  看到的宽度是 `client_width / scale`；例如屏幕窗口宽 400、`scale = 2` 时，窗口只
+  能看到 200 个内容单位。
+- 因此布局器先构造一个以内容原点 `(0, 0)` 为起点的“视口基线”，再与
+  `freeform_extent` 求并集。这个并集就是可滚动内容范围。基线确保内容比窗口小时仍有
+  一个完整窗口大小的范围；并集确保负坐标和越过右下角的自由内容也能滚到。
+
+```text
+视口基线 = Rect(0, 0, client_width / scale, client_height / scale)
+可滚动范围 = union(freeform_extent, 视口基线)
+```
+
+**滚动原点的合法区域**是：原点表示视口左上角正在看的内容坐标，不能滚到窗口右侧或
+下侧没有任何内容的位置。对每个轴，`RangeModel` 保存：
+
+```text
+minimum  = 可滚动范围起点
+maximum  = 可滚动范围终点
+extent   = 当前视口在内容坐标中的可见长度
+origin   = 当前视口左上角坐标
+
+合法 origin = [minimum, maximum - extent]
+```
+
+例如水平方向的内容范围是 `[-100, 600]`，可见窗口宽为 `200`，则原点只能在
+`[-100, 400]` 之间。请求滚到 `500` 会被钳制为 `400`，因为此时窗口右边缘正好到
+`600`；继续向右只会显示空白。若内容或窗口尺寸变化使原来的 origin 超出新区间，
+`ViewportLayout` 会在同一 layout 提交中钳制它，并触发坐标变换更新和视口重绘。
 
 ### 如何选择
 
@@ -203,7 +271,7 @@ runtime.set_layout_constraint(field, GridConstraint::fill())?;
 `apps/native/*` 负责窗口、输入和场景切换，具体可复用场景集中在
 `novadraw-demo-scenes`。例如 `layout-app` 的入口只加载
 `novadraw_demo_scenes::layout::suite()`，布局器的安装代码实际位于
-[`novadraw-demo-scenes/src/layout.rs`](../apps/scenes/src/layout.rs)。
+[`novadraw-demo-scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)。
 
 ### Demo 覆盖情况
 
@@ -351,13 +419,13 @@ graph.revalidate(pane.pane_id());
 
 相关入口：
 
-- [`layout-app`](../apps/native/layout-app/src/main.rs)
-- [`layout` demo 场景](../apps/scenes/src/layout.rs)
-- [`update` demo 场景](../apps/scenes/src/update.rs)
-- [`clip` demo 场景](../apps/scenes/src/clip.rs)
-- [`viewport` demo 场景](../apps/scenes/src/viewport.rs)
-- [`scroll-pane-demo`](../apps/native/scroll-pane-demo/src/main.rs)
-- [`node-editor-demo`](../apps/native/node-editor-demo/src/main.rs)
+- [`layout-app`](../../apps/native/layout-app/src/main.rs)
+- [`layout` demo 场景](../../apps/scenes/src/layout.rs)
+- [`update` demo 场景](../../apps/scenes/src/update.rs)
+- [`clip` demo 场景](../../apps/scenes/src/clip.rs)
+- [`viewport` demo 场景](../../apps/scenes/src/viewport.rs)
+- [`scroll-pane-demo`](../../apps/native/scroll-pane-demo/src/main.rs)
+- [`node-editor-demo`](../../apps/native/node-editor-demo/src/main.rs)
 
 ## 4.6 测量顺序
 
@@ -405,7 +473,7 @@ graph.revalidate(pane.pane_id());
 稳定版本。
 
 实际调度见
-[`Runtime::stabilize`](../novadraw-scene/src/runtime/runtime.rs#L3533-L3614)。
+[`Runtime::stabilize`](../../novadraw-scene/src/runtime/runtime.rs#L3533-L3614)。
 
 为避免错误扩展无限失效，单个阶段有反馈预算。超过预算返回
 `FramePreparationError::DidNotConverge`：
@@ -431,7 +499,7 @@ if damage.is_some() {
 ```
 
 实际实现见
-[`UpdateManager::perform_update_transaction`](../novadraw-scene/src/runtime/update/deferred.rs#L517-L550)。
+[`UpdateManager::perform_update_transaction`](../../novadraw-scene/src/runtime/update/deferred.rs#L517-L550)。
 
 冻结快照的意义是：计算重绘区域或绘制期间新产生的脏区不会被当前遍历意外消费，
 而会保留到下一事务。
@@ -463,7 +531,7 @@ for step in parent_chain {
 ```
 
 实际实现：
-[`propagate_damage_through_parent_chain`](../novadraw-scene/src/runtime/update/repair.rs#L63-L84)。
+[`propagate_damage_through_parent_chain`](../../novadraw-scene/src/runtime/update/repair.rs#L63-L84)。
 
 这条链必须与绘制和命中测试使用同一子内容变换与裁剪策略。
 
@@ -488,8 +556,8 @@ Partial { union, regions }
 
 代码锚点：
 
-- [`DamageSet`](../novadraw-render/src/submission.rs)
-- [`normalize_damage_regions`](../novadraw-scene/src/runtime/update/repair.rs)
+- [`DamageSet`](../../novadraw-render/src/submission.rs)
+- [`normalize_damage_regions`](../../novadraw-scene/src/runtime/update/repair.rs)
 
 ## 4.11 帧准备状态机
 
@@ -527,7 +595,7 @@ flowchart TD
 ```
 
 实际实现见
-[`Runtime::prepare_submission_state_inner`](../novadraw-scene/src/runtime/runtime.rs#L3653-L3745)。
+[`Runtime::prepare_submission_state_inner`](../../novadraw-scene/src/runtime/runtime.rs#L3653-L3745)。
 
 ## 4.12 后端会话与资源基线
 
@@ -570,11 +638,11 @@ flowchart TD
 
 ## 4.15 验证入口
 
-- [`m5_layout_contract.rs`](../novadraw-scene/tests/m5_layout_contract.rs)
-- [`d4_constrained_measurement.rs`](../novadraw-scene/tests/d4_constrained_measurement.rs)
-- [`d4_component_update.rs`](../novadraw-scene/tests/d4_component_update.rs)
-- [`d4_notification_epoch.rs`](../novadraw-scene/tests/d4_notification_epoch.rs)
-- [`runtime_resize_contract.rs`](../novadraw-scene/tests/runtime_resize_contract.rs)
+- [`m5_layout_contract.rs`](../../novadraw-scene/tests/m5_layout_contract.rs)
+- [`d4_constrained_measurement.rs`](../../novadraw-scene/tests/d4_constrained_measurement.rs)
+- [`d4_component_update.rs`](../../novadraw-scene/tests/d4_component_update.rs)
+- [`d4_notification_epoch.rs`](../../novadraw-scene/tests/d4_notification_epoch.rs)
+- [`runtime_resize_contract.rs`](../../novadraw-scene/tests/runtime_resize_contract.rs)
 - `cargo xtask run core.runtime`
 - 规范 SSOT：
-  [`update-manager.md`](../doc/design/rendering/update-manager.md)
+  [`update-manager.md`](../../doc/design/rendering/update-manager.md)

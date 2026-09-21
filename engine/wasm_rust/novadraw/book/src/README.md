@@ -17,8 +17,8 @@
   `org.eclipse.zest` 定义需求或架构。
 
 状态仍以
-[`doc/roadmap/00-index.md`](../doc/roadmap/00-index.md) 和
-[`doc/roadmap/editor/00-index.md`](../doc/roadmap/editor/00-index.md)
+[`doc/roadmap/00-index.md`](../../doc/roadmap/00-index.md) 和
+[`doc/roadmap/editor/00-index.md`](../../doc/roadmap/editor/00-index.md)
 为唯一来源。本书中的“已实现”结论必须能够回指代码与验证，不取代设计的唯一事实
 来源（Single Source of Truth，简称 SSOT）。
 
@@ -132,3 +132,24 @@ flowchart LR
 
 如果实现与规范不一致，不应直接把书改成实现现状。应先判断是实现缺陷、设计修订，
 还是实施尚未完成。详细更新流程见 [`UPDATE_PROMPT.md`](UPDATE_PROMPT.md)。
+
+## 生成 PDF
+
+书稿遵循 mdBook 的标准目录结构，正文位于 `src/`，目录由
+[`SUMMARY.md`](SUMMARY.md) 定义。构建会同时生成 HTML 与 PDF，默认输出到
+`target/book/`；PDF 文件为 `target/book/pdf/output.pdf`。
+
+首次使用需要安装 mdBook 与两个渲染插件。PDF 渲染器使用本机 Google Chrome：
+
+```bash
+cargo install mdbook --locked
+cargo install mdbook-mermaid --locked
+cargo install mdbook-pdf --locked
+./scripts/build_book.sh
+```
+
+仅构建 HTML，或使用 mdBook 的默认入口：
+
+```bash
+mdbook build book
+```

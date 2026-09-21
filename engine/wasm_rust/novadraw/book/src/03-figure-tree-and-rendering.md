@@ -50,10 +50,10 @@ classDiagram
 
 代码锚点：
 
-- [`FigureNode`](../novadraw-scene/src/graph/mod.rs#L403-L432)
-- [`NodeState`](../novadraw-scene/src/graph/mod.rs)
-- [`LayoutState`](../novadraw-scene/src/graph/mod.rs)
-- [`Figure`](../novadraw-scene/src/figure/mod.rs#L369-L573)
+- [`FigureNode`](../../novadraw-scene/src/graph/mod.rs#L403-L432)
+- [`NodeState`](../../novadraw-scene/src/graph/mod.rs)
+- [`LayoutState`](../../novadraw-scene/src/graph/mod.rs)
+- [`Figure`](../../novadraw-scene/src/figure/mod.rs#L369-L573)
 
 ## 3.2 图形对象的小能力模型
 
@@ -132,7 +132,7 @@ Figure
 默认从模型重建。
 
 参考：
-[Figure 生命周期规范](../doc/design/architecture/figure-lifecycle.md)。
+[Figure 生命周期规范](../../doc/design/architecture/figure-lifecycle.md)。
 
 ## 3.5 绘制是受控模板
 
@@ -152,7 +152,7 @@ flowchart TD
 ```
 
 实际主循环见
-[`render_recursive.rs`](../novadraw-scene/src/graph/render_recursive.rs#L57-L257)。
+[`render_recursive.rs`](../../novadraw-scene/src/graph/render_recursive.rs#L57-L257)。
 
 代码中的关键隔离：
 
@@ -206,9 +206,9 @@ self.gc.pop_state();
 
 代码锚点：
 
-- [`ChildClippingStrategy`](../novadraw-scene/src/figure/mod.rs)
-- [`FigureRenderer::paint_client_area`](../novadraw-scene/src/graph/render_recursive.rs#L146-L193)
-- [`repair::collect_parent_chain_steps`](../novadraw-scene/src/runtime/update/repair.rs#L109-L159)
+- [`ChildClippingStrategy`](../../novadraw-scene/src/figure/mod.rs)
+- [`FigureRenderer::paint_client_area`](../../novadraw-scene/src/graph/render_recursive.rs#L146-L193)
+- [`repair::collect_parent_chain_steps`](../../novadraw-scene/src/runtime/update/repair.rs#L109-L159)
 
 ## 3.8 命令画布（NdCanvas）
 
@@ -230,8 +230,8 @@ DrawGlyphRun
 
 代码锚点：
 
-- [`NdCanvas`](../novadraw-render/src/context.rs)
-- [`RenderCommandKind`](../novadraw-render/src/command.rs)
+- [`NdCanvas`](../../novadraw-render/src/context.rs)
+- [`RenderCommandKind`](../../novadraw-render/src/command.rs)
 
 ## 3.9 渲染提交包（RenderSubmission）
 
@@ -250,7 +250,7 @@ pub struct RenderSubmission {
 ```
 
 实际定义：
-[`RenderSubmission`](../novadraw-render/src/submission.rs#L365-L373)。
+[`RenderSubmission`](../../novadraw-render/src/submission.rs#L365-L373)。
 
 它分离“画什么”与“如何提交到设备”。渲染后端声明自身能力，`Runtime` 在提交前
 检查命令需要的字形组（`GlyphRuns`）、图像资源（`ImageResources`）等能力。永久
@@ -286,7 +286,7 @@ flowchart LR
 - 绘制表面丢失或过期时走结构化恢复。
 
 代码锚点：
-[`VelloRenderer::submit`](../novadraw-render/src/backend/vello/mod.rs#L1114-L1306)。
+[`VelloRenderer::submit`](../../novadraw-render/src/backend/vello/mod.rs#L1114-L1306)。
 
 ## 3.11 递归深度策略
 
@@ -313,8 +313,8 @@ flowchart LR
 
 ## 3.13 验证入口
 
-- [`m2_product_existence.rs`](../novadraw-scene/tests/m2_product_existence.rs)
-- [`d1_tree_search_contract.rs`](../novadraw-scene/tests/d1_tree_search_contract.rs)
-- [`d2_freeform_contract.rs`](../novadraw-scene/tests/d2_freeform_contract.rs)
-- [`r8_extension_boundaries.rs`](../novadraw-render/tests/r8_extension_boundaries.rs)
+- [`m2_product_existence.rs`](../../novadraw-scene/tests/m2_product_existence.rs)
+- [`d1_tree_search_contract.rs`](../../novadraw-scene/tests/d1_tree_search_contract.rs)
+- [`d2_freeform_contract.rs`](../../novadraw-scene/tests/d2_freeform_contract.rs)
+- [`r8_extension_boundaries.rs`](../../novadraw-render/tests/r8_extension_boundaries.rs)
 - `cargo xtask run workspace.test`

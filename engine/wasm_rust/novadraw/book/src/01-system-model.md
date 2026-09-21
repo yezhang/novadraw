@@ -39,8 +39,8 @@ Novadraw 从 Draw2D 保留行为语义，再用 Rust 所有权和显式事务重
 
 外部参考：
 
-- [Draw2D 设计公理](../doc/reference/draw2d/architecture/design-axioms.md)
-- [GEF 核心原理](../doc/reference/gef/core-principles.md)
+- [Draw2D 设计公理](../../doc/reference/draw2d/architecture/design-axioms.md)
+- [GEF 核心原理](../../doc/reference/gef/core-principles.md)
 
 ## 1.3 总体渲染管线
 
@@ -267,16 +267,16 @@ sequenceDiagram
 总管线的主要代码入口：
 
 - 平台帧循环与后端提交：
-  [`novadraw-apps/src/app.rs`](../apps/support/src/app.rs)
+  [`novadraw-apps/src/app.rs`](../../apps/support/src/app.rs)
 - 帧准备、派生状态收敛与完成反馈：
-  [`Runtime::prepare_submission_state / stabilize / complete_submission`](../novadraw-scene/src/runtime/runtime.rs)
+  [`Runtime::prepare_submission_state / stabilize / complete_submission`](../../novadraw-scene/src/runtime/runtime.rs)
 - 图形树递归命令录制：
-  [`render_recursive.rs`](../novadraw-scene/src/graph/render_recursive.rs)
+  [`render_recursive.rs`](../../novadraw-scene/src/graph/render_recursive.rs)
 - 渲染提交包与后端接口：
-  [`submission.rs`](../novadraw-render/src/submission.rs)、
-  [`traits.rs`](../novadraw-render/src/traits.rs)
+  [`submission.rs`](../../novadraw-render/src/submission.rs)、
+  [`traits.rs`](../../novadraw-render/src/traits.rs)
 - 编辑框架输入仲裁与模型投影：
-  [`GraphicalViewer`](../novadraw-editor/src/viewer/mod.rs)
+  [`GraphicalViewer`](../../novadraw-editor/src/viewer/mod.rs)
 
 ## 1.4 静态职责
 
@@ -318,7 +318,7 @@ flowchart TB
 它不保存父节点、子节点、平台绘制表面或全局管理器。
 
 实际接口见
-[`Figure`](../novadraw-scene/src/figure/mod.rs#L369-L573)。
+[`Figure`](../../novadraw-scene/src/figure/mod.rs#L369-L573)。
 
 ### 图形节点（FigureNode）
 
@@ -338,7 +338,7 @@ pub struct FigureNode {
 ```
 
 实际定义见
-[`FigureNode`](../novadraw-scene/src/graph/mod.rs#L403-L432)。
+[`FigureNode`](../../novadraw-scene/src/graph/mod.rs#L403-L432)。
 
 ### 图形树（FigureTree）
 
@@ -352,7 +352,7 @@ pub struct FigureNode {
 原子维护跨组件不变量。
 
 实际字段见
-[`Runtime`](../novadraw-scene/src/runtime/runtime.rs#L160-L189)。
+[`Runtime`](../../novadraw-scene/src/runtime/runtime.rs#L160-L189)。
 
 ### 平台宿主与渲染后端（PlatformHost / RenderBackend）
 
@@ -435,9 +435,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`EventContext`](../novadraw-scene/src/runtime/context.rs#L33-L43)
-- [`RuntimeEffect`](../novadraw-scene/src/runtime/context.rs#L14-L31)
-- [`PendingMutation`](../novadraw-scene/src/runtime/mutation/mod.rs)
+- [`EventContext`](../../novadraw-scene/src/runtime/context.rs#L33-L43)
+- [`RuntimeEffect`](../../novadraw-scene/src/runtime/context.rs#L14-L31)
+- [`PendingMutation`](../../novadraw-scene/src/runtime/mutation/mod.rs)
 
 ## 1.8 稳定状态与可观察状态
 
@@ -462,9 +462,9 @@ enum RuntimeEffect {
 
 代码锚点：
 
-- [`DerivedWorkKind`](../novadraw-scene/src/runtime/runtime.rs#L50-L85)
-- [`Runtime::stabilize`](../novadraw-scene/src/runtime/runtime.rs#L3533-L3614)
-- [`Runtime::stable_query`](../novadraw-scene/src/runtime/runtime.rs#L2706-L2715)
+- [`DerivedWorkKind`](../../novadraw-scene/src/runtime/runtime.rs#L50-L85)
+- [`Runtime::stabilize`](../../novadraw-scene/src/runtime/runtime.rs#L3533-L3614)
+- [`Runtime::stable_query`](../../novadraw-scene/src/runtime/runtime.rs#L2706-L2715)
 
 ## 1.9 失败边界
 
@@ -483,9 +483,9 @@ Novadraw 不承诺回滚任意用户代码副作用。原子性按层划分：
 
 规范依据：
 
-- [ADR-014：扩展协议、生命周期与稳定发布](../doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md)
-- [总体架构](../doc/design/architecture/overview.md)
-- [动态协议](../doc/design/architecture/dynamic-architecture.md)
+- [ADR-014：扩展协议、生命周期与稳定发布](../../doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+- [总体架构](../../doc/design/architecture/overview.md)
+- [动态协议](../../doc/design/architecture/dynamic-architecture.md)
 
 ## 1.10 本章检查清单
 
