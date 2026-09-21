@@ -2,9 +2,11 @@
 
 类型：`verification`
 
-状态：`in-progress`
+状态：`complete`
 
 日期：2026-09-20
+
+完成日期：2026-09-21
 
 ## 审计边界
 
@@ -27,8 +29,8 @@
 - 分组审查原始候选：25 条，其中 2 组为重复根因；
 - 去重后候选：23 条；
 - 提升为本批次优先整改项：5 条 P1；
-- 已修复：2 条；
-- 待修复：3 条；
+- 已修复：5 条；
+- 待修复：0 条；
 - 其余 18 条保留为后续候选，需先补定向测试或重新拆分根因，暂不计入
   当前 P1 关闭分母。
 
@@ -38,9 +40,9 @@
 |---|---|---|---|---|
 | F01 | `NdCanvas::rotate` 将 Draw2D 的 degrees 当作 radians | `Graphics.rotate(float degrees)` | fixed | `rotate_uses_draw2d_degree_units`；`novadraw-render` 全量测试：PASS |
 | F02 | Vello 静默丢弃公开的 Dash/Dot line style | `Graphics.setLineStyle` / SWT 内置 Dash、Dot | fixed | `line_styles_map_to_width_scaled_vello_dash_patterns`、`vello_scene_expands_dash_and_dot_into_multiple_path_segments`、Viewport guide 契约：PASS |
-| F03 | `XYLayout` 自动轴测量丢失固定轴 hint | `XYLayout.layout` 将 constraint width/height 传入 `getPreferredSize` | open | `novadraw-scene/src/layout/xy_layout.rs::layout` 固定调用 `preferred_size(child, -1, -1)` |
-| F04 | 失效 gesture target 导致同一 session 重定向 | scroll/zoom session 固定 target；失效后结束而非重新命中 | open | `InteractionState::reconcile_non_focus` 删除整个 session，后续 Update 进入 missing-Begin 恢复路径 |
-| F05 | Policy 激活失败破坏 activate/deactivate 成对生命周期 | GEF EditPart/EditPolicy 激活与停用必须成对 | open | 创建 Part 时激活中途失败会停用未激活 Policy，Viewer Drop 再次停用 active Part 的全部 Policy |
+| F03 | `XYLayout` 自动轴测量丢失固定轴 hint | `XYLayout.layout` 将 constraint width/height 传入 `getPreferredSize` | fixed | `xy_layout_passes_fixed_width_hint_when_height_is_automatic`、`m5_layout_contract`：PASS |
+| F04 | 失效 gesture target 导致同一 session 重定向 | scroll/zoom session 固定 target；失效后结束而非重新命中 | fixed | `retired_gesture_target_does_not_retarget_the_same_session` 覆盖 hide/remove 与双 Viewport；`m6_event_contract`、`m8_viewport_contract`、`core.runtime`：PASS |
+| F05 | Policy 激活失败破坏 activate/deactivate 成对生命周期 | GEF EditPart/EditPolicy 激活与停用必须成对 | fixed | `policy_activation_failure_rolls_back_only_the_active_prefix_once`、`g2.viewer-projection`、`g5.1.connection-projection`、`novadraw-editor` 全量测试：PASS |
 
 ### F01：rotate 角度单位
 
@@ -70,12 +72,12 @@ constraint.width = 80
 constraint.height = -1
 ```
 
-当前实现以 `(-1, -1)` 请求 preferred size，宽度敏感 Figure 会按无限宽测量高度。
-修复应把 constraint 的两个轴原样传入测量，只用返回值替换值为 `-1` 的自动轴。
+修复后将 constraint 的两个轴原样传入测量，只用返回值替换值为 `-1` 的自动轴。
+真实换行文本回归确认固定宽度会参与高度测量。
 
 ### F04：gesture target 生命周期
 
-当前错误链：
+修复前错误链：
 
 ```text
 Begin 固定 target A
@@ -97,12 +99,16 @@ Begin 固定 target A
 定向回归必须使用两个 Viewport，确认 A 失效后同一 session 不改变 B 的 scroll/zoom
 状态；新 session 才允许命中 B。
 
+修复后 `InteractionState` 保留 session，并将失效 target 及已固定 controller 转成
+显式 tombstone。hide/remove 后的 Update/End 均不投递到 B，End/Cancel 才清理
+session；新 session 可正常命中 B。
+
 ### F05：Policy 激活回滚
 
 当 Policy A 激活成功、Policy B 激活失败时，只允许逆序停用已成功激活的前缀 A。
-当前实现会停用 A/B/后续未激活 Policy，并因 Part 已标记 active 而在 Viewer Drop 时
-再次停用。修复需要统一创建回滚事务，保证 Behavior、Policy、Part active flag 和
-注册资源严格成对。
+修复后 containment Part 与 ConnectionPart 共用同一激活事务。Part 只在全部 Policy
+激活成功后提交 active flag；失败时逆序停用已成功激活的前缀，再停用 Behavior。
+后续清理和 Viewer Drop 只处理 active Part，不会重复停用。
 
 ## 后续候选
 
@@ -132,16 +138,23 @@ Begin 固定 target A
 
 ## 验证状态
 
-截至 2026-09-20，F01/F02 已通过：
+截至 2026-09-21，F01-F05 已通过：
 
 ```text
 cargo test -p novadraw-render --features vello
 cargo test -p node-editor-demo viewport_guide_uses_light_background_and_dashed_outline
 cargo check -p novadraw-render --features vello
+cargo test -p novadraw-scene --test d4_constrained_measurement
+cargo test -p novadraw-scene --test m5_layout_contract
+cargo test -p novadraw-scene --test m6_event_contract
+cargo test -p novadraw-scene --test m8_viewport_contract
+cargo xtask verify core.runtime
+cargo test -p novadraw-editor
+cargo xtask verify g2.viewer-projection
+cargo xtask verify g5.1.connection-projection
 cargo xtask check --quick
+cargo xtask check --full
 cargo xtask docs
 ```
 
-`cargo xtask check --full` 不在本次窄修复边界重复执行；最终提交、推送、合并或本批次
-全部关闭时再运行一次。
-
+上述门禁均为 PASS。

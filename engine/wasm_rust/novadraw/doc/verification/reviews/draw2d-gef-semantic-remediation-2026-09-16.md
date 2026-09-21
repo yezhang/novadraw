@@ -2,11 +2,11 @@
 
 类型：`verification`
 
-状态：`in-progress`
+状态：`complete`
 
 日期：2026-09-16
 
-最近更新：2026-09-20
+最近更新：2026-09-21
 
 本页追加记录
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)
@@ -21,7 +21,7 @@
 ## 当前结论
 
 - 2026-09-16 批次：已关闭 17，待关闭 0；
-- 2026-09-20 后续批次：优先整改 5，已修复 2，待修复 3；
+- 2026-09-20 后续批次：优先整改 5，已修复 5，待修复 0；
 - G5 自动门禁通过，检查点 C 仍待人工验收；
 - G6 尚未启动，不应在检查点 C 人工验收前提升状态。
 
@@ -31,9 +31,9 @@
 |---|---|---|
 | F01 `NdCanvas::rotate` 将 degrees 当作 radians | fixed | `rotate_uses_draw2d_degree_units`：PASS；`novadraw-render` 全量测试：PASS |
 | F02 Vello 丢弃 Dash/Dot line style | fixed | Vello Stroke pattern 与 Scene 多段展开测试、Viewport guide 契约：PASS |
-| F03 XYLayout 自动轴测量丢失固定轴 hint | open | 补固定宽/自动高 wrapping Figure 回归，再按 Draw2D hint 语义修复 |
-| F04 失效 gesture target 导致同一 session 重定向 | open | 补双 Viewport target retirement 回归；保留 tombstone 到 End/Cancel |
-| F05 Policy 激活失败破坏成对生命周期 | open | 补 A 成功/B 失败的前缀回滚与 Viewer Drop 回归 |
+| F03 XYLayout 自动轴测量丢失固定轴 hint | fixed | 固定宽/自动高 wrapping Figure 回归与 `m5_layout_contract`：PASS |
+| F04 失效 gesture target 导致同一 session 重定向 | fixed | 双 Viewport hide/remove 回归确认 tombstone 保留到 End/Cancel；M6/M8/core.runtime：PASS |
+| F05 Policy 激活失败破坏成对生命周期 | fixed | A 成功/B 失败只逆序回滚 A，Behavior 单次停用，Viewer Drop 不重复；G2/G5.1/editor crate：PASS |
 
 后续审计的范围、触发链、18 条次级候选与验证命令统一记录在
 [`draw2d-gef-core-semantic-follow-up-audit-2026-09-20.md`](draw2d-gef-core-semantic-follow-up-audit-2026-09-20.md)。
@@ -70,10 +70,9 @@ cargo test -p novadraw-scene --release \
 
 ## 推进顺序
 
-1. 保留全部 17 条 P1 的反例与自动回归；
-2. 按 F03-F05 的定向回归关闭 2026-09-20 后续批次；
-3. 完成 G5 检查点 C 人工验收；
-4. 再启动 G6 保存加载与 Native/Web/Headless 等价。
+1. 保留两个批次共 22 条 P1 的反例与自动回归；
+2. 完成 G5 检查点 C 人工验收；
+3. 再启动 G6 保存加载与 Native/Web/Headless 等价。
 
 G5/G6 状态仍以
 [`../../roadmap/editor/00-index.md`](../../roadmap/editor/00-index.md) 为唯一入口。

@@ -117,7 +117,8 @@ Connection Projection、G5.2 Connection Creation 与 G5.3 Connection Reconnect �
 G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；检查点 B
 已通过人工验收，检查点 C 待人工验收。
 Draw2D 后续能力必须进入明确的 P2 delta。
-2026-09-16 全量 Draw2D/GEF 语义审计整改进行中，关闭状态以
+2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
+已全部关闭；18 条次级候选保留待定向验证，状态以
 `doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md` 为准。
 
 2026-09-10 的架构修订以 `doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md`
