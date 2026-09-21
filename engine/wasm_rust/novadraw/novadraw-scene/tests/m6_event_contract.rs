@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use novadraw_scene::{
     Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind,
     GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
-    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure,
+    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure, Runtime,
     SceneDispatchContext, ScrollDeltaKind, UpdateManager, WheelEvent,
 };
 
@@ -332,6 +332,112 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
             .count(),
         2
     );
+}
+
+fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
+    let first_events = Arc::new(Mutex::new(Vec::new()));
+    let second_events = Arc::new(Mutex::new(Vec::new()));
+    let mut runtime = Runtime::empty();
+    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 160.0)));
+    let first_viewport = runtime
+        .add_viewport(root, Rectangle::new(0.0, 0.0, 120.0, 120.0))
+        .unwrap();
+    let second_viewport = runtime
+        .add_viewport(root, Rectangle::new(200.0, 0.0, 120.0, 120.0))
+        .unwrap();
+    let first_target = runtime.add_figure(
+        first_viewport.block_id(),
+        Box::new(InputProbeFigure {
+            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+            events: Arc::clone(&first_events),
+        }),
+    );
+    let second_target = runtime.add_figure(
+        second_viewport.block_id(),
+        Box::new(InputProbeFigure {
+            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+            events: Arc::clone(&second_events),
+        }),
+    );
+    let session = GestureSessionId::new(17);
+
+    let begin = runtime.dispatch_scroll(WheelEvent::with_details(
+        20.0,
+        20.0,
+        0.0,
+        -2.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Begin,
+        KeyModifiers::default(),
+        session,
+    ));
+    assert_eq!(begin.target(), Some(first_target));
+
+    if remove_target {
+        assert!(runtime.remove_figure(root, first_viewport.block_id()));
+    } else {
+        assert!(runtime.set_visible(first_viewport.block_id(), false));
+    }
+    let update = runtime.dispatch_scroll(WheelEvent::with_details(
+        220.0,
+        20.0,
+        0.0,
+        -3.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Update,
+        KeyModifiers::default(),
+        session,
+    ));
+    let end = runtime.dispatch_scroll(WheelEvent::with_details(
+        220.0,
+        20.0,
+        0.0,
+        -4.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::End,
+        KeyModifiers::default(),
+        session,
+    ));
+
+    assert_eq!(update.target(), None);
+    assert_eq!(end.target(), None);
+    assert_eq!(
+        first_events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| matches!(event, RecordedInput::Wheel(..)))
+            .count(),
+        1
+    );
+    assert_eq!(
+        second_events
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|event| matches!(event, RecordedInput::Wheel(..)))
+            .count(),
+        0
+    );
+
+    let next_session = GestureSessionId::new(18);
+    let next = runtime.dispatch_scroll(WheelEvent::with_details(
+        220.0,
+        20.0,
+        0.0,
+        -5.0,
+        ScrollDeltaKind::LogicalPixels,
+        GesturePhase::Begin,
+        KeyModifiers::default(),
+        next_session,
+    ));
+    assert_eq!(next.target(), Some(second_target));
+}
+
+#[test]
+fn retired_gesture_target_does_not_retarget_the_same_session() {
+    assert_retired_gesture_target_does_not_retarget(false);
+    assert_retired_gesture_target_does_not_retarget(true);
 }
 
 #[test]

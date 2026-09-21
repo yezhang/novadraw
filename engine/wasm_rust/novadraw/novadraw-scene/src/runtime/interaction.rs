@@ -243,11 +243,23 @@ impl InteractionState {
         self.hovered.retain(|id| eligible(*id));
         self.pressed.retain(|id| eligible(*id));
         self.keyboard_pressed.retain(|id, _| eligible(*id));
-        self.gestures.retain(|_, state| {
-            state.target.is_none_or(&mut eligible)
-                && state.scroll_controller.flatten().is_none_or(&mut eligible)
-                && state.zoom_controller.flatten().is_none_or(&mut eligible)
-        });
+        for state in self.gestures.values_mut() {
+            state.target = state.target.filter(|id| eligible(*id));
+            if state
+                .scroll_controller
+                .flatten()
+                .is_some_and(|id| !eligible(id))
+            {
+                state.scroll_controller = Some(None);
+            }
+            if state
+                .zoom_controller
+                .flatten()
+                .is_some_and(|id| !eligible(id))
+            {
+                state.zoom_controller = Some(None);
+            }
+        }
     }
 }
 
