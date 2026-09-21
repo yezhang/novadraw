@@ -17,12 +17,14 @@ use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer, RendererOptions};
 
-use crate::command::RenderCommand;
+use crate::command::{LineCap, LineJoin, LineStyle, RenderCommand};
 use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
 use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
+const DASH_PATTERN_WIDTH_FACTORS: [f64; 2] = [3.0, 1.0];
+const DOT_PATTERN_WIDTH_FACTORS: [f64; 2] = [1.0, 1.0];
 const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
     r: DEFAULT_BACKGROUND_COMPONENT,
     g: DEFAULT_BACKGROUND_COMPONENT,
@@ -52,6 +54,31 @@ fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<Surfa
 
 fn surface_is_suspended(width: u32, height: u32) -> bool {
     width == 0 || height == 0
+}
+
+fn vello_stroke(width: f64, line_style: LineStyle, cap: LineCap, join: LineJoin) -> Stroke {
+    let stroke = Stroke::new(width)
+        .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
+        .with_caps(match cap {
+            LineCap::Butt => Cap::Butt,
+            LineCap::Round => Cap::Round,
+            LineCap::Square => Cap::Square,
+        })
+        .with_join(match join {
+            LineJoin::Miter => Join::Miter,
+            LineJoin::Round => Join::Round,
+            LineJoin::Bevel => Join::Bevel,
+        });
+
+    match line_style {
+        LineStyle::Solid => stroke,
+        LineStyle::Dash => {
+            stroke.with_dashes(0.0, DASH_PATTERN_WIDTH_FACTORS.map(|factor| factor * width))
+        }
+        LineStyle::Dot => {
+            stroke.with_dashes(0.0, DOT_PATTERN_WIDTH_FACTORS.map(|factor| factor * width))
+        }
+    }
 }
 
 fn damage_rect_to_copy_region(
@@ -665,7 +692,7 @@ impl VelloRenderer {
                 rect,
                 color,
                 width,
-                line_style: _,
+                line_style,
                 cap,
                 join,
             } => {
@@ -682,18 +709,7 @@ impl VelloRenderer {
                     color.b as f32,
                     color.a as f32,
                 ]);
-                let stroke = Stroke::new(*width * self.scale_factor)
-                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
-                    .with_caps(match cap {
-                        crate::command::LineCap::Butt => Cap::Butt,
-                        crate::command::LineCap::Round => Cap::Round,
-                        crate::command::LineCap::Square => Cap::Square,
-                    })
-                    .with_join(match join {
-                        crate::command::LineJoin::Miter => Join::Miter,
-                        crate::command::LineJoin::Round => Join::Round,
-                        crate::command::LineJoin::Bevel => Join::Bevel,
-                    });
+                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
                 self.scene
                     .stroke(&stroke, affine, vello_color, None, &kurbo_rect);
             }
@@ -703,7 +719,7 @@ impl VelloRenderer {
                 p2,
                 color,
                 width,
-                line_style: _,
+                line_style,
                 cap,
                 join,
             } => {
@@ -720,18 +736,7 @@ impl VelloRenderer {
                     color.a as f32,
                 ]);
 
-                let stroke = Stroke::new(*width * self.scale_factor)
-                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
-                    .with_caps(match cap {
-                        crate::command::LineCap::Butt => Cap::Butt,
-                        crate::command::LineCap::Round => Cap::Round,
-                        crate::command::LineCap::Square => Cap::Square,
-                    })
-                    .with_join(match join {
-                        crate::command::LineJoin::Miter => Join::Miter,
-                        crate::command::LineJoin::Round => Join::Round,
-                        crate::command::LineJoin::Bevel => Join::Bevel,
-                    });
+                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
 
                 self.scene.stroke(
                     &stroke,
@@ -746,7 +751,7 @@ impl VelloRenderer {
                 points,
                 color,
                 width,
-                line_style: _,
+                line_style,
                 cap,
                 join,
             } => {
@@ -762,18 +767,7 @@ impl VelloRenderer {
                     color.a as f32,
                 ]);
 
-                let stroke = Stroke::new(*width * self.scale_factor)
-                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
-                    .with_caps(match cap {
-                        crate::command::LineCap::Butt => Cap::Butt,
-                        crate::command::LineCap::Round => Cap::Round,
-                        crate::command::LineCap::Square => Cap::Square,
-                    })
-                    .with_join(match join {
-                        crate::command::LineJoin::Miter => Join::Miter,
-                        crate::command::LineJoin::Round => Join::Round,
-                        crate::command::LineJoin::Bevel => Join::Bevel,
-                    });
+                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
 
                 // 构建折线路径
                 let mut path = vello::kurbo::BezPath::new();
@@ -797,7 +791,7 @@ impl VelloRenderer {
                 fill_color,
                 stroke_color,
                 stroke_width,
-                line_style: _,
+                line_style,
                 cap,
                 join,
             } => {
@@ -834,18 +828,8 @@ impl VelloRenderer {
                         color.b as f32,
                         color.a as f32,
                     ]);
-                    let stroke = Stroke::new(*stroke_width * self.scale_factor)
-                        .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
-                        .with_caps(match cap {
-                            crate::command::LineCap::Butt => Cap::Butt,
-                            crate::command::LineCap::Round => Cap::Round,
-                            crate::command::LineCap::Square => Cap::Square,
-                        })
-                        .with_join(match join {
-                            crate::command::LineJoin::Miter => Join::Miter,
-                            crate::command::LineJoin::Round => Join::Round,
-                            crate::command::LineJoin::Bevel => Join::Bevel,
-                        });
+                    let stroke =
+                        vello_stroke(*stroke_width * self.scale_factor, *line_style, *cap, *join);
                     self.scene
                         .stroke(&stroke, affine, vello_color, None, &ellipse);
                 }
@@ -928,7 +912,7 @@ impl VelloRenderer {
                 path,
                 color,
                 width,
-                line_style: _,
+                line_style,
                 line_cap,
                 line_join,
             } => {
@@ -941,20 +925,12 @@ impl VelloRenderer {
                     color.a as f32,
                 ]);
 
-                let cap = match line_cap {
-                    crate::command::LineCap::Butt => Cap::Butt,
-                    crate::command::LineCap::Round => Cap::Round,
-                    crate::command::LineCap::Square => Cap::Square,
-                };
-                let join = match line_join {
-                    crate::command::LineJoin::Miter => Join::Miter,
-                    crate::command::LineJoin::Round => Join::Round,
-                    crate::command::LineJoin::Bevel => Join::Bevel,
-                };
-                let stroke = Stroke::new(width * self.scale_factor)
-                    .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
-                    .with_caps(cap)
-                    .with_join(join);
+                let stroke = vello_stroke(
+                    *width * self.scale_factor,
+                    *line_style,
+                    *line_cap,
+                    *line_join,
+                );
 
                 // 构建描边路径
                 let mut bez_path = vello::kurbo::BezPath::new();
@@ -1562,6 +1538,37 @@ mod tests {
     };
     use novadraw_core::Color;
     use uuid::Uuid;
+
+    #[test]
+    fn line_styles_map_to_width_scaled_vello_dash_patterns() {
+        let solid = vello_stroke(2.0, LineStyle::Solid, LineCap::Butt, LineJoin::Miter);
+        let dash = vello_stroke(2.0, LineStyle::Dash, LineCap::Butt, LineJoin::Miter);
+        let dot = vello_stroke(2.0, LineStyle::Dot, LineCap::Butt, LineJoin::Miter);
+
+        assert!(solid.dash_pattern.is_empty());
+        assert_eq!(dash.dash_pattern.as_slice(), &[6.0, 2.0]);
+        assert_eq!(dot.dash_pattern.as_slice(), &[2.0, 2.0]);
+    }
+
+    #[test]
+    fn vello_scene_expands_dash_and_dot_into_multiple_path_segments() {
+        let encoded_segments = |line_style| {
+            let mut scene = vello::Scene::new();
+            let stroke = vello_stroke(2.0, line_style, LineCap::Butt, LineJoin::Miter);
+            scene.stroke(
+                &stroke,
+                vello::kurbo::Affine::IDENTITY,
+                VelloColor::new([0.0, 0.0, 0.0, 1.0]),
+                None,
+                &vello::kurbo::Line::new((0.0, 0.0), (100.0, 0.0)),
+            );
+            scene.encoding().n_path_segments
+        };
+
+        let solid_segments = encoded_segments(LineStyle::Solid);
+        assert!(encoded_segments(LineStyle::Dash) > solid_segments);
+        assert!(encoded_segments(LineStyle::Dot) > solid_segments);
+    }
 
     #[test]
     fn clip_restore_plan_replays_saved_outer_clip_after_reset() {

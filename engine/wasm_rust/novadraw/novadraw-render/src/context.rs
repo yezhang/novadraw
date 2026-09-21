@@ -117,11 +117,12 @@ impl NdCanvas {
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
-    /// 旋转
+    /// 按角度旋转
     ///
+    /// 与 Draw2D `Graphics::rotate` 一致，参数单位为度。
     /// 生成 ConcatTransform 命令
-    pub fn rotate(&mut self, angle: f64) {
-        let t = Transform::from_rotation(angle);
+    pub fn rotate(&mut self, degrees: f64) {
+        let t = Transform::from_rotation(degrees.to_radians());
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
@@ -714,6 +715,21 @@ mod tests {
         let actual = actual.coeffs();
         let expected = expected.coeffs();
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn rotate_uses_draw2d_degree_units() {
+        let mut canvas = NdCanvas::new();
+
+        canvas.rotate(90.0);
+
+        let RenderCommandKind::ConcatTransform { matrix } = canvas.commands()[0].kind else {
+            panic!("expected rotate as ConcatTransform");
+        };
+        let (x, y) = matrix.transform_point(1.0, 0.0);
+
+        assert!(x.abs() < 1e-10, "expected x=0, got {x}");
+        assert!((y - 1.0).abs() < 1e-10, "expected y=1, got {y}");
     }
 
     #[test]

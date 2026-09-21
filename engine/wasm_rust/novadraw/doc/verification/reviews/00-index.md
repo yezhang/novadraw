@@ -27,6 +27,7 @@
 | 2026-09-16 | [Draw2D / GEF 全量语义映射](draw2d-gef-semantic-mapping-2026-09-16.md) |
 | 2026-09-16 | [Draw2D / GEF 语义差异报告](draw2d-gef-semantic-differences-2026-09-16.md) |
 | 2026-09-16 | [Draw2D / GEF 迁移实施方案](draw2d-gef-migration-plan-2026-09-16.md) |
+| 2026-09-20 | [Draw2D / GEF 核心语义后续审计](draw2d-gef-core-semantic-follow-up-audit-2026-09-20.md) |
 
 ## 平台与产品验收
 
