@@ -44,6 +44,9 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 - Runtime 默认 inherited router 保持 `DirectRouter` 的 Draw2D 等价语义；
 - 需要可见 self-loop 的应用通过公开 Anchor、Router 与 bendpoint 扩展点组合实现；
   Native demo 使用两个显式 bendpoints，该产品策略不进入 Draw2D/GEF parity；
+- Native demo 从普通连接重新进入 self-loop 时，必须在新 owner 的模型坐标域重建两个
+  显式 bendpoints；不能把旧 owner 附近的 absolute bendpoints 原样解释为新 owner 的
+  self-loop 几何；
 - final Command 只更新被移动的一端，保持 connection ModelId 和列表位置；
 - undo/redo 恢复相反端点并复用 G5.1 endpoint rebind。
 

@@ -53,6 +53,9 @@ const BENDPOINT_ROUTER_KEY: &str = "demo-bendpoint";
 const AUTOEXPOSE_FRAME_INTERVAL: Duration = Duration::from_millis(16);
 const WHEEL_SCROLL_STEP: f64 = 32.0;
 const WHEEL_ZOOM_FACTOR: f64 = 1.1;
+const VIEWPORT_BACKGROUND_COLOR: &str = "#F8FAFC";
+const VIEWPORT_BORDER_COLOR: &str = "#64748B";
+const VIEWPORT_BORDER_WIDTH: f64 = 2.0;
 
 fn bendpoint_router_key() -> ConnectionRouterKey {
     ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).expect("static Router key is valid")
@@ -361,6 +364,21 @@ impl DemoModel {
             }
             [point] => vec![defaults[0], *point],
             _ => unreachable!("length checked above"),
+        }
+    }
+
+    fn reconnected_connection_bendpoints(
+        &self,
+        before: ModelConnection<NodeId>,
+        after: ModelConnection<NodeId>,
+        bendpoints: Vec<Point>,
+    ) -> Vec<Point> {
+        let enters_self_loop = after.source() == after.target()
+            && (before.source() != before.target() || before.source() != after.source());
+        if enters_self_loop {
+            default_self_loop_bendpoints(self.nodes[&after.source()].bounds).to_vec()
+        } else {
+            self.normalized_connection_bendpoints(after, bendpoints)
         }
     }
 }
@@ -1013,17 +1031,43 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
         let Some(route) = route else {
             return self.feedback(connection, fixed, candidate, request, model);
         };
-        let mut points = Vec::new();
-        points.push(route.source());
-        points.extend(
-            model
-                .bendpoints
-                .get(&connection.model())
-                .into_iter()
-                .flatten()
-                .copied(),
+        let stored_bendpoints = model
+            .bendpoints
+            .get(&connection.model())
+            .cloned()
+            .unwrap_or_default();
+        let preview_connection = candidate.map(|candidate| match request.endpoint() {
+            ConnectionEndpoint::Source => {
+                ModelConnection::new(connection.model(), candidate.model(), fixed.model())
+            }
+            ConnectionEndpoint::Target => {
+                ModelConnection::new(connection.model(), fixed.model(), candidate.model())
+            }
+        });
+        let bendpoints = preview_connection.map_or_else(
+            || stored_bendpoints.clone(),
+            |after| {
+                model.reconnected_connection_bendpoints(
+                    self.before,
+                    after,
+                    stored_bendpoints.clone(),
+                )
+            },
         );
-        points.push(route.target());
+        let (source, target) = preview_connection
+            .filter(|connection| connection.source() == connection.target())
+            .and_then(|connection| {
+                let bounds = model.nodes.get(&connection.source())?.bounds;
+                Some((
+                    Point::new(bounds.x + bounds.width, bendpoints.first()?.y()),
+                    Point::new(bounds.x + bounds.width, bendpoints.last()?.y()),
+                ))
+            })
+            .unwrap_or((route.source(), route.target()));
+        let mut points = Vec::new();
+        points.push(source);
+        points.extend(bendpoints);
+        points.push(target);
         Ok(vec![FeedbackVisual::scaled(Box::new(
             PolylineFigure::from_points(points)
                 .with_color(FEEDBACK_COLOR)
@@ -1053,7 +1097,7 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
             .cloned()
             .unwrap_or_default();
         let after_bendpoints =
-            model.normalized_connection_bendpoints(after, before_bendpoints.clone());
+            model.reconnected_connection_bendpoints(self.before, after, before_bendpoints.clone());
         Ok(Box::new(ReconnectCommand {
             before: self.before,
             after,
@@ -1824,16 +1868,56 @@ mod tests {
 
         assert!(frame.commands().iter().any(|command| matches!(
             command.kind,
-            RenderCommandKind::FillRect { color, .. } if color == Color::hex("#F8FAFC")
+            RenderCommandKind::FillRect { color, .. }
+                if color == Color::hex(VIEWPORT_BACKGROUND_COLOR)
         )));
-        assert!(frame.commands().iter().any(|command| matches!(
-            command.kind,
-            RenderCommandKind::StrokeRect {
-                color,
-                line_style: LineStyle::Dash,
-                ..
-            } if color == Color::hex("#94A3B8")
-        )));
+        let initial_outline = frame
+            .commands()
+            .iter()
+            .find_map(|command| match command.kind {
+                RenderCommandKind::StrokeRect {
+                    rect,
+                    color,
+                    width,
+                    line_style: LineStyle::Dash,
+                    ..
+                } if color == Color::hex(VIEWPORT_BORDER_COLOR)
+                    && width == VIEWPORT_BORDER_WIDTH =>
+                {
+                    Some(rect)
+                }
+                _ => None,
+            })
+            .expect("viewport outline must be rendered");
+
+        assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
+        let resized = harness.runtime_mut().prepare_frame().unwrap();
+        let resized_outline = resized
+            .commands()
+            .iter()
+            .find_map(|command| match command.kind {
+                RenderCommandKind::StrokeRect {
+                    rect,
+                    color,
+                    width,
+                    line_style: LineStyle::Dash,
+                    ..
+                } if color == Color::hex(VIEWPORT_BORDER_COLOR)
+                    && width == VIEWPORT_BORDER_WIDTH =>
+                {
+                    Some(rect)
+                }
+                _ => None,
+            })
+            .expect("resized viewport outline must be rendered");
+        assert!(
+            resized_outline[1].x - resized_outline[0].x
+                > initial_outline[1].x - initial_outline[0].x
+        );
+        assert!(
+            resized_outline[1].y - resized_outline[0].y
+                > initial_outline[1].y - initial_outline[0].y
+        );
     }
 
     #[test]
@@ -1900,20 +1984,47 @@ mod tests {
     }
 
     #[test]
-    fn viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp() {
-        let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
-        let model_bounds = harness.node_bounds(3).unwrap();
-        harness
-            .click(model_bounds.center(), KeyModifiers::default())
+    fn reconnecting_both_self_loop_endpoints_rebases_bendpoints_to_the_new_owner() {
+        let mut model = DemoModel::new();
+        let blue_loop = ModelConnection::new(NodeId(1000), NodeId(2), NodeId(2));
+        model.insert_connection(blue_loop, 0);
+        let blue_bendpoints = model.bendpoints[&blue_loop.id()].clone();
+
+        let blue_to_green = ModelConnection::new(blue_loop.id(), NodeId(2), NodeId(3));
+        let crossing_bendpoints = model.reconnected_connection_bendpoints(
+            blue_loop,
+            blue_to_green,
+            blue_bendpoints.clone(),
+        );
+        assert_eq!(crossing_bendpoints, blue_bendpoints);
+
+        let green_loop = ModelConnection::new(blue_loop.id(), NodeId(3), NodeId(3));
+        let green_bendpoints =
+            model.reconnected_connection_bendpoints(blue_to_green, green_loop, crossing_bendpoints);
+        assert_eq!(
+            green_bendpoints,
+            default_self_loop_bendpoints(model.nodes[&NodeId(3)].bounds)
+        );
+
+        model.replace_connection(green_loop, green_bendpoints);
+        let viewer =
+            GraphicalViewer::new(model, DemoFactory, Rectangle::new(0.0, 0.0, WIDTH, HEIGHT))
+                .unwrap();
+        let connection = viewer.connection_part_for_model(green_loop.id()).unwrap();
+        let route = viewer
+            .connection_route_points_in_surface(connection)
             .unwrap();
-        harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
-        harness.scroll_by(10_000.0, 10_000.0).unwrap();
-        harness.runtime_mut().prepare_frame();
+        let green_bounds = viewer.model().nodes[&NodeId(3)].bounds;
+        assert_eq!(route.len(), 4);
+        assert!(route.iter().all(|point| point.x() >= green_bounds.x));
+        assert!(route.windows(2).all(|segment| {
+            (segment[0].x() - segment[1].x()).abs() <= f64::EPSILON
+                || (segment[0].y() - segment[1].y()).abs() <= f64::EPSILON
+        }));
+    }
 
-        assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
-
-        let bounds = harness.node_bounds_in_surface(3).unwrap();
+    fn assert_selection_handles_align_with_node(harness: &EditorHarness, node: u64) {
+        let bounds = harness.node_bounds_in_surface(node).unwrap();
         let expected = [
             Point::new(bounds.x, bounds.y),
             Point::new(bounds.x + bounds.width, bounds.y),
@@ -1927,6 +2038,73 @@ mod tests {
                 .iter()
                 .any(|center| (*center - *point).length() <= f64::EPSILON)
         }));
+    }
+
+    #[test]
+    fn zoom_keeps_unscaled_selection_handles_aligned_after_frame_stabilization() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let center = harness.node_bounds(3).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+
+        for _ in 0..6 {
+            assert!(harness.zoom_by(1.1, center).unwrap());
+            harness.runtime_mut().prepare_frame();
+            assert_selection_handles_align_with_node(&harness, 3);
+        }
+    }
+
+    #[test]
+    fn autoexpose_and_pointer_return_keep_selection_handles_aligned() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let center = harness.node_bounds(3).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        let start = harness.node_bounds_in_surface(3).unwrap().center();
+        harness
+            .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(Point::new(815.0, 399.0)).unwrap();
+        let mut scrolled = false;
+        for _ in 0..32 {
+            let tick = harness.autoexpose_tick(Duration::from_millis(30)).unwrap();
+            scrolled |= tick.scrolled();
+            harness.runtime_mut().prepare_frame();
+            assert_selection_handles_align_with_node(&harness, 3);
+            if !tick.continue_requested() {
+                break;
+            }
+        }
+        assert!(scrolled);
+        let edge_origin = harness.viewport_origin().unwrap();
+        assert!(edge_origin.x() > 50.0);
+
+        harness
+            .pointer_moved(Point::new(732.640625, 399.12890625))
+            .unwrap();
+        harness.runtime_mut().prepare_frame();
+
+        assert_selection_handles_align_with_node(&harness, 3);
+        let returned_origin = harness.viewport_origin().unwrap();
+        assert!(returned_origin.x() <= edge_origin.x());
+        assert!(returned_origin.y() <= edge_origin.y());
+    }
+
+    #[test]
+    fn viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let model_bounds = harness.node_bounds(3).unwrap();
+        harness
+            .click(model_bounds.center(), KeyModifiers::default())
+            .unwrap();
+        harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
+        harness.scroll_by(10_000.0, 10_000.0).unwrap();
+        harness.runtime_mut().prepare_frame();
+
+        assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
+
+        assert_selection_handles_align_with_node(&harness, 3);
     }
 
     #[test]
@@ -1954,19 +2132,6 @@ mod tests {
 
         assert!(!harness.has_active_gesture());
         assert!(!harness.autoexpose_requested());
-        let bounds = harness.node_bounds_in_surface(2).unwrap();
-        let expected = [
-            Point::new(bounds.x, bounds.y),
-            Point::new(bounds.x + bounds.width, bounds.y),
-            Point::new(bounds.x, bounds.y + bounds.height),
-            Point::new(bounds.x + bounds.width, bounds.y + bounds.height),
-        ];
-        let centers = harness.handle_centers_in_surface();
-        assert_eq!(centers.len(), expected.len());
-        assert!(expected.iter().all(|point| {
-            centers
-                .iter()
-                .any(|center| (*center - *point).length() <= f64::EPSILON)
-        }));
+        assert_selection_handles_align_with_node(&harness, 2);
     }
 }

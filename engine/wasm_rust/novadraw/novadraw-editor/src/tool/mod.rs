@@ -244,6 +244,20 @@ impl SelectionTool {
         Ok(())
     }
 
+    pub(crate) fn clear_transient_feedback<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        if let Some(gesture) = &mut self.gesture {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
+        Ok(())
+    }
+
     /// Erases feedback and returns the final Request for command execution.
     pub fn pointer_released<A, F>(
         &mut self,
@@ -428,6 +442,20 @@ impl ConnectionBendpointTool {
         Ok(())
     }
 
+    pub(crate) fn clear_transient_feedback<A, F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), ToolError>
+    where
+        A: ModelAdapter,
+        F: EditPartFactory<A>,
+    {
+        if let Some(gesture) = &mut self.gesture {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
+        Ok(())
+    }
+
     /// Clears feedback and returns the final bendpoint request.
     pub fn pointer_released<A, F>(
         &mut self,
@@ -586,6 +614,20 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         .with_target_candidate(candidate);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_reconnection_feedback(gesture.plan.as_mut(), &request)?;
+        Ok(())
+    }
+
+    pub(crate) fn clear_transient_feedback<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        if let Some(gesture) = &mut self.gesture {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
         Ok(())
     }
 
@@ -790,6 +832,20 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
         .with_target_candidate(target);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_connection_feedback(gesture.plan.as_mut(), &request)?;
+        Ok(())
+    }
+
+    pub(crate) fn clear_transient_feedback<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), ToolError>
+    where
+        A: 'static,
+        F: EditPartFactory<A>,
+    {
+        if let Some(gesture) = &mut self.gesture {
+            clear_feedback(viewer, &mut gesture.feedback)?;
+        }
         Ok(())
     }
 

@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use novadraw::{KeyModifiers, Point, Rectangle};
+use novadraw::{KeyModifiers, MouseButton, Point, Rectangle};
 use novadraw_editor::HandleRole;
 use serde::Serialize;
 
@@ -397,6 +397,76 @@ fn replay_g5_3(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
         harness.redo()?
             && harness.connection_endpoints(FIRST_CONNECTION_ID) == Some((BLUE_NODE, BLUE_NODE)),
         || "reconnect redo did not restore the self-loop".to_string(),
+    )?;
+    let blue_loop = harness
+        .connection_route(FIRST_CONNECTION_ID)
+        .ok_or_else(|| ReplayError("blue self-loop has no committed route".to_string()))?;
+    let source = *blue_loop
+        .first()
+        .ok_or_else(|| ReplayError("blue self-loop route is empty".to_string()))?;
+    evidence.checkpoint(
+        "self-loop-first-endpoint-reconnect",
+        harness.drag(
+            source,
+            center(&harness, GREEN_NODE)?,
+            KeyModifiers::default(),
+        )? && harness.connection_endpoints(FIRST_CONNECTION_ID) == Some((GREEN_NODE, BLUE_NODE)),
+        || "first self-loop endpoint did not reconnect to green".to_string(),
+    )?;
+    let green_to_blue = harness
+        .connection_route(FIRST_CONNECTION_ID)
+        .ok_or_else(|| ReplayError("green-to-blue connection has no route".to_string()))?;
+    let target = *green_to_blue
+        .last()
+        .ok_or_else(|| ReplayError("green-to-blue route is empty".to_string()))?;
+    let green_bounds = bounds(&harness, GREEN_NODE)?;
+    let green_center = center(&harness, GREEN_NODE)?;
+    harness.pointer_pressed(target, MouseButton::Left, KeyModifiers::default())?;
+    harness.pointer_moved(green_center)?;
+    let feedback = harness.scaled_feedback_point_lists();
+    evidence.checkpoint(
+        "self-loop-second-endpoint-feedback",
+        feedback
+            == vec![vec![
+                Point::new(
+                    green_bounds.x + green_bounds.width,
+                    green_bounds.y + green_bounds.height * super::SELF_LOOP_SOURCE_PORT_FRACTION,
+                ),
+                Point::new(
+                    green_bounds.x + green_bounds.width + super::SELF_LOOP_EXTENT,
+                    green_bounds.y + green_bounds.height * super::SELF_LOOP_SOURCE_PORT_FRACTION,
+                ),
+                Point::new(
+                    green_bounds.x + green_bounds.width + super::SELF_LOOP_EXTENT,
+                    green_bounds.y + green_bounds.height * super::SELF_LOOP_TARGET_PORT_FRACTION,
+                ),
+                Point::new(
+                    green_bounds.x + green_bounds.width,
+                    green_bounds.y + green_bounds.height * super::SELF_LOOP_TARGET_PORT_FRACTION,
+                ),
+            ]],
+        || "second endpoint feedback did not preview the green self-loop geometry".to_string(),
+    )?;
+    evidence.checkpoint(
+        "self-loop-second-endpoint-reconnect",
+        harness.pointer_released(green_center, MouseButton::Left)?
+            && harness.connection_endpoints(FIRST_CONNECTION_ID) == Some((GREEN_NODE, GREEN_NODE)),
+        || "second self-loop endpoint did not reconnect to green".to_string(),
+    )?;
+    let green_bendpoints = harness.connection_bendpoints(FIRST_CONNECTION_ID);
+    let green_loop = harness
+        .connection_route(FIRST_CONNECTION_ID)
+        .ok_or_else(|| ReplayError("green self-loop has no committed route".to_string()))?;
+    evidence.checkpoint(
+        "self-loop-owner-rebase",
+        green_bendpoints.len() == 2
+            && green_bendpoints
+                .iter()
+                .all(|point| point.x() > green_bounds.x + green_bounds.width)
+            && green_loop.windows(2).all(|segment| {
+                segment[0].x() == segment[1].x() || segment[0].y() == segment[1].y()
+            }),
+        || "green self-loop retained bendpoints from the previous owner".to_string(),
     )?;
     evidence.metric("model_revision", harness.model_revision());
     Ok(())

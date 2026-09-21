@@ -60,10 +60,14 @@ logical surface units，因而不随内容 zoom 改变。指针必须位于 clie
 4. 通过当前 transform 转换为 Viewport range domain delta，并由 RangeModel 原子 clamp；
 5. 若 origin 实际变化，使用同一 surface pointer 重新运行活动 Tool 更新链；
 6. 先清理旧 feedback，再安装按新 transform 计算的 feedback；
-7. 返回 changed、continue 和下一次调度提示。
+7. 稳定 feedback 引起的 Freeform extent；若 feedback 替换使 range clamp 改变 origin，
+   则移除 transient feedback，先按永久内容 extent 完成一次 clamp，再以固定 surface
+   pointer 重建一次 feedback；
+8. 返回 changed、continue 和下一次调度提示。
 
 elapsed time 必须有受检上限，避免窗口阻塞后单次跳跃过大。无法继续向当前方向滚动时不应
-产生空转更新；若另一轴仍可滚动，则保留该轴。
+产生空转更新；若另一轴仍可滚动，则保留该轴。不得用固定次数反复执行
+“feedback extent → origin clamp → feedback 重投影”，该循环可能不存在有限收敛点。
 
 ## 4. 手势不变量
 
@@ -115,4 +119,6 @@ Novadraw 差异：
 12. corner step 在两个 range 均可滚动时同时改变水平和垂直 origin；
 13. window resize clamp origin 后，unscaled handles 与 active feedback 重投影；
 14. 超出原模型 extent 的 scaled feedback 扩展临时 range，边缘滚动后轮廓保持完整；
-15. workspace fmt/check/clippy/test。
+15. pointer 从 edge band 突然返回内部、feedback extent 收缩并 clamp origin 后，
+    unscaled handles 与 active feedback 仍在同一稳定 epoch；
+16. workspace fmt/check/clippy/test。

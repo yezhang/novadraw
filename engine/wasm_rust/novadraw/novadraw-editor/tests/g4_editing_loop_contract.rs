@@ -682,6 +682,11 @@ fn transient_feedback_expands_freeform_range_before_edge_scroll() {
         .unwrap();
     assert!(feedback_extent.x + feedback_extent.width > 640.0);
     assert!(feedback_extent.y + feedback_extent.height > 480.0);
+
+    domain.pointer_moved(&mut viewer, start).unwrap();
+    let returned_origin = viewer.viewport_origin().unwrap();
+    assert!(returned_origin.x() <= origin.x());
+    assert!(returned_origin.y() <= origin.y());
 }
 
 #[test]

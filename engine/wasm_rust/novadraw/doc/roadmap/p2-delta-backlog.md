@@ -36,3 +36,29 @@ envelope 计算，不能将该能力标记为已完成。
 - `novadraw-scene/src/figure/polygon.rs`
 - `novadraw-scene/src/connection/figure.rs::route_visual_outset`
 - `novadraw-render/src/command.rs::DEFAULT_STROKE_MITER_LIMIT`
+
+## Editor
+
+### P2-E01: 高级 Self-loop 路由策略
+
+状态：`not_started`
+
+Draw2D/GEF 核心只提供同源同目标 Connection、Anchor、Router 与 routing constraint
+扩展点，不规定 self-loop 的开口方向、折点数量或障碍避让。Native node editor 当前用
+两个显式 absolute bendpoints 实现节点右侧的三段正交 self-loop；该策略只承担 demo
+验收，不进入 Draw2D/GEF parity。
+
+Core 与当前 G5 必须继续保证：
+
+1. self-loop 只投影一个 ConnectionPart，并同时进入 source/target relation；
+2. 两个 endpoint handle 保持独立，重连保留 Connection 身份与 history 原子性；
+3. 应用可通过 Anchor Descriptor、Router 和 typed constraint 生成非退化回环；
+4. demo self-loop 跨 owner 重连时在新 owner 坐标域重建折点，节点移动时整体平移。
+
+后续产品 delta 可按真实需求补充：
+
+1. 根据可用空间选择上、下、左、右开口；
+2. 多条 self-loop 的 lane 分配与稳定排序；
+3. 节点、端口、标签和其他连接的障碍避让；
+4. resize、端口迁移与自动布局后的形状保持；
+5. 对应基准、视觉回归和可序列化 routing descriptor。

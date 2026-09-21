@@ -13,7 +13,8 @@ use novadraw_editor::{
 use super::{
     BENDPOINT_CREATE_HANDLE_COLOR, BENDPOINT_CREATE_HANDLE_SIZE, BENDPOINT_HANDLE_COLOR,
     CREATED_NODE_HEIGHT, CREATED_NODE_OFFSET, CREATED_NODE_WIDTH, DemoFactory, DemoModel,
-    DemoViewer, HANDLE_SIZE, HEIGHT, NodeId, PRIMARY_HANDLE_COLOR, SECONDARY_HANDLE_COLOR, WIDTH,
+    DemoViewer, HANDLE_SIZE, HEIGHT, NodeId, PRIMARY_HANDLE_COLOR, SECONDARY_HANDLE_COLOR,
+    VIEWPORT_BACKGROUND_COLOR, VIEWPORT_BORDER_COLOR, VIEWPORT_BORDER_WIDTH, WIDTH,
 };
 
 pub(crate) type HarnessResult<T> = Result<T, String>;
@@ -41,7 +42,7 @@ impl EditorHarness {
         if !viewer.runtime_mut().set_figure_style(
             viewport,
             FigureStyle {
-                background: Some(Color::hex("#F8FAFC")),
+                background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
                 ..FigureStyle::default()
             },
         ) {
@@ -51,7 +52,7 @@ impl EditorHarness {
             .runtime_mut()
             .set_border(
                 viewport,
-                LineBorder::new(Color::hex("#94A3B8"), 1.0)
+                LineBorder::new(Color::hex(VIEWPORT_BORDER_COLOR), VIEWPORT_BORDER_WIDTH)
                     .with_style(BorderStyle::Dash)
                     .with_insets(0.0, 0.0, 0.0, 0.0),
             )
@@ -103,10 +104,21 @@ impl EditorHarness {
     }
 
     pub(crate) fn pointer_moved(&mut self, location: Point) -> HarnessResult<()> {
+        let origin_before = self
+            .viewer
+            .viewport_origin()
+            .map_err(|error| error.to_string())?;
         self.domain
             .pointer_moved(&mut self.viewer, location)
-            .map(|_| ())
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        let origin_after = self
+            .viewer
+            .viewport_origin()
+            .map_err(|error| error.to_string())?;
+        if origin_before != origin_after {
+            self.sync_selection_handles()?;
+        }
+        Ok(())
     }
 
     pub(crate) fn pointer_released(
@@ -204,10 +216,6 @@ impl EditorHarness {
             .resize_logical_viewport(width, height)
             .map_err(|error| error.to_string())?;
         if changed {
-            self.viewer
-                .runtime_mut()
-                .stabilize_for_query()
-                .map_err(|error| error.to_string())?;
             self.refresh_overlay_positions()?;
         }
         Ok(changed)
@@ -401,6 +409,15 @@ impl EditorHarness {
     pub(crate) fn connection_route(&self, id: u64) -> Option<Vec<Point>> {
         let connection = self.viewer.connection_part_for_model(NodeId(id))?;
         self.viewer.connection_route_points_in_surface(connection)
+    }
+
+    pub(crate) fn scaled_feedback_point_lists(&self) -> Vec<Vec<Point>> {
+        let tree = self.viewer.runtime().tree();
+        tree.child_order(self.viewer.root_layers().scaled_feedback())
+            .unwrap_or_default()
+            .into_iter()
+            .filter_map(|figure| tree.point_list_points(figure))
+            .collect()
     }
 
     pub(crate) fn bendpoint_handle_sites(

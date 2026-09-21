@@ -320,6 +320,9 @@ where
                 .pointer_moved(viewer, location, revision)?
         };
         self.pointer = self.has_active_gesture().then_some(location);
+        if self.supports_autoexpose() {
+            self.stabilize_active_tool_projection(viewer, location)?;
+        }
         self.autoexpose_requested =
             self.supports_autoexpose() && autoexpose::detects(viewer, location)?;
         Ok(dispatch)
@@ -342,6 +345,7 @@ where
         if outcome.scrolled() {
             let revision = self.next_interaction_revision()?;
             self.refresh_active_tool(viewer, pointer, revision)?;
+            self.stabilize_active_tool_projection(viewer, pointer)?;
         }
         self.autoexpose_requested =
             outcome.continue_requested() && autoexpose::detects(viewer, pointer)?;
@@ -517,13 +521,55 @@ where
     where
         F: EditPartFactory<A>,
     {
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
         let Some(pointer) = self.pointer else {
             return Ok(());
         };
         let revision = self.next_interaction_revision()?;
         self.refresh_active_tool(viewer, pointer, revision)?;
+        self.stabilize_active_tool_projection(viewer, pointer)?;
         self.autoexpose_requested =
             self.supports_autoexpose() && autoexpose::detects(viewer, pointer)?;
+        Ok(())
+    }
+
+    fn stabilize_active_tool_projection<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let origin_before = viewer.viewport_origin()?;
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
+        let origin_after_feedback = viewer.viewport_origin()?;
+        if origin_after_feedback == origin_before {
+            return Ok(());
+        }
+
+        self.clear_active_tool_feedback(viewer)?;
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
+        let permanent_origin = viewer.viewport_origin()?;
+        let revision = self.next_interaction_revision()?;
+        self.refresh_active_tool(viewer, location, revision)?;
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
+        let final_origin = viewer.viewport_origin()?;
+        if final_origin != permanent_origin {
+            return Err(ViewerError::InconsistentState.into());
+        }
         Ok(())
     }
 
@@ -544,6 +590,25 @@ where
             tool.refresh(viewer, location, revision)?;
         } else {
             self.selection_tool.refresh(viewer, location, revision)?;
+        }
+        Ok(())
+    }
+
+    fn clear_active_tool_feedback<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        if self.bendpoint_tool.is_active() {
+            self.bendpoint_tool.clear_transient_feedback(viewer)?;
+        } else if let Some(tool) = &mut self.endpoint_tool {
+            tool.clear_transient_feedback(viewer)?;
+        } else if let Some(tool) = &mut self.connection_tool {
+            tool.clear_transient_feedback(viewer)?;
+        } else {
+            self.selection_tool.clear_transient_feedback(viewer)?;
         }
         Ok(())
     }
