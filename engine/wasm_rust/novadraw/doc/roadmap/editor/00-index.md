@@ -37,7 +37,7 @@
 | G2 | EditPart Tree 与 Viewer 投影 | `complete` | factory、生命周期、registry、contents/root、增量 containment 同步 | 不需要 |
 | G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `complete` | create、move、resize、delete、feedback、undo/redo | **检查点 B：PASS** |
-| G5 | Connection 编辑与 Viewport 协作 | `in_progress` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：图编辑主流程** |
+| G5 | Connection 编辑与 Viewport 协作 | `complete` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：PASS** |
 | G6 | 产品化与跨平台毕业 | `not_started` | 保存加载、Native/Web/Headless 等价、节点编辑器毕业场景 | **最终验收** |
 
 人工验收只在对应 milestone 的自动门禁通过后进行：
@@ -181,7 +181,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 - [x] 实现 G5.3 reconnect 与 endpoint handle；
 - [x] 实现 G5.4 bendpoint、typed constraint 与双折点正交 self-loop；
 - [x] 实现 G5.5 viewport/zoom feedback 与 drag auto-expose；
-- [ ] 检查点 C 人工验收。
+- [x] 检查点 C 人工验收。
 
 设计评审入口：
 

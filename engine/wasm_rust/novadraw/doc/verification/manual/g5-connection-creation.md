@@ -2,9 +2,9 @@
 
 类型：`manual-verification`
 
-状态：`pending`
+状态：`passed`
 
-验收日期：待填写
+验收日期：2026-09-21
 
 入口：
 
@@ -83,3 +83,18 @@ G5.2-D self-loop/duplicate: PASS / FAIL
 G5.2-E delete cascade: PASS / FAIL
 G5.2-F rendering regression: PASS / FAIL
 ```
+
+验收结果：
+
+```text
+G5.2-A two-stage create: PASS
+G5.2-B history/routing: PASS
+G5.2-C cancel/invalid target: PASS
+G5.2-D self-loop/duplicate: PASS
+G5.2-E delete cascade: PASS
+G5.2-F rendering regression: PASS
+```
+
+人工验收期间发现窗口从初始尺寸向右下扩展后，模型 Canvas 的初始 bounds 仍形成不可见
+clip。Canvas 改为 freeform/overflow-visible 语义后复验通过：绿色节点位于旧窗口范围
+之外、当前 Viewport 虚线范围之内时完整显示，undo/redo 后仍无裁剪。

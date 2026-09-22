@@ -2,7 +2,9 @@
 
 类型：`manual-verification`
 
-状态：`pending`
+状态：`passed`
+
+验收日期：2026-09-22
 
 入口：
 
@@ -40,25 +42,51 @@ Viewport 以图元完整的 surface bounds 判断是否完整可见。仅鼠标�
 
 ## C. Connection Auto-expose
 
-1. 分别开始 connection create、endpoint reconnect 和 bendpoint move。
-2. 将指针保持在 viewport 边缘并等待自动滚动。
-3. 确认 source、connection、endpoint 或 bendpoint index 在滚动期间保持锁定。
-4. 确认 target 与 feedback 按当前 viewport 重新计算，没有跳变或双重缩放。
-5. 完成操作后验证 undo/redo；Escape 取消时不得改变模型。
+每组从新窗口开始。Connection create/reconnect 的点状 feedback 会提供透明的临时 range
+reserve，因此在 100% 初始画布也必须能从右下角连续推进两个轴。Bendpoint 若已有路径
+范围不足，可先放大到约 200% 并用普通滚轮返回左上。
+
+1. **Connection create**：
+   - 按 `C`，单击蓝色节点固定 source；
+   - 不按鼠标，将指针移到虚线右边或下边内侧约 5-10 logical px 并保持；
+   - 确认 Viewport 连续滚动，蓝色 source 不变，橙色反馈端点保持在当前指针；
+   - 移到绿色节点并单击，确认只创建一条连接，undo/redo 正常。
+2. **Endpoint reconnect**：
+   - 先创建并选中蓝到绿连接；
+   - 按住一个黄色 endpoint handle，拖到距右、下虚线边界均约 5-10 logical px 的交叠
+     边缘带并保持；
+   - 确认两个轴连续同时滚动，固定端、ConnectionPart 和被移动 endpoint 不变，反馈无
+     跳跃或双重缩放；
+   - 在滚动期间直接释放到空白区，确认 Viewport clamp 后连接端点和黄色 handles 同帧
+     对齐，不需要额外移动鼠标触发刷新；
+   - 拖到有效节点释放，确认只提交一个 reconnect Command，undo/redo 正常。
+3. **Bendpoint move**：
+   - 选中连接，按住青色 create handle 创建折点，或按住橙色 move handle；
+   - 拖到仍有剩余 range 的边缘带并保持；
+   - 确认 connection、operation 和 bendpoint index 不变；
+   - 释放后只提交一个 create/move Command，undo/redo 正常。
+4. 上述三类操作分别用 `Escape` 取消一次，确认模型与 history 不变，feedback 清除。
 
 ## D. 生命周期
 
-1. **Escape**：开始节点拖拽并在边缘等待 viewport 已滚动，保持鼠标左键按下并按
-   Escape；确认滚动立即停止、feedback 消失，随后释放鼠标也不产生 Command。
-2. **Pointer return**：等待 auto-expose 已改变 origin 后，将指针从 edge band 快速移回
-   viewport 内部；确认永久内容 range 先完成 clamp，feedback 随后按稳定 transform
-   重建，应用不崩溃且 handles 不错位。
+1. **Escape**：在 100% zoom 开始节点拖拽并在边缘等待 viewport 已滚动，保持鼠标左键
+   按下并按 Escape；确认滚动立即停止、feedback 消失，随后释放鼠标也不产生 Command。
+   若 range 只由 transient feedback 临时扩展，取消后 origin 回到拖拽前位置属于正确
+   clamp；节点和 handles 必须保持对齐。
+2. **Pointer return**：记录拖拽起点；等待 auto-expose 已改变 origin 后，将指针快速移到
+   一个明确不同于起点的内部位置并继续按住。确认 feedback 对应该内部位置，而不是回到
+   拖拽起点；永久内容 range 先完成 clamp，feedback 随后按稳定 transform 重建，应用
+   不崩溃且 handles 不错位。
 3. **Pointer leave**：重新开始边缘拖拽，保持左键按下并把指针移出窗口；确认手势取消、
-   feedback 消失，移回窗口后不会自行恢复滚动。
+   feedback 消失，移回窗口后不会自行恢复滚动。若临时 range 消失，Viewport 可回到拖拽
+   前 origin；下一稳定帧四个 selection handles 必须继续贴合节点四角，不得向左偏移。
 4. **Focus loss**：重新开始边缘拖拽，然后用 Command-Tab 切换应用；确认滚动与 feedback
-   清理，切回后没有残留 active gesture。
-5. **Range boundary**：放大并滚动到最右下边界，再在右下角保持拖拽至少 2 秒；确认
-   viewport 不越界，窗口不持续请求无变化的重绘，释放只产生一个 Command。
+   清理，切回后没有残留 active gesture。取消导致的临时 range 收缩可以使 Viewport
+   回到操作前 origin，但 handles 必须与节点对齐。
+5. **Range boundary 与提交**：在 100% zoom 把节点拖到右下 edge band，等待 transient
+   feedback 推进 Viewport origin，再保持指针位于窗口内释放。确认只产生一个 Command；
+   提交后的节点成为永久内容，Viewport 必须停留在可见目标附近，不得跳回左上角。执行
+   undo 后永久 extent 消失，此时 origin 被 clamp 回拖拽前位置属于正确行为。
 6. **Window resize**：选中节点或连接，放大并滚到右下区域；拖动窗口右下角扩大窗口，
    直到 viewport origin 因 range clamp 向左上移动。
 7. 在 resize 全程确认内容、selection/endpoint/bendpoint handles 和活动 transient
@@ -74,3 +102,17 @@ G5.5-B bounds auto-expose: PASS / FAIL
 G5.5-C connection auto-expose: PASS / FAIL
 G5.5-D lifecycle: PASS / FAIL
 ```
+
+验收结果：
+
+```text
+G5.5-A scroll/zoom: PASS
+G5.5-B bounds auto-expose: PASS
+G5.5-C connection auto-expose: PASS
+G5.5-D lifecycle: PASS
+```
+
+人工验收期间关闭了三类边界问题：pointer leave 后 handles 错位、bounds 提交后 Figure 与
+feedback 坐标漂移，以及点状 connection feedback 无法持续扩展双轴 range。最终复验确认
+create/reconnect 右下角连续双轴滚动，release/cancel 后 Viewport、连接端点和 handles
+同帧稳定。

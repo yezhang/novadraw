@@ -8,7 +8,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 ## 当前状态
 
 - Draw2D Core：M1-M10 已完成；后续能力进入明确的 P2 delta。
-- Editor：G0-G4 已完成，G5 自动门禁已完成，检查点 C 待人工验收；G6 尚未开始。
+- Editor：G0-G5 已完成，检查点 C 已通过人工验收；G6 尚未开始。
 - 2026-09-16 全量语义审计整改进行中，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及

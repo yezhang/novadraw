@@ -138,9 +138,9 @@ notification -> Part refresh 闭环，不允许 Tool 直接调用 Runtime 改 Fi
 
 ## G5：Connection 编辑
 
-状态：`in_progress`，G5.1 Connection Projection、G5.2 Connection Creation、G5.3
+状态：`complete`。G5.1 Connection Projection、G5.2 Connection Creation、G5.3
 reconnect/endpoint handle、G5.4 bendpoint 与 G5.5 viewport/auto-expose 自动门禁已完成，
-下一步为检查点 C 人工验收。
+检查点 C 已于 2026-09-22 通过人工验收。
 
 设计入口：
 

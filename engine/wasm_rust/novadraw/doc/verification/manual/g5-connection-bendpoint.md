@@ -2,7 +2,9 @@
 
 类型：`manual-verification`
 
-状态：`pending`
+状态：`passed`
+
+验收日期：2026-09-21
 
 入口：
 
@@ -51,4 +53,13 @@ G5.4-A create bendpoint: PASS / FAIL
 G5.4-B move/delete bendpoint: PASS / FAIL
 G5.4-C multi-bendpoint/history: PASS / FAIL
 G5.4-D self-loop/regression: PASS / FAIL
+```
+
+验收结果：
+
+```text
+G5.4-A create bendpoint: PASS
+G5.4-B move/delete bendpoint: PASS
+G5.4-C multi-bendpoint/history: PASS
+G5.4-D self-loop/regression: PASS
 ```

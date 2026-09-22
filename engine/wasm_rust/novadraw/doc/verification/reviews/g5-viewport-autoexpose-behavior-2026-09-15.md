@@ -4,8 +4,8 @@
 
 日期：2026-09-15
 
-结论：`behavior_verified`。G5.5 自动契约与 headless 产品重放闭合；G5 整体仍为
-`in_progress`，等待检查点 C 人工验收。
+结论：`complete`。G5.5 自动契约、headless 产品重放与 Native 人工验证闭合；
+G5 检查点 C 于 2026-09-22 通过。
 
 ## GEF 对标
 
@@ -30,8 +30,11 @@
 - move/resize 在 scroll 与 anchor zoom 后保持内容坐标和 grab offset；
 - bendpoint 在 zoom 下提交 routing-domain point，不把 surface point写入模型；
 - connection create 在 auto-expose 后保持 source 锁定并重建 feedback；
+- connection create/reconnect 使用透明 range reserve，使点状 endpoint feedback 在
+  初始内容范围边缘也能持续推进双轴；
 - host 注入 elapsed time，单 step 有上限，RangeModel clamp 后不会空转；
 - auto-expose 不修改模型 revision 或 CommandStack，release 只提交一个 Command；
+- release/cancel 在宿主重建 unscaled handles 前稳定永久 extent 与 viewport origin；
 - Native 事件循环支持 wheel scroll、Command/Control-wheel anchor zoom 和连续
   auto-expose 调度。
 
@@ -44,10 +47,13 @@
 - manifest/document validation：PASS
 - workspace full gate（fmt/check/clippy/test）：PASS
 
-## 剩余门禁
+## 人工门禁
 
-- 按 `doc/verification/manual/g5-viewport-autoexpose.md` 完成 Native 体验验证；
-- 与 G5.2-G5.4 人工用例合并执行检查点 C。
+- `doc/verification/manual/g5-connection-creation.md`：PASS；
+- `doc/verification/manual/g5-connection-reconnect.md`：PASS；
+- `doc/verification/manual/g5-connection-bendpoint.md`：PASS；
+- `doc/verification/manual/g5-viewport-autoexpose.md`：PASS；
+- 检查点 C：PASS。
 
 ## 2026-09-16 人工复查修订
 
@@ -59,3 +65,13 @@
 - scaled feedback layer 对齐 GEF `FeedbackLayer extends FreeformLayer`：transient bounds
   参与临时 freeform extent，不再被 layer 初始 bounds 截断；
 - 人工文档补充各生命周期动作、前置条件和可观察结果。
+
+## 2026-09-22 检查点 C 收口
+
+- bounds feedback 在替代源图元时按 prospective extent 提前 clamp，避免永久 range
+  收缩后 Figure 偏离 release surface；
+- connection create/reconnect 的透明 range reserve 覆盖 edge threshold 与一个最大
+  auto-expose step，右下角可连续同时推进水平和垂直 origin；
+- release 与显式 cancel 在返回宿主前稳定 Runtime，随后重建的 selection/endpoint
+  handles 与最终 viewport transform 同帧一致；
+- Native 人工复验确认 scroll/zoom、bounds、connection、生命周期和 resize 全部通过。

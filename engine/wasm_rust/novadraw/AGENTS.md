@@ -65,7 +65,7 @@
   Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
   Connection Projection、G5.2 Connection Creation 与 G5.3 Connection Reconnect
   已完成，G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；
-  检查点 B 已通过人工验收，检查点 C 待人工验收。
+  检查点 B 与检查点 C 已通过人工验收。
   Draw2D 后续能力必须进入明确的 P2 delta。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
   已全部关闭；18 条次级候选保留待定向验证，状态以
@@ -106,7 +106,7 @@
   `cargo xtask check --quick` 用于同类整改批次，`cargo xtask check --full` 只在最终
   提交、推送、合并或里程碑关闭前执行一次
 - **模块**: `novadraw-core`, `novadraw-scene`, `novadraw-render`, `novadraw-math`,
-  `novadraw-editor`（G5.5 自动门禁已完成，检查点 C 待人工验收）
+  `novadraw-editor`（G5 已完成，检查点 C 已通过人工验收）
 
 ## 交互方式原则（摘要）
 

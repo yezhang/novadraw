@@ -6,7 +6,7 @@
 
 日期：2026-09-16
 
-最近更新：2026-09-21
+最近更新：2026-09-22
 
 本页追加记录
 [`../reference/draw2d-gef-semantic-baseline-2026-09-16.md`](../reference/draw2d-gef-semantic-baseline-2026-09-16.md)
@@ -22,8 +22,8 @@
 
 - 2026-09-16 批次：已关闭 17，待关闭 0；
 - 2026-09-20 后续批次：优先整改 5，已修复 5，待修复 0；
-- G5 自动门禁通过，检查点 C 仍待人工验收；
-- G6 尚未启动，不应在检查点 C 人工验收前提升状态。
+- G5 自动门禁与检查点 C 人工验收均通过；
+- G6 尚未启动。
 
 ## 2026-09-20 后续审计
 
@@ -71,8 +71,8 @@ cargo test -p novadraw-scene --release \
 ## 推进顺序
 
 1. 保留两个批次共 22 条 P1 的反例与自动回归；
-2. 完成 G5 检查点 C 人工验收；
-3. 再启动 G6 保存加载与 Native/Web/Headless 等价。
+2. 保留 G5 检查点 C 人工验收记录；
+3. 启动 G6 保存加载与 Native/Web/Headless 等价。
 
 G5/G6 状态仍以
 [`../../roadmap/editor/00-index.md`](../../roadmap/editor/00-index.md) 为唯一入口。

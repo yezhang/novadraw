@@ -65,6 +65,12 @@ logical surface units，因而不随内容 zoom 改变。指针必须位于 clie
    pointer 重建一次 feedback；
 8. 返回 changed、continue 和下一次调度提示。
 
+Connection create/reconnect 的反馈端点接近零面积，单靠线条 bounds 不能保证在 Viewport
+内侧边缘形成下一步可滚动 range。Editor 因此随这两类 feedback 安装透明的
+auto-expose range reserve：reserve 沿当前 edge direction 覆盖边缘阈值与一个最大 step，
+参与 scaled feedback layer 的临时 freeform extent，并与同一手势的 feedback 一起替换和
+清理。该 reserve 不参与绘制、命中、模型或 history。
+
 elapsed time 必须有受检上限，避免窗口阻塞后单次跳跃过大。无法继续向当前方向滚动时不应
 产生空转更新；若另一轴仍可滚动，则保留该轴。不得用固定次数反复执行
 “feedback extent → origin clamp → feedback 重投影”，该循环可能不存在有限收敛点。
@@ -78,7 +84,9 @@ elapsed time 必须有受检上限，避免窗口阻塞后单次跳跃过大。�
 - reconnect 固定 ConnectionPart 与被移动 endpoint；
 - bendpoint 固定 connection、operation 和 index；
 - auto-expose 不执行模型 Command，不进入 undo/redo history；
-- release 前清理 transient feedback，再构造并执行唯一模型 Command；
+- release 前清理 transient feedback，再构造并执行唯一模型 Command；release 返回宿主
+  前必须稳定永久 extent 与 RangeModel clamp，使宿主随后重建的 unscaled handles 使用
+  最终 viewport transform；
 - Escape、pointer leave、focus loss、tool switch、history transition、source retirement
   和 Viewer drop 必须停止调度并清理状态。
 
