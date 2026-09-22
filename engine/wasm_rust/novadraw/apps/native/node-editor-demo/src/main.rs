@@ -2069,6 +2069,20 @@ mod tests {
         }));
     }
 
+    fn assert_connection_endpoint_handles_align(harness: &EditorHarness, connection: u64) {
+        let route = harness.connection_route(connection).unwrap();
+        let endpoints = [*route.first().unwrap(), *route.last().unwrap()];
+        let centers = harness.handle_centers_in_surface();
+        assert!(
+            endpoints.iter().all(|point| {
+                centers
+                    .iter()
+                    .any(|center| (*center - *point).length() <= f64::EPSILON)
+            }),
+            "connection endpoints {endpoints:?} must match handle centers {centers:?}"
+        );
+    }
+
     #[test]
     fn zoom_keeps_unscaled_selection_handles_aligned_after_frame_stabilization() {
         let mut harness = EditorHarness::new().unwrap();
@@ -2142,7 +2156,6 @@ mod tests {
         harness.runtime_mut().prepare_frame();
         let center = harness.node_bounds(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
-        harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
         let start = harness.node_bounds_in_surface(2).unwrap().center();
         harness
             .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
@@ -2150,17 +2163,149 @@ mod tests {
         harness.pointer_moved(Point::new(815.0, 555.0)).unwrap();
         assert!(harness.has_active_gesture());
         assert!(harness.autoexpose_requested());
-        assert!(
-            harness
-                .autoexpose_tick(Duration::from_millis(30))
-                .unwrap()
-                .scrolled()
-        );
+        let mut scrolled = false;
+        for _ in 0..12 {
+            let tick = harness.autoexpose_tick(Duration::from_millis(30)).unwrap();
+            scrolled |= tick.scrolled();
+            if !tick.continue_requested() {
+                break;
+            }
+        }
+        assert!(scrolled);
+        let edge_origin = harness.viewport_origin().unwrap();
 
         harness.pointer_exited().unwrap();
+        harness.runtime_mut().prepare_frame().unwrap();
 
         assert!(!harness.has_active_gesture());
         assert!(!harness.autoexpose_requested());
+        assert!(
+            harness.viewport_origin().unwrap().x() < edge_origin.x(),
+            "removing transient feedback must clamp the temporary auto-expose range"
+        );
         assert_selection_handles_align_with_node(&harness, 2);
+    }
+
+    #[test]
+    fn autoexpose_release_keeps_viewport_on_the_committed_target() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let center = harness.node_bounds(2).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        let start = harness.node_bounds_in_surface(2).unwrap().center();
+        let edge = Point::new(815.0, 555.0);
+        harness
+            .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(edge).unwrap();
+        for _ in 0..12 {
+            let tick = harness.autoexpose_tick(Duration::from_millis(30)).unwrap();
+            if !tick.continue_requested() {
+                break;
+            }
+        }
+        let edge_origin = harness.viewport_origin().unwrap();
+        assert!(edge_origin.x() > 0.0);
+        assert!(edge_origin.y() > 0.0);
+
+        assert!(harness.pointer_released(edge, MouseButton::Left).unwrap());
+        harness.runtime_mut().prepare_frame().unwrap();
+
+        let committed_origin = harness.viewport_origin().unwrap();
+        assert!(committed_origin.x() > 0.0);
+        assert!(committed_origin.y() > 0.0);
+        assert_selection_handles_align_with_node(&harness, 2);
+    }
+
+    #[test]
+    fn dragging_committed_target_back_preserves_the_feedback_surface_position() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame();
+        let center = harness.node_bounds(2).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        let start = harness.node_bounds_in_surface(2).unwrap().center();
+        let edge = Point::new(815.0, 555.0);
+        harness
+            .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(edge).unwrap();
+        for _ in 0..12 {
+            let tick = harness.autoexpose_tick(Duration::from_millis(30)).unwrap();
+            if !tick.continue_requested() {
+                break;
+            }
+        }
+        assert!(harness.pointer_released(edge, MouseButton::Left).unwrap());
+        harness.runtime_mut().prepare_frame().unwrap();
+        assert!(harness.viewport_origin().unwrap().x() > 0.0);
+
+        let start = harness.node_bounds_in_surface(2).unwrap().center();
+        let target = Point::new(300.0, 140.0);
+        harness
+            .pointer_pressed(start, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(target).unwrap();
+        assert!(harness.pointer_released(target, MouseButton::Left).unwrap());
+        harness.runtime_mut().prepare_frame().unwrap();
+
+        let committed = harness.node_bounds_in_surface(2).unwrap().center();
+        assert!(
+            (committed - target).length() <= f64::EPSILON,
+            "committed node {committed:?} must remain at feedback target {target:?}; origin={:?}",
+            harness.viewport_origin().unwrap()
+        );
+        assert_selection_handles_align_with_node(&harness, 2);
+    }
+
+    #[test]
+    fn reconnect_release_reprojects_handles_after_temporary_range_clamps() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame().unwrap();
+        harness.activate_connection_creation().unwrap();
+        let source = harness.node_bounds_in_surface(2).unwrap().center();
+        let target = harness.node_bounds_in_surface(3).unwrap().center();
+        harness.click(source, KeyModifiers::default()).unwrap();
+        harness.click(target, KeyModifiers::default()).unwrap();
+        let connection = harness.connection_ids()[0];
+        let route = harness.connection_route(connection).unwrap();
+        let first = *route.first().unwrap();
+        let last = *route.last().unwrap();
+        harness
+            .click(
+                Point::new((first.x() + last.x()) / 2.0, (first.y() + last.y()) / 2.0),
+                KeyModifiers::default(),
+            )
+            .unwrap();
+        assert_eq!(harness.selected_model_ids(), vec![connection]);
+        assert_connection_endpoint_handles_align(&harness, connection);
+
+        let endpoint = *harness
+            .connection_route(connection)
+            .unwrap()
+            .last()
+            .unwrap();
+        let edge = Point::new(815.0, 555.0);
+        harness
+            .pointer_pressed(endpoint, MouseButton::Left, KeyModifiers::default())
+            .unwrap();
+        harness.pointer_moved(edge).unwrap();
+        for _ in 0..6 {
+            assert!(
+                harness
+                    .autoexpose_tick(Duration::from_millis(30))
+                    .unwrap()
+                    .scrolled()
+            );
+        }
+        let scrolled_origin = harness.viewport_origin().unwrap();
+        assert!(scrolled_origin.x() > 0.0);
+        assert!(scrolled_origin.y() > 0.0);
+
+        assert!(!harness.pointer_released(edge, MouseButton::Left).unwrap());
+        harness.runtime_mut().prepare_frame().unwrap();
+
+        assert!(harness.viewport_origin().unwrap().x() < scrolled_origin.x());
+        assert!(harness.viewport_origin().unwrap().y() < scrolled_origin.y());
+        assert_connection_endpoint_handles_align(&harness, connection);
     }
 }

@@ -895,6 +895,37 @@ where
         Ok((viewport.horizontal_range(), viewport.vertical_range()))
     }
 
+    pub(crate) fn clamp_viewport_to_feedback_replacement(
+        &mut self,
+        replaced_parts: &[EditPartId],
+    ) -> Result<bool, ViewerError> {
+        let excluded = replaced_parts
+            .iter()
+            .map(|part| {
+                self.parts
+                    .get(*part)
+                    .map(|node| node.primary_figure())
+                    .ok_or(ViewerError::InvalidPart(*part))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let extent = self
+            .runtime
+            .tree()
+            .freeform_extent_excluding(self.root_layers.scalable(), &excluded)
+            .map_err(|_| ViewerError::InconsistentState)?;
+        let (horizontal, vertical) = self.viewport_ranges()?;
+        let baseline = Rectangle::new(0.0, 0.0, horizontal.extent, vertical.extent);
+        let envelope = extent.union(baseline);
+        let maximum_x = envelope.x + envelope.width - horizontal.extent;
+        let maximum_y = envelope.y + envelope.height - vertical.extent;
+        let origin = self.viewport_origin()?;
+        let projected = Point::new(
+            origin.x().clamp(envelope.x, maximum_x.max(envelope.x)),
+            origin.y().clamp(envelope.y, maximum_y.max(envelope.y)),
+        );
+        self.set_viewport_origin(projected)
+    }
+
     fn point_from_surface_in(&self, figure: FigureId, point: Point) -> Result<Point, ViewerError> {
         let transform = self
             .runtime

@@ -420,6 +420,10 @@ where
                 self.command_stack.execute(viewer.model_mut()?, command)?;
                 viewer.refresh()?;
             }
+            viewer
+                .runtime_mut()
+                .stabilize_for_query()
+                .map_err(ViewerError::from)?;
             return Ok(DomainPointerRelease {
                 dispatch,
                 command_executed,
@@ -438,6 +442,10 @@ where
             } else {
                 false
             };
+            viewer
+                .runtime_mut()
+                .stabilize_for_query()
+                .map_err(ViewerError::from)?;
             return Ok(DomainPointerRelease {
                 dispatch,
                 command_executed,
@@ -461,6 +469,10 @@ where
         } else {
             false
         };
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
         Ok(DomainPointerRelease {
             dispatch,
             command_executed,
@@ -475,7 +487,12 @@ where
     where
         F: EditPartFactory<A>,
     {
-        self.cancel_active_tools(viewer)
+        self.cancel_active_tools(viewer)?;
+        viewer
+            .runtime_mut()
+            .stabilize_for_query()
+            .map_err(ViewerError::from)?;
+        Ok(())
     }
 
     fn cancel_active_tools<F>(
@@ -549,6 +566,13 @@ where
             .runtime_mut()
             .stabilize_for_query()
             .map_err(ViewerError::from)?;
+        if let Some(parts) = self
+            .selection_tool
+            .dragged_parts()
+            .map(|parts| parts.to_vec())
+        {
+            viewer.clamp_viewport_to_feedback_replacement(&parts)?;
+        }
         let origin_after_feedback = viewer.viewport_origin()?;
         if origin_after_feedback == origin_before {
             return Ok(());

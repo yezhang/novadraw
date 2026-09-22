@@ -154,7 +154,7 @@ impl EditorHarness {
     pub(crate) fn pointer_exited(&mut self) -> HarnessResult<()> {
         self.cancel_tool()?;
         self.domain.pointer_exited(&mut self.viewer);
-        self.sync_selection_handles()
+        Ok(())
     }
 
     pub(crate) fn autoexpose_requested(&self) -> bool {
@@ -231,7 +231,8 @@ impl EditorHarness {
     pub(crate) fn cancel_tool(&mut self) -> HarnessResult<()> {
         self.domain
             .cancel_tool(&mut self.viewer)
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string())?;
+        self.sync_selection_handles()
     }
 
     pub(crate) fn focus_lost(&mut self) -> HarnessResult<()> {

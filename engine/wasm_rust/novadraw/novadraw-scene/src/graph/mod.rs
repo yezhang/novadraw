@@ -1593,6 +1593,63 @@ impl FigureTree {
         Ok(state.cached_extent)
     }
 
+    /// Derives a freeform extent while omitting complete child subtrees.
+    ///
+    /// This is a read-only projection over the current validated geometry. It is useful when a
+    /// transient visual replaces, rather than supplements, an existing subtree.
+    pub fn freeform_extent_excluding(
+        &self,
+        block_id: FigureId,
+        excluded: &[FigureId],
+    ) -> Result<Rectangle, FreeformError> {
+        let block = self
+            .blocks
+            .get(block_id)
+            .ok_or(FreeformError::UnknownFigure(block_id))?;
+        let state = block
+            .layout
+            .freeform
+            .as_ref()
+            .ok_or(FreeformError::NotFreeform(block_id))?;
+        if state.extent_generation.is_none() {
+            return Err(FreeformError::Unvalidated(block_id));
+        }
+        Ok(self
+            .derive_freeform_extent_excluding(block_id, excluded)
+            .unwrap_or(Rectangle::ZERO))
+    }
+
+    fn derive_freeform_extent_excluding(
+        &self,
+        block_id: FigureId,
+        excluded: &[FigureId],
+    ) -> Option<Rectangle> {
+        let block = self.blocks.get(block_id)?;
+        let mut extent: Option<Rectangle> = None;
+        for child_id in block.children.iter().copied() {
+            if excluded.contains(&child_id) {
+                continue;
+            }
+            let child = &self.blocks[child_id];
+            let contribution = if child.layout.freeform.is_some() {
+                let child_extent = self
+                    .derive_freeform_extent_excluding(child_id, excluded)
+                    .unwrap_or(Rectangle::ZERO);
+                let bounds = child.figure_bounds();
+                let transform = Affine2D::from_translation(bounds.x, bounds.y)
+                    * child.child_transform().affine();
+                transform_rectangle(transform, child_extent)?
+            } else {
+                child.figure_bounds()
+            };
+            extent = Some(match extent {
+                Some(current) => current.union(contribution),
+                None => contribution,
+            });
+        }
+        extent
+    }
+
     fn recompute_freeform_extent(&mut self, block_id: FigureId) -> Result<(), LayoutError> {
         let dirty = self
             .blocks

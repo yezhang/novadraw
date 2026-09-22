@@ -10,7 +10,7 @@ use crate::{
     ConnectionEndpoint, ConnectionPartId, ConnectionReconnection, CreateConnectionRequest,
     CreationType, EditPartFactory, EditPartId, EditorRequest, GraphicalViewer, HandleRole,
     InteractionRevision, ModelAdapter, ReconnectConnectionRequest, RequestModifiers,
-    ResizeDirection, ViewerError, ViewerInputOutcome, ViewerTarget,
+    ResizeDirection, ViewerError, ViewerInputOutcome, ViewerTarget, autoexpose,
 };
 
 const DRAG_START_DISTANCE: f64 = 2.0;
@@ -135,6 +135,13 @@ impl SelectionTool {
         self.gesture
             .as_ref()
             .is_some_and(|gesture| gesture.drag_started)
+    }
+
+    pub(crate) fn dragged_parts(&self) -> Option<&[EditPartId]> {
+        self.gesture
+            .as_ref()
+            .filter(|gesture| gesture.drag_started)
+            .map(|gesture| gesture.parts.as_slice())
     }
 
     /// Dispatches press to Figures first, then locks a stable drag source when eligible.
@@ -614,6 +621,7 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         .with_target_candidate(candidate);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_reconnection_feedback(gesture.plan.as_mut(), &request)?;
+        autoexpose::add_range_reserve(viewer, location, &mut gesture.feedback)?;
         Ok(())
     }
 
@@ -832,6 +840,7 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
         .with_target_candidate(target);
         clear_feedback(viewer, &mut gesture.feedback)?;
         gesture.feedback = viewer.show_connection_feedback(gesture.plan.as_mut(), &request)?;
+        autoexpose::add_range_reserve(viewer, location, &mut gesture.feedback)?;
         Ok(())
     }
 

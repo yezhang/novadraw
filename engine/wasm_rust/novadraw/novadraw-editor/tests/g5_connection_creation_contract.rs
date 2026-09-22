@@ -920,6 +920,30 @@ fn connection_creation_autoexpose_keeps_source_locked_and_rebuilds_feedback() {
 }
 
 #[test]
+fn connection_creation_autoexpose_scrolls_both_corner_axes() {
+    let mut viewer = viewer(false);
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+
+    let corner = Point::new(595.0, 395.0);
+    domain.pointer_moved(&mut viewer, corner).unwrap();
+    let mut previous = viewer.viewport_origin().unwrap();
+    for _ in 0..4 {
+        let tick = domain
+            .autoexpose_tick(&mut viewer, Duration::from_millis(50))
+            .unwrap();
+        let after = viewer.viewport_origin().unwrap();
+        assert!(tick.scrolled());
+        assert!(tick.continue_requested());
+        assert!(after.x() > previous.x());
+        assert!(after.y() > previous.y());
+        previous = after;
+    }
+}
+
+#[test]
 fn invalid_target_keeps_gesture_and_escape_cancels_without_model_change() {
     let mut viewer = viewer(false);
     let mut domain = EditorDomain::new();
@@ -1191,6 +1215,47 @@ fn reconnect_cancel_clears_feedback_without_model_change() {
             .unwrap()
             .is_empty()
     );
+}
+
+#[test]
+fn endpoint_reconnect_autoexpose_scrolls_both_corner_axes() {
+    let mut viewer = viewer(false);
+    let mut domain = EditorDomain::new();
+    arm(&mut domain, &mut viewer);
+    click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
+    click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
+    let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
+    viewer
+        .add_handle_visual_with_role(
+            connection.edit_part(),
+            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
+        )
+        .unwrap();
+    viewer.runtime_mut().prepare_frame().unwrap();
+
+    domain
+        .pointer_pressed(
+            &mut viewer,
+            Point::new(280.0, 90.0),
+            MouseButton::Left,
+            KeyModifiers::default(),
+        )
+        .unwrap();
+    let corner = Point::new(595.0, 395.0);
+    domain.pointer_moved(&mut viewer, corner).unwrap();
+    let mut previous = viewer.viewport_origin().unwrap();
+    for _ in 0..4 {
+        let tick = domain
+            .autoexpose_tick(&mut viewer, Duration::from_millis(50))
+            .unwrap();
+        let after = viewer.viewport_origin().unwrap();
+        assert!(tick.scrolled());
+        assert!(tick.continue_requested());
+        assert!(after.x() > previous.x());
+        assert!(after.y() > previous.y());
+        previous = after;
+    }
 }
 
 #[test]

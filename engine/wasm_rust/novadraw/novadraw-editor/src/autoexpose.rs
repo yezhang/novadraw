@@ -3,12 +3,27 @@
 use std::time::Duration;
 
 use novadraw_geometry::{Point, Rectangle, Vec2};
+use novadraw_scene::{Figure, FigureId};
 
 use crate::{EditPartFactory, GraphicalViewer, ModelAdapter, ViewerError};
 
 const EDGE_THRESHOLD: f64 = 18.0;
 const SCROLL_SPEED_PER_SECOND: f64 = 1_000.0 / 3.0;
 const MAX_STEP_ELAPSED: Duration = Duration::from_millis(50);
+
+struct RangeReserveFigure {
+    bounds: Rectangle,
+}
+
+impl Figure for RangeReserveFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "AutoexposeRangeReserve"
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 /// Result of one host-driven viewport auto-expose step.
@@ -45,6 +60,37 @@ where
     F: EditPartFactory<A>,
 {
     Ok(edge_direction(viewer.viewport_bounds_in_surface()?, pointer).is_some())
+}
+
+pub(crate) fn add_range_reserve<A, F>(
+    viewer: &mut GraphicalViewer<A, F>,
+    pointer: Point,
+    feedback: &mut Vec<FigureId>,
+) -> Result<(), ViewerError>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    let Some(direction) = edge_direction(viewer.viewport_bounds_in_surface()?, pointer) else {
+        return Ok(());
+    };
+    let reserve_distance =
+        EDGE_THRESHOLD + SCROLL_SPEED_PER_SECOND * MAX_STEP_ELAPSED.as_secs_f64();
+    let outer = Point::new(
+        pointer.x() + direction.x() * reserve_distance,
+        pointer.y() + direction.y() * reserve_distance,
+    );
+    let start = viewer.model_point_from_surface(pointer)?;
+    let end = viewer.model_point_from_surface(outer)?;
+    let (_, figure) = viewer.add_feedback_visual(
+        None,
+        true,
+        Box::new(RangeReserveFigure {
+            bounds: Rectangle::from_corners(start, end),
+        }),
+    )?;
+    feedback.push(figure);
+    Ok(())
 }
 
 pub(crate) fn step<A, F>(
