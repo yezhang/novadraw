@@ -8,6 +8,7 @@ members = [
   "novadraw-render",
   "novadraw-scene",
   "novadraw-editor",
+  "novadraw-inspector",
   "apps/support",
   "apps/scenes",
   "tools/xtask",

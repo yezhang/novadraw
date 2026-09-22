@@ -37,6 +37,29 @@ envelope 计算，不能将该能力标记为已完成。
 - `novadraw-scene/src/connection/figure.rs::route_visual_outset`
 - `novadraw-render/src/command.rs::DEFAULT_STROKE_MITER_LIMIT`
 
+## Developer tooling
+
+### P2-D01: FigureInspector 开发期可观测性
+
+状态：`in_progress`
+
+FigureInspector 以独立 crate 消费 Runtime 的稳定场景查询与提交后 notification journal，
+为 Native、Web 和 headless 工具提供统一诊断事实。它不属于 Draw2D Core 的运行时语义，
+也不改变 GEF Editor 里程碑。
+
+首期范围：
+
+1. `FigureTreeSnapshot` 保留 containment、child order、节点状态和 Figure diagnostic name；
+2. 有界 FIFO event timeline 保留 `source_epoch`、`sequence` 和 typed effect；
+3. outline tree、属性面板、时间线作为宿主 UI 标准布局；
+4. 不进入 render/validation 热路径，不保存逐 effect 的完整历史场景；
+5. Editor Figure -> VisualOwner -> EditPart -> Model 关联由可选 adapter 后置。
+
+规范与决策：
+
+- `doc/design/architecture/figure-inspector.md`
+- `doc/adr/adr-016-figure-inspector-observability.md`
+
 ## Editor
 
 ### P2-E01: 高级 Self-loop 路由策略

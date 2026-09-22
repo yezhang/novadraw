@@ -32,12 +32,13 @@
 14. [`architecture/derived-state-convergence.md`](architecture/derived-state-convergence.md)
 15. [`architecture/figure-lifecycle.md`](architecture/figure-lifecycle.md)
 16. [`architecture/tooltip-accessibility.md`](architecture/tooltip-accessibility.md)
-17. [`editor/architecture.md`](editor/architecture.md)
-18. [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
-19. [`editor/g5-connection-creation.md`](editor/g5-connection-creation.md)
-20. [`editor/g5-connection-reconnect.md`](editor/g5-connection-reconnect.md)
-21. [`editor/g5-connection-bendpoint.md`](editor/g5-connection-bendpoint.md)
-22. [`editor/g5-viewport-autoexpose.md`](editor/g5-viewport-autoexpose.md)
+17. [`architecture/figure-inspector.md`](architecture/figure-inspector.md)
+18. [`editor/architecture.md`](editor/architecture.md)
+19. [`editor/g5-connection-projection.md`](editor/g5-connection-projection.md)
+20. [`editor/g5-connection-creation.md`](editor/g5-connection-creation.md)
+21. [`editor/g5-connection-reconnect.md`](editor/g5-connection-reconnect.md)
+22. [`editor/g5-connection-bendpoint.md`](editor/g5-connection-bendpoint.md)
+23. [`editor/g5-viewport-autoexpose.md`](editor/g5-viewport-autoexpose.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

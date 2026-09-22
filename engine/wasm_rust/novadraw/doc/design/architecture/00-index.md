@@ -23,6 +23,7 @@
 | [tree-search-and-focus.md](tree-search-and-focus.md) | 树查询、命中与焦点遍历 |
 | [derived-state-convergence.md](derived-state-convergence.md) | 派生状态收敛事务 |
 | [resource-lifecycle.md](resource-lifecycle.md) | 资源因果与 Backend Session |
+| [figure-inspector.md](figure-inspector.md) | 稳定场景与提交后事件诊断 |
 | [component-update.md](component-update.md) | 第三方组件更新提案 |
 
 ## Figure 能力

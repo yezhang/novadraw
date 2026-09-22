@@ -461,6 +461,11 @@ impl FigureNode {
         self.children.len()
     }
 
+    /// Returns the Figure implementation's stable diagnostic name.
+    pub fn figure_name(&self) -> &'static str {
+        self.figure.name()
+    }
+
     pub fn state(&self) -> &NodeState {
         &self.state
     }
@@ -922,6 +927,11 @@ impl FigureTree {
     /// 获取内容块
     pub fn get_contents(&self) -> Option<FigureId> {
         self.contents
+    }
+
+    /// Returns the synthetic root that owns every attached Figure.
+    pub const fn root_id(&self) -> FigureId {
+        self.root
     }
 
     /// 添加子块到指定父块
