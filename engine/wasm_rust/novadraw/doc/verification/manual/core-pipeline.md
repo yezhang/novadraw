@@ -83,7 +83,7 @@ cargo xtask verify core.runtime
 PASS damage_modes
 PASS notification_order
 PASS dirty_coalescing
-PASS panic_recovery
+PASS runtime_fault_boundary
 PASS stress_1024
 PASS submission_lifecycle
 
@@ -99,7 +99,8 @@ PASS coordinate_root
 - `notification_order` 证明通知保持
   `Validating -> FigureMoved -> Validated` 的因果顺序。
 - `dirty_coalescing` 证明同一 Figure 的 dirty region 会合并。
-- `panic_recovery` 证明监听器 panic 后更新管理器可恢复。
+- `runtime_fault_boundary` 证明监听器 panic 会进入 Runtime fault boundary，后续不再
+  发布帧；UpdateManager 自身的 panic 恢复由 crate 内部单元测试覆盖。
 - `stress_1024` 证明 1,024 Figure 的更新事务能够收敛；debug 构建耗时不作为
   性能基准。
 - `submission_lifecycle` 证明提交完成、重试与后端 session 状态不会丢失更新。

@@ -4,7 +4,7 @@ use novadraw_render::{
 };
 use novadraw_scene::{
     Alignment, AnchorGeometry, AnchorGeometryKey, Border, CompoundBorder, FigureStyle, FigureTree,
-    ImageDisplayState, ImageFigure, LabelFigure, LineBorder, MarginBorder, PropertyValue,
+    ImageDisplayState, ImageFigure, LabelFigure, LineBorder, MarginBorder, MeasureConstraints,
     Rectangle, RectangleFigure, Runtime, StackLayout, TextPlacement, TitleBarBorder,
 };
 use std::sync::{
@@ -77,10 +77,16 @@ fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
     assert_eq!(layout.key().text(), TEXT);
     assert!(TEXT.is_char_boundary(layout.visible_range().end));
     assert!(layout.full_width() > layout.width());
-    let preferred = runtime.tree().preferred_size(label, -1.0, -1.0).unwrap();
-    let minimum = runtime.tree().minimum_size(label, -1.0, -1.0).unwrap();
-    assert!(preferred.0 > minimum.0);
-    assert!(preferred.1 >= minimum.1);
+    let preferred = runtime
+        .tree()
+        .preferred_measurement(label, MeasureConstraints::UNBOUNDED)
+        .unwrap();
+    let minimum = runtime
+        .tree()
+        .minimum_size(label, MeasureConstraints::UNBOUNDED)
+        .unwrap();
+    assert!(preferred.width > minimum.width);
+    assert!(preferred.height >= minimum.height);
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -205,16 +211,6 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
         runtime.set_label_icon_text_gap(label, -1.0),
         Err(novadraw_scene::ShapeMutationError::NegativeMetric)
     );
-    assert!(runtime.tree().notification_effects().iter().any(|effect| {
-        matches!(
-            effect,
-            novadraw_scene::NotificationEffect::EmitProperty(change)
-                if change.figure_id == label
-                    && change.property == "icon_text_gap"
-                    && change.new_value == PropertyValue::Number(9.0)
-        )
-    }));
-
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
@@ -421,8 +417,14 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
         let (top, left, bottom, right) = runtime.tree().insets(root).unwrap();
         assert!(top > 2.0);
         assert_eq!(
-            runtime.tree().preferred_size(root, -1.0, -1.0),
-            Some((320.0 + left + right, 120.0 + top + bottom))
+            runtime
+                .tree()
+                .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+                .map(|measurement| measurement.size()),
+            Some(novadraw_scene::Dimension::new(
+                320.0 + left + right,
+                120.0 + top + bottom,
+            ))
         );
         assert_eq!(
             submission

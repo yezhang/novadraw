@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Translatable, Vec2};
+use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Vec2};
 use novadraw_render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
@@ -213,16 +213,31 @@ fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
         && point.1 <= rect.y + rect.height
 }
 
-fn owner_scoped_border_size(content: (f64, f64), snapshot: Option<&BorderSnapshot>) -> (f64, f64) {
+fn owner_scoped_border_size(content: Dimension, snapshot: Option<&BorderSnapshot>) -> Dimension {
     let Some(snapshot) = snapshot else {
         return content;
     };
     let (top, left, bottom, right) = snapshot.insets();
     let preferred = snapshot.preferred_size();
-    (
-        (content.0 + left + right).max(preferred.0),
-        (content.1 + top + bottom).max(preferred.1),
+    Dimension::new(
+        (content.width + left + right).max(preferred.0),
+        (content.height + top + bottom).max(preferred.1),
     )
+}
+
+fn owner_scoped_border_measurement(
+    mut measurement: FigureMeasurement,
+    snapshot: Option<&BorderSnapshot>,
+) -> FigureMeasurement {
+    let Some(snapshot) = snapshot else {
+        return measurement;
+    };
+    let (top, left, bottom, right) = snapshot.insets();
+    let preferred = snapshot.preferred_size();
+    measurement.width = (measurement.width + left + right).max(preferred.0);
+    measurement.height = (measurement.height + top + bottom).max(preferred.1);
+    measurement.baseline = measurement.baseline.map(|baseline| baseline + top);
+    measurement
 }
 
 /// State shared by every Figure node.
@@ -360,14 +375,13 @@ struct LayoutCache {
 #[derive(Debug, Clone, Copy)]
 struct CachedMeasurement {
     generation: u64,
-    w_hint: f64,
-    h_hint: f64,
-    size: (f64, f64),
+    constraints: MeasureConstraints,
+    measurement: FigureMeasurement,
 }
 
 impl CachedMeasurement {
-    fn matches(self, generation: u64, w_hint: f64, h_hint: f64) -> bool {
-        self.generation == generation && self.w_hint == w_hint && self.h_hint == h_hint
+    fn matches(self, generation: u64, constraints: MeasureConstraints) -> bool {
+        self.generation == generation && self.constraints == constraints
     }
 }
 
@@ -560,21 +574,21 @@ impl FigureNode {
             .unwrap_or(ChildPolicy::Multiple)
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
         self.figure
             .container()
-            .map(|container| container.layout_size_hints(w_hint, h_hint))
-            .unwrap_or((w_hint, h_hint))
+            .map(|container| container.layout_constraints(constraints))
+            .unwrap_or(constraints)
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
         self.figure
             .container()
-            .map(|container| container.project_preferred_size(size))
-            .unwrap_or(size)
+            .map(|container| container.project_preferred_measurement(measurement))
+            .unwrap_or(measurement)
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
         self.figure
             .container()
             .map(|container| container.project_minimum_size(size))
@@ -1049,12 +1063,12 @@ impl FigureTree {
     ///
     /// 这些 effect 只描述已经发生的语义变化，不在产生时立即执行回调。
     /// 后续完整 listener/subscription 系统应在稳定事务边界 drain/flush 它们。
-    pub fn notification_effects(&self) -> &[NotificationEffect] {
+    pub(crate) fn notification_effects(&self) -> &[NotificationEffect] {
         self.notification_effects.effects()
     }
 
     /// 排空通知 effect 队列。
-    pub fn drain_notification_effects(&mut self) -> Vec<NotificationEffect> {
+    pub(crate) fn drain_notification_effects(&mut self) -> Vec<NotificationEffect> {
         self.notification_effects.drain()
     }
 
@@ -1692,7 +1706,7 @@ impl FigureTree {
     /// 使布局失效，下次渲染时将重新计算布局
     ///
     /// 对应 draw2d: Figure.invalidate()
-    pub fn invalidate(&mut self) {
+    pub(crate) fn invalidate(&mut self) {
         let target = self.contents.unwrap_or(self.root);
         self.mark_validation_path_invalid(target);
     }
@@ -1705,7 +1719,7 @@ impl FigureTree {
     /// # Arguments
     ///
     /// * `figure_id` - 需要重新布局的块 ID
-    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, figure_id: FigureId) {
+    pub(crate) fn mark_invalid(&mut self, update_manager: &mut UpdateManager, figure_id: FigureId) {
         self.mark_validation_path_invalid(figure_id);
         update_manager.add_invalid_figure(figure_id);
     }
@@ -1719,7 +1733,7 @@ impl FigureTree {
     ///
     /// * `figure_id` - 需要重绘的块 ID
     /// * `rect` - node-local 脏区域；`None` 表示完整 local border box
-    pub fn repaint(
+    pub(crate) fn repaint(
         &mut self,
         update_manager: &mut UpdateManager,
         figure_id: FigureId,
@@ -1732,15 +1746,6 @@ impl FigureTree {
 
             let dirty_rect = rect.unwrap_or_else(|| block.visual_bounds());
             update_manager.add_dirty_region(figure_id, dirty_rect);
-        }
-    }
-
-    /// 请求重绘整个场景
-    ///
-    /// 对应 draw2d: Figure.repaint() 使用整个 bounds
-    pub fn repaint_all(&mut self, update_manager: &mut UpdateManager) {
-        if let Some(contents_id) = self.contents {
-            self.repaint(update_manager, contents_id, None);
         }
     }
 
@@ -1890,7 +1895,7 @@ impl FigureTree {
     /// Phase 2: 脏区域重绘
     /// - 如果有待重绘的脏区域，使用脏区域裁剪渲染
     /// - 清空脏区域
-    pub fn perform_update(&mut self, update_manager: &mut UpdateManager) -> NdCanvas {
+    pub(crate) fn perform_update(&mut self, update_manager: &mut UpdateManager) -> NdCanvas {
         let mut canvas = NdCanvas::new();
         update_manager.perform_update(self, &mut canvas);
         canvas
@@ -1900,14 +1905,14 @@ impl FigureTree {
     ///
     /// UpdateManager 只提供待验证队列与 phase 触发，
     /// FigureTree 自身决定哪些节点可参与验证以及如何 revalidate。
-    pub fn perform_validation_cycle(
+    pub(crate) fn perform_validation_cycle(
         &mut self,
         update_manager: &mut UpdateManager,
     ) -> Result<(), ValidationError> {
         self.perform_validation_cycle_with_budget(update_manager, DEFAULT_VALIDATION_BUDGET)
     }
 
-    pub fn perform_validation_cycle_with_budget(
+    pub(crate) fn perform_validation_cycle_with_budget(
         &mut self,
         update_manager: &mut UpdateManager,
         budget: usize,
@@ -2391,112 +2396,78 @@ impl FigureTree {
             .is_some_and(|block| block.is_valid)
     }
 
-    /// 计算节点首选尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
-    pub fn preferred_size(
+    /// 计算节点首选测量。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
+    pub fn preferred_measurement(
         &self,
         figure_id: FigureId,
-        w_hint: f64,
-        h_hint: f64,
-    ) -> Option<(f64, f64)> {
+        constraints: MeasureConstraints,
+    ) -> Option<FigureMeasurement> {
         let block = self.blocks.get(figure_id)?;
-        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
+        let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.preferred_size {
-            return Some(block.project_preferred_size(size));
+            return Some(
+                block.project_preferred_measurement(FigureMeasurement::new(size.0, size.1, None)),
+            );
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().preferred
-                && cached.matches(generation, w_hint, h_hint)
+                && cached.matches(generation, constraints)
             {
-                return Some(cached.size);
+                return Some(cached.measurement);
             }
             let snapshot = LayoutSnapshot::new(self);
-            let size = block.project_preferred_size(
-                layout.get_preferred_size(figure_id, w_hint, h_hint, &snapshot),
-            );
+            let measurement = block.project_preferred_measurement(layout.preferred_measurement(
+                figure_id,
+                constraints,
+                &snapshot,
+            ));
             block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
                 generation,
-                w_hint,
-                h_hint,
-                size,
+                constraints,
+                measurement,
             });
-            return Some(size);
+            return Some(measurement);
         }
-        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
-        let content = if block.border_snapshot.is_some() {
-            block
-                .figure
-                .intrinsic_content_measurement(constraints)
-                .size()
-        } else {
-            block.figure.intrinsic_measurement(constraints).size()
-        };
-        Some(owner_scoped_border_size(
-            content,
-            block.border_snapshot.as_ref(),
-        ))
-    }
-
-    pub fn measurement(
-        &self,
-        figure_id: FigureId,
-        w_hint: f64,
-        h_hint: f64,
-    ) -> Option<FigureMeasurement> {
-        let block = self.blocks.get(figure_id)?;
-        if block.preferred_size.is_some() || block.layout.manager.is_some() {
-            let (width, height) = self.preferred_size(figure_id, w_hint, h_hint)?;
-            return Some(FigureMeasurement::new(width, height, None));
-        }
-        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
-        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
-        let mut measurement = if block.border_snapshot.is_some() {
+        let measurement = if block.border_snapshot.is_some() {
             block.figure.intrinsic_content_measurement(constraints)
         } else {
             block.figure.intrinsic_measurement(constraints)
         };
-        if let Some(snapshot) = block.border_snapshot.as_ref() {
-            let (top, left, bottom, right) = snapshot.insets();
-            let preferred = snapshot.preferred_size();
-            measurement.width = (measurement.width + left + right).max(preferred.0);
-            measurement.height = (measurement.height + top + bottom).max(preferred.1);
-            measurement.baseline = measurement.baseline.map(|baseline| baseline + top);
-        }
-        Some(measurement)
+        Some(owner_scoped_border_measurement(
+            measurement,
+            block.border_snapshot.as_ref(),
+        ))
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
     pub fn minimum_size(
         &self,
         figure_id: FigureId,
-        w_hint: f64,
-        h_hint: f64,
-    ) -> Option<(f64, f64)> {
+        constraints: MeasureConstraints,
+    ) -> Option<Dimension> {
         let block = self.blocks.get(figure_id)?;
-        let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
+        let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.minimum_size {
-            return Some(block.project_minimum_size(size));
+            return Some(block.project_minimum_size(size.into()));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().minimum
-                && cached.matches(generation, w_hint, h_hint)
+                && cached.matches(generation, constraints)
             {
-                return Some(cached.size);
+                return Some(cached.measurement.size());
             }
             let snapshot = LayoutSnapshot::new(self);
-            let size = block.project_minimum_size(
-                layout.get_minimum_size(figure_id, w_hint, h_hint, &snapshot),
-            );
+            let size =
+                block.project_minimum_size(layout.minimum_size(figure_id, constraints, &snapshot));
             block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
                 generation,
-                w_hint,
-                h_hint,
-                size,
+                constraints,
+                measurement: FigureMeasurement::new(size.width, size.height, None),
             });
             return Some(size);
         }
-        let constraints = MeasureConstraints::from_hints(w_hint, h_hint);
         let content = if block.border_snapshot.is_some() {
             block
                 .figure
@@ -2515,9 +2486,14 @@ impl FigureTree {
     }
 
     /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
-    pub fn maximum_size(&self, figure_id: FigureId) -> Option<(f64, f64)> {
+    pub fn maximum_size(&self, figure_id: FigureId) -> Option<Dimension> {
         let block = self.blocks.get(figure_id)?;
-        Some(block.maximum_size.unwrap_or((f64::INFINITY, f64::INFINITY)))
+        Some(
+            block
+                .maximum_size
+                .unwrap_or((f64::INFINITY, f64::INFINITY))
+                .into(),
+        )
     }
 
     pub(crate) fn set_preferred_size(
@@ -2597,7 +2573,7 @@ impl FigureTree {
     /// 1. paintFigure() - 绘制自身
     /// 2. paintClientArea() - 绘制子元素
     /// 3. paintBorder() - 绘制边框
-    pub fn render(&self) -> NdCanvas {
+    pub(crate) fn render(&self) -> NdCanvas {
         let mut gc = NdCanvas::new();
         gc.damage_mut().set_full();
         self.render_to(&mut gc);
@@ -2625,7 +2601,7 @@ impl FigureTree {
     ///   H FigureId(0x3): RectangleFigure bounds=(50,50,50,50)  // 不可见
     /// ```
     #[cfg(feature = "debug_render")]
-    pub fn print_tree(&self) {
+    pub(crate) fn print_tree(&self) {
         eprintln!("\n========== 场景图结构 ==========");
         self.print_block(self.root, 0);
         eprintln!("=================================\n");
@@ -2662,7 +2638,7 @@ impl FigureTree {
     /// 在渲染前调用，渲染后会打印渲染顺序
     #[cfg(feature = "debug_render")]
     #[allow(clippy::collapsible_if)]
-    pub fn print_render_order(&self) {
+    pub(crate) fn print_render_order(&self) {
         let start_id = self.contents.unwrap_or(self.root);
         let mut stack = vec![start_id];
 
@@ -4196,58 +4172,26 @@ impl FigureTree {
         update_manager.freeze_figure_damage(self, figure_id, old_visual_bounds);
     }
 
-    /// 将 node-local 几何转换到 logical surface domain。
-    pub fn translate_to_absolute_mut<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
-        if let Some(transform) = self.local_to_surface_transform(figure_id) {
-            t.transform(transform);
-        }
+    /// 返回 node-local 到 parent content domain 的变换。
+    pub fn local_to_parent_transform(&self, figure_id: FigureId) -> Option<Affine2D> {
+        let bounds = self.blocks.get(figure_id)?.figure_bounds();
+        Some(Affine2D::from_translation(bounds.x, bounds.y))
     }
 
-    /// 将 node-local 几何转换到 parent content domain。
-    pub fn translate_to_parent<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
-        if let Some(block) = self.blocks.get(figure_id) {
-            let bounds = block.figure_bounds();
-            t.transform(novadraw_geometry::Affine2D::from_translation(
-                bounds.x, bounds.y,
-            ));
-        }
-    }
-
-    /// 将 parent content 几何转换到 node-local domain。
-    pub fn translate_from_parent<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
-        if let Some(block) = self.blocks.get(figure_id) {
-            let bounds = block.figure_bounds();
-            t.transform(novadraw_geometry::Affine2D::from_translation(
-                -bounds.x, -bounds.y,
-            ));
-        }
-    }
-
-    /// 将 logical surface 几何转换到 node-local domain。
-    pub fn translate_to_relative<T: Translatable>(&self, figure_id: FigureId, t: &mut T) -> bool {
-        let Some(transform) = self
-            .local_to_surface_transform(figure_id)
-            .and_then(|transform| transform.inverse())
-        else {
-            return false;
-        };
-        t.transform(transform);
-        true
+    /// 返回 parent content domain 到 node-local 的变换。
+    pub fn parent_to_local_transform(&self, figure_id: FigureId) -> Option<Affine2D> {
+        self.local_to_parent_transform(figure_id)?.inverse()
     }
 
     /// 返回 node-local 到 logical surface 的完整父链变换。
-    pub fn local_to_surface_transform(
-        &self,
-        figure_id: FigureId,
-    ) -> Option<novadraw_geometry::Affine2D> {
-        let mut transform = novadraw_geometry::Affine2D::IDENTITY;
+    pub fn local_to_surface_transform(&self, figure_id: FigureId) -> Option<Affine2D> {
+        let mut transform = Affine2D::IDENTITY;
         let mut current_id = figure_id;
 
         loop {
             let current = self.blocks.get(current_id)?;
             let bounds = current.figure_bounds();
-            transform =
-                novadraw_geometry::Affine2D::from_translation(bounds.x, bounds.y) * transform;
+            transform = Affine2D::from_translation(bounds.x, bounds.y) * transform;
 
             let Some(parent_id) = current.parent else {
                 break;
@@ -4260,11 +4204,13 @@ impl FigureTree {
         Some(transform)
     }
 
+    /// 返回 logical surface domain 到 node-local 的完整父链变换。
+    pub fn surface_to_local_transform(&self, figure_id: FigureId) -> Option<Affine2D> {
+        self.local_to_surface_transform(figure_id)?.inverse()
+    }
+
     /// Returns the complete child-content to logical-surface transform.
-    pub fn child_content_to_surface_transform(
-        &self,
-        figure_id: FigureId,
-    ) -> Option<novadraw_geometry::Affine2D> {
+    pub fn child_content_to_surface_transform(&self, figure_id: FigureId) -> Option<Affine2D> {
         let block = self.blocks.get(figure_id)?;
         Some(self.local_to_surface_transform(figure_id)? * block.child_transform().affine())
     }
@@ -4381,24 +4327,23 @@ impl super::layout::LayoutContext for FigureTree {
         self.constraint(child_id)
     }
 
-    fn get_preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.preferred_size(figure_id, w_hint, h_hint)
-            .unwrap_or((0.0, 0.0))
-    }
-
-    fn get_measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        self.measurement(figure_id, w_hint, h_hint)
+    fn preferred_measurement(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        self.preferred_measurement(figure_id, constraints)
             .unwrap_or_default()
     }
 
-    fn get_minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.minimum_size(figure_id, w_hint, h_hint)
-            .unwrap_or((0.0, 0.0))
+    fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
+        self.minimum_size(figure_id, constraints)
+            .unwrap_or(Dimension::ZERO)
     }
 
-    fn get_maximum_size(&self, figure_id: FigureId) -> (f64, f64) {
+    fn maximum_size(&self, figure_id: FigureId) -> Dimension {
         self.maximum_size(figure_id)
-            .unwrap_or((f64::INFINITY, f64::INFINITY))
+            .unwrap_or(Dimension::new(f64::INFINITY, f64::INFINITY))
     }
 
     fn get_container_bounds(&self, container_id: FigureId) -> Rectangle {
@@ -4439,7 +4384,7 @@ mod tests {
         ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
-    use novadraw_geometry::Vec2;
+    use novadraw_geometry::{Translatable, Vec2};
     use novadraw_render::{NdCanvas, command::RenderCommandKind};
 
     #[derive(Debug, PartialEq)]
@@ -5539,14 +5484,14 @@ mod tests {
         assert_eq!(child_bounds.y, 10.0);
     }
 
-    // ========== translate_to_parent 测试 ==========
+    // ========== local_to_parent_transform 测试 ==========
 
-    /// 测试 translate_to_parent 基本功能
+    /// 测试 local_to_parent_transform 基本功能
     ///
     /// 场景：当前节点是坐标根且无 insets
     /// 期望：本地坐标 (10, 20) 转换为父坐标 (30, 50)
     #[test]
-    fn test_translate_to_parent_basic() {
+    fn test_local_to_parent_transform_basic() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5558,13 +5503,13 @@ mod tests {
         );
 
         let mut point = (10.0, 20.0);
-        scene.translate_to_parent(coord_root_id, &mut point);
+        point.transform(scene.local_to_parent_transform(coord_root_id).unwrap());
         assert_eq!(point, (30.0, 50.0));
     }
 
     /// Node placement 不包含其 child-content insets。
     #[test]
-    fn test_translate_to_parent_with_insets() {
+    fn test_local_to_parent_transform_with_insets() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5581,17 +5526,17 @@ mod tests {
             )),
         );
         let mut point = (10.0, 20.0);
-        scene.translate_to_parent(coord_root_id, &mut point);
+        point.transform(scene.local_to_parent_transform(coord_root_id).unwrap());
         assert_eq!(point.0, 30.0);
         assert_eq!(point.1, 50.0);
     }
 
-    /// 测试 translate_to_parent 父节点不是坐标根
+    /// 测试 local_to_parent_transform 不依赖父节点是否为坐标根
     ///
     /// 场景：当前节点不是坐标根
     /// 期望：不进行转换，返回原坐标
     #[test]
-    fn test_translate_to_parent_not_coordinate_root() {
+    fn test_local_to_parent_transform_not_coordinate_root() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5604,18 +5549,18 @@ mod tests {
         let child_id = scene.add_child_to(parent_id, Box::new(child));
 
         let mut point = (10.0, 20.0);
-        scene.translate_to_parent(child_id, &mut point);
+        point.transform(scene.local_to_parent_transform(child_id).unwrap());
         assert_eq!(point, (20.0, 40.0));
     }
 
-    // ========== translate_from_parent 测试 ==========
+    // ========== parent_to_local_transform 测试 ==========
 
-    /// 测试 translate_from_parent 基本功能
+    /// 测试 parent_to_local_transform 基本功能
     ///
     /// 场景：当前节点是坐标根且无 insets
     /// 期望：父坐标 (30, 50) 转换为本地坐标 (10, 20)
     #[test]
-    fn test_translate_from_parent_basic() {
+    fn test_parent_to_local_transform_basic() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5626,13 +5571,13 @@ mod tests {
             Box::new(TestCoordinateRootFigure::new(20.0, 30.0, 100.0, 100.0)),
         );
         let mut point = (30.0, 50.0);
-        scene.translate_from_parent(coord_root_id, &mut point);
+        point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
         assert_eq!(point, (10.0, 20.0));
     }
 
     /// Parent content 到 node local 只逆转 node placement。
     #[test]
-    fn test_translate_from_parent_with_insets() {
+    fn test_parent_to_local_transform_with_insets() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5649,19 +5594,19 @@ mod tests {
             )),
         );
         let mut point = (35.0, 55.0);
-        scene.translate_from_parent(coord_root_id, &mut point);
+        point.transform(scene.parent_to_local_transform(coord_root_id).unwrap());
         assert_eq!(point.0, 15.0);
         assert_eq!(point.1, 25.0);
     }
 
-    // ========== translate_to_relative 测试 ==========
+    // ========== surface_to_local_transform 测试 ==========
 
-    /// 测试 translate_to_relative 基本功能
+    /// 测试 surface_to_local_transform 基本功能
     ///
     /// 场景：父节点是坐标根，bounds = (0, 0)
     /// 期望：绝对坐标 (30, 40) 转换为本地坐标 (30, 40)
     #[test]
-    fn test_translate_to_relative_basic() {
+    fn test_surface_to_local_transform_basic() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5677,16 +5622,16 @@ mod tests {
 
         // 绝对坐标位于 child 原点，转换后得到 node-local 原点。
         let mut point = (30.0, 40.0);
-        scene.translate_to_relative(child_id, &mut point);
+        point.transform(scene.surface_to_local_transform(child_id).unwrap());
         assert_eq!(point, (0.0, 0.0));
     }
 
-    /// 测试 translate_to_relative 嵌套坐标根
+    /// 测试 surface_to_local_transform 嵌套坐标根
     ///
     /// 场景：深层嵌套，多个坐标根
     /// 期望：正确累积转换
     #[test]
-    fn test_translate_to_relative_nested() {
+    fn test_surface_to_local_transform_nested() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5711,17 +5656,17 @@ mod tests {
         // 绝对坐标 = coord_root1 + coord_root2 + child = (20+10+15, 30+5+25) = (45, 60)
         // 该绝对坐标是 child 的 node-local 原点。
         let mut point = (45.0, 60.0);
-        scene.translate_to_relative(child_id, &mut point);
+        point.transform(scene.surface_to_local_transform(child_id).unwrap());
         assert_eq!(point, (0.0, 0.0));
     }
 
-    /// 测试 translate_to_relative 与 translate_to_absolute_mut 严格互为父链逆变换。
+    /// 测试 surface_to_local_transform 与 local_to_surface_transform 严格互逆。
     ///
     /// 场景：目标节点本身也是坐标根。
     /// 期望：转换到 absolute 后再转换回 relative 时，不会额外应用目标节点自己的
     /// translateFromParent；这与 Draw2D Figure#translateToRelative 的 parent-chain 协议一致。
     #[test]
-    fn test_translate_to_relative_roundtrips_target_coordinate_root() {
+    fn test_surface_to_local_transform_roundtrips_target_coordinate_root() {
         let mut scene = FigureTree::new();
 
         let contents_id =
@@ -5738,19 +5683,19 @@ mod tests {
         );
 
         let mut point = (15.0, 25.0);
-        scene.translate_to_absolute_mut(coord_root2_id, &mut point);
+        point.transform(scene.local_to_surface_transform(coord_root2_id).unwrap());
         assert_eq!(point, (45.0, 60.0));
 
-        scene.translate_to_relative(coord_root2_id, &mut point);
+        point.transform(scene.surface_to_local_transform(coord_root2_id).unwrap());
         assert_eq!(point, (15.0, 25.0));
     }
 
-    /// 测试 translate_to_relative Rectangle 类型
+    /// 测试 surface_to_local_transform 可应用到 Rectangle。
     ///
     /// 场景：使用 Rectangle 类型进行坐标转换
     /// 期望：Rectangle 的 x, y 被正确转换
     #[test]
-    fn test_translate_to_relative_rect() {
+    fn test_surface_to_local_transform_rect() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5768,19 +5713,19 @@ mod tests {
 
         // 绝对矩形从 child 原点开始。
         let mut rect = Rectangle::new(40.0, 60.0, 50.0, 50.0);
-        scene.translate_to_relative(child_id, &mut rect);
+        rect.transform(scene.surface_to_local_transform(child_id).unwrap());
         assert_eq!(rect.x, 0.0);
         assert_eq!(rect.y, 0.0);
     }
 
-    // ========== translate_to_absolute_mut 测试 ==========
+    // ========== local_to_surface_transform 测试 ==========
 
-    /// 测试 translate_to_absolute_mut 基本功能
+    /// 测试 local_to_surface_transform 基本功能
     ///
     /// 场景：父节点是坐标根，bounds = (20, 30)
     /// 期望：本地坐标 (10, 5) 转换为绝对坐标 (30, 35)
     #[test]
-    fn test_translate_to_absolute_mut_basic() {
+    fn test_local_to_surface_transform_basic() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5797,13 +5742,13 @@ mod tests {
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
-        scene.translate_to_absolute_mut(child_id, &mut point);
+        point.transform(scene.local_to_surface_transform(child_id).unwrap());
         assert_eq!(point, (30.0, 35.0));
     }
 
-    /// 测试 translate_to_absolute_mut 在坐标根包含 insets 时会通过父链协议叠加它们。
+    /// 测试 local_to_surface_transform 在坐标根包含 insets 时通过父链协议叠加。
     #[test]
-    fn test_translate_to_absolute_mut_includes_parent_insets() {
+    fn test_local_to_surface_transform_includes_parent_insets() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5824,16 +5769,16 @@ mod tests {
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
-        scene.translate_to_absolute_mut(child_id, &mut point);
+        point.transform(scene.local_to_surface_transform(child_id).unwrap());
         assert_eq!(point, (37.0, 40.0));
     }
 
-    /// 测试 translate_to_absolute_mut 嵌套坐标根
+    /// 测试 local_to_surface_transform 嵌套坐标根
     ///
     /// 场景：多层坐标根
     /// 期望：正确累加多个坐标根的 bounds
     #[test]
-    fn test_translate_to_absolute_mut_nested() {
+    fn test_local_to_surface_transform_nested() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5857,13 +5802,13 @@ mod tests {
 
         // 绝对坐标 = coord_root1 + coord_root2 + child = (10+5+15, 20+10+25) = (30, 55)
         let mut point = (0.0, 0.0);
-        scene.translate_to_absolute_mut(child_id, &mut point);
+        point.transform(scene.local_to_surface_transform(child_id).unwrap());
         assert_eq!(point, (30.0, 55.0));
     }
 
-    /// 测试 translate_to_absolute_mut 在多层坐标根且包含 insets 时严格按父链协议累加。
+    /// 测试 local_to_surface_transform 在多层坐标根且包含 insets 时严格按父链协议累加。
     #[test]
-    fn test_translate_to_absolute_mut_nested_insets_follow_parent_chain_protocol() {
+    fn test_local_to_surface_transform_nested_insets_follow_parent_chain_protocol() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5895,16 +5840,16 @@ mod tests {
         let child_id = scene.add_child_to(coord_root2_id, Box::new(child));
 
         let mut point = (0.0, 0.0);
-        scene.translate_to_absolute_mut(child_id, &mut point);
+        point.transform(scene.local_to_surface_transform(child_id).unwrap());
         assert_eq!(point, (39.0, 61.0));
     }
 
-    /// 测试 translate_to_absolute_mut Rectangle 类型
+    /// 测试 local_to_surface_transform 可应用到 Rectangle。
     ///
     /// 场景：使用 Rectangle 类型进行坐标转换
     /// 期望：Rectangle 的 x, y 被正确转换
     #[test]
-    fn test_translate_to_absolute_mut_rect() {
+    fn test_local_to_surface_transform_rect() {
         let mut scene = FigureTree::new();
 
         let contents = RectangleFigure::new(0.0, 0.0, 800.0, 600.0);
@@ -5921,7 +5866,7 @@ mod tests {
         let child_id = scene.add_child_to(coord_root_id, Box::new(child));
 
         let mut rect = Rectangle::new(0.0, 0.0, 50.0, 50.0);
-        scene.translate_to_absolute_mut(child_id, &mut rect);
+        rect.transform(scene.local_to_surface_transform(child_id).unwrap());
         assert_eq!(rect.x, 30.0);
         assert_eq!(rect.y, 35.0);
     }

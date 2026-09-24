@@ -497,13 +497,8 @@ impl UpdateManager {
     }
 
     /// 返回当前积累的更新通知 effect。
-    pub fn notification_effects(&self) -> &[NotificationEffect] {
+    pub(crate) fn notification_effects(&self) -> &[NotificationEffect] {
         self.notification_effects.effects()
-    }
-
-    /// 排空更新通知 effect。
-    pub fn drain_notification_effects(&mut self) -> Vec<NotificationEffect> {
-        self.notification_effects.drain()
     }
 
     /// 获取失效块数量
@@ -620,7 +615,11 @@ impl UpdateManager {
         }
     }
 
-    pub fn perform_update(&mut self, graph: &mut crate::graph::FigureTree, canvas: &mut NdCanvas) {
+    pub(crate) fn perform_update(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+        canvas: &mut NdCanvas,
+    ) {
         if self.updating {
             return;
         }
@@ -686,11 +685,13 @@ mod tests {
     use super::*;
     use crate::{
         AncestorEvent, AncestorListener, CoordinateListener, Figure, FigureEvent, FigureListener,
-        FigureTree, LayoutError, LayoutEvent, LayoutListener, LayoutManager, LayoutOutput,
-        LayoutSnapshot, PropertyChangeEvent, PropertyChangeListener, RectangleFigure, StackLayout,
-        XYConstraint, XYLayout, scene::FigureId, update::UpdateManager,
+        FigureMeasurement, FigureTree, LayoutError, LayoutEvent, LayoutListener, LayoutManager,
+        LayoutOutput, LayoutSnapshot, MeasureConstraints, PropertyChangeEvent,
+        PropertyChangeListener, RectangleFigure, StackLayout, XYConstraint, XYLayout,
+        scene::FigureId, update::UpdateManager,
     };
     use novadraw_core::Color;
+    use novadraw_geometry::Dimension;
     use slotmap::KeyData;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -720,24 +721,23 @@ mod tests {
     }
 
     impl LayoutManager for PanicOnceLayout {
-        fn get_preferred_size(
+        fn preferred_measurement(
             &self,
             _container: FigureId,
-            _w_hint: f64,
-            _h_hint: f64,
+            _constraints: MeasureConstraints,
             _snapshot: &LayoutSnapshot<'_>,
-        ) -> (f64, f64) {
-            (0.0, 0.0)
+        ) -> FigureMeasurement {
+            FigureMeasurement::default()
         }
 
-        fn get_minimum_size(
+        fn minimum_size(
             &self,
             container: FigureId,
-            w_hint: f64,
-            h_hint: f64,
+            constraints: MeasureConstraints,
             snapshot: &LayoutSnapshot<'_>,
-        ) -> (f64, f64) {
-            self.get_preferred_size(container, w_hint, h_hint, snapshot)
+        ) -> Dimension {
+            self.preferred_measurement(container, constraints, snapshot)
+                .size()
         }
 
         fn layout(

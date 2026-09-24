@@ -1,7 +1,8 @@
 //! Stack layout: every child occupies the container client area.
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::Dimension;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct StackLayout;
@@ -14,46 +15,44 @@ impl StackLayout {
     fn aggregate_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         snapshot
             .children(container)
             .into_iter()
             .map(|(child, _)| {
                 if minimum {
-                    snapshot.minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, constraints)
                 } else {
-                    snapshot.preferred_size(child, w_hint, h_hint)
+                    snapshot.preferred_measurement(child, constraints).size()
                 }
             })
-            .fold((0.0_f64, 0.0_f64), |size, child| {
-                (size.0.max(child.0), size.1.max(child.1))
+            .fold(Dimension::ZERO, |size, child| {
+                Dimension::new(size.width.max(child.width), size.height.max(child.height))
             })
     }
 }
 
 impl LayoutManager for StackLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.aggregate_size(container, constraints, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, snapshot, true)
+    ) -> Dimension {
+        self.aggregate_size(container, constraints, snapshot, true)
     }
 
     fn layout(

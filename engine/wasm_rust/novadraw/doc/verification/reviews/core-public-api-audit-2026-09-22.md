@@ -2,9 +2,9 @@
 
 类型：`verification`
 
-状态：`P0 implemented`
+状态：`P0 implemented; API-06 implemented`
 
-实施状态：`Batch A/B complete; Batch C/D unscheduled`
+实施状态：`Batch A/B complete; API-03/API-04/API-06 follow-up complete`
 
 日期：2026-09-22
 
@@ -28,8 +28,10 @@ P0 实施日期：2026-09-24
 
 本报告第 4 节保留 2026-09-22 审计时的事实和迁移前名称。P0 目标已由
 [ADR-017](../../adr/adr-017-core-public-api-boundary.md) 裁决，并于 2026-09-24
-完成 Batch A/B；实施证据见第 9 节。P1/P2 项仍未排期，不改变 Core 1.0、roadmap
-或 parity ledger 状态。
+完成 Batch A/B；同日由
+[ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md) 裁决并完成
+API-03/API-04 剩余项与 API-06。实施证据见第 9、10 节。其他 P1/P2 项仍未排期，
+不改变 Core 1.0、roadmap 或 parity ledger 状态。
 
 ## 2. 总体结论
 
@@ -45,9 +47,9 @@ P0 实施日期：2026-09-24
 `FigureTree` 已有同名一参数方法，且它会根据 `contents` 是否存在隐式选择 contents
 或 synthetic root。目标 API 必须先消除这种隐式作用域，再统一名称。
 
-2026-09-24 更新：上述 P0 术语、阶段边界、显式目标和失败模型已完成收口。剩余风险
-集中在 Layout measurement、Graphics、Color、Geometry 和 crate root 分层等 P1/P2
-项目。
+2026-09-24 更新：上述 P0 术语、阶段边界、显式目标和失败模型已完成收口；
+Layout measurement 与坐标查询也已完成结构化迁移。剩余风险集中在 Graphics、Color、
+Geometry 和 crate root 分层等 P1/P2 项。
 
 ## 3. 审计原则
 
@@ -155,7 +157,7 @@ Runtime::clear_layout_manager(
 
 优先级：P0
 
-状态：P0 mutation 边界已整改；low-level/headless 表面待 P1 设计
+状态：已整改（2026-09-24）
 
 事实：
 
@@ -180,14 +182,20 @@ Runtime::clear_layout_manager(
 - `Runtime`：全部运行期 mutation、validation、damage、render publication；
 - internal modules：低层 primitive、UpdateManager 协作和通知队列操作。
 
-是否继续公开 `FigureTree::render`、`perform_update`、`notification_effects` 等低层入口，
-需要在实施前单独确认 headless/custom-host 的真实扩展需求。
+实施结论：
+
+- `FigureTree` 的 notification queue、validation、damage 与直接 render primitive
+  已限制为 crate 内部；
+- `UpdateManager::perform_update` 已限制为 crate 内部；
+- custom host 通过
+  `Runtime::{prepare_submission,prepare_frame,record_full_frame}` 驱动；
+- 显式局部请求通过 `Runtime::{revalidate,repaint}` 进入同一事务边界。
 
 ### API-04：失败模型混合 null、bool、panic 和 Result
 
 优先级：P0
 
-状态：已整改（2026-09-24）
+状态：已整改（2026-09-24，含坐标查询 follow-up）
 
 事实：
 
@@ -207,6 +215,11 @@ Runtime::clear_layout_manager(
 - `FigureId::null()` 不作为正常控制流结果；
 - `false` 只表示合法目标已经处于目标状态；
 - 坐标查询统一返回 `Option<Transform>` 或结构化 `Result`，调用方再决定是否原地应用。
+
+坐标 follow-up 已删除静默原地修改 helper，统一为
+`local_to_parent_transform`、`parent_to_local_transform`、
+`local_to_surface_transform`、`surface_to_local_transform` 和
+`child_content_to_surface_transform`。
 
 ### API-05：`FigureTree::validate` 名称与行为不一致
 
@@ -230,7 +243,7 @@ validation 概念。需要直接设置 valid bit 的 primitive 必须保持私�
 
 优先级：P1
 
-状态：待设计
+状态：已整改（2026-09-24）
 
 事实：
 
@@ -252,9 +265,17 @@ fn preferred_measurement(
 ) -> FigureMeasurement;
 ```
 
-最低限度也应使用 `MeasureConstraints` 和 `Dimension`，消除裸 tuple 与负数 sentinel。
-是否合并 preferred/minimum 两个方法，应以 Draw2D 回退顺序和现有自定义 LayoutManager
-迁移成本为依据，不在本报告中直接裁决。
+实施结论：
+
+- 保留 preferred/minimum 两条查询，维持 Draw2D 的回退顺序；
+- preferred 使用 `FigureMeasurement`，保留 baseline；
+- minimum/maximum 使用 `Dimension`；
+- `LayoutManager`、`LayoutSnapshot` 与 `FigureTree` 统一接受
+  `MeasureConstraints`；
+- `MeasureConstraints` 构造时拒绝负数和非有限上限；
+- `LayoutContext` 与 `LayoutSnapshot::new` 已收为 crate 内部实现细节；
+- `XYConstraint` 等布局约束若仍有自动轴 sentinel，必须在布局器边界转换，不得传播到
+  测量扩展协议。
 
 ### API-07：查询命名和权威数据源不统一
 
@@ -448,10 +469,10 @@ raw RenderCommand internals
 - 统一 `Result`、幂等 `Ok(false)` 与 error 类型；
 - 删除错误语义的 `FigureTree::validate`。
 
-### Batch C：领域类型与扩展协议（未排期）
+### Batch C：领域类型与扩展协议（部分完成）
 
-- Layout measurement 改用结构化约束和尺寸类型；
-- 收口 `LayoutContext` 是否需要公开实现；
+- Layout measurement 已改用结构化约束和尺寸类型；
+- `LayoutContext` 与 `LayoutSnapshot::new` 已收为 crate 内部；
 - 清理 Geometry 兼容别名；
 - 统一 Point/Vector/Transform 表示。
 
@@ -482,17 +503,15 @@ raw RenderCommand internals
 
 ## 8. 后续推进门禁
 
-启动 Batch C/D 前应完成以下决策：
+继续 Batch C/D 前应完成以下决策：
 
-1. 确认 `FigureTree` 最终是否只保留 query，或仍支持显式 low-level/headless API；
-2. 确认聚合 crate root 的稳定 API 白名单；
-3. 确认 Layout measurement 的目标类型，不把 `-1.0` sentinel 带入新接口；
-4. 确认 NdCanvas 采用 Draw2D Graphics 方言还是独立 Rust 命名；
-5. 为下一批 breaking change 再次确认兼容策略；Batch A/B 已按 `0.1.0` 直接迁移，
+1. 确认聚合 crate root 的稳定 API 白名单；
+2. 确认 NdCanvas 采用 Draw2D Graphics 方言还是独立 Rust 命名；
+3. 为下一批 breaking change 再次确认兼容策略；Batch A/B 已按 `0.1.0` 直接迁移，
    未保留 `#[deprecated]` 双入口。
 
-完成上述设计门禁后，再创建 roadmap delta 或实施计划。ADR-017 只授权了 Batch A/B，
-不构成 Batch C/D 的实施授权。
+FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其余设计门禁完成后，
+再创建对应 roadmap delta 或实施计划。
 
 ## 9. P0 实施证据
 
@@ -514,6 +533,29 @@ raw RenderCommand internals
   `d3_runtime_mutation::runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures`
   与 `m5_layout_contract::builder_rejects_wrong_constraint_type_without_mutating_layout_state`
   等契约测试。
+
+## 10. API-03/API-04/API-06 Follow-up 实施证据
+
+2026-09-24 完成：
+
+- `FigureTree` 的 notification、update、validation 与直接 render 驱动入口改为
+  crate 内部，`UpdateManager::perform_update` 同步收口；
+- 新增 `Runtime::{revalidate,repaint}`，宿主与 benchmark 改走 Runtime 帧边界；
+- 删除静默原地坐标 helper，公开 API 统一返回 `Option<Affine2D>`；
+- `LayoutManager`、`LayoutSnapshot` 与 `FigureTree` 使用
+  `MeasureConstraints`、`FigureMeasurement`、`Dimension`；
+- preferred 测量保留 baseline，结构化 constraints 直接参与 cache key；
+- `LayoutContext` 与 snapshot 构造限制为 crate 内部；
+- `MeasureConstraints` 拒绝负数和非有限上限，XY/Grid/Border constraint 在安装时
+  校验会进入测量的数值。
+
+验证入口：
+
+- `novadraw-scene/tests/d4_constrained_measurement.rs`；
+- `novadraw-scene/tests/m4_coordinate_contract.rs`；
+- `novadraw-scene/tests/m5_layout_contract.rs`；
+- `apps/native/update-app` verification cases；
+- `cargo xtask docs`、`cargo xtask check --quick` 与最终 full gate。
 
 验证结果：
 

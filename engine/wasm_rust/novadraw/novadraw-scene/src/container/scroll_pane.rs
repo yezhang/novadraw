@@ -3,15 +3,15 @@ use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Dimension, Point, Rectangle};
 use novadraw_render::NdCanvas;
 
 use crate::figure::{Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
-    EventContext, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, MouseEvent,
-    PropertyValue, RangeModel, ScrollDeltaKind, UpdateManager, ViewportError, ViewportHandle,
-    WheelEvent,
+    EventContext, FigureId, FigureMeasurement, FigureTree, FigureTreeBuilder, GraphMutationError,
+    MeasureConstraints, MouseEvent, PropertyValue, RangeModel, ScrollDeltaKind, UpdateManager,
+    ViewportError, ViewportHandle, WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
@@ -638,38 +638,38 @@ pub struct ScrollPaneLayout {
 }
 
 impl LayoutManager for ScrollPaneLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         _container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        let viewport_size = snapshot.preferred_size(self.viewport, w_hint, h_hint);
+    ) -> FigureMeasurement {
+        let viewport_size = snapshot
+            .preferred_measurement(self.viewport, constraints)
+            .size();
         let runtime = lock_unpoisoned(&self.runtime);
-        let width = viewport_size.0
+        let width = viewport_size.width
             + if runtime.vertical_visibility == ScrollBarVisibility::Never {
                 0.0
             } else {
                 runtime.scroll_bar_thickness
             };
-        let height = viewport_size.1
+        let height = viewport_size.height
             + if runtime.horizontal_visibility == ScrollBarVisibility::Never {
                 0.0
             } else {
                 runtime.scroll_bar_thickness
             };
-        (width, height)
+        FigureMeasurement::new(width, height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         _container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         _snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        (0.0, 0.0)
+    ) -> Dimension {
+        Dimension::ZERO
     }
 
     fn layout(
@@ -679,7 +679,13 @@ impl LayoutManager for ScrollPaneLayout {
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let area = snapshot.container_bounds(container);
-        let preferred = snapshot.preferred_size(self.viewport, area.width, area.height);
+        let preferred = snapshot
+            .preferred_measurement(
+                self.viewport,
+                MeasureConstraints::bounded(area.width, area.height)
+                    .expect("scroll pane client area is valid layout geometry"),
+            )
+            .size();
         let (h_policy, v_policy, thickness) = {
             let runtime = lock_unpoisoned(&self.runtime);
             (
@@ -695,9 +701,9 @@ impl LayoutManager for ScrollPaneLayout {
             let viewport_width = (area.width - if show_v { thickness } else { 0.0 }).max(0.0);
             let viewport_height = (area.height - if show_h { thickness } else { 0.0 }).max(0.0);
             show_h = h_policy != ScrollBarVisibility::Never
-                && (h_policy == ScrollBarVisibility::Always || preferred.0 > viewport_width);
+                && (h_policy == ScrollBarVisibility::Always || preferred.width > viewport_width);
             show_v = v_policy != ScrollBarVisibility::Never
-                && (v_policy == ScrollBarVisibility::Always || preferred.1 > viewport_height);
+                && (v_policy == ScrollBarVisibility::Always || preferred.height > viewport_height);
         }
 
         let viewport_width = (area.width - if show_v { thickness } else { 0.0 }).max(0.0);

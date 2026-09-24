@@ -128,8 +128,11 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     runtime
         .set_view_location(pane.viewport(), 0.0, 0.0)
         .map_err(|error| error.to_string())?;
-    let mut point = novadraw::Point::new(0.0, 0.0);
-    runtime.tree().translate_to_absolute_mut(child, &mut point);
+    let point = runtime
+        .tree()
+        .local_to_surface_transform(child)
+        .ok_or("missing child transform")?
+        .transform_point_vec2(novadraw::Point::new(0.0, 0.0));
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;
     if point != novadraw::Point::new(expected_x, expected_y) {
@@ -183,10 +186,11 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         KeyModifiers::default(),
         GestureSessionId::IMPULSE,
     ));
-    let mut content_point = novadraw::Point::new(50.0, 40.0);
-    runtime
+    let content_point = runtime
         .tree()
-        .translate_to_absolute_mut(child, &mut content_point);
+        .local_to_surface_transform(child)
+        .ok_or("missing child transform")?
+        .transform_point_vec2(novadraw::Point::new(50.0, 40.0));
     if content_point != anchor {
         return Err(format!(
             "pinch anchor moved from {anchor:?} to {content_point:?}"

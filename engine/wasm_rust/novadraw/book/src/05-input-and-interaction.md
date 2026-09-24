@@ -40,8 +40,9 @@ flowchart TD
 实际核心：
 
 ```rust
-let mut local_point = point;
-self.translate_from_parent(id, &mut local_point);
+let local_point = self
+    .parent_to_local_transform(id)?
+    .transform_point(point.0, point.1);
 let self_hit = node.figure.precise_hit(...);
 
 let mut child_point = local_point;

@@ -22,6 +22,8 @@ change 的调用面，并固化错误的阶段边界。
 本决策落实
 [`Core 公开 API 语义与命名审计`](../verification/reviews/core-public-api-audit-2026-09-22.md)
 中的 P0 项，不处理 Graphics、Geometry alias 或聚合 crate 导出等 P1/P2 项。
+后续 Runtime 驱动、坐标查询和结构化测量由
+[ADR-018](adr-018-runtime-driving-and-measurement-api.md) 补充裁决。
 
 ## 决策
 

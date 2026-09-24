@@ -6,7 +6,8 @@
 use tracing::debug;
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::Dimension;
 
 /// Fill 布局器
 ///
@@ -28,32 +29,30 @@ impl Default for FillLayout {
 }
 
 impl LayoutManager for FillLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> FigureMeasurement {
         snapshot
             .children(container)
             .first()
-            .map(|(child, _)| snapshot.preferred_size(*child, w_hint, h_hint))
-            .unwrap_or((0.0, 0.0))
+            .map(|(child, _)| snapshot.preferred_measurement(*child, constraints))
+            .unwrap_or_default()
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         snapshot
             .children(container)
             .first()
-            .map(|(child, _)| snapshot.minimum_size(*child, w_hint, h_hint))
-            .unwrap_or((0.0, 0.0))
+            .map(|(child, _)| snapshot.minimum_size(*child, constraints))
+            .unwrap_or_default()
     }
 
     fn layout(

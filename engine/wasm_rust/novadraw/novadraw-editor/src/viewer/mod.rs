@@ -849,11 +849,11 @@ where
             .scale_handle(self.root_layers.scalable())
             .ok_or(ViewerError::InconsistentState)?;
         let anchor = anchor
-            .map(|mut point| {
+            .map(|point| {
                 self.runtime
                     .tree()
-                    .translate_to_relative(self.root_layers.viewport(), &mut point)
-                    .then_some(point)
+                    .surface_to_local_transform(self.root_layers.viewport())
+                    .map(|transform| transform.transform_point_vec2(point))
                     .ok_or(ViewerError::InconsistentState)
             })
             .transpose()?;

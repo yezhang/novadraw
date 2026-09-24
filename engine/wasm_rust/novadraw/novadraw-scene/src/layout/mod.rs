@@ -21,8 +21,8 @@ pub use toolbar_layout::{MinorAlignment, ToolbarLayout, ToolbarOrientation};
 pub use xy_layout::{XYConstraint, XYLayout};
 
 use crate::container::viewport::ViewportLayoutEffect;
-use crate::{FigureMeasurement, PropertyValue, graph::FigureId};
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, PropertyValue, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
@@ -45,12 +45,12 @@ impl<T: Any> LayoutConstraint for T {
     }
 }
 
-/// Read-only layout queries exposed through [`LayoutSnapshot`].
+/// Read-only layout queries used to construct [`LayoutSnapshot`].
 ///
-/// This remains a trait so tests and future frozen scene representations can
-/// provide the data. Layout managers only receive the concrete immutable
-/// snapshot wrapper and cannot mutate the Figure tree.
-pub trait LayoutContext {
+/// This remains an internal trait so tests and future frozen scene
+/// representations can provide the data. Layout managers only receive the
+/// concrete immutable snapshot wrapper and cannot mutate the Figure tree.
+pub(crate) trait LayoutContext {
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
@@ -59,22 +59,21 @@ pub trait LayoutContext {
     /// 获取子元素的布局约束
     fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint>;
 
-    /// 获取块的首选尺寸
-    fn get_preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64);
+    /// 获取 Figure 的首选测量结果。
+    fn preferred_measurement(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> FigureMeasurement;
 
-    fn get_measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        let (width, height) = self.get_preferred_size(figure_id, w_hint, h_hint);
-        FigureMeasurement::new(width, height, None)
+    /// 获取 Figure 的最小尺寸。
+    fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
+        self.preferred_measurement(figure_id, constraints).size()
     }
 
-    /// 获取块的最小尺寸。
-    fn get_minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.get_preferred_size(figure_id, w_hint, h_hint)
-    }
-
-    /// 获取块的最大尺寸。
-    fn get_maximum_size(&self, _figure_id: FigureId) -> (f64, f64) {
-        (f64::INFINITY, f64::INFINITY)
+    /// 获取 Figure 的最大尺寸。
+    fn maximum_size(&self, _figure_id: FigureId) -> Dimension {
+        Dimension::new(f64::INFINITY, f64::INFINITY)
     }
 
     /// 获取容器 client area 在子节点坐标域中的矩形。
@@ -96,7 +95,7 @@ pub struct LayoutSnapshot<'a> {
 }
 
 impl<'a> LayoutSnapshot<'a> {
-    pub fn new(source: &'a dyn LayoutContext) -> Self {
+    pub(crate) fn new(source: &'a dyn LayoutContext) -> Self {
         Self { source }
     }
 
@@ -126,20 +125,20 @@ impl<'a> LayoutSnapshot<'a> {
         )
     }
 
-    pub fn preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.source.get_preferred_size(figure_id, w_hint, h_hint)
+    pub fn preferred_measurement(
+        &self,
+        figure_id: FigureId,
+        constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        self.source.preferred_measurement(figure_id, constraints)
     }
 
-    pub fn measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        self.source.get_measurement(figure_id, w_hint, h_hint)
+    pub fn minimum_size(&self, figure_id: FigureId, constraints: MeasureConstraints) -> Dimension {
+        self.source.minimum_size(figure_id, constraints)
     }
 
-    pub fn minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.source.get_minimum_size(figure_id, w_hint, h_hint)
-    }
-
-    pub fn maximum_size(&self, figure_id: FigureId) -> (f64, f64) {
-        self.source.get_maximum_size(figure_id)
+    pub fn maximum_size(&self, figure_id: FigureId) -> Dimension {
+        self.source.maximum_size(figure_id)
     }
 
     pub fn container_bounds(&self, container_id: FigureId) -> Rectangle {
@@ -322,28 +321,25 @@ pub trait LayoutManager {
         })
     }
 
-    /// 获取首选大小
+    /// 获取首选测量结果。
     ///
-    /// 对应 draw2d: getPreferredSize(IFigure, int, int)
-    /// wHint, hHint 为建议的宽高，-1 表示无限制
-    fn get_preferred_size(
+    /// 对应 draw2d: getPreferredSize(IFigure, int, int)，但使用结构化约束和结果。
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64);
+    ) -> FigureMeasurement;
 
     /// 获取最小大小
     ///
     /// 对应 draw2d: getMinimumSize(IFigure, int, int)
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64);
+    ) -> Dimension;
 
     /// 执行布局
     ///

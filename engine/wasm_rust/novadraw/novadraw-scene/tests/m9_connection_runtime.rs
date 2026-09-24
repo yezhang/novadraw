@@ -433,8 +433,7 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
     );
     assert!(
         runtime
-            .tree()
-            .render()
+            .record_full_frame()
             .commands()
             .iter()
             .any(|command| matches!(&command.kind, RenderCommandKind::Polyline { .. }))

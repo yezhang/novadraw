@@ -1,9 +1,10 @@
+use novadraw_geometry::Dimension;
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     BorderConstraint, BorderRegion, ChildClippingStrategy, ChildPolicy, EventContext, Figure,
     FigureContainer, FigureEventHandler, FigureId, FigureTree, GraphMutationError, GridLayout,
-    LayerFigure, LayerKey, LayerPlacement, LayoutError, MouseButton, MouseEvent, Rectangle,
-    RectangleFigure, Runtime, RuntimeMutationError, XYConstraint, XYLayout,
+    LayerFigure, LayerKey, LayerPlacement, LayoutError, MeasureConstraints, MouseButton,
+    MouseEvent, Rectangle, RectangleFigure, Runtime, RuntimeMutationError, XYConstraint, XYLayout,
 };
 
 #[test]
@@ -64,14 +65,22 @@ fn runtime_size_overrides_are_checked_and_clearable() {
     assert!(runtime.set_minimum_size(child, (20.0, 30.0)).unwrap());
     assert!(runtime.set_maximum_size(child, (100.0, 120.0)).unwrap());
     assert_eq!(
-        runtime.tree().preferred_size(child, -1.0, -1.0),
-        Some((50.0, 60.0))
+        runtime
+            .tree()
+            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(50.0, 60.0))
     );
     assert_eq!(
-        runtime.tree().minimum_size(child, -1.0, -1.0),
-        Some((20.0, 30.0))
+        runtime
+            .tree()
+            .minimum_size(child, MeasureConstraints::UNBOUNDED),
+        Some(Dimension::new(20.0, 30.0))
     );
-    assert_eq!(runtime.tree().maximum_size(child), Some((100.0, 120.0)));
+    assert_eq!(
+        runtime.tree().maximum_size(child),
+        Some(Dimension::new(100.0, 120.0))
+    );
 
     let invalid = runtime
         .set_preferred_size(child, (f64::NAN, 10.0))
@@ -81,24 +90,32 @@ fn runtime_size_overrides_are_checked_and_clearable() {
         RuntimeMutationError::InvalidSize { figure, .. } if figure == child
     ));
     assert_eq!(
-        runtime.tree().preferred_size(child, -1.0, -1.0),
-        Some((50.0, 60.0))
+        runtime
+            .tree()
+            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(50.0, 60.0))
     );
 
     assert!(runtime.clear_preferred_size(child).unwrap());
     assert!(runtime.clear_minimum_size(child).unwrap());
     assert!(runtime.clear_maximum_size(child).unwrap());
     assert_eq!(
-        runtime.tree().preferred_size(child, -1.0, -1.0),
-        Some((30.0, 40.0))
+        runtime
+            .tree()
+            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(30.0, 40.0))
     );
     assert_eq!(
-        runtime.tree().minimum_size(child, -1.0, -1.0),
-        Some((30.0, 40.0))
+        runtime
+            .tree()
+            .minimum_size(child, MeasureConstraints::UNBOUNDED),
+        Some(Dimension::new(30.0, 40.0))
     );
     assert_eq!(
         runtime.tree().maximum_size(child),
-        Some((f64::INFINITY, f64::INFINITY))
+        Some(Dimension::new(f64::INFINITY, f64::INFINITY))
     );
 }
 
@@ -127,6 +144,30 @@ fn runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures() 
     assert_eq!((bounds.x, bounds.y, bounds.height), (0.0, 0.0, 10.0));
     assert!(bounds.width.is_nan());
     assert_eq!(runtime.tree().figure_bounds(root), Some(original));
+}
+
+#[test]
+fn runtime_update_requests_validate_target_and_damage_geometry() {
+    let (mut runtime, root, child) = runtime_with_child();
+    let mut foreign = Runtime::empty();
+    let foreign_figure = foreign
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+
+    assert_eq!(
+        runtime.revalidate(foreign_figure),
+        Err(RuntimeMutationError::ForeignRuntime(foreign_figure))
+    );
+    assert!(matches!(
+        runtime.repaint(
+            child,
+            Some(Rectangle::new(0.0, 0.0, f64::NAN, 10.0))
+        ),
+        Err(RuntimeMutationError::InvalidBounds { figure, .. }) if figure == child
+    ));
+    assert!(runtime.revalidate(root).is_ok());
+    assert!(runtime.repaint(child, None).is_ok());
+    assert!(runtime.prepare_frame().is_some());
 }
 
 #[test]
@@ -357,12 +398,17 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
     runtime.dispatch_mouse_pressed(210.0, 30.0, MouseButton::Left);
 
     assert_eq!(
-        runtime.tree().preferred_size(child, -1.0, -1.0),
-        Some((60.0, 70.0))
+        runtime
+            .tree()
+            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(60.0, 70.0))
     );
     assert_eq!(
-        runtime.tree().minimum_size(child, -1.0, -1.0),
-        Some((20.0, 30.0))
+        runtime
+            .tree()
+            .minimum_size(child, MeasureConstraints::UNBOUNDED),
+        Some(Dimension::new(20.0, 30.0))
     );
     assert_eq!(
         runtime.take_deferred_mutation_errors(),

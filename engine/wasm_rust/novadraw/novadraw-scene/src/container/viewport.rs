@@ -4,20 +4,20 @@
 //!
 //! 这里的 `content` 不是 Figure 树外的统一全局空间，而是某个 viewport
 //! 管理的内容坐标域。未来如果 Viewport 作为 Figure 节点接入树结构，应通过
-//! `translate_to_parent` / `translate_from_parent` 协议加入父链，而不是在事件或渲染入口
+//! `local_to_parent_transform` / `parent_to_local_transform` 协议加入父链，而不是在事件或渲染入口
 //! 额外添加全局空间特判。
 
 use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Dimension, Point, Rectangle};
 use novadraw_render::NdCanvas;
 
 use super::range_model::normalize_range;
 use crate::figure::{
     BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure,
-    FigureContainer, border::Border,
+    FigureContainer, FigureMeasurement, MeasureConstraints, border::Border,
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::{
@@ -383,30 +383,37 @@ impl ViewportLayout {
 }
 
 impl LayoutManager for ViewportLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> FigureMeasurement {
         let Some((contents, _)) = snapshot.children(container).first().copied() else {
-            return (0.0, 0.0);
+            return FigureMeasurement::default();
         };
         let runtime = lock_unpoisoned(&self.runtime);
-        let width_hint = if runtime.tracks_width { w_hint } else { -1.0 };
-        let height_hint = if runtime.tracks_height { h_hint } else { -1.0 };
-        snapshot.preferred_size(contents, width_hint, height_hint)
+        let child_constraints = MeasureConstraints::new(
+            runtime
+                .tracks_width
+                .then(|| constraints.max_width())
+                .flatten(),
+            runtime
+                .tracks_height
+                .then(|| constraints.max_height())
+                .flatten(),
+        )
+        .expect("filtered measurement constraints remain valid");
+        snapshot.preferred_measurement(contents, child_constraints)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         _container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         _snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        (0.0, 0.0)
+    ) -> Dimension {
+        Dimension::ZERO
     }
 
     fn layout(
@@ -482,17 +489,19 @@ impl LayoutManager for ViewportLayout {
             let runtime = lock_unpoisoned(&self.runtime);
             (runtime.tracks_width, runtime.tracks_height)
         };
-        let preferred = snapshot.preferred_size(contents, area.width, area.height);
-        let minimum = snapshot.minimum_size(contents, area.width, area.height);
+        let constraints = MeasureConstraints::bounded(area.width, area.height)
+            .expect("viewport client area is valid layout geometry");
+        let preferred = snapshot.preferred_measurement(contents, constraints).size();
+        let minimum = snapshot.minimum_size(contents, constraints);
         let width = if tracks_width {
-            area.width.max(minimum.0)
+            area.width.max(minimum.width)
         } else {
-            area.width.max(preferred.0)
+            area.width.max(preferred.width)
         };
         let height = if tracks_height {
-            area.height.max(minimum.1)
+            area.height.max(minimum.height)
         } else {
-            area.height.max(preferred.1)
+            area.height.max(preferred.height)
         };
         out.set_child_bounds(contents, Rectangle::new(0.0, 0.0, width, height));
 
@@ -769,26 +778,23 @@ mod tests {
     }
 
     impl LayoutManager for InvalidViewportLayout {
-        fn get_preferred_size(
+        fn preferred_measurement(
             &self,
             container: FigureId,
-            w_hint: f64,
-            h_hint: f64,
+            constraints: MeasureConstraints,
             snapshot: &LayoutSnapshot<'_>,
-        ) -> (f64, f64) {
+        ) -> FigureMeasurement {
             self.inner
-                .get_preferred_size(container, w_hint, h_hint, snapshot)
+                .preferred_measurement(container, constraints, snapshot)
         }
 
-        fn get_minimum_size(
+        fn minimum_size(
             &self,
             container: FigureId,
-            w_hint: f64,
-            h_hint: f64,
+            constraints: MeasureConstraints,
             snapshot: &LayoutSnapshot<'_>,
-        ) -> (f64, f64) {
-            self.inner
-                .get_minimum_size(container, w_hint, h_hint, snapshot)
+        ) -> Dimension {
+            self.inner.minimum_size(container, constraints, snapshot)
         }
 
         fn layout(

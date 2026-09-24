@@ -1,8 +1,8 @@
 //! Single-row or single-column toolbar layout.
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ToolbarOrientation {
@@ -82,26 +82,25 @@ impl ToolbarLayout {
     fn aggregate_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         let children = snapshot.children(container);
         let mut main = 0.0_f64;
         let mut minor = 0.0_f64;
         for (child, _) in &children {
             let size = if minimum {
-                snapshot.minimum_size(*child, w_hint, h_hint)
+                snapshot.minimum_size(*child, constraints)
             } else {
-                snapshot.preferred_size(*child, w_hint, h_hint)
+                snapshot.preferred_measurement(*child, constraints).size()
             };
-            let size = self.oriented_size(size);
+            let size = self.oriented_size(size.into());
             main += size.0;
             minor = minor.max(size.1);
         }
         main += self.spacing * children.len().saturating_sub(1) as f64;
-        self.physical_size(main, minor)
+        self.physical_size(main, minor).into()
     }
 }
 
@@ -112,24 +111,23 @@ impl Default for ToolbarLayout {
 }
 
 impl LayoutManager for ToolbarLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.aggregate_size(container, constraints, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.aggregate_size(container, w_hint, h_hint, snapshot, true)
+    ) -> Dimension {
+        self.aggregate_size(container, constraints, snapshot, true)
     }
 
     fn layout(
@@ -154,9 +152,22 @@ impl LayoutManager for ToolbarLayout {
         let mut minimum = Vec::with_capacity(children.len());
         let mut maximum = Vec::with_capacity(children.len());
         for (child, _) in &children {
-            preferred.push(self.oriented_size(snapshot.preferred_size(*child, -1.0, -1.0)));
-            minimum.push(self.oriented_size(snapshot.minimum_size(*child, -1.0, -1.0)));
-            maximum.push(self.oriented_size(snapshot.maximum_size(*child)));
+            preferred.push(
+                self.oriented_size(
+                    snapshot
+                        .preferred_measurement(*child, MeasureConstraints::UNBOUNDED)
+                        .size()
+                        .into(),
+                ),
+            );
+            minimum.push(
+                self.oriented_size(
+                    snapshot
+                        .minimum_size(*child, MeasureConstraints::UNBOUNDED)
+                        .into(),
+                ),
+            );
+            maximum.push(self.oriented_size(snapshot.maximum_size(*child).into()));
         }
 
         let spacing_total = self.spacing * children.len().saturating_sub(1) as f64;

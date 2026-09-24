@@ -10,6 +10,7 @@ use novadraw::{
     Point, Rectangle, RectangleFigure, Shape,
     command::{LineCap, LineJoin},
 };
+use novadraw_geometry::Translatable;
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -125,9 +126,9 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     let mut absolute_bounds = Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height);
-    scene.translate_to_absolute_mut(child, &mut absolute_bounds);
+    absolute_bounds.transform(scene.local_to_surface_transform(child).unwrap());
     let mut roundtrip = absolute_bounds;
-    scene.translate_to_relative(child, &mut roundtrip);
+    roundtrip.transform(scene.surface_to_local_transform(child).unwrap());
     assert_eq!(
         roundtrip,
         Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height)
@@ -362,8 +363,10 @@ mod tests {
     #[test]
     fn target_domain_click_selects_the_figure_after_parent_chain_reduction() {
         let (tree, selected, target) = create_event_point_reduction_with_state();
-        let mut entry = Point::new(20.0, 20.0);
-        tree.translate_to_absolute_mut(target, &mut entry);
+        let entry = tree
+            .local_to_surface_transform(target)
+            .unwrap()
+            .transform_point_vec2(Point::new(20.0, 20.0));
         let mut runtime = Runtime::new(tree);
 
         runtime.dispatch_mouse_pressed(entry.x(), entry.y(), MouseButton::Left);

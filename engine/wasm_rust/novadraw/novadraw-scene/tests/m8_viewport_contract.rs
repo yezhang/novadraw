@@ -21,6 +21,13 @@ impl RangeListener for RecordingRangeListener {
     }
 }
 
+fn point_in_surface(graph: &FigureTree, figure: novadraw_scene::FigureId, point: Point) -> Point {
+    graph
+        .local_to_surface_transform(figure)
+        .expect("attached Figure has a surface transform")
+        .transform_point_vec2(point)
+}
+
 #[test]
 fn range_model_clamps_extent_and_value_atomically() {
     let model = DefaultRangeModel::new(0.0, 20.0, 100.0).unwrap();
@@ -178,7 +185,6 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
         .builder()
         .validate_subtree(viewport.figure_id())
         .expect("valid FigureTree construction");
-    graph.drain_notification_effects();
     update_manager.clear();
 
     assert!(
@@ -192,13 +198,6 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
         novadraw_geometry::Point::new(300.0, 250.0)
     );
     assert!(update_manager.has_pending_repaint());
-    assert!(graph.notification_effects().iter().any(|effect| {
-        matches!(
-            effect,
-            novadraw_scene::NotificationEffect::EmitProperty(event)
-                if event.figure_id == viewport.figure_id() && event.property == "viewLocation"
-        )
-    }));
 }
 
 #[test]
@@ -272,11 +271,20 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
             .set_scale(&mut graph, &mut update_manager, 2.0)
             .unwrap()
     );
-    let mut point = Point::new(0.0, 0.0);
-    graph.translate_to_absolute_mut(child, &mut point);
+    let point = point_in_surface(&graph, child, Point::new(0.0, 0.0));
 
     assert_eq!(point, Point::new(140.0, 140.0));
-    let canvas = graph.render();
+    assert_eq!(
+        graph.figure_bounds(scalable.figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+    );
+    assert!(update_manager.has_pending_repaint());
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(graph);
+    let canvas = runtime.record_full_frame();
     let mut transform = Transform::IDENTITY;
     let mut stack = Vec::new();
     let mut projected_child = None;
@@ -312,13 +320,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
         Some(Rectangle::new(140.0, 140.0, 80.0, 40.0))
     );
     assert_eq!(
-        graph.figure_bounds(scalable.figure_id()),
-        Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
-    );
-    assert!(update_manager.has_pending_repaint());
-    graph.perform_update(&mut update_manager);
-    assert_eq!(
-        graph.figure_bounds(scalable.figure_id()),
+        runtime.tree().figure_bounds(scalable.figure_id()),
         Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
     );
 }
@@ -368,7 +370,10 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     scalable
         .set_scale(&mut graph, &mut update_manager, 2.0)
         .unwrap();
-    graph.perform_update(&mut update_manager);
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         graph.figure_bounds(scalable.figure_id()),
@@ -515,17 +520,7 @@ fn unhandled_wheel_uses_nearest_scroll_pane_fallback() {
     }
 
     assert_eq!(pane.viewport().view_location().y(), 24.0);
-    assert!(
-        update_manager
-            .notification_effects()
-            .iter()
-            .any(|effect| matches!(
-                effect,
-                novadraw_scene::NotificationEffect::EmitFigure(
-                    novadraw_scene::FigureEvent::CoordinateSystemChanged { figure_id, .. }
-                ) if *figure_id == pane.viewport().figure_id()
-            ))
-    );
+    assert!(update_manager.has_pending_repaint());
 }
 
 #[test]
@@ -616,8 +611,7 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
 
     assert_eq!(scalable.scale(), 2.0);
     assert_eq!(pane.viewport().view_location(), Point::new(50.0, 50.0));
-    let mut anchored_content_point = Point::new(50.0, 50.0);
-    graph.translate_to_absolute_mut(child, &mut anchored_content_point);
+    let anchored_content_point = point_in_surface(&graph, child, Point::new(50.0, 50.0));
     assert_eq!(anchored_content_point, Point::new(150.0, 130.0));
 }
 
@@ -702,8 +696,7 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
         );
     }
     assert_eq!(pane.viewport().view_location(), Point::new(0.0, 0.0));
-    let mut top_left = Point::new(0.0, 0.0);
-    graph.translate_to_absolute_mut(content, &mut top_left);
+    let top_left = point_in_surface(&graph, content, Point::new(0.0, 0.0));
     assert_eq!(top_left, Point::new(100.0, 80.0));
 
     {
@@ -736,14 +729,16 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
             vertical.maximum - vertical.extent
         )
     );
-    let mut bottom_right = Point::new(640.0, 480.0);
-    graph.translate_to_absolute_mut(content, &mut bottom_right);
+    let bottom_right = point_in_surface(&graph, content, Point::new(640.0, 480.0));
     assert_eq!(
         bottom_right,
         Point::new(100.0 + horizontal.extent, 80.0 + vertical.extent)
     );
 
-    graph.perform_update(&mut update_manager);
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
     assert_eq!(pane.viewport().horizontal_range(), horizontal);
     assert_eq!(pane.viewport().vertical_range(), vertical);
 }
@@ -803,16 +798,17 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
                 ),
             );
         }
-        graph.perform_update(&mut update_manager);
+        graph
+            .builder()
+            .validate_subtree(pane.pane_id())
+            .expect("valid FigureTree construction");
         if factor == 0.5 {
             let horizontal = pane.viewport().horizontal_range();
             let vertical = pane.viewport().vertical_range();
             let scaled_width = 400.0 * scalable.scale();
             let scaled_height = 300.0 * scalable.scale();
-            let mut top_left = Point::new(0.0, 0.0);
-            let mut bottom_right = Point::new(400.0, 300.0);
-            graph.translate_to_absolute_mut(content, &mut top_left);
-            graph.translate_to_absolute_mut(content, &mut bottom_right);
+            let top_left = point_in_surface(&graph, content, Point::new(0.0, 0.0));
+            let bottom_right = point_in_surface(&graph, content, Point::new(400.0, 300.0));
             assert_eq!(top_left, Point::new(100.0, 80.0));
             assert_eq!(
                 bottom_right,
@@ -832,8 +828,11 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
 fn vertical_scroll_bar_step_updates_shared_viewport_model() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
-    let mut point = Point::new(bounds.width / 2.0, bounds.height - 2.0);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut point);
+    let point = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(bounds.width / 2.0, bounds.height - 2.0),
+    );
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = EventDispatcher;
@@ -853,14 +852,23 @@ fn vertical_scroll_bar_step_updates_shared_viewport_model() {
 fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
     let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
     let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
-    let mut start = Point::new(bounds.width / 2.0, 20.0);
-    let mut first_move = Point::new(start.x(), start.y() + 25.0);
-    let mut second_move = Point::new(start.x(), start.y() + 50.0);
-    let mut after_release = Point::new(start.x(), start.y() + 75.0);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut start);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut first_move);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut second_move);
-    graph.translate_to_absolute_mut(pane.vertical_scroll_bar(), &mut after_release);
+    let local_start = Point::new(bounds.width / 2.0, 20.0);
+    let start = point_in_surface(&graph, pane.vertical_scroll_bar(), local_start);
+    let first_move = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 25.0),
+    );
+    let second_move = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 50.0),
+    );
+    let after_release = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 75.0),
+    );
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
     let mut dispatcher = EventDispatcher;

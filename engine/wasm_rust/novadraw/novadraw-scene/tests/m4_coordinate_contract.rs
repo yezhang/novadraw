@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Point, Rectangle, Translatable};
 use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
-    Bounded, EventContext, EventDispatcher, Figure, FigureEvent, FigureEventHandler, FigureTree,
-    InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect, PendingMutations,
-    RectangleFigure, Runtime, SceneDispatchContext, Shape, UpdateManager,
+    Bounded, CoordinateListener, EventContext, EventDispatcher, Figure, FigureEvent,
+    FigureEventHandler, FigureListener, FigureTree, InteractionState, LineBorder,
+    ListenerDirective, MouseButton, MouseEvent, PendingMutations, RectangleFigure, Runtime,
+    SceneDispatchContext, Shape, UpdateManager,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
@@ -52,10 +53,10 @@ fn m4_point_roundtrips_across_nested_coordinate_roots_with_insets() {
     let original = Point::new(15.0, 20.0);
     let mut point = original;
 
-    graph.translate_to_absolute_mut(child, &mut point);
+    point.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(point, Point::new(161.0, 125.0));
 
-    graph.translate_to_relative(child, &mut point);
+    point.transform(graph.surface_to_local_transform(child).unwrap());
     assert_eq!(point, original);
 }
 
@@ -65,11 +66,30 @@ fn m4_rectangle_roundtrip_preserves_extent_across_nested_coordinate_roots() {
     let original = Rectangle::new(15.0, 20.0, 18.0, 12.0);
     let mut rect = original;
 
-    graph.translate_to_absolute_mut(child, &mut rect);
+    rect.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(rect, Rectangle::new(161.0, 125.0, 18.0, 12.0));
 
-    graph.translate_to_relative(child, &mut rect);
+    rect.transform(graph.surface_to_local_transform(child).unwrap());
     assert_eq!(rect, original);
+}
+
+#[test]
+fn coordinate_transform_queries_reject_foreign_figures_without_mutating_geometry() {
+    let (graph, _) = nested_coordinate_scene();
+    let mut foreign = FigureTree::new();
+    let foreign_figure = foreign
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+
+    assert!(graph.local_to_parent_transform(foreign_figure).is_none());
+    assert!(graph.parent_to_local_transform(foreign_figure).is_none());
+    assert!(graph.local_to_surface_transform(foreign_figure).is_none());
+    assert!(graph.surface_to_local_transform(foreign_figure).is_none());
+    assert!(
+        graph
+            .child_content_to_surface_transform(foreign_figure)
+            .is_none()
+    );
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -228,6 +248,22 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     );
 }
 
+struct CoordinateEventRecorder(Arc<Mutex<Vec<FigureEvent>>>);
+
+impl FigureListener for CoordinateEventRecorder {
+    fn figure_moved(&self, event: FigureEvent) -> ListenerDirective {
+        self.0.lock().unwrap().push(event);
+        ListenerDirective::Keep
+    }
+}
+
+impl CoordinateListener for CoordinateEventRecorder {
+    fn coordinate_system_changed(&self, event: FigureEvent) -> ListenerDirective {
+        self.0.lock().unwrap().push(event);
+        ListenerDirective::Keep
+    }
+}
+
 #[test]
 fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let mut graph = FigureTree::new();
@@ -250,6 +286,13 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     runtime.prepare_frame();
+    let figure_events = Arc::new(Mutex::new(Vec::new()));
+    runtime.add_figure_listener(Box::new(CoordinateEventRecorder(Arc::clone(
+        &figure_events,
+    ))));
+    runtime.add_coordinate_listener(Box::new(CoordinateEventRecorder(Arc::clone(
+        &figure_events,
+    ))));
     assert!(
         runtime
             .set_bounds(coordinate_root, Rectangle::new(70.0, 55.0, 100.0, 70.0),)
@@ -260,17 +303,9 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         runtime.tree().figure_bounds(child),
         Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
     );
-    let figure_events: Vec<_> = runtime
-        .tree()
-        .notification_effects()
-        .iter()
-        .filter_map(|effect| match effect {
-            NotificationEffect::EmitFigure(event) => Some(*event),
-            _ => None,
-        })
-        .collect();
+    let canvas = runtime.prepare_frame().unwrap();
     assert_eq!(
-        figure_events,
+        *figure_events.lock().unwrap(),
         vec![
             FigureEvent::FigureMoved {
                 figure_id: coordinate_root,
@@ -285,7 +320,6 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         ]
     );
 
-    let canvas = runtime.prepare_frame().unwrap();
     assert_eq!(
         canvas.damage().union(),
         Some(Rectangle::new(50.0, 40.0, 120.0, 85.0))

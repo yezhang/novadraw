@@ -44,7 +44,7 @@ pub use widget::{
 use std::{any::Any, sync::Arc};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Affine2D, Rectangle, Translatable, Vec2};
+use novadraw_geometry::{Affine2D, Dimension, Rectangle, Translatable, Vec2};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
@@ -243,14 +243,14 @@ pub trait Bounded {
         (b.width, b.height)
     }
 
-    /// Converts parent/layout hints into this Figure's unscaled layout domain.
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        (w_hint, h_hint)
+    /// Converts parent constraints into this Figure's unscaled layout domain.
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        constraints
     }
 
-    /// Projects an unscaled preferred size into the parent layout domain.
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        size
+    /// Projects an unscaled preferred measurement into the parent layout domain.
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        measurement
     }
 
     /// 获取最小大小
@@ -262,7 +262,7 @@ pub trait Bounded {
     }
 
     /// Projects an unscaled minimum size into the parent layout domain.
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
         size
     }
 
@@ -323,17 +323,69 @@ pub struct MeasureConstraints {
     max_height: Option<f64>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum MeasureConstraintsError {
+    InvalidMaximumWidth(f64),
+    InvalidMaximumHeight(f64),
+}
+
+impl std::fmt::Display for MeasureConstraintsError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidMaximumWidth(width) => {
+                write!(
+                    formatter,
+                    "maximum measurement width must be finite and non-negative, got {width}"
+                )
+            }
+            Self::InvalidMaximumHeight(height) => {
+                write!(
+                    formatter,
+                    "maximum measurement height must be finite and non-negative, got {height}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for MeasureConstraintsError {}
+
 impl MeasureConstraints {
     pub const UNBOUNDED: Self = Self {
         max_width: None,
         max_height: None,
     };
 
-    pub fn from_hints(width_hint: f64, height_hint: f64) -> Self {
-        Self {
-            max_width: (width_hint >= 0.0 && width_hint.is_finite()).then_some(width_hint),
-            max_height: (height_hint >= 0.0 && height_hint.is_finite()).then_some(height_hint),
+    pub fn new(
+        max_width: Option<f64>,
+        max_height: Option<f64>,
+    ) -> Result<Self, MeasureConstraintsError> {
+        if let Some(width) = max_width
+            && (!width.is_finite() || width < 0.0)
+        {
+            return Err(MeasureConstraintsError::InvalidMaximumWidth(width));
         }
+        if let Some(height) = max_height
+            && (!height.is_finite() || height < 0.0)
+        {
+            return Err(MeasureConstraintsError::InvalidMaximumHeight(height));
+        }
+        Ok(Self {
+            max_width,
+            max_height,
+        })
+    }
+
+    pub fn width(max_width: f64) -> Result<Self, MeasureConstraintsError> {
+        Self::new(Some(max_width), None)
+    }
+
+    pub fn height(max_height: f64) -> Result<Self, MeasureConstraintsError> {
+        Self::new(None, Some(max_height))
+    }
+
+    pub fn bounded(max_width: f64, max_height: f64) -> Result<Self, MeasureConstraintsError> {
+        Self::new(Some(max_width), Some(max_height))
     }
 
     pub const fn max_width(self) -> Option<f64> {
@@ -361,8 +413,11 @@ impl FigureMeasurement {
         }
     }
 
-    pub const fn size(self) -> (f64, f64) {
-        (self.width, self.height)
+    pub const fn size(self) -> Dimension {
+        Dimension {
+            width: self.width,
+            height: self.height,
+        }
     }
 }
 
@@ -667,15 +722,15 @@ pub trait FigureContainer {
         ChildPolicy::Multiple
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        (w_hint, h_hint)
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        constraints
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        size
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        measurement
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
         size
     }
 }
@@ -898,7 +953,7 @@ pub trait Shape {
 mod tests {
     use std::cell::Cell;
 
-    use super::{ChildTransform, Figure, Shape};
+    use super::{ChildTransform, Figure, MeasureConstraints, MeasureConstraintsError, Shape};
     use novadraw_core::Color;
     use novadraw_geometry::{Affine2D, Point, Rectangle};
     use novadraw_render::{
@@ -969,6 +1024,24 @@ mod tests {
 
         assert!(!transform.apply_inverse_to(&mut point));
         assert_eq!(point, Point::new(12.0, 8.0));
+    }
+
+    #[test]
+    fn measurement_constraints_reject_invalid_axis_limits() {
+        assert_eq!(
+            MeasureConstraints::width(-1.0),
+            Err(MeasureConstraintsError::InvalidMaximumWidth(-1.0))
+        );
+        assert!(matches!(
+            MeasureConstraints::height(f64::NAN),
+            Err(MeasureConstraintsError::InvalidMaximumHeight(value)) if value.is_nan()
+        ));
+        assert_eq!(
+            MeasureConstraints::bounded(120.0, 80.0)
+                .unwrap()
+                .max_width(),
+            Some(120.0)
+        );
     }
 
     #[test]

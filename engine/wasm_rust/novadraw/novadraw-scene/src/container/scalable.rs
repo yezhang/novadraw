@@ -2,12 +2,12 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Dimension, Rectangle};
 use novadraw_render::NdCanvas;
 
 use crate::figure::{
-    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer, Freeform,
-    HitParticipation, Layer, border::Border,
+    Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
+    FigureMeasurement, Freeform, HitParticipation, Layer, MeasureConstraints, border::Border,
 };
 use crate::{
     FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue, UpdateManager,
@@ -209,18 +209,29 @@ impl Bounded for ScalableLayeredPaneFigure {
         self.project_layout_size(size)
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
         let scale = self.scale();
-        let scale_hint = |hint: f64| if hint >= 0.0 { hint / scale } else { hint };
-        (scale_hint(w_hint), scale_hint(h_hint))
+        MeasureConstraints::new(
+            constraints.max_width().map(|width| width / scale),
+            constraints.max_height().map(|height| height / scale),
+        )
+        .expect("valid constraints remain valid after positive scaling")
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        self.project_layout_size(size)
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        let size = self.project_layout_size(measurement.size().into());
+        let (top, _, _, _) = self.insets();
+        FigureMeasurement::new(
+            size.0,
+            size.1,
+            measurement
+                .baseline
+                .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
+        )
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
-        self.project_layout_size(size)
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
+        self.project_layout_size(size.into()).into()
     }
 
     fn child_transform(&self) -> ChildTransform {
@@ -291,15 +302,15 @@ impl FigureContainer for ScalableLayeredPaneFigure {
         self.child_clipping_strategy
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        Bounded::layout_size_hints(self, w_hint, h_hint)
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        Bounded::layout_constraints(self, constraints)
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        Bounded::project_preferred_size(self, size)
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        Bounded::project_preferred_measurement(self, measurement)
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
         Bounded::project_minimum_size(self, size)
     }
 }
@@ -371,18 +382,29 @@ impl Bounded for ScalableFreeformLayeredPane {
         self.project_layout_size(size)
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
         let scale = self.scale();
-        let scale_hint = |hint: f64| if hint >= 0.0 { hint / scale } else { hint };
-        (scale_hint(w_hint), scale_hint(h_hint))
+        MeasureConstraints::new(
+            constraints.max_width().map(|width| width / scale),
+            constraints.max_height().map(|height| height / scale),
+        )
+        .expect("valid constraints remain valid after positive scaling")
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        self.project_layout_size(size)
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        let size = self.project_layout_size(measurement.size().into());
+        let (top, _, _, _) = self.insets();
+        FigureMeasurement::new(
+            size.0,
+            size.1,
+            measurement
+                .baseline
+                .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
+        )
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
-        self.project_layout_size(size)
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
+        self.project_layout_size(size.into()).into()
     }
 
     fn child_transform(&self) -> ChildTransform {
@@ -472,15 +494,15 @@ impl FigureContainer for ScalableFreeformLayeredPane {
         ChildPolicy::Layered
     }
 
-    fn layout_size_hints(&self, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        Bounded::layout_size_hints(self, w_hint, h_hint)
+    fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        Bounded::layout_constraints(self, constraints)
     }
 
-    fn project_preferred_size(&self, size: (f64, f64)) -> (f64, f64) {
-        Bounded::project_preferred_size(self, size)
+    fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
+        Bounded::project_preferred_measurement(self, measurement)
     }
 
-    fn project_minimum_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_minimum_size(&self, size: Dimension) -> Dimension {
         Bounded::project_minimum_size(self, size)
     }
 }

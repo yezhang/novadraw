@@ -3,7 +3,7 @@
 //! 此库作为所有子库的聚合入口，提供统一的 API。
 
 pub use novadraw_core::Color;
-pub use novadraw_geometry::{Affine2D, Transform};
+pub use novadraw_geometry::{Affine2D, Dimension, Transform};
 
 pub use novadraw_render::{
     BackendCapabilities, BackendSessionDecision, BackendSessionGate, BackendSessionId, BuiltinFont,
@@ -55,28 +55,28 @@ pub use novadraw_scene::{
     LayoutEventKind, LayoutListener, LayoutManager, LayoutState, LineBorder, ListenerDirective,
     ListenerId, LocatorError, LocatorPlacement, LogicalViewportResizeError,
     MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, MAX_TREE_DEPTH,
-    ManhattanConnectionRouter, MarginBorder, MeasureConstraints, MidpointLocator, MinorAlignment,
-    MonotonicTime, MouseButton, MouseEvent, MouseEventKind, MouseLocationZoomScrollPolicy,
-    NodeState, NotificationEffect, NotificationQueue, NotificationRecord, ObservationListener,
-    PathFractionLocator, PendingMutations, PlatformHost, Point, PointListFigureBehavior, PointerId,
-    PolygonFigure, PolylineFigure, PreparedConnectionGeometry, PreparedFigureUpdate,
-    PropertyChangeEvent, PropertyChangeListener, PropertyValue, RangeChange, RangeChangeSet,
-    RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
-    Rectangle, RectangleBorder, RectangleFigure, ResolvedStyle, ResourceError, ResourceKind,
-    ResourceRegistry, ResourceStatus, RootFigure, RoundedRectangleAnchor, RoundedRectangleFigure,
-    RouteEndpoint, RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding,
-    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, Runtime, RuntimeMutationError,
-    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError,
-    ScaleHandle, SceneDispatchContext, ScrollBarFigure, ScrollBarVisibility, ScrollDeltaKind,
-    ScrollOrientation, ScrollPaneError, ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout,
-    Shape, ShapeMutationError, StableQueryError, StableSceneQuery, StackLayout, TextPlacement,
-    TimeError, TitleBarBorder, ToggleFigure, ToolbarLayout, ToolbarOrientation, TooltipPlacement,
-    TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal,
-    TreeQueryError, TreeSearch, TreeSearchContext, TriangleFigure, UnresolvedConnection,
-    UpdateEvent, UpdateListener, UpdateManager, ValidatingListener, ValidationError, ViewportError,
-    ViewportFigure, ViewportHandle, ViewportLayout, WheelEvent, WidgetError, XYAnchor,
-    XYConstraint, XYLayout, ZoomEvent, ZoomManager, ZoomScrollPolicy, place_tooltip,
-    rectangle_boundary_site,
+    ManhattanConnectionRouter, MarginBorder, MeasureConstraints, MeasureConstraintsError,
+    MidpointLocator, MinorAlignment, MonotonicTime, MouseButton, MouseEvent, MouseEventKind,
+    MouseLocationZoomScrollPolicy, NodeState, NotificationEffect, NotificationQueue,
+    NotificationRecord, ObservationListener, PathFractionLocator, PendingMutations, PlatformHost,
+    Point, PointListFigureBehavior, PointerId, PolygonFigure, PolylineFigure,
+    PreparedConnectionGeometry, PreparedFigureUpdate, PropertyChangeEvent, PropertyChangeListener,
+    PropertyValue, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
+    RangeModelError, RangeModelSnapshot, RangeProperty, Rectangle, RectangleBorder,
+    RectangleFigure, ResolvedStyle, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
+    RootFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouteEndpoint, RouteError,
+    RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RoutingConstraint, RoutingGroupQuery,
+    RoutingGroupScope, Runtime, RuntimeMutationError, ScalableFigure, ScalableFreeformLayeredPane,
+    ScalableLayeredPaneFigure, ScaleError, ScaleHandle, SceneDispatchContext, ScrollBarFigure,
+    ScrollBarVisibility, ScrollDeltaKind, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,
+    ScrollPaneHandle, ScrollPaneLayout, Shape, ShapeMutationError, StableQueryError,
+    StableSceneQuery, StackLayout, TextPlacement, TimeError, TitleBarBorder, ToggleFigure,
+    ToolbarLayout, ToolbarOrientation, TooltipPlacement, TooltipSide, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, TreeQueryError, TreeSearch,
+    TreeSearchContext, TriangleFigure, UnresolvedConnection, UpdateEvent, UpdateListener,
+    UpdateManager, ValidatingListener, ValidationError, ViewportError, ViewportFigure,
+    ViewportHandle, ViewportLayout, WheelEvent, WidgetError, XYAnchor, XYConstraint, XYLayout,
+    ZoomEvent, ZoomManager, ZoomScrollPolicy, place_tooltip, rectangle_boundary_site,
 };
 
 pub mod border {

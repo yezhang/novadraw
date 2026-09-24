@@ -4,7 +4,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
     Bounded, BuiltinFont, Color, Figure, FigureTree, FontDescriptor, NdCanvas, Rectangle,
-    RectangleFigure, ResourceId, TextConstraints, TextEngine, TextLayout, UpdateManager,
+    RectangleFigure, ResourceId, Runtime, TextConstraints, TextEngine, TextLayout, UpdateManager,
     ZoomManager,
 };
 use serde::Serialize;
@@ -182,8 +182,8 @@ fn benchmark_large_tree_render(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
         "large_tree_render_4096",
         cli,
-        build_large_tree,
-        |tree| tree.render().commands().len(),
+        || Runtime::new(build_large_tree()),
+        |runtime| runtime.record_full_frame().commands().len(),
         "Records a full frame for a flat 4,096-Figure tree.",
     )
 }
@@ -211,8 +211,8 @@ fn benchmark_deep_tree_render(cli: &Cli, depth: usize) -> ScenarioReport {
             "deep_tree_render_1000"
         },
         cli,
-        || build_deep_tree(depth),
-        |tree| tree.render().commands().len(),
+        || Runtime::new(build_deep_tree(depth)),
+        |runtime| runtime.record_full_frame().commands().len(),
         "Records the supported recursive tree path.",
     )
 }
@@ -260,8 +260,8 @@ fn benchmark_text_recording(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
         "text_recording_1000",
         cli,
-        build_text_tree,
-        |tree| tree.render().commands().len(),
+        || Runtime::new(build_text_tree()),
+        |runtime| runtime.record_full_frame().commands().len(),
         "Measures Figure traversal and text command recording, not glyph shaping.",
     )
 }
@@ -270,8 +270,8 @@ fn benchmark_viewport_render(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
         "viewport_render_1024",
         cli,
-        build_viewport_tree,
-        |tree| tree.render().commands().len(),
+        || Runtime::new(build_viewport_tree()),
+        |runtime| runtime.record_full_frame().commands().len(),
         "Records clipped, translated and scaled viewport content.",
     )
 }

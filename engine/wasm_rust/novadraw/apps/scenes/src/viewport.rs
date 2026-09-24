@@ -363,10 +363,9 @@ mod tests {
                 Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
             )
             .expect("valid FigureTree construction");
-        let mut anchor = novadraw::Point::new(0.0, 0.0);
-        let mut offset = novadraw::Point::new(10.0, 10.0);
-        scene.translate_to_absolute_mut(marker, &mut anchor);
-        scene.translate_to_absolute_mut(marker, &mut offset);
+        let transform = scene.local_to_surface_transform(marker).unwrap();
+        let anchor = transform.transform_point_vec2(novadraw::Point::new(0.0, 0.0));
+        let offset = transform.transform_point_vec2(novadraw::Point::new(10.0, 10.0));
         (anchor, offset, scene.figure_bounds(content_parent).unwrap())
     }
 

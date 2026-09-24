@@ -2825,6 +2825,38 @@ impl Runtime {
         }
     }
 
+    /// Queues validation for an attached Figure.
+    pub fn revalidate(&mut self, figure: FigureId) -> Result<(), RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(figure)?;
+            runtime.tree.mark_invalid(&mut runtime.updates, figure);
+            Ok(())
+        })
+    }
+
+    /// Queues repaint damage expressed in the Figure's node-local domain.
+    pub fn repaint(
+        &mut self,
+        figure: FigureId,
+        rect: Option<Rectangle>,
+    ) -> Result<(), RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(figure)?;
+            if let Some(bounds) = rect
+                && (!bounds.x.is_finite()
+                    || !bounds.y.is_finite()
+                    || !bounds.width.is_finite()
+                    || !bounds.height.is_finite()
+                    || bounds.width < 0.0
+                    || bounds.height < 0.0)
+            {
+                return Err(RuntimeMutationError::InvalidBounds { figure, bounds });
+            }
+            runtime.tree.repaint(&mut runtime.updates, figure, rect);
+            Ok(())
+        })
+    }
+
     pub fn logical_viewport(&self) -> Option<Rectangle> {
         self.logical_viewport
     }

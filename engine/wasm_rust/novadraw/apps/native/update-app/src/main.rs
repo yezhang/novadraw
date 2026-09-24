@@ -47,26 +47,34 @@ impl UpdateListener for CaptureListener {
 }
 
 fn verify_damage_modes() -> Result<VerificationMetrics, String> {
-    let mut graph = baseline_scene();
-    let root = graph.contents().ok_or("missing root")?;
-    let child = graph.child_order(root).ok_or("missing root children")?[0];
-    let mut manager = UpdateManager::new();
+    let mut runtime = Runtime::new(baseline_scene());
+    let root = runtime.tree().contents().ok_or("missing root")?;
+    let child = runtime
+        .tree()
+        .child_order(root)
+        .ok_or("missing root children")?[0];
 
-    let noop = graph.perform_update(&mut manager);
-    if !noop.damage().is_empty() || !noop.commands().is_empty() {
+    let full = runtime
+        .prepare_frame()
+        .ok_or("initial frame was not prepared")?;
+    if !full.damage().is_full() {
+        return Err("initial Runtime frame is not full damage".to_string());
+    }
+    if runtime.prepare_frame().is_some() {
         return Err("no-op update produced render work".to_string());
     }
-    if !graph.render().damage().is_full() {
-        return Err("direct render is not full damage".to_string());
-    }
-    graph.repaint(&mut manager, child, None);
-    let partial = graph.perform_update(&mut manager);
+    runtime
+        .repaint(child, None)
+        .map_err(|error| error.to_string())?;
+    let partial = runtime
+        .prepare_frame()
+        .ok_or("repaint frame was not prepared")?;
     if partial.damage().is_empty() || partial.damage().is_full() {
         return Err("repaint did not produce partial damage".to_string());
     }
 
     Ok(metrics([
-        ("noop_commands", noop.commands().len().to_string()),
+        ("noop_commands", "0".to_string()),
         (
             "partial_regions",
             partial.damage().regions().len().to_string(),
@@ -75,21 +83,23 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
 }
 
 fn verify_notification_order() -> Result<VerificationMetrics, String> {
-    let mut graph = validation_scene();
-    let root = graph.contents().ok_or("missing root")?;
-    let child = graph.child_order(root).ok_or("missing root children")?[0];
-    graph.drain_notification_effects();
-    graph
-        .builder()
-        .set_layout_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
-        .expect("valid FigureTree construction");
-    let mut manager = UpdateManager::new();
-    graph.mark_invalid(&mut manager, child);
+    let mut runtime = Runtime::new(validation_scene());
+    let root = runtime.tree().contents().ok_or("missing root")?;
+    let child = runtime
+        .tree()
+        .child_order(root)
+        .ok_or("missing root children")?[0];
+    runtime.prepare_frame();
     let effects = Arc::new(Mutex::new(Vec::new()));
-    manager.add_listener(Box::new(CaptureListener {
+    runtime.add_update_listener(Box::new(CaptureListener {
         effects: effects.clone(),
     }));
-    let _ = graph.perform_update(&mut manager);
+    runtime
+        .set_layout_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
+        .map_err(|error| error.to_string())?;
+    runtime
+        .prepare_frame()
+        .ok_or("layout frame was not prepared")?;
     let effects = effects.lock().unwrap();
     let validating = position(&effects, |effect| {
         matches!(
@@ -117,7 +127,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
 }
 
 fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
-    let mut graph = baseline_scene();
+    let graph = baseline_scene();
     let root = graph.contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     let mut manager = UpdateManager::new();
@@ -130,7 +140,6 @@ fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
     if damage != Rectangle::new(0.0, 0.0, 40.0, 40.0) {
         return Err(format!("unexpected coalesced damage: {damage:?}"));
     }
-    let _ = graph.perform_update(&mut manager);
     Ok(metrics([("dirty_blocks", "1".to_string())]))
 }
 
@@ -157,41 +166,50 @@ impl UpdateListener for PanicOnceListener {
     }
 }
 
-fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
-    let mut graph = baseline_scene();
-    let root = graph.contents().ok_or("missing root")?;
-    let child = graph.child_order(root).ok_or("missing root children")?[0];
-    let mut manager = UpdateManager::new();
-    manager.add_listener(Box::new(PanicOnceListener {
+fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
+    let mut runtime = Runtime::new(baseline_scene());
+    let root = runtime.tree().contents().ok_or("missing root")?;
+    let child = runtime
+        .tree()
+        .child_order(root)
+        .ok_or("missing root children")?[0];
+    runtime.prepare_frame();
+    runtime.add_update_listener(Box::new(PanicOnceListener {
         did_panic: AtomicBool::new(false),
     }));
-    graph.repaint(&mut manager, child, None);
+    runtime
+        .repaint(child, None)
+        .map_err(|error| error.to_string())?;
     let previous_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let first = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = graph.perform_update(&mut manager);
+        let _ = runtime.prepare_frame();
     }));
     std::panic::set_hook(previous_hook);
-    if first.is_ok() || manager.is_updating() || !manager.is_update_queued() {
-        return Err("manager did not recover from listener panic".to_string());
+    if first.is_ok() || !runtime.is_faulted() {
+        return Err("Runtime did not enter the fault boundary after a listener panic".to_string());
     }
-    let _ = graph.perform_update(&mut manager);
-    if manager.is_update_queued() {
-        return Err("recovered update did not drain work".to_string());
+    if runtime.prepare_frame().is_some() {
+        return Err("faulted Runtime prepared another frame".to_string());
     }
-    Ok(metrics([("recovered", "true".to_string())]))
+    Ok(metrics([("faulted", "true".to_string())]))
 }
 
 fn verify_stress_1024() -> Result<VerificationMetrics, String> {
-    let mut graph = stress_scene();
-    let root = graph.contents().ok_or("missing root")?;
-    let mut manager = UpdateManager::new();
-    graph.mark_invalid(&mut manager, root);
-    graph.repaint(&mut manager, root, None);
+    let mut runtime = Runtime::new(stress_scene());
+    let root = runtime.tree().contents().ok_or("missing root")?;
+    runtime
+        .revalidate(root)
+        .map_err(|error| error.to_string())?;
+    runtime
+        .repaint(root, None)
+        .map_err(|error| error.to_string())?;
     let start = Instant::now();
-    let canvas = graph.perform_update(&mut manager);
+    let canvas = runtime
+        .prepare_frame()
+        .ok_or("stress frame was not prepared")?;
     let elapsed = start.elapsed();
-    if manager.is_update_queued() || canvas.commands().is_empty() {
+    if runtime.prepare_frame().is_some() || canvas.commands().is_empty() {
         return Err("stress transaction did not converge".to_string());
     }
     Ok(metrics([
@@ -290,8 +308,8 @@ fn verification_cases() -> [VerificationCase; 6] {
             run: verify_dirty_coalescing,
         },
         VerificationCase {
-            name: "panic_recovery",
-            run: verify_panic_recovery,
+            name: "runtime_fault_boundary",
+            run: verify_runtime_fault_boundary,
         },
         VerificationCase {
             name: "stress_1024",

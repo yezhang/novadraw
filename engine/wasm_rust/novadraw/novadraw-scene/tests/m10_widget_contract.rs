@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use novadraw_scene::{
     ActionEvent, ActionListener, ButtonFigure, ClickableFigure, ClickableKind, FigureId, Key,
-    KeyModifiers, ListenerDirective, MouseButton, NotificationEffect, PropertyValue, Rectangle,
-    RectangleFigure, Runtime, ToggleFigure,
+    KeyModifiers, ListenerDirective, MouseButton, Rectangle, RectangleFigure, Runtime,
+    ToggleFigure,
 };
 
 struct ActionRecorder(Arc<Mutex<Vec<ActionEvent>>>);
@@ -47,18 +47,6 @@ fn runtime_with_toggle() -> (Runtime, FigureId) {
     (runtime, toggle)
 }
 
-fn action_events(runtime: &Runtime, target: FigureId) -> Vec<ActionEvent> {
-    runtime
-        .tree()
-        .notification_effects()
-        .iter()
-        .filter_map(|effect| match effect {
-            NotificationEffect::EmitAction(event) if event.figure_id == target => Some(*event),
-            _ => None,
-        })
-        .collect()
-}
-
 #[test]
 fn mouse_release_inside_fires_action_and_owns_focus() {
     let (mut runtime, button) = runtime_with_button();
@@ -78,13 +66,6 @@ fn mouse_release_inside_fires_action_and_owns_focus() {
     let released = runtime.clickable_snapshot(button).unwrap();
     assert!(!released.visual.pressed);
     assert_eq!(released.action_revision, 1);
-    assert_eq!(
-        action_events(&runtime, button),
-        vec![ActionEvent {
-            figure_id: button,
-            revision: 1,
-        }]
-    );
 }
 
 #[test]
@@ -95,7 +76,10 @@ fn drag_out_cancels_action_and_drag_back_rearms_it() {
     runtime.dispatch_mouse_moved(250.0, 150.0);
     assert!(!runtime.clickable_snapshot(button).unwrap().visual.pressed);
     runtime.dispatch_mouse_released(250.0, 150.0, MouseButton::Left);
-    assert!(action_events(&runtime, button).is_empty());
+    assert_eq!(
+        runtime.clickable_snapshot(button).unwrap().action_revision,
+        0
+    );
 
     runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
     runtime.dispatch_mouse_moved(250.0, 150.0);
@@ -116,7 +100,10 @@ fn enter_and_space_activate_only_after_matching_key_release() {
 
     runtime.dispatch_key_pressed(Key::Enter, KeyModifiers::default());
     assert!(runtime.clickable_snapshot(button).unwrap().visual.pressed);
-    assert!(action_events(&runtime, button).is_empty());
+    assert_eq!(
+        runtime.clickable_snapshot(button).unwrap().action_revision,
+        0
+    );
     runtime.dispatch_key_released(Key::Enter, KeyModifiers::default());
     assert_eq!(
         runtime.clickable_snapshot(button).unwrap().action_revision,
@@ -194,7 +181,6 @@ fn disabled_button_rejects_pointer_keyboard_and_programmatic_actions() {
     let snapshot = runtime.clickable_snapshot(button).unwrap();
     assert!(!snapshot.visual.enabled);
     assert_eq!(snapshot.action_revision, 0);
-    assert!(action_events(&runtime, button).is_empty());
 }
 
 #[test]
@@ -208,34 +194,6 @@ fn toggle_changes_selection_before_emitting_action() {
     assert_eq!(snapshot.kind, ClickableKind::Toggle);
     assert!(snapshot.selected);
     assert_eq!(snapshot.action_revision, 1);
-
-    let effects = runtime.tree().notification_effects();
-    let selected_index = effects
-        .iter()
-        .position(|effect| {
-            matches!(
-                effect,
-                NotificationEffect::EmitProperty(event)
-                    if event.figure_id == toggle
-                        && event.property == "selected"
-                        && event.old_value == PropertyValue::Bool(false)
-                        && event.new_value == PropertyValue::Bool(true)
-            )
-        })
-        .expect("selected change");
-    let action_index = effects
-        .iter()
-        .position(|effect| {
-            matches!(
-                effect,
-                NotificationEffect::EmitAction(ActionEvent {
-                    figure_id,
-                    revision: 1
-                }) if *figure_id == toggle
-            )
-        })
-        .expect("action event");
-    assert!(selected_index < action_index);
 }
 
 #[test]

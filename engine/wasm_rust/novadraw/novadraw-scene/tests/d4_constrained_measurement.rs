@@ -3,8 +3,9 @@ use novadraw_render::{
     TextConstraints, TextLayout,
 };
 use novadraw_scene::{
-    Figure, FigureId, FigureMeasurement, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot,
-    MeasureConstraints, Rectangle, RectangleFigure, Runtime, XYConstraint, XYLayout,
+    Dimension, Figure, FigureId, FigureMeasurement, LayoutError, LayoutManager, LayoutOutput,
+    LayoutSnapshot, MeasureConstraints, Rectangle, RectangleFigure, Runtime, XYConstraint,
+    XYLayout,
 };
 
 struct WrappedTextFigure {
@@ -48,7 +49,7 @@ impl Figure for WrappedTextFigure {
     }
 
     fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
-        let layout = self.selected_layout(MeasureConstraints::from_hints(bounds.width, -1.0));
+        let layout = self.selected_layout(MeasureConstraints::width(bounds.width).unwrap());
         canvas.fill_text_layout(layout, 0.0, 0.0);
     }
 }
@@ -56,28 +57,27 @@ impl Figure for WrappedTextFigure {
 struct ConstrainedColumnLayout;
 
 impl LayoutManager for ConstrainedColumnLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        width_hint: f64,
-        height_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> FigureMeasurement {
         snapshot
             .children(container)
             .first()
-            .map(|(child, _)| snapshot.measurement(*child, width_hint, height_hint).size())
+            .map(|(child, _)| snapshot.preferred_measurement(*child, constraints))
             .unwrap_or_default()
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        width_hint: f64,
-        height_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.get_preferred_size(container, width_hint, height_hint, snapshot)
+    ) -> Dimension {
+        self.preferred_measurement(container, constraints, snapshot)
+            .size()
     }
 
     fn layout(
@@ -88,7 +88,8 @@ impl LayoutManager for ConstrainedColumnLayout {
     ) -> Result<(), LayoutError> {
         let area = snapshot.container_bounds(container);
         for (child, _) in snapshot.children(container) {
-            let measured = snapshot.measurement(child, area.width, -1.0);
+            let measured = snapshot
+                .preferred_measurement(child, MeasureConstraints::width(area.width).unwrap());
             output.set_child_bounds(
                 child,
                 Rectangle::new(area.x, area.y, area.width, measured.height),
@@ -155,10 +156,19 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
     let arranged = runtime.tree().figure_bounds(text_figure).unwrap();
     assert_eq!(arranged.width, f64::from(WIDTH));
     assert_eq!(arranged.height, expected_height);
+    let constraints = MeasureConstraints::width(f64::from(WIDTH)).unwrap();
     assert_eq!(
         runtime
             .tree()
-            .measurement(text_figure, f64::from(WIDTH), -1.0)
+            .preferred_measurement(text_figure, constraints)
+            .unwrap()
+            .baseline,
+        Some(expected_baseline)
+    );
+    assert_eq!(
+        runtime
+            .tree()
+            .preferred_measurement(root, constraints)
             .unwrap()
             .baseline,
         Some(expected_baseline)

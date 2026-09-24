@@ -1,8 +1,8 @@
 //! Grid layout with per-child alignment, span and excess-space constraints.
 
 use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 
 const DEFAULT_MARGIN: f64 = 5.0;
 const DEFAULT_SPACING: f64 = 5.0;
@@ -165,20 +165,21 @@ impl GridLayout {
                 }
             }
 
-            let width_hint = constraint.width_hint.unwrap_or(-1.0);
-            let height_hint = constraint.height_hint.unwrap_or(-1.0);
-            let mut preferred = snapshot.preferred_size(child, width_hint, height_hint);
-            let mut minimum = snapshot.minimum_size(child, width_hint, height_hint);
+            let constraints =
+                MeasureConstraints::new(constraint.width_hint, constraint.height_hint)
+                    .expect("validated GridConstraint produces valid measurement constraints");
+            let mut preferred = snapshot.preferred_measurement(child, constraints).size();
+            let mut minimum = snapshot.minimum_size(child, constraints);
             if let Some(width) = constraint.width_hint {
-                preferred.0 = width.max(0.0);
-                minimum.0 = minimum.0.min(preferred.0);
+                preferred.width = width.max(0.0);
+                minimum.width = minimum.width.min(preferred.width);
             }
             if let Some(height) = constraint.height_hint {
-                preferred.1 = height.max(0.0);
-                minimum.1 = minimum.1.min(preferred.1);
+                preferred.height = height.max(0.0);
+                minimum.height = minimum.height.min(preferred.height);
             }
-            preferred.0 += constraint.horizontal_indent.max(0.0);
-            minimum.0 += constraint.horizontal_indent.max(0.0);
+            preferred.width += constraint.horizontal_indent.max(0.0);
+            minimum.width += constraint.horizontal_indent.max(0.0);
 
             placements.push(Placement {
                 child,
@@ -187,8 +188,8 @@ impl GridLayout {
                 row_span,
                 column_span,
                 constraint,
-                preferred,
-                minimum,
+                preferred: preferred.into(),
+                minimum: minimum.into(),
             });
             column += column_span;
         }
@@ -305,8 +306,13 @@ impl LayoutManager for GridLayout {
         child: FigureId,
         constraint: &dyn LayoutConstraint,
     ) -> Result<(), LayoutError> {
-        if constraint.as_any().is::<GridConstraint>() {
-            return Ok(());
+        if let Some(constraint) = constraint.as_any().downcast_ref::<GridConstraint>() {
+            if MeasureConstraints::new(constraint.width_hint, constraint.height_hint).is_ok()
+                && constraint.horizontal_indent.is_finite()
+            {
+                return Ok(());
+            }
+            return Err(LayoutError::NonFiniteGeometry { figure: child });
         }
         Err(LayoutError::ConstraintTypeMismatch {
             container,
@@ -316,24 +322,23 @@ impl LayoutManager for GridLayout {
         })
     }
 
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measured_size(container, snapshot, false)
+    ) -> FigureMeasurement {
+        let (width, height) = self.measured_size(container, snapshot, false);
+        FigureMeasurement::new(width, height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measured_size(container, snapshot, true)
+    ) -> Dimension {
+        self.measured_size(container, snapshot, true).into()
     }
 
     fn layout(

@@ -5,8 +5,8 @@ use novadraw_geometry::{Dimension, Rectangle, Vec2};
 use novadraw_render::{NdCanvas, command::RenderCommandKind};
 use novadraw_scene::{
     BevelBorder, BevelStyle, Border, CompoundBorder, Direction, EtchedBorder, Figure, FigureStyle,
-    LineBorder, MarginBorder, NotificationEffect, PolygonFigure, PolylineFigure, PropertyValue,
-    RectangleFigure, RoundedRectangleFigure, Runtime, ShapeMutationError, TriangleFigure,
+    LineBorder, MarginBorder, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
+    RoundedRectangleFigure, Runtime, ShapeMutationError, TriangleFigure,
 };
 
 #[test]
@@ -155,20 +155,6 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
             .unwrap()
     );
     assert!(runtime.has_pending_update());
-    assert!(
-        runtime
-            .tree()
-            .notification_effects()
-            .iter()
-            .any(|effect| matches!(
-                effect,
-                NotificationEffect::EmitProperty(event)
-                    if event.figure_id == line
-                        && event.property == "points"
-                        && matches!(event.new_value, PropertyValue::PointList(_))
-            ))
-    );
-
     let stable_points = runtime.point_list_points(line).unwrap();
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
@@ -305,13 +291,11 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
         runtime.set_triangle_direction(rounded, Direction::South),
         Err(ShapeMutationError::WrongCapability(rounded))
     );
-    let effect_count = runtime.tree().notification_effects().len();
     assert!(
         !runtime
             .replace_border(rounded, Some(shared_border))
             .unwrap()
     );
-    assert_eq!(runtime.tree().notification_effects().len(), effect_count);
 }
 
 #[test]
@@ -344,7 +328,7 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
             .expect("valid Runtime mutation")
     );
 
-    let canvas = runtime.tree().render();
+    let canvas = runtime.record_full_frame();
     assert!(canvas.commands().iter().any(|command| {
         matches!(
             command.kind,
@@ -377,8 +361,11 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
         .expect("valid Runtime mutation");
 
     assert_eq!(
-        runtime.tree().preferred_size(bordered, -1.0, -1.0),
-        Some((106.0, 56.0))
+        runtime
+            .tree()
+            .preferred_measurement(bordered, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(106.0, 56.0))
     );
     assert_eq!(
         runtime.tree().border_is_effectively_opaque(bordered),

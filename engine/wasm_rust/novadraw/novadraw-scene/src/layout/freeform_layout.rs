@@ -1,9 +1,9 @@
 use std::{error::Error, fmt};
 
-use novadraw_geometry::{Point, Rectangle};
+use novadraw_geometry::{Dimension, Point, Rectangle};
 
 use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FreeformConstraint {
@@ -95,28 +95,30 @@ impl FreeformLayout {
         container: FigureId,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         let mut extent = Rectangle::ZERO;
         for (child, current) in snapshot.children(container) {
             let bounds = match freeform_constraint(snapshot, container, child) {
                 Ok(Some(constraint)) => {
                     let intrinsic = if minimum {
-                        snapshot.minimum_size(child, -1.0, -1.0)
+                        snapshot.minimum_size(child, MeasureConstraints::UNBOUNDED)
                     } else {
-                        snapshot.preferred_size(child, -1.0, -1.0)
+                        snapshot
+                            .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+                            .size()
                     };
                     Rectangle::new(
                         constraint.origin.x(),
                         constraint.origin.y(),
-                        constraint.width.unwrap_or(intrinsic.0),
-                        constraint.height.unwrap_or(intrinsic.1),
+                        constraint.width.unwrap_or(intrinsic.width),
+                        constraint.height.unwrap_or(intrinsic.height),
                     )
                 }
                 Ok(None) | Err(_) => current,
             };
             extent = extent.union(bounds);
         }
-        (extent.width, extent.height)
+        Dimension::new(extent.width, extent.height)
     }
 }
 
@@ -138,23 +140,22 @@ impl LayoutManager for FreeformLayout {
         })
     }
 
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.measure(container, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         self.measure(container, snapshot, true)
     }
 
@@ -168,14 +169,16 @@ impl LayoutManager for FreeformLayout {
             let Some(constraint) = freeform_constraint(snapshot, container, child)? else {
                 continue;
             };
-            let intrinsic = snapshot.preferred_size(child, -1.0, -1.0);
+            let intrinsic = snapshot
+                .preferred_measurement(child, MeasureConstraints::UNBOUNDED)
+                .size();
             out.set_child_bounds(
                 child,
                 Rectangle::new(
                     constraint.origin.x(),
                     constraint.origin.y(),
-                    constraint.width.unwrap_or(intrinsic.0),
-                    constraint.height.unwrap_or(intrinsic.1),
+                    constraint.width.unwrap_or(intrinsic.width),
+                    constraint.height.unwrap_or(intrinsic.height),
                 ),
             );
         }

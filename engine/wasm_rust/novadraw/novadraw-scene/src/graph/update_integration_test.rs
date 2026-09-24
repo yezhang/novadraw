@@ -1,10 +1,10 @@
 use novadraw_core::Color;
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Dimension, Rectangle};
 
 use crate::{
     BorderConstraint, BorderRegion, FigureId, FigureTree, GraphMutationError, InteractionState,
-    MAX_TREE_DEPTH, PendingMutations, RectangleFigure, ScalableLayeredPaneFigure, UpdateManager,
-    ViewportFigure, XYConstraint, XYLayout,
+    MAX_TREE_DEPTH, MeasureConstraints, PendingMutations, RectangleFigure,
+    ScalableLayeredPaneFigure, UpdateManager, ViewportFigure, XYConstraint, XYLayout,
     mutation::{PendingMutation, PendingMutationKind},
 };
 
@@ -265,12 +265,11 @@ fn test_revalidate_flow() {
 }
 
 #[test]
-fn test_repaint_all() {
+fn test_repaint_contents() {
     let (mut scene, mut update_manager) = new_scene();
-    scene.repaint_all(&mut update_manager);
     assert!(!update_manager.has_pending_repaint());
-    scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    scene.repaint_all(&mut update_manager);
+    let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+    scene.repaint(&mut update_manager, container_id, None);
     assert!(update_manager.has_pending_repaint());
 }
 
@@ -578,18 +577,37 @@ fn test_explicit_size_overrides_take_precedence() {
     let (mut scene, _) = new_scene();
     let block = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 30.0, 40.0)));
 
-    assert_eq!(scene.preferred_size(block, -1.0, -1.0), Some((30.0, 40.0)));
-    assert_eq!(scene.minimum_size(block, -1.0, -1.0), Some((30.0, 40.0)));
+    assert_eq!(
+        scene
+            .preferred_measurement(block, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(30.0, 40.0))
+    );
+    assert_eq!(
+        scene.minimum_size(block, MeasureConstraints::UNBOUNDED),
+        Some(Dimension::new(30.0, 40.0))
+    );
     let maximum = scene.maximum_size(block).expect("default maximum size");
-    assert!(maximum.0 > 30.0);
-    assert!(maximum.1 > 40.0);
+    assert!(maximum.width > 30.0);
+    assert!(maximum.height > 40.0);
 
     assert!(scene.set_preferred_size(block, Some((50.0, 60.0))));
     assert!(scene.set_minimum_size(block, Some((10.0, 20.0))));
     assert!(scene.set_maximum_size(block, Some((100.0, 120.0))));
-    assert_eq!(scene.preferred_size(block, -1.0, -1.0), Some((50.0, 60.0)));
-    assert_eq!(scene.minimum_size(block, -1.0, -1.0), Some((10.0, 20.0)));
-    assert_eq!(scene.maximum_size(block), Some((100.0, 120.0)));
+    assert_eq!(
+        scene
+            .preferred_measurement(block, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(50.0, 60.0))
+    );
+    assert_eq!(
+        scene.minimum_size(block, MeasureConstraints::UNBOUNDED),
+        Some(Dimension::new(10.0, 20.0))
+    );
+    assert_eq!(
+        scene.maximum_size(block),
+        Some(Dimension::new(100.0, 120.0))
+    );
 }
 
 #[test]

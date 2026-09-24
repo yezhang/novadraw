@@ -62,9 +62,10 @@ pub use figure::{
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
     EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
     FigureLifecycleContext, FigureMeasurement, Freeform, HitParticipation, ImageDisplayState,
-    ImageFigure, LabelFigure, Layer, MeasureConstraints, PointListFigureBehavior, PolygonFigure,
-    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Shape, ShapeMutationError,
-    TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    ImageFigure, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
+    PointListFigureBehavior, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
+    RoundedRectangleFigure, Shape, ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure,
+    WidgetError,
 };
 pub use graph as scene;
 pub use graph::{
@@ -81,7 +82,7 @@ pub use layout::{
     LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint,
     XYLayout,
 };
-pub use novadraw_geometry::{Point, Rectangle};
+pub use novadraw_geometry::{Dimension, Point, Rectangle};
 pub use runtime::context::{EventContext, SceneDispatchContext};
 pub use runtime::event::{
     DispatchContext, DispatchOutcome, Event, EventDispatcher, FocusEvent, FocusEventKind,

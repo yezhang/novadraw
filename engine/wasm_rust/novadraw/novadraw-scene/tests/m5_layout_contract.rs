@@ -1,9 +1,10 @@
 use novadraw_core::Color;
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Dimension, Rectangle, Translatable};
 use novadraw_scene::{
-    BorderConstraint, BorderLayout, BorderRegion, FigureId, FigureTree, GridAlignment,
-    GridConstraint, GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot,
-    LineBorder, RectangleFigure, StackLayout, ToolbarLayout, UpdateManager, ValidationError,
+    BorderConstraint, BorderLayout, BorderRegion, DEFAULT_VALIDATION_BUDGET, FigureId,
+    FigureMeasurement, FigureTree, FramePreparationError, GridAlignment, GridConstraint,
+    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, LineBorder,
+    MeasureConstraints, RectangleFigure, Runtime, StackLayout, ToolbarLayout, ValidationError,
     XYConstraint, XYLayout,
 };
 use std::sync::Arc;
@@ -68,7 +69,7 @@ fn stack_layout_applies_container_insets_once() {
         Rectangle::new(0.0, 0.0, 80.0, 80.0),
     );
     let mut projected = Rectangle::new(0.0, 0.0, 80.0, 80.0);
-    graph.translate_to_absolute_mut(child, &mut projected);
+    projected.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(projected, Rectangle::new(10.0, 10.0, 80.0, 80.0));
 }
 
@@ -102,7 +103,7 @@ fn xy_layout_applies_container_insets_once() {
         Rectangle::new(5.0, 6.0, 20.0, 20.0),
     );
     let mut projected = Rectangle::new(0.0, 0.0, 20.0, 20.0);
-    graph.translate_to_absolute_mut(child, &mut projected);
+    projected.transform(graph.local_to_surface_transform(child).unwrap());
     assert_eq!(projected, Rectangle::new(15.0, 16.0, 20.0, 20.0));
 }
 
@@ -384,14 +385,17 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
             ),
         )
         .expect("valid FigureTree construction");
-    let mut update_manager = UpdateManager::new();
-    graph.mark_invalid(&mut update_manager, root);
+    let mut runtime = Runtime::new(graph);
+    runtime.revalidate(root).unwrap();
+    let canvas = runtime.prepare_frame().expect("queued update");
 
-    let canvas = graph.perform_update(&mut update_manager);
-
-    assert!(graph.is_valid(root));
-    assert!(children.into_iter().all(|child| graph.is_valid(child)));
-    assert!(!update_manager.is_update_queued());
+    assert!(runtime.tree().is_valid(root));
+    assert!(
+        children
+            .into_iter()
+            .all(|child| runtime.tree().is_valid(child))
+    );
+    assert!(runtime.prepare_frame().is_none());
     assert!(!canvas.damage().is_empty());
     assert!(!canvas.commands().is_empty());
 }
@@ -402,24 +406,23 @@ struct InvalidOutputLayout {
 }
 
 impl LayoutManager for InvalidOutputLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         _container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         _snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        (0.0, 0.0)
+    ) -> FigureMeasurement {
+        FigureMeasurement::default()
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    ) -> Dimension {
+        self.preferred_measurement(container, constraints, snapshot)
+            .size()
     }
 
     fn layout(
@@ -544,25 +547,24 @@ struct CountingLayout {
 }
 
 impl LayoutManager for CountingLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         _container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         _snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
+    ) -> FigureMeasurement {
         self.measurements.fetch_add(1, Ordering::SeqCst);
-        (25.0, 35.0)
+        FigureMeasurement::new(25.0, 35.0, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    ) -> Dimension {
+        self.preferred_measurement(container, constraints, snapshot)
+            .size()
     }
 
     fn layout(
@@ -596,8 +598,18 @@ fn layout_measurements_are_cached_until_generation_changes() {
         )
         .expect("valid FigureTree construction");
 
-    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
-    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
+    assert_eq!(
+        graph
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
+    assert_eq!(
+        graph
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
     assert_eq!(measurements.load(Ordering::SeqCst), 1);
 
     let old_generation = graph.node(root).unwrap().layout_state().generation();
@@ -607,8 +619,35 @@ fn layout_measurements_are_cached_until_generation_changes() {
         .expect("valid FigureTree construction");
     let new_generation = graph.node(root).unwrap().layout_state().generation();
     assert!(new_generation > old_generation);
-    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
+    assert_eq!(
+        graph
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
     assert_eq!(measurements.load(Ordering::SeqCst), 2);
+
+    let width_bounded = MeasureConstraints::width(80.0).unwrap();
+    assert_eq!(
+        graph
+            .preferred_measurement(root, width_bounded)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
+    assert_eq!(
+        graph
+            .preferred_measurement(root, width_bounded)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
+    assert_eq!(measurements.load(Ordering::SeqCst), 3);
+    assert_eq!(
+        graph
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::new(25.0, 35.0))
+    );
+    assert_eq!(measurements.load(Ordering::SeqCst), 4);
 
     graph
         .builder()
@@ -642,7 +681,12 @@ fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
         .set_preferred_size(root, Some((0.0, 0.0)))
         .expect("valid FigureTree construction");
 
-    assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((0.0, 0.0)));
+    assert_eq!(
+        graph
+            .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size()),
+        Some(Dimension::ZERO)
+    );
     assert_eq!(measurements.load(Ordering::SeqCst), 0);
 }
 
@@ -651,24 +695,23 @@ struct ReinvalidatingLayout {
 }
 
 impl LayoutManager for ReinvalidatingLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         _container: FigureId,
-        _w_hint: f64,
-        _h_hint: f64,
+        _constraints: MeasureConstraints,
         _snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        (0.0, 0.0)
+    ) -> FigureMeasurement {
+        FigureMeasurement::default()
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.get_preferred_size(container, w_hint, h_hint, snapshot)
+    ) -> Dimension {
+        self.preferred_measurement(container, constraints, snapshot)
+            .size()
     }
 
     fn layout(
@@ -696,19 +739,18 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
         .builder()
         .set_layout_manager(root, Box::new(ReinvalidatingLayout { child }))
         .expect("valid FigureTree construction");
-    let mut updates = UpdateManager::new();
-    graph.mark_invalid(&mut updates, root);
-
-    let error = graph
-        .perform_validation_cycle_with_budget(&mut updates, 3)
+    let mut runtime = Runtime::new(graph);
+    runtime.revalidate(root).unwrap();
+    let error = runtime
+        .stabilize_for_query()
         .expect_err("validation must not converge");
 
     assert!(matches!(
         error,
-        ValidationError::NonConvergingValidation {
-            budget: 3,
+        FramePreparationError::Validation(ValidationError::NonConvergingValidation {
+            budget: DEFAULT_VALIDATION_BUDGET,
             ref invalidation_chain,
-        } if invalidation_chain.len() == 3
+        }) if invalidation_chain.len() == DEFAULT_VALIDATION_BUDGET
     ));
-    assert!(updates.has_pending_layout());
+    assert!(runtime.has_pending_update());
 }

@@ -5,8 +5,8 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    FigureTree, FreeformError, LayoutError, RangeModelSnapshot, ScaleError, ScaleHandle,
-    UpdateManager, ViewportError, ViewportHandle,
+    FigureTree, FreeformError, LayoutError, MeasureConstraints, RangeModelSnapshot, ScaleError,
+    ScaleHandle, UpdateManager, ViewportError, ViewportHandle,
 };
 
 pub const DEFAULT_ZOOM_LEVELS: [f64; 8] = [0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
@@ -350,15 +350,15 @@ impl ZoomManager {
             (extent.width, extent.height)
         } else {
             let preferred = graph
-                .preferred_size(self.scalable.figure_id(), -1.0, -1.0)
+                .preferred_measurement(self.scalable.figure_id(), MeasureConstraints::UNBOUNDED)
                 .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
             let scalable_block = graph
                 .node(self.scalable.figure_id())
                 .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
             let (top, left, bottom, right) = scalable_block.state().insets();
             (
-                (preferred.0 - left - right) / old_zoom,
-                (preferred.1 - top - bottom) / old_zoom,
+                (preferred.width - left - right) / old_zoom,
+                (preferred.height - top - bottom) / old_zoom,
             )
         };
         if content_width <= 0.0

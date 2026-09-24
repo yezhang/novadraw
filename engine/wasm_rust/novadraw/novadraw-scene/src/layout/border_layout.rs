@@ -4,8 +4,8 @@
 //! 将容器划分为北、南、东、西、中五个区域。
 
 use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 
 /// Border 布局区域
 ///
@@ -125,11 +125,10 @@ impl BorderLayout {
     fn measure(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         let mut north = (0.0_f64, 0.0_f64);
         let mut south = (0.0_f64, 0.0_f64);
         let mut east = (0.0_f64, 0.0_f64);
@@ -138,9 +137,9 @@ impl BorderLayout {
 
         for (child, _) in snapshot.children(container) {
             let intrinsic = if minimum {
-                snapshot.minimum_size(child, w_hint, h_hint)
+                snapshot.minimum_size(child, constraints)
             } else {
-                snapshot.preferred_size(child, w_hint, h_hint)
+                snapshot.preferred_measurement(child, constraints).size()
             };
             let (region, requested) = border_constraint(snapshot, container, child)
                 .ok()
@@ -148,12 +147,12 @@ impl BorderLayout {
                 .unwrap_or((BorderRegion::Center, None));
             let size = match region {
                 BorderRegion::North | BorderRegion::South => {
-                    (intrinsic.0, requested.unwrap_or(intrinsic.1))
+                    (intrinsic.width, requested.unwrap_or(intrinsic.height))
                 }
                 BorderRegion::East | BorderRegion::West => {
-                    (requested.unwrap_or(intrinsic.0), intrinsic.1)
+                    (requested.unwrap_or(intrinsic.width), intrinsic.height)
                 }
-                BorderRegion::Center => intrinsic,
+                BorderRegion::Center => intrinsic.into(),
             };
             match region {
                 BorderRegion::North => north = size,
@@ -166,7 +165,7 @@ impl BorderLayout {
 
         let middle_width = west.0 + center.0 + east.0;
         let middle_height = west.1.max(center.1).max(east.1);
-        (
+        Dimension::new(
             north.0.max(south.0).max(middle_width),
             north.1 + middle_height + south.1,
         )
@@ -186,8 +185,24 @@ impl LayoutManager for BorderLayout {
         child: FigureId,
         constraint: &dyn LayoutConstraint,
     ) -> Result<(), LayoutError> {
-        if constraint.as_any().is::<BorderConstraint>() || constraint.as_any().is::<Rectangle>() {
-            return Ok(());
+        if let Some(constraint) = constraint.as_any().downcast_ref::<BorderConstraint>() {
+            if constraint
+                .size
+                .is_none_or(|size| size.is_finite() && size >= 0.0)
+            {
+                return Ok(());
+            }
+            return Err(LayoutError::NonFiniteGeometry { figure: child });
+        }
+        if let Some(constraint) = constraint.as_any().downcast_ref::<Rectangle>() {
+            if constraint.x.is_finite()
+                && constraint.y.is_finite()
+                && constraint.width.is_finite()
+                && constraint.height.is_finite()
+            {
+                return Ok(());
+            }
+            return Err(LayoutError::NonFiniteGeometry { figure: child });
         }
         Err(LayoutError::ConstraintTypeMismatch {
             container,
@@ -197,24 +212,23 @@ impl LayoutManager for BorderLayout {
         })
     }
 
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.measure(container, constraints, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, true)
+    ) -> Dimension {
+        self.measure(container, constraints, snapshot, true)
     }
 
     fn layout(
@@ -239,14 +253,18 @@ impl LayoutManager for BorderLayout {
         let mut south_h = self.south_height;
         let mut west_w = self.west_width;
         let mut east_w = self.east_width;
+        let constraints = MeasureConstraints::bounded(cw, ch)
+            .expect("container bounds are valid layout geometry");
         for (child_id, _) in &children {
-            let preferred = snapshot.preferred_size(*child_id, cw, ch);
+            let preferred = snapshot
+                .preferred_measurement(*child_id, constraints)
+                .size();
             if let Some((region, requested)) = border_constraint(snapshot, container, *child_id)? {
                 match region {
-                    BorderRegion::North => north_h = requested.unwrap_or(preferred.1),
-                    BorderRegion::South => south_h = requested.unwrap_or(preferred.1),
-                    BorderRegion::East => east_w = requested.unwrap_or(preferred.0),
-                    BorderRegion::West => west_w = requested.unwrap_or(preferred.0),
+                    BorderRegion::North => north_h = requested.unwrap_or(preferred.height),
+                    BorderRegion::South => south_h = requested.unwrap_or(preferred.height),
+                    BorderRegion::East => east_w = requested.unwrap_or(preferred.width),
+                    BorderRegion::West => west_w = requested.unwrap_or(preferred.width),
                     BorderRegion::Center => {}
                 }
             }
@@ -382,13 +400,12 @@ mod tests {
     fn test_border_layout_creation() {
         let layout = BorderLayout::new();
         // 默认尺寸应该设置正确
-        let (w, h) = layout.get_preferred_size(
+        let measured = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
-            800.0,
-            600.0,
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
-        assert_eq!((w, h), (0.0, 0.0));
+        assert_eq!(measured.size(), Dimension::ZERO);
     }
 
     #[test]
@@ -428,8 +445,12 @@ impl super::LayoutContext for MockLayoutContext {
         None
     }
 
-    fn get_preferred_size(&self, _figure_id: FigureId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
-        (100.0, 100.0)
+    fn preferred_measurement(
+        &self,
+        _figure_id: FigureId,
+        _constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        FigureMeasurement::new(100.0, 100.0, None)
     }
 
     fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {

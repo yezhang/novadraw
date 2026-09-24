@@ -293,14 +293,15 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
         )
         .expect("valid FigureTree construction");
 
-    let gc = scene.render();
+    let gc = Runtime::new(scene).record_full_frame();
     let fill_colors: Vec<_> = gc
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
-            RenderCommandKind::FillRect { color, .. } => Some(*color),
+            RenderCommandKind::FillRect { color, .. } => Some(color),
             _ => None,
         })
+        .copied()
         .collect();
 
     assert_eq!(

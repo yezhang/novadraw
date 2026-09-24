@@ -6,8 +6,8 @@
 use tracing::debug;
 
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 
 /// Flow 布局方向
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -70,33 +70,40 @@ impl FlowLayout {
     fn measure(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         let sizes = snapshot
             .children(container)
             .into_iter()
             .map(|(child, _)| {
                 if minimum {
-                    snapshot.minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, constraints)
                 } else {
-                    snapshot.preferred_size(child, w_hint, h_hint)
+                    snapshot.preferred_measurement(child, constraints).size()
                 }
             })
             .collect::<Vec<_>>();
         match self.direction {
-            FlowDirection::Horizontal => {
-                measure_wrapped(&sizes, w_hint, self.spacing, self.row_spacing)
-            }
+            FlowDirection::Horizontal => measure_wrapped(
+                &sizes,
+                constraints.max_width(),
+                self.spacing,
+                self.row_spacing,
+            ),
             FlowDirection::Vertical => {
                 let transposed = sizes
                     .into_iter()
-                    .map(|(width, height)| (height, width))
+                    .map(|size| Dimension::new(size.height, size.width))
                     .collect::<Vec<_>>();
-                let measured = measure_wrapped(&transposed, h_hint, self.spacing, self.row_spacing);
-                (measured.1, measured.0)
+                let measured = measure_wrapped(
+                    &transposed,
+                    constraints.max_height(),
+                    self.spacing,
+                    self.row_spacing,
+                );
+                Dimension::new(measured.height, measured.width)
             }
         }
     }
@@ -152,7 +159,12 @@ impl FlowLayout {
         let mut row_height: f64 = 0.0;
 
         for (child_id, _) in children {
-            let (child_w, child_h) = snapshot.preferred_size(*child_id, area.width, -1.0);
+            let measured = snapshot.preferred_measurement(
+                *child_id,
+                MeasureConstraints::width(area.width)
+                    .expect("container width is valid layout geometry"),
+            );
+            let (child_w, child_h) = (measured.width, measured.height);
 
             // 检查是否需要换行
             if x + child_w > area.x + area.width && x > area.x {
@@ -184,7 +196,12 @@ impl FlowLayout {
         let mut col_width: f64 = 0.0;
 
         for (child_id, _) in children {
-            let (child_w, child_h) = snapshot.preferred_size(*child_id, -1.0, area.height);
+            let measured = snapshot.preferred_measurement(
+                *child_id,
+                MeasureConstraints::height(area.height)
+                    .expect("container height is valid layout geometry"),
+            );
+            let (child_w, child_h) = (measured.width, measured.height);
 
             // 检查是否需要换列
             if y + child_h > area.y + area.height && y > area.y {
@@ -212,24 +229,23 @@ impl Default for FlowLayout {
 }
 
 impl LayoutManager for FlowLayout {
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.measure(container, constraints, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, true)
+    ) -> Dimension {
+        self.measure(container, constraints, snapshot, true)
     }
 
     fn layout(
@@ -244,24 +260,25 @@ impl LayoutManager for FlowLayout {
 }
 
 fn measure_wrapped(
-    sizes: &[(f64, f64)],
-    main_hint: f64,
+    sizes: &[Dimension],
+    max_main: Option<f64>,
     spacing: f64,
     line_spacing: f64,
-) -> (f64, f64) {
+) -> Dimension {
     let mut line_main = 0.0_f64;
     let mut line_minor = 0.0_f64;
     let mut total_main = 0.0_f64;
     let mut total_minor = 0.0_f64;
     let mut line_items = 0_usize;
 
-    for &(main, minor) in sizes {
+    for size in sizes {
+        let (main, minor) = (size.width, size.height);
         let required = if line_items == 0 {
             main
         } else {
             line_main + spacing + main
         };
-        if main_hint >= 0.0 && required > main_hint && line_items > 0 {
+        if max_main.is_some_and(|limit| required > limit) && line_items > 0 {
             total_main = total_main.max(line_main);
             total_minor += line_minor + line_spacing;
             line_main = main;
@@ -276,7 +293,7 @@ fn measure_wrapped(
 
     total_main = total_main.max(line_main);
     total_minor += line_minor;
-    (total_main, total_minor)
+    Dimension::new(total_main, total_minor)
 }
 
 #[cfg(test)]
@@ -286,13 +303,12 @@ mod tests {
     #[test]
     fn test_flow_layout_creation() {
         let layout = FlowLayout::new();
-        let (w, h) = layout.get_preferred_size(
+        let measured = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
-            800.0,
-            600.0,
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
-        assert_eq!((w, h), (0.0, 0.0));
+        assert_eq!(measured.size(), Dimension::ZERO);
     }
 
     #[test]
@@ -304,11 +320,10 @@ mod tests {
     #[test]
     fn test_flow_layout_with_spacing() {
         let layout = FlowLayout::new().with_spacing(20.0).with_row_spacing(15.0);
-        // 通过 get_preferred_size 间接验证
-        let _ = layout.get_preferred_size(
+        // 通过 preferred_measurement 间接验证
+        let _ = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
-            800.0,
-            600.0,
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
             &LayoutSnapshot::new(&MockLayoutContext::new()),
         );
     }
@@ -341,8 +356,12 @@ impl super::LayoutContext for MockLayoutContext {
         None
     }
 
-    fn get_preferred_size(&self, _figure_id: FigureId, _w_hint: f64, _h_hint: f64) -> (f64, f64) {
-        (100.0, 100.0)
+    fn preferred_measurement(
+        &self,
+        _figure_id: FigureId,
+        _constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        FigureMeasurement::new(100.0, 100.0, None)
     }
 
     fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {

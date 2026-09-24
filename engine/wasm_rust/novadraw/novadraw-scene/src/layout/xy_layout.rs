@@ -4,8 +4,8 @@
 //! 使用约束（Rectangle）定位每个子元素。
 
 use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
-use crate::graph::FigureId;
-use novadraw_geometry::Rectangle;
+use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
+use novadraw_geometry::{Dimension, Rectangle};
 
 /// XY 布局约束
 ///
@@ -81,35 +81,48 @@ impl XYLayout {
     fn measure(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
         minimum: bool,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         snapshot
             .children(container)
             .into_iter()
             .filter_map(|(child, _)| {
                 let constraint = xy_constraint(snapshot, container, child).ok().flatten()?;
+                let child_constraints = MeasureConstraints::new(
+                    (constraint.width >= 0.0)
+                        .then_some(constraint.width)
+                        .or(constraints.max_width()),
+                    (constraint.height >= 0.0)
+                        .then_some(constraint.height)
+                        .or(constraints.max_height()),
+                )
+                .ok()?;
                 let intrinsic = if minimum {
-                    snapshot.minimum_size(child, w_hint, h_hint)
+                    snapshot.minimum_size(child, child_constraints)
                 } else {
-                    snapshot.preferred_size(child, w_hint, h_hint)
+                    snapshot
+                        .preferred_measurement(child, child_constraints)
+                        .size()
                 };
                 let width = if constraint.width < 0.0 {
-                    intrinsic.0
+                    intrinsic.width
                 } else {
                     constraint.width
                 };
                 let height = if constraint.height < 0.0 {
-                    intrinsic.1
+                    intrinsic.height
                 } else {
                     constraint.height
                 };
-                Some((constraint.x + width, constraint.y + height))
+                Some(Dimension::new(constraint.x + width, constraint.y + height))
             })
-            .fold((0.0_f64, 0.0_f64), |size, child_extent| {
-                (size.0.max(child_extent.0), size.1.max(child_extent.1))
+            .fold(Dimension::ZERO, |size, child_extent| {
+                Dimension::new(
+                    size.width.max(child_extent.width),
+                    size.height.max(child_extent.height),
+                )
             })
     }
 }
@@ -127,8 +140,25 @@ impl LayoutManager for XYLayout {
         child: FigureId,
         constraint: &dyn LayoutConstraint,
     ) -> Result<(), LayoutError> {
-        if constraint.as_any().is::<XYConstraint>() || constraint.as_any().is::<Rectangle>() {
-            return Ok(());
+        if let Some(constraint) = constraint.as_any().downcast_ref::<XYConstraint>() {
+            if constraint.x.is_finite()
+                && constraint.y.is_finite()
+                && constraint.width.is_finite()
+                && constraint.height.is_finite()
+            {
+                return Ok(());
+            }
+            return Err(LayoutError::NonFiniteGeometry { figure: child });
+        }
+        if let Some(constraint) = constraint.as_any().downcast_ref::<Rectangle>() {
+            if constraint.x.is_finite()
+                && constraint.y.is_finite()
+                && constraint.width.is_finite()
+                && constraint.height.is_finite()
+            {
+                return Ok(());
+            }
+            return Err(LayoutError::NonFiniteGeometry { figure: child });
         }
         Err(LayoutError::ConstraintTypeMismatch {
             container,
@@ -138,24 +168,23 @@ impl LayoutManager for XYLayout {
         })
     }
 
-    fn get_preferred_size(
+    fn preferred_measurement(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, false)
+    ) -> FigureMeasurement {
+        let size = self.measure(container, constraints, snapshot, false);
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
-    fn get_minimum_size(
+    fn minimum_size(
         &self,
         container: FigureId,
-        w_hint: f64,
-        h_hint: f64,
+        constraints: MeasureConstraints,
         snapshot: &LayoutSnapshot<'_>,
-    ) -> (f64, f64) {
-        self.measure(container, w_hint, h_hint, snapshot, true)
+    ) -> Dimension {
+        self.measure(container, constraints, snapshot, true)
     }
 
     fn layout(
@@ -176,15 +205,21 @@ impl LayoutManager for XYLayout {
 
         for (child_id, _) in children {
             if let Some(constraint) = xy_constraint(snapshot, container, child_id)? {
-                let preferred =
-                    snapshot.preferred_size(child_id, constraint.width, constraint.height);
+                let child_constraints = MeasureConstraints::new(
+                    (constraint.width >= 0.0).then_some(constraint.width),
+                    (constraint.height >= 0.0).then_some(constraint.height),
+                )
+                .expect("validated XYConstraint dimensions produce valid measurement constraints");
+                let preferred = snapshot
+                    .preferred_measurement(child_id, child_constraints)
+                    .size();
                 let width = if constraint.width < 0.0 {
-                    preferred.0
+                    preferred.width
                 } else {
                     constraint.width
                 };
                 let height = if constraint.height < 0.0 {
-                    preferred.1
+                    preferred.height
                 } else {
                     constraint.height
                 };

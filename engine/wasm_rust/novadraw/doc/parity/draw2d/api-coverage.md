@@ -64,7 +64,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P0 | Figure 生命周期 | `addNotify/removeNotify` | 节点挂载/卸载 hook | 子树 attach/detach、资源初始化、事件解绑 |
 | P0 | Bounds 几何 | `getBounds/setBounds/getLocation/setLocation/getSize/setSize/translate` | `Bounded` / `FigureTree` bounds API | bounds 改变后的 repaint、layout invalidation、子坐标影响 |
 | P0 | ClientArea / Insets | `getClientArea/getInsets` | border-inset 后的内容区 | paint clip、layout area、hit-test descent 共用同一 inset 逻辑 |
-| P0 | Paint 主协议 | `paint(Graphics)` | `FigureTree::render` / 内部递归 traversal + `Figure::paint_figure` | 背景、border、client area、children paint 顺序 |
+| P0 | Paint 主协议 | `paint(Graphics)` | `Runtime::record_full_frame` / 内部递归 traversal + `Figure::paint_figure` | 背景、border、client area、children paint 顺序 |
 | P0 | Graphics 绘制上下文 | `Graphics.draw*/fill*/clip*/translate/pushState/popState` | `NdCanvas` / Vello backend | 状态栈、clip、坐标平移、线宽、颜色、文本、路径 |
 | P0 | 坐标转换 | `translateToAbsolute/Relative/Parent/FromParent` | graph 坐标域转换 API | parent/local/root 坐标互转、嵌套偏移、clip 下命中 |
 | P0 | Hit-test | `containsPoint/findFigureAt/findMouseEventTargetAt` | hit-test traversal | 可见性、启用状态、逆 child 顺序、client area、event target |
@@ -224,13 +224,13 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `paint.protocol` | `IFigure.paint(Graphics)` | `FigureTree::render` 递归承载 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)，1k/10k 命令等价与深度门禁通过 |
+| `paint.protocol` | `IFigure.paint(Graphics)` | `Runtime::{prepare_frame,record_full_frame}` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)，1k/10k 命令等价与深度门禁通过 |
 | `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 只由递归 renderer 固定执行，误导性的 `Figure::paint_children` no-op 已删除 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`Runtime::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
 | `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `NdCanvas` | verified | Rust trait 不复制 Draw2D owner object 参数 |
 | `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 递归快照与共享 TitleBar 多 owner 契约已覆盖 |
 | `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试；动态子 Border 可位于任意组合深度 |
-| `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | Runtime/FigureTree update-aware repaint、全量 repaint、old/new visual erase 与 `UpdateManager::add_dirty_region` | verified | `erase` 保持 Runtime 内部 helper；dirty merge、parent-chain 投影和 partial repair 已验证 |
+| `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | `Runtime::{repaint,request_full_redraw}`、old/new visual erase 与内部 `UpdateManager` damage 聚合 | verified | `erase` 与树级 repaint primitive 保持 crate 内部；dirty merge、parent-chain 投影和 partial repair 已验证 |
 
 Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`LabeledBorder.java`。
 
@@ -238,8 +238,8 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `coordinate.conversion` | `translateToAbsolute(Translatable)`, `translateToRelative(Translatable)` | `FigureTree::{translate_to_absolute_mut,translate_to_relative}` | verified | M4 contract 覆盖多层坐标根、Insets 与 Point/Rectangle 往返 |
-| `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureTree::{translate_to_parent,translate_from_parent}`，`Viewport::{translate_to_parent,translate_from_parent}` | verified | active core 已验证；Viewport 扩展仍归 M8 |
+| `coordinate.conversion` | `translateToAbsolute(Translatable)`, `translateToRelative(Translatable)` | `FigureTree::{local_to_surface_transform,surface_to_local_transform}` 返回 `Option<Affine2D>` | verified | M4 contract 覆盖多层坐标根、Insets、Point/Rectangle 往返和查询失败 |
+| `coordinate.conversion` | `translateToParent(Translatable)`, `translateFromParent(Translatable)` | `FigureTree::{local_to_parent_transform,parent_to_local_transform}` | verified | 坐标转换为纯查询，调用方显式应用变换；Viewport 扩展仍归 M8 |
 | `coordinate.conversion` | `isCoordinateSystem()` | 无对应模式开关；所有树边统一使用 parent-local bounds，容器通过 `FigureContainer::child_transform` 提供额外 Affine2D | verified | 坐标根语义由显式变换边表达；移动 ancestor 不改写 descendant bounds |
 | `coordinate.conversion` | `isMirrored()` | 暂无 public 等价 API | deferred | 可延后，当前不阻塞 M4 |
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
@@ -252,10 +252,10 @@ Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `layout.manager` | `LayoutManager.getConstraint/setConstraint/remove` | parent-owned typed constraint；`Runtime::{set_layout_constraint,remove_layout_constraint}` 与 callback deferred mutation 在提交前校验 manager compatibility | verified | D3.2 原子失败、FIFO 与 validation queue 契约测试通过 |
-| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | LayoutManager/LayoutContext 测量；Runtime preferred/minimum/maximum override set/clear | verified | D3.2 覆盖有限非负校验、clear fallback 与 update-aware invalidation |
+| `layout.manager` | `getPreferredSize(IFigure,wHint,hHint)`, `getMinimumSize(...)` | `LayoutManager::{preferred_measurement,minimum_size}` 使用 `MeasureConstraints`、`FigureMeasurement` 与 `Dimension`；Runtime size override set/clear | verified | 无约束不再使用负数 sentinel；覆盖 bounded/unbounded、baseline、缓存 key、固定轴 hint 与 update-aware invalidation |
 | `layout.manager` | `LayoutManager.invalidate(IFigure)`, `layout(IFigure)` | 无缓存布局采用图级 invalid path；`layout` 通过 `LayoutContext` 操作 children | verified | 缓存布局未来需重新声明 invalidate hook |
 | `layout.manager` | concrete layout implementations | 六类布局算法、构建期配置与 Runtime 动态 replacement 已验证；新 manager 提交前校验已有 constraints | verified | `m5_layout_contract` 覆盖 child-content client area、inset 单次应用与 Border 非对称区域分配；`d3_runtime_mutation` 与 `layout-app` |
-| `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `FigureTree::{invalidate,mark_invalid,revalidate,perform_validation_cycle,is_valid}`，validation root、重复失效与回调延迟失效已闭合 | verified | hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
+| `validation.protocol` | `IFigure.invalidate`, `invalidateTree`, `revalidate`, `validate`, `setValid` | `Runtime::revalidate` 与内部 validation cycle，`FigureTree::is_valid` 提供查询 | verified | validation 驱动不再从 FigureTree 公开；hidden/disabled 子树恢复时经 update-aware setter 重新入队 |
 | `update_manager.two_phase` | `addInvalidFigure`, `performValidation`, `performUpdate`, `runWithUpdate` | `UpdateManager` 串联 Validation -> Damage Repair；支持非重入、panic 恢复、周期快照和因果通知 | verified | `runWithUpdate` 由组合根事务表达 |
 | `damage.repaint` | `UpdateManager.addDirtyRegion`, `performUpdate(Rectangle exposed)` | dirty 合并、根域传播、`DamageMode::{None,Full,Partial}` 与 retained frame 提交已闭合 | verified | exposed-rect overload 作为 P1 扩展 |
 

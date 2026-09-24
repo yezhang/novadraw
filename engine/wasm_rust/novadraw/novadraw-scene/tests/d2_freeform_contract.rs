@@ -2,11 +2,20 @@ use novadraw_render::RenderCommandKind;
 use novadraw_scene::{
     FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
     FreeformError, FreeformLayerFigure, FreeformLayout, LayerKey, LayerPlacement, LayoutError,
-    MouseLocationZoomScrollPolicy, NotificationEffect, Point, PropertyValue, Rectangle,
-    RectangleFigure, Runtime, ScaleHandle, UpdateManager, ViewportHandle, XYConstraint,
-    ZoomManager,
+    ListenerDirective, MeasureConstraints, MouseLocationZoomScrollPolicy, Point,
+    PropertyChangeEvent, PropertyChangeListener, PropertyValue, Rectangle, RectangleFigure,
+    Runtime, ScaleHandle, UpdateManager, ViewportHandle, XYConstraint, ZoomManager,
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+struct PropertyRecorder(Arc<Mutex<Vec<PropertyChangeEvent>>>);
+
+impl PropertyChangeListener for PropertyRecorder {
+    fn property_changed(&self, event: &PropertyChangeEvent) -> ListenerDirective {
+        self.0.lock().unwrap().push(event.clone());
+        ListenerDirective::Keep
+    }
+}
 
 fn scalable_freeform_viewport(
     layer_bounds: Rectangle,
@@ -172,18 +181,22 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     tree.builder()
         .validate_subtree(host)
         .expect("valid FigureTree construction");
-    tree.drain_notification_effects();
-
-    tree.builder()
+    let mut runtime = Runtime::new(tree);
+    runtime.prepare_frame().expect("initial full frame");
+    let events = Arc::new(Mutex::new(Vec::new()));
+    runtime.add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
+    runtime
         .set_bounds(child, Rectangle::new(30.0, 40.0, 20.0, 10.0))
         .unwrap();
 
     assert_eq!(
-        tree.freeform_extent(host),
+        runtime.freeform_extent(host),
         Ok(Rectangle::new(-10.0, -5.0, 20.0, 10.0))
     );
     assert!(
-        tree.node(host)
+        runtime
+            .tree()
+            .node(host)
             .unwrap()
             .layout_state()
             .freeform_state()
@@ -191,25 +204,18 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
             .is_dirty()
     );
 
-    tree.builder()
-        .validate_subtree(host)
-        .expect("valid FigureTree construction");
+    runtime.prepare_frame();
 
     assert_eq!(
-        tree.freeform_extent(host),
+        runtime.freeform_extent(host),
         Ok(Rectangle::new(30.0, 40.0, 20.0, 10.0))
     );
-    let extent_events: Vec<_> = tree
-        .drain_notification_effects()
-        .into_iter()
-        .filter_map(|effect| match effect {
-            NotificationEffect::EmitProperty(event)
-                if event.property == FREEFORM_EXTENT_PROPERTY =>
-            {
-                Some(event)
-            }
-            _ => None,
-        })
+    let extent_events: Vec<_> = events
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|event| event.property == FREEFORM_EXTENT_PROPERTY)
+        .cloned()
         .collect();
     assert_eq!(extent_events.len(), 1);
     assert_eq!(
@@ -302,7 +308,7 @@ fn overflow_visible_skips_host_clip_during_rendering() {
         )
         .expect("valid FigureTree construction");
 
-    let canvas = tree.render();
+    let canvas = Runtime::new(tree).record_full_frame();
     let has_host_clip = canvas.commands().iter().any(|command| {
         matches!(
             command.kind,
@@ -348,8 +354,8 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
         .set_view_location(&mut tree, &mut updates, -20.0, -10.0)
         .unwrap();
 
-    let viewport_sized_clips = tree
-        .render()
+    let viewport_sized_clips = Runtime::new(tree)
+        .record_full_frame()
         .commands()
         .iter()
         .filter(|command| {
@@ -383,10 +389,10 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
     tree.builder()
         .validate_subtree(host)
         .expect("valid FigureTree construction");
-    let mut updates = UpdateManager::new();
-    tree.repaint(&mut updates, child, None);
-
-    let canvas = tree.perform_update(&mut updates);
+    let mut runtime = Runtime::new(tree);
+    runtime.prepare_frame().expect("initial full frame");
+    runtime.repaint(child, None).unwrap();
+    let canvas = runtime.prepare_frame().expect("queued repaint");
 
     assert_eq!(
         canvas.damage().union(),
@@ -474,7 +480,11 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
         )
         .expect("valid FigureTree construction");
 
-    assert_eq!(tree.preferred_size(host, -1.0, -1.0), Some((40.0, 20.0)));
+    assert_eq!(
+        tree.preferred_measurement(host, MeasureConstraints::UNBOUNDED)
+            .map(|measurement| measurement.size().into()),
+        Some((40.0, 20.0))
+    );
     assert_eq!(
         tree.freeform_extent(host),
         Err(FreeformError::Unvalidated(host))
