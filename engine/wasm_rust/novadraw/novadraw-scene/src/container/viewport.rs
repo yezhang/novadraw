@@ -195,18 +195,18 @@ impl From<RangeModelError> for ViewportError {
 
 #[derive(Clone)]
 pub struct ViewportHandle {
-    block_id: FigureId,
+    figure_id: FigureId,
     runtime: Arc<Mutex<ViewportRuntime>>,
 }
 
 impl ViewportHandle {
-    pub fn block_id(&self) -> FigureId {
-        self.block_id
+    pub fn figure_id(&self) -> FigureId {
+        self.figure_id
     }
 
     pub fn contents(&self, graph: &FigureTree) -> Option<FigureId> {
         graph
-            .child_order(self.block_id)
+            .child_order(self.figure_id)
             .and_then(|children| children.first().copied())
     }
 
@@ -233,7 +233,7 @@ impl ViewportHandle {
         if !x.is_finite() || !y.is_finite() {
             return Err(ViewportError::InvalidViewLocation);
         }
-        if graph.get_block(self.block_id).is_none() {
+        if graph.node(self.figure_id).is_none() {
             return Err(ViewportError::MissingViewport);
         }
 
@@ -250,13 +250,13 @@ impl ViewportHandle {
         }
 
         graph.record_property_change(
-            self.block_id,
+            self.figure_id,
             "viewLocation",
             PropertyValue::Point(old),
             PropertyValue::Point(new),
         );
-        graph.record_coordinate_system_changed(self.block_id);
-        graph.repaint(update_manager, self.block_id, None);
+        graph.record_coordinate_system_changed(self.figure_id);
+        graph.repaint(update_manager, self.figure_id, None);
         Ok(true)
     }
 
@@ -305,16 +305,16 @@ impl ViewportHandle {
         update_manager: &mut UpdateManager,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, ViewportError> {
-        if graph.get_block(self.block_id).is_none() {
+        if graph.node(self.figure_id).is_none() {
             return Err(ViewportError::MissingViewport);
         }
         if let Some(previous) = self.contents(graph) {
-            graph.remove_child(update_manager, self.block_id, previous);
+            graph.remove_child(update_manager, self.figure_id, previous);
         }
-        let child = graph.try_add_child_to(self.block_id, figure)?;
-        graph.mark_invalid(update_manager, self.block_id);
+        let child = graph.try_add_child_to(self.figure_id, figure)?;
+        graph.mark_invalid(update_manager, self.figure_id);
         graph.mark_invalid(update_manager, child);
-        graph.repaint(update_manager, self.block_id, None);
+        graph.repaint(update_manager, self.figure_id, None);
         Ok(child)
     }
 
@@ -343,7 +343,7 @@ impl ViewportHandle {
         tracks_width: Option<bool>,
         tracks_height: Option<bool>,
     ) -> Result<bool, ViewportError> {
-        if graph.get_block(self.block_id).is_none() {
+        if graph.node(self.figure_id).is_none() {
             return Err(ViewportError::MissingViewport);
         }
         let changed = {
@@ -364,8 +364,8 @@ impl ViewportHandle {
             changed
         };
         if changed {
-            graph.mark_invalid(update_manager, self.block_id);
-            graph.repaint(update_manager, self.block_id, None);
+            graph.mark_invalid(update_manager, self.figure_id);
+            graph.repaint(update_manager, self.figure_id, None);
         }
         Ok(changed)
     }
@@ -688,14 +688,14 @@ impl BorderedFigure for ViewportFigure {
 }
 
 impl FigureTree {
-    pub fn viewport_handle(&self, block_id: FigureId) -> Option<ViewportHandle> {
+    pub fn viewport_handle(&self, figure_id: FigureId) -> Option<ViewportHandle> {
         let viewport = self
-            .block(block_id)?
+            .node(figure_id)?
             .figure
             .as_any()
             .downcast_ref::<ViewportFigure>()?;
         Some(ViewportHandle {
-            block_id,
+            figure_id,
             runtime: Arc::clone(&viewport.runtime),
         })
     }
@@ -731,12 +731,12 @@ impl FigureTree {
             horizontal, vertical,
         )));
         let figure = ViewportFigure::with_runtime(bounds, Arc::clone(&runtime));
-        let block_id = self.try_add_child_to(parent, Box::new(figure))?;
-        self.set_block_layout_manager(
-            block_id,
-            Box::new(ViewportLayout::new(Arc::clone(&runtime))),
+        let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
+        self.replace_layout_manager(
+            figure_id,
+            Some(Box::new(ViewportLayout::new(Arc::clone(&runtime)))),
         );
-        Ok(ViewportHandle { block_id, runtime })
+        Ok(ViewportHandle { figure_id, runtime })
     }
 }
 
@@ -827,7 +827,7 @@ mod tests {
                 Box::new(crate::RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
             )
             .unwrap();
-        tree.revalidate(viewport.block_id());
+        tree.revalidate(viewport.figure_id());
         let before_horizontal = viewport.horizontal_range();
         let before_vertical = viewport.vertical_range();
         let notifications = Arc::new(AtomicUsize::new(0));
@@ -840,15 +840,15 @@ mod tests {
             .add_listener(Arc::new(CountingRangeListener(Arc::clone(&notifications))));
         drop(runtime);
 
-        tree.set_bounds(viewport.block_id(), 0.0, 0.0, 120.0, 90.0);
-        tree.set_block_layout_manager(
-            viewport.block_id(),
-            Box::new(InvalidViewportLayout {
+        tree.set_bounds(viewport.figure_id(), 0.0, 0.0, 120.0, 90.0);
+        tree.replace_layout_manager(
+            viewport.figure_id(),
+            Some(Box::new(InvalidViewportLayout {
                 inner: ViewportLayout::new(Arc::clone(&viewport.runtime)),
                 invalid_child: root,
-            }),
+            })),
         );
-        tree.mark_invalid(&mut updates, viewport.block_id());
+        tree.mark_invalid(&mut updates, viewport.figure_id());
         updates.perform_validation(&mut tree);
 
         assert!(matches!(

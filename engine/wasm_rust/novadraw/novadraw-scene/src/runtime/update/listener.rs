@@ -78,7 +78,7 @@ pub enum FigureEvent {
     ///
     /// 对应 draw2d: `FigureListener.figureMoved(...)`。
     FigureMoved {
-        block_id: FigureId,
+        figure_id: FigureId,
         old_bounds: Rectangle,
         new_bounds: Rectangle,
     },
@@ -86,7 +86,7 @@ pub enum FigureEvent {
     ///
     /// 对应 draw2d: `CoordinateListener.coordinateSystemChanged(...)`。
     CoordinateSystemChanged {
-        block_id: FigureId,
+        figure_id: FigureId,
         old_bounds: Rectangle,
         new_bounds: Rectangle,
     },
@@ -102,7 +102,7 @@ pub enum AncestorEventKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AncestorEvent {
     pub kind: AncestorEventKind,
-    pub block_id: FigureId,
+    pub figure_id: FigureId,
     pub parent_id: FigureId,
 }
 
@@ -117,13 +117,13 @@ pub enum PropertyValue {
     Size(Dimension),
     Rectangle(Rectangle),
     Text(String),
-    Block(Option<FigureId>),
+    Figure(Option<FigureId>),
     None,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyChangeEvent {
-    pub block_id: FigureId,
+    pub figure_id: FigureId,
     pub property: &'static str,
     pub old_value: PropertyValue,
     pub new_value: PropertyValue,
@@ -131,7 +131,7 @@ pub struct PropertyChangeEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ActionEvent {
-    pub block_id: FigureId,
+    pub figure_id: FigureId,
     pub revision: u64,
 }
 
@@ -160,7 +160,7 @@ pub struct LayoutEvent {
 #[derive(Debug, Clone, PartialEq)]
 pub enum NotificationEffect {
     /// 无 payload 的状态失效通知。
-    Notify { block_id: FigureId },
+    Notify { figure_id: FigureId },
     /// Figure 层 typed event。
     EmitFigure(FigureEvent),
     /// UpdateManager 层 typed event。
@@ -250,8 +250,8 @@ impl NotificationQueue {
         Self::default()
     }
 
-    pub fn notify(&mut self, block_id: FigureId) {
-        self.effects.push(NotificationEffect::Notify { block_id });
+    pub fn notify(&mut self, figure_id: FigureId) {
+        self.effects.push(NotificationEffect::Notify { figure_id });
     }
 
     pub fn emit_figure(&mut self, event: FigureEvent) {
@@ -321,8 +321,8 @@ pub trait UpdateListener {
     /// 通知 Figure 层事件（FigureMoved, CoordinateSystemChanged）
     fn on_figure_event(&self, event: FigureEvent) -> ListenerDirective;
 
-    /// 通知块状态变化（Notify 语义）
-    fn on_notify(&self, block_id: FigureId) -> ListenerDirective;
+    /// 通知 Figure 状态变化（Notify 语义）
+    fn on_notify(&self, figure_id: FigureId) -> ListenerDirective;
 
     /// 检查是否为验证监听器
     fn as_validating_listener(&self) -> Option<&dyn ValidatingListener> {
@@ -375,7 +375,7 @@ impl UpdateListener for () {
         ListenerDirective::Keep
     }
 
-    fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+    fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
         ListenerDirective::Keep
     }
 }
@@ -390,18 +390,18 @@ mod tests {
     use super::*;
     use slotmap::KeyData;
 
-    fn block_id(data: u64) -> FigureId {
+    fn figure_id(data: u64) -> FigureId {
         FigureId::from(KeyData::from_ffi(data))
     }
 
     #[test]
     fn test_notification_queue_separates_notify_and_typed_event() {
-        let id = block_id(1);
+        let id = figure_id(1);
         let mut queue = NotificationQueue::new();
 
         queue.notify(id);
         queue.emit_figure(FigureEvent::CoordinateSystemChanged {
-            block_id: id,
+            figure_id: id,
             old_bounds: Rectangle::new(0.0, 0.0, 10.0, 10.0),
             new_bounds: Rectangle::new(5.0, 5.0, 10.0, 10.0),
         });
@@ -409,7 +409,7 @@ mod tests {
         assert_eq!(queue.len(), 2);
         assert_eq!(
             queue.effects()[0],
-            NotificationEffect::Notify { block_id: id }
+            NotificationEffect::Notify { figure_id: id }
         );
         assert!(matches!(
             queue.effects()[1],
@@ -419,13 +419,13 @@ mod tests {
 
     #[test]
     fn test_notification_queue_drains_at_transaction_boundary() {
-        let id = block_id(1);
+        let id = figure_id(1);
         let mut queue = NotificationQueue::new();
         queue.notify(id);
 
         let drained = queue.drain();
 
-        assert_eq!(drained, vec![NotificationEffect::Notify { block_id: id }]);
+        assert_eq!(drained, vec![NotificationEffect::Notify { figure_id: id }]);
         assert!(queue.is_empty());
     }
 }

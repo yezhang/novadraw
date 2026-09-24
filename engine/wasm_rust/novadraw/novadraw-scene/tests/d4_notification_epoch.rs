@@ -94,8 +94,16 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
 
     let first = Rectangle::new(5.0, 6.0, 30.0, 20.0);
     let second = Rectangle::new(9.0, 10.0, 40.0, 24.0);
-    assert!(runtime.set_bounds(figure, first));
-    assert!(runtime.set_bounds(figure, second));
+    assert!(
+        runtime
+            .set_bounds(figure, first)
+            .expect("valid Runtime mutation")
+    );
+    assert!(
+        runtime
+            .set_bounds(figure, second)
+            .expect("valid Runtime mutation")
+    );
     assert!(matches!(
         runtime.stable_query(),
         Err(StableQueryError::NotStable {
@@ -148,7 +156,11 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         records: Arc::clone(&notification_only),
     }));
     let previous_epoch = runtime.stable_query().unwrap().epoch();
-    assert!(runtime.set_focusable(figure, true));
+    assert!(
+        runtime
+            .set_focusable(figure, true)
+            .expect("valid Runtime mutation")
+    );
     assert!(matches!(
         runtime.stable_query(),
         Err(StableQueryError::NotStable {
@@ -175,6 +187,6 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     assert!(notification_only.iter().any(|(record, _)| matches!(
         record.effect,
         NotificationEffect::EmitProperty(ref event)
-            if event.block_id == figure && event.property == "focusable"
+            if event.figure_id == figure && event.property == "focusable"
     )));
 }

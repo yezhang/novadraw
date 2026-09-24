@@ -37,7 +37,10 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
         )),
     )
     .map_err(|error| error.to_string())?;
-    graph.revalidate(pane.pane_id());
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
     let runtime = Runtime::new(graph);
     if !runtime.tree().is_visible(pane.horizontal_scroll_bar())
         || !runtime.tree().is_visible(pane.vertical_scroll_bar())
@@ -77,7 +80,10 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
         )),
     )
     .map_err(|error| error.to_string())?;
-    graph.revalidate(pane.pane_id());
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     runtime.dispatch_scroll(WheelEvent::new(PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0));
     let location = pane.viewport().view_location();
@@ -99,15 +105,21 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     let scalable = graph
         .builder()
         .add_scalable_layered_pane_to(
-            pane.viewport().block_id(),
+            pane.viewport().figure_id(),
             Rectangle::new(0.0, 0.0, 400.0, 300.0),
         )
         .map_err(|error| error.to_string())?;
-    let child = graph.builder().add_child_to(
-        scalable.block_id(),
-        Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
-    );
-    graph.revalidate(pane.pane_id());
+    let child = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 20.0)),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     let mut runtime = Runtime::new(graph);
     runtime
@@ -141,20 +153,26 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     let scalable = graph
         .builder()
         .add_scalable_layered_pane_to(
-            pane.viewport().block_id(),
+            pane.viewport().figure_id(),
             Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let child = graph.builder().add_child_to(
-        scalable.block_id(),
-        Box::new(RectangleFigure::new(
-            0.0,
-            0.0,
-            LARGE_CONTENT_WIDTH,
-            LARGE_CONTENT_HEIGHT,
-        )),
-    );
-    graph.revalidate(pane.pane_id());
+    let child = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(RectangleFigure::new(
+                0.0,
+                0.0,
+                LARGE_CONTENT_WIDTH,
+                LARGE_CONTENT_HEIGHT,
+            )),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
     runtime.dispatch_zoom(ZoomEvent::new(
@@ -229,7 +247,7 @@ fn verify_freeform_range() -> Result<VerificationMetrics, String> {
     let extent = demo
         .runtime
         .tree()
-        .freeform_extent(demo.scalable.block_id())
+        .freeform_extent(demo.scalable.figure_id())
         .map_err(|error| error.to_string())?;
     let horizontal = demo.pane.viewport().horizontal_range();
     let vertical = demo.pane.viewport().vertical_range();

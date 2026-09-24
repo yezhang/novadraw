@@ -95,13 +95,13 @@ pub trait ScalableFigure: Figure {
 
 #[derive(Clone)]
 pub struct ScaleHandle {
-    block_id: FigureId,
+    figure_id: FigureId,
     runtime: Arc<Mutex<ScaleRuntime>>,
 }
 
 impl ScaleHandle {
-    pub fn block_id(&self) -> FigureId {
-        self.block_id
+    pub fn figure_id(&self) -> FigureId {
+        self.figure_id
     }
 
     pub fn scale(&self) -> f64 {
@@ -117,7 +117,7 @@ impl ScaleHandle {
         if !valid_scale(scale) {
             return Err(ScaleError::InvalidScale);
         }
-        if graph.get_block(self.block_id).is_none() {
+        if graph.node(self.figure_id).is_none() {
             return Err(ScaleError::MissingFigure);
         }
         let old_scale = {
@@ -129,14 +129,14 @@ impl ScaleHandle {
         };
 
         graph.record_property_change(
-            self.block_id,
+            self.figure_id,
             "scale",
             PropertyValue::Number(old_scale),
             PropertyValue::Number(scale),
         );
-        graph.record_coordinate_system_changed(self.block_id);
-        graph.mark_invalid(update_manager, self.block_id);
-        graph.repaint(update_manager, self.block_id, None);
+        graph.record_coordinate_system_changed(self.figure_id);
+        graph.mark_invalid(update_manager, self.figure_id);
+        graph.repaint(update_manager, self.figure_id, None);
         Ok(true)
     }
 }
@@ -495,8 +495,8 @@ impl ScalableFigure for ScalableFreeformLayeredPane {
 }
 
 impl FigureTree {
-    pub fn scale_handle(&self, block_id: FigureId) -> Option<ScaleHandle> {
-        let figure = &self.block(block_id)?.figure;
+    pub fn scale_handle(&self, figure_id: FigureId) -> Option<ScaleHandle> {
+        let figure = &self.node(figure_id)?.figure;
         let runtime =
             if let Some(scalable) = figure.as_any().downcast_ref::<ScalableLayeredPaneFigure>() {
                 Arc::clone(&scalable.runtime)
@@ -508,7 +508,7 @@ impl FigureTree {
                         .runtime,
                 )
             };
-        Some(ScaleHandle { block_id, runtime })
+        Some(ScaleHandle { figure_id, runtime })
     }
 
     pub(crate) fn add_scalable_layered_pane_to(
@@ -518,8 +518,8 @@ impl FigureTree {
     ) -> Result<ScaleHandle, GraphMutationError> {
         let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
         let figure = ScalableLayeredPaneFigure::with_runtime(bounds, Arc::clone(&runtime));
-        let block_id = self.try_add_child_to(parent, Box::new(figure))?;
-        Ok(ScaleHandle { block_id, runtime })
+        let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
+        Ok(ScaleHandle { figure_id, runtime })
     }
 
     pub(crate) fn add_scalable_freeform_layered_pane_to(
@@ -529,8 +529,8 @@ impl FigureTree {
     ) -> Result<ScaleHandle, GraphMutationError> {
         let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
         let figure = ScalableFreeformLayeredPane::with_runtime(bounds, Arc::clone(&runtime));
-        let block_id = self.try_add_child_to(parent, Box::new(figure))?;
-        Ok(ScaleHandle { block_id, runtime })
+        let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
+        Ok(ScaleHandle { figure_id, runtime })
     }
 }
 

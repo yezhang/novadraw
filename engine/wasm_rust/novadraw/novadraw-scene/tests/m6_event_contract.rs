@@ -183,19 +183,31 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let root = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
-    let coordinate_root = graph.builder().add_child_to(
-        root,
-        Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
-    );
-    let probe = graph.builder().add_child_to(
-        coordinate_root,
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(10.0, 20.0, 50.0, 50.0),
-            events: events.clone(),
-        }),
-    );
-    graph.set_focusable(probe, true);
-    graph.set_focus_traversable(probe, true);
+    let coordinate_root = graph
+        .builder()
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(100.0, 50.0, 200.0, 150.0)),
+        )
+        .expect("valid FigureTree construction");
+    let probe = graph
+        .builder()
+        .add_child(
+            coordinate_root,
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(10.0, 20.0, 50.0, 50.0),
+                events: events.clone(),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_focusable(probe, true)
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_focus_traversable(probe, true)
+        .expect("valid FigureTree construction");
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
@@ -258,20 +270,26 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let root = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
-    graph.builder().add_child_to(
-        root,
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(10.0, 10.0, 80.0, 80.0),
-            events: Arc::clone(&captured_events),
-        }),
-    );
-    graph.builder().add_child_to(
-        root,
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(200.0, 100.0, 80.0, 80.0),
-            events: Arc::clone(&gesture_events),
-        }),
-    );
+    graph
+        .builder()
+        .add_child(
+            root,
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(10.0, 10.0, 80.0, 80.0),
+                events: Arc::clone(&captured_events),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .add_child(
+            root,
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(200.0, 100.0, 80.0, 80.0),
+                events: Arc::clone(&gesture_events),
+            }),
+        )
+        .expect("valid FigureTree construction");
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();
@@ -338,27 +356,33 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     let first_events = Arc::new(Mutex::new(Vec::new()));
     let second_events = Arc::new(Mutex::new(Vec::new()));
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 160.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 160.0)))
+        .expect("valid Runtime mutation");
     let first_viewport = runtime
         .add_viewport(root, Rectangle::new(0.0, 0.0, 120.0, 120.0))
         .unwrap();
     let second_viewport = runtime
         .add_viewport(root, Rectangle::new(200.0, 0.0, 120.0, 120.0))
         .unwrap();
-    let first_target = runtime.add_figure(
-        first_viewport.block_id(),
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
-            events: Arc::clone(&first_events),
-        }),
-    );
-    let second_target = runtime.add_figure(
-        second_viewport.block_id(),
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
-            events: Arc::clone(&second_events),
-        }),
-    );
+    let first_target = runtime
+        .add_figure(
+            first_viewport.figure_id(),
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+                events: Arc::clone(&first_events),
+            }),
+        )
+        .expect("valid Runtime mutation");
+    let second_target = runtime
+        .add_figure(
+            second_viewport.figure_id(),
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+                events: Arc::clone(&second_events),
+            }),
+        )
+        .expect("valid Runtime mutation");
     let session = GestureSessionId::new(17);
 
     let begin = runtime.dispatch_scroll(WheelEvent::with_details(
@@ -374,9 +398,17 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     assert_eq!(begin.target(), Some(first_target));
 
     if remove_target {
-        assert!(runtime.remove_figure(root, first_viewport.block_id()));
+        assert!(
+            runtime
+                .remove_figure(root, first_viewport.figure_id())
+                .expect("valid Runtime mutation")
+        );
     } else {
-        assert!(runtime.set_visible(first_viewport.block_id(), false));
+        assert!(
+            runtime
+                .set_visible(first_viewport.figure_id(), false)
+                .expect("valid Runtime mutation")
+        );
     }
     let update = runtime.dispatch_scroll(WheelEvent::with_details(
         220.0,
@@ -447,17 +479,23 @@ fn interactive_parent_remains_mouse_target_across_non_interactive_children() {
     let root = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let parent = graph.builder().add_child_to(
-        root,
-        Box::new(InputProbeFigure {
-            bounds: Rectangle::new(20.0, 20.0, 120.0, 100.0),
-            events: Arc::clone(&events),
-        }),
-    );
-    graph.builder().add_child_to(
-        parent,
-        Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 30.0)),
-    );
+    let parent = graph
+        .builder()
+        .add_child(
+            root,
+            Box::new(InputProbeFigure {
+                bounds: Rectangle::new(20.0, 20.0, 120.0, 100.0),
+                events: Arc::clone(&events),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .add_child(
+            parent,
+            Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 30.0)),
+        )
+        .expect("valid FigureTree construction");
     let mut update_manager = UpdateManager::new();
     let mut interaction = InteractionState::default();
     let mut pending = PendingMutations::new();

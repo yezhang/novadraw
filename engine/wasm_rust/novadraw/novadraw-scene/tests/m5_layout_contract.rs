@@ -21,13 +21,21 @@ fn stack_layout_places_every_child_in_the_client_area() {
         .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 200.0, 100.0)));
     let first = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 30.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 30.0)))
+        .expect("valid FigureTree construction");
     let second = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 50.0)));
-    graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 50.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(StackLayout::new()))
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     let expected = Rectangle::new(0.0, 0.0, 200.0, 100.0);
     assert_rect(graph.figure_bounds(first), expected);
@@ -43,10 +51,17 @@ fn stack_layout_applies_container_insets_once() {
     ));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-    graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(StackLayout::new()))
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(child),
@@ -66,11 +81,21 @@ fn xy_layout_applies_container_insets_once() {
     ));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-    graph.set_constraint(child, XYConstraint::at_size(5.0, 6.0, 20.0, 20.0));
-    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(child, XYConstraint::at_size(5.0, 6.0, 20.0, 20.0))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(child),
@@ -89,18 +114,32 @@ fn border_layout_uses_the_reserved_south_size_for_placement() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let center = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
     let south = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-    graph.set_constraint(center, BorderConstraint::new(BorderRegion::Center));
-    graph.set_constraint(
-        south,
-        BorderConstraint::with_size(BorderRegion::South, 150.0),
-    );
-    graph.set_block_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(center, BorderConstraint::new(BorderRegion::Center))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(
+            south,
+            BorderConstraint::with_size(BorderRegion::South, 150.0),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)))
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(center),
@@ -120,15 +159,29 @@ fn border_layout_uses_the_reserved_east_size_for_placement() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let center = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
     let east = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-    graph.set_constraint(center, BorderConstraint::new(BorderRegion::Center));
-    graph.set_constraint(east, BorderConstraint::with_size(BorderRegion::East, 150.0));
-    graph.set_block_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(center, BorderConstraint::new(BorderRegion::Center))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(east, BorderConstraint::with_size(BorderRegion::East, 150.0))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(BorderLayout::with_sizes(0.0, 0.0, 0.0, 0.0)))
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(center),
@@ -148,22 +201,36 @@ fn toolbar_layout_compresses_main_axis_and_stretches_minor_axis() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 170.0, 60.0)));
     let first = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)))
+        .expect("valid FigureTree construction");
     let second = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 30.0)));
-    graph.set_minimum_size(first, Some((60.0, 10.0)));
-    graph.set_minimum_size(second, Some((100.0, 10.0)));
-    graph.set_block_layout_manager(
-        root,
-        Box::new(
-            ToolbarLayout::horizontal()
-                .with_spacing(10.0)
-                .with_stretch_minor_axis(true),
-        ),
-    );
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 30.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_minimum_size(first, Some((60.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_minimum_size(second, Some((100.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(
+                ToolbarLayout::horizontal()
+                    .with_spacing(10.0)
+                    .with_stretch_minor_axis(true),
+            ),
+        )
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(first),
@@ -183,31 +250,49 @@ fn grid_layout_uses_track_maxima_and_fill_alignment() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
     let first = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)))
+        .expect("valid FigureTree construction");
     let second = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 30.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 30.0)))
+        .expect("valid FigureTree construction");
     let third = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 60.0, 25.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 60.0, 25.0)))
+        .expect("valid FigureTree construction");
     let fill_cell = GridConstraint {
         horizontal_alignment: GridAlignment::Fill,
         vertical_alignment: GridAlignment::Fill,
         ..GridConstraint::default()
     };
-    graph.set_constraint(first, fill_cell);
-    graph.set_constraint(second, fill_cell);
-    graph.set_constraint(third, fill_cell);
-    graph.set_block_layout_manager(
-        root,
-        Box::new(
-            GridLayout::new(2)
-                .with_margins(0.0, 0.0)
-                .with_spacing(10.0, 10.0),
-        ),
-    );
+    graph
+        .builder()
+        .set_layout_constraint(first, fill_cell)
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(second, fill_cell)
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(third, fill_cell)
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(
+                GridLayout::new(2)
+                    .with_margins(0.0, 0.0)
+                    .with_spacing(10.0, 10.0),
+            ),
+        )
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(first),
@@ -231,23 +316,37 @@ fn grid_layout_honors_column_span_and_excess_space() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 210.0, 100.0)));
     let spanning = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 20.0)))
+        .expect("valid FigureTree construction");
     let trailing = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)));
-    graph.set_constraint(spanning, GridConstraint::fill().with_span(2, 1));
-    graph.set_constraint(trailing, GridConstraint::fill());
-    graph.set_block_layout_manager(
-        root,
-        Box::new(
-            GridLayout::new(2)
-                .with_equal_column_widths(true)
-                .with_margins(0.0, 0.0)
-                .with_spacing(10.0, 10.0),
-        ),
-    );
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 20.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(spanning, GridConstraint::fill().with_span(2, 1))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_constraint(trailing, GridConstraint::fill())
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(
+                GridLayout::new(2)
+                    .with_equal_column_widths(true)
+                    .with_margins(0.0, 0.0)
+                    .with_spacing(10.0, 10.0),
+            ),
+        )
+        .expect("valid FigureTree construction");
 
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
 
     assert_rect(
         graph.figure_bounds(spanning),
@@ -270,17 +369,21 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
         children.push(
             graph
                 .builder()
-                .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0))),
+                .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+                .expect("valid FigureTree construction"),
         );
     }
-    graph.set_block_layout_manager(
-        root,
-        Box::new(
-            GridLayout::new(32)
-                .with_margins(0.0, 0.0)
-                .with_spacing(1.0, 1.0),
-        ),
-    );
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(
+                GridLayout::new(32)
+                    .with_margins(0.0, 0.0)
+                    .with_spacing(1.0, 1.0),
+            ),
+        )
+        .expect("valid FigureTree construction");
     let mut update_manager = UpdateManager::new();
     graph.mark_invalid(&mut update_manager, root);
 
@@ -339,16 +442,23 @@ fn layout_output_is_validated_before_any_change_is_committed() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
-    graph.set_block_layout_manager(
-        root,
-        Box::new(InvalidOutputLayout {
-            valid_child: child,
-            invalid_child: root,
-        }),
-    );
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(InvalidOutputLayout {
+                valid_child: child,
+                invalid_child: root,
+            }),
+        )
+        .expect("valid FigureTree construction");
 
-    let error = graph.try_revalidate(root).expect_err("invalid output");
+    let error = graph
+        .builder()
+        .validate_subtree(root)
+        .expect_err("invalid output");
 
     assert_eq!(
         error,
@@ -361,37 +471,72 @@ fn layout_output_is_validated_before_any_change_is_committed() {
         graph.figure_bounds(child),
         Rectangle::new(10.0, 20.0, 30.0, 40.0),
     );
-    assert!(graph.get_block_layout_manager(root).is_some());
+    assert!(graph.layout_manager(root).is_some());
 }
 
 #[test]
-fn wrong_constraint_type_is_reported_and_invalid_work_is_preserved() {
+fn builder_rejects_wrong_constraint_type_without_mutating_layout_state() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
-    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
-    graph.set_constraint(child, BorderConstraint::new(BorderRegion::Center));
-    let mut updates = UpdateManager::new();
-    graph.mark_invalid(&mut updates, root);
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .expect("valid FigureTree construction");
+    let error = graph
+        .builder()
+        .set_layout_constraint(child, BorderConstraint::new(BorderRegion::Center))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        LayoutError::ConstraintTypeMismatch {
+            container,
+            child: error_child,
+            ..
+        } if container == root && error_child == child
+    ));
+    assert!(graph.layout_constraint::<BorderConstraint>(child).is_none());
+}
 
-    graph.perform_update(&mut updates);
+#[test]
+fn builder_rejects_incompatible_manager_before_replacing_layout_state() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let child = graph
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .unwrap();
+    let constraint = XYConstraint::at_size(10.0, 20.0, 30.0, 40.0);
+    graph
+        .builder()
+        .set_layout_constraint(child, constraint)
+        .unwrap();
+
+    let error = graph
+        .builder()
+        .set_layout_manager(root, Box::new(StackLayout::new()))
+        .unwrap_err();
 
     assert!(matches!(
-        updates.last_validation_error(),
-        Some(ValidationError::Layout(
-            LayoutError::ConstraintTypeMismatch {
-                container,
-                child: error_child,
-                ..
-            }
-        )) if *container == root && *error_child == child
+        error,
+        LayoutError::UnsupportedConstraint {
+            container,
+            child: error_child,
+            ..
+        } if container == root && error_child == child
     ));
-    assert!(updates.has_pending_layout());
-    assert!(!graph.is_valid(root));
+    assert!(graph.layout_manager(root).is_none());
+    assert_eq!(
+        graph.layout_constraint::<XYConstraint>(child),
+        Some(&constraint)
+    );
 }
 
 struct CountingLayout {
@@ -439,27 +584,37 @@ fn layout_measurements_are_cached_until_generation_changes() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-    graph.set_block_layout_manager(
-        root,
-        Box::new(CountingLayout {
-            measurements: measurements.clone(),
-        }),
-    );
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(CountingLayout {
+                measurements: measurements.clone(),
+            }),
+        )
+        .expect("valid FigureTree construction");
 
     assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
     assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
     assert_eq!(measurements.load(Ordering::SeqCst), 1);
 
-    let old_generation = graph.get_block(root).unwrap().layout_state().generation();
-    graph.set_preferred_size(child, Some((20.0, 20.0)));
-    let new_generation = graph.get_block(root).unwrap().layout_state().generation();
+    let old_generation = graph.node(root).unwrap().layout_state().generation();
+    graph
+        .builder()
+        .set_preferred_size(child, Some((20.0, 20.0)))
+        .expect("valid FigureTree construction");
+    let new_generation = graph.node(root).unwrap().layout_state().generation();
     assert!(new_generation > old_generation);
     assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((25.0, 35.0)));
     assert_eq!(measurements.load(Ordering::SeqCst), 2);
 
-    graph.revalidate(root);
-    let layout_state = graph.get_block(root).unwrap().layout_state();
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
+    let layout_state = graph.node(root).unwrap().layout_state();
     assert_eq!(
         layout_state.validated_generation(),
         Some(layout_state.generation())
@@ -473,13 +628,19 @@ fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
     let root = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    graph.set_block_layout_manager(
-        root,
-        Box::new(CountingLayout {
-            measurements: measurements.clone(),
-        }),
-    );
-    graph.set_preferred_size(root, Some((0.0, 0.0)));
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(CountingLayout {
+                measurements: measurements.clone(),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_preferred_size(root, Some((0.0, 0.0)))
+        .expect("valid FigureTree construction");
 
     assert_eq!(graph.preferred_size(root, -1.0, -1.0), Some((0.0, 0.0)));
     assert_eq!(measurements.load(Ordering::SeqCst), 0);
@@ -529,8 +690,12 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let child = graph
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
-    graph.set_block_layout_manager(root, Box::new(ReinvalidatingLayout { child }));
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(ReinvalidatingLayout { child }))
+        .expect("valid FigureTree construction");
     let mut updates = UpdateManager::new();
     graph.mark_invalid(&mut updates, root);
 

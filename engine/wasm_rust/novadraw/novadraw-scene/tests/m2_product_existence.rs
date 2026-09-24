@@ -45,7 +45,7 @@ fn architecture_level_runtime_types_are_public() {
     assert_type::<InteractionState>();
 
     let runtime = Runtime::default();
-    assert!(runtime.tree().get_contents().is_none());
+    assert!(runtime.tree().contents().is_none());
     assert!(runtime.interaction().mouse_target().is_none());
 }
 
@@ -206,16 +206,22 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     let root_id = scene
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let bottom_id = scene.builder().add_child_to(
-        root_id,
-        Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 80.0)),
-    );
-    let top_id = scene.builder().add_child_to(
-        root_id,
-        Box::new(EllipseFigure::new(30.0, 30.0, 80.0, 80.0)),
-    );
+    let bottom_id = scene
+        .builder()
+        .add_child(
+            root_id,
+            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 80.0)),
+        )
+        .expect("valid FigureTree construction");
+    let top_id = scene
+        .builder()
+        .add_child(
+            root_id,
+            Box::new(EllipseFigure::new(30.0, 30.0, 80.0, 80.0)),
+        )
+        .expect("valid FigureTree construction");
 
-    let root_block = scene.get_block(root_id).expect("root block should exist");
+    let root_block = scene.node(root_id).expect("root block should exist");
     assert_eq!(root_block.id(), root_id);
     assert_eq!(root_block.children_count(), 2);
     assert_eq!(
@@ -232,16 +238,36 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     assert_eq!(scene.child_z_index(root_id, top_id), Some(1));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(top_id));
 
-    assert!(scene.builder().send_child_to_back(root_id, top_id));
+    assert!(
+        scene
+            .builder()
+            .send_child_to_back(root_id, top_id)
+            .expect("valid FigureTree construction")
+    );
     assert_eq!(scene.child_order(root_id), Some(vec![top_id, bottom_id]));
     assert_eq!(scene.hit_test_simple((50.0, 50.0)), Some(bottom_id));
 
     assert!(scene.is_visible(bottom_id));
     assert!(scene.is_enabled(bottom_id));
-    assert!(scene.set_visible(root_id, false));
+    assert!(
+        scene
+            .builder()
+            .set_visible(root_id, false)
+            .expect("valid FigureTree construction")
+    );
     assert!(!scene.is_effectively_visible(bottom_id));
-    assert!(scene.set_visible(root_id, true));
-    assert!(scene.set_enabled(root_id, false));
+    assert!(
+        scene
+            .builder()
+            .set_visible(root_id, true)
+            .expect("valid FigureTree construction")
+    );
+    assert!(
+        scene
+            .builder()
+            .set_enabled(root_id, false)
+            .expect("valid FigureTree construction")
+    );
     assert!(!scene.is_effectively_enabled(bottom_id));
 }
 
@@ -255,14 +281,17 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
             ROOT_COLOR,
             ROOT_BORDER_COLOR,
         )));
-    scene.builder().add_child_to(
-        root_id,
-        Box::new(PaintMarkerFigure::new(
-            Rectangle::new(10.0, 10.0, 40.0, 40.0),
-            CHILD_COLOR,
-            CHILD_BORDER_COLOR,
-        )),
-    );
+    scene
+        .builder()
+        .add_child(
+            root_id,
+            Box::new(PaintMarkerFigure::new(
+                Rectangle::new(10.0, 10.0, 40.0, 40.0),
+                CHILD_COLOR,
+                CHILD_BORDER_COLOR,
+            )),
+        )
+        .expect("valid FigureTree construction");
 
     let gc = scene.render();
     let fill_colors: Vec<_> = gc

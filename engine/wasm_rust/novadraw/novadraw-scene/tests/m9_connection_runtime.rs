@@ -36,13 +36,21 @@ impl<T: 'static> ConnectionRouter for TypedRouter<T> {
 
 fn runtime_fixture() -> (Runtime, FigureId, FigureId, FigureId, FigureId) {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
-    let source = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
-    let target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
-    );
-    let connection = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+        )
+        .expect("valid Runtime mutation");
+    let connection = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     (runtime, root, source, target, connection)
 }
 
@@ -82,16 +90,26 @@ fn inherited_router_defaults_to_draw2d_equivalent_direct_routing() {
 #[test]
 fn invalid_connection_geometry_never_commits_resolved_state() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
-    let source = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
-    let target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
-    );
-    let connection_figure = runtime.add_figure(
-        root,
-        Box::new(ConnectionFigure::new().with_stroke(novadraw_core::Color::BLACK, f64::INFINITY)),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+        )
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(
+            root,
+            Box::new(
+                ConnectionFigure::new().with_stroke(novadraw_core::Color::BLACK, f64::INFINITY),
+            ),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection = runtime
@@ -132,10 +150,12 @@ fn invalid_connection_geometry_never_commits_resolved_state() {
 #[test]
 fn runtime_relocates_bound_connection_children_after_route_commit() {
     let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
-    let label = runtime.add_figure(
-        connection_figure,
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
-    );
+    let label = runtime
+        .add_figure(
+            connection_figure,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection = runtime
@@ -165,10 +185,14 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     assert_eq!(label_bounds.center(), expected);
 
     let old_label_bounds = label_bounds;
-    assert!(runtime.set_bounds(
-        target,
-        novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                target,
+                novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     runtime.prepare_frame().expect("reroute and Locator layout");
     assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
 }
@@ -176,14 +200,24 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
 #[test]
 fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
-    let source = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
-    let target = runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)));
-    let connection_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
-    let label = runtime.add_figure(
-        connection_figure,
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
+    let label = runtime
+        .add_figure(
+            connection_figure,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection = runtime
@@ -222,10 +256,14 @@ fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
             >= 4
     );
 
-    assert!(runtime.set_bounds(
-        target,
-        novadraw_geometry::Rectangle::new(300.0, 170.0, 100.0, 60.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                target,
+                novadraw_geometry::Rectangle::new(300.0, 170.0, 100.0, 60.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(runtime.dirty_connections(), vec![connection]);
     runtime
         .prepare_frame()
@@ -239,10 +277,12 @@ fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
 #[test]
 fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
     let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
-    let label = runtime.add_figure(
-        connection_figure,
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
-    );
+    let label = runtime
+        .add_figure(
+            connection_figure,
+            Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection = runtime
@@ -267,10 +307,14 @@ fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
         .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
 
-    assert!(runtime.set_bounds(
-        target,
-        novadraw_geometry::Rectangle::new(20.0, 30.0, 80.0, 40.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                target,
+                novadraw_geometry::Rectangle::new(20.0, 30.0, 80.0, 40.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert!(matches!(
         runtime.resolve_connection_route(connection, CoordinateSpace::ChildContent(root)),
         Err(ConnectionRuntimeError::Unresolved(
@@ -291,10 +335,14 @@ fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
         }) if child == label
     ));
 
-    assert!(runtime.set_bounds(
-        target,
-        novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                target,
+                novadraw_geometry::Rectangle::new(360.0, 210.0, 100.0, 60.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(runtime.dirty_connections(), vec![connection]);
     runtime
         .prepare_frame()
@@ -403,10 +451,14 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
             >= 4
     );
 
-    assert!(runtime.set_bounds(
-        source,
-        novadraw_geometry::Rectangle::new(25.0, 35.0, 80.0, 40.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                source,
+                novadraw_geometry::Rectangle::new(25.0, 35.0, 80.0, 40.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(runtime.dirty_connections(), vec![connection]);
 }
 
@@ -427,7 +479,11 @@ fn removing_connection_figure_cleans_runtime_state() {
         )
         .unwrap();
 
-    assert!(runtime.remove_figure(root, connection_figure));
+    assert!(
+        runtime
+            .remove_figure(root, connection_figure)
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(
         runtime.connection_state(connection),
         Err(ConnectionRuntimeError::UnknownConnection(connection))
@@ -467,10 +523,14 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
     ));
     assert!(!runtime.has_pending_update());
 
-    assert!(runtime.set_bounds(
-        source,
-        novadraw_geometry::Rectangle::new(80.0, 60.0, 80.0, 40.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                source,
+                novadraw_geometry::Rectangle::new(80.0, 60.0, 80.0, 40.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert!(runtime.has_pending_update());
     let moved = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -756,14 +816,21 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
 #[test]
 fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
-    let old_parent =
-        runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let new_parent = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
-    );
-    let connection_figure = runtime.add_figure(old_parent, Box::new(ConnectionFigure::new()));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let old_parent = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let new_parent = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
+        )
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(old_parent, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(XYAnchor::new(
         Point::new(10.0, 20.0),
         CoordinateSpace::ChildContent(root),
@@ -795,7 +862,7 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
         .unwrap();
     assert_eq!(initial.points().get(1), Some(Point::new(50.0, 30.0)));
 
-    assert!(runtime.try_reparent(connection_figure, new_parent).unwrap());
+    assert!(runtime.reparent(connection_figure, new_parent).unwrap());
     let reparented = runtime
         .resolve_connection_route(connection, CoordinateSpace::ChildContent(new_parent))
         .unwrap();
@@ -812,14 +879,21 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
 #[test]
 fn reparenting_connection_with_unknown_constraint_is_rejected_atomically() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)));
-    let old_parent =
-        runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let new_parent = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
-    );
-    let connection_figure = runtime.add_figure(old_parent, Box::new(ConnectionFigure::new()));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let old_parent = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let new_parent = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(100.0, 0.0, 200.0, 200.0)),
+        )
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(old_parent, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let router =
         runtime.register_connection_router(Box::new(TypedRouter::<ConstraintA>(PhantomData)));
     let connection = runtime
@@ -834,7 +908,7 @@ fn reparenting_connection_with_unknown_constraint_is_rejected_atomically() {
     let before = runtime.connection_state(connection).unwrap();
 
     assert!(matches!(
-        runtime.try_reparent(connection_figure, new_parent),
+        runtime.reparent(connection_figure, new_parent),
         Err(RuntimeMutationError::Connection(
             ConnectionRuntimeError::UnsupportedConstraintReparent {
                 connection: candidate,
@@ -883,7 +957,9 @@ fn manhattan_router_emits_only_orthogonal_non_duplicate_segments() {
 #[test]
 fn fan_router_separates_bidirectional_connections() {
     let (mut runtime, root, source, target, first_figure) = runtime_fixture();
-    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let second_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let router = runtime.register_connection_router(Box::new(
@@ -927,8 +1003,12 @@ fn fan_router_separates_bidirectional_connections() {
 #[test]
 fn fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal() {
     let (mut runtime, root, source, target, first_figure) = runtime_fixture();
-    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
-    let third_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let second_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
+    let third_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let router = runtime.register_connection_router(Box::new(
@@ -967,7 +1047,11 @@ fn fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal() {
     assert_eq!(outputs[2].points().len(), 3);
     assert_ne!(outputs[0].points().get(1), outputs[2].points().get(1));
 
-    assert!(runtime.remove_figure(root, first_figure));
+    assert!(
+        runtime
+            .remove_figure(root, first_figure)
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(runtime.dirty_connections(), connections[1..]);
     let reverse = runtime
         .resolve_connection_route(connections[1], CoordinateSpace::ChildContent(root))
@@ -983,19 +1067,29 @@ fn fan_router_uses_stable_mixed_direction_order_and_recenters_after_removal() {
 #[test]
 fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
     let (mut runtime, root, source, target, first_figure) = runtime_fixture();
-    assert!(runtime.set_bounds(
-        target,
-        novadraw_geometry::Rectangle::new(300.0, 70.0, 100.0, 60.0),
-    ));
-    let second_source = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(20.0, 130.0, 80.0, 40.0)),
+    assert!(
+        runtime
+            .set_bounds(
+                target,
+                novadraw_geometry::Rectangle::new(300.0, 70.0, 100.0, 60.0),
+            )
+            .expect("valid Runtime mutation")
     );
-    let second_target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
-    );
-    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let second_source = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(20.0, 130.0, 80.0, 40.0)),
+        )
+        .expect("valid Runtime mutation");
+    let second_target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+        )
+        .expect("valid Runtime mutation");
+    let second_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
     let first_source_anchor =
         runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
@@ -1041,16 +1135,24 @@ fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
         MANHATTAN_DEFAULT_LANE_SPACING
     );
 
-    assert!(runtime.set_bounds(
-        second_source,
-        novadraw_geometry::Rectangle::new(25.0, 130.0, 80.0, 40.0),
-    ));
+    assert!(
+        runtime
+            .set_bounds(
+                second_source,
+                novadraw_geometry::Rectangle::new(25.0, 130.0, 80.0, 40.0),
+            )
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(runtime.dirty_connections(), vec![first, second]);
     runtime
         .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
         .unwrap();
 
-    assert!(runtime.remove_figure(root, first_figure));
+    assert!(
+        runtime
+            .remove_figure(root, first_figure)
+            .expect("valid Runtime mutation")
+    );
     let recentered = runtime
         .resolve_connection_route(second, CoordinateSpace::ChildContent(root))
         .unwrap();
@@ -1063,7 +1165,9 @@ fn shared_manhattan_reserves_lanes_across_different_anchor_pairs() {
 #[test]
 fn manhattan_reservations_are_isolated_by_router_id() {
     let (mut runtime, root, source, target, first_figure) = runtime_fixture();
-    let second_figure = runtime.add_figure(root, Box::new(ConnectionFigure::new()));
+    let second_figure = runtime
+        .add_figure(root, Box::new(ConnectionFigure::new()))
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let first_router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
@@ -1109,23 +1213,33 @@ fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
     let mut tree = novadraw_scene::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
-    let viewport = builder.add_child_to(
-        root,
-        Box::new(ViewportFigure::new(20.0, 20.0, 240.0, 180.0)),
-    );
-    let contents = builder.add_child_to(
-        viewport,
-        Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
-    );
-    let source = builder.add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
-    );
-    let target = builder.add_child_to(
-        root,
-        Box::new(RectangleFigure::new(400.0, 200.0, 100.0, 60.0)),
-    );
-    let connection_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
+    let viewport = builder
+        .add_child(
+            root,
+            Box::new(ViewportFigure::new(20.0, 20.0, 240.0, 180.0)),
+        )
+        .expect("valid FigureTree construction");
+    let contents = builder
+        .add_child(
+            viewport,
+            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+        )
+        .expect("valid FigureTree construction");
+    let source = builder
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+        )
+        .expect("valid FigureTree construction");
+    let target = builder
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(400.0, 200.0, 100.0, 60.0)),
+        )
+        .expect("valid FigureTree construction");
+    let connection_figure = builder
+        .add_child(root, Box::new(ConnectionFigure::new()))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
@@ -1152,7 +1266,11 @@ fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
         Some(novadraw_geometry::Rectangle::ZERO)
     );
 
-    assert!(runtime.reparent(source, root));
+    assert!(
+        runtime
+            .reparent(source, root)
+            .expect("valid Runtime mutation")
+    );
     let recovered = runtime
         .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
@@ -1164,23 +1282,33 @@ fn matching_viewport_topology_routes_normally() {
     let mut tree = novadraw_scene::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
-    let viewport = builder.add_child_to(
-        root,
-        Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 220.0)),
-    );
-    let contents = builder.add_child_to(
-        viewport,
-        Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 350.0)),
-    );
-    let source = builder.add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
-    );
-    let target = builder.add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
-    );
-    let connection_figure = builder.add_child_to(contents, Box::new(ConnectionFigure::new()));
+    let viewport = builder
+        .add_child(
+            root,
+            Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 220.0)),
+        )
+        .expect("valid FigureTree construction");
+    let contents = builder
+        .add_child(
+            viewport,
+            Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 350.0)),
+        )
+        .expect("valid FigureTree construction");
+    let source = builder
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)),
+        )
+        .expect("valid FigureTree construction");
+    let target = builder
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)),
+        )
+        .expect("valid FigureTree construction");
+    let connection_figure = builder
+        .add_child(contents, Box::new(ConnectionFigure::new()))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
@@ -1207,30 +1335,45 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
     let mut tree = novadraw_scene::FigureTree::new();
     let mut builder = tree.builder();
     let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 700.0, 420.0)));
-    let valid_source =
-        builder.add_child_to(root, Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)));
-    let valid_target = builder.add_child_to(
-        root,
-        Box::new(RectangleFigure::new(420.0, 90.0, 100.0, 60.0)),
-    );
-    let first_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
-    let viewport = builder.add_child_to(
-        root,
-        Box::new(ViewportFigure::new(20.0, 200.0, 260.0, 180.0)),
-    );
-    let contents = builder.add_child_to(
-        viewport,
-        Box::new(RectangleFigure::new(0.0, 0.0, 420.0, 300.0)),
-    );
-    let invalid_source = builder.add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 40.0)),
-    );
-    let invalid_target = builder.add_child_to(
-        root,
-        Box::new(RectangleFigure::new(440.0, 260.0, 100.0, 60.0)),
-    );
-    let second_figure = builder.add_child_to(root, Box::new(ConnectionFigure::new()));
+    let valid_source = builder
+        .add_child(root, Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
+        .expect("valid FigureTree construction");
+    let valid_target = builder
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(420.0, 90.0, 100.0, 60.0)),
+        )
+        .expect("valid FigureTree construction");
+    let first_figure = builder
+        .add_child(root, Box::new(ConnectionFigure::new()))
+        .expect("valid FigureTree construction");
+    let viewport = builder
+        .add_child(
+            root,
+            Box::new(ViewportFigure::new(20.0, 200.0, 260.0, 180.0)),
+        )
+        .expect("valid FigureTree construction");
+    let contents = builder
+        .add_child(
+            viewport,
+            Box::new(RectangleFigure::new(0.0, 0.0, 420.0, 300.0)),
+        )
+        .expect("valid FigureTree construction");
+    let invalid_source = builder
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(20.0, 20.0, 80.0, 40.0)),
+        )
+        .expect("valid FigureTree construction");
+    let invalid_target = builder
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(440.0, 260.0, 100.0, 60.0)),
+        )
+        .expect("valid FigureTree construction");
+    let second_figure = builder
+        .add_child(root, Box::new(ConnectionFigure::new()))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
     let valid_source_anchor =
@@ -1279,7 +1422,11 @@ fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
         );
     }
 
-    assert!(runtime.reparent(invalid_source, root));
+    assert!(
+        runtime
+            .reparent(invalid_source, root)
+            .expect("valid Runtime mutation")
+    );
     runtime
         .resolve_connection_route(first, CoordinateSpace::ChildContent(root))
         .unwrap();

@@ -1,6 +1,4 @@
-use novadraw::{
-    Color, FigureTree, GridLayout, RectangleFigure, UpdateManager, XYConstraint, XYLayout,
-};
+use novadraw::{Color, FigureTree, GridLayout, RectangleFigure, XYConstraint, XYLayout};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -16,87 +14,113 @@ pub fn baseline_scene() -> FigureTree {
     let mut graph = FigureTree::new();
     let root = graph.builder().set_contents(Box::new(gray_background()));
     for (x, color) in [(100.0, "#e74c3c"), (325.0, "#2ecc71"), (550.0, "#3498db")] {
-        graph.builder().add_child_to(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                x,
-                200.0,
-                150.0,
-                100.0,
-                Color::hex(color),
-            )),
-        );
+        graph
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    x,
+                    200.0,
+                    150.0,
+                    100.0,
+                    Color::hex(color),
+                )),
+            )
+            .expect("valid FigureTree construction");
     }
     graph
 }
 
 fn partial_damage_scene() -> FigureTree {
     let mut graph = baseline_scene();
-    let root = graph.get_contents().expect("contents");
+    let root = graph.contents().expect("contents");
     let target = graph.child_order(root).expect("root children")[1];
-    let mut manager = UpdateManager::new();
     let old_bounds = graph.figure_bounds(target).expect("target bounds");
-    graph.set_bounds_with_update(
-        &mut manager,
-        target,
-        old_bounds.x + 40.0,
-        old_bounds.y + 30.0,
-        old_bounds.width,
-        old_bounds.height,
-    );
-    let _ = graph.perform_update(&mut manager);
+    graph
+        .builder()
+        .set_bounds(
+            target,
+            novadraw::Rectangle::new(
+                old_bounds.x + 40.0,
+                old_bounds.y + 30.0,
+                old_bounds.width,
+                old_bounds.height,
+            ),
+        )
+        .expect("valid FigureTree construction");
     graph
 }
 
 pub fn validation_scene() -> FigureTree {
     let mut graph = FigureTree::new();
     let root = graph.builder().set_contents(Box::new(gray_background()));
-    graph.set_block_layout_manager(root, Box::new(XYLayout::new()));
+    graph
+        .builder()
+        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .expect("valid FigureTree construction");
     for (index, color) in ["#9b59b6", "#f39c12", "#1abc9c"].iter().enumerate() {
-        let child = graph.builder().add_child_to(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                140.0,
-                90.0,
-                Color::hex(color),
-            )),
-        );
-        graph.set_constraint(
-            child,
-            XYConstraint::at_size(100.0 + index as f64 * 220.0, 220.0, 140.0, 90.0),
-        );
+        let child = graph
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    140.0,
+                    90.0,
+                    Color::hex(color),
+                )),
+            )
+            .expect("valid FigureTree construction");
+        graph
+            .builder()
+            .set_layout_constraint(
+                child,
+                XYConstraint::at_size(100.0 + index as f64 * 220.0, 220.0, 140.0, 90.0),
+            )
+            .expect("valid FigureTree construction");
     }
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
     graph
 }
 
 pub fn stress_scene() -> FigureTree {
     let mut graph = FigureTree::new();
     let root = graph.builder().set_contents(Box::new(gray_background()));
-    graph.set_block_layout_manager(
-        root,
-        Box::new(
-            GridLayout::new(32)
-                .with_margins(8.0, 8.0)
-                .with_spacing(2.0, 2.0),
-        ),
-    );
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(
+                GridLayout::new(32)
+                    .with_margins(8.0, 8.0)
+                    .with_spacing(2.0, 2.0),
+            ),
+        )
+        .expect("valid FigureTree construction");
     for index in 0..STRESS_FIGURE_COUNT {
         let channel = (index % 32) as f64 / 31.0;
-        graph.builder().add_child_to(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                20.0,
-                14.0,
-                Color::rgba(channel, 0.55, 1.0 - channel, 1.0),
-            )),
-        );
+        graph
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    0.0,
+                    0.0,
+                    20.0,
+                    14.0,
+                    Color::rgba(channel, 0.55, 1.0 - channel, 1.0),
+                )),
+            )
+            .expect("valid FigureTree construction");
     }
-    graph.revalidate(root);
+    graph
+        .builder()
+        .validate_subtree(root)
+        .expect("valid FigureTree construction");
     graph
 }
 

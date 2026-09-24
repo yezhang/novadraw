@@ -425,7 +425,7 @@ sequenceDiagram
 
 ```rust
 enum RuntimeEffect {
-    Repaint { block_id: FigureId, rect: Rectangle },
+    Repaint { figure_id: FigureId, rect: Rectangle },
     Notification(NotificationEffect),
     Invalidate(FigureId),
     Mutation(PendingMutation),

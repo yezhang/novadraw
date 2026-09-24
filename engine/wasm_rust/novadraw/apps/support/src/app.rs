@@ -71,8 +71,8 @@ impl UpdateListener for DemoUpdateListener {
         ListenerDirective::Keep
     }
 
-    fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
-        tracing::debug!("[DemoApp] notify: {:?}", block_id);
+    fn on_notify(&self, figure_id: FigureId) -> ListenerDirective {
+        tracing::debug!("[DemoApp] notify: {:?}", figure_id);
         ListenerDirective::Keep
     }
 }
@@ -995,7 +995,7 @@ impl AppBuilder {
 /// fn create_rect_scene() -> novadraw::Runtime {
 ///     let mut runtime = novadraw::Runtime::empty();
 ///     let rect = novadraw::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
-///     runtime.set_contents(Box::new(rect));
+///     runtime.set_contents(Box::new(rect)).expect("valid Runtime mutation");
 ///     runtime
 /// }
 ///
@@ -1119,15 +1119,21 @@ mod tests {
         runtime
             .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
             .unwrap();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
-        assert!(runtime.set_figure_style(
-            root,
-            FigureStyle {
-                font: Some("15px Inter Variable".to_string()),
-                tooltip: Some(Some("Native tooltip".to_string())),
-                ..FigureStyle::default()
-            },
-        ));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+            .expect("valid Runtime mutation");
+        assert!(
+            runtime
+                .set_figure_style(
+                    root,
+                    FigureStyle {
+                        font: Some("15px Inter Variable".to_string()),
+                        tooltip: Some(Some("Native tooltip".to_string())),
+                        ..FigureStyle::default()
+                    },
+                )
+                .expect("valid Runtime mutation")
+        );
         runtime.dispatch_mouse_moved(300.0, 190.0);
         runtime.advance_time(MonotonicTime::ZERO).unwrap();
         let surface = SurfaceInfo {

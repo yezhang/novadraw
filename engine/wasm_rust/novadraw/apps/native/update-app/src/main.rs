@@ -37,18 +37,18 @@ impl UpdateListener for CaptureListener {
         ListenerDirective::Keep
     }
 
-    fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
+    fn on_notify(&self, figure_id: FigureId) -> ListenerDirective {
         self.effects
             .lock()
             .unwrap()
-            .push(NotificationEffect::Notify { block_id });
+            .push(NotificationEffect::Notify { figure_id });
         ListenerDirective::Keep
     }
 }
 
 fn verify_damage_modes() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
-    let root = graph.get_contents().ok_or("missing root")?;
+    let root = graph.contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     let mut manager = UpdateManager::new();
 
@@ -76,10 +76,13 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
 
 fn verify_notification_order() -> Result<VerificationMetrics, String> {
     let mut graph = validation_scene();
-    let root = graph.get_contents().ok_or("missing root")?;
+    let root = graph.contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     graph.drain_notification_effects();
-    graph.set_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0));
+    graph
+        .builder()
+        .set_layout_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
+        .expect("valid FigureTree construction");
     let mut manager = UpdateManager::new();
     graph.mark_invalid(&mut manager, child);
     let effects = Arc::new(Mutex::new(Vec::new()));
@@ -97,8 +100,8 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
     let moved = position(&effects, |effect| {
         matches!(
             effect,
-            NotificationEffect::EmitFigure(FigureEvent::FigureMoved { block_id, .. })
-                if *block_id == child
+            NotificationEffect::EmitFigure(FigureEvent::FigureMoved { figure_id, .. })
+                if *figure_id == child
         )
     })?;
     let validated = position(&effects, |effect| {
@@ -115,7 +118,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
 
 fn verify_dirty_coalescing() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
-    let root = graph.get_contents().ok_or("missing root")?;
+    let root = graph.contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     let mut manager = UpdateManager::new();
     manager.add_dirty_region(child, Rectangle::new(0.0, 0.0, 20.0, 20.0));
@@ -156,7 +159,7 @@ impl UpdateListener for PanicOnceListener {
 
 fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
     let mut graph = baseline_scene();
-    let root = graph.get_contents().ok_or("missing root")?;
+    let root = graph.contents().ok_or("missing root")?;
     let child = graph.child_order(root).ok_or("missing root children")?[0];
     let mut manager = UpdateManager::new();
     manager.add_listener(Box::new(PanicOnceListener {
@@ -181,7 +184,7 @@ fn verify_panic_recovery() -> Result<VerificationMetrics, String> {
 
 fn verify_stress_1024() -> Result<VerificationMetrics, String> {
     let mut graph = stress_scene();
-    let root = graph.get_contents().ok_or("missing root")?;
+    let root = graph.contents().ok_or("missing root")?;
     let mut manager = UpdateManager::new();
     graph.mark_invalid(&mut manager, root);
     graph.repaint(&mut manager, root, None);

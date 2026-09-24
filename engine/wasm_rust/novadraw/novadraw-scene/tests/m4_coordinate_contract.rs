@@ -6,7 +6,7 @@ use novadraw_render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw_scene::{
     Bounded, EventContext, EventDispatcher, Figure, FigureEvent, FigureEventHandler, FigureTree,
     InteractionState, LineBorder, MouseButton, MouseEvent, NotificationEffect, PendingMutations,
-    RectangleFigure, SceneDispatchContext, Shape, UpdateManager,
+    RectangleFigure, Runtime, SceneDispatchContext, Shape, UpdateManager,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
@@ -19,21 +19,30 @@ fn nested_coordinate_scene() -> (FigureTree, novadraw_scene::FigureId) {
     let contents = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
-    let outer = graph.builder().add_child_to(
-        contents,
-        Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
-    );
-    let inner = graph.builder().add_child_to(
-        outer,
-        Box::new(
-            RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
-                .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
-        ),
-    );
-    let child = graph.builder().add_child_to(
-        inner,
-        Box::new(RectangleFigure::new(10.0, 15.0, 60.0, 50.0)),
-    );
+    let outer = graph
+        .builder()
+        .add_child(
+            contents,
+            Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
+        )
+        .expect("valid FigureTree construction");
+    let inner =
+        graph
+            .builder()
+            .add_child(
+                outer,
+                Box::new(RectangleFigure::new(20.0, 30.0, 180.0, 140.0).with_border(
+                    LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0),
+                )),
+            )
+            .expect("valid FigureTree construction");
+    let child = graph
+        .builder()
+        .add_child(
+            inner,
+            Box::new(RectangleFigure::new(10.0, 15.0, 60.0, 50.0)),
+        )
+        .expect("valid FigureTree construction");
     (graph, child)
 }
 
@@ -164,24 +173,33 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let contents = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
-    let outer = graph.builder().add_child_to(
-        contents,
-        Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
-    );
-    let inner = graph.builder().add_child_to(
-        outer,
-        Box::new(
-            RectangleFigure::new(20.0, 30.0, 180.0, 140.0)
-                .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0)),
-        ),
-    );
-    let target = graph.builder().add_child_to(
-        inner,
-        Box::new(RecordingFigure::new(
-            Rectangle::new(10.0, 15.0, 60.0, 50.0),
-            Arc::clone(&recorded),
-        )),
-    );
+    let outer = graph
+        .builder()
+        .add_child(
+            contents,
+            Box::new(coordinate_root(100.0, 50.0, 300.0, 250.0)),
+        )
+        .expect("valid FigureTree construction");
+    let inner =
+        graph
+            .builder()
+            .add_child(
+                outer,
+                Box::new(RectangleFigure::new(20.0, 30.0, 180.0, 140.0).with_border(
+                    LineBorder::new(Color::BLACK, 1.0).with_insets(7.0, 11.0, 0.0, 0.0),
+                )),
+            )
+            .expect("valid FigureTree construction");
+    let target = graph
+        .builder()
+        .add_child(
+            inner,
+            Box::new(RecordingFigure::new(
+                Rectangle::new(10.0, 15.0, 60.0, 50.0),
+                Arc::clone(&recorded),
+            )),
+        )
+        .expect("valid FigureTree construction");
     let entry = Point::new(161.0, 125.0);
 
     assert_eq!(
@@ -216,31 +234,34 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let contents = graph
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
-    let coordinate_root = graph.builder().add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
+    let coordinate_root = graph
+        .builder()
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(50.0, 40.0, 80.0, 60.0)),
+        )
+        .expect("valid FigureTree construction");
+    let child = graph
+        .builder()
+        .add_child(
+            coordinate_root,
+            Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(graph);
+    runtime.prepare_frame();
+    assert!(
+        runtime
+            .set_bounds(coordinate_root, Rectangle::new(70.0, 55.0, 100.0, 70.0),)
+            .unwrap()
     );
-    let child = graph.builder().add_child_to(
-        coordinate_root,
-        Box::new(RectangleFigure::new(10.0, 15.0, 20.0, 10.0)),
-    );
-    graph.drain_notification_effects();
-    let mut update_manager = UpdateManager::new();
-
-    assert!(graph.set_bounds_with_update(
-        &mut update_manager,
-        coordinate_root,
-        70.0,
-        55.0,
-        100.0,
-        70.0,
-    ));
 
     assert_eq!(
-        graph.figure_bounds(child),
+        runtime.tree().figure_bounds(child),
         Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
     );
-    let figure_events: Vec<_> = graph
+    let figure_events: Vec<_> = runtime
+        .tree()
         .notification_effects()
         .iter()
         .filter_map(|effect| match effect {
@@ -252,19 +273,19 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         figure_events,
         vec![
             FigureEvent::FigureMoved {
-                block_id: coordinate_root,
+                figure_id: coordinate_root,
                 old_bounds: Rectangle::new(50.0, 40.0, 80.0, 60.0),
                 new_bounds: Rectangle::new(70.0, 55.0, 100.0, 70.0),
             },
             FigureEvent::CoordinateSystemChanged {
-                block_id: coordinate_root,
+                figure_id: coordinate_root,
                 old_bounds: Rectangle::new(50.0, 40.0, 80.0, 60.0),
                 new_bounds: Rectangle::new(70.0, 55.0, 100.0, 70.0),
             },
         ]
     );
 
-    let canvas = graph.perform_update(&mut update_manager);
+    let canvas = runtime.prepare_frame().unwrap();
     assert_eq!(
         canvas.damage().union(),
         Some(Rectangle::new(50.0, 40.0, 120.0, 85.0))

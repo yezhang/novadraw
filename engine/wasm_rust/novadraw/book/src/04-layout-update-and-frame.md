@@ -123,8 +123,9 @@ runtime.set_layout_manager(
 runtime.set_layout_constraint(field, GridConstraint::fill())?;
 ```
 
-构建新树时可以使用 `FigureTree::set_block_layout_manager`；场景进入运行期后不能绕过
-`Runtime`，因为替换布局器还需要触发约束校验、失效传播和重绘。
+构建新树时通过 `FigureTreeBuilder::set_layout_manager` 显式指定容器；场景进入运行期
+后只能使用 `Runtime::set_layout_manager`，因为替换布局器还需要触发约束校验、失效
+传播和重绘。
 
 ### 六个 Draw2D 对标布局器
 
@@ -312,17 +313,14 @@ origin   = 当前视口左上角坐标
 矩形约束：
 
 ```rust
-scene.set_block_layout_manager(
-    container_id,
-    Box::new(novadraw::XYLayout::new()),
-);
-
-let child_id = scene.builder().add_child_to(container_id, Box::new(rect));
-scene.set_constraint(
+let mut builder = scene.builder();
+builder.set_layout_manager(container_id, Box::new(novadraw::XYLayout::new()))?;
+let child_id = builder.add_child(container_id, Box::new(rect))?;
+builder.set_layout_constraint(
     child_id,
     novadraw::Rectangle::new(x, y, width, height),
-);
-scene.revalidate(container_id);
+)?;
+builder.validate_subtree(container_id)?;
 ```
 
 这里的 `Rectangle` 是 `XYLayout` 为兼容 Draw2D 接受的约束类型，不是子节点当前
@@ -333,7 +331,8 @@ scene.revalidate(container_id);
 `grid-layout` 场景创建三列等宽网格，并让每个子节点填满其单元格：
 
 ```rust
-scene.set_block_layout_manager(
+let mut builder = scene.builder();
+builder.set_layout_manager(
     container_id,
     Box::new(
         novadraw::GridLayout::new(3)
@@ -341,32 +340,32 @@ scene.set_block_layout_manager(
             .with_margins(40.0, 40.0)
             .with_spacing(20.0, 20.0),
     ),
-);
-
-let child_id = scene.builder().add_child_to(container_id, Box::new(rect));
-scene.set_constraint(child_id, novadraw::GridConstraint::fill());
+)?;
+let child_id = builder.add_child(container_id, Box::new(rect))?;
+builder.set_layout_constraint(child_id, novadraw::GridConstraint::fill())?;
 ```
 
 `toolbar-layout` 场景则强调空间不足时的压缩行为：
 
 ```rust
-scene.set_block_layout_manager(
+let mut builder = scene.builder();
+builder.set_layout_manager(
     container_id,
     Box::new(
         novadraw::ToolbarLayout::horizontal()
             .with_spacing(16.0)
             .with_stretch_minor_axis(true),
     ),
-);
-scene.set_minimum_size(child_id, Some((100.0, 40.0)));
+)?;
+builder.set_minimum_size(child_id, Some((100.0, 40.0)))?;
 ```
 
 两者的差别是：网格布局先求行列轨道，再把子节点放入单元格；工具栏布局始终保持
 单行或单列，并在主轴空间不足时参考最小尺寸压缩。
 
-`fill-layout` 场景目前还给第一个子节点写入了一个 `Rectangle` 约束，但
-`FillLayout` 不读取子节点约束；实际铺满行为只由“第一个子节点”这一顺序决定。该
-约束不能作为使用 `FillLayout` 的必要步骤。
+`fill-layout` 场景不设置子节点约束。`FillLayout` 不接受约束，实际铺满行为只由
+“第一个子节点”这一顺序决定；向它写入 `Rectangle` 会由 Builder 或 Runtime 在提交前
+拒绝。
 
 ### 示例三：五区布局与窗口变化
 
@@ -374,7 +373,8 @@ scene.set_minimum_size(child_id, Some((100.0, 40.0)));
 应用手工重算每个子节点：
 
 ```rust
-scene.set_block_layout_manager(
+let mut builder = scene.builder();
+builder.set_layout_manager(
     contents,
     Box::new(novadraw::BorderLayout::with_sizes(
         HEADER_HEIGHT,
@@ -382,16 +382,15 @@ scene.set_block_layout_manager(
         SIDEBAR_WIDTH,
         SIDEBAR_WIDTH,
     )),
-);
-
-scene.set_constraint(
+)?;
+builder.set_layout_constraint(
     child,
     novadraw::BorderConstraint::with_size(
         novadraw::BorderRegion::North,
         HEADER_HEIGHT,
     ),
-);
-scene.revalidate(contents);
+)?;
+builder.validate_subtree(contents)?;
 ```
 
 同一模式也用于 `clip-app` 的 `responsive_nested_clip`：布局器负责尺寸变化后的五区
@@ -411,7 +410,7 @@ let pane = graph
     )?;
 
 pane.set_contents(&mut graph, &mut updates, Box::new(contents))?;
-graph.revalidate(pane.pane_id());
+graph.builder().validate_subtree(pane.pane_id())?;
 ```
 
 因此应用只表达“创建滚动面板并设置内容”，`ScrollPaneLayout` 和 `ViewportLayout`

@@ -142,10 +142,12 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
         )));
     (0..count)
         .map(|_| {
-            tree.builder().add_child_to(
-                root,
-                Box::new(novadraw_scene::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
-            )
+            tree.builder()
+                .add_child(
+                    root,
+                    Box::new(novadraw_scene::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+                )
+                .expect("valid FigureTree construction")
         })
         .collect()
 }

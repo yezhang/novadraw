@@ -202,7 +202,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     assert!(!runtime.has_pending_update());
     let layout_generation = runtime
         .tree()
-        .get_block(badge)
+        .node(badge)
         .unwrap()
         .layout_state()
         .generation();
@@ -220,7 +220,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     assert!(
         runtime
             .tree()
-            .get_block(badge)
+            .node(badge)
             .unwrap()
             .layout_state()
             .generation()
@@ -267,7 +267,8 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let badge = tree
         .builder()
-        .add_child_to(root, Box::new(BadgeFigure::new("old")));
+        .add_child(root, Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     let wrong_type = runtime
@@ -283,7 +284,9 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
     );
 
     let mut foreign = Runtime::empty();
-    let foreign_id = foreign.set_contents(Box::new(BadgeFigure::new("foreign")));
+    let foreign_id = foreign
+        .set_contents(Box::new(BadgeFigure::new("foreign")))
+        .expect("valid Runtime mutation");
     assert!(matches!(
         runtime.update_component(foreign_id, SetBadgeText("new".to_owned())),
         Err(ComponentUpdateError::Runtime(
@@ -340,12 +343,15 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
     let root = tree
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let figure = tree.builder().add_child_to(
-        root,
-        Box::new(PanicInvalidateFigure {
-            bounds: Rectangle::new(0.0, 0.0, 20.0, 20.0),
-        }),
-    );
+    let figure = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(PanicInvalidateFigure {
+                bounds: Rectangle::new(0.0, 0.0, 20.0, 20.0),
+            }),
+        )
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime.set_preferred_size(figure, (20.0, 20.0)).unwrap();
     let baseline = runtime
@@ -356,16 +362,21 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         baseline.frame_id,
         RenderOutcome::Presented,
     );
-    assert!(runtime.tree().get_block(figure).unwrap().state().is_valid());
+    assert!(runtime.tree().node(figure).unwrap().state().is_valid());
     let image = runtime.register_image();
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        runtime.set_bounds(figure, Rectangle::new(0.0, 0.0, 30.0, 30.0));
+        runtime
+            .set_bounds(figure, Rectangle::new(0.0, 0.0, 30.0, 30.0))
+            .expect("valid Runtime mutation");
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
 
-    assert!(!runtime.set_bounds(figure, Rectangle::new(0.0, 0.0, 40.0, 40.0)));
+    assert_eq!(
+        runtime.set_bounds(figure, Rectangle::new(0.0, 0.0, 40.0, 40.0)),
+        Err(RuntimeMutationError::Faulted)
+    );
     assert_eq!(
         runtime.set_preferred_size(figure, (50.0, 50.0)),
         Err(RuntimeMutationError::Faulted)

@@ -445,7 +445,7 @@ impl Runtime {
     }
 
     fn refresh_owner_scoped_borders(&mut self) -> Result<bool, TextError> {
-        let Some(contents) = self.tree.get_contents() else {
+        let Some(contents) = self.tree.contents() else {
             return Ok(false);
         };
         let mut figures = vec![contents];
@@ -454,7 +454,7 @@ impl Runtime {
         for figure in figures {
             let has_owner_snapshot = self
                 .tree
-                .get_block(figure)
+                .node(figure)
                 .and_then(|block| block.figure.get_border())
                 .is_some_and(Border::has_owner_snapshot);
             if !has_owner_snapshot {
@@ -468,7 +468,7 @@ impl Runtime {
             let previous = self.tree.border_snapshot(figure).cloned();
             let Some(snapshot) = self
                 .tree
-                .get_block(figure)
+                .node(figure)
                 .and_then(|block| block.figure.get_border())
                 .map(|border| {
                     border.resolve_owner_snapshot(previous.as_ref(), &font, self.text.as_mut())
@@ -925,33 +925,27 @@ impl Runtime {
         self.connection_error.take()
     }
 
-    pub fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
-        self.try_set_contents(figure)
-            .expect("cannot set contents on this Runtime")
-    }
-
-    pub fn try_set_contents(
+    pub fn set_contents(
         &mut self,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
-        if self.faulted {
-            return Err(RuntimeMutationError::Faulted);
-        }
-        Ok(self.guarded(|runtime| runtime.set_contents_inner(figure)))
+        self.guarded_runtime_mutation(move |runtime| runtime.set_contents_inner(figure))
     }
 
-    fn set_contents_inner(&mut self, figure: Box<dyn Figure>) -> FigureId {
+    fn set_contents_inner(
+        &mut self,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
         self.connections
             .validate_disposal()
-            .expect("connection revision space exhausted");
-        let previous = self.tree.get_contents();
+            .map_err(|_| RuntimeMutationError::Rejected)?;
+        let previous = self.tree.contents();
         let id = self
             .tree
             .try_add_child_to(self.tree.synthetic_root(), figure)
-            .expect("synthetic root accepts contents");
+            .map_err(RuntimeMutationError::Graph)?;
         if let Some(previous) = previous {
-            self.dispose_subtree(previous)
-                .expect("prevalidated contents disposal");
+            self.dispose_subtree(previous)?;
         }
         self.tree.designate_contents(id);
         self.accessibility.reset();
@@ -972,20 +966,15 @@ impl Runtime {
         self.tree.repaint(&mut self.updates, id, None);
         self.tree
             .complete_attachment(id, self.tree.synthetic_root());
-        id
+        Ok(id)
     }
 
-    pub fn add_figure(&mut self, parent: FigureId, figure: Box<dyn Figure>) -> FigureId {
-        self.try_add_figure(parent, figure)
-            .unwrap_or_else(|_| FigureId::null())
-    }
-
-    pub fn try_add_figure(
+    pub fn add_figure(
         &mut self,
         parent: FigureId,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
-        self.guarded_runtime_mutation(move |runtime| runtime.try_add_figure_inner(parent, figure))
+        self.guarded_runtime_mutation(move |runtime| runtime.add_figure_checked(parent, figure))
     }
 
     /// Adds a Viewport Figure and returns its transactional handle.
@@ -1003,18 +992,18 @@ impl Runtime {
             runtime.tree.mark_invalid(&mut runtime.updates, parent);
             runtime
                 .tree
-                .mark_invalid(&mut runtime.updates, viewport.block_id());
+                .mark_invalid(&mut runtime.updates, viewport.figure_id());
             runtime
                 .tree
-                .repaint(&mut runtime.updates, viewport.block_id(), None);
+                .repaint(&mut runtime.updates, viewport.figure_id(), None);
             runtime
                 .tree
-                .complete_attachment(viewport.block_id(), parent);
+                .complete_attachment(viewport.figure_id(), parent);
             Ok(viewport)
         })
     }
 
-    fn try_add_figure_inner(
+    fn add_figure_checked(
         &mut self,
         parent: FigureId,
         figure: Box<dyn Figure>,
@@ -1318,19 +1307,15 @@ impl Runtime {
         Ok(order)
     }
 
-    pub fn remove_figure(&mut self, parent: FigureId, child: FigureId) -> bool {
-        self.try_remove_figure(parent, child).unwrap_or(false)
-    }
-
-    pub fn try_remove_figure(
+    pub fn remove_figure(
         &mut self,
         parent: FigureId,
         child: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
-        self.guarded_runtime_mutation(|runtime| runtime.try_remove_figure_inner(parent, child))
+        self.guarded_runtime_mutation(|runtime| runtime.remove_figure_checked(parent, child))
     }
 
-    fn try_remove_figure_inner(
+    fn remove_figure_checked(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -1355,7 +1340,7 @@ impl Runtime {
         self.validate_attached_figure(figure)?;
         Ok(self
             .tree
-            .block(figure)
+            .node(figure)
             .expect("attached Figure must have a node")
             .component_revision)
     }
@@ -1372,7 +1357,7 @@ impl Runtime {
         let (previous_revision, revision, bounds, actual, old_visual_bounds, visible) = {
             let node = self
                 .tree
-                .block(figure)
+                .node(figure)
                 .expect("attached Figure must have a node");
             let actual = node.figure.as_ref().type_name();
             if node
@@ -1411,7 +1396,7 @@ impl Runtime {
             let prepared = {
                 let node = runtime
                     .tree
-                    .block(figure)
+                    .node(figure)
                     .expect("validated Figure must remain attached during update");
                 let target = node
                     .figure
@@ -1437,7 +1422,7 @@ impl Runtime {
 
             let node = runtime
                 .tree
-                .block_mut(figure)
+                .node_mut(figure)
                 .expect("validated Figure must remain attached during update");
             let target = node
                 .figure
@@ -1581,26 +1566,15 @@ impl Runtime {
         self.guarded(operation)
     }
 
-    fn guarded_bool_mutation(&mut self, operation: impl FnOnce(&mut Self) -> bool) -> bool {
-        if self.faulted {
-            return false;
-        }
-        self.guarded(operation)
-    }
-
-    pub fn reparent(&mut self, child: FigureId, new_parent: FigureId) -> bool {
-        self.try_reparent(child, new_parent).unwrap_or(false)
-    }
-
-    pub fn try_reparent(
+    pub fn reparent(
         &mut self,
         child: FigureId,
         new_parent: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
-        self.guarded_runtime_mutation(|runtime| runtime.try_reparent_inner(child, new_parent))
+        self.guarded_runtime_mutation(|runtime| runtime.reparent_checked(child, new_parent))
     }
 
-    fn try_reparent_inner(
+    fn reparent_checked(
         &mut self,
         child: FigureId,
         new_parent: FigureId,
@@ -1639,9 +1613,7 @@ impl Runtime {
                 &scene,
             )?
         };
-        let changed = self
-            .tree
-            .try_reparent(&mut self.updates, child, new_parent)?;
+        let changed = self.tree.reparent(&mut self.updates, child, new_parent)?;
         if changed {
             if let Some(constraint) = prepared_constraint {
                 self.connections
@@ -1690,7 +1662,7 @@ impl Runtime {
             self.tree
                 .validate_layout_manager_constraints(container, manager)?;
         }
-        if !self.tree.replace_block_layout_manager(container, manager) {
+        if !self.tree.replace_layout_manager(container, manager) {
             return Ok(false);
         }
         self.tree.mark_invalid(&mut self.updates, container);
@@ -1728,7 +1700,7 @@ impl Runtime {
             .tree
             .parent_id(child)
             .ok_or(RuntimeMutationError::DetachedFigure(child))?;
-        if let Some(manager) = self.tree.get_block_layout_manager(parent) {
+        if let Some(manager) = self.tree.layout_manager(parent) {
             manager.validate_constraint(parent, child, constraint.as_ref())?;
         }
         if !self.tree.set_boxed_constraint(child, constraint) {
@@ -1958,7 +1930,7 @@ impl Runtime {
         if figure == self.tree.synthetic_root() {
             return Err(RuntimeMutationError::SyntheticRootOperation(figure));
         }
-        if self.tree.get_block(figure).is_none() {
+        if self.tree.node(figure).is_none() {
             return Err(RuntimeMutationError::UnknownOrDisposedFigure(figure));
         }
         if !self.tree.is_attached(figure) {
@@ -1995,12 +1967,28 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn set_bounds(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_bounds_inner(id, bounds))
+    pub fn set_bounds(
+        &mut self,
+        id: FigureId,
+        bounds: novadraw_geometry::Rectangle,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            if !bounds.x.is_finite()
+                || !bounds.y.is_finite()
+                || !bounds.width.is_finite()
+                || !bounds.height.is_finite()
+                || bounds.width < 0.0
+                || bounds.height < 0.0
+            {
+                return Err(RuntimeMutationError::InvalidBounds { figure: id, bounds });
+            }
+            Ok(runtime.set_bounds_inner(id, bounds))
+        })
     }
 
     fn set_bounds_inner(&mut self, id: FigureId, bounds: novadraw_geometry::Rectangle) -> bool {
-        let is_contents = self.tree.get_contents() == Some(id);
+        let is_contents = self.tree.contents() == Some(id);
         let changed = self.tree.set_bounds_with_update(
             &mut self.updates,
             id,
@@ -2020,8 +2008,15 @@ impl Runtime {
         changed
     }
 
-    pub fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_visible_inner(id, visible))
+    pub fn set_visible(
+        &mut self,
+        id: FigureId,
+        visible: bool,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_visible_inner(id, visible))
+        })
     }
 
     fn set_visible_inner(&mut self, id: FigureId, visible: bool) -> bool {
@@ -2032,8 +2027,15 @@ impl Runtime {
         changed
     }
 
-    pub fn set_enabled(&mut self, id: FigureId, enabled: bool) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_enabled_inner(id, enabled))
+    pub fn set_enabled(
+        &mut self,
+        id: FigureId,
+        enabled: bool,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_enabled_inner(id, enabled))
+        })
     }
 
     fn set_enabled_inner(&mut self, id: FigureId, enabled: bool) -> bool {
@@ -2045,8 +2047,15 @@ impl Runtime {
         changed
     }
 
-    pub fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_focusable_inner(id, focusable))
+    pub fn set_focusable(
+        &mut self,
+        id: FigureId,
+        focusable: bool,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_focusable_inner(id, focusable))
+        })
     }
 
     fn set_focusable_inner(&mut self, id: FigureId, focusable: bool) -> bool {
@@ -2057,8 +2066,15 @@ impl Runtime {
         changed
     }
 
-    pub fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_focus_traversable_inner(id, traversable))
+    pub fn set_focus_traversable(
+        &mut self,
+        id: FigureId,
+        traversable: bool,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_focus_traversable_inner(id, traversable))
+        })
     }
 
     fn set_focus_traversable_inner(&mut self, id: FigureId, traversable: bool) -> bool {
@@ -2069,8 +2085,15 @@ impl Runtime {
         changed
     }
 
-    pub fn set_figure_style(&mut self, id: FigureId, style: FigureStyle) -> bool {
-        self.guarded_bool_mutation(move |runtime| runtime.set_figure_style_inner(id, style))
+    pub fn set_figure_style(
+        &mut self,
+        id: FigureId,
+        style: FigureStyle,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_figure_style_inner(id, style))
+        })
     }
 
     fn set_figure_style_inner(&mut self, id: FigureId, style: FigureStyle) -> bool {
@@ -2494,8 +2517,11 @@ impl Runtime {
         })
     }
 
-    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
-        self.guarded_bool_mutation(|runtime| runtime.set_opaque_inner(id, opaque))
+    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> Result<bool, RuntimeMutationError> {
+        self.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(id)?;
+            Ok(runtime.set_opaque_inner(id, opaque))
+        })
     }
 
     fn set_opaque_inner(&mut self, id: FigureId, opaque: bool) -> bool {
@@ -2506,13 +2532,17 @@ impl Runtime {
         true
     }
 
-    pub fn translate(&mut self, id: FigureId, dx: f64, dy: f64) -> bool {
-        if self.faulted {
-            return false;
-        }
-        let Some(bounds) = self.tree.figure_bounds(id) else {
-            return false;
-        };
+    pub fn translate(
+        &mut self,
+        id: FigureId,
+        dx: f64,
+        dy: f64,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.validate_attached_figure(id)?;
+        let bounds = self
+            .tree
+            .figure_bounds(id)
+            .ok_or(RuntimeMutationError::UnknownOrDisposedFigure(id))?;
         self.set_bounds(
             id,
             novadraw_geometry::Rectangle::new(
@@ -3085,7 +3115,7 @@ impl Runtime {
         y: f64,
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(viewport.block_id())?;
+            runtime.validate_attached_figure(viewport.figure_id())?;
             viewport
                 .set_view_location(&mut runtime.tree, &mut runtime.updates, x, y)
                 .map_err(|_| RuntimeMutationError::Rejected)
@@ -3099,8 +3129,8 @@ impl Runtime {
         anchor: Option<novadraw_geometry::Point>,
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(zoom.viewport().block_id())?;
-            runtime.validate_attached_figure(zoom.scalable().block_id())?;
+            runtime.validate_attached_figure(zoom.viewport().figure_id())?;
+            runtime.validate_attached_figure(zoom.scalable().figure_id())?;
             zoom.set_zoom_at(&mut runtime.tree, &mut runtime.updates, scale, anchor)
                 .map_err(|_| RuntimeMutationError::Rejected)
         })
@@ -3111,8 +3141,8 @@ impl Runtime {
         zoom: &ZoomManager,
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(zoom.viewport().block_id())?;
-            runtime.validate_attached_figure(zoom.scalable().block_id())?;
+            runtime.validate_attached_figure(zoom.viewport().figure_id())?;
+            runtime.validate_attached_figure(zoom.scalable().figure_id())?;
             zoom.fit_all(&mut runtime.tree, &mut runtime.updates)
                 .map_err(|_| RuntimeMutationError::Rejected)
         })
@@ -3191,7 +3221,7 @@ impl Runtime {
         &mut self,
         direction: FocusTraversalDirection,
     ) -> FocusTraversalOutcome {
-        let Some(scope) = self.tree.get_contents() else {
+        let Some(scope) = self.tree.contents() else {
             return FocusTraversalOutcome::Boundary;
         };
         let candidate = self.focus_traversal_policy.traverse(
@@ -3349,20 +3379,16 @@ impl Runtime {
             } => self
                 .reparent_layer(child, new_pane, key, placement)
                 .map_err(|_| RuntimeMutationError::Rejected),
-            PendingMutationKind::RemoveChild { parent, child } => {
-                self.try_remove_figure(parent, child)
-            }
-            PendingMutationKind::Reparent { child, new_parent } => {
-                self.try_reparent(child, new_parent)
-            }
+            PendingMutationKind::RemoveChild { parent, child } => self.remove_figure(parent, child),
+            PendingMutationKind::Reparent { child, new_parent } => self.reparent(child, new_parent),
             PendingMutationKind::AddChildFigure { parent, figure } => {
-                self.try_add_figure(parent, figure).map(|_| true)
+                self.add_figure(parent, figure).map(|_| true)
             }
         }
     }
 
     fn initialize_layered_panes(&mut self) {
-        let Some(contents) = self.tree.get_contents() else {
+        let Some(contents) = self.tree.contents() else {
             return;
         };
         let mut ids = vec![contents];
@@ -3382,9 +3408,9 @@ impl Runtime {
         if !self.tree.is_layered_pane(pane_id) {
             return;
         }
-        if self.tree.get_block_layout_manager(pane_id).is_none() {
+        if self.tree.layout_manager(pane_id).is_none() {
             self.tree
-                .set_block_layout_manager(pane_id, Box::new(StackLayout));
+                .replace_layout_manager(pane_id, Some(Box::new(StackLayout)));
         }
         self.layered_panes.entry(pane_id).or_default();
     }
@@ -3515,7 +3541,7 @@ impl Runtime {
     }
 
     fn validate_direct_focus(&self, target: FigureId) -> Result<(), FocusError> {
-        if self.tree.get_block(target).is_none() {
+        if self.tree.node(target).is_none() {
             return Err(FocusError::UnknownFigure(target));
         }
         if !self.tree.is_attached(target) {
@@ -4015,12 +4041,14 @@ mod tests {
     #[test]
     fn runtime_owns_interaction_state_separately_from_tree() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
 
         runtime.interaction.set_mouse_target(Some(root));
 
         assert_eq!(runtime.interaction().mouse_target(), Some(root));
-        assert_eq!(runtime.tree().get_contents(), Some(root));
+        assert_eq!(runtime.tree().contents(), Some(root));
     }
 
     #[test]
@@ -4244,13 +4272,21 @@ mod tests {
     #[test]
     fn direct_and_traversal_focus_eligibility_are_independent() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let traversal_only =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        let direct_only =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
-        runtime.set_focus_traversable(traversal_only, true);
-        runtime.set_focusable(direct_only, true);
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
+        let traversal_only = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
+        let direct_only = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
+        runtime
+            .set_focus_traversable(traversal_only, true)
+            .expect("valid Runtime mutation");
+        runtime
+            .set_focusable(direct_only, true)
+            .expect("valid Runtime mutation");
 
         assert_eq!(
             runtime.request_focus(traversal_only),
@@ -4276,9 +4312,15 @@ mod tests {
     #[test]
     fn direct_focus_reports_structured_eligibility_errors_without_changing_owner() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let target = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        runtime.set_focusable(root, true);
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
+        let target = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
+        runtime
+            .set_focusable(root, true)
+            .expect("valid Runtime mutation");
         runtime.request_focus(root).unwrap();
 
         assert_eq!(
@@ -4289,21 +4331,31 @@ mod tests {
             runtime.request_focus(target),
             Err(FocusError::NotFocusable(target))
         );
-        runtime.set_focusable(target, true);
-        runtime.set_visible(target, false);
+        runtime
+            .set_focusable(target, true)
+            .expect("valid Runtime mutation");
+        runtime
+            .set_visible(target, false)
+            .expect("valid Runtime mutation");
         assert_eq!(
             runtime.request_focus(target),
             Err(FocusError::Hidden(target))
         );
-        runtime.set_visible(target, true);
-        runtime.set_enabled(target, false);
+        runtime
+            .set_visible(target, true)
+            .expect("valid Runtime mutation");
+        runtime
+            .set_enabled(target, false)
+            .expect("valid Runtime mutation");
         assert_eq!(
             runtime.request_focus(target),
             Err(FocusError::Disabled(target))
         );
         assert_eq!(runtime.interaction().focus_owner(), Some(root));
 
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         assert_eq!(
             runtime.request_focus(target),
             Err(FocusError::UnknownFigure(target))
@@ -4321,9 +4373,21 @@ mod tests {
         for transition in [Transition::Hide, Transition::Disable, Transition::Remove] {
             let (mut runtime, root, probe, events) = focused_probe_runtime();
             match transition {
-                Transition::Hide => assert!(runtime.set_visible(probe, false)),
-                Transition::Disable => assert!(runtime.set_enabled(probe, false)),
-                Transition::Remove => assert!(runtime.remove_figure(root, probe)),
+                Transition::Hide => assert!(
+                    runtime
+                        .set_visible(probe, false)
+                        .expect("valid Runtime mutation")
+                ),
+                Transition::Disable => assert!(
+                    runtime
+                        .set_enabled(probe, false)
+                        .expect("valid Runtime mutation")
+                ),
+                Transition::Remove => assert!(
+                    runtime
+                        .remove_figure(root, probe)
+                        .expect("valid Runtime mutation")
+                ),
             }
 
             assert_eq!(runtime.interaction().focus_owner(), None);
@@ -4346,11 +4410,18 @@ mod tests {
     #[test]
     fn reparent_under_hidden_ancestor_releases_focus() {
         let (mut runtime, root, probe, events) = focused_probe_runtime();
-        let hidden_parent =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(40.0, 40.0, 40.0, 40.0)));
-        runtime.set_visible(hidden_parent, false);
+        let hidden_parent = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(40.0, 40.0, 40.0, 40.0)))
+            .expect("valid Runtime mutation");
+        runtime
+            .set_visible(hidden_parent, false)
+            .expect("valid Runtime mutation");
 
-        assert!(runtime.reparent(probe, hidden_parent));
+        assert!(
+            runtime
+                .reparent(probe, hidden_parent)
+                .expect("valid Runtime mutation")
+        );
 
         assert_eq!(runtime.interaction().focus_owner(), None);
         assert_eq!(
@@ -4398,15 +4469,19 @@ mod tests {
     #[test]
     fn cursor_and_tooltip_resolve_from_the_current_pointer_targets() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        runtime.set_figure_style(
-            root,
-            FigureStyle {
-                cursor: Some(CursorIcon::Crosshair),
-                tooltip: Some(Some("root tip".to_string())),
-                ..FigureStyle::default()
-            },
-        );
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
+        runtime
+            .set_figure_style(
+                root,
+                FigureStyle {
+                    cursor: Some(CursorIcon::Crosshair),
+                    tooltip: Some(Some("root tip".to_string())),
+                    ..FigureStyle::default()
+                },
+            )
+            .expect("valid Runtime mutation");
 
         runtime.dispatch_mouse_moved(50.0, 50.0);
 
@@ -4421,7 +4496,9 @@ mod tests {
     #[test]
     fn submission_contains_surface_resources_and_monotonic_frame_id() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0))
@@ -4465,7 +4542,9 @@ mod tests {
     #[test]
     fn resource_only_completion_produces_a_submission_without_scene_damage() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4499,9 +4578,12 @@ mod tests {
     #[test]
     fn resource_completion_invalidates_and_repaints_dependent_figure() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
+        let child = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4542,8 +4624,9 @@ mod tests {
     #[test]
     fn replacing_contents_removes_resource_dependencies_from_detached_figures() {
         let mut runtime = Runtime::empty();
-        let old_contents =
-            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let old_contents = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .add_resource_dependency(image.resource_id(), old_contents)
@@ -4557,7 +4640,9 @@ mod tests {
             RenderOutcome::Presented,
         );
 
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4579,9 +4664,12 @@ mod tests {
     #[test]
     fn backend_capability_promotes_partial_damage_to_full() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-        let child =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
+        let child = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4591,10 +4679,12 @@ mod tests {
             RenderOutcome::Presented,
         );
 
-        runtime.set_bounds(
-            child,
-            novadraw_geometry::Rectangle::new(15.0, 15.0, 20.0, 20.0),
-        );
+        runtime
+            .set_bounds(
+                child,
+                novadraw_geometry::Rectangle::new(15.0, 15.0, 20.0, 20.0),
+            )
+            .expect("valid Runtime mutation");
         let partial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4605,10 +4695,12 @@ mod tests {
             RenderOutcome::Presented,
         );
 
-        runtime.set_bounds(
-            child,
-            novadraw_geometry::Rectangle::new(20.0, 20.0, 20.0, 20.0),
-        );
+        runtime
+            .set_bounds(
+                child,
+                novadraw_geometry::Rectangle::new(20.0, 20.0, 20.0, 20.0),
+            )
+            .expect("valid Runtime mutation");
         let promoted = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY)
             .unwrap();
@@ -4618,7 +4710,9 @@ mod tests {
     #[test]
     fn moving_contents_forces_full_damage_to_clear_exposed_pixels() {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(20.0, 20.0, 60.0, 60.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(20.0, 20.0, 60.0, 60.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4628,7 +4722,11 @@ mod tests {
             RenderOutcome::Presented,
         );
 
-        assert!(runtime.translate(root, 10.0, 10.0));
+        assert!(
+            runtime
+                .translate(root, 10.0, 10.0)
+                .expect("valid Runtime mutation")
+        );
         let moved = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4639,7 +4737,9 @@ mod tests {
     #[test]
     fn surface_change_and_retry_force_full_damage() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .complete_image(
@@ -4681,7 +4781,9 @@ mod tests {
     #[test]
     fn retry_restores_in_flight_resource_updates_before_newer_updates() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4728,7 +4830,9 @@ mod tests {
     #[test]
     fn resource_state_transitions_preserve_order_within_one_delta() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4774,7 +4878,9 @@ mod tests {
     #[test]
     fn backend_session_reset_rejects_old_completion_and_resends_ready_snapshot() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
@@ -4832,7 +4938,9 @@ mod tests {
     #[test]
     fn snapshot_retry_refreezes_current_registry_state() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
@@ -4872,7 +4980,9 @@ mod tests {
     #[test]
     fn mutations_after_snapshot_freeze_remain_as_incremental_delta() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let image = runtime.register_image();
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
@@ -4908,7 +5018,9 @@ mod tests {
     #[test]
     fn dpi_change_updates_surface_metadata_and_forces_full_damage() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .unwrap();
@@ -4936,7 +5048,9 @@ mod tests {
     #[test]
     fn suspended_surface_preserves_full_redraw_request() {
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
 
         assert!(
             runtime
@@ -4994,7 +5108,9 @@ mod tests {
     fn frame_preparation_reports_permanent_backend_capability_mismatch() {
         let mut runtime = Runtime::empty();
         runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-        runtime.set_contents(Box::new(crate::LabelFigure::new("unsupported")));
+        runtime
+            .set_contents(Box::new(crate::LabelFigure::new("unsupported")))
+            .expect("valid Runtime mutation");
 
         let preparation = runtime
             .prepare_submission_state(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY);
@@ -5025,7 +5141,7 @@ mod tests {
                 crate::ListenerDirective::Keep
             }
 
-            fn on_notify(&self, _block_id: FigureId) -> crate::ListenerDirective {
+            fn on_notify(&self, _figure_id: FigureId) -> crate::ListenerDirective {
                 crate::ListenerDirective::Keep
             }
         }
@@ -5033,7 +5149,9 @@ mod tests {
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut runtime = Runtime::empty();
         runtime.add_update_listener(Box::new(CaptureUpdates(events.clone())));
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
 
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5106,7 +5224,9 @@ mod adr014_tests {
 
     fn scene() -> (Runtime, FigureId) {
         let mut runtime = Runtime::empty();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid Runtime mutation");
         (runtime, root)
     }
 
@@ -5116,7 +5236,10 @@ mod adr014_tests {
         let (mut second, local) = scene();
         let before = second.tree().figure_bounds(local);
         assert!(second.tree().figure_bounds(foreign).is_none());
-        assert!(!second.set_bounds(foreign, Rectangle::new(1.0, 2.0, 3.0, 4.0)));
+        assert_eq!(
+            second.set_bounds(foreign, Rectangle::new(1.0, 2.0, 3.0, 4.0)),
+            Err(RuntimeMutationError::ForeignRuntime(foreign))
+        );
         assert_eq!(second.tree().figure_bounds(local), before);
     }
 
@@ -5176,13 +5299,24 @@ mod adr014_tests {
     fn remove_releases_subtree_and_invalidates_old_ids() {
         let (mut runtime, root) = scene();
         let drops = Rc::new(Cell::new(0));
-        let child = runtime.add_figure(root, Box::new(DropProbe(Rc::clone(&drops))));
-        let grandchild = runtime.add_figure(child, Box::new(DropProbe(Rc::clone(&drops))));
-        assert!(runtime.remove_figure(root, child));
+        let child = runtime
+            .add_figure(root, Box::new(DropProbe(Rc::clone(&drops))))
+            .expect("valid Runtime mutation");
+        let grandchild = runtime
+            .add_figure(child, Box::new(DropProbe(Rc::clone(&drops))))
+            .expect("valid Runtime mutation");
+        assert!(
+            runtime
+                .remove_figure(root, child)
+                .expect("valid Runtime mutation")
+        );
         assert_eq!(drops.get(), 2);
-        assert!(runtime.tree().get_block(child).is_none());
-        assert!(runtime.tree().get_block(grandchild).is_none());
-        assert!(!runtime.remove_figure(root, child));
+        assert!(runtime.tree().node(child).is_none());
+        assert!(runtime.tree().node(grandchild).is_none());
+        assert_eq!(
+            runtime.remove_figure(root, child),
+            Err(RuntimeMutationError::UnknownOrDisposedFigure(child))
+        );
     }
 
     #[test]
@@ -5194,7 +5328,7 @@ mod adr014_tests {
             deepest =
                 tree.add_child_to(deepest, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
         }
-        assert_eq!(tree.block_depth(deepest), Some(crate::MAX_TREE_DEPTH));
+        assert_eq!(tree.depth(deepest), Some(crate::MAX_TREE_DEPTH));
 
         let mut runtime = Runtime::new(tree);
         runtime.set_preferred_size(deepest, (2.0, 2.0)).unwrap();
@@ -5203,27 +5337,34 @@ mod adr014_tests {
             .expect("deep tree validation and render must complete");
         assert!(!initial.commands().is_empty());
         assert_eq!(runtime.tree().hit_test_simple((0.5, 0.5)), Some(deepest));
-        assert!(runtime.set_bounds(deepest, Rectangle::new(0.0, 0.0, 0.75, 0.75)));
+        assert!(
+            runtime
+                .set_bounds(deepest, Rectangle::new(0.0, 0.0, 0.75, 0.75))
+                .expect("valid Runtime mutation")
+        );
         assert!(
             runtime.prepare_frame().is_some(),
             "deep mutation must complete validation and render"
         );
         runtime.dispose_subtree(root).unwrap();
 
-        assert!(runtime.tree().get_contents().is_none());
-        assert!(runtime.tree().get_block(root).is_none());
-        assert!(runtime.tree().get_block(deepest).is_none());
+        assert!(runtime.tree().contents().is_none());
+        assert!(runtime.tree().node(root).is_none());
+        assert!(runtime.tree().node(deepest).is_none());
     }
 
     #[test]
     fn contents_replacement_releases_old_tree_and_preserves_namespace() {
         let (mut runtime, root) = scene();
         let drops = Rc::new(Cell::new(0));
-        runtime.add_figure(root, Box::new(DropProbe(Rc::clone(&drops))));
-        let replacement =
-            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)));
+        runtime
+            .add_figure(root, Box::new(DropProbe(Rc::clone(&drops))))
+            .expect("valid Runtime mutation");
+        let replacement = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 40.0, 40.0)))
+            .expect("valid Runtime mutation");
         assert_eq!(drops.get(), 1);
-        assert!(runtime.tree().get_block(root).is_none());
+        assert!(runtime.tree().node(root).is_none());
         assert_ne!(root, replacement);
         assert_eq!(replacement.namespace(), root.namespace());
         assert_eq!(runtime.resources().namespace(), root.namespace().as_uuid());
@@ -5236,7 +5377,9 @@ mod adr014_tests {
     #[test]
     fn disposal_removes_owned_listener_but_preserves_shared_registrations() {
         let (mut runtime, root) = scene();
-        let owner = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        let owner = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+            .expect("valid Runtime mutation");
         let owned = runtime
             .add_update_listener_scoped(ListenerScope::Figure(owner), Box::new(()))
             .unwrap();
@@ -5306,25 +5449,27 @@ mod adr014_tests {
     #[test]
     fn lifecycle_panic_happens_after_extraction_and_blocks_recording() {
         let (mut runtime, root) = scene();
-        let child = runtime.add_figure(root, Box::new(PanicOnDetach));
+        let child = runtime
+            .add_figure(root, Box::new(PanicOnDetach))
+            .expect("valid Runtime mutation");
         let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             runtime.dispose_subtree(child).unwrap();
         }));
         assert!(failure.is_err());
         assert!(runtime.is_faulted());
-        assert!(runtime.tree().get_block(child).is_none());
+        assert!(runtime.tree().node(child).is_none());
         assert_eq!(runtime.tree().child_order(root), Some(vec![]));
         assert!(runtime.prepare_frame().is_none());
         assert!(matches!(
-            runtime.try_add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
             Err(RuntimeMutationError::Faulted)
         ));
         assert!(matches!(
-            runtime.try_reparent(root, root),
+            runtime.reparent(root, root),
             Err(RuntimeMutationError::Faulted)
         ));
         assert!(matches!(
-            runtime.try_set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
+            runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))),
             Err(RuntimeMutationError::Faulted)
         ));
     }
@@ -5351,8 +5496,9 @@ mod adr014_tests {
     #[test]
     fn disposal_freezes_old_damage_before_the_node_is_removed() {
         let (mut runtime, root) = scene();
-        let child =
-            runtime.add_figure(root, Box::new(RectangleFigure::new(20.0, 20.0, 10.0, 10.0)));
+        let child = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(20.0, 20.0, 10.0, 10.0)))
+            .expect("valid Runtime mutation");
         runtime.record_full_frame();
         runtime.updates.dirty_regions.clear();
         runtime.dispose_subtree(child).unwrap();
@@ -5365,10 +5511,20 @@ mod adr014_tests {
     #[test]
     fn reparent_preserves_identity_and_foreign_checked_mutation_is_rejected() {
         let (mut runtime, root) = scene();
-        let left = runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        let right = runtime.add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
-        let child = runtime.add_figure(left, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)));
-        assert!(runtime.reparent(child, right));
+        let left = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
+        let right = runtime
+            .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+            .expect("valid Runtime mutation");
+        let child = runtime
+            .add_figure(left, Box::new(RectangleFigure::new(0.0, 0.0, 5.0, 5.0)))
+            .expect("valid Runtime mutation");
+        assert!(
+            runtime
+                .reparent(child, right)
+                .expect("valid Runtime mutation")
+        );
         assert_eq!(runtime.tree().parent_id(child), Some(right));
         let (_, foreign) = scene();
         assert!(matches!(runtime.clear_preferred_size(foreign),
@@ -5385,14 +5541,14 @@ mod adr014_tests {
             Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
         );
         assert_eq!(
-            runtime.try_add_figure(
+            runtime.add_figure(
                 synthetic_root,
                 Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0))
             ),
             Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
         );
         assert_eq!(
-            runtime.try_reparent(root, synthetic_root),
+            runtime.reparent(root, synthetic_root),
             Err(RuntimeMutationError::SyntheticRootOperation(synthetic_root))
         );
     }

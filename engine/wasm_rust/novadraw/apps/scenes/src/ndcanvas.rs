@@ -76,7 +76,10 @@ fn create_scene_fill_rect() -> novadraw::FigureTree {
         gc.fill_rect(300.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 1.0, 0.0, 1.0)); // 绿色
         gc.fill_rect(550.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 0.0, 1.0, 1.0)); // 蓝色
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -118,7 +121,10 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             LineJoin::Bevel,
         );
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -166,7 +172,10 @@ fn create_scene_ellipse() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -238,7 +247,10 @@ fn create_scene_line() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -305,7 +317,10 @@ fn create_scene_polyline() -> novadraw::FigureTree {
         ];
         gc.polyline(&points8, Color::BLUE, 8.0, LineCap::Square, LineJoin::Miter);
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -340,7 +355,10 @@ fn create_scene_line_join() -> novadraw::FigureTree {
         ];
         gc.polyline(&points3, Color::BLUE, 8.0, LineCap::Butt, LineJoin::Bevel);
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -390,7 +408,10 @@ fn create_scene_transform() -> novadraw::FigureTree {
             LineJoin::Miter,
         );
     });
-    scene.builder().add_child_to(bg_id, Box::new(test));
+    scene
+        .builder()
+        .add_child(bg_id, Box::new(test))
+        .expect("valid FigureTree construction");
     scene
 }
 

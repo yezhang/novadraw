@@ -170,7 +170,7 @@ mod tests {
                     scene.id
                 );
                 assert!(
-                    scene.build().tree().get_contents().is_some(),
+                    scene.build().tree().contents().is_some(),
                     "scene has no contents: {}/{}",
                     suite.id,
                     scene.id

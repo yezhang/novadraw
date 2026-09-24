@@ -61,11 +61,15 @@ fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
     const TEXT: &str = "A grapheme-safe label that must truncate";
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
-    let label = runtime.add_figure(
-        root,
-        Box::new(LabelFigure::new(TEXT).with_bounds(Rectangle::new(20.0, 20.0, 72.0, 24.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid Runtime mutation");
+    let label = runtime
+        .add_figure(
+            root,
+            Box::new(LabelFigure::new(TEXT).with_bounds(Rectangle::new(20.0, 20.0, 72.0, 24.0))),
+        )
+        .expect("valid Runtime mutation");
 
     runtime.refresh_label_layouts().unwrap();
     let layout = runtime.label_text_layout(label).unwrap();
@@ -94,11 +98,15 @@ fn first_submission_shapes_label_after_parent_layout() {
     const TEXT: &str = "Hello world";
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid Runtime mutation");
     runtime
         .set_layout_manager(root, Box::new(StackLayout::new()))
         .unwrap();
-    let label = runtime.add_figure(root, Box::new(LabelFigure::new(TEXT)));
+    let label = runtime
+        .add_figure(root, Box::new(LabelFigure::new(TEXT)))
+        .expect("valid Runtime mutation");
 
     runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -124,11 +132,17 @@ fn label_cache_reshapes_only_when_measurement_inputs_change() {
         }),
     );
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
-    let label = runtime.add_figure(
-        root,
-        Box::new(LabelFigure::new("cache").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid Runtime mutation");
+    let label = runtime
+        .add_figure(
+            root,
+            Box::new(
+                LabelFigure::new("cache").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 30.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
 
     runtime.refresh_label_layouts().unwrap();
     let initial = layouts.load(Ordering::Relaxed);
@@ -155,16 +169,20 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
             ImageData::from_rgba(12, 8, vec![255; 12 * 8 * 4], 1.0),
         )
         .unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
-    let label = runtime.add_figure(
-        root,
-        Box::new(
-            LabelFigure::new("Icon")
-                .with_icon(image)
-                .with_border(LineBorder::new(novadraw_core::Color::BLACK, 2.0))
-                .with_bounds(Rectangle::new(20.0, 20.0, 160.0, 40.0)),
-        ),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid Runtime mutation");
+    let label = runtime
+        .add_figure(
+            root,
+            Box::new(
+                LabelFigure::new("Icon")
+                    .with_icon(image)
+                    .with_border(LineBorder::new(novadraw_core::Color::BLACK, 2.0))
+                    .with_bounds(Rectangle::new(20.0, 20.0, 160.0, 40.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
     let replacement = runtime.register_image();
     runtime
         .complete_image(
@@ -191,7 +209,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
         matches!(
             effect,
             novadraw_scene::NotificationEffect::EmitProperty(change)
-                if change.block_id == label
+                if change.figure_id == label
                     && change.property == "icon_text_gap"
                     && change.new_value == PropertyValue::Number(9.0)
         )
@@ -241,15 +259,19 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
                 ImageData::from_rgba(12, 8, vec![255; 12 * 8 * 4], 1.0),
             )
             .unwrap();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
-        let label = runtime.add_figure(
-            root,
-            Box::new(
-                LabelFigure::new("Placement")
-                    .with_icon(image)
-                    .with_bounds(Rectangle::new(0.0, 0.0, 160.0, 80.0)),
-            ),
-        );
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+            .expect("valid Runtime mutation");
+        let label = runtime
+            .add_figure(
+                root,
+                Box::new(
+                    LabelFigure::new("Placement")
+                        .with_icon(image)
+                        .with_bounds(Rectangle::new(0.0, 0.0, 160.0, 80.0)),
+                ),
+            )
+            .expect("valid Runtime mutation");
         runtime.set_label_text_placement(label, placement).unwrap();
         runtime.set_label_icon_text_gap(label, GAP).unwrap();
 
@@ -316,9 +338,11 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
         novadraw_core::Color::rgba(0.1, 0.3, 0.6, 1.0),
     )
     .with_alignment(Alignment::Start);
-    let root = runtime.set_contents(Box::new(
-        RectangleFigure::new(0.0, 0.0, 320.0, 120.0).with_border(title_bar),
-    ));
+    let root = runtime
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 120.0).with_border(title_bar),
+        ))
+        .expect("valid Runtime mutation");
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -385,7 +409,9 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
     for (border, expected_glyph_runs) in borders {
         let mut runtime = Runtime::empty();
         runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-        let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 120.0)));
+        let root = runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 120.0)))
+            .expect("valid Runtime mutation");
         runtime.replace_border(root, Some(border)).unwrap();
 
         let submission = runtime
@@ -414,25 +440,33 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
 fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
-    let child = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(20.0, 60.0, 200.0, 100.0)),
-    );
-    runtime.set_figure_style(
-        root,
-        FigureStyle {
-            font: Some("12px Inter Variable".to_string()),
-            ..FigureStyle::default()
-        },
-    );
-    runtime.set_figure_style(
-        child,
-        FigureStyle {
-            font: Some("30px Inter Variable".to_string()),
-            ..FigureStyle::default()
-        },
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid Runtime mutation");
+    let child = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(20.0, 60.0, 200.0, 100.0)),
+        )
+        .expect("valid Runtime mutation");
+    runtime
+        .set_figure_style(
+            root,
+            FigureStyle {
+                font: Some("12px Inter Variable".to_string()),
+                ..FigureStyle::default()
+            },
+        )
+        .expect("valid Runtime mutation");
+    runtime
+        .set_figure_style(
+            child,
+            FigureStyle {
+                font: Some("30px Inter Variable".to_string()),
+                ..FigureStyle::default()
+            },
+        )
+        .expect("valid Runtime mutation");
     let shared: Arc<dyn Border> = Arc::new(CompoundBorder::new(
         LineBorder::new(novadraw_core::Color::BLACK, 2.0),
         TitleBarBorder::new("Shared", novadraw_core::Color::rgba(0.1, 0.3, 0.6, 1.0)),
@@ -462,14 +496,20 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
     runtime
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
-    let root = runtime.set_contents(Box::new(
-        RectangleFigure::new(0.0, 0.0, 320.0, 180.0)
-            .with_border(TitleBarBorder::new("Title", novadraw_core::Color::BLACK)),
-    ));
-    let label = runtime.add_figure(
-        root,
-        Box::new(LabelFigure::new("Label").with_bounds(Rectangle::new(20.0, 60.0, 120.0, 30.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(
+            RectangleFigure::new(0.0, 0.0, 320.0, 180.0)
+                .with_border(TitleBarBorder::new("Title", novadraw_core::Color::BLACK)),
+        ))
+        .expect("valid Runtime mutation");
+    let label = runtime
+        .add_figure(
+            root,
+            Box::new(
+                LabelFigure::new("Label").with_bounds(Rectangle::new(20.0, 60.0, 120.0, 30.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
 
     let initial = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -561,12 +601,16 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
 #[test]
 fn image_figure_tracks_pending_ready_and_failed_resource_states() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .expect("valid Runtime mutation");
     let image = runtime.register_image();
-    let figure = runtime.add_figure(
-        root,
-        Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))),
-    );
+    let figure = runtime
+        .add_figure(
+            root,
+            Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))),
+        )
+        .expect("valid Runtime mutation");
     assert_eq!(
         runtime.image_display_state(figure),
         Ok(ImageDisplayState::Pending)
@@ -638,19 +682,25 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
 #[test]
 fn removing_ready_image_clears_all_shared_figure_references() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .expect("valid Runtime mutation");
     let image = runtime.register_image();
     runtime
         .complete_image(image, ImageData::from_rgba(2, 1, vec![255; 8], 1.0))
         .unwrap();
-    let first = runtime.add_figure(
-        root,
-        Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))),
-    );
-    let second = runtime.add_figure(
-        root,
-        Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(80.0, 20.0, 40.0, 30.0))),
-    );
+    let first = runtime
+        .add_figure(
+            root,
+            Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(20.0, 20.0, 40.0, 30.0))),
+        )
+        .expect("valid Runtime mutation");
+    let second = runtime
+        .add_figure(
+            root,
+            Box::new(ImageFigure::new(image).with_bounds(Rectangle::new(80.0, 20.0, 40.0, 30.0))),
+        )
+        .expect("valid Runtime mutation");
 
     let ready = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)

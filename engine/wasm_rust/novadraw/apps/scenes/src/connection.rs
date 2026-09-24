@@ -64,23 +64,29 @@ fn resolve_with_arrow(
     ])
     .with_fill_color(arrow_color)
     .with_stroke(arrow_color, 1.0);
-    runtime.add_figure(connection_figure, Box::new(arrow));
+    runtime
+        .add_figure(connection_figure, Box::new(arrow))
+        .expect("valid Runtime mutation");
 }
 
 fn anchor_matrix() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
     let connection_ids: Vec<_> = (0..5)
         .map(|index| {
-            runtime.add_figure(
-                root,
-                Box::new(connection(Color::rgba(
-                    0.10 + index as f64 * 0.08,
-                    0.28,
-                    0.62,
-                    1.0,
-                ))),
-            )
+            runtime
+                .add_figure(
+                    root,
+                    Box::new(connection(Color::rgba(
+                        0.10 + index as f64 * 0.08,
+                        0.28,
+                        0.62,
+                        1.0,
+                    ))),
+                )
+                .expect("valid Runtime mutation")
         })
         .collect();
 
@@ -88,72 +94,84 @@ fn anchor_matrix() -> Runtime {
         let y = 30.0 + index as f64 * 108.0;
         let (source, target) = match index {
             1 => (
-                runtime.add_figure(
-                    root,
-                    Box::new(EllipseFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )),
-                ),
-                runtime.add_figure(
-                    root,
-                    Box::new(EllipseFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )),
-                ),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(EllipseFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(EllipseFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
             ),
             2 => (
-                runtime.add_figure(
-                    root,
-                    Box::new(RoundedRectangleFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        24.0,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )),
-                ),
-                runtime.add_figure(
-                    root,
-                    Box::new(RoundedRectangleFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        24.0,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )),
-                ),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(RoundedRectangleFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            24.0,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(RoundedRectangleFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            24.0,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
             ),
             _ => (
-                runtime.add_figure(
-                    root,
-                    Box::new(RectangleFigure::new_with_color(
-                        SOURCE_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.20, 0.65, 0.56, 1.0),
-                    )),
-                ),
-                runtime.add_figure(
-                    root,
-                    Box::new(RectangleFigure::new_with_color(
-                        TARGET_X,
-                        y,
-                        NODE_WIDTH,
-                        NODE_HEIGHT,
-                        Color::rgba(0.88, 0.40, 0.38, 1.0),
-                    )),
-                ),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(RectangleFigure::new_with_color(
+                            SOURCE_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.20, 0.65, 0.56, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
+                runtime
+                    .add_figure(
+                        root,
+                        Box::new(RectangleFigure::new_with_color(
+                            TARGET_X,
+                            y,
+                            NODE_WIDTH,
+                            NODE_HEIGHT,
+                            Color::rgba(0.88, 0.40, 0.38, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation"),
             ),
         };
 
@@ -196,26 +214,30 @@ fn anchor_matrix() -> Runtime {
                         AnchorGeometry::Rectangle(Rectangle::new(62.0, 12.0, 28.0, 28.0)),
                     )
                     .unwrap();
-                runtime.add_figure(
-                    source,
-                    Box::new(EllipseFigure::new_with_color(
-                        10.0,
-                        12.0,
-                        28.0,
-                        28.0,
-                        Color::rgba(0.95, 0.82, 0.22, 1.0),
-                    )),
-                );
-                runtime.add_figure(
-                    target,
-                    Box::new(EllipseFigure::new_with_color(
-                        62.0,
-                        12.0,
-                        28.0,
-                        28.0,
-                        Color::rgba(0.95, 0.82, 0.22, 1.0),
-                    )),
-                );
+                runtime
+                    .add_figure(
+                        source,
+                        Box::new(EllipseFigure::new_with_color(
+                            10.0,
+                            12.0,
+                            28.0,
+                            28.0,
+                            Color::rgba(0.95, 0.82, 0.22, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation");
+                runtime
+                    .add_figure(
+                        target,
+                        Box::new(EllipseFigure::new_with_color(
+                            62.0,
+                            12.0,
+                            28.0,
+                            28.0,
+                            Color::rgba(0.95, 0.82, 0.22, 1.0),
+                        )),
+                    )
+                    .expect("valid Runtime mutation");
                 (
                     runtime.register_connection_anchor(Box::new(LabelAnchor::new(source))),
                     runtime.register_connection_anchor(Box::new(LabelAnchor::new(target))),
@@ -250,31 +272,39 @@ fn anchor_matrix() -> Runtime {
 
 fn bendpoint_scene() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
-    let connection_figure = runtime.add_figure(
-        root,
-        Box::new(connection(Color::rgba(0.28, 0.35, 0.75, 1.0))),
-    );
-    let source = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            70.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )),
-    );
-    let target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            630.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )),
-    );
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(
+            root,
+            Box::new(connection(Color::rgba(0.28, 0.35, 0.75, 1.0))),
+        )
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                70.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                630.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let router = runtime.register_connection_router(Box::new(BendpointConnectionRouter));
@@ -306,41 +336,49 @@ fn manhattan_scene() -> Runtime {
 
 fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
     for index in 0..3 {
-        let connection_figure = runtime.add_figure(
-            root,
-            Box::new(connection(Color::rgba(
-                0.20,
-                0.30 + index as f64 * 0.12,
-                0.68,
-                1.0,
-            ))),
-        );
+        let connection_figure = runtime
+            .add_figure(
+                root,
+                Box::new(connection(Color::rgba(
+                    0.20,
+                    0.30 + index as f64 * 0.12,
+                    0.68,
+                    1.0,
+                ))),
+            )
+            .expect("valid Runtime mutation");
         let y = 75.0 + index as f64 * 165.0;
         let source_x = 80.0 + if moved && index == 1 { 75.0 } else { 0.0 };
         let target_y_offset = if moved && index != 1 { 55.0 } else { 0.0 };
-        let source = runtime.add_figure(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                source_x,
-                y,
-                NODE_WIDTH,
-                NODE_HEIGHT,
-                Color::rgba(0.20, 0.65, 0.56, 1.0),
-            )),
-        );
-        let target = runtime.add_figure(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                590.0,
-                y + if index % 2 == 0 { 80.0 } else { -45.0 } + target_y_offset,
-                NODE_WIDTH,
-                NODE_HEIGHT,
-                Color::rgba(0.88, 0.40, 0.38, 1.0),
-            )),
-        );
+        let source = runtime
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    source_x,
+                    y,
+                    NODE_WIDTH,
+                    NODE_HEIGHT,
+                    Color::rgba(0.20, 0.65, 0.56, 1.0),
+                )),
+            )
+            .expect("valid Runtime mutation");
+        let target = runtime
+            .add_figure(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    590.0,
+                    y + if index % 2 == 0 { 80.0 } else { -45.0 } + target_y_offset,
+                    NODE_WIDTH,
+                    NODE_HEIGHT,
+                    Color::rgba(0.88, 0.40, 0.38, 1.0),
+                )),
+            )
+            .expect("valid Runtime mutation");
         let source_anchor =
             runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
         let target_anchor =
@@ -361,41 +399,49 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
 
 fn shared_manhattan_scene() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
     let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
-    let source = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            80.0,
-            250.0,
-            120.0,
-            70.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )),
-    );
-    let target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            600.0,
-            300.0,
-            120.0,
-            70.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )),
-    );
+    let source = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                80.0,
+                250.0,
+                120.0,
+                70.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                600.0,
+                300.0,
+                120.0,
+                70.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let mut entries = Vec::new();
     for index in 0..4 {
-        let connection_figure = runtime.add_figure(
-            root,
-            Box::new(connection(Color::rgba(
-                0.16 + index as f64 * 0.10,
-                0.30,
-                0.74 - index as f64 * 0.08,
-                1.0,
-            ))),
-        );
+        let connection_figure = runtime
+            .add_figure(
+                root,
+                Box::new(connection(Color::rgba(
+                    0.16 + index as f64 * 0.10,
+                    0.30,
+                    0.74 - index as f64 * 0.08,
+                    1.0,
+                ))),
+            )
+            .expect("valid Runtime mutation");
         let connection_id = runtime
             .register_connection_state(
                 connection_figure,
@@ -415,45 +461,57 @@ fn shared_manhattan_scene() -> Runtime {
 
 fn unsupported_viewport_topology_scene() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
-    let viewport = runtime.add_figure(
-        root,
-        Box::new(ViewportFigure::new(45.0, 90.0, 300.0, 360.0)),
-    );
-    let contents = runtime.add_figure(
-        viewport,
-        Box::new(RectangleFigure::new_with_color(
-            0.0,
-            0.0,
-            500.0,
-            420.0,
-            Color::rgba(0.84, 0.90, 0.96, 1.0),
-        )),
-    );
-    let source = runtime.add_figure(
-        contents,
-        Box::new(RectangleFigure::new_with_color(
-            60.0,
-            135.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )),
-    );
-    let target = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            610.0,
-            250.0,
-            NODE_WIDTH,
-            NODE_HEIGHT,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )),
-    );
-    let connection_figure = runtime.add_figure(
-        root,
-        Box::new(connection(Color::rgba(0.72, 0.18, 0.22, 1.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
+    let viewport = runtime
+        .add_figure(
+            root,
+            Box::new(ViewportFigure::new(45.0, 90.0, 300.0, 360.0)),
+        )
+        .expect("valid Runtime mutation");
+    let contents = runtime
+        .add_figure(
+            viewport,
+            Box::new(RectangleFigure::new_with_color(
+                0.0,
+                0.0,
+                500.0,
+                420.0,
+                Color::rgba(0.84, 0.90, 0.96, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(
+            contents,
+            Box::new(RectangleFigure::new_with_color(
+                60.0,
+                135.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                610.0,
+                250.0,
+                NODE_WIDTH,
+                NODE_HEIGHT,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(
+            root,
+            Box::new(connection(Color::rgba(0.72, 0.18, 0.22, 1.0))),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection_id = runtime
@@ -480,40 +538,48 @@ fn unsupported_viewport_topology_scene() -> Runtime {
 
 fn fan_scene() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
     let connection_figures: Vec<_> = (0..5)
         .map(|index| {
-            runtime.add_figure(
-                root,
-                Box::new(connection(Color::rgba(
-                    0.12 + index as f64 * 0.08,
-                    0.28,
-                    0.70 - index as f64 * 0.06,
-                    1.0,
-                ))),
-            )
+            runtime
+                .add_figure(
+                    root,
+                    Box::new(connection(Color::rgba(
+                        0.12 + index as f64 * 0.08,
+                        0.28,
+                        0.70 - index as f64 * 0.06,
+                        1.0,
+                    ))),
+                )
+                .expect("valid Runtime mutation")
         })
         .collect();
-    let source = runtime.add_figure(
-        root,
-        Box::new(EllipseFigure::new_with_color(
-            80.0,
-            250.0,
-            120.0,
-            82.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )),
-    );
-    let target = runtime.add_figure(
-        root,
-        Box::new(EllipseFigure::new_with_color(
-            600.0,
-            250.0,
-            120.0,
-            82.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )),
-    );
+    let source = runtime
+        .add_figure(
+            root,
+            Box::new(EllipseFigure::new_with_color(
+                80.0,
+                250.0,
+                120.0,
+                82.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(EllipseFigure::new_with_color(
+                600.0,
+                250.0,
+                120.0,
+                82.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(EllipseAnchor::new(source)));
     let target_anchor = runtime.register_connection_anchor(Box::new(EllipseAnchor::new(target)));
     let router = runtime.register_connection_router(Box::new(
@@ -552,37 +618,47 @@ fn moved_nodes_scene() -> Runtime {
 
 fn connection_layer_scene() -> Runtime {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(background()));
-    let layer = runtime.add_figure(
-        root,
-        Box::new(ConnectionLayerFigure::new(0.0, 0.0, WIDTH, HEIGHT)),
-    );
-    let connection_figure = runtime.add_figure(
-        layer,
-        Box::new(connection(Color::rgba(0.24, 0.40, 0.76, 1.0))),
-    );
-    let source = runtime.add_figure(
-        root,
-        Box::new(RoundedRectangleFigure::new_with_color(
-            110.0,
-            250.0,
-            120.0,
-            70.0,
-            20.0,
-            Color::rgba(0.20, 0.65, 0.56, 1.0),
-        )),
-    );
-    let target = runtime.add_figure(
-        root,
-        Box::new(RoundedRectangleFigure::new_with_color(
-            580.0,
-            180.0,
-            120.0,
-            70.0,
-            20.0,
-            Color::rgba(0.88, 0.40, 0.38, 1.0),
-        )),
-    );
+    let root = runtime
+        .set_contents(Box::new(background()))
+        .expect("valid Runtime mutation");
+    let layer = runtime
+        .add_figure(
+            root,
+            Box::new(ConnectionLayerFigure::new(0.0, 0.0, WIDTH, HEIGHT)),
+        )
+        .expect("valid Runtime mutation");
+    let connection_figure = runtime
+        .add_figure(
+            layer,
+            Box::new(connection(Color::rgba(0.24, 0.40, 0.76, 1.0))),
+        )
+        .expect("valid Runtime mutation");
+    let source = runtime
+        .add_figure(
+            root,
+            Box::new(RoundedRectangleFigure::new_with_color(
+                110.0,
+                250.0,
+                120.0,
+                70.0,
+                20.0,
+                Color::rgba(0.20, 0.65, 0.56, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
+    let target = runtime
+        .add_figure(
+            root,
+            Box::new(RoundedRectangleFigure::new_with_color(
+                580.0,
+                180.0,
+                120.0,
+                70.0,
+                20.0,
+                Color::rgba(0.88, 0.40, 0.38, 1.0),
+            )),
+        )
+        .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(source, Dimension::new(40.0, 40.0)),
     ));

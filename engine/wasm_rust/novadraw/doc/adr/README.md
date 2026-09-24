@@ -34,6 +34,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [014](adr-014-extensibility-and-lifecycle-boundaries.md) | 扩展协议、生命周期与稳定发布边界修订 | 已接受，已验证 | 2026-09-10 |
 | [015](adr-015-editor-framework-boundary.md) | 独立 Editor 框架边界 | 已接受 | 2026-09-13 |
 | [016](adr-016-figure-inspector-observability.md) | FigureInspector 可观测性边界 | 已接受 | 2026-09-22 |
+| [017](adr-017-core-public-api-boundary.md) | Core 公开 API 边界与失败契约 | 已接受 | 2026-09-24 |
 
 ## 现行与历史隔离
 

@@ -143,7 +143,8 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 ### 约束系统
 
 - `LayoutConstraint` trait
-- `set_constraint(figure, constraint)`
+- `FigureTreeBuilder::set_layout_constraint(figure, constraint)`
+- `Runtime::set_layout_constraint(figure, constraint)`
 
 ### UpdateManager 能力
 

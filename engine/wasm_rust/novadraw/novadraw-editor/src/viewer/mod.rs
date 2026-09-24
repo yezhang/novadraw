@@ -545,8 +545,8 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         HANDLE_LAYER,
     )?;
     let viewport = runtime.add_viewport(viewport_layer, bounds)?;
-    let scalable = runtime.try_add_figure(
-        viewport.block_id(),
+    let scalable = runtime.add_figure(
+        viewport.figure_id(),
         Box::new(ScalableFreeformLayeredPane::new(
             0.0,
             0.0,
@@ -618,7 +618,7 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         RootLayers {
             root,
             viewport_layer,
-            viewport: viewport.block_id(),
+            viewport: viewport.figure_id(),
             scalable,
             grid,
             printable,
@@ -1283,7 +1283,7 @@ where
         self.validate_selectable(owner)?;
         let figure = self
             .runtime
-            .try_add_figure(self.root_layers.handles(), figure)?;
+            .add_figure(self.root_layers.handles(), figure)?;
         let id = HandleId::new(self.namespace());
         self.visual_registry
             .insert(figure, VisualOwner::Handle { id, owner, role });
@@ -1305,7 +1305,7 @@ where
         } else {
             self.root_layers.feedback()
         };
-        let figure = self.runtime.try_add_figure(parent, figure)?;
+        let figure = self.runtime.add_figure(parent, figure)?;
         let id = FeedbackId::new(self.namespace());
         self.visual_registry
             .insert(figure, VisualOwner::Feedback { id, owner });
@@ -2011,7 +2011,7 @@ where
         let context = PartFactoryContext::new(parent, parent_model, model_id);
         let mut behavior = self.factory.create(context, &self.model)?;
         let policies = behavior.create_policies(&self.model, model_id)?;
-        let primary = self.runtime.try_add_figure(
+        let primary = self.runtime.add_figure(
             parent_figure,
             behavior.create_figure(&self.model, model_id)?,
         )?;
@@ -2150,7 +2150,7 @@ where
         Self::validate_connection_bendpoints(descriptor.id(), &bendpoints)?;
         let routing = behavior.connection_routing(&self.model, descriptor.id())?;
         let (router, constraint) = self.resolve_connection_routing(routing)?;
-        let primary = self.runtime.try_add_figure(
+        let primary = self.runtime.add_figure(
             self.root_layers.connection(),
             behavior.create_figure(&self.model, descriptor.id())?,
         )?;

@@ -117,14 +117,18 @@ fn triangle_uses_draw2d_resize_and_centering_geometry() {
 #[test]
 fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomically() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
-    let line = runtime.add_figure(
-        root,
-        Box::new(PolylineFigure::from_points(vec![
-            Vec2::new(10.0, 20.0),
-            Vec2::new(110.0, 20.0),
-        ])),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .expect("valid Runtime mutation");
+    let line = runtime
+        .add_figure(
+            root,
+            Box::new(PolylineFigure::from_points(vec![
+                Vec2::new(10.0, 20.0),
+                Vec2::new(110.0, 20.0),
+            ])),
+        )
+        .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.point_list_points(line).unwrap(),
@@ -159,7 +163,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
             .any(|effect| matches!(
                 effect,
                 NotificationEffect::EmitProperty(event)
-                    if event.block_id == line
+                    if event.figure_id == line
                         && event.property == "points"
                         && matches!(event.new_value, PropertyValue::PointList(_))
             ))
@@ -261,12 +265,18 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
 #[test]
 fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let rounded = runtime.add_figure(
-        root,
-        Box::new(RoundedRectangleFigure::new(10.0, 10.0, 100.0, 60.0, 8.0)),
-    );
-    let triangle = runtime.add_figure(root, Box::new(TriangleFigure::new(150.0, 20.0, 40.0, 40.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let rounded = runtime
+        .add_figure(
+            root,
+            Box::new(RoundedRectangleFigure::new(10.0, 10.0, 100.0, 60.0, 8.0)),
+        )
+        .expect("valid Runtime mutation");
+    let triangle = runtime
+        .add_figure(root, Box::new(TriangleFigure::new(150.0, 20.0, 40.0, 40.0)))
+        .expect("valid Runtime mutation");
 
     let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));
     assert!(
@@ -307,24 +317,32 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
 #[test]
 fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
-    let rectangle = runtime.add_figure(
-        root,
-        Box::new(
-            RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
-                .with_stroke(Color::BLUE, 2.0),
-        ),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .expect("valid Runtime mutation");
+    let rectangle = runtime
+        .add_figure(
+            root,
+            Box::new(
+                RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
+                    .with_stroke(Color::BLUE, 2.0),
+            ),
+        )
+        .expect("valid Runtime mutation");
     let fill = Color::rgba(0.2, 0.7, 0.3, 1.0);
     let stroke = Color::rgba(0.8, 0.2, 0.6, 1.0);
-    assert!(runtime.set_figure_style(
-        rectangle,
-        FigureStyle {
-            foreground: Some(stroke),
-            background: Some(fill),
-            ..FigureStyle::default()
-        },
-    ));
+    assert!(
+        runtime
+            .set_figure_style(
+                rectangle,
+                FigureStyle {
+                    foreground: Some(stroke),
+                    background: Some(fill),
+                    ..FigureStyle::default()
+                },
+            )
+            .expect("valid Runtime mutation")
+    );
 
     let canvas = runtime.tree().render();
     assert!(canvas.commands().iter().any(|command| {
@@ -345,14 +363,18 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
 #[test]
 fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
-    let bordered = runtime.add_figure(
-        root,
-        Box::new(
-            RectangleFigure::new(10.0, 10.0, 100.0, 50.0)
-                .with_border(LineBorder::new(Color::BLACK, 3.0)),
-        ),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .expect("valid Runtime mutation");
+    let bordered = runtime
+        .add_figure(
+            root,
+            Box::new(
+                RectangleFigure::new(10.0, 10.0, 100.0, 50.0)
+                    .with_border(LineBorder::new(Color::BLACK, 3.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.tree().preferred_size(bordered, -1.0, -1.0),
@@ -363,13 +385,17 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
         Some(true)
     );
 
-    assert!(runtime.set_figure_style(
-        bordered,
-        FigureStyle {
-            alpha: Some(0.5),
-            ..runtime.tree().figure_style(bordered).unwrap().clone()
-        },
-    ));
+    assert!(
+        runtime
+            .set_figure_style(
+                bordered,
+                FigureStyle {
+                    alpha: Some(0.5),
+                    ..runtime.tree().figure_style(bordered).unwrap().clone()
+                },
+            )
+            .expect("valid Runtime mutation")
+    );
     assert_eq!(
         runtime.tree().border_is_effectively_opaque(bordered),
         Some(false)

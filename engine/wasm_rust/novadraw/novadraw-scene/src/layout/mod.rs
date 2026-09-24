@@ -60,31 +60,31 @@ pub trait LayoutContext {
     fn get_constraint(&self, child_id: FigureId) -> Option<&dyn LayoutConstraint>;
 
     /// 获取块的首选尺寸
-    fn get_preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64);
+    fn get_preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64);
 
-    fn get_measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        let (width, height) = self.get_preferred_size(block_id, w_hint, h_hint);
+    fn get_measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        let (width, height) = self.get_preferred_size(figure_id, w_hint, h_hint);
         FigureMeasurement::new(width, height, None)
     }
 
     /// 获取块的最小尺寸。
-    fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.get_preferred_size(block_id, w_hint, h_hint)
+    fn get_minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.get_preferred_size(figure_id, w_hint, h_hint)
     }
 
     /// 获取块的最大尺寸。
-    fn get_maximum_size(&self, _block_id: FigureId) -> (f64, f64) {
+    fn get_maximum_size(&self, _figure_id: FigureId) -> (f64, f64) {
         (f64::INFINITY, f64::INFINITY)
     }
 
     /// 获取容器 client area 在子节点坐标域中的矩形。
     fn get_container_bounds(&self, container_id: FigureId) -> Rectangle;
 
-    fn get_freeform_extent(&self, _block_id: FigureId) -> Option<Rectangle> {
+    fn get_freeform_extent(&self, _figure_id: FigureId) -> Option<Rectangle> {
         None
     }
 
-    fn get_content_scale(&self, _block_id: FigureId) -> Option<f64> {
+    fn get_content_scale(&self, _figure_id: FigureId) -> Option<f64> {
         None
     }
 }
@@ -126,37 +126,40 @@ impl<'a> LayoutSnapshot<'a> {
         )
     }
 
-    pub fn preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.source.get_preferred_size(block_id, w_hint, h_hint)
+    pub fn preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.source.get_preferred_size(figure_id, w_hint, h_hint)
     }
 
-    pub fn measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        self.source.get_measurement(block_id, w_hint, h_hint)
+    pub fn measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        self.source.get_measurement(figure_id, w_hint, h_hint)
     }
 
-    pub fn minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.source.get_minimum_size(block_id, w_hint, h_hint)
+    pub fn minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.source.get_minimum_size(figure_id, w_hint, h_hint)
     }
 
-    pub fn maximum_size(&self, block_id: FigureId) -> (f64, f64) {
-        self.source.get_maximum_size(block_id)
+    pub fn maximum_size(&self, figure_id: FigureId) -> (f64, f64) {
+        self.source.get_maximum_size(figure_id)
     }
 
     pub fn container_bounds(&self, container_id: FigureId) -> Rectangle {
         self.source.get_container_bounds(container_id)
     }
 
-    pub fn freeform_extent(&self, block_id: FigureId) -> Option<Rectangle> {
-        self.source.get_freeform_extent(block_id)
+    pub fn freeform_extent(&self, figure_id: FigureId) -> Option<Rectangle> {
+        self.source.get_freeform_extent(figure_id)
     }
 
-    pub fn content_scale(&self, block_id: FigureId) -> Option<f64> {
-        self.source.get_content_scale(block_id)
+    pub fn content_scale(&self, figure_id: FigureId) -> Option<f64> {
+        self.source.get_content_scale(figure_id)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LayoutError {
+    UnknownFigure {
+        figure: FigureId,
+    },
     ConstraintTypeMismatch {
         container: FigureId,
         child: FigureId,
@@ -180,6 +183,9 @@ pub enum LayoutError {
 impl fmt::Display for LayoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnknownFigure { figure } => {
+                write!(f, "unknown Figure ID: {figure:?}")
+            }
             Self::ConstraintTypeMismatch {
                 container,
                 child,

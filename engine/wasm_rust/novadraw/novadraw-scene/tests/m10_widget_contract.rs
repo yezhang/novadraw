@@ -17,21 +17,33 @@ impl ActionListener for ActionRecorder {
 
 fn runtime_with_button() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
-    let button = runtime.add_figure(
-        root,
-        Box::new(ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let button = runtime
+        .add_figure(
+            root,
+            Box::new(
+                ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
     (runtime, button)
 }
 
 fn runtime_with_toggle() -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
-    let toggle = runtime.add_figure(
-        root,
-        Box::new(ToggleFigure::new("Snap").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let toggle = runtime
+        .add_figure(
+            root,
+            Box::new(
+                ToggleFigure::new("Snap").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
     (runtime, toggle)
 }
 
@@ -41,7 +53,7 @@ fn action_events(runtime: &Runtime, target: FigureId) -> Vec<ActionEvent> {
         .notification_effects()
         .iter()
         .filter_map(|effect| match effect {
-            NotificationEffect::EmitAction(event) if event.block_id == target => Some(*event),
+            NotificationEffect::EmitAction(event) if event.figure_id == target => Some(*event),
             _ => None,
         })
         .collect()
@@ -69,7 +81,7 @@ fn mouse_release_inside_fires_action_and_owns_focus() {
     assert_eq!(
         action_events(&runtime, button),
         vec![ActionEvent {
-            block_id: button,
+            figure_id: button,
             revision: 1,
         }]
     );
@@ -167,7 +179,11 @@ fn keyboard_activation_requires_the_matching_release_key() {
 #[test]
 fn disabled_button_rejects_pointer_keyboard_and_programmatic_actions() {
     let (mut runtime, button) = runtime_with_button();
-    assert!(runtime.set_enabled(button, false));
+    assert!(
+        runtime
+            .set_enabled(button, false)
+            .expect("valid Runtime mutation")
+    );
 
     runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
     runtime.dispatch_mouse_released(30.0, 30.0, MouseButton::Left);
@@ -200,7 +216,7 @@ fn toggle_changes_selection_before_emitting_action() {
             matches!(
                 effect,
                 NotificationEffect::EmitProperty(event)
-                    if event.block_id == toggle
+                    if event.figure_id == toggle
                         && event.property == "selected"
                         && event.old_value == PropertyValue::Bool(false)
                         && event.new_value == PropertyValue::Bool(true)
@@ -213,9 +229,9 @@ fn toggle_changes_selection_before_emitting_action() {
             matches!(
                 effect,
                 NotificationEffect::EmitAction(ActionEvent {
-                    block_id,
+                    figure_id,
                     revision: 1
-                }) if *block_id == toggle
+                }) if *figure_id == toggle
             )
         })
         .expect("action event");
@@ -248,11 +264,15 @@ fn button_exposes_composed_label_contract() {
 #[test]
 fn action_listener_flushes_at_the_update_transaction_boundary() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
-    let clickable = runtime.add_figure(
-        root,
-        Box::new(ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .expect("valid Runtime mutation");
+    let clickable = runtime
+        .add_figure(
+            root,
+            Box::new(ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))),
+        )
+        .expect("valid Runtime mutation");
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_action_listener(Box::new(ActionRecorder(Arc::clone(&events))));
 
@@ -262,7 +282,7 @@ fn action_listener_flushes_at_the_update_transaction_boundary() {
     assert_eq!(
         *events.lock().unwrap(),
         vec![ActionEvent {
-            block_id: clickable,
+            figure_id: clickable,
             revision: 1,
         }]
     );

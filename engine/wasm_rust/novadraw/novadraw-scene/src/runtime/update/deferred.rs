@@ -50,12 +50,12 @@ use crate::runtime::update::repair::{
 pub struct UpdateManager {
     namespace: crate::RuntimeNamespace,
     listener_owners: std::collections::HashMap<ListenerId, FigureId>,
-    /// 脏区域映射：block_id -> 脏区域
+    /// 脏区域映射：figure_id -> 脏区域
     pub(crate) dirty_regions: std::collections::HashMap<FigureId, Rectangle>,
     /// 几何或拓扑变更前投影并冻结的 logical-surface 脏区域。
     pub(crate) frozen_surface_regions: Vec<Rectangle>,
-    /// 失效块队列
-    pub(crate) invalid_blocks: Vec<FigureId>,
+    /// 失效 Figure 队列
+    pub(crate) invalid_figures: Vec<FigureId>,
     /// 是否有更新待处理
     pub(crate) update_queued: bool,
     pub(crate) updating: bool,
@@ -102,7 +102,7 @@ impl UpdateManager {
     ) -> Vec<Rectangle> {
         ids.iter()
             .flat_map(|id| {
-                let visual = tree.get_block(*id).map(|node| node.visual_bounds());
+                let visual = tree.node(*id).map(|node| node.visual_bounds());
                 visual
                     .into_iter()
                     .chain(self.dirty_regions.get(id).copied())
@@ -112,7 +112,7 @@ impl UpdateManager {
     }
 
     pub(crate) fn forget_figures(&mut self, ids: &std::collections::HashSet<FigureId>) {
-        self.invalid_blocks.retain(|id| !ids.contains(id));
+        self.invalid_figures.retain(|id| !ids.contains(id));
         self.dirty_regions.retain(|id, _| !ids.contains(id));
     }
 
@@ -173,7 +173,7 @@ impl UpdateManager {
             listener_owners: std::collections::HashMap::new(),
             dirty_regions: std::collections::HashMap::new(),
             frozen_surface_regions: Vec::new(),
-            invalid_blocks: Vec::new(),
+            invalid_figures: Vec::new(),
             update_queued: false,
             updating: false,
             notification_effects: NotificationQueue::new(),
@@ -291,9 +291,9 @@ impl UpdateManager {
                 listener.observed(&record, latest) == ListenerDirective::Keep
             });
             match effect {
-                NotificationEffect::Notify { block_id } => {
+                NotificationEffect::Notify { figure_id } => {
                     self.listeners.retain(|(_, listener)| {
-                        listener.on_notify(*block_id) == ListenerDirective::Keep
+                        listener.on_notify(*figure_id) == ListenerDirective::Keep
                     });
                 }
                 NotificationEffect::EmitFigure(event) => {
@@ -403,10 +403,10 @@ impl UpdateManager {
     ///
     /// # Arguments
     ///
-    /// * `block_id` - 需要重绘的块 ID
+    /// * `figure_id` - 需要重绘的块 ID
     /// * `rect` - node-local 脏区域
-    pub fn add_dirty_region(&mut self, block_id: FigureId, rect: Rectangle) {
-        if merge_dirty_region(&mut self.dirty_regions, block_id, rect) {
+    pub fn add_dirty_region(&mut self, figure_id: FigureId, rect: Rectangle) {
+        if merge_dirty_region(&mut self.dirty_regions, figure_id, rect) {
             self.update_queued = true;
         }
     }
@@ -426,20 +426,20 @@ impl UpdateManager {
     ///
     /// # Arguments
     ///
-    /// * `block_id` - 需要重新布局的块 ID
-    pub fn add_invalid_figure(&mut self, block_id: FigureId) {
+    /// * `figure_id` - 需要重新布局的块 ID
+    pub fn add_invalid_figure(&mut self, figure_id: FigureId) {
         // 检查是否已在队列中
-        if self.invalid_blocks.contains(&block_id) {
+        if self.invalid_figures.contains(&figure_id) {
             return;
         }
 
-        self.invalid_blocks.push(block_id);
+        self.invalid_figures.push(figure_id);
         self.update_queued = true;
     }
 
     /// 检查是否有待处理的布局
     pub fn has_pending_layout(&self) -> bool {
-        !self.invalid_blocks.is_empty()
+        !self.invalid_figures.is_empty()
     }
 
     /// 检查是否有待处理的重绘
@@ -489,7 +489,7 @@ impl UpdateManager {
     pub fn clear(&mut self) {
         self.dirty_regions.clear();
         self.frozen_surface_regions.clear();
-        self.invalid_blocks.clear();
+        self.invalid_figures.clear();
         self.update_queued = false;
         self.updating = false;
         self.last_validation_error = None;
@@ -509,7 +509,7 @@ impl UpdateManager {
     /// 获取失效块数量
     #[allow(dead_code)]
     pub fn invalid_count(&self) -> usize {
-        self.invalid_blocks.len()
+        self.invalid_figures.len()
     }
 
     /// 获取脏区域数量
@@ -522,8 +522,8 @@ impl UpdateManager {
     ///
     /// 对应 draw2d: performValidation 中对 invalidFigures 的 drain。
     /// FigureTree 使用此方法获取需要验证的块列表。
-    pub fn drain_invalid_blocks(&mut self) -> Vec<FigureId> {
-        self.invalid_blocks.drain(..).collect()
+    pub fn drain_invalid_figures(&mut self) -> Vec<FigureId> {
+        self.invalid_figures.drain(..).collect()
     }
 
     /// 清空脏区域和更新标记
@@ -531,7 +531,7 @@ impl UpdateManager {
     /// 对应 draw2d: performUpdate 完成后清空队列。
     /// 由 FigureTree 在 repairDamage 完成后调用。
     pub fn clear_dirty_and_flag(&mut self) {
-        self.update_queued = !self.invalid_blocks.is_empty()
+        self.update_queued = !self.invalid_figures.is_empty()
             || !self.dirty_regions.is_empty()
             || !self.frozen_surface_regions.is_empty();
     }
@@ -540,8 +540,8 @@ impl UpdateManager {
         &mut self,
         dirty_snapshot: std::collections::HashMap<FigureId, Rectangle>,
     ) {
-        for (block_id, rect) in dirty_snapshot {
-            merge_dirty_region(&mut self.dirty_regions, block_id, rect);
+        for (figure_id, rect) in dirty_snapshot {
+            merge_dirty_region(&mut self.dirty_regions, figure_id, rect);
         }
     }
 
@@ -610,8 +610,8 @@ impl UpdateManager {
             }
             Err(error) => {
                 self.last_validation_error = Some(error.clone());
-                for block_id in graph.invalid_block_ids() {
-                    self.add_invalid_figure(block_id);
+                for figure_id in graph.invalid_figure_ids() {
+                    self.add_invalid_figure(figure_id);
                 }
                 self.notification_effects.retain_semantic_effects();
                 self.clear_dirty_and_flag();
@@ -643,8 +643,8 @@ impl UpdateManager {
             Ok(Ok(())) => {}
             Ok(Err(error)) => {
                 self.last_validation_error = Some(error);
-                for block_id in graph.invalid_block_ids() {
-                    self.add_invalid_figure(block_id);
+                for figure_id in graph.invalid_figure_ids() {
+                    self.add_invalid_figure(figure_id);
                 }
                 self.notification_effects.retain_semantic_effects();
                 self.clear_dirty_and_flag();
@@ -656,8 +656,8 @@ impl UpdateManager {
                 if let Some(snapshot) = frozen_surface_snapshot {
                     self.frozen_surface_regions.extend(snapshot);
                 }
-                for block_id in graph.invalid_block_ids() {
-                    self.add_invalid_figure(block_id);
+                for figure_id in graph.invalid_figure_ids() {
+                    self.add_invalid_figure(figure_id);
                 }
                 self.notification_effects.retain_semantic_effects();
                 self.clear_dirty_and_flag();
@@ -842,7 +842,7 @@ mod tests {
         manager.add_invalid_figure(create_test_key(1));
         manager.add_invalid_figure(create_test_key(2));
 
-        let drained = manager.drain_invalid_blocks();
+        let drained = manager.drain_invalid_figures();
         assert_eq!(drained.len(), 2);
         assert!(!manager.has_pending_layout());
     }
@@ -938,7 +938,7 @@ mod tests {
                 fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
                     ListenerDirective::Keep
                 }
-                fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+                fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
                     ListenerDirective::Keep
                 }
             }
@@ -991,7 +991,7 @@ mod tests {
             fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
                 ListenerDirective::Keep
             }
-            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+            fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
                 ListenerDirective::Keep
             }
         }
@@ -1031,7 +1031,7 @@ mod tests {
             fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
                 ListenerDirective::Keep
             }
-            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+            fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
                 ListenerDirective::Keep
             }
         }
@@ -1077,7 +1077,7 @@ mod tests {
             fn on_figure_event(&self, _event: FigureEvent) -> ListenerDirective {
                 ListenerDirective::Keep
             }
-            fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+            fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
                 ListenerDirective::Keep
             }
         }
@@ -1114,11 +1114,11 @@ mod tests {
         let mut graph = FigureTree::new();
         let root_id = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         graph.revalidate(root_id);
-        graph.set_block_layout_manager(
+        graph.replace_layout_manager(
             root_id,
-            Box::new(PanicOnceLayout {
+            Some(Box::new(PanicOnceLayout {
                 did_panic: AtomicBool::new(false),
-            }),
+            })),
         );
         manager.add_invalid_figure(root_id);
 
@@ -1163,11 +1163,17 @@ mod tests {
             root_id,
             Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
         );
-        graph.set_block_layout_manager(root_id, Box::new(XYLayout::new()));
-        graph.set_constraint(child_id, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0));
+        graph.replace_layout_manager(root_id, Some(Box::new(XYLayout::new())));
+        graph.set_boxed_constraint(
+            child_id,
+            Box::new(XYConstraint::at_size(30.0, 40.0, 50.0, 60.0)),
+        );
         graph.revalidate(root_id);
         graph.drain_notification_effects();
-        graph.set_constraint(child_id, XYConstraint::at_size(60.0, 70.0, 50.0, 60.0));
+        graph.set_boxed_constraint(
+            child_id,
+            Box::new(XYConstraint::at_size(60.0, 70.0, 50.0, 60.0)),
+        );
         graph.mark_invalid(&mut manager, child_id);
 
         let effects = Arc::new(std::sync::Mutex::new(Vec::new()));
@@ -1189,11 +1195,11 @@ mod tests {
                     .push(NotificationEffect::EmitFigure(event));
                 ListenerDirective::Keep
             }
-            fn on_notify(&self, block_id: FigureId) -> ListenerDirective {
+            fn on_notify(&self, figure_id: FigureId) -> ListenerDirective {
                 self.effects
                     .lock()
                     .unwrap()
-                    .push(NotificationEffect::Notify { block_id });
+                    .push(NotificationEffect::Notify { figure_id });
                 ListenerDirective::Keep
             }
         }
@@ -1214,9 +1220,9 @@ mod tests {
                 matches!(
                     effect,
                     NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
-                        block_id,
+                        figure_id,
                         ..
-                    }) if *block_id == child_id
+                    }) if *figure_id == child_id
                 )
             })
             .expect("figure moved event");
@@ -1301,7 +1307,7 @@ mod tests {
         let root = graph.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let child =
             graph.add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 20.0, 20.0)));
-        graph.set_block_layout_manager(root, Box::new(StackLayout::new()));
+        graph.replace_layout_manager(root, Some(Box::new(StackLayout::new())));
         graph.set_visible(child, false);
         graph.set_visible(child, true);
         graph.prim_translate(root, 5.0, 5.0);

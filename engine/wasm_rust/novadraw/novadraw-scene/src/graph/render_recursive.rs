@@ -80,19 +80,19 @@ impl<'a> FigureRenderer<'a> {
     ///         ├─> paintBorder()
     ///         └─> popState()
     /// ```
-    fn paint(&mut self, block_id: FigureId, depth: usize) {
+    fn paint(&mut self, figure_id: FigureId, depth: usize) {
         if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
             stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
-                self.paint_inner(block_id, depth);
+                self.paint_inner(figure_id, depth);
             });
         } else {
-            self.paint_inner(block_id, depth);
+            self.paint_inner(figure_id, depth);
         }
     }
 
-    fn paint_inner(&mut self, block_id: FigureId, depth: usize) {
+    fn paint_inner(&mut self, figure_id: FigureId, depth: usize) {
         // 获取 block
-        let block = match self.scene.get(block_id) {
+        let block = match self.scene.get(figure_id) {
             Some(b) if b.is_visible => b,
             _ => return,
         };
@@ -124,11 +124,11 @@ impl<'a> FigureRenderer<'a> {
         self.gc.pop_state();
 
         // 3. 绘制子元素区域。
-        self.paint_client_area(block_id, depth);
+        self.paint_client_area(figure_id, depth);
 
         // 4. 绘制边框
         // 注意：block 借用在此结束，可以安全重新获取
-        let block = match self.scene.get(block_id) {
+        let block = match self.scene.get(figure_id) {
             Some(b) if b.is_visible => b,
             _ => return,
         };
@@ -156,8 +156,8 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     ///   paintChildren(graphics);
     /// ```
-    fn paint_client_area(&mut self, block_id: FigureId, depth: usize) {
-        let block = match self.scene.get(block_id) {
+    fn paint_client_area(&mut self, figure_id: FigureId, depth: usize) {
+        let block = match self.scene.get(figure_id) {
             Some(b) if b.is_visible => b,
             _ => return,
         };
@@ -188,7 +188,7 @@ impl<'a> FigureRenderer<'a> {
         }
         self.gc.transform(a, b, c, d, e, f);
 
-        self.paint_children(block_id, depth);
+        self.paint_children(figure_id, depth);
         self.gc.pop_state();
     }
 
@@ -212,9 +212,9 @@ impl<'a> FigureRenderer<'a> {
     ///   }
     /// }
     /// ```
-    fn paint_children(&mut self, block_id: FigureId, depth: usize) {
+    fn paint_children(&mut self, figure_id: FigureId, depth: usize) {
         let children: Vec<FigureId> = {
-            let block = match self.scene.get(block_id) {
+            let block = match self.scene.get(figure_id) {
                 Some(b) if b.is_visible => b,
                 _ => return,
             };
@@ -222,7 +222,7 @@ impl<'a> FigureRenderer<'a> {
         };
         let clipping_strategy = self
             .scene
-            .get(block_id)
+            .get(figure_id)
             .map(super::FigureNode::child_clipping_strategy)
             .unwrap_or(ChildClippingStrategy::ClipToChildBounds);
 

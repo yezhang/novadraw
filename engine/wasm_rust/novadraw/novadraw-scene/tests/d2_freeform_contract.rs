@@ -27,13 +27,13 @@ fn scalable_freeform_viewport(
     let scalable = tree
         .builder()
         .add_scalable_freeform_layered_pane_to(
-            viewport.block_id(),
+            viewport.figure_id(),
             Rectangle::new(0.0, 0.0, 300.0, 200.0),
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
     let layer = runtime
-        .layered_pane(scalable.block_id())
+        .layered_pane(scalable.figure_id())
         .unwrap()
         .add_layer(
             Box::new(FreeformLayerFigure::new(0.0, 0.0, 300.0, 200.0)),
@@ -41,15 +41,17 @@ fn scalable_freeform_viewport(
             LayerPlacement::Last,
         )
         .unwrap();
-    let content = runtime.add_figure(
-        layer,
-        Box::new(RectangleFigure::new(
-            layer_bounds.x,
-            layer_bounds.y,
-            layer_bounds.width,
-            layer_bounds.height,
-        )),
-    );
+    let content = runtime
+        .add_figure(
+            layer,
+            Box::new(RectangleFigure::new(
+                layer_bounds.x,
+                layer_bounds.y,
+                layer_bounds.width,
+                layer_bounds.height,
+            )),
+        )
+        .expect("valid Runtime mutation");
     runtime.prepare_frame();
     (runtime, viewport, scalable, content)
 }
@@ -87,7 +89,9 @@ fn empty_freeform_extent_is_zero() {
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
 
-    tree.revalidate(host);
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
 
     assert_eq!(tree.freeform_extent(host), Ok(Rectangle::ZERO));
 }
@@ -98,14 +102,19 @@ fn freeform_extent_unions_positive_and_negative_child_bounds() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
-    tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-40.0, -20.0, 10.0, 15.0)),
-    );
     tree.builder()
-        .add_child_to(host, Box::new(RectangleFigure::new(20.0, 30.0, 25.0, 10.0)));
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-40.0, -20.0, 10.0, 15.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .add_child(host, Box::new(RectangleFigure::new(20.0, 30.0, 25.0, 10.0)))
+        .expect("valid FigureTree construction");
 
-    tree.revalidate(host);
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         tree.freeform_extent(host),
@@ -119,16 +128,23 @@ fn nested_freeform_uses_derived_extent_not_presentation_bounds() {
     let outer = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
-    let inner = tree.builder().add_child_to(
-        outer,
-        Box::new(FreeformLayerFigure::new(100.0, 50.0, 500.0, 400.0)),
-    );
-    tree.builder().add_child_to(
-        inner,
-        Box::new(RectangleFigure::new(-20.0, -10.0, 30.0, 20.0)),
-    );
+    let inner = tree
+        .builder()
+        .add_child(
+            outer,
+            Box::new(FreeformLayerFigure::new(100.0, 50.0, 500.0, 400.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .add_child(
+            inner,
+            Box::new(RectangleFigure::new(-20.0, -10.0, 30.0, 20.0)),
+        )
+        .expect("valid FigureTree construction");
 
-    tree.revalidate(outer);
+    tree.builder()
+        .validate_subtree(outer)
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         tree.freeform_extent(inner),
@@ -146,21 +162,28 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
-    let child = tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-10.0, -5.0, 20.0, 10.0)),
-    );
-    tree.revalidate(host);
+    let child = tree
+        .builder()
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-10.0, -5.0, 20.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
     tree.drain_notification_effects();
 
-    tree.set_bounds(child, 30.0, 40.0, 20.0, 10.0);
+    tree.builder()
+        .set_bounds(child, Rectangle::new(30.0, 40.0, 20.0, 10.0))
+        .unwrap();
 
     assert_eq!(
         tree.freeform_extent(host),
         Ok(Rectangle::new(-10.0, -5.0, 20.0, 10.0))
     );
     assert!(
-        tree.get_block(host)
+        tree.node(host)
             .unwrap()
             .layout_state()
             .freeform_state()
@@ -168,7 +191,9 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
             .is_dirty()
     );
 
-    tree.revalidate(host);
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         tree.freeform_extent(host),
@@ -203,13 +228,20 @@ fn visibility_does_not_change_freeform_extent() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
-    let child = tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-25.0, -15.0, 20.0, 10.0)),
-    );
-    tree.set_visible(child, false);
+    let child = tree
+        .builder()
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-25.0, -15.0, 20.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_visible(child, false)
+        .expect("valid FigureTree construction");
 
-    tree.revalidate(host);
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         tree.freeform_extent(host),
@@ -223,10 +255,13 @@ fn overflow_visible_allows_hits_outside_freeform_border_box() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)));
-    let child = tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
-    );
+    let child = tree
+        .builder()
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
 
     assert_eq!(tree.hit_test_simple((-35.0, -25.0)), Some(child));
 }
@@ -237,14 +272,19 @@ fn normal_ancestor_still_clips_freeform_overflow() {
     let root = tree
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)));
-    let freeform = tree.builder().add_child_to(
-        root,
-        Box::new(FreeformLayerFigure::new(10.0, 10.0, 20.0, 20.0)),
-    );
-    tree.builder().add_child_to(
-        freeform,
-        Box::new(RectangleFigure::new(120.0, 0.0, 15.0, 10.0)),
-    );
+    let freeform = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(FreeformLayerFigure::new(10.0, 10.0, 20.0, 20.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .add_child(
+            freeform,
+            Box::new(RectangleFigure::new(120.0, 0.0, 15.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
 
     assert_eq!(tree.hit_test_simple((135.0, 15.0)), None);
 }
@@ -255,10 +295,12 @@ fn overflow_visible_skips_host_clip_during_rendering() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
-    tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
-    );
+    tree.builder()
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
 
     let canvas = tree.render();
     let has_host_clip = canvas.commands().iter().any(|command| {
@@ -293,11 +335,15 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
             Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)),
         )
         .unwrap();
-    tree.builder().add_child_to(
-        freeform,
-        Box::new(RectangleFigure::new(-20.0, -10.0, 30.0, 20.0)),
-    );
-    tree.revalidate(viewport.block_id());
+    tree.builder()
+        .add_child(
+            freeform,
+            Box::new(RectangleFigure::new(-20.0, -10.0, 30.0, 20.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
     viewport
         .set_view_location(&mut tree, &mut updates, -20.0, -10.0)
         .unwrap();
@@ -327,11 +373,16 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)));
-    let child = tree.builder().add_child_to(
-        host,
-        Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
-    );
-    tree.revalidate(host);
+    let child = tree
+        .builder()
+        .add_child(
+            host,
+            Box::new(RectangleFigure::new(-40.0, -30.0, 15.0, 10.0)),
+        )
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
     let mut updates = UpdateManager::new();
     tree.repaint(&mut updates, child, None);
 
@@ -349,17 +400,25 @@ fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
     let root = tree
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 150.0)));
-    let host = tree.builder().add_child_to(
-        root,
-        Box::new(FreeformLayerFigure::new(20.0, 20.0, 20.0, 20.0)),
-    );
+    let host = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(FreeformLayerFigure::new(20.0, 20.0, 20.0, 20.0)),
+        )
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
-        .add_child_to(host, Box::new(RectangleFigure::new(60.0, 0.0, 10.0, 10.0)));
-    let mut updates = UpdateManager::new();
-
-    assert!(tree.set_bounds_with_update(&mut updates, child, 80.0, 0.0, 10.0, 10.0));
-    let canvas = tree.perform_update(&mut updates);
+        .add_child(host, Box::new(RectangleFigure::new(60.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(tree);
+    runtime.prepare_frame();
+    assert!(
+        runtime
+            .set_bounds(child, Rectangle::new(80.0, 0.0, 10.0, 10.0))
+            .unwrap()
+    );
+    let canvas = runtime.prepare_frame().unwrap();
 
     assert_eq!(
         canvas.damage().regions(),
@@ -400,13 +459,20 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
     let child = tree
         .builder()
-        .add_child_to(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
-    tree.set_block_layout_manager(host, Box::new(FreeformLayout::new()));
-    tree.set_preferred_size(child, Some((40.0, 50.0)));
-    tree.set_constraint(
-        child,
-        FreeformConstraint::new(Point::new(-30.0, -20.0), None, Some(0.0)).unwrap(),
-    );
+        .add_child(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_layout_manager(host, Box::new(FreeformLayout::new()))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_preferred_size(child, Some((40.0, 50.0)))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_layout_constraint(
+            child,
+            FreeformConstraint::new(Point::new(-30.0, -20.0), None, Some(0.0)).unwrap(),
+        )
+        .expect("valid FigureTree construction");
 
     assert_eq!(tree.preferred_size(host, -1.0, -1.0), Some((40.0, 20.0)));
     assert_eq!(
@@ -414,7 +480,9 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
         Err(FreeformError::Unvalidated(host))
     );
 
-    tree.revalidate(host);
+    tree.builder()
+        .validate_subtree(host)
+        .expect("valid FigureTree construction");
 
     assert_eq!(
         tree.figure_bounds(child),
@@ -427,25 +495,32 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
 }
 
 #[test]
-fn invalid_constraint_type_does_not_partially_commit_layout_output() {
+fn builder_rejects_invalid_constraint_type_before_layout() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
         .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
     let first = tree
         .builder()
-        .add_child_to(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)));
+        .add_child(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)))
+        .expect("valid FigureTree construction");
     let second = tree
         .builder()
-        .add_child_to(host, Box::new(RectangleFigure::new(5.0, 6.0, 7.0, 8.0)));
-    tree.set_block_layout_manager(host, Box::new(FreeformLayout::new()));
-    tree.set_constraint(
-        first,
-        FreeformConstraint::fixed(Point::new(20.0, 30.0), 40.0, 50.0).unwrap(),
-    );
-    tree.set_constraint(second, XYConstraint::at_size(60.0, 70.0, 80.0, 90.0));
-
-    let error = tree.try_revalidate(host).unwrap_err();
+        .add_child(host, Box::new(RectangleFigure::new(5.0, 6.0, 7.0, 8.0)))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_layout_manager(host, Box::new(FreeformLayout::new()))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_layout_constraint(
+            first,
+            FreeformConstraint::fixed(Point::new(20.0, 30.0), 40.0, 50.0).unwrap(),
+        )
+        .expect("valid FigureTree construction");
+    let error = tree
+        .builder()
+        .set_layout_constraint(second, XYConstraint::at_size(60.0, 70.0, 80.0, 90.0))
+        .unwrap_err();
 
     assert!(matches!(
         error,
@@ -467,11 +542,11 @@ fn freeform_viewport_range_uses_unscaled_content_domain() {
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
 
     assert_eq!(
-        runtime.tree().freeform_extent(scalable.block_id()),
+        runtime.tree().freeform_extent(scalable.figure_id()),
         Ok(Rectangle::new(-100.0, -50.0, 500.0, 300.0))
     );
     assert_eq!(
-        runtime.tree().figure_bounds(scalable.block_id()),
+        runtime.tree().figure_bounds(scalable.figure_id()),
         Some(Rectangle::new(0.0, 0.0, 300.0, 200.0))
     );
     assert_eq!(viewport.horizontal_range().minimum, -100.0);
@@ -503,7 +578,7 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
     assert_eq!(viewport.vertical_range().maximum, 250.0);
     assert_eq!(viewport.vertical_range().extent, 100.0);
     assert_eq!(
-        runtime.tree().figure_bounds(scalable.block_id()),
+        runtime.tree().figure_bounds(scalable.figure_id()),
         Some(Rectangle::new(0.0, 0.0, 150.0, 100.0))
     );
     assert_eq!((60.0 - viewport.view_location().x()) * zoom.zoom(), 60.0);
@@ -529,7 +604,11 @@ fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
     runtime.set_view_location(&viewport, 600.0, 350.0).unwrap();
     runtime.prepare_frame();
 
-    assert!(runtime.set_bounds(layer, Rectangle::new(-20.0, -10.0, 100.0, 80.0)));
+    assert!(
+        runtime
+            .set_bounds(layer, Rectangle::new(-20.0, -10.0, 100.0, 80.0))
+            .expect("valid Runtime mutation")
+    );
     let canvas = runtime.prepare_frame().unwrap();
 
     assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));

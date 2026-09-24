@@ -9,6 +9,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 - Draw2D Core：M1-M10 已完成；后续能力进入明确的 P2 delta。
 - Editor：G0-G5 已完成，检查点 C 已通过人工验收；G6 尚未开始。
+- Core 公开 API：ADR-017 的 P0 Batch A/B 已完成；P1/P2 尚未排期。
 - 2026-09-16 全量语义审计整改进行中，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
@@ -33,6 +34,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 - 2026-09-10 架构修订裁决：
   [`adr/adr-014-extensibility-and-lifecycle-boundaries.md`](adr/adr-014-extensibility-and-lifecycle-boundaries.md)
+- Core 构建期/运行期公开 API 边界：
+  [`adr/adr-017-core-public-api-boundary.md`](adr/adr-017-core-public-api-boundary.md)
+- Core 公开 API 审计与整改状态：
+  [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - ADR-001 至 ADR-013 审计与替代关系：
   [`verification/reviews/adr-audit-2026-09-10.md`](verification/reviews/adr-audit-2026-09-10.md)
 - Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)

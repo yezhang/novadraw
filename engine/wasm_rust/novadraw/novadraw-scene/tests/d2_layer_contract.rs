@@ -56,17 +56,22 @@ fn transparent_layer_returns_descendant_but_never_itself() {
 
     assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
 
-    let child = tree.builder().add_child_to(
-        layer,
-        Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0)),
-    );
+    let child = tree
+        .builder()
+        .add_child(
+            layer,
+            Box::new(RectangleFigure::new(20.0, 20.0, 30.0, 30.0)),
+        )
+        .expect("valid FigureTree construction");
     assert_eq!(tree.hit_test_simple((25.0, 25.0)), Some(child));
 }
 
 #[test]
 fn layered_pane_rejects_duplicate_keys_and_generic_add() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .expect("valid Runtime mutation");
     let pane = runtime
         .add_layered_pane(root, Rectangle::new(0.0, 0.0, 200.0, 120.0))
         .expect("pane should be added")
@@ -101,9 +106,14 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
         layer
     };
 
-    let bypass = runtime.add_figure(pane, Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)));
-    assert_eq!(bypass, novadraw_scene::FigureId::null());
-    assert!(!runtime.remove_figure(pane, layer));
+    assert_eq!(
+        runtime.add_figure(pane, Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),),
+        Err(novadraw_scene::RuntimeMutationError::LayeredParent(pane))
+    );
+    assert_eq!(
+        runtime.remove_figure(pane, layer),
+        Err(novadraw_scene::RuntimeMutationError::LayeredParent(pane))
+    );
     assert_eq!(
         runtime
             .layered_pane(pane)
@@ -118,7 +128,9 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
 #[test]
 fn runtime_registers_layered_pane_used_as_contents() {
     let mut runtime = Runtime::empty();
-    let pane = runtime.set_contents(Box::new(LayeredPane::new(0.0, 0.0, 160.0, 100.0)));
+    let pane = runtime
+        .set_contents(Box::new(LayeredPane::new(0.0, 0.0, 160.0, 100.0)))
+        .expect("valid Runtime mutation");
     let layer = runtime
         .layered_pane(pane)
         .expect("contents pane should be registered")
@@ -135,7 +147,9 @@ fn runtime_registers_layered_pane_used_as_contents() {
 #[test]
 fn layer_order_drives_reverse_z_hit_testing() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
+        .expect("valid Runtime mutation");
     let pane = runtime
         .add_layered_pane(root, Rectangle::new(0.0, 0.0, 200.0, 120.0))
         .expect("pane should be added")
@@ -173,18 +187,24 @@ fn layer_order_drives_reverse_z_hit_testing() {
         );
         (lower, middle, upper)
     };
-    let lower_child = runtime.add_figure(
-        lower,
-        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-    );
-    let upper_child = runtime.add_figure(
-        upper,
-        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-    );
-    let _middle_child = runtime.add_figure(
-        middle,
-        Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-    );
+    let lower_child = runtime
+        .add_figure(
+            lower,
+            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+        )
+        .expect("valid Runtime mutation");
+    let upper_child = runtime
+        .add_figure(
+            upper,
+            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+        )
+        .expect("valid Runtime mutation");
+    let _middle_child = runtime
+        .add_figure(
+            middle,
+            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
+        )
+        .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.tree().hit_test_simple((20.0, 20.0)),
@@ -206,7 +226,9 @@ fn layer_order_drives_reverse_z_hit_testing() {
 #[test]
 fn reparent_and_remove_update_both_membership_indexes() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 160.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 160.0)))
+        .expect("valid Runtime mutation");
     let left = runtime
         .add_layered_pane(root, Rectangle::new(0.0, 0.0, 140.0, 160.0))
         .expect("left pane")
@@ -227,7 +249,10 @@ fn reparent_and_remove_update_both_membership_indexes() {
         )
         .expect("layer");
 
-    assert!(!runtime.reparent(layer, right));
+    assert_eq!(
+        runtime.reparent(layer, right),
+        Err(novadraw_scene::RuntimeMutationError::LayeredParent(left))
+    );
     assert_eq!(runtime.tree().parent_id(layer), Some(left));
 
     runtime
@@ -269,18 +294,22 @@ fn layer_key_rejects_empty_values() {
 #[test]
 fn callback_layer_mutations_commit_in_fifo_order() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 240.0, 120.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 240.0, 120.0)))
+        .expect("valid Runtime mutation");
     let pane = runtime
         .add_layered_pane(root, Rectangle::new(120.0, 0.0, 100.0, 80.0))
         .expect("pane")
         .pane_id();
-    runtime.add_figure(
-        root,
-        Box::new(EnqueueLayersFigure {
-            bounds: Rectangle::new(0.0, 0.0, 100.0, 80.0),
-            pane,
-        }),
-    );
+    runtime
+        .add_figure(
+            root,
+            Box::new(EnqueueLayersFigure {
+                bounds: Rectangle::new(0.0, 0.0, 100.0, 80.0),
+                pane,
+            }),
+        )
+        .expect("valid Runtime mutation");
 
     runtime.dispatch_mouse_pressed(20.0, 20.0, MouseButton::Left);
 

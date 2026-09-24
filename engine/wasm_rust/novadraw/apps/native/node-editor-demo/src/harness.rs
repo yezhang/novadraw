@@ -39,13 +39,17 @@ impl EditorHarness {
             .register_builtin_font(BuiltinFont::Inter)
             .map_err(|error| error.to_string())?;
         let viewport = viewer.root_layers().viewport();
-        if !viewer.runtime_mut().set_figure_style(
-            viewport,
-            FigureStyle {
-                background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
-                ..FigureStyle::default()
-            },
-        ) {
+        let style_changed = viewer
+            .runtime_mut()
+            .set_figure_style(
+                viewport,
+                FigureStyle {
+                    background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
+                    ..FigureStyle::default()
+                },
+            )
+            .map_err(|error| error.to_string())?;
+        if !style_changed {
             return Err("failed to apply viewport background".to_string());
         }
         viewer

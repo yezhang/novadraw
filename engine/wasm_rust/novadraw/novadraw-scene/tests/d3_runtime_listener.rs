@@ -32,7 +32,7 @@ impl UpdateListener for TypedRecorder {
         ListenerDirective::Keep
     }
 
-    fn on_notify(&self, _block_id: FigureId) -> ListenerDirective {
+    fn on_notify(&self, _figure_id: FigureId) -> ListenerDirective {
         ListenerDirective::Keep
     }
 }
@@ -82,7 +82,9 @@ impl LayoutListener for TypedRecorder {
 #[test]
 fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
     let _ = runtime.prepare_frame();
 
     let counts = Arc::new(Mutex::new(ListenerCounts::default()));
@@ -108,15 +110,29 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
         counts: Arc::clone(&counts),
     }));
 
-    let clickable = runtime.add_figure(
-        root,
-        Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))),
+    let clickable = runtime
+        .add_figure(
+            root,
+            Box::new(ClickableFigure::new(Rectangle::new(
+                20.0, 20.0, 100.0, 40.0,
+            ))),
+        )
+        .expect("valid Runtime mutation");
+    assert!(
+        runtime
+            .set_bounds(root, Rectangle::new(5.0, 5.0, 300.0, 200.0))
+            .expect("valid Runtime mutation")
     );
-    assert!(runtime.set_bounds(root, Rectangle::new(5.0, 5.0, 300.0, 200.0)));
-    assert!(runtime.set_visible(clickable, false));
-    assert!(runtime.set_visible(clickable, true));
+    assert!(
+        runtime
+            .set_visible(clickable, false)
+            .expect("valid Runtime mutation")
+    );
+    assert!(
+        runtime
+            .set_visible(clickable, true)
+            .expect("valid Runtime mutation")
+    );
     assert!(
         runtime
             .set_layout_manager(root, Box::new(XYLayout::new()))
@@ -141,7 +157,11 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
         assert!(!runtime.remove_listener(id));
     }
 
-    assert!(runtime.set_visible(clickable, false));
+    assert!(
+        runtime
+            .set_visible(clickable, false)
+            .expect("valid Runtime mutation")
+    );
     let _ = runtime.prepare_frame();
     assert_eq!(*counts.lock().unwrap(), observed);
 }
@@ -162,11 +182,15 @@ impl PropertyChangeListener for RemoveAfterFirstProperty {
 #[test]
 fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let child = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let child = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)),
+        )
+        .expect("valid Runtime mutation");
     let _ = runtime.prepare_frame();
 
     let calls = Arc::new(Mutex::new(Vec::new()));
@@ -181,8 +205,16 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
         directive: ListenerDirective::Keep,
     }));
 
-    assert!(runtime.set_visible(child, false));
-    assert!(runtime.set_visible(child, true));
+    assert!(
+        runtime
+            .set_visible(child, false)
+            .expect("valid Runtime mutation")
+    );
+    assert!(
+        runtime
+            .set_visible(child, true)
+            .expect("valid Runtime mutation")
+    );
     let _ = runtime.prepare_frame();
 
     assert_eq!(*calls.lock().unwrap(), vec!["remove", "keep", "keep"]);
@@ -203,13 +235,17 @@ fn action_listener_can_remove_itself_after_the_current_action() {
     }
 
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let clickable = runtime.add_figure(
-        root,
-        Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let clickable = runtime
+        .add_figure(
+            root,
+            Box::new(ClickableFigure::new(Rectangle::new(
+                20.0, 20.0, 100.0, 40.0,
+            ))),
+        )
+        .expect("valid Runtime mutation");
     let _ = runtime.prepare_frame();
 
     let calls = Arc::new(Mutex::new(0));
@@ -224,13 +260,17 @@ fn action_listener_can_remove_itself_after_the_current_action() {
 #[test]
 fn pointer_dispatch_remains_available_after_listener_api_completion() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let clickable = runtime.add_figure(
-        root,
-        Box::new(ClickableFigure::new(Rectangle::new(
-            20.0, 20.0, 100.0, 40.0,
-        ))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let clickable = runtime
+        .add_figure(
+            root,
+            Box::new(ClickableFigure::new(Rectangle::new(
+                20.0, 20.0, 100.0, 40.0,
+            ))),
+        )
+        .expect("valid Runtime mutation");
 
     runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
     runtime.dispatch_mouse_released(30.0, 30.0, MouseButton::Left);

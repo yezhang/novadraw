@@ -950,7 +950,7 @@ impl<'a> VisualBuildContext<'a> {
                 "visual parent is not owned by this EditPart",
             ));
         }
-        let id = self.runtime.try_add_figure(parent, figure)?;
+        let id = self.runtime.add_figure(parent, figure)?;
         self.visuals.push(id);
         Ok(id)
     }
@@ -999,12 +999,12 @@ impl<'a> VisualUpdateContext<'a> {
 
     /// Updates primary Figure bounds through the Runtime transaction boundary.
     pub fn set_primary_bounds(&mut self, bounds: Rectangle) -> Result<bool, EditPartError> {
-        Ok(self.runtime.set_bounds(self.primary, bounds))
+        Ok(self.runtime.set_bounds(self.primary, bounds)?)
     }
 
     /// Updates primary Figure style through the Runtime transaction boundary.
     pub fn set_primary_style(&mut self, style: FigureStyle) -> Result<bool, EditPartError> {
-        Ok(self.runtime.set_figure_style(self.primary, style))
+        Ok(self.runtime.set_figure_style(self.primary, style)?)
     }
 }
 

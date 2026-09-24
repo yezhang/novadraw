@@ -180,7 +180,9 @@ mod tests {
         };
         let host = HeadlessHost::new(surface);
         let mut runtime = Runtime::empty();
-        runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
+        runtime
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+            .expect("valid Runtime mutation");
 
         host.request_redraw();
         assert!(host.take_redraw_request());

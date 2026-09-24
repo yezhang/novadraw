@@ -232,7 +232,7 @@ fn build_snapshot(
     }];
     let mut node_indices = HashMap::from([(root_id, 0)]);
 
-    if let Some(contents) = tree.get_contents() {
+    if let Some(contents) = tree.contents() {
         append_subtree(
             tree,
             interaction,
@@ -296,7 +296,7 @@ fn append_subtree_inner(
     if frame.depth > MAX_TREE_DEPTH {
         return Err(AccessibilityError::DepthLimit);
     }
-    let Some(block) = tree.get_block(frame.figure) else {
+    let Some(block) = tree.node(frame.figure) else {
         return Ok(());
     };
     let visible = frame.parent_visible && block.state().is_visible();

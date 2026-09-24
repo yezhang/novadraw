@@ -244,8 +244,12 @@ fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
         |(tree, root, leaf)| {
             alternate = !alternate;
             let size = if alternate { 2.0 } else { 3.0 };
-            tree.set_preferred_size(*leaf, Some((size, size)));
-            tree.try_revalidate(*root).expect("validate deep tree");
+            tree.builder()
+                .set_preferred_size(*leaf, Some((size, size)))
+                .expect("valid FigureTree construction");
+            tree.builder()
+                .validate_subtree(*root)
+                .expect("validate deep tree");
             usize::from(tree.is_valid(*leaf))
         },
         "Invalidates the deepest leaf and validates the complete recursive path.",
@@ -339,15 +343,17 @@ fn build_large_tree() -> FigureTree {
     for index in 0..LARGE_TREE_FIGURES {
         let column = index % LARGE_TREE_COLUMNS;
         let row = index / LARGE_TREE_COLUMNS;
-        tree.builder().add_child_to(
-            root,
-            Box::new(RectangleFigure::new(
-                column as f64 * 8.0,
-                row as f64 * 8.0,
-                7.0,
-                7.0,
-            )),
-        );
+        tree.builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new(
+                    column as f64 * 8.0,
+                    row as f64 * 8.0,
+                    7.0,
+                    7.0,
+                )),
+            )
+            .expect("valid FigureTree construction");
     }
     tree
 }
@@ -362,7 +368,8 @@ fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, novadraw::FigureId, n
     for _ in 1..depth {
         parent = tree
             .builder()
-            .add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+            .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+            .expect("valid FigureTree construction");
     }
     (tree, root, parent)
 }
@@ -379,18 +386,20 @@ fn build_text_tree() -> FigureTree {
     for index in 0..TEXT_FIGURES {
         let row = index / 20;
         let column = index % 20;
-        tree.builder().add_child_to(
-            root,
-            Box::new(TextProbeFigure::new(
-                Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
-                text.layout(
-                    &format!("label-{index:04}"),
-                    &FontDescriptor::default(),
-                    TextConstraints::UNBOUNDED,
-                )
-                .expect("benchmark text layout"),
-            )),
-        );
+        tree.builder()
+            .add_child(
+                root,
+                Box::new(TextProbeFigure::new(
+                    Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
+                    text.layout(
+                        &format!("label-{index:04}"),
+                        &FontDescriptor::default(),
+                        TextConstraints::UNBOUNDED,
+                    )
+                    .expect("benchmark text layout"),
+                )),
+            )
+            .expect("valid FigureTree construction");
     }
     tree
 }
@@ -404,22 +413,24 @@ fn build_viewport_tree() -> FigureTree {
     let scalable = tree
         .builder()
         .add_scalable_layered_pane_to(
-            viewport.block_id(),
+            viewport.figure_id(),
             Rectangle::new(0.0, 0.0, 2_048.0, 2_048.0),
         )
         .expect("attach scalable pane");
     for index in 0..VIEWPORT_FIGURES {
         let column = index % VIEWPORT_COLUMNS;
         let row = index / VIEWPORT_COLUMNS;
-        tree.builder().add_child_to(
-            scalable.block_id(),
-            Box::new(RectangleFigure::new(
-                column as f64 * 56.0,
-                row as f64 * 48.0,
-                48.0,
-                40.0,
-            )),
-        );
+        tree.builder()
+            .add_child(
+                scalable.figure_id(),
+                Box::new(RectangleFigure::new(
+                    column as f64 * 56.0,
+                    row as f64 * 48.0,
+                    48.0,
+                    40.0,
+                )),
+            )
+            .expect("valid FigureTree construction");
     }
     let mut updates = UpdateManager::new();
     ZoomManager::new(scalable, viewport.clone())

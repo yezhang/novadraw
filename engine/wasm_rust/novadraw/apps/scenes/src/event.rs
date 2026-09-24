@@ -216,33 +216,45 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
             Color::hex("#eeeeee"),
         )));
     let parent = if local_coordinates {
-        graph.builder().add_child_to(
-            root,
-            Box::new(RectangleFigure::new_with_color(
-                100.0,
-                80.0,
-                500.0,
-                360.0,
-                Color::hex("#dfe6e9"),
-            )),
-        )
+        graph
+            .builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    100.0,
+                    80.0,
+                    500.0,
+                    360.0,
+                    Color::hex("#dfe6e9"),
+                )),
+            )
+            .expect("valid FigureTree construction")
     } else {
         root
     };
     let state = Arc::new(Mutex::new(ProbeState::default()));
-    let probe = graph.builder().add_child_to(
-        parent,
-        Box::new(EventProbeFigure::new(
-            if local_coordinates {
-                Rectangle::new(40.0, 50.0, 220.0, 140.0)
-            } else {
-                Rectangle::new(250.0, 180.0, 300.0, 200.0)
-            },
-            state.clone(),
-        )),
-    );
-    graph.set_focusable(probe, true);
-    graph.set_focus_traversable(probe, true);
+    let probe = graph
+        .builder()
+        .add_child(
+            parent,
+            Box::new(EventProbeFigure::new(
+                if local_coordinates {
+                    Rectangle::new(40.0, 50.0, 220.0, 140.0)
+                } else {
+                    Rectangle::new(250.0, 180.0, 300.0, 200.0)
+                },
+                state.clone(),
+            )),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_focusable(probe, true)
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .set_focus_traversable(probe, true)
+        .expect("valid FigureTree construction");
     (graph, state)
 }
 

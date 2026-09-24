@@ -5,6 +5,7 @@ use crate::{
     ChildClippingStrategy, Figure, FigureId, GraphMutationError, LayerKey, LayerPlacement,
     LayoutConstraint, LayoutError, LayoutManager,
 };
+use novadraw_geometry::Rectangle;
 
 pub trait FigureComponentUpdate {
     type Figure: Figure + 'static;
@@ -152,6 +153,10 @@ pub enum RuntimeMutationError {
         figure: FigureId,
         size: (f64, f64),
     },
+    InvalidBounds {
+        figure: FigureId,
+        bounds: Rectangle,
+    },
     Layout(LayoutError),
     Graph(GraphMutationError),
     Connection(ConnectionRuntimeError),
@@ -199,6 +204,10 @@ impl fmt::Display for RuntimeMutationError {
             Self::InvalidSize { figure, size } => write!(
                 formatter,
                 "Figure {figure:?} size must be finite and non-negative, got {size:?}"
+            ),
+            Self::InvalidBounds { figure, bounds } => write!(
+                formatter,
+                "Figure {figure:?} bounds must be finite with non-negative size, got {bounds:?}"
             ),
             Self::Layout(error) => error.fmt(formatter),
             Self::Graph(error) => error.fmt(formatter),

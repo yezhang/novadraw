@@ -220,7 +220,7 @@ impl ZoomManager {
         }
 
         let block = graph
-            .block(self.viewport.block_id())
+            .node(self.viewport.figure_id())
             .ok_or(ZoomError::MissingViewport)?;
         let client_area = block.client_area();
         let old_location = self.viewport.view_location();
@@ -252,7 +252,7 @@ impl ZoomManager {
         let old_vertical = self.viewport.vertical_range();
 
         self.scalable.set_scale(graph, update_manager, new_zoom)?;
-        graph.validate_with_update(update_manager, self.viewport.block_id())?;
+        graph.validate_with_update(update_manager, self.viewport.figure_id())?;
         self.viewport.set_view_location(
             graph,
             update_manager,
@@ -339,21 +339,21 @@ impl ZoomManager {
         fit_height: bool,
     ) -> Result<bool, ZoomError> {
         let old_zoom = self.zoom();
-        graph.validate_with_update(update_manager, self.viewport.block_id())?;
+        graph.validate_with_update(update_manager, self.viewport.figure_id())?;
         let uses_content_domain = self.uses_content_domain(graph);
         let viewport = graph
-            .block(self.viewport.block_id())
+            .node(self.viewport.figure_id())
             .ok_or(ZoomError::MissingViewport)?
             .client_area();
         let (content_width, content_height) = if uses_content_domain {
-            let extent = graph.freeform_extent(self.scalable.block_id())?;
+            let extent = graph.freeform_extent(self.scalable.figure_id())?;
             (extent.width, extent.height)
         } else {
             let preferred = graph
-                .preferred_size(self.scalable.block_id(), -1.0, -1.0)
+                .preferred_size(self.scalable.figure_id(), -1.0, -1.0)
                 .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
             let scalable_block = graph
-                .block(self.scalable.block_id())
+                .node(self.scalable.figure_id())
                 .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
             let (top, left, bottom, right) = scalable_block.state().insets();
             (
@@ -399,9 +399,9 @@ impl ZoomManager {
     }
 
     fn uses_content_domain(&self, graph: &FigureTree) -> bool {
-        self.viewport.contents(graph) == Some(self.scalable.block_id())
+        self.viewport.contents(graph) == Some(self.scalable.figure_id())
             && graph
-                .block(self.scalable.block_id())
+                .node(self.scalable.figure_id())
                 .is_some_and(|block| block.figure.freeform().is_some())
     }
 
@@ -425,8 +425,8 @@ impl ZoomManager {
         {
             return;
         }
-        graph.repaint(update_manager, self.viewport.block_id(), None);
-        if let Some(parent) = graph.parent_id(self.viewport.block_id()) {
+        graph.repaint(update_manager, self.viewport.figure_id(), None);
+        if let Some(parent) = graph.parent_id(self.viewport.figure_id()) {
             graph.repaint(update_manager, parent, None);
         }
     }

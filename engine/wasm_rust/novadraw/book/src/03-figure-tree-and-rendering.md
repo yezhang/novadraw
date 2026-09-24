@@ -161,11 +161,11 @@ self.gc.push_state();
 self.gc.translate(bounds.x, bounds.y);
 
 self.gc.push_state();
-block.figure.paint_figure_in_bounds(self.gc, local_border_box);
+node.figure.paint_figure_in_bounds(self.gc, local_border_box);
 self.gc.pop_state();
 
-self.paint_client_area(block_id, depth);
-block.figure.paint_border_snapshot_in_bounds(...);
+self.paint_client_area(figure_id, depth);
+node.figure.paint_border_snapshot_in_bounds(...);
 self.gc.pop_state();
 ```
 

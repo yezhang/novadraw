@@ -62,7 +62,10 @@ fn create_scene_0_fill_colors() -> novadraw::FigureTree {
             120.0,
             color,
         );
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -80,7 +83,8 @@ fn create_scene_1_alpha() -> novadraw::FigureTree {
     );
     scene
         .builder()
-        .add_child_to(container_id, Box::new(base_rect));
+        .add_child(container_id, Box::new(base_rect))
+        .expect("valid FigureTree construction");
 
     let alphas = [1.0, 0.75, 0.5, 0.25];
     for (i, &alpha) in alphas.iter().enumerate() {
@@ -91,7 +95,10 @@ fn create_scene_1_alpha() -> novadraw::FigureTree {
             120.0,
             novadraw::Color::rgba(0.9, 0.2, 0.2, alpha),
         );
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -113,7 +120,10 @@ fn create_scene_2_stroke_width() -> novadraw::FigureTree {
             fill_color,
         )
         .with_stroke(stroke_color, width);
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -139,7 +149,10 @@ fn create_scene_3_stroke_color() -> novadraw::FigureTree {
             fill_color,
         )
         .with_stroke(stroke_color, 3.0);
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -173,7 +186,10 @@ fn create_scene_4_line_cap() -> novadraw::FigureTree {
         )
         .with_width(12.0)
         .with_cap(cap);
-        scene.builder().add_child_to(container_id, Box::new(line));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(line))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -208,7 +224,10 @@ fn create_scene_5_line_join() -> novadraw::FigureTree {
         .with_width(10.0)
         .with_join(join)
         .with_color(color);
-        scene.builder().add_child_to(container_id, Box::new(line));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(line))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -232,7 +251,10 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
             fill_color,
         )
         .with_stroke(stroke_color, width);
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     for (i, &width) in widths.iter().enumerate() {
@@ -244,7 +266,10 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
             fill_color,
         )
         .with_border(RectangleBorder::new(border_color, width));
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     let inner_stroke_color = novadraw::Color::rgba(0.2, 0.6, 0.2, 1.0);
@@ -262,7 +287,10 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
         .with_border(
             RectangleBorder::new(outer_border_color, width).with_insets(8.0, 8.0, 8.0, 8.0),
         );
-        scene.builder().add_child_to(container_id, Box::new(rect));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(rect))
+            .expect("valid FigureTree construction");
     }
 
     scene
@@ -270,47 +298,62 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
 
 fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
     let (mut scene, container_id) = gray_container();
-    let parent = scene.builder().add_child_to(
-        container_id,
-        Box::new(StyleProbeFigure::new(Rectangle::new(
-            80.0, 100.0, 640.0, 380.0,
-        ))),
-    );
-    scene.set_figure_style(
-        parent,
-        FigureStyle {
-            foreground: Some(novadraw::Color::BLACK),
-            background: Some(novadraw::Color::rgba(0.25, 0.55, 0.85, 1.0)),
-            alpha: Some(0.7),
-            font: Some("20px sans-serif".to_string()),
-            cursor: Some(CursorIcon::Pointer),
-            tooltip: Some(Some("Inherited parent tooltip".to_string())),
-        },
-    );
+    let parent = scene
+        .builder()
+        .add_child(
+            container_id,
+            Box::new(StyleProbeFigure::new(Rectangle::new(
+                80.0, 100.0, 640.0, 380.0,
+            ))),
+        )
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .set_figure_style(
+            parent,
+            FigureStyle {
+                foreground: Some(novadraw::Color::BLACK),
+                background: Some(novadraw::Color::rgba(0.25, 0.55, 0.85, 1.0)),
+                alpha: Some(0.7),
+                font: Some("20px sans-serif".to_string()),
+                cursor: Some(CursorIcon::Pointer),
+                tooltip: Some(Some("Inherited parent tooltip".to_string())),
+            },
+        )
+        .expect("valid FigureTree construction");
 
-    scene.builder().add_child_to(
-        parent,
-        Box::new(StyleProbeFigure::new(Rectangle::new(
-            40.0, 100.0, 240.0, 150.0,
-        ))),
-    );
-    let overridden = scene.builder().add_child_to(
-        parent,
-        Box::new(StyleProbeFigure::new(Rectangle::new(
-            360.0, 100.0, 240.0, 150.0,
-        ))),
-    );
-    scene.set_figure_style(
-        overridden,
-        FigureStyle {
-            foreground: Some(novadraw::Color::WHITE),
-            background: Some(novadraw::Color::rgba(0.75, 0.2, 0.25, 1.0)),
-            alpha: Some(1.0),
-            font: None,
-            cursor: Some(CursorIcon::Crosshair),
-            tooltip: Some(None),
-        },
-    );
+    scene
+        .builder()
+        .add_child(
+            parent,
+            Box::new(StyleProbeFigure::new(Rectangle::new(
+                40.0, 100.0, 240.0, 150.0,
+            ))),
+        )
+        .expect("valid FigureTree construction");
+    let overridden = scene
+        .builder()
+        .add_child(
+            parent,
+            Box::new(StyleProbeFigure::new(Rectangle::new(
+                360.0, 100.0, 240.0, 150.0,
+            ))),
+        )
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .set_figure_style(
+            overridden,
+            FigureStyle {
+                foreground: Some(novadraw::Color::WHITE),
+                background: Some(novadraw::Color::rgba(0.75, 0.2, 0.25, 1.0)),
+                alpha: Some(1.0),
+                font: None,
+                cursor: Some(CursorIcon::Crosshair),
+                tooltip: Some(None),
+            },
+        )
+        .expect("valid FigureTree construction");
     scene
 }
 

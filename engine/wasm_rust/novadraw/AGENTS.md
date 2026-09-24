@@ -52,6 +52,8 @@
   - M1-M10 编号与状态入口：`doc/roadmap/00-index.md`
 - **Editor / GEF 路线图**：`doc/roadmap/editor/00-index.md`
 - **Editor 架构 SSOT**：`doc/design/editor/architecture.md`
+- **Core 公开 API 边界**：`doc/adr/adr-017-core-public-api-boundary.md`
+- **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
 - **可执行验证清单**：`verification/suites.toml`
 > 推进 M1-M10 的 architecture/parity delta 时，必须检查对应 `api_semantics` 的 Draw2D API 语义是否完整；语义账本见 `doc/parity/draw2d/api-coverage.md`。
@@ -67,6 +69,8 @@
   已完成，G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；
   检查点 B 与检查点 C 已通过人工验收。
   Draw2D 后续能力必须进入明确的 P2 delta。
+- Core 公开 API 的 P0 Batch A/B 已按 ADR-017 完成；后续 Layout measurement、
+  Graphics、Geometry 与 crate root 分层属于未排期的 P1/P2，不得混入 G6。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
   已全部关闭；18 条次级候选保留待定向验证，状态以
   `doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md` 为准。

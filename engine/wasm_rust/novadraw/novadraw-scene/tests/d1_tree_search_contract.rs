@@ -18,7 +18,8 @@ fn public_search_strategy_filters_hit_test_without_changing_geometry_order() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let child = tree
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
+        .expect("valid FigureTree construction");
 
     let hit = tree.hit_test_with(
         (20.0, 20.0),
@@ -38,7 +39,8 @@ fn public_exclusion_search_prunes_by_figure_id() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
     let child = tree
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)));
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
+        .expect("valid FigureTree construction");
     let mut search = ExclusionSearch::new([child]);
 
     assert_eq!(

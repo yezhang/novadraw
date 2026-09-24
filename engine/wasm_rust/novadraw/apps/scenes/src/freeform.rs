@@ -60,7 +60,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     let scalable = graph
         .builder()
         .add_scalable_freeform_layered_pane_to(
-            pane.viewport().block_id(),
+            pane.viewport().figure_id(),
             Rectangle::new(0.0, 0.0, LAYER_WIDTH, LAYER_HEIGHT),
         )
         .expect("attach scalable freeform pane");
@@ -76,7 +76,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     let mut runtime = Runtime::new(graph);
     let (content_layer, overlay_layer) = {
         let mut layers = runtime
-            .layered_pane(scalable.block_id())
+            .layered_pane(scalable.figure_id())
             .expect("scalable freeform pane must be registered");
         let content = layers
             .add_layer(
@@ -107,53 +107,61 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
 
     let mut x = CONTENT_MIN_X;
     while x < CONTENT_MAX_X {
-        runtime.add_figure(
+        runtime
+            .add_figure(
+                content_layer,
+                Box::new(RectangleFigure::new_with_color(
+                    x,
+                    CONTENT_MIN_Y,
+                    GRID_LINE_WIDTH,
+                    CONTENT_MAX_Y - CONTENT_MIN_Y,
+                    Color::hex("#dfe6ee"),
+                )),
+            )
+            .expect("valid Runtime mutation");
+        x += GRID_STEP;
+    }
+    runtime
+        .add_figure(
             content_layer,
             Box::new(RectangleFigure::new_with_color(
-                x,
+                CONTENT_MAX_X - GRID_LINE_WIDTH,
                 CONTENT_MIN_Y,
                 GRID_LINE_WIDTH,
                 CONTENT_MAX_Y - CONTENT_MIN_Y,
                 Color::hex("#dfe6ee"),
             )),
-        );
-        x += GRID_STEP;
-    }
-    runtime.add_figure(
-        content_layer,
-        Box::new(RectangleFigure::new_with_color(
-            CONTENT_MAX_X - GRID_LINE_WIDTH,
-            CONTENT_MIN_Y,
-            GRID_LINE_WIDTH,
-            CONTENT_MAX_Y - CONTENT_MIN_Y,
-            Color::hex("#dfe6ee"),
-        )),
-    );
+        )
+        .expect("valid Runtime mutation");
 
     let mut y = CONTENT_MIN_Y;
     while y < CONTENT_MAX_Y {
-        runtime.add_figure(
+        runtime
+            .add_figure(
+                content_layer,
+                Box::new(RectangleFigure::new_with_color(
+                    CONTENT_MIN_X,
+                    y,
+                    CONTENT_MAX_X - CONTENT_MIN_X,
+                    GRID_LINE_WIDTH,
+                    Color::hex("#dfe6ee"),
+                )),
+            )
+            .expect("valid Runtime mutation");
+        y += GRID_STEP;
+    }
+    runtime
+        .add_figure(
             content_layer,
             Box::new(RectangleFigure::new_with_color(
                 CONTENT_MIN_X,
-                y,
+                CONTENT_MAX_Y - GRID_LINE_WIDTH,
                 CONTENT_MAX_X - CONTENT_MIN_X,
                 GRID_LINE_WIDTH,
                 Color::hex("#dfe6ee"),
             )),
-        );
-        y += GRID_STEP;
-    }
-    runtime.add_figure(
-        content_layer,
-        Box::new(RectangleFigure::new_with_color(
-            CONTENT_MIN_X,
-            CONTENT_MAX_Y - GRID_LINE_WIDTH,
-            CONTENT_MAX_X - CONTENT_MIN_X,
-            GRID_LINE_WIDTH,
-            Color::hex("#dfe6ee"),
-        )),
-    );
+        )
+        .expect("valid Runtime mutation");
 
     for (bounds, fill) in [
         (
@@ -173,37 +181,43 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             Color::hex("#9b51e0"),
         ),
     ] {
-        runtime.add_figure(
+        runtime
+            .add_figure(
+                content_layer,
+                Box::new(RectangleFigure::new_with_color(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width,
+                    bounds.height,
+                    fill,
+                )),
+            )
+            .expect("valid Runtime mutation");
+    }
+    let lower_overlap = runtime
+        .add_figure(
             content_layer,
             Box::new(RectangleFigure::new_with_color(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-                fill,
+                OVERLAP_X,
+                OVERLAP_Y,
+                180.0,
+                130.0,
+                Color::hex("#eb5757"),
             )),
-        );
-    }
-    let lower_overlap = runtime.add_figure(
-        content_layer,
-        Box::new(RectangleFigure::new_with_color(
-            OVERLAP_X,
-            OVERLAP_Y,
-            180.0,
-            130.0,
-            Color::hex("#eb5757"),
-        )),
-    );
-    let upper_overlap = runtime.add_figure(
-        overlay_layer,
-        Box::new(RectangleFigure::new_with_color(
-            OVERLAP_X + 45.0,
-            OVERLAP_Y + 35.0,
-            180.0,
-            130.0,
-            Color::hex("#56ccf2"),
-        )),
-    );
+        )
+        .expect("valid Runtime mutation");
+    let upper_overlap = runtime
+        .add_figure(
+            overlay_layer,
+            Box::new(RectangleFigure::new_with_color(
+                OVERLAP_X + 45.0,
+                OVERLAP_Y + 35.0,
+                180.0,
+                130.0,
+                Color::hex("#56ccf2"),
+            )),
+        )
+        .expect("valid Runtime mutation");
 
     runtime
         .prepare_frame()
@@ -301,7 +315,7 @@ mod tests {
         assert_eq!(
             demo.runtime
                 .tree()
-                .freeform_extent(demo.scalable.block_id()),
+                .freeform_extent(demo.scalable.figure_id()),
             Ok(Rectangle::new(
                 CONTENT_MIN_X,
                 CONTENT_MIN_Y,

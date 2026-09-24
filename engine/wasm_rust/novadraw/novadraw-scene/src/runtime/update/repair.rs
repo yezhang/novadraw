@@ -33,17 +33,17 @@ pub(crate) struct DamagePropagationStep {
 
 pub(crate) fn merge_dirty_region(
     dirty_regions: &mut HashMap<FigureId, Rectangle>,
-    block_id: FigureId,
+    figure_id: FigureId,
     rect: Rectangle,
 ) -> bool {
     if rect.width <= 0.0 || rect.height <= 0.0 {
         return false;
     }
 
-    if let Some(existing) = dirty_regions.get_mut(&block_id) {
+    if let Some(existing) = dirty_regions.get_mut(&figure_id) {
         *existing = union_rectangles(*existing, rect);
     } else {
-        dirty_regions.insert(block_id, rect);
+        dirty_regions.insert(figure_id, rect);
     }
 
     true
@@ -76,10 +76,10 @@ pub(crate) fn propagate_damage_through_parent_chain(
 
 pub(crate) fn propagate_damage_to_root(
     graph: &FigureTree,
-    block_id: FigureId,
+    figure_id: FigureId,
     contribution: Rectangle,
 ) -> Option<Rectangle> {
-    let steps = collect_parent_chain_steps(graph, block_id)?;
+    let steps = collect_parent_chain_steps(graph, figure_id)?;
     propagate_damage_through_parent_chain(contribution, &steps)
 }
 
@@ -102,7 +102,7 @@ pub(crate) fn prepare_damage_set<'a>(
 ) -> Option<Rectangle> {
     let propagated_regions: Vec<Rectangle> = dirty_regions
         .into_iter()
-        .filter_map(|(block_id, rect)| propagate_damage_to_root(graph, *block_id, *rect))
+        .filter_map(|(figure_id, rect)| propagate_damage_to_root(graph, *figure_id, *rect))
         .chain(frozen_surface_regions)
         .collect();
     write_damage_set(canvas, propagated_regions)
@@ -110,16 +110,16 @@ pub(crate) fn prepare_damage_set<'a>(
 
 fn collect_parent_chain_steps(
     graph: &FigureTree,
-    block_id: FigureId,
+    figure_id: FigureId,
 ) -> Option<Vec<DamagePropagationStep>> {
     let mut steps = Vec::new();
-    let current = graph.get_block(block_id)?;
-    let contents_id = graph.get_contents();
+    let current = graph.node(figure_id)?;
+    let contents_id = graph.contents();
     steps.push(DamagePropagationStep {
         transform: Affine2D::IDENTITY,
         clip: Some(current.visual_bounds()),
     });
-    if Some(block_id) == contents_id {
+    if Some(figure_id) == contents_id {
         let bounds = current.figure_bounds();
         steps.push(DamagePropagationStep {
             transform: Affine2D::from_translation(bounds.x, bounds.y),
@@ -127,10 +127,10 @@ fn collect_parent_chain_steps(
         });
         return Some(steps);
     }
-    let mut walker_id = block_id;
+    let mut walker_id = figure_id;
 
     loop {
-        let walker = graph.get_block(walker_id)?;
+        let walker = graph.node(walker_id)?;
         let bounds = walker.figure_bounds();
         let Some(parent_id) = walker.parent else {
             steps.push(DamagePropagationStep {
@@ -139,7 +139,7 @@ fn collect_parent_chain_steps(
             });
             break;
         };
-        let parent = graph.get_block(parent_id)?;
+        let parent = graph.node(parent_id)?;
         steps.push(DamagePropagationStep {
             transform: parent.child_transform().affine()
                 * Affine2D::from_translation(bounds.x, bounds.y),

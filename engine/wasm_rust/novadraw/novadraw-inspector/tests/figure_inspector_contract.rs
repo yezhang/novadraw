@@ -38,10 +38,12 @@ fn runtime_with_contents() -> (Runtime, novadraw_scene::FigureId, novadraw_scene
     let mut tree = FigureTree::new();
     let mut builder = tree.builder();
     let contents = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 80.0)));
-    let child = builder.add_child_to(
-        contents,
-        Box::new(RectangleFigure::new(10.0, 12.0, 20.0, 24.0)),
-    );
+    let child = builder
+        .add_child(
+            contents,
+            Box::new(RectangleFigure::new(10.0, 12.0, 20.0, 24.0)),
+        )
+        .expect("valid FigureTree construction");
     (Runtime::new(tree), contents, child)
 }
 
@@ -54,7 +56,11 @@ fn captures_parent_first_tree_and_committed_effect_order() {
         FigureInspector::new(NonZeroUsize::new(EVENT_CAPACITY).expect("non-zero capacity"));
     inspector.attach(&mut runtime);
     let changed_bounds = Rectangle::new(16.0, 18.0, 32.0, 36.0);
-    assert!(runtime.set_bounds(child, changed_bounds));
+    assert!(
+        runtime
+            .set_bounds(child, changed_bounds)
+            .expect("valid Runtime mutation")
+    );
     stabilize(&mut runtime);
 
     let snapshot = inspector.capture(&runtime).expect("runtime is stable");
@@ -76,10 +82,10 @@ fn captures_parent_first_tree_and_committed_effect_order() {
         matches!(
             event.effect,
             NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
-                block_id,
+                figure_id,
                 new_bounds,
                 ..
-            }) if block_id == child && new_bounds == changed_bounds
+            }) if figure_id == child && new_bounds == changed_bounds
         )
     }));
 }
@@ -97,7 +103,11 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     ));
 
     stabilize(&mut runtime);
-    assert!(runtime.set_bounds(contents, Rectangle::new(1.0, 2.0, 120.0, 80.0)));
+    assert!(
+        runtime
+            .set_bounds(contents, Rectangle::new(1.0, 2.0, 120.0, 80.0))
+            .expect("valid Runtime mutation")
+    );
     stabilize(&mut runtime);
 
     assert!(inspector.events().len() <= NARROW_EVENT_CAPACITY);

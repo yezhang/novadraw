@@ -284,7 +284,7 @@ Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`Mous
 | `notification.ancestor` | `add/removeAncestorListener` | `Runtime::add_ancestor_listener`；Added/Moved/Removed typed event | verified | D3.3 Runtime 公共路径已验证 |
 | `notification.coordinate` | `add/removeCoordinateListener` | `Runtime::add_coordinate_listener`；`CoordinateSystemChanged` typed event | verified | D3.3 Runtime 公共路径已验证 |
 | `notification.property` | `add/removePropertyChangeListener`, 按 property name 监听 | `Runtime::add_property_listener` + typed old/new value；Toggle selected 与 editor selection 分离 | verified | D3.3 统一 ListenerId、注销和 callback self-removal 已验证 |
-| `notification.action` | `ActionListener.actionPerformed` | `Runtime::add_action_listener` + `ActionEvent { block_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 顺序与 D3.3 self-removal 契约测试通过 |
+| `notification.action` | `ActionListener.actionPerformed` | `Runtime::add_action_listener` + `ActionEvent { figure_id, revision }`；与 property change 进入同一 effect queue | verified | M10.4 顺序与 D3.3 self-removal 契约测试通过 |
 | `notification.layout_update` | `add/removeLayoutListener`, validating/painting | typed listener + `NotificationRecord { source_epoch, sequence }`；`StableSceneQuery` 只读 flush 时最新稳定场景 | verified | D4.4 验证历史事件 FIFO 与最新 stable query 不混淆；阶段记录不是事前 hook |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、listener 接口。

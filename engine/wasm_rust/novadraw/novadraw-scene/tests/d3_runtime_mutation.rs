@@ -29,7 +29,7 @@ fn runtime_replaces_layout_and_constraints_only_after_validation() {
         RuntimeMutationError::Layout(LayoutError::ConstraintTypeMismatch { .. })
     ));
     assert_eq!(
-        runtime.tree().get_constraint::<XYConstraint>(child),
+        runtime.tree().layout_constraint::<XYConstraint>(child),
         Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
     );
 
@@ -103,19 +103,52 @@ fn runtime_size_overrides_are_checked_and_clearable() {
 }
 
 #[test]
+fn runtime_node_mutations_distinguish_noop_invalid_bounds_and_foreign_figures() {
+    let (mut runtime, root, _) = runtime_with_child();
+    let mut foreign = Runtime::empty();
+    let foreign_figure = foreign
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .unwrap();
+    let original = runtime.tree().figure_bounds(root).unwrap();
+
+    assert_eq!(runtime.set_visible(root, true), Ok(false));
+    assert_eq!(
+        runtime.set_visible(foreign_figure, false),
+        Err(RuntimeMutationError::ForeignRuntime(foreign_figure))
+    );
+
+    let invalid = Rectangle::new(0.0, 0.0, f64::NAN, 10.0);
+    let Err(RuntimeMutationError::InvalidBounds { figure, bounds }) =
+        runtime.set_bounds(root, invalid)
+    else {
+        panic!("invalid bounds must return RuntimeMutationError::InvalidBounds");
+    };
+    assert_eq!(figure, root);
+    assert_eq!((bounds.x, bounds.y, bounds.height), (0.0, 0.0, 10.0));
+    assert!(bounds.width.is_nan());
+    assert_eq!(runtime.tree().figure_bounds(root), Some(original));
+}
+
+#[test]
 fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let bottom = tree.builder().add_child_to(
-        root,
-        Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
-    );
-    let top = tree.builder().add_child_to(
-        root,
-        Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
-    );
+    let bottom = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+        )
+        .expect("valid FigureTree construction");
+    let top = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+        )
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(top));
@@ -150,18 +183,25 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let expected_root = expected
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let expected_bottom = expected.builder().add_child_to(
-        expected_root,
-        Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
-    );
-    let expected_top = expected.builder().add_child_to(
-        expected_root,
-        Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
-    );
+    let expected_bottom = expected
+        .builder()
+        .add_child(
+            expected_root,
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+        )
+        .expect("valid FigureTree construction");
+    let expected_top = expected
+        .builder()
+        .add_child(
+            expected_root,
+            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 100.0)),
+        )
+        .expect("valid FigureTree construction");
     assert!(
         expected
             .builder()
             .bring_child_to_front(expected_root, expected_bottom)
+            .unwrap()
     );
     assert_eq!(
         runtime
@@ -190,7 +230,11 @@ fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage()
     let initial = runtime.prepare_frame().expect("initial frame");
     let initial_clips = clip_count(&initial);
 
-    assert!(runtime.set_bounds(child, Rectangle::new(20.0, 20.0, 30.0, 40.0)));
+    assert!(
+        runtime
+            .set_bounds(child, Rectangle::new(20.0, 20.0, 30.0, 40.0))
+            .expect("valid Runtime mutation")
+    );
     assert!(
         runtime
             .set_child_clipping_strategy(root, ChildClippingStrategy::OverflowVisible)
@@ -203,7 +247,7 @@ fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage()
     assert_eq!(
         runtime
             .tree()
-            .get_block(root)
+            .node(root)
             .unwrap()
             .state()
             .child_clipping_strategy_override(),
@@ -257,14 +301,15 @@ fn checked_topology_mutations_preserve_error_categories() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let single = tree
         .builder()
-        .add_child_to(root, Box::new(SingleChildFigure));
+        .add_child(root, Box::new(SingleChildFigure))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime
-        .try_add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
 
     assert_eq!(
-        runtime.try_add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),),
+        runtime.add_figure(single, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),),
         Err(RuntimeMutationError::Graph(
             GraphMutationError::ChildLimitExceeded { limit: 1 }
         ))
@@ -272,17 +317,17 @@ fn checked_topology_mutations_preserve_error_categories() {
 
     let (foreign_runtime, foreign_root, _) = runtime_with_child();
     assert_eq!(
-        runtime.try_reparent(root, foreign_root),
+        runtime.reparent(root, foreign_root),
         Err(RuntimeMutationError::ForeignRuntime(foreign_root))
     );
     drop(foreign_runtime);
 
     let child = runtime
-        .try_add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     runtime.dispose_subtree(child).unwrap();
     assert_eq!(
-        runtime.try_remove_figure(root, child),
+        runtime.remove_figure(root, child),
         Err(RuntimeMutationError::UnknownOrDisposedFigure(child))
     );
 }
@@ -295,15 +340,18 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
     let child = tree
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 40.0)));
-    tree.builder().add_child_to(
-        root,
-        Box::new(DeferredMutationFigure {
-            bounds: Rectangle::new(200.0, 20.0, 50.0, 50.0),
-            parent: root,
-            child,
-        }),
-    );
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 40.0)))
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .add_child(
+            root,
+            Box::new(DeferredMutationFigure {
+                bounds: Rectangle::new(200.0, 20.0, 50.0, 50.0),
+                parent: root,
+                child,
+            }),
+        )
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     runtime.dispatch_mouse_pressed(210.0, 30.0, MouseButton::Left);
@@ -334,7 +382,8 @@ fn runtime_with_child() -> (Runtime, FigureId, FigureId) {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
     let child = tree
         .builder()
-        .add_child_to(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)));
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .expect("valid FigureTree construction");
     (Runtime::new(tree), root, child)
 }
 

@@ -56,15 +56,25 @@ fn publish(runtime: &mut Runtime) {
 fn accessible_runtime() -> (Runtime, FigureId, FigureId) {
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)));
-    let button = runtime.add_figure(
-        root,
-        Box::new(ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0))),
-    );
-    let toggle = runtime.add_figure(
-        root,
-        Box::new(ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0))),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let button = runtime
+        .add_figure(
+            root,
+            Box::new(
+                ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
+    let toggle = runtime
+        .add_figure(
+            root,
+            Box::new(
+                ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0)),
+            ),
+        )
+        .expect("valid Runtime mutation");
     (runtime, button, toggle)
 }
 
@@ -149,7 +159,11 @@ fn dispose_removes_accessibility_identity_in_the_next_delta() {
     runtime.take_accessibility_updates();
 
     let parent = runtime.tree().parent_id(button).unwrap();
-    assert!(runtime.remove_figure(parent, button));
+    assert!(
+        runtime
+            .remove_figure(parent, button)
+            .expect("valid Runtime mutation")
+    );
     publish(&mut runtime);
 
     let updates = runtime.take_accessibility_updates();
@@ -165,7 +179,9 @@ fn accessibility_projection_supports_the_maximum_tree_depth() {
     let mut builder = tree.builder();
     let mut parent = builder.set_contents(Box::new(AccessibleGroup));
     for _ in 1..MAX_TREE_DEPTH {
-        parent = builder.add_child_to(parent, Box::new(AccessibleGroup));
+        parent = builder
+            .add_child(parent, Box::new(AccessibleGroup))
+            .expect("valid FigureTree construction");
     }
     drop(builder);
     let mut runtime = Runtime::new(tree);

@@ -389,7 +389,7 @@ impl SceneRead for FigureTreeSceneRead<'_> {
 
     fn is_viewport(&self, figure: FigureId) -> bool {
         self.tree
-            .block(figure)
+            .node(figure)
             .is_some_and(|block| block.figure.as_any().is::<ViewportFigure>())
     }
 

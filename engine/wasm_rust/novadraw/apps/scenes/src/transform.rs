@@ -72,14 +72,20 @@ fn add_nested_roots(
     scene: &mut novadraw::FigureTree,
     contents: novadraw::FigureId,
 ) -> (novadraw::FigureId, novadraw::FigureId) {
-    let outer = scene.builder().add_child_to(
-        contents,
-        Box::new(coordinate_root(120.0, 90.0, 520.0, 400.0, OUTER_COLOR)),
-    );
-    let inner = scene.builder().add_child_to(
-        outer,
-        Box::new(coordinate_root(70.0, 60.0, 330.0, 240.0, INNER_COLOR)),
-    );
+    let outer = scene
+        .builder()
+        .add_child(
+            contents,
+            Box::new(coordinate_root(120.0, 90.0, 520.0, 400.0, OUTER_COLOR)),
+        )
+        .expect("valid FigureTree construction");
+    let inner = scene
+        .builder()
+        .add_child(
+            outer,
+            Box::new(coordinate_root(70.0, 60.0, 330.0, 240.0, INNER_COLOR)),
+        )
+        .expect("valid FigureTree construction");
     (outer, inner)
 }
 
@@ -87,16 +93,19 @@ fn create_nested_coordinate_roots() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
-    scene.builder().add_child_to(
-        inner,
-        Box::new(RectangleFigure::new_with_color(
-            45.0,
-            40.0,
-            150.0,
-            100.0,
-            CHILD_COLOR,
-        )),
-    );
+    scene
+        .builder()
+        .add_child(
+            inner,
+            Box::new(RectangleFigure::new_with_color(
+                45.0,
+                40.0,
+                150.0,
+                100.0,
+                CHILD_COLOR,
+            )),
+        )
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -105,12 +114,15 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
     let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let local_bounds = Rectangle::new(45.0, 40.0, 150.0, 100.0);
-    let child = scene.builder().add_child_to(
-        inner,
-        Box::new(
-            RectangleFigure::from_bounds(local_bounds).with_stroke(Color::WHITE, BORDER_WIDTH),
-        ),
-    );
+    let child = scene
+        .builder()
+        .add_child(
+            inner,
+            Box::new(
+                RectangleFigure::from_bounds(local_bounds).with_stroke(Color::WHITE, BORDER_WIDTH),
+            ),
+        )
+        .expect("valid FigureTree construction");
 
     let mut absolute_bounds = Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height);
     scene.translate_to_absolute_mut(child, &mut absolute_bounds);
@@ -121,54 +133,69 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
         Rectangle::new(0.0, 0.0, local_bounds.width, local_bounds.height)
     );
 
-    scene.builder().add_child_to(
-        contents,
-        Box::new(
-            RectangleFigure::new_with_color(
-                absolute_bounds.x,
-                absolute_bounds.y,
-                absolute_bounds.width,
-                absolute_bounds.height,
-                Color::rgba(0.0, 0.0, 0.0, 0.0),
-            )
-            .with_stroke(TARGET_COLOR, BORDER_WIDTH),
-        ),
-    );
+    scene
+        .builder()
+        .add_child(
+            contents,
+            Box::new(
+                RectangleFigure::new_with_color(
+                    absolute_bounds.x,
+                    absolute_bounds.y,
+                    absolute_bounds.width,
+                    absolute_bounds.height,
+                    Color::rgba(0.0, 0.0, 0.0, 0.0),
+                )
+                .with_stroke(TARGET_COLOR, BORDER_WIDTH),
+            ),
+        )
+        .expect("valid FigureTree construction");
     scene
 }
 
 fn create_coordinate_root_move() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let contents = scene.builder().set_contents(Box::new(background()));
-    scene.builder().add_child_to(
-        contents,
-        Box::new(
-            RectangleFigure::new_with_color(
+    scene
+        .builder()
+        .add_child(
+            contents,
+            Box::new(
+                RectangleFigure::new_with_color(
+                    120.0,
+                    100.0,
+                    300.0,
+                    230.0,
+                    Color::rgba(0.0, 0.0, 0.0, 0.0),
+                )
+                .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH),
+            ),
+        )
+        .expect("valid FigureTree construction");
+    let coordinate_root = scene
+        .builder()
+        .add_child(
+            contents,
+            Box::new(coordinate_root(120.0, 100.0, 300.0, 230.0, OUTER_COLOR)),
+        )
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(
+            coordinate_root,
+            Box::new(RectangleFigure::new_with_color(
+                35.0,
+                35.0,
                 120.0,
-                100.0,
-                300.0,
-                230.0,
-                Color::rgba(0.0, 0.0, 0.0, 0.0),
-            )
-            .with_stroke(OLD_BOUNDS_COLOR, BORDER_WIDTH),
-        ),
-    );
-    let coordinate_root = scene.builder().add_child_to(
-        contents,
-        Box::new(coordinate_root(120.0, 100.0, 300.0, 230.0, OUTER_COLOR)),
-    );
-    scene.builder().add_child_to(
-        coordinate_root,
-        Box::new(RectangleFigure::new_with_color(
-            35.0,
-            35.0,
-            120.0,
-            80.0,
-            CHILD_COLOR,
-        )),
-    );
+                80.0,
+                CHILD_COLOR,
+            )),
+        )
+        .expect("valid FigureTree construction");
 
-    scene.set_bounds(coordinate_root, 330.0, 220.0, 340.0, 250.0);
+    scene
+        .builder()
+        .set_bounds(coordinate_root, Rectangle::new(330.0, 220.0, 340.0, 250.0))
+        .expect("valid FigureTree construction");
     scene
 }
 
@@ -279,13 +306,16 @@ fn create_event_point_reduction_with_state()
     let contents = scene.builder().set_contents(Box::new(background()));
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let selected = Arc::new(AtomicBool::new(false));
-    let target = scene.builder().add_child_to(
-        inner,
-        Box::new(TargetDomainFigure {
-            bounds: Rectangle::new(55.0, 50.0, 180.0, 110.0),
-            selected: Arc::clone(&selected),
-        }),
-    );
+    let target = scene
+        .builder()
+        .add_child(
+            inner,
+            Box::new(TargetDomainFigure {
+                bounds: Rectangle::new(55.0, 50.0, 180.0, 110.0),
+                selected: Arc::clone(&selected),
+            }),
+        )
+        .expect("valid FigureTree construction");
     (scene, selected, target)
 }
 

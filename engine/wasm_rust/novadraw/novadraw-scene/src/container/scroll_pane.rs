@@ -155,7 +155,7 @@ impl ScrollPaneHandle {
         horizontal: ScrollBarVisibility,
         vertical: ScrollBarVisibility,
     ) -> Result<bool, ScrollPaneError> {
-        if graph.get_block(self.pane_id).is_none() {
+        if graph.node(self.pane_id).is_none() {
             return Err(ScrollPaneError::MissingPane);
         }
         let changed = {
@@ -746,7 +746,7 @@ impl FigureTree {
             Arc::clone(&horizontal_model),
             Arc::clone(&vertical_model),
         )?;
-        lock_unpoisoned(&runtime).viewport_id = Some(viewport.block_id());
+        lock_unpoisoned(&runtime).viewport_id = Some(viewport.figure_id());
 
         let horizontal_scroll_bar = self.try_add_child_to(
             pane_id,
@@ -766,14 +766,14 @@ impl FigureTree {
                 Arc::clone(&runtime),
             )),
         )?;
-        self.set_block_layout_manager(
+        self.replace_layout_manager(
             pane_id,
-            Box::new(ScrollPaneLayout {
+            Some(Box::new(ScrollPaneLayout {
                 runtime: Arc::clone(&runtime),
-                viewport: viewport.block_id(),
+                viewport: viewport.figure_id(),
                 horizontal_scroll_bar,
                 vertical_scroll_bar,
-            }),
+            })),
         );
         Ok(ScrollPaneHandle {
             pane_id,

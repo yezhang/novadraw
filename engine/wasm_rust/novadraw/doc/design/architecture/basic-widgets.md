@@ -102,7 +102,7 @@ Action 是一次发生事实，不是属性，因此使用独立 typed event：
 
 ```rust
 pub struct ActionEvent {
-    pub block_id: FigureId,
+    pub figure_id: FigureId,
     pub revision: u64,
 }
 ```

@@ -33,63 +33,89 @@ pub fn build_focus_traversal_scene(
             500.0,
             Color::hex("#eef1f4"),
         )));
-    let a = tree.builder().add_child_to(
-        root,
-        make_probe(FocusProbeSpec {
-            label: "A · 1",
-            bounds: Rectangle::new(50.0, 80.0, 130.0, 90.0),
-            enabled: true,
-        }),
-    );
-    let group = tree.builder().add_child_to(
-        root,
-        Box::new(RectangleFigure::new_with_color(
-            220.0,
-            45.0,
-            360.0,
-            250.0,
-            Color::hex("#dfe6e9"),
-        )),
-    );
-    let b = tree.builder().add_child_to(
-        group,
-        make_probe(FocusProbeSpec {
-            label: "B · 2",
-            bounds: Rectangle::new(30.0, 70.0, 90.0, 80.0),
-            enabled: true,
-        }),
-    );
-    let skip = tree.builder().add_child_to(
-        group,
-        make_probe(FocusProbeSpec {
-            label: "Skip",
-            bounds: Rectangle::new(135.0, 70.0, 90.0, 80.0),
-            enabled: false,
-        }),
-    );
-    let c = tree.builder().add_child_to(
-        group,
-        make_probe(FocusProbeSpec {
-            label: "C · 3",
-            bounds: Rectangle::new(240.0, 70.0, 90.0, 80.0),
-            enabled: true,
-        }),
-    );
-    let d = tree.builder().add_child_to(
-        root,
-        make_probe(FocusProbeSpec {
-            label: "D · 4",
-            bounds: Rectangle::new(620.0, 80.0, 130.0, 90.0),
-            enabled: true,
-        }),
-    );
+    let a = tree
+        .builder()
+        .add_child(
+            root,
+            make_probe(FocusProbeSpec {
+                label: "A · 1",
+                bounds: Rectangle::new(50.0, 80.0, 130.0, 90.0),
+                enabled: true,
+            }),
+        )
+        .expect("valid FigureTree construction");
+    let group = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new_with_color(
+                220.0,
+                45.0,
+                360.0,
+                250.0,
+                Color::hex("#dfe6e9"),
+            )),
+        )
+        .expect("valid FigureTree construction");
+    let b = tree
+        .builder()
+        .add_child(
+            group,
+            make_probe(FocusProbeSpec {
+                label: "B · 2",
+                bounds: Rectangle::new(30.0, 70.0, 90.0, 80.0),
+                enabled: true,
+            }),
+        )
+        .expect("valid FigureTree construction");
+    let skip = tree
+        .builder()
+        .add_child(
+            group,
+            make_probe(FocusProbeSpec {
+                label: "Skip",
+                bounds: Rectangle::new(135.0, 70.0, 90.0, 80.0),
+                enabled: false,
+            }),
+        )
+        .expect("valid FigureTree construction");
+    let c = tree
+        .builder()
+        .add_child(
+            group,
+            make_probe(FocusProbeSpec {
+                label: "C · 3",
+                bounds: Rectangle::new(240.0, 70.0, 90.0, 80.0),
+                enabled: true,
+            }),
+        )
+        .expect("valid FigureTree construction");
+    let d = tree
+        .builder()
+        .add_child(
+            root,
+            make_probe(FocusProbeSpec {
+                label: "D · 4",
+                bounds: Rectangle::new(620.0, 80.0, 130.0, 90.0),
+                enabled: true,
+            }),
+        )
+        .expect("valid FigureTree construction");
 
     for id in [a, b, c, d] {
-        tree.set_focusable(id, true);
-        tree.set_focus_traversable(id, true);
+        tree.builder()
+            .set_focusable(id, true)
+            .expect("valid FigureTree construction");
+        tree.builder()
+            .set_focus_traversable(id, true)
+            .expect("valid FigureTree construction");
     }
-    tree.set_focus_traversable(skip, true);
-    tree.set_enabled(skip, false);
+    tree.builder()
+        .set_focus_traversable(skip, true)
+        .expect("valid FigureTree construction");
+    tree.builder()
+        .set_enabled(skip, false)
+        .expect("valid FigureTree construction");
 
     (
         tree,

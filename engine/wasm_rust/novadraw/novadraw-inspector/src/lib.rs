@@ -54,7 +54,7 @@ impl FigureTreeSnapshot {
         let mut pending = vec![tree.root_id()];
 
         while let Some(id) = pending.pop() {
-            let Some(node) = tree.get_block(id) else {
+            let Some(node) = tree.node(id) else {
                 continue;
             };
             let children = tree.child_order(id).unwrap_or_default();
@@ -62,7 +62,7 @@ impl FigureTreeSnapshot {
                 id,
                 parent: tree.parent_id(id),
                 child_count: children.len(),
-                depth: tree.block_depth(id).unwrap_or_default(),
+                depth: tree.depth(id).unwrap_or_default(),
                 figure_name: node.figure_name(),
                 bounds: node.figure_bounds(),
                 visible: node.is_visible(),

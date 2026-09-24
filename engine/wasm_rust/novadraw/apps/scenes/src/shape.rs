@@ -59,11 +59,26 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.5, 0.1, 0.9, 1.0),
     );
 
-    scene.builder().add_child_to(container_id, Box::new(rect_1));
-    scene.builder().add_child_to(container_id, Box::new(rect_2));
-    scene.builder().add_child_to(container_id, Box::new(rect_3));
-    scene.builder().add_child_to(container_id, Box::new(rect_4));
-    scene.builder().add_child_to(container_id, Box::new(rect_5));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_1))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_2))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_3))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_4))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_5))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -115,19 +130,24 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
 
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_1));
+        .add_child(container_id, Box::new(ellipse_1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_2));
+        .add_child(container_id, Box::new(ellipse_2))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_3));
+        .add_child(container_id, Box::new(ellipse_3))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_4));
+        .add_child(container_id, Box::new(ellipse_4))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_5));
+        .add_child(container_id, Box::new(ellipse_5))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -242,35 +262,50 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
     )
     .with_stroke(novadraw::Color::WHITE, 2.0);
 
-    scene.builder().add_child_to(container_id, Box::new(rect_0));
-    scene.builder().add_child_to(container_id, Box::new(rect_5));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_15));
+        .add_child(container_id, Box::new(rect_0))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_30));
+        .add_child(container_id, Box::new(rect_5))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_fill));
+        .add_child(container_id, Box::new(rect_15))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_stroke));
+        .add_child(container_id, Box::new(rect_30))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_both));
+        .add_child(container_id, Box::new(rect_fill))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_sw_1));
+        .add_child(container_id, Box::new(rect_stroke))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_sw_4));
+        .add_child(container_id, Box::new(rect_both))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_sw_8));
+        .add_child(container_id, Box::new(rect_sw_1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_circle));
+        .add_child(container_id, Box::new(rect_sw_4))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_sw_8))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(rect_circle))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -298,7 +333,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
             .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(line_2pt));
+        .add_child(container_id, Box::new(line_2pt))
+        .expect("valid FigureTree construction");
 
     // 3点折线（折线）
     let line_3pt = novadraw::PolylineFigure::from_points(vec![
@@ -309,7 +345,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(line_3pt));
+        .add_child(container_id, Box::new(line_3pt))
+        .expect("valid FigureTree construction");
 
     // 5点折线（多段折线）
     let line_5pt = novadraw::PolylineFigure::from_points(vec![
@@ -322,7 +359,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(line_5pt));
+        .add_child(container_id, Box::new(line_5pt))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试2: 不同线宽
@@ -337,7 +375,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
             novadraw::Color::WHITE,
         )
         .with_width(w);
-        scene.builder().add_child_to(container_id, Box::new(line));
+        scene
+            .builder()
+            .add_child(container_id, Box::new(line))
+            .expect("valid FigureTree construction");
     }
 
     // ============================================================
@@ -354,7 +395,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_cap(novadraw::render::command::LineCap::Butt);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(cap_butt));
+        .add_child(container_id, Box::new(cap_butt))
+        .expect("valid FigureTree construction");
 
     let cap_round = novadraw::PolylineFigure::new_with_color(
         200.0,
@@ -367,7 +409,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_cap(novadraw::render::command::LineCap::Round);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(cap_round));
+        .add_child(container_id, Box::new(cap_round))
+        .expect("valid FigureTree construction");
 
     let cap_square = novadraw::PolylineFigure::new_with_color(
         350.0,
@@ -380,7 +423,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_cap(novadraw::render::command::LineCap::Square);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(cap_square));
+        .add_child(container_id, Box::new(cap_square))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试4: 不同连接样式 (LineJoin)
@@ -396,7 +440,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_color(novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(join_miter));
+        .add_child(container_id, Box::new(join_miter))
+        .expect("valid FigureTree construction");
 
     // 圆角连接
     let join_round = novadraw::PolylineFigure::from_points(vec![
@@ -409,7 +454,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_color(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(join_round));
+        .add_child(container_id, Box::new(join_round))
+        .expect("valid FigureTree construction");
 
     // 斜切连接
     let join_bevel = novadraw::PolylineFigure::from_points(vec![
@@ -422,7 +468,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_color(novadraw::Color::rgba(1.0, 0.0, 1.0, 1.0));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(join_bevel));
+        .add_child(container_id, Box::new(join_bevel))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试5: 水平/垂直/对角线
@@ -435,7 +482,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
     )
     .with_width(3.0);
-    scene.builder().add_child_to(container_id, Box::new(h_line));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(h_line))
+        .expect("valid FigureTree construction");
 
     let v_line = novadraw::PolylineFigure::new_with_color(
         700.0,
@@ -445,7 +495,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.2, 0.2, 0.9, 1.0),
     )
     .with_width(3.0);
-    scene.builder().add_child_to(container_id, Box::new(v_line));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(v_line))
+        .expect("valid FigureTree construction");
 
     let diag_45 = novadraw::PolylineFigure::new_with_color(
         500.0,
@@ -457,7 +510,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(diag_45));
+        .add_child(container_id, Box::new(diag_45))
+        .expect("valid FigureTree construction");
 
     let diag_135 = novadraw::PolylineFigure::new_with_color(
         650.0,
@@ -469,7 +523,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(diag_135));
+        .add_child(container_id, Box::new(diag_135))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试6: 自相交折线
@@ -484,7 +539,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_color(novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(self_intersect));
+        .add_child(container_id, Box::new(self_intersect))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试7: 密集多段折线（波浪形）
@@ -498,7 +554,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     let wave = novadraw::PolylineFigure::from_points(points)
         .with_width(2.0)
         .with_color(novadraw::Color::rgba(0.0, 0.8, 1.0, 1.0));
-    scene.builder().add_child_to(container_id, Box::new(wave));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(wave))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试8: 短折线（端点测试）
@@ -513,7 +572,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(short_1));
+        .add_child(container_id, Box::new(short_1))
+        .expect("valid FigureTree construction");
 
     let short_2 = novadraw::PolylineFigure::new_with_color(
         640.0,
@@ -525,7 +585,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(short_2));
+        .add_child(container_id, Box::new(short_2))
+        .expect("valid FigureTree construction");
 
     let short_3 = novadraw::PolylineFigure::new_with_color(
         680.0,
@@ -537,7 +598,8 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     .with_width(3.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(short_3));
+        .add_child(container_id, Box::new(short_3))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试9: 坐标边界（靠近边界）
@@ -550,7 +612,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
-    scene.builder().add_child_to(container_id, Box::new(edge_1));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(edge_1))
+        .expect("valid FigureTree construction");
 
     let edge_2 = novadraw::PolylineFigure::new_with_color(
         700.0,
@@ -560,7 +625,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
-    scene.builder().add_child_to(container_id, Box::new(edge_2));
+    scene
+        .builder()
+        .add_child(container_id, Box::new(edge_2))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -731,58 +799,76 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
 
     scene
         .builder()
-        .add_child_to(container_id, Box::new(rect_combo));
+        .add_child(container_id, Box::new(rect_combo))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_combo));
+        .add_child(container_id, Box::new(ellipse_combo))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(ellipse_combo2));
+        .add_child(container_id, Box::new(ellipse_combo2))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(line_through));
+        .add_child(container_id, Box::new(line_through))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(container_rect));
+        .add_child(container_id, Box::new(container_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(inner_rect));
+        .add_child(container_id, Box::new(inner_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(inner_ellipse));
+        .add_child(container_id, Box::new(inner_ellipse))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(inner_line));
+        .add_child(container_id, Box::new(inner_line))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(complex_rect));
+        .add_child(container_id, Box::new(complex_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(complex_ellipse));
+        .add_child(container_id, Box::new(complex_ellipse))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(complex_line1));
+        .add_child(container_id, Box::new(complex_line1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(complex_line2));
+        .add_child(container_id, Box::new(complex_line2))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(complex_line3));
+        .add_child(container_id, Box::new(complex_line3))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(decor_line1));
+        .add_child(container_id, Box::new(decor_line1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(decor_line2));
+        .add_child(container_id, Box::new(decor_line2))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(decor_line3));
+        .add_child(container_id, Box::new(decor_line3))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(border_outer));
+        .add_child(container_id, Box::new(border_outer))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(border_inner));
+        .add_child(container_id, Box::new(border_inner))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -859,31 +945,40 @@ fn create_scene_9_zorder() -> novadraw::FigureTree {
 
     scene
         .builder()
-        .add_child_to(container_id, Box::new(bottom_rect));
+        .add_child(container_id, Box::new(bottom_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(bottom_ellipse));
+        .add_child(container_id, Box::new(bottom_ellipse))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(bottom_line));
+        .add_child(container_id, Box::new(bottom_line))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(mid_rect));
+        .add_child(container_id, Box::new(mid_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(mid_ellipse));
+        .add_child(container_id, Box::new(mid_ellipse))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(top_rect));
+        .add_child(container_id, Box::new(top_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(marker_1));
+        .add_child(container_id, Box::new(marker_1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(marker_2));
+        .add_child(container_id, Box::new(marker_2))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(marker_3));
+        .add_child(container_id, Box::new(marker_3))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -1026,33 +1121,50 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
     .with_stroke_color(novadraw::Color::hex("#e91e63"))
     .with_stroke_width(3.0);
 
-    scene.builder().add_child_to(container_id, Box::new(tri_w1));
-    scene.builder().add_child_to(container_id, Box::new(tri_w3));
-    scene.builder().add_child_to(container_id, Box::new(tri_w5));
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_w10));
+        .add_child(container_id, Box::new(tri_w1))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_w20));
+        .add_child(container_id, Box::new(tri_w3))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_north));
+        .add_child(container_id, Box::new(tri_w5))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_south));
+        .add_child(container_id, Box::new(tri_w10))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_east));
+        .add_child(container_id, Box::new(tri_w20))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_west));
+        .add_child(container_id, Box::new(tri_north))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_fill));
+        .add_child(container_id, Box::new(tri_south))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(container_id, Box::new(tri_stroke));
+        .add_child(container_id, Box::new(tri_east))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(tri_west))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(tri_fill))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(container_id, Box::new(tri_stroke))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -1076,7 +1188,8 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     .with_stroke(novadraw::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0);
     let parent_id = scene
         .builder()
-        .add_child_to(container_id, Box::new(parent_rect));
+        .add_child(container_id, Box::new(parent_rect))
+        .expect("valid FigureTree construction");
 
     // 子图形 - 直接添加到父矩形中
     let child_rect = novadraw::RectangleFigure::new_with_color(
@@ -1104,13 +1217,16 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 
     scene
         .builder()
-        .add_child_to(parent_id, Box::new(child_rect));
+        .add_child(parent_id, Box::new(child_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(parent_id, Box::new(child_ellipse));
+        .add_child(parent_id, Box::new(child_ellipse))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(parent_id, Box::new(child_line));
+        .add_child(parent_id, Box::new(child_line))
+        .expect("valid FigureTree construction");
 
     // 另一个父容器
     let parent_rect2 = novadraw::RectangleFigure::new_with_color(
@@ -1123,7 +1239,8 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     .with_stroke(novadraw::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0);
     let parent_id2 = scene
         .builder()
-        .add_child_to(container_id, Box::new(parent_rect2));
+        .add_child(container_id, Box::new(parent_rect2))
+        .expect("valid FigureTree construction");
 
     // 子图形 - 更深层次
     let grandchild_rect = novadraw::RectangleFigure::new_with_color(
@@ -1143,10 +1260,12 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 
     scene
         .builder()
-        .add_child_to(parent_id2, Box::new(grandchild_rect));
+        .add_child(parent_id2, Box::new(grandchild_rect))
+        .expect("valid FigureTree construction");
     scene
         .builder()
-        .add_child_to(parent_id2, Box::new(grandchild_ellipse));
+        .add_child(parent_id2, Box::new(grandchild_ellipse))
+        .expect("valid FigureTree construction");
 
     // 独立图形（不嵌套）
     let standalone = novadraw::RectangleFigure::new_with_color(
@@ -1159,7 +1278,8 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     .with_stroke(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0);
     scene
         .builder()
-        .add_child_to(container_id, Box::new(standalone));
+        .add_child(container_id, Box::new(standalone))
+        .expect("valid FigureTree construction");
 
     scene
 }
@@ -1170,45 +1290,53 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 
 fn create_m10_runtime_mutations() -> novadraw::Runtime {
     let mut runtime = novadraw::Runtime::empty();
-    let root = runtime.set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-        0.0,
-        0.0,
-        WINDOW_WIDTH,
-        WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
-    )));
-    let polyline = runtime.add_figure(
-        root,
-        Box::new(
-            novadraw::PolylineFigure::from_points(vec![
-                novadraw_geometry::Vec2::new(70.0, 100.0),
-                novadraw_geometry::Vec2::new(210.0, 100.0),
-            ])
-            .with_color(novadraw::Color::hex("#2563eb"))
-            .with_width(5.0),
-        ),
-    );
-    let rounded = runtime.add_figure(
-        root,
-        Box::new(
-            novadraw::RoundedRectangleFigure::new_with_color(
-                300.0,
-                70.0,
-                180.0,
-                110.0,
-                12.0,
-                novadraw::Color::hex("#16a34a"),
-            )
-            .with_stroke(novadraw::Color::hex("#14532d"), 3.0),
-        ),
-    );
-    let triangle = runtime.add_figure(
-        root,
-        Box::new(
-            novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0)
-                .with_fill_color(novadraw::Color::hex("#f59e0b")),
-        ),
-    );
+    let root = runtime
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            novadraw::Color::hex("#eeeeee"),
+        )))
+        .expect("valid Runtime mutation");
+    let polyline = runtime
+        .add_figure(
+            root,
+            Box::new(
+                novadraw::PolylineFigure::from_points(vec![
+                    novadraw_geometry::Vec2::new(70.0, 100.0),
+                    novadraw_geometry::Vec2::new(210.0, 100.0),
+                ])
+                .with_color(novadraw::Color::hex("#2563eb"))
+                .with_width(5.0),
+            ),
+        )
+        .expect("valid Runtime mutation");
+    let rounded = runtime
+        .add_figure(
+            root,
+            Box::new(
+                novadraw::RoundedRectangleFigure::new_with_color(
+                    300.0,
+                    70.0,
+                    180.0,
+                    110.0,
+                    12.0,
+                    novadraw::Color::hex("#16a34a"),
+                )
+                .with_stroke(novadraw::Color::hex("#14532d"), 3.0),
+            ),
+        )
+        .expect("valid Runtime mutation");
+    let triangle = runtime
+        .add_figure(
+            root,
+            Box::new(
+                novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0)
+                    .with_fill_color(novadraw::Color::hex("#f59e0b")),
+            ),
+        )
+        .expect("valid Runtime mutation");
 
     runtime
         .insert_point(polyline, 1, novadraw_geometry::Vec2::new(140.0, 180.0))

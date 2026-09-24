@@ -6,16 +6,27 @@ use novadraw_scene::{
 #[test]
 fn public_runtime_focus_api_separates_direct_and_traversal_eligibility() {
     let mut runtime = Runtime::empty();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    let first_traversal =
-        runtime.add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-    let last_traversal =
-        runtime.add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)));
-    let direct_only =
-        runtime.add_figure(root, Box::new(RectangleFigure::new(60.0, 0.0, 20.0, 20.0)));
-    runtime.set_focus_traversable(first_traversal, true);
-    runtime.set_focus_traversable(last_traversal, true);
-    runtime.set_focusable(direct_only, true);
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid Runtime mutation");
+    let first_traversal = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid Runtime mutation");
+    let last_traversal = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+        .expect("valid Runtime mutation");
+    let direct_only = runtime
+        .add_figure(root, Box::new(RectangleFigure::new(60.0, 0.0, 20.0, 20.0)))
+        .expect("valid Runtime mutation");
+    runtime
+        .set_focus_traversable(first_traversal, true)
+        .expect("valid Runtime mutation");
+    runtime
+        .set_focus_traversable(last_traversal, true)
+        .expect("valid Runtime mutation");
+    runtime
+        .set_focusable(direct_only, true)
+        .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.request_focus(first_traversal),

@@ -128,19 +128,23 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
     let expected_height = f64::from(constrained.height());
     let expected_baseline = f64::from(constrained.baseline());
     let expected_runs = constrained.glyph_runs().to_vec();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(
-        0.0,
-        0.0,
-        f64::from(WIDTH),
-        120.0,
-    )));
-    let text_figure = runtime.add_figure(
-        root,
-        Box::new(WrappedTextFigure {
-            natural,
-            constrained,
-        }),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(
+            0.0,
+            0.0,
+            f64::from(WIDTH),
+            120.0,
+        )))
+        .expect("valid Runtime mutation");
+    let text_figure = runtime
+        .add_figure(
+            root,
+            Box::new(WrappedTextFigure {
+                natural,
+                constrained,
+            }),
+        )
+        .expect("valid Runtime mutation");
     runtime
         .set_layout_manager(root, Box::new(ConstrainedColumnLayout))
         .unwrap();
@@ -188,14 +192,18 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
     assert!(constrained.height() > natural.height());
 
     let expected_height = f64::from(constrained.height());
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)));
-    let text_figure = runtime.add_figure(
-        root,
-        Box::new(WrappedTextFigure {
-            natural,
-            constrained,
-        }),
-    );
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)))
+        .expect("valid Runtime mutation");
+    let text_figure = runtime
+        .add_figure(
+            root,
+            Box::new(WrappedTextFigure {
+                natural,
+                constrained,
+            }),
+        )
+        .expect("valid Runtime mutation");
     runtime
         .set_layout_constraint(
             text_figure,

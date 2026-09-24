@@ -103,22 +103,33 @@ fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rect
 /// Figure 树结构变更失败。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphMutationError {
+    FigureNotFound(FigureId),
     ParentNotFound,
     ChildNotFound,
     CycleDetected,
     DuplicateChild,
-    ChildLimitExceeded { limit: usize },
+    ChildLimitExceeded {
+        limit: usize,
+    },
     LayerKeyRequired,
     LayerChildRequired,
     InvalidParentRelation,
-    DepthLimitExceeded { limit: usize },
+    InvalidChildIndex {
+        parent: FigureId,
+        index: usize,
+        child_count: usize,
+    },
+    DepthLimitExceeded {
+        limit: usize,
+    },
 }
 
 impl fmt::Display for GraphMutationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ParentNotFound => write!(f, "parent block does not exist"),
-            Self::ChildNotFound => write!(f, "child block does not exist"),
+            Self::FigureNotFound(figure) => write!(f, "Figure does not exist: {figure:?}"),
+            Self::ParentNotFound => write!(f, "parent Figure does not exist"),
+            Self::ChildNotFound => write!(f, "child Figure does not exist"),
             Self::CycleDetected => write!(f, "mutation would create a cycle"),
             Self::DuplicateChild => write!(f, "child is already attached to parent"),
             Self::ChildLimitExceeded { limit } => {
@@ -127,6 +138,14 @@ impl fmt::Display for GraphMutationError {
             Self::LayerKeyRequired => write!(f, "layered pane mutations require a layer key"),
             Self::LayerChildRequired => write!(f, "layered pane accepts only Layer figures"),
             Self::InvalidParentRelation => write!(f, "child is not attached to expected parent"),
+            Self::InvalidChildIndex {
+                parent,
+                index,
+                child_count,
+            } => write!(
+                f,
+                "child index {index} is outside parent {parent:?} child count {child_count}"
+            ),
             Self::DepthLimitExceeded { limit } => {
                 write!(f, "figure tree depth exceeds limit {limit}")
             }
@@ -605,7 +624,7 @@ impl FigureNode {
 ///
 /// // 添加子块到指定父块（类似 Draw2d 的 parent.addChild(child)）
 /// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0);
-/// scene.builder().add_child_to(contents_id, Box::new(child));
+/// scene.builder().add_child(contents_id, Box::new(child)).expect("valid FigureTree construction");
 /// ```
 pub struct FigureTree {
     blocks: RuntimeArena<FigureId, FigureNode>,
@@ -650,11 +669,7 @@ impl<'a> FigureTreeBuilder<'a> {
         self.tree.set_contents(figure)
     }
 
-    pub fn add_child_to(&mut self, parent: FigureId, figure: Box<dyn super::Figure>) -> FigureId {
-        self.tree.add_child_to(parent, figure)
-    }
-
-    pub fn try_add_child_to(
+    pub fn add_child(
         &mut self,
         parent: FigureId,
         figure: Box<dyn super::Figure>,
@@ -665,26 +680,171 @@ impl<'a> FigureTreeBuilder<'a> {
     pub fn add_child_with_bounds(
         &mut self,
         parent: FigureId,
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
+        bounds: Rectangle,
         color: novadraw_core::Color,
-    ) -> FigureId {
+    ) -> Result<FigureId, GraphMutationError> {
+        let figure = super::figure::RectangleFigure::new_with_color(
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            color,
+        );
+        self.tree.try_add_child_to(parent, Box::new(figure))
+    }
+
+    pub fn set_layout_manager(
+        &mut self,
+        container: FigureId,
+        manager: Box<dyn LayoutManager>,
+    ) -> Result<bool, LayoutError> {
         self.tree
-            .add_child_with_bounds(parent, x, y, width, height, color)
+            .validate_layout_manager_constraints(container, manager.as_ref())?;
+        Ok(self.tree.replace_layout_manager(container, Some(manager)))
     }
 
-    pub fn move_child_to_index(&mut self, parent: FigureId, child: FigureId, index: usize) -> bool {
-        self.tree.move_child_to_index(parent, child, index)
+    pub fn set_layout_constraint<C>(
+        &mut self,
+        child: FigureId,
+        constraint: C,
+    ) -> Result<bool, LayoutError>
+    where
+        C: LayoutConstraint,
+    {
+        self.tree.validate_layout_constraint(child, &constraint)?;
+        Ok(self.tree.set_boxed_constraint(child, Box::new(constraint)))
     }
 
-    pub fn bring_child_to_front(&mut self, parent: FigureId, child: FigureId) -> bool {
-        self.tree.bring_child_to_front(parent, child)
+    pub fn remove_layout_constraint(&mut self, child: FigureId) -> Result<bool, LayoutError> {
+        self.tree.validate_layout_child(child)?;
+        Ok(self.tree.remove_constraint(child))
     }
 
-    pub fn send_child_to_back(&mut self, parent: FigureId, child: FigureId) -> bool {
-        self.tree.send_child_to_back(parent, child)
+    pub fn set_preferred_size(
+        &mut self,
+        figure: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_preferred_size(figure, size))
+    }
+
+    pub fn set_minimum_size(
+        &mut self,
+        figure: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_minimum_size(figure, size))
+    }
+
+    pub fn set_maximum_size(
+        &mut self,
+        figure: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_maximum_size(figure, size))
+    }
+
+    pub fn set_bounds(
+        &mut self,
+        figure: FigureId,
+        bounds: Rectangle,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self
+            .tree
+            .set_bounds(figure, bounds.x, bounds.y, bounds.width, bounds.height))
+    }
+
+    pub fn set_visible(
+        &mut self,
+        figure: FigureId,
+        visible: bool,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_visible(figure, visible))
+    }
+
+    pub fn set_enabled(
+        &mut self,
+        figure: FigureId,
+        enabled: bool,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_enabled(figure, enabled))
+    }
+
+    pub fn set_focusable(
+        &mut self,
+        figure: FigureId,
+        focusable: bool,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_focusable(figure, focusable))
+    }
+
+    pub fn set_focus_traversable(
+        &mut self,
+        figure: FigureId,
+        traversable: bool,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_focus_traversable(figure, traversable))
+    }
+
+    pub fn set_figure_style(
+        &mut self,
+        figure: FigureId,
+        style: FigureStyle,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_figure_style(figure, style))
+    }
+
+    pub fn set_opaque(
+        &mut self,
+        figure: FigureId,
+        opaque: bool,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.ensure_figure(figure)?;
+        Ok(self.tree.set_opaque(figure, opaque))
+    }
+
+    pub fn validate_subtree(&mut self, container: FigureId) -> Result<(), LayoutError> {
+        self.tree.try_revalidate(container)
+    }
+
+    pub fn move_child_to_index(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+        index: usize,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree
+            .validate_child_order_mutation(parent, child, index)?;
+        Ok(self.tree.move_child_to_index(parent, child, index))
+    }
+
+    pub fn bring_child_to_front(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, GraphMutationError> {
+        let child_count = self.tree.validate_direct_child(parent, child)?;
+        Ok(self
+            .tree
+            .move_child_to_index(parent, child, child_count - 1))
+    }
+
+    pub fn send_child_to_back(
+        &mut self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<bool, GraphMutationError> {
+        self.tree.validate_direct_child(parent, child)?;
+        Ok(self.tree.move_child_to_index(parent, child, 0))
     }
 
     pub(crate) fn tree_mut(&mut self) -> &mut FigureTree {
@@ -695,6 +855,49 @@ impl<'a> FigureTreeBuilder<'a> {
 impl FigureTree {
     pub fn namespace(&self) -> RuntimeNamespace {
         self.blocks.namespace()
+    }
+
+    fn ensure_figure(&self, figure: FigureId) -> Result<(), GraphMutationError> {
+        self.blocks
+            .contains_key(figure)
+            .then_some(())
+            .ok_or(GraphMutationError::FigureNotFound(figure))
+    }
+
+    fn validate_direct_child(
+        &self,
+        parent: FigureId,
+        child: FigureId,
+    ) -> Result<usize, GraphMutationError> {
+        let parent_node = self
+            .blocks
+            .get(parent)
+            .ok_or(GraphMutationError::ParentNotFound)?;
+        if parent_node.child_policy() == ChildPolicy::Layered {
+            return Err(GraphMutationError::LayerKeyRequired);
+        }
+        self.ensure_figure(child)?;
+        if self.parent_id(child) != Some(parent) {
+            return Err(GraphMutationError::InvalidParentRelation);
+        }
+        Ok(parent_node.children.len())
+    }
+
+    fn validate_child_order_mutation(
+        &self,
+        parent: FigureId,
+        child: FigureId,
+        index: usize,
+    ) -> Result<(), GraphMutationError> {
+        let child_count = self.validate_direct_child(parent, child)?;
+        if index >= child_count {
+            return Err(GraphMutationError::InvalidChildIndex {
+                parent,
+                index,
+                child_count,
+            });
+        }
+        Ok(())
     }
 
     pub(crate) fn synthetic_root(&self) -> FigureId {
@@ -793,7 +996,7 @@ impl FigureTree {
         updates.add_invalid_figure(parent);
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Removed,
-            block_id: root,
+            figure_id: root,
             parent_id: parent,
         });
         self.emit_layout_event(LayoutEvent {
@@ -855,8 +1058,8 @@ impl FigureTree {
         self.notification_effects.drain()
     }
 
-    fn notify_block_changed(&mut self, block_id: FigureId) {
-        self.notification_effects.notify(block_id);
+    fn notify_block_changed(&mut self, figure_id: FigureId) {
+        self.notification_effects.notify(figure_id);
     }
 
     fn emit_figure_event(&mut self, event: FigureEvent) {
@@ -873,27 +1076,27 @@ impl FigureTree {
 
     pub(crate) fn record_property_change(
         &mut self,
-        block_id: FigureId,
+        figure_id: FigureId,
         property: &'static str,
         old_value: PropertyValue,
         new_value: PropertyValue,
     ) {
-        self.notify_block_changed(block_id);
+        self.notify_block_changed(figure_id);
         self.emit_property_event(PropertyChangeEvent {
-            block_id,
+            figure_id,
             property,
             old_value,
             new_value,
         });
     }
 
-    pub(crate) fn record_coordinate_system_changed(&mut self, block_id: FigureId) {
-        let Some(bounds) = self.figure_bounds(block_id) else {
+    pub(crate) fn record_coordinate_system_changed(&mut self, figure_id: FigureId) {
+        let Some(bounds) = self.figure_bounds(figure_id) else {
             return;
         };
-        self.notify_block_changed(block_id);
+        self.notify_block_changed(figure_id);
         self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
-            block_id,
+            figure_id,
             old_bounds: bounds,
             new_bounds: bounds,
         });
@@ -925,7 +1128,7 @@ impl FigureTree {
     }
 
     /// 获取内容块
-    pub fn get_contents(&self) -> Option<FigureId> {
+    pub fn contents(&self) -> Option<FigureId> {
         self.contents
     }
 
@@ -934,23 +1137,21 @@ impl FigureTree {
         self.root
     }
 
-    /// 添加子块到指定父块
+    /// Adds a Figure to a parent during construction.
     ///
     /// 对应 draw2d: parent.addChild(child) (不触发 revalidate)
     ///
     /// 与 `add_child()` 的区别：此方法不触发 revalidate()，用于批量构建场景。
+    #[cfg(test)]
     pub(crate) fn add_child_to(
         &mut self,
         parent_id: FigureId,
         figure: Box<dyn super::Figure>,
     ) -> FigureId {
         self.try_add_child_to(parent_id, figure)
-            .unwrap_or_else(|_| FigureId::null())
+            .expect("validated construction must preserve FigureTree invariants")
     }
 
-    /// 尝试添加子块到指定父块。
-    ///
-    /// parent 不存在或深度超限时不分配节点、不修改 UUID 映射，并返回错误。
     pub(crate) fn try_add_child_to(
         &mut self,
         parent_id: FigureId,
@@ -959,44 +1160,10 @@ impl FigureTree {
         self.new_block_with_parent(figure, parent_id)
     }
 
-    /// 添加子块到指定父块，并设置子块的位置和尺寸
-    ///
-    /// # 坐标语义
-    ///
-    /// - bounds 位于 parent content domain
-    /// - 添加后，子节点的 bounds 保持不变
-    /// - 平移操作只修改当前节点，后代通过父链变换改变 surface 投影
-    ///
-    /// # 示例
-    ///
-    /// ```
-    /// use novadraw_core::Color;
-    /// use novadraw_scene::{figure::RectangleFigure, FigureTree};
-    ///
-    /// let mut scene = FigureTree::new();
-    /// let parent_id = scene.builder().set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
-    /// let color = Color::hex("#3498db");
-    /// // 添加子节点，bounds 位于 parent content domain
-    /// let _child_id = scene.builder().add_child_with_bounds(parent_id, 10.0, 10.0, 50.0, 50.0, color);
-    /// ```
-    pub(crate) fn add_child_with_bounds(
-        &mut self,
-        parent_id: FigureId,
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-        color: novadraw_core::Color,
-    ) -> FigureId {
-        let figure = super::figure::RectangleFigure::new_with_color(x, y, width, height, color);
-        self.try_add_child_to(parent_id, Box::new(figure))
-            .unwrap_or_else(|_| FigureId::null())
-    }
-
     /// 添加子块
     ///
     /// 参考 draw2d: parent.addChild(child) -> revalidate()
-    /// 与 `add_child_to()` 的区别：此方法会标记父容器需要重新布局，
+    /// 与 `add_child()` 的区别：此方法会标记父容器需要重新布局，
     /// 并将父容器区域加入脏区域，下次 `perform_update()` 时会验证布局。
     ///
     /// # 使用场景
@@ -1084,7 +1251,7 @@ impl FigureTree {
     }
 
     /// Reparents a block through the update transaction.
-    pub(crate) fn try_reparent(
+    pub(crate) fn reparent(
         &mut self,
         update_manager: &mut UpdateManager,
         child: FigureId,
@@ -1183,7 +1350,7 @@ impl FigureTree {
         self.blocks[parent_id].children.push(id);
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
-            block_id: id,
+            figure_id: id,
             parent_id,
         });
         self.mark_validation_path_invalid(parent_id);
@@ -1228,7 +1395,7 @@ impl FigureTree {
         }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
-            block_id: child_id,
+            figure_id: child_id,
             parent_id,
         });
         self.set_subtree_depth(child_id, new_depth);
@@ -1254,7 +1421,7 @@ impl FigureTree {
         }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Removed,
-            block_id: child_id,
+            figure_id: child_id,
             parent_id,
         });
         self.emit_layout_event(LayoutEvent {
@@ -1537,10 +1704,10 @@ impl FigureTree {
     ///
     /// # Arguments
     ///
-    /// * `block_id` - 需要重新布局的块 ID
-    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, block_id: FigureId) {
-        self.mark_validation_path_invalid(block_id);
-        update_manager.add_invalid_figure(block_id);
+    /// * `figure_id` - 需要重新布局的块 ID
+    pub fn mark_invalid(&mut self, update_manager: &mut UpdateManager, figure_id: FigureId) {
+        self.mark_validation_path_invalid(figure_id);
+        update_manager.add_invalid_figure(figure_id);
     }
 
     /// 请求重绘指定块
@@ -1550,21 +1717,21 @@ impl FigureTree {
     ///
     /// # Arguments
     ///
-    /// * `block_id` - 需要重绘的块 ID
+    /// * `figure_id` - 需要重绘的块 ID
     /// * `rect` - node-local 脏区域；`None` 表示完整 local border box
     pub fn repaint(
         &mut self,
         update_manager: &mut UpdateManager,
-        block_id: FigureId,
+        figure_id: FigureId,
         rect: Option<Rectangle>,
     ) {
-        if let Some(block) = self.blocks.get(block_id) {
-            if !self.is_effectively_visible(block_id) {
+        if let Some(block) = self.blocks.get(figure_id) {
+            if !self.is_effectively_visible(figure_id) {
                 return;
             }
 
             let dirty_rect = rect.unwrap_or_else(|| block.visual_bounds());
-            update_manager.add_dirty_region(block_id, dirty_rect);
+            update_manager.add_dirty_region(figure_id, dirty_rect);
         }
     }
 
@@ -1577,18 +1744,18 @@ impl FigureTree {
         }
     }
 
-    pub fn freeform_extent(&self, block_id: FigureId) -> Result<Rectangle, FreeformError> {
+    pub fn freeform_extent(&self, figure_id: FigureId) -> Result<Rectangle, FreeformError> {
         let block = self
             .blocks
-            .get(block_id)
-            .ok_or(FreeformError::UnknownFigure(block_id))?;
+            .get(figure_id)
+            .ok_or(FreeformError::UnknownFigure(figure_id))?;
         let state = block
             .layout
             .freeform
             .as_ref()
-            .ok_or(FreeformError::NotFreeform(block_id))?;
+            .ok_or(FreeformError::NotFreeform(figure_id))?;
         if state.extent_generation.is_none() {
-            return Err(FreeformError::Unvalidated(block_id));
+            return Err(FreeformError::Unvalidated(figure_id));
         }
         Ok(state.cached_extent)
     }
@@ -1599,32 +1766,32 @@ impl FigureTree {
     /// transient visual replaces, rather than supplements, an existing subtree.
     pub fn freeform_extent_excluding(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
         excluded: &[FigureId],
     ) -> Result<Rectangle, FreeformError> {
         let block = self
             .blocks
-            .get(block_id)
-            .ok_or(FreeformError::UnknownFigure(block_id))?;
+            .get(figure_id)
+            .ok_or(FreeformError::UnknownFigure(figure_id))?;
         let state = block
             .layout
             .freeform
             .as_ref()
-            .ok_or(FreeformError::NotFreeform(block_id))?;
+            .ok_or(FreeformError::NotFreeform(figure_id))?;
         if state.extent_generation.is_none() {
-            return Err(FreeformError::Unvalidated(block_id));
+            return Err(FreeformError::Unvalidated(figure_id));
         }
         Ok(self
-            .derive_freeform_extent_excluding(block_id, excluded)
+            .derive_freeform_extent_excluding(figure_id, excluded)
             .unwrap_or(Rectangle::ZERO))
     }
 
     fn derive_freeform_extent_excluding(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
         excluded: &[FigureId],
     ) -> Option<Rectangle> {
-        let block = self.blocks.get(block_id)?;
+        let block = self.blocks.get(figure_id)?;
         let mut extent: Option<Rectangle> = None;
         for child_id in block.children.iter().copied() {
             if excluded.contains(&child_id) {
@@ -1650,17 +1817,17 @@ impl FigureTree {
         extent
     }
 
-    fn recompute_freeform_extent(&mut self, block_id: FigureId) -> Result<(), LayoutError> {
+    fn recompute_freeform_extent(&mut self, figure_id: FigureId) -> Result<(), LayoutError> {
         let dirty = self
             .blocks
-            .get(block_id)
+            .get(figure_id)
             .and_then(|block| block.layout.freeform.as_ref())
             .is_some_and(|state| state.dirty);
         if !dirty {
             return Ok(());
         }
 
-        let children = self.blocks[block_id].children.clone();
+        let children = self.blocks[figure_id].children.clone();
         let mut extent: Option<Rectangle> = None;
         for child_id in children {
             if self.blocks[child_id].layout.freeform.is_some() {
@@ -1688,7 +1855,7 @@ impl FigureTree {
 
         let new_extent = extent.unwrap_or(Rectangle::ZERO);
         let (old_extent, changed) = {
-            let block = &mut self.blocks[block_id];
+            let block = &mut self.blocks[figure_id];
             let generation = block.layout.generation();
             let state = block
                 .layout
@@ -1703,7 +1870,7 @@ impl FigureTree {
         };
         if changed {
             self.record_property_change(
-                block_id,
+                figure_id,
                 FREEFORM_EXTENT_PROPERTY,
                 PropertyValue::Rectangle(old_extent),
                 PropertyValue::Rectangle(new_extent),
@@ -1748,33 +1915,33 @@ impl FigureTree {
         let mut processed = 0;
         let mut invalidation_chain = Vec::new();
         loop {
-            let block_ids = update_manager.drain_invalid_blocks();
-            if block_ids.is_empty() {
+            let figure_ids = update_manager.drain_invalid_figures();
+            if figure_ids.is_empty() {
                 return Ok(());
             }
             let remaining = budget.saturating_sub(processed);
-            if block_ids.len() > remaining {
-                invalidation_chain.extend(block_ids.iter().take(remaining).copied());
-                for block_id in &block_ids {
-                    update_manager.add_invalid_figure(*block_id);
+            if figure_ids.len() > remaining {
+                invalidation_chain.extend(figure_ids.iter().take(remaining).copied());
+                for figure_id in &figure_ids {
+                    update_manager.add_invalid_figure(*figure_id);
                 }
                 return Err(ValidationError::NonConvergingValidation {
                     budget,
                     invalidation_chain,
                 });
             }
-            processed += block_ids.len();
-            invalidation_chain.extend(block_ids.iter().copied());
+            processed += figure_ids.len();
+            invalidation_chain.extend(figure_ids.iter().copied());
 
-            for block_id in &block_ids {
-                self.mark_validation_path_invalid(*block_id);
+            for figure_id in &figure_ids {
+                self.mark_validation_path_invalid(*figure_id);
             }
 
-            let mut validation_roots: Vec<FigureId> = block_ids
+            let mut validation_roots: Vec<FigureId> = figure_ids
                 .into_iter()
-                .filter_map(|block_id| self.validation_root(block_id))
+                .filter_map(|figure_id| self.validation_root(figure_id))
                 .collect();
-            validation_roots.sort_by_key(|id| self.block_depth(*id).unwrap_or(usize::MAX));
+            validation_roots.sort_by_key(|id| self.depth(*id).unwrap_or(usize::MAX));
             validation_roots.dedup();
 
             for root_id in validation_roots {
@@ -1786,9 +1953,9 @@ impl FigureTree {
         }
     }
 
-    fn validation_root(&self, block_id: FigureId) -> Option<FigureId> {
-        let mut current = block_id;
-        let mut root = block_id;
+    fn validation_root(&self, figure_id: FigureId) -> Option<FigureId> {
+        let mut current = figure_id;
+        let mut root = figure_id;
         loop {
             let block = self.blocks.get(current)?;
             let Some(parent_id) = block.parent else {
@@ -1940,7 +2107,7 @@ impl FigureTree {
     /// This is the Draw2D `Figure.validate()` equivalent used by coordinated
     /// operations such as `ZoomManager`: scale invalidation is resolved before
     /// the new viewport location is applied.
-    pub fn validate_with_update(
+    pub(crate) fn validate_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
         container_id: FigureId,
@@ -1952,12 +2119,13 @@ impl FigureTree {
     ///
     /// 该入口用于初始场景构建；运行时更新应通过 `mark_invalid` 和
     /// `UpdateManager::perform_update` 执行完整事务。
-    pub fn revalidate(&mut self, container_id: FigureId) {
+    #[cfg(test)]
+    pub(crate) fn revalidate(&mut self, container_id: FigureId) {
         self.try_revalidate(container_id)
             .expect("layout validation failed");
     }
 
-    pub fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
+    pub(crate) fn try_revalidate(&mut self, container_id: FigureId) -> Result<(), LayoutError> {
         let ancestors_visible = self
             .parent_id(container_id)
             .is_none_or(|parent| self.is_effectively_visible(parent));
@@ -2217,20 +2385,20 @@ impl FigureTree {
     }
 
     /// 返回单个节点的 validation 状态。
-    pub fn is_valid(&self, block_id: FigureId) -> bool {
+    pub fn is_valid(&self, figure_id: FigureId) -> bool {
         self.blocks
-            .get(block_id)
+            .get(figure_id)
             .is_some_and(|block| block.is_valid)
     }
 
     /// 计算节点首选尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
     pub fn preferred_size(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
         w_hint: f64,
         h_hint: f64,
     ) -> Option<(f64, f64)> {
-        let block = self.blocks.get(block_id)?;
+        let block = self.blocks.get(figure_id)?;
         let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.preferred_size {
             return Some(block.project_preferred_size(size));
@@ -2244,7 +2412,7 @@ impl FigureTree {
             }
             let snapshot = LayoutSnapshot::new(self);
             let size = block.project_preferred_size(
-                layout.get_preferred_size(block_id, w_hint, h_hint, &snapshot),
+                layout.get_preferred_size(figure_id, w_hint, h_hint, &snapshot),
             );
             block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
                 generation,
@@ -2271,13 +2439,13 @@ impl FigureTree {
 
     pub fn measurement(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
         w_hint: f64,
         h_hint: f64,
     ) -> Option<FigureMeasurement> {
-        let block = self.blocks.get(block_id)?;
+        let block = self.blocks.get(figure_id)?;
         if block.preferred_size.is_some() || block.layout.manager.is_some() {
-            let (width, height) = self.preferred_size(block_id, w_hint, h_hint)?;
+            let (width, height) = self.preferred_size(figure_id, w_hint, h_hint)?;
             return Some(FigureMeasurement::new(width, height, None));
         }
         let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
@@ -2298,8 +2466,13 @@ impl FigureTree {
     }
 
     /// 计算节点最小尺寸。显式覆盖优先，其次委托容器 LayoutManager，最后回退到 Figure。
-    pub fn minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> Option<(f64, f64)> {
-        let block = self.blocks.get(block_id)?;
+    pub fn minimum_size(
+        &self,
+        figure_id: FigureId,
+        w_hint: f64,
+        h_hint: f64,
+    ) -> Option<(f64, f64)> {
+        let block = self.blocks.get(figure_id)?;
         let (w_hint, h_hint) = block.layout_size_hints(w_hint, h_hint);
         if let Some(size) = block.minimum_size {
             return Some(block.project_minimum_size(size));
@@ -2312,8 +2485,9 @@ impl FigureTree {
                 return Some(cached.size);
             }
             let snapshot = LayoutSnapshot::new(self);
-            let size = block
-                .project_minimum_size(layout.get_minimum_size(block_id, w_hint, h_hint, &snapshot));
+            let size = block.project_minimum_size(
+                layout.get_minimum_size(figure_id, w_hint, h_hint, &snapshot),
+            );
             block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
                 generation,
                 w_hint,
@@ -2341,66 +2515,78 @@ impl FigureTree {
     }
 
     /// 返回节点最大尺寸。显式覆盖优先，否则回退到 Figure。
-    pub fn maximum_size(&self, block_id: FigureId) -> Option<(f64, f64)> {
-        let block = self.blocks.get(block_id)?;
+    pub fn maximum_size(&self, figure_id: FigureId) -> Option<(f64, f64)> {
+        let block = self.blocks.get(figure_id)?;
         Some(block.maximum_size.unwrap_or((f64::INFINITY, f64::INFINITY)))
     }
 
-    pub fn set_preferred_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
-        let Some(block) = self.blocks.get_mut(block_id) else {
+    pub(crate) fn set_preferred_size(
+        &mut self,
+        figure_id: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> bool {
+        let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
         };
         if block.preferred_size == size {
             return false;
         }
         block.preferred_size = size;
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
+        self.mark_validation_path_invalid_for(figure_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
-    pub fn set_minimum_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
-        let Some(block) = self.blocks.get_mut(block_id) else {
+    pub(crate) fn set_minimum_size(
+        &mut self,
+        figure_id: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> bool {
+        let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
         };
         if block.minimum_size == size {
             return false;
         }
         block.minimum_size = size;
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
+        self.mark_validation_path_invalid_for(figure_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
-    pub fn set_maximum_size(&mut self, block_id: FigureId, size: Option<(f64, f64)>) -> bool {
-        let Some(block) = self.blocks.get_mut(block_id) else {
+    pub(crate) fn set_maximum_size(
+        &mut self,
+        figure_id: FigureId,
+        size: Option<(f64, f64)>,
+    ) -> bool {
+        let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
         };
         if block.maximum_size == size {
             return false;
         }
         block.maximum_size = size;
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::ExplicitSize);
+        self.mark_validation_path_invalid_for(figure_id, LayoutInvalidation::ExplicitSize);
         true
     }
 
     pub(crate) fn set_child_clipping_strategy(
         &mut self,
-        block_id: FigureId,
+        figure_id: FigureId,
         strategy: ChildClippingStrategy,
     ) -> bool {
-        let Some(block) = self.blocks.get_mut(block_id) else {
+        let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
         };
         if block.child_clipping_strategy() == strategy {
             return false;
         }
         block.state.child_clipping_strategy = Some(strategy);
-        self.notify_block_changed(block_id);
+        self.notify_block_changed(figure_id);
         true
     }
 
-    pub fn child_clipping_strategy(&self, block_id: FigureId) -> Option<ChildClippingStrategy> {
+    pub fn child_clipping_strategy(&self, figure_id: FigureId) -> Option<ChildClippingStrategy> {
         self.blocks
-            .get(block_id)
+            .get(figure_id)
             .map(FigureNode::child_clipping_strategy)
     }
 
@@ -2447,16 +2633,16 @@ impl FigureTree {
 
     /// 递归打印单个块（内部使用）
     #[cfg(feature = "debug_render")]
-    fn print_block(&self, block_id: FigureId, depth: usize) {
+    fn print_block(&self, figure_id: FigureId, depth: usize) {
         let indent = "  ".repeat(depth);
-        if let Some(block) = self.blocks.get(block_id) {
+        if let Some(block) = self.blocks.get(figure_id) {
             let bounds = block.figure_bounds();
             let visibility = if block.is_visible { "V" } else { "H" };
             eprintln!(
                 "{}{} {:?}: {} bounds=({:.0},{:.0},{:.0},{:.0})",
                 indent,
                 visibility,
-                block_id,
+                figure_id,
                 block.figure.name(),
                 bounds.x,
                 bounds.y,
@@ -2483,8 +2669,8 @@ impl FigureTree {
         eprintln!("\n========== 渲染顺序 ==========");
         let mut order = Vec::new();
 
-        while let Some(block_id) = stack.pop() {
-            if let Some(block) = self.blocks.get(block_id) {
+        while let Some(figure_id) = stack.pop() {
+            if let Some(block) = self.blocks.get(figure_id) {
                 if block.is_visible {
                     let bounds = block.figure_bounds();
                     order.push(format!("{}: {:?}", block.figure.name(), bounds));
@@ -2506,8 +2692,8 @@ impl FigureTree {
         eprintln!("================================\n");
     }
 
-    /// 获取块
-    pub fn get_block(&self, id: FigureId) -> Option<&FigureNode> {
+    /// Returns the node for a Figure identity.
+    pub fn node(&self, id: FigureId) -> Option<&FigureNode> {
         self.blocks.get(id)
     }
 
@@ -2523,11 +2709,7 @@ impl FigureTree {
             .is_some_and(|node| node.figure.layer().is_some())
     }
 
-    pub(crate) fn block(&self, id: FigureId) -> Option<&FigureNode> {
-        self.blocks.get(id)
-    }
-
-    pub(crate) fn block_mut(&mut self, id: FigureId) -> Option<&mut FigureNode> {
+    pub(crate) fn node_mut(&mut self, id: FigureId) -> Option<&mut FigureNode> {
         self.blocks.get_mut(id)
     }
 
@@ -2540,14 +2722,14 @@ impl FigureTree {
             .map(|block| block.children.clone())
     }
 
-    /// Returns the direct parent of a block.
-    pub fn parent_id(&self, block_id: FigureId) -> Option<FigureId> {
-        self.blocks.get(block_id).and_then(|block| block.parent)
+    /// Returns the direct parent of a Figure.
+    pub fn parent_id(&self, figure_id: FigureId) -> Option<FigureId> {
+        self.blocks.get(figure_id).and_then(|block| block.parent)
     }
 
     /// Returns whether a node is currently attached to this tree's root.
-    pub fn is_attached(&self, block_id: FigureId) -> bool {
-        let mut current = Some(block_id);
+    pub fn is_attached(&self, figure_id: FigureId) -> bool {
+        let mut current = Some(figure_id);
         for _ in 0..=self.blocks.len() {
             let Some(id) = current else {
                 return false;
@@ -2612,6 +2794,7 @@ impl FigureTree {
     }
 
     /// 将直接 child 移动到最高 z-order。
+    #[cfg(test)]
     pub(crate) fn bring_child_to_front(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         let Some(last_index) = self
             .blocks
@@ -2624,6 +2807,7 @@ impl FigureTree {
     }
 
     /// 将直接 child 移动到最低 z-order。
+    #[cfg(test)]
     pub(crate) fn send_child_to_back(&mut self, parent_id: FigureId, child_id: FigureId) -> bool {
         self.move_child_to_index(parent_id, child_id, 0)
     }
@@ -2722,12 +2906,12 @@ impl FigureTree {
 
         self.notify_block_changed(id);
         self.emit_figure_event(FigureEvent::FigureMoved {
-            block_id: id,
+            figure_id: id,
             old_bounds,
             new_bounds,
         });
         self.emit_property_event(PropertyChangeEvent {
-            block_id: id,
+            figure_id: id,
             property: "points",
             old_value: PropertyValue::PointList(old_points),
             new_value: PropertyValue::PointList(parent_points),
@@ -2963,7 +3147,7 @@ impl FigureTree {
 
         self.notify_block_changed(id);
         self.emit_figure_event(FigureEvent::FigureMoved {
-            block_id: id,
+            figure_id: id,
             old_bounds,
             new_bounds: path_bounds,
         });
@@ -3006,7 +3190,7 @@ impl FigureTree {
         connection.commit_route_points(PointList::new());
         self.notify_block_changed(id);
         self.emit_figure_event(FigureEvent::FigureMoved {
-            block_id: id,
+            figure_id: id,
             old_bounds,
             new_bounds: Rectangle::ZERO,
         });
@@ -3016,7 +3200,7 @@ impl FigureTree {
     }
 
     /// 返回节点从 FigureTree 根节点开始计算的深度。
-    pub fn block_depth(&self, id: FigureId) -> Option<usize> {
+    pub fn depth(&self, id: FigureId) -> Option<usize> {
         self.blocks.get(id).map(|block| block.depth)
     }
 
@@ -3317,14 +3501,14 @@ impl FigureTree {
         self.notify_block_changed(id);
         if let Some((old, new)) = selection_change {
             self.emit_property_event(PropertyChangeEvent {
-                block_id: id,
+                figure_id: id,
                 property: "selected",
                 old_value: PropertyValue::Bool(old),
                 new_value: PropertyValue::Bool(new),
             });
         }
         self.notification_effects.emit_action(ActionEvent {
-            block_id: id,
+            figure_id: id,
             revision,
         });
         self.repaint(update_manager, id, None);
@@ -3403,19 +3587,6 @@ impl FigureTree {
         true
     }
 
-    pub fn set_insets(&mut self, id: FigureId, insets: (f64, f64, f64, f64)) -> bool {
-        let Some(block) = self.blocks.get_mut(id) else {
-            return false;
-        };
-        if block.insets == insets {
-            return false;
-        }
-        block.insets = insets;
-        self.mark_validation_path_invalid(id);
-        self.notify_block_changed(id);
-        true
-    }
-
     pub(crate) fn border_snapshot(&self, id: FigureId) -> Option<&BorderSnapshot> {
         self.blocks.get(id)?.border_snapshot.as_ref()
     }
@@ -3432,7 +3603,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
+    pub(crate) fn set_opaque(&mut self, id: FigureId, opaque: bool) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -3444,7 +3615,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_figure_style(&mut self, id: FigureId, mut style: FigureStyle) -> bool {
+    pub(crate) fn set_figure_style(&mut self, id: FigureId, mut style: FigureStyle) -> bool {
         let Some(old_style) = self.blocks.get(id).map(|block| block.style.clone()) else {
             return false;
         };
@@ -3458,7 +3629,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_figure_style_with_update(
+    pub(crate) fn set_figure_style_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
@@ -3594,7 +3765,7 @@ impl FigureTree {
             && (self.is_focusable(id) || self.is_focus_traversable(id))
     }
 
-    pub fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
+    pub(crate) fn set_focusable(&mut self, id: FigureId, focusable: bool) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -3612,7 +3783,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
+    pub(crate) fn set_focus_traversable(&mut self, id: FigureId, traversable: bool) -> bool {
         let Some(block) = self.blocks.get_mut(id) else {
             return false;
         };
@@ -3631,7 +3802,7 @@ impl FigureTree {
     }
 
     /// 设置块可见性。
-    pub fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
+    pub(crate) fn set_visible(&mut self, id: FigureId, visible: bool) -> bool {
         let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
@@ -3648,7 +3819,7 @@ impl FigureTree {
 
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
-            block_id: id,
+            figure_id: id,
             property: "visible",
             old_value: PropertyValue::Bool(old_value),
             new_value: PropertyValue::Bool(visible),
@@ -3656,7 +3827,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_visible_with_update(
+    pub(crate) fn set_visible_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
@@ -3688,7 +3859,7 @@ impl FigureTree {
     }
 
     /// 设置块启用状态。
-    pub fn set_enabled(&mut self, id: FigureId, enabled: bool) -> bool {
+    pub(crate) fn set_enabled(&mut self, id: FigureId, enabled: bool) -> bool {
         let old_value;
         {
             let Some(block) = self.blocks.get_mut(id) else {
@@ -3705,7 +3876,7 @@ impl FigureTree {
 
         self.notify_block_changed(id);
         self.emit_property_event(PropertyChangeEvent {
-            block_id: id,
+            figure_id: id,
             property: "enabled",
             old_value: PropertyValue::Bool(old_value),
             new_value: PropertyValue::Bool(enabled),
@@ -3713,7 +3884,7 @@ impl FigureTree {
         true
     }
 
-    pub fn set_enabled_with_update(
+    pub(crate) fn set_enabled_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
@@ -3727,74 +3898,64 @@ impl FigureTree {
         true
     }
 
-    /// 设置布局管理器
-    pub fn set_layout_manager(&mut self, layout_manager: Box<dyn LayoutManager>) {
-        let container_id = self.contents.unwrap_or(self.root);
-        self.set_block_layout_manager(container_id, layout_manager);
-    }
-
-    /// 获取布局管理器
-    pub fn get_layout_manager(&self) -> Option<&dyn LayoutManager> {
-        self.blocks
-            .get(self.contents.unwrap_or(self.root))
-            .and_then(|block| block.layout.manager.as_deref())
-    }
-
-    /// 设置指定块的布局管理器
-    pub fn set_block_layout_manager(
+    pub(crate) fn replace_layout_manager(
         &mut self,
-        block_id: FigureId,
-        layout_manager: Box<dyn LayoutManager>,
-    ) {
-        if let Some(block) = self.blocks.get_mut(block_id) {
-            block.layout.manager = Some(layout_manager);
-        }
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Structure);
-    }
-
-    pub(crate) fn replace_block_layout_manager(
-        &mut self,
-        block_id: FigureId,
+        container: FigureId,
         layout_manager: Option<Box<dyn LayoutManager>>,
     ) -> bool {
-        let Some(block) = self.blocks.get_mut(block_id) else {
+        let Some(block) = self.blocks.get_mut(container) else {
             return false;
         };
         if block.layout.manager.is_none() && layout_manager.is_none() {
             return false;
         }
         block.layout.manager = layout_manager;
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Structure);
+        self.mark_validation_path_invalid_for(container, LayoutInvalidation::Structure);
         true
     }
 
     pub(crate) fn validate_layout_manager_constraints(
         &self,
-        block_id: FigureId,
+        container: FigureId,
         layout_manager: &dyn LayoutManager,
     ) -> Result<(), LayoutError> {
-        let Some(block) = self.blocks.get(block_id) else {
-            return Ok(());
-        };
+        let block = self
+            .blocks
+            .get(container)
+            .ok_or(LayoutError::UnknownFigure { figure: container })?;
         for (child, constraint) in &block.layout.constraints {
-            layout_manager.validate_constraint(block_id, *child, constraint.as_ref())?;
+            layout_manager.validate_constraint(container, *child, constraint.as_ref())?;
         }
         Ok(())
     }
 
-    /// 获取指定块的布局管理器
-    pub fn get_block_layout_manager(&self, block_id: FigureId) -> Option<&dyn LayoutManager> {
+    /// Returns the layout manager owned by a container.
+    pub fn layout_manager(&self, container: FigureId) -> Option<&dyn LayoutManager> {
         self.blocks
-            .get(block_id)
+            .get(container)
             .and_then(|b| b.layout.manager.as_deref())
     }
 
-    /// 设置父容器施加给直接子节点的布局约束。
-    pub fn set_constraint<C>(&mut self, child_id: FigureId, constraint: C) -> bool
-    where
-        C: LayoutConstraint,
-    {
-        self.set_boxed_constraint(child_id, Box::new(constraint))
+    fn validate_layout_child(&self, child: FigureId) -> Result<FigureId, LayoutError> {
+        let child_node = self
+            .blocks
+            .get(child)
+            .ok_or(LayoutError::UnknownFigure { figure: child })?;
+        child_node
+            .parent
+            .ok_or(LayoutError::UnknownFigure { figure: child })
+    }
+
+    fn validate_layout_constraint(
+        &self,
+        child: FigureId,
+        constraint: &dyn LayoutConstraint,
+    ) -> Result<(), LayoutError> {
+        let parent = self.validate_layout_child(child)?;
+        if let Some(manager) = self.layout_manager(parent) {
+            manager.validate_constraint(parent, child, constraint)?;
+        }
+        Ok(())
     }
 
     pub(crate) fn set_boxed_constraint(
@@ -3818,16 +3979,15 @@ impl FigureTree {
         true
     }
 
-    /// 获取指定类型的布局约束。
-    pub fn get_constraint<C>(&self, child_id: FigureId) -> Option<&C>
+    /// Returns a child constraint with its concrete type.
+    pub fn layout_constraint<C>(&self, child_id: FigureId) -> Option<&C>
     where
         C: LayoutConstraint,
     {
         self.constraint(child_id)?.as_any().downcast_ref::<C>()
     }
 
-    /// 移除父容器为直接子节点保存的布局约束。
-    pub fn remove_constraint(&mut self, child_id: FigureId) -> bool {
+    pub(crate) fn remove_constraint(&mut self, child_id: FigureId) -> bool {
         let Some(parent_id) = self.blocks.get(child_id).and_then(|child| child.parent) else {
             return false;
         };
@@ -3857,17 +4017,6 @@ impl FigureTree {
             .map(Box::as_ref)
     }
 
-    /// 使布局生效
-    ///
-    /// 对应 draw2d: validate()
-    /// 标记布局为有效
-    pub fn validate(&mut self) {
-        let target = self.contents.unwrap_or(self.root);
-        if let Some(block) = self.blocks.get_mut(target) {
-            block.is_valid = true;
-        }
-    }
-
     // ========== 坐标变换方法 ==========
 
     /// 原始平移（对应 draw2d: primTranslate）
@@ -3876,9 +4025,10 @@ impl FigureTree {
     ///
     /// Descendant bounds remain unchanged. Their projected positions change
     /// through the shared parent transform.
-    pub fn prim_translate(&mut self, block_id: FigureId, dx: f64, dy: f64) {
+    #[cfg(test)]
+    pub(crate) fn prim_translate(&mut self, figure_id: FigureId, dx: f64, dy: f64) {
         let Some((old_bounds, new_bounds, has_children)) =
-            self.blocks.get_mut(block_id).map(|block| {
+            self.blocks.get_mut(figure_id).map(|block| {
                 let old_bounds = block.figure_bounds();
                 let new_bounds = Rectangle::new(
                     old_bounds.x + dx,
@@ -3893,21 +4043,21 @@ impl FigureTree {
             return;
         };
 
-        self.notify_block_changed(block_id);
+        self.notify_block_changed(figure_id);
         self.emit_figure_event(FigureEvent::FigureMoved {
-            block_id,
+            figure_id,
             old_bounds,
             new_bounds,
         });
         if has_children {
             self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
-                block_id,
+                figure_id,
                 old_bounds,
                 new_bounds,
             });
         }
-        self.emit_ancestor_moved(block_id);
-        self.mark_freeform_ancestor_extents_dirty(block_id);
+        self.emit_ancestor_moved(figure_id);
+        self.mark_freeform_ancestor_extents_dirty(figure_id);
     }
 
     fn emit_ancestor_moved(&mut self, ancestor_id: FigureId) {
@@ -3916,13 +4066,13 @@ impl FigureTree {
             .get(ancestor_id)
             .map(|block| block.children.clone())
             .unwrap_or_default();
-        while let Some(block_id) = stack.pop() {
-            if let Some(block) = self.blocks.get(block_id) {
+        while let Some(figure_id) = stack.pop() {
+            if let Some(block) = self.blocks.get(figure_id) {
                 stack.extend(block.children.iter().copied());
             }
             self.emit_ancestor_event(AncestorEvent {
                 kind: AncestorEventKind::Moved,
-                block_id,
+                figure_id,
                 parent_id: ancestor_id,
             });
         }
@@ -3934,41 +4084,49 @@ impl FigureTree {
     /// 核心逻辑：
     /// Updates position and size atomically without rewriting descendant bounds.
     #[allow(clippy::collapsible_if)]
-    pub fn set_bounds(&mut self, block_id: FigureId, x: f64, y: f64, width: f64, height: f64) {
+    pub(crate) fn set_bounds(
+        &mut self,
+        figure_id: FigureId,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+    ) -> bool {
         let (old_bounds, has_children) = {
-            if let Some(block) = self.blocks.get(block_id) {
+            if let Some(block) = self.blocks.get(figure_id) {
                 (block.figure_bounds(), !block.children.is_empty())
             } else {
-                return;
+                return false;
             }
         };
         let resize = width != old_bounds.width || height != old_bounds.height;
         let translate = x != old_bounds.x || y != old_bounds.y;
         if !resize && !translate {
-            return;
+            return false;
         }
 
-        if let Some(block) = self.blocks.get_mut(block_id) {
-            block.set_node_bounds(Rectangle::new(x, y, width, height));
+        let bounds = Rectangle::new(x, y, width, height);
+        if let Some(block) = self.blocks.get_mut(figure_id) {
+            block.set_node_bounds(bounds);
         }
-        self.notify_block_changed(block_id);
-        let new_bounds = Rectangle::new(x, y, width, height);
+        self.notify_block_changed(figure_id);
         self.emit_figure_event(FigureEvent::FigureMoved {
-            block_id,
+            figure_id,
             old_bounds,
-            new_bounds,
+            new_bounds: bounds,
         });
         if translate && has_children {
             self.emit_figure_event(FigureEvent::CoordinateSystemChanged {
-                block_id,
+                figure_id,
                 old_bounds,
-                new_bounds,
+                new_bounds: bounds,
             });
         }
         if translate {
-            self.emit_ancestor_moved(block_id);
+            self.emit_ancestor_moved(figure_id);
         }
-        self.mark_freeform_ancestor_extents_dirty(block_id);
+        self.mark_freeform_ancestor_extents_dirty(figure_id);
+        true
     }
 
     /// 设置节点 bounds 并进入 Draw2D 等价的更新链路。
@@ -3983,16 +4141,16 @@ impl FigureTree {
     ///
     /// 布局与批量构建仍可使用低层 `set_bounds`；交互式移动、拖拽和运行时 resize
     /// 应使用此方法，确保旧区域曝光、当前区域重绘和坐标根移动使用同一 damage 协议。
-    pub fn set_bounds_with_update(
+    pub(crate) fn set_bounds_with_update(
         &mut self,
         update_manager: &mut UpdateManager,
-        block_id: FigureId,
+        figure_id: FigureId,
         x: f64,
         y: f64,
         width: f64,
         height: f64,
     ) -> bool {
-        let Some(block) = self.blocks.get(block_id) else {
+        let Some(block) = self.blocks.get(figure_id) else {
             return false;
         };
         let old_bounds = block.figure_bounds();
@@ -4003,23 +4161,23 @@ impl FigureTree {
             return false;
         }
         let parent_id = block.parent;
-        let freeform_ancestor = self.nearest_freeform_ancestor(block_id);
-        let visible = self.is_effectively_visible(block_id);
+        let freeform_ancestor = self.nearest_freeform_ancestor(figure_id);
+        let visible = self.is_effectively_visible(figure_id);
 
         if visible {
-            self.erase(update_manager, block_id, old_visual_bounds, parent_id);
+            self.erase(update_manager, figure_id, old_visual_bounds, parent_id);
         }
 
-        self.set_bounds(block_id, x, y, width, height);
+        self.set_bounds(figure_id, x, y, width, height);
 
         if resize {
-            self.mark_invalid(update_manager, block_id);
+            self.mark_invalid(update_manager, figure_id);
         } else if let Some(freeform_ancestor) = freeform_ancestor {
             update_manager.add_invalid_figure(freeform_ancestor);
         }
 
         if visible {
-            self.repaint(update_manager, block_id, None);
+            self.repaint(update_manager, figure_id, None);
         }
 
         true
@@ -4028,26 +4186,26 @@ impl FigureTree {
     fn erase(
         &self,
         update_manager: &mut UpdateManager,
-        block_id: FigureId,
+        figure_id: FigureId,
         old_visual_bounds: Rectangle,
         parent_id: Option<FigureId>,
     ) {
-        if parent_id.is_none() || !self.blocks.contains_key(block_id) {
+        if parent_id.is_none() || !self.blocks.contains_key(figure_id) {
             return;
         }
-        update_manager.freeze_figure_damage(self, block_id, old_visual_bounds);
+        update_manager.freeze_figure_damage(self, figure_id, old_visual_bounds);
     }
 
     /// 将 node-local 几何转换到 logical surface domain。
-    pub fn translate_to_absolute_mut<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
-        if let Some(transform) = self.local_to_surface_transform(block_id) {
+    pub fn translate_to_absolute_mut<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
+        if let Some(transform) = self.local_to_surface_transform(figure_id) {
             t.transform(transform);
         }
     }
 
     /// 将 node-local 几何转换到 parent content domain。
-    pub fn translate_to_parent<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
-        if let Some(block) = self.blocks.get(block_id) {
+    pub fn translate_to_parent<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
+        if let Some(block) = self.blocks.get(figure_id) {
             let bounds = block.figure_bounds();
             t.transform(novadraw_geometry::Affine2D::from_translation(
                 bounds.x, bounds.y,
@@ -4056,8 +4214,8 @@ impl FigureTree {
     }
 
     /// 将 parent content 几何转换到 node-local domain。
-    pub fn translate_from_parent<T: Translatable>(&self, block_id: FigureId, t: &mut T) {
-        if let Some(block) = self.blocks.get(block_id) {
+    pub fn translate_from_parent<T: Translatable>(&self, figure_id: FigureId, t: &mut T) {
+        if let Some(block) = self.blocks.get(figure_id) {
             let bounds = block.figure_bounds();
             t.transform(novadraw_geometry::Affine2D::from_translation(
                 -bounds.x, -bounds.y,
@@ -4066,9 +4224,9 @@ impl FigureTree {
     }
 
     /// 将 logical surface 几何转换到 node-local domain。
-    pub fn translate_to_relative<T: Translatable>(&self, block_id: FigureId, t: &mut T) -> bool {
+    pub fn translate_to_relative<T: Translatable>(&self, figure_id: FigureId, t: &mut T) -> bool {
         let Some(transform) = self
-            .local_to_surface_transform(block_id)
+            .local_to_surface_transform(figure_id)
             .and_then(|transform| transform.inverse())
         else {
             return false;
@@ -4080,10 +4238,10 @@ impl FigureTree {
     /// 返回 node-local 到 logical surface 的完整父链变换。
     pub fn local_to_surface_transform(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
     ) -> Option<novadraw_geometry::Affine2D> {
         let mut transform = novadraw_geometry::Affine2D::IDENTITY;
-        let mut current_id = block_id;
+        let mut current_id = figure_id;
 
         loop {
             let current = self.blocks.get(current_id)?;
@@ -4105,22 +4263,22 @@ impl FigureTree {
     /// Returns the complete child-content to logical-surface transform.
     pub fn child_content_to_surface_transform(
         &self,
-        block_id: FigureId,
+        figure_id: FigureId,
     ) -> Option<novadraw_geometry::Affine2D> {
-        let block = self.blocks.get(block_id)?;
-        Some(self.local_to_surface_transform(block_id)? * block.child_transform().affine())
+        let block = self.blocks.get(figure_id)?;
+        Some(self.local_to_surface_transform(figure_id)? * block.child_transform().affine())
     }
 }
 
 impl FigureTree {
-    fn nearest_freeform_ancestor(&self, block_id: FigureId) -> Option<FigureId> {
-        let parent = self.blocks.get(block_id)?.parent?;
+    fn nearest_freeform_ancestor(&self, figure_id: FigureId) -> Option<FigureId> {
+        let parent = self.blocks.get(figure_id)?.parent?;
         self.blocks[parent].layout.freeform.as_ref()?;
         Some(parent)
     }
 
-    fn mark_freeform_ancestor_extents_dirty(&mut self, block_id: FigureId) {
-        let mut current = self.blocks.get(block_id).and_then(|block| block.parent);
+    fn mark_freeform_ancestor_extents_dirty(&mut self, figure_id: FigureId) {
+        let mut current = self.blocks.get(figure_id).and_then(|block| block.parent);
         while let Some(id) = current {
             let Some(block) = self.blocks.get_mut(id) else {
                 break;
@@ -4134,18 +4292,18 @@ impl FigureTree {
         }
     }
 
-    fn mark_validation_path_invalid(&mut self, block_id: FigureId) {
-        self.mark_validation_path_invalid_for(block_id, LayoutInvalidation::Geometry);
+    fn mark_validation_path_invalid(&mut self, figure_id: FigureId) {
+        self.mark_validation_path_invalid_for(figure_id, LayoutInvalidation::Geometry);
     }
 
     fn mark_validation_path_invalid_for(
         &mut self,
-        mut block_id: FigureId,
+        mut figure_id: FigureId,
         reason: LayoutInvalidation,
     ) {
         let mut invalidated = Vec::new();
         loop {
-            let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(block_id) {
+            let (parent, was_valid) = if let Some(block) = self.blocks.get_mut(figure_id) {
                 let was_valid = block.is_valid;
                 block.is_valid = false;
                 block.layout.invalidate(reason);
@@ -4158,10 +4316,10 @@ impl FigureTree {
             };
 
             if was_valid {
-                invalidated.push(block_id);
+                invalidated.push(figure_id);
             }
             match parent {
-                Some(parent_id) => block_id = parent_id,
+                Some(parent_id) => figure_id = parent_id,
                 None => break,
             }
         }
@@ -4174,7 +4332,7 @@ impl FigureTree {
         }
     }
 
-    pub(crate) fn invalid_block_ids(&self) -> Vec<FigureId> {
+    pub(crate) fn invalid_figure_ids(&self) -> Vec<FigureId> {
         self.blocks
             .iter()
             .filter_map(|(id, block)| (!block.is_valid).then_some(id))
@@ -4183,11 +4341,11 @@ impl FigureTree {
 
     fn effective_flag_from(
         &self,
-        mut block_id: FigureId,
+        mut figure_id: FigureId,
         local_flag: fn(&FigureNode) -> bool,
     ) -> bool {
         for _ in 0..self.blocks.len() {
-            let Some(block) = self.blocks.get(block_id) else {
+            let Some(block) = self.blocks.get(figure_id) else {
                 return false;
             };
             if !local_flag(block) {
@@ -4196,7 +4354,7 @@ impl FigureTree {
             let Some(parent_id) = block.parent else {
                 return true;
             };
-            block_id = parent_id;
+            figure_id = parent_id;
         }
         false
     }
@@ -4223,23 +4381,23 @@ impl super::layout::LayoutContext for FigureTree {
         self.constraint(child_id)
     }
 
-    fn get_preferred_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.preferred_size(block_id, w_hint, h_hint)
+    fn get_preferred_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.preferred_size(figure_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
     }
 
-    fn get_measurement(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
-        self.measurement(block_id, w_hint, h_hint)
+    fn get_measurement(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> FigureMeasurement {
+        self.measurement(figure_id, w_hint, h_hint)
             .unwrap_or_default()
     }
 
-    fn get_minimum_size(&self, block_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
-        self.minimum_size(block_id, w_hint, h_hint)
+    fn get_minimum_size(&self, figure_id: FigureId, w_hint: f64, h_hint: f64) -> (f64, f64) {
+        self.minimum_size(figure_id, w_hint, h_hint)
             .unwrap_or((0.0, 0.0))
     }
 
-    fn get_maximum_size(&self, block_id: FigureId) -> (f64, f64) {
-        self.maximum_size(block_id)
+    fn get_maximum_size(&self, figure_id: FigureId) -> (f64, f64) {
+        self.maximum_size(figure_id)
             .unwrap_or((f64::INFINITY, f64::INFINITY))
     }
 
@@ -4251,13 +4409,13 @@ impl super::layout::LayoutContext for FigureTree {
         }
     }
 
-    fn get_freeform_extent(&self, block_id: FigureId) -> Option<Rectangle> {
-        self.freeform_extent(block_id).ok()
+    fn get_freeform_extent(&self, figure_id: FigureId) -> Option<Rectangle> {
+        self.freeform_extent(figure_id).ok()
     }
 
-    fn get_content_scale(&self, block_id: FigureId) -> Option<f64> {
+    fn get_content_scale(&self, figure_id: FigureId) -> Option<f64> {
         self.blocks
-            .get(block_id)
+            .get(figure_id)
             .and_then(|block| block.figure.content_scale())
     }
 }
@@ -5079,7 +5237,11 @@ mod tests {
             ]
         );
 
-        assert!(runtime.reparent(child_id, right_id));
+        assert!(
+            runtime
+                .reparent(child_id, right_id)
+                .expect("valid Runtime mutation")
+        );
         runtime.dispose_subtree(child_id).unwrap();
         assert_eq!(
             *events.lock().unwrap(),
@@ -5287,12 +5449,14 @@ mod tests {
         let effects = scene.drain_notification_effects();
 
         assert!(effects.contains(&NotificationEffect::Notify {
-            block_id: parent_id
+            figure_id: parent_id
         }));
-        assert!(!effects.contains(&NotificationEffect::Notify { block_id: child_id }));
+        assert!(!effects.contains(&NotificationEffect::Notify {
+            figure_id: child_id
+        }));
         assert!(
             effects.contains(&NotificationEffect::EmitFigure(FigureEvent::FigureMoved {
-                block_id: parent_id,
+                figure_id: parent_id,
                 old_bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
                 new_bounds: Rectangle::new(10.0, 20.0, 100.0, 100.0),
             }))
@@ -5300,8 +5464,8 @@ mod tests {
         assert!(!effects.iter().any(|effect| {
             matches!(
                 effect,
-                NotificationEffect::EmitFigure(FigureEvent::FigureMoved { block_id, .. })
-                    if *block_id == child_id
+                NotificationEffect::EmitFigure(FigureEvent::FigureMoved { figure_id, .. })
+                    if *figure_id == child_id
             )
         }));
     }
@@ -5326,7 +5490,7 @@ mod tests {
         assert_eq!(child_bounds, Rectangle::new(10.0, 10.0, 50.0, 50.0));
         assert!(effects.contains(&NotificationEffect::EmitFigure(
             FigureEvent::CoordinateSystemChanged {
-                block_id: root_id,
+                figure_id: root_id,
                 old_bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
                 new_bounds: Rectangle::new(5.0, 10.0, 100.0, 100.0),
             }
@@ -5334,8 +5498,8 @@ mod tests {
         assert!(!effects.iter().any(|effect| {
             matches!(
                 effect,
-                NotificationEffect::EmitFigure(FigureEvent::FigureMoved { block_id, .. })
-                    if *block_id == child_id
+                NotificationEffect::EmitFigure(FigureEvent::FigureMoved { figure_id, .. })
+                    if *figure_id == child_id
             )
         }));
     }
@@ -6143,7 +6307,7 @@ mod tests {
 
         assert!(!scene.is_attached(previous));
         assert!(scene.is_attached(replacement));
-        assert_eq!(scene.get_contents(), Some(replacement));
+        assert_eq!(scene.contents(), Some(replacement));
         assert_eq!(scene.child_order(scene.root), Some(vec![replacement]));
     }
 
@@ -6311,7 +6475,7 @@ mod tests {
             assert!(effects.iter().any(|effect| matches!(
                 effect,
                 NotificationEffect::EmitProperty(event)
-                    if event.block_id == parent && event.property == property
+                    if event.figure_id == parent && event.property == property
             )));
         }
         assert_eq!(

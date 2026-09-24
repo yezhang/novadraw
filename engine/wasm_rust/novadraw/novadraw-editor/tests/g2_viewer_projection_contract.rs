@@ -695,7 +695,7 @@ fn unregistered_internal_visual_resolves_through_its_registered_ancestor() {
     let pane = viewer.parts().get(node_two).unwrap().content_pane();
     let internal = viewer
         .runtime_mut()
-        .try_add_figure(pane, Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0)))
+        .add_figure(pane, Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0)))
         .unwrap();
 
     assert_eq!(viewer.part_for_visual(internal), None);

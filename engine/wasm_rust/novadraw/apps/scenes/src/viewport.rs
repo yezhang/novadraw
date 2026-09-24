@@ -53,19 +53,22 @@ fn add_viewport(
     let scalable = scene
         .builder()
         .add_scalable_layered_pane_to(
-            viewport.block_id(),
+            viewport.figure_id(),
             novadraw::Rectangle::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT),
         )
         .expect("attach scalable pane");
     let mut update_manager = novadraw::UpdateManager::new();
-    scene.revalidate(viewport.block_id());
+    scene
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
     novadraw::ZoomManager::new(scalable.clone(), viewport.clone())
         .set_zoom(scene, &mut update_manager, zoom)
         .expect("set zoom");
     viewport
         .set_view_location(scene, &mut update_manager, origin.0 * zoom, origin.1 * zoom)
         .expect("set viewport origin");
-    scalable.block_id()
+    scalable.figure_id()
 }
 
 fn add_boundary(
@@ -79,7 +82,10 @@ fn add_boundary(
 ) {
     let boundary = novadraw::RectangleFigure::new_with_color(x, y, width, height, transparent())
         .with_stroke(stroke, STROKE_WIDTH);
-    scene.builder().add_child_to(parent_id, Box::new(boundary));
+    scene
+        .builder()
+        .add_child(parent_id, Box::new(boundary))
+        .expect("valid FigureTree construction");
 }
 
 fn add_rect(
@@ -88,16 +94,19 @@ fn add_rect(
     rect: novadraw::Rectangle,
     fill: novadraw::Color,
 ) {
-    scene.builder().add_child_to(
-        parent_id,
-        Box::new(novadraw::RectangleFigure::new_with_color(
-            rect.x,
-            rect.y,
-            rect.width,
-            rect.height,
-            fill,
-        )),
-    );
+    scene
+        .builder()
+        .add_child(
+            parent_id,
+            Box::new(novadraw::RectangleFigure::new_with_color(
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                fill,
+            )),
+        )
+        .expect("valid FigureTree construction");
 }
 
 fn add_content_grid(scene: &mut novadraw::FigureTree, parent_id: novadraw::FigureId) {
@@ -347,10 +356,13 @@ mod tests {
             (80.0, 60.0),
             zoom,
         );
-        let marker = scene.builder().add_child_to(
-            content_parent,
-            Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
-        );
+        let marker = scene
+            .builder()
+            .add_child(
+                content_parent,
+                Box::new(novadraw::RectangleFigure::new(80.0, 60.0, 50.0, 50.0)),
+            )
+            .expect("valid FigureTree construction");
         let mut anchor = novadraw::Point::new(0.0, 0.0);
         let mut offset = novadraw::Point::new(10.0, 10.0);
         scene.translate_to_absolute_mut(marker, &mut anchor);

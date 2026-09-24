@@ -13,18 +13,18 @@ use crate::{
 
 enum RuntimeEffect {
     Repaint {
-        block_id: FigureId,
+        figure_id: FigureId,
         rect: Rectangle,
     },
     Notification(NotificationEffect),
     Invalidate(FigureId),
     Mutation(PendingMutation),
     SetPressed {
-        block_id: FigureId,
+        figure_id: FigureId,
         pressed: bool,
     },
     SetKeyboardPressed {
-        block_id: FigureId,
+        figure_id: FigureId,
         key: Option<crate::Key>,
     },
     ActivateClickable(FigureId),
@@ -73,8 +73,8 @@ impl<'a> EventContext<'a> {
             match effect {
                 RuntimeEffect::Mutation(mutation) => pending.enqueue(mutation),
                 RuntimeEffect::Notification(effect) => updates.enqueue_notification_effect(effect),
-                RuntimeEffect::Repaint { block_id, rect } if tree.is_attached(block_id) => {
-                    updates.add_dirty_region(block_id, rect);
+                RuntimeEffect::Repaint { figure_id, rect } if tree.is_attached(figure_id) => {
+                    updates.add_dirty_region(figure_id, rect);
                 }
                 RuntimeEffect::Invalidate(id) if tree.is_attached(id) => {
                     tree.mark_invalid(updates, id);
@@ -123,7 +123,7 @@ impl<'a> EventContext<'a> {
     pub fn set_pressed(&mut self, pressed: bool) {
         self.pointer_pressed = pressed;
         self.effects.push(RuntimeEffect::SetPressed {
-            block_id: self.target_id,
+            figure_id: self.target_id,
             pressed,
         });
     }
@@ -139,7 +139,7 @@ impl<'a> EventContext<'a> {
     pub fn set_keyboard_pressed(&mut self, key: Option<crate::Key>) {
         self.keyboard_pressed = key;
         self.effects.push(RuntimeEffect::SetKeyboardPressed {
-            block_id: self.target_id,
+            figure_id: self.target_id,
             key,
         });
     }
@@ -151,25 +151,26 @@ impl<'a> EventContext<'a> {
 
     pub fn repaint(&mut self, rect: Option<Rectangle>) {
         self.effects.push(RuntimeEffect::Repaint {
-            block_id: self.target_id,
+            figure_id: self.target_id,
             rect: rect.unwrap_or(self.visual_bounds),
         });
     }
 
-    pub fn repaint_figure(&mut self, block_id: FigureId, rect: Rectangle) {
-        self.effects.push(RuntimeEffect::Repaint { block_id, rect });
+    pub fn repaint_figure(&mut self, figure_id: FigureId, rect: Rectangle) {
+        self.effects
+            .push(RuntimeEffect::Repaint { figure_id, rect });
     }
 
     pub fn emit_property_change(
         &mut self,
-        block_id: FigureId,
+        figure_id: FigureId,
         property: &'static str,
         old_value: PropertyValue,
         new_value: PropertyValue,
     ) {
         self.effects.push(RuntimeEffect::Notification(
             NotificationEffect::EmitProperty(PropertyChangeEvent {
-                block_id,
+                figure_id,
                 property,
                 old_value,
                 new_value,
@@ -177,11 +178,11 @@ impl<'a> EventContext<'a> {
         ));
     }
 
-    pub fn coordinate_system_changed(&mut self, block_id: FigureId, bounds: Rectangle) {
+    pub fn coordinate_system_changed(&mut self, figure_id: FigureId, bounds: Rectangle) {
         self.effects
             .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
                 FigureEvent::CoordinateSystemChanged {
-                    block_id,
+                    figure_id,
                     old_bounds: bounds,
                     new_bounds: bounds,
                 },
@@ -352,7 +353,7 @@ impl<'a> SceneDispatchContext<'a> {
 
     fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
         loop {
-            let block = self.scene.block(target_id)?;
+            let block = self.scene.node(target_id)?;
             if self.scene.scale_handle(target_id).is_some() {
                 return Some(target_id);
             }
@@ -369,24 +370,24 @@ impl<'a> SceneDispatchContext<'a> {
         }
     }
 
-    fn nearest_viewport_parent(&self, mut block_id: FigureId) -> Option<FigureId> {
-        while let Some(parent_id) = self.scene.parent_id(block_id) {
-            let parent = self.scene.block(parent_id)?;
+    fn nearest_viewport_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
+        while let Some(parent_id) = self.scene.parent_id(figure_id) {
+            let parent = self.scene.node(parent_id)?;
             if parent.figure.as_any().is::<ViewportFigure>() {
                 return Some(parent_id);
             }
-            block_id = parent_id;
+            figure_id = parent_id;
         }
         None
     }
 
-    fn nearest_scroll_pane_parent(&self, mut block_id: FigureId) -> Option<FigureId> {
-        while let Some(parent_id) = self.scene.parent_id(block_id) {
-            let parent = self.scene.block(parent_id)?;
+    fn nearest_scroll_pane_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
+        while let Some(parent_id) = self.scene.parent_id(figure_id) {
+            let parent = self.scene.node(parent_id)?;
             if parent.figure.as_any().is::<ScrollPaneFigure>() {
                 return Some(parent_id);
             }
-            block_id = parent_id;
+            figure_id = parent_id;
         }
         None
     }
@@ -434,7 +435,7 @@ impl<'a> SceneDispatchContext<'a> {
             return false;
         };
         let anchor = {
-            let Some(block) = self.scene.block(viewport_id) else {
+            let Some(block) = self.scene.node(viewport_id) else {
                 return false;
             };
             let (top, left, _, _) = block.state().insets();
@@ -502,13 +503,13 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn set_hovered(&mut self, id: FigureId, hovered: bool) {
-        if self.scene.get_block(id).is_some() {
+        if self.scene.node(id).is_some() {
             self.interaction.set_hovered(id, hovered);
         }
     }
 
     fn set_pressed(&mut self, id: FigureId, pressed: bool) {
-        if self.scene.get_block(id).is_some() {
+        if self.scene.node(id).is_some() {
             self.interaction.set_pressed(id, pressed);
         }
     }
@@ -536,7 +537,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
     fn gesture_target(&self, session_id: GestureSessionId) -> Option<FigureId> {
         self.interaction
             .gesture_target(session_id)
-            .filter(|id| self.scene.get_block(*id).is_some())
+            .filter(|id| self.scene.node(*id).is_some())
     }
 
     fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
@@ -544,7 +545,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
     }
 
     fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<FigureId>) {
-        let target_id = target_id.filter(|id| self.scene.get_block(*id).is_some());
+        let target_id = target_id.filter(|id| self.scene.node(*id).is_some());
         self.interaction.set_gesture_target(session_id, target_id);
     }
 
@@ -568,7 +569,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
         let Some(target_id) = target_id else {
             return false;
         };
-        let Some(block) = self.scene.block(target_id) else {
+        let Some(block) = self.scene.node(target_id) else {
             return false;
         };
         let pointer_pressed = self.interaction.is_pointer_pressed(target_id);
@@ -649,24 +650,25 @@ impl DispatchContext for SceneDispatchContext<'_> {
 
         for effect in effects {
             match effect {
-                RuntimeEffect::Repaint { block_id, rect } => {
-                    self.update_manager.add_dirty_region(block_id, rect);
+                RuntimeEffect::Repaint { figure_id, rect } => {
+                    self.update_manager.add_dirty_region(figure_id, rect);
                 }
                 RuntimeEffect::Notification(effect) => {
                     self.update_manager.enqueue_notification_effect(effect);
                 }
-                RuntimeEffect::Invalidate(block_id) => {
-                    self.scene.mark_invalid(self.update_manager, block_id);
+                RuntimeEffect::Invalidate(figure_id) => {
+                    self.scene.mark_invalid(self.update_manager, figure_id);
                 }
                 RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
-                RuntimeEffect::SetPressed { block_id, pressed } => {
-                    self.interaction.set_pressed(block_id, pressed);
+                RuntimeEffect::SetPressed { figure_id, pressed } => {
+                    self.interaction.set_pressed(figure_id, pressed);
                 }
-                RuntimeEffect::SetKeyboardPressed { block_id, key } => {
-                    self.interaction.set_keyboard_pressed(block_id, key);
+                RuntimeEffect::SetKeyboardPressed { figure_id, key } => {
+                    self.interaction.set_keyboard_pressed(figure_id, key);
                 }
-                RuntimeEffect::ActivateClickable(block_id) => {
-                    self.scene.activate_clickable(self.update_manager, block_id);
+                RuntimeEffect::ActivateClickable(figure_id) => {
+                    self.scene
+                        .activate_clickable(self.update_manager, figure_id);
                 }
             }
         }
@@ -974,10 +976,10 @@ mod tests {
 
         dispatcher.dispatch_mouse_pressed(&mut ctx, 10.0, 10.0, MouseButton::Left);
 
-        assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
+        assert_eq!(scene.node(parent_id).unwrap().children_count(), 0);
         assert!(!scene.is_valid(parent_id));
         assert!(update_manager.has_pending_layout());
         assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
-        assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 1);
+        assert_eq!(scene.node(parent_id).unwrap().children_count(), 1);
     }
 }

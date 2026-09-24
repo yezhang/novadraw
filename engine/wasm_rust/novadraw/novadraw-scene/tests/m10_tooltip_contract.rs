@@ -12,22 +12,32 @@ fn tooltip_runtime() -> (Runtime, FigureId, FigureId, FigureId) {
             TooltipTiming::new(Duration::from_micros(10), Duration::from_micros(20)).unwrap(),
         )
         .unwrap();
-    let root = runtime.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
-    let left = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(10.0, 10.0, 100.0, 100.0)),
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let left = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(10.0, 10.0, 100.0, 100.0)),
+        )
+        .expect("valid Runtime mutation");
+    let right = runtime
+        .add_figure(
+            root,
+            Box::new(RectangleFigure::new(150.0, 10.0, 100.0, 100.0)),
+        )
+        .expect("valid Runtime mutation");
+    assert!(
+        runtime
+            .set_figure_style(
+                root,
+                FigureStyle {
+                    tooltip: Some(Some("container tip".to_string())),
+                    ..FigureStyle::default()
+                },
+            )
+            .expect("valid Runtime mutation")
     );
-    let right = runtime.add_figure(
-        root,
-        Box::new(RectangleFigure::new(150.0, 10.0, 100.0, 100.0)),
-    );
-    assert!(runtime.set_figure_style(
-        root,
-        FigureStyle {
-            tooltip: Some(Some("container tip".to_string())),
-            ..FigureStyle::default()
-        },
-    ));
     (runtime, root, left, right)
 }
 
@@ -68,13 +78,17 @@ fn explicit_disable_cancels_an_inherited_waiting_tooltip() {
 
     runtime.dispatch_mouse_moved(20.0, 20.0);
     assert!(runtime.next_wake_deadline().is_some());
-    assert!(runtime.set_figure_style(
-        left,
-        FigureStyle {
-            tooltip: Some(None),
-            ..FigureStyle::default()
-        },
-    ));
+    assert!(
+        runtime
+            .set_figure_style(
+                left,
+                FigureStyle {
+                    tooltip: Some(None),
+                    ..FigureStyle::default()
+                },
+            )
+            .expect("valid Runtime mutation")
+    );
 
     assert_eq!(runtime.next_wake_deadline(), None);
     assert!(
@@ -94,13 +108,17 @@ fn visible_tooltip_replaces_content_and_press_hides_it() {
         .unwrap();
     runtime.take_tooltip_updates();
 
-    assert!(runtime.set_figure_style(
-        root,
-        FigureStyle {
-            tooltip: Some(Some("updated tip".to_string())),
-            ..FigureStyle::default()
-        },
-    ));
+    assert!(
+        runtime
+            .set_figure_style(
+                root,
+                FigureStyle {
+                    tooltip: Some(Some("updated tip".to_string())),
+                    ..FigureStyle::default()
+                },
+            )
+            .expect("valid Runtime mutation")
+    );
     assert!(matches!(
         runtime.take_tooltip_updates().as_slice(),
         [TooltipUpdate::Replace(snapshot)] if snapshot.text == "updated tip"

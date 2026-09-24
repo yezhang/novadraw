@@ -16,7 +16,7 @@ fn new_scene() -> (FigureTree, UpdateManager) {
 fn test_add_child_marks_layout_invalid() {
     let (mut scene, _) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    scene.validate();
+    scene.try_revalidate(container_id).unwrap();
     scene.add_child_to(
         container_id,
         Box::new(RectangleFigure::new(0.0, 0.0, 50.0, 50.0)),
@@ -156,7 +156,7 @@ fn test_hidden_parent_skips_child_validation_but_drains_queue() {
 
     assert!(!update_manager.has_pending_layout());
     assert!(!update_manager.is_update_queued());
-    assert!(!scene.get_block(child_id).unwrap().is_valid);
+    assert!(!scene.node(child_id).unwrap().is_valid);
 }
 
 #[test]
@@ -174,8 +174,8 @@ fn disabled_parent_does_not_block_child_validation() {
 
     assert!(!update_manager.has_pending_layout());
     assert!(!update_manager.is_update_queued());
-    assert!(scene.get_block(parent_id).unwrap().is_valid);
-    assert!(scene.get_block(child_id).unwrap().is_valid);
+    assert!(scene.node(parent_id).unwrap().is_valid);
+    assert!(scene.node(child_id).unwrap().is_valid);
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn test_clear_updates() {
 fn test_revalidate_flow() {
     let (mut scene, mut update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    scene.validate();
+    scene.try_revalidate(container_id).unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
     assert!(scene.is_layout_valid());
@@ -427,8 +427,14 @@ fn test_layout_repositions_descendants_via_set_bounds_protocol() {
         Box::new(RectangleFigure::new(15.0, 15.0, 10.0, 10.0)),
     );
 
-    scene.set_block_layout_manager(container_id, Box::new(XYLayout::new()));
-    scene.set_constraint(child_id, Rectangle::new(30.0, 40.0, 40.0, 40.0));
+    scene
+        .builder()
+        .set_layout_manager(container_id, Box::new(XYLayout::new()))
+        .unwrap();
+    scene
+        .builder()
+        .set_layout_constraint(child_id, Rectangle::new(30.0, 40.0, 40.0, 40.0))
+        .unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
 
@@ -444,12 +450,17 @@ fn test_layout_constraint_is_owned_by_parent_and_typed() {
     let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let child = scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
 
-    assert!(scene.set_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)));
+    assert!(
+        scene
+            .builder()
+            .set_layout_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
+            .unwrap()
+    );
     assert_eq!(
-        scene.get_constraint::<XYConstraint>(child),
+        scene.layout_constraint::<XYConstraint>(child),
         Some(&XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
     );
-    assert!(scene.get_constraint::<BorderConstraint>(child).is_none());
+    assert!(scene.layout_constraint::<BorderConstraint>(child).is_none());
 }
 
 #[test]
@@ -462,7 +473,12 @@ fn test_reparent_removes_constraint_owned_by_old_parent() {
         Box::new(RectangleFigure::new(150.0, 0.0, 100.0, 100.0)),
     );
     let child = scene.add_child_to(left, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-    assert!(scene.set_constraint(child, BorderConstraint::with_size(BorderRegion::West, 20.0)));
+    assert!(
+        scene
+            .builder()
+            .set_layout_constraint(child, BorderConstraint::with_size(BorderRegion::West, 20.0),)
+            .unwrap()
+    );
 
     let changed = scene.apply_reparent_mutation(
         &mut update_manager,
@@ -473,7 +489,7 @@ fn test_reparent_removes_constraint_owned_by_old_parent() {
     );
 
     assert!(changed);
-    assert!(scene.get_constraint::<BorderConstraint>(child).is_none());
+    assert!(scene.layout_constraint::<BorderConstraint>(child).is_none());
 }
 
 #[test]
@@ -495,8 +511,14 @@ fn test_layout_uses_local_client_area_for_coordinate_root_container() {
         Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
     );
 
-    scene.set_block_layout_manager(container_id, Box::new(XYLayout::new()));
-    scene.set_constraint(child_id, Rectangle::new(20.0, 30.0, 40.0, 40.0));
+    scene
+        .builder()
+        .set_layout_manager(container_id, Box::new(XYLayout::new()))
+        .unwrap();
+    scene
+        .builder()
+        .set_layout_constraint(child_id, Rectangle::new(20.0, 30.0, 40.0, 40.0))
+        .unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
     scene.perform_update(&mut update_manager);
 
@@ -516,12 +538,25 @@ fn test_validation_promotes_queued_child_to_highest_invalid_ancestor() {
         container,
         Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)),
     );
-    scene.set_block_layout_manager(container, Box::new(XYLayout::new()));
-    assert!(scene.set_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0)));
+    scene
+        .builder()
+        .set_layout_manager(container, Box::new(XYLayout::new()))
+        .unwrap();
+    assert!(
+        scene
+            .builder()
+            .set_layout_constraint(child, XYConstraint::at_size(10.0, 20.0, 30.0, 40.0))
+            .unwrap()
+    );
     scene.mark_invalid(&mut update_manager, root);
     scene.perform_update(&mut update_manager);
 
-    assert!(scene.set_constraint(child, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0)));
+    assert!(
+        scene
+            .builder()
+            .set_layout_constraint(child, XYConstraint::at_size(30.0, 40.0, 50.0, 60.0))
+            .unwrap()
+    );
     update_manager.add_invalid_figure(child);
     let canvas = scene.perform_update(&mut update_manager);
 
@@ -607,7 +642,7 @@ fn test_coordinate_root_move_repairs_old_and_new_parent_regions() {
     ));
 
     assert_eq!(
-        scene.get_block(child_id).unwrap().figure_bounds(),
+        scene.node(child_id).unwrap().figure_bounds(),
         Rectangle::new(10.0, 15.0, 20.0, 10.0)
     );
 
@@ -652,9 +687,9 @@ fn test_batch_then_manual_update() {
 fn test_mark_invalid_updates_block_validity() {
     let (mut scene, mut update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    scene.validate();
+    scene.try_revalidate(container_id).unwrap();
     scene.mark_invalid(&mut update_manager, container_id);
-    assert!(!scene.get_block(container_id).unwrap().is_valid);
+    assert!(!scene.node(container_id).unwrap().is_valid);
     assert!(!scene.is_layout_valid());
 }
 
@@ -662,7 +697,7 @@ fn test_mark_invalid_updates_block_validity() {
 fn test_hidden_block_skips_validation_but_drains_queue() {
     let (mut scene, mut update_manager) = new_scene();
     let container_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    scene.validate();
+    scene.try_revalidate(container_id).unwrap();
     scene.blocks.get_mut(container_id).unwrap().is_visible = false;
 
     scene.mark_invalid(&mut update_manager, container_id);
@@ -670,7 +705,7 @@ fn test_hidden_block_skips_validation_but_drains_queue() {
 
     assert!(!update_manager.has_pending_layout());
     assert!(!update_manager.is_update_queued());
-    assert!(!scene.get_block(container_id).unwrap().is_valid);
+    assert!(!scene.node(container_id).unwrap().is_valid);
 }
 
 #[test]
@@ -707,7 +742,7 @@ fn test_apply_pending_add_child_figure_allocates_and_attaches_child() {
 
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain(),));
 
-    assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 1);
+    assert_eq!(scene.node(parent_id).unwrap().children_count(), 1);
     assert!(update_manager.has_pending_layout());
     assert!(update_manager.has_pending_repaint());
 }
@@ -726,31 +761,13 @@ fn test_apply_pending_add_child_with_invalid_parent_has_no_side_effect() {
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 
-    assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
+    assert_eq!(scene.node(parent_id).unwrap().children_count(), 0);
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
 }
 
 #[test]
-fn test_direct_add_child_to_invalid_parent_has_no_side_effect() {
-    let (mut scene, _) = new_scene();
-    let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
-    let block_count = scene.blocks.len();
-    let uuid_count = scene.uuid_map.len();
-
-    let child_id = scene.add_child_to(
-        FigureId::null(),
-        Box::new(RectangleFigure::new(10.0, 10.0, 50.0, 50.0)),
-    );
-
-    assert_eq!(child_id, FigureId::null());
-    assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
-    assert_eq!(scene.blocks.len(), block_count);
-    assert_eq!(scene.uuid_map.len(), uuid_count);
-}
-
-#[test]
-fn test_try_add_child_to_invalid_parent_returns_error_without_side_effect() {
+fn add_child_to_invalid_parent_returns_error_without_side_effect() {
     let (mut scene, _) = new_scene();
     let parent_id = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
     let block_count = scene.blocks.len();
@@ -762,7 +779,7 @@ fn test_try_add_child_to_invalid_parent_returns_error_without_side_effect() {
     );
 
     assert_eq!(child_id, Err(GraphMutationError::ParentNotFound));
-    assert_eq!(scene.get_block(parent_id).unwrap().children_count(), 0);
+    assert_eq!(scene.node(parent_id).unwrap().children_count(), 0);
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
 }
@@ -776,7 +793,7 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
         parent = scene
             .try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
             .expect("depth at the configured boundary must be accepted");
-        assert_eq!(scene.block_depth(parent), Some(expected_depth));
+        assert_eq!(scene.depth(parent), Some(expected_depth));
     }
 
     let canvas = scene.render();
@@ -785,7 +802,7 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
 
     let block_count = scene.blocks.len();
     let uuid_count = scene.uuid_map.len();
-    let child_count = scene.get_block(parent).unwrap().children_count();
+    let child_count = scene.node(parent).unwrap().children_count();
     let effects = scene.notification_effects().to_vec();
 
     let result = scene.try_add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
@@ -798,10 +815,7 @@ fn test_tree_depth_limit_accepts_boundary_and_rejects_next_level_atomically() {
     );
     assert_eq!(scene.blocks.len(), block_count);
     assert_eq!(scene.uuid_map.len(), uuid_count);
-    assert_eq!(
-        scene.get_block(parent).unwrap().children_count(),
-        child_count
-    );
+    assert_eq!(scene.node(parent).unwrap().children_count(), child_count);
     assert_eq!(scene.notification_effects(), effects);
 }
 
@@ -820,11 +834,11 @@ fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effe
             Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)),
         );
     }
-    assert_eq!(scene.block_depth(deep_parent), Some(MAX_TREE_DEPTH - 1));
+    assert_eq!(scene.depth(deep_parent), Some(MAX_TREE_DEPTH - 1));
 
-    let old_parent = scene.get_block(subtree).unwrap().parent;
-    let old_subtree_depth = scene.block_depth(subtree);
-    let old_child_depth = scene.block_depth(subtree_child);
+    let old_parent = scene.node(subtree).unwrap().parent;
+    let old_subtree_depth = scene.depth(subtree);
+    let old_child_depth = scene.depth(subtree_child);
     let changed = scene.apply_reparent_mutation(
         &mut update_manager,
         PendingMutationKind::Reparent {
@@ -834,9 +848,9 @@ fn test_reparent_rejects_subtree_that_would_exceed_depth_limit_without_side_effe
     );
 
     assert!(!changed);
-    assert_eq!(scene.get_block(subtree).unwrap().parent, old_parent);
-    assert_eq!(scene.block_depth(subtree), old_subtree_depth);
-    assert_eq!(scene.block_depth(subtree_child), old_child_depth);
+    assert_eq!(scene.node(subtree).unwrap().parent, old_parent);
+    assert_eq!(scene.depth(subtree), old_subtree_depth);
+    assert_eq!(scene.depth(subtree_child), old_child_depth);
     assert!(!update_manager.is_update_queued());
 }
 
@@ -881,14 +895,8 @@ fn test_apply_pending_remove_child_clears_non_focus_interaction_state() {
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
     interaction.reconcile_non_focus(&scene);
 
-    assert_eq!(scene.get_block(child_id).unwrap().parent, None);
-    assert!(
-        !scene
-            .get_block(parent_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, None);
+    assert!(!scene.node(parent_id).unwrap().children.contains(&child_id));
     assert_eq!(interaction.mouse_target(), None);
     assert_eq!(interaction.cursor_target(), None);
     assert_eq!(interaction.hover_source(), None);
@@ -922,14 +930,8 @@ fn test_apply_pending_remove_child_with_wrong_parent_has_no_side_effects() {
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
     interaction.reconcile_non_focus(&scene);
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(left_id));
-    assert!(
-        scene
-            .get_block(left_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(left_id));
+    assert!(scene.node(left_id).unwrap().children.contains(&child_id));
     assert_eq!(interaction.mouse_target(), Some(child_id));
     assert_eq!(interaction.focus_owner(), Some(child_id));
     assert_eq!(interaction.captured(), Some(child_id));
@@ -959,21 +961,9 @@ fn test_apply_pending_reparent_moves_child_between_containers() {
     pending_mutations.enqueue(PendingMutation::reparent(child_id, right_id));
     assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(right_id));
-    assert!(
-        !scene
-            .get_block(left_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
-    assert!(
-        scene
-            .get_block(right_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(right_id));
+    assert!(!scene.node(left_id).unwrap().children.contains(&child_id));
+    assert!(scene.node(right_id).unwrap().children.contains(&child_id));
 }
 
 #[test]
@@ -1003,17 +993,11 @@ fn test_apply_pending_reparent_with_duplicate_new_parent_entry_has_no_side_effec
     pending_mutations.enqueue(PendingMutation::reparent(child_id, right_id));
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(left_id));
-    assert!(
-        scene
-            .get_block(left_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(left_id));
+    assert!(scene.node(left_id).unwrap().children.contains(&child_id));
     assert_eq!(
         scene
-            .get_block(right_id)
+            .node(right_id)
             .unwrap()
             .children
             .iter()
@@ -1043,14 +1027,8 @@ fn test_apply_pending_reparent_to_invalid_parent_keeps_original_tree() {
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(left_id));
-    assert!(
-        scene
-            .get_block(left_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(left_id));
+    assert!(scene.node(left_id).unwrap().children.contains(&child_id));
 }
 
 #[test]
@@ -1066,14 +1044,8 @@ fn test_apply_pending_reparent_to_self_keeps_original_tree() {
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(root_id));
-    assert!(
-        scene
-            .get_block(root_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(root_id));
+    assert!(scene.node(root_id).unwrap().children.contains(&child_id));
 }
 
 #[test]
@@ -1097,21 +1069,12 @@ fn test_apply_pending_reparent_to_descendant_keeps_original_tree() {
 
     assert!(!scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
 
-    assert_eq!(scene.get_block(child_id).unwrap().parent, Some(parent_id));
-    assert_eq!(
-        scene.get_block(grandchild_id).unwrap().parent,
-        Some(child_id)
-    );
+    assert_eq!(scene.node(child_id).unwrap().parent, Some(parent_id));
+    assert_eq!(scene.node(grandchild_id).unwrap().parent, Some(child_id));
+    assert!(scene.node(parent_id).unwrap().children.contains(&child_id));
     assert!(
         scene
-            .get_block(parent_id)
-            .unwrap()
-            .children
-            .contains(&child_id)
-    );
-    assert!(
-        scene
-            .get_block(child_id)
+            .node(child_id)
             .unwrap()
             .children
             .contains(&grandchild_id)
