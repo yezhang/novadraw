@@ -1,4 +1,5 @@
-use novadraw::{Color, FigureTree, GridLayout, RectangleFigure, XYConstraint, XYLayout};
+use novadraw::layout::XYConstraint;
+use novadraw::{Color, FigureTree, GridLayout, RectangleFigure, XYLayout};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 

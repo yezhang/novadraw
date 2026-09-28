@@ -521,3 +521,8 @@ novadraw             # facade
 ```
 
 crate 拆分必须跟随稳定依赖方向，不能为了目录整齐预先制造 facade 和循环依赖。
+
+当前 `novadraw` 是上述引擎 crate 的规范聚合入口，并通过稳定领域模块转发 Core、
+Geometry、Render、Scene 与 Editor API。它默认不启用平台 backend；native/web Vello
+分别由 `native-vello`、`web-vello` feature 单向启用。内部 crate 仍可由 backend、
+host、诊断工具等明确扩展者直接依赖。

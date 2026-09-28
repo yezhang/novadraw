@@ -1,6 +1,6 @@
-use novadraw::{
-    FocusEventKind, Key, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, Runtime,
-    WheelEvent,
+use novadraw::Runtime;
+use novadraw::event::{
+    FocusEventKind, Key, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, WheelEvent,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,

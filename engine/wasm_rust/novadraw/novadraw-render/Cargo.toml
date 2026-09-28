@@ -20,12 +20,18 @@ pollster = { version = "0.4.0", optional = true }
 
 [features]
 default = []
-vello = ["dep:vello", "dep:winit", "dep:pollster"]
+vello = [
+    "dep:vello",
+    "dep:winit",
+    "dep:pollster",
+    "dep:objc2-core-graphics",
+    "dep:objc2-quartz-core",
+]
 vello-web = ["dep:vello", "dep:web-sys"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-core-graphics = { version = "0.3.2", features = ["CGColor"] }
-objc2-quartz-core = "0.3.2"
+objc2-core-graphics = { version = "0.3.2", features = ["CGColor"], optional = true }
+objc2-quartz-core = { version = "0.3.2", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.104", features = ["HtmlCanvasElement"], optional = true }

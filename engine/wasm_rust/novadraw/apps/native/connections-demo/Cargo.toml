@@ -4,6 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-novadraw = { path = "../../../novadraw", features = ["vello"] }
+novadraw = { path = "../../../novadraw", features = ["native-vello"] }
 novadraw-apps = { path = "../../support" }
 novadraw-demo-scenes = { path = "../../scenes" }

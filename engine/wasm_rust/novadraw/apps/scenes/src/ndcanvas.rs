@@ -2,8 +2,9 @@
 //!
 //! 直接调用 NdCanvas API 测试每个渲染命令
 
-use novadraw::command::{LineCap, LineJoin};
-use novadraw::{Bounded, Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
+use novadraw::figure::Bounded;
+use novadraw::graphics::{LineCap, LineJoin};
+use novadraw::{Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
 

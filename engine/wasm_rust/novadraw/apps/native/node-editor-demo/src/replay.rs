@@ -5,8 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use novadraw::{KeyModifiers, MouseButton, Point, Rectangle};
-use novadraw_editor::HandleRole;
+use novadraw::editor::HandleRole;
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::{Point, Rectangle};
 use serde::Serialize;
 
 use super::FIRST_CONNECTION_ID;
@@ -559,7 +560,7 @@ fn replay_g5_5(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
         .center();
     let edge = Point::new(815.0, 555.0);
 
-    harness.pointer_pressed(start, novadraw::MouseButton::Left, KeyModifiers::default())?;
+    harness.pointer_pressed(start, MouseButton::Left, KeyModifiers::default())?;
     harness.pointer_moved(edge)?;
     evidence.checkpoint("edge-detect", harness.autoexpose_requested(), || {
         "active drag did not request auto-expose at the viewport edge".to_string()
@@ -582,7 +583,7 @@ fn replay_g5_5(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
     )?;
     evidence.checkpoint(
         "single-command-release",
-        harness.pointer_released(edge, novadraw::MouseButton::Left)?
+        harness.pointer_released(edge, MouseButton::Left)?
             && harness.node_bounds(BLUE_NODE) != Some(before),
         || "auto-exposed drag did not commit exactly one move command".to_string(),
     )?;

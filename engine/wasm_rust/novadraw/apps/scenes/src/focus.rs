@@ -133,7 +133,7 @@ pub fn build_focus_traversal_scene(
 
 #[cfg(test)]
 mod tests {
-    use novadraw::{FocusTraversalDirection, FocusTraversalPolicy, TreeOrderFocusTraversal};
+    use novadraw::event::{FocusTraversalDirection, FocusTraversalPolicy, TreeOrderFocusTraversal};
 
     use super::*;
 

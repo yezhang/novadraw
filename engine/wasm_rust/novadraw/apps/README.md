@@ -85,7 +85,8 @@ suite 验收。
 
 ```
 novadraw/ (workspace)
-├── novadraw-math/        ← 数学运算
+├── novadraw/             ← 标准 facade、prelude 与 backend feature 入口
+├── novadraw-math/        ← 独立 3D 数学实验，不进入 2D 引擎依赖图
 ├── novadraw-geometry/    ← 几何运算
 ├── novadraw-core/        ← 核心数据类型
 ├── novadraw-render/      ← 渲染后端
@@ -103,6 +104,9 @@ novadraw/ (workspace)
     └── benchmarks/
         └── r8-perf/
 ```
+
+普通应用只依赖 `novadraw`。Native 与 Web 分别显式启用 `native-vello` 和
+`web-vello`；只有实现底层 backend、host 或诊断扩展时才直接依赖子 crate。
 
 各功能场景必须定义在 `novadraw-demo-scenes`，并通过稳定的 suite/scene ID 注册到
 catalog。`apps/native/*` 只保留 Native CLI、窗口运行和验证报告逻辑；

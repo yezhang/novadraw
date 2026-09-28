@@ -2,7 +2,7 @@
 //!
 //! 验证 Stroke (Shape 级别) 和 Border (装饰器级别) 的功能和区别。
 
-use novadraw::border::{
+use novadraw::figure::border::{
     BevelBorder, BevelStyle, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
     RectangleBorder,
 };

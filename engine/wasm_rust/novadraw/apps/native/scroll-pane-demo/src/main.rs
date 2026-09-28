@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use novadraw::{
-    GesturePhase, GestureSessionId, KeyModifiers, MouseLocationZoomScrollPolicy, Point, Rectangle,
-    RectangleFigure, Runtime, ScrollDeltaKind, WheelEvent, ZoomEvent, ZoomManager,
+use novadraw::container::{MouseLocationZoomScrollPolicy, ZoomManager};
+use novadraw::event::{
+    GesturePhase, GestureSessionId, KeyModifiers, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
+use novadraw::{Point, Rectangle, RectangleFigure, Runtime};
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,

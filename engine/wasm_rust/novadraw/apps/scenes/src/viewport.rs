@@ -3,6 +3,7 @@
 //! 用可视化场景验证 ViewportFigure 的 content 裁剪、origin、zoom 和嵌套父链协议。
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
+use novadraw::container::ZoomManager;
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
@@ -57,7 +58,7 @@ fn add_viewport(
             novadraw::Rectangle::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT),
         )
         .expect("attach scalable pane");
-    let zoom_manager = novadraw::ZoomManager::new(scalable.clone(), viewport.clone());
+    let zoom_manager = ZoomManager::new(scalable.clone(), viewport.clone());
     scene
         .builder()
         .set_zoom(&zoom_manager, zoom)

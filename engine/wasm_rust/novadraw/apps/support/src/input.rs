@@ -1,8 +1,9 @@
 #[cfg(feature = "native")]
 use std::collections::HashMap;
 
-use novadraw::{
-    FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, Point, PointerId,
+use novadraw::Point;
+use novadraw::event::{
+    FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, PointerId,
     ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
 #[cfg(feature = "native")]

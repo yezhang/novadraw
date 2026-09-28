@@ -338,9 +338,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 3点折线（折线）
     let line_3pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(50.0, 80.0),
-        novadraw_geometry::Point::new(125.0, 40.0),
-        novadraw_geometry::Point::new(200.0, 80.0),
+        novadraw::Point::new(50.0, 80.0),
+        novadraw::Point::new(125.0, 40.0),
+        novadraw::Point::new(200.0, 80.0),
     ])
     .with_width(3.0);
     scene
@@ -350,11 +350,11 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 5点折线（多段折线）
     let line_5pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(50.0, 120.0),
-        novadraw_geometry::Point::new(100.0, 80.0),
-        novadraw_geometry::Point::new(150.0, 160.0),
-        novadraw_geometry::Point::new(200.0, 120.0),
-        novadraw_geometry::Point::new(250.0, 160.0),
+        novadraw::Point::new(50.0, 120.0),
+        novadraw::Point::new(100.0, 80.0),
+        novadraw::Point::new(150.0, 160.0),
+        novadraw::Point::new(200.0, 120.0),
+        novadraw::Point::new(250.0, 160.0),
     ])
     .with_width(3.0);
     scene
@@ -392,7 +392,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(1.0, 0.3, 0.3, 1.0),
     )
     .with_width(8.0)
-    .with_cap(novadraw::render::command::LineCap::Butt);
+    .with_cap(novadraw::graphics::LineCap::Butt);
     scene
         .builder()
         .add_child(container_id, Box::new(cap_butt))
@@ -406,7 +406,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.3, 1.0, 0.3, 1.0),
     )
     .with_width(8.0)
-    .with_cap(novadraw::render::command::LineCap::Round);
+    .with_cap(novadraw::graphics::LineCap::Round);
     scene
         .builder()
         .add_child(container_id, Box::new(cap_round))
@@ -420,7 +420,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         novadraw::Color::rgba(0.3, 0.3, 1.0, 1.0),
     )
     .with_width(8.0)
-    .with_cap(novadraw::render::command::LineCap::Square);
+    .with_cap(novadraw::graphics::LineCap::Square);
     scene
         .builder()
         .add_child(container_id, Box::new(cap_square))
@@ -431,12 +431,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 尖角连接
     let join_miter = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(50.0, 260.0),
-        novadraw_geometry::Point::new(100.0, 220.0),
-        novadraw_geometry::Point::new(150.0, 300.0),
+        novadraw::Point::new(50.0, 260.0),
+        novadraw::Point::new(100.0, 220.0),
+        novadraw::Point::new(150.0, 300.0),
     ])
     .with_width(8.0)
-    .with_join(novadraw::render::command::LineJoin::Miter)
+    .with_join(novadraw::graphics::LineJoin::Miter)
     .with_color(novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0));
     scene
         .builder()
@@ -445,12 +445,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 圆角连接
     let join_round = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(200.0, 260.0),
-        novadraw_geometry::Point::new(250.0, 220.0),
-        novadraw_geometry::Point::new(300.0, 300.0),
+        novadraw::Point::new(200.0, 260.0),
+        novadraw::Point::new(250.0, 220.0),
+        novadraw::Point::new(300.0, 300.0),
     ])
     .with_width(8.0)
-    .with_join(novadraw::render::command::LineJoin::Round)
+    .with_join(novadraw::graphics::LineJoin::Round)
     .with_color(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0));
     scene
         .builder()
@@ -459,12 +459,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 斜切连接
     let join_bevel = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(350.0, 260.0),
-        novadraw_geometry::Point::new(400.0, 220.0),
-        novadraw_geometry::Point::new(450.0, 300.0),
+        novadraw::Point::new(350.0, 260.0),
+        novadraw::Point::new(400.0, 220.0),
+        novadraw::Point::new(450.0, 300.0),
     ])
     .with_width(8.0)
-    .with_join(novadraw::render::command::LineJoin::Bevel)
+    .with_join(novadraw::graphics::LineJoin::Bevel)
     .with_color(novadraw::Color::rgba(1.0, 0.0, 1.0, 1.0));
     scene
         .builder()
@@ -530,10 +530,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // 测试6: 自相交折线
     // ============================================================
     let self_intersect = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Point::new(50.0, 380.0),
-        novadraw_geometry::Point::new(150.0, 480.0),
-        novadraw_geometry::Point::new(150.0, 380.0),
-        novadraw_geometry::Point::new(50.0, 480.0),
+        novadraw::Point::new(50.0, 380.0),
+        novadraw::Point::new(150.0, 480.0),
+        novadraw::Point::new(150.0, 380.0),
+        novadraw::Point::new(50.0, 480.0),
     ])
     .with_width(2.0)
     .with_color(novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0));
@@ -549,7 +549,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     for i in 0..20 {
         let x = 250.0 + i as f64 * 25.0;
         let y = 400.0 + (i as f64 * 25.0).sin() * 50.0;
-        points.push(novadraw_geometry::Point::new(x, y));
+        points.push(novadraw::Point::new(x, y));
     }
     let wave = novadraw::PolylineFigure::from_points(points)
         .with_width(2.0)
@@ -1003,7 +1003,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         30.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1014,7 +1014,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         30.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1025,7 +1025,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         30.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1036,7 +1036,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         30.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1047,7 +1047,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         30.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#f39c12").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1059,7 +1059,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1070,7 +1070,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::South,
+        novadraw::figure::Direction::South,
     )
     .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1081,7 +1081,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::East,
+        novadraw::figure::Direction::East,
     )
     .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1092,7 +1092,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::West,
+        novadraw::figure::Direction::West,
     )
     .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
@@ -1104,7 +1104,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::TRANSPARENT)
@@ -1115,7 +1115,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         150.0,
         60.0,
         60.0,
-        novadraw::Direction::North,
+        novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::TRANSPARENT)
     .with_stroke_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
@@ -1304,8 +1304,8 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
         .unwrap()
         .add(Box::new(
             novadraw::PolylineFigure::from_points(vec![
-                novadraw_geometry::Point::new(70.0, 100.0),
-                novadraw_geometry::Point::new(210.0, 100.0),
+                novadraw::Point::new(70.0, 100.0),
+                novadraw::Point::new(210.0, 100.0),
             ])
             .with_color(novadraw::Color::from_hex("#2563eb").expect("valid color literal"))
             .with_width(5.0),
@@ -1342,17 +1342,17 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
     runtime
         .figure(polyline)
         .unwrap()
-        .insert_point(1, novadraw_geometry::Point::new(140.0, 180.0))
+        .insert_point(1, novadraw::Point::new(140.0, 180.0))
         .expect("valid polyline mutation");
     runtime
         .figure(rounded)
         .unwrap()
-        .set_corner_dimensions(novadraw_geometry::Dimension::new(64.0, 28.0))
+        .set_corner_dimensions(novadraw::Dimension::new(64.0, 28.0))
         .expect("valid corner mutation");
     runtime
         .figure(triangle)
         .unwrap()
-        .set_triangle_direction(novadraw::Direction::West)
+        .set_triangle_direction(novadraw::figure::Direction::West)
         .expect("valid direction mutation");
     runtime
 }

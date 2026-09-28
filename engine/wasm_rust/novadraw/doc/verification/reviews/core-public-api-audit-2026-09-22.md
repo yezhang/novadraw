@@ -2,9 +2,9 @@
 
 类型：`verification`
 
-状态：`P0/P1 value-contract items implemented; facade pending`
+状态：`P0/P1 value-contract and facade items implemented`
 
-实施状态：`Batch A/B/C complete; ADR-019 and ADR-020 follow-up complete`
+实施状态：`Batch A/B/C and facade part of Batch D complete`
 
 日期：2026-09-22
 
@@ -33,8 +33,9 @@ P0 实施日期：2026-09-24
 API-03/API-04 剩余项与 API-06。2026-09-28 又由
 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md) 将挂载后领域 mutation
 整理为 Runtime-backed scoped editor；同日 ADR-020 完成 Color、Render IR 与 Geometry
-基础值收口。实施证据见第 9 至 11 节。聚合 facade 分层仍待独立批次处理，不改变
-Core 1.0、roadmap 或 parity ledger 状态。
+基础值收口；ADR-021 随后完成聚合 facade 与 backend feature 分层。实施证据见第 9
+至 12 节。Graphics 双方言仍留待独立小批次，不改变 Core 1.0、roadmap 或 parity
+ledger 状态。
 
 ## 2. 总体结论
 
@@ -53,8 +54,9 @@ Core 1.0、roadmap 或 parity ledger 状态。
 2026-09-24 更新：上述 P0 术语、阶段边界、显式目标和失败模型已完成收口；
 Layout measurement 与坐标查询也已完成结构化迁移。2026-09-28 更新：Runtime 继续是
 唯一提交权威，但 Figure、Container、Viewport、Scale、ScrollPane 和 Zoom 的挂载后
-领域操作改由短生命周期 scoped editor 组织。剩余风险集中在 Graphics、Color、
-Geometry 和 crate root 分层等 P1/P2 项。
+领域操作改由短生命周期 scoped editor 组织。ADR-020/021 随后完成 Color、Geometry、
+Render IR 与 crate root 分层。剩余风险集中在 Graphics 双方言和 Figure capability
+等 P1/P2 项。
 
 ## 3. 审计原则
 
@@ -307,7 +309,7 @@ fn preferred_measurement(
 
 优先级：P1
 
-状态：待设计
+状态：已整改（2026-09-28）
 
 `novadraw/src/lib.rs` 直接重导出大量类型，其中包括：
 
@@ -481,12 +483,12 @@ raw RenderCommand internals
 - 清理 Geometry 兼容别名；
 - 统一 Point/Vector/Transform 表示。
 
-### Batch D：Graphics 与聚合导出（未排期）
+### Batch D：Graphics 与聚合导出（facade 已完成）
 
 - 选择 NdCanvas 唯一公开方言；
 - 分离 stateful Graphics 与低层 command recording；
 - 明确 `arc` 语义或暂时撤出公开 API；
-- 缩减 `novadraw` crate root 重导出。
+- 缩减 `novadraw` crate root 重导出。（已由 ADR-021 完成）
 
 每个批次均为 breaking API change，应独立提交，不能与 Editor G6 功能开发或其他行为
 修复混合。
@@ -603,3 +605,30 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 - `cargo xtask docs`：通过；
 - `cargo xtask check --quick`：通过；
 - `cargo xtask check --full`：通过。
+
+## 12. ADR-020/ADR-021 基础值与 Facade 实施证据
+
+2026-09-28 完成：
+
+- `Point` 与 `Vec2` 成为独立类型，`Affine2D` 成为唯一公开仿射名称；
+- Render IR 使用 `Point`、`PointList`、`Rectangle` 和 `Dimension`，默认协议不再暴露
+  `glam`；
+- 删除无独立语义的 Geometry alias，`novadraw-math` 退出 2D 引擎依赖图；
+- `novadraw` crate root 缩减为基础值、Runtime/Tree、核心 trait 和常用 Figure/Layout；
+- `prelude` 只包含常规 Figure/Runtime 开发所需类型；
+- 专业 API 分入 `geometry`、`graphics`、`figure`、`layout`、`container`、
+  `connection`、`event`、`runtime`、`host`、`render`、`editor` 和 `advanced`；
+- `novadraw-editor` 通过 `novadraw::editor` 纳入标准引擎入口；
+- 默认 feature 为空，`native-vello` 与 `web-vello` 单向启用具体 backend；
+- `novadraw-scene` 不再转发 Vello feature，`novadraw-apps` 不再直接依赖
+  `novadraw-render`。
+
+验证入口：
+
+- `novadraw/tests/facade_contract.rs`；
+- `scripts/check_facade_dependencies.sh`；
+- `cargo xtask verify core.facade`；
+- `cargo xtask verify web.build`；
+- `cargo xtask docs`、`cargo xtask check --quick` 与 `cargo xtask check --full`。
+
+以上门禁均于 2026-09-28 通过。

@@ -386,7 +386,7 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
                 .expect("valid FigureTree construction");
             scene
                 .builder()
-                .set_layout_constraint(child_id, novadraw::GridConstraint::fill())
+                .set_layout_constraint(child_id, novadraw::layout::GridConstraint::fill())
                 .expect("valid FigureTree construction");
         }
     }
@@ -706,18 +706,26 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
 
     for (region, size, color) in [
         (
-            novadraw::BorderRegion::North,
+            novadraw::layout::BorderRegion::North,
             Some(HEADER_HEIGHT),
             "#e74c3c",
         ),
         (
-            novadraw::BorderRegion::South,
+            novadraw::layout::BorderRegion::South,
             Some(FOOTER_HEIGHT),
             "#2ecc71",
         ),
-        (novadraw::BorderRegion::West, Some(SIDEBAR_WIDTH), "#3498db"),
-        (novadraw::BorderRegion::East, Some(SIDEBAR_WIDTH), "#f1c40f"),
-        (novadraw::BorderRegion::Center, None, "#9b59b6"),
+        (
+            novadraw::layout::BorderRegion::West,
+            Some(SIDEBAR_WIDTH),
+            "#3498db",
+        ),
+        (
+            novadraw::layout::BorderRegion::East,
+            Some(SIDEBAR_WIDTH),
+            "#f1c40f",
+        ),
+        (novadraw::layout::BorderRegion::Center, None, "#9b59b6"),
     ] {
         let child = scene
             .builder()
@@ -737,8 +745,8 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
             .set_layout_constraint(
                 child,
                 size.map_or_else(
-                    || novadraw::BorderConstraint::new(region),
-                    |size| novadraw::BorderConstraint::with_size(region, size),
+                    || novadraw::layout::BorderConstraint::new(region),
+                    |size| novadraw::layout::BorderConstraint::with_size(region, size),
                 ),
             )
             .expect("valid FigureTree construction");
@@ -814,7 +822,8 @@ pub fn suite() -> DemoSuite {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::{BackendCapabilities, Runtime, SurfaceInfo};
+    use novadraw::Runtime;
+    use novadraw::render::{BackendCapabilities, SurfaceInfo};
 
     use super::*;
 

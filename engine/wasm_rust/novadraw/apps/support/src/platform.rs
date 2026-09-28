@@ -3,10 +3,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(feature = "native")]
 use std::sync::{Arc, Mutex};
 
-use novadraw::{
-    AccessibilityUpdate, CursorIcon, ImeState, MonotonicTime, PlatformHost, SurfaceInfo,
-    TooltipUpdate,
-};
+use novadraw::PlatformHost;
+use novadraw::event::{AccessibilityUpdate, MonotonicTime, TooltipUpdate};
+use novadraw::figure::CursorIcon;
+use novadraw::host::ImeState;
+use novadraw::render::SurfaceInfo;
 #[cfg(feature = "native")]
 use winit::dpi::{LogicalPosition, LogicalSize};
 #[cfg(feature = "native")]
@@ -212,7 +213,8 @@ impl PlatformHost for WebPlatformHost {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::{AccessibilityDelta, AccessibilityNodeId, Runtime};
+    use novadraw::Runtime;
+    use novadraw::event::{AccessibilityDelta, AccessibilityNodeId};
     use std::cell::Cell;
     use std::rc::Rc;
 

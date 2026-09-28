@@ -7,8 +7,10 @@
 日期：2026-09-28
 
 实施更新：E1 与 E2 已由
-[ADR-020](../../adr/adr-020-engine-value-and-render-contract.md) 完成并验证。本文第 3.3
-与第 4.1-4.3 节保留整改前证据，后续工作从 E3 聚合 facade 收口继续。
+[ADR-020](../../adr/adr-020-engine-value-and-render-contract.md) 完成并验证；E3 的聚合
+facade 与 backend feature 边界已由
+[ADR-021](../../adr/adr-021-public-facade-and-feature-boundary.md) 收口。本文第 3.3 与
+第 4.1-4.3 节保留整改前证据，后续工作从 Figure capability 与内部模块拆分继续。
 
 ## 1. 范围
 
@@ -154,7 +156,8 @@ unsupported capability。不得依赖 wildcard match 静默忽略。
 |---|---|---|
 | E1 | 修复 Color、Path/Arc 与 Render IR 的公开正确性 | 先消除静默不执行 |
 | E2 | 收口 Geometry、Insets、Dimension、alias 与第三方类型泄漏 | 直接 breaking，不留双入口 |
-| E3 | 收口 crate root、Figure capability 与 scoped service | 不改变 Runtime 单一所有权 |
+| E3a | 收口 crate root 与 backend feature | 已由 ADR-021 完成 |
+| E3b | 收口 Figure capability 与 scoped service | 不改变 Runtime 单一所有权 |
 | E4 | 拆分 Scene/Runtime/Viewer 内部模块 | 不提前新增 crate |
 | E5 | Connection decoration、原子 add 与 miter bounds | 每项独立 parity delta |
 | E6 | TextFlow、ShortestPath 等需求驱动增强 | 不进入默认主线 |

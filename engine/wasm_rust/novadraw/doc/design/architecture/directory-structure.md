@@ -211,3 +211,13 @@ apps/{native,web,benchmarks}/*
 - 常用内置 Figure 和容器。
 
 内部 arena、队列、具体 dispatcher 和 update 数据结构不应因 facade 便利而公开。
+
+自 ADR-021 起，facade 分为三层：
+
+- crate root 与 `prelude`：仅保留高频、无歧义的应用入口；
+- `figure`、`layout`、`container`、`connection`、`event`、`runtime`、`host`、
+  `graphics`、`render`、`editor`：稳定领域模块；
+- `advanced` 与 feature-gated `backend`：低层诊断协议和具体后端。
+
+默认 feature 为空；`native-vello` 与 `web-vello` 只从 facade 向 render crate 单向启用
+对应后端。Scene/Runtime 不转发具体后端 feature。

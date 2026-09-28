@@ -5,14 +5,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use novadraw::{
-    AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, Color,
-    ConnectionFigure, CoordinateSpace, Figure, FreeformLayerFigure, KeyModifiers, MouseButton,
-    PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RenderOutcome,
-    XYAnchor, backend::vello::VelloRenderer, rectangle_boundary_site,
+use novadraw::backend::vello::VelloRenderer;
+use novadraw::connection::{
+    AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionFigure,
+    CoordinateSpace, XYAnchor, rectangle_boundary_site,
 };
-use novadraw_apps::WinitPlatformHost;
-use novadraw_editor::{
+use novadraw::container::FreeformLayerFigure;
+use novadraw::editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionAnchorContext,
     ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
     ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
@@ -22,6 +21,12 @@ use novadraw_editor::{
     PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest,
     VisualUpdateContext,
 };
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::render::RenderOutcome;
+use novadraw::{
+    Color, Figure, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
+};
+use novadraw_apps::WinitPlatformHost;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -1841,8 +1846,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::{RenderCommandKind, command::LineStyle};
-    use novadraw_editor::HandleRole;
+    use novadraw::editor::HandleRole;
+    use novadraw::graphics::LineStyle;
+    use novadraw::render::command::RenderCommandKind;
 
     #[test]
     fn viewport_guide_uses_light_background_and_dashed_outline() {

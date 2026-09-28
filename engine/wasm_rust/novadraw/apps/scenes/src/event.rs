@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 
-use novadraw::{
-    Bounded, Color, EventContext, Figure, FigureEventHandler, FigureTree, FocusEvent,
-    FocusEventKind, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
-    NdCanvas, Rectangle, RectangleFigure, WheelEvent,
+use novadraw::event::{
+    EventContext, FigureEventHandler, FocusEvent, FocusEventKind, Key, KeyEvent, KeyEventKind,
+    KeyModifiers, MouseEvent, MouseEventKind, WheelEvent,
 };
+use novadraw::figure::Bounded;
+use novadraw::{Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure};
 
 use crate::focus::{FocusProbeSpec, build_focus_traversal_scene};
 use crate::{DemoSuite, SceneSpec, ValidationKind};

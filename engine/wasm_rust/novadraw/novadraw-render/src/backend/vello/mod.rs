@@ -11,10 +11,12 @@ use std::sync::Arc;
 use image::ImageBuffer;
 use novadraw_geometry::{Affine2D, Point, Rectangle};
 use tracing::debug;
+#[cfg(any(feature = "vello", target_arch = "wasm32"))]
+use vello::RendererOptions;
 use vello::kurbo::{Cap, Join, Stroke};
 use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
-use vello::{AaConfig, Renderer, RendererOptions};
+use vello::{AaConfig, Renderer};
 
 use crate::command::{LineCap, LineJoin, LineStyle, RenderCommand};
 use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
@@ -116,7 +118,7 @@ fn damage_rect_to_aligned_clip(
     ))
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "vello"))]
 fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
         return;
@@ -133,7 +135,7 @@ fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     layer.setBackgroundColor(Some(&background));
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(all(target_os = "macos", feature = "vello"))]
 fn set_macos_transactional_present(surface: &vello::wgpu::Surface<'_>, enabled: bool) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
         return;
@@ -252,6 +254,7 @@ pub struct VelloRenderer {
 }
 
 impl VelloRenderer {
+    #[cfg(any(feature = "vello", target_arch = "wasm32"))]
     async fn new_for_surface(
         target: vello::wgpu::SurfaceTarget<'static>,
         pixel_width: u32,
@@ -267,7 +270,7 @@ impl VelloRenderer {
                 vello::wgpu::PresentMode::AutoVsync,
             )
             .await?;
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "vello"))]
         configure_macos_presentation_layer(&surface.surface);
 
         let mut renderers = vec![];
@@ -1004,7 +1007,7 @@ impl RenderBackend for VelloRenderer {
             submission.surface.pixel_height,
             submission.surface.scale_factor,
         );
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "vello"))]
         let is_resize_frame = self.pending_resize.is_some();
         self.apply_pending_resize();
         if self.surface_suspended {
@@ -1050,7 +1053,7 @@ impl RenderBackend for VelloRenderer {
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
 
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "vello"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, true);
         }
@@ -1059,7 +1062,7 @@ impl RenderBackend for VelloRenderer {
             vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
             vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
             status => {
-                #[cfg(target_os = "macos")]
+                #[cfg(all(target_os = "macos", feature = "vello"))]
                 set_macos_transactional_present(&self.surface.surface, false);
                 let recovery =
                     surface_recovery(&status).expect("unavailable surface must define recovery");
@@ -1165,7 +1168,7 @@ impl RenderBackend for VelloRenderer {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
-        #[cfg(target_os = "macos")]
+        #[cfg(all(target_os = "macos", feature = "vello"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, false);
         }
@@ -1415,6 +1418,7 @@ fn sync_image_cache(
     }
 }
 
+#[cfg(any(feature = "vello", target_arch = "wasm32"))]
 fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Renderer {
     Renderer::new(
         &render_cx.devices[surface.dev_id].device,

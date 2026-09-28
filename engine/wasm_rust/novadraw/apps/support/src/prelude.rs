@@ -9,9 +9,7 @@ pub use crate::{
     run_runtime_demo_app_with_screenshot,
 };
 pub use crate::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
-pub use novadraw::{
-    Color, EllipseFigure, Figure, FigureEvent, FigureId, FigureTree, NotificationEffect,
-    PolylineFigure, Rectangle, RectangleFigure, Runtime, UpdateEvent, UpdateListener,
-};
+pub use novadraw::event::{FigureEvent, NotificationEffect, UpdateEvent, UpdateListener};
+pub use novadraw::prelude::*;
 #[cfg(feature = "native")]
 pub use winit::event::ElementState;

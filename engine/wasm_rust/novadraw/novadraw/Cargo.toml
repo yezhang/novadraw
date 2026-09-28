@@ -2,18 +2,20 @@
 name = "novadraw"
 version.workspace = true
 edition.workspace = true
+readme = "README.md"
 
 [features]
-default = ["vello"]
-vello = ["novadraw-render/vello", "novadraw-scene/vello"]
-vello-web = ["novadraw-render/vello-web"]
+default = []
+native-vello = ["novadraw-render/vello"]
+web-vello = ["novadraw-render/vello-web"]
 
 [dependencies]
-slotmap.workspace = true
-uuid.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 novadraw-geometry = { path = "../novadraw-geometry" }
 novadraw-core = { path = "../novadraw-core" }
 novadraw-render = { path = "../novadraw-render" }
 novadraw-scene = { path = "../novadraw-scene" }
+novadraw-editor = { path = "../novadraw-editor" }
+
+[package.metadata.docs.rs]
+features = ["native-vello"]
+no-default-features = true

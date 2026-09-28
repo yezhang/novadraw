@@ -34,6 +34,39 @@ description = "Run all workspace unit, integration, and documentation tests"
 program = "cargo"
 args = ["test", "--workspace"]
 
+[commands."facade.core"]
+description = "Compile the standard facade without a platform backend"
+program = "cargo"
+args = ["check", "-p", "novadraw", "--no-default-features"]
+
+[commands."facade.native-vello"]
+description = "Compile the standard facade with the native Vello backend"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "novadraw",
+  "--no-default-features",
+  "--features",
+  "native-vello",
+]
+
+[commands."facade.web-vello"]
+description = "Compile the standard facade with the Web Vello backend"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "novadraw",
+  "--no-default-features",
+  "--features",
+  "web-vello",
+]
+
+[commands."facade.dependencies"]
+description = "Reject platform rendering dependencies from the core facade"
+program = "./scripts/check_facade_dependencies.sh"
+
 [commands."verify.update"]
 description = "Run deterministic UpdateManager application probes"
 program = "cargo"
@@ -212,15 +245,47 @@ args = [
 
 [profiles.quick]
 description = "Fast workspace formatting and compilation feedback"
-commands = ["workspace.fmt", "workspace.check"]
+commands = [
+  "workspace.fmt",
+  "workspace.check",
+  "facade.core",
+  "facade.dependencies",
+  "facade.native-vello",
+  "facade.web-vello",
+]
 
 [profiles.full]
 description = "Complete local submission gate"
 commands = [
   "workspace.fmt",
+  "facade.core",
+  "facade.dependencies",
+  "facade.native-vello",
+  "facade.web-vello",
   "workspace.clippy",
   "workspace.test",
 ]
+
+[[suites]]
+id = "core.facade"
+title = "Public facade and backend feature boundaries"
+milestone = "Core API"
+kind = "contract"
+layers = ["static", "contract"]
+platforms = ["host", "native-macos", "web"]
+commands = [
+  "facade.core",
+  "facade.dependencies",
+  "facade.native-vello",
+  "facade.web-vello",
+]
+paths = [
+  "novadraw/**",
+  "novadraw-render/Cargo.toml",
+  "novadraw-scene/Cargo.toml",
+  "apps/**",
+]
+documents = ["doc/adr/adr-021-public-facade-and-feature-boundary.md"]
 
 [[suites]]
 id = "workspace.quality"

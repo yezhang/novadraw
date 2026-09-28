@@ -1,4 +1,5 @@
-use novadraw::{Color, FigureTree, Rectangle, RectangleFigure, ScrollBarVisibility, ZoomManager};
+use novadraw::container::{ScrollBarVisibility, ZoomManager};
+use novadraw::{Color, FigureTree, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 

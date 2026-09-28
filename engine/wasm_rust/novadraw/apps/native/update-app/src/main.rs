@@ -2,11 +2,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use novadraw::{
-    BackendCapabilities, DamageMode, FigureEvent, FigureId, ImageData, ListenerDirective,
-    NotificationEffect, Rectangle, RenderOutcome, ResourceSync, Runtime, SurfaceInfo, UpdateEvent,
-    UpdateListener, UpdateManager, XYConstraint,
+use novadraw::advanced::UpdateManager;
+use novadraw::event::{
+    FigureEvent, ListenerDirective, NotificationEffect, UpdateEvent, UpdateListener,
 };
+use novadraw::layout::XYConstraint;
+use novadraw::render::command::ImageData;
+use novadraw::render::submission::ResourceSync;
+use novadraw::render::{BackendCapabilities, DamageMode, RenderOutcome, SurfaceInfo};
+use novadraw::{FigureId, Rectangle, Runtime};
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
     run_demo_app_with_scene_screenshot, run_demo_app_with_screenshot, run_verification,

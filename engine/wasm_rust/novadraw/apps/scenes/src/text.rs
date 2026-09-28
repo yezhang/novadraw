@@ -1,6 +1,8 @@
+use novadraw::figure::{Alignment, TextPlacement, border::TitleBarBorder};
+use novadraw::render::command::ImageData;
+use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    Alignment, BuiltinFont, Color, FigureId, FigureStyle, ImageData, ImageFigure, LabelFigure,
-    Rectangle, RectangleFigure, Runtime, TextPlacement, TitleBarBorder,
+    Color, FigureId, FigureStyle, ImageFigure, LabelFigure, Rectangle, RectangleFigure, Runtime,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -506,7 +508,7 @@ fn image_resources_scene() -> Runtime {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::{BackendCapabilities, SurfaceInfo};
+    use novadraw::render::{BackendCapabilities, SurfaceInfo};
 
     use super::*;
 

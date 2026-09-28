@@ -12,8 +12,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   serializer 和产品级 Native/Web 场景移交独立产品包，不再作为引擎完成门禁。
 - Core 公开 API：ADR-017 的 P0 Batch A/B 已完成；ADR-018 已完成 Runtime
   驱动、坐标查询与结构化测量收口；ADR-019 已完成 detached 构造与挂载后 scoped
-  editor 调用面收口。ADR-020 已启动 Graphics、Geometry 与基础值契约整改；
-  crate root 分层等其他 P1/P2 尚未排期。
+  editor 调用面收口；ADR-020 已完成 Graphics、Geometry 与基础值契约整改；
+  ADR-021 已完成聚合 facade 与 backend feature 边界收口。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
@@ -46,6 +46,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-019-composable-api-and-scoped-editors.md`](adr/adr-019-composable-api-and-scoped-editors.md)
 - 引擎基础值与公开渲染契约：
   [`adr/adr-020-engine-value-and-render-contract.md`](adr/adr-020-engine-value-and-render-contract.md)
+- 公开 Facade 与 Feature 边界：
+  [`adr/adr-021-public-facade-and-feature-boundary.md`](adr/adr-021-public-facade-and-feature-boundary.md)
 - Core 公开 API 审计与整改状态：
   [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - ADR-001 至 ADR-013 审计与替代关系：

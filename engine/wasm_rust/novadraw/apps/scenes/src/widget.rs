@@ -1,8 +1,10 @@
 use std::time::Duration;
 
+use novadraw::event::{MonotonicTime, MouseButton, TooltipTiming};
+use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    BuiltinFont, ButtonFigure, Color, FigureId, FigureStyle, LabelFigure, MonotonicTime,
-    MouseButton, Rectangle, RectangleFigure, Runtime, ToggleFigure, TooltipTiming,
+    ButtonFigure, Color, FigureId, FigureStyle, LabelFigure, Rectangle, RectangleFigure, Runtime,
+    ToggleFigure,
 };
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};

@@ -2,10 +2,13 @@ use std::hint::black_box;
 use std::path::PathBuf;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use novadraw::{
-    Bounded, BuiltinFont, Color, Figure, FigureTree, FontDescriptor, NdCanvas, Rectangle,
-    RectangleFigure, ResourceId, Runtime, TextConstraints, TextEngine, TextLayout, ZoomManager,
+use novadraw::container::ZoomManager;
+use novadraw::figure::Bounded;
+use novadraw::render::ResourceId;
+use novadraw::render::text::{
+    BuiltinFont, FontDescriptor, TextConstraints, TextEngine, TextLayout,
 };
+use novadraw::{Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, Runtime};
 use serde::Serialize;
 use uuid::Uuid;
 

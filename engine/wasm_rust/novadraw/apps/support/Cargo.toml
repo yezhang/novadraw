@@ -6,7 +6,7 @@ description = "Novadraw 演示应用公共库"
 
 [features]
 default = ["native"]
-native = ["novadraw/vello", "dep:novadraw-render", "novadraw-render/vello", "dep:winit"]
+native = ["novadraw/native-vello", "dep:winit"]
 
 [dependencies]
 # novadraw 核心库
@@ -14,9 +14,6 @@ novadraw = { path = "../../novadraw", default-features = false }
 
 # winit 窗口管理
 winit = { workspace = true, optional = true }
-
-# 渲染后端
-novadraw-render = { path = "../../novadraw-render", optional = true }
 
 # 工具库
 tracing.workspace = true

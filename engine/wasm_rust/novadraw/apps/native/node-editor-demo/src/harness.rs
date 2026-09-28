@@ -1,14 +1,14 @@
 use std::time::Duration;
 
-use novadraw::{
-    BorderStyle, BuiltinFont, Color, FigureId, FigureStyle, KeyModifiers, LineBorder, MouseButton,
-    Point, Rectangle, RectangleFigure, Runtime,
-};
-use novadraw_editor::{
+use novadraw::editor::{
     AutoexposeTick, BendpointHandleSite, ConnectionEndpoint, ConnectionPartId, CreateRequest,
     CreationType, DeleteRequest, EditorDomain, EditorRequest, HandleRole, RequestModifiers,
     ResizeDirection,
 };
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::border::{BorderStyle, LineBorder};
+use novadraw::render::text::BuiltinFont;
+use novadraw::{Color, FigureId, FigureStyle, Point, Rectangle, RectangleFigure, Runtime};
 
 use super::{
     BENDPOINT_CREATE_HANDLE_COLOR, BENDPOINT_CREATE_HANDLE_SIZE, BENDPOINT_HANDLE_COLOR,
@@ -516,7 +516,7 @@ impl EditorHarness {
 
     fn add_connection_handles(
         &mut self,
-        owner: novadraw_editor::EditPartId,
+        owner: novadraw::editor::EditPartId,
         connection: ConnectionPartId,
     ) -> HarnessResult<()> {
         let Some(route) = self.viewer.connection_route_points_in_surface(connection) else {
@@ -556,7 +556,7 @@ impl EditorHarness {
 
     fn add_handle(
         &mut self,
-        owner: novadraw_editor::EditPartId,
+        owner: novadraw::editor::EditPartId,
         point: Point,
         role: HandleRole,
         size: f64,

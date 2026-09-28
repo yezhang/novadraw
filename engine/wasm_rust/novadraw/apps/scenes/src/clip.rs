@@ -338,10 +338,18 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     for (region, size, color) in [
-        (novadraw::BorderRegion::North, HEADER_HEIGHT, "#34495e"),
-        (novadraw::BorderRegion::South, FOOTER_HEIGHT, "#34495e"),
-        (novadraw::BorderRegion::West, SIDE_WIDTH, "#2c3e50"),
-        (novadraw::BorderRegion::East, SIDE_WIDTH, "#2c3e50"),
+        (
+            novadraw::layout::BorderRegion::North,
+            HEADER_HEIGHT,
+            "#34495e",
+        ),
+        (
+            novadraw::layout::BorderRegion::South,
+            FOOTER_HEIGHT,
+            "#34495e",
+        ),
+        (novadraw::layout::BorderRegion::West, SIDE_WIDTH, "#2c3e50"),
+        (novadraw::layout::BorderRegion::East, SIDE_WIDTH, "#2c3e50"),
     ] {
         let band = scene
             .builder()
@@ -358,7 +366,10 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
         scene
             .builder()
-            .set_layout_constraint(band, novadraw::BorderConstraint::with_size(region, size))
+            .set_layout_constraint(
+                band,
+                novadraw::layout::BorderConstraint::with_size(region, size),
+            )
             .expect("valid FigureTree construction");
     }
 
@@ -374,7 +385,10 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                     10.0,
                     novadraw::Color::from_hex("#f39c12").expect("valid color literal"),
                 )
-                .with_border(novadraw::LineBorder::new(novadraw::Color::BLACK, 4.0)),
+                .with_border(novadraw::figure::border::LineBorder::new(
+                    novadraw::Color::BLACK,
+                    4.0,
+                )),
             ),
         )
         .expect("valid FigureTree construction");
@@ -382,7 +396,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
         .builder()
         .set_layout_constraint(
             clip_parent,
-            novadraw::BorderConstraint::new(novadraw::BorderRegion::Center),
+            novadraw::layout::BorderConstraint::new(novadraw::layout::BorderRegion::Center),
         )
         .expect("valid FigureTree construction");
 
@@ -489,7 +503,8 @@ pub fn suite() -> DemoSuite {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::{BackendCapabilities, Runtime, SurfaceInfo};
+    use novadraw::Runtime;
+    use novadraw::render::{BackendCapabilities, SurfaceInfo};
 
     use super::*;
 

@@ -1,7 +1,8 @@
-use novadraw::{
-    Color, FigureId, FigureTree, FreeformLayerFigure, LayerKey, LayerPlacement, Rectangle,
-    RectangleFigure, Runtime, ScaleHandle, ScrollBarVisibility, ScrollPaneHandle, ZoomManager,
+use novadraw::container::{
+    FreeformLayerFigure, LayerKey, LayerPlacement, ScaleHandle, ScrollBarVisibility,
+    ScrollPaneHandle, ZoomManager,
 };
+use novadraw::{Color, FigureId, FigureTree, Rectangle, RectangleFigure, Runtime};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -298,10 +299,9 @@ pub fn suite() -> DemoSuite {
 mod tests {
     use std::sync::Arc;
 
-    use novadraw::{
-        GesturePhase, GestureSessionId, KeyModifiers, MouseLocationZoomScrollPolicy, Point,
-        ZoomEvent,
-    };
+    use novadraw::Point;
+    use novadraw::container::MouseLocationZoomScrollPolicy;
+    use novadraw::event::{GesturePhase, GestureSessionId, KeyModifiers, ZoomEvent};
 
     use super::*;
 

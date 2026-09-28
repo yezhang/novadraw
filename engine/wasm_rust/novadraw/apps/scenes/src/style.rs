@@ -1,5 +1,5 @@
-use novadraw::border::RectangleBorder;
-use novadraw::{CursorIcon, Figure, FigureStyle, NdCanvas, Rectangle};
+use novadraw::figure::{CursorIcon, FigureStyle, border::RectangleBorder};
+use novadraw::{Figure, NdCanvas, Rectangle};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -163,15 +163,15 @@ fn create_scene_4_line_cap() -> novadraw::FigureTree {
 
     let caps = [
         (
-            novadraw::render::command::LineCap::Butt,
+            novadraw::graphics::LineCap::Butt,
             novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
         ),
         (
-            novadraw::render::command::LineCap::Round,
+            novadraw::graphics::LineCap::Round,
             novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
         ),
         (
-            novadraw::render::command::LineCap::Square,
+            novadraw::graphics::LineCap::Square,
             novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
         ),
     ];
@@ -200,15 +200,15 @@ fn create_scene_5_line_join() -> novadraw::FigureTree {
 
     let joins = [
         (
-            novadraw::render::command::LineJoin::Miter,
+            novadraw::graphics::LineJoin::Miter,
             novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0),
         ),
         (
-            novadraw::render::command::LineJoin::Round,
+            novadraw::graphics::LineJoin::Round,
             novadraw::Color::rgba(0.0, 0.8, 0.8, 1.0),
         ),
         (
-            novadraw::render::command::LineJoin::Bevel,
+            novadraw::graphics::LineJoin::Bevel,
             novadraw::Color::rgba(0.8, 0.0, 0.8, 1.0),
         ),
     ];
@@ -217,9 +217,9 @@ fn create_scene_5_line_join() -> novadraw::FigureTree {
         let base_x = 80.0 + i as f64 * 240.0;
         let base_y = 150.0;
         let line = novadraw::PolylineFigure::from_points(vec![
-            novadraw_geometry::Point::new(base_x, base_y + 200.0),
-            novadraw_geometry::Point::new(base_x + 80.0, base_y),
-            novadraw_geometry::Point::new(base_x + 160.0, base_y + 200.0),
+            novadraw::Point::new(base_x, base_y + 200.0),
+            novadraw::Point::new(base_x + 80.0, base_y),
+            novadraw::Point::new(base_x + 160.0, base_y + 200.0),
         ])
         .with_width(10.0)
         .with_join(join)

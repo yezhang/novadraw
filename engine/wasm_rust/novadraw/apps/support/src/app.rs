@@ -7,13 +7,17 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::input::{AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, adapt_key_input};
 use crate::platform::WinitPlatformHost;
-pub use novadraw::{
-    BackendCapabilities, Color, FigureEvent, FigureId, FigureTree, FontDescriptor, Key,
-    KeyModifiers, ListenerDirective, MonotonicTime, MouseButton, NdCanvas, NotificationEffect,
-    PlatformHost, Rectangle, RenderBackend, RenderCommand, RenderOutcome, Runtime, SurfaceInfo,
-    TextConstraints, UpdateEvent, UpdateListener, place_tooltip,
+pub use novadraw::backend::vello::VelloRenderer;
+pub use novadraw::event::{
+    FigureEvent, Key, KeyModifiers, ListenerDirective, MonotonicTime, MouseButton,
+    NotificationEffect, UpdateEvent, UpdateListener, place_tooltip,
 };
-pub use novadraw_render::backend::vello::VelloRenderer;
+pub use novadraw::render::command::RenderCommand;
+pub use novadraw::render::text::{FontDescriptor, TextConstraints};
+pub use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+pub use novadraw::{
+    Color, FigureId, FigureTree, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime,
+};
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
 pub use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -1095,9 +1099,10 @@ mod tests {
 
     #[test]
     fn visible_tooltip_lowers_to_native_overlay_commands() {
-        use novadraw::{
-            BuiltinFont, FigureStyle, RectangleFigure, RenderCommandKind, TooltipTiming,
-        };
+        use novadraw::event::TooltipTiming;
+        use novadraw::render::command::RenderCommandKind;
+        use novadraw::render::text::BuiltinFont;
+        use novadraw::{FigureStyle, RectangleFigure};
 
         let mut runtime = Runtime::empty();
         runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
@@ -1214,7 +1219,9 @@ mod tests {
 
     #[test]
     fn scene_switch_handoff_starts_each_runtime_with_a_snapshot_baseline() {
-        use novadraw::{BackendSessionDecision, BackendSessionGate, ResourceSync};
+        use novadraw::render::submission::{
+            BackendSessionDecision, BackendSessionGate, ResourceSync,
+        };
 
         let mut app = DemoApp::new(
             "test",

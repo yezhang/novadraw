@@ -5,17 +5,21 @@ use std::collections::HashMap;
 use std::f64::consts::TAU;
 use std::rc::Rc;
 
-use novadraw::{
-    AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate,
-    BackendCapabilities, BackendSessionDecision, BackendSessionGate, Bounded, Color, CursorIcon,
-    DamageMode, EventContext, Figure, FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers,
-    MonotonicTime, MouseButton, NdCanvas, PlatformHost, Rectangle, RenderBackend, RenderCapability,
-    RenderCommandKind, RenderOutcome, RenderSubmission, Runtime, Shape, SurfaceInfo, TooltipUpdate,
-    UnsupportedRenderCapability,
-    backend::vello::VelloRenderer,
-    command::{LineCap, LineJoin},
-    place_tooltip,
+use novadraw::backend::vello::VelloRenderer;
+use novadraw::event::{
+    AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate, EventContext,
+    FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MonotonicTime, MouseButton,
+    TooltipUpdate, place_tooltip,
 };
+use novadraw::figure::{Bounded, CursorIcon, Shape};
+use novadraw::graphics::{LineCap, LineJoin};
+use novadraw::render::command::RenderCommandKind;
+use novadraw::render::submission::{BackendSessionDecision, BackendSessionGate};
+use novadraw::render::{
+    BackendCapabilities, DamageMode, RenderCapability, RenderOutcome, RenderSubmission,
+    SurfaceInfo, UnsupportedRenderCapability,
+};
+use novadraw::{Color, Figure, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime};
 use novadraw_apps::{
     AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
     WebWheelDeltaMode, adapt_key_input,
@@ -179,36 +183,60 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn on_mouse_pressed(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_pressed(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.pressed.set(true);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_released(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_released(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.pressed.set(false);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_moved(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_moved(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_dragged(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_dragged(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_entered(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_entered(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.hovered.set(true);
         *self.state.hovered_label.borrow_mut() = Some(self.label);
         self.record_pointer(ctx);
         true
     }
 
-    fn on_mouse_exited(&self, _event: &novadraw::MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_exited(
+        &self,
+        _event: &novadraw::event::MouseEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.hovered.set(false);
         let is_current_hover = *self.state.hovered_label.borrow() == Some(self.label);
         if is_current_hover {
@@ -218,7 +246,11 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn on_mouse_wheel(&self, _event: &novadraw::WheelEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_mouse_wheel(
+        &self,
+        _event: &novadraw::event::WheelEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.state
             .wheel_events
             .set(self.state.wheel_events.get() + 1);
@@ -226,25 +258,41 @@ impl FigureEventHandler for WebProbeFigure {
         true
     }
 
-    fn on_key_pressed(&self, event: &novadraw::KeyEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_key_pressed(
+        &self,
+        event: &novadraw::event::KeyEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.state.key_events.set(self.state.key_events.get() + 1);
         *self.state.last_key.borrow_mut() = format!("{:?}", event.key);
         ctx.repaint(None);
         true
     }
 
-    fn on_key_released(&self, event: &novadraw::KeyEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_key_released(
+        &self,
+        event: &novadraw::event::KeyEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.on_key_pressed(event, ctx)
     }
 
-    fn on_focus_gained(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_focus_gained(
+        &self,
+        _event: &novadraw::event::FocusEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.focused.set(true);
         *self.state.focused_label.borrow_mut() = Some(self.label);
         ctx.repaint(None);
         true
     }
 
-    fn on_focus_lost(&self, _event: &novadraw::FocusEvent, ctx: &mut EventContext<'_>) -> bool {
+    fn on_focus_lost(
+        &self,
+        _event: &novadraw::event::FocusEvent,
+        ctx: &mut EventContext<'_>,
+    ) -> bool {
         self.focused.set(false);
         let is_current_focus = *self.state.focused_label.borrow() == Some(self.label);
         if is_current_focus {
@@ -1084,7 +1132,7 @@ fn accessibility_element(
     id: AccessibilityNodeId,
     depth: usize,
 ) -> Option<Element> {
-    if depth > novadraw::MAX_TREE_DEPTH {
+    if depth > novadraw::tree::MAX_TREE_DEPTH {
         return None;
     }
     let node = state.nodes.get(&id)?;

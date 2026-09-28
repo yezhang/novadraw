@@ -1,12 +1,16 @@
-use novadraw::{
+use novadraw::connection::{
     AnchorGeometry, AnchorGeometryKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint,
-    ChopboxAnchor, Color, ConnectionFigure, ConnectionId, ConnectionLayerFigure, ConnectionLocator,
-    ConnectionLocatorStrategy, CoordinateSpace, DirectRouter, EllipseAnchor, EllipseFigure,
-    FAN_DEFAULT_SEPARATION, FanRouter, LabelAnchor, ManhattanConnectionRouter, PolygonFigure,
-    Rectangle, RectangleFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouterBinding,
-    Runtime, ViewportFigure, XYAnchor,
+    ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionLayerFigure, ConnectionLocator,
+    ConnectionLocatorStrategy, CoordinateSpace, DirectRouter, EllipseAnchor,
+    FAN_DEFAULT_SEPARATION, FanRouter, LabelAnchor, ManhattanConnectionRouter,
+    RoundedRectangleAnchor, RouterBinding, XYAnchor,
 };
-use novadraw_geometry::{Dimension, Point, Vec2};
+use novadraw::container::ViewportFigure;
+use novadraw::geometry::{Dimension, Point, Vec2};
+use novadraw::{
+    Color, EllipseFigure, PolygonFigure, Rectangle, RectangleFigure, RoundedRectangleFigure,
+    Runtime,
+};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -506,9 +510,9 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         .unwrap();
     assert!(matches!(
         runtime.resolve_connection_route(connection_id, CoordinateSpace::ChildContent(root)),
-        Err(novadraw::ConnectionRuntimeError::Unresolved(
-            novadraw::UnresolvedConnection::RouteFailed(
-                novadraw::RouteError::UnsupportedViewportTopology
+        Err(novadraw::connection::ConnectionRuntimeError::Unresolved(
+            novadraw::connection::UnresolvedConnection::RouteFailed(
+                novadraw::connection::RouteError::UnsupportedViewportTopology
             )
         ))
     ));

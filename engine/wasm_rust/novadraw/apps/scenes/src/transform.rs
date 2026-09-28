@@ -5,12 +5,11 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
-use novadraw::{
-    Bounded, Color, EventContext, Figure, FigureEventHandler, LineBorder, MouseEvent, NdCanvas,
-    Point, Rectangle, RectangleFigure, Shape,
-    command::{LineCap, LineJoin},
-};
-use novadraw_geometry::Translatable;
+use novadraw::event::{EventContext, FigureEventHandler, MouseEvent};
+use novadraw::figure::{Bounded, Shape, border::LineBorder};
+use novadraw::geometry::Translatable;
+use novadraw::graphics::{LineCap, LineJoin};
+use novadraw::{Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -321,7 +320,8 @@ pub fn suite() -> DemoSuite {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::{MouseButton, Runtime};
+    use novadraw::Runtime;
+    use novadraw::event::MouseButton;
 
     use super::*;
 
