@@ -6,7 +6,7 @@
 
 - [`draw2d/api-coverage.md`](draw2d/api-coverage.md)：Draw2D API family、Novadraw 合理变体、覆盖状态与 milestone 映射
 - [`draw2d/notification-mapping.md`](draw2d/notification-mapping.md)：Draw2D 通知语义、Zed 借鉴与 Novadraw 映射
-- [`gef/api-coverage.md`](gef/api-coverage.md)：GEF 核心编辑语义、Editor 目标契约与 G0-G6 映射
+- [`gef/api-coverage.md`](gef/api-coverage.md)：GEF 核心编辑语义、Editor 目标契约与 G0-G5 映射
 
 最新实现差异审计见
 [`../verification/reviews/draw2d-core-capability-audit-2026-09-08.md`](../verification/reviews/draw2d-core-capability-audit-2026-09-08.md)。

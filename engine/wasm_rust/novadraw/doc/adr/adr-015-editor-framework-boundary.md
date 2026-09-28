@@ -1,5 +1,9 @@
 # ADR-015: 独立 Editor 框架边界
 
+> 2026-09-28 修订：G0-G5 构成 Editor framework 的引擎交付范围。本文原 G6
+> document schema、serializer 与产品级 Native/Web 毕业场景已由
+> [ADR-020](adr-020-engine-value-and-render-contract.md) 移交独立产品包。
+
 类型：`architecture-decision`
 
 状态：`accepted`

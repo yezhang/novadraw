@@ -16,8 +16,8 @@ Draw2D Core 1.0 完成后，Novadraw 的行为语义已经闭合，但公开 API
 - 结构 mutation 同时使用 null handle、`bool`、panic 和 `Result` 表达失败；
 - `FigureTree::validate` 只修改 valid bit，却使用了 Draw2D 完整验证协议的名称。
 
-这些入口会被后续 G6 重建、持久化和投影代码继续消费。先继续功能演进会扩大 breaking
-change 的调用面，并固化错误的阶段边界。
+这些入口会被后续引擎扩展和下游产品继续消费。先继续功能演进会扩大 breaking change
+的调用面，并固化错误的阶段边界。产品持久化边界已由 ADR-020 移交独立产品包。
 
 本决策落实
 [`Core 公开 API 语义与命名审计`](../verification/reviews/core-public-api-audit-2026-09-22.md)

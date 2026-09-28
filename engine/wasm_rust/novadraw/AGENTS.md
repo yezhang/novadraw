@@ -64,7 +64,7 @@
 
 - M1-M10、D3.1-D3.4 与 D4.1-D4.6 已完成；最近一次长期架构审计的 A01-A08 已关闭。
 - 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
-  Core 1.0 完成。Editor 框架已按 ADR-015 进入独立 G0-G6 roadmap，G0 架构启动与
+  Core 1.0 完成。Editor framework 已按 ADR-015 完成独立 G0-G5 roadmap，G0 架构启动与
   G1 Model Adapter/CommandStack、G2 EditPart Tree/Viewer 投影、G3
   Selection/Targeting/Input Arbitration、G4 Tool/Request/EditPolicy、G5.1
   Connection Projection、G5.2 Connection Creation 与 G5.3 Connection Reconnect
@@ -74,7 +74,8 @@
 - Core 公开 API 的 P0 Batch A/B 已按 ADR-017 完成；Runtime 驱动、坐标查询和
   Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
   调用面已按 ADR-019 收口。Graphics、Geometry 与 crate root 分层属于未排期的
-  P1/P2，不得混入 G6。
+  P1/P2，不得混入产品侧能力。原 G6 的 schema、serializer 和产品级 Native/Web
+  场景已按 ADR-020 移交独立产品包，不再作为本仓库引擎门禁。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
   已全部关闭；18 条次级候选保留待定向验证，状态以
   `doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md` 为准。

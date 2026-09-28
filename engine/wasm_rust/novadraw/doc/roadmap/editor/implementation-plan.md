@@ -2,7 +2,7 @@
 
 类型：`roadmap`
 
-本计划展开 G0-G6 的实施步骤。架构以
+本计划展开 G0-G5 的引擎实施步骤，并记录已移交独立产品包的原 G6 范围。架构以
 [`../../design/editor/architecture.md`](../../design/editor/architecture.md) 为准；本文不
 通过任务描述改变架构。
 
@@ -34,7 +34,7 @@
 - ADR-015；
 - Editor normative architecture；
 - GEF parity ledger；
-- G0-G6 roadmap；
+- G0-G5 engine roadmap；
 - `novadraw-editor` crate/module skeleton；
 - workspace 与文档入口。
 
@@ -163,19 +163,21 @@ reconnect/endpoint handle、G5.4 bendpoint 与 G5.5 viewport/auto-expose 自动�
 删除节点时，关联 connection 的处理必须由模型 Command 决定，不由 Figure dispose
 猜测业务级联关系。
 
-## G6：产品毕业
+## G6：下游产品毕业（外部）
 
-1. 定义示例 document schema 和 serializer；
-2. 保存/加载后重建 Editor/Runtime；
-3. 将已有 G3-G5 `EditorHarness` Headless Replay 扩展到保存/加载；
-4. 建立 Native 节点编辑器；
-5. 建立 Web 等价场景；
-6. 加入截图、语义和 history 断言；
-7. 执行 API 消融和公开错误审计。
+本阶段已移交独立产品包，不属于本仓库引擎实施计划。产品侧负责 document schema、
+serializer、保存/加载、产品级 Native/Web 入口和业务 history 断言。
+
+引擎侧只保持以下可复用契约：
+
+1. 外部模型可重新注入 `GraphicalViewer`；
+2. Runtime、EditPart 和 Figure 身份按新 session 重建；
+3. G3-G5 Headless Replay 继续验证确定性编辑事务；
+4. 产品验证发现的通用引擎缺口以独立 Editor delta 回流。
 
 ## Crate 拆分门禁
 
-G0-G4 期间不拆 crate。G5/G6 后只有满足以下全部条件才评估拆分：
+G0-G4 期间不拆 crate。G5 完成后只有满足以下全部条件才评估拆分：
 
 - 至少两个独立产品入口复用该模块；
 - 公共 API 已跨两个 milestone 稳定；

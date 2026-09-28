@@ -2,8 +2,9 @@
 
 类型：`roadmap`
 
-本目录承载 Draw2D Core 与 Editor 两条交付路线。Core 使用 `M1-M10`，Editor 使用
-`G0-G6`；相关 API 语义覆盖由 `doc/parity/` 下的账本维护。
+本目录承载 Draw2D Core 与 Editor 两条引擎交付路线。Core 使用 `M1-M10`，Editor
+framework 使用 `G0-G5`；原 G6 产品毕业范围已移交独立产品包。相关 API 语义覆盖由
+`doc/parity/` 下的账本维护。
 
 ## 文档职能边界
 
@@ -13,7 +14,7 @@
 | `doc/parity/draw2d/api-coverage.md` | **语义账本**：draw2d API family、Novadraw 对照方向、覆盖状态与 milestone 映射 | 人读，架构与实现对齐入口 | 按语义收敛持续更新 |
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
-| `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G6 编号、依赖和当前状态 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
+| `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G5 引擎里程碑与下游产品边界 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
 | `doc/roadmap/p2-delta-backlog.md` | **P2 backlog**：Core 1.0 之后已确认、尚未进入实施的 delta | 人读，后续能力入口 | 每项状态变化时 |
 
 ## 编号唯一来源
@@ -56,9 +57,9 @@ R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08
 Core 1.0 完成。后续能力必须进入 Editor roadmap 或明确的 P2 delta。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
-当前产品开发从 [`editor/00-index.md`](editor/00-index.md) 继续；已完成的 D0-D4、
-M8/M9 与 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为
-当前工作入口。
+当前引擎开发从 ADR-020 的基础值与公开渲染契约整改继续。原 G6 的产品 schema、
+serializer 和产品级 Native/Web 场景由独立产品包负责；已完成的 D0-D4、M8/M9 与
+R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为当前工作入口。
 
 `D0-D4` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
@@ -75,9 +76,9 @@ M8/M9 与 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，
 
 - EditPart / EditPolicy / Tool / Command / Request / Viewer / Palette / Selection provider / Undo-redo command stack
 
-这些不在 draw2d 核心里程碑内。Draw2D Core 1.0 完成后，Editor 框架已进入独立
-[`G0-G6 路线图`](editor/00-index.md)。带"节点编辑器"性质的旧 demo
-仍只视为早期探索，不能作为 GEF milestone 的实现证据。
+这些不在 draw2d 核心里程碑内。Draw2D Core 1.0 完成后，Editor framework 已完成独立
+[`G0-G5 路线图`](editor/00-index.md)。带"节点编辑器"性质的 demo 只作为引擎验证入口，
+不能定义产品 schema 或产品交付边界。
 
 ## 文档列表
 
@@ -85,6 +86,6 @@ M8/M9 与 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，
 |------|------|
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |
 | `demo-matrix.md` | 每个 milestone 对应的 demo + 验证矩阵 |
-| `editor/00-index.md` | Editor G0-G6 编号、状态和验收检查点 |
+| `editor/00-index.md` | Editor G0-G5 编号、状态和验收检查点 |
 | `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |
 | `p2-delta-backlog.md` | 已确认但尚未进入实施的 P2 delta |

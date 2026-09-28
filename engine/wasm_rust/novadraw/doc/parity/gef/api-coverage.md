@@ -46,20 +46,20 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `tool.tracker` | `DragTracker` | gesture 固定 source/tracker 与 cancel cleanup | verified | G4 |
 | `input.arbitration` | `DomainEventDispatcher` | Figure consumed/capture 优先，SelectionTool 复用相同 outcome | verified | G3/G4 |
 | `feedback.protocol` | source/target feedback | Figure layer 中的临时 visual，命令前清理 | verified | G4 |
-| `interaction.selection` | SelectionTool / marquee | click、modifier、多选与拖拽已闭合；marquee 后置 | partial | G3/G4/G6+ |
-| `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/G6+ |
+| `interaction.selection` | SelectionTool / marquee | click、modifier、多选与拖拽已闭合；marquee 后置 | partial | G3/G4/P2 |
+| `interaction.create` | CreationTool / CreateRequest | typed creation 与 target validation；专用 CreationTool 后置 | partial | G4/P2 |
 | `interaction.delete` | GroupRequest / component policy | 多选删除、undo；连接清理由 G5 模型 Command 闭合 | partial | G4/G5 |
-| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/G6+ |
+| `interaction.change_bounds` | ChangeBoundsRequest | move/resize/feedback/undo 已闭合；reparent 后置 | partial | G4/P2 |
 | `connection.part` | ConnectionEditPart / NodeEditPart | 单一有序模型快照投影 source/target relation；endpoint behavior 提供带稳定 key 的 source/target Anchor descriptor，Viewer 仅保留 Chopbox fallback | verified | G5 |
 | `connection.create` | CreateConnectionRequest / NodeEditPart request anchor | source-locked start/end 两阶段 Tool；endpoint behavior Anchor preview、反馈、模型 Command 与 undo/redo | verified | G5 |
 | `connection.reconnect` | ReconnectRequest / ConnectionEndpointEditPolicy | endpoint handle、稳定 Anchor descriptor preview、source/target 重连、合法性和 undo | verified | G5 |
 | `connection.bendpoint` | BendpointRequest / BendpointEditPolicy | create/move/delete handle、typed constraint、feedback 与 undo/redo；Connection behavior 选择应用注册的命名 Router，不污染 ModelAdapter | verified | G5 |
 | `viewport.autoexpose` | AutoexposeHelper / ViewportAutoexposeHelper | host 注入单调 elapsed，拖拽期间按 surface edge band 推进 Viewport，并重算 request、target 与 feedback | verified | G5 |
-| `document.persistence` | 非 GEF 固定 API | 应用 serializer + 重建一致性门禁 | specified | G6 |
-| `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | G6+ |
-| `direct_edit` | DirectEditManager/Request | 文本编辑、IME、commit/cancel | deferred | G6+ |
-| `snap.guides` | SnapTo*/rulers/guides | grid/geometry/guide feedback | deferred | G6+ |
-| `palette` | PaletteRoot/Viewer/ToolEntry | 可选工具选择 UI，不属于核心闭环 | deferred | G6+ |
+| `document.persistence` | 非 GEF 固定 API | 引擎不定义产品 document schema 与 serializer；只保证模型重新注入后的确定性重建 | rejected | - |
+| `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | P2 |
+| `direct_edit` | DirectEditManager/Request | 文本编辑、IME、commit/cancel | deferred | P2 |
+| `snap.guides` | SnapTo*/rulers/guides | grid/geometry/guide feedback | deferred | P2 |
+| `palette` | PaletteRoot/Viewer/ToolEntry | 可选工具选择 UI，不属于核心闭环 | deferred | P2 |
 | `tree.viewer` | TreeEditPart/TreeViewer | 非图形 viewer | rejected | - |
 | `workbench.integration` | Eclipse/JFace actions/properties | 由各平台产品集成替代 | rejected | - |
 

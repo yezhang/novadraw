@@ -8,11 +8,13 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 ## 当前状态
 
 - Draw2D Core：M1-M10 已完成；后续能力进入明确的 P2 delta。
-- Editor：G0-G5 已完成，检查点 C 已通过人工验收；G6 尚未开始。
+- Editor framework：G0-G5 已完成，检查点 C 已通过人工验收；原 G6 的产品 schema、
+  serializer 和产品级 Native/Web 场景移交独立产品包，不再作为引擎完成门禁。
 - Core 公开 API：ADR-017 的 P0 Batch A/B 已完成；ADR-018 已完成 Runtime
   驱动、坐标查询与结构化测量收口；ADR-019 已完成 detached 构造与挂载后 scoped
-  editor 调用面收口。Graphics、Geometry 与 crate root 分层等其他 P1/P2 尚未排期。
-- 2026-09-16 全量语义审计整改进行中，状态见
+  editor 调用面收口。ADR-020 已启动 Graphics、Geometry 与基础值契约整改；
+  crate root 分层等其他 P1/P2 尚未排期。
+- 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
   [`roadmap/editor/00-index.md`](roadmap/editor/00-index.md) 维护。
@@ -26,7 +28,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 | [`design/`](design/00-index.md) | Novadraw 应该如何工作？ | Novadraw 设计 SSOT |
 | [`parity/`](parity/00-index.md) | 哪些外部语义被继承、调整或拒绝？ | 项目与参考实现之间的桥梁 |
 | [`adr/`](adr/README.md) | 为什么接受某项关键决策？ | 已接受决策及其后果 |
-| [`roadmap/`](roadmap/00-index.md) | Core 与 Editor 何时交付、当前到哪里？ | M1-M10 与 G0-G6 状态，不定义架构 |
+| [`roadmap/`](roadmap/00-index.md) | Core 与 Editor 何时交付、当前到哪里？ | M1-M10 与 G0-G5 引擎状态，不定义架构 |
 | [`strategy/`](strategy/00-index.md) | 为谁创造价值、如何验证？ | 产品与商业决策输入，不定义架构 |
 | [`verification/`](verification/00-index.md) | 如何证明事实、设计和实现一致？ | 审计、验收和检查记录 |
 | [`migration/`](migration/00-index.md) | 如何完成语言与工程迁移？ | 方法指南 |
@@ -42,6 +44,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-018-runtime-driving-and-measurement-api.md`](adr/adr-018-runtime-driving-and-measurement-api.md)
 - 可组装构造与挂载后 scoped editor：
   [`adr/adr-019-composable-api-and-scoped-editors.md`](adr/adr-019-composable-api-and-scoped-editors.md)
+- 引擎基础值与公开渲染契约：
+  [`adr/adr-020-engine-value-and-render-contract.md`](adr/adr-020-engine-value-and-render-contract.md)
 - Core 公开 API 审计与整改状态：
   [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - ADR-001 至 ADR-013 审计与替代关系：
@@ -74,7 +78,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Editor Viewport/Auto-expose：
   [`design/editor/g5-viewport-autoexpose.md`](design/editor/g5-viewport-autoexpose.md)
 - GEF 核心语义覆盖账本：[`parity/gef/api-coverage.md`](parity/gef/api-coverage.md)
-- G0-G6 唯一编号与状态：[`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
+- G0-G5 唯一编号与状态：[`roadmap/editor/00-index.md`](roadmap/editor/00-index.md)
 - 可执行验证 suite 与命令：[`../verification/suites.toml`](../verification/suites.toml)
 - Draw2D API 语义覆盖账本：[`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 - M1-M10 唯一编号与状态：[`roadmap/00-index.md`](roadmap/00-index.md)

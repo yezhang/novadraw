@@ -2,10 +2,11 @@
 
 类型：`roadmap`
 
-状态：`in_progress`
+状态：`complete`
 
-本目录承载 Draw2D Core 1.0 之后的独立 Editor 框架路线图。`G0-G6` 只属于本目录，
-不得与 Draw2D `M1-M10` 或历史 architecture delta `D0-D4` 混用。
+本目录承载 Draw2D Core 1.0 之后的独立 Editor 框架路线图。引擎交付范围为
+`G0-G5`，不得与 Draw2D `M1-M10` 或历史 architecture delta `D0-D4` 混用。
+原 G6 产品毕业范围已移交独立产品包，不再作为本仓库引擎完成门禁。
 
 ## 文档边界
 
@@ -26,7 +27,8 @@
 | `in_progress` | 正在补契约、实现或验证 |
 | `contract_aligned` | 公开契约稳定，行为验证未闭合 |
 | `behavior_verified` | 自动契约和 headless 行为闭合 |
-| `complete` | 产品入口、跨平台验证和文档全部闭合 |
+| `complete` | 引擎契约、自动验证、要求的人工检查点和文档全部闭合 |
+| `external` | 已移交独立产品包，不属于本仓库引擎门禁 |
 
 ## 里程碑
 
@@ -38,7 +40,7 @@
 | G3 | Selection、Targeting 与输入仲裁 | `complete` | 多选/primary/focus、visual targeting、Figure/Editor fallback 消费与 capture | **检查点 A：PASS** |
 | G4 | Tool / Request / EditPolicy 编辑闭环 | `complete` | create、move、resize、delete、feedback、undo/redo | **检查点 B：PASS** |
 | G5 | Connection 编辑与 Viewport 协作 | `complete` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：PASS** |
-| G6 | 产品化与跨平台毕业 | `not_started` | 保存加载、Native/Web/Headless 等价、节点编辑器毕业场景 | **最终验收** |
+| G6 | 下游产品毕业 | `external` | 产品 schema、保存加载和产品级 Native/Web 场景由独立产品包负责 | 不属于引擎验收 |
 
 人工验收只在对应 milestone 的自动门禁通过后进行：
 
@@ -56,10 +58,12 @@ G0 architecture and evidence
 -> G3 interaction ownership
 -> G4 basic editing
 -> G5 connection editing
--> G6 product qualification
 ```
 
 不得先做拖拽 demo，再从 app 代码反推 Command、PartTree 或 Viewer 契约。
+
+产品持久化、业务 document schema 和产品级跨平台入口在 G5 之后消费引擎能力，
+但不反向定义 Editor framework 的模型所有权、Command 或投影契约。
 
 ## G0 门禁
 
@@ -232,10 +236,10 @@ G5.5 自动与人工验证入口：
 - `doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md`；
 - `doc/verification/manual/g5-viewport-autoexpose.md`。
 
-## 最小毕业场景
+## 下游产品参考场景
 
-`apps/native/node-editor-demo` 是计划中的产品验证入口，不是架构真源。它必须由
-`novadraw-editor` 公共 API 构建，至少覆盖：
+`apps/native/node-editor-demo` 是引擎验证入口，不是架构真源，也不是产品交付物。
+独立产品包可基于 `novadraw-editor` 公共 API 覆盖：
 
 1. 加载一个带节点和连接的模型；
 2. 单选、多选和 primary selection；
@@ -243,8 +247,11 @@ G5.5 自动与人工验证入口：
 4. 创建与重连连接；
 5. 每项操作 undo/redo；
 6. Viewport 滚动、缩放和拖拽 auto-expose；
-7. 保存、加载并验证模型等价；
+7. 保存、加载并验证业务模型等价；
 8. Native、Web、Headless 使用同一编辑事务。
+
+其中 7、8 的产品 schema、serializer 和应用入口由独立产品包负责；只有暴露出的
+引擎契约缺口才回流为新的 Editor delta。
 
 ## 明确后置
 
