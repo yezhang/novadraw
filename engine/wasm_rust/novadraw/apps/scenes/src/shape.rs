@@ -993,7 +993,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -1005,7 +1005,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#e74c3c"))
+    .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(1.0);
 
@@ -1016,7 +1016,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#2ecc71"))
+    .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(3.0);
 
@@ -1027,7 +1027,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#3498db"))
+    .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(5.0);
 
@@ -1038,7 +1038,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#9b59b6"))
+    .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(10.0);
 
@@ -1049,7 +1049,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#f39c12"))
+    .with_fill_color(novadraw::Color::from_hex("#f39c12").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(20.0);
 
@@ -1061,7 +1061,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#e74c3c"))
+    .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(3.0);
 
@@ -1072,7 +1072,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::South,
     )
-    .with_fill_color(novadraw::Color::hex("#2ecc71"))
+    .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(3.0);
 
@@ -1083,7 +1083,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::East,
     )
-    .with_fill_color(novadraw::Color::hex("#3498db"))
+    .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(3.0);
 
@@ -1094,7 +1094,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::West,
     )
-    .with_fill_color(novadraw::Color::hex("#9b59b6"))
+    .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
     .with_stroke_width(3.0);
 
@@ -1106,7 +1106,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         60.0,
         novadraw::Direction::North,
     )
-    .with_fill_color(novadraw::Color::hex("#e91e63"))
+    .with_fill_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::TRANSPARENT)
     .with_stroke_width(0.0);
 
@@ -1118,7 +1118,7 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         novadraw::Direction::North,
     )
     .with_fill_color(novadraw::Color::TRANSPARENT)
-    .with_stroke_color(novadraw::Color::hex("#e91e63"))
+    .with_stroke_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_width(3.0);
 
     scene
@@ -1296,7 +1296,7 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            novadraw::Color::hex("#eeeeee"),
+            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
     let polyline = runtime
@@ -1307,7 +1307,7 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
                 novadraw_geometry::Vec2::new(70.0, 100.0),
                 novadraw_geometry::Vec2::new(210.0, 100.0),
             ])
-            .with_color(novadraw::Color::hex("#2563eb"))
+            .with_color(novadraw::Color::from_hex("#2563eb").expect("valid color literal"))
             .with_width(5.0),
         ))
         .expect("valid Runtime mutation");
@@ -1321,17 +1321,21 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
                 180.0,
                 110.0,
                 12.0,
-                novadraw::Color::hex("#16a34a"),
+                novadraw::Color::from_hex("#16a34a").expect("valid color literal"),
             )
-            .with_stroke(novadraw::Color::hex("#14532d"), 3.0),
+            .with_stroke(
+                novadraw::Color::from_hex("#14532d").expect("valid color literal"),
+                3.0,
+            ),
         ))
         .expect("valid Runtime mutation");
     let triangle = runtime
         .container(root)
         .unwrap()
         .add(Box::new(
-            novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0)
-                .with_fill_color(novadraw::Color::hex("#f59e0b")),
+            novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0).with_fill_color(
+                novadraw::Color::from_hex("#f59e0b").expect("valid color literal"),
+            ),
         ))
         .expect("valid Runtime mutation");
 

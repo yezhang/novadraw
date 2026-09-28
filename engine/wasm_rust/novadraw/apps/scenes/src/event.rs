@@ -97,15 +97,15 @@ impl Figure for EventProbeFigure {
     fn paint_figure(&self, canvas: &mut NdCanvas) {
         let state = self.state.lock().unwrap();
         let color = if self.disabled_visual {
-            Color::hex("#95a5a6")
+            Color::from_hex("#95a5a6").expect("valid color literal")
         } else if state.pressed {
-            Color::hex("#e74c3c")
+            Color::from_hex("#e74c3c").expect("valid color literal")
         } else if state.focused {
-            Color::hex("#9b59b6")
+            Color::from_hex("#9b59b6").expect("valid color literal")
         } else if state.hovered {
-            Color::hex("#2ecc71")
+            Color::from_hex("#2ecc71").expect("valid color literal")
         } else {
-            Color::hex("#3498db")
+            Color::from_hex("#3498db").expect("valid color literal")
         };
         canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
     }
@@ -213,7 +213,7 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            Color::hex("#eeeeee"),
+            Color::from_hex("#eeeeee").expect("valid color literal"),
         )));
     let parent = if local_coordinates {
         graph
@@ -225,7 +225,7 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
                     80.0,
                     500.0,
                     360.0,
-                    Color::hex("#dfe6e9"),
+                    Color::from_hex("#dfe6e9").expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction")

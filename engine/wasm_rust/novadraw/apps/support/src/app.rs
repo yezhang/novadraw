@@ -27,24 +27,9 @@ const SCREENSHOT_RENDER_RETRY_LIMIT: usize = 8;
 const INITIAL_FRAME_RETRY_LIMIT: usize = 8;
 const TOOLTIP_HORIZONTAL_PADDING: f64 = 8.0;
 const TOOLTIP_VERTICAL_PADDING: f64 = 6.0;
-const TOOLTIP_BACKGROUND: Color = Color {
-    r: 0.09,
-    g: 0.13,
-    b: 0.18,
-    a: 1.0,
-};
-const TOOLTIP_FOREGROUND: Color = Color {
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
-const TOOLTIP_BORDER: Color = Color {
-    r: 0.45,
-    g: 0.5,
-    b: 0.56,
-    a: 1.0,
-};
+const TOOLTIP_BACKGROUND: Color = Color::rgba(0.09, 0.13, 0.18, 1.0);
+const TOOLTIP_FOREGROUND: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+const TOOLTIP_BORDER: Color = Color::rgba(0.45, 0.5, 0.56, 1.0);
 const TOOLTIP_BORDER_WIDTH: f64 = 1.0;
 
 /// 演示应用
@@ -806,7 +791,7 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         bounds.y + TOOLTIP_VERTICAL_PADDING,
     );
     canvas.pop_state();
-    canvas.commands().clone()
+    canvas.commands().to_vec()
 }
 
 /// 从按键获取数字索引（0-9）

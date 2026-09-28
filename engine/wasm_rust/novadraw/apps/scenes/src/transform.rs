@@ -16,48 +16,13 @@ use crate::{DemoSuite, SceneSpec};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
-const BACKGROUND: Color = Color {
-    r: 0.933,
-    g: 0.933,
-    b: 0.933,
-    a: 1.0,
-};
-const OUTER_COLOR: Color = Color {
-    r: 0.36,
-    g: 0.61,
-    b: 0.84,
-    a: 1.0,
-};
-const INNER_COLOR: Color = Color {
-    r: 0.95,
-    g: 0.67,
-    b: 0.24,
-    a: 1.0,
-};
-const CHILD_COLOR: Color = Color {
-    r: 0.33,
-    g: 0.73,
-    b: 0.53,
-    a: 1.0,
-};
-const TARGET_COLOR: Color = Color {
-    r: 0.86,
-    g: 0.32,
-    b: 0.32,
-    a: 1.0,
-};
-const OLD_BOUNDS_COLOR: Color = Color {
-    r: 0.55,
-    g: 0.55,
-    b: 0.55,
-    a: 1.0,
-};
-const SELECTED_BORDER_COLOR: Color = Color {
-    r: 1.0,
-    g: 0.84,
-    b: 0.0,
-    a: 1.0,
-};
+const BACKGROUND: Color = Color::rgba(0.933, 0.933, 0.933, 1.0);
+const OUTER_COLOR: Color = Color::rgba(0.36, 0.61, 0.84, 1.0);
+const INNER_COLOR: Color = Color::rgba(0.95, 0.67, 0.24, 1.0);
+const CHILD_COLOR: Color = Color::rgba(0.33, 0.73, 0.53, 1.0);
+const TARGET_COLOR: Color = Color::rgba(0.86, 0.32, 0.32, 1.0);
+const OLD_BOUNDS_COLOR: Color = Color::rgba(0.55, 0.55, 0.55, 1.0);
+const SELECTED_BORDER_COLOR: Color = Color::rgba(1.0, 0.84, 0.0, 1.0);
 const BORDER_WIDTH: f64 = 3.0;
 
 fn background() -> RectangleFigure {

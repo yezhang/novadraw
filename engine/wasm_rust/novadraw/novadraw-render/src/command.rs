@@ -4,8 +4,9 @@
 
 use std::fmt;
 
+use kurbo::Shape as _;
 use novadraw_core::Color;
-use novadraw_geometry::Transform;
+use novadraw_geometry::{Rectangle, Transform};
 
 use crate::submission::ResourceId;
 use crate::text::{GlyphPaint, GlyphRun};
@@ -149,20 +150,6 @@ pub enum RenderCommandKind {
         join: LineJoin,
     },
 
-    /// 绘制路径
-    Path {
-        /// 路径数据
-        path: Path,
-        /// 填充颜色
-        fill_color: Option<Color>,
-        /// 描边颜色
-        stroke_color: Option<Color>,
-        /// 描边宽度
-        stroke_width: f64,
-        /// 填充规则
-        fill_rule: FillRule,
-    },
-
     /// 填充路径
     FillPath {
         /// 路径数据
@@ -193,8 +180,6 @@ pub enum RenderCommandKind {
         image: ImageResourceRef,
         /// 目标矩形 [左上角, 右下角]
         dest_rect: [glam::DVec2; 2],
-        /// 源矩形 [左上角, 右下角]，None 表示整个图像
-        src_rect: Option<[glam::DVec2; 2]>,
         /// 绘制透明度
         alpha: f64,
     },
@@ -242,14 +227,6 @@ pub enum LineStyle {
     Solid,
     Dash,
     Dot,
-}
-
-/// 填充规则
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum FillRule {
-    #[default]
-    NonZero,
-    EvenOdd,
 }
 
 /// 路径数据类型
@@ -314,7 +291,7 @@ impl Path {
         &mut self,
         rx: f64,
         ry: f64,
-        rotation: f64,
+        rotation_degrees: f64,
         large_arc: bool,
         sweep: bool,
         x: f64,
@@ -322,11 +299,56 @@ impl Path {
     ) {
         self.operations.push(PathOp::Arc {
             radii: glam::DVec2::new(rx, ry),
-            rotation,
+            rotation: rotation_degrees.to_radians(),
             large_arc,
             sweep,
             dest: glam::DVec2::new(x, y),
         });
+    }
+
+    /// Adds a center-defined circular arc using degree angles.
+    pub fn arc(
+        &mut self,
+        x: f64,
+        y: f64,
+        radius: f64,
+        start_degrees: f64,
+        end_degrees: f64,
+        anticlockwise: bool,
+    ) {
+        if !x.is_finite()
+            || !y.is_finite()
+            || !radius.is_finite()
+            || radius < 0.0
+            || !start_degrees.is_finite()
+            || !end_degrees.is_finite()
+        {
+            return;
+        }
+
+        let start_angle = start_degrees.to_radians();
+        let sweep_angle = canvas_sweep(start_degrees, end_degrees, anticlockwise);
+        let start = kurbo::Point::new(
+            x + radius * start_angle.cos(),
+            y + radius * start_angle.sin(),
+        );
+        match self.current_point() {
+            None => self.move_to(start.x, start.y),
+            Some(current) if current.distance(start) > f64::EPSILON => {
+                self.line_to(start.x, start.y);
+            }
+            Some(_) => {}
+        }
+
+        if radius == 0.0 || sweep_angle == 0.0 {
+            return;
+        }
+        kurbo::Arc::new((x, y), (radius, radius), start_angle, sweep_angle, 0.0).to_cubic_beziers(
+            0.1,
+            |control1, control2, end| {
+                self.cubic_to(control1.x, control1.y, control2.x, control2.y, end.x, end.y);
+            },
+        );
     }
 
     /// 绘制矩形（添加到路径）
@@ -339,61 +361,157 @@ impl Path {
     }
 
     /// 获取包围盒
-    pub fn bounding_box(&self) -> Option<glam::DVec4> {
-        let mut min_x = f64::INFINITY;
-        let mut min_y = f64::INFINITY;
-        let mut max_x = f64::NEG_INFINITY;
-        let mut max_y = f64::NEG_INFINITY;
-
-        let mut current = glam::DVec2::ZERO;
-        for op in &self.operations {
-            match op {
-                PathOp::MoveTo(p) | PathOp::LineTo(p) => {
-                    current = *p;
-                    min_x = min_x.min(p.x);
-                    min_y = min_y.min(p.y);
-                    max_x = max_x.max(p.x);
-                    max_y = max_y.max(p.y);
-                }
-                PathOp::HLineTo(x) => {
-                    current = glam::DVec2::new(*x, current.y);
-                    min_x = min_x.min(*x);
-                    max_x = max_x.max(*x);
-                }
-                PathOp::VLineTo(y) => {
-                    current = glam::DVec2::new(current.x, *y);
-                    min_y = min_y.min(*y);
-                    max_y = max_y.max(*y);
-                }
-                PathOp::CubicTo(_, _, p) | PathOp::QuadTo(_, p) => {
-                    current = *p;
-                    min_x = min_x.min(p.x);
-                    min_y = min_y.min(p.y);
-                    max_x = max_x.max(p.x);
-                    max_y = max_y.max(p.y);
-                }
-                PathOp::Arc { dest, .. } => {
-                    current = *dest;
-                    min_x = min_x.min(dest.x);
-                    min_y = min_y.min(dest.y);
-                    max_x = max_x.max(dest.x);
-                    max_y = max_y.max(dest.y);
-                }
-                PathOp::Close => {}
-            }
+    pub fn bounding_box(&self) -> Option<Rectangle> {
+        if self.operations.is_empty() {
+            return None;
         }
-
-        if min_x.is_infinite() {
-            None
-        } else {
-            Some(glam::DVec4::new(min_x, min_y, max_x, max_y))
-        }
+        let bounds = self.to_kurbo_path(1.0).bounding_box();
+        Some(Rectangle::new(
+            bounds.x0,
+            bounds.y0,
+            bounds.width(),
+            bounds.height(),
+        ))
     }
 
     /// 获取路径操作列表
     pub fn operations(&self) -> &[PathOp] {
         &self.operations
     }
+
+    pub(crate) fn to_kurbo_path(&self, scale: f64) -> kurbo::BezPath {
+        let mut path = kurbo::BezPath::new();
+        let mut current = None;
+        let mut subpath_start = None;
+
+        for operation in &self.operations {
+            match operation {
+                PathOp::MoveTo(point) => {
+                    let point = scaled_point(*point, scale);
+                    path.move_to(point);
+                    current = Some(point);
+                    subpath_start = Some(point);
+                }
+                PathOp::LineTo(point) => {
+                    let point = scaled_point(*point, scale);
+                    path.line_to(point);
+                    current = Some(point);
+                }
+                PathOp::HLineTo(x) => {
+                    let point = kurbo::Point::new(*x * scale, current.map_or(0.0, |point| point.y));
+                    path.line_to(point);
+                    current = Some(point);
+                }
+                PathOp::VLineTo(y) => {
+                    let point = kurbo::Point::new(current.map_or(0.0, |point| point.x), *y * scale);
+                    path.line_to(point);
+                    current = Some(point);
+                }
+                PathOp::CubicTo(control1, control2, end) => {
+                    let end = scaled_point(*end, scale);
+                    path.curve_to(
+                        scaled_point(*control1, scale),
+                        scaled_point(*control2, scale),
+                        end,
+                    );
+                    current = Some(end);
+                }
+                PathOp::QuadTo(control, end) => {
+                    let end = scaled_point(*end, scale);
+                    path.quad_to(scaled_point(*control, scale), end);
+                    current = Some(end);
+                }
+                PathOp::Arc {
+                    radii,
+                    rotation,
+                    large_arc,
+                    sweep,
+                    dest,
+                } => {
+                    let destination = scaled_point(*dest, scale);
+                    let Some(source) = current else {
+                        path.move_to(destination);
+                        current = Some(destination);
+                        subpath_start = Some(destination);
+                        continue;
+                    };
+                    let svg_arc = kurbo::SvgArc {
+                        from: source,
+                        to: destination,
+                        radii: kurbo::Vec2::new(radii.x * scale, radii.y * scale),
+                        x_rotation: *rotation,
+                        large_arc: *large_arc,
+                        sweep: *sweep,
+                    };
+                    if let Some(arc) = kurbo::Arc::from_svg_arc(&svg_arc) {
+                        arc.to_cubic_beziers(0.1, |control1, control2, end| {
+                            path.curve_to(control1, control2, end);
+                        });
+                    } else {
+                        path.line_to(destination);
+                    }
+                    current = Some(destination);
+                }
+                PathOp::Close => {
+                    path.close_path();
+                    current = subpath_start;
+                }
+            }
+        }
+        path
+    }
+
+    fn current_point(&self) -> Option<kurbo::Point> {
+        let mut current = None;
+        let mut subpath_start = None;
+        for operation in &self.operations {
+            match operation {
+                PathOp::MoveTo(point) => {
+                    let point = scaled_point(*point, 1.0);
+                    current = Some(point);
+                    subpath_start = Some(point);
+                }
+                PathOp::LineTo(point) | PathOp::CubicTo(_, _, point) | PathOp::QuadTo(_, point) => {
+                    current = Some(scaled_point(*point, 1.0));
+                }
+                PathOp::HLineTo(x) => {
+                    current = Some(kurbo::Point::new(*x, current.map_or(0.0, |point| point.y)));
+                }
+                PathOp::VLineTo(y) => {
+                    current = Some(kurbo::Point::new(current.map_or(0.0, |point| point.x), *y));
+                }
+                PathOp::Arc { dest, .. } => {
+                    current = Some(scaled_point(*dest, 1.0));
+                }
+                PathOp::Close => current = subpath_start,
+            }
+        }
+        current
+    }
+}
+
+fn scaled_point(point: glam::DVec2, scale: f64) -> kurbo::Point {
+    kurbo::Point::new(point.x * scale, point.y * scale)
+}
+
+fn canvas_sweep(start_degrees: f64, end_degrees: f64, anticlockwise: bool) -> f64 {
+    const FULL_TURN_DEGREES: f64 = 360.0;
+    let raw = end_degrees - start_degrees;
+    if raw.abs() >= FULL_TURN_DEGREES {
+        return if anticlockwise {
+            -std::f64::consts::TAU
+        } else {
+            std::f64::consts::TAU
+        };
+    }
+
+    let mut sweep = raw.to_radians();
+    if anticlockwise && sweep > 0.0 {
+        sweep -= std::f64::consts::TAU;
+    } else if !anticlockwise && sweep < 0.0 {
+        sweep += std::f64::consts::TAU;
+    }
+    sweep
 }
 
 /// 路径操作
@@ -623,6 +741,32 @@ fn unpremultiply_rgba(pixels: &mut [u8]) {
 mod tests {
     use super::*;
     use image::ImageEncoder;
+
+    #[test]
+    fn path_bounds_include_curve_extrema() {
+        let mut path = Path::new();
+        path.move_to(0.0, 0.0);
+        path.cubic_to(0.0, 100.0, 100.0, 100.0, 100.0, 0.0);
+
+        let bounds = path.bounding_box().expect("non-empty path");
+
+        assert!(bounds.x.abs() < 1e-9);
+        assert!((bounds.width - 100.0).abs() < 1e-9);
+        assert!((bounds.y + bounds.height - 75.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn path_bounds_include_svg_arc_extent() {
+        let mut path = Path::new();
+        path.move_to(0.0, 0.0);
+        path.arc_to(50.0, 50.0, 0.0, false, true, 100.0, 0.0);
+
+        let bounds = path.bounding_box().expect("non-empty path");
+
+        assert!(bounds.x.abs() < 1e-9);
+        assert!((bounds.width - 100.0).abs() < 1e-9);
+        assert!((bounds.height - 50.0).abs() < 1e-9);
+    }
 
     #[test]
     fn decodes_png_and_svg_into_rgba() {

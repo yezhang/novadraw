@@ -9,30 +9,10 @@ use crate::{DemoSuite, SceneSpec, ValidationKind};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
-const TITLE_COLOR: Color = Color {
-    r: 0.08,
-    g: 0.15,
-    b: 0.25,
-    a: 1.0,
-};
-const CAPTION_COLOR: Color = Color {
-    r: 0.32,
-    g: 0.36,
-    b: 0.42,
-    a: 1.0,
-};
-const SCENE_BACKGROUND: Color = Color {
-    r: 0.94,
-    g: 0.95,
-    b: 0.97,
-    a: 1.0,
-};
-const INHERITED_PANEL_BACKGROUND: Color = Color {
-    r: 0.84,
-    g: 0.9,
-    b: 0.96,
-    a: 1.0,
-};
+const TITLE_COLOR: Color = Color::rgba(0.08, 0.15, 0.25, 1.0);
+const CAPTION_COLOR: Color = Color::rgba(0.32, 0.36, 0.42, 1.0);
+const SCENE_BACKGROUND: Color = Color::rgba(0.94, 0.95, 0.97, 1.0);
+const INHERITED_PANEL_BACKGROUND: Color = Color::rgba(0.84, 0.9, 0.96, 1.0);
 const TOOLTIP_BOUNDARY_X: f64 = 600.0;
 const TOOLTIP_BOUNDARY_Y: f64 = 535.0;
 const TOOLTIP_BOUNDARY_WIDTH: f64 = 150.0;

@@ -104,7 +104,7 @@ impl Bounded for WebProbeFigure {
 
 impl Shape for WebProbeFigure {
     fn stroke_color(&self) -> Option<Color> {
-        Some(Color::hex("#17202a"))
+        Some(Color::from_hex("#17202a").expect("valid color literal"))
     }
 
     fn stroke_width(&self) -> f64 {
@@ -123,7 +123,7 @@ impl Shape for WebProbeFigure {
         } else {
             "#2980b9"
         };
-        Some(Color::hex(color))
+        Some(Color::from_hex(color).expect("valid color literal"))
     }
 
     fn line_cap(&self) -> LineCap {
@@ -275,10 +275,10 @@ impl Canvas2dBackend {
     fn color(color: Color) -> String {
         format!(
             "rgba({},{},{},{})",
-            (color.r * 255.0).round() as u8,
-            (color.g * 255.0).round() as u8,
-            (color.b * 255.0).round() as u8,
-            color.a
+            (color.red() * 255.0).round() as u8,
+            (color.green() * 255.0).round() as u8,
+            (color.blue() * 255.0).round() as u8,
+            color.alpha()
         )
     }
 
@@ -345,7 +345,7 @@ impl RenderBackend for Canvas2dBackend {
             submission.surface.logical_width,
             submission.surface.logical_height,
         );
-        self.set_fill(Color::hex("#eef1f4"));
+        self.set_fill(Color::from_hex("#eef1f4").expect("valid color literal"));
         self.context.fill_rect(
             0.0,
             0.0,

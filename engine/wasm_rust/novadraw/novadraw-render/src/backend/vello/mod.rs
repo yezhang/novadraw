@@ -172,10 +172,10 @@ fn append_glyph_run(
         GlyphPaint::Fill(color) | GlyphPaint::Stroke { color, .. } => color,
     };
     let color = VelloColor::new([
-        color.r as f32,
-        color.g as f32,
-        color.b as f32,
-        color.a as f32,
+        color.red() as f32,
+        color.green() as f32,
+        color.blue() as f32,
+        color.alpha() as f32,
     ]);
     let glyph_transform = run
         .skew_degrees
@@ -624,6 +624,11 @@ impl VelloRenderer {
                 self.current_state_mut().transform = Transform::IDENTITY;
             }
 
+            // NdCanvas bakes global alpha into every paint command. Retaining
+            // this command in the IR preserves state-transition observability
+            // without applying alpha a second time in the backend.
+            crate::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
+
             crate::command::RenderCommandKind::Clip { rect } => {
                 debug!("Clip: {:?}", rect);
                 let clip = RenderClip {
@@ -651,10 +656,10 @@ impl VelloRenderer {
                 let y1 = rect[1].y * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
                 self.scene.fill(
                     vello::peniko::Fill::NonZero,
@@ -674,10 +679,10 @@ impl VelloRenderer {
                 let y1 = rect[1].y * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
                 self.scene.fill(
                     vello::peniko::Fill::NonZero,
@@ -704,10 +709,10 @@ impl VelloRenderer {
                 let y1 = rect[1].y * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
                 let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
                 self.scene
@@ -730,10 +735,10 @@ impl VelloRenderer {
                 let v2 =
                     vello::kurbo::Point::new(p2.x * self.scale_factor, p2.y * self.scale_factor);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
 
                 let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
@@ -761,10 +766,10 @@ impl VelloRenderer {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
 
                 let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
@@ -806,10 +811,10 @@ impl VelloRenderer {
                 // 填充椭圆
                 if let Some(color) = fill_color {
                     let vello_color = VelloColor::new([
-                        color.r as f32,
-                        color.g as f32,
-                        color.b as f32,
-                        color.a as f32,
+                        color.red() as f32,
+                        color.green() as f32,
+                        color.blue() as f32,
+                        color.alpha() as f32,
                     ]);
                     self.scene.fill(
                         vello::peniko::Fill::NonZero,
@@ -823,10 +828,10 @@ impl VelloRenderer {
                 // 描边椭圆
                 if let Some(color) = stroke_color {
                     let vello_color = VelloColor::new([
-                        color.r as f32,
-                        color.g as f32,
-                        color.b as f32,
-                        color.a as f32,
+                        color.red() as f32,
+                        color.green() as f32,
+                        color.blue() as f32,
+                        color.alpha() as f32,
                     ]);
                     let stroke =
                         vello_stroke(*stroke_width * self.scale_factor, *line_style, *cap, *join);
@@ -839,65 +844,13 @@ impl VelloRenderer {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
 
-                // 构建填充路径
-                let mut bez_path = vello::kurbo::BezPath::new();
-                let mut current_pos: Option<(f64, f64)> = None;
-                for op in path.operations() {
-                    match op {
-                        crate::command::PathOp::MoveTo(p) => {
-                            let px = p.x * self.scale_factor;
-                            let py = p.y * self.scale_factor;
-                            bez_path.move_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::LineTo(p) => {
-                            let px = p.x * self.scale_factor;
-                            let py = p.y * self.scale_factor;
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::HLineTo(x) => {
-                            let px = *x * self.scale_factor;
-                            let py = current_pos.map(|(_, y)| y).unwrap_or(0.0);
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::VLineTo(y) => {
-                            let px = current_pos.map(|(x, _)| x).unwrap_or(0.0);
-                            let py = *y * self.scale_factor;
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::CubicTo(p0, p1, p2) => {
-                            bez_path.curve_to(
-                                (p0.x * self.scale_factor, p0.y * self.scale_factor),
-                                (p1.x * self.scale_factor, p1.y * self.scale_factor),
-                                (p2.x * self.scale_factor, p2.y * self.scale_factor),
-                            );
-                            current_pos =
-                                Some((p2.x * self.scale_factor, p2.y * self.scale_factor));
-                        }
-                        crate::command::PathOp::QuadTo(p0, p1) => {
-                            bez_path.quad_to(
-                                (p0.x * self.scale_factor, p0.y * self.scale_factor),
-                                (p1.x * self.scale_factor, p1.y * self.scale_factor),
-                            );
-                            current_pos =
-                                Some((p1.x * self.scale_factor, p1.y * self.scale_factor));
-                        }
-                        crate::command::PathOp::Close => {
-                            bez_path.close_path();
-                            current_pos = None;
-                        }
-                        _ => {}
-                    }
-                }
+                let bez_path = path.to_kurbo_path(self.scale_factor);
 
                 self.scene.fill(
                     vello::peniko::Fill::NonZero,
@@ -919,10 +872,10 @@ impl VelloRenderer {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let vello_color = VelloColor::new([
-                    color.r as f32,
-                    color.g as f32,
-                    color.b as f32,
-                    color.a as f32,
+                    color.red() as f32,
+                    color.green() as f32,
+                    color.blue() as f32,
+                    color.alpha() as f32,
                 ]);
 
                 let stroke = vello_stroke(
@@ -932,59 +885,7 @@ impl VelloRenderer {
                     *line_join,
                 );
 
-                // 构建描边路径
-                let mut bez_path = vello::kurbo::BezPath::new();
-                let mut current_pos: Option<(f64, f64)> = None;
-                for op in path.operations() {
-                    match op {
-                        crate::command::PathOp::MoveTo(p) => {
-                            let px = p.x * self.scale_factor;
-                            let py = p.y * self.scale_factor;
-                            bez_path.move_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::LineTo(p) => {
-                            let px = p.x * self.scale_factor;
-                            let py = p.y * self.scale_factor;
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::HLineTo(x) => {
-                            let px = *x * self.scale_factor;
-                            let py = current_pos.map(|(_, y)| y).unwrap_or(0.0);
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::VLineTo(y) => {
-                            let px = current_pos.map(|(x, _)| x).unwrap_or(0.0);
-                            let py = *y * self.scale_factor;
-                            bez_path.line_to((px, py));
-                            current_pos = Some((px, py));
-                        }
-                        crate::command::PathOp::CubicTo(p0, p1, p2) => {
-                            bez_path.curve_to(
-                                (p0.x * self.scale_factor, p0.y * self.scale_factor),
-                                (p1.x * self.scale_factor, p1.y * self.scale_factor),
-                                (p2.x * self.scale_factor, p2.y * self.scale_factor),
-                            );
-                            current_pos =
-                                Some((p2.x * self.scale_factor, p2.y * self.scale_factor));
-                        }
-                        crate::command::PathOp::QuadTo(p0, p1) => {
-                            bez_path.quad_to(
-                                (p0.x * self.scale_factor, p0.y * self.scale_factor),
-                                (p1.x * self.scale_factor, p1.y * self.scale_factor),
-                            );
-                            current_pos =
-                                Some((p1.x * self.scale_factor, p1.y * self.scale_factor));
-                        }
-                        crate::command::PathOp::Close => {
-                            bez_path.close_path();
-                            current_pos = None;
-                        }
-                        _ => {}
-                    }
-                }
+                let bez_path = path.to_kurbo_path(self.scale_factor);
 
                 self.scene
                     .stroke(&stroke, affine, vello_color, None, &bez_path);
@@ -1015,11 +916,9 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::Image {
                 image,
                 dest_rect,
-                src_rect,
                 alpha,
             } => {
-                if src_rect.is_some() || image.width() == 0 || image.height() == 0 || *alpha <= 0.0
-                {
+                if image.width() == 0 || image.height() == 0 || *alpha <= 0.0 {
                     return;
                 }
                 let Some(image_data) = self
@@ -1052,9 +951,6 @@ impl VelloRenderer {
                         * local;
                 self.scene.draw_image(&image, affine);
             }
-
-            // 其他命令暂未实现
-            _ => {}
         }
     }
 

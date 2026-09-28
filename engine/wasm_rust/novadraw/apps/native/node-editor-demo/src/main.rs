@@ -118,36 +118,11 @@ fn self_loop_anchor_descriptor(
     ))
 }
 
-const PRIMARY_HANDLE_COLOR: Color = Color {
-    r: 0.98,
-    g: 0.78,
-    b: 0.12,
-    a: 1.0,
-};
-const BENDPOINT_HANDLE_COLOR: Color = Color {
-    r: 0.94,
-    g: 0.42,
-    b: 0.12,
-    a: 1.0,
-};
-const BENDPOINT_CREATE_HANDLE_COLOR: Color = Color {
-    r: 0.1,
-    g: 0.72,
-    b: 0.72,
-    a: 1.0,
-};
-const SECONDARY_HANDLE_COLOR: Color = Color {
-    r: 0.12,
-    g: 0.78,
-    b: 0.82,
-    a: 1.0,
-};
-const FEEDBACK_COLOR: Color = Color {
-    r: 0.85,
-    g: 0.36,
-    b: 0.08,
-    a: 1.0,
-};
+const PRIMARY_HANDLE_COLOR: Color = Color::rgba(0.98, 0.78, 0.12, 1.0);
+const BENDPOINT_HANDLE_COLOR: Color = Color::rgba(0.94, 0.42, 0.12, 1.0);
+const BENDPOINT_CREATE_HANDLE_COLOR: Color = Color::rgba(0.1, 0.72, 0.72, 1.0);
+const SECONDARY_HANDLE_COLOR: Color = Color::rgba(0.12, 0.78, 0.82, 1.0);
+const FEEDBACK_COLOR: Color = Color::rgba(0.85, 0.36, 0.08, 1.0);
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct NodeId(u64);
@@ -197,14 +172,18 @@ impl DemoModel {
                     NodeId(2),
                     Node {
                         bounds: Rectangle::new(80.0, 100.0, 180.0, 120.0),
-                        kind: NodeKind::Shape(Color::hex("#2878D0")),
+                        kind: NodeKind::Shape(
+                            Color::from_hex("#2878D0").expect("valid color literal"),
+                        ),
                     },
                 ),
                 (
                     NodeId(3),
                     Node {
                         bounds: Rectangle::new(330.0, 190.0, 200.0, 130.0),
-                        kind: NodeKind::Shape(Color::hex("#38A169")),
+                        kind: NodeKind::Shape(
+                            Color::from_hex("#38A169").expect("valid color literal"),
+                        ),
                     },
                 ),
                 (
@@ -862,7 +841,7 @@ impl EditPolicy<DemoModel> for CanvasPolicy {
             id: NodeId(model.next_id),
             node: Node {
                 bounds: request.bounds(),
-                kind: NodeKind::Shape(Color::hex("#805AD5")),
+                kind: NodeKind::Shape(Color::from_hex("#805AD5").expect("valid color literal")),
             },
             index: model.children.get(&NodeId(1)).map_or(0, Vec::len),
         })))
@@ -893,7 +872,10 @@ impl EditPartBehavior<DemoModel> for DemoPart {
                     node.bounds.height,
                     color,
                 )
-                .with_stroke(Color::hex("#17202A"), 2.0),
+                .with_stroke(
+                    Color::from_hex("#17202A").expect("valid color literal"),
+                    2.0,
+                ),
             ),
             NodeKind::Widget => {
                 Box::new(novadraw::ButtonFigure::new("Widget").with_bounds(node.bounds))
@@ -1335,9 +1317,10 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
         _model: &DemoModel,
         _model_id: NodeId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
-        Ok(Box::new(
-            ConnectionFigure::new().with_stroke(Color::hex("#34495E"), 3.0),
-        ))
+        Ok(Box::new(ConnectionFigure::new().with_stroke(
+            Color::from_hex("#34495E").expect("valid color literal"),
+            3.0,
+        )))
     }
 
     fn create_policies(
@@ -1869,7 +1852,7 @@ mod tests {
         assert!(frame.commands().iter().any(|command| matches!(
             command.kind,
             RenderCommandKind::FillRect { color, .. }
-                if color == Color::hex(VIEWPORT_BACKGROUND_COLOR)
+                if color == Color::from_hex(VIEWPORT_BACKGROUND_COLOR).expect("valid color literal")
         )));
         let initial_outline = frame
             .commands()
@@ -1881,7 +1864,8 @@ mod tests {
                     width,
                     line_style: LineStyle::Dash,
                     ..
-                } if color == Color::hex(VIEWPORT_BORDER_COLOR)
+                } if color
+                    == Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal")
                     && width == VIEWPORT_BORDER_WIDTH =>
                 {
                     Some(rect)
@@ -1902,7 +1886,8 @@ mod tests {
                     width,
                     line_style: LineStyle::Dash,
                     ..
-                } if color == Color::hex(VIEWPORT_BORDER_COLOR)
+                } if color
+                    == Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal")
                     && width == VIEWPORT_BORDER_WIDTH =>
                 {
                     Some(rect)

@@ -22,7 +22,7 @@ const INITIAL_SCROLL_Y: f64 = 70.0;
 pub const DEMO_SCALE: f64 = 1.5;
 
 fn color(hex: &str) -> Color {
-    Color::hex(hex)
+    Color::from_hex(hex).expect("valid color literal")
 }
 
 pub fn base_scene() -> (FigureTree, novadraw::FigureId) {

@@ -7,7 +7,13 @@ pub const WINDOW_HEIGHT: f64 = 600.0;
 pub const STRESS_FIGURE_COUNT: usize = 1024;
 
 fn gray_background() -> RectangleFigure {
-    RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::hex("#eeeeee"))
+    RectangleFigure::new_with_color(
+        0.0,
+        0.0,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        Color::from_hex("#eeeeee").expect("valid color literal"),
+    )
 }
 
 pub fn baseline_scene() -> FigureTree {
@@ -23,7 +29,7 @@ pub fn baseline_scene() -> FigureTree {
                     200.0,
                     150.0,
                     100.0,
-                    Color::hex(color),
+                    Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -68,7 +74,7 @@ pub fn validation_scene() -> FigureTree {
                     0.0,
                     140.0,
                     90.0,
-                    Color::hex(color),
+                    Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");

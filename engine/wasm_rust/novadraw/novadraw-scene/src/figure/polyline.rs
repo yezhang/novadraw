@@ -60,7 +60,7 @@ impl PolylineFigure {
         Self {
             points,
             bounds,
-            stroke_color: Color::hex("#2c3e50"),
+            stroke_color: Color::from_hex("#2c3e50").expect("valid color literal"),
             stroke_width,
             line_cap: novadraw_render::command::LineCap::default(),
             line_join: novadraw_render::command::LineJoin::default(),

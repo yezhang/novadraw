@@ -63,10 +63,7 @@ fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
     compose_scene3d_frame(&mut canvas, &frame, 10.0, 20.0, 300.0, 200.0);
 
     let RenderCommandKind::Image {
-        image,
-        dest_rect,
-        src_rect,
-        ..
+        image, dest_rect, ..
     } = &canvas.commands()[0].kind
     else {
         panic!("Scene3D embedding must remain an ordinary 2D image command");
@@ -75,5 +72,4 @@ fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
     assert_eq!((image.width(), image.height()), (2, 2));
     assert_eq!((dest_rect[0].x, dest_rect[0].y), (10.0, 20.0));
     assert_eq!((dest_rect[1].x, dest_rect[1].y), (310.0, 220.0));
-    assert!(src_rect.is_none());
 }

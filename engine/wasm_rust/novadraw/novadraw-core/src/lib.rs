@@ -10,4 +10,4 @@
 
 pub mod color;
 
-pub use color::Color;
+pub use color::{Color, ColorError, ParseColorError};

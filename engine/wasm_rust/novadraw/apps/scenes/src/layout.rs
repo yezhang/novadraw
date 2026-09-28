@@ -19,7 +19,7 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -44,13 +44,14 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
             0.0,
             w,
             h,
-            novadraw::Color::hex(match _name {
+            novadraw::Color::from_hex(match _name {
                 "red" => "#e74c3c",
                 "green" => "#2ecc71",
                 "purple" => "#9b59b6",
                 "yellow" => "#f1c40f",
                 _ => "#95a5a6",
-            }),
+            })
+            .expect("valid color literal"),
         );
         let child_id = scene
             .builder()
@@ -87,7 +88,7 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -145,7 +146,7 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -170,8 +171,13 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
         let w = 100.0 + (i % 3) as f64 * 20.0; // 固定宽度范围
         let h = 60.0 + (i % 2) as f64 * 15.0;
 
-        let rect =
-            novadraw::RectangleFigure::new_with_color(0.0, 0.0, w, h, novadraw::Color::hex(color));
+        let rect = novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            w,
+            h,
+            novadraw::Color::from_hex(color).expect("valid color literal"),
+        );
         let _child_id = scene
             .builder()
             .add_child(container_id, Box::new(rect))
@@ -199,7 +205,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -287,7 +293,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -308,7 +314,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
             50.0,
             80.0,
             80.0,
-            novadraw::Color::hex(color),
+            novadraw::Color::from_hex(color).expect("valid color literal"),
         );
         let child_id = scene
             .builder()
@@ -347,7 +353,7 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -405,7 +411,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
                 0.0,
                 WINDOW_WIDTH,
                 WINDOW_HEIGHT,
-                novadraw::Color::hex("#eeeeee"),
+                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
             )));
     scene
         .builder()
@@ -431,7 +437,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
                     0.0,
                     240.0 - index as f64 * 20.0,
                     80.0,
-                    novadraw::Color::hex(color),
+                    novadraw::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -457,7 +463,7 @@ fn create_scene_stack_layout() -> novadraw::FigureTree {
                 60.0,
                 640.0,
                 480.0,
-                novadraw::Color::hex("#eeeeee"),
+                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
             )));
     scene
         .builder()
@@ -473,7 +479,7 @@ fn create_scene_stack_layout() -> novadraw::FigureTree {
                     0.0,
                     100.0,
                     100.0,
-                    novadraw::Color::hex(color),
+                    novadraw::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -496,7 +502,7 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -550,7 +556,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::hex("#eeeeee"),
+        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene.builder().set_contents(Box::new(container));
 
@@ -575,7 +581,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         100.0,
         50.0,
-        novadraw::Color::hex("#e74c3c"),
+        novadraw::Color::from_hex("#e74c3c").expect("valid color literal"),
     );
     let north_id = scene
         .builder()
@@ -593,7 +599,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         100.0,
         50.0,
-        novadraw::Color::hex("#2ecc71"),
+        novadraw::Color::from_hex("#2ecc71").expect("valid color literal"),
     );
     let south_id = scene
         .builder()
@@ -611,7 +617,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         50.0,
         100.0,
-        novadraw::Color::hex("#3498db"),
+        novadraw::Color::from_hex("#3498db").expect("valid color literal"),
     );
     let west_id = scene
         .builder()
@@ -629,7 +635,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         50.0,
         100.0,
-        novadraw::Color::hex("#f1c40f"),
+        novadraw::Color::from_hex("#f1c40f").expect("valid color literal"),
     );
     let east_id = scene
         .builder()
@@ -647,7 +653,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         0.0,
         100.0,
         100.0,
-        novadraw::Color::hex("#9b59b6"),
+        novadraw::Color::from_hex("#9b59b6").expect("valid color literal"),
     );
     let center_id = scene
         .builder()
@@ -683,7 +689,7 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
                 0.0,
                 WINDOW_WIDTH,
                 WINDOW_HEIGHT,
-                novadraw::Color::hex("#20252b"),
+                novadraw::Color::from_hex("#20252b").expect("valid color literal"),
             )));
     scene
         .builder()
@@ -722,7 +728,7 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
                     0.0,
                     10.0,
                     10.0,
-                    novadraw::Color::hex(color),
+                    novadraw::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");

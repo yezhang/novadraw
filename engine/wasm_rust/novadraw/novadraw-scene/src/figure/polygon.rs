@@ -30,7 +30,7 @@ impl PolygonFigure {
         polyline.renormalize_for_minimum(3);
         Self {
             polyline,
-            fill_color: Color::hex("#3498db"),
+            fill_color: Color::from_hex("#3498db").expect("valid color literal"),
         }
     }
 
@@ -242,11 +242,11 @@ impl Shape for PolygonFigure {
     }
 
     fn fill_enabled(&self) -> bool {
-        self.fill_color.a > 0.0
+        self.fill_color.alpha() > 0.0
     }
 
     fn outline_enabled(&self) -> bool {
-        self.polyline.stroke_color.a > 0.0
+        self.polyline.stroke_color.alpha() > 0.0
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {

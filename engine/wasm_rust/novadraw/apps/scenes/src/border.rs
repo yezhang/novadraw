@@ -247,7 +247,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
                 0.0,
                 200.0,
                 120.0,
-                novadraw::Color::hex("#2563eb"),
+                novadraw::Color::from_hex("#2563eb").expect("valid color literal"),
             )),
         )
         .expect("valid FigureTree construction");
@@ -260,7 +260,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
                 0.0,
                 200.0,
                 120.0,
-                novadraw::Color::hex("#7c3aed"),
+                novadraw::Color::from_hex("#7c3aed").expect("valid color literal"),
             )),
         )
         .expect("valid FigureTree construction");
@@ -273,7 +273,7 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
                 0.0,
                 200.0,
                 120.0,
-                novadraw::Color::hex("#dc2626"),
+                novadraw::Color::from_hex("#dc2626").expect("valid color literal"),
             )),
         )
         .expect("valid FigureTree construction");
@@ -445,15 +445,18 @@ fn create_m10_composed_borders() -> novadraw::FigureTree {
                 0.0,
                 WINDOW_WIDTH,
                 WINDOW_HEIGHT,
-                novadraw::Color::hex("#eeeeee"),
+                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
             )));
-    let highlight = novadraw::Color::hex("#ffffff");
-    let shadow = novadraw::Color::hex("#4b5563");
-    let fill = novadraw::Color::hex("#dbeafe");
+    let highlight = novadraw::Color::from_hex("#ffffff").expect("valid color literal");
+    let shadow = novadraw::Color::from_hex("#4b5563").expect("valid color literal");
+    let fill = novadraw::Color::from_hex("#dbeafe").expect("valid color literal");
 
     let compound = novadraw::RectangleFigure::new_with_color(60.0, 70.0, 190.0, 120.0, fill)
         .with_border(CompoundBorder::new(
-            LineBorder::new(novadraw::Color::hex("#1d4ed8"), 3.0),
+            LineBorder::new(
+                novadraw::Color::from_hex("#1d4ed8").expect("valid color literal"),
+                3.0,
+            ),
             MarginBorder::new(novadraw::Color::TRANSPARENT, 1.0)
                 .with_margins(10.0, 10.0, 10.0, 10.0),
         ));

@@ -51,7 +51,7 @@ impl EllipseFigure {
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            fill_color: Color::hex("#e74c3c"),
+            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
             stroke_color: None,
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
@@ -65,7 +65,7 @@ impl EllipseFigure {
     pub fn from_bounds(bounds: Rectangle) -> Self {
         Self {
             bounds,
-            fill_color: Color::hex("#e74c3c"),
+            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
             stroke_color: None,
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
@@ -277,11 +277,11 @@ impl Shape for EllipseFigure {
     }
 
     fn fill_enabled(&self) -> bool {
-        self.fill_color.a > 0.0
+        self.fill_color.alpha() > 0.0
     }
 
     fn outline_enabled(&self) -> bool {
-        self.stroke_color.map(|c| c.a > 0.0).unwrap_or(false)
+        self.stroke_color.map(|c| c.alpha() > 0.0).unwrap_or(false)
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {

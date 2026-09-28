@@ -8,30 +8,10 @@ use novadraw_scene::{
     ViewportFigure,
 };
 
-const ROOT_COLOR: Color = Color {
-    r: 0.10,
-    g: 0.20,
-    b: 0.30,
-    a: 1.0,
-};
-const ROOT_BORDER_COLOR: Color = Color {
-    r: 0.15,
-    g: 0.25,
-    b: 0.35,
-    a: 1.0,
-};
-const CHILD_COLOR: Color = Color {
-    r: 0.40,
-    g: 0.50,
-    b: 0.60,
-    a: 1.0,
-};
-const CHILD_BORDER_COLOR: Color = Color {
-    r: 0.45,
-    g: 0.55,
-    b: 0.65,
-    a: 1.0,
-};
+const ROOT_COLOR: Color = Color::rgba(0.10, 0.20, 0.30, 1.0);
+const ROOT_BORDER_COLOR: Color = Color::rgba(0.15, 0.25, 0.35, 1.0);
+const CHILD_COLOR: Color = Color::rgba(0.40, 0.50, 0.60, 1.0);
+const CHILD_BORDER_COLOR: Color = Color::rgba(0.45, 0.55, 0.65, 1.0);
 
 #[test]
 fn architecture_level_runtime_types_are_public() {

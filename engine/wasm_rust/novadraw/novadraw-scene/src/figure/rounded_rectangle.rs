@@ -44,7 +44,7 @@ impl RoundedRectangleFigure {
         Self {
             bounds: Rectangle::new(x, y, width, height),
             corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
-            fill_color: Color::hex("#9b59b6"),
+            fill_color: Color::from_hex("#9b59b6").expect("valid color literal"),
             stroke_color: None,
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
@@ -59,7 +59,7 @@ impl RoundedRectangleFigure {
         Self {
             bounds,
             corner_dimensions: Dimension::new(corner_radius.max(0.0), corner_radius.max(0.0)),
-            fill_color: Color::hex("#9b59b6"),
+            fill_color: Color::from_hex("#9b59b6").expect("valid color literal"),
             stroke_color: None,
             stroke_width: 0.0,
             line_cap: novadraw_render::command::LineCap::default(),
@@ -278,11 +278,11 @@ impl Shape for RoundedRectangleFigure {
     }
 
     fn fill_enabled(&self) -> bool {
-        self.fill_color.a > 0.0
+        self.fill_color.alpha() > 0.0
     }
 
     fn outline_enabled(&self) -> bool {
-        self.stroke_color.map(|c| c.a > 0.0).unwrap_or(false)
+        self.stroke_color.map(|c| c.alpha() > 0.0).unwrap_or(false)
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {

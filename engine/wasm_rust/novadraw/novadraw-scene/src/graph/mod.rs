@@ -4530,7 +4530,7 @@ mod tests {
         }
 
         fn fill_color(&self) -> Option<NovadrawCoreColor> {
-            Some(NovadrawCoreColor::hex("#44aa44"))
+            Some(NovadrawCoreColor::from_hex("#44aa44").expect("valid color literal"))
         }
 
         fn line_cap(&self) -> novadraw_render::command::LineCap {
@@ -4547,7 +4547,7 @@ mod tests {
                 self.paint_rect.y,
                 self.paint_rect.width,
                 self.paint_rect.height,
-                NovadrawCoreColor::hex("#44aa44"),
+                NovadrawCoreColor::from_hex("#44aa44").expect("valid color literal"),
             );
         }
 
@@ -5904,8 +5904,11 @@ mod tests {
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(NovadrawCoreColor::hex("#111111"), 2.0)
-                    .with_insets(10.0, 20.0, 30.0, 40.0),
+                LineBorder::new(
+                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                    2.0,
+                )
+                .with_insets(10.0, 20.0, 30.0, 40.0),
             ),
         ));
         scene.add_child_to(
@@ -5915,7 +5918,7 @@ mod tests {
                 5.0,
                 20.0,
                 20.0,
-                NovadrawCoreColor::hex("#222222"),
+                NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
             )),
         );
 
@@ -5953,8 +5956,11 @@ mod tests {
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(NovadrawCoreColor::hex("#111111"), 2.0)
-                    .with_insets(10.0, 20.0, 30.0, 40.0),
+                LineBorder::new(
+                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                    2.0,
+                )
+                .with_insets(10.0, 20.0, 30.0, 40.0),
             ),
         ));
         let child_id = scene.add_child_to(
@@ -5964,7 +5970,7 @@ mod tests {
                 5.0,
                 20.0,
                 20.0,
-                NovadrawCoreColor::hex("#222222"),
+                NovadrawCoreColor::from_hex("#222222").expect("valid color literal"),
             )),
         );
 
@@ -6090,7 +6096,7 @@ mod tests {
             })
             .expect("second sibling must paint");
 
-        assert_eq!(sibling_color.a, 1.0);
+        assert_eq!(sibling_color.alpha(), 1.0);
     }
 
     #[test]
@@ -6206,8 +6212,11 @@ mod tests {
 
         let parent_id = scene.set_contents(Box::new(
             RectangleFigure::new(0.0, 0.0, 120.0, 100.0).with_border(
-                LineBorder::new(NovadrawCoreColor::hex("#111111"), 2.0)
-                    .with_insets(10.0, 20.0, 30.0, 40.0),
+                LineBorder::new(
+                    NovadrawCoreColor::from_hex("#111111").expect("valid color literal"),
+                    2.0,
+                )
+                .with_insets(10.0, 20.0, 30.0, 40.0),
             ),
         ));
         let child_id = scene.add_child_to(
@@ -6267,8 +6276,8 @@ mod tests {
         let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
         let child =
             scene.add_child_to(parent, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
-        let foreground = NovadrawCoreColor::hex("#123456");
-        let background = NovadrawCoreColor::hex("#abcdef");
+        let foreground = NovadrawCoreColor::from_hex("#123456").expect("valid color literal");
+        let background = NovadrawCoreColor::from_hex("#abcdef").expect("valid color literal");
 
         scene.set_figure_style(
             parent,
@@ -6338,7 +6347,7 @@ mod tests {
             })
             .expect("styled descendant must paint");
 
-        assert_eq!(color.a, 0.5);
+        assert_eq!(color.alpha(), 0.5);
     }
 
     #[test]
@@ -6380,7 +6389,7 @@ mod tests {
             })
             .expect("child paint must be emitted");
 
-        assert_eq!(color.a, 1.0);
+        assert_eq!(color.alpha(), 1.0);
     }
 
     #[test]

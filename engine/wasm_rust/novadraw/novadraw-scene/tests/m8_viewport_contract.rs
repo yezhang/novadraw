@@ -247,7 +247,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
         .builder()
         .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
         .unwrap();
-    let child_color = Color::hex("#d7263d");
+    let child_color = Color::from_hex("#d7263d").expect("valid color literal");
     let child = graph
         .builder()
         .add_child(

@@ -17,30 +17,10 @@ use crate::{
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
 const DEFAULT_STEP_INCREMENT: f64 = 24.0;
 const MINIMUM_THUMB_LENGTH: f64 = 12.0;
-const PANE_BACKGROUND: Color = Color {
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
-const TRACK_COLOR: Color = Color {
-    r: 0.86,
-    g: 0.87,
-    b: 0.89,
-    a: 1.0,
-};
-const THUMB_COLOR: Color = Color {
-    r: 0.38,
-    g: 0.42,
-    b: 0.48,
-    a: 1.0,
-};
-const BUTTON_COLOR: Color = Color {
-    r: 0.68,
-    g: 0.70,
-    b: 0.74,
-    a: 1.0,
-};
+const PANE_BACKGROUND: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+const TRACK_COLOR: Color = Color::rgba(0.86, 0.87, 0.89, 1.0);
+const THUMB_COLOR: Color = Color::rgba(0.38, 0.42, 0.48, 1.0);
+const BUTTON_COLOR: Color = Color::rgba(0.68, 0.70, 0.74, 1.0);
 
 fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex

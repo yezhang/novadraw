@@ -23,54 +23,14 @@ const PRESSED_CONTENT_OFFSET: f64 = 1.0;
 const FOCUS_INSET: f64 = 4.0;
 const FOCUS_STROKE_WIDTH: f64 = 1.0;
 
-const BUTTON_BACKGROUND: Color = Color {
-    r: 0.91,
-    g: 0.92,
-    b: 0.94,
-    a: 1.0,
-};
-const BUTTON_ROLLOVER_BACKGROUND: Color = Color {
-    r: 0.84,
-    g: 0.9,
-    b: 0.98,
-    a: 1.0,
-};
-const BUTTON_PRESSED_BACKGROUND: Color = Color {
-    r: 0.72,
-    g: 0.82,
-    b: 0.94,
-    a: 1.0,
-};
-const TOGGLE_SELECTED_BACKGROUND: Color = Color {
-    r: 0.67,
-    g: 0.82,
-    b: 0.76,
-    a: 1.0,
-};
-const DISABLED_BACKGROUND: Color = Color {
-    r: 0.86,
-    g: 0.86,
-    b: 0.86,
-    a: 1.0,
-};
-const BORDER_HIGHLIGHT: Color = Color {
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
-    a: 1.0,
-};
-const BORDER_SHADOW: Color = Color {
-    r: 0.32,
-    g: 0.35,
-    b: 0.4,
-    a: 1.0,
-};
-const FOCUS_COLOR: Color = Color {
-    r: 0.08,
-    g: 0.3,
-    b: 0.62,
-    a: 1.0,
-};
+const BUTTON_BACKGROUND: Color = Color::rgba(0.91, 0.92, 0.94, 1.0);
+const BUTTON_ROLLOVER_BACKGROUND: Color = Color::rgba(0.84, 0.9, 0.98, 1.0);
+const BUTTON_PRESSED_BACKGROUND: Color = Color::rgba(0.72, 0.82, 0.94, 1.0);
+const TOGGLE_SELECTED_BACKGROUND: Color = Color::rgba(0.67, 0.82, 0.76, 1.0);
+const DISABLED_BACKGROUND: Color = Color::rgba(0.86, 0.86, 0.86, 1.0);
+const BORDER_HIGHLIGHT: Color = Color::rgba(1.0, 1.0, 1.0, 1.0);
+const BORDER_SHADOW: Color = Color::rgba(0.32, 0.35, 0.4, 1.0);
+const FOCUS_COLOR: Color = Color::rgba(0.08, 0.3, 0.62, 1.0);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClickableKind {

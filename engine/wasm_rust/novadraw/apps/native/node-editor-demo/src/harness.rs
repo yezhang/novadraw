@@ -44,7 +44,9 @@ impl EditorHarness {
             .figure(viewport)
             .map_err(|error| error.to_string())?
             .set_style(FigureStyle {
-                background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
+                background: Some(
+                    Color::from_hex(VIEWPORT_BACKGROUND_COLOR).expect("valid color literal"),
+                ),
                 ..FigureStyle::default()
             })
             .map_err(|error| error.to_string())?;
@@ -56,9 +58,12 @@ impl EditorHarness {
             .figure(viewport)
             .map_err(|error| error.to_string())?
             .set_border(
-                LineBorder::new(Color::hex(VIEWPORT_BORDER_COLOR), VIEWPORT_BORDER_WIDTH)
-                    .with_style(BorderStyle::Dash)
-                    .with_insets(0.0, 0.0, 0.0, 0.0),
+                LineBorder::new(
+                    Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal"),
+                    VIEWPORT_BORDER_WIDTH,
+                )
+                .with_style(BorderStyle::Dash)
+                .with_insets(0.0, 0.0, 0.0, 0.0),
             )
             .map_err(|error| error.to_string())?;
         Ok(Self {

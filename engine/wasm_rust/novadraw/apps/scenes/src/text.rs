@@ -7,30 +7,10 @@ use crate::{DemoSuite, SceneSpec};
 
 const WINDOW_WIDTH: f64 = 800.0;
 const WINDOW_HEIGHT: f64 = 600.0;
-const PANEL_FILL: Color = Color {
-    r: 0.97,
-    g: 0.98,
-    b: 1.0,
-    a: 1.0,
-};
-const PANEL_STROKE: Color = Color {
-    r: 0.72,
-    g: 0.77,
-    b: 0.86,
-    a: 1.0,
-};
-const HEADING: Color = Color {
-    r: 0.08,
-    g: 0.19,
-    b: 0.34,
-    a: 1.0,
-};
-const ACCENT: Color = Color {
-    r: 0.04,
-    g: 0.45,
-    b: 0.62,
-    a: 1.0,
-};
+const PANEL_FILL: Color = Color::rgba(0.97, 0.98, 1.0, 1.0);
+const PANEL_STROKE: Color = Color::rgba(0.72, 0.77, 0.86, 1.0);
+const HEADING: Color = Color::rgba(0.08, 0.19, 0.34, 1.0);
+const ACCENT: Color = Color::rgba(0.04, 0.45, 0.62, 1.0);
 const ICON_SIZE: u32 = 32;
 const DOCUMENT_LEFT: u32 = 6;
 const DOCUMENT_TOP: u32 = 3;

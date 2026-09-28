@@ -9,12 +9,7 @@ use novadraw_render::{
 
 use crate::{Bounded, ChildClippingStrategy, Figure, FigureContainer, Layer};
 
-const DEFAULT_CONNECTION_COLOR: Color = Color {
-    r: 44.0 / 255.0,
-    g: 62.0 / 255.0,
-    b: 80.0 / 255.0,
-    a: 1.0,
-};
+const DEFAULT_CONNECTION_COLOR: Color = Color::rgba(44.0 / 255.0, 62.0 / 255.0, 80.0 / 255.0, 1.0);
 const DEFAULT_CONNECTION_WIDTH: f64 = 2.0;
 const DEFAULT_HIT_TOLERANCE: f64 = 3.0;
 

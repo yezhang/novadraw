@@ -257,7 +257,13 @@ fn test_render_commands_coords() {
     let parent_id = scene.set_contents(Box::new(parent));
 
     // 使用不同颜色以便区分
-    let child = RectangleFigure::new_with_color(10.0, 10.0, 50.0, 50.0, Color::hex("#e74c3c"));
+    let child = RectangleFigure::new_with_color(
+        10.0,
+        10.0,
+        50.0,
+        50.0,
+        Color::from_hex("#e74c3c").expect("valid color literal"),
+    );
     let _child_id = scene.add_child_to(parent_id, Box::new(child));
 
     let gc = scene.render();
@@ -590,13 +596,31 @@ fn test_horizontal_layout_coords() {
     let container_id = scene.set_contents(Box::new(container));
 
     // 三个水平排列的矩形
-    let rect1 = RectangleFigure::new_with_color(10.0, 10.0, 100.0, 80.0, Color::hex("#3498db"));
+    let rect1 = RectangleFigure::new_with_color(
+        10.0,
+        10.0,
+        100.0,
+        80.0,
+        Color::from_hex("#3498db").expect("valid color literal"),
+    );
     let _ = scene.add_child_to(container_id, Box::new(rect1));
 
-    let rect2 = RectangleFigure::new_with_color(120.0, 10.0, 100.0, 80.0, Color::hex("#e74c3c"));
+    let rect2 = RectangleFigure::new_with_color(
+        120.0,
+        10.0,
+        100.0,
+        80.0,
+        Color::from_hex("#e74c3c").expect("valid color literal"),
+    );
     let _ = scene.add_child_to(container_id, Box::new(rect2));
 
-    let rect3 = RectangleFigure::new_with_color(230.0, 10.0, 100.0, 80.0, Color::hex("#2ecc71"));
+    let rect3 = RectangleFigure::new_with_color(
+        230.0,
+        10.0,
+        100.0,
+        80.0,
+        Color::from_hex("#2ecc71").expect("valid color literal"),
+    );
     let _ = scene.add_child_to(container_id, Box::new(rect3));
 
     let gc = scene.render();
@@ -1016,7 +1040,7 @@ fn test_clip_test_scene_commands() {
                 let y = rect[0].y;
                 let w = rect[1].x - rect[0].x;
                 let h = rect[1].y - rect[0].y;
-                let (r, g, b) = (color.r, color.g, color.b);
+                let (r, g, b) = (color.red(), color.green(), color.blue());
 
                 let desc = if r < 0.3 && g > 0.7 && b < 0.3 {
                     "Child 1 - 绿色"

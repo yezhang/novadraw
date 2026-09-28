@@ -322,7 +322,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                 0.0,
                 WINDOW_WIDTH,
                 WINDOW_HEIGHT,
-                novadraw::Color::hex("#20252b"),
+                novadraw::Color::from_hex("#20252b").expect("valid color literal"),
             )));
     scene
         .builder()
@@ -352,7 +352,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                     0.0,
                     10.0,
                     10.0,
-                    novadraw::Color::hex(color),
+                    novadraw::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -372,7 +372,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                     0.0,
                     10.0,
                     10.0,
-                    novadraw::Color::hex("#f39c12"),
+                    novadraw::Color::from_hex("#f39c12").expect("valid color literal"),
                 )
                 .with_border(novadraw::LineBorder::new(novadraw::Color::BLACK, 4.0)),
             ),
@@ -395,7 +395,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                 90.0,
                 700.0,
                 500.0,
-                novadraw::Color::hex("#2ecc71"),
+                novadraw::Color::from_hex("#2ecc71").expect("valid color literal"),
             )),
         )
         .expect("valid FigureTree construction");
@@ -408,7 +408,7 @@ fn create_scene_10_responsive_nested_clip() -> novadraw::FigureTree {
                 120.0,
                 420.0,
                 300.0,
-                novadraw::Color::hex("#3498db"),
+                novadraw::Color::from_hex("#3498db").expect("valid color literal"),
             )),
         )
         .expect("valid FigureTree construction");

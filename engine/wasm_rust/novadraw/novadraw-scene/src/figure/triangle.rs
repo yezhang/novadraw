@@ -96,8 +96,8 @@ impl TriangleFigure {
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            fill_color: Color::hex("#e74c3c"),
-            stroke_color: Color::hex("#c0392b"),
+            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
+            stroke_color: Color::from_hex("#c0392b").expect("valid color literal"),
             stroke_width: 1.0,
             direction: Direction::North,
             line_cap: novadraw_render::command::LineCap::Butt,
@@ -124,8 +124,8 @@ impl TriangleFigure {
     ) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            fill_color: Color::hex("#e74c3c"),
-            stroke_color: Color::hex("#c0392b"),
+            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
+            stroke_color: Color::from_hex("#c0392b").expect("valid color literal"),
             stroke_width: 1.0,
             direction,
             line_cap: novadraw_render::command::LineCap::Butt,
@@ -484,7 +484,7 @@ impl FigureContainer for TriangleFigure {
 
 impl Shape for TriangleFigure {
     fn stroke_color(&self) -> Option<Color> {
-        if self.stroke_color.a > 0.0 {
+        if self.stroke_color.alpha() > 0.0 {
             Some(self.stroke_color)
         } else {
             None
@@ -496,7 +496,7 @@ impl Shape for TriangleFigure {
     }
 
     fn fill_color(&self) -> Option<Color> {
-        if self.fill_color.a > 0.0 {
+        if self.fill_color.alpha() > 0.0 {
             Some(self.fill_color)
         } else {
             None
@@ -516,11 +516,11 @@ impl Shape for TriangleFigure {
     }
 
     fn fill_enabled(&self) -> bool {
-        self.fill_color.a > 0.0
+        self.fill_color.alpha() > 0.0
     }
 
     fn outline_enabled(&self) -> bool {
-        self.stroke_color.a > 0.0 && self.stroke_width > 0.0
+        self.stroke_color.alpha() > 0.0 && self.stroke_width > 0.0
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {

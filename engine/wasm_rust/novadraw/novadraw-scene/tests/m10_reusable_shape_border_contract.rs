@@ -94,8 +94,8 @@ fn polygon_precise_hit_uses_closed_interior() {
 fn triangle_uses_draw2d_resize_and_centering_geometry() {
     let triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
     let mut canvas = NdCanvas::new();
-    canvas.fill_style(Color::hex("#e74c3c"));
-    canvas.stroke_style(Color::hex("#c0392b"));
+    canvas.fill_style(Color::from_hex("#e74c3c").expect("valid color literal"));
+    canvas.stroke_style(Color::from_hex("#c0392b").expect("valid color literal"));
 
     triangle.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 20.0, 20.0));
 
@@ -110,8 +110,8 @@ fn triangle_uses_draw2d_resize_and_centering_geometry() {
 
     assert!((bounds.x - 0.0).abs() < f64::EPSILON);
     assert!((bounds.y - 4.75).abs() < f64::EPSILON);
-    assert!((bounds.z - 19.0).abs() < f64::EPSILON);
-    assert!((bounds.w - 14.25).abs() < f64::EPSILON);
+    assert!((bounds.x + bounds.width - 19.0).abs() < f64::EPSILON);
+    assert!((bounds.y + bounds.height - 14.25).abs() < f64::EPSILON);
 }
 
 #[test]

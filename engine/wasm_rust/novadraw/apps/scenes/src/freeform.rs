@@ -47,7 +47,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            Color::hex("#eeeeee"),
+            Color::from_hex("#eeeeee").expect("valid color literal"),
         )));
     let pane = graph
         .builder()
@@ -114,7 +114,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
                 CONTENT_MIN_Y,
                 GRID_LINE_WIDTH,
                 CONTENT_MAX_Y - CONTENT_MIN_Y,
-                Color::hex("#dfe6ee"),
+                Color::from_hex("#dfe6ee").expect("valid color literal"),
             )))
             .expect("valid Runtime mutation");
         x += GRID_STEP;
@@ -127,7 +127,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             CONTENT_MIN_Y,
             GRID_LINE_WIDTH,
             CONTENT_MAX_Y - CONTENT_MIN_Y,
-            Color::hex("#dfe6ee"),
+            Color::from_hex("#dfe6ee").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
 
@@ -141,7 +141,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
                 y,
                 CONTENT_MAX_X - CONTENT_MIN_X,
                 GRID_LINE_WIDTH,
-                Color::hex("#dfe6ee"),
+                Color::from_hex("#dfe6ee").expect("valid color literal"),
             )))
             .expect("valid Runtime mutation");
         y += GRID_STEP;
@@ -154,26 +154,26 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             CONTENT_MAX_Y - GRID_LINE_WIDTH,
             CONTENT_MAX_X - CONTENT_MIN_X,
             GRID_LINE_WIDTH,
-            Color::hex("#dfe6ee"),
+            Color::from_hex("#dfe6ee").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
 
     for (bounds, fill) in [
         (
             Rectangle::new(CONTENT_MIN_X, CONTENT_MIN_Y, 100.0, 80.0),
-            Color::hex("#2f80ed"),
+            Color::from_hex("#2f80ed").expect("valid color literal"),
         ),
         (
             Rectangle::new(CONTENT_MAX_X - 100.0, CONTENT_MIN_Y, 100.0, 80.0),
-            Color::hex("#27ae60"),
+            Color::from_hex("#27ae60").expect("valid color literal"),
         ),
         (
             Rectangle::new(CONTENT_MIN_X, CONTENT_MAX_Y - 80.0, 100.0, 80.0),
-            Color::hex("#f2994a"),
+            Color::from_hex("#f2994a").expect("valid color literal"),
         ),
         (
             Rectangle::new(CONTENT_MAX_X - 100.0, CONTENT_MAX_Y - 80.0, 100.0, 80.0),
-            Color::hex("#9b51e0"),
+            Color::from_hex("#9b51e0").expect("valid color literal"),
         ),
     ] {
         runtime
@@ -196,7 +196,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             OVERLAP_Y,
             180.0,
             130.0,
-            Color::hex("#eb5757"),
+            Color::from_hex("#eb5757").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
     let upper_overlap = runtime
@@ -207,7 +207,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             OVERLAP_Y + 35.0,
             180.0,
             130.0,
-            Color::hex("#56ccf2"),
+            Color::from_hex("#56ccf2").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
 

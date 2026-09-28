@@ -40,7 +40,7 @@ impl Default for GraphicsState {
 }
 
 pub struct NdCanvas {
-    pub damage: DamageSet,
+    damage: DamageSet,
     commands: Vec<RenderCommand>,
     /// 当前正在构建的路径（用于 begin_path/fill/stroke 流程）
     current_path: Option<Path>,
@@ -74,7 +74,7 @@ impl NdCanvas {
     }
 
     fn color_with_global_alpha(&self, color: Color) -> Color {
-        color.with_alpha((color.a * self.state.global_alpha).clamp(0.0, 1.0))
+        color.with_alpha((color.alpha() * self.state.global_alpha).clamp(0.0, 1.0))
     }
 
     /// 保存当前状态（压栈）
@@ -385,8 +385,7 @@ impl NdCanvas {
         }
     }
 
-    /// 添加弧线
-    #[allow(unused_variables)]
+    /// Adds a circular arc using Draw2D-compatible degree angles.
     pub fn arc(
         &mut self,
         x: f64,
@@ -397,21 +396,7 @@ impl NdCanvas {
         anticlockwise: bool,
     ) {
         if let Some(ref mut path) = self.current_path {
-            // 将角度转换为弧度
-            let start = start_angle * std::f64::consts::PI / 180.0;
-            let end = end_angle * std::f64::consts::PI / 180.0;
-            // 简化的 arc 实现：使用贝塞尔曲线近似
-            let steps = 8;
-            for i in 0..=steps {
-                let angle = start + (end - start) * (i as f64 / steps as f64);
-                let px = x + radius * angle.cos();
-                let py = y + radius * angle.sin();
-                if i == 0 {
-                    path.move_to(px, py);
-                } else {
-                    path.line_to(px, py);
-                }
-            }
+            path.arc(x, y, radius, start_angle, end_angle, anticlockwise);
         }
     }
 
@@ -436,7 +421,7 @@ impl NdCanvas {
             if let Some(color) = self.state.fill_color {
                 let color = self.color_with_global_alpha(color);
                 // 跳过完全透明的颜色
-                if color.a > 0.0 {
+                if color.alpha() > 0.0 {
                     self.create_command(RenderCommandKind::FillPath { path, color });
                 }
             }
@@ -519,7 +504,7 @@ impl NdCanvas {
         &mut self.damage
     }
 
-    pub fn commands(&self) -> &Vec<RenderCommand> {
+    pub fn commands(&self) -> &[RenderCommand] {
         &self.commands
     }
 
@@ -614,7 +599,7 @@ impl NdCanvas {
             return;
         };
         let color = self.color_with_global_alpha(color);
-        if color.a > 0.0 {
+        if color.alpha() > 0.0 {
             self.draw_glyph_runs(layout, x, y, crate::text::GlyphPaint::Fill(color));
         }
     }
@@ -624,7 +609,7 @@ impl NdCanvas {
             return;
         };
         let color = self.color_with_global_alpha(color);
-        if color.a > 0.0 {
+        if color.alpha() > 0.0 {
             self.draw_glyph_runs(layout, x, y, crate::text::GlyphPaint::Fill(color));
         }
     }
@@ -634,7 +619,7 @@ impl NdCanvas {
             return;
         };
         let color = self.color_with_global_alpha(color);
-        if color.a > 0.0 {
+        if color.alpha() > 0.0 {
             self.draw_glyph_runs(
                 layout,
                 x,
@@ -686,7 +671,6 @@ impl NdCanvas {
         self.create_command(RenderCommandKind::Image {
             image,
             dest_rect,
-            src_rect: None,
             alpha: self.state.global_alpha,
         });
     }
@@ -730,6 +714,36 @@ mod tests {
 
         assert!(x.abs() < 1e-10, "expected x=0, got {x}");
         assert!((y - 1.0).abs() < 1e-10, "expected y=1, got {y}");
+    }
+
+    #[test]
+    fn arc_honors_clockwise_and_anticlockwise_sweeps() {
+        fn recorded_bounds(anticlockwise: bool) -> novadraw_geometry::Rectangle {
+            let mut canvas = NdCanvas::new();
+            canvas.stroke_style(Color::BLACK);
+            canvas.begin_path();
+            canvas.arc(0.0, 0.0, 10.0, 0.0, 90.0, anticlockwise);
+            canvas.stroke();
+
+            let RenderCommandKind::StrokePath { path, .. } =
+                &canvas.commands().last().expect("stroke command").kind
+            else {
+                panic!("expected StrokePath");
+            };
+            path.bounding_box().expect("arc path bounds")
+        }
+
+        let clockwise = recorded_bounds(false);
+        let anticlockwise = recorded_bounds(true);
+
+        assert!(clockwise.x >= -1e-9);
+        assert!(clockwise.y >= -1e-9);
+        assert!((clockwise.width - 10.0).abs() < 1e-6);
+        assert!((clockwise.height - 10.0).abs() < 1e-6);
+        assert!((anticlockwise.x + 10.0).abs() < 1e-6);
+        assert!((anticlockwise.y + 10.0).abs() < 1e-6);
+        assert!((anticlockwise.width - 20.0).abs() < 1e-6);
+        assert!((anticlockwise.height - 20.0).abs() < 1e-6);
     }
 
     #[test]
@@ -883,17 +897,17 @@ mod tests {
         let RenderCommandKind::FillRect { color, .. } = commands[1].kind else {
             panic!("expected FillRect");
         };
-        assert_eq!(color.a, 0.4);
+        assert_eq!(color.alpha(), 0.4);
 
         let RenderCommandKind::FillRect { color, .. } = commands[4].kind else {
             panic!("expected FillRect");
         };
-        assert_eq!(color.a, 0.2);
+        assert_eq!(color.alpha(), 0.2);
 
         let RenderCommandKind::FillRect { color, .. } = commands[6].kind else {
             panic!("expected restored FillRect");
         };
-        assert_eq!(color.a, 0.4);
+        assert_eq!(color.alpha(), 0.4);
     }
 
     #[test]
@@ -914,7 +928,6 @@ mod tests {
         let RenderCommandKind::Image {
             image,
             dest_rect,
-            src_rect,
             alpha,
         } = canvas.commands()[1].kind
         else {
@@ -923,7 +936,6 @@ mod tests {
         assert_eq!(image.width(), 20);
         assert_eq!(image.revision(), 3);
         assert_eq!(dest_rect, [DVec2::new(4.0, 5.0), DVec2::new(14.0, 10.0)]);
-        assert_eq!(src_rect, None);
         assert_eq!(alpha, 0.5);
 
         let RenderCommandKind::Image {

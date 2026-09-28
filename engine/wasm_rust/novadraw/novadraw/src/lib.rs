@@ -2,7 +2,7 @@
 //!
 //! 此库作为所有子库的聚合入口，提供统一的 API。
 
-pub use novadraw_core::Color;
+pub use novadraw_core::{Color, ColorError, ParseColorError};
 pub use novadraw_geometry::{Affine2D, Dimension, Transform};
 
 pub use novadraw_render::{
