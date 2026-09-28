@@ -4,7 +4,7 @@ use novadraw_scene::{
     FreeformError, FreeformLayerFigure, FreeformLayout, LayerKey, LayerPlacement, LayoutError,
     ListenerDirective, MeasureConstraints, MouseLocationZoomScrollPolicy, Point,
     PropertyChangeEvent, PropertyChangeListener, PropertyValue, Rectangle, RectangleFigure,
-    Runtime, ScaleHandle, UpdateManager, ViewportHandle, XYConstraint, ZoomManager,
+    Runtime, ScaleHandle, ViewportHandle, XYConstraint, ZoomManager,
 };
 use std::sync::{Arc, Mutex};
 
@@ -51,15 +51,14 @@ fn scalable_freeform_viewport(
         )
         .unwrap();
     let content = runtime
-        .add_figure(
-            layer,
-            Box::new(RectangleFigure::new(
-                layer_bounds.x,
-                layer_bounds.y,
-                layer_bounds.width,
-                layer_bounds.height,
-            )),
-        )
+        .container(layer)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(
+            layer_bounds.x,
+            layer_bounds.y,
+            layer_bounds.width,
+            layer_bounds.height,
+        )))
         .expect("valid Runtime mutation");
     runtime.prepare_frame();
     (runtime, viewport, scalable, content)
@@ -186,7 +185,9 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
     runtime
-        .set_bounds(child, Rectangle::new(30.0, 40.0, 20.0, 10.0))
+        .figure(child)
+        .unwrap()
+        .set_bounds(Rectangle::new(30.0, 40.0, 20.0, 10.0))
         .unwrap();
 
     assert_eq!(
@@ -333,11 +334,10 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
         .builder()
         .add_viewport_to(root, Rectangle::new(0.0, 0.0, 100.0, 80.0))
         .unwrap();
-    let mut updates = UpdateManager::new();
-    let freeform = viewport
-        .set_contents(
-            &mut tree,
-            &mut updates,
+    let freeform = tree
+        .builder()
+        .add_child(
+            viewport.figure_id(),
             Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)),
         )
         .unwrap();
@@ -350,11 +350,14 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
     tree.builder()
         .validate_subtree(viewport.figure_id())
         .expect("valid FigureTree construction");
-    viewport
-        .set_view_location(&mut tree, &mut updates, -20.0, -10.0)
+    let mut runtime = Runtime::new(tree);
+    runtime
+        .viewport(viewport.figure_id())
+        .unwrap()
+        .set_view_location(-20.0, -10.0)
         .unwrap();
 
-    let viewport_sized_clips = Runtime::new(tree)
+    let viewport_sized_clips = runtime
         .record_full_frame()
         .commands()
         .iter()
@@ -391,7 +394,7 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime.prepare_frame().expect("initial full frame");
-    runtime.repaint(child, None).unwrap();
+    runtime.figure(child).unwrap().repaint(None).unwrap();
     let canvas = runtime.prepare_frame().expect("queued repaint");
 
     assert_eq!(
@@ -421,7 +424,9 @@ fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
     runtime.prepare_frame();
     assert!(
         runtime
-            .set_bounds(child, Rectangle::new(80.0, 0.0, 10.0, 10.0))
+            .figure(child)
+            .unwrap()
+            .set_bounds(Rectangle::new(80.0, 0.0, 10.0, 10.0))
             .unwrap()
     );
     let canvas = runtime.prepare_frame().unwrap();
@@ -576,7 +581,9 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
 
     assert!(
         runtime
-            .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
+            .zoom(&zoom)
+            .unwrap()
+            .set_zoom_at(2.0, Some(Point::new(60.0, 40.0)))
             .unwrap()
     );
 
@@ -601,7 +608,7 @@ fn freeform_fit_uses_derived_extent_instead_of_presentation_bounds() {
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
     let zoom = ZoomManager::new(scalable, viewport.clone());
 
-    assert!(runtime.fit_zoom_to_contents(&zoom).unwrap());
+    assert!(runtime.zoom(&zoom).unwrap().fit_all().unwrap());
 
     assert_eq!(zoom.zoom(), 0.6);
     assert_eq!(viewport.view_location(), Point::new(-100.0, -50.0));
@@ -611,12 +618,18 @@ fn freeform_fit_uses_derived_extent_instead_of_presentation_bounds() {
 fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
     let (mut runtime, viewport, _, layer) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 1000.0, 600.0));
-    runtime.set_view_location(&viewport, 600.0, 350.0).unwrap();
+    runtime
+        .viewport(viewport.figure_id())
+        .unwrap()
+        .set_view_location(600.0, 350.0)
+        .unwrap();
     runtime.prepare_frame();
 
     assert!(
         runtime
-            .set_bounds(layer, Rectangle::new(-20.0, -10.0, 100.0, 80.0))
+            .figure(layer)
+            .unwrap()
+            .set_bounds(Rectangle::new(-20.0, -10.0, 100.0, 80.0))
             .expect("valid Runtime mutation")
     );
     let canvas = runtime.prepare_frame().unwrap();

@@ -4,8 +4,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::{
     Bounded, BuiltinFont, Color, Figure, FigureTree, FontDescriptor, NdCanvas, Rectangle,
-    RectangleFigure, ResourceId, Runtime, TextConstraints, TextEngine, TextLayout, UpdateManager,
-    ZoomManager,
+    RectangleFigure, ResourceId, Runtime, TextConstraints, TextEngine, TextLayout, ZoomManager,
 };
 use serde::Serialize;
 use uuid::Uuid;
@@ -432,12 +431,12 @@ fn build_viewport_tree() -> FigureTree {
             )
             .expect("valid FigureTree construction");
     }
-    let mut updates = UpdateManager::new();
-    ZoomManager::new(scalable, viewport.clone())
-        .set_zoom(&mut tree, &mut updates, 1.5)
+    let zoom = ZoomManager::new(scalable, viewport.clone());
+    tree.builder()
+        .set_zoom(&zoom, 1.5)
         .expect("set viewport zoom");
-    viewport
-        .set_view_location(&mut tree, &mut updates, 160.0, 120.0)
+    tree.builder()
+        .set_view_location(viewport.figure_id(), 160.0, 120.0)
         .expect("set viewport location");
     tree
 }

@@ -108,7 +108,7 @@ impl ScaleHandle {
         lock_unpoisoned(&self.runtime).scale
     }
 
-    pub fn set_scale(
+    pub(crate) fn set_scale(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -572,5 +572,14 @@ impl FigureTreeBuilder<'_> {
     ) -> Result<ScaleHandle, GraphMutationError> {
         self.tree_mut()
             .add_scalable_freeform_layered_pane_to(parent, bounds)
+    }
+
+    pub fn set_scale(&mut self, scalable: FigureId, scale: f64) -> Result<bool, ScaleError> {
+        let handle = self
+            .tree_mut()
+            .scale_handle(scalable)
+            .ok_or(ScaleError::MissingFigure)?;
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        handle.set_scale(self.tree_mut(), &mut updates, scale)
     }
 }

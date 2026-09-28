@@ -545,15 +545,9 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         HANDLE_LAYER,
     )?;
     let viewport = runtime.add_viewport(viewport_layer, bounds)?;
-    let scalable = runtime.add_figure(
-        viewport.figure_id(),
-        Box::new(ScalableFreeformLayeredPane::new(
-            0.0,
-            0.0,
-            bounds.width,
-            bounds.height,
-        )),
-    )?;
+    let scalable = runtime.container(viewport.figure_id())?.add(Box::new(
+        ScalableFreeformLayeredPane::new(0.0, 0.0, bounds.width, bounds.height),
+    ))?;
     let grid = add_layer(
         &mut runtime,
         scalable,
@@ -609,10 +603,18 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         )),
         CONNECTION_LAYER,
     )?;
-    runtime.set_layout_manager(root, Box::new(StackLayout::new()))?;
-    runtime.set_layout_manager(viewport_layer, Box::new(StackLayout::new()))?;
-    runtime.set_layout_manager(scalable, Box::new(StackLayout::new()))?;
-    runtime.set_layout_manager(printable, Box::new(StackLayout::new()))?;
+    runtime
+        .container(root)?
+        .set_layout_manager(Box::new(StackLayout::new()))?;
+    runtime
+        .container(viewport_layer)?
+        .set_layout_manager(Box::new(StackLayout::new()))?;
+    runtime
+        .container(scalable)?
+        .set_layout_manager(Box::new(StackLayout::new()))?;
+    runtime
+        .container(printable)?
+        .set_layout_manager(Box::new(StackLayout::new()))?;
     Ok((
         runtime,
         RootLayers {
@@ -833,7 +835,8 @@ where
         let viewport = self.viewport_handle()?;
         Ok(self
             .runtime
-            .set_view_location(&viewport, origin.x(), origin.y())?)
+            .viewport(viewport.figure_id())?
+            .set_view_location(origin.x(), origin.y())?)
     }
 
     /// Sets content zoom while preserving an optional logical surface anchor.
@@ -861,7 +864,7 @@ where
         if anchor.is_some() {
             zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
         }
-        Ok(self.runtime.set_zoom_at(&zoom, scale, anchor)?)
+        Ok(self.runtime.zoom(&zoom)?.set_zoom_at(scale, anchor)?)
     }
 
     pub(crate) fn scroll_viewport_by_surface_delta(
@@ -879,7 +882,8 @@ where
         let origin = viewport.view_location();
         Ok(self
             .runtime
-            .set_view_location(&viewport, origin.x() + dx, origin.y() + dy)?)
+            .viewport(viewport.figure_id())?
+            .set_view_location(origin.x() + dx, origin.y() + dy)?)
     }
 
     pub(crate) fn viewport_ranges(
@@ -1283,7 +1287,8 @@ where
         self.validate_selectable(owner)?;
         let figure = self
             .runtime
-            .add_figure(self.root_layers.handles(), figure)?;
+            .container(self.root_layers.handles())?
+            .add(figure)?;
         let id = HandleId::new(self.namespace());
         self.visual_registry
             .insert(figure, VisualOwner::Handle { id, owner, role });
@@ -1305,7 +1310,7 @@ where
         } else {
             self.root_layers.feedback()
         };
-        let figure = self.runtime.add_figure(parent, figure)?;
+        let figure = self.runtime.container(parent)?.add(figure)?;
         let id = FeedbackId::new(self.namespace());
         self.visual_registry
             .insert(figure, VisualOwner::Feedback { id, owner });
@@ -2011,10 +2016,10 @@ where
         let context = PartFactoryContext::new(parent, parent_model, model_id);
         let mut behavior = self.factory.create(context, &self.model)?;
         let policies = behavior.create_policies(&self.model, model_id)?;
-        let primary = self.runtime.add_figure(
-            parent_figure,
-            behavior.create_figure(&self.model, model_id)?,
-        )?;
+        let primary = self
+            .runtime
+            .container(parent_figure)?
+            .add(behavior.create_figure(&self.model, model_id)?)?;
         let mut build = VisualBuildContext::new(&mut self.runtime, primary);
         if let Err(error) = behavior.configure_visual(&self.model, model_id, &mut build) {
             let _ = self.runtime.dispose_subtree(primary);
@@ -2150,10 +2155,10 @@ where
         Self::validate_connection_bendpoints(descriptor.id(), &bendpoints)?;
         let routing = behavior.connection_routing(&self.model, descriptor.id())?;
         let (router, constraint) = self.resolve_connection_routing(routing)?;
-        let primary = self.runtime.add_figure(
-            self.root_layers.connection(),
-            behavior.create_figure(&self.model, descriptor.id())?,
-        )?;
+        let primary = self
+            .runtime
+            .container(self.root_layers.connection())?
+            .add(behavior.create_figure(&self.model, descriptor.id())?)?;
         if !self.runtime.tree().is_connection_figure(primary) {
             self.runtime.dispose_subtree(primary)?;
             return Err(ViewerError::InvalidConnectionFigure {
@@ -2309,7 +2314,8 @@ where
             figure_order.push(figure);
         }
         self.runtime
-            .set_child_order(self.root_layers.connection(), &figure_order)?;
+            .container(self.root_layers.connection())?
+            .set_child_order(&figure_order)?;
         self.parts.set_connection_order(order)?;
         Ok(())
     }
@@ -2677,7 +2683,8 @@ where
                 .ok_or(ViewerError::InconsistentState)?
                 .content_pane();
             self.runtime
-                .move_child_to_index(content_pane, primary, index)?;
+                .container(content_pane)?
+                .move_child_to_index(primary, index)?;
             self.parts.reorder_child(part, child, index)?;
             self.synchronize_subtree(child, child_model, snapshot)?;
         }

@@ -111,31 +111,38 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     }));
 
     let clickable = runtime
-        .add_figure(
-            root,
-            Box::new(ClickableFigure::new(Rectangle::new(
-                20.0, 20.0, 100.0, 40.0,
-            ))),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(ClickableFigure::new(Rectangle::new(
+            20.0, 20.0, 100.0, 40.0,
+        ))))
         .expect("valid Runtime mutation");
     assert!(
         runtime
-            .set_bounds(root, Rectangle::new(5.0, 5.0, 300.0, 200.0))
+            .figure(root)
+            .unwrap()
+            .set_bounds(Rectangle::new(5.0, 5.0, 300.0, 200.0))
             .expect("valid Runtime mutation")
     );
     assert!(
         runtime
-            .set_visible(clickable, false)
+            .figure(clickable)
+            .unwrap()
+            .set_visible(false)
             .expect("valid Runtime mutation")
     );
     assert!(
         runtime
-            .set_visible(clickable, true)
+            .figure(clickable)
+            .unwrap()
+            .set_visible(true)
             .expect("valid Runtime mutation")
     );
     assert!(
         runtime
-            .set_layout_manager(root, Box::new(XYLayout::new()))
+            .container(root)
+            .unwrap()
+            .set_layout_manager(Box::new(XYLayout::new()))
             .unwrap()
     );
     assert!(runtime.do_click(clickable).unwrap());
@@ -159,7 +166,9 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
 
     assert!(
         runtime
-            .set_visible(clickable, false)
+            .figure(clickable)
+            .unwrap()
+            .set_visible(false)
             .expect("valid Runtime mutation")
     );
     let _ = runtime.prepare_frame();
@@ -186,10 +195,9 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let child = runtime
-        .add_figure(
-            root,
-            Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)))
         .expect("valid Runtime mutation");
     let _ = runtime.prepare_frame();
 
@@ -207,12 +215,16 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
 
     assert!(
         runtime
-            .set_visible(child, false)
+            .figure(child)
+            .unwrap()
+            .set_visible(false)
             .expect("valid Runtime mutation")
     );
     assert!(
         runtime
-            .set_visible(child, true)
+            .figure(child)
+            .unwrap()
+            .set_visible(true)
             .expect("valid Runtime mutation")
     );
     let _ = runtime.prepare_frame();
@@ -239,12 +251,11 @@ fn action_listener_can_remove_itself_after_the_current_action() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let clickable = runtime
-        .add_figure(
-            root,
-            Box::new(ClickableFigure::new(Rectangle::new(
-                20.0, 20.0, 100.0, 40.0,
-            ))),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(ClickableFigure::new(Rectangle::new(
+            20.0, 20.0, 100.0, 40.0,
+        ))))
         .expect("valid Runtime mutation");
     let _ = runtime.prepare_frame();
 
@@ -264,12 +275,11 @@ fn pointer_dispatch_remains_available_after_listener_api_completion() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let clickable = runtime
-        .add_figure(
-            root,
-            Box::new(ClickableFigure::new(Rectangle::new(
-                20.0, 20.0, 100.0, 40.0,
-            ))),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(ClickableFigure::new(Rectangle::new(
+            20.0, 20.0, 100.0, 40.0,
+        ))))
         .expect("valid Runtime mutation");
 
     runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);

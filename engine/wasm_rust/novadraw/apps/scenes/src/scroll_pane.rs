@@ -1,6 +1,4 @@
-use novadraw::{
-    Color, FigureTree, Rectangle, RectangleFigure, ScrollBarVisibility, UpdateManager, ZoomManager,
-};
+use novadraw::{Color, FigureTree, Rectangle, RectangleFigure, ScrollBarVisibility, ZoomManager};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -82,13 +80,14 @@ fn scene_with_policy(
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .expect("attach scroll pane");
-    let mut update_manager = UpdateManager::new();
-    pane.set_scroll_bar_visibility(&mut graph, &mut update_manager, horizontal, vertical)
+    graph
+        .builder()
+        .set_scroll_bar_visibility(&pane, horizontal, vertical)
         .expect("set scrollbar visibility");
-    let contents = pane
-        .set_contents(
-            &mut graph,
-            &mut update_manager,
+    let contents = graph
+        .builder()
+        .set_scroll_pane_contents(
+            &pane,
             Box::new(RectangleFigure::new_with_color(
                 0.0,
                 0.0,
@@ -104,7 +103,9 @@ fn scene_with_policy(
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
     if let Some((x, y)) = initial_scroll {
-        pane.scroll_to(&mut graph, &mut update_manager, x, y)
+        graph
+            .builder()
+            .scroll_pane_to(&pane, x, y)
             .expect("set initial scroll");
     }
     graph
@@ -156,18 +157,20 @@ fn scalable_scene() -> FigureTree {
             Rectangle::new(0.0, 0.0, LARGE_CONTENT_WIDTH, LARGE_CONTENT_HEIGHT),
         )
         .expect("attach scalable pane");
-    let mut update_manager = UpdateManager::new();
     add_grid(&mut graph, scalable.figure_id());
+    let zoom = ZoomManager::new(scalable, pane.viewport().clone());
+    graph
+        .builder()
+        .set_zoom(&zoom, DEMO_SCALE)
+        .expect("set demo zoom");
+    graph
+        .builder()
+        .set_view_location(pane.viewport().figure_id(), 0.0, 0.0)
+        .expect("reset demo view location");
     graph
         .builder()
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
-    ZoomManager::new(scalable, pane.viewport().clone())
-        .set_zoom(&mut graph, &mut update_manager, DEMO_SCALE)
-        .expect("set demo zoom");
-    pane.viewport()
-        .set_view_location(&mut graph, &mut update_manager, 0.0, 0.0)
-        .expect("reset demo view location");
     graph
 }
 

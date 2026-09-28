@@ -386,7 +386,7 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    runtime.revalidate(root).unwrap();
+    runtime.figure(root).unwrap().revalidate().unwrap();
     let canvas = runtime.prepare_frame().expect("queued update");
 
     assert!(runtime.tree().is_valid(root));
@@ -740,7 +740,7 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
         .set_layout_manager(root, Box::new(ReinvalidatingLayout { child }))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    runtime.revalidate(root).unwrap();
+    runtime.figure(root).unwrap().revalidate().unwrap();
     let error = runtime
         .stabilize_for_query()
         .expect_err("validation must not converge");

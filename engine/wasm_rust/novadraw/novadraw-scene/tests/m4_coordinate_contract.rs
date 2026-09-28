@@ -295,7 +295,9 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     ))));
     assert!(
         runtime
-            .set_bounds(coordinate_root, Rectangle::new(70.0, 55.0, 100.0, 70.0),)
+            .figure(coordinate_root)
+            .unwrap()
+            .set_bounds(Rectangle::new(70.0, 55.0, 100.0, 70.0),)
             .unwrap()
     );
 

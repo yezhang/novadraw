@@ -107,11 +107,14 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
     };
 
     assert_eq!(
-        runtime.add_figure(pane, Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),),
+        runtime
+            .container(pane)
+            .unwrap()
+            .add(Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),),
         Err(novadraw_scene::RuntimeMutationError::LayeredParent(pane))
     );
     assert_eq!(
-        runtime.remove_figure(pane, layer),
+        runtime.container(pane).unwrap().remove(layer),
         Err(novadraw_scene::RuntimeMutationError::LayeredParent(pane))
     );
     assert_eq!(
@@ -188,22 +191,19 @@ fn layer_order_drives_reverse_z_hit_testing() {
         (lower, middle, upper)
     };
     let lower_child = runtime
-        .add_figure(
-            lower,
-            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-        )
+        .container(lower)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
         .expect("valid Runtime mutation");
     let upper_child = runtime
-        .add_figure(
-            upper,
-            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-        )
+        .container(upper)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
         .expect("valid Runtime mutation");
     let _middle_child = runtime
-        .add_figure(
-            middle,
-            Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)),
-        )
+        .container(middle)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
         .expect("valid Runtime mutation");
 
     assert_eq!(
@@ -250,7 +250,7 @@ fn reparent_and_remove_update_both_membership_indexes() {
         .expect("layer");
 
     assert_eq!(
-        runtime.reparent(layer, right),
+        runtime.figure(layer).unwrap().reparent(right),
         Err(novadraw_scene::RuntimeMutationError::LayeredParent(left))
     );
     assert_eq!(runtime.tree().parent_id(layer), Some(left));
@@ -302,13 +302,12 @@ fn callback_layer_mutations_commit_in_fifo_order() {
         .expect("pane")
         .pane_id();
     runtime
-        .add_figure(
-            root,
-            Box::new(EnqueueLayersFigure {
-                bounds: Rectangle::new(0.0, 0.0, 100.0, 80.0),
-                pane,
-            }),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(EnqueueLayersFigure {
+            bounds: Rectangle::new(0.0, 0.0, 100.0, 80.0),
+            pane,
+        }))
         .expect("valid Runtime mutation");
 
     runtime.dispatch_mouse_pressed(20.0, 20.0, MouseButton::Left);

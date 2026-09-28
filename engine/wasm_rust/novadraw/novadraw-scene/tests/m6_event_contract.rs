@@ -366,22 +366,20 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
         .add_viewport(root, Rectangle::new(200.0, 0.0, 120.0, 120.0))
         .unwrap();
     let first_target = runtime
-        .add_figure(
-            first_viewport.figure_id(),
-            Box::new(InputProbeFigure {
-                bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
-                events: Arc::clone(&first_events),
-            }),
-        )
+        .container(first_viewport.figure_id())
+        .unwrap()
+        .add(Box::new(InputProbeFigure {
+            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+            events: Arc::clone(&first_events),
+        }))
         .expect("valid Runtime mutation");
     let second_target = runtime
-        .add_figure(
-            second_viewport.figure_id(),
-            Box::new(InputProbeFigure {
-                bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
-                events: Arc::clone(&second_events),
-            }),
-        )
+        .container(second_viewport.figure_id())
+        .unwrap()
+        .add(Box::new(InputProbeFigure {
+            bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
+            events: Arc::clone(&second_events),
+        }))
         .expect("valid Runtime mutation");
     let session = GestureSessionId::new(17);
 
@@ -400,13 +398,17 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     if remove_target {
         assert!(
             runtime
-                .remove_figure(root, first_viewport.figure_id())
+                .container(root)
+                .unwrap()
+                .remove(first_viewport.figure_id())
                 .expect("valid Runtime mutation")
         );
     } else {
         assert!(
             runtime
-                .set_visible(first_viewport.figure_id(), false)
+                .figure(first_viewport.figure_id())
+                .unwrap()
+                .set_visible(false)
                 .expect("valid Runtime mutation")
         );
     }

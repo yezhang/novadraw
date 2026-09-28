@@ -223,7 +223,7 @@ impl ViewportHandle {
         Point::new(runtime.horizontal.value(), runtime.vertical.value())
     }
 
-    pub fn set_view_location(
+    pub(crate) fn set_view_location(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -260,37 +260,6 @@ impl ViewportHandle {
         Ok(true)
     }
 
-    pub fn set_horizontal_location(
-        &self,
-        graph: &mut FigureTree,
-        update_manager: &mut UpdateManager,
-        x: f64,
-    ) -> Result<bool, ViewportError> {
-        let current = self.view_location();
-        self.set_view_location(graph, update_manager, x, current.y())
-    }
-
-    pub fn set_vertical_location(
-        &self,
-        graph: &mut FigureTree,
-        update_manager: &mut UpdateManager,
-        y: f64,
-    ) -> Result<bool, ViewportError> {
-        let current = self.view_location();
-        self.set_view_location(graph, update_manager, current.x(), y)
-    }
-
-    pub fn scroll_by(
-        &self,
-        graph: &mut FigureTree,
-        update_manager: &mut UpdateManager,
-        dx: f64,
-        dy: f64,
-    ) -> Result<bool, ViewportError> {
-        let current = self.view_location();
-        self.set_view_location(graph, update_manager, current.x() + dx, current.y() + dy)
-    }
-
     pub fn contents_tracks_width(&self) -> bool {
         lock_unpoisoned(&self.runtime).tracks_width
     }
@@ -299,7 +268,7 @@ impl ViewportHandle {
         lock_unpoisoned(&self.runtime).tracks_height
     }
 
-    pub fn set_contents(
+    pub(crate) fn set_contents(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -318,7 +287,7 @@ impl ViewportHandle {
         Ok(child)
     }
 
-    pub fn set_tracks_width(
+    pub(crate) fn set_tracks_width(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -327,7 +296,7 @@ impl ViewportHandle {
         self.set_track_policy(graph, update_manager, Some(tracks), None)
     }
 
-    pub fn set_tracks_height(
+    pub(crate) fn set_tracks_height(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -756,6 +725,46 @@ impl FigureTreeBuilder<'_> {
         bounds: Rectangle,
     ) -> Result<ViewportHandle, GraphMutationError> {
         self.tree_mut().add_viewport_to(parent, bounds)
+    }
+
+    pub fn set_view_location(
+        &mut self,
+        viewport: FigureId,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, ViewportError> {
+        let handle = self
+            .tree_mut()
+            .viewport_handle(viewport)
+            .ok_or(ViewportError::MissingViewport)?;
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        handle.set_view_location(self.tree_mut(), &mut updates, x, y)
+    }
+
+    pub fn set_viewport_tracks_width(
+        &mut self,
+        viewport: FigureId,
+        tracks: bool,
+    ) -> Result<bool, ViewportError> {
+        let handle = self
+            .tree_mut()
+            .viewport_handle(viewport)
+            .ok_or(ViewportError::MissingViewport)?;
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        handle.set_tracks_width(self.tree_mut(), &mut updates, tracks)
+    }
+
+    pub fn set_viewport_tracks_height(
+        &mut self,
+        viewport: FigureId,
+        tracks: bool,
+    ) -> Result<bool, ViewportError> {
+        let handle = self
+            .tree_mut()
+            .viewport_handle(viewport)
+            .ok_or(ViewportError::MissingViewport)?;
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        handle.set_tracks_height(self.tree_mut(), &mut updates, tracks)
     }
 }
 

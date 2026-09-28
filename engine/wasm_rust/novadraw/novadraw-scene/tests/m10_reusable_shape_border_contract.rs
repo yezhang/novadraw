@@ -121,20 +121,25 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
         .expect("valid Runtime mutation");
     let line = runtime
-        .add_figure(
-            root,
-            Box::new(PolylineFigure::from_points(vec![
-                Vec2::new(10.0, 20.0),
-                Vec2::new(110.0, 20.0),
-            ])),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(PolylineFigure::from_points(vec![
+            Vec2::new(10.0, 20.0),
+            Vec2::new(110.0, 20.0),
+        ])))
         .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.point_list_points(line).unwrap(),
         vec![Vec2::new(10.0, 20.0), Vec2::new(110.0, 20.0)]
     );
-    assert!(runtime.set_point(line, 1, Vec2::new(210.0, 50.0)).unwrap());
+    assert!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .set_point(1, Vec2::new(210.0, 50.0))
+            .unwrap()
+    );
     assert_eq!(
         runtime.tree().figure_bounds(line),
         Some(Rectangle::new(9.0, 19.0, 202.0, 32.0))
@@ -145,30 +150,37 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert!(
         runtime
-            .insert_point(line, 1, Vec2::new(80.0, 70.0))
+            .figure(line)
+            .unwrap()
+            .insert_point(1, Vec2::new(80.0, 70.0))
             .unwrap()
     );
-    assert!(runtime.remove_point(line, 1).unwrap());
+    assert!(runtime.figure(line).unwrap().remove_point(1).unwrap());
     assert!(
         runtime
-            .replace_points(line, vec![Vec2::new(20.0, 30.0), Vec2::new(120.0, 80.0)])
+            .figure(line)
+            .unwrap()
+            .replace_points(vec![Vec2::new(20.0, 30.0), Vec2::new(120.0, 80.0)])
             .unwrap()
     );
     assert!(runtime.has_pending_update());
     let stable_points = runtime.point_list_points(line).unwrap();
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
-        runtime.remove_point(line, 9),
+        runtime.figure(line).unwrap().remove_point(9),
         Err(ShapeMutationError::PointIndexOutOfRange { index: 9, len: 2 })
     );
     assert_eq!(
-        runtime.replace_points(line, vec![Vec2::new(f64::NAN, 0.0)]),
+        runtime
+            .figure(line)
+            .unwrap()
+            .replace_points(vec![Vec2::new(f64::NAN, 0.0)]),
         Err(ShapeMutationError::NonFiniteGeometry)
     );
     assert_eq!(runtime.point_list_points(line).unwrap(), stable_points);
     assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);
 
-    assert!(runtime.clear_points(line).unwrap());
+    assert!(runtime.figure(line).unwrap().clear_points().unwrap());
     assert!(runtime.point_list_points(line).unwrap().is_empty());
     assert_eq!(runtime.tree().figure_bounds(line), Some(Rectangle::ZERO));
 }
@@ -255,45 +267,62 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let rounded = runtime
-        .add_figure(
-            root,
-            Box::new(RoundedRectangleFigure::new(10.0, 10.0, 100.0, 60.0, 8.0)),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(RoundedRectangleFigure::new(
+            10.0, 10.0, 100.0, 60.0, 8.0,
+        )))
         .expect("valid Runtime mutation");
     let triangle = runtime
-        .add_figure(root, Box::new(TriangleFigure::new(150.0, 20.0, 40.0, 40.0)))
+        .container(root)
+        .unwrap()
+        .add(Box::new(TriangleFigure::new(150.0, 20.0, 40.0, 40.0)))
         .expect("valid Runtime mutation");
 
     let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));
     assert!(
         runtime
-            .replace_border(rounded, Some(Arc::clone(&shared_border)))
+            .figure(rounded)
+            .unwrap()
+            .replace_border(Some(Arc::clone(&shared_border)))
             .unwrap()
     );
     assert_eq!(runtime.tree().insets(rounded), Some((3.0, 3.0, 3.0, 3.0)));
     assert!(
         runtime
-            .set_corner_dimensions(rounded, Dimension::new(24.0, 12.0))
+            .figure(rounded)
+            .unwrap()
+            .set_corner_dimensions(Dimension::new(24.0, 12.0))
             .unwrap()
     );
     assert!(
         runtime
-            .set_triangle_direction(triangle, Direction::West)
+            .figure(triangle)
+            .unwrap()
+            .set_triangle_direction(Direction::West)
             .unwrap()
     );
     assert!(runtime.has_pending_update());
 
     assert_eq!(
-        runtime.set_corner_dimensions(rounded, Dimension::new(-1.0, 2.0)),
+        runtime
+            .figure(rounded)
+            .unwrap()
+            .set_corner_dimensions(Dimension::new(-1.0, 2.0)),
         Err(ShapeMutationError::NegativeMetric)
     );
     assert_eq!(
-        runtime.set_triangle_direction(rounded, Direction::South),
+        runtime
+            .figure(rounded)
+            .unwrap()
+            .set_triangle_direction(Direction::South),
         Err(ShapeMutationError::WrongCapability(rounded))
     );
     assert!(
         !runtime
-            .replace_border(rounded, Some(shared_border))
+            .figure(rounded)
+            .unwrap()
+            .replace_border(Some(shared_border))
             .unwrap()
     );
 }
@@ -305,26 +334,24 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
         .expect("valid Runtime mutation");
     let rectangle = runtime
-        .add_figure(
-            root,
-            Box::new(
-                RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
-                    .with_stroke(Color::BLUE, 2.0),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
+                .with_stroke(Color::BLUE, 2.0),
+        ))
         .expect("valid Runtime mutation");
     let fill = Color::rgba(0.2, 0.7, 0.3, 1.0);
     let stroke = Color::rgba(0.8, 0.2, 0.6, 1.0);
     assert!(
         runtime
-            .set_figure_style(
-                rectangle,
-                FigureStyle {
-                    foreground: Some(stroke),
-                    background: Some(fill),
-                    ..FigureStyle::default()
-                },
-            )
+            .figure(rectangle)
+            .unwrap()
+            .set_style(FigureStyle {
+                foreground: Some(stroke),
+                background: Some(fill),
+                ..FigureStyle::default()
+            },)
             .expect("valid Runtime mutation")
     );
 
@@ -351,13 +378,12 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
         .expect("valid Runtime mutation");
     let bordered = runtime
-        .add_figure(
-            root,
-            Box::new(
-                RectangleFigure::new(10.0, 10.0, 100.0, 50.0)
-                    .with_border(LineBorder::new(Color::BLACK, 3.0)),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            RectangleFigure::new(10.0, 10.0, 100.0, 50.0)
+                .with_border(LineBorder::new(Color::BLACK, 3.0)),
+        ))
         .expect("valid Runtime mutation");
 
     assert_eq!(
@@ -372,15 +398,15 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
         Some(true)
     );
 
+    let translucent_style = FigureStyle {
+        alpha: Some(0.5),
+        ..runtime.tree().figure_style(bordered).unwrap().clone()
+    };
     assert!(
         runtime
-            .set_figure_style(
-                bordered,
-                FigureStyle {
-                    alpha: Some(0.5),
-                    ..runtime.tree().figure_style(bordered).unwrap().clone()
-                },
-            )
+            .figure(bordered)
+            .unwrap()
+            .set_style(translucent_style)
             .expect("valid Runtime mutation")
     );
     assert_eq!(

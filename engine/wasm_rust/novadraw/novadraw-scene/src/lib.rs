@@ -103,13 +103,14 @@ pub use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
     AccessibilityUpdate, BackendSessionError, ComponentInvalidation, ComponentUpdateError,
-    ComponentUpdateReceipt, DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY,
-    DEFAULT_TOOLTIP_SHOW_DELAY, FigureComponentContext, FigureComponentUpdate, FocusChange,
-    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    FramePreparation, FramePreparationError, ImageId, InteractionState, LogicalViewportResizeError,
-    MonotonicTime, PointerId, PreparedFigureUpdate, ResourceError, ResourceKind, ResourceRegistry,
-    ResourceStatus, Runtime, RuntimeMutationError, TimeError, TooltipPlacement, TooltipSide,
-    TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, place_tooltip,
+    ComponentUpdateReceipt, ContainerEditor, DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY,
+    DEFAULT_TOOLTIP_SHOW_DELAY, FigureComponentContext, FigureComponentUpdate, FigureEditor,
+    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy,
+    FontId, FramePreparation, FramePreparationError, ImageId, InteractionState,
+    LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate, ResourceError,
+    ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError, ScaleEditor,
+    ScrollPaneEditor, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming,
+    TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor, ZoomEditor, place_tooltip,
 };
 pub use runtime::{context, event, mutation};
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};

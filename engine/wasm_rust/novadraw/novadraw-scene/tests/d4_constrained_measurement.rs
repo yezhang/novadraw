@@ -138,16 +138,17 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
         )))
         .expect("valid Runtime mutation");
     let text_figure = runtime
-        .add_figure(
-            root,
-            Box::new(WrappedTextFigure {
-                natural,
-                constrained,
-            }),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(WrappedTextFigure {
+            natural,
+            constrained,
+        }))
         .expect("valid Runtime mutation");
     runtime
-        .set_layout_manager(root, Box::new(ConstrainedColumnLayout))
+        .container(root)
+        .unwrap()
+        .set_layout_manager(Box::new(ConstrainedColumnLayout))
         .unwrap();
 
     let submission = runtime
@@ -206,22 +207,22 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)))
         .expect("valid Runtime mutation");
     let text_figure = runtime
-        .add_figure(
-            root,
-            Box::new(WrappedTextFigure {
-                natural,
-                constrained,
-            }),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(WrappedTextFigure {
+            natural,
+            constrained,
+        }))
         .expect("valid Runtime mutation");
     runtime
-        .set_layout_constraint(
-            text_figure,
-            XYConstraint::at_size(10.0, 12.0, f64::from(WIDTH), -1.0),
-        )
+        .figure(text_figure)
+        .unwrap()
+        .set_layout_constraint(XYConstraint::at_size(10.0, 12.0, f64::from(WIDTH), -1.0))
         .unwrap();
     runtime
-        .set_layout_manager(root, Box::new(XYLayout::new()))
+        .container(root)
+        .unwrap()
+        .set_layout_manager(Box::new(XYLayout::new()))
         .unwrap();
 
     runtime

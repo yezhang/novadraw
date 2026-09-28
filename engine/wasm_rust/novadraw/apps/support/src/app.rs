@@ -1124,14 +1124,13 @@ mod tests {
             .expect("valid Runtime mutation");
         assert!(
             runtime
-                .set_figure_style(
-                    root,
-                    FigureStyle {
-                        font: Some("15px Inter Variable".to_string()),
-                        tooltip: Some(Some("Native tooltip".to_string())),
-                        ..FigureStyle::default()
-                    },
-                )
+                .figure(root)
+                .unwrap()
+                .set_style(FigureStyle {
+                    font: Some("15px Inter Variable".to_string()),
+                    tooltip: Some(Some("Native tooltip".to_string())),
+                    ..FigureStyle::default()
+                },)
                 .expect("valid Runtime mutation")
         );
         runtime.dispatch_mouse_moved(300.0, 190.0);

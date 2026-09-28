@@ -361,7 +361,7 @@ impl UpdateManager {
 
     /// 统一 flush：收集 FigureTree 和 UpdateManager 两边的 effect，
     /// 在事务边界统一分发到所有注册的 listener。
-    pub fn flush_notifications(&mut self, graph: &mut crate::graph::FigureTree) {
+    pub(crate) fn flush_notifications(&mut self, graph: &mut crate::graph::FigureTree) {
         self.absorb_graph_effects(graph);
         let effects = self.notification_effects.drain();
         self.dispatch_effects(&effects, graph, self.publication_epoch);
@@ -665,7 +665,8 @@ impl UpdateManager {
         }
     }
 
-    pub fn perform_validation(&mut self, graph: &mut crate::graph::FigureTree) {
+    #[cfg(test)]
+    pub(crate) fn perform_validation(&mut self, graph: &mut crate::graph::FigureTree) {
         self.last_validation_error = graph.perform_validation_cycle(self).err();
     }
 

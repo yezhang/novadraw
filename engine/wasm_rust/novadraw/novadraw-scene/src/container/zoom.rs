@@ -5,8 +5,8 @@ use std::sync::Arc;
 use novadraw_geometry::Point;
 
 use crate::{
-    FigureTree, FreeformError, LayoutError, MeasureConstraints, RangeModelSnapshot, ScaleError,
-    ScaleHandle, UpdateManager, ViewportError, ViewportHandle,
+    FigureTree, FigureTreeBuilder, FreeformError, LayoutError, MeasureConstraints,
+    RangeModelSnapshot, ScaleError, ScaleHandle, UpdateManager, ViewportError, ViewportHandle,
 };
 
 pub const DEFAULT_ZOOM_LEVELS: [f64; 8] = [0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0];
@@ -184,7 +184,7 @@ impl ZoomManager {
         Ok(())
     }
 
-    pub fn set_zoom(
+    pub(crate) fn set_zoom(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -193,7 +193,7 @@ impl ZoomManager {
         self.set_zoom_at(graph, update_manager, zoom, None)
     }
 
-    pub fn set_zoom_at(
+    pub(crate) fn set_zoom_at(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -263,7 +263,7 @@ impl ZoomManager {
         Ok(true)
     }
 
-    pub fn zoom_by_at(
+    pub(crate) fn zoom_by_at(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -276,7 +276,7 @@ impl ZoomManager {
         self.set_zoom_at(graph, update_manager, self.zoom() * factor, anchor)
     }
 
-    pub fn zoom_in(
+    pub(crate) fn zoom_in(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -291,7 +291,7 @@ impl ZoomManager {
         self.set_zoom(graph, update_manager, next)
     }
 
-    pub fn zoom_out(
+    pub(crate) fn zoom_out(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -307,7 +307,7 @@ impl ZoomManager {
         self.set_zoom(graph, update_manager, previous)
     }
 
-    pub fn fit_all(
+    pub(crate) fn fit_all(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -315,7 +315,7 @@ impl ZoomManager {
         self.fit(graph, update_manager, true, true)
     }
 
-    pub fn fit_width(
+    pub(crate) fn fit_width(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -323,7 +323,7 @@ impl ZoomManager {
         self.fit(graph, update_manager, true, false)
     }
 
-    pub fn fit_height(
+    pub(crate) fn fit_height(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -429,5 +429,22 @@ impl ZoomManager {
         if let Some(parent) = graph.parent_id(self.viewport.figure_id()) {
             graph.repaint(update_manager, parent, None);
         }
+    }
+}
+
+impl FigureTreeBuilder<'_> {
+    pub fn set_zoom(&mut self, zoom: &ZoomManager, scale: f64) -> Result<bool, ZoomError> {
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        zoom.set_zoom(self.tree_mut(), &mut updates, scale)
+    }
+
+    pub fn set_zoom_at(
+        &mut self,
+        zoom: &ZoomManager,
+        scale: f64,
+        anchor: Option<Point>,
+    ) -> Result<bool, ZoomError> {
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        zoom.set_zoom_at(self.tree_mut(), &mut updates, scale, anchor)
     }
 }

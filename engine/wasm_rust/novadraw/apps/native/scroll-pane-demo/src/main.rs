@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use novadraw::{
     GesturePhase, GestureSessionId, KeyModifiers, MouseLocationZoomScrollPolicy, Point, Rectangle,
-    RectangleFigure, Runtime, ScrollDeltaKind, UpdateManager, WheelEvent, ZoomEvent, ZoomManager,
+    RectangleFigure, Runtime, ScrollDeltaKind, WheelEvent, ZoomEvent, ZoomManager,
 };
 use novadraw_apps::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -25,18 +25,18 @@ fn verify_auto_visibility() -> Result<VerificationMetrics, String> {
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = UpdateManager::new();
-    pane.set_contents(
-        &mut graph,
-        &mut update_manager,
-        Box::new(RectangleFigure::new(
-            0.0,
-            0.0,
-            LARGE_CONTENT_WIDTH,
-            LARGE_CONTENT_HEIGHT,
-        )),
-    )
-    .map_err(|error| error.to_string())?;
+    graph
+        .builder()
+        .set_scroll_pane_contents(
+            &pane,
+            Box::new(RectangleFigure::new(
+                0.0,
+                0.0,
+                LARGE_CONTENT_WIDTH,
+                LARGE_CONTENT_HEIGHT,
+            )),
+        )
+        .map_err(|error| error.to_string())?;
     graph
         .builder()
         .validate_subtree(pane.pane_id())
@@ -68,18 +68,18 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
             Rectangle::new(PANE_X, PANE_Y, PANE_WIDTH, PANE_HEIGHT),
         )
         .map_err(|error| error.to_string())?;
-    let mut update_manager = UpdateManager::new();
-    pane.set_contents(
-        &mut graph,
-        &mut update_manager,
-        Box::new(RectangleFigure::new(
-            0.0,
-            0.0,
-            LARGE_CONTENT_WIDTH,
-            LARGE_CONTENT_HEIGHT,
-        )),
-    )
-    .map_err(|error| error.to_string())?;
+    graph
+        .builder()
+        .set_scroll_pane_contents(
+            &pane,
+            Box::new(RectangleFigure::new(
+                0.0,
+                0.0,
+                LARGE_CONTENT_WIDTH,
+                LARGE_CONTENT_HEIGHT,
+            )),
+        )
+        .map_err(|error| error.to_string())?;
     graph
         .builder()
         .validate_subtree(pane.pane_id())
@@ -123,10 +123,14 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     let mut runtime = Runtime::new(graph);
     runtime
-        .set_zoom_at(&zoom, DEMO_SCALE, None)
+        .zoom(&zoom)
+        .map_err(|error| error.to_string())?
+        .set_zoom_at(DEMO_SCALE, None)
         .map_err(|error| error.to_string())?;
     runtime
-        .set_view_location(pane.viewport(), 0.0, 0.0)
+        .viewport(pane.viewport().figure_id())
+        .map_err(|error| error.to_string())?
+        .set_view_location(0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let point = runtime
         .tree()
@@ -306,13 +310,17 @@ fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
     let mut demo = build_freeform_demo(1.0, (0.0, 0.0));
     let viewport = demo.pane.viewport().clone();
     demo.runtime
-        .set_view_location(&viewport, CONTENT_MIN_X, CONTENT_MIN_Y)
+        .viewport(viewport.figure_id())
+        .map_err(|error| error.to_string())?
+        .set_view_location(CONTENT_MIN_X, CONTENT_MIN_Y)
         .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(CONTENT_MIN_X, CONTENT_MIN_Y) {
         return Err("freeform viewport could not reach negative range edge".to_string());
     }
     demo.runtime
-        .set_view_location(&viewport, f64::MAX, f64::MAX)
+        .viewport(viewport.figure_id())
+        .map_err(|error| error.to_string())?
+        .set_view_location(f64::MAX, f64::MAX)
         .map_err(|error| error.to_string())?;
     let horizontal = viewport.horizontal_range();
     let vertical = viewport.vertical_range();
@@ -324,12 +332,16 @@ fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
         return Err("freeform viewport did not clamp at positive range edge".to_string());
     }
     demo.runtime
-        .set_view_location(&viewport, 0.0, 0.0)
+        .viewport(viewport.figure_id())
+        .map_err(|error| error.to_string())?
+        .set_view_location(0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
     zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
     demo.runtime
-        .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
+        .zoom(&zoom)
+        .map_err(|error| error.to_string())?
+        .set_zoom_at(2.0, Some(Point::new(60.0, 40.0)))
         .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(30.0, 20.0) {
         return Err("freeform anchor zoom changed the anchored content point".to_string());

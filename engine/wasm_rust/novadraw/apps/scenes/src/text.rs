@@ -104,33 +104,31 @@ fn root(runtime: &mut Runtime) -> FigureId {
         )))
         .expect("valid Runtime mutation");
     runtime
-        .set_figure_style(
-            root,
-            FigureStyle {
-                foreground: Some(HEADING),
-                font: Some("16px Inter Variable".to_string()),
-                ..FigureStyle::default()
-            },
-        )
+        .figure(root)
+        .unwrap()
+        .set_style(FigureStyle {
+            foreground: Some(HEADING),
+            font: Some("16px Inter Variable".to_string()),
+            ..FigureStyle::default()
+        })
         .expect("valid Runtime mutation");
     root
 }
 
 fn panel(runtime: &mut Runtime, parent: FigureId, bounds: Rectangle) -> FigureId {
     runtime
-        .add_figure(
-            parent,
-            Box::new(
-                RectangleFigure::new_with_color(
-                    bounds.x,
-                    bounds.y,
-                    bounds.width,
-                    bounds.height,
-                    PANEL_FILL,
-                )
-                .with_stroke(PANEL_STROKE, 1.0),
-            ),
-        )
+        .container(parent)
+        .unwrap()
+        .add(Box::new(
+            RectangleFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                PANEL_FILL,
+            )
+            .with_stroke(PANEL_STROKE, 1.0),
+        ))
         .expect("valid Runtime mutation")
 }
 
@@ -143,17 +141,18 @@ fn add_label(
     color: Color,
 ) -> FigureId {
     let id = runtime
-        .add_figure(parent, Box::new(LabelFigure::new(text).with_bounds(bounds)))
+        .container(parent)
+        .unwrap()
+        .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
         .expect("valid Runtime mutation");
     runtime
-        .set_figure_style(
-            id,
-            FigureStyle {
-                foreground: Some(color),
-                font: Some(font.to_string()),
-                ..FigureStyle::default()
-            },
-        )
+        .figure(id)
+        .unwrap()
+        .set_style(FigureStyle {
+            foreground: Some(color),
+            font: Some(font.to_string()),
+            ..FigureStyle::default()
+        })
         .expect("valid Runtime mutation");
     id
 }
@@ -336,30 +335,32 @@ fn icon_placement_scene() -> Runtime {
             ),
         );
         let label = runtime
-            .add_figure(
-                card,
-                Box::new(
-                    LabelFigure::new(format!("{placement:?}"))
-                        .with_icon(icon)
-                        .with_bounds(Rectangle::new(24.0, 24.0, 232.0, 82.0)),
-                ),
-            )
+            .container(card)
+            .unwrap()
+            .add(Box::new(
+                LabelFigure::new(format!("{placement:?}"))
+                    .with_icon(icon)
+                    .with_bounds(Rectangle::new(24.0, 24.0, 232.0, 82.0)),
+            ))
             .expect("valid Runtime mutation");
         runtime
-            .set_label_text_placement(label, placement)
+            .figure(label)
+            .unwrap()
+            .set_label_text_placement(placement)
             .expect("label placement");
         runtime
-            .set_label_alignment(label, Alignment::Center)
+            .figure(label)
+            .unwrap()
+            .set_label_alignment(Alignment::Center)
             .expect("label alignment");
         runtime
-            .set_figure_style(
-                label,
-                FigureStyle {
-                    foreground: Some(ACCENT),
-                    font: Some("18px Inter Variable".to_string()),
-                    ..FigureStyle::default()
-                },
-            )
+            .figure(label)
+            .unwrap()
+            .set_style(FigureStyle {
+                foreground: Some(ACCENT),
+                font: Some("18px Inter Variable".to_string()),
+                ..FigureStyle::default()
+            })
             .expect("valid Runtime mutation");
     }
     runtime
@@ -382,23 +383,21 @@ fn style_inheritance_scene() -> Runtime {
         Rectangle::new(80.0, 120.0, 640.0, 140.0),
     );
     runtime
-        .set_figure_style(
-            inherited,
-            FigureStyle {
-                foreground: Some(Color::rgba(0.42, 0.15, 0.62, 1.0)),
-                font: Some("22px Noto Sans SC".to_string()),
-                ..FigureStyle::default()
-            },
-        )
+        .figure(inherited)
+        .unwrap()
+        .set_style(FigureStyle {
+            foreground: Some(Color::rgba(0.42, 0.15, 0.62, 1.0)),
+            font: Some("22px Noto Sans SC".to_string()),
+            ..FigureStyle::default()
+        })
         .expect("valid Runtime mutation");
     runtime
-        .add_figure(
-            inherited,
-            Box::new(
-                LabelFigure::new("继承颜色和字体，不在 Label 中复制通用样式。")
-                    .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
-            ),
-        )
+        .container(inherited)
+        .unwrap()
+        .add(Box::new(
+            LabelFigure::new("继承颜色和字体，不在 Label 中复制通用样式。")
+                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
+        ))
         .expect("valid Runtime mutation");
 
     let overridden = panel(
@@ -407,23 +406,21 @@ fn style_inheritance_scene() -> Runtime {
         Rectangle::new(80.0, 310.0, 640.0, 140.0),
     );
     runtime
-        .set_figure_style(
-            overridden,
-            FigureStyle {
-                foreground: Some(Color::rgba(0.14, 0.36, 0.18, 1.0)),
-                font: Some("20px JetBrains Mono".to_string()),
-                ..FigureStyle::default()
-            },
-        )
+        .figure(overridden)
+        .unwrap()
+        .set_style(FigureStyle {
+            foreground: Some(Color::rgba(0.14, 0.36, 0.18, 1.0)),
+            font: Some("20px JetBrains Mono".to_string()),
+            ..FigureStyle::default()
+        })
         .expect("valid Runtime mutation");
     runtime
-        .add_figure(
-            overridden,
-            Box::new(
-                LabelFigure::new("inherited: FontDescriptor -> GlyphRun")
-                    .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
-            ),
-        )
+        .container(overridden)
+        .unwrap()
+        .add(Box::new(
+            LabelFigure::new("inherited: FontDescriptor -> GlyphRun")
+                .with_bounds(Rectangle::new(36.0, 50.0, 560.0, 36.0)),
+        ))
         .expect("valid Runtime mutation");
     runtime
 }
@@ -438,35 +435,32 @@ fn title_bar_border_scene() -> Runtime {
     .with_alignment(Alignment::Start)
     .with_padding(18.0, 8.0);
     let panel = runtime
-        .add_figure(
-            root,
-            Box::new(
-                RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
-                    .with_border(title_bar),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
+                .with_border(title_bar),
+        ))
         .expect("valid Runtime mutation");
     runtime
-        .set_figure_style(
-            panel,
-            FigureStyle {
-                foreground: Some(Color::WHITE),
-                font: Some("20px Inter Variable".to_string()),
-                ..FigureStyle::default()
-            },
-        )
+        .figure(panel)
+        .unwrap()
+        .set_style(FigureStyle {
+            foreground: Some(Color::WHITE),
+            font: Some("20px Inter Variable".to_string()),
+            ..FigureStyle::default()
+        })
         .expect("valid Runtime mutation");
     runtime
-        .add_figure(
-            panel,
-            Box::new(RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                640.0,
-                300.0,
-                Color::rgba(0.78, 0.9, 0.84, 1.0),
-            )),
-        )
+        .container(panel)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            640.0,
+            300.0,
+            Color::rgba(0.78, 0.9, 0.84, 1.0),
+        )))
         .expect("valid Runtime mutation");
     runtime
 }
@@ -520,12 +514,11 @@ fn image_resources_scene() -> Runtime {
             _ => unreachable!(),
         }
         runtime
-            .add_figure(
-                card,
-                Box::new(
-                    ImageFigure::new(image).with_bounds(Rectangle::new(18.0, 68.0, 129.0, 190.0)),
-                ),
-            )
+            .container(card)
+            .unwrap()
+            .add(Box::new(
+                ImageFigure::new(image).with_bounds(Rectangle::new(18.0, 68.0, 129.0, 190.0)),
+            ))
             .expect("valid Runtime mutation");
     }
     runtime

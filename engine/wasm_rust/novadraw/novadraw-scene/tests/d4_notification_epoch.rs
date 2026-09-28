@@ -96,12 +96,16 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     let second = Rectangle::new(9.0, 10.0, 40.0, 24.0);
     assert!(
         runtime
-            .set_bounds(figure, first)
+            .figure(figure)
+            .unwrap()
+            .set_bounds(first)
             .expect("valid Runtime mutation")
     );
     assert!(
         runtime
-            .set_bounds(figure, second)
+            .figure(figure)
+            .unwrap()
+            .set_bounds(second)
             .expect("valid Runtime mutation")
     );
     assert!(matches!(
@@ -158,7 +162,9 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     let previous_epoch = runtime.stable_query().unwrap().epoch();
     assert!(
         runtime
-            .set_focusable(figure, true)
+            .figure(figure)
+            .unwrap()
+            .set_focusable(true)
             .expect("valid Runtime mutation")
     );
     assert!(matches!(

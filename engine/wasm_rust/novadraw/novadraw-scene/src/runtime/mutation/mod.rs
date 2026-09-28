@@ -134,6 +134,10 @@ pub enum RuntimeMutationError {
     UnknownOrDisposedFigure(FigureId),
     DetachedFigure(FigureId),
     SyntheticRootOperation(FigureId),
+    WrongCapability {
+        figure: FigureId,
+        capability: &'static str,
+    },
     InvalidParentRelation {
         parent: FigureId,
         child: FigureId,
@@ -177,6 +181,9 @@ impl fmt::Display for RuntimeMutationError {
                     formatter,
                     "operation is not allowed on synthetic root {figure:?}"
                 )
+            }
+            Self::WrongCapability { figure, capability } => {
+                write!(formatter, "Figure {figure:?} does not support {capability}")
             }
             Self::InvalidParentRelation { parent, child } => {
                 write!(formatter, "{child:?} is not a direct child of {parent:?}")

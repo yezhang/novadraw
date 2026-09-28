@@ -58,7 +58,9 @@ fn captures_parent_first_tree_and_committed_effect_order() {
     let changed_bounds = Rectangle::new(16.0, 18.0, 32.0, 36.0);
     assert!(
         runtime
-            .set_bounds(child, changed_bounds)
+            .figure(child)
+            .expect("child must remain attached")
+            .set_bounds(changed_bounds)
             .expect("valid Runtime mutation")
     );
     stabilize(&mut runtime);
@@ -105,7 +107,9 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     stabilize(&mut runtime);
     assert!(
         runtime
-            .set_bounds(contents, Rectangle::new(1.0, 2.0, 120.0, 80.0))
+            .figure(contents)
+            .expect("contents must remain attached")
+            .set_bounds(Rectangle::new(1.0, 2.0, 120.0, 80.0))
             .expect("valid Runtime mutation")
     );
     stabilize(&mut runtime);

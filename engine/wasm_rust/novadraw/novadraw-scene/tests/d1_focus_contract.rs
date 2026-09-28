@@ -10,22 +10,34 @@ fn public_runtime_focus_api_separates_direct_and_traversal_eligibility() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
         .expect("valid Runtime mutation");
     let first_traversal = runtime
-        .add_figure(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .container(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
         .expect("valid Runtime mutation");
     let last_traversal = runtime
-        .add_figure(root, Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
+        .container(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(30.0, 0.0, 20.0, 20.0)))
         .expect("valid Runtime mutation");
     let direct_only = runtime
-        .add_figure(root, Box::new(RectangleFigure::new(60.0, 0.0, 20.0, 20.0)))
+        .container(root)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(60.0, 0.0, 20.0, 20.0)))
         .expect("valid Runtime mutation");
     runtime
-        .set_focus_traversable(first_traversal, true)
+        .figure(first_traversal)
+        .unwrap()
+        .set_focus_traversable(true)
         .expect("valid Runtime mutation");
     runtime
-        .set_focus_traversable(last_traversal, true)
+        .figure(last_traversal)
+        .unwrap()
+        .set_focus_traversable(true)
         .expect("valid Runtime mutation");
     runtime
-        .set_focusable(direct_only, true)
+        .figure(direct_only)
+        .unwrap()
+        .set_focusable(true)
         .expect("valid Runtime mutation");
 
     assert_eq!(

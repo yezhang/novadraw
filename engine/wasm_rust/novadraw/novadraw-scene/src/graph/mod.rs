@@ -2793,6 +2793,11 @@ impl FigureTree {
         self.blocks.get(id).map(FigureNode::figure_bounds)
     }
 
+    /// Returns the committed private-component revision for a Figure.
+    pub fn component_revision(&self, id: FigureId) -> Option<u64> {
+        self.blocks.get(id).map(|node| node.component_revision)
+    }
+
     pub fn is_connection_figure(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)

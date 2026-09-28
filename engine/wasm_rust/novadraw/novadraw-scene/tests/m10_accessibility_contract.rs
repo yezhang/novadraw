@@ -60,20 +60,18 @@ fn accessible_runtime() -> (Runtime, FigureId, FigureId) {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
         .expect("valid Runtime mutation");
     let button = runtime
-        .add_figure(
-            root,
-            Box::new(
-                ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0)),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0)),
+        ))
         .expect("valid Runtime mutation");
     let toggle = runtime
-        .add_figure(
-            root,
-            Box::new(
-                ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0)),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0)),
+        ))
         .expect("valid Runtime mutation");
     (runtime, button, toggle)
 }
@@ -161,7 +159,9 @@ fn dispose_removes_accessibility_identity_in_the_next_delta() {
     let parent = runtime.tree().parent_id(button).unwrap();
     assert!(
         runtime
-            .remove_figure(parent, button)
+            .container(parent)
+            .unwrap()
+            .remove(button)
             .expect("valid Runtime mutation")
     );
     publish(&mut runtime);

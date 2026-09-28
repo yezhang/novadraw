@@ -57,17 +57,19 @@ fn add_viewport(
             novadraw::Rectangle::new(0.0, 0.0, CONTENT_WIDTH, CONTENT_HEIGHT),
         )
         .expect("attach scalable pane");
-    let mut update_manager = novadraw::UpdateManager::new();
+    let zoom_manager = novadraw::ZoomManager::new(scalable.clone(), viewport.clone());
+    scene
+        .builder()
+        .set_zoom(&zoom_manager, zoom)
+        .expect("set zoom");
+    scene
+        .builder()
+        .set_view_location(viewport.figure_id(), origin.0 * zoom, origin.1 * zoom)
+        .expect("set viewport origin");
     scene
         .builder()
         .validate_subtree(viewport.figure_id())
         .expect("valid FigureTree construction");
-    novadraw::ZoomManager::new(scalable.clone(), viewport.clone())
-        .set_zoom(scene, &mut update_manager, zoom)
-        .expect("set zoom");
-    viewport
-        .set_view_location(scene, &mut update_manager, origin.0 * zoom, origin.1 * zoom)
-        .expect("set viewport origin");
     scalable.figure_id()
 }
 

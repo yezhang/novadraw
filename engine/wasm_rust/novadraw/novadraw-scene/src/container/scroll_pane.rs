@@ -148,7 +148,7 @@ impl ScrollPaneHandle {
         self.vertical_scroll_bar
     }
 
-    pub fn set_scroll_bar_visibility(
+    pub(crate) fn set_scroll_bar_visibility(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -177,7 +177,7 @@ impl ScrollPaneHandle {
         Ok(changed)
     }
 
-    pub fn scroll_to(
+    pub(crate) fn scroll_to(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -189,7 +189,7 @@ impl ScrollPaneHandle {
             .set_view_location(graph, update_manager, x, y)?)
     }
 
-    pub fn set_contents(
+    pub(crate) fn set_contents(
         &self,
         graph: &mut FigureTree,
         update_manager: &mut UpdateManager,
@@ -798,5 +798,34 @@ impl FigureTreeBuilder<'_> {
         bounds: Rectangle,
     ) -> Result<ScrollPaneHandle, ScrollPaneError> {
         self.tree_mut().add_scroll_pane_to(parent, bounds)
+    }
+
+    pub fn set_scroll_bar_visibility(
+        &mut self,
+        pane: &ScrollPaneHandle,
+        horizontal: ScrollBarVisibility,
+        vertical: ScrollBarVisibility,
+    ) -> Result<bool, ScrollPaneError> {
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        pane.set_scroll_bar_visibility(self.tree_mut(), &mut updates, horizontal, vertical)
+    }
+
+    pub fn scroll_pane_to(
+        &mut self,
+        pane: &ScrollPaneHandle,
+        x: f64,
+        y: f64,
+    ) -> Result<bool, ScrollPaneError> {
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        pane.scroll_to(self.tree_mut(), &mut updates, x, y)
+    }
+
+    pub fn set_scroll_pane_contents(
+        &mut self,
+        pane: &ScrollPaneHandle,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, ScrollPaneError> {
+        let mut updates = UpdateManager::with_namespace(self.tree_mut().namespace());
+        pane.set_contents(self.tree_mut(), &mut updates, figure)
     }
 }

@@ -41,21 +41,21 @@ impl EditorHarness {
         let viewport = viewer.root_layers().viewport();
         let style_changed = viewer
             .runtime_mut()
-            .set_figure_style(
-                viewport,
-                FigureStyle {
-                    background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
-                    ..FigureStyle::default()
-                },
-            )
+            .figure(viewport)
+            .map_err(|error| error.to_string())?
+            .set_style(FigureStyle {
+                background: Some(Color::hex(VIEWPORT_BACKGROUND_COLOR)),
+                ..FigureStyle::default()
+            })
             .map_err(|error| error.to_string())?;
         if !style_changed {
             return Err("failed to apply viewport background".to_string());
         }
         viewer
             .runtime_mut()
+            .figure(viewport)
+            .map_err(|error| error.to_string())?
             .set_border(
-                viewport,
                 LineBorder::new(Color::hex(VIEWPORT_BORDER_COLOR), VIEWPORT_BORDER_WIDTH)
                     .with_style(BorderStyle::Dash)
                     .with_insets(0.0, 0.0, 0.0, 0.0),

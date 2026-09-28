@@ -6,7 +6,7 @@ use novadraw_scene::{
     ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Figure,
     FigureComponentContext, FigureComponentUpdate, FigureLifecycle, FigureTree, FocusError,
     FramePreparation, FramePreparationError, PreparedFigureUpdate, Rectangle, RectangleFigure,
-    ResourceError, Runtime, RuntimeMutationError, ShapeMutationError, WidgetError,
+    ResourceError, Runtime, RuntimeMutationError, WidgetError,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -208,7 +208,9 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         .generation();
 
     let receipt = runtime
-        .update_component(badge, SetBadgeText("updated".to_owned()))
+        .figure(badge)
+        .unwrap()
+        .update_component(SetBadgeText("updated".to_owned()))
         .unwrap();
     assert_eq!(receipt.figure, badge);
     assert_eq!(receipt.previous_revision, 0);
@@ -236,7 +238,11 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         RenderOutcome::Presented
     ));
 
-    let observed = runtime.update_component(badge, ProbeBadge).unwrap_err();
+    let observed = runtime
+        .figure(badge)
+        .unwrap()
+        .update_component(ProbeBadge)
+        .unwrap_err();
     assert_eq!(
         observed,
         ComponentUpdateError::Rejected(BadgeSnapshot {
@@ -245,17 +251,19 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
             paint_snapshot: "badge:updated".to_owned(),
         })
     );
-    assert_eq!(runtime.component_revision(badge), Ok(1));
+    assert_eq!(runtime.tree().component_revision(badge), Some(1));
 
     let pending_before = runtime.has_pending_update();
     let rejected = runtime
-        .update_component(badge, SetBadgeText(String::new()))
+        .figure(badge)
+        .unwrap()
+        .update_component(SetBadgeText(String::new()))
         .unwrap_err();
     assert_eq!(
         rejected,
         ComponentUpdateError::Rejected("badge text cannot be empty")
     );
-    assert_eq!(runtime.component_revision(badge), Ok(1));
+    assert_eq!(runtime.tree().component_revision(badge), Some(1));
     assert_eq!(runtime.has_pending_update(), pending_before);
 }
 
@@ -272,7 +280,9 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
     let mut runtime = Runtime::new(tree);
 
     let wrong_type = runtime
-        .update_component(root, SetBadgeText("new".to_owned()))
+        .figure(root)
+        .unwrap()
+        .update_component(SetBadgeText("new".to_owned()))
         .unwrap_err();
     assert_eq!(
         wrong_type,
@@ -288,18 +298,14 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
         .set_contents(Box::new(BadgeFigure::new("foreign")))
         .expect("valid Runtime mutation");
     assert!(matches!(
-        runtime.update_component(foreign_id, SetBadgeText("new".to_owned())),
-        Err(ComponentUpdateError::Runtime(
-            RuntimeMutationError::ForeignRuntime(id)
-        )) if id == foreign_id
+        runtime.figure(foreign_id),
+        Err(RuntimeMutationError::ForeignRuntime(id)) if id == foreign_id
     ));
 
     runtime.dispose_subtree(badge).unwrap();
     assert!(matches!(
-        runtime.update_component(badge, SetBadgeText("new".to_owned())),
-        Err(ComponentUpdateError::Runtime(
-            RuntimeMutationError::UnknownOrDisposedFigure(id)
-        )) if id == badge
+        runtime.figure(badge),
+        Err(RuntimeMutationError::UnknownOrDisposedFigure(id)) if id == badge
     ));
 }
 
@@ -312,7 +318,7 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     let mut runtime = Runtime::new(tree);
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = runtime.update_component(badge, PanicCommit);
+        let _ = runtime.figure(badge).unwrap().update_component(PanicCommit);
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
@@ -327,14 +333,14 @@ fn component_prepare_or_commit_panic_faults_runtime() {
         .set_contents(Box::new(BadgeFigure::new("old")));
     let mut runtime = Runtime::new(tree);
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = runtime.update_component(badge, PanicPrepare);
+        let _ = runtime
+            .figure(badge)
+            .unwrap()
+            .update_component(PanicPrepare);
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
-    assert_eq!(
-        runtime.component_revision(badge),
-        Err(RuntimeMutationError::Faulted)
-    );
+    assert_eq!(runtime.tree().component_revision(badge), Some(0));
 }
 
 #[test]
@@ -353,7 +359,11 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
-    runtime.set_preferred_size(figure, (20.0, 20.0)).unwrap();
+    runtime
+        .figure(figure)
+        .unwrap()
+        .set_preferred_size((20.0, 20.0))
+        .unwrap();
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .unwrap();
@@ -367,24 +377,18 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         runtime
-            .set_bounds(figure, Rectangle::new(0.0, 0.0, 30.0, 30.0))
+            .figure(figure)
+            .unwrap()
+            .set_bounds(Rectangle::new(0.0, 0.0, 30.0, 30.0))
             .expect("valid Runtime mutation");
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
 
-    assert_eq!(
-        runtime.set_bounds(figure, Rectangle::new(0.0, 0.0, 40.0, 40.0)),
+    assert!(matches!(
+        runtime.figure(figure),
         Err(RuntimeMutationError::Faulted)
-    );
-    assert_eq!(
-        runtime.set_preferred_size(figure, (50.0, 50.0)),
-        Err(RuntimeMutationError::Faulted)
-    );
-    assert_eq!(
-        runtime.set_label_text(figure, "rejected"),
-        Err(ShapeMutationError::Faulted)
-    );
+    ));
     assert_eq!(runtime.do_click(figure), Err(WidgetError::Faulted));
     assert_eq!(
         runtime.remove_connection_state(ConnectionId::from_figure(figure)),

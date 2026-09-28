@@ -34,8 +34,8 @@ pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
 pub use runtime::{
-    BackendSessionError, FramePreparation, FramePreparationError, LogicalViewportResizeError,
-    Runtime,
+    BackendSessionError, ContainerEditor, FigureEditor, FramePreparation, FramePreparationError,
+    LogicalViewportResizeError, Runtime, ScaleEditor, ScrollPaneEditor, ViewportEditor, ZoomEditor,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

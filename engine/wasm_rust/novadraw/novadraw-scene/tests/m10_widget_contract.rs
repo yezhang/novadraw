@@ -21,12 +21,11 @@ fn runtime_with_button() -> (Runtime, FigureId) {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
         .expect("valid Runtime mutation");
     let button = runtime
-        .add_figure(
-            root,
-            Box::new(
-                ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+        ))
         .expect("valid Runtime mutation");
     (runtime, button)
 }
@@ -37,12 +36,11 @@ fn runtime_with_toggle() -> (Runtime, FigureId) {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
         .expect("valid Runtime mutation");
     let toggle = runtime
-        .add_figure(
-            root,
-            Box::new(
-                ToggleFigure::new("Snap").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
-            ),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            ToggleFigure::new("Snap").with_bounds(Rectangle::new(20.0, 20.0, 120.0, 40.0)),
+        ))
         .expect("valid Runtime mutation");
     (runtime, toggle)
 }
@@ -168,7 +166,9 @@ fn disabled_button_rejects_pointer_keyboard_and_programmatic_actions() {
     let (mut runtime, button) = runtime_with_button();
     assert!(
         runtime
-            .set_enabled(button, false)
+            .figure(button)
+            .unwrap()
+            .set_enabled(false)
             .expect("valid Runtime mutation")
     );
 
@@ -200,7 +200,13 @@ fn toggle_changes_selection_before_emitting_action() {
 fn selected_state_is_model_owned_and_programmatic_click_uses_same_transaction() {
     let (mut runtime, toggle) = runtime_with_toggle();
 
-    assert!(runtime.set_clickable_selected(toggle, true).unwrap());
+    assert!(
+        runtime
+            .figure(toggle)
+            .unwrap()
+            .set_clickable_selected(true)
+            .unwrap()
+    );
     assert!(runtime.clickable_snapshot(toggle).unwrap().selected);
     assert!(!runtime.interaction().is_pressed(toggle));
     assert!(!runtime.interaction().is_hovered(toggle));
@@ -215,7 +221,13 @@ fn selected_state_is_model_owned_and_programmatic_click_uses_same_transaction() 
 fn button_exposes_composed_label_contract() {
     let (mut runtime, button) = runtime_with_button();
 
-    assert!(runtime.set_label_text(button, "Save changes").unwrap());
+    assert!(
+        runtime
+            .figure(button)
+            .unwrap()
+            .set_label_text("Save changes")
+            .unwrap()
+    );
     assert_eq!(runtime.label_text(button).unwrap(), "Save changes");
 }
 
@@ -226,10 +238,11 @@ fn action_listener_flushes_at_the_update_transaction_boundary() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
         .expect("valid Runtime mutation");
     let clickable = runtime
-        .add_figure(
-            root,
-            Box::new(ClickableFigure::new(Rectangle::new(20.0, 20.0, 80.0, 40.0))),
-        )
+        .container(root)
+        .unwrap()
+        .add(Box::new(ClickableFigure::new(Rectangle::new(
+            20.0, 20.0, 80.0, 40.0,
+        ))))
         .expect("valid Runtime mutation");
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_action_listener(Box::new(ActionRecorder(Arc::clone(&events))));

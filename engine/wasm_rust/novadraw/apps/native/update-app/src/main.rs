@@ -64,7 +64,9 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
         return Err("no-op update produced render work".to_string());
     }
     runtime
-        .repaint(child, None)
+        .figure(child)
+        .unwrap()
+        .repaint(None)
         .map_err(|error| error.to_string())?;
     let partial = runtime
         .prepare_frame()
@@ -95,7 +97,9 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
         effects: effects.clone(),
     }));
     runtime
-        .set_layout_constraint(child, XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
+        .figure(child)
+        .unwrap()
+        .set_layout_constraint(XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
         .map_err(|error| error.to_string())?;
     runtime
         .prepare_frame()
@@ -178,7 +182,9 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
         did_panic: AtomicBool::new(false),
     }));
     runtime
-        .repaint(child, None)
+        .figure(child)
+        .unwrap()
+        .repaint(None)
         .map_err(|error| error.to_string())?;
     let previous_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
@@ -199,10 +205,14 @@ fn verify_stress_1024() -> Result<VerificationMetrics, String> {
     let mut runtime = Runtime::new(stress_scene());
     let root = runtime.tree().contents().ok_or("missing root")?;
     runtime
-        .revalidate(root)
+        .figure(root)
+        .unwrap()
+        .revalidate()
         .map_err(|error| error.to_string())?;
     runtime
-        .repaint(root, None)
+        .figure(root)
+        .unwrap()
+        .repaint(None)
         .map_err(|error| error.to_string())?;
     let start = Instant::now();
     let canvas = runtime

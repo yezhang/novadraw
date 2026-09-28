@@ -36,11 +36,12 @@ use crate::{
     LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
     ObservationListener, PendingMutations, PropertyChangeListener, Rectangle, ResourceError,
     ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput, RouteRequest,
-    RouterBinding, RouterId, RoutingConstraint, SceneDispatchContext, ShapeMutationError,
-    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
-    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
-    WidgetError, ZoomEvent, ZoomManager,
+    RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
+    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
+    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
+    TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection, UpdateEvent, UpdateListener,
+    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
+    ZoomManager,
 };
 use novadraw_geometry::{Dimension, Point, Vec2};
 
@@ -188,10 +189,474 @@ pub struct Runtime {
     faulted: bool,
 }
 
+/// Short-lived, Runtime-backed mutation facade for one attached Figure.
+pub struct FigureEditor<'a> {
+    figure: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached container Figure.
+pub struct ContainerEditor<'a> {
+    container: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived mutation facade for one attached Viewport.
+pub struct ViewportEditor<'a> {
+    viewport: ViewportHandle,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived mutation facade for one attached scalable Figure.
+pub struct ScaleEditor<'a> {
+    scalable: ScaleHandle,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived mutation facade for one attached ScrollPane.
+pub struct ScrollPaneEditor<'a> {
+    pane: ScrollPaneHandle,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived mutation facade for one attached Viewport/Scale pair.
+pub struct ZoomEditor<'a> {
+    zoom: &'a ZoomManager,
+    runtime: &'a mut Runtime,
+}
+
 struct InFlightFrame {
     session_id: BackendSessionId,
     id: FrameId,
     resources: ResourceSync,
+}
+
+impl FigureEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.figure
+    }
+
+    pub fn reparent(&mut self, new_parent: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.runtime.reparent(self.figure, new_parent)
+    }
+
+    pub fn set_layout_constraint<C>(&mut self, constraint: C) -> Result<bool, RuntimeMutationError>
+    where
+        C: LayoutConstraint,
+    {
+        self.runtime.set_layout_constraint(self.figure, constraint)
+    }
+
+    pub fn remove_layout_constraint(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.remove_layout_constraint(self.figure)
+    }
+
+    pub fn set_preferred_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_preferred_size(self.figure, size)
+    }
+
+    pub fn clear_preferred_size(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.clear_preferred_size(self.figure)
+    }
+
+    pub fn set_minimum_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_minimum_size(self.figure, size)
+    }
+
+    pub fn clear_minimum_size(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.clear_minimum_size(self.figure)
+    }
+
+    pub fn set_maximum_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_maximum_size(self.figure, size)
+    }
+
+    pub fn clear_maximum_size(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.clear_maximum_size(self.figure)
+    }
+
+    pub fn set_bounds(&mut self, bounds: Rectangle) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_bounds(self.figure, bounds)
+    }
+
+    pub fn translate(&mut self, dx: f64, dy: f64) -> Result<bool, RuntimeMutationError> {
+        self.runtime.translate(self.figure, dx, dy)
+    }
+
+    pub fn set_visible(&mut self, visible: bool) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_visible(self.figure, visible)
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_enabled(self.figure, enabled)
+    }
+
+    pub fn set_focusable(&mut self, focusable: bool) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_focusable(self.figure, focusable)
+    }
+
+    pub fn set_focus_traversable(
+        &mut self,
+        traversable: bool,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_focus_traversable(self.figure, traversable)
+    }
+
+    pub fn set_style(&mut self, style: FigureStyle) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_figure_style(self.figure, style)
+    }
+
+    pub fn set_opaque(&mut self, opaque: bool) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_opaque(self.figure, opaque)
+    }
+
+    pub fn revalidate(&mut self) -> Result<(), RuntimeMutationError> {
+        self.runtime.revalidate(self.figure)
+    }
+
+    pub fn repaint(&mut self, rect: Option<Rectangle>) -> Result<(), RuntimeMutationError> {
+        self.runtime.repaint(self.figure, rect)
+    }
+
+    pub fn update_component<U>(
+        &mut self,
+        update: U,
+    ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
+    where
+        U: FigureComponentUpdate,
+    {
+        self.runtime.update_component(self.figure, update)
+    }
+
+    pub fn set_label_text(&mut self, text: impl Into<String>) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_text(self.figure, text)
+    }
+
+    pub fn set_label_icon(&mut self, icon: Option<ImageId>) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_icon(self.figure, icon)
+    }
+
+    pub fn set_label_text_placement(
+        &mut self,
+        placement: TextPlacement,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_label_text_placement(self.figure, placement)
+    }
+
+    pub fn set_label_alignment(
+        &mut self,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_alignment(self.figure, alignment)
+    }
+
+    pub fn set_label_text_alignment(
+        &mut self,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_label_text_alignment(self.figure, alignment)
+    }
+
+    pub fn set_label_icon_alignment(
+        &mut self,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_label_icon_alignment(self.figure, alignment)
+    }
+
+    pub fn set_label_icon_text_gap(&mut self, gap: f64) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_icon_text_gap(self.figure, gap)
+    }
+
+    pub fn set_image(&mut self, image: ImageId) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_image_figure(self.figure, image)
+    }
+
+    pub fn set_image_alignment(
+        &mut self,
+        alignment: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_image_alignment(self.figure, alignment)
+    }
+
+    pub fn replace_points(&mut self, points: Vec<Vec2>) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_points(self.figure, points)
+    }
+
+    pub fn insert_point(&mut self, index: usize, point: Vec2) -> Result<bool, ShapeMutationError> {
+        self.runtime.insert_point(self.figure, index, point)
+    }
+
+    pub fn set_point(&mut self, index: usize, point: Vec2) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_point(self.figure, index, point)
+    }
+
+    pub fn remove_point(&mut self, index: usize) -> Result<bool, ShapeMutationError> {
+        self.runtime.remove_point(self.figure, index)
+    }
+
+    pub fn clear_points(&mut self) -> Result<bool, ShapeMutationError> {
+        self.runtime.clear_points(self.figure)
+    }
+
+    pub fn set_border(
+        &mut self,
+        border: impl Border + 'static,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_border(self.figure, border)
+    }
+
+    pub fn replace_border(
+        &mut self,
+        border: Option<Arc<dyn Border>>,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_border(self.figure, border)
+    }
+
+    pub fn set_corner_dimensions(
+        &mut self,
+        dimensions: Dimension,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_corner_dimensions(self.figure, dimensions)
+    }
+
+    pub fn set_triangle_direction(
+        &mut self,
+        direction: Direction,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_triangle_direction(self.figure, direction)
+    }
+
+    pub fn set_clickable_selected(&mut self, selected: bool) -> Result<bool, WidgetError> {
+        self.runtime.set_clickable_selected(self.figure, selected)
+    }
+
+    pub fn set_rollover_enabled(&mut self, enabled: bool) -> Result<bool, WidgetError> {
+        self.runtime.set_rollover_enabled(self.figure, enabled)
+    }
+}
+
+impl ContainerEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.container
+    }
+
+    pub fn add(&mut self, figure: Box<dyn Figure>) -> Result<FigureId, RuntimeMutationError> {
+        self.runtime.add_figure(self.container, figure)
+    }
+
+    pub fn remove(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.runtime.remove_figure(self.container, child)
+    }
+
+    pub fn set_layout_manager(
+        &mut self,
+        manager: Box<dyn LayoutManager>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_layout_manager(self.container, manager)
+    }
+
+    pub fn clear_layout_manager(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.clear_layout_manager(self.container)
+    }
+
+    pub fn move_child_to_index(
+        &mut self,
+        child: FigureId,
+        index: usize,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime
+            .move_child_to_index(self.container, child, index)
+    }
+
+    pub fn set_child_order(&mut self, order: &[FigureId]) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_child_order(self.container, order)
+    }
+
+    pub fn bring_child_to_front(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.runtime.bring_child_to_front(self.container, child)
+    }
+
+    pub fn send_child_to_back(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
+        self.runtime.send_child_to_back(self.container, child)
+    }
+
+    pub fn set_child_clipping_strategy(
+        &mut self,
+        strategy: ChildClippingStrategy,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime
+            .set_child_clipping_strategy(self.container, strategy)
+    }
+}
+
+impl ViewportEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.viewport.figure_id()
+    }
+
+    pub fn set_view_location(&mut self, x: f64, y: f64) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_view_location(&self.viewport, x, y)
+    }
+
+    pub fn set_horizontal_location(&mut self, x: f64) -> Result<bool, RuntimeMutationError> {
+        let current = self.viewport.view_location();
+        self.set_view_location(x, current.y())
+    }
+
+    pub fn set_vertical_location(&mut self, y: f64) -> Result<bool, RuntimeMutationError> {
+        let current = self.viewport.view_location();
+        self.set_view_location(current.x(), y)
+    }
+
+    pub fn scroll_by(&mut self, dx: f64, dy: f64) -> Result<bool, RuntimeMutationError> {
+        let current = self.viewport.view_location();
+        self.set_view_location(current.x() + dx, current.y() + dy)
+    }
+
+    pub fn set_contents(
+        &mut self,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        let viewport = self.viewport.clone();
+        self.runtime.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_attached_figure(viewport.figure_id())?;
+            if let Some(previous) = viewport.contents(&runtime.tree) {
+                runtime.dispose_subtree(previous)?;
+            }
+            runtime.add_figure_inner(viewport.figure_id(), figure)
+        })
+    }
+
+    pub fn set_tracks_width(&mut self, tracks: bool) -> Result<bool, RuntimeMutationError> {
+        let viewport = self.viewport.clone();
+        self.runtime.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(viewport.figure_id())?;
+            viewport
+                .set_tracks_width(&mut runtime.tree, &mut runtime.updates, tracks)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+
+    pub fn set_tracks_height(&mut self, tracks: bool) -> Result<bool, RuntimeMutationError> {
+        let viewport = self.viewport.clone();
+        self.runtime.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(viewport.figure_id())?;
+            viewport
+                .set_tracks_height(&mut runtime.tree, &mut runtime.updates, tracks)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+}
+
+impl ScaleEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.scalable.figure_id()
+    }
+
+    pub fn set_scale(&mut self, scale: f64) -> Result<bool, RuntimeMutationError> {
+        let scalable = self.scalable.clone();
+        self.runtime.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(scalable.figure_id())?;
+            scalable
+                .set_scale(&mut runtime.tree, &mut runtime.updates, scale)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+}
+
+impl ScrollPaneEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.pane.pane_id()
+    }
+
+    pub fn set_scroll_bar_visibility(
+        &mut self,
+        horizontal: ScrollBarVisibility,
+        vertical: ScrollBarVisibility,
+    ) -> Result<bool, RuntimeMutationError> {
+        let pane = self.pane.clone();
+        self.runtime.guarded_runtime_mutation(|runtime| {
+            pane.set_scroll_bar_visibility(
+                &mut runtime.tree,
+                &mut runtime.updates,
+                horizontal,
+                vertical,
+            )
+            .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
+
+    pub fn scroll_to(&mut self, x: f64, y: f64) -> Result<bool, RuntimeMutationError> {
+        let viewport = self.pane.viewport().clone();
+        self.runtime.set_view_location(&viewport, x, y)
+    }
+
+    pub fn set_contents(
+        &mut self,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        let viewport = self.pane.viewport().clone();
+        ViewportEditor {
+            viewport,
+            runtime: self.runtime,
+        }
+        .set_contents(figure)
+    }
+}
+
+impl ZoomEditor<'_> {
+    pub fn set_zoom(&mut self, scale: f64) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_zoom_at(self.zoom, scale, None)
+    }
+
+    pub fn set_zoom_at(
+        &mut self,
+        scale: f64,
+        anchor: Option<Point>,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime.set_zoom_at(self.zoom, scale, anchor)
+    }
+
+    pub fn zoom_in(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.mutate(|zoom, tree, updates| zoom.zoom_in(tree, updates))
+    }
+
+    pub fn zoom_out(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.mutate(|zoom, tree, updates| zoom.zoom_out(tree, updates))
+    }
+
+    pub fn fit_all(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.runtime.fit_zoom_to_contents(self.zoom)
+    }
+
+    pub fn fit_width(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.mutate(|zoom, tree, updates| zoom.fit_width(tree, updates))
+    }
+
+    pub fn fit_height(&mut self) -> Result<bool, RuntimeMutationError> {
+        self.mutate(|zoom, tree, updates| zoom.fit_height(tree, updates))
+    }
+
+    fn mutate(
+        &mut self,
+        operation: impl FnOnce(
+            &ZoomManager,
+            &mut FigureTree,
+            &mut UpdateManager,
+        ) -> Result<bool, crate::ZoomError>,
+    ) -> Result<bool, RuntimeMutationError> {
+        let zoom = self.zoom;
+        self.runtime.guarded_runtime_mutation(|runtime| {
+            runtime.validate_attached_figure(zoom.viewport().figure_id())?;
+            runtime.validate_attached_figure(zoom.scalable().figure_id())?;
+            operation(zoom, &mut runtime.tree, &mut runtime.updates)
+                .map_err(|_| RuntimeMutationError::Rejected)
+        })
+    }
 }
 
 impl Runtime {
@@ -243,6 +708,85 @@ impl Runtime {
 
     pub fn tree(&self) -> &FigureTree {
         &self.tree
+    }
+
+    pub fn figure(&mut self, figure: FigureId) -> Result<FigureEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(figure)?;
+        Ok(FigureEditor {
+            figure,
+            runtime: self,
+        })
+    }
+
+    pub fn container(
+        &mut self,
+        container: FigureId,
+    ) -> Result<ContainerEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(container)?;
+        Ok(ContainerEditor {
+            container,
+            runtime: self,
+        })
+    }
+
+    pub fn viewport(
+        &mut self,
+        viewport: FigureId,
+    ) -> Result<ViewportEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(viewport)?;
+        let viewport =
+            self.tree
+                .viewport_handle(viewport)
+                .ok_or(RuntimeMutationError::WrongCapability {
+                    figure: viewport,
+                    capability: "viewport mutation",
+                })?;
+        Ok(ViewportEditor {
+            viewport,
+            runtime: self,
+        })
+    }
+
+    pub fn scalable(
+        &mut self,
+        scalable: FigureId,
+    ) -> Result<ScaleEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(scalable)?;
+        let scalable =
+            self.tree
+                .scale_handle(scalable)
+                .ok_or(RuntimeMutationError::WrongCapability {
+                    figure: scalable,
+                    capability: "scale mutation",
+                })?;
+        Ok(ScaleEditor {
+            scalable,
+            runtime: self,
+        })
+    }
+
+    pub fn scroll_pane(
+        &mut self,
+        pane: &ScrollPaneHandle,
+    ) -> Result<ScrollPaneEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(pane.pane_id())?;
+        self.validate_attached_figure(pane.viewport().figure_id())?;
+        Ok(ScrollPaneEditor {
+            pane: pane.clone(),
+            runtime: self,
+        })
+    }
+
+    pub fn zoom<'a>(
+        &'a mut self,
+        zoom: &'a ZoomManager,
+    ) -> Result<ZoomEditor<'a>, RuntimeMutationError> {
+        self.validate_attached_figure(zoom.viewport().figure_id())?;
+        self.validate_attached_figure(zoom.scalable().figure_id())?;
+        Ok(ZoomEditor {
+            zoom,
+            runtime: self,
+        })
     }
 
     pub fn freeform_extent(&self, figure: FigureId) -> Result<Rectangle, FreeformError> {
@@ -969,7 +1513,7 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_figure(
+    pub(crate) fn add_figure(
         &mut self,
         parent: FigureId,
         figure: Box<dyn Figure>,
@@ -1307,7 +1851,7 @@ impl Runtime {
         Ok(order)
     }
 
-    pub fn remove_figure(
+    pub(crate) fn remove_figure(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -1336,16 +1880,7 @@ impl Runtime {
         self.faulted
     }
 
-    pub fn component_revision(&self, figure: FigureId) -> Result<u64, RuntimeMutationError> {
-        self.validate_attached_figure(figure)?;
-        Ok(self
-            .tree
-            .node(figure)
-            .expect("attached Figure must have a node")
-            .component_revision)
-    }
-
-    pub fn update_component<U>(
+    pub(crate) fn update_component<U>(
         &mut self,
         figure: FigureId,
         update: U,
@@ -1566,7 +2101,7 @@ impl Runtime {
         self.guarded(operation)
     }
 
-    pub fn reparent(
+    pub(crate) fn reparent(
         &mut self,
         child: FigureId,
         new_parent: FigureId,
@@ -1627,7 +2162,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn set_layout_manager(
+    pub(crate) fn set_layout_manager(
         &mut self,
         container: FigureId,
         manager: Box<dyn LayoutManager>,
@@ -1635,7 +2170,7 @@ impl Runtime {
         self.replace_layout_manager(container, Some(manager))
     }
 
-    pub fn clear_layout_manager(
+    pub(crate) fn clear_layout_manager(
         &mut self,
         container: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
@@ -1669,7 +2204,7 @@ impl Runtime {
         Ok(true)
     }
 
-    pub fn set_layout_constraint<C>(
+    pub(crate) fn set_layout_constraint<C>(
         &mut self,
         child: FigureId,
         constraint: C,
@@ -1710,7 +2245,7 @@ impl Runtime {
         Ok(true)
     }
 
-    pub fn remove_layout_constraint(
+    pub(crate) fn remove_layout_constraint(
         &mut self,
         child: FigureId,
     ) -> Result<bool, RuntimeMutationError> {
@@ -1733,7 +2268,7 @@ impl Runtime {
         Ok(true)
     }
 
-    pub fn set_preferred_size(
+    pub(crate) fn set_preferred_size(
         &mut self,
         figure: FigureId,
         size: (f64, f64),
@@ -1741,11 +2276,14 @@ impl Runtime {
         self.set_size_override(figure, SizeOverrideKind::Preferred, Some(size))
     }
 
-    pub fn clear_preferred_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+    pub(crate) fn clear_preferred_size(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Preferred, None)
     }
 
-    pub fn set_minimum_size(
+    pub(crate) fn set_minimum_size(
         &mut self,
         figure: FigureId,
         size: (f64, f64),
@@ -1753,11 +2291,14 @@ impl Runtime {
         self.set_size_override(figure, SizeOverrideKind::Minimum, Some(size))
     }
 
-    pub fn clear_minimum_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+    pub(crate) fn clear_minimum_size(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Minimum, None)
     }
 
-    pub fn set_maximum_size(
+    pub(crate) fn set_maximum_size(
         &mut self,
         figure: FigureId,
         size: (f64, f64),
@@ -1765,7 +2306,10 @@ impl Runtime {
         self.set_size_override(figure, SizeOverrideKind::Maximum, Some(size))
     }
 
-    pub fn clear_maximum_size(&mut self, figure: FigureId) -> Result<bool, RuntimeMutationError> {
+    pub(crate) fn clear_maximum_size(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Maximum, None)
     }
 
@@ -1801,7 +2345,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn move_child_to_index(
+    pub(crate) fn move_child_to_index(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -1833,7 +2377,7 @@ impl Runtime {
     }
 
     /// Atomically replaces the complete direct-child order of a non-layered parent.
-    pub fn set_child_order(
+    pub(crate) fn set_child_order(
         &mut self,
         parent: FigureId,
         order: &[FigureId],
@@ -1877,7 +2421,7 @@ impl Runtime {
         Ok(true)
     }
 
-    pub fn bring_child_to_front(
+    pub(crate) fn bring_child_to_front(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -1895,7 +2439,7 @@ impl Runtime {
         self.move_child_to_index(parent, child, index)
     }
 
-    pub fn send_child_to_back(
+    pub(crate) fn send_child_to_back(
         &mut self,
         parent: FigureId,
         child: FigureId,
@@ -1903,7 +2447,7 @@ impl Runtime {
         self.move_child_to_index(parent, child, 0)
     }
 
-    pub fn set_child_clipping_strategy(
+    pub(crate) fn set_child_clipping_strategy(
         &mut self,
         figure: FigureId,
         strategy: ChildClippingStrategy,
@@ -1967,7 +2511,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn set_bounds(
+    pub(crate) fn set_bounds(
         &mut self,
         id: FigureId,
         bounds: novadraw_geometry::Rectangle,
@@ -2008,7 +2552,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_visible(
+    pub(crate) fn set_visible(
         &mut self,
         id: FigureId,
         visible: bool,
@@ -2027,7 +2571,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_enabled(
+    pub(crate) fn set_enabled(
         &mut self,
         id: FigureId,
         enabled: bool,
@@ -2047,7 +2591,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_focusable(
+    pub(crate) fn set_focusable(
         &mut self,
         id: FigureId,
         focusable: bool,
@@ -2066,7 +2610,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_focus_traversable(
+    pub(crate) fn set_focus_traversable(
         &mut self,
         id: FigureId,
         traversable: bool,
@@ -2085,7 +2629,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_figure_style(
+    pub(crate) fn set_figure_style(
         &mut self,
         id: FigureId,
         style: FigureStyle,
@@ -2106,7 +2650,7 @@ impl Runtime {
         changed
     }
 
-    pub fn set_label_text(
+    pub(crate) fn set_label_text(
         &mut self,
         id: FigureId,
         text: impl Into<String>,
@@ -2152,7 +2696,7 @@ impl Runtime {
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
 
-    pub fn set_label_icon(
+    pub(crate) fn set_label_icon(
         &mut self,
         id: FigureId,
         icon: Option<ImageId>,
@@ -2191,7 +2735,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn set_label_text_placement(
+    pub(crate) fn set_label_text_placement(
         &mut self,
         id: FigureId,
         placement: TextPlacement,
@@ -2216,7 +2760,7 @@ impl Runtime {
         )
     }
 
-    pub fn set_label_alignment(
+    pub(crate) fn set_label_alignment(
         &mut self,
         id: FigureId,
         alignment: Alignment,
@@ -2241,7 +2785,7 @@ impl Runtime {
         )
     }
 
-    pub fn set_label_text_alignment(
+    pub(crate) fn set_label_text_alignment(
         &mut self,
         id: FigureId,
         alignment: Alignment,
@@ -2266,7 +2810,7 @@ impl Runtime {
         )
     }
 
-    pub fn set_label_icon_alignment(
+    pub(crate) fn set_label_icon_alignment(
         &mut self,
         id: FigureId,
         alignment: Alignment,
@@ -2291,7 +2835,7 @@ impl Runtime {
         )
     }
 
-    pub fn set_label_icon_text_gap(
+    pub(crate) fn set_label_icon_text_gap(
         &mut self,
         id: FigureId,
         gap: f64,
@@ -2322,7 +2866,7 @@ impl Runtime {
         )
     }
 
-    pub fn set_image_figure(
+    pub(crate) fn set_image_figure(
         &mut self,
         id: FigureId,
         image: ImageId,
@@ -2355,7 +2899,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn set_image_alignment(
+    pub(crate) fn set_image_alignment(
         &mut self,
         id: FigureId,
         alignment: Alignment,
@@ -2413,7 +2957,7 @@ impl Runtime {
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
 
-    pub fn replace_points(
+    pub(crate) fn replace_points(
         &mut self,
         id: FigureId,
         points: Vec<Vec2>,
@@ -2425,7 +2969,7 @@ impl Runtime {
         })
     }
 
-    pub fn insert_point(
+    pub(crate) fn insert_point(
         &mut self,
         id: FigureId,
         index: usize,
@@ -2442,7 +2986,7 @@ impl Runtime {
         self.replace_points(id, points)
     }
 
-    pub fn set_point(
+    pub(crate) fn set_point(
         &mut self,
         id: FigureId,
         index: usize,
@@ -2457,7 +3001,11 @@ impl Runtime {
         self.replace_points(id, points)
     }
 
-    pub fn remove_point(&mut self, id: FigureId, index: usize) -> Result<bool, ShapeMutationError> {
+    pub(crate) fn remove_point(
+        &mut self,
+        id: FigureId,
+        index: usize,
+    ) -> Result<bool, ShapeMutationError> {
         let mut points = self.point_list_points(id)?;
         if index >= points.len() {
             return Err(ShapeMutationError::PointIndexOutOfRange {
@@ -2469,11 +3017,11 @@ impl Runtime {
         self.replace_points(id, points)
     }
 
-    pub fn clear_points(&mut self, id: FigureId) -> Result<bool, ShapeMutationError> {
+    pub(crate) fn clear_points(&mut self, id: FigureId) -> Result<bool, ShapeMutationError> {
         self.replace_points(id, Vec::new())
     }
 
-    pub fn set_border(
+    pub(crate) fn set_border(
         &mut self,
         id: FigureId,
         border: impl Border + 'static,
@@ -2481,7 +3029,7 @@ impl Runtime {
         self.replace_border(id, Some(Arc::new(border)))
     }
 
-    pub fn replace_border(
+    pub(crate) fn replace_border(
         &mut self,
         id: FigureId,
         border: Option<Arc<dyn Border>>,
@@ -2493,7 +3041,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_corner_dimensions(
+    pub(crate) fn set_corner_dimensions(
         &mut self,
         id: FigureId,
         dimensions: Dimension,
@@ -2505,7 +3053,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_triangle_direction(
+    pub(crate) fn set_triangle_direction(
         &mut self,
         id: FigureId,
         direction: Direction,
@@ -2517,7 +3065,11 @@ impl Runtime {
         })
     }
 
-    pub fn set_opaque(&mut self, id: FigureId, opaque: bool) -> Result<bool, RuntimeMutationError> {
+    pub(crate) fn set_opaque(
+        &mut self,
+        id: FigureId,
+        opaque: bool,
+    ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
             runtime.validate_attached_figure(id)?;
             Ok(runtime.set_opaque_inner(id, opaque))
@@ -2532,7 +3084,7 @@ impl Runtime {
         true
     }
 
-    pub fn translate(
+    pub(crate) fn translate(
         &mut self,
         id: FigureId,
         dx: f64,
@@ -2741,7 +3293,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn set_clickable_selected(
+    pub(crate) fn set_clickable_selected(
         &mut self,
         id: FigureId,
         selected: bool,
@@ -2761,7 +3313,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub fn set_rollover_enabled(
+    pub(crate) fn set_rollover_enabled(
         &mut self,
         id: FigureId,
         enabled: bool,
@@ -2826,7 +3378,7 @@ impl Runtime {
     }
 
     /// Queues validation for an attached Figure.
-    pub fn revalidate(&mut self, figure: FigureId) -> Result<(), RuntimeMutationError> {
+    pub(crate) fn revalidate(&mut self, figure: FigureId) -> Result<(), RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| {
             runtime.validate_attached_figure(figure)?;
             runtime.tree.mark_invalid(&mut runtime.updates, figure);
@@ -2835,7 +3387,7 @@ impl Runtime {
     }
 
     /// Queues repaint damage expressed in the Figure's node-local domain.
-    pub fn repaint(
+    pub(crate) fn repaint(
         &mut self,
         figure: FigureId,
         rect: Option<Rectangle>,
@@ -3140,7 +3692,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn set_view_location(
+    pub(crate) fn set_view_location(
         &mut self,
         viewport: &ViewportHandle,
         x: f64,
@@ -3154,7 +3706,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_zoom_at(
+    pub(crate) fn set_zoom_at(
         &mut self,
         zoom: &ZoomManager,
         scale: f64,
@@ -3168,7 +3720,7 @@ impl Runtime {
         })
     }
 
-    pub fn fit_zoom_to_contents(
+    pub(crate) fn fit_zoom_to_contents(
         &mut self,
         zoom: &ZoomManager,
     ) -> Result<bool, RuntimeMutationError> {
@@ -5260,6 +5812,26 @@ mod adr014_tests {
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
         (runtime, root)
+    }
+
+    #[test]
+    fn scoped_editor_rejects_an_internally_detached_figure() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child = tree
+            .builder()
+            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+            .expect("valid FigureTree construction");
+        let mut updates = UpdateManager::with_namespace(tree.namespace());
+        assert!(tree.remove_child(&mut updates, root, child));
+        let mut runtime = Runtime::new(tree);
+
+        assert!(matches!(
+            runtime.figure(child),
+            Err(RuntimeMutationError::DetachedFigure(id)) if id == child
+        ));
     }
 
     #[test]
