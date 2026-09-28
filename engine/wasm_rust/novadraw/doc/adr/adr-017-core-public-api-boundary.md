@@ -24,6 +24,8 @@ change 的调用面，并固化错误的阶段边界。
 中的 P0 项，不处理 Graphics、Geometry alias 或聚合 crate 导出等 P1/P2 项。
 后续 Runtime 驱动、坐标查询和结构化测量由
 [ADR-018](adr-018-runtime-driving-and-measurement-api.md) 补充裁决。
+构建期直接值对象与运行期 scoped editor 的 API 组织由
+[ADR-019](adr-019-composable-api-and-scoped-editors.md) 补充裁决。
 
 ## 决策
 
@@ -39,7 +41,7 @@ change 的调用面，并固化错误的阶段边界。
 
 内部实现可以使用局部存储术语，但不得再次把 `block` 导出为公共概念。
 
-### 2. FigureTreeBuilder 是唯一构建期写入口
+### 2. FigureTreeBuilder 是唯一构建期树写入口
 
 pre-Runtime 场景组装通过短生命周期 `FigureTreeBuilder`：
 
@@ -58,13 +60,17 @@ validate subtree
 primitive 限制为 crate 内部。Builder 不承担 damage、interaction、resource 或
 notification publication 事务。
 
+该唯一性只约束 FigureTree 拓扑和通用 NodeState。具体 Figure、LayoutManager、
+Border、Router 等 detached owned value 继续通过自身构造器直接创建和配置，再 move
+进入 Builder。它们不需要先同构为 Runtime 操作。
+
 ### 3. LayoutManager 目标始终显式
 
 删除隐式选择 `contents.unwrap_or(synthetic_root)` 的 LayoutManager getter/setter。
 
 - 构建期：`FigureTreeBuilder::set_layout_manager(container, manager)`；
 - 查询：`FigureTree::layout_manager(container)`；
-- 运行期：`Runtime::{set_layout_manager,clear_layout_manager}(container, ...)`。
+- 运行期：`Runtime::container(container)?.{set_layout_manager,clear_layout_manager}(...)`。
 
 构建期和运行期替换 manager 都必须先校验 container 当前保存的全部 child constraints。
 
@@ -74,13 +80,14 @@ Runtime 的规范入口为：
 
 ```text
 set_contents(...) -> Result<FigureId, RuntimeMutationError>
-add_figure(...) -> Result<FigureId, RuntimeMutationError>
-remove_figure(...) -> Result<bool, RuntimeMutationError>
-reparent(...) -> Result<bool, RuntimeMutationError>
+container(parent)?.add(...) -> Result<FigureId, RuntimeMutationError>
+container(parent)?.remove(child) -> Result<bool, RuntimeMutationError>
+figure(child)?.reparent(new_parent) -> Result<bool, RuntimeMutationError>
 ```
 
 不再提供 `try_*` 与吞错 convenience 双入口。非法、foreign、disposed、detached 或
 layered parent 等情况必须返回结构化错误；`Ok(false)` 只表示合法幂等操作没有改变状态。
+这些 scoped editor 只是借用 Runtime 的能力视图，提交权威仍只有 Runtime。
 
 Builder 的 fallible topology/layout 操作同样返回 `Result`，不返回
 `FigureId::null()`。Null handle 可继续作为显式无效身份和测试输入，但不能表示正常 API
@@ -137,6 +144,8 @@ Workspace 当前版本为 `0.1.0`，且所有已知调用点都在同一仓库�
 - 落实 [ADR-003](adr-003-rust-runtime-and-geometry-boundaries.md) 的 Runtime 所有权边界；
 - 收口 [ADR-009](adr-009-runtime-dynamic-mutation-contract.md) 的错误模型；
 - 保持 [ADR-014](adr-014-extensibility-and-lifecycle-boundaries.md) 的扩展和 fault 边界；
+- 由 [ADR-019](adr-019-composable-api-and-scoped-editors.md) 补充分离提交权威与 API
+  命名空间；
 - 不改变 [ADR-016](adr-016-figure-inspector-observability.md) 的只读观察协议；
 - 对应 `api_semantics`：
   `figure.tree`、`figure.geometry.bounds`、`layout.manager`、

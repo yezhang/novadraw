@@ -235,7 +235,7 @@ content_point = viewport_point / scale + origin
 
 实际实现见
 [`FigureTree::set_bounds_with_update`](../../novadraw-scene/src/graph/mod.rs#L3875-L3933) 和
-[`Runtime::set_bounds`](../../novadraw-scene/src/runtime/runtime.rs#L1946)。
+[`FigureEditor::set_bounds`](../../novadraw-scene/src/runtime/runtime.rs)。
 
 父节点移动时，后代的 `bounds` 不会被重写；父链变换的结果发生变化，并产生
 `CoordinateSystemChanged`。这避免与子树规模成正比的存储改写，也保持父级局部

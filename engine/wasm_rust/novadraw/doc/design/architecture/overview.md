@@ -68,6 +68,10 @@ Novadraw 继承 Draw2D 的行为语义和概念关系，不复制 Java 的对象
 
 Figure 不保存 parent、children、全局服务、平台对象或通用节点几何。
 
+具体 Figure 在 detached 阶段是普通 owned value，可以通过构造器和 `with_*` 组合其
+私有内容、Border 与绘制策略。进入 FigureTree 后，通用几何、拓扑和运行期关系以
+FigureNode/Runtime 为真源；对象构造便利不等于对象持有运行期写权限。
+
 ### 3.2 FigureNode
 
 `FigureNode` 是 arena 中的运行时节点，组合：
@@ -112,6 +116,19 @@ Runtime
 
 Runtime 对外提供命名操作，不暴露能够绕过事务约束的多个可变引用。它不是全局
 singleton，也不承担应用业务逻辑。
+
+“Runtime 是事务边界”不等于“所有领域方法都平铺在 Runtime”。挂载后的 Figure 和
+Container 通过借用 Runtime 的短生命周期 scoped editor 提交 mutation：
+
+```text
+runtime.figure(id)    -> FigureEditor<'_>
+runtime.container(id) -> ContainerEditor<'_>
+runtime.layered_pane(id) -> LayeredPaneHandle<'_>
+```
+
+editor 只组织按能力分组的调用表面，内部仍进入同一 Runtime 校验、提交、失效和通知
+协议。它不能暴露 FigureTree/UpdateManager 可变引用，也不能逃逸 Runtime 的可变借用。
+完整裁决见 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)。
 
 ## 4. 所有权与线程模型
 

@@ -113,19 +113,21 @@ fn validate_constraint(
 该容器的直接子节点。当前产品代码共有 10 个实现：8 个位于 `layout` 模块，另外
 2 个由视口和滚动面板容器专用。测试中的故障注入布局器不属于产品能力。
 
-进入运行期后，应通过 `Runtime` 的受控接口同时安装布局器和子节点约束。例如：
+进入运行期后，应通过借用 `Runtime` 的 scoped editor 安装布局器和子节点约束。例如：
 
 ```rust
-runtime.set_layout_manager(
-    panel,
-    Box::new(GridLayout::new(2).with_spacing(8.0, 8.0)),
-)?;
-runtime.set_layout_constraint(field, GridConstraint::fill())?;
+runtime
+    .container(panel)?
+    .set_layout_manager(Box::new(GridLayout::new(2).with_spacing(8.0, 8.0)))?;
+runtime
+    .figure(field)?
+    .set_layout_constraint(GridConstraint::fill())?;
 ```
 
 构建新树时通过 `FigureTreeBuilder::set_layout_manager` 显式指定容器；场景进入运行期
-后只能使用 `Runtime::set_layout_manager`，因为替换布局器还需要触发约束校验、失效
-传播和重绘。
+后只能使用 `Runtime::container(panel)?.set_layout_manager(...)`，因为替换布局器还
+需要触发约束校验、失效传播和重绘。`ContainerEditor` 只借用 Runtime，不形成第二套
+状态所有权。
 
 ### 六个 Draw2D 对标布局器
 
@@ -428,17 +430,329 @@ graph.builder().validate_subtree(pane.pane_id())?;
 
 ## 4.6 测量顺序
 
-尺寸解析遵循：
+测量（measure）回答“一个 Figure 希望占多大空间”，排列（arrange，即
+`LayoutManager::layout`）回答“它最终放在哪里、实际占多大空间”。两者不能颠倒：
+父布局必须先测量子节点，才能计算轨道、换行和对齐；随后才把最终边界写入
+`LayoutOutput`。
+
+### 4.6.1 一次尺寸查询包含什么
+
+布局系统有三类尺寸查询：
+
+| 查询 | 含义 | 主要 API |
+|---|---|---|
+| 首选测量 | 空间充足时希望获得的尺寸与可选 baseline | `preferred_measurement` |
+| 最小尺寸 | 布局压缩时仍应保留的尺寸 | `minimum_size` |
+| 最大尺寸 | 布局拉伸时允许达到的上限 | `maximum_size` |
+
+首选和最小尺寸都接受 `MeasureConstraints`。父布局可以分别约束宽轴和高轴：
+
+- `Some(value)`：该轴可用的测量上限，必须有限且大于等于 `0`；
+- `None`：该轴无约束；
+- constraint 本身通常不是最终尺寸。布局器可以把它仅用于换行测量，也可以像
+  `GridLayout` 的显式尺寸约束一样把它解释为确定尺寸。
+
+约束通过校验构造器创建：
+
+```rust
+let unbounded = MeasureConstraints::UNBOUNDED;
+let width_bounded = MeasureConstraints::width(72.0)?;
+let bounded = MeasureConstraints::bounded(320.0, 180.0)?;
+```
+
+首选测量返回 `FigureMeasurement { width, height, baseline }`，最小和最大尺寸返回
+`Dimension`。`baseline` 是从 border-box 顶边到文本基线的距离，没有基线语义的
+Figure 返回 `None`。
+
+### 4.6.2 首选尺寸的解析链
+
+首选尺寸按以下优先级解析：
 
 ```text
 显式指定的尺寸
 -> 布局管理器测量
 -> 图形自身的内在尺寸测量
--> 回退到当前边界尺寸
+-> Figure 默认内在尺寸回退
 ```
 
-`None` 表示没有结果；零尺寸是合法结果，不能把 `Size::ZERO` 当作哨兵值
-（sentinel，即用特殊值表示“无结果”）。
+```mermaid
+flowchart TD
+    A["preferred_measurement(id, constraints)"] --> B{FigureId 存在?}
+    B -- 否 --> X["返回 None"]
+    B -- 是 --> C["转换容器自己的测量约束"]
+    C --> D{存在 preferred override?}
+    D -- 是 --> E["投影到父布局坐标域并返回"]
+    D -- 否 --> F{节点安装了 LayoutManager?}
+    F -- 是 --> G{generation + constraints<br/>命中缓存?}
+    G -- 是 --> H["返回缓存尺寸"]
+    G -- 否 --> I["LayoutManager::preferred_measurement"]
+    I --> J["投影、写缓存并返回"]
+    F -- 否 --> K["Figure::intrinsic_measurement"]
+    K --> L["叠加 owner-scoped Border 尺寸"]
+    L --> M["返回内在尺寸"]
+```
+
+每个阶段的具体含义如下。
+
+**阶段一：显式尺寸覆盖**
+
+`Runtime::figure(figure)?.set_preferred_size(size)` 写入节点状态中的显式 override。
+它表达的是调用方明确指定的首选尺寸，因此直接终止后续解析：
+
+```rust
+runtime.figure(panel)?.set_preferred_size((320.0, 180.0))?;
+// 后续 preferred_measurement(panel, 任意 constraints) 都先得到 (320, 180)
+
+runtime.figure(panel)?.clear_preferred_size()?;
+// 清除后重新委托 LayoutManager 或 Figure 内在测量
+```
+
+首选、最小和最大 override 是三个独立值。设置最小尺寸不会替代首选尺寸，设置首选
+尺寸也不会自动改变最大尺寸。Runtime 会拒绝负数和非有限值，并使该节点到根节点的
+validation 路径失效。
+
+**阶段二：布局管理器测量**
+
+容器安装了 `LayoutManager` 时，容器尺寸通常由直接子节点聚合得出，而不是由容器
+外观决定。例如 `XYLayout` 对每个有约束的子节点计算：
+
+```text
+子节点宽 = constraint.width >= 0 ? constraint.width : child.preferred_width
+子节点高 = constraint.height >= 0 ? constraint.height : child.preferred_height
+
+容器首选宽 = max(child.x + 子节点宽)
+容器首选高 = max(child.y + 子节点高)
+```
+
+假设两个子节点的解析结果分别是：
+
+```text
+A: x=10,  y=12, width=72, height=48  -> 右下角 (82, 60)
+B: x=100, y=20, width=30, height=20  -> 右下角 (130, 40)
+```
+
+则 `XYLayout` 测得容器首选尺寸为 `(130, 60)`。这一步只计算容器希望的尺寸，不会
+修改 A、B 的边界。
+
+布局管理器只能通过只读快照递归查询子节点：
+
+```rust
+pub trait LayoutManager {
+    fn preferred_measurement(
+        &self,
+        container: FigureId,
+        constraints: MeasureConstraints,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> FigureMeasurement;
+
+    fn minimum_size(
+        &self,
+        container: FigureId,
+        constraints: MeasureConstraints,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> Dimension;
+
+    fn layout(
+        &mut self,
+        container: FigureId,
+        snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError>;
+}
+```
+
+`preferred_measurement` / `minimum_size` 是测量算法 API；`layout` 是排列算法 API。
+测量方法必须无树写入副作用，排列方法也只能把候选边界写到 `LayoutOutput`。
+
+**阶段三：Figure 内在尺寸**
+
+没有布局管理器的叶子 Figure 通过以下扩展点描述自身：
+
+```rust
+fn intrinsic_measurement(
+    &self,
+    constraints: MeasureConstraints,
+) -> FigureMeasurement;
+
+fn intrinsic_minimum_measurement(
+    &self,
+    constraints: MeasureConstraints,
+) -> FigureMeasurement;
+```
+
+图片可以返回资源像素尺寸，文本可以根据 `max_width` 换行并返回高度与基线，几何
+Figure 可以返回自己的自然包围尺寸。存在 owner-scoped Border 时，引擎先测量内容，
+再加上 border insets，并保证结果不小于 border 自身的首选尺寸；基线也会向下偏移
+top inset。
+
+**阶段四：默认内在尺寸回退**
+
+若 Figure 没有覆盖内在测量方法，默认实现读取 `initial_bounds()` 的宽高。它是
+Figure 构造时声明的自然尺寸，不是布局后 `NodeState` 中不断变化的当前边界。这样
+可以避免“本轮排列结果成为下一轮首选尺寸输入”的反馈环：
+
+```rust
+fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
+    let (width, height) = self.intrinsic_size(); // 默认基于 initial_bounds()
+    FigureMeasurement::new(width, height, None)
+}
+```
+
+因此，需要随内容变化的 Figure 应显式实现内在测量，不能依赖上一次 layout 的边界
+充当内容尺寸。
+
+这里有两种不同的 `None`：
+
+- 节点状态中的 `preferred_size: None` 表示“没有显式 override”，继续进入下一阶段；
+- `FigureTree::preferred_measurement(...) -> None` 表示 `FigureId` 不存在。
+
+当前 `LayoutManager` 和 `Figure` 的具体测量方法都返回确定结果，不使用
+`Option<Dimension>` 串联阶段。`Dimension::ZERO` 是合法结果，不能把它当作
+sentinel（用特殊值表示“无结果”）。例如显式首选尺寸为零时，布局管理器不会再被调用。
+
+### 4.6.3 调用 API 与算法 API
+
+应用代码只负责表达策略和约束，通常不直接驱动递归测量：
+
+```rust
+runtime
+    .container(panel)?
+    .set_layout_manager(Box::new(XYLayout::new()))?;
+runtime
+    .figure(label)?
+    .set_layout_constraint(XYConstraint::at_size(10.0, 12.0, 72.0, -1.0))?;
+runtime.figure(label)?.set_minimum_size((24.0, 16.0))?;
+```
+
+其中 `height = -1.0` 仍是 `XYConstraint` 自身的“自动高度”约定，但它不会进入测量
+扩展协议。`XYLayout` 会在边界把固定宽度转换为 `MeasureConstraints`：
+
+```rust
+let constraints = MeasureConstraints::new(
+    (constraint.width >= 0.0).then_some(constraint.width),
+    (constraint.height >= 0.0).then_some(constraint.height),
+)?;
+let preferred = snapshot.preferred_measurement(child_id, constraints).size();
+let width = if constraint.width < 0.0 {
+    preferred.width
+} else {
+    constraint.width
+};
+let height = if constraint.height < 0.0 {
+    preferred.height
+} else {
+    constraint.height
+};
+out.set_child_bounds(child_id, Rectangle::new(x, y, width, height));
+```
+
+布局算法通过 `LayoutSnapshot` 使用以下只读 API：
+
+| API | 何时使用 |
+|---|---|
+| `preferred_measurement(child, constraints)` | 查询首选宽高与可选文本基线 |
+| `minimum_size(child, constraints)` | 计算压缩下限 |
+| `maximum_size(child)` | 计算拉伸上限 |
+| `container_bounds(container)` | 排列阶段取得当前客户区 |
+| `children(container)` / `constraint(child)` | 枚举直接子节点并解释父子约束 |
+
+`FigureTree` 中首选尺寸解析的核心逻辑可简化为：
+
+```rust
+fn preferred_measurement(
+    id: FigureId,
+    constraints: MeasureConstraints,
+) -> Option<FigureMeasurement> {
+    let node = blocks.get(id)?;
+    let constraints = node.layout_constraints(constraints);
+
+    if let Some(explicit) = node.preferred_size {
+        return Some(node.project_preferred_measurement(
+            FigureMeasurement::new(explicit.0, explicit.1, None),
+        ));
+    }
+
+    if let Some(layout) = node.layout.manager.as_deref() {
+        if let Some(measurement) = cache.get(node.generation(), constraints) {
+            return Some(measurement);
+        }
+        let snapshot = LayoutSnapshot::new(self);
+        let measurement = node.project_preferred_measurement(
+            layout.preferred_measurement(id, constraints, &snapshot),
+        );
+        return Some(cache.store_and_return(measurement));
+    }
+
+    let content = node.figure.intrinsic_measurement(constraints);
+    Some(apply_border(content, node.border_snapshot()))
+}
+```
+
+最小尺寸使用同一结构，但读取 `minimum_size` override、调用
+`LayoutManager::minimum_size` 和 `Figure::intrinsic_minimum_measurement`。最大
+尺寸当前不经过布局管理器：显式 maximum override 优先，否则返回无限上限。
+
+### 4.6.4 约束文本测量样例
+
+约束文本是最能体现“先测量、后排列”的例子。假设文本自然尺寸为
+`(156, 20)`，但父容器只提供 `72` 的宽度；换行后可能得到 `(72, 48)`，基线为
+`15`。父容器必须使用 `48` 作为最终高度。
+
+```mermaid
+sequenceDiagram
+    participant Parent as 父 LayoutManager
+    participant Snapshot as LayoutSnapshot
+    participant Child as 文本 Figure
+    participant Output as LayoutOutput
+    participant Paint as 绘制阶段
+
+    Parent->>Snapshot: preferred_measurement(child, max_width=72)
+    Snapshot->>Child: intrinsic_measurement(max_width=72)
+    Child-->>Snapshot: FigureMeasurement(72, 48, baseline=15)
+    Snapshot-->>Parent: 同一测量结果
+    Parent->>Output: set_child_bounds(..., 72, 48)
+    Paint->>Child: 使用 72 宽对应的不可变文本布局
+```
+
+自定义 Figure 的核心实现形态如下。实际文本整形应在 validation 的派生状态阶段生成
+不可变 `TextLayout`，测量和绘制复用同一份 glyph IR：
+
+```rust
+impl Figure for WrappedTextFigure {
+    fn intrinsic_measurement(
+        &self,
+        constraints: MeasureConstraints,
+    ) -> FigureMeasurement {
+        let layout = self.selected_layout(constraints);
+        FigureMeasurement::new(
+            f64::from(layout.width()),
+            f64::from(layout.height()),
+            Some(f64::from(layout.baseline())),
+        )
+    }
+
+    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
+        let constraints = MeasureConstraints::width(bounds.width)
+            .expect("Figure bounds are valid geometry");
+        canvas.fill_text_layout(self.selected_layout(constraints), 0.0, 0.0);
+    }
+}
+```
+
+需要基线的布局器应调用 `snapshot.measurement`，而不是只调用
+`snapshot.preferred_size`：
+
+```rust
+let area = snapshot.container_bounds(container);
+for (child, _) in snapshot.children(container) {
+    let constraints = MeasureConstraints::width(area.width)?;
+    let measured = snapshot.preferred_measurement(child, constraints);
+    output.set_child_bounds(
+        child,
+        Rectangle::new(area.x, area.y, area.width, measured.height),
+    );
+}
+```
 
 约束文本测量必须在布局阶段完成：
 
@@ -452,6 +766,29 @@ graph.builder().validate_subtree(pane.pane_id())?;
 
 如果把换行推迟到仅绘制阶段的显示逻辑，父布局无法得到正确高度，只能依赖第二次
 全量重绘修补，破坏单帧收敛。
+
+### 4.6.5 缓存与失效
+
+容器的布局测量可能递归访问大量子节点，因此首选和最小尺寸分别缓存。缓存键包含：
+
+```text
+(layout generation, MeasureConstraints)
+```
+
+相同 generation 和相同 constraints 的重复查询直接复用结果。结构变化、约束变化、
+显式尺寸变化或相关几何变化会增加 generation，同时清空首选和最小尺寸缓存；下一次
+查询才重新执行布局器测量。缓存只是已计算结果，不是显式 override，也不能跨不同
+constraints 复用。
+
+代码锚点：
+
+- [`FigureTree::preferred_measurement` 与尺寸解析](../../novadraw-scene/src/graph/mod.rs)
+- [`MeasureConstraints` 与 `FigureMeasurement`](../../novadraw-scene/src/figure/mod.rs#L320-L367)
+- [`Figure` 内在测量默认实现](../../novadraw-scene/src/figure/mod.rs#L409-L461)
+- [`LayoutSnapshot` 查询 API](../../novadraw-scene/src/layout/mod.rs#L92-L151)
+- [`LayoutManager` 算法 API](../../novadraw-scene/src/layout/mod.rs#L301-L354)
+- [`XYLayout` 测量与排列](../../novadraw-scene/src/layout/xy_layout.rs#L81-L201)
+- [约束文本测量契约测试](../../novadraw-scene/tests/d4_constrained_measurement.rs)
 
 ## 4.7 校验阶段如何收敛
 
@@ -485,7 +822,11 @@ graph.builder().validate_subtree(pane.pane_id())?;
 ## 4.8 两阶段更新管理器
 
 **更新管理器**（`UpdateManager`）汇总失效项和脏区，并按“先校验、后计算重绘区域”
-的两阶段协议准备一帧。它先完成校验，再冻结脏区快照：
+的两阶段协议准备一帧。它是 Runtime 的内部协作者，不与公开 `FigureTree` 组合成
+另一套宿主入口。应用通过 `Runtime::figure(figure)?.{revalidate,repaint}` 请求工作，
+通过 `Runtime::{prepare_submission,prepare_frame,record_full_frame}` 驱动帧。
+
+内部更新事务先完成校验，再冻结脏区快照：
 
 ```rust
 self.perform_validation_phase(graph)?;

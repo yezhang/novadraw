@@ -36,6 +36,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [016](adr-016-figure-inspector-observability.md) | FigureInspector 可观测性边界 | 已接受 | 2026-09-22 |
 | [017](adr-017-core-public-api-boundary.md) | Core 公开 API 边界与失败契约 | 已接受 | 2026-09-24 |
 | [018](adr-018-runtime-driving-and-measurement-api.md) | Runtime 驱动与结构化测量 API | 已接受 | 2026-09-24 |
+| [019](adr-019-composable-api-and-scoped-editors.md) | 可组装 API 与 Scoped Editor | 已接受，已验证 | 2026-09-28 |
 
 ## 现行与历史隔离
 

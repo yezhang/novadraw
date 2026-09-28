@@ -22,9 +22,9 @@ D3.2 因此需要建立统一的 Runtime mutation 事务，而不是开放裸
 
 ## 决策
 
-### 1. Runtime 是唯一运行期写入口
+### 1. Runtime 是唯一运行期提交边界
 
-Runtime 提供以下 typed、update-aware 操作：
+Runtime 事务提供以下 typed、update-aware 操作：
 
 ```text
 set_layout_manager / clear_layout_manager
@@ -46,6 +46,11 @@ set_child_clipping_strategy
 2026-09-10 补充：该清单不是自定义 Figure 的封闭写接口。外部组件采用 ADR-014
 的 owned typed update / prepared value，通过统一提交与失效协议更新私有内容。
 一般用户 callback 或 Drop 的 panic 不在可恢复参数错误的原子承诺内。
+
+2026-09-28 补充：ADR-019 将上述公开调用面组织为
+`Runtime::figure(...)`、`Runtime::container(...)` 等短生命周期 scoped editor。
+Runtime 内部 mutation primitive 与本 ADR 的逐操作原子、FIFO、失效和错误语义保持
+不变；该调整只分离“提交权威”与“API 命名空间”，不建立第二套写路径。
 
 ### 2. LayoutManager 在提交前校验 constraint
 

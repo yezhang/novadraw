@@ -121,8 +121,9 @@ G5.4 Connection Bendpoint 与 G5.5 Viewport/Auto-expose 自动门禁已完成；
 与检查点 C 已通过人工验收。
 Draw2D 后续能力必须进入明确的 P2 delta。
 Core 公开 API 的 P0 Batch A/B 已按 ADR-017 完成；Runtime 驱动、坐标查询和
-Layout measurement 已按 ADR-018 收口。Graphics、Geometry 与 crate root 分层属于
-未排期的 P1/P2，不得混入 G6。
+Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
+调用面已按 ADR-019 收口。Graphics、Geometry 与 crate root 分层属于未排期的
+P1/P2，不得混入 G6。
 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
 已全部关闭；18 条次级候选保留待定向验证，状态以
 `doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md` 为准。

@@ -80,7 +80,8 @@ FigureTree 负责：
 
 FigureTree 对外提供只读树查询。pre-Runtime 批量场景构建通过短生命周期
 FigureTreeBuilder 显式执行；进入 Runtime 后，add、remove、reparent 和 reorder
-统一由 Runtime 事务调用。底层 mutation primitive 限于 crate 内部，不得绕过
+统一由 Runtime 事务提交，并通过 scoped editor 按 Figure/Container 能力组织公开
+调用。底层 mutation primitive 限于 crate 内部，不得绕过
 interaction cleanup、container state、validation 和 damage 协议。
 
 FigureTree 不拥有：
@@ -301,23 +302,43 @@ pub struct Runtime {
 默认 `EventDispatcher` 和 `UpdateManager` 是具体类型，因为其时序属于核心不变量。
 内部算法可以通过小策略替换；只有出现真实的完整替代实现时，才把整体提升为 trait。
 
-Runtime 对外提供命名操作，例如：
+Runtime 对外保留组合根操作，例如：
 
 ```text
 set_contents
-add_figure / remove_figure / reparent
-layered_pane / add_layer / remove_layer / move_layer
-set_bounds / set_visible / set_enabled
 dispatch_input
 resize_logical_viewport
 prepare_frame
+complete_submission
 ```
+
+挂载后领域 mutation 由短生命周期 scoped editor 组织：
+
+```rust
+pub struct FigureEditor<'a> {
+    figure: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+pub struct ContainerEditor<'a> {
+    container: FigureId,
+    runtime: &'a mut Runtime,
+}
+```
+
+`FigureEditor` 承载通用节点状态、reparent、更新请求和 typed component update；
+`ContainerEditor` 承载 add/remove、布局器、child order 和 child clipping。Viewport、
+Scale、LayeredPane 等专用容器使用同一借用模式。editor 获取时验证 namespace、
+attached 状态和 capability，方法继续调用 Runtime 内部的同一 mutation primitive。
 
 不得同时向调用者暴露 `&mut FigureTree`、`&mut InteractionState` 和
 `&mut UpdateManager`，否则调用者可以绕过原子事务。
+也不得让 identity handle 接受 `&mut FigureTree + &mut UpdateManager` 来形成第二套
+运行期提交入口。
 
 内置命名操作不是封闭类型清单。第三方组件内容按 ADR-014 通过 owned typed update、
-只读候选准备和统一校验/发布更新；Runtime 不为外部 Figure 枚举私有字段。
+只读候选准备和统一校验/发布更新，并从目标 FigureEditor 提交；Runtime 不为外部
+Figure 枚举私有字段。
 布局约束测量和私有派生快照也需通过统一发布协议，不允许任意原地修改闭包。
 运行期文本服务归 Runtime；FigureTree 不拥有第二个 TextLayoutEngine。
 

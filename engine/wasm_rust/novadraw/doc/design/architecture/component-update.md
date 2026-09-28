@@ -60,10 +60,9 @@ pub enum ComponentUpdateError<E> {
     Rejected(E),
 }
 
-impl Runtime {
+impl FigureEditor<'_> {
     pub fn update_component<U>(
         &mut self,
-        figure: FigureId,
         update: U,
     ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
     where
@@ -75,7 +74,8 @@ impl Runtime {
 `LayoutGeometryAndPaint`；调用方必须显式选择更窄的 invalidation，不能默认
 “无影响”。`paint` 和 `geometry_and_paint` 是显式窄化构造器，本期不提供 `None`。
 `ComponentUpdateReceipt` 返回 Figure、提交前后 revision 和实际 invalidation。
-`Runtime::component_revision` 提供只读 revision 查询，不暴露可变 Figure。
+`FigureTree::component_revision` 提供只读 revision 查询，不暴露可变 Figure。
+`FigureEditor` 只借用 Runtime 并转交目标身份，不拥有另一份状态或提交协议。
 
 ## 3. 执行顺序
 

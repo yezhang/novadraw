@@ -32,7 +32,7 @@ Novadraw 从 Draw2D 保留行为语义，再用 Rust 所有权和显式事务重
 | 边界矩形是布局几何真源 | `NodeState.bounds` | 布局、默认命中、重绘区域共用 |
 | 坐标沿父链组合 | `child_transform`、`local_to_surface_transform` | 不允许事件或应用复制换算公式 |
 | 客户区是盒模型协议 | 边界矩形 + 内边距 | 同时约束布局、子节点裁剪、命中下降 |
-| 几何变化必须受控 | `Runtime::set_bounds` | 新旧重绘区域、通知、失效原子发生 |
+| 几何变化必须受控 | `Runtime::figure(id)?.set_bounds(...)` | 新旧重绘区域、通知、失效原子发生 |
 | 校验收敛先于重绘修复 | `UpdateManager`、`Runtime::stabilize` | 重绘区域基于稳定几何计算 |
 | 脏区必须投影到根 | `repair::propagate_damage_to_root` | 不能绕过变换与祖先裁剪 |
 | 输入是有状态分发 | `EventDispatcher`、`InteractionState` | 指针捕获、悬停、焦点统一管理 |
