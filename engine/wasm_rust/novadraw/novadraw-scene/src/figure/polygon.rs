@@ -25,7 +25,7 @@ pub struct PolygonFigure {
 
 impl PolygonFigure {
     /// 创建多边形（从点列表）
-    pub fn from_points(points: Vec<novadraw_geometry::Vec2>) -> Self {
+    pub fn from_points(points: Vec<novadraw_geometry::Point>) -> Self {
         let mut polyline = PolylineFigure::from_points(points);
         polyline.renormalize_for_minimum(3);
         Self {
@@ -40,7 +40,7 @@ impl PolygonFigure {
     }
 
     /// 获取点列表
-    pub fn get_points(&self) -> &[novadraw_geometry::Vec2] {
+    pub fn get_points(&self) -> &[novadraw_geometry::Point] {
         self.polyline.get_points()
     }
 
@@ -133,7 +133,7 @@ impl Figure for PolygonFigure {
         if points.len() < 3 {
             return false;
         }
-        let local = |point: novadraw_geometry::Vec2| (point.x(), point.y());
+        let local = |point: novadraw_geometry::Point| (point.x(), point.y());
         let edge_tolerance = f64::EPSILON.sqrt();
         if points.iter().enumerate().any(|(index, point)| {
             let next = points[(index + 1) % points.len()];
@@ -182,7 +182,7 @@ impl Figure for PolygonFigure {
 }
 
 impl PointListFigureBehavior for PolygonFigure {
-    fn local_points(&self) -> &[novadraw_geometry::Vec2] {
+    fn local_points(&self) -> &[novadraw_geometry::Point] {
         self.polyline.get_points()
     }
 
@@ -194,7 +194,7 @@ impl PointListFigureBehavior for PolygonFigure {
         3
     }
 
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<novadraw_geometry::Vec2>) {
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<novadraw_geometry::Point>) {
         self.polyline.commit_geometry(bounds, local_points);
     }
 }

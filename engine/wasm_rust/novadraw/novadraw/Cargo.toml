@@ -9,13 +9,11 @@ vello = ["novadraw-render/vello", "novadraw-scene/vello"]
 vello-web = ["novadraw-render/vello-web"]
 
 [dependencies]
-glam.workspace = true
 slotmap.workspace = true
 uuid.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 novadraw-geometry = { path = "../novadraw-geometry" }
-novadraw-math = { path = "../novadraw-math" }
 novadraw-core = { path = "../novadraw-core" }
 novadraw-render = { path = "../novadraw-render" }
 novadraw-scene = { path = "../novadraw-scene" }

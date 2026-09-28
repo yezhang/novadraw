@@ -3,7 +3,7 @@
 //! 提供几何对象的平移和缩放能力。
 //! 对应 draw2d: org.eclipse.draw2d.geometry.Translatable
 
-use super::{Point, Rectangle, Size};
+use super::{Dimension, Point, Rectangle};
 
 /// 内边距类型
 ///
@@ -110,12 +110,12 @@ pub trait Translatable {
         self.translate(point.x(), point.y());
     }
 
-    /// 通过 Size 平移
+    /// 通过 Dimension 平移
     ///
-    /// 默认实现调用 `translate(size.width, size.height)`
+    /// 默认实现调用 `translate(dimension.width, dimension.height)`
     #[inline]
-    fn translate_by_size(&mut self, size: Size) {
-        self.translate(size.width, size.height);
+    fn translate_by_dimension(&mut self, dimension: Dimension) {
+        self.translate(dimension.width, dimension.height);
     }
 
     /// 通过 Insets 平移
@@ -130,21 +130,17 @@ pub trait Translatable {
 impl Translatable for Point {
     #[inline]
     fn translate(&mut self, dx: f64, dy: f64) {
-        self.0.x += dx;
-        self.0.y += dy;
+        *self += crate::Vec2::new(dx, dy);
     }
 
     #[inline]
     fn scale(&mut self, factor: f64) {
-        self.0.x *= factor;
-        self.0.y *= factor;
+        *self = Point::new(self.x() * factor, self.y() * factor);
     }
 
     #[inline]
     fn transform(&mut self, transform: crate::Affine2D) {
-        let (x, y) = transform.transform_point(self.x(), self.y());
-        self.0.x = x;
-        self.0.y = y;
+        *self = transform.transform_point(*self);
     }
 }
 
@@ -166,26 +162,26 @@ impl Translatable for Rectangle {
     #[inline]
     fn transform(&mut self, transform: crate::Affine2D) {
         let corners = [
-            transform.transform_point(self.x, self.y),
-            transform.transform_point(self.x + self.width, self.y),
-            transform.transform_point(self.x, self.y + self.height),
-            transform.transform_point(self.x + self.width, self.y + self.height),
+            transform.transform_point(Point::new(self.x, self.y)),
+            transform.transform_point(Point::new(self.x + self.width, self.y)),
+            transform.transform_point(Point::new(self.x, self.y + self.height)),
+            transform.transform_point(Point::new(self.x + self.width, self.y + self.height)),
         ];
         let min_x = corners
             .iter()
-            .map(|point| point.0)
+            .map(|point| point.x())
             .fold(f64::INFINITY, f64::min);
         let min_y = corners
             .iter()
-            .map(|point| point.1)
+            .map(|point| point.y())
             .fold(f64::INFINITY, f64::min);
         let max_x = corners
             .iter()
-            .map(|point| point.0)
+            .map(|point| point.x())
             .fold(f64::NEG_INFINITY, f64::max);
         let max_y = corners
             .iter()
-            .map(|point| point.1)
+            .map(|point| point.y())
             .fold(f64::NEG_INFINITY, f64::max);
         *self = Rectangle::new(min_x, min_y, max_x - min_x, max_y - min_y);
     }
@@ -206,7 +202,7 @@ impl Translatable for (f64, f64) {
 
     #[inline]
     fn transform(&mut self, transform: crate::Affine2D) {
-        *self = transform.transform_point(self.0, self.1);
+        *self = transform.transform_point(Point::new(self.0, self.1)).into();
     }
 }
 
@@ -261,7 +257,7 @@ mod tests {
     #[test]
     fn test_rectangle_translate_by_size() {
         let mut r = Rectangle::new(10.0, 20.0, 100.0, 50.0);
-        r.translate_by_size(Size::new(5.0, 10.0));
+        r.translate_by_dimension(Dimension::new(5.0, 10.0));
         assert_eq!(r.x, 15.0);
         assert_eq!(r.y, 30.0);
     }

@@ -1,5 +1,7 @@
 use std::{collections::HashSet, error::Error, fmt};
 
+use novadraw_geometry::Point;
+
 use super::{FigureId, FigureTree, NodeState, point_in_rect};
 use crate::{ChildClippingStrategy, Figure, HitParticipation};
 
@@ -239,10 +241,10 @@ impl FigureTree {
 
         let local_point = self
             .parent_to_local_transform(id)?
-            .transform_point(point.0, point.1);
-        let self_hit = node
-            .figure
-            .precise_hit(local_point.0, local_point.1, node.figure_bounds());
+            .transform_point(Point::new(point.0, point.1));
+        let self_hit =
+            node.figure
+                .precise_hit(local_point.x(), local_point.y(), node.figure_bounds());
         let overflow_visible =
             node.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
         if !self_hit && !overflow_visible {
@@ -260,9 +262,13 @@ impl FigureTree {
             let mut child_point = local_point;
             if node.child_transform().apply_inverse_to(&mut child_point) {
                 for &child_id in node.children.iter().rev() {
-                    if let Some(hit) =
-                        self.hit_test_from_with(child_id, child_point, path, search, depth + 1)
-                    {
+                    if let Some(hit) = self.hit_test_from_with(
+                        child_id,
+                        child_point.into(),
+                        path,
+                        search,
+                        depth + 1,
+                    ) {
                         return Some(hit);
                     }
                 }

@@ -3,7 +3,7 @@
 //! 直接调用 NdCanvas API 测试每个渲染命令
 
 use novadraw::command::{LineCap, LineJoin};
-use novadraw::{Bounded, Color, Figure, NdCanvas, Rectangle, RectangleFigure};
+use novadraw::{Bounded, Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -188,8 +188,8 @@ fn create_scene_line() -> novadraw::FigureTree {
     let test = TestFigure::new("line", |gc| {
         // 水平线
         gc.line(
-            glam::DVec2::new(50.0, 50.0),
-            glam::DVec2::new(250.0, 50.0),
+            Point::new(50.0, 50.0),
+            Point::new(250.0, 50.0),
             Color::RED,
             3.0,
             LineCap::Butt,
@@ -197,8 +197,8 @@ fn create_scene_line() -> novadraw::FigureTree {
         );
         // 垂直线
         gc.line(
-            glam::DVec2::new(300.0, 30.0),
-            glam::DVec2::new(300.0, 200.0),
+            Point::new(300.0, 30.0),
+            Point::new(300.0, 200.0),
             Color::GREEN,
             3.0,
             LineCap::Butt,
@@ -206,8 +206,8 @@ fn create_scene_line() -> novadraw::FigureTree {
         );
         // 斜线
         gc.line(
-            glam::DVec2::new(400.0, 30.0),
-            glam::DVec2::new(550.0, 200.0),
+            Point::new(400.0, 30.0),
+            Point::new(550.0, 200.0),
             Color::BLUE,
             3.0,
             LineCap::Butt,
@@ -215,32 +215,32 @@ fn create_scene_line() -> novadraw::FigureTree {
         );
         // 不同线宽
         gc.line(
-            glam::DVec2::new(50.0, 250.0),
-            glam::DVec2::new(150.0, 250.0),
+            Point::new(50.0, 250.0),
+            Point::new(150.0, 250.0),
             Color::BLACK,
             1.0,
             LineCap::Butt,
             LineJoin::Miter,
         );
         gc.line(
-            glam::DVec2::new(170.0, 250.0),
-            glam::DVec2::new(270.0, 250.0),
+            Point::new(170.0, 250.0),
+            Point::new(270.0, 250.0),
             Color::BLACK,
             2.0,
             LineCap::Butt,
             LineJoin::Miter,
         );
         gc.line(
-            glam::DVec2::new(290.0, 250.0),
-            glam::DVec2::new(390.0, 250.0),
+            Point::new(290.0, 250.0),
+            Point::new(390.0, 250.0),
             Color::BLACK,
             4.0,
             LineCap::Butt,
             LineJoin::Miter,
         );
         gc.line(
-            glam::DVec2::new(410.0, 250.0),
-            glam::DVec2::new(510.0, 250.0),
+            Point::new(410.0, 250.0),
+            Point::new(510.0, 250.0),
             Color::BLACK,
             8.0,
             LineCap::Butt,
@@ -263,58 +263,40 @@ fn create_scene_polyline() -> novadraw::FigureTree {
     let test = TestFigure::new("polyline", |gc| {
         // 简单折线
         let points1 = vec![
-            glam::DVec2::new(50.0, 50.0),
-            glam::DVec2::new(150.0, 100.0),
-            glam::DVec2::new(250.0, 50.0),
+            Point::new(50.0, 50.0),
+            Point::new(150.0, 100.0),
+            Point::new(250.0, 50.0),
         ];
         gc.polyline(&points1, Color::RED, 3.0, LineCap::Butt, LineJoin::Miter);
 
         // 多段折线
         let points2 = vec![
-            glam::DVec2::new(300.0, 30.0),
-            glam::DVec2::new(350.0, 80.0),
-            glam::DVec2::new(400.0, 30.0),
-            glam::DVec2::new(450.0, 80.0),
-            glam::DVec2::new(500.0, 30.0),
+            Point::new(300.0, 30.0),
+            Point::new(350.0, 80.0),
+            Point::new(400.0, 30.0),
+            Point::new(450.0, 80.0),
+            Point::new(500.0, 30.0),
         ];
         gc.polyline(&points2, Color::GREEN, 3.0, LineCap::Butt, LineJoin::Miter);
 
         // 不同线宽
-        let points3 = vec![
-            glam::DVec2::new(50.0, 200.0),
-            glam::DVec2::new(200.0, 200.0),
-        ];
+        let points3 = vec![Point::new(50.0, 200.0), Point::new(200.0, 200.0)];
         gc.polyline(&points3, Color::BLACK, 1.0, LineCap::Butt, LineJoin::Miter);
 
-        let points4 = vec![
-            glam::DVec2::new(230.0, 200.0),
-            glam::DVec2::new(380.0, 200.0),
-        ];
+        let points4 = vec![Point::new(230.0, 200.0), Point::new(380.0, 200.0)];
         gc.polyline(&points4, Color::BLACK, 2.0, LineCap::Butt, LineJoin::Miter);
 
-        let points5 = vec![
-            glam::DVec2::new(410.0, 200.0),
-            glam::DVec2::new(560.0, 200.0),
-        ];
+        let points5 = vec![Point::new(410.0, 200.0), Point::new(560.0, 200.0)];
         gc.polyline(&points5, Color::BLACK, 4.0, LineCap::Butt, LineJoin::Miter);
 
         // 不同线帽
-        let points6 = vec![
-            glam::DVec2::new(50.0, 300.0),
-            glam::DVec2::new(150.0, 300.0),
-        ];
+        let points6 = vec![Point::new(50.0, 300.0), Point::new(150.0, 300.0)];
         gc.polyline(&points6, Color::RED, 8.0, LineCap::Butt, LineJoin::Miter);
 
-        let points7 = vec![
-            glam::DVec2::new(200.0, 300.0),
-            glam::DVec2::new(300.0, 300.0),
-        ];
+        let points7 = vec![Point::new(200.0, 300.0), Point::new(300.0, 300.0)];
         gc.polyline(&points7, Color::GREEN, 8.0, LineCap::Round, LineJoin::Miter);
 
-        let points8 = vec![
-            glam::DVec2::new(350.0, 300.0),
-            glam::DVec2::new(450.0, 300.0),
-        ];
+        let points8 = vec![Point::new(350.0, 300.0), Point::new(450.0, 300.0)];
         gc.polyline(&points8, Color::BLUE, 8.0, LineCap::Square, LineJoin::Miter);
     });
     scene
@@ -333,25 +315,25 @@ fn create_scene_line_join() -> novadraw::FigureTree {
     let test = TestFigure::new("line_join", |gc| {
         // Miter
         let points1 = vec![
-            glam::DVec2::new(50.0, 50.0),
-            glam::DVec2::new(100.0, 100.0),
-            glam::DVec2::new(150.0, 50.0),
+            Point::new(50.0, 50.0),
+            Point::new(100.0, 100.0),
+            Point::new(150.0, 50.0),
         ];
         gc.polyline(&points1, Color::RED, 8.0, LineCap::Butt, LineJoin::Miter);
 
         // Round
         let points2 = vec![
-            glam::DVec2::new(200.0, 50.0),
-            glam::DVec2::new(250.0, 100.0),
-            glam::DVec2::new(300.0, 50.0),
+            Point::new(200.0, 50.0),
+            Point::new(250.0, 100.0),
+            Point::new(300.0, 50.0),
         ];
         gc.polyline(&points2, Color::GREEN, 8.0, LineCap::Butt, LineJoin::Round);
 
         // Bevel
         let points3 = vec![
-            glam::DVec2::new(350.0, 50.0),
-            glam::DVec2::new(400.0, 100.0),
-            glam::DVec2::new(450.0, 50.0),
+            Point::new(350.0, 50.0),
+            Point::new(400.0, 100.0),
+            Point::new(450.0, 50.0),
         ];
         gc.polyline(&points3, Color::BLUE, 8.0, LineCap::Butt, LineJoin::Bevel);
     });

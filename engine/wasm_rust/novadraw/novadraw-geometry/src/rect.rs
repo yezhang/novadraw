@@ -2,12 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Vec2;
-
-/// 2D 点类型
-///
-/// 与 `Vec2` 同义，用于语义区分。
-pub type Point = Vec2;
+use super::Point;
 
 /// 尺寸类型
 ///
@@ -20,11 +15,6 @@ pub struct Dimension {
     /// 高度
     pub height: f64,
 }
-
-/// 尺寸类型兼容别名。
-///
-/// 新代码优先使用 [`Dimension`]；保留 `Size` 是为了兼容现有调用点。
-pub type Size = Dimension;
 
 impl Dimension {
     /// 创建新尺寸

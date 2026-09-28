@@ -6,7 +6,7 @@ use std::{
     sync::Arc,
 };
 
-use novadraw_geometry::{Affine2D, Dimension, Point, Rectangle, Vector};
+use novadraw_geometry::{Affine2D, Dimension, Point, Rectangle, Vec2};
 
 use crate::{FigureId, FigureTree, ViewportFigure};
 
@@ -176,10 +176,10 @@ pub trait SceneRead {
     /// Maps a geometric normal using the inverse-transpose linear transform.
     fn map_normal(
         &self,
-        normal: Vector,
+        normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vector, SceneQueryError>;
+    ) -> Result<Vec2, SceneQueryError>;
 
     /// Returns the current generation of a stable dependency subject.
     fn dependency_generation(&self, subject: &DependencySubject) -> u64;
@@ -222,10 +222,10 @@ pub trait SceneQuery {
     /// Maps a geometric normal using the inverse-transpose linear transform.
     fn map_normal(
         &mut self,
-        normal: Vector,
+        normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vector, SceneQueryError>;
+    ) -> Result<Vec2, SceneQueryError>;
 }
 
 /// One dependency-tracking query session over an immutable scene snapshot.
@@ -325,10 +325,10 @@ impl SceneQuery for TrackedSceneQuery<'_> {
 
     fn map_normal(
         &mut self,
-        normal: Vector,
+        normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vector, SceneQueryError> {
+    ) -> Result<Vec2, SceneQueryError> {
         self.observe(DependencySubject::RelativeTransform(from, to))?;
         self.source.map_normal(normal, from, to)
     }
@@ -430,13 +430,11 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         from: CoordinateSpace,
         to: CoordinateSpace,
     ) -> Result<Point, SceneQueryError> {
-        let (x, y) = self
-            .transform(from, to)?
-            .transform_point(point.x(), point.y());
-        if !x.is_finite() || !y.is_finite() {
+        let mapped = self.transform(from, to)?.transform_point(point);
+        if !mapped.x().is_finite() || !mapped.y().is_finite() {
             return Err(SceneQueryError::NonFiniteCoordinateMap { from, to });
         }
-        Ok(Point::new(x, y))
+        Ok(mapped)
     }
 
     fn map_rect(
@@ -476,10 +474,10 @@ impl SceneRead for FigureTreeSceneRead<'_> {
 
     fn map_normal(
         &self,
-        normal: Vector,
+        normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vector, SceneQueryError> {
+    ) -> Result<Vec2, SceneQueryError> {
         let [a, b, c, d, _, _] = self.transform(from, to)?.coeffs();
         let determinant = a * d - b * c;
         if !determinant.is_finite() || determinant.abs() <= f64::EPSILON {
@@ -490,7 +488,7 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         if !x.is_finite() || !y.is_finite() {
             return Err(SceneQueryError::NonFiniteCoordinateMap { from, to });
         }
-        Ok(Vector::new(x, y))
+        Ok(Vec2::new(x, y))
     }
 
     fn dependency_generation(&self, subject: &DependencySubject) -> u64 {

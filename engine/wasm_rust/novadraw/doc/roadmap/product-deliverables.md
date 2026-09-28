@@ -30,13 +30,14 @@
 
 ### 几何类型清单
 
-- `Point` / `PrecisionPoint`
-- `Rectangle` / `PrecisionRectangle`
-- `Dimension` / `PrecisionDimension`
+- `Point`
+- `Vec2`
+- `Rectangle`
+- `Dimension`
 - `Insets`
 - `PointList`
-- `Vector`
-- `Transform` / `AffineTransform`
+- `Affine2D`
+- `Precision`
 
 ### Graphics API 清单
 

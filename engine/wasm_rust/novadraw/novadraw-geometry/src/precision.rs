@@ -1,6 +1,6 @@
 //! 几何精度工具。
 
-use super::{Point, Rectangle, Transform};
+use super::{Affine2D, Point, Rectangle};
 
 /// 默认几何比较精度。
 pub const DEFAULT_EPSILON: f64 = 1.0e-9;
@@ -93,9 +93,9 @@ impl ApproxEq for Rectangle {
     }
 }
 
-impl ApproxEq for Transform {
+impl ApproxEq for Affine2D {
     #[inline]
-    fn approx_eq(self, other: Transform, precision: Precision) -> bool {
+    fn approx_eq(self, other: Affine2D, precision: Precision) -> bool {
         self.coeffs()
             .into_iter()
             .zip(other.coeffs())
@@ -132,8 +132,8 @@ mod tests {
             Rectangle::new(1.0, 2.0, 3.0, 4.0)
                 .approx_eq(Rectangle::new(1.0005, 1.9995, 3.0004, 4.0004), precision,)
         );
-        assert!(Transform::from_translation(10.0, 20.0).approx_eq(
-            Transform::new(1.0, 0.0, 0.0, 1.0, 10.0005, 19.9995),
+        assert!(Affine2D::from_translation(10.0, 20.0).approx_eq(
+            Affine2D::new(1.0, 0.0, 0.0, 1.0, 10.0005, 19.9995),
             precision,
         ));
     }

@@ -6,7 +6,7 @@ use std::fmt;
 
 use kurbo::Shape as _;
 use novadraw_core::Color;
-use novadraw_geometry::{Rectangle, Transform};
+use novadraw_geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
 
 use crate::submission::ResourceId;
 use crate::text::{GlyphPaint, GlyphRun};
@@ -40,13 +40,13 @@ pub enum RenderCommandKind {
     /// 叠加变换矩阵
     ConcatTransform {
         /// 变换矩阵
-        matrix: Transform,
+        matrix: Affine2D,
     },
 
     /// 替换当前变换矩阵
     SetTransform {
         /// 变换矩阵
-        matrix: Transform,
+        matrix: Affine2D,
     },
 
     /// 重置当前变换矩阵为单位矩阵
@@ -54,8 +54,8 @@ pub enum RenderCommandKind {
 
     /// 设置裁剪区域
     Clip {
-        /// 裁剪矩形 [左上角, 右下角]
-        rect: [glam::DVec2; 2],
+        /// 裁剪矩形。
+        rect: Rectangle,
     },
 
     /// 清空当前裁剪区域
@@ -68,20 +68,14 @@ pub enum RenderCommandKind {
     },
 
     /// 清除矩形区域
-    ClearRect {
-        rect: [glam::DVec2; 2],
-        color: Color,
-    },
+    ClearRect { rect: Rectangle, color: Color },
 
     /// 填充矩形
-    FillRect {
-        rect: [glam::DVec2; 2],
-        color: Color,
-    },
+    FillRect { rect: Rectangle, color: Color },
 
     /// 描边矩形
     StrokeRect {
-        rect: [glam::DVec2; 2],
+        rect: Rectangle,
         color: Color,
         width: f64,
         /// 线型样式
@@ -119,9 +113,9 @@ pub enum RenderCommandKind {
     /// 绘制直线
     Line {
         /// 起点
-        p1: glam::DVec2,
+        p1: Point,
         /// 终点
-        p2: glam::DVec2,
+        p2: Point,
         /// 线条颜色
         color: Color,
         /// 线条宽度
@@ -137,7 +131,7 @@ pub enum RenderCommandKind {
     /// 绘制折线
     Polyline {
         /// 点列表
-        points: Vec<glam::DVec2>,
+        points: PointList,
         /// 线条颜色
         color: Color,
         /// 线条宽度
@@ -178,8 +172,8 @@ pub enum RenderCommandKind {
     Image {
         /// 精确的图像资源 revision。
         image: ImageResourceRef,
-        /// 目标矩形 [左上角, 右下角]
-        dest_rect: [glam::DVec2; 2],
+        /// 目标矩形。
+        dest_rect: Rectangle,
         /// 绘制透明度
         alpha: f64,
     },
@@ -187,7 +181,7 @@ pub enum RenderCommandKind {
     /// 绘制 backend-neutral、已完成 shaping 和定位的 glyph run。
     DrawGlyphRun {
         run: GlyphRun,
-        origin: glam::DVec2,
+        origin: Point,
         paint: GlyphPaint,
     },
 }
@@ -245,12 +239,12 @@ impl Path {
 
     /// 移动到指定点（起点）
     pub fn move_to(&mut self, x: f64, y: f64) {
-        self.operations.push(PathOp::MoveTo(glam::DVec2::new(x, y)));
+        self.operations.push(PathOp::MoveTo(Point::new(x, y)));
     }
 
     /// 直线连接到指定点
     pub fn line_to(&mut self, x: f64, y: f64) {
-        self.operations.push(PathOp::LineTo(glam::DVec2::new(x, y)));
+        self.operations.push(PathOp::LineTo(Point::new(x, y)));
     }
 
     /// 水平线
@@ -266,18 +260,16 @@ impl Path {
     /// 贝塞尔曲线
     pub fn cubic_to(&mut self, cx1: f64, cy1: f64, cx2: f64, cy2: f64, x: f64, y: f64) {
         self.operations.push(PathOp::CubicTo(
-            glam::DVec2::new(cx1, cy1),
-            glam::DVec2::new(cx2, cy2),
-            glam::DVec2::new(x, y),
+            Point::new(cx1, cy1),
+            Point::new(cx2, cy2),
+            Point::new(x, y),
         ));
     }
 
     /// 二次贝塞尔曲线
     pub fn quad_to(&mut self, cx: f64, cy: f64, x: f64, y: f64) {
-        self.operations.push(PathOp::QuadTo(
-            glam::DVec2::new(cx, cy),
-            glam::DVec2::new(x, y),
-        ));
+        self.operations
+            .push(PathOp::QuadTo(Point::new(cx, cy), Point::new(x, y)));
     }
 
     /// 闭合路径
@@ -298,11 +290,11 @@ impl Path {
         y: f64,
     ) {
         self.operations.push(PathOp::Arc {
-            radii: glam::DVec2::new(rx, ry),
+            radii: Dimension::new(rx, ry),
             rotation: rotation_degrees.to_radians(),
             large_arc,
             sweep,
-            dest: glam::DVec2::new(x, y),
+            dest: Point::new(x, y),
         });
     }
 
@@ -438,7 +430,7 @@ impl Path {
                     let svg_arc = kurbo::SvgArc {
                         from: source,
                         to: destination,
-                        radii: kurbo::Vec2::new(radii.x * scale, radii.y * scale),
+                        radii: kurbo::Vec2::new(radii.width * scale, radii.height * scale),
                         x_rotation: *rotation,
                         large_arc: *large_arc,
                         sweep: *sweep,
@@ -490,8 +482,8 @@ impl Path {
     }
 }
 
-fn scaled_point(point: glam::DVec2, scale: f64) -> kurbo::Point {
-    kurbo::Point::new(point.x * scale, point.y * scale)
+fn scaled_point(point: Point, scale: f64) -> kurbo::Point {
+    kurbo::Point::new(point.x() * scale, point.y() * scale)
 }
 
 fn canvas_sweep(start_degrees: f64, end_degrees: f64, anticlockwise: bool) -> f64 {
@@ -518,24 +510,24 @@ fn canvas_sweep(start_degrees: f64, end_degrees: f64, anticlockwise: bool) -> f6
 #[derive(Clone, Debug)]
 pub enum PathOp {
     /// 移动到指定点（起点）
-    MoveTo(glam::DVec2),
+    MoveTo(Point),
     /// 直线连接到指定点
-    LineTo(glam::DVec2),
+    LineTo(Point),
     /// 水平线到指定 x
     HLineTo(f64),
     /// 垂直线到指定 y
     VLineTo(f64),
     /// 三次贝塞尔曲线
-    CubicTo(glam::DVec2, glam::DVec2, glam::DVec2),
+    CubicTo(Point, Point, Point),
     /// 二次贝塞尔曲线
-    QuadTo(glam::DVec2, glam::DVec2),
+    QuadTo(Point, Point),
     /// 弧线
     Arc {
-        radii: glam::DVec2,
+        radii: Dimension,
         rotation: f64,
         large_arc: bool,
         sweep: bool,
-        dest: glam::DVec2,
+        dest: Point,
     },
     /// 闭合路径
     Close,

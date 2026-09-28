@@ -10,7 +10,7 @@ use novadraw_editor::{
     ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
     PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers, ViewerError,
 };
-use novadraw_geometry::{Point, PointList, Rectangle, Vector};
+use novadraw_geometry::{Point, PointList, Rectangle, Vec2};
 use novadraw_scene::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
     ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
@@ -70,8 +70,8 @@ impl ConnectionRouter for TestSelfLoopRouter {
         let center = source
             .reference_point(scene, routing_space)
             .map_err(RouteError::Source)?;
-        let source_reference = center + Vector::new(SELF_LOOP_EXTENT, -SELF_LOOP_EXTENT / 2.0);
-        let target_reference = center + Vector::new(SELF_LOOP_EXTENT, SELF_LOOP_EXTENT / 2.0);
+        let source_reference = center + Vec2::new(SELF_LOOP_EXTENT, -SELF_LOOP_EXTENT / 2.0);
+        let target_reference = center + Vec2::new(SELF_LOOP_EXTENT, SELF_LOOP_EXTENT / 2.0);
         let source_site = source
             .location(scene, source_reference, routing_space, routing_space)
             .map_err(RouteError::Source)?;

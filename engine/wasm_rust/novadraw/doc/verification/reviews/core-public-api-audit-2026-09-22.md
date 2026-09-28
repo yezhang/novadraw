@@ -2,9 +2,9 @@
 
 类型：`verification`
 
-状态：`P0 implemented; API-06 implemented`
+状态：`P0/P1 value-contract items implemented; facade pending`
 
-实施状态：`Batch A/B complete; API-03/API-04/API-06 and ADR-019 follow-up complete`
+实施状态：`Batch A/B/C complete; ADR-019 and ADR-020 follow-up complete`
 
 日期：2026-09-22
 
@@ -32,8 +32,9 @@ P0 实施日期：2026-09-24
 [ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md) 裁决并完成
 API-03/API-04 剩余项与 API-06。2026-09-28 又由
 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md) 将挂载后领域 mutation
-整理为 Runtime-backed scoped editor。实施证据见第 9 至 11 节。其他 P1/P2 项仍未
-排期，不改变 Core 1.0、roadmap 或 parity ledger 状态。
+整理为 Runtime-backed scoped editor；同日 ADR-020 完成 Color、Render IR 与 Geometry
+基础值收口。实施证据见第 9 至 11 节。聚合 facade 分层仍待独立批次处理，不改变
+Core 1.0、roadmap 或 parity ledger 状态。
 
 ## 2. 总体结论
 
@@ -387,7 +388,7 @@ Color::from_hex(...) -> Result<Color, ParseColorError>
 
 优先级：P2
 
-状态：待清理
+状态：已整改（2026-09-28）
 
 以下别名当前主要由存在性测试维持：
 
@@ -405,7 +406,7 @@ Color::from_hex(...) -> Result<Color, ParseColorError>
 
 优先级：P2
 
-状态：待设计
+状态：已整改（2026-09-28）
 
 Geometry 提供 `Point`/`Vec2`，但 `NdCanvas::{line,polyline}` 和 `RenderCommandKind`
 直接暴露 `glam::DVec2`。同时 `Point` 本身只是 `Vec2` alias，`Vec2` 又公开内部
@@ -473,7 +474,7 @@ raw RenderCommand internals
 - 统一 `Result`、幂等 `Ok(false)` 与 error 类型；
 - 删除错误语义的 `FigureTree::validate`。
 
-### Batch C：领域类型与扩展协议（部分完成）
+### Batch C：领域类型与扩展协议（已完成）
 
 - Layout measurement 已改用结构化约束和尺寸类型；
 - `LayoutContext` 与 `LayoutSnapshot::new` 已收为 crate 内部；

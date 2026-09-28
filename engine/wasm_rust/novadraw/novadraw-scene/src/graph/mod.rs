@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-use novadraw_geometry::{Affine2D, Dimension, PointList, Rectangle, Vec2};
+use novadraw_geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
 use novadraw_render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
@@ -66,36 +66,36 @@ fn finite_rectangle(rectangle: Rectangle) -> bool {
 
 fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rectangle> {
     let corners = [
-        transform.transform_point(rectangle.x, rectangle.y),
-        transform.transform_point(rectangle.x + rectangle.width, rectangle.y),
-        transform.transform_point(rectangle.x, rectangle.y + rectangle.height),
-        transform.transform_point(
+        transform.transform_point(Point::new(rectangle.x, rectangle.y)),
+        transform.transform_point(Point::new(rectangle.x + rectangle.width, rectangle.y)),
+        transform.transform_point(Point::new(rectangle.x, rectangle.y + rectangle.height)),
+        transform.transform_point(Point::new(
             rectangle.x + rectangle.width,
             rectangle.y + rectangle.height,
-        ),
+        )),
     ];
     if corners
         .iter()
-        .flat_map(|(x, y)| [x, y])
+        .flat_map(|point| [point.x(), point.y()])
         .any(|value| !value.is_finite())
     {
         return None;
     }
     let left = corners
         .iter()
-        .map(|(x, _)| *x)
+        .map(|point| point.x())
         .fold(f64::INFINITY, f64::min);
     let top = corners
         .iter()
-        .map(|(_, y)| *y)
+        .map(|point| point.y())
         .fold(f64::INFINITY, f64::min);
     let right = corners
         .iter()
-        .map(|(x, _)| *x)
+        .map(|point| point.x())
         .fold(f64::NEG_INFINITY, f64::max);
     let bottom = corners
         .iter()
-        .map(|(_, y)| *y)
+        .map(|point| point.y())
         .fold(f64::NEG_INFINITY, f64::max);
     Some(Rectangle::new(left, top, right - left, bottom - top))
 }
@@ -206,11 +206,11 @@ impl From<LayoutError> for ValidationError {
     }
 }
 
-fn point_in_rect(point: (f64, f64), rect: &Rectangle) -> bool {
-    point.0 >= rect.x
-        && point.0 <= rect.x + rect.width
-        && point.1 >= rect.y
-        && point.1 <= rect.y + rect.height
+fn point_in_rect(point: Point, rect: &Rectangle) -> bool {
+    point.x() >= rect.x
+        && point.x() <= rect.x + rect.width
+        && point.y() >= rect.y
+        && point.y() <= rect.y + rect.height
 }
 
 fn owner_scoped_border_size(content: Dimension, snapshot: Option<&BorderSnapshot>) -> Dimension {
@@ -2820,7 +2820,7 @@ impl FigureTree {
             .map(|connection| connection.connection_stroke_color())
     }
 
-    pub fn point_list_points(&self, id: FigureId) -> Option<Vec<Vec2>> {
+    pub fn point_list_points(&self, id: FigureId) -> Option<Vec<Point>> {
         let block = self.blocks.get(id)?;
         let bounds = block.figure_bounds();
         Some(
@@ -2829,7 +2829,7 @@ impl FigureTree {
                 .point_list()?
                 .local_points()
                 .iter()
-                .map(|point| Vec2::new(point.x() + bounds.x, point.y() + bounds.y))
+                .map(|point| Point::new(point.x() + bounds.x, point.y() + bounds.y))
                 .collect(),
         )
     }
@@ -2838,7 +2838,7 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        parent_points: Vec<Vec2>,
+        parent_points: Vec<Point>,
     ) -> Result<bool, ShapeMutationError> {
         if parent_points
             .iter()
@@ -4389,7 +4389,7 @@ mod tests {
         ViewportFigure,
     };
     use novadraw_core::Color as NovadrawCoreColor;
-    use novadraw_geometry::{Translatable, Vec2};
+    use novadraw_geometry::{Point, Translatable};
     use novadraw_render::{NdCanvas, command::RenderCommandKind};
 
     #[derive(Debug, PartialEq)]
@@ -4403,8 +4403,8 @@ mod tests {
         Other(&'static str),
     }
 
-    fn rect_signature(rect: &[glam::DVec2; 2]) -> [f64; 4] {
-        [rect[0].x, rect[0].y, rect[1].x, rect[1].y]
+    fn rect_signature(rect: &Rectangle) -> [f64; 4] {
+        [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height]
     }
 
     fn render_signatures(gc: &NdCanvas) -> Vec<RenderSignature> {
@@ -6138,10 +6138,10 @@ mod tests {
                 Box::new(|| {
                     Box::new(
                         PolygonFigure::from_points(vec![
-                            Vec2::new(0.0, 0.0),
-                            Vec2::new(100.0, 0.0),
-                            Vec2::new(100.0, 100.0),
-                            Vec2::new(0.0, 100.0),
+                            Point::new(0.0, 0.0),
+                            Point::new(100.0, 0.0),
+                            Point::new(100.0, 100.0),
+                            Point::new(0.0, 100.0),
                         ])
                         .with_child_clipping_strategy(ChildClippingStrategy::DoNotClipChildBounds),
                     )

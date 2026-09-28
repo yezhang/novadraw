@@ -230,7 +230,7 @@ pub trait ConnectionAnchor {
 
 pub struct AnchorSite {
     pub point: Point,
-    pub outward_normal: Option<Vector>,
+    pub outward_normal: Option<Vec2>,
 }
 ```
 

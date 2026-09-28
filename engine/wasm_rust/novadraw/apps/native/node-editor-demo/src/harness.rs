@@ -368,8 +368,7 @@ impl EditorHarness {
                 let tree = self.viewer.runtime().tree();
                 let bounds = tree.figure_bounds(*figure)?;
                 let transform = tree.local_to_surface_transform(*figure)?;
-                let (x, y) = transform.transform_point(bounds.width / 2.0, bounds.height / 2.0);
-                Some(Point::new(x, y))
+                Some(transform.transform_point(Point::new(bounds.width / 2.0, bounds.height / 2.0)))
             })
             .collect()
     }

@@ -23,7 +23,7 @@ const DEFAULT_HIT_TOLERANCE: f64 = 2.0;
 #[derive(Clone)]
 pub struct PolylineFigure {
     /// Node-local 点列表
-    points: Vec<novadraw_geometry::Vec2>,
+    points: Vec<novadraw_geometry::Point>,
     /// 构建期 bounds；进入 FigureTree 后由 NodeState 接管。
     bounds: Rectangle,
     /// 线条颜色
@@ -48,13 +48,13 @@ impl PolylineFigure {
     /// 从 (x1, y1) 到 (x2, y2)
     pub fn new(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
         Self::from_points(vec![
-            novadraw_geometry::Vec2::new(x1, y1),
-            novadraw_geometry::Vec2::new(x2, y2),
+            novadraw_geometry::Point::new(x1, y1),
+            novadraw_geometry::Point::new(x2, y2),
         ])
     }
 
     /// 从点列表创建折线
-    pub fn from_points(points: Vec<novadraw_geometry::Vec2>) -> Self {
+    pub fn from_points(points: Vec<novadraw_geometry::Point>) -> Self {
         let stroke_width = 2.0;
         let (bounds, points) = normalize_points(points, stroke_width, 2);
         Self {
@@ -78,27 +78,27 @@ impl PolylineFigure {
     /// 添加点
     pub fn add_point(&mut self, x: f64, y: f64) {
         let mut points = self.parent_points();
-        points.push(novadraw_geometry::Vec2::new(x, y));
+        points.push(novadraw_geometry::Point::new(x, y));
         self.set_points(points);
     }
 
     /// 获取点列表（引用）
-    pub fn get_points(&self) -> &[novadraw_geometry::Vec2] {
+    pub fn get_points(&self) -> &[novadraw_geometry::Point] {
         &self.points
     }
 
     /// 设置点列表
-    pub fn set_points(&mut self, points: Vec<novadraw_geometry::Vec2>) {
+    pub fn set_points(&mut self, points: Vec<novadraw_geometry::Point>) {
         (self.bounds, self.points) = normalize_points(points, self.stroke_width, 2);
     }
 
     /// 获取起点
-    pub fn start_point(&self) -> Option<novadraw_geometry::Vec2> {
+    pub fn start_point(&self) -> Option<novadraw_geometry::Point> {
         self.points.first().copied()
     }
 
     /// 获取终点
-    pub fn end_point(&self) -> Option<novadraw_geometry::Vec2> {
+    pub fn end_point(&self) -> Option<novadraw_geometry::Point> {
         self.points.last().copied()
     }
 
@@ -152,11 +152,11 @@ impl PolylineFigure {
     }
 
     /// 计算包含线宽的边界矩形
-    pub(crate) fn parent_points(&self) -> Vec<novadraw_geometry::Vec2> {
+    pub(crate) fn parent_points(&self) -> Vec<novadraw_geometry::Point> {
         self.points
             .iter()
             .map(|point| {
-                novadraw_geometry::Vec2::new(point.x() + self.bounds.x, point.y() + self.bounds.y)
+                novadraw_geometry::Point::new(point.x() + self.bounds.x, point.y() + self.bounds.y)
             })
             .collect()
     }
@@ -164,7 +164,7 @@ impl PolylineFigure {
     pub(crate) fn commit_geometry(
         &mut self,
         bounds: Rectangle,
-        local_points: Vec<novadraw_geometry::Vec2>,
+        local_points: Vec<novadraw_geometry::Point>,
     ) {
         self.bounds = bounds;
         self.points = local_points;
@@ -191,10 +191,10 @@ impl Bounded for PolylineFigure {
         let scale_x = width / current_bounds.width;
         let scale_y = height / current_bounds.height;
 
-        let new_points: Vec<novadraw_geometry::Vec2> = self
+        let new_points: Vec<novadraw_geometry::Point> = self
             .points
             .iter()
-            .map(|p| novadraw_geometry::Vec2::new(p.x() * scale_x, p.y() * scale_y))
+            .map(|p| novadraw_geometry::Point::new(p.x() * scale_x, p.y() * scale_y))
             .collect();
         self.points = new_points;
         self.bounds = Rectangle::new(x, y, width, height);
@@ -282,7 +282,7 @@ impl Figure for PolylineFigure {
 }
 
 impl PointListFigureBehavior for PolylineFigure {
-    fn local_points(&self) -> &[novadraw_geometry::Vec2] {
+    fn local_points(&self) -> &[novadraw_geometry::Point] {
         &self.points
     }
 
@@ -294,7 +294,7 @@ impl PointListFigureBehavior for PolylineFigure {
         2
     }
 
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<novadraw_geometry::Vec2>) {
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<novadraw_geometry::Point>) {
         PolylineFigure::commit_geometry(self, bounds, local_points);
     }
 }
@@ -391,10 +391,10 @@ impl Shape for PolylineFigure {
 }
 
 pub(crate) fn normalize_points(
-    points: Vec<novadraw_geometry::Vec2>,
+    points: Vec<novadraw_geometry::Point>,
     stroke_width: f64,
     painted_minimum: usize,
-) -> (Rectangle, Vec<novadraw_geometry::Vec2>) {
+) -> (Rectangle, Vec<novadraw_geometry::Point>) {
     if points.is_empty() {
         return (Rectangle::ZERO, points);
     }
@@ -421,7 +421,7 @@ pub(crate) fn normalize_points(
     );
     let local = points
         .into_iter()
-        .map(|point| novadraw_geometry::Vec2::new(point.x() - bounds.x, point.y() - bounds.y))
+        .map(|point| novadraw_geometry::Point::new(point.x() - bounds.x, point.y() - bounds.y))
         .collect();
     (bounds, local)
 }

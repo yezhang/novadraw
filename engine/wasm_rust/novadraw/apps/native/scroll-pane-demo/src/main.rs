@@ -136,7 +136,7 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
         .tree()
         .local_to_surface_transform(child)
         .ok_or("missing child transform")?
-        .transform_point_vec2(novadraw::Point::new(0.0, 0.0));
+        .transform_point(novadraw::Point::new(0.0, 0.0));
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;
     if point != novadraw::Point::new(expected_x, expected_y) {
@@ -194,7 +194,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         .tree()
         .local_to_surface_transform(child)
         .ok_or("missing child transform")?
-        .transform_point_vec2(novadraw::Point::new(50.0, 40.0));
+        .transform_point(novadraw::Point::new(50.0, 40.0));
     if content_point != anchor {
         return Err(format!(
             "pinch anchor moved from {anchor:?} to {content_point:?}"

@@ -1,6 +1,6 @@
 use std::{error::Error, fmt, sync::Arc};
 
-use novadraw_geometry::{Dimension, Point, Rectangle, Vector};
+use novadraw_geometry::{Dimension, Point, Rectangle, Vec2};
 
 use super::{AnchorGeometry, AnchorGeometryKey, CoordinateSpace, SceneQuery, SceneQueryError};
 use crate::FigureId;
@@ -70,7 +70,7 @@ pub struct AnchorSite {
     /// Endpoint location.
     pub point: Point,
     /// Optional outward geometric normal.
-    pub outward_normal: Option<Vector>,
+    pub outward_normal: Option<Vec2>,
 }
 
 /// Pure endpoint strategy used by a ConnectionRouter.
@@ -549,7 +549,7 @@ fn map_site(
     scene: &mut dyn SceneQuery,
     _owner: FigureId,
     point: Point,
-    normal: Option<Vector>,
+    normal: Option<Vec2>,
     from: CoordinateSpace,
     to: CoordinateSpace,
 ) -> Result<AnchorSite, AnchorError> {
@@ -598,9 +598,9 @@ pub fn rectangle_boundary_site(bounds: Rectangle, reference: Point) -> AnchorSit
     let scale = x_scale.min(y_scale);
     let point = center + delta * scale;
     let normal = if x_scale < y_scale {
-        Vector::new(delta.x().signum(), 0.0)
+        Vec2::new(delta.x().signum(), 0.0)
     } else {
-        Vector::new(0.0, delta.y().signum())
+        Vec2::new(0.0, delta.y().signum())
     };
     AnchorSite {
         point,
@@ -608,7 +608,7 @@ pub fn rectangle_boundary_site(bounds: Rectangle, reference: Point) -> AnchorSit
     }
 }
 
-fn ellipse_intersection(bounds: Rectangle, reference: Point) -> (Point, Option<Vector>) {
+fn ellipse_intersection(bounds: Rectangle, reference: Point) -> (Point, Option<Vec2>) {
     let center = bounds.center();
     let delta = reference - center;
     if delta.length_squared() <= GEOMETRY_EPSILON * GEOMETRY_EPSILON {
@@ -618,7 +618,7 @@ fn ellipse_intersection(bounds: Rectangle, reference: Point) -> (Point, Option<V
     let radius_y = bounds.height / 2.0;
     let divisor = ((delta.x() / radius_x).powi(2) + (delta.y() / radius_y).powi(2)).sqrt();
     let point = center + delta / divisor;
-    let normal = Vector::new(
+    let normal = Vec2::new(
         (point.x() - center.x()) / radius_x.powi(2),
         (point.y() - center.y()) / radius_y.powi(2),
     );
@@ -629,7 +629,7 @@ fn rounded_rectangle_intersection(
     bounds: Rectangle,
     corner: Dimension,
     reference: Point,
-) -> (Point, Option<Vector>) {
+) -> (Point, Option<Vec2>) {
     let center = bounds.center();
     let delta = reference - center;
     if delta.length_squared() <= GEOMETRY_EPSILON * GEOMETRY_EPSILON {
@@ -693,7 +693,7 @@ fn rounded_rectangle_normal(
     bounds: Rectangle,
     radius_x: f64,
     radius_y: f64,
-) -> Option<Vector> {
+) -> Option<Vec2> {
     let corner_x = point
         .x()
         .clamp(bounds.x + radius_x, bounds.x + bounds.width - radius_x);
@@ -703,23 +703,23 @@ fn rounded_rectangle_normal(
     let dx = point.x() - corner_x;
     let dy = point.y() - corner_y;
     if dx.abs() > GEOMETRY_EPSILON && dy.abs() > GEOMETRY_EPSILON {
-        return normalize(Vector::new(dx / radius_x.powi(2), dy / radius_y.powi(2)));
+        return normalize(Vec2::new(dx / radius_x.powi(2), dy / radius_y.powi(2)));
     }
     let center = bounds.center();
     if (point.x() - bounds.x).abs() <= GEOMETRY_EPSILON {
-        Some(-Vector::X)
+        Some(-Vec2::X)
     } else if (point.x() - (bounds.x + bounds.width)).abs() <= GEOMETRY_EPSILON {
-        Some(Vector::X)
+        Some(Vec2::X)
     } else if (point.y() - bounds.y).abs() <= GEOMETRY_EPSILON {
-        Some(-Vector::Y)
+        Some(-Vec2::Y)
     } else if (point.y() - (bounds.y + bounds.height)).abs() <= GEOMETRY_EPSILON {
-        Some(Vector::Y)
+        Some(Vec2::Y)
     } else {
         normalize(point - center)
     }
 }
 
-fn normalize(vector: Vector) -> Option<Vector> {
+fn normalize(vector: Vec2) -> Option<Vec2> {
     let length = vector.length();
     if !length.is_finite() || length <= GEOMETRY_EPSILON {
         None

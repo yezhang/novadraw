@@ -1895,14 +1895,8 @@ mod tests {
                 _ => None,
             })
             .expect("resized viewport outline must be rendered");
-        assert!(
-            resized_outline[1].x - resized_outline[0].x
-                > initial_outline[1].x - initial_outline[0].x
-        );
-        assert!(
-            resized_outline[1].y - resized_outline[0].y
-                > initial_outline[1].y - initial_outline[0].y
-        );
+        assert!(resized_outline.width > initial_outline.width);
+        assert!(resized_outline.height > initial_outline.height);
     }
 
     #[test]
@@ -1926,8 +1920,7 @@ mod tests {
                 !matches!(
                     command.kind,
                     RenderCommandKind::Clip { rect }
-                        if rect[1].x - rect[0].x == WIDTH
-                            && rect[1].y - rect[0].y == HEIGHT
+                        if rect.width == WIDTH && rect.height == HEIGHT
                 )
             }),
             "the initial canvas bounds must not clip content inside the resized viewport"

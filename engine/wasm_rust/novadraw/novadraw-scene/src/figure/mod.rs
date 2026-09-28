@@ -44,7 +44,7 @@ pub use widget::{
 use std::{any::Any, sync::Arc};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Affine2D, Dimension, Rectangle, Translatable, Vec2};
+use novadraw_geometry::{Affine2D, Dimension, Point, Rectangle, Translatable};
 use novadraw_render::NdCanvas;
 use novadraw_render::command::{LineCap, LineJoin};
 
@@ -655,10 +655,10 @@ pub trait Figure: AsAny {
 
 /// Runtime-controlled point-list geometry capability.
 pub trait PointListFigureBehavior {
-    fn local_points(&self) -> &[Vec2];
+    fn local_points(&self) -> &[Point];
     fn stroke_width(&self) -> f64;
     fn painted_minimum(&self) -> usize;
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Vec2>);
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>);
 }
 
 /// Runtime-controlled immutable Border replacement capability.

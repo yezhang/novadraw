@@ -442,7 +442,7 @@ impl<'a> SceneDispatchContext<'a> {
             let Some(transform) = self.scene.surface_to_local_transform(viewport_id) else {
                 return false;
             };
-            let point = transform.transform_point_vec2(event.entry_point());
+            let point = transform.transform_point(event.entry_point());
             Point::new(point.x() - left, point.y() - top)
         };
         let mut zoom_manager = ZoomManager::new(scalable, viewport);
@@ -596,8 +596,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
                         return false;
                     };
-                    let point =
-                        transform.transform_point_vec2(Point::new(mouse_event.x, mouse_event.y));
+                    let point = transform.transform_point(Point::new(mouse_event.x, mouse_event.y));
                     let local_event = mouse_event.with_target_point(point.x(), point.y());
                     match local_event.kind {
                         MouseEventKind::Pressed => handler.on_mouse_pressed(&local_event, &mut ctx),
@@ -618,8 +617,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
                         return false;
                     };
-                    let point =
-                        transform.transform_point_vec2(Point::new(wheel_event.x, wheel_event.y));
+                    let point = transform.transform_point(Point::new(wheel_event.x, wheel_event.y));
                     let local_event = wheel_event.with_target_point(point.x(), point.y());
                     handler.on_mouse_wheel(&local_event, &mut ctx)
                 }
@@ -627,8 +625,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                     let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
                         return false;
                     };
-                    let point =
-                        transform.transform_point_vec2(Point::new(zoom_event.x, zoom_event.y));
+                    let point = transform.transform_point(Point::new(zoom_event.x, zoom_event.y));
                     let local_event = zoom_event.with_target_point(point.x(), point.y());
                     handler.on_zoom(&local_event, &mut ctx)
                 }

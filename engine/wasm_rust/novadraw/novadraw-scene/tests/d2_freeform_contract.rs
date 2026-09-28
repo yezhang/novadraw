@@ -314,10 +314,10 @@ fn overflow_visible_skips_host_clip_during_rendering() {
         matches!(
             command.kind,
             RenderCommandKind::Clip { rect }
-                if rect[0].x == 0.0
-                    && rect[0].y == 0.0
-                    && rect[1].x == 100.0
-                    && rect[1].y == 80.0
+                if rect.x == 0.0
+                    && rect.y == 0.0
+                    && rect.x + rect.width == 100.0
+                    && rect.y + rect.height == 80.0
         )
     });
 
@@ -365,10 +365,10 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
             matches!(
                 command.kind,
                 RenderCommandKind::Clip { rect }
-                    if rect[0].x == 0.0
-                        && rect[0].y == 0.0
-                        && rect[1].x == 100.0
-                        && rect[1].y == 80.0
+                    if rect.x == 0.0
+                        && rect.y == 0.0
+                        && rect.x + rect.width == 100.0
+                        && rect.y + rect.height == 80.0
             )
         })
         .count();

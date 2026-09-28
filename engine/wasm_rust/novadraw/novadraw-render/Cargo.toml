@@ -5,9 +5,7 @@ edition.workspace = true
 
 [dependencies]
 novadraw-geometry = { path = "../novadraw-geometry" }
-novadraw-math = { path = "../novadraw-math" }
 novadraw-core = { path = "../novadraw-core" }
-glam.workspace = true
 serde.workspace = true
 tracing.workspace = true
 uuid.workspace = true

@@ -1,5 +1,5 @@
-use glam::DVec2;
 use novadraw_core::Color;
+use novadraw_geometry::Point;
 use novadraw_render::{ImageResourceRef, LineStyle, NdCanvas, RenderCommandKind, ResourceId};
 use uuid::Uuid;
 
@@ -16,14 +16,14 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
     canvas.fill_oval(2.0, 4.0, 20.0, 10.0);
     canvas.draw_oval(4.0, 8.0, 10.0, 6.0);
     canvas.fill_polygon(&[
-        DVec2::new(0.0, 0.0),
-        DVec2::new(10.0, 0.0),
-        DVec2::new(5.0, 10.0),
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Point::new(5.0, 10.0),
     ]);
     canvas.draw_polygon(&[
-        DVec2::new(0.0, 0.0),
-        DVec2::new(10.0, 0.0),
-        DVec2::new(5.0, 10.0),
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Point::new(5.0, 10.0),
     ]);
 
     let commands = canvas.commands();

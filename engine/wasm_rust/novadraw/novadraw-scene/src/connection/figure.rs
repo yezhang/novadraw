@@ -213,11 +213,7 @@ impl Figure for ConnectionFigure {
         if self.points.len() < 2 || self.stroke_width <= 0.0 {
             return;
         }
-        let points: Vec<_> = self
-            .painted_points()
-            .iter()
-            .map(|point| glam::DVec2::new(point.x(), point.y()))
-            .collect();
+        let points = self.painted_points();
         gc.polyline(
             &points,
             self.stroke_color,

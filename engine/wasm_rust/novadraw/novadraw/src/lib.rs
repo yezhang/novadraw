@@ -3,7 +3,7 @@
 //! 此库作为所有子库的聚合入口，提供统一的 API。
 
 pub use novadraw_core::{Color, ColorError, ParseColorError};
-pub use novadraw_geometry::{Affine2D, Dimension, Transform};
+pub use novadraw_geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 
 pub use novadraw_render::{
     BackendCapabilities, BackendSessionDecision, BackendSessionGate, BackendSessionId, BuiltinFont,
@@ -59,13 +59,13 @@ pub use novadraw_scene::{
     MidpointLocator, MinorAlignment, MonotonicTime, MouseButton, MouseEvent, MouseEventKind,
     MouseLocationZoomScrollPolicy, NodeState, NotificationEffect, NotificationQueue,
     NotificationRecord, ObservationListener, PathFractionLocator, PendingMutations, PlatformHost,
-    Point, PointListFigureBehavior, PointerId, PolygonFigure, PolylineFigure,
-    PreparedConnectionGeometry, PreparedFigureUpdate, PropertyChangeEvent, PropertyChangeListener,
-    PropertyValue, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,
-    RangeModelError, RangeModelSnapshot, RangeProperty, Rectangle, RectangleBorder,
-    RectangleFigure, ResolvedStyle, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
-    RootFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouteEndpoint, RouteError,
-    RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RoutingConstraint, RoutingGroupQuery,
+    PointListFigureBehavior, PointerId, PolygonFigure, PolylineFigure, PreparedConnectionGeometry,
+    PreparedFigureUpdate, PropertyChangeEvent, PropertyChangeListener, PropertyValue, RangeChange,
+    RangeChangeSet, RangeListener, RangeListenerId, RangeModel, RangeModelError,
+    RangeModelSnapshot, RangeProperty, RectangleBorder, RectangleFigure, ResolvedStyle,
+    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, RootFigure,
+    RoundedRectangleAnchor, RoundedRectangleFigure, RouteEndpoint, RouteError, RouteMetadata,
+    RouteOutput, RouteRequest, RouterBinding, RoutingConstraint, RoutingGroupQuery,
     RoutingGroupScope, Runtime, RuntimeMutationError, ScalableFigure, ScalableFreeformLayeredPane,
     ScalableLayeredPaneFigure, ScaleEditor, ScaleError, ScaleHandle, SceneDispatchContext,
     ScrollBarFigure, ScrollBarVisibility, ScrollDeltaKind, ScrollOrientation, ScrollPaneEditor,

@@ -4,7 +4,7 @@ use std::{
     fmt,
 };
 
-use novadraw_geometry::{ApproxEq, Point, PointList, Precision, Vector};
+use novadraw_geometry::{ApproxEq, Point, PointList, Precision, Vec2};
 
 use super::{AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateSpace, SceneQuery};
 
@@ -219,9 +219,9 @@ pub enum Bendpoint {
     /// Point derived from source/target references and endpoint-relative offsets.
     Relative {
         /// Offset from the source reference.
-        source_offset: Vector,
+        source_offset: Vec2,
         /// Offset from the target reference.
-        target_offset: Vector,
+        target_offset: Vec2,
         /// Interpolation weight in the inclusive range `[0, 1]`.
         weight: f64,
     },
@@ -430,7 +430,7 @@ impl ConnectionRouter for FanRouter {
         if centered_index.abs() <= f64::EPSILON {
             return Ok(base);
         }
-        let perpendicular = Vector::new(-direction.y() / length, direction.x() / length);
+        let perpendicular = Vec2::new(-direction.y() / length, direction.x() / length);
         let midpoint = Point::new(
             (source.x() + target.x()) / 2.0,
             (source.y() + target.y()) / 2.0,
@@ -454,13 +454,13 @@ impl ConnectionRouter for FanRouter {
     }
 }
 
-fn canonical_fan_direction(direction: Vector) -> Vector {
+fn canonical_fan_direction(direction: Vec2) -> Vec2 {
     let points_west = direction.x().abs() > direction.y().abs() && direction.x() < 0.0;
     let points_north = direction.x().abs() <= direction.y().abs() && direction.y() < 0.0;
     if points_west || points_north {
         direction
     } else {
-        Vector::new(-direction.x(), -direction.y())
+        Vec2::new(-direction.x(), -direction.y())
     }
 }
 
@@ -532,8 +532,8 @@ fn resolve_bendpoint(
         } => {
             if !weight.is_finite()
                 || !(0.0..=1.0).contains(&weight)
-                || !finite_point(source_offset)
-                || !finite_point(target_offset)
+                || !finite_vector(source_offset)
+                || !finite_vector(target_offset)
             {
                 return Err(RouteError::InvalidConstraint);
             }
@@ -547,7 +547,7 @@ fn resolve_bendpoint(
     }
 }
 
-fn horizontal_normal(normal: Vector) -> bool {
+fn horizontal_normal(normal: Vec2) -> bool {
     normal.x().abs() >= normal.y().abs()
 }
 
@@ -741,7 +741,7 @@ fn validate_endpoint_metadata(
     endpoint: RouteEnd,
     metadata: RouteEndpoint,
 ) -> Result<(), RouteError> {
-    let normal_is_finite = metadata.site.outward_normal.is_none_or(finite_point);
+    let normal_is_finite = metadata.site.outward_normal.is_none_or(finite_vector);
     if finite_point(metadata.reference) && finite_point(metadata.site.point) && normal_is_finite {
         Ok(())
     } else {
@@ -751,6 +751,10 @@ fn validate_endpoint_metadata(
 
 fn finite_point(point: Point) -> bool {
     point.x().is_finite() && point.y().is_finite()
+}
+
+fn finite_vector(vector: Vec2) -> bool {
+    vector.x().is_finite() && vector.y().is_finite()
 }
 
 impl Error for RouteError {

@@ -70,6 +70,8 @@ fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
     };
 
     assert_eq!((image.width(), image.height()), (2, 2));
-    assert_eq!((dest_rect[0].x, dest_rect[0].y), (10.0, 20.0));
-    assert_eq!((dest_rect[1].x, dest_rect[1].y), (310.0, 220.0));
+    assert_eq!(
+        *dest_rect,
+        novadraw_geometry::Rectangle::new(10.0, 20.0, 300.0, 200.0)
+    );
 }

@@ -380,12 +380,7 @@ impl RenderBackend for Canvas2dBackend {
                 RenderCommandKind::ResetTransform => self.reset_transform(),
                 RenderCommandKind::Clip { rect } => {
                     self.context.begin_path();
-                    self.context.rect(
-                        rect[0].x,
-                        rect[0].y,
-                        rect[1].x - rect[0].x,
-                        rect[1].y - rect[0].y,
-                    );
+                    self.context.rect(rect.x, rect.y, rect.width, rect.height);
                     self.context.clip();
                 }
                 RenderCommandKind::SetGlobalAlpha { alpha } => {
@@ -394,23 +389,15 @@ impl RenderBackend for Canvas2dBackend {
                 RenderCommandKind::ClearRect { rect, color }
                 | RenderCommandKind::FillRect { rect, color } => {
                     self.set_fill(*color);
-                    self.context.fill_rect(
-                        rect[0].x,
-                        rect[0].y,
-                        rect[1].x - rect[0].x,
-                        rect[1].y - rect[0].y,
-                    );
+                    self.context
+                        .fill_rect(rect.x, rect.y, rect.width, rect.height);
                 }
                 RenderCommandKind::StrokeRect {
                     rect, color, width, ..
                 } => {
                     self.set_stroke(*color, *width);
-                    self.context.stroke_rect(
-                        rect[0].x,
-                        rect[0].y,
-                        rect[1].x - rect[0].x,
-                        rect[1].y - rect[0].y,
-                    );
+                    self.context
+                        .stroke_rect(rect.x, rect.y, rect.width, rect.height);
                 }
                 RenderCommandKind::Ellipse {
                     cx,

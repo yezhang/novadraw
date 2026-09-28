@@ -1,6 +1,6 @@
 use std::{cell::Cell, collections::HashMap};
 
-use novadraw_geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vector};
+use novadraw_geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vec2};
 use novadraw_scene::{
     AnchorError, AnchorGeometry, AnchorGeometryKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
     ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
@@ -41,7 +41,7 @@ impl QueryFixture {
         match space {
             CoordinateSpace::LogicalSurface => point,
             CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
-                point + self.origins[&figure]
+                point + (self.origins[&figure] - Point::ORIGIN)
             }
         }
     }
@@ -50,7 +50,7 @@ impl QueryFixture {
         match space {
             CoordinateSpace::LogicalSurface => point,
             CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
-                point - self.origins[&figure]
+                point - (self.origins[&figure] - Point::ORIGIN)
             }
         }
     }
@@ -116,10 +116,10 @@ impl SceneRead for QueryFixture {
 
     fn map_normal(
         &self,
-        normal: Vector,
+        normal: Vec2,
         _from: CoordinateSpace,
         _to: CoordinateSpace,
-    ) -> Result<Vector, SceneQueryError> {
+    ) -> Result<Vec2, SceneQueryError> {
         Ok(normal)
     }
 
@@ -175,7 +175,7 @@ fn rectangle_boundary_site_projects_toward_the_reference() {
             .point
             .approx_eq(Point::new(110.0, 45.0), TEST_PRECISION)
     );
-    assert_eq!(right.outward_normal, Some(Vector::X));
+    assert_eq!(right.outward_normal, Some(Vec2::X));
 
     let bottom = rectangle_boundary_site(bounds, Point::new(60.0, 200.0));
     assert!(
@@ -183,7 +183,7 @@ fn rectangle_boundary_site_projects_toward_the_reference() {
             .point
             .approx_eq(Point::new(60.0, 70.0), TEST_PRECISION)
     );
-    assert_eq!(bottom.outward_normal, Some(Vector::Y));
+    assert_eq!(bottom.outward_normal, Some(Vec2::Y));
 }
 
 #[test]
@@ -212,7 +212,7 @@ fn chopbox_anchor_maps_owner_geometry_into_requested_space() {
         site.point
             .approx_eq(Point::new(110.0, 45.0), TEST_PRECISION)
     );
-    assert_eq!(site.outward_normal, Some(Vector::X));
+    assert_eq!(site.outward_normal, Some(Vec2::X));
     assert_eq!(
         tracked
             .observations()

@@ -6,7 +6,7 @@ use novadraw::{
     Rectangle, RectangleFigure, RoundedRectangleAnchor, RoundedRectangleFigure, RouterBinding,
     Runtime, ViewportFigure, XYAnchor,
 };
-use novadraw_geometry::{Dimension, Point, Vector};
+use novadraw_geometry::{Dimension, Point, Vec2};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -55,7 +55,7 @@ fn resolve_with_arrow(
         return;
     }
     let direction = direction / length;
-    let perpendicular = Vector::new(-direction.y(), direction.x());
+    let perpendicular = Vec2::new(-direction.y(), direction.x());
     let base = placement.point - direction * ARROW_LENGTH;
     let arrow = PolygonFigure::from_points(vec![
         placement.point,
@@ -301,8 +301,8 @@ fn bendpoint_scene() -> Runtime {
     let constraint = BendpointConstraint::new(vec![
         Bendpoint::Absolute(Point::new(250.0, 130.0)),
         Bendpoint::Relative {
-            source_offset: Vector::new(0.0, 54.0),
-            target_offset: Vector::new(0.0, 54.0),
+            source_offset: Vec2::new(0.0, 54.0),
+            target_offset: Vec2::new(0.0, 54.0),
             weight: 0.5,
         },
         Bendpoint::Absolute(Point::new(540.0, 410.0)),

@@ -182,7 +182,7 @@ macro_rules! impl_test_shape_figure {
 impl_test_shape_figure!(TestCoordRootFigure, TestInsetFigure);
 
 /// 辅助函数：收集所有 FillRect 命令的 rect 坐标
-fn collect_fill_rects(gc: &novadraw_render::NdCanvas) -> Vec<[glam::DVec2; 2]> {
+fn collect_fill_rects(gc: &novadraw_render::NdCanvas) -> Vec<Rectangle> {
     gc.commands()
         .iter()
         .filter_map(|cmd| match &cmd.kind {
@@ -193,7 +193,7 @@ fn collect_fill_rects(gc: &novadraw_render::NdCanvas) -> Vec<[glam::DVec2; 2]> {
 }
 
 /// 辅助函数：收集所有 Clip 命令的 rect 坐标
-fn collect_clip_rects(gc: &novadraw_render::NdCanvas) -> Vec<[glam::DVec2; 2]> {
+fn collect_clip_rects(gc: &novadraw_render::NdCanvas) -> Vec<Rectangle> {
     gc.commands()
         .iter()
         .filter_map(|cmd| match &cmd.kind {
@@ -203,10 +203,10 @@ fn collect_clip_rects(gc: &novadraw_render::NdCanvas) -> Vec<[glam::DVec2; 2]> {
         .collect()
 }
 
-fn has_clip_rect(clip_rects: &[[glam::DVec2; 2]], x: f64, y: f64, width: f64, height: f64) -> bool {
-    clip_rects.iter().any(|rect| {
-        rect[0].x == x && rect[0].y == y && rect[1].x == x + width && rect[1].y == y + height
-    })
+fn has_clip_rect(clip_rects: &[Rectangle], x: f64, y: f64, width: f64, height: f64) -> bool {
+    clip_rects
+        .iter()
+        .any(|rect| *rect == Rectangle::new(x, y, width, height))
 }
 
 /// 测试：bounds 表示 parent content domain 中的布局矩形
@@ -1010,10 +1010,10 @@ fn test_clip_test_scene_commands() {
                 println!("[{:2}] RestoreState", i);
             }
             RenderCommandKind::Clip { rect } => {
-                let x = rect[0].x;
-                let y = rect[0].y;
-                let w = rect[1].x - rect[0].x;
-                let h = rect[1].y - rect[0].y;
+                let x = rect.x;
+                let y = rect.y;
+                let w = rect.width;
+                let h = rect.height;
 
                 // 判断是哪个 clip
                 let desc = if (x - 350.0).abs() < 0.1 && (y - 250.0).abs() < 0.1 {
@@ -1036,10 +1036,10 @@ fn test_clip_test_scene_commands() {
                 );
             }
             RenderCommandKind::FillRect { rect, color } => {
-                let x = rect[0].x;
-                let y = rect[0].y;
-                let w = rect[1].x - rect[0].x;
-                let h = rect[1].y - rect[0].y;
+                let x = rect.x;
+                let y = rect.y;
+                let w = rect.width;
+                let h = rect.height;
                 let (r, g, b) = (color.red(), color.green(), color.blue());
 
                 let desc = if r < 0.3 && g > 0.7 && b < 0.3 {
@@ -1060,10 +1060,10 @@ fn test_clip_test_scene_commands() {
                 );
             }
             RenderCommandKind::StrokeRect { rect, width, .. } => {
-                let x = rect[0].x;
-                let y = rect[0].y;
-                let w = rect[1].x - rect[0].x;
-                let h = rect[1].y - rect[0].y;
+                let x = rect.x;
+                let y = rect.y;
+                let w = rect.width;
+                let h = rect.height;
                 println!(
                     "[{:2}] StrokeRect: ({:.0}, {:.0}, {:.0}, {:.0}) w={:.0}",
                     i, x, y, w, h, width
@@ -1103,16 +1103,16 @@ fn test_clip_test_scene_commands() {
     // 验证关键 clip 存在
     let has_parent_clip = clip_rects
         .iter()
-        .any(|r| (r[0].x - 350.0).abs() < 0.1 && (r[0].y - 250.0).abs() < 0.1);
+        .any(|r| (r.x - 350.0).abs() < 0.1 && (r.y - 250.0).abs() < 0.1);
     let has_child1_clip = clip_rects
         .iter()
-        .any(|r| (r[0].x - 360.0).abs() < 0.1 && (r[0].y - 260.0).abs() < 0.1);
+        .any(|r| (r.x - 360.0).abs() < 0.1 && (r.y - 260.0).abs() < 0.1);
     let has_child2_clip = clip_rects
         .iter()
-        .any(|r| (r[0].x - 430.0).abs() < 0.1 && (r[0].y - 280.0).abs() < 0.1);
+        .any(|r| (r.x - 430.0).abs() < 0.1 && (r.y - 280.0).abs() < 0.1);
     let has_child3_clip = clip_rects
         .iter()
-        .any(|r| (r[0].x - 380.0).abs() < 0.1 && (r[0].y - 340.0).abs() < 0.1);
+        .any(|r| (r.x - 380.0).abs() < 0.1 && (r.y - 340.0).abs() < 0.1);
 
     println!("Parent clip (350, 250): {}", has_parent_clip);
     println!("Child 1 clip (360, 260): {}", has_child1_clip);

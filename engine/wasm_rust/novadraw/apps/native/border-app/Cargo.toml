@@ -11,4 +11,3 @@ novadraw = { path = "../../../novadraw", features = ["vello"] }
 novadraw-apps = { path = "../../support" }
 novadraw-demo-scenes = { path = "../../scenes" }
 pollster.workspace = true
-glam.workspace = true

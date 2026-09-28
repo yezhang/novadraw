@@ -7,10 +7,9 @@ use std::collections::HashMap;
 #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use std::sync::Arc;
 
-use glam::DVec2;
 #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
-use novadraw_geometry::{Rectangle, Transform};
+use novadraw_geometry::{Affine2D, Point, Rectangle};
 use tracing::debug;
 use vello::kurbo::{Cap, Join, Stroke};
 use vello::peniko::Color as VelloColor;
@@ -106,16 +105,15 @@ fn damage_rect_to_aligned_clip(
     width: u32,
     height: u32,
     scale_factor: f64,
-) -> Option<[DVec2; 2]> {
+) -> Option<Rectangle> {
     let (x, y, copy_width, copy_height) =
         damage_rect_to_copy_region(rect, width, height, scale_factor)?;
-    Some([
-        DVec2::new(x as f64 / scale_factor, y as f64 / scale_factor),
-        DVec2::new(
-            (x + copy_width) as f64 / scale_factor,
-            (y + copy_height) as f64 / scale_factor,
-        ),
-    ])
+    Some(Rectangle::new(
+        x as f64 / scale_factor,
+        y as f64 / scale_factor,
+        copy_width as f64 / scale_factor,
+        copy_height as f64 / scale_factor,
+    ))
 }
 
 #[cfg(target_os = "macos")]
@@ -159,9 +157,9 @@ fn append_glyph_run(
     scene: &mut vello::Scene,
     run: &GlyphRun,
     font: &vello::peniko::FontData,
-    origin: DVec2,
+    origin: Point,
     paint: GlyphPaint,
-    transform: &Transform,
+    transform: &Affine2D,
     scale_factor: f64,
 ) {
     if run.glyphs.is_empty() {
@@ -183,8 +181,8 @@ fn append_glyph_run(
     let glyphs = || {
         run.glyphs.iter().map(|glyph| vello::Glyph {
             id: glyph.id,
-            x: ((origin.x as f32) + glyph.x) * scale_factor as f32,
-            y: ((origin.y as f32) + glyph.y) * scale_factor as f32,
+            x: ((origin.x() as f32) + glyph.x) * scale_factor as f32,
+            y: ((origin.y() as f32) + glyph.y) * scale_factor as f32,
         })
     };
     let builder = scene
@@ -207,15 +205,15 @@ fn append_glyph_run(
 #[derive(Clone, Debug, Default)]
 struct RenderState {
     /// 当前变换矩阵
-    transform: Transform,
+    transform: Affine2D,
     /// 当前状态下可重放的裁剪层。
     clips: Vec<RenderClip>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 struct RenderClip {
-    transform: Transform,
-    rect: [DVec2; 2],
+    transform: Affine2D,
+    rect: Rectangle,
 }
 
 fn clip_restore_plan<'a>(
@@ -621,7 +619,7 @@ impl VelloRenderer {
 
             crate::command::RenderCommandKind::ResetTransform => {
                 debug!("ResetTransform");
-                self.current_state_mut().transform = Transform::IDENTITY;
+                self.current_state_mut().transform = Affine2D::IDENTITY;
             }
 
             // NdCanvas bakes global alpha into every paint command. Retaining
@@ -650,10 +648,10 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::ClearRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let x0 = rect[0].x * self.scale_factor;
-                let y0 = rect[0].y * self.scale_factor;
-                let x1 = rect[1].x * self.scale_factor;
-                let y1 = rect[1].y * self.scale_factor;
+                let x0 = rect.x * self.scale_factor;
+                let y0 = rect.y * self.scale_factor;
+                let x1 = (rect.x + rect.width) * self.scale_factor;
+                let y1 = (rect.y + rect.height) * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
                     color.red() as f32,
@@ -673,10 +671,10 @@ impl VelloRenderer {
             crate::command::RenderCommandKind::FillRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let x0 = rect[0].x * self.scale_factor;
-                let y0 = rect[0].y * self.scale_factor;
-                let x1 = rect[1].x * self.scale_factor;
-                let y1 = rect[1].y * self.scale_factor;
+                let x0 = rect.x * self.scale_factor;
+                let y0 = rect.y * self.scale_factor;
+                let x1 = (rect.x + rect.width) * self.scale_factor;
+                let y1 = (rect.y + rect.height) * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
                     color.red() as f32,
@@ -703,10 +701,10 @@ impl VelloRenderer {
             } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let x0 = rect[0].x * self.scale_factor;
-                let y0 = rect[0].y * self.scale_factor;
-                let x1 = rect[1].x * self.scale_factor;
-                let y1 = rect[1].y * self.scale_factor;
+                let x0 = rect.x * self.scale_factor;
+                let y0 = rect.y * self.scale_factor;
+                let x1 = (rect.x + rect.width) * self.scale_factor;
+                let y1 = (rect.y + rect.height) * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
                 let vello_color = VelloColor::new([
                     color.red() as f32,
@@ -730,10 +728,14 @@ impl VelloRenderer {
             } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let v1 =
-                    vello::kurbo::Point::new(p1.x * self.scale_factor, p1.y * self.scale_factor);
-                let v2 =
-                    vello::kurbo::Point::new(p2.x * self.scale_factor, p2.y * self.scale_factor);
+                let v1 = vello::kurbo::Point::new(
+                    p1.x() * self.scale_factor,
+                    p1.y() * self.scale_factor,
+                );
+                let v2 = vello::kurbo::Point::new(
+                    p2.x() * self.scale_factor,
+                    p2.y() * self.scale_factor,
+                );
                 let vello_color = VelloColor::new([
                     color.red() as f32,
                     color.green() as f32,
@@ -776,13 +778,13 @@ impl VelloRenderer {
 
                 // 构建折线路径
                 let mut path = vello::kurbo::BezPath::new();
-                let first_point = points[0];
+                let first_point = points.get(0).expect("validated polyline length");
                 path.move_to((
-                    first_point.x * self.scale_factor,
-                    first_point.y * self.scale_factor,
+                    first_point.x() * self.scale_factor,
+                    first_point.y() * self.scale_factor,
                 ));
-                for point in &points[1..] {
-                    path.line_to((point.x * self.scale_factor, point.y * self.scale_factor));
+                for point in points.iter().skip(1) {
+                    path.line_to((point.x() * self.scale_factor, point.y() * self.scale_factor));
                 }
 
                 self.scene.stroke(&stroke, affine, vello_color, None, &path);
@@ -928,8 +930,8 @@ impl VelloRenderer {
                 else {
                     return;
                 };
-                let width = dest_rect[1].x - dest_rect[0].x;
-                let height = dest_rect[1].y - dest_rect[0].y;
+                let width = dest_rect.width;
+                let height = dest_rect.height;
                 if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
                     return;
                 }
@@ -943,8 +945,8 @@ impl VelloRenderer {
                     0.0,
                     0.0,
                     height / image.image.height as f64 * scale_factor,
-                    dest_rect[0].x * scale_factor,
-                    dest_rect[0].y * scale_factor,
+                    dest_rect.x * scale_factor,
+                    dest_rect.y * scale_factor,
                 ]);
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, scale_factor)
@@ -954,8 +956,8 @@ impl VelloRenderer {
         }
     }
 
-    /// 将 Transform 转换为 vello Affine
-    fn transform_to_affine(transform: &Transform, scale_factor: f64) -> vello::kurbo::Affine {
+    /// 将 Affine2D 转换为 vello Affine
+    fn transform_to_affine(transform: &Affine2D, scale_factor: f64) -> vello::kurbo::Affine {
         let coeffs = transform.coeffs();
         // coeffs = [a, b, c, d, e, f]
         // Apply scale factor to translation components (e, f)
@@ -973,10 +975,10 @@ impl VelloRenderer {
     fn push_clip_layer(&mut self, clip: &RenderClip) {
         let affine = Self::transform_to_affine(&clip.transform, self.scale_factor);
         let rect = &clip.rect;
-        let x0 = rect[0].x * self.scale_factor;
-        let y0 = rect[0].y * self.scale_factor;
-        let x1 = rect[1].x * self.scale_factor;
-        let y1 = rect[1].y * self.scale_factor;
+        let x0 = rect.x * self.scale_factor;
+        let y0 = rect.y * self.scale_factor;
+        let x1 = (rect.x + rect.width) * self.scale_factor;
+        let y1 = (rect.y + rect.height) * self.scale_factor;
         let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
         self.scene
             .push_clip_layer(vello::peniko::Fill::NonZero, affine, &kurbo_rect);
@@ -1035,7 +1037,7 @@ impl RenderBackend for VelloRenderer {
         self.state_stack.push(RenderState::default());
 
         self.push_clip_layer(&RenderClip {
-            transform: Transform::IDENTITY,
+            transform: Affine2D::IDENTITY,
             rect: clip_rect,
         });
         for cmd in commands {
@@ -1210,11 +1212,8 @@ impl VelloRenderer {
         self.state_stack.clear();
         self.state_stack.push(RenderState::default());
         self.push_clip_layer(&RenderClip {
-            transform: Transform::IDENTITY,
-            rect: [
-                DVec2::new(full.x, full.y),
-                DVec2::new(full.x + full.width, full.y + full.height),
-            ],
+            transform: Affine2D::IDENTITY,
+            rect: full,
         });
         for command in &submission.commands {
             self.render_command(command);
@@ -1469,12 +1468,12 @@ mod tests {
     #[test]
     fn clip_restore_plan_replays_saved_outer_clip_after_reset() {
         let outer = RenderClip {
-            transform: Transform::from_translation(10.0, 20.0),
-            rect: [DVec2::new(0.0, 0.0), DVec2::new(100.0, 100.0)],
+            transform: Affine2D::from_translation(10.0, 20.0),
+            rect: Rectangle::new(0.0, 0.0, 100.0, 100.0),
         };
         let current_after_reset = RenderState::default();
         let saved = RenderState {
-            transform: Transform::IDENTITY,
+            transform: Affine2D::IDENTITY,
             clips: vec![outer.clone()],
         };
 
@@ -1487,15 +1486,15 @@ mod tests {
     #[test]
     fn clip_restore_plan_keeps_the_common_prefix() {
         let outer = RenderClip {
-            transform: Transform::IDENTITY,
-            rect: [DVec2::new(0.0, 0.0), DVec2::new(100.0, 100.0)],
+            transform: Affine2D::IDENTITY,
+            rect: Rectangle::new(0.0, 0.0, 100.0, 100.0),
         };
         let inner = RenderClip {
-            transform: Transform::IDENTITY,
-            rect: [DVec2::new(10.0, 10.0), DVec2::new(20.0, 20.0)],
+            transform: Affine2D::IDENTITY,
+            rect: Rectangle::new(10.0, 10.0, 10.0, 10.0),
         };
         let current = RenderState {
-            transform: Transform::IDENTITY,
+            transform: Affine2D::IDENTITY,
             clips: vec![outer.clone(), inner],
         };
 
@@ -1571,7 +1570,7 @@ mod tests {
                 900,
                 2.0,
             ),
-            Some([DVec2::new(118.0, 225.0), DVec2::new(355.5, 408.5)])
+            Some(Rectangle::new(118.0, 225.0, 237.5, 183.5))
         );
     }
 
@@ -1625,9 +1624,9 @@ mod tests {
                 &mut scene,
                 run,
                 &font,
-                DVec2::new(8.0, 12.0),
+                Point::new(8.0, 12.0),
                 GlyphPaint::Fill(Color::BLACK),
-                &Transform::IDENTITY,
+                &Affine2D::IDENTITY,
                 2.0,
             );
         }

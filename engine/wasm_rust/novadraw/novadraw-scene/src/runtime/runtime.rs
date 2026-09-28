@@ -43,7 +43,7 @@ use crate::{
     UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
     ZoomManager,
 };
-use novadraw_geometry::{Dimension, Point, Vec2};
+use novadraw_geometry::{Dimension, Point};
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
 const DERIVED_WORK_KIND_COUNT: usize = 6;
@@ -382,15 +382,15 @@ impl FigureEditor<'_> {
         self.runtime.set_image_alignment(self.figure, alignment)
     }
 
-    pub fn replace_points(&mut self, points: Vec<Vec2>) -> Result<bool, ShapeMutationError> {
+    pub fn replace_points(&mut self, points: Vec<Point>) -> Result<bool, ShapeMutationError> {
         self.runtime.replace_points(self.figure, points)
     }
 
-    pub fn insert_point(&mut self, index: usize, point: Vec2) -> Result<bool, ShapeMutationError> {
+    pub fn insert_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
         self.runtime.insert_point(self.figure, index, point)
     }
 
-    pub fn set_point(&mut self, index: usize, point: Vec2) -> Result<bool, ShapeMutationError> {
+    pub fn set_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
         self.runtime.set_point(self.figure, index, point)
     }
 
@@ -2948,7 +2948,7 @@ impl Runtime {
         }
     }
 
-    pub fn point_list_points(&self, id: FigureId) -> Result<Vec<Vec2>, ShapeMutationError> {
+    pub fn point_list_points(&self, id: FigureId) -> Result<Vec<Point>, ShapeMutationError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
@@ -2960,7 +2960,7 @@ impl Runtime {
     pub(crate) fn replace_points(
         &mut self,
         id: FigureId,
-        points: Vec<Vec2>,
+        points: Vec<Point>,
     ) -> Result<bool, ShapeMutationError> {
         self.guarded_shape_mutation(move |runtime| {
             runtime
@@ -2973,7 +2973,7 @@ impl Runtime {
         &mut self,
         id: FigureId,
         index: usize,
-        point: Vec2,
+        point: Point,
     ) -> Result<bool, ShapeMutationError> {
         let mut points = self.point_list_points(id)?;
         if index > points.len() {
@@ -2990,7 +2990,7 @@ impl Runtime {
         &mut self,
         id: FigureId,
         index: usize,
-        point: Vec2,
+        point: Point,
     ) -> Result<bool, ShapeMutationError> {
         let mut points = self.point_list_points(id)?;
         let len = points.len();

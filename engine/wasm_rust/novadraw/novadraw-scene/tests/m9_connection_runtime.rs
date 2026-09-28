@@ -1,6 +1,6 @@
 use std::{any::TypeId, marker::PhantomData};
 
-use novadraw_geometry::{Point, Vector};
+use novadraw_geometry::{Point, Vec2};
 use novadraw_render::{
     BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderOutcome, SurfaceInfo,
     command::RenderCommandKind,
@@ -182,7 +182,8 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
         .tree()
         .connection_route_points(connection_figure)
         .unwrap();
-    let expected = (points.get(0).unwrap() + points.get(1).unwrap()) / 2.0;
+    let start = points.get(0).unwrap();
+    let expected = start + (points.get(1).unwrap() - start) / 2.0;
     let label_bounds = runtime.tree().figure_bounds(label).unwrap();
     assert_eq!(label_bounds.center(), expected);
 
@@ -421,7 +422,7 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
         output
             .points()
             .get(0)
-            .map(|point| point - Point::new(path_bounds.x, path_bounds.y))
+            .map(|point| point - (Point::new(path_bounds.x, path_bounds.y) - Point::ORIGIN))
     );
     let source_point = output.points().get(0).unwrap();
     let target_point = output.points().get(1).unwrap();
@@ -780,8 +781,8 @@ fn bendpoint_router_preserves_absolute_and_relative_constraints() {
     let constraint = BendpointConstraint::new(vec![
         Bendpoint::Absolute(Point::new(160.0, 80.0)),
         Bendpoint::Relative {
-            source_offset: Vector::new(10.0, 0.0),
-            target_offset: Vector::new(-10.0, 0.0),
+            source_offset: Vec2::new(10.0, 0.0),
+            target_offset: Vec2::new(-10.0, 0.0),
             weight: 0.5,
         },
     ]);
@@ -861,8 +862,8 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
             Some(Box::new(BendpointConstraint::new(vec![
                 Bendpoint::Absolute(Point::new(50.0, 30.0)),
                 Bendpoint::Relative {
-                    source_offset: Vector::new(10.0, 0.0),
-                    target_offset: Vector::new(-10.0, 0.0),
+                    source_offset: Vec2::new(10.0, 0.0),
+                    target_offset: Vec2::new(-10.0, 0.0),
                     weight: 0.5,
                 },
             ]))),
@@ -890,7 +891,7 @@ fn reparenting_connection_maps_absolute_bendpoints_into_the_new_routing_domain()
         initial
             .points()
             .get(2)
-            .map(|point| point - Vector::new(100.0, 0.0))
+            .map(|point| point - Vec2::new(100.0, 0.0))
     );
 }
 

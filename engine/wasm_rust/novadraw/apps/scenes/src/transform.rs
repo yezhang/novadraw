@@ -331,7 +331,7 @@ mod tests {
         let entry = tree
             .local_to_surface_transform(target)
             .unwrap()
-            .transform_point_vec2(Point::new(20.0, 20.0));
+            .transform_point(Point::new(20.0, 20.0));
         let mut runtime = Runtime::new(tree);
 
         runtime.dispatch_mouse_pressed(entry.x(), entry.y(), MouseButton::Left);

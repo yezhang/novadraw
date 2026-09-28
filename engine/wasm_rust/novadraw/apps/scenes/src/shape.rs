@@ -338,9 +338,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 3点折线（折线）
     let line_3pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(50.0, 80.0),
-        novadraw_geometry::Vec2::new(125.0, 40.0),
-        novadraw_geometry::Vec2::new(200.0, 80.0),
+        novadraw_geometry::Point::new(50.0, 80.0),
+        novadraw_geometry::Point::new(125.0, 40.0),
+        novadraw_geometry::Point::new(200.0, 80.0),
     ])
     .with_width(3.0);
     scene
@@ -350,11 +350,11 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 5点折线（多段折线）
     let line_5pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(50.0, 120.0),
-        novadraw_geometry::Vec2::new(100.0, 80.0),
-        novadraw_geometry::Vec2::new(150.0, 160.0),
-        novadraw_geometry::Vec2::new(200.0, 120.0),
-        novadraw_geometry::Vec2::new(250.0, 160.0),
+        novadraw_geometry::Point::new(50.0, 120.0),
+        novadraw_geometry::Point::new(100.0, 80.0),
+        novadraw_geometry::Point::new(150.0, 160.0),
+        novadraw_geometry::Point::new(200.0, 120.0),
+        novadraw_geometry::Point::new(250.0, 160.0),
     ])
     .with_width(3.0);
     scene
@@ -431,9 +431,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 尖角连接
     let join_miter = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(50.0, 260.0),
-        novadraw_geometry::Vec2::new(100.0, 220.0),
-        novadraw_geometry::Vec2::new(150.0, 300.0),
+        novadraw_geometry::Point::new(50.0, 260.0),
+        novadraw_geometry::Point::new(100.0, 220.0),
+        novadraw_geometry::Point::new(150.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Miter)
@@ -445,9 +445,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 圆角连接
     let join_round = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(200.0, 260.0),
-        novadraw_geometry::Vec2::new(250.0, 220.0),
-        novadraw_geometry::Vec2::new(300.0, 300.0),
+        novadraw_geometry::Point::new(200.0, 260.0),
+        novadraw_geometry::Point::new(250.0, 220.0),
+        novadraw_geometry::Point::new(300.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Round)
@@ -459,9 +459,9 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
     // 斜切连接
     let join_bevel = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(350.0, 260.0),
-        novadraw_geometry::Vec2::new(400.0, 220.0),
-        novadraw_geometry::Vec2::new(450.0, 300.0),
+        novadraw_geometry::Point::new(350.0, 260.0),
+        novadraw_geometry::Point::new(400.0, 220.0),
+        novadraw_geometry::Point::new(450.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::render::command::LineJoin::Bevel)
@@ -530,10 +530,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // 测试6: 自相交折线
     // ============================================================
     let self_intersect = novadraw::PolylineFigure::from_points(vec![
-        novadraw_geometry::Vec2::new(50.0, 380.0),
-        novadraw_geometry::Vec2::new(150.0, 480.0),
-        novadraw_geometry::Vec2::new(150.0, 380.0),
-        novadraw_geometry::Vec2::new(50.0, 480.0),
+        novadraw_geometry::Point::new(50.0, 380.0),
+        novadraw_geometry::Point::new(150.0, 480.0),
+        novadraw_geometry::Point::new(150.0, 380.0),
+        novadraw_geometry::Point::new(50.0, 480.0),
     ])
     .with_width(2.0)
     .with_color(novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0));
@@ -549,7 +549,7 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     for i in 0..20 {
         let x = 250.0 + i as f64 * 25.0;
         let y = 400.0 + (i as f64 * 25.0).sin() * 50.0;
-        points.push(novadraw_geometry::Vec2::new(x, y));
+        points.push(novadraw_geometry::Point::new(x, y));
     }
     let wave = novadraw::PolylineFigure::from_points(points)
         .with_width(2.0)
@@ -1304,8 +1304,8 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
         .unwrap()
         .add(Box::new(
             novadraw::PolylineFigure::from_points(vec![
-                novadraw_geometry::Vec2::new(70.0, 100.0),
-                novadraw_geometry::Vec2::new(210.0, 100.0),
+                novadraw_geometry::Point::new(70.0, 100.0),
+                novadraw_geometry::Point::new(210.0, 100.0),
             ])
             .with_color(novadraw::Color::from_hex("#2563eb").expect("valid color literal"))
             .with_width(5.0),
@@ -1342,7 +1342,7 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
     runtime
         .figure(polyline)
         .unwrap()
-        .insert_point(1, novadraw_geometry::Vec2::new(140.0, 180.0))
+        .insert_point(1, novadraw_geometry::Point::new(140.0, 180.0))
         .expect("valid polyline mutation");
     runtime
         .figure(rounded)

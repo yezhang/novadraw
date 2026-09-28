@@ -4,7 +4,5 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-glam.workspace = true
 kurbo.workspace = true
 serde = { workspace = true }
-novadraw-math = { path = "../novadraw-math" }

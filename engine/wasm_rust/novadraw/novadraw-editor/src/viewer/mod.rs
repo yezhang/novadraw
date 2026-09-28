@@ -856,7 +856,7 @@ where
                 self.runtime
                     .tree()
                     .surface_to_local_transform(self.root_layers.viewport())
-                    .map(|transform| transform.transform_point_vec2(point))
+                    .map(|transform| transform.transform_point(point))
                     .ok_or(ViewerError::InconsistentState)
             })
             .transpose()?;
@@ -877,13 +877,13 @@ where
             .child_content_to_surface_transform(self.root_layers.scalable())
             .and_then(|transform| transform.inverse())
             .ok_or(ViewerError::InconsistentState)?;
-        let (dx, dy) = transform.transform_vector(delta.x(), delta.y());
+        let delta = transform.transform_vector(delta);
         let viewport = self.viewport_handle()?;
         let origin = viewport.view_location();
         Ok(self
             .runtime
             .viewport(viewport.figure_id())?
-            .set_view_location(origin.x() + dx, origin.y() + dy)?)
+            .set_view_location(origin.x() + delta.x(), origin.y() + delta.y())?)
     }
 
     pub(crate) fn viewport_ranges(
@@ -937,11 +937,11 @@ where
             .child_content_to_surface_transform(figure)
             .and_then(|transform| transform.inverse())
             .ok_or(ViewerError::InconsistentState)?;
-        let (x, y) = transform.transform_point(point.x(), point.y());
-        if !x.is_finite() || !y.is_finite() {
+        let point = transform.transform_point(point);
+        if !point.x().is_finite() || !point.y().is_finite() {
             return Err(ViewerError::InconsistentState);
         }
-        Ok(Point::new(x, y))
+        Ok(point)
     }
 
     fn viewport_handle(&self) -> Result<ViewportHandle, ViewerError> {
@@ -1057,10 +1057,7 @@ where
         Some(
             points
                 .iter()
-                .map(|point| {
-                    let (x, y) = transform.transform_point(point.x(), point.y());
-                    Point::new(x, y)
-                })
+                .map(|point| transform.transform_point(*point))
                 .collect(),
         )
     }
@@ -1107,17 +1104,14 @@ where
         let bendpoints = self
             .connection_bendpoints(connection)?
             .into_iter()
-            .map(|bendpoint| {
-                let (x, y) = routing_to_surface.transform_point(bendpoint.x(), bendpoint.y());
-                Point::new(x, y)
-            })
+            .map(|bendpoint| routing_to_surface.transform_point(bendpoint))
             .collect::<Vec<_>>();
         let mut sites = Vec::with_capacity(route.len().saturating_sub(1) + bendpoints.len());
         let mut bendpoint_index = 0;
         for segment in route.windows(2) {
             sites.push(BendpointHandleSite::new(
                 HandleRole::BendpointCreate(bendpoint_index),
-                (segment[0] + segment[1]) / 2.0,
+                segment[0] + (segment[1] - segment[0]) / 2.0,
             ));
             if bendpoints
                 .get(bendpoint_index)

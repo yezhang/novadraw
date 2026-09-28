@@ -217,9 +217,9 @@ fn create_scene_5_line_join() -> novadraw::FigureTree {
         let base_x = 80.0 + i as f64 * 240.0;
         let base_y = 150.0;
         let line = novadraw::PolylineFigure::from_points(vec![
-            novadraw_geometry::Vec2::new(base_x, base_y + 200.0),
-            novadraw_geometry::Vec2::new(base_x + 80.0, base_y),
-            novadraw_geometry::Vec2::new(base_x + 160.0, base_y + 200.0),
+            novadraw_geometry::Point::new(base_x, base_y + 200.0),
+            novadraw_geometry::Point::new(base_x + 80.0, base_y),
+            novadraw_geometry::Point::new(base_x + 160.0, base_y + 200.0),
         ])
         .with_width(10.0)
         .with_join(join)

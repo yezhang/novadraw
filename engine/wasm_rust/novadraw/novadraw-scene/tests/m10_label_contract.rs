@@ -346,31 +346,27 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
         else {
             panic!("Label must expose its icon region");
         };
-        assert_eq!(
-            *icon_geometry,
-            Rectangle::new(
-                image_bounds[0].x,
-                image_bounds[0].y,
-                image_bounds[1].x - image_bounds[0].x,
-                image_bounds[1].y - image_bounds[0].y,
-            )
-        );
+        assert_eq!(*icon_geometry, image_bounds);
 
         match placement {
-            TextPlacement::East => assert_eq!(text_origin.x, image_bounds[1].x + GAP),
+            TextPlacement::East => {
+                assert_eq!(text_origin.x(), image_bounds.x + image_bounds.width + GAP)
+            }
             TextPlacement::West => {
                 assert_eq!(
-                    text_origin.x + f64::from(text.width()) + GAP,
-                    image_bounds[0].x
+                    text_origin.x() + f64::from(text.width()) + GAP,
+                    image_bounds.x
                 )
             }
             TextPlacement::North => {
                 assert_eq!(
-                    text_origin.y + f64::from(text.height()) + GAP,
-                    image_bounds[0].y
+                    text_origin.y() + f64::from(text.height()) + GAP,
+                    image_bounds.y
                 )
             }
-            TextPlacement::South => assert_eq!(image_bounds[1].y + GAP, text_origin.y),
+            TextPlacement::South => {
+                assert_eq!(image_bounds.y + image_bounds.height + GAP, text_origin.y())
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 use novadraw_core::Color;
-use novadraw_geometry::{Rectangle, Vec2};
+use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{NdCanvas, command::RenderCommandKind};
 use novadraw_scene::{
     Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureNode,
@@ -86,9 +86,9 @@ fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
         Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)),
         Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0)),
         Box::new(PolygonFigure::from_points(vec![
-            Vec2::new(0.0, 0.0),
-            Vec2::new(20.0, 0.0),
-            Vec2::new(10.0, 10.0),
+            Point::new(0.0, 0.0),
+            Point::new(20.0, 0.0),
+            Point::new(10.0, 10.0),
         ])),
         Box::new(RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)),
         Box::new(TriangleFigure::new_with_direction(
@@ -128,9 +128,9 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
         Box::new(PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
         Box::new(
             PolygonFigure::from_points(vec![
-                Vec2::new(0.0, 0.0),
-                Vec2::new(20.0, 0.0),
-                Vec2::new(10.0, 10.0),
+                Point::new(0.0, 0.0),
+                Point::new(20.0, 0.0),
+                Point::new(10.0, 10.0),
             ])
             .with_child_clipping_strategy(strategy),
         ),
@@ -160,9 +160,9 @@ fn existing_product_figures_expose_border_api() {
         Box::new(PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
         Box::new(
             PolygonFigure::from_points(vec![
-                Vec2::new(0.0, 0.0),
-                Vec2::new(20.0, 0.0),
-                Vec2::new(10.0, 10.0),
+                Point::new(0.0, 0.0),
+                Point::new(20.0, 0.0),
+                Point::new(10.0, 10.0),
             ])
             .with_border(border()),
         ),

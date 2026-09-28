@@ -2,9 +2,8 @@
 //!
 //! 参考 HTML5 Canvas API 设计，生成可重放的渲染命令。
 
-use glam::DVec2;
 use novadraw_core::Color;
-use novadraw_geometry::Transform;
+use novadraw_geometry::{Affine2D, Point, PointList, Rectangle};
 
 use crate::command::{Path, RenderCommand, RenderCommandKind};
 use crate::submission::{DamageSet, RenderSubmission};
@@ -19,7 +18,7 @@ struct GraphicsState {
     line_join: crate::command::LineJoin,
     line_style: crate::command::LineStyle,
     global_alpha: f64,
-    transform: Transform,
+    transform: Affine2D,
     clip_depth: usize,
 }
 
@@ -33,7 +32,7 @@ impl Default for GraphicsState {
             line_join: crate::command::LineJoin::Miter,
             line_style: crate::command::LineStyle::Solid,
             global_alpha: 1.0,
-            transform: Transform::IDENTITY,
+            transform: Affine2D::IDENTITY,
             clip_depth: 0,
         }
     }
@@ -112,7 +111,7 @@ impl NdCanvas {
     ///
     /// 生成 ConcatTransform 命令
     pub fn translate(&mut self, x: f64, y: f64) {
-        let t = Transform::from_translation(x, y);
+        let t = Affine2D::from_translation(x, y);
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
@@ -122,7 +121,7 @@ impl NdCanvas {
     /// 与 Draw2D `Graphics::rotate` 一致，参数单位为度。
     /// 生成 ConcatTransform 命令
     pub fn rotate(&mut self, degrees: f64) {
-        let t = Transform::from_rotation(degrees.to_radians());
+        let t = Affine2D::from_rotation(degrees.to_radians());
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
@@ -131,36 +130,36 @@ impl NdCanvas {
     ///
     /// 生成 ConcatTransform 命令
     pub fn scale(&mut self, x: f64, y: f64) {
-        let t = Transform::from_scale(x, y);
+        let t = Affine2D::from_scale(x, y);
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
     pub fn transform(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
-        let t = Transform::new(a, b, c, d, e, f);
+        let t = Affine2D::new(a, b, c, d, e, f);
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
 
     pub fn set_transform(&mut self, a: f64, b: f64, c: f64, d: f64, e: f64, f: f64) {
-        let t = Transform::new(a, b, c, d, e, f);
+        let t = Affine2D::new(a, b, c, d, e, f);
         self.state.transform = t;
         self.create_command(RenderCommandKind::SetTransform { matrix: t });
     }
 
     pub fn reset_transform(&mut self) {
-        self.state.transform = Transform::IDENTITY;
+        self.state.transform = Affine2D::IDENTITY;
         self.create_command(RenderCommandKind::ResetTransform);
     }
 
     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
-        let rect = [DVec2::new(x, y), DVec2::new(x + width, y + height)];
+        let rect = Rectangle::new(x, y, width, height);
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::ClearRect { rect, color });
     }
 
     pub fn fill_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
-        let rect = [DVec2::new(x, y), DVec2::new(x + width, y + height)];
+        let rect = Rectangle::new(x, y, width, height);
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::FillRect { rect, color });
     }
@@ -177,7 +176,7 @@ impl NdCanvas {
         cap: crate::command::LineCap,
         join: crate::command::LineJoin,
     ) {
-        let rect = [DVec2::new(x, y), DVec2::new(x + width, y + height)];
+        let rect = Rectangle::new(x, y, width, height);
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::StrokeRect {
             rect,
@@ -275,8 +274,8 @@ impl NdCanvas {
     /// 从 p1 到 p2 的直线
     pub fn line(
         &mut self,
-        p1: DVec2,
-        p2: DVec2,
+        p1: Point,
+        p2: Point,
         color: Color,
         width: f64,
         cap: crate::command::LineCap,
@@ -299,7 +298,7 @@ impl NdCanvas {
     /// 从 points[0] 到 points[1] ... 到 points[n] 的折线
     pub fn polyline(
         &mut self,
-        points: &[DVec2],
+        points: &[Point],
         color: Color,
         width: f64,
         cap: crate::command::LineCap,
@@ -310,7 +309,7 @@ impl NdCanvas {
         }
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::Polyline {
-            points: points.to_vec(),
+            points: PointList::from_points(points.to_vec()),
             color,
             width,
             line_style: self.state.line_style,
@@ -319,7 +318,7 @@ impl NdCanvas {
         });
     }
 
-    pub fn draw_polygon(&mut self, points: &[DVec2]) {
+    pub fn draw_polygon(&mut self, points: &[Point]) {
         if points.len() < 2 {
             return;
         }
@@ -339,14 +338,14 @@ impl NdCanvas {
         );
     }
 
-    pub fn fill_polygon(&mut self, points: &[DVec2]) {
+    pub fn fill_polygon(&mut self, points: &[Point]) {
         if points.len() < 3 {
             return;
         }
         self.begin_path();
-        self.move_to(points[0].x, points[0].y);
+        self.move_to(points[0].x(), points[0].y());
         for point in &points[1..] {
-            self.line_to(point.x, point.y);
+            self.line_to(point.x(), point.y());
         }
         self.close_path();
         self.fill();
@@ -477,7 +476,7 @@ impl NdCanvas {
     }
 
     pub fn clip_rect(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        let rect = [DVec2::new(x, y), DVec2::new(x + width, y + height)];
+        let rect = Rectangle::new(x, y, width, height);
         self.state.clip_depth += 1;
         self.create_command(RenderCommandKind::Clip { rect });
     }
@@ -645,7 +644,7 @@ impl NdCanvas {
             }
             self.create_command(RenderCommandKind::DrawGlyphRun {
                 run: run.clone(),
-                origin: DVec2::new(x, y),
+                origin: Point::new(x, y),
                 paint,
             });
         }
@@ -667,7 +666,7 @@ impl NdCanvas {
         if self.state.global_alpha <= 0.0 {
             return;
         }
-        let dest_rect = [DVec2::new(x, y), DVec2::new(x + width, y + height)];
+        let dest_rect = Rectangle::new(x, y, width, height);
         self.create_command(RenderCommandKind::Image {
             image,
             dest_rect,
@@ -695,7 +694,7 @@ mod tests {
     use super::*;
     use crate::command::LineJoin;
 
-    fn assert_transform_eq(actual: Transform, expected: Transform) {
+    fn assert_transform_eq(actual: Affine2D, expected: Affine2D) {
         let actual = actual.coeffs();
         let expected = expected.coeffs();
         assert_eq!(actual, expected);
@@ -710,10 +709,14 @@ mod tests {
         let RenderCommandKind::ConcatTransform { matrix } = canvas.commands()[0].kind else {
             panic!("expected rotate as ConcatTransform");
         };
-        let (x, y) = matrix.transform_point(1.0, 0.0);
+        let point = matrix.transform_point(Point::new(1.0, 0.0));
 
-        assert!(x.abs() < 1e-10, "expected x=0, got {x}");
-        assert!((y - 1.0).abs() < 1e-10, "expected y=1, got {y}");
+        assert!(point.x().abs() < 1e-10, "expected x=0, got {}", point.x());
+        assert!(
+            (point.y() - 1.0).abs() < 1e-10,
+            "expected y=1, got {}",
+            point.y()
+        );
     }
 
     #[test]
@@ -797,14 +800,14 @@ mod tests {
 
         match commands[0].kind {
             RenderCommandKind::ConcatTransform { matrix } => {
-                assert_transform_eq(matrix, Transform::from_translation(10.0, 20.0));
+                assert_transform_eq(matrix, Affine2D::from_translation(10.0, 20.0));
             }
             _ => panic!("expected translate as ConcatTransform"),
         }
 
         match commands[1].kind {
             RenderCommandKind::SetTransform { matrix } => {
-                assert_transform_eq(matrix, Transform::new(2.0, 0.0, 0.0, 2.0, 5.0, 6.0));
+                assert_transform_eq(matrix, Affine2D::new(2.0, 0.0, 0.0, 2.0, 5.0, 6.0));
             }
             _ => panic!("expected SetTransform"),
         }
@@ -824,11 +827,11 @@ mod tests {
 
         assert_transform_eq(
             canvas.state.transform,
-            Transform::from_scale(2.0, 3.0).post_concat(Transform::from_translation(10.0, 20.0)),
+            Affine2D::from_scale(2.0, 3.0).post_concat(Affine2D::from_translation(10.0, 20.0)),
         );
         assert_eq!(
-            canvas.state.transform.transform_point(0.0, 0.0),
-            (20.0, 60.0)
+            canvas.state.transform.transform_point(Point::ORIGIN),
+            Point::new(20.0, 60.0)
         );
     }
 
@@ -935,7 +938,7 @@ mod tests {
         };
         assert_eq!(image.width(), 20);
         assert_eq!(image.revision(), 3);
-        assert_eq!(dest_rect, [DVec2::new(4.0, 5.0), DVec2::new(14.0, 10.0)]);
+        assert_eq!(dest_rect, Rectangle::new(4.0, 5.0, 10.0, 5.0));
         assert_eq!(alpha, 0.5);
 
         let RenderCommandKind::Image {
@@ -944,7 +947,7 @@ mod tests {
         else {
             panic!("expected second Image");
         };
-        assert_eq!(dest_rect, [DVec2::new(10.0, 20.0), DVec2::new(40.0, 60.0)]);
+        assert_eq!(dest_rect, Rectangle::new(10.0, 20.0, 30.0, 40.0));
         assert_eq!(alpha, 0.5);
     }
 }

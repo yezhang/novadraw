@@ -12,4 +12,3 @@ novadraw-apps = { path = "../../support" }
 novadraw-demo-scenes = { path = "../../scenes" }
 novadraw-geometry = { path = "../../../novadraw-geometry" }
 pollster.workspace = true
-glam.workspace = true

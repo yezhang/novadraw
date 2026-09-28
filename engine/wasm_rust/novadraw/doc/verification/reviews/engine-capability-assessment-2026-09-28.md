@@ -6,6 +6,10 @@
 
 日期：2026-09-28
 
+实施更新：E1 与 E2 已由
+[ADR-020](../../adr/adr-020-engine-value-and-render-contract.md) 完成并验证。本文第 3.3
+与第 4.1-4.3 节保留整改前证据，后续工作从 E3 聚合 facade 收口继续。
+
 ## 1. 范围
 
 本评估只覆盖可复用图形引擎与 Editor framework：

@@ -4,7 +4,7 @@
 
 ## 状态
 
-已接受，实施中
+已接受，已验证
 
 ## 背景
 
@@ -102,6 +102,16 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 - 删除 geometry alias 后 workspace 调用方全部迁移；
 - `novadraw --no-default-features` 保持可编译；
 - `cargo xtask check --quick`，最终交付执行 `cargo xtask check --full`。
+
+## 实施结果
+
+- `Color` 已改为私有分量和受检构造/反序列化；
+- 删除无 producer/consumer 的 `RenderCommandKind::Path` 与未实现的 image source rect；
+- center arc、SVG endpoint arc、曲线 bounds 和 Vello lowering 已统一；
+- `Point` 与 `Vec2` 已成为独立类型，`Affine2D` 成为唯一公开仿射类型名；
+- Render IR 已使用 `Point`、`PointList`、`Rectangle` 和 `Dimension`，不再暴露 `glam`；
+- 无语义差异的 Geometry alias 已删除；
+- `novadraw-math` 保留为独立 workspace member，但已退出 2D 引擎依赖图。
 
 ## 后续
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use novadraw_core::Color;
-use novadraw_geometry::{Dimension, Rectangle, Vec2};
+use novadraw_geometry::{Dimension, Point, Rectangle};
 use novadraw_render::{NdCanvas, command::RenderCommandKind};
 use novadraw_scene::{
     BevelBorder, BevelStyle, Border, CompoundBorder, Direction, EtchedBorder, Figure, FigureStyle,
@@ -69,8 +69,9 @@ fn rounded_rectangle_precise_hit_rejects_clipped_corner() {
 
 #[test]
 fn polyline_precise_hit_uses_segment_distance() {
-    let polyline = PolylineFigure::from_points(vec![Vec2::new(0.0, 0.0), Vec2::new(100.0, 100.0)])
-        .with_width(2.0);
+    let polyline =
+        PolylineFigure::from_points(vec![Point::new(0.0, 0.0), Point::new(100.0, 100.0)])
+            .with_width(2.0);
     let bounds = polyline.initial_bounds();
 
     assert!(polyline.precise_hit(50.0, 50.0, bounds));
@@ -80,9 +81,9 @@ fn polyline_precise_hit_uses_segment_distance() {
 #[test]
 fn polygon_precise_hit_uses_closed_interior() {
     let polygon = PolygonFigure::from_points(vec![
-        Vec2::new(0.0, 0.0),
-        Vec2::new(100.0, 0.0),
-        Vec2::new(50.0, 100.0),
+        Point::new(0.0, 0.0),
+        Point::new(100.0, 0.0),
+        Point::new(50.0, 100.0),
     ]);
     let bounds = polygon.initial_bounds();
 
@@ -124,20 +125,20 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         .container(root)
         .unwrap()
         .add(Box::new(PolylineFigure::from_points(vec![
-            Vec2::new(10.0, 20.0),
-            Vec2::new(110.0, 20.0),
+            Point::new(10.0, 20.0),
+            Point::new(110.0, 20.0),
         ])))
         .expect("valid Runtime mutation");
 
     assert_eq!(
         runtime.point_list_points(line).unwrap(),
-        vec![Vec2::new(10.0, 20.0), Vec2::new(110.0, 20.0)]
+        vec![Point::new(10.0, 20.0), Point::new(110.0, 20.0)]
     );
     assert!(
         runtime
             .figure(line)
             .unwrap()
-            .set_point(1, Vec2::new(210.0, 50.0))
+            .set_point(1, Point::new(210.0, 50.0))
             .unwrap()
     );
     assert_eq!(
@@ -146,13 +147,13 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert_eq!(
         runtime.point_list_points(line).unwrap(),
-        vec![Vec2::new(10.0, 20.0), Vec2::new(210.0, 50.0)]
+        vec![Point::new(10.0, 20.0), Point::new(210.0, 50.0)]
     );
     assert!(
         runtime
             .figure(line)
             .unwrap()
-            .insert_point(1, Vec2::new(80.0, 70.0))
+            .insert_point(1, Point::new(80.0, 70.0))
             .unwrap()
     );
     assert!(runtime.figure(line).unwrap().remove_point(1).unwrap());
@@ -160,7 +161,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         runtime
             .figure(line)
             .unwrap()
-            .replace_points(vec![Vec2::new(20.0, 30.0), Vec2::new(120.0, 80.0)])
+            .replace_points(vec![Point::new(20.0, 30.0), Point::new(120.0, 80.0)])
             .unwrap()
     );
     assert!(runtime.has_pending_update());
@@ -174,7 +175,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         runtime
             .figure(line)
             .unwrap()
-            .replace_points(vec![Vec2::new(f64::NAN, 0.0)]),
+            .replace_points(vec![Point::new(f64::NAN, 0.0)]),
         Err(ShapeMutationError::NonFiniteGeometry)
     );
     assert_eq!(runtime.point_list_points(line).unwrap(), stable_points);
@@ -244,8 +245,8 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
         })
         .collect::<Vec<_>>();
     assert_eq!(strokes.len(), 2);
-    assert_eq!(strokes[0].0[0], glam::DVec2::new(1.0, 1.0));
-    assert_eq!(strokes[1].0[0], glam::DVec2::new(3.0, 3.0));
+    assert_eq!(strokes[0].0.top_left(), Point::new(1.0, 1.0));
+    assert_eq!(strokes[1].0.top_left(), Point::new(3.0, 3.0));
     assert!(
         canvas
             .commands()

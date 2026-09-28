@@ -106,7 +106,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 
 | Family ID | 对应 API 家族 | 语义边界 |
 |---|---|---|
-| `geometry.primitives` | 几何 Primitive | Point、Dimension、Rectangle、Insets、PointList、Transform 等平台无关几何 |
+| `geometry.primitives` | 几何 Primitive | Point、Vec2、Dimension、Rectangle、Insets、PointList、Affine2D 等平台无关几何 |
 | `graphics.context` | Graphics 绘制上下文 | draw/fill、clip、translate、scale、state stack、颜色、线型、文本、图片 |
 | `figure.tree` | Figure 树结构 | parent/children、child order、reparent、remove、树拓扑不变量 |
 | `figure.lifecycle` | Figure 生命周期 | attach/detach、addNotify/removeNotify、资源与监听解绑边界 |
@@ -195,9 +195,9 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 | `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | `NdCanvas::{fill_rectangle,fill_rect,fill_oval,fill_polygon,fill}`；`fillPath` 对应 path + `fill()` | partial | solid fill 已验证；gradient 明确延后 |
 | `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | `RoundedRectangleFigure` 通过通用 path + stroke/fill 等价表达，不增加 convenience primitive | verified | 除非出现新的跨 Figure 复用证据，否则不机械增加同名 API |
 | `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`NdCanvas::{draw_text_layout,fill_text_layout,stroke_text_layout}` 只消费 Runtime shaping 后的 `TextLayout` / `DrawGlyphRun` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
-| `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size}` 消费 `ImageResourceRef`；command 保留 `src_rect` 字段但当前产品入口只绘制完整 source | partial | 资源 revision、缩放与 ImageFigure 已验证；source rectangle 明确延后 |
+| `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size}` 消费 `ImageResourceRef` 并绘制完整 source | partial | 资源 revision、缩放与 ImageFigure 已验证；source rectangle 明确延后 |
 | `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,set_line_style,line_cap,line_join}`；Solid/Dash/Dot 由 RenderCommand 跨后端传递并映射为 Vello Stroke pattern | partial | 内置 line style 已验证；自定义 dash array、miter setter、antialias、XOR 明确延后 |
-| `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw_geometry::{Point,Dimension,Rectangle,Insets,PointList,Transform,Precision*}`；`novadraw_math::{Mat3,Vec3}` | verified | `PointList` 需在 M9/M10 connection/point-list shape 中复查 |
+| `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw_geometry::{Point,Vec2,Dimension,Rectangle,Insets,PointList,Affine2D,Precision}`；位置与向量类型分离，统一使用 f64 精度 | verified | M1/M4/M9/M10 已覆盖点向量运算、变换与 point-list 消费路径 |
 
 Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.java`、`PrinterGraphics.java`。
 

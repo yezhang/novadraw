@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Point, Rectangle, Transform, Translatable};
+use super::{Affine2D, Point, Rectangle, Translatable};
 
 /// 点序列。
 ///
@@ -85,11 +85,11 @@ impl PointList {
 
     /// 返回应用变换后的新点序列。
     #[inline]
-    pub fn transformed(&self, transform: Transform) -> Self {
+    pub fn transformed(&self, transform: Affine2D) -> Self {
         Self::from_points(
             self.points
                 .iter()
-                .map(|point| transform.transform_point_vec2(*point))
+                .map(|point| transform.transform_point(*point))
                 .collect::<Vec<_>>(),
         )
     }
@@ -117,7 +117,7 @@ impl Translatable for PointList {
     }
 
     #[inline]
-    fn transform(&mut self, transform: Transform) {
+    fn transform(&mut self, transform: Affine2D) {
         for point in &mut self.points {
             point.transform(transform);
         }
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn transformed_returns_new_point_list() {
         let points = PointList::from_points(vec![Point::new(1.0, 2.0), Point::new(3.0, 4.0)]);
-        let transformed = points.transformed(Transform::from_translation(10.0, 20.0));
+        let transformed = points.transformed(Affine2D::from_translation(10.0, 20.0));
 
         assert_eq!(
             transformed.as_slice(),

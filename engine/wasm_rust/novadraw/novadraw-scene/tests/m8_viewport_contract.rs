@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw_core::Color;
-use novadraw_geometry::{Point, Rectangle, Transform, Translatable};
+use novadraw_geometry::{Affine2D, Point, Rectangle, Translatable};
 use novadraw_render::command::RenderCommandKind;
 use novadraw_scene::{
     Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler, FigureTree,
@@ -25,7 +25,7 @@ fn point_in_surface(graph: &FigureTree, figure: novadraw_scene::FigureId, point:
     graph
         .local_to_surface_transform(figure)
         .expect("attached Figure has a surface transform")
-        .transform_point_vec2(point)
+        .transform_point(point)
 }
 
 #[test]
@@ -278,7 +278,7 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     );
     assert!(runtime.has_pending_update());
     let canvas = runtime.record_full_frame();
-    let mut transform = Transform::IDENTITY;
+    let mut transform = Affine2D::IDENTITY;
     let mut stack = Vec::new();
     let mut projected_child = None;
     for command in canvas.commands() {
@@ -294,14 +294,9 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
                 transform = transform.post_concat(matrix);
             }
             RenderCommandKind::SetTransform { matrix } => transform = matrix,
-            RenderCommandKind::ResetTransform => transform = Transform::IDENTITY,
+            RenderCommandKind::ResetTransform => transform = Affine2D::IDENTITY,
             RenderCommandKind::FillRect { rect, color } if color == child_color => {
-                let mut bounds = Rectangle::new(
-                    rect[0].x,
-                    rect[0].y,
-                    rect[1].x - rect[0].x,
-                    rect[1].y - rect[0].y,
-                );
+                let mut bounds = rect;
                 bounds.transform(transform);
                 projected_child = Some(bounds);
             }

@@ -366,8 +366,8 @@ mod tests {
             )
             .expect("valid FigureTree construction");
         let transform = scene.local_to_surface_transform(marker).unwrap();
-        let anchor = transform.transform_point_vec2(novadraw::Point::new(0.0, 0.0));
-        let offset = transform.transform_point_vec2(novadraw::Point::new(10.0, 10.0));
+        let anchor = transform.transform_point(novadraw::Point::new(0.0, 0.0));
+        let offset = transform.transform_point(novadraw::Point::new(10.0, 10.0));
         (anchor, offset, scene.figure_bounds(content_parent).unwrap())
     }
 

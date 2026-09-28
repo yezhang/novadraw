@@ -1,6 +1,5 @@
-use glam::DVec2;
 use novadraw_core::Color;
-use novadraw_geometry::Rectangle;
+use novadraw_geometry::{Point, Rectangle};
 use novadraw_render::{
     NdCanvas,
     command::{LineCap, LineJoin},
@@ -74,32 +73,32 @@ impl Border for BevelBorder {
                 break;
             }
             gc.line(
-                DVec2::new(left, bottom),
-                DVec2::new(left, top),
+                Point::new(left, bottom),
+                Point::new(left, top),
                 top_left,
                 1.0,
                 LineCap::Butt,
                 LineJoin::Miter,
             );
             gc.line(
-                DVec2::new(left, top),
-                DVec2::new(right, top),
+                Point::new(left, top),
+                Point::new(right, top),
                 top_left,
                 1.0,
                 LineCap::Butt,
                 LineJoin::Miter,
             );
             gc.line(
-                DVec2::new(right, top),
-                DVec2::new(right, bottom),
+                Point::new(right, top),
+                Point::new(right, bottom),
                 bottom_right,
                 1.0,
                 LineCap::Butt,
                 LineJoin::Miter,
             );
             gc.line(
-                DVec2::new(right, bottom),
-                DVec2::new(left, bottom),
+                Point::new(right, bottom),
+                Point::new(left, bottom),
                 bottom_right,
                 1.0,
                 LineCap::Butt,

@@ -634,7 +634,7 @@ fn bounds(harness: &EditorHarness, id: u64) -> HarnessResult<Rectangle> {
 }
 
 fn midpoint(left: Point, right: Point) -> Point {
-    (left + right) / 2.0
+    left + (right - left) / 2.0
 }
 
 fn segment_length(segment: &[Point]) -> f64 {

@@ -762,6 +762,7 @@ fn font_data_is_valid(bytes: &[u8]) -> bool {
 mod tests {
     use super::*;
     use novadraw_core::Color;
+    use novadraw_geometry::Point;
     use uuid::Uuid;
 
     fn engine_with_builtins() -> TextEngine {
@@ -987,7 +988,7 @@ mod tests {
         else {
             panic!("expected glyph run");
         };
-        assert_eq!(*origin, glam::DVec2::new(10.0, 20.0));
+        assert_eq!(*origin, Point::new(10.0, 20.0));
         assert_eq!(*paint, GlyphPaint::Fill(Color::rgba(0.2, 0.4, 0.6, 0.4)));
         assert!(!run.glyphs.is_empty());
     }
