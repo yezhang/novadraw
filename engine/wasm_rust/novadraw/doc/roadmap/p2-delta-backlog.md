@@ -6,36 +6,157 @@
 每项进入实施前必须先补充对应的 design/parity delta、自动验证和完成证据；本页不定义
 运行时契约。
 
-## Rendering
+## 当前执行批次
 
-### P2-R01: PointList Figure 的 miter visual bounds
+| 顺序 | Delta | 范围 | 状态 | 依赖 |
+|---|---|---|---|---|
+| 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `in_progress` | M9、M10.1 |
+| 2 | P2-C02 | 障碍感知 shortest-path routing | `not_started` | P2-C01 |
+| 3 | P2-F01 | ScalablePolygonFigure | `not_started` | P2-C01 的 PointList envelope |
+| 4 | P2-T01 | TextFlow 第一阶段 | `not_started` | M10.2、D4.4 |
+
+状态只表示本页 delta 的执行进度：
+
+- `not_started`：契约已进入 backlog，尚未实现；
+- `in_progress`：已有实现或验证增量，完成判据尚未全部满足；
+- `complete`：契约、实现、验证和 parity 证据全部闭合；
+- `deferred`：已确认边界，但不进入当前 Core 增强批次。
+
+当前批次完成后才启动 FigureInspector、Studio、offscreen thumbnail 或其他开发工具
+工作。批次内按表格顺序推进；每项完成后独立更新状态和提交证据。
+
+## Connection
+
+### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
+
+状态：`in_progress`
+
+`api_semantics`：`builtin.figures`、`connection.figure`、`connection.locator`
+
+原 `P2-R01` PointList miter visual bounds 合并到本项，不再独立实施。原因是普通
+Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope 契约，不能
+让箭头 Figure 和普通 PointList Figure 使用两套 bounds 规则。
+
+交付范围：
+
+1. PointList visual envelope 同时消费 line join、stroke width 和显式 miter limit；
+   Round/Bevel 不采用 miter 扩张，style mutation 必须重新规范化 bounds；
+2. 提供基于模板点的 polygon/polyline decoration Figure；方向来自 terminal
+   non-zero segment，找不到时才使用 AnchorSite normal，否则返回结构化错误；
+3. source/target terminal locator 输出位置与切线方向；side-aware endpoint label
+   locator 使用沿切线的 `u_distance` 与沿法线的 `v_distance`；
+4. decoration 仍是 Connection 的普通 child；route endpoint 保持 Anchor 真值，
+   line inset 只影响 Connection paint/hit-test，不改 committed route points；
+5. geometry、locator child、subtree envelope、freeform extent 与 old/new damage 在
+   同一 Runtime route commit 中预检并原子提交。
+
+完成判据：
+
+1. 锐角 miter、Round/Bevel、style mutation 和 clip 不截断测试；
+2. source/target、直线/折线/self-loop、重复 terminal point 与全退化 route 测试；
+3. transform/viewport 下 decoration orientation 和 endpoint offset 测试；
+4. decoration old/new damage、freeform extent 与 path bounds 分离测试；
+5. `core.p2-c01-connection-decoration` suite 通过。
+
+规范入口：
+
+- `doc/design/architecture/reusable-shape-border.md`
+- `doc/design/architecture/connection-routing.md`
+- `doc/parity/draw2d/api-coverage.md`
+
+### P2-C02: 障碍感知 Shortest-path Router
 
 状态：`not_started`
 
-`PolylineFigure` 和 `PolygonFigure` 当前从点列表计算 bounds 时，只按
-`stroke_width / 2` 向外扩展。渲染后端对 `LineJoin::Miter` 使用
-`DEFAULT_STROKE_MITER_LIMIT`，尖锐拐角的实际描边范围可能超过该 bounds，并被
-默认 Figure child-bounds clip 截断。
+`api_semantics`：`connection.router`
 
-这与 Connection Figure 的既有几何契约不同：Connection 已将 miter limit 纳入
-prepared geometry 的 visual outset。普通 PointList Figure 尚未具有等价的 visual
-envelope 计算，不能将该能力标记为已完成。
+在既有 `RouterRegistry`、routing-domain group、tracked dependency 和 atomic batch
+commit 上增加障碍感知路由，不复制 Draw2D Router 持有 Figure listener、直接修改
+Connection 或使用全局可变状态的实现方式。
 
-实施 delta 至少需要：
+交付范围：
 
-1. 让 PointList Figure 的 bounds/visual envelope 与 `LineJoin`、stroke width 和
-   miter limit 使用同一受控契约；
-2. 保持 point 编辑、Runtime damage、精确命中和 Figure clip 的坐标域一致；
-3. 覆盖 Polyline、Polygon、锐角 miter，以及 Round/Bevel join 的定向测试；
-4. 更新 Draw2D parity 账本和相关 rendering 设计文档，明确与 Draw2D 的差异或
-   合理增强。
+1. routing domain 显式生成 immutable obstacle snapshot；默认障碍来自同域、可见且
+   声明参与 routing obstacle 的非 Connection children；
+2. Router group state 保存稳定 obstacle revision、dirty member 与可复用求解输入，
+   obstacle geometry/topology 变化通过现有 dependency generation 增量失效；
+3. 端点从 obstacle 边界安全出入，搜索结果为确定性正交 PointList，不穿越 obstacle
+   interior，并移除重复点与共线冗余点；
+4. 同批 connection 先完成 route 与 locator geometry preflight，再原子提交；任一
+   失败产生结构化 unresolved 原因，不保留陈旧 route；
+5. 建立节点数、障碍数、连接数明确的 headless 性能基线，记录 route calculation 与
+   obstacle snapshot rebuild 次数。
 
-当前证据：
+完成判据：
 
-- `novadraw/src/figure/polyline.rs::normalize_points`
-- `novadraw/src/figure/polygon.rs`
-- `novadraw/src/connection/figure.rs::route_visual_outset`
-- `novadraw/src/render/command.rs::DEFAULT_STROKE_MITER_LIMIT`
+1. 直达、单障碍、多障碍、不可达、端点贴边、障碍移动/删除/隐藏测试；
+2. 同一 snapshot 输出确定、child order 稳定、无关 mutation 不重路由测试；
+3. batch failure 无 partial commit，恢复后自动重路由；
+4. 64 connections / 64 obstacles 基线与增量失效计数验证；
+5. `core.p2-c02-shortest-path-routing` suite 通过。
+
+规范入口：
+
+- `doc/design/architecture/connection-routing.md`
+- `doc/parity/draw2d/api-coverage.md`
+
+## Figures
+
+### P2-F01: ScalablePolygonFigure
+
+状态：`not_started`
+
+`api_semantics`：`builtin.figures`
+
+交付一个 bounds-driven 的可缩放多边形。模板点是不可变设计坐标；实际 local points
+由模板 bounds 到 Figure client bounds 的确定性映射派生。它不建立独立渲染路径，
+继续复用 PolygonFigure 的 fill/outline、precise hit、stroke envelope 和 Runtime
+damage 协议。
+
+交付范围与完成判据：
+
+1. template replacement、bounds resize、stroke/join mutation 都使派生几何失效；
+2. 空模板、单轴退化模板和非有限输入有明确 Result 语义，不产生 NaN；
+3. preserve-aspect 与 stretch 模式均有稳定 alignment 规则；
+4. fill/outline、锐角 miter、precise hit、nested transform 和 old/new damage 测试；
+5. 示例展示同一模板在不同 bounds 和缩放模式下的结果；
+6. `core.p2-f01-scalable-polygon` suite 通过。
+
+规范入口：
+
+- `doc/design/architecture/reusable-shape-border.md`
+- `doc/parity/draw2d/api-coverage.md`
+
+## Text
+
+### P2-T01: TextFlow 第一阶段
+
+状态：`not_started`
+
+`api_semantics`：`text.flow`
+
+第一阶段建立只读段落流，不包含 caret、selection、IME 或直接编辑。它复用
+Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测量，不建立
+第二套 shaping/line-breaking 实现。
+
+交付范围：
+
+1. FlowPage 包含有序 Paragraph，Paragraph 包含有序 inline text fragment；
+2. fragment 可覆盖 font/foreground 等文本样式，空值继承 Figure resolved style；
+3. 支持 hard break、soft wrap 与尾部 truncate，bidi 由 TextLayoutEngine 解析；
+4. 相同 width constraint 的 measure、arrange、paint 复用同一 immutable layout；
+5. fragment 或 width 变化通过 Runtime validation 原子更新 measurement、glyph IR、
+   bounds 与 damage；
+6. UTF-8/CJK/bidi、mixed-style run、窄宽换行、hard break、truncate 和 cache
+   invalidation 测试；
+7. `core.p2-t01-text-flow` suite 通过。
+
+规范入口：
+
+- `doc/design/architecture/text-layout.md`
+- `doc/parity/draw2d/api-coverage.md`
+
+## Rendering
 
 ### P2-R02: Image source rectangle
 
@@ -62,11 +183,12 @@ envelope 计算，不能将该能力标记为已完成。
 
 ### P2-D01: FigureInspector 开发期可观测性
 
-状态：`in_progress`
+状态：`deferred`
 
 FigureInspector 以独立 crate 消费 Runtime 的稳定场景查询与提交后 notification journal，
 为 Native、Web 和 headless 工具提供统一诊断事实。它不属于 Draw2D Core 的运行时语义，
-也不改变 GEF Editor 里程碑。
+也不改变 GEF Editor 里程碑。按当前优先级，本项与 Studio 一并后置，不进入
+P2-C01/C02/F01/T01 执行批次；已有实现和文档保留，不继续扩展。
 
 首期范围：
 
@@ -85,7 +207,7 @@ FigureInspector 以独立 crate 消费 Runtime 的稳定场景查询与提交后
 
 ### P2-E01: 高级 Self-loop 路由策略
 
-状态：`not_started`
+状态：`deferred`
 
 Draw2D/GEF 核心只提供同源同目标 Connection、Anchor、Router 与 routing constraint
 扩展点，不规定 self-loop 的开口方向、折点数量或障碍避让。Native node editor 当前用

@@ -165,6 +165,15 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | M9 Connection / Anchor / Router | `connection.figure`, `connection.anchor`, `connection.router`, `connection.locator` | `coordinate.conversion`, `damage.repaint`, `notification.ancestor`, `hit_test.search` | anchor 端点、router point list、node movement reroute、connection damage/hit-test |
 | M10 常用 Figure 与文本/控件 | `builtin.figures`, `border.protocol`, `text.flow`, `widgets.basic`, `notification.action`, `accessibility.bridge` | `layout.manager`, `event.input_listeners`, `figure.properties` | deferred builtin Figure 升级为完整 reusable surface；具体 Figure 只能消费核心协议，不引入特例 |
 
+Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义：
+
+| P2 Delta | 主 API 语义 | 当前状态 | 完成后提升 |
+|---|---|---|---|
+| P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `in_progress` | PointList miter bounds 与 rotatable decoration/endpoint locator 由 partial 提升为 verified |
+| P2-C02 | `connection.router` | `not_started` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
+| P2-F01 | `builtin.figures` | `not_started` | ScalablePolygonFigure template-to-bounds 几何 verified |
+| P2-T01 | `text.flow` | `not_started` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
+
 ## 方法级 API 跟踪矩阵
 
 本节记录从 draw2d 源码抽取的方法级 API 语义，用于后续把 family 级覆盖拆成可执行的
@@ -321,9 +330,9 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | reparent 前迁移内置 absolute bendpoint；无迁移协议的自定义 constraint 原子拒绝 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | route 计算或 geometry/Locator 预检失败均保留当前 observations，依赖恢复可自动重路由 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；Viewer 以受检批量 child-order 同步 connection layer，并对等价 None/Bendpoint 路由配置执行 no-op；normal frame 自动按规范 parent routing space 消费 dirty group | verified | 64-edge 属性 refresh 操作计数保持 0 次 route；Fan 对无向 pair 使用统一主轴法向并覆盖双向/混合方向重排；ShortestPath 继续延后 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；Viewer 以受检批量 child-order 同步 connection layer，并对等价 None/Bendpoint 路由配置执行 no-op；normal frame 自动按规范 parent routing space 消费 dirty group | partial | M9 Router 主链路 verified；P2-C02 补齐 obstacle snapshot、ShortestPath、增量失效与性能基线 |
 | `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
-| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Runtime-owned direct-child binding 消费 prepared local route；实现 endpoint、middle、indexed midpoint 和 path fraction，并随 route 提交 child bounds | partial | label/普通 child relocation 已闭合；RotatableDecoration reference/orientation capability 待 P2 delta |
+| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Runtime-owned direct-child binding 消费 prepared local route；实现 endpoint、middle、indexed midpoint 和 path fraction，并随 route 提交 child bounds | partial | P2-C01 补齐 terminal tangent/normal、u/v endpoint offset、rotatable decoration 与退化 route 错误 |
 
 规范 Rust 契约、坐标域和错误模型见
 [`design/architecture/connection-routing.md`](../../design/architecture/connection-routing.md)；
@@ -343,12 +352,13 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | rounded rectangle | `RoundedRectangleFigure::{set_corner_dimensions,corner_dimensions}` + `FigureEditor::set_corner_dimensions`；二维圆角 path 与精确命中 | verified | 单值 radius 仅为等宽高 convenience |
 | `builtin.figures` | point-list shape mutators | `FigureEditor::{replace_points,insert_point,set_point,remove_point,clear_points}`；parent-domain 输入原子规范化为 local points + NodeState bounds | verified | 非有限输入与非法 index 无 partial commit |
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
+| `builtin.figures` | `ScalablePolygonShape.setTemplate`, bounds-driven scaled points | 目标为 `ScalablePolygonFigure` 保存 template，按 bounds/stretch-or-preserve-aspect 派生 Polygon geometry | partial | P2-F01 补齐退化模板、resize、stroke/miter、precise hit、damage 与示例 |
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`FigureEditor::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |
 | `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 按 Compound 结构递归组合并隔离共享实例 | verified | inner/outer/nested Compound 与 shared Compound 双 owner 字体指标契约测试 |
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | 四方向 placement 的 glyph/image/gap 与 named geometry、cache/shaping、资源事务及 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed/Unavailable；resource-referenced Image command | verified | Ready resource 删除会清除所有 dependent 的旧引用；Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
-| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | `MeasureConstraints` / `FigureMeasurement` 支持外部受宽度约束 Figure；父 layout 使用高度/baseline arrange 并复用同约束 Glyph IR | partial | D4.4 扩展边界已验证；完整 TextFlow fragment/bidi 按 P2 延后 |
+| `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | `MeasureConstraints` / `FigureMeasurement` 支持外部受宽度约束 Figure；父 layout 使用高度/baseline arrange 并复用同约束 Glyph IR | partial | P2-T01 交付只读 paragraph/fragment、hard/soft wrap、truncate、bidi 与同源 Glyph IR；caret/selection/editing 后置 |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
 | `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | namespaced node identity、name/description/value/role/state/bounds/children/focus、Snapshot/Delta 与受控 focus/default action | verified | `m10_accessibility_contract` 覆盖 stable publish、层级提升、Toggle action、dispose 与 10,000 层；完整原生 AT provider 延后 |
@@ -671,9 +681,10 @@ Novadraw 对照：
 
 ## P2 与 GEF 层边界
 
-P2 能力和 GEF 层 API 只作为后续对照，不进入当前 draw2d core 主线：
+P2 能力通过 `doc/roadmap/p2-delta-backlog.md` 独立跟踪，不改变已完成的 M1-M10
+状态。当前 Core 增强批次已纳入 connection decoration/ShortestPath、
+ScalablePolygonFigure 与 TextFlow 第一阶段。其余能力继续只作后续对照：
 
-- 文本 flow：`FlowFigure`、`TextFlow`、`ParagraphTextLayout`
 - widget：`ButtonGroup`、radio/checkbox、repeat firing、`Slider`
 - 图布局：`DirectedGraphLayout`、`CompoundDirectedGraphLayout`
 - 后端适配：`PrinterGraphics`、`ScaledGraphics`

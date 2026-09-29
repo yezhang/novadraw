@@ -20,7 +20,9 @@ M9 提供：
 - Viewport、Zoom、Freeform 和深树组合。
 
 M9 不提供 GEF EditPart、EditPolicy、Tool、Request、Command、selection、交互式折点
-编辑器或避障图搜索。`ShortestPathConnectionRouter` 继续延后。
+编辑器或避障图搜索。Decoration 的方向/端点偏移与
+`ShortestPathConnectionRouter` 分别由 P2-C01、P2-C02 在本契约上增量交付，不改变
+M9 已完成状态。
 
 M9.1 只接受纯计算边界和错误模型，不建立 ConnectionRuntime 或修改 FigureTree。
 
@@ -397,6 +399,42 @@ Router 内增量保存 `rowsUsed/colsUsed`：
 units。该机制只提供 Draw2D 风格的共享 lane reservation，不宣称提供 obstacle
 avoidance。
 
+### 6.4 P2-C02 Shortest-path routing
+
+P2-C02 使用 `RouterId + routing domain` 作为共享范围。Runtime 在 route 计算前生成
+不可变 `ObstacleSnapshot`：
+
+```text
+ObstacleSnapshot
+├── routing_domain
+├── revision
+├── ordered obstacles: FigureId + routing-domain bounds
+└── stable member order
+```
+
+障碍默认来自 routing domain 的可见直接 child，且 Figure 必须显式声明参与
+connection routing obstacle；Connection Figure、当前 locator child 和 detached
+Figure 永不作为障碍。bounds 由 SceneQuery 映射到 routing domain，并在构建 snapshot
+时拒绝非有限或负尺寸结果。Router 不读取 FigureTree，也不注册 listener。
+
+路由算法满足以下规范：
+
+1. 以 source/target `AnchorSite` 为端点，按配置 clearance 扩张 obstacle；
+2. endpoint 所属 owner 的 obstacle 允许一条从 AnchorSite 沿 outward normal 离开的
+   terminal stub，其他 segment 不得穿过任何扩张后 obstacle interior；
+3. 候选图由端点、terminal stub 与 obstacle rectangle 的可见正交拐角构成；边按
+   Manhattan length 加 bend penalty 排序；
+4. 最短路径代价相同时，按 routing-domain 坐标与稳定 obstacle/member order
+   决定结果，不依赖 HashMap 迭代顺序；
+5. 输出删除相邻重复点和共线中间点，但保留 endpoint 与必要 terminal stub；
+6. 无路径返回 `RouteError::NoObstacleFreePath`，不得回退为穿越障碍的 Direct route。
+
+snapshot revision 纳入 routing group state。障碍 geometry、visibility、participation
+或 child topology 变化只失效同一 routing domain 的 ShortestPath group；无关 style、
+其他 domain 或 locator child mutation 不得触发重路由。Runtime 仍执行完整 batch
+route、geometry/locator preflight 与 atomic commit，失败时整批 unresolved 并保留本次
+读取的 dependency observations。
+
 ## 7. M9.1 错误模型
 
 ```rust
@@ -424,6 +462,8 @@ pub enum RouteError {
     NonFinitePoint { index: usize },
     UnsupportedRoutingGroup,
     UnsupportedViewportTopology,
+    InvalidObstacle(FigureId),
+    NoObstacleFreePath,
     DependencyCycle,
 }
 
@@ -536,12 +576,20 @@ normalization 与 damage，不重复执行 Router；points 改变才发送 typed
   local route，输出 child placement；成功提交时保持 child 尺寸并更新 parent-local
   bounds；
 - source / target locator 使用首尾点；
+- P2-C01 terminal locator 从 endpoint 向 route 内部扫描最近的非零 segment，输出
+  endpoint、指向 route 外部的单位切线和一致的单位法线；全部 segment 退化时可使用
+  同一 endpoint 的 AnchorSite normal，否则返回 `DegenerateEndpoint`；
+- P2-C01 endpoint label locator 在 terminal frame 中应用
+  `u_distance * tangent + v_distance * normal`。source/target 使用各自面向 route
+  外部的切线，因此相同 u/v 参数不会因端点角色产生隐式符号翻转；
 - `ConnectionLocator::Middle` 保留 Draw2D 语义：奇数点取中央点，偶数点取中央两个
   点所在 segment 的中点；
 - `MidpointLocator(index)` 取 points[index] 与 points[index + 1] 的线段中点；
 - 需要按总弧长定位时新增 `PathFractionLocator(f64)`，不改变上述 Draw2D 名称语义；
 - locator index 越界返回结构化错误，不能 panic 或回退到原点；
-- endpoint decoration 是普通 Figure，方向来自末端非零 segment 或 AnchorSite normal；
+- endpoint decoration 是普通 Figure。P2-C01 的 rotatable polygon/polyline
+  decoration 保存 canonical template，由 terminal locator 在 route preflight 中输出
+  已旋转、平移并完成 stroke envelope 规范化的 child geometry；
 - route endpoint 始终保持 Anchor 真值；若 endpoint decoration 声明 line inset，
   Connection 仅在 paint/hit-test 中回退中心线，不修改 committed route points。该
   inset 应略小于 decoration 长度以保留抗锯齿覆盖，避免粗线 butt cap 把箭头尖端削平；
@@ -608,7 +656,9 @@ M9.1 不以截图为完成门禁。
 - missing source/target 与 unresolved → resolved 恢复；
 - tracked geometry/named-region/relative-transform dependencies；
 - locator middle、indexed midpoint、path fraction 与越界错误；
+- terminal tangent/normal、endpoint u/v offset、decoration rotation 与退化 route；
 - path bounds 不受 decoration envelope 反向影响；
+- shortest-path obstacle snapshot、确定性、增量失效与 batch failure；
 - nested viewport clipping 与 unsupported topology；
 - dependency cycle rejection；
 - route、bounds、locator、freeform extent、range、damage、notification 因果顺序；
@@ -631,3 +681,7 @@ M9.1 不以截图为完成门禁。
 8. 接受保留 Draw2D locator 名称语义，另增 PathFractionLocator；
 9. 接受用 `RoundedRectangleAnchor` 替换无源码证据的 `SlopeAnchor`；
 10. 接受 `LabelAnchor` 查询 named icon region，避免 M9 依赖具体 M10 Label 类型。
+11. 接受 P2-C01 decoration 作为普通 child，并由 terminal locator 预计算方向与
+    geometry；line inset 不修改 route truth。
+12. 接受 P2-C02 基于 Runtime-owned immutable obstacle snapshot 做确定性批量路由，
+    不让 Router 持有 Figure listener 或直接 mutation。

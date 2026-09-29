@@ -236,12 +236,51 @@ point mutation 至少覆盖：
 
 - bounded Shape 和 M10.1 Border 都必须绘制在 NodeState bounds 内；
 - point-list visual bounds 必须覆盖 cap、join 和 stroke width；
+- `LineJoin::Miter` 使用 Render IR 的 `DEFAULT_STROKE_MITER_LIMIT` 计算保守 outset，
+  普通 PointList Figure 与 Connection 不得使用不同的 miter 契约；
+- `LineJoin::Round` 与 `LineJoin::Bevel` 只按 stroke radius 扩张；
+- line join 或 stroke width 改变时必须从 parent-domain points 重新规范化 local points
+  与 NodeState bounds，不能只改变 paint style；
 - fill-only Polygon 使用 polygon bounds；
 - geometry 退化为点或零长度 segment 时不得产生 NaN；
 - visual bounds 必须与 render command 和 precise hit-test 使用同一几何来源。
 
 若现有 stroke API 无法给出精确 join envelope，可以保守扩大，但扩大规则必须来自
 stroke style，而不是 magic number。
+
+### 5.5 ScalablePolygonFigure
+
+P2-F01 在同一 PointList Figure 契约上增加 bounds-driven polygon。它保存两类状态：
+
+```text
+product input
+├── template_points
+├── scale_mode: Stretch | PreserveAspect
+└── alignment
+
+derived geometry
+├── mapped parent-domain points
+├── normalized local points
+└── stroke-aware NodeState bounds
+```
+
+模板点使用独立设计坐标域，其 axis-aligned bounds 是映射源。`Stretch` 分别缩放两个
+轴以填满目标 client bounds；`PreserveAspect` 使用两个轴缩放率的较小值，并按
+alignment 放置剩余空间。模板点不是已提交 local points，调用方不能通过普通
+point-list editor 同时改写两份真值。
+
+失败与退化规则：
+
+- 非有限模板点、目标 bounds、scale 或派生点返回结构化错误，旧几何保持不变；
+- 空模板是合法的空几何；
+- 单轴退化模板在该轴上不做除法，所有点对齐到目标轴的 alignment 位置；
+- 双轴退化模板映射为目标 bounds 内的一个对齐点；
+- template replacement、target bounds、scale mode、alignment、stroke width 或
+  line join 改变时，必须使派生几何失效并在一次 Runtime mutation 中提交
+  local points、NodeState bounds、freeform extent 与 old/new damage。
+
+ScalablePolygonFigure 继续复用 Polygon 的 fill/outline、precise hit 和 Render IR，
+不要求 FigureTree traversal 或 backend 识别新的 Figure 类型。
 
 ## 6. Border 契约
 
@@ -409,6 +448,7 @@ backend 添加 Shape/Border 类型识别。
 | 通用颜色 | Graphics foreground/background | ResolvedStyle 写入 NdCanvas，语义相同 |
 | PointList mutation | 暴露可变列表并手工通知 | FigureEditor typed mutation，经 Runtime 原子提交 |
 | Polyline bounds | points + stroke 派生 cache | points + stroke 派生 NodeState bounds |
+| ScalablePolygon | template 按 Figure bounds 缩放并缓存点 | template 与派生 geometry 分离，由 Runtime 原子重建 |
 | Triangle hit | 默认矩形 | 精确三角形 |
 | Border 复用 | 可共享且可变 | 不可变策略，可安全复用 |
 | Border owner 输入 | 直接传 IFigure | 只读 Border paint/measure context |
@@ -425,7 +465,9 @@ backend 添加 Shape/Border 类型识别。
 - bounded Shape 的 stroke 完全位于 bounds 内；
 - Ellipse/RoundedRectangle/Polygon/Triangle 精确命中；
 - Polyline segment tolerance 和 stroke-aware bounds；
+- PointList miter/Round/Bevel envelope 与 join mutation；
 - point insert/replace/remove/clear 的原子 bounds、damage 和通知；
+- ScalablePolygon 的 Stretch/PreserveAspect、退化模板、resize 与 precise hit；
 - 非有限输入、非法 index、退化几何错误；
 - Border insets、preferred size、opacity；
 - CompoundBorder 指标公式、outer/inner 顺序和 Graphics state 隔离；

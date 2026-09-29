@@ -271,7 +271,64 @@ Border 实例不得缓存任何 owner 派生状态。
 
 相同值写入不得产生 validation、damage 或通知。
 
-## 11. 分批顺序
+## 11. P2-T01 TextFlow 第一阶段
+
+TextFlow 是只读段落 Figure，不是文本编辑器。第一阶段的数据模型为：
+
+```rust
+pub struct FlowPage {
+    pub paragraphs: Vec<FlowParagraph>,
+}
+
+pub struct FlowParagraph {
+    pub fragments: Vec<InlineTextFragment>,
+    pub wrapping: FlowWrapping,
+}
+
+pub struct InlineTextFragment {
+    pub text: String,
+    pub style: InlineTextStyle,
+}
+```
+
+`InlineTextStyle` 只覆盖文本布局与 paint 所需字段；未指定字段继承 Figure 的
+`ResolvedStyle`。公开类型由 Novadraw 定义，不暴露 Parley range、brush 或 bidi
+类型。空 fragment 合法但不产生 glyph；paragraph 顺序和 fragment 顺序是稳定的产品
+输入。
+
+布局主链路：
+
+```text
+FlowPage + resolved style + MeasureConstraints
+→ flatten paragraph text and validated UTF-8 style ranges
+→ TextLayoutEngine
+→ immutable TextLayout
+→ FigureMeasurement + arranged glyph origins
+→ DrawGlyphRun
+```
+
+第一阶段支持：
+
+- paragraph boundary 与 fragment 内显式 `\n` 形成 hard break；
+- `SoftWrap` 在有限 width 下换行，`NoWrap` 保留自然宽度；
+- `Truncate` 在有限 height/line limit 下只绘制可见 UTF-8 range；
+- bidi、script shaping、CJK breaking 和 font fallback 由同一个 TextLayoutEngine
+  完成；
+- mixed-style fragment 可以产生多个 GlyphRun，但 line breaking 必须在完整 paragraph
+  上完成，不能把每个 fragment 独立布局后拼接；
+- measure、arrange 与 paint 在相同 constraints/revision 下复用同一 TextLayout，
+  禁止 paint 阶段重新 shaping。
+
+缓存 key 除第 10 节字段外还必须包含 paragraph/fragment revision 与规范化 style
+ranges。fragment、style、width、wrapping 或 font revision 变化时，Runtime 在一次
+validation transaction 中更新 measurement、arranged glyph origins、bounds、
+freeform extent 与 old/new damage。相同输入不得发出虚假变化。
+
+第一阶段明确不包含 caret、selection、cluster-to-document 双向映射、IME composition、
+direct editing、inline embedded Figure 和跨 paragraph selection。这些能力需要独立
+编辑模型与输入契约，不能通过给 TextFlow 增加临时 mutable offset 实现。
+
+## 12. 分批顺序
 
 ### M10.2a Text Core
 
@@ -299,7 +356,14 @@ Border 实例不得缓存任何 owner 派生状态。
 每批独立提交。M10.2a 不以存在文本命令作为完成依据，必须证明实际 glyph command
 进入 Vello scene。
 
-## 12. 错误模型
+### P2-T01 TextFlow
+
+- FlowPage/Paragraph/InlineTextFragment 与结构化 replacement；
+- mixed-style paragraph shaping、soft/hard wrap、truncate 与 bidi；
+- width-dependent measurement、arrange、paint 同源；
+- `text-flow-app` Native/Web 共用示例与 headless contract suite。
+
+## 13. 错误模型
 
 - 非法字号或约束：`TextError::InvalidMetric`；
 - 字体描述无法解析：`TextError::InvalidFontDescriptor`；
