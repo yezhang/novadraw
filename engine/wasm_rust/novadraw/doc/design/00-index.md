@@ -39,6 +39,7 @@
 21. [`editor/g5-connection-reconnect.md`](editor/g5-connection-reconnect.md)
 22. [`editor/g5-connection-bendpoint.md`](editor/g5-connection-bendpoint.md)
 23. [`editor/g5-viewport-autoexpose.md`](editor/g5-viewport-autoexpose.md)
+24. [`rendering/image-source-rectangle.md`](rendering/image-source-rectangle.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
