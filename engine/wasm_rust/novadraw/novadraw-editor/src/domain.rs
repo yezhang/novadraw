@@ -3,13 +3,17 @@
 use std::{error::Error, fmt, time::Duration};
 
 use novadraw::geometry::Point;
-use novadraw::{DispatchOutcome, KeyModifiers, MouseButton};
+use novadraw::{
+    DispatchOutcome, FlowTextPosition, FlowTextRange, KeyModifiers, MouseButton, TextMovement,
+};
 
 use crate::{
     AutoexposeTick, BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
-    ConnectionCreationTool, ConnectionEndpointTool, CreationType, EditPartFactory, EditorRequest,
-    GraphicalViewer, HandleRole, InteractionRevision, InteractionRevisionError, ModelAdapter,
-    SelectionTool, ToolError, ViewerError, ViewerInputOutcome, ViewerTarget, autoexpose,
+    ConnectionCreationTool, ConnectionEndpointTool, CreationType, DirectTextEditRequest,
+    DirectTextEditSessionId, DirectTextFeature, EditPartFactory, EditPartId, EditorRequest,
+    ExtendTextSelection, GraphicalViewer, HandleRole, InteractionRevision,
+    InteractionRevisionError, ModelAdapter, SelectionTool, TextDelete, ToolError, ViewerError,
+    ViewerInputOutcome, ViewerTarget, autoexpose,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -156,6 +160,14 @@ impl<A: ModelAdapter> EditorDomain<A> {
         self.autoexpose_requested
     }
 
+    /// Returns whether this Viewer currently routes text input to direct editing.
+    pub fn has_active_direct_text_edit<F>(&self, viewer: &GraphicalViewer<A, F>) -> bool
+    where
+        F: EditPartFactory<A>,
+    {
+        viewer.direct_text_edit().is_some()
+    }
+
     /// Allocates the next request revision.
     pub fn next_interaction_revision(&mut self) -> Result<InteractionRevision, EditorDomainError> {
         let revision = self.next_revision;
@@ -168,6 +180,168 @@ impl<A> EditorDomain<A>
 where
     A: ModelAdapter + 'static,
 {
+    /// Starts direct editing for one stable application text feature.
+    pub fn start_direct_text_edit<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        source: EditPartId,
+        feature: DirectTextFeature,
+    ) -> Result<DirectTextEditSessionId, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        self.cancel_active_tools(viewer)?;
+        Ok(viewer.start_direct_text_edit(&DirectTextEditRequest::new(source, feature))?)
+    }
+
+    /// Replaces the current text selection with committed draft text.
+    pub fn insert_direct_text<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        text: &str,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.insert_direct_text(text)?)
+    }
+
+    /// Replaces or updates the active IME preedit without committing the edit session.
+    pub fn set_direct_text_preedit<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        text: &str,
+        selection: Option<std::ops::Range<usize>>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.set_direct_text_preedit(text, selection)?)
+    }
+
+    /// Cancels IME composition and restores its captured draft base.
+    pub fn cancel_direct_text_preedit<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.cancel_direct_text_preedit()?)
+    }
+
+    /// Replaces the directed text selection without changing Viewer selection.
+    pub fn set_direct_text_selection<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        selection: FlowTextRange,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.set_direct_text_selection(selection)?)
+    }
+
+    /// Moves the direct-edit focus through the current immutable interaction map.
+    pub fn move_direct_text<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        movement: TextMovement,
+        extend: ExtendTextSelection,
+    ) -> Result<FlowTextPosition, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.move_direct_text(movement, matches!(extend, ExtendTextSelection::Yes))?)
+    }
+
+    /// Deletes a selected range or a visual grapheme/word adjacent to the caret.
+    pub fn delete_direct_text<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        deletion: TextDelete,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.delete_direct_text(deletion)?)
+    }
+
+    /// Resolves a surface point through the draft TextFlow interaction map.
+    pub fn hit_test_direct_text<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        location: Point,
+        extend: ExtendTextSelection,
+    ) -> Result<FlowTextPosition, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.hit_test_direct_text(location, matches!(extend, ExtendTextSelection::Yes))?)
+    }
+
+    /// Accepts the active draft as at most one model Command.
+    pub fn accept_direct_text_edit<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let mut prepared = viewer.prepare_direct_text_accept()?;
+        let Some(command) = prepared.command.take() else {
+            return Ok(false);
+        };
+        match self.command_stack.execute(viewer.model_mut()?, command) {
+            Ok(()) => {
+                viewer.refresh()?;
+                Ok(true)
+            }
+            Err(error) => {
+                let recoverable = match &error {
+                    CommandStackError::Rejected { .. } => true,
+                    CommandStackError::Command(command) => command.is_recoverable(),
+                    _ => false,
+                };
+                if recoverable {
+                    viewer.restore_direct_text_edit(prepared)?;
+                }
+                Err(error.into())
+            }
+        }
+    }
+
+    /// Cancels the active draft without creating command history.
+    pub fn cancel_direct_text_edit<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        Ok(viewer.cancel_direct_text_edit()?)
+    }
+
+    /// Applies the descriptor's policy when direct-edit input focus is lost.
+    pub fn direct_text_focus_lost<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+    ) -> Result<bool, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let focus_loss = viewer
+            .direct_text_edit()
+            .ok_or(ViewerError::DirectTextEdit(
+                crate::DirectTextEditError::NoActiveSession,
+            ))?
+            .focus_loss();
+        match focus_loss {
+            crate::FocusLossPolicy::Accept => self.accept_direct_text_edit(viewer),
+            crate::FocusLossPolicy::Cancel => self.cancel_direct_text_edit(viewer),
+        }
+    }
+
     /// Cancels the current gesture and arms one connection-creation Tool.
     pub fn activate_connection_creation<F>(
         &mut self,
@@ -177,6 +351,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        viewer.cancel_direct_text_edit()?;
         self.selection_tool.cancel(viewer)?;
         if let Some(tool) = &mut self.connection_tool {
             tool.cancel(viewer)?;
@@ -199,6 +374,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        viewer.cancel_direct_text_edit()?;
         self.cancel_active_tools(viewer)?;
         let command = viewer
             .command_for_request(request)?
@@ -213,6 +389,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        viewer.cancel_direct_text_edit()?;
         self.cancel_active_tools(viewer)?;
         self.command_stack.undo(viewer.model_mut()?)?;
         viewer.refresh()?;
@@ -224,6 +401,7 @@ where
     where
         F: EditPartFactory<A>,
     {
+        viewer.cancel_direct_text_edit()?;
         self.cancel_active_tools(viewer)?;
         self.command_stack.redo(viewer.model_mut()?)?;
         viewer.refresh()?;
@@ -243,6 +421,16 @@ where
     {
         self.pointer = Some(location);
         self.autoexpose_requested = false;
+        if viewer.direct_text_edit().is_some() {
+            if button == MouseButton::Left {
+                viewer.hit_test_direct_text(location, modifiers.shift)?;
+            }
+            return Ok(viewer.dispatch_mouse_pressed_without_selection(
+                location.x(),
+                location.y(),
+                button,
+            ));
+        }
         if let Some(tool) = &mut self.connection_tool {
             let revision = self.next_revision;
             self.next_revision = revision.next()?;
@@ -307,6 +495,11 @@ where
     where
         F: EditPartFactory<A>,
     {
+        if viewer.direct_text_edit().is_some() {
+            self.pointer = Some(location);
+            self.autoexpose_requested = false;
+            return Ok(viewer.dispatch_mouse_moved(location.x(), location.y()));
+        }
         let revision = self.next_interaction_revision()?;
         let dispatch = if self.bendpoint_tool.is_active() {
             self.bendpoint_tool
@@ -410,6 +603,12 @@ where
     {
         self.pointer = None;
         self.autoexpose_requested = false;
+        if viewer.direct_text_edit().is_some() {
+            return Ok(DomainPointerRelease {
+                dispatch: viewer.dispatch_mouse_released(location.x(), location.y(), button),
+                command_executed: false,
+            });
+        }
         if let Some(mut tool) = self.endpoint_tool.take() {
             let revision = self.next_interaction_revision()?;
             let (dispatch, command) = tool

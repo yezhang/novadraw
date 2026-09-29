@@ -211,6 +211,17 @@ args = [
   "p2_t02_text_interaction_contract",
 ]
 
+[commands."test.editor-p2-e02"]
+description = "Run direct text edit session, draft, feedback, and command contracts"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-editor",
+  "--test",
+  "p2_e02_direct_text_edit_contract",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -560,6 +571,28 @@ documents = [
   "doc/parity/draw2d/api-coverage.md",
   "doc/verification/plans/p2-text-direct-edit.md",
   "doc/verification/reviews/p2-text-interaction-2026-09-29.md",
+]
+
+[[suites]]
+id = "editor.p2-e02-direct-text-edit"
+title = "Viewer-scoped direct text edit session contracts"
+milestone = "P2-E02"
+kind = "contract"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.editor-p2-e02"]
+paths = [
+  "novadraw-editor/src/direct_edit.rs",
+  "novadraw-editor/src/domain.rs",
+  "novadraw-editor/src/policy/mod.rs",
+  "novadraw-editor/src/viewer/mod.rs",
+  "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs",
+]
+documents = [
+  "doc/design/editor/p2-direct-text-edit.md",
+  "doc/parity/gef/api-coverage.md",
+  "doc/verification/plans/p2-text-direct-edit.md",
+  "doc/verification/reviews/p2-direct-text-edit-session-2026-09-29.md",
 ]
 
 [[suites]]

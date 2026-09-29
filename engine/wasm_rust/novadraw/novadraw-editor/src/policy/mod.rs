@@ -11,8 +11,8 @@ use novadraw::Figure;
 use novadraw::geometry::Point;
 
 use crate::{
-    Command, CreateConnectionRequest, EditPartId, EditorNamespace, EditorRequest, ModelAdapter,
-    ReconnectConnectionRequest,
+    Command, CreateConnectionRequest, DirectTextEdit, DirectTextEditRequest, EditPartId,
+    EditorNamespace, EditorRequest, ModelAdapter, ReconnectConnectionRequest,
 };
 
 /// Stable role used to install an EditPolicy on one EditPart.
@@ -30,6 +30,8 @@ pub enum PolicyRole {
     ConnectionCreation,
     /// Reconnect one endpoint of an existing connection.
     ConnectionReconnect,
+    /// Direct editing of one application text feature.
+    DirectTextEdit,
     /// Application-defined role.
     Custom(Arc<str>),
 }
@@ -203,6 +205,16 @@ pub trait EditPolicy<A: ModelAdapter> {
         _request: &ReconnectConnectionRequest,
         _model: &A,
     ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, PolicyError> {
+        Ok(None)
+    }
+
+    /// Creates one Viewer-scoped direct text edit plan for the requested feature.
+    fn start_direct_text_edit(
+        &mut self,
+        _host: PolicyHost<A::ModelId>,
+        _request: &DirectTextEditRequest,
+        _model: &A,
+    ) -> Result<Option<Box<dyn DirectTextEdit<A>>>, PolicyError> {
         Ok(None)
     }
 

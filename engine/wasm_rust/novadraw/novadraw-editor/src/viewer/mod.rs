@@ -10,24 +10,27 @@ use std::{
 
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::{
-    AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
+    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, ConnectionAnchor, ConnectionId,
     ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome, Figure,
-    FigureId, FigureTree, FramePreparationError, FreeformLayerFigure, FreeformLayeredPane,
-    KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement, LayeredPane, MouseButton,
-    MouseLocationZoomScrollPolicy, RouterBinding, RouterId, Runtime, RuntimeMutationError,
-    ScalableFreeformLayeredPane, StackLayout, UnresolvedConnection, ViewportHandle, XYAnchor,
-    ZoomManager,
+    FigureId, FigureTree, FlowTextPosition, FlowTextRange, FramePreparationError,
+    FreeformLayerFigure, FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey,
+    LayerPlacement, LayeredPane, MouseButton, MouseLocationZoomScrollPolicy, RouterBinding,
+    RouterId, Runtime, RuntimeMutationError, ScalableFreeformLayeredPane, SelectionQuad,
+    StackLayout, TextMovement, UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
 };
 
 use crate::{
     BendpointHandleSite, Command, CompoundCommand, ConnectionAnchorContext,
     ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
     ConnectionPartFactoryContext, ConnectionPartId, ConnectionReconnection, ConnectionRouterKey,
-    ConnectionRouterSelection, ConnectionRoutingDescriptor, CreateConnectionRequest, EditPartError,
-    EditPartFactory, EditPartId, EditorNamespace, EditorRequest, FeedbackId, HandleId, HandleRole,
-    ModelAdapter, ModelConnection, ModelRevision, PartFactoryContext, PartKind, PartTree,
-    PartTreeError, PolicyError, PolicyHost, ReconnectConnectionRequest, SelectionDelta,
-    SelectionModel, VisualBuildContext, VisualOwner, VisualUpdateContext,
+    ConnectionRouterSelection, ConnectionRoutingDescriptor, CreateConnectionRequest,
+    DirectTextEditError, DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState,
+    DirectTextFeedback, EditPartError, EditPartFactory, EditPartId, EditorNamespace, EditorRequest,
+    FeedbackId, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
+    PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, PolicyRole,
+    ReconnectConnectionRequest, SelectionDelta, SelectionModel, VisualBuildContext, VisualOwner,
+    VisualUpdateContext,
+    direct_edit::{ActiveDirectTextEdit, PreparedDirectTextEdit, position_to_offset},
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
 };
@@ -241,6 +244,8 @@ pub enum ViewerError {
     Layer(LayerError),
     /// EditPolicy rejected a request or failed.
     Policy(PolicyError),
+    /// Direct text editing rejected the operation.
+    DirectTextEdit(DirectTextEditError),
     /// A selection or overlay operation referenced an invalid EditPart.
     InvalidPart(EditPartId),
     /// An expected behavior or registry entry was absent.
@@ -316,6 +321,7 @@ impl fmt::Display for ViewerError {
             Self::Connection(error) => error.fmt(formatter),
             Self::Layer(error) => error.fmt(formatter),
             Self::Policy(error) => error.fmt(formatter),
+            Self::DirectTextEdit(error) => error.fmt(formatter),
             Self::InvalidPart(part) => write!(formatter, "invalid EditPart: {part:?}"),
             Self::InconsistentState => formatter.write_str("Viewer state is inconsistent"),
         }
@@ -332,6 +338,7 @@ impl Error for ViewerError {
             Self::Connection(error) => Some(error),
             Self::Layer(error) => Some(error),
             Self::Policy(error) => Some(error),
+            Self::DirectTextEdit(error) => Some(error),
             _ => None,
         }
     }
@@ -376,6 +383,12 @@ impl From<LayerError> for ViewerError {
 impl From<PolicyError> for ViewerError {
     fn from(value: PolicyError) -> Self {
         Self::Policy(value)
+    }
+}
+
+impl From<DirectTextEditError> for ViewerError {
+    fn from(value: DirectTextEditError) -> Self {
+        Self::DirectTextEdit(value)
     }
 }
 
@@ -664,6 +677,8 @@ where
     connection_routers: HashMap<ConnectionRouterKey, RouterId>,
     visual_registry: HashMap<FigureId, VisualOwner>,
     selection: SelectionModel<EditPartId>,
+    direct_text_edit: Option<ActiveDirectTextEdit<A>>,
+    next_direct_text_edit_session: u64,
     applied_revision: ModelRevision,
     model_root: A::ModelId,
     faulted: bool,
@@ -714,6 +729,8 @@ where
             connection_routers,
             visual_registry: HashMap::from([(root_layers.root(), VisualOwner::Part(root_part))]),
             selection: SelectionModel::new(),
+            direct_text_edit: None,
+            next_direct_text_edit_session: 1,
             applied_revision,
             model_root: snapshot.root,
             faulted: false,
@@ -1317,6 +1334,372 @@ where
         }
     }
 
+    /// Returns a snapshot of the active direct text edit session.
+    pub fn direct_text_edit(&self) -> Option<&DirectTextEditState> {
+        self.direct_text_edit.as_ref().map(|active| &active.state)
+    }
+
+    pub(crate) fn start_direct_text_edit(
+        &mut self,
+        request: &DirectTextEditRequest,
+    ) -> Result<DirectTextEditSessionId, ViewerError>
+    where
+        A: 'static,
+    {
+        self.ensure_ready()?;
+        if self.direct_text_edit.is_some() {
+            return Err(DirectTextEditError::SessionAlreadyActive.into());
+        }
+        self.validate_selectable(request.source())
+            .map_err(|_| DirectTextEditError::ForeignOrRetiredPart)?;
+        let host = self.policy_host(request.source())?;
+        let plan = self
+            .policies
+            .roles_mut(request.source())
+            .and_then(|roles| roles.get_mut(&PolicyRole::DirectTextEdit))
+            .map(|policy| policy.start_direct_text_edit(host, request, &self.model))
+            .transpose()?
+            .flatten()
+            .ok_or(DirectTextEditError::UnsupportedFeature)?;
+        let descriptor = plan.descriptor().clone();
+        if descriptor.feature() != request.feature() {
+            return Err(DirectTextEditError::UnsupportedFeature.into());
+        }
+        if descriptor.source_revision() != self.model.revision() {
+            return Err(DirectTextEditError::StaleSourceRevision.into());
+        }
+        let sequence = self.next_direct_text_edit_session;
+        self.next_direct_text_edit_session = sequence
+            .checked_add(1)
+            .ok_or(DirectTextEditError::SessionIdentityExhausted)?;
+        let session = DirectTextEditSessionId::new(self.namespace(), sequence);
+        let state = DirectTextEditState::new(session, request.source(), &descriptor);
+        let mut active = ActiveDirectTextEdit {
+            state,
+            plan,
+            feedback: Vec::new(),
+            text_feedback: self.root_layers.root(),
+        };
+        let projection = active.plan.feedback(&active.state, &self.model)?;
+        let (feedback, text_feedback) =
+            self.attach_direct_text_feedback(request.source(), projection)?;
+        active.feedback = feedback;
+        active.text_feedback = text_feedback;
+        self.direct_text_edit = Some(active);
+        Ok(session)
+    }
+
+    pub(crate) fn set_direct_text_selection(
+        &mut self,
+        selection: FlowTextRange,
+    ) -> Result<(), ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        state.set_selection(selection)?;
+        self.replace_direct_text_state(state)
+    }
+
+    pub(crate) fn hit_test_direct_text(
+        &mut self,
+        point: Point,
+        extend: bool,
+    ) -> Result<FlowTextPosition, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        let position = self
+            .runtime
+            .text_flow_hit_test(active.text_feedback, point)
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
+        let mut state = active.state.clone();
+        state.set_selection(if extend {
+            FlowTextRange::new(state.selection().anchor(), position)
+        } else {
+            FlowTextRange::new(position, position)
+        })?;
+        self.replace_direct_text_state(state)?;
+        Ok(position)
+    }
+
+    pub(crate) fn insert_direct_text(&mut self, text: &str) -> Result<bool, ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        let changed = if state.composition().is_some() {
+            state.commit_preedit(text)?
+        } else {
+            state.replace_selection(text)?
+        };
+        if changed {
+            self.replace_direct_text_state(state)?;
+        }
+        Ok(changed)
+    }
+
+    pub(crate) fn set_direct_text_preedit(
+        &mut self,
+        text: &str,
+        selection: Option<std::ops::Range<usize>>,
+    ) -> Result<bool, ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        let changed = state.set_preedit(text, selection)?;
+        self.replace_direct_text_state(state)?;
+        Ok(changed)
+    }
+
+    pub(crate) fn cancel_direct_text_preedit(&mut self) -> Result<bool, ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        let changed = state.cancel_preedit();
+        if changed {
+            self.replace_direct_text_state(state)?;
+        }
+        Ok(changed)
+    }
+
+    /// Returns the active draft caret rectangle in logical surface coordinates.
+    pub fn direct_text_caret_geometry(&self) -> Result<CaretGeometry, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        self.runtime
+            .text_flow_caret_geometry(active.text_feedback, active.state.selection().focus())
+            .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
+    }
+
+    /// Returns active draft selection quads in logical surface coordinates.
+    pub fn direct_text_selection_geometry(&self) -> Result<Vec<SelectionQuad>, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        self.runtime
+            .text_flow_selection_geometry(active.text_feedback, active.state.selection())
+            .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
+    }
+
+    pub(crate) fn move_direct_text(
+        &mut self,
+        movement: TextMovement,
+        extend: bool,
+    ) -> Result<FlowTextPosition, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        let position = self
+            .runtime
+            .text_flow_move_position(
+                active.text_feedback,
+                active.state.selection().focus(),
+                movement,
+            )
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
+        let mut state = active.state.clone();
+        state.set_selection(if extend {
+            FlowTextRange::new(state.selection().anchor(), position)
+        } else {
+            FlowTextRange::new(position, position)
+        })?;
+        self.replace_direct_text_state(state)?;
+        Ok(position)
+    }
+
+    pub(crate) fn delete_direct_text(
+        &mut self,
+        deletion: crate::TextDelete,
+    ) -> Result<bool, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        let mut state = active.state.clone();
+        let anchor = position_to_offset(state.draft(), state.selection().anchor())?;
+        let focus = position_to_offset(state.draft(), state.selection().focus())?;
+        let changed = if anchor != focus {
+            state.replace_selection("")?
+        } else {
+            let moved = self
+                .runtime
+                .text_flow_move_position(
+                    active.text_feedback,
+                    state.selection().focus(),
+                    deletion.movement(),
+                )
+                .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
+            if deletion.is_backward() {
+                state.delete_range(moved, state.selection().focus())?
+            } else {
+                state.delete_range(state.selection().focus(), moved)?
+            }
+        };
+        if changed {
+            self.replace_direct_text_state(state)?;
+        }
+        Ok(changed)
+    }
+
+    pub(crate) fn cancel_direct_text_edit(&mut self) -> Result<bool, ViewerError> {
+        let Some(active) = self.direct_text_edit.take() else {
+            return Ok(false);
+        };
+        self.remove_direct_text_feedback(&active.feedback)?;
+        Ok(true)
+    }
+
+    pub(crate) fn prepare_direct_text_accept(
+        &mut self,
+    ) -> Result<PreparedDirectTextEdit<A>, ViewerError> {
+        let mut active = self
+            .direct_text_edit
+            .take()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        if self
+            .parts
+            .get(active.state.source())
+            .is_none_or(|part| !part.is_active())
+        {
+            self.remove_direct_text_feedback(&active.feedback)?;
+            return Err(DirectTextEditError::ForeignOrRetiredPart.into());
+        }
+        if active.state.source_revision() != self.model.revision() {
+            self.direct_text_edit = Some(active);
+            return Err(DirectTextEditError::StaleSourceRevision.into());
+        }
+        if active.state.composition().is_some() {
+            self.direct_text_edit = Some(active);
+            return Err(DirectTextEditError::ActiveComposition.into());
+        }
+        if let Err(error) = active.plan.validate(&active.state, &self.model) {
+            self.direct_text_edit = Some(active);
+            return Err(error.into());
+        }
+        let command = if active.state.is_changed() {
+            match active.plan.command(&active.state, &self.model) {
+                Ok(command) => Some(command),
+                Err(error) => {
+                    self.direct_text_edit = Some(active);
+                    return Err(error.into());
+                }
+            }
+        } else {
+            None
+        };
+        if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
+            self.direct_text_edit = Some(active);
+            return Err(error);
+        }
+        active.feedback.clear();
+        Ok(PreparedDirectTextEdit { active, command })
+    }
+
+    pub(crate) fn restore_direct_text_edit(
+        &mut self,
+        mut prepared: PreparedDirectTextEdit<A>,
+    ) -> Result<(), ViewerError> {
+        let projection = prepared
+            .active
+            .plan
+            .feedback(&prepared.active.state, &self.model)?;
+        let (feedback, text_feedback) =
+            self.attach_direct_text_feedback(prepared.active.state.source(), projection)?;
+        prepared.active.feedback = feedback;
+        prepared.active.text_feedback = text_feedback;
+        self.direct_text_edit = Some(prepared.active);
+        Ok(())
+    }
+
+    fn replace_direct_text_state(&mut self, state: DirectTextEditState) -> Result<(), ViewerError> {
+        let mut active = self
+            .direct_text_edit
+            .take()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        let previous_state = std::mem::replace(&mut active.state, state);
+        let projection = match active.plan.feedback(&active.state, &self.model) {
+            Ok(projection) => projection,
+            Err(error) => {
+                active.state = previous_state;
+                self.direct_text_edit = Some(active);
+                return Err(error.into());
+            }
+        };
+        let (feedback, text_feedback) =
+            match self.attach_direct_text_feedback(active.state.source(), projection) {
+                Ok(attached) => attached,
+                Err(error) => {
+                    active.state = previous_state;
+                    self.direct_text_edit = Some(active);
+                    return Err(error);
+                }
+            };
+        if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
+            let _ = self.remove_direct_text_feedback(&feedback);
+            active.state = previous_state;
+            self.direct_text_edit = Some(active);
+            return Err(error);
+        }
+        active.feedback = feedback;
+        active.text_feedback = text_feedback;
+        self.direct_text_edit = Some(active);
+        Ok(())
+    }
+
+    fn attach_direct_text_feedback(
+        &mut self,
+        owner: EditPartId,
+        feedback: DirectTextFeedback,
+    ) -> Result<(Vec<FigureId>, FigureId), ViewerError> {
+        let (visuals, text_visual) = feedback.into_parts();
+        let mut figures = Vec::with_capacity(visuals.len());
+        for visual in visuals {
+            let (figure, scaled) = visual.into_parts();
+            match self.add_feedback_visual(Some(owner), scaled, figure) {
+                Ok((_, figure)) => figures.push(figure),
+                Err(error) => {
+                    let _ = self.remove_direct_text_feedback(&figures);
+                    return Err(error);
+                }
+            }
+        }
+        self.runtime.stabilize_for_query()?;
+        let text_feedback = figures
+            .get(text_visual)
+            .copied()
+            .ok_or(DirectTextEditError::InvalidFeedbackTarget)?;
+        if self.runtime.text_flow_layout(text_feedback).is_err() {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+        }
+        Ok((figures, text_feedback))
+    }
+
+    fn remove_direct_text_feedback(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
+        for figure in figures.iter().copied() {
+            if !self.remove_overlay_visual(figure)? {
+                return Err(ViewerError::InconsistentState);
+            }
+        }
+        Ok(())
+    }
+
     fn select_part(
         &mut self,
         part: EditPartId,
@@ -1806,6 +2189,7 @@ where
         match catch_unwind(AssertUnwindSafe(|| self.refresh_projection())) {
             Ok(result) => result,
             Err(payload) => {
+                self.force_drop_direct_text_edit();
                 self.faulted = true;
                 resume_unwind(payload)
             }
@@ -1896,8 +2280,21 @@ where
     }
 
     fn fail<T>(&mut self, error: ViewerError) -> Result<T, ViewerError> {
+        self.force_drop_direct_text_edit();
         self.faulted = true;
         Err(error)
+    }
+
+    fn force_drop_direct_text_edit(&mut self) {
+        let Some(active) = self.direct_text_edit.take() else {
+            return;
+        };
+        for figure in active.feedback {
+            if self.runtime.tree().is_attached(figure) {
+                let _ = self.runtime.dispose_subtree(figure);
+            }
+            self.visual_registry.remove(&figure);
+        }
     }
 
     fn ensure_ready(&self) -> Result<(), ViewerError> {
@@ -2712,6 +3109,13 @@ where
 
     fn remove_subtree(&mut self, part: EditPartId) -> Result<(), ViewerError> {
         let ids = self.parts.subtree_ids(part)?;
+        if self
+            .direct_text_edit
+            .as_ref()
+            .is_some_and(|active| ids.contains(&active.state.source()))
+        {
+            self.cancel_direct_text_edit()?;
+        }
         let primary = self
             .parts
             .get(part)

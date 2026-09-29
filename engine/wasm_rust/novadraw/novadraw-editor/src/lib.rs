@@ -11,6 +11,7 @@
 
 mod autoexpose;
 mod command;
+mod direct_edit;
 mod domain;
 mod feedback;
 mod model;
@@ -25,6 +26,12 @@ pub use autoexpose::AutoexposeTick;
 pub use command::{
     Command, CommandError, CommandOperation, CommandStack, CommandStackError, CommandStackEvent,
     CommandStackEventKind, CompoundCommand,
+};
+pub use direct_edit::{
+    DirectTextComposition, DirectTextEdit, DirectTextEditDescriptor, DirectTextEditError,
+    DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState, DirectTextFeature,
+    DirectTextFeatureError, DirectTextFeedback, ExtendTextSelection, FocusLossPolicy, TextDelete,
+    TextEditMode,
 };
 pub use domain::{DomainPointerRelease, EditorDomain, EditorDomainError};
 pub use feedback::{BendpointHandleSite, FeedbackId, HandleId, HandleRole, VisualOwner};

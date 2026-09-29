@@ -37,7 +37,7 @@ pub struct EditPartId {
 }
 
 impl EditPartId {
-    fn from_local(namespace: EditorNamespace, local: KeyData) -> Self {
+    pub(crate) fn from_local(namespace: EditorNamespace, local: KeyData) -> Self {
         Self { namespace, local }
     }
 

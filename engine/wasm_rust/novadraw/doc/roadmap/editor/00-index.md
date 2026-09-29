@@ -47,7 +47,7 @@ milestone：
 
 | Delta | 标题 | 状态 | 依赖 |
 |---|---|---|---|
-| P2-E02 | Direct text edit 与 IME | `not_started` | P2-T02、G1-G5 |
+| P2-E02 | Direct text edit 与 IME | `in_progress`（E02a complete） | P2-T02、G1-G5 |
 
 人工验收只在对应 milestone 的自动门禁通过后进行：
 
@@ -251,6 +251,9 @@ P2-E02 分两步执行：
    text selection、feedback、accept/cancel、Command 与 headless replay；
 2. `P2-E02b`：platform-neutral text-input lease、Winit IME、Web DOM composition
    bridge、candidate area 与 Native/Web 人工验收。
+
+P2-E02a 已于 2026-09-29 完成并由
+`cargo xtask verify editor.p2-e02-direct-text-edit` 验证；当前下一执行项为 P2-E02b。
 
 状态所有权：
 

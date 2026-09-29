@@ -2,7 +2,7 @@
 
 类型：`verification-plan`
 
-状态：`in_progress`（P2-T02 complete，P2-E02 planned）
+状态：`in_progress`（P2-T02、P2-E02a complete，P2-E02b planned）
 
 范围：P2-T02、P2-E02
 
@@ -11,15 +11,15 @@
 - [`../../design/editor/p2-direct-text-edit.md`](../../design/editor/p2-direct-text-edit.md)
 - [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)
 
-本页定义完成证据。P2-T02 的实际 command 和 suite 已注册到
-`verification/suites.toml`；P2-E02 仍不注册不可执行的占位门禁。
+本页定义完成证据。P2-T02 与 P2-E02a 的实际 command 和 suite 已注册到
+`verification/suites.toml`；P2-E02b 不注册不可执行的占位门禁。
 
 ## 1. 计划 Suite
 
 | Suite ID | 层 | 平台 | 目标 |
 |---|---|---|---|
 | `core.p2-t02-text-interaction` | contract | headless | `complete`：文档位置、caret、selection 与 movement 几何 |
-| `editor.p2-e02-direct-text-edit` | contract/application | headless | session、draft、policy、Command 与 cleanup |
+| `editor.p2-e02-direct-text-edit` | contract/application | headless | `complete`：session、draft、policy、Command 与 cleanup |
 | `platform.p2-e02-text-input` | platform/application | native-macos、web | IME、候选窗、DOM input bridge 与 replay |
 
 ## 2. Core 契约矩阵
@@ -121,3 +121,11 @@ P2-E02 complete：
 - GEF parity `direct_edit` 提升为 `verified`；
 - `cargo xtask check --quick` 通过；
 - 最终提交边界运行一次 `cargo xtask check --full`。
+
+P2-E02a 当前证据：
+
+- typed feature、descriptor、policy plan 与 Viewer-scoped 单 session；
+- draft、selection、preedit base/恢复和 TextFlow interaction geometry；
+- accept 前 feedback cleanup、单 Command、undo/redo 与无变化 accept；
+- stale revision、recoverable rejection、unsupported feature 和 source retire；
+- `cargo xtask verify editor.p2-e02-direct-text-edit`：PASS。

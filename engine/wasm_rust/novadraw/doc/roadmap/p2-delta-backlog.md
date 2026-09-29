@@ -31,11 +31,10 @@
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
-| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `not_started` | P2-T02、G1-G5 |
+| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `in_progress`（E02a complete） | P2-T02、G1-G5 |
 
-P2-T02 已先行闭合且未引入 mutable editor state。下一步执行 P2-E02a headless
-session，再执行 P2-E02b Native/Web input bridge；P2-E02 不复制 shaping、caret 或
-selection geometry。
+P2-T02 与 P2-E02a 已闭合且未向 Core 引入 mutable editor state。下一步执行 P2-E02b
+Native/Web input bridge；P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## Connection
 
@@ -334,7 +333,7 @@ Core 与当前 G5 必须继续保证：
 
 ### P2-E02: Direct text edit 与 IME
 
-状态：`not_started`
+状态：`in_progress`（P2-E02a complete，P2-E02b planned）
 
 `api_semantics`：`direct_edit`
 
@@ -359,6 +358,11 @@ SWT/JFace CellEditor 作为公共契约或可见文本真值。
 4. stale source revision 不覆盖外部修改，cleanup failure 进入 faulted；
 5. scroll/zoom/resize 后 feedback、caret 与候选窗对齐；
 6. `editor.p2-e02-direct-text-edit` 与 `platform.p2-e02-text-input` suites 通过。
+
+P2-E02a 已完成 Viewer-scoped 单会话、typed feature/descriptor/policy plan、draft、
+selection、preedit、TextFlow interaction geometry、feedback lifecycle、accept/cancel、
+stale revision、source retire 与 CommandStack undo/redo。P2-E02b 继续实现 host lease、
+Native Winit IME 与 Web DOM input bridge。
 
 规范入口：
 
