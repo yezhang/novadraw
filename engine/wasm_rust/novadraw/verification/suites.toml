@@ -253,6 +253,11 @@ description = "Open the Native Editor manual validation application"
 program = "cargo"
 args = ["run", "-p", "node-editor-demo"]
 
+[commands."native.p2-core"]
+description = "Open the Native Core P2 manual validation application"
+program = "cargo"
+args = ["run", "-p", "p2-core-app"]
+
 [commands."replay.editor-g3"]
 description = "Replay selection, targeting, and widget arbitration without a window"
 program = "cargo"
@@ -432,8 +437,8 @@ id = "core.p2-c01-connection-decoration"
 title = "PointList bounds, endpoint locators, and Connection decorations"
 milestone = "P2-C01"
 kind = "contract"
-layers = ["contract", "headless"]
-platforms = ["host", "headless"]
+layers = ["contract", "headless", "visual", "platform"]
+platforms = ["host", "headless", "native-macos"]
 commands = ["test.p2-c01"]
 paths = [
   "novadraw/src/figure/polyline.rs",
@@ -444,20 +449,24 @@ paths = [
   "novadraw/tests/m9_connection_contract.rs",
   "novadraw/tests/m9_connection_runtime.rs",
   "novadraw/tests/m10_reusable_shape_border_contract.rs",
+  "examples/scenes/src/p2_core.rs",
+  "examples/native/p2-core-app/**",
 ]
 documents = [
   "doc/design/architecture/connection-routing.md",
   "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/manual/p2-core-features.md",
 ]
+manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
 
 [[suites]]
 id = "core.p2-c02-shortest-path-routing"
 title = "Obstacle-aware deterministic shortest-path routing"
 milestone = "P2-C02"
 kind = "contract"
-layers = ["contract", "headless"]
-platforms = ["host", "headless"]
+layers = ["contract", "headless", "visual", "platform"]
+platforms = ["host", "headless", "native-macos"]
 commands = ["test.p2-c02"]
 paths = [
   "novadraw/src/connection/query.rs",
@@ -465,36 +474,44 @@ paths = [
   "novadraw/src/connection/runtime.rs",
   "novadraw/src/connection/shortest_path.rs",
   "novadraw/tests/p2_c02_shortest_path_contract.rs",
+  "examples/scenes/src/p2_core.rs",
+  "examples/native/p2-core-app/**",
 ]
 documents = [
   "doc/design/architecture/connection-routing.md",
   "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/manual/p2-core-features.md",
 ]
+manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
 
 [[suites]]
 id = "core.p2-f01-scalable-polygon"
 title = "Bounds-driven scalable polygon contracts"
 milestone = "P2-F01"
 kind = "contract"
-layers = ["contract", "visual"]
+layers = ["contract", "visual", "platform"]
 platforms = ["host", "native-macos", "web"]
 commands = ["test.p2-f01"]
 paths = [
   "novadraw/src/figure/scalable_polygon.rs",
   "novadraw/tests/p2_f01_scalable_polygon_contract.rs",
   "examples/scenes/src/shape.rs",
+  "examples/scenes/src/p2_core.rs",
+  "examples/native/p2-core-app/**",
 ]
 documents = [
   "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/manual/p2-core-features.md",
 ]
+manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
 
 [[suites]]
 id = "core.p2-t01-text-flow"
 title = "Read-only paragraph TextFlow contracts"
 milestone = "P2-T01"
 kind = "contract"
-layers = ["contract", "visual"]
+layers = ["contract", "visual", "platform"]
 platforms = ["host", "native-macos", "web"]
 commands = ["test.p2-t01"]
 paths = [
@@ -502,11 +519,15 @@ paths = [
   "novadraw/src/render/text.rs",
   "novadraw/tests/p2_t01_text_flow_contract.rs",
   "examples/scenes/src/text.rs",
+  "examples/scenes/src/p2_core.rs",
+  "examples/native/p2-core-app/**",
 ]
 documents = [
   "doc/design/architecture/text-layout.md",
   "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/manual/p2-core-features.md",
 ]
+manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
 
 [[suites]]
 id = "workspace.quality"

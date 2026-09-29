@@ -14,6 +14,7 @@
 - [M8 Viewport / Scroll / Zoom](m8-viewport.md)
 - [M10 Widgets](m10-widgets.md)
 - [M10 Tooltip / Accessibility](m10-tooltip-accessibility.md)
+- [Core P2 特性](p2-core-features.md)
 - [Web 平台](web-platform.md)
 
 ## Editor
