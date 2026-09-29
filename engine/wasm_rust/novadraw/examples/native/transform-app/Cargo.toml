@@ -1,0 +1,10 @@
+[package]
+name = "transform-app"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw = { path = "../../../novadraw" }
+novadraw-example-support = { path = "../../support" }
+novadraw-example-scenes = { path = "../../scenes" }

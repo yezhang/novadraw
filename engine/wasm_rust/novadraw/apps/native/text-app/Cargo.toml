@@ -1,9 +1,0 @@
-[package]
-name = "text-app"
-version.workspace = true
-edition.workspace = true
-publish = false
-
-[dependencies]
-novadraw-apps = { path = "../../support" }
-novadraw-demo-scenes = { path = "../../scenes" }

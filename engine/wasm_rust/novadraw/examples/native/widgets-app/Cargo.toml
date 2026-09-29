@@ -1,0 +1,9 @@
+[package]
+name = "widgets-app"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw-example-support = { path = "../../support" }
+novadraw-example-scenes = { path = "../../scenes" }

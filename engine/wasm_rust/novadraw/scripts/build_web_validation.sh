@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${CARGO_TARGET_DIR:-$ROOT/target}"
 WASM_BINDGEN="${WASM_BINDGEN:-$ROOT/target/wasm-tools/bin/wasm-bindgen}"
-WEB_APP="$ROOT/apps/web/web-validation"
+WEB_APP="$ROOT/examples/web/web-validation"
 DIST="$WEB_APP/dist"
 
 if [[ ! -x "$WASM_BINDGEN" ]]; then

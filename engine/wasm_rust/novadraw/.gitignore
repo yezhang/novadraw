@@ -4,7 +4,7 @@ screenshot/
 
 # Build outputs
 target/
-apps/web/web-validation/dist/
+examples/web/web-validation/dist/
 **/*.profraw
 verification/evidence/**/*_probe
 

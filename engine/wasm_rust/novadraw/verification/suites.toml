@@ -328,7 +328,8 @@ paths = [
   "novadraw-platform-web/**",
   "novadraw-editor/**",
   "novadraw-inspector/**",
-  "apps/**",
+  "examples/**",
+  "benchmarks/**",
 ]
 documents = [
   "doc/adr/adr-021-public-facade-and-feature-boundary.md",
@@ -348,7 +349,7 @@ paths = [
   "Cargo.lock",
   "**/Cargo.toml",
   "novadraw/src/render/**",
-  "apps/native/shape-app/**",
+  "examples/native/shape-app/**",
 ]
 documents = [
   "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md",
@@ -406,11 +407,11 @@ platforms = ["host", "headless"]
 commands = ["verify.update", "verify.event"]
 paths = [
   "novadraw/src/**",
-  "apps/support/**",
-  "apps/scenes/src/update.rs",
-  "apps/scenes/src/event.rs",
-  "apps/native/update-app/**",
-  "apps/native/event-app/**",
+  "examples/support/**",
+  "examples/scenes/src/update.rs",
+  "examples/scenes/src/event.rs",
+  "examples/native/update-app/**",
+  "examples/native/event-app/**",
 ]
 documents = ["doc/verification/manual/core-pipeline.md"]
 artifacts = [
@@ -429,10 +430,10 @@ commands = ["test.scene-viewport", "verify.scroll-pane"]
 paths = [
   "novadraw/src/container/**",
   "novadraw/tests/m8_viewport_contract.rs",
-  "apps/scenes/src/viewport.rs",
-  "apps/scenes/src/scroll_pane.rs",
-  "apps/native/viewport-app/**",
-  "apps/native/scroll-pane-demo/**",
+  "examples/scenes/src/viewport.rs",
+  "examples/scenes/src/scroll_pane.rs",
+  "examples/native/viewport-app/**",
+  "examples/native/scroll-pane-demo/**",
 ]
 documents = [
   "doc/design/input/scroll-zoom-gesture-contract.md",
@@ -487,7 +488,7 @@ paths = [
   "novadraw-editor/src/selection/**",
   "novadraw-editor/src/viewer/**",
   "novadraw-editor/tests/g3_*",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = ["doc/verification/reviews/g3-selection-targeting-behavior-2026-09-13.md"]
 artifacts = ["target/verification/reports/node-editor-g3.json"]
@@ -507,7 +508,7 @@ paths = [
   "novadraw-editor/src/policy/**",
   "novadraw-editor/src/feedback/**",
   "novadraw-editor/tests/g4_*",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = ["doc/verification/reviews/g4-editing-loop-behavior-2026-09-14.md"]
 artifacts = ["target/verification/reports/node-editor-g4.json"]
@@ -549,7 +550,7 @@ paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
   "novadraw/src/connection/**",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = [
   "doc/design/editor/g5-connection-creation.md",
@@ -574,7 +575,7 @@ paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
   "novadraw/src/connection/**",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = [
   "doc/design/editor/g5-connection-reconnect.md",
@@ -599,7 +600,7 @@ paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
   "novadraw/src/connection/**",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = [
   "doc/design/editor/g5-connection-bendpoint.md",
@@ -629,7 +630,7 @@ paths = [
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
   "novadraw/src/container/**",
   "novadraw/tests/m8_viewport_contract.rs",
-  "apps/native/node-editor-demo/**",
+  "examples/native/node-editor-demo/**",
 ]
 documents = [
   "doc/design/editor/g5-viewport-autoexpose.md",
@@ -648,12 +649,12 @@ layers = ["static", "platform"]
 platforms = ["wasm", "web"]
 commands = ["web.build"]
 paths = [
-  "apps/web/web-validation/**",
-  "apps/scenes/**",
+  "examples/web/web-validation/**",
+  "examples/scenes/**",
   "novadraw-backend-vello/**",
   "novadraw-platform-web/**",
   "scripts/build_web_validation.sh",
 ]
-documents = ["apps/web/web-validation/README.md"]
-artifacts = ["apps/web/web-validation/dist"]
+documents = ["examples/web/web-validation/README.md"]
+artifacts = ["examples/web/web-validation/dist"]
 manual = { command = "web.serve", document = "doc/verification/manual/web-platform.md" }
