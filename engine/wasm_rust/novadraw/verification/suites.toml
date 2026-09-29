@@ -67,6 +67,18 @@ args = [
 description = "Reject platform rendering dependencies from the core facade"
 program = "./scripts/check_facade_dependencies.sh"
 
+[commands."api.third-party-types"]
+description = "Reject Kurbo, Vello, and Winit types from public API signatures"
+program = "./scripts/check_public_api_dependencies.sh"
+
+[commands."dependencies.kurbo"]
+description = "Require one Kurbo version across all workspace feature graphs"
+program = "./scripts/check_kurbo_versions.sh"
+
+[commands."report.binary-size"]
+description = "Build a representative release application and record its binary size"
+program = "./scripts/report_binary_size.sh"
+
 [commands."test.render-image-source"]
 description = "Run the backend-neutral image source rectangle contract"
 program = "cargo"
@@ -274,6 +286,8 @@ commands = [
   "workspace.check",
   "facade.core",
   "facade.dependencies",
+  "api.third-party-types",
+  "dependencies.kurbo",
   "facade.native-vello",
   "facade.web-vello",
 ]
@@ -284,6 +298,8 @@ commands = [
   "workspace.fmt",
   "facade.core",
   "facade.dependencies",
+  "api.third-party-types",
+  "dependencies.kurbo",
   "facade.native-vello",
   "facade.web-vello",
   "workspace.clippy",
@@ -300,6 +316,8 @@ platforms = ["host", "native-macos", "web"]
 commands = [
   "facade.core",
   "facade.dependencies",
+  "api.third-party-types",
+  "dependencies.kurbo",
   "facade.native-vello",
   "facade.web-vello",
 ]
@@ -309,7 +327,27 @@ paths = [
   "novadraw-scene/Cargo.toml",
   "apps/**",
 ]
-documents = ["doc/adr/adr-021-public-facade-and-feature-boundary.md"]
+documents = [
+  "doc/adr/adr-021-public-facade-and-feature-boundary.md",
+  "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md",
+]
+
+[[suites]]
+id = "core.binary-size"
+title = "Native Vello release binary size observation"
+milestone = "Core API"
+kind = "quality"
+layers = ["static"]
+platforms = ["native-macos"]
+commands = ["report.binary-size"]
+paths = [
+  "Cargo.lock",
+  "**/Cargo.toml",
+  "novadraw-render/**",
+  "apps/native/shape-app/**",
+]
+documents = ["doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md"]
+artifacts = ["target/verification/reports/native-vello-binary-size.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"

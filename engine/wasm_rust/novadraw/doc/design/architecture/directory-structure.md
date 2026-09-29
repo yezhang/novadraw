@@ -221,3 +221,11 @@ apps/{native,web,benchmarks}/*
 
 默认 feature 为空；`native-vello` 与 `web-vello` 只从 facade 向 render crate 单向启用
 对应后端。Scene/Runtime 不转发具体后端 feature。
+
+自 ADR-022 起，第三方类型与渲染依赖还受以下边界约束：
+
+- backend-neutral 公共签名不得出现 Kurbo、Vello 或 Winit 类型；
+- Kurbo 按通用 Geometry 私有实现、Render IR 私有算法、Vello lowering 三类归属；
+- 完整 feature 依赖图只允许一个 Kurbo 版本；
+- Vello 保持 feature-gated 内部 backend，第二个真实 renderer 出现前不拆独立 crate；
+- release 二进制体积生成独立趋势报告，不与无后端 facade 门禁混为一项。

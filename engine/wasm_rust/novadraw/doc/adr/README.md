@@ -39,6 +39,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [019](adr-019-composable-api-and-scoped-editors.md) | 可组装 API 与 Scoped Editor | 已接受，已验证 | 2026-09-28 |
 | [020](adr-020-engine-value-and-render-contract.md) | 引擎基础值与公开渲染契约 | 已接受，已验证 | 2026-09-28 |
 | [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 已接受，已验证 | 2026-09-28 |
+| [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 已接受，已验证 | 2026-09-29 |
 
 ## 现行与历史隔离
 

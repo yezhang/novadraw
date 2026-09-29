@@ -77,6 +77,9 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
   `Vector` 和 `AffineTransform` 等无独立语义 alias；
 - `glam` 与 `kurbo` 只留在实现和显式 interop 边界，不出现在默认 RenderCommand API。
 
+第三方类型边界、Kurbo 的三类归属和可执行门禁由
+[ADR-022](adr-022-third-party-type-and-render-dependency-boundary.md) 进一步收紧。
+
 ### 7. 当前不扩大 crate 数量
 
 - `novadraw-scene` 先执行内部模块拆分，不拆成更多共享状态 crate；
@@ -116,6 +119,8 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 - Render IR 已使用 `Point`、`PointList`、`Rectangle` 和 `Dimension`，不再暴露 `glam`；
 - 无语义差异的 Geometry alias 已删除；
 - `novadraw-math` 保留为独立 workspace member，但已退出 2D 引擎依赖图。
+- 2026-09-29 已删除公开 `Affine2D::into_kurbo`，Path 算法与 Vello lowering 按
+  ADR-022 分离。
 
 ## 后续
 
@@ -132,6 +137,8 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 - 延续 [ADR-017](adr-017-core-public-api-boundary.md) 的公开 API 失败契约；
 - 延续 [ADR-018](adr-018-runtime-driving-and-measurement-api.md) 的领域值类型方向；
 - 延续 [ADR-019](adr-019-composable-api-and-scoped-editors.md) 的生命周期 API 分层；
+- 由 [ADR-022](adr-022-third-party-type-and-render-dependency-boundary.md) 收紧第三方
+  类型和渲染依赖门禁；
 - 落实
   [引擎能力与 API 稳定化评估](../verification/reviews/engine-capability-assessment-2026-09-28.md)；
 - 对应 `api_semantics`：`graphics.context`、`geometry.primitives`。

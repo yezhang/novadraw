@@ -37,6 +37,7 @@ apps/benchmarks/   - 无窗口性能基线
 - **保护渲染主循环**：`novadraw-scene/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
 - **禁止提前恢复迭代渲染**：递归渲染在 M1-M10 核心契约完备前，不得把迭代渲染重新接入代码主线；未来仅能作为性能专项 delta 从归档 tag 恢复并重新设计
 - **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于引擎 crate（如 `novadraw-scene`），`apps/*` 只做平台输入适配与示例编排
+- **第三方类型不得穿透公共契约**：backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型；Kurbo 只按 Geometry 私有实现、Render IR 私有算法和 Vello lowering 三类归属
 
 ## 分层验证与提交门禁
 
@@ -98,6 +99,7 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 | Core 公开 API 边界 | [doc/adr/adr-017-core-public-api-boundary.md](doc/adr/adr-017-core-public-api-boundary.md) |
 | Runtime 驱动与结构化测量 API | [doc/adr/adr-018-runtime-driving-and-measurement-api.md](doc/adr/adr-018-runtime-driving-and-measurement-api.md) |
 | 公开 Facade 与 Feature 边界 | [doc/adr/adr-021-public-facade-and-feature-boundary.md](doc/adr/adr-021-public-facade-and-feature-boundary.md) |
+| 第三方类型与渲染依赖边界 | [doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md](doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md) |
 | Core 公开 API 审计 | [doc/verification/reviews/core-public-api-audit-2026-09-22.md](doc/verification/reviews/core-public-api-audit-2026-09-22.md) |
 
 ### Milestone 与路线图

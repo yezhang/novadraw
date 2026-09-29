@@ -133,6 +133,9 @@ backend feature，因为 Scene/Runtime 只依赖 backend-neutral render protocol
   与 macOS presentation 依赖；
 - `novadraw/README.md`、rustdoc、外部 facade 契约测试及依赖图检查已建立；
 - `core.facade`、`web.build`、文档、quick 与 full gate 均通过。
+- 2026-09-29 已由
+  [ADR-022](adr-022-third-party-type-and-render-dependency-boundary.md) 增加 host/wasm
+  公开签名扫描、Kurbo 单版本检查和独立体积报告。
 
 ## 关系
 
@@ -140,6 +143,8 @@ backend feature，因为 Scene/Runtime 只依赖 backend-neutral render protocol
 - 保持 [ADR-018](adr-018-runtime-driving-and-measurement-api.md) 的 Runtime 驱动边界；
 - 保持 [ADR-019](adr-019-composable-api-and-scoped-editors.md) 的生命周期 API 分层；
 - 延续 [ADR-020](adr-020-engine-value-and-render-contract.md) 的唯一基础值词汇；
+- 由 [ADR-022](adr-022-third-party-type-and-render-dependency-boundary.md) 收紧第三方
+  类型与后端依赖边界；
 - 落实
   [引擎能力与 API 稳定化评估](../verification/reviews/engine-capability-assessment-2026-09-28.md)
   的 E3 facade 收口。

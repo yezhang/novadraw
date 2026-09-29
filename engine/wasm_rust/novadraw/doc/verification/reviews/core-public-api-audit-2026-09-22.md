@@ -632,3 +632,21 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 - `cargo xtask docs`、`cargo xtask check --quick` 与 `cargo xtask check --full`。
 
 以上门禁均于 2026-09-28 通过。
+
+## 13. ADR-022 第三方类型与依赖门禁
+
+2026-09-29 完成：
+
+- 删除公开 `Affine2D::into_kurbo`；
+- Kurbo 使用按 Geometry 私有实现、Render IR 私有算法与 Vello lowering 分类；
+- Resvg 升级后，完整 workspace feature graph 只包含 Kurbo 0.13.1；
+- Vello native 构造不再要求具体 `winit::Window`，Web 初始化不再返回
+  `vello::Error`；
+- host/wasm rustdoc 公共签名扫描禁止 `kurbo::`、`vello::`、`winit::`；
+- 保留无后端 facade 依赖门禁，并新增 Kurbo 版本检查与 release 二进制体积报告。
+
+验证入口：
+
+- `cargo xtask verify core.facade`；
+- `cargo xtask verify core.binary-size`；
+- `cargo xtask check --quick` 与最终 `cargo xtask check --full`。

@@ -13,7 +13,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Core 公开 API：ADR-017 的 P0 Batch A/B 已完成；ADR-018 已完成 Runtime
   驱动、坐标查询与结构化测量收口；ADR-019 已完成 detached 构造与挂载后 scoped
   editor 调用面收口；ADR-020 已完成 Graphics、Geometry 与基础值契约整改；
-  ADR-021 已完成聚合 facade 与 backend feature 边界收口。
+  ADR-021 已完成聚合 facade 与 backend feature 边界收口；ADR-022 已完成第三方类型、
+  Kurbo 版本与渲染依赖门禁。
 - Core P2 delta：P2-R02 image source rectangle 已完成，状态见
   [`roadmap/p2-delta-backlog.md`](roadmap/p2-delta-backlog.md)。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
@@ -50,6 +51,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-020-engine-value-and-render-contract.md`](adr/adr-020-engine-value-and-render-contract.md)
 - 公开 Facade 与 Feature 边界：
   [`adr/adr-021-public-facade-and-feature-boundary.md`](adr/adr-021-public-facade-and-feature-boundary.md)
+- 第三方类型与渲染依赖边界：
+  [`adr/adr-022-third-party-type-and-render-dependency-boundary.md`](adr/adr-022-third-party-type-and-render-dependency-boundary.md)
 - Core 公开 API 审计与整改状态：
   [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - ADR-001 至 ADR-013 审计与替代关系：
