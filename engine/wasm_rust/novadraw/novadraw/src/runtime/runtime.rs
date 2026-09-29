@@ -15,7 +15,7 @@ use crate::PropertyValue;
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
-use crate::geometry::{Dimension, Point};
+use crate::geometry::{Dimension, Point, PointList};
 use crate::mutation::{
     ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
     FigureComponentUpdate, PendingMutation, PendingMutationKind, RuntimeMutationError,
@@ -35,14 +35,14 @@ use crate::{
     FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers,
     LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle,
     LayoutConstraint, LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime,
-    MouseButton, ObservationListener, PendingMutations, PropertyChangeListener, Rectangle,
-    ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput,
-    RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
-    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
-    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection, UpdateEvent, UpdateListener,
-    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
-    ZoomManager,
+    MouseButton, ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener,
+    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata,
+    RouteOutput, RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle,
+    SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
+    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
+    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
+    WidgetError, ZoomEvent, ZoomManager,
 };
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
@@ -416,6 +416,31 @@ impl FigureEditor<'_> {
     ) -> Result<bool, ShapeMutationError> {
         self.runtime
             .set_point_list_line_join(self.figure, line_join)
+    }
+
+    pub fn replace_scalable_polygon_template(
+        &mut self,
+        template: PointList,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .replace_scalable_polygon_template(self.figure, template)
+    }
+
+    pub fn set_scalable_polygon_scale_mode(
+        &mut self,
+        mode: PolygonScaleMode,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_scalable_polygon_scale_mode(self.figure, mode)
+    }
+
+    pub fn set_scalable_polygon_alignment(
+        &mut self,
+        horizontal: Alignment,
+        vertical: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_scalable_polygon_alignment(self.figure, horizontal, vertical)
     }
 
     pub fn set_border(
@@ -3123,6 +3148,46 @@ impl Runtime {
                 id,
                 stroke_width,
                 line_join,
+            )
+        })
+    }
+
+    pub(crate) fn replace_scalable_polygon_template(
+        &mut self,
+        id: FigureId,
+        template: PointList,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .replace_scalable_polygon_template(&mut runtime.updates, id, template)
+        })
+    }
+
+    pub(crate) fn set_scalable_polygon_scale_mode(
+        &mut self,
+        id: FigureId,
+        mode: PolygonScaleMode,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .set_scalable_polygon_scale_mode(&mut runtime.updates, id, mode)
+        })
+    }
+
+    pub(crate) fn set_scalable_polygon_alignment(
+        &mut self,
+        id: FigureId,
+        horizontal: Alignment,
+        vertical: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(move |runtime| {
+            runtime.tree.set_scalable_polygon_alignment(
+                &mut runtime.updates,
+                id,
+                horizontal,
+                vertical,
             )
         })
     }

@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `complete` | M9、M10.1 |
 | 2 | P2-C02 | 障碍感知 shortest-path routing | `complete` | P2-C01 |
-| 3 | P2-F01 | ScalablePolygonFigure | `not_started` | P2-C01 的 PointList envelope |
+| 3 | P2-F01 | ScalablePolygonFigure | `complete` | P2-C01 的 PointList envelope |
 | 4 | P2-T01 | TextFlow 第一阶段 | `not_started` | M10.2、D4.4 |
 
 状态只表示本页 delta 的执行进度：
@@ -125,7 +125,7 @@ Connection 或使用全局可变状态的实现方式。
 
 ### P2-F01: ScalablePolygonFigure
 
-状态：`not_started`
+状态：`complete`
 
 `api_semantics`：`builtin.figures`
 
@@ -147,6 +147,15 @@ damage 协议。
 
 - `doc/design/architecture/reusable-shape-border.md`
 - `doc/parity/draw2d/api-coverage.md`
+
+完成证据（2026-09-29）：
+
+- `ScalablePolygonFigure` 将不可变 template 映射到当前 NodeState bounds；
+- Stretch 与 PreserveAspect 支持双轴 alignment 和单轴/双轴退化模板；
+- stroke/miter outset、fill/outline 与 precise hit 共用同一派生点集；
+- FigureEditor 支持 template、scale mode 与 alignment 的 typed mutation；
+- `shape-app` 增加 P2 scalable polygon 场景；
+- `cargo xtask verify core.p2-f01-scalable-polygon` 通过。
 
 ## Text
 

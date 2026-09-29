@@ -10,8 +10,8 @@ pub use crate::{
     Affine2D, BorderLayout, ButtonFigure, Color, Dimension, EllipseFigure, EndpointLocator, Figure,
     FigureId, FigureStyle, FigureTree, FigureTreeBuilder, FillLayout, FlowLayout, FreeformLayout,
     GridLayout, ImageFigure, Insets, LabelFigure, LayoutManager, NdCanvas, PlatformHost, Point,
-    PointList, PolygonDecorationFigure, PolygonFigure, PolylineDecorationFigure, PolylineFigure,
-    Rectangle, RectangleFigure, RenderBackend, RoundedRectangleFigure, Runtime,
-    ShortestPathConnectionRouter, StackLayout, ToggleFigure, ToolbarLayout, TriangleFigure, Vec2,
-    XYLayout,
+    PointList, PolygonDecorationFigure, PolygonFigure, PolygonScaleMode, PolylineDecorationFigure,
+    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RoundedRectangleFigure, Runtime,
+    ScalablePolygonFigure, ShortestPathConnectionRouter, StackLayout, ToggleFigure, ToolbarLayout,
+    TriangleFigure, Vec2, XYLayout,
 };

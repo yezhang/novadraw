@@ -3002,6 +3002,112 @@ impl FigureTree {
         Ok(true)
     }
 
+    pub(crate) fn replace_scalable_polygon_template(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        template: PointList,
+    ) -> Result<bool, ShapeMutationError> {
+        if template
+            .iter()
+            .any(|point| !point.x().is_finite() || !point.y().is_finite())
+        {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(scalable) = block.figure.scalable_polygon() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        if scalable.template() == &template {
+            return Ok(false);
+        }
+        let old_template = scalable.template().as_slice().to_vec();
+        self.blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.scalable_polygon_mut())
+            .expect("validated scalable polygon capability")
+            .replace_template(template.clone());
+        self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "polygon_template",
+            old_value: PropertyValue::PointList(old_template),
+            new_value: PropertyValue::PointList(template.as_slice().to_vec()),
+        });
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_scalable_polygon_scale_mode(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        mode: crate::PolygonScaleMode,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(scalable) = block.figure.scalable_polygon() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old = scalable.scale_mode();
+        if old == mode {
+            return Ok(false);
+        }
+        self.blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.scalable_polygon_mut())
+            .expect("validated scalable polygon capability")
+            .replace_scale_mode(mode);
+        self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "polygon_scale_mode",
+            old_value: PropertyValue::Text(format!("{old:?}")),
+            new_value: PropertyValue::Text(format!("{mode:?}")),
+        });
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_scalable_polygon_alignment(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        horizontal: crate::Alignment,
+        vertical: crate::Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(scalable) = block.figure.scalable_polygon() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old = scalable.alignment();
+        if old == (horizontal, vertical) {
+            return Ok(false);
+        }
+        self.blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.scalable_polygon_mut())
+            .expect("validated scalable polygon capability")
+            .replace_alignment(horizontal, vertical);
+        self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "polygon_alignment",
+            old_value: PropertyValue::Text(format!("{old:?}")),
+            new_value: PropertyValue::Text(format!("{:?}", (horizontal, vertical))),
+        });
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
     pub(crate) fn replace_border(
         &mut self,
         update_manager: &mut UpdateManager,

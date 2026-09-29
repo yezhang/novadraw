@@ -184,6 +184,11 @@ args = [
   "p2_c02_shortest_path_contract",
 ]
 
+[commands."test.p2-f01"]
+description = "Run ScalablePolygonFigure contracts"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "p2_f01_scalable_polygon_contract"]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -452,6 +457,24 @@ paths = [
 ]
 documents = [
   "doc/design/architecture/connection-routing.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-f01-scalable-polygon"
+title = "Bounds-driven scalable polygon contracts"
+milestone = "P2-F01"
+kind = "contract"
+layers = ["contract", "visual"]
+platforms = ["host", "native-macos", "web"]
+commands = ["test.p2-f01"]
+paths = [
+  "novadraw/src/figure/scalable_polygon.rs",
+  "novadraw/tests/p2_f01_scalable_polygon_contract.rs",
+  "examples/scenes/src/shape.rs",
+]
+documents = [
+  "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
 ]
 

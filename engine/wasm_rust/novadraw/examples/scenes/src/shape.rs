@@ -1357,6 +1357,58 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
     runtime
 }
 
+fn create_p2_scalable_polygon() -> novadraw::FigureTree {
+    let mut scene = novadraw::FigureTree::new();
+    let root = scene
+        .builder()
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        )));
+    let template = novadraw::PointList::from_points(vec![
+        novadraw::Point::new(0.0, 12.0),
+        novadraw::Point::new(18.0, 0.0),
+        novadraw::Point::new(36.0, 12.0),
+        novadraw::Point::new(27.0, 32.0),
+        novadraw::Point::new(9.0, 32.0),
+    ]);
+    let stretch = novadraw::ScalablePolygonFigure::new(
+        novadraw::Rectangle::new(80.0, 90.0, 260.0, 140.0),
+        template.clone(),
+    )
+    .expect("valid scalable polygon")
+    .with_fill_color(novadraw::Color::from_hex("#0ea5e9").expect("valid color literal"))
+    .with_stroke(
+        novadraw::Color::from_hex("#0c4a6e").expect("valid color literal"),
+        4.0,
+        novadraw::render::LineJoin::Miter,
+    );
+    let preserved = novadraw::ScalablePolygonFigure::new(
+        novadraw::Rectangle::new(430.0, 90.0, 260.0, 140.0),
+        template,
+    )
+    .expect("valid scalable polygon")
+    .with_scale_mode(novadraw::PolygonScaleMode::PreserveAspect)
+    .with_fill_color(novadraw::Color::from_hex("#22c55e").expect("valid color literal"))
+    .with_stroke(
+        novadraw::Color::from_hex("#14532d").expect("valid color literal"),
+        4.0,
+        novadraw::render::LineJoin::Round,
+    );
+    scene
+        .builder()
+        .add_child(root, Box::new(stretch))
+        .expect("valid FigureTree construction");
+    scene
+        .builder()
+        .add_child(root, Box::new(preserved))
+        .expect("valid FigureTree construction");
+    scene
+}
+
 pub fn suite() -> DemoSuite {
     let size = (WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32);
     DemoSuite::new(
@@ -1425,6 +1477,13 @@ pub fn suite() -> DemoSuite {
                 size,
                 ValidationKind::Visual,
                 create_m10_runtime_mutations,
+            ),
+            SceneSpec::new(
+                "p2-scalable-polygon",
+                "9:P2 Scalable Polygon",
+                size,
+                ValidationKind::Visual,
+                create_p2_scalable_polygon,
             ),
         ],
     )

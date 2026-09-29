@@ -21,6 +21,7 @@ mod polyline;
 mod rectangle;
 mod root;
 mod rounded_rectangle;
+mod scalable_polygon;
 mod triangle;
 pub(crate) mod widget;
 
@@ -37,6 +38,9 @@ pub(crate) use polyline::normalize_points;
 pub use rectangle::RectangleFigure;
 pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
+pub use scalable_polygon::{
+    PolygonScaleMode, ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure,
+};
 pub use triangle::{Direction, TriangleFigure};
 pub use widget::{
     ButtonFigure, ClickableBehavior, ClickableFigure, ClickableKind, ClickableModel,
@@ -638,6 +642,16 @@ pub trait Figure: AsAny {
 
     /// Returns mutable point-list geometry behavior.
     fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
+        None
+    }
+
+    /// Returns optional bounds-driven polygon template behavior.
+    fn scalable_polygon(&self) -> Option<&dyn ScalablePolygonBehavior> {
+        None
+    }
+
+    /// Returns mutable bounds-driven polygon template behavior.
+    fn scalable_polygon_mut(&mut self) -> Option<&mut dyn ScalablePolygonBehavior> {
         None
     }
 

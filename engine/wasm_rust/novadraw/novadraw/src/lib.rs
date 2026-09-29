@@ -83,8 +83,9 @@ pub use figure::{
     EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
     FigureLifecycleContext, FigureMeasurement, Freeform, HitParticipation, ImageDisplayState,
     ImageFigure, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
-    PointListFigureBehavior, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
-    RoundedRectangleFigure, Shape, ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure,
+    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
+    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
+    ScalablePolygonFigure, Shape, ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure,
     WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};

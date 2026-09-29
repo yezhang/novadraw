@@ -171,7 +171,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 |---|---|---|---|
 | P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `complete` | PointList miter bounds、rotatable polygon/polyline decoration 与 endpoint locator 已验证 |
 | P2-C02 | `connection.router` | `complete` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
-| P2-F01 | `builtin.figures` | `not_started` | ScalablePolygonFigure template-to-bounds 几何 verified |
+| P2-F01 | `builtin.figures` | `complete` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `not_started` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 
 ## 方法级 API 跟踪矩阵
@@ -353,7 +353,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | point-list shape mutators | `FigureEditor::{replace_points,insert_point,set_point,remove_point,clear_points}`；parent-domain 输入原子规范化为 local points + NodeState bounds | verified | 非有限输入与非法 index 无 partial commit |
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
 | `builtin.figures` | PointList stroke envelope | Polyline、Polygon 与 Connection 共享 line join/stroke width visual outset；Runtime stroke style mutation 原子重建 bounds | verified | P2-C01；锐角 miter 与 Round/Bevel 定向测试 |
-| `builtin.figures` | `ScalablePolygonShape.setTemplate`, bounds-driven scaled points | 目标为 `ScalablePolygonFigure` 保存 template，按 bounds/stretch-or-preserve-aspect 派生 Polygon geometry | partial | P2-F01 补齐退化模板、resize、stroke/miter、precise hit、damage 与示例 |
+| `builtin.figures` | `ScalablePolygonShape.setTemplate`, bounds-driven scaled points | `ScalablePolygonFigure` 保存 template，按当前 NodeState bounds 以 Stretch/PreserveAspect 和双轴 alignment 派生同源 paint/hit geometry | verified | `core.p2-f01-scalable-polygon` 覆盖退化模板、resize、stroke/miter、precise hit、typed mutation 与示例 |
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`FigureEditor::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |
 | `border.protocol` | `LabeledBorder`, `TitleBarBorder` | TitleBarBorder 消费统一 `TextLayout` 与 resolved style；owner-scoped `BorderSnapshot` 按 Compound 结构递归组合并隔离共享实例 | verified | inner/outer/nested Compound 与 shared Compound 双 owner 字体指标契约测试 |
