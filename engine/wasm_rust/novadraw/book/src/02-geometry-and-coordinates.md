@@ -1,4 +1,10 @@
-# 2. 几何、边界矩形与坐标协议
+# 2. 几何与坐标：让绘制和交互对齐
+
+> **本章解决的问题**：图形看起来在一个位置，为什么命中、连接或拖拽有时会出现在
+> 另一个位置，以及应用应从哪里完成坐标转换。
+
+应用只需要记住一条原则：**保存业务坐标，查询引擎变换，不复制父链公式。**
+`bounds`、滚动和缩放都属于同一坐标协议。
 
 ## 2.1 四种不同的矩形
 
@@ -256,7 +262,43 @@ bottom = max(all y)
 该原则用于投影边界和重绘区域。实现辅助函数见
 [`transform_rectangle`](../../novadraw-scene/src/graph/mod.rs#L40-L69)。
 
-## 2.11 失败模式
+## 2.11 应用中的坐标用法
+
+平台事件进入 Runtime 前只做物理像素到逻辑表面单位的转换。需要把表面点转换到某个
+Figure 的本地域时，查询完整变换：
+
+```rust
+use novadraw::Point;
+
+let transform = runtime
+    .tree()
+    .surface_to_local_transform(figure_id)
+    .ok_or("Figure 不存在或变换不可逆")?;
+let local = transform.transform_point(Point::new(surface_x, surface_y));
+```
+
+需要把节点本地点投影到表面时使用 `local_to_surface_transform`。不要在应用中手写
+`(surface / scale) + origin`，因为真实父链还可能包含内边距、嵌套容器、旋转和
+自由范围变换。
+
+运行期移动或调整尺寸时，通过 scoped editor：
+
+```rust
+runtime
+    .figure(figure_id)?
+    .set_bounds(Rectangle::new(x, y, width, height))?;
+```
+
+这不只是字段赋值。Runtime 会同时维护新旧重绘区域、布局失效、坐标通知和连接依赖。
+
+应用侧建议：
+
+- 模型保存业务坐标，不保存逻辑表面投影结果；
+- 指针位置在进入 Runtime 或 Viewer 后始终使用逻辑表面单位；
+- 需要跨节点比较几何时，先转换到同一个明确坐标域；
+- 变换查询失败时停止当前操作，不使用 `(0, 0)` 或恒等变换兜底。
+
+## 2.12 失败模式
 
 | 错误 | 典型症状 |
 |---|---|
@@ -268,7 +310,7 @@ bottom = max(all y)
 | 修改父节点时改写后代边界矩形 | 状态重复传播，布局事实失真 |
 | 逆变换失败后继续 | 不可预测命中或非有限坐标扩散 |
 
-## 2.12 验证入口
+## 2.13 验证入口
 
 - [`m4_coordinate_contract.rs`](../../novadraw-scene/tests/m4_coordinate_contract.rs)
 - [`m8_viewport_contract.rs`](../../novadraw-scene/tests/m8_viewport_contract.rs)

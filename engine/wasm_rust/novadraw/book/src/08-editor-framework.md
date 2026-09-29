@@ -1,4 +1,11 @@
-# 8. 编辑框架：从模型到可撤销编辑
+# 8. 编辑框架：从业务模型到可撤销编辑
+
+> **本章解决的问题**：如何把应用自己的模型投影成节点和连接，并把选择、拖拽、
+> 创建、删除和连线转换成可撤销的业务命令。
+
+Editor 的核心纪律是：**模型保存业务事实，Figure 只是投影，Command 只改模型，
+Viewer 负责刷新。** 一旦让命令和 Figure 同时写同一项事实，撤销、重建和多视图都会
+失去一致性。
 
 ## 8.1 图形核心与编辑框架的边界
 
@@ -359,7 +366,60 @@ viewer.refresh()?;
 拖拽到视口内边缘时只改变视口原点，然后用固定的表面指针位置重新运行活动工具。
 它不执行模型命令。
 
-## 8.14 失败模式
+## 8.14 实现一个编辑器的顺序
+
+不要从拖拽工具开始。先按以下顺序建立闭环：
+
+1. **定义业务模型身份与修订**
+   使用可持久化 `ModelId`，每次已提交变化产生连续 `ModelRevision`。
+2. **实现 `ModelAdapter`**
+   先支持根、子节点、连接快照和有序事件排空。
+3. **实现 `EditPartFactory` 与最小 `EditPartBehavior`**
+   只创建静态主图形，证明模型可以确定性投影。
+4. **创建 `GraphicalViewer`**
+   检查模型注册表、图形注册表、连接层和刷新错误。
+5. **加入选择与一个编辑请求**
+   从 `ChangeBounds` 或 `Delete` 开始，完成
+   `Tool -> Request -> EditPolicy -> Command -> Model -> refresh`。
+6. **接入 `EditorDomain` 与 CommandStack**
+   验证执行、撤销、重做、取消和保存位置。
+7. **最后加入连接、折点和边缘自动滚动**
+   这些能力依赖前面的身份、坐标、反馈和命令边界。
+
+最小组合形态：
+
+```rust
+use novadraw::editor::{EditorDomain, GraphicalViewer};
+use novadraw::Rectangle;
+
+let viewer = GraphicalViewer::new(
+    model_adapter,
+    edit_part_factory,
+    Rectangle::new(0.0, 0.0, width, height),
+)?;
+let domain = EditorDomain::new();
+```
+
+`GraphicalViewer` 拥有 Figure Runtime，平台输入应先交给 Viewer/Core 仲裁，再由
+`EditorDomain` 推进活动工具。窗口尺寸、滚动或缩放变化后，需要让活动工具在同一
+逻辑表面指针位置重新投影。
+
+产品代码建议把职责分开：
+
+| 模块 | 保存内容 |
+|---|---|
+| `model` | 可持久化节点、连接和业务属性 |
+| `adapter` | 模型快照、修订与事件 |
+| `parts` | Figure 创建、视觉刷新和锚点描述 |
+| `policies` | 请求解释、反馈与命令生成 |
+| `commands` | 只依赖模型 ID 的可撤销修改 |
+| `app` | Viewer、EditorDomain、平台宿主和后端组合 |
+
+可运行参考：
+[`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。该示例包含完整能力，
+实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
+
+## 8.15 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -372,7 +432,7 @@ viewer.refresh()?;
 | 图形已处理后编辑工具仍执行 | 控件点击同时触发编辑 |
 | 刷新时忽略版本缺口 | 丢失事件后仍宣称投影稳定 |
 
-## 8.15 验证入口
+## 8.16 验证入口
 
 - [`g1_model_contract.rs`](../../novadraw-editor/tests/g1_model_contract.rs)
 - [`g1_command_stack_contract.rs`](../../novadraw-editor/tests/g1_command_stack_contract.rs)

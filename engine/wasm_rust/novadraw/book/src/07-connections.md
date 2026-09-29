@@ -1,4 +1,10 @@
-# 7. 连接、锚点与路由器
+# 7. 连接与路由：让边跟随节点变化
+
+> **本章解决的问题**：应用如何表达“两个对象之间有一条边”，并让路径在节点移动、
+> 缩放、换父节点或折点变化后自动更新。
+
+先决定事实属于哪一层：只做图形场景时，应用向 Core 注册连接；做可编辑节点图时，
+业务模型保存连接关系，由 Editor 创建和更新连接投影。
 
 ## 7.1 连接为什么不是普通折线
 
@@ -291,7 +297,49 @@ flowchart LR
 正交自环必须由真实路径点表达，而不是仅在绘制时画出视觉假象。这样折点操作手柄、
 命中测试、重绘、保存和撤销/重做都读取同一几何事实。
 
-## 7.14 失败模式
+## 7.14 应用中的连接设计
+
+### 只使用 Core
+
+应用负责保存端点图形的 `FigureId`，并通过 `novadraw::connection` 中的锚点、路由器
+和 Runtime 注册入口建立连接。之后只修改节点几何，不需要在每次移动后手工重算路径；
+Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
+
+适合：
+
+- 连接只是当前场景状态；
+- 不需要撤销重做连接创建；
+- 应用可以接受场景重建后获得新的 `FigureId`。
+
+### 使用 Editor
+
+业务模型保存连接 ID、起点 `ModelId`、终点 `ModelId` 和必要的折点数据。
+`ModelAdapter::connections` 暴露这些关系，`EditPartFactory` 提供锚点描述符和路由器
+选择，`GraphicalViewer` 投影出连接图形。
+
+适合：
+
+- 连接需要持久化；
+- 用户可以创建、删除、重连或编辑折点；
+- 操作必须进入 `CommandStack`。
+
+无论选择哪条路径，都不要把 `ConnectionId`、`AnchorId` 或 `FigureId` 写入持久化
+模型。它们只在当前 Runtime 或 Viewer 命名空间内有效。
+
+选择路由器时：
+
+| 需求 | 路由器 |
+|---|---|
+| 最短直线连接 | Direct |
+| 用户指定折点 | Bendpoint |
+| 水平/垂直连线与共享通道 | Manhattan |
+| 相同端点间多条边需要分离 | Fan |
+
+完整 Core 示例见
+[`apps/scenes/src/connection.rs`](../../apps/scenes/src/connection.rs)，Editor 连接实现见
+[`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。
+
+## 7.15 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -303,7 +351,7 @@ flowchart LR
 | 未解析状态保留旧路径 | 用户看到已经失效的连接 |
 | 自环只在绘制阶段模拟 | 操作手柄与模型中不存在真实折点 |
 
-## 7.15 验证入口
+## 7.16 验证入口
 
 - [`m9_connection_contract.rs`](../../novadraw-scene/tests/m9_connection_contract.rs)
 - [`m9_connection_runtime.rs`](../../novadraw-scene/tests/m9_connection_runtime.rs)

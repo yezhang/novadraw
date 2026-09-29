@@ -1,4 +1,10 @@
-# 3. 图形树、生命周期与绘制遍历
+# 3. 图形树与绘制：组织和呈现场景
+
+> **本章解决的问题**：应用如何把图形组成场景，为什么挂载前和挂载后必须使用不同
+> 的修改入口，以及树结构如何决定绘制、命中和裁剪。
+
+最实用的结论是：**Figure 描述差异行为，FigureTree 保存共同结构，Runtime 负责
+挂载后的修改。** 应用通常只保留 `FigureId`，不保留已挂载 Figure 的可变引用。
 
 ## 3.1 图形行为、节点状态与树的分离
 
@@ -300,7 +306,50 @@ flowchart LR
 
 这是一项已验证的工程取舍。书稿不能把归档 POC 写成当前架构。
 
-## 3.12 失败模式
+## 3.12 从构造场景到运行期更新
+
+构造期使用 Builder：
+
+```rust
+use novadraw::prelude::*;
+
+let mut tree = FigureTree::new();
+let root = tree
+    .builder()
+    .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+let child = tree
+    .builder()
+    .add_child(
+        root,
+        Box::new(EllipseFigure::new(40.0, 40.0, 120.0, 80.0)),
+    )?;
+let mut runtime = Runtime::new(tree);
+```
+
+运行期使用 scoped editor：
+
+```rust
+runtime.figure(child)?.translate(20.0, 0.0)?;
+
+let added = runtime.container(root)?.add(Box::new(
+    RectangleFigure::new(240.0, 40.0, 100.0, 80.0),
+))?;
+
+runtime.container(root)?.bring_child_to_front(added)?;
+```
+
+应用不应在 `Runtime::new(tree)` 后继续通过 Builder 修改同一场景。Builder 没有
+交互、damage、通知和资源事务；scoped editor 才是已挂载场景的写入口。
+
+自定义 Figure 的最小职责通常只有三项：
+
+1. 声明初始边界或内在尺寸；
+2. 在节点本地域向 `NdCanvas` 绘制；
+3. 在需要时实现精确命中或其他窄能力。
+
+父子关系、可见性、公共样式和布局状态仍由节点与 Runtime 管理。
+
+## 3.13 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -311,7 +360,7 @@ flowchart LR
 | 删除只改拓扑 | 指针捕获、监听器、锚点等引用悬空 |
 | 后端对象进入 `Figure` | 无窗口测试和后端替换失效 |
 
-## 3.13 验证入口
+## 3.14 验证入口
 
 - [`m2_product_existence.rs`](../../novadraw-scene/tests/m2_product_existence.rs)
 - [`d1_tree_search_contract.rs`](../../novadraw-scene/tests/d1_tree_search_contract.rs)

@@ -1,4 +1,10 @@
-# 5. 命中测试与输入状态机
+# 5. 输入与交互：从平台事件到图形行为
+
+> **本章解决的问题**：窗口系统产生的鼠标、触控板和键盘事件，如何稳定地找到同一
+> 个图形目标，并在拖拽、滚动和焦点切换期间保持连续状态。
+
+应用侧的边界很窄：**平台层归一化，Runtime 负责命中与状态，Figure 只返回效果，
+Editor 只接管未被图形核心消费的输入。**
 
 ## 5.1 平台只负责归一化
 
@@ -249,7 +255,37 @@ pub struct DispatchOutcome {
 尤其在快速移出窗口时，不能依赖后续释放事件一定到达。编辑框架的
 `EditorDomain::pointer_exited` 是这个边界的一部分。
 
-## 5.13 失败模式
+## 5.13 应用如何接入输入
+
+平台适配器应把所有指针位置转换为逻辑表面单位，然后调用 Runtime 对应入口：
+
+```rust
+use novadraw::event::{Key, KeyModifiers, MouseButton, WheelEvent};
+
+runtime.dispatch_mouse_moved(x, y);
+runtime.dispatch_mouse_pressed(x, y, MouseButton::Left);
+runtime.dispatch_mouse_released(x, y, MouseButton::Left);
+runtime.dispatch_scroll(WheelEvent::new(x, y, dx, dy));
+runtime.dispatch_key_pressed(Key::Character('a'), KeyModifiers::default());
+```
+
+窗口失去指针时必须调用：
+
+```rust
+runtime.pointer_exited();
+```
+
+开发自定义交互时按以下顺序判断：
+
+1. 这是 Figure 自身行为，例如按钮点击或控件焦点吗？实现 Figure 事件能力；
+2. 这是对业务模型的编辑意图吗？交给 Editor 的 Tool 和 EditPolicy；
+3. 这是平台差异吗？只留在输入适配器；
+4. 这是跨事件状态吗？由 Runtime 或 EditorDomain 保存，不放在单次事件对象中。
+
+不要在应用层再次调用命中测试后直接调用 Figure。这样会绕过捕获、悬停、焦点、
+本地坐标转换和 Editor 仲裁。
+
+## 5.14 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -261,7 +297,7 @@ pub struct DispatchOutcome {
 | 图形回调直接改树 | 遍历中拓扑变化和借用冲突 |
 | 指针离开时不取消编辑手势 | 反馈图形和边缘自动滚动残留 |
 
-## 5.14 验证入口
+## 5.15 验证入口
 
 - [`m6_event_contract.rs`](../../novadraw-scene/tests/m6_event_contract.rs)
 - [`p2_dispatch_outcome_contract.rs`](../../novadraw-scene/tests/p2_dispatch_outcome_contract.rs)

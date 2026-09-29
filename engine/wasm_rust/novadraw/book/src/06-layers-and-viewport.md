@@ -1,4 +1,10 @@
-# 6. 图层、视口、滚动与缩放
+# 6. 图层与视口：构建可滚动、可缩放画布
+
+> **本章解决的问题**：应用如何组织内容层、连接层和反馈层，并让大画布在滚动与
+> 缩放后仍保持正确的绘制、命中和交互。
+
+对普通应用，优先使用 `ScrollPaneFigure` 和 Builder 的组合入口；只有实现专用容器
+或编辑框架时，才需要直接协调 `RangeModel`、自由范围和多层反馈。
 
 ## 6.1 图层是有语义的透明图形对象
 
@@ -247,7 +253,55 @@ sequenceDiagram
 - 最终仍共享视口裁剪；
 - 绘制、命中测试和重绘区域使用同一溢出语义。
 
-## 6.11 失败模式
+## 6.11 构建滚动缩放画布
+
+构建期可以让 Builder 一次建立滚动面板的内部结构：
+
+```rust
+use novadraw::container::ZoomManager;
+use novadraw::prelude::*;
+
+let pane = tree.builder().add_scroll_pane_to(
+    root,
+    Rectangle::new(80.0, 60.0, 640.0, 460.0),
+)?;
+let scalable = tree.builder().add_scalable_layered_pane_to(
+    pane.viewport().figure_id(),
+    Rectangle::new(0.0, 0.0, 1600.0, 1200.0),
+)?;
+
+tree.builder().add_child(
+    scalable.figure_id(),
+    Box::new(RectangleFigure::new(120.0, 90.0, 180.0, 100.0)),
+)?;
+tree.builder().validate_subtree(pane.pane_id())?;
+
+let zoom = ZoomManager::new(scalable, pane.viewport().clone());
+let mut runtime = Runtime::new(tree);
+```
+
+运行期通过 Runtime editor 改变状态：
+
+```rust
+runtime
+    .viewport(pane.viewport().figure_id())?
+    .scroll_by(24.0, 16.0)?;
+runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
+```
+
+选择容器时：
+
+- 内容尺寸固定但大于窗口：使用普通 `ScrollPaneFigure`；
+- 内容由自由分布的子节点决定：使用 Freeform 内容；
+- 内容需要整体缩放：在 Viewport 内放置 Scalable 容器；
+- 需要语义图层：在 Scalable 内容中放置 LayeredPane；
+- 需要 Editor：优先使用 `GraphicalViewer` 已建立的标准根图层，不要自行复制拓扑。
+
+完整构建示例见
+[`apps/scenes/src/scroll_pane.rs`](../../apps/scenes/src/scroll_pane.rs) 和
+[`apps/scenes/src/freeform.rs`](../../apps/scenes/src/freeform.rs)。
+
+## 6.12 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -259,7 +313,7 @@ sequenceDiagram
 | 视口变化不刷新活动工具 | 指针不动时请求仍是旧坐标 |
 | 指针离开后不停止调度 | 离开窗口后持续滚动 |
 
-## 6.12 验证入口
+## 6.13 验证入口
 
 - [`d2_layer_contract.rs`](../../novadraw-scene/tests/d2_layer_contract.rs)
 - [`d2_freeform_contract.rs`](../../novadraw-scene/tests/d2_freeform_contract.rs)

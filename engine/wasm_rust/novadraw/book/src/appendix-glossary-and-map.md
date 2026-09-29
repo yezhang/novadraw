@@ -1,4 +1,4 @@
-# 附录：术语与代码地图
+# 附录：术语、公开 API 与代码地图
 
 ## A. 术语
 
@@ -66,10 +66,35 @@
 | 故障锁定状态 | faulted | 因无法证明状态一致而拒绝继续提交的安全状态 |
 | 全量快照/增量 | snapshot/delta | 分别表示一份完整状态和相对既有基线的变化 |
 
-## B. Rust 包地图
+## B. 公开 API 地图
+
+普通应用从 `novadraw` facade 开始：
+
+| 入口 | 用途 |
+|---|---|
+| crate root | `Runtime`、`FigureTree`、常用 Figure、布局和基础值 |
+| `novadraw::prelude` | 常规 Figure/Runtime 应用的一组便利导入 |
+| `novadraw::geometry` | 点、向量、矩形、尺寸、内边距和仿射变换 |
+| `novadraw::graphics` | `NdCanvas`、路径、线型和颜色 |
+| `novadraw::figure` | Figure 扩展能力、内置 Figure、边框和样式 |
+| `novadraw::layout` | 布局器、约束、测量快照和输出 |
+| `novadraw::container` | 图层、自由范围、视口、滚动和缩放 |
+| `novadraw::connection` | 连接、锚点、路由器和定位器 |
+| `novadraw::event` | 输入、监听器、焦点、提示和无障碍 |
+| `novadraw::runtime` | scoped editor、资源、稳定查询和帧准备 |
+| `novadraw::editor` | 模型投影、选择、工具、策略和命令历史 |
+| `novadraw::render` | 后端无关的提交、资源和文本协议 |
+| `novadraw::backend` | feature 控制的具体后端 |
+| `novadraw::advanced` | 诊断与深度集成所需低层状态 |
+
+默认 feature 为空。桌面和网页 Vello 后端分别使用 `native-vello` 与 `web-vello`。
+应用不应为了取得一个方便类型而直接依赖 `advanced`。
+
+## C. Rust 包地图
 
 | Rust 包（crate） | 主要职责 | 关键入口 |
 |---|---|---|
+| `novadraw` | 普通应用使用的聚合 facade | [`src/lib.rs`](../../novadraw/src/lib.rs) |
 | `novadraw-core` | 基础颜色等值类型 | [`src/lib.rs`](../../novadraw-core/src/lib.rs) |
 | `novadraw-math` | 通用数学类型 | [`src/lib.rs`](../../novadraw-math/src/lib.rs) |
 | `novadraw-geometry` | 二维点、矩形、变换与点列表 | [`src/lib.rs`](../../novadraw-geometry/src/lib.rs) |
@@ -77,7 +102,7 @@
 | `novadraw-scene` | 图形对象、树、布局、更新、输入、容器与连接 | [`src/lib.rs`](../../novadraw-scene/src/lib.rs) |
 | `novadraw-editor` | 模型投影、选择、工具、策略、命令历史 | [`src/lib.rs`](../../novadraw-editor/src/lib.rs) |
 
-## C. 图形核心代码地图
+## D. 图形核心代码地图
 
 ### 几何
 
@@ -178,7 +203,7 @@
 - Vello 后端：
   [`novadraw-render/src/backend/vello/mod.rs`](../../novadraw-render/src/backend/vello/mod.rs)
 
-## D. 编辑框架代码地图
+## E. 编辑框架代码地图
 
 - 模型适配器（ModelAdapter）：
   [`novadraw-editor/src/model/mod.rs`](../../novadraw-editor/src/model/mod.rs)
@@ -203,9 +228,14 @@
 - 编辑域（EditorDomain）：
   [`novadraw-editor/src/domain.rs`](../../novadraw-editor/src/domain.rs)
 
-## E. 设计唯一事实来源地图
+## F. 设计唯一事实来源地图
 
 - [文档总入口](../../doc/00-index.md)
+- [Core 公开 API 边界（ADR-017）](../../doc/adr/adr-017-core-public-api-boundary.md)
+- [Runtime 驱动与测量 API（ADR-018）](../../doc/adr/adr-018-runtime-driving-and-measurement-api.md)
+- [可组装 API 与 scoped editor（ADR-019）](../../doc/adr/adr-019-composable-api-and-scoped-editors.md)
+- [引擎基础值与渲染契约（ADR-020）](../../doc/adr/adr-020-engine-value-and-render-contract.md)
+- [公开 facade 与 feature 边界（ADR-021）](../../doc/adr/adr-021-public-facade-and-feature-boundary.md)
 - [总体架构](../../doc/design/architecture/overview.md)
 - [静态结构](../../doc/design/architecture/static-architecture.md)
 - [动态协议](../../doc/design/architecture/dynamic-architecture.md)
@@ -221,7 +251,7 @@
 - [编辑框架路线图](../../doc/roadmap/editor/00-index.md)
 - [验证清单](../../verification/suites.toml)
 
-## F. 推荐检索
+## G. 推荐检索
 
 ```bash
 # 查类型或函数

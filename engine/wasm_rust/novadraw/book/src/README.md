@@ -1,145 +1,155 @@
-# Novadraw 图形引擎核心原理
+# Novadraw 原理与图形应用开发
 
-本书解释 Novadraw 为什么这样设计、各模块如何共同维持图形系统的不变量，以及这些
-不变量在 Rust 代码中如何落地。它不是 API 手册，也不重复路线图；重点是从一次模型
-变化或输入事件出发，沿因果链理解场景、更新、渲染和编辑。
+本书回答两个问题：
 
-本文所说的**不变量**，是指系统在任何合法操作前后都必须成立的约束，例如“绘制与
-命中使用同一套坐标变换”。**因果链**是指一次输入或模型变化按先后顺序触发的处理
-过程。理解这两点，是阅读后续章节的基础。
+1. Novadraw 如何让布局、绘制、命中、输入和局部重绘始终使用同一份场景事实？
+2. 应用开发者如何把业务数据变成可显示、可交互、可撤销编辑的图形应用？
 
-内容基于仓库在 **2026-09-16** 的实现与规范：
+全书围绕一条应用开发主线展开：
 
-- Draw2D 图形核心（Core）M1-M10 已完成；
-- 编辑框架（Editor）G0-G5.5 自动门禁已完成；
-- 编辑框架检查点 C 待人工验收，G6 尚未开始；
-- 外部语义只对标 `org.eclipse.draw2d` 与 `org.eclipse.gef`，不使用
-  `org.eclipse.zest` 定义需求或架构。
+```text
+业务数据或应用状态
+-> 构造 Figure 与 FigureTree
+-> 交给 Runtime 管理
+-> 接入平台输入
+-> 收敛布局和派生状态
+-> 生成并提交一帧
+-> 运行期通过 scoped editor 更新
+```
 
-状态仍以
-[`doc/roadmap/00-index.md`](../../doc/roadmap/00-index.md) 和
-[`doc/roadmap/editor/00-index.md`](../../doc/roadmap/editor/00-index.md)
-为唯一来源。本书中的“已实现”结论必须能够回指代码与验证，不取代设计的唯一事实
-来源（Single Source of Truth，简称 SSOT）。
+需要节点选择、拖拽、连线和撤销重做时，再在这条主线之上加入 Editor：
 
-## 术语与用词约定
+```text
+业务模型
+-> ModelAdapter
+-> EditPart / GraphicalViewer
+-> Figure Runtime
+-> Tool -> Request -> EditPolicy -> Command
+-> 修改模型
+-> 刷新图形投影
+```
 
-为兼顾初次阅读和代码检索，本书采用以下写法：
+## 适合谁
 
-- 关键概念首次出现时写成“中文名称（英文原名或代码名）”，并立即说明其含义；
-- 后文优先使用中文名称；只有在对应具体代码类型、字段或 Draw2D/GEF 固有名称时
-  保留英文；
-- `Figure`、`Runtime`、`Viewport` 等代码类型名不强行翻译，但正文会分别称为
-  “图形对象”“场景运行时”“视口”；
-- 代码块、命令、枚举值和字段名保持源码拼写，避免读者无法回查实现；
-- 每章可以独立阅读，因此跨章关键概念在该章首次使用时会作简短回顾。
+本书面向三类读者：
 
-## 基础概念速览
+- **图形应用开发者**：使用内置 Figure、布局、输入、视口和连接构建应用；
+- **编辑器开发者**：把业务模型接入 `GraphicalViewer`，实现可撤销编辑；
+- **引擎扩展者**：实现自定义 Figure、LayoutManager、Anchor、Router 或平台宿主。
 
-- **图形对象（Figure）**：场景中可绘制、可命中的轻量对象。
-- **图形树（FigureTree）**：按父子关系组织全部图形对象的数据结构。
-- **场景运行时（Runtime）**：统一拥有图形树、输入、更新和资源，并保证跨模块状态
-  一致的顶层对象。
-- **布局（Layout）**：根据容器规则计算图形位置和尺寸的过程。
-- **校验收敛（Validation）**：反复更新已失效的布局和派生状态，直到场景稳定。
-- **重绘损伤区域（Damage）**：新帧中可能发生像素变化、必须重新绘制的区域。
-- **渲染（Rendering）**：把稳定场景转换为绘制命令并提交到图形设备的过程。
-- **编辑框架（Editor）**：把业务模型投影为图形，并把用户输入转换成可撤销模型修改
-  的上层框架。
+如果只是使用引擎，不需要先读完全部实现原理。先完成
+[快速开始](00-first-application.md)，再按功能查阅对应章节。
+
+## 先选择开发路径
+
+| 你的应用 | 推荐入口 | 主要阅读 |
+|---|---|---|
+| 仪表盘、流程展示、静态或轻交互画布 | `FigureTree + Runtime` | 快速开始、1-6 章 |
+| 节点图、流程编辑器、拓扑编辑器 | `ModelAdapter + GraphicalViewer + EditorDomain` | 快速开始、1-8 章 |
+| 自定义渲染宿主或后端 | `PlatformHost + RenderBackend` | 1、3、4、9 章 |
+| 自定义图形、布局或路由算法 | 对应领域 trait | 2-4、7、9 章 |
+
+选择标准很简单：
+
+- 业务状态可以直接由应用控制，只需要图形显示和基础交互，使用 Core；
+- 业务对象需要选择、创建、移动、连接、撤销和重做，使用 Editor；
+- 不要为了得到一棵图形树而引入 Editor，也不要在复杂编辑器中绕过模型直接改图形。
+
+## 公开 API 从哪里进入
+
+普通应用依赖聚合 crate `novadraw`，不要先从内部 crate 拼装能力。
+
+```rust
+use novadraw::prelude::*;
+```
+
+公开表面分为三层：
+
+1. crate root：`Runtime`、`FigureTree`、常用 Figure、布局和基础值；
+2. `novadraw::prelude::*`：常规 Figure/Runtime 开发所需的常用导入；
+3. 领域模块：`container`、`connection`、`event`、`editor`、`render` 等专业能力。
+
+`novadraw::advanced` 面向诊断和深度集成，不是普通应用的默认入口。Vello 后端也不是
+默认依赖，桌面与网页应用分别显式启用 `native-vello` 或 `web-vello` feature。
+
+## 四个生命周期阶段
+
+使用 Novadraw 时，最重要的 API 边界不是 crate 边界，而是对象所处的生命周期：
+
+| 阶段 | 使用方式 | 可以做什么 |
+|---|---|---|
+| Detached | 具体类型构造器、`with_*` | 配置尚未入树的 Figure、布局器、边框、锚点和路由器 |
+| Build | `FigureTreeBuilder` | 分配 `FigureId`，组装拓扑、初始边界和布局约束 |
+| Attached | `Runtime` scoped editor | 更新已挂载 Figure，并自动维护失效、重绘和通知 |
+| Drive | `Runtime` + Host/Backend | 分发输入、准备提交、提交后端并确认结果 |
+
+典型错误是在挂载后继续寻找对原 Figure 值的可变引用。Figure 一旦进入树，应用应保存
+`FigureId`，并通过 `runtime.figure(id)?`、`runtime.container(id)?` 等短生命周期
+编辑器修改它。
 
 ## 阅读路线
 
-建议按以下顺序阅读：
+### 路线 A：先做出一个应用
 
-1. [系统模型与设计公理](01-system-model.md)
-2. [几何、边界矩形与坐标协议](02-geometry-and-coordinates.md)
-3. [图形树、生命周期与绘制遍历](03-figure-tree-and-rendering.md)
-4. [布局、校验收敛、重绘区域与帧提交](04-layout-update-and-frame.md)
-5. [命中测试与输入状态机](05-input-and-interaction.md)
-6. [图层、视口、滚动与缩放](06-layers-and-viewport.md)
-7. [连接、锚点与路由器](07-connections.md)
-8. [编辑框架：从模型到可撤销编辑](08-editor-framework.md)
-9. [验证、失败模型与扩展方法](09-verification-and-extension.md)
-10. [术语与代码地图](appendix-glossary-and-map.md)
+1. [快速开始：构建第一个图形应用](00-first-application.md)
+2. [图形树与绘制](03-figure-tree-and-rendering.md)
+3. [布局与更新](04-layout-update-and-frame.md)
+4. 按需阅读输入、视口和连接章节
 
-目录版见 [`SUMMARY.md`](SUMMARY.md)，章节设计说明见
-[`OUTLINE.md`](OUTLINE.md)。
+### 路线 B：理解引擎为什么正确
 
-## 两条主链
+按第 1 章到第 7 章顺序阅读。章节沿一次状态变化形成稳定帧的因果顺序组织，不按
+源码目录罗列。
 
-Novadraw 图形核心的帧链路：
+### 路线 C：开发节点编辑器
 
-```mermaid
-flowchart LR
-    A[平台输入或应用修改] --> B[场景运行时事务]
-    B --> C[图形树与节点状态]
-    C --> D[派生状态收敛]
-    D --> E[校验与布局]
-    E --> F[计算重绘区域]
-    F --> G[画布命令录制]
-    G --> H[渲染提交包]
-    H --> I[渲染后端]
-```
+先完成快速开始并阅读第 1、2、5、6 章，再阅读
+[第 8 章](08-editor-framework.md)。Editor 依赖图形核心的坐标、输入和视口契约，
+不能脱离这些基础单独理解。
 
-编辑框架的模型编辑链路：
+## 每章怎么读
 
-```mermaid
-flowchart LR
-    A[输入] --> B[图形对象分发]
-    B -->|未处理| C[编辑工具]
-    C --> D[编辑请求]
-    D --> E[编辑策略]
-    E --> F[可撤销命令]
-    F --> G[命令历史栈]
-    G --> H[应用模型]
-    H --> I[模型变更通知]
-    I --> J[编辑部件与查看器刷新]
-    J --> K[图形场景运行时]
-```
+每章尽量回答四类问题：
 
-两条链的边界非常重要：图形核心负责图形事实，编辑框架负责业务编辑事实。选择状态
-（Selection）、命令历史（Command history）和模型身份（`ModelId`）不进入图形场景
-运行时；渲染、坐标、重绘区域（damage）和平台绘制表面（surface）也不进入业务模型。
-包含输入、编辑、派生状态、绘制录制、后端提交与完成反馈的完整管线见
-[第 1 章总体渲染管线](01-system-model.md#13-总体渲染管线)。
+- **它解决什么应用问题**；
+- **内部如何维持核心不变量**；
+- **应用应该从哪个公开 API 进入**；
+- **出错时如何定位和验证**。
 
-## 阅读约定
+代码片段分为两类：
 
-每章尽量按以下结构组织：
+- “实际接口摘录”来自当前公开 API，可能省略无关错误处理；
+- “概念伪代码”只解释协议和调用顺序，不承诺可以直接编译。
 
-- **核心不变量**：系统必须始终成立的约束；
-- **结构图或时序图**：解释对象关系与执行顺序；
-- **算法**：说明数据如何流动；
-- **代码锚点**：链接到当前实现中的类型或函数；
-- **失败模式**：说明破坏契约会出现什么症状；
-- **验证入口**：列出可重复执行的测试或验证套件（suite）。
+正文第一次使用关键概念时会给出中文定义和代码名。完整术语与代码入口见
+[附录](appendix-glossary-and-map.md)。
 
-书中的 Rust 片段分两类：
+## 当前事实边界
 
-- 标注“实际接口摘录”的片段来自当前代码，可能省略无关字段或文档注释；
-- 标注“概念伪代码”的片段只表达协议，不承诺精确 API。
+内容基于仓库在 **2026-09-29** 的已接受设计、实现与验证：
 
-## 权威性边界
+- Draw2D Core 1.0 已完成；
+- Editor G0-G5.5 已完成，检查点 C 已通过人工验收；
+- 产品文档格式、序列化和产品 UI 已移交下游产品包，不属于本引擎；
+- Core 公开 API 已按 ADR-017 至 ADR-021 收口；
+- 外部语义只对标 `org.eclipse.draw2d` 与 `org.eclipse.gef`。
 
-遇到冲突时按以下优先级处理：
+路线图状态仍以
+[`doc/roadmap/00-index.md`](../../doc/roadmap/00-index.md) 和
+[`doc/roadmap/editor/00-index.md`](../../doc/roadmap/editor/00-index.md)
+为准。本书解释和指导如何使用当前引擎，但不取代架构决策记录（ADR）和规范性设计。
 
-1. 已接受的架构决策记录（Architecture Decision Record，简称 ADR）；
-2. `doc/design/` 中范围更窄的规范性设计（`normative-design`）；
+遇到冲突时按以下顺序核对：
+
+1. 已接受的 ADR；
+2. `doc/design/` 中范围更窄的规范性设计；
 3. `doc/parity/` 的语义映射；
-4. `doc/reference/` 的外部源码事实；
-5. 当前实现与验证；
-6. 本书的教学性解释。
+4. 当前公开 API、实现和验证；
+5. 本书的教学性解释。
 
-如果实现与规范不一致，不应直接把书改成实现现状。应先判断是实现缺陷、设计修订，
-还是实施尚未完成。详细更新流程见 [`UPDATE_PROMPT.md`](UPDATE_PROMPT.md)。
+## 生成本书
 
-## 生成 PDF
-
-书稿遵循 mdBook 的标准目录结构，正文位于 `src/`，目录由
-[`SUMMARY.md`](SUMMARY.md) 定义。构建会同时生成 HTML 与 PDF，默认输出到
-`target/book/`；PDF 文件为 `target/book/pdf/output.pdf`。
-
-首次使用需要安装 mdBook 与两个渲染插件。PDF 渲染器使用本机 Google Chrome：
+书稿使用 mdBook，正文位于 `book/src/`，输出位于 `target/book/`。
 
 ```bash
 cargo install mdbook --locked
@@ -148,7 +158,7 @@ cargo install mdbook-pdf --locked
 ./scripts/build_book.sh
 ```
 
-仅构建 HTML，或使用 mdBook 的默认入口：
+只生成 HTML：
 
 ```bash
 mdbook build book
