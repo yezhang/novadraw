@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-novadraw-geometry = { path = "../novadraw-geometry" }
-novadraw-scene = { path = "../novadraw-scene" }
+novadraw = { path = "../novadraw" }
 slotmap.workspace = true
 uuid.workspace = true

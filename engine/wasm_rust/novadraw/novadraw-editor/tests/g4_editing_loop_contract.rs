@@ -1,5 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, convert::Infallible, rc::Rc, time::Duration};
 
+use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
+use novadraw::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
 use novadraw_editor::{
     ChangeBoundsRequest, Command, CommandError, CreateRequest, CreationType, DeleteRequest,
     EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorDomainError,
@@ -7,8 +9,6 @@ use novadraw_editor::{
     ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
     PolicyRole, RequestModifiers, ResizeDirection, ViewerError, VisualUpdateContext,
 };
-use novadraw_geometry::{Dimension, Point, Rectangle, Vec2};
-use novadraw_scene::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
 
 const ROOT: NodeId = NodeId(1);
 const FIRST: NodeId = NodeId(2);

@@ -7,8 +7,8 @@ use std::{
     sync::Arc,
 };
 
-use novadraw_geometry::Point;
-use novadraw_scene::Figure;
+use novadraw::Figure;
+use novadraw::geometry::Point;
 
 use crate::{
     Command, CreateConnectionRequest, EditPartId, EditorNamespace, EditorRequest, ModelAdapter,

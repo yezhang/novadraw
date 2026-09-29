@@ -4,7 +4,4 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-novadraw-scene = { path = "../novadraw-scene" }
-
-[dev-dependencies]
-novadraw-render = { path = "../novadraw-render" }
+novadraw = { path = "../novadraw" }

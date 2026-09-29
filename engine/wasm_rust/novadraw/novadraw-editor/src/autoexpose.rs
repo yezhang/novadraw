@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
-use novadraw_geometry::{Point, Rectangle, Vec2};
-use novadraw_scene::{Figure, FigureId};
+use novadraw::geometry::{Point, Rectangle, Vec2};
+use novadraw::{Figure, FigureId};
 
 use crate::{EditPartFactory, GraphicalViewer, ModelAdapter, ViewerError};
 
@@ -159,13 +159,13 @@ fn edge_direction(bounds: Rectangle, pointer: Point) -> Option<Vec2> {
 
 fn can_scroll(
     direction: Vec2,
-    horizontal: novadraw_scene::RangeModelSnapshot,
-    vertical: novadraw_scene::RangeModelSnapshot,
+    horizontal: novadraw::RangeModelSnapshot,
+    vertical: novadraw::RangeModelSnapshot,
 ) -> bool {
     axis_can_scroll(direction.x(), horizontal) || axis_can_scroll(direction.y(), vertical)
 }
 
-fn axis_can_scroll(direction: f64, range: novadraw_scene::RangeModelSnapshot) -> bool {
+fn axis_can_scroll(direction: f64, range: novadraw::RangeModelSnapshot) -> bool {
     let maximum = range.minimum.max(range.maximum - range.extent);
     (direction < 0.0 && range.value > range.minimum) || (direction > 0.0 && range.value < maximum)
 }
@@ -197,13 +197,13 @@ mod tests {
 
     #[test]
     fn blocked_axis_does_not_hide_a_scrollable_corner_axis() {
-        let blocked = novadraw_scene::RangeModelSnapshot {
+        let blocked = novadraw::RangeModelSnapshot {
             minimum: 0.0,
             maximum: 100.0,
             extent: 100.0,
             value: 0.0,
         };
-        let scrollable = novadraw_scene::RangeModelSnapshot {
+        let scrollable = novadraw::RangeModelSnapshot {
             minimum: 0.0,
             maximum: 300.0,
             extent: 100.0,

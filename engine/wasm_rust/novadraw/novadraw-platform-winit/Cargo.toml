@@ -1,0 +1,9 @@
+[package]
+name = "novadraw-platform-winit"
+version.workspace = true
+edition.workspace = true
+description = "Winit platform adapter for Novadraw"
+
+[dependencies]
+novadraw = { path = "../novadraw" }
+winit.workspace = true

@@ -6,17 +6,19 @@ readme = "README.md"
 
 [features]
 default = []
-native-vello = ["dep:novadraw-backend-vello", "novadraw-backend-vello/native"]
-web-vello = ["dep:novadraw-backend-vello", "novadraw-backend-vello/web"]
+debug_render = []
 
 [dependencies]
-novadraw-geometry = { path = "../novadraw-geometry" }
-novadraw-core = { path = "../novadraw-core" }
-novadraw-render = { path = "../novadraw-render" }
-novadraw-scene = { path = "../novadraw-scene" }
-novadraw-editor = { path = "../novadraw-editor" }
-novadraw-backend-vello = { path = "../novadraw-backend-vello", optional = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
+kurbo.workspace = true
+parley.workspace = true
+resvg.workspace = true
+serde.workspace = true
+slotmap.workspace = true
+stacker.workspace = true
+tracing.workspace = true
+unicode-segmentation.workspace = true
+uuid.workspace = true
 
-[package.metadata.docs.rs]
-features = ["native-vello"]
-no-default-features = true
+[dev-dependencies]
+serde_json.workspace = true

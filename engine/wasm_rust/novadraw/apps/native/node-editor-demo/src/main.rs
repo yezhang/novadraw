@@ -5,13 +5,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use novadraw::backend::vello::VelloRenderer;
 use novadraw::connection::{
     AnchorSemanticKey, Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionFigure,
     CoordinateSpace, XYAnchor, rectangle_boundary_site,
 };
 use novadraw::container::FreeformLayerFigure;
-use novadraw::editor::{
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::render::{RenderOutcome, SurfaceInfo};
+use novadraw::{
+    Color, Figure, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
+};
+use novadraw_backend_vello::VelloRenderer;
+use novadraw_editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionAnchorContext,
     ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
     ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
@@ -21,12 +26,7 @@ use novadraw::editor::{
     PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest,
     VisualUpdateContext,
 };
-use novadraw::event::{KeyModifiers, MouseButton};
-use novadraw::render::{RenderOutcome, SurfaceInfo};
-use novadraw::{
-    Color, Figure, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
-};
-use novadraw_apps::WinitPlatformHost;
+use novadraw_platform_winit::WinitPlatformHost;
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -1851,9 +1851,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::editor::HandleRole;
     use novadraw::graphics::LineStyle;
     use novadraw::render::command::RenderCommandKind;
+    use novadraw_editor::HandleRole;
 
     #[test]
     fn viewport_guide_uses_light_background_and_dashed_outline() {

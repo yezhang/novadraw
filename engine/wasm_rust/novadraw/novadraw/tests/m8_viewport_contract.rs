@@ -1,0 +1,1014 @@
+use std::sync::{Arc, Mutex};
+
+use novadraw::Color;
+use novadraw::geometry::{Affine2D, Point, Rectangle, Translatable};
+use novadraw::render::command::RenderCommandKind;
+use novadraw::{
+    Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler, FigureTree,
+    GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
+    PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
+    RectangleFigure, Runtime, SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind,
+    UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
+};
+
+struct RecordingRangeListener {
+    changes: Arc<Mutex<Vec<RangeChange>>>,
+}
+
+impl RangeListener for RecordingRangeListener {
+    fn range_changed(&self, change: RangeChange) {
+        self.changes.lock().unwrap().push(change);
+    }
+}
+
+fn point_in_surface(graph: &FigureTree, figure: novadraw::FigureId, point: Point) -> Point {
+    graph
+        .local_to_surface_transform(figure)
+        .expect("attached Figure has a surface transform")
+        .transform_point(point)
+}
+
+#[test]
+fn range_model_clamps_extent_and_value_atomically() {
+    let model = DefaultRangeModel::new(0.0, 20.0, 100.0).unwrap();
+    model.set_value(90.0).unwrap();
+    assert_eq!(model.value(), 80.0);
+
+    let changes = model.set_all(10.0, 200.0, 60.0).unwrap();
+
+    assert_eq!(model.minimum(), 10.0);
+    assert_eq!(model.maximum(), 60.0);
+    assert_eq!(model.extent(), 50.0);
+    assert_eq!(model.value(), 10.0);
+    assert!(!model.is_enabled());
+    assert_eq!(
+        changes
+            .changes()
+            .iter()
+            .map(|change| change.property)
+            .collect::<Vec<_>>(),
+        vec![
+            RangeProperty::Maximum,
+            RangeProperty::Extent,
+            RangeProperty::Minimum,
+            RangeProperty::Value,
+        ]
+    );
+}
+
+#[test]
+fn range_model_rejects_invalid_input_without_partial_state() {
+    let model = DefaultRangeModel::new(0.0, 20.0, 100.0).unwrap();
+    let original = model.snapshot();
+
+    assert_eq!(
+        model.set_all(100.0, 10.0, 20.0),
+        Err(RangeModelError::InvalidBounds)
+    );
+    assert_eq!(
+        model.set_value(f64::NAN),
+        Err(RangeModelError::NonFiniteValue)
+    );
+    assert_eq!(model.snapshot(), original);
+}
+
+#[test]
+fn range_model_listener_observes_changes_until_removed() {
+    let model = DefaultRangeModel::default();
+    let recorded = Arc::new(Mutex::new(Vec::new()));
+    let listener_id = model.add_listener(Arc::new(RecordingRangeListener {
+        changes: Arc::clone(&recorded),
+    }));
+
+    model.set_value(30.0).unwrap();
+    assert!(model.remove_listener(listener_id));
+    model.set_value(40.0).unwrap();
+
+    assert_eq!(
+        *recorded.lock().unwrap(),
+        vec![RangeChange {
+            property: RangeProperty::Value,
+            old_value: 0.0,
+            new_value: 30.0,
+        }]
+    );
+}
+
+#[test]
+fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let contents = graph
+        .builder()
+        .add_child(
+            viewport.figure_id(),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+
+    assert_eq!(viewport.contents(&graph), Some(contents));
+    assert_eq!(viewport.horizontal_range().extent, 300.0);
+    assert_eq!(viewport.horizontal_range().maximum, 600.0);
+    assert_eq!(viewport.vertical_range().extent, 200.0);
+    assert_eq!(viewport.vertical_range().maximum, 450.0);
+    assert_eq!(
+        graph.figure_bounds(contents),
+        Some(Rectangle::new(0.0, 0.0, 600.0, 450.0))
+    );
+}
+
+#[test]
+fn viewport_handle_replaces_contents_without_leaving_two_children() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let old_contents = graph
+        .builder()
+        .add_child(
+            viewport.figure_id(),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    let mut runtime = Runtime::new(graph);
+    let new_contents = runtime
+        .viewport(viewport.figure_id())
+        .unwrap()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .unwrap();
+
+    assert_eq!(viewport.contents(runtime.tree()), Some(new_contents));
+    assert_eq!(runtime.tree().parent_id(old_contents), None);
+    assert_eq!(
+        runtime.tree().child_order(viewport.figure_id()),
+        Some(vec![new_contents])
+    );
+}
+
+#[test]
+fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    graph
+        .builder()
+        .add_child(
+            viewport.figure_id(),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(graph);
+    let _ = runtime.prepare_frame();
+
+    assert!(
+        runtime
+            .viewport(viewport.figure_id())
+            .unwrap()
+            .set_view_location(500.0, 400.0)
+            .unwrap()
+    );
+
+    assert_eq!(
+        viewport.view_location(),
+        novadraw::geometry::Point::new(300.0, 250.0)
+    );
+    assert!(runtime.has_pending_update());
+}
+
+#[test]
+fn viewport_track_width_uses_available_width_until_content_minimum() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let contents = graph
+        .builder()
+        .add_child(
+            viewport.figure_id(),
+            Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 450.0)),
+        )
+        .unwrap();
+    graph
+        .builder()
+        .set_minimum_size(contents, Some((180.0, 120.0)))
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .viewport(viewport.figure_id())
+        .unwrap()
+        .set_tracks_width(true)
+        .unwrap();
+    let _ = runtime.prepare_frame();
+
+    assert_eq!(runtime.tree().figure_bounds(contents).unwrap().width, 300.0);
+    assert_eq!(viewport.horizontal_range().maximum, 300.0);
+    assert!(!viewport.horizontal_range().is_enabled());
+}
+
+#[test]
+fn scalable_layered_pane_composes_with_viewport_parent_transform() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    let child_color = Color::from_hex("#d7263d").expect("valid color literal");
+    let child = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(RectangleFigure::new_with_color(
+                20.0,
+                30.0,
+                40.0,
+                20.0,
+                child_color,
+            )),
+        )
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(graph);
+    assert!(
+        runtime
+            .scalable(scalable.figure_id())
+            .unwrap()
+            .set_scale(2.0)
+            .unwrap()
+    );
+    let point = point_in_surface(runtime.tree(), child, Point::new(0.0, 0.0));
+
+    assert_eq!(point, Point::new(140.0, 140.0));
+    assert_eq!(
+        runtime.tree().figure_bounds(scalable.figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
+    );
+    assert!(runtime.has_pending_update());
+    let canvas = runtime.record_full_frame();
+    let mut transform = Affine2D::IDENTITY;
+    let mut stack = Vec::new();
+    let mut projected_child = None;
+    for command in canvas.commands() {
+        match command.kind {
+            RenderCommandKind::PushState => stack.push(transform),
+            RenderCommandKind::RestoreState => {
+                transform = *stack.last().expect("restore requires saved state");
+            }
+            RenderCommandKind::PopState => {
+                transform = stack.pop().expect("pop requires saved state");
+            }
+            RenderCommandKind::ConcatTransform { matrix } => {
+                transform = transform.post_concat(matrix);
+            }
+            RenderCommandKind::SetTransform { matrix } => transform = matrix,
+            RenderCommandKind::ResetTransform => transform = Affine2D::IDENTITY,
+            RenderCommandKind::FillRect { rect, color } if color == child_color => {
+                let mut bounds = rect;
+                bounds.transform(transform);
+                projected_child = Some(bounds);
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(
+        projected_child,
+        Some(Rectangle::new(140.0, 140.0, 80.0, 40.0))
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(scalable.figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 1200.0, 800.0))
+    );
+}
+
+#[test]
+fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    assert_eq!(
+        Runtime::new(graph)
+            .scalable(scalable.figure_id())
+            .unwrap()
+            .set_scale(0.0),
+        Err(novadraw::RuntimeMutationError::Rejected)
+    );
+    assert_eq!(scalable.scale(), 1.0);
+}
+
+#[test]
+fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    assert!(
+        graph
+            .builder()
+            .set_preferred_size(scalable.figure_id(), Some((500.0, 300.0)))
+            .expect("valid FigureTree construction")
+    );
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .scalable(scalable.figure_id())
+        .unwrap()
+        .set_scale(2.0)
+        .unwrap();
+    let _ = runtime.prepare_frame();
+
+    assert_eq!(
+        runtime.tree().figure_bounds(scalable.figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 1000.0, 600.0))
+    );
+}
+
+#[derive(Clone)]
+struct WheelIgnoringFigure {
+    bounds: Rectangle,
+}
+
+impl Bounded for WheelIgnoringFigure {
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+        self.bounds = Rectangle::new(x, y, width, height);
+    }
+
+    fn name(&self) -> &'static str {
+        "WheelIgnoringFigure"
+    }
+}
+
+impl Figure for WheelIgnoringFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Bounded::bounds(self)
+    }
+
+    fn name(&self) -> &'static str {
+        Bounded::name(self)
+    }
+
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for WheelIgnoringFigure {}
+
+fn large_scroll_pane_scene() -> (FigureTree, novadraw::ScrollPaneHandle, UpdateManager) {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .builder()
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let update_manager = UpdateManager::new();
+    let contents = graph
+        .builder()
+        .set_scroll_pane_contents(
+            &pane,
+            Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)),
+        )
+        .unwrap();
+    graph
+        .builder()
+        .add_child(
+            contents,
+            Box::new(WheelIgnoringFigure {
+                bounds: Rectangle::new(10.0, 10.0, 100.0, 80.0),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+    (graph, pane, update_manager)
+}
+
+#[test]
+fn scroll_pane_automatic_policy_reserves_both_scroll_bars() {
+    let (graph, pane, _) = large_scroll_pane_scene();
+
+    assert!(graph.is_visible(pane.horizontal_scroll_bar()));
+    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(
+        graph.figure_bounds(pane.viewport().figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 306.0, 206.0))
+    );
+    assert_eq!(pane.viewport().horizontal_range().extent, 306.0);
+    assert_eq!(pane.viewport().vertical_range().extent, 206.0);
+}
+
+#[test]
+fn scroll_pane_visibility_policy_controls_layout() {
+    let (mut graph, pane, _) = large_scroll_pane_scene();
+
+    graph
+        .builder()
+        .set_scroll_bar_visibility(
+            &pane,
+            ScrollBarVisibility::Never,
+            ScrollBarVisibility::Always,
+        )
+        .unwrap();
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+
+    assert!(!graph.is_visible(pane.horizontal_scroll_bar()));
+    assert!(graph.is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(
+        graph.figure_bounds(pane.viewport().figure_id()),
+        Some(Rectangle::new(0.0, 0.0, 306.0, 220.0))
+    );
+}
+
+#[test]
+fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
+    let (graph, pane, _) = large_scroll_pane_scene();
+    let mut runtime = Runtime::new(graph);
+    runtime.prepare_frame();
+    runtime
+        .figure(pane.pane_id())
+        .unwrap()
+        .set_bounds(Rectangle::new(100.0, 80.0, 900.0, 700.0))
+        .unwrap();
+    runtime.prepare_frame();
+
+    assert!(!runtime.tree().is_visible(pane.horizontal_scroll_bar()));
+    assert!(!runtime.tree().is_visible(pane.vertical_scroll_bar()));
+    assert_eq!(pane.viewport().horizontal_range().extent, 900.0);
+    assert_eq!(pane.viewport().vertical_range().extent, 700.0);
+}
+
+#[test]
+fn unhandled_wheel_uses_nearest_scroll_pane_fallback() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_mouse_wheel(&mut context, 120.0, 100.0, 0.0, -1.0);
+    }
+
+    assert_eq!(pane.viewport().view_location().y(), 24.0);
+    assert!(update_manager.has_pending_repaint());
+}
+
+#[test]
+fn touchpad_pixel_scroll_uses_logical_distance_without_line_multiplier() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                120.0,
+                100.0,
+                0.0,
+                -7.5,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+
+    assert_eq!(pane.viewport().view_location().y(), 7.5);
+}
+
+#[test]
+fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .builder()
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(
+            pane.viewport().figure_id(),
+            Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        )
+        .unwrap();
+    let child = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(WheelIgnoringFigure {
+                bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+    let mut update_manager = UpdateManager::new();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_zoom(
+            &mut context,
+            ZoomEvent::new(
+                150.0,
+                130.0,
+                2.0,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+
+    assert_eq!(scalable.scale(), 2.0);
+    assert_eq!(pane.viewport().view_location(), Point::new(50.0, 50.0));
+    let anchored_content_point = point_in_surface(&graph, child, Point::new(50.0, 50.0));
+    assert_eq!(anchored_content_point, Point::new(150.0, 130.0));
+}
+
+#[test]
+fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .builder()
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(
+            pane.viewport().figure_id(),
+            Rectangle::new(0.0, 0.0, 640.0, 480.0),
+        )
+        .unwrap();
+    let content = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(WheelIgnoringFigure {
+                bounds: Rectangle::new(0.0, 0.0, 640.0, 480.0),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+    let mut update_manager = UpdateManager::new();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_zoom(
+            &mut context,
+            ZoomEvent::new(
+                250.0,
+                180.0,
+                2.0,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    // The next input event must already observe the scaled range; waiting for a
+    // render/validation frame makes a pinch followed by pan use stale limits.
+    assert_eq!(pane.viewport().horizontal_range().maximum, 1280.0);
+    assert_eq!(pane.viewport().vertical_range().maximum, 960.0);
+
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                250.0,
+                180.0,
+                10_000.0,
+                10_000.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    assert_eq!(pane.viewport().view_location(), Point::new(0.0, 0.0));
+    let top_left = point_in_surface(&graph, content, Point::new(0.0, 0.0));
+    assert_eq!(top_left, Point::new(100.0, 80.0));
+
+    {
+        let mut context = SceneDispatchContext::new(
+            &mut graph,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending,
+        );
+        dispatcher.dispatch_scroll(
+            &mut context,
+            WheelEvent::with_details(
+                250.0,
+                180.0,
+                -10_000.0,
+                -10_000.0,
+                ScrollDeltaKind::LogicalPixels,
+                GesturePhase::Impulse,
+                KeyModifiers::default(),
+                GestureSessionId::IMPULSE,
+            ),
+        );
+    }
+    let horizontal = pane.viewport().horizontal_range();
+    let vertical = pane.viewport().vertical_range();
+    assert_eq!(
+        pane.viewport().view_location(),
+        Point::new(
+            horizontal.maximum - horizontal.extent,
+            vertical.maximum - vertical.extent
+        )
+    );
+    let bottom_right = point_in_surface(&graph, content, Point::new(640.0, 480.0));
+    assert_eq!(
+        bottom_right,
+        Point::new(100.0 + horizontal.extent, 80.0 + vertical.extent)
+    );
+
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+    assert_eq!(pane.viewport().horizontal_range(), horizontal);
+    assert_eq!(pane.viewport().vertical_range(), vertical);
+}
+
+#[test]
+fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let pane = graph
+        .builder()
+        .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(
+            pane.viewport().figure_id(),
+            Rectangle::new(0.0, 0.0, 400.0, 300.0),
+        )
+        .unwrap();
+    let content = graph
+        .builder()
+        .add_child(
+            scalable.figure_id(),
+            Box::new(WheelIgnoringFigure {
+                bounds: Rectangle::new(0.0, 0.0, 400.0, 300.0),
+            }),
+        )
+        .expect("valid FigureTree construction");
+    graph
+        .builder()
+        .validate_subtree(pane.pane_id())
+        .expect("valid FigureTree construction");
+    let mut update_manager = UpdateManager::new();
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+
+    for factor in [0.5, 4.0] {
+        {
+            let mut context = SceneDispatchContext::new(
+                &mut graph,
+                &mut interaction,
+                &mut update_manager,
+                &mut pending,
+            );
+            dispatcher.dispatch_zoom(
+                &mut context,
+                ZoomEvent::new(
+                    100.0,
+                    80.0,
+                    factor,
+                    GesturePhase::Impulse,
+                    KeyModifiers::default(),
+                    GestureSessionId::IMPULSE,
+                ),
+            );
+        }
+        graph
+            .builder()
+            .validate_subtree(pane.pane_id())
+            .expect("valid FigureTree construction");
+        if factor == 0.5 {
+            let horizontal = pane.viewport().horizontal_range();
+            let vertical = pane.viewport().vertical_range();
+            let scaled_width = 400.0 * scalable.scale();
+            let scaled_height = 300.0 * scalable.scale();
+            let top_left = point_in_surface(&graph, content, Point::new(0.0, 0.0));
+            let bottom_right = point_in_surface(&graph, content, Point::new(400.0, 300.0));
+            assert_eq!(top_left, Point::new(100.0, 80.0));
+            assert_eq!(
+                bottom_right,
+                Point::new(top_left.x() + scaled_width, top_left.y() + scaled_height)
+            );
+            assert!(bottom_right.x() <= 100.0 + horizontal.extent);
+            assert!(bottom_right.y() <= 80.0 + vertical.extent);
+        }
+    }
+
+    assert_eq!(scalable.scale(), 2.0);
+    assert_eq!(pane.viewport().horizontal_range().maximum, 800.0);
+    assert_eq!(pane.viewport().vertical_range().maximum, 600.0);
+}
+
+#[test]
+fn vertical_scroll_bar_step_updates_shared_viewport_model() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
+    let point = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(bounds.width / 2.0, bounds.height - 2.0),
+    );
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+    let mut context = SceneDispatchContext::new(
+        &mut graph,
+        &mut interaction,
+        &mut update_manager,
+        &mut pending,
+    );
+    dispatcher.dispatch_mouse_pressed(&mut context, point.x(), point.y(), MouseButton::Left);
+    dispatcher.dispatch_mouse_released(&mut context, point.x(), point.y(), MouseButton::Left);
+
+    assert_eq!(pane.viewport().view_location().y(), 24.0);
+}
+
+#[test]
+fn vertical_scroll_bar_thumb_drag_updates_shared_viewport_model_continuously() {
+    let (mut graph, pane, mut update_manager) = large_scroll_pane_scene();
+    let bounds = graph.figure_bounds(pane.vertical_scroll_bar()).unwrap();
+    let local_start = Point::new(bounds.width / 2.0, 20.0);
+    let start = point_in_surface(&graph, pane.vertical_scroll_bar(), local_start);
+    let first_move = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 25.0),
+    );
+    let second_move = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 50.0),
+    );
+    let after_release = point_in_surface(
+        &graph,
+        pane.vertical_scroll_bar(),
+        Point::new(local_start.x(), local_start.y() + 75.0),
+    );
+    let mut interaction = InteractionState::default();
+    let mut pending = PendingMutations::new();
+    let mut dispatcher = EventDispatcher;
+    let mut context = SceneDispatchContext::new(
+        &mut graph,
+        &mut interaction,
+        &mut update_manager,
+        &mut pending,
+    );
+
+    dispatcher.dispatch_mouse_pressed(&mut context, start.x(), start.y(), MouseButton::Left);
+    assert_eq!(pane.viewport().view_location().y(), 0.0);
+
+    dispatcher.dispatch_mouse_moved(&mut context, first_move.x(), first_move.y());
+    let first_value = pane.viewport().view_location().y();
+    assert!(first_value > 0.0);
+
+    dispatcher.dispatch_mouse_moved(&mut context, second_move.x(), second_move.y());
+    let second_value = pane.viewport().view_location().y();
+    assert!(second_value > first_value);
+
+    dispatcher.dispatch_mouse_released(
+        &mut context,
+        second_move.x(),
+        second_move.y(),
+        MouseButton::Left,
+    );
+    dispatcher.dispatch_mouse_moved(&mut context, after_release.x(), after_release.y());
+    assert_eq!(pane.viewport().view_location().y(), second_value);
+}
+
+#[test]
+fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+    let manager = ZoomManager::new(scalable.clone(), viewport.clone());
+    let mut runtime = Runtime::new(graph);
+
+    assert!(runtime.zoom(&manager).unwrap().set_zoom(2.0).unwrap());
+    assert_eq!(manager.zoom(), 2.0);
+    assert_eq!(viewport.view_location(), Point::new(150.0, 100.0));
+    assert_eq!(viewport.horizontal_range().maximum, 1200.0);
+    assert_eq!(viewport.vertical_range().maximum, 800.0);
+
+    assert!(runtime.zoom(&manager).unwrap().set_zoom(0.01).unwrap());
+    assert_eq!(manager.zoom(), 0.5);
+    assert!(runtime.zoom(&manager).unwrap().set_zoom(100.0).unwrap());
+    assert_eq!(manager.zoom(), 4.0);
+    assert!(runtime.zoom(&manager).unwrap().fit_all().unwrap());
+    assert_eq!(manager.zoom(), 0.5);
+    assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));
+
+    for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        assert_eq!(
+            runtime.zoom(&manager).unwrap().set_zoom(invalid),
+            Err(novadraw::RuntimeMutationError::Rejected)
+        );
+        assert_eq!(manager.zoom(), 0.5);
+    }
+}
+
+#[test]
+fn zoom_manager_uses_configured_levels_for_step_zoom() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+    let mut manager = ZoomManager::new(scalable, viewport);
+    manager.set_zoom_levels(vec![0.25, 1.0, 2.0]).unwrap();
+    let mut runtime = Runtime::new(graph);
+
+    assert!(runtime.zoom(&manager).unwrap().set_zoom(0.01).unwrap());
+    assert_eq!(manager.zoom(), 0.25);
+    assert!(runtime.zoom(&manager).unwrap().zoom_in().unwrap());
+    assert_eq!(manager.zoom(), 1.0);
+    assert!(runtime.zoom(&manager).unwrap().zoom_out().unwrap());
+    assert_eq!(manager.zoom(), 0.25);
+    assert_eq!(
+        manager.set_zoom_levels(vec![1.0, 0.5]),
+        Err(ZoomError::InvalidZoomLevels)
+    );
+}
+
+#[test]
+fn viewport_border_insets_define_child_transform_and_client_extent() {
+    let viewport = ViewportFigure::new(100.0, 50.0, 300.0, 200.0)
+        .with_origin(20.0, 30.0)
+        .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(10.0, 10.0, 10.0, 10.0));
+
+    let mut content_origin = Rectangle::new(20.0, 30.0, 1.0, 1.0);
+    viewport.child_transform().apply_to(&mut content_origin);
+
+    // FigureContainer contributes only viewport scrolling. NodeState applies
+    // the border insets when the Figure is attached to a graph.
+    assert_eq!(content_origin, Rectangle::new(0.0, 0.0, 1.0, 1.0));
+    assert_eq!(
+        viewport.client_area(),
+        Rectangle::new(10.0, 10.0, 280.0, 180.0)
+    );
+}
+
+#[test]
+fn viewport_rejects_a_second_contents_child_atomically() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+    let viewport = graph
+        .builder()
+        .add_child(
+            root,
+            Box::new(ViewportFigure::new(20.0, 20.0, 300.0, 200.0)),
+        )
+        .expect("valid FigureTree construction");
+    let first = graph.builder().add_child(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)),
+    );
+    assert!(first.is_ok());
+
+    let second = graph.builder().add_child(
+        viewport,
+        Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)),
+    );
+
+    assert!(second.is_err());
+    assert_eq!(graph.child_order(viewport).unwrap().len(), 1);
+}

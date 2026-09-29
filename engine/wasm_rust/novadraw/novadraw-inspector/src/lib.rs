@@ -9,7 +9,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use novadraw_scene::{
+use novadraw::{
     FigureId, FigureTree, ListenerDirective, ListenerId, NotificationEffect, NotificationRecord,
     ObservationListener, Rectangle, Runtime, StableQueryError,
 };
@@ -186,7 +186,7 @@ impl ObservationListener for InspectorObserver {
     fn observed(
         &self,
         record: &NotificationRecord,
-        _latest: novadraw_scene::StableSceneQuery<'_>,
+        _latest: novadraw::StableSceneQuery<'_>,
     ) -> ListenerDirective {
         if let Ok(mut state) = self.state.lock() {
             state.push(record);

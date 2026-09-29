@@ -5,9 +5,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::input::{AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, adapt_key_input};
-use crate::platform::WinitPlatformHost;
-pub use novadraw::backend::vello::VelloRenderer;
 pub use novadraw::event::{
     FigureEvent, Key, KeyModifiers, ListenerDirective, MonotonicTime, MouseButton,
     NotificationEffect, UpdateEvent, UpdateListener, place_tooltip,
@@ -17,6 +14,10 @@ pub use novadraw::render::text::{FontDescriptor, TextConstraints};
 pub use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
 pub use novadraw::{
     Color, FigureId, FigureTree, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime,
+};
+pub use novadraw_backend_vello::VelloRenderer;
+use novadraw_platform_winit::{
+    AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,
 };
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;

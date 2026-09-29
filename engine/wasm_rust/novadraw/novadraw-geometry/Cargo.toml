@@ -1,8 +1,0 @@
-[package]
-name = "novadraw-geometry"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-kurbo.workspace = true
-serde = { workspace = true }

@@ -2,12 +2,9 @@
 resolver = "3"
 members = [
   "novadraw",
-  "novadraw-math",
-  "novadraw-geometry",
-  "novadraw-core",
-  "novadraw-render",
   "novadraw-backend-vello",
-  "novadraw-scene",
+  "novadraw-platform-winit",
+  "novadraw-platform-web",
   "novadraw-editor",
   "novadraw-inspector",
   "apps/support",
@@ -40,7 +37,6 @@ edition = "2024"
 
 [workspace.dependencies]
 vello = "0.10.0"
-glam = "0.30.9"
 slotmap = "1.0.7"
 uuid = { version = "1.18.1", features = ["v4", "serde", "js"] }
 serde = { version = "1.0.228", features = ["derive"] }

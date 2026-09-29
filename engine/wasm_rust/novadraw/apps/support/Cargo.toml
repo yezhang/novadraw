@@ -2,15 +2,23 @@
 name = "novadraw-apps"
 version.workspace = true
 edition.workspace = true
+publish = false
 description = "Novadraw 演示应用公共库"
 
 [features]
 default = ["native"]
-native = ["novadraw/native-vello", "dep:winit"]
+native = [
+  "dep:novadraw-backend-vello",
+  "novadraw-backend-vello/native",
+  "dep:novadraw-platform-winit",
+  "dep:winit",
+]
 
 [dependencies]
 # novadraw 核心库
 novadraw = { path = "../../novadraw", default-features = false }
+novadraw-backend-vello = { path = "../../novadraw-backend-vello", optional = true }
+novadraw-platform-winit = { path = "../../novadraw-platform-winit", optional = true }
 
 # winit 窗口管理
 winit = { workspace = true, optional = true }

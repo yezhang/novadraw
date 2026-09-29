@@ -1,0 +1,8 @@
+[package]
+name = "novadraw-platform-web"
+version.workspace = true
+edition.workspace = true
+description = "Web platform adapter for Novadraw"
+
+[dependencies]
+novadraw = { path = "../novadraw" }

@@ -4,11 +4,10 @@
 
 #[cfg(feature = "native")]
 pub use crate::{
-    AppBuilder, DemoApp, WinitPlatformHost, run_demo_app, run_demo_app_with_scene_screenshot,
+    AppBuilder, DemoApp, run_demo_app, run_demo_app_with_scene_screenshot,
     run_demo_app_with_screenshot, run_runtime_demo_app, run_runtime_demo_app_with_scene_screenshot,
     run_runtime_demo_app_with_screenshot,
 };
-pub use crate::{WebInputAdapter, WebPlatformHost, WebPointerInput, WebWheelDeltaMode};
 pub use novadraw::event::{FigureEvent, NotificationEffect, UpdateEvent, UpdateListener};
 pub use novadraw::prelude::*;
 #[cfg(feature = "native")]

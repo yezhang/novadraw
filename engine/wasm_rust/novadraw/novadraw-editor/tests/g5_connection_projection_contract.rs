@@ -8,17 +8,17 @@ use std::{
     },
 };
 
+use novadraw::geometry::Rectangle;
+use novadraw::{
+    AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionResolution,
+    ConnectionRouter, ConnectionRuntimeError, DirectRouter, Figure, RectangleFigure, RootFigure,
+    RouteError, RouteOutput, RouteRequest,
+};
 use novadraw_editor::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionPartFactoryContext,
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter,
     ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PartKind, ViewerError,
     VisualUpdateContext,
-};
-use novadraw_geometry::Rectangle;
-use novadraw_scene::{
-    AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionResolution,
-    ConnectionRouter, ConnectionRuntimeError, DirectRouter, Figure, RectangleFigure, RootFigure,
-    RouteError, RouteOutput, RouteRequest,
 };
 
 const ROOT: ModelId = ModelId(1);

@@ -7,7 +7,7 @@
 
 | 目录 | 职责 |
 |------|------|
-| `support/` | `novadraw-apps`：共享 DemoApp 框架和平台输入适配 |
+| `support/` | `novadraw-apps`：共享 DemoApp shell |
 | `scenes/` | `novadraw-demo-scenes`：Native/Web 共用的无平台场景目录 |
 | `native/` | 基于 winit 的 macOS/桌面窗口应用 |
 | `web/` | Wasm + DOM/WebGPU 浏览器应用 |
@@ -85,13 +85,12 @@ suite 验收。
 
 ```
 novadraw/ (workspace)
-├── novadraw/             ← 标准 facade、prelude 与 backend feature 入口
-├── novadraw-math/        ← 独立 3D 数学实验，不进入 2D 引擎依赖图
-├── novadraw-geometry/    ← 几何运算
-├── novadraw-core/        ← 核心数据类型
-├── novadraw-render/      ← 渲染后端
-├── novadraw-scene/       ← 场景图、Figure 接口、UpdateManager
+├── novadraw/             ← 平台无关 Core
+├── novadraw-backend-vello/
+├── novadraw-platform-winit/
+├── novadraw-platform-web/
 ├── novadraw-editor/      ← GEF 风格模型、控制器与编辑事务
+├── novadraw-inspector/   ← 只读诊断能力
 └── apps/
     ├── support/          ← novadraw-apps：共享 DemoApp 框架
     ├── scenes/           ← novadraw-demo-scenes：Native/Web 共用场景
@@ -105,8 +104,9 @@ novadraw/ (workspace)
         └── r8-perf/
 ```
 
-普通应用只依赖 `novadraw`。Native 与 Web 分别显式启用 `native-vello` 和
-`web-vello`；只有实现底层 backend、host 或诊断扩展时才直接依赖子 crate。
+普通应用只依赖 `novadraw`。Native 与 Web 应用按需显式组合
+`novadraw-backend-vello` 与对应的 `novadraw-platform-*`；编辑器和诊断能力也通过
+独立 crate 按需安装。
 
 各功能场景必须定义在 `novadraw-demo-scenes`，并通过稳定的 suite/scene ID 注册到
 catalog。`apps/native/*` 只保留 Native CLI、窗口运行和验证报告逻辑；

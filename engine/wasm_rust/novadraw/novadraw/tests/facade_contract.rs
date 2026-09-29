@@ -34,20 +34,5 @@ fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::event::DispatchOutcome> = None;
     let _: Option<novadraw::runtime::FramePreparation> = None;
     let _: Option<novadraw::render::RenderSubmission> = None;
-    let _: Option<novadraw::editor::HandleRole> = None;
     let _: Option<novadraw::advanced::NodeState> = None;
-}
-
-#[cfg(feature = "native-vello")]
-#[test]
-fn native_backend_is_available_only_through_the_backend_module() {
-    fn accepts_vello(_: Option<novadraw::backend::vello::VelloRenderer>) {}
-    accepts_vello(None);
-}
-
-#[cfg(feature = "web-vello")]
-#[test]
-fn web_backend_is_available_only_through_the_backend_module() {
-    fn accepts_vello(_: Option<novadraw::backend::vello::VelloRenderer>) {}
-    accepts_vello(None);
 }

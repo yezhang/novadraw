@@ -1,7 +1,6 @@
 # Novadraw
 
-`novadraw` is the standard public entry point for the backend-neutral 2D Figure runtime and
-model-driven editor framework.
+`novadraw` is the platform-independent Core crate for the 2D Figure runtime.
 
 ## Start With The Prelude
 
@@ -32,7 +31,6 @@ named modules:
 - `event`: input, listener, focus, tooltip, and accessibility contracts;
 - `runtime`: scoped mutation, resources, and frame preparation;
 - `render`: backend-neutral commands, submissions, resources, and text;
-- `editor`: the model-driven GEF-style editor framework;
 - `advanced`: low-level state intended for diagnostics and specialized integrations.
 
 Low-level protocols are intentionally not available at the crate root:
@@ -55,19 +53,13 @@ fn accepts_low_level_types(
 }
 ```
 
-## Backend Features
+## Optional Packages
 
-The default build is platform-independent and does not select a renderer.
+The Core crate does not select a renderer, window system, or editor framework. Applications compose
+the capabilities they need:
 
-| Feature | Enables |
-|---|---|
-| `native-vello` | Vello renderer with native surface support |
-| `web-vello` | Vello renderer with Web canvas support |
-
-With either feature enabled, the renderer is available as
-`novadraw::backend::vello::VelloRenderer`. Platform adapters such as Winit and DOM event bridges
-remain outside the core runtime.
-
-Applications that need deeper implementation access may depend directly on a specialized
-`novadraw-*` crate. Such dependencies are explicit extension choices, not the default application
-path.
+- `novadraw-editor`: model-driven graphical editor framework;
+- `novadraw-inspector`: read-only diagnostics;
+- `novadraw-backend-vello`: native and Web Vello renderer;
+- `novadraw-platform-winit`: desktop input and host adapter;
+- `novadraw-platform-web`: browser input and host adapter.

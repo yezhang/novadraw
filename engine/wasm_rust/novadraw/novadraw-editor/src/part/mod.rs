@@ -4,8 +4,8 @@
 
 use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 
-use novadraw_geometry::Rectangle;
-use novadraw_scene::{
+use novadraw::geometry::Rectangle;
+use novadraw::{
     AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, Figure, FigureId, FigureStyle,
     RoutingConstraint, Runtime, RuntimeMutationError, RuntimeNamespace,
 };
@@ -1070,7 +1070,7 @@ pub trait EditPartBehavior<A: ModelAdapter> {
         &mut self,
         _model: &A,
         _model_id: A::ModelId,
-    ) -> Result<Vec<novadraw_geometry::Point>, EditPartError> {
+    ) -> Result<Vec<novadraw::geometry::Point>, EditPartError> {
         Ok(Vec::new())
     }
 

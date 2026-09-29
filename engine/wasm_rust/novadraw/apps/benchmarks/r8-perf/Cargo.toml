@@ -2,6 +2,7 @@
 name = "r8-perf"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 novadraw = { path = "../../../novadraw", default-features = false }

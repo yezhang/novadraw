@@ -5,14 +5,14 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use novadraw::geometry::Rectangle;
+use novadraw::{Figure, FigureId, RectangleFigure, RootFigure};
 use novadraw_editor::{
     Command, EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy,
     EditorRequest, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
     PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ViewerError, VisualBuildContext,
     VisualUpdateContext,
 };
-use novadraw_geometry::Rectangle;
-use novadraw_scene::{Figure, FigureId, RectangleFigure, RootFigure};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct NodeId(u64);

@@ -1,49 +1,144 @@
 #![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
+mod color;
+#[allow(missing_docs)]
+mod graph;
+#[allow(missing_docs)]
+mod identity;
+#[allow(missing_docs)]
+mod log;
+#[allow(missing_docs)]
+mod style;
+
 /// Low-level types for diagnostics and deep engine integration.
 pub mod advanced;
-/// Optional rendering backend implementations.
-#[cfg(any(feature = "native-vello", feature = "web-vello"))]
-pub mod backend;
 /// Connection, anchor, router, and locator APIs.
+#[allow(missing_docs)]
 pub mod connection;
 /// Viewport, scrolling, zoom, layering, and freeform containers.
+#[allow(missing_docs)]
 pub mod container;
-/// Model-driven editing framework.
-pub mod editor;
 /// Input events, listeners, focus, tooltip, and accessibility APIs.
 pub mod event;
 /// Figure traits, built-in figures, borders, and styles.
+#[allow(missing_docs)]
 pub mod figure;
 /// Platform-independent geometry values and operations.
 pub mod geometry;
 /// Stateful drawing API and path primitives.
 pub mod graphics;
 /// Platform host integration.
+#[allow(missing_docs)]
 pub mod host;
 /// Layout extension protocols and built-in layouts.
+#[allow(missing_docs)]
 pub mod layout;
 /// Common imports for Figure and Runtime application code.
 pub mod prelude;
 /// Backend-neutral rendering, text, resource, and submission protocols.
+#[allow(missing_docs)]
 pub mod render;
 /// Runtime lifecycle, mutation, resource, and frame APIs.
+#[allow(missing_docs)]
 pub mod runtime;
 /// Figure tree construction and query APIs.
 pub mod tree;
 
+pub use color::{Color, ColorError, ParseColorError};
+pub use connection::{
+    AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorGeometryKeyError, AnchorGroupKey,
+    AnchorId, AnchorSemanticKey, AnchorSemanticKeyError, AnchorSite, Bendpoint,
+    BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionAnchor,
+    ConnectionFigure, ConnectionFigureBehavior, ConnectionGeometryError, ConnectionId,
+    ConnectionLayerFigure, ConnectionLocator, ConnectionLocatorStrategy, ConnectionResolution,
+    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace,
+    DependencyObservation, DependencySubject, DirectRouter, EllipseAnchor, FAN_DEFAULT_SEPARATION,
+    FanRouter, FanRouterError, LabelAnchor, LocatorError, LocatorPlacement,
+    MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
+    MidpointLocator, PathFractionLocator, PreparedConnectionGeometry, RoundedRectangleAnchor,
+    RouteEnd, RouteEndpoint, RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding,
+    RouterId, RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SceneQuery, SceneQueryError,
+    SceneRead, TrackedSceneQuery, UnresolvedConnection, XYAnchor, rectangle_boundary_site,
+};
+pub use container::viewport;
+pub use container::{
+    DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, FreeformLayerFigure,
+    FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement,
+    LayeredPane, LayeredPaneHandle, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
+    RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
+    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError,
+    ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
+    ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy,
+    ZoomViewportState,
+};
 pub use figure::{
-    ButtonFigure, EllipseFigure, Figure, FigureStyle, ImageFigure, LabelFigure, PolygonFigure,
-    PolylineFigure, RectangleFigure, RoundedRectangleFigure, ToggleFigure, TriangleFigure,
+    AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
+    ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
+    ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
+    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
+    FigureLifecycleContext, FigureMeasurement, Freeform, HitParticipation, ImageDisplayState,
+    ImageFigure, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
+    PointListFigureBehavior, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure,
+    RoundedRectangleFigure, Shape, ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure,
+    WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
-pub use graphics::{Color, NdCanvas};
-pub use host::PlatformHost;
-pub use layout::{
-    BorderLayout, FillLayout, FlowLayout, FreeformLayout, GridLayout, LayoutManager, StackLayout,
-    ToolbarLayout, XYLayout,
+pub use graph::{
+    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FigureId, FigureNode,
+    FigureTree, FigureTreeBuilder, FreeformError, FreeformState, GraphMutationError,
+    IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState, TreeQueryError, TreeSearch,
+    TreeSearchContext, ValidationError,
 };
-pub use render::RenderBackend;
-pub use runtime::Runtime;
-pub use tree::{FigureId, FigureTree, FigureTreeBuilder};
+pub use host::{HeadlessHost, ImeState, PlatformHost};
+pub use identity::RuntimeNamespace;
+pub use layout::{
+    BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
+    FreeformConstraint, FreeformConstraintError, FreeformLayout, GridAlignment, GridConstraint,
+    GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
+    LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint,
+    XYLayout,
+};
+pub use render::{
+    BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCapability,
+    RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceSync, SurfaceInfo,
+    UnsupportedRenderCapability,
+};
+pub use runtime::context::{EventContext, SceneDispatchContext};
+pub use runtime::event::{
+    DispatchContext, DispatchOutcome, Event, EventDispatcher, FocusEvent, FocusEventKind,
+    GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
+};
+pub use runtime::mutation;
+pub use runtime::mutation::PendingMutations;
+pub use runtime::update;
+pub use runtime::update::{
+    ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
+    CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
+    NotificationRecord, ObservationListener, PropertyChangeEvent, PropertyChangeListener,
+    PropertyValue, StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, UpdateManager,
+    ValidatingListener,
+};
+pub use runtime::{
+    AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
+    AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
+    AccessibilityUpdate, BackendSessionError, ComponentInvalidation, ComponentUpdateError,
+    ComponentUpdateReceipt, ContainerEditor, FigureComponentContext, FigureComponentUpdate,
+    FigureEditor, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
+    FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError, ImageId,
+    InteractionState, LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate,
+    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
+    ScaleEditor, ScrollPaneEditor, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor, ZoomEditor,
+    place_tooltip,
+};
+pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
+pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};
+
+pub use figure::border;
+pub use figure::border::{
+    BevelBorder, BevelStyle, Border, BorderStyle, CompoundBorder, EtchedBorder, LineBorder,
+    MarginBorder, RectangleBorder, TitleBarBorder,
+};

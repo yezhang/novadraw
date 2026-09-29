@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::f64::consts::TAU;
 use std::rc::Rc;
 
-use novadraw::backend::vello::VelloRenderer;
 use novadraw::event::{
     AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate, EventContext,
     FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MonotonicTime, MouseButton,
@@ -20,13 +19,14 @@ use novadraw::render::{
     SurfaceInfo, UnsupportedRenderCapability,
 };
 use novadraw::{Color, Figure, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime};
-use novadraw_apps::{
-    AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
-    WebWheelDeltaMode, adapt_key_input,
-};
+use novadraw_backend_vello::VelloRenderer;
 use novadraw_demo_scenes::{
     DemoSuite, SceneSpec, ValidationKind, catalog,
     focus::{FOCUS_TRAVERSAL_SCENE_TITLE, FocusProbeSpec, build_focus_traversal_scene},
+};
+use novadraw_platform_web::{
+    AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
+    WebWheelDeltaMode, adapt_key_input,
 };
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;

@@ -1,11 +1,11 @@
 use std::num::NonZeroUsize;
 
-use novadraw_inspector::FigureInspector;
-use novadraw_render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
-use novadraw_scene::{
+use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+use novadraw::{
     FigureEvent, FigureTree, FramePreparation, NotificationEffect, Rectangle, RectangleFigure,
     Runtime, StableQueryError,
 };
+use novadraw_inspector::FigureInspector;
 
 const EVENT_CAPACITY: usize = 32;
 const NARROW_EVENT_CAPACITY: usize = 1;
@@ -34,7 +34,7 @@ fn stabilize(runtime: &mut Runtime) {
     assert!(runtime.stable_query().is_ok());
 }
 
-fn runtime_with_contents() -> (Runtime, novadraw_scene::FigureId, novadraw_scene::FigureId) {
+fn runtime_with_contents() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
     let mut tree = FigureTree::new();
     let mut builder = tree.builder();
     let contents = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 80.0)));

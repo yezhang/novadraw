@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
-use novadraw_geometry::{Affine2D, Point, Rectangle};
+use novadraw::geometry::{Affine2D, Point, Rectangle};
 use tracing::debug;
 #[cfg(any(feature = "native", target_arch = "wasm32"))]
 use vello::RendererOptions;
@@ -19,15 +19,15 @@ use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer};
 
-use novadraw_render::backend_support::{
+use novadraw::render::backend_support::{
     ImageDrawDisposition, NormalizedPathOp, for_each_normalized, validate_image_draw_geometry,
 };
-use novadraw_render::command::{LineCap, LineJoin, LineStyle, Path, RenderCommand};
-use novadraw_render::submission::{
+use novadraw::render::command::{LineCap, LineJoin, LineStyle, Path, RenderCommand};
+use novadraw::render::submission::{
     BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload,
 };
-use novadraw_render::text::{GlyphPaint, GlyphRun};
-use novadraw_render::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
+use novadraw::render::text::{GlyphPaint, GlyphRun};
+use novadraw::render::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
 const DASH_PATTERN_WIDTH_FACTORS: [f64; 2] = [3.0, 1.0];
@@ -188,7 +188,7 @@ fn append_image_draw(
 
 fn vello_stroke(width: f64, line_style: LineStyle, cap: LineCap, join: LineJoin) -> Stroke {
     let stroke = Stroke::new(width)
-        .with_miter_limit(novadraw_render::command::DEFAULT_STROKE_MITER_LIMIT)
+        .with_miter_limit(novadraw::render::command::DEFAULT_STROKE_MITER_LIMIT)
         .with_caps(match cap {
             LineCap::Butt => Cap::Butt,
             LineCap::Round => Cap::Round,
@@ -374,8 +374,8 @@ pub struct VelloRenderer {
     /// 状态栈
     state_stack: Vec<RenderState>,
     session_gate: BackendSessionGate,
-    font_faces: HashMap<(novadraw_render::ResourceId, u64), vello::peniko::Blob<u8>>,
-    images: HashMap<(novadraw_render::ResourceId, u64), vello::peniko::ImageData>,
+    font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -429,7 +429,7 @@ impl VelloRenderer {
 
     fn sync_submission_resources(
         &mut self,
-        submission: &novadraw_render::RenderSubmission,
+        submission: &novadraw::render::RenderSubmission,
     ) -> bool {
         match self
             .session_gate
@@ -453,10 +453,10 @@ impl VelloRenderer {
 
     fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
         commands.iter().all(|command| match &command.kind {
-            novadraw_render::RenderCommandKind::DrawGlyphRun { run, .. } => self
+            novadraw::render::RenderCommandKind::DrawGlyphRun { run, .. } => self
                 .font_faces
                 .contains_key(&(run.font.resource_id(), run.font.revision())),
-            novadraw_render::RenderCommandKind::Image { image, .. } => self
+            novadraw::render::RenderCommandKind::Image { image, .. } => self
                 .images
                 .contains_key(&(image.resource_id(), image.revision())),
             _ => true,
@@ -504,7 +504,7 @@ impl VelloRenderer {
     }
 
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub fn new<W: NativeWindow>(window: Arc<W>, surface: novadraw_render::SurfaceInfo) -> Self {
+    pub fn new<W: NativeWindow>(window: Arc<W>, surface: novadraw::render::SurfaceInfo) -> Self {
         pollster::block_on(Self::new_for_surface(
             window.into(),
             surface.pixel_width,
@@ -517,7 +517,7 @@ impl VelloRenderer {
     #[cfg(all(feature = "web", target_arch = "wasm32"))]
     pub async fn new_web(
         canvas: web_sys::HtmlCanvasElement,
-        surface: novadraw_render::SurfaceInfo,
+        surface: novadraw::render::SurfaceInfo,
     ) -> Result<Self, VelloInitializationError> {
         Self::new_for_surface(
             vello::wgpu::SurfaceTarget::Canvas(canvas),
@@ -564,7 +564,7 @@ impl VelloRenderer {
     fn recover_surface(
         &mut self,
         recovery: SurfaceRecovery,
-        surface: novadraw_render::SurfaceInfo,
+        surface: novadraw::render::SurfaceInfo,
     ) -> RenderOutcome {
         match recovery {
             SurfaceRecovery::Reconfigure => {
@@ -655,7 +655,7 @@ impl VelloRenderer {
 
     fn effective_damage_regions(
         &self,
-        submission: &novadraw_render::RenderSubmission,
+        submission: &novadraw::render::RenderSubmission,
     ) -> Option<(Rectangle, Vec<Rectangle>)> {
         let (width, height) = self.current_surface_size();
         match submission.damage.mode() {
@@ -709,12 +709,12 @@ impl VelloRenderer {
     fn render_command(&mut self, cmd: &RenderCommand) {
         match &cmd.kind {
             // ===== 状态管理命令 =====
-            novadraw_render::command::RenderCommandKind::PushState => {
+            novadraw::render::command::RenderCommandKind::PushState => {
                 debug!("PushState, stack depth: {}", self.state_stack.len());
                 self.state_stack.push(self.current_state().clone());
             }
 
-            novadraw_render::command::RenderCommandKind::RestoreState => {
+            novadraw::render::command::RenderCommandKind::RestoreState => {
                 debug!("RestoreState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() >= 2 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
@@ -723,7 +723,7 @@ impl VelloRenderer {
                 }
             }
 
-            novadraw_render::command::RenderCommandKind::PopState => {
+            novadraw::render::command::RenderCommandKind::PopState => {
                 debug!("PopState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() > 1 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
@@ -732,7 +732,7 @@ impl VelloRenderer {
                 }
             }
 
-            novadraw_render::command::RenderCommandKind::ConcatTransform { matrix } => {
+            novadraw::render::command::RenderCommandKind::ConcatTransform { matrix } => {
                 debug!("ConcatTransform: {:?}", matrix);
                 // 叠加变换
                 let new_transform = self.current_state().transform.post_concat(*matrix);
@@ -740,12 +740,12 @@ impl VelloRenderer {
                 self.current_state_mut().transform = new_transform;
             }
 
-            novadraw_render::command::RenderCommandKind::SetTransform { matrix } => {
+            novadraw::render::command::RenderCommandKind::SetTransform { matrix } => {
                 debug!("SetTransform: {:?}", matrix);
                 self.current_state_mut().transform = *matrix;
             }
 
-            novadraw_render::command::RenderCommandKind::ResetTransform => {
+            novadraw::render::command::RenderCommandKind::ResetTransform => {
                 debug!("ResetTransform");
                 self.current_state_mut().transform = Affine2D::IDENTITY;
             }
@@ -753,9 +753,9 @@ impl VelloRenderer {
             // NdCanvas bakes global alpha into every paint command. Retaining
             // this command in the IR preserves state-transition observability
             // without applying alpha a second time in the backend.
-            novadraw_render::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
+            novadraw::render::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
 
-            novadraw_render::command::RenderCommandKind::Clip { rect } => {
+            novadraw::render::command::RenderCommandKind::Clip { rect } => {
                 debug!("Clip: {:?}", rect);
                 let clip = RenderClip {
                     transform: self.current_state().transform,
@@ -765,7 +765,7 @@ impl VelloRenderer {
                 self.current_state_mut().clips.push(clip);
             }
 
-            novadraw_render::command::RenderCommandKind::ResetClip => {
+            novadraw::render::command::RenderCommandKind::ResetClip => {
                 debug!("ResetClip");
                 let depth = self.current_state().clips.len();
                 self.pop_clip_layers(depth);
@@ -773,7 +773,7 @@ impl VelloRenderer {
             }
 
             // ===== 绘制命令 =====
-            novadraw_render::command::RenderCommandKind::ClearRect { rect, color } => {
+            novadraw::render::command::RenderCommandKind::ClearRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -796,7 +796,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw_render::command::RenderCommandKind::FillRect { rect, color } => {
+            novadraw::render::command::RenderCommandKind::FillRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -819,7 +819,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw_render::command::RenderCommandKind::StrokeRect {
+            novadraw::render::command::RenderCommandKind::StrokeRect {
                 rect,
                 color,
                 width,
@@ -845,7 +845,7 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &kurbo_rect);
             }
 
-            novadraw_render::command::RenderCommandKind::Line {
+            novadraw::render::command::RenderCommandKind::Line {
                 p1,
                 p2,
                 color,
@@ -882,7 +882,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw_render::command::RenderCommandKind::Polyline {
+            novadraw::render::command::RenderCommandKind::Polyline {
                 points,
                 color,
                 width,
@@ -918,7 +918,7 @@ impl VelloRenderer {
                 self.scene.stroke(&stroke, affine, vello_color, None, &path);
             }
 
-            novadraw_render::command::RenderCommandKind::Ellipse {
+            novadraw::render::command::RenderCommandKind::Ellipse {
                 cx,
                 cy,
                 rx,
@@ -970,7 +970,7 @@ impl VelloRenderer {
                 }
             }
 
-            novadraw_render::command::RenderCommandKind::FillPath { path, color } => {
+            novadraw::render::command::RenderCommandKind::FillPath { path, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let vello_color = VelloColor::new([
@@ -991,7 +991,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw_render::command::RenderCommandKind::StrokePath {
+            novadraw::render::command::RenderCommandKind::StrokePath {
                 path,
                 color,
                 width,
@@ -1021,7 +1021,7 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &bez_path);
             }
 
-            novadraw_render::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
+            novadraw::render::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
                 let Some(font_data) = self
                     .font_faces
                     .get(&(run.font.resource_id(), run.font.revision()))
@@ -1043,7 +1043,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw_render::command::RenderCommandKind::Image {
+            novadraw::render::command::RenderCommandKind::Image {
                 image,
                 source_rect,
                 dest_rect,
@@ -1126,7 +1126,7 @@ impl RenderBackend for VelloRenderer {
             .with_image_resources()
     }
 
-    fn submit(&mut self, submission: &novadraw_render::RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderOutcome {
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
         }
@@ -1320,7 +1320,7 @@ impl VelloRenderer {
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub fn render_for_screenshot(
         &mut self,
-        submission: &novadraw_render::RenderSubmission,
+        submission: &novadraw::render::RenderSubmission,
     ) -> RenderOutcome {
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
@@ -1483,14 +1483,14 @@ impl VelloRenderer {
 }
 
 fn sync_font_face_cache(
-    font_faces: &mut HashMap<(novadraw_render::ResourceId, u64), vello::peniko::Blob<u8>>,
-    resources: &novadraw_render::ResourceSync,
+    font_faces: &mut HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    resources: &novadraw::render::ResourceSync,
 ) {
-    if matches!(resources, novadraw_render::ResourceSync::Snapshot(_)) {
+    if matches!(resources, novadraw::render::ResourceSync::Snapshot(_)) {
         font_faces.clear();
     }
-    let mut apply = |operation: &novadraw_render::ResourceOp| match operation {
-        novadraw_render::ResourceOp::Upsert(update) => {
+    let mut apply = |operation: &novadraw::render::ResourceOp| match operation {
+        novadraw::render::ResourceOp::Upsert(update) => {
             if let ResourcePayload::Font(font) = &update.payload {
                 font_faces.retain(|(resource_id, _), _| resource_id != &update.id);
                 font_faces.insert(
@@ -1499,30 +1499,30 @@ fn sync_font_face_cache(
                 );
             }
         }
-        novadraw_render::ResourceOp::Remove(id) => {
+        novadraw::render::ResourceOp::Remove(id) => {
             font_faces.retain(|(resource_id, _), _| resource_id != id);
         }
     };
     match resources {
-        novadraw_render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
-        novadraw_render::ResourceSync::Snapshot(snapshot) => snapshot
+        novadraw::render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        novadraw::render::ResourceSync::Snapshot(snapshot) => snapshot
             .ready
             .iter()
             .cloned()
-            .map(novadraw_render::ResourceOp::Upsert)
+            .map(novadraw::render::ResourceOp::Upsert)
             .for_each(|operation| apply(&operation)),
     }
 }
 
 fn sync_image_cache(
-    images: &mut HashMap<(novadraw_render::ResourceId, u64), vello::peniko::ImageData>,
-    resources: &novadraw_render::ResourceSync,
+    images: &mut HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
+    resources: &novadraw::render::ResourceSync,
 ) {
-    if matches!(resources, novadraw_render::ResourceSync::Snapshot(_)) {
+    if matches!(resources, novadraw::render::ResourceSync::Snapshot(_)) {
         images.clear();
     }
-    let mut apply = |operation: &novadraw_render::ResourceOp| match operation {
-        novadraw_render::ResourceOp::Upsert(update) => {
+    let mut apply = |operation: &novadraw::render::ResourceOp| match operation {
+        novadraw::render::ResourceOp::Upsert(update) => {
             if let ResourcePayload::Image(image) = &update.payload {
                 images.retain(|(resource_id, _), _| resource_id != &update.id);
                 images.insert(
@@ -1537,17 +1537,17 @@ fn sync_image_cache(
                 );
             }
         }
-        novadraw_render::ResourceOp::Remove(id) => {
+        novadraw::render::ResourceOp::Remove(id) => {
             images.retain(|(resource_id, _), _| resource_id != id);
         }
     };
     match resources {
-        novadraw_render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
-        novadraw_render::ResourceSync::Snapshot(snapshot) => snapshot
+        novadraw::render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        novadraw::render::ResourceSync::Snapshot(snapshot) => snapshot
             .ready
             .iter()
             .cloned()
-            .map(novadraw_render::ResourceOp::Upsert)
+            .map(novadraw::render::ResourceOp::Upsert)
             .for_each(|operation| apply(&operation)),
     }
 }
@@ -1564,8 +1564,8 @@ fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw_core::Color;
-    use novadraw_render::{
+    use novadraw::Color;
+    use novadraw::render::{
         BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourceOp,
         ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate, TextConstraints,
         TextEngine,
@@ -1822,7 +1822,7 @@ mod tests {
                     id,
                     revision: 1,
                     payload: ResourcePayload::Image(Arc::new(
-                        novadraw_render::ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0),
+                        novadraw::render::ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0),
                     )),
                 })],
             }),
@@ -1836,7 +1836,7 @@ mod tests {
                     id,
                     revision: 2,
                     payload: ResourcePayload::Image(Arc::new(
-                        novadraw_render::ImageData::from_rgba(1, 1, vec![0, 0, 255, 255], 1.0),
+                        novadraw::render::ImageData::from_rgba(1, 1, vec![0, 0, 255, 255], 1.0),
                     )),
                 })],
             }),
@@ -1859,7 +1859,7 @@ mod tests {
         let image = |revision, value| ResourceUpdate {
             id,
             revision,
-            payload: ResourcePayload::Image(Arc::new(novadraw_render::ImageData::from_rgba(
+            payload: ResourcePayload::Image(Arc::new(novadraw::render::ImageData::from_rgba(
                 1,
                 1,
                 vec![value; 4],
@@ -1906,7 +1906,7 @@ mod tests {
                     id: ready,
                     revision: 2,
                     payload: ResourcePayload::Image(Arc::new(
-                        novadraw_render::ImageData::from_rgba(1, 1, vec![2; 4], 1.0),
+                        novadraw::render::ImageData::from_rgba(1, 1, vec![2; 4], 1.0),
                     )),
                 }],
             }),

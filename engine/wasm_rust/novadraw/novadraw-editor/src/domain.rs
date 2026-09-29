@@ -2,8 +2,8 @@
 
 use std::{error::Error, fmt, time::Duration};
 
-use novadraw_geometry::Point;
-use novadraw_scene::{DispatchOutcome, KeyModifiers, MouseButton};
+use novadraw::geometry::Point;
+use novadraw::{DispatchOutcome, KeyModifiers, MouseButton};
 
 use crate::{
     AutoexposeTick, BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,

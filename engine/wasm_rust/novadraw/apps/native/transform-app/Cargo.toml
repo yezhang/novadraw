@@ -2,8 +2,9 @@
 name = "transform-app"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
-novadraw = { path = "../../../novadraw", features = ["native-vello"] }
+novadraw = { path = "../../../novadraw" }
 novadraw-apps = { path = "../../support" }
 novadraw-demo-scenes = { path = "../../scenes" }

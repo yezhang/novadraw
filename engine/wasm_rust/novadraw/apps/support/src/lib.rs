@@ -23,8 +23,6 @@
 
 #[cfg(feature = "native")]
 pub mod app;
-pub mod input;
-pub mod platform;
 pub mod prelude;
 #[cfg(feature = "native")]
 pub mod verification;
@@ -35,15 +33,6 @@ pub use app::{
     run_demo_app_with_screenshot, run_runtime_demo_app, run_runtime_demo_app_with_scene_screenshot,
     run_runtime_demo_app_with_screenshot,
 };
-#[cfg(feature = "native")]
-pub use input::WinitGestureAdapter;
-pub use input::{
-    AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPointerInput, WebWheelDeltaMode,
-    adapt_key_input,
-};
-pub use platform::WebPlatformHost;
-#[cfg(feature = "native")]
-pub use platform::WinitPlatformHost;
 pub use prelude::*;
 #[cfg(feature = "native")]
 pub use verification::{VerificationCase, VerificationCli, VerificationMetrics, run_verification};

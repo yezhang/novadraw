@@ -1,5 +1,12 @@
 use std::{any::TypeId, collections::HashMap, convert::Infallible, time::Duration};
 
+use novadraw::geometry::{Point, PointList, Rectangle, Vec2};
+use novadraw::{
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
+    ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
+    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RouteMetadata, RouteOutput,
+    RouteRequest, RoutingGroupScope,
+};
 use novadraw_editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
     ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
@@ -9,13 +16,6 @@ use novadraw_editor::{
     FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
     ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
     PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers, ViewerError,
-};
-use novadraw_geometry::{Point, PointList, Rectangle, Vec2};
-use novadraw_scene::{
-    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
-    ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
-    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RouteMetadata, RouteOutput,
-    RouteRequest, RoutingGroupScope,
 };
 
 const ROOT: ModelId = ModelId(1);

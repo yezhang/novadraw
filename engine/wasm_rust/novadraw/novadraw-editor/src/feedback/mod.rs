@@ -3,7 +3,7 @@
 //! Feedback is represented by Figures in explicit root layers so it shares canonical coordinate,
 //! clipping, hit-testing, and disposal behavior with the Draw2D runtime.
 
-use novadraw_geometry::Point;
+use novadraw::geometry::Point;
 use uuid::Uuid;
 
 use crate::{ConnectionEndpoint, EditPartId, EditorNamespace, ResizeDirection};

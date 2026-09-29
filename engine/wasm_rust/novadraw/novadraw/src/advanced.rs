@@ -2,7 +2,7 @@
 //!
 //! Most applications should use [`crate::Runtime`] and scoped editors instead.
 
-pub use novadraw_scene::{
+pub use crate::{
     EventDispatcher, FigureNode, InteractionState, LayoutState, NodeState, NotificationQueue,
     PendingMutations, RootFigure, RuntimeNamespace, UpdateManager,
 };

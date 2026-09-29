@@ -2,7 +2,7 @@
 
 use std::{error::Error, fmt, sync::Arc};
 
-use novadraw_geometry::{Dimension, Point, Rectangle, Vec2};
+use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
 
 use crate::{ConnectionPartId, EditPartId};
 

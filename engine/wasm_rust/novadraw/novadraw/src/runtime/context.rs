@@ -1,0 +1,985 @@
+use std::sync::Arc;
+
+use crate::geometry::Point;
+
+use crate::{
+    ChildClippingStrategy, DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree,
+    GestureSessionId, InteractionState, LayerKey, LayerPlacement, LayoutManager, MouseEventKind,
+    MouseLocationZoomScrollPolicy, NotificationEffect, PendingMutations, PropertyChangeEvent,
+    PropertyValue, Rectangle, ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent,
+    ZoomEvent, ZoomManager,
+    mutation::{MutationContext, PendingMutation, SizeOverrideKind},
+};
+
+enum RuntimeEffect {
+    Repaint {
+        figure_id: FigureId,
+        rect: Rectangle,
+    },
+    Notification(NotificationEffect),
+    Invalidate(FigureId),
+    Mutation(PendingMutation),
+    SetPressed {
+        figure_id: FigureId,
+        pressed: bool,
+    },
+    SetKeyboardPressed {
+        figure_id: FigureId,
+        key: Option<crate::Key>,
+    },
+    ActivateClickable(FigureId),
+}
+
+/// 引擎层通用的 Figure 回调上下文。
+///
+/// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
+pub struct EventContext<'a> {
+    target_id: FigureId,
+    target_bounds: Rectangle,
+    visual_bounds: Rectangle,
+    pointer_pressed: bool,
+    keyboard_pressed: Option<crate::Key>,
+    effects: &'a mut Vec<RuntimeEffect>,
+}
+
+impl<'a> EventContext<'a> {
+    pub(crate) fn retired_focus_lost(
+        node: &crate::FigureNode,
+        pending: &mut PendingMutations,
+        updates: &mut UpdateManager,
+        tree: &mut FigureTree,
+    ) {
+        let Some(handler) = node.figure.event_handler() else {
+            return;
+        };
+        let bounds = node.figure_bounds();
+        let mut effects = Vec::new();
+        let mut context = EventContext::new(
+            node.id,
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            false,
+            None,
+            &mut effects,
+        );
+        handler.on_focus_lost(
+            &crate::FocusEvent {
+                kind: crate::FocusEventKind::Lost,
+                related_target: None,
+            },
+            &mut context,
+        );
+        for effect in effects {
+            match effect {
+                RuntimeEffect::Mutation(mutation) => pending.enqueue(mutation),
+                RuntimeEffect::Notification(effect) => updates.enqueue_notification_effect(effect),
+                RuntimeEffect::Repaint { figure_id, rect } if tree.is_attached(figure_id) => {
+                    updates.add_dirty_region(figure_id, rect);
+                }
+                RuntimeEffect::Invalidate(id) if tree.is_attached(id) => {
+                    tree.mark_invalid(updates, id);
+                }
+                // Input state requests for a disposed target cannot revive it.
+                _ => {}
+            }
+        }
+    }
+
+    fn new(
+        target_id: FigureId,
+        target_bounds: Rectangle,
+        visual_bounds: Rectangle,
+        pointer_pressed: bool,
+        keyboard_pressed: Option<crate::Key>,
+        effects: &'a mut Vec<RuntimeEffect>,
+    ) -> Self {
+        Self {
+            target_id,
+            target_bounds,
+            visual_bounds,
+            pointer_pressed,
+            keyboard_pressed,
+            effects,
+        }
+    }
+
+    pub fn target_id(&self) -> FigureId {
+        self.target_id
+    }
+
+    /// Returns the target's current border box in its node-local coordinate domain.
+    pub fn target_bounds(&self) -> Rectangle {
+        self.target_bounds
+    }
+
+    pub fn is_pressed(&self) -> bool {
+        self.pointer_pressed || self.keyboard_pressed.is_some()
+    }
+
+    pub fn is_pointer_pressed(&self) -> bool {
+        self.pointer_pressed
+    }
+
+    pub fn set_pressed(&mut self, pressed: bool) {
+        self.pointer_pressed = pressed;
+        self.effects.push(RuntimeEffect::SetPressed {
+            figure_id: self.target_id,
+            pressed,
+        });
+    }
+
+    pub fn is_keyboard_pressed(&self) -> bool {
+        self.keyboard_pressed.is_some()
+    }
+
+    pub fn keyboard_pressed_key(&self) -> Option<crate::Key> {
+        self.keyboard_pressed
+    }
+
+    pub fn set_keyboard_pressed(&mut self, key: Option<crate::Key>) {
+        self.keyboard_pressed = key;
+        self.effects.push(RuntimeEffect::SetKeyboardPressed {
+            figure_id: self.target_id,
+            key,
+        });
+    }
+
+    pub fn activate_clickable(&mut self) {
+        self.effects
+            .push(RuntimeEffect::ActivateClickable(self.target_id));
+    }
+
+    pub fn repaint(&mut self, rect: Option<Rectangle>) {
+        self.effects.push(RuntimeEffect::Repaint {
+            figure_id: self.target_id,
+            rect: rect.unwrap_or(self.visual_bounds),
+        });
+    }
+
+    pub fn repaint_figure(&mut self, figure_id: FigureId, rect: Rectangle) {
+        self.effects
+            .push(RuntimeEffect::Repaint { figure_id, rect });
+    }
+
+    pub fn emit_property_change(
+        &mut self,
+        figure_id: FigureId,
+        property: &'static str,
+        old_value: PropertyValue,
+        new_value: PropertyValue,
+    ) {
+        self.effects.push(RuntimeEffect::Notification(
+            NotificationEffect::EmitProperty(PropertyChangeEvent {
+                figure_id,
+                property,
+                old_value,
+                new_value,
+            }),
+        ));
+    }
+
+    pub fn coordinate_system_changed(&mut self, figure_id: FigureId, bounds: Rectangle) {
+        self.effects
+            .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
+                FigureEvent::CoordinateSystemChanged {
+                    figure_id,
+                    old_bounds: bounds,
+                    new_bounds: bounds,
+                },
+            )));
+    }
+
+    pub fn invalidate(&mut self) {
+        self.effects.push(RuntimeEffect::Invalidate(self.target_id));
+    }
+
+    /// Enqueues a structural mutation for application after top-level dispatch.
+    pub fn add_child_later(&mut self, parent: FigureId, figure: Box<dyn Figure>) {
+        MutationContext::add_child_later(self, parent, figure);
+    }
+
+    /// Enqueues a child removal for application after top-level dispatch.
+    pub fn remove_child_later(&mut self, parent: FigureId, child: FigureId) {
+        MutationContext::remove_child_later(self, parent, child);
+    }
+
+    /// Enqueues a reparent operation for application after top-level dispatch.
+    pub fn reparent_later(&mut self, child: FigureId, new_parent: FigureId) {
+        MutationContext::reparent_later(self, child, new_parent);
+    }
+
+    pub fn set_layout_manager_later(
+        &mut self,
+        container: FigureId,
+        manager: Box<dyn LayoutManager>,
+    ) {
+        MutationContext::set_layout_manager_later(self, container, Some(manager));
+    }
+
+    pub fn clear_layout_manager_later(&mut self, container: FigureId) {
+        MutationContext::set_layout_manager_later(self, container, None);
+    }
+
+    pub fn set_layout_constraint_later<C>(&mut self, child: FigureId, constraint: C)
+    where
+        C: crate::LayoutConstraint,
+    {
+        MutationContext::set_layout_constraint_later(self, child, Box::new(constraint));
+    }
+
+    pub fn remove_layout_constraint_later(&mut self, child: FigureId) {
+        MutationContext::remove_layout_constraint_later(self, child);
+    }
+
+    pub fn set_preferred_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Preferred,
+            Some(size),
+        );
+    }
+
+    pub fn clear_preferred_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Preferred, None);
+    }
+
+    pub fn set_minimum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Minimum,
+            Some(size),
+        );
+    }
+
+    pub fn clear_minimum_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Minimum, None);
+    }
+
+    pub fn set_maximum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+        MutationContext::set_size_override_later(
+            self,
+            figure,
+            SizeOverrideKind::Maximum,
+            Some(size),
+        );
+    }
+
+    pub fn clear_maximum_size_later(&mut self, figure: FigureId) {
+        MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Maximum, None);
+    }
+
+    pub fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
+        MutationContext::move_child_to_index_later(self, parent, child, index);
+    }
+
+    pub fn bring_child_to_front_later(&mut self, parent: FigureId, child: FigureId) {
+        MutationContext::bring_child_to_front_later(self, parent, child);
+    }
+
+    pub fn send_child_to_back_later(&mut self, parent: FigureId, child: FigureId) {
+        MutationContext::send_child_to_back_later(self, parent, child);
+    }
+
+    pub fn set_child_clipping_strategy_later(
+        &mut self,
+        figure: FigureId,
+        strategy: ChildClippingStrategy,
+    ) {
+        MutationContext::set_child_clipping_strategy_later(self, figure, strategy);
+    }
+
+    pub fn add_layer_later(
+        &mut self,
+        pane: FigureId,
+        figure: Box<dyn Figure>,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        MutationContext::add_layer_later(self, pane, figure, key, placement);
+    }
+
+    pub fn remove_layer_later(&mut self, pane: FigureId, key: LayerKey) {
+        MutationContext::remove_layer_later(self, pane, key);
+    }
+
+    pub fn move_layer_later(&mut self, pane: FigureId, key: LayerKey, placement: LayerPlacement) {
+        MutationContext::move_layer_later(self, pane, key, placement);
+    }
+
+    pub fn reparent_layer_later(
+        &mut self,
+        child: FigureId,
+        new_pane: FigureId,
+        key: LayerKey,
+        placement: LayerPlacement,
+    ) {
+        MutationContext::reparent_layer_later(self, child, new_pane, key, placement);
+    }
+}
+
+impl MutationContext for EventContext<'_> {
+    fn enqueue_mutation(&mut self, mutation: PendingMutation) {
+        self.effects.push(RuntimeEffect::Mutation(mutation));
+    }
+}
+
+/// 引擎层通用的事件分发上下文。
+///
+/// Apps 只负责把平台输入转换为入口节点坐标域中的点；真正的 target 解析、
+/// 坐标域切换与 Figure 回调调用都在引擎层统一处理。
+pub struct SceneDispatchContext<'a> {
+    scene: &'a mut FigureTree,
+    interaction: &'a mut InteractionState,
+    update_manager: &'a mut UpdateManager,
+    pending_mutations: &'a mut PendingMutations,
+}
+
+impl<'a> SceneDispatchContext<'a> {
+    pub fn new(
+        scene: &'a mut FigureTree,
+        interaction: &'a mut InteractionState,
+        update_manager: &'a mut UpdateManager,
+        pending_mutations: &'a mut PendingMutations,
+    ) -> Self {
+        Self {
+            scene,
+            interaction,
+            update_manager,
+            pending_mutations,
+        }
+    }
+
+    fn nearest_scalable(&self, mut target_id: FigureId) -> Option<FigureId> {
+        loop {
+            let block = self.scene.node(target_id)?;
+            if self.scene.scale_handle(target_id).is_some() {
+                return Some(target_id);
+            }
+            if block.figure.as_any().is::<ViewportFigure>()
+                && let Some(contents) = self
+                    .scene
+                    .child_order(target_id)
+                    .and_then(|children| children.first().copied())
+                && self.scene.scale_handle(contents).is_some()
+            {
+                return Some(contents);
+            }
+            target_id = self.scene.parent_id(target_id)?;
+        }
+    }
+
+    fn nearest_viewport_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
+        while let Some(parent_id) = self.scene.parent_id(figure_id) {
+            let parent = self.scene.node(parent_id)?;
+            if parent.figure.as_any().is::<ViewportFigure>() {
+                return Some(parent_id);
+            }
+            figure_id = parent_id;
+        }
+        None
+    }
+
+    fn nearest_scroll_pane_parent(&self, mut figure_id: FigureId) -> Option<FigureId> {
+        while let Some(parent_id) = self.scene.parent_id(figure_id) {
+            let parent = self.scene.node(parent_id)?;
+            if parent.figure.as_any().is::<ScrollPaneFigure>() {
+                return Some(parent_id);
+            }
+            figure_id = parent_id;
+        }
+        None
+    }
+
+    fn apply_scroll_controller(&mut self, target_id: FigureId, event: &WheelEvent) -> bool {
+        let controller = if event.phase == crate::GesturePhase::Impulse
+            || event.session_id == GestureSessionId::IMPULSE
+        {
+            self.nearest_scroll_pane_parent(target_id)
+        } else if let Some(controller) = self.interaction.scroll_controller(event.session_id) {
+            controller
+        } else {
+            let controller = self.nearest_scroll_pane_parent(target_id);
+            self.interaction
+                .pin_scroll_controller(event.session_id, controller)
+        };
+        let Some(scroll_pane_id) = controller else {
+            return false;
+        };
+        DispatchContext::dispatch_to_target(self, Some(scroll_pane_id), &Event::Wheel(*event))
+    }
+
+    fn apply_zoom_manager(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
+        let scalable = if event.phase == crate::GesturePhase::Impulse
+            || event.session_id == GestureSessionId::IMPULSE
+        {
+            self.nearest_scalable(target_id)
+        } else if let Some(controller) = self.interaction.zoom_controller(event.session_id) {
+            controller
+        } else {
+            let controller = self.nearest_scalable(target_id);
+            self.interaction
+                .pin_zoom_controller(event.session_id, controller)
+        };
+        let Some(scalable_id) = scalable else {
+            return false;
+        };
+        let Some(viewport_id) = self.nearest_viewport_parent(scalable_id) else {
+            return false;
+        };
+        let Some(scalable) = self.scene.scale_handle(scalable_id) else {
+            return false;
+        };
+        let Some(viewport) = self.scene.viewport_handle(viewport_id) else {
+            return false;
+        };
+        let anchor = {
+            let Some(block) = self.scene.node(viewport_id) else {
+                return false;
+            };
+            let (top, left, _, _) = block.state().insets();
+            let Some(transform) = self.scene.surface_to_local_transform(viewport_id) else {
+                return false;
+            };
+            let point = transform.transform_point(event.entry_point());
+            Point::new(point.x() - left, point.y() - top)
+        };
+        let mut zoom_manager = ZoomManager::new(scalable, viewport);
+        zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
+        zoom_manager
+            .zoom_by_at(
+                self.scene,
+                self.update_manager,
+                event.scale_factor,
+                Some(anchor),
+            )
+            .unwrap_or(false)
+    }
+}
+
+impl DispatchContext for SceneDispatchContext<'_> {
+    fn find_mouse_event_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene.find_mouse_event_target_at(x, y)
+    }
+
+    fn find_cursor_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene.hit_test_simple((x, y))
+    }
+
+    fn find_hover_source_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene
+            .hit_test_simple((x, y))
+            .and_then(|hit| self.scene.tooltip_source(hit))
+            .map(|(source, _)| source)
+    }
+
+    fn find_gesture_target_at(&self, x: f64, y: f64) -> Option<FigureId> {
+        self.scene.hit_test_simple((x, y))
+    }
+
+    fn mouse_target(&self) -> Option<FigureId> {
+        self.interaction.mouse_target()
+    }
+
+    fn set_mouse_target(&mut self, id: Option<FigureId>) {
+        self.interaction.set_mouse_target(id);
+    }
+
+    fn cursor_target(&self) -> Option<FigureId> {
+        self.interaction.cursor_target()
+    }
+
+    fn set_cursor_target(&mut self, id: Option<FigureId>) {
+        self.interaction.set_cursor_target(id);
+    }
+
+    fn hover_source(&self) -> Option<FigureId> {
+        self.interaction.hover_source()
+    }
+
+    fn set_hover_source(&mut self, id: Option<FigureId>) {
+        self.interaction.set_hover_source(id);
+    }
+
+    fn set_hovered(&mut self, id: FigureId, hovered: bool) {
+        if self.scene.node(id).is_some() {
+            self.interaction.set_hovered(id, hovered);
+        }
+    }
+
+    fn set_pressed(&mut self, id: FigureId, pressed: bool) {
+        if self.scene.node(id).is_some() {
+            self.interaction.set_pressed(id, pressed);
+        }
+    }
+
+    fn focus_owner(&self) -> Option<FigureId> {
+        self.interaction.focus_owner()
+    }
+
+    fn set_focus_owner(&mut self, id: Option<FigureId>) {
+        self.interaction.set_focus_owner(id);
+    }
+
+    fn can_request_focus(&self, target_id: FigureId) -> bool {
+        self.scene.can_request_focus(target_id)
+    }
+
+    fn captured(&self) -> Option<FigureId> {
+        self.interaction.captured()
+    }
+
+    fn set_captured(&mut self, id: Option<FigureId>) {
+        self.interaction.set_captured(id);
+    }
+
+    fn gesture_target(&self, session_id: GestureSessionId) -> Option<FigureId> {
+        self.interaction
+            .gesture_target(session_id)
+            .filter(|id| self.scene.node(*id).is_some())
+    }
+
+    fn has_gesture_session(&self, session_id: GestureSessionId) -> bool {
+        self.interaction.has_gesture_session(session_id)
+    }
+
+    fn set_gesture_target(&mut self, session_id: GestureSessionId, target_id: Option<FigureId>) {
+        let target_id = target_id.filter(|id| self.scene.node(*id).is_some());
+        self.interaction.set_gesture_target(session_id, target_id);
+    }
+
+    fn clear_gesture_target(&mut self, session_id: GestureSessionId) {
+        self.interaction.clear_gesture_target(session_id);
+    }
+
+    fn clear_gesture_targets(&mut self) {
+        self.interaction.clear_gestures();
+    }
+
+    fn apply_scroll_fallback(&mut self, target_id: FigureId, event: &WheelEvent) -> bool {
+        self.apply_scroll_controller(target_id, event)
+    }
+
+    fn apply_zoom_fallback(&mut self, target_id: FigureId, event: &ZoomEvent) -> bool {
+        self.apply_zoom_manager(target_id, event)
+    }
+
+    fn dispatch_to_target(&mut self, target_id: Option<FigureId>, event: &Event) -> bool {
+        let Some(target_id) = target_id else {
+            return false;
+        };
+        let Some(block) = self.scene.node(target_id) else {
+            return false;
+        };
+        let pointer_pressed = self.interaction.is_pointer_pressed(target_id);
+        let keyboard_pressed = self.interaction.keyboard_pressed_key(target_id);
+        let mut effects = Vec::new();
+        let handled = {
+            let bounds = block.figure_bounds();
+            let target_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+            let visual_bounds = block.visual_bounds();
+            let mut ctx = EventContext::new(
+                target_id,
+                target_bounds,
+                visual_bounds,
+                pointer_pressed,
+                keyboard_pressed,
+                &mut effects,
+            );
+            let Some(handler) = block.figure.event_handler() else {
+                return false;
+            };
+
+            match event {
+                Event::Mouse(mouse_event) => {
+                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                        return false;
+                    };
+                    let point = transform.transform_point(Point::new(mouse_event.x, mouse_event.y));
+                    let local_event = mouse_event.with_target_point(point.x(), point.y());
+                    match local_event.kind {
+                        MouseEventKind::Pressed => handler.on_mouse_pressed(&local_event, &mut ctx),
+                        MouseEventKind::Released => {
+                            handler.on_mouse_released(&local_event, &mut ctx)
+                        }
+                        MouseEventKind::Moved => handler.on_mouse_moved(&local_event, &mut ctx),
+                        MouseEventKind::Dragged => handler.on_mouse_dragged(&local_event, &mut ctx),
+                        MouseEventKind::Hover => handler.on_mouse_hover(&local_event, &mut ctx),
+                        MouseEventKind::DoubleClicked => {
+                            handler.on_mouse_double_clicked(&local_event, &mut ctx)
+                        }
+                        MouseEventKind::Entered => handler.on_mouse_entered(&local_event, &mut ctx),
+                        MouseEventKind::Exited => handler.on_mouse_exited(&local_event, &mut ctx),
+                    }
+                }
+                Event::Wheel(wheel_event) => {
+                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                        return false;
+                    };
+                    let point = transform.transform_point(Point::new(wheel_event.x, wheel_event.y));
+                    let local_event = wheel_event.with_target_point(point.x(), point.y());
+                    handler.on_mouse_wheel(&local_event, &mut ctx)
+                }
+                Event::Zoom(zoom_event) => {
+                    let Some(transform) = self.scene.surface_to_local_transform(target_id) else {
+                        return false;
+                    };
+                    let point = transform.transform_point(Point::new(zoom_event.x, zoom_event.y));
+                    let local_event = zoom_event.with_target_point(point.x(), point.y());
+                    handler.on_zoom(&local_event, &mut ctx)
+                }
+                Event::Key(key_event) => match key_event.kind {
+                    crate::event::KeyEventKind::Pressed => {
+                        handler.on_key_pressed(key_event, &mut ctx)
+                    }
+                    crate::event::KeyEventKind::Released => {
+                        handler.on_key_released(key_event, &mut ctx)
+                    }
+                },
+                Event::Focus(focus_event) => match focus_event.kind {
+                    crate::event::FocusEventKind::Gained => {
+                        handler.on_focus_gained(focus_event, &mut ctx)
+                    }
+                    crate::event::FocusEventKind::Lost => {
+                        handler.on_focus_lost(focus_event, &mut ctx)
+                    }
+                },
+            }
+        };
+
+        for effect in effects {
+            match effect {
+                RuntimeEffect::Repaint { figure_id, rect } => {
+                    self.update_manager.add_dirty_region(figure_id, rect);
+                }
+                RuntimeEffect::Notification(effect) => {
+                    self.update_manager.enqueue_notification_effect(effect);
+                }
+                RuntimeEffect::Invalidate(figure_id) => {
+                    self.scene.mark_invalid(self.update_manager, figure_id);
+                }
+                RuntimeEffect::Mutation(mutation) => self.pending_mutations.enqueue(mutation),
+                RuntimeEffect::SetPressed { figure_id, pressed } => {
+                    self.interaction.set_pressed(figure_id, pressed);
+                }
+                RuntimeEffect::SetKeyboardPressed { figure_id, key } => {
+                    self.interaction.set_keyboard_pressed(figure_id, key);
+                }
+                RuntimeEffect::ActivateClickable(figure_id) => {
+                    self.scene
+                        .activate_clickable(self.update_manager, figure_id);
+                }
+            }
+        }
+
+        handled
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use crate::Color;
+    use crate::render::command::{LineCap, LineJoin};
+
+    use super::*;
+    use crate::{
+        Bounded, EventDispatcher, Figure, FigureEventHandler, MouseButton, MouseEvent,
+        RectangleFigure, Shape,
+    };
+
+    struct EnqueueChildFigure {
+        bounds: Rectangle,
+    }
+
+    impl Bounded for EnqueueChildFigure {
+        fn bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+            self.bounds = Rectangle::new(x, y, width, height);
+        }
+
+        fn name(&self) -> &'static str {
+            "EnqueueChildFigure"
+        }
+    }
+
+    impl Shape for EnqueueChildFigure {
+        fn stroke_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn stroke_width(&self) -> f64 {
+            0.0
+        }
+
+        fn fill_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn line_cap(&self) -> LineCap {
+            LineCap::default()
+        }
+
+        fn line_join(&self) -> LineJoin {
+            LineJoin::default()
+        }
+
+        fn fill_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+
+        fn outline_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+    }
+
+    impl Figure for EnqueueChildFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
+        fn paint_figure(&self, gc: &mut crate::render::NdCanvas) {
+            Shape::paint_figure(self, gc);
+        }
+
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for EnqueueChildFigure {
+        fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
+            ctx.invalidate();
+            ctx.add_child_later(
+                ctx.target_id(),
+                Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0)),
+            );
+            true
+        }
+    }
+
+    #[derive(Default, Debug, Clone, Copy, PartialEq)]
+    struct RecordedMousePoint {
+        x: f64,
+        y: f64,
+        entry_x: f64,
+        entry_y: f64,
+    }
+
+    struct RecordingFigure {
+        bounds: Rectangle,
+        last_mouse_point: Arc<Mutex<Option<RecordedMousePoint>>>,
+    }
+
+    impl RecordingFigure {
+        fn new(
+            bounds: Rectangle,
+            last_mouse_point: Arc<Mutex<Option<RecordedMousePoint>>>,
+        ) -> Self {
+            Self {
+                bounds,
+                last_mouse_point,
+            }
+        }
+    }
+
+    impl Bounded for RecordingFigure {
+        fn bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
+            self.bounds = Rectangle::new(x, y, width, height);
+        }
+
+        fn name(&self) -> &'static str {
+            "RecordingFigure"
+        }
+    }
+
+    impl Shape for RecordingFigure {
+        fn stroke_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn stroke_width(&self) -> f64 {
+            0.0
+        }
+
+        fn fill_color(&self) -> Option<Color> {
+            None
+        }
+
+        fn line_cap(&self) -> LineCap {
+            LineCap::default()
+        }
+
+        fn line_join(&self) -> LineJoin {
+            LineJoin::default()
+        }
+
+        fn fill_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+
+        fn outline_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+    }
+
+    impl Figure for RecordingFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            Bounded::bounds(self)
+        }
+
+        fn name(&self) -> &'static str {
+            Bounded::name(self)
+        }
+
+        fn paint_figure(&self, gc: &mut crate::render::NdCanvas) {
+            Shape::paint_figure(self, gc);
+        }
+
+        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+            Some(self)
+        }
+    }
+
+    impl FigureEventHandler for RecordingFigure {
+        fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
+            let entry_point = event.entry_point();
+            *self.last_mouse_point.lock().unwrap() = Some(RecordedMousePoint {
+                x: event.x,
+                y: event.y,
+                entry_x: entry_point.x(),
+                entry_y: entry_point.y(),
+            });
+            true
+        }
+    }
+
+    #[test]
+    fn test_scene_dispatch_context_translates_mouse_point_to_target_coordinate_domain() {
+        let recorded = Arc::new(Mutex::new(None));
+        let mut scene = FigureTree::new();
+        let contents_id =
+            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let coordinate_root_id = scene.add_child_to(
+            contents_id,
+            Box::new(RectangleFigure::new_with_color(
+                100.0,
+                50.0,
+                200.0,
+                150.0,
+                Color::WHITE,
+            )),
+        );
+        scene.add_child_to(
+            coordinate_root_id,
+            Box::new(RecordingFigure::new(
+                Rectangle::new(20.0, 30.0, 40.0, 40.0),
+                Arc::clone(&recorded),
+            )),
+        );
+
+        let mut update_manager = crate::UpdateManager::new();
+        let mut interaction = InteractionState::default();
+        let mut pending_mutations = PendingMutations::new();
+        let mut dispatcher = EventDispatcher;
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
+
+        dispatcher.dispatch_mouse_pressed(&mut ctx, 130.0, 90.0, MouseButton::Left);
+
+        assert_eq!(
+            *recorded.lock().unwrap(),
+            Some(RecordedMousePoint {
+                x: 10.0,
+                y: 10.0,
+                entry_x: 130.0,
+                entry_y: 90.0,
+            })
+        );
+    }
+
+    #[test]
+    fn test_scene_dispatch_context_uses_target_local_coordinate_domain() {
+        let recorded = Arc::new(Mutex::new(None));
+        let mut scene = FigureTree::new();
+        let contents_id =
+            scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        let coordinate_root_id = scene.add_child_to(
+            contents_id,
+            Box::new(RectangleFigure::new_with_color(
+                100.0,
+                50.0,
+                200.0,
+                150.0,
+                Color::WHITE,
+            )),
+        );
+        scene.add_child_to(
+            coordinate_root_id,
+            Box::new(RecordingFigure::new(
+                Rectangle::new(20.0, 30.0, 40.0, 40.0),
+                Arc::clone(&recorded),
+            )),
+        );
+
+        let mut update_manager = crate::UpdateManager::new();
+        let mut interaction = InteractionState::default();
+        let mut pending_mutations = PendingMutations::new();
+        let mut dispatcher = EventDispatcher;
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
+
+        dispatcher.dispatch_mouse_pressed(&mut ctx, 130.0, 90.0, MouseButton::Left);
+
+        assert_eq!(
+            *recorded.lock().unwrap(),
+            Some(RecordedMousePoint {
+                x: 10.0,
+                y: 10.0,
+                entry_x: 130.0,
+                entry_y: 90.0,
+            })
+        );
+    }
+
+    #[test]
+    fn test_scene_dispatch_context_defers_structure_mutation_until_after_callback() {
+        let mut scene = FigureTree::new();
+        let parent_id = scene.set_contents(Box::new(EnqueueChildFigure {
+            bounds: Rectangle::new(0.0, 0.0, 100.0, 100.0),
+        }));
+        scene.revalidate(parent_id);
+        assert!(scene.is_valid(parent_id));
+        let mut update_manager = crate::UpdateManager::new();
+        let mut interaction = InteractionState::default();
+        let mut pending_mutations = PendingMutations::new();
+        let mut dispatcher = EventDispatcher;
+        let mut ctx = SceneDispatchContext::new(
+            &mut scene,
+            &mut interaction,
+            &mut update_manager,
+            &mut pending_mutations,
+        );
+
+        dispatcher.dispatch_mouse_pressed(&mut ctx, 10.0, 10.0, MouseButton::Left);
+
+        assert_eq!(scene.node(parent_id).unwrap().children_count(), 0);
+        assert!(!scene.is_valid(parent_id));
+        assert!(update_manager.has_pending_layout());
+        assert!(scene.apply_pending_mutations(&mut update_manager, pending_mutations.drain()));
+        assert_eq!(scene.node(parent_id).unwrap().children_count(), 1);
+    }
+}

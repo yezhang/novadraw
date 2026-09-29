@@ -2,13 +2,15 @@
 name = "web-validation"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-novadraw = { path = "../../../novadraw", default-features = false, features = ["web-vello"] }
-novadraw-apps = { path = "../../support", default-features = false }
+novadraw = { path = "../../../novadraw" }
+novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = ["web"] }
+novadraw-platform-web = { path = "../../../novadraw-platform-web" }
 novadraw-demo-scenes = { path = "../../scenes" }
 wasm-bindgen = "0.2.127"
 wasm-bindgen-futures = "0.4.54"

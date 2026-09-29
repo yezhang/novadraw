@@ -1,8 +1,0 @@
-[package]
-name = "novadraw-math"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-glam.workspace = true
-serde.workspace = true

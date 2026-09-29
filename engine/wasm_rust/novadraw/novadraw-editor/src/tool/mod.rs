@@ -2,8 +2,8 @@
 
 use std::{error::Error, fmt};
 
-use novadraw_geometry::{Dimension, Point, Vec2};
-use novadraw_scene::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
+use novadraw::geometry::{Dimension, Point, Vec2};
+use novadraw::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
 
 use crate::{
     BendpointOperation, BendpointRequest, ChangeBoundsRequest, Command, ConnectionCreation,

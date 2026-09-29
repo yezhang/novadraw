@@ -5,9 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use novadraw::editor::HandleRole;
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::{Point, Rectangle};
+use novadraw_editor::HandleRole;
 use serde::Serialize;
 
 use super::FIRST_CONNECTION_ID;

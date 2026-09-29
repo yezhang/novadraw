@@ -2,12 +2,13 @@
 name = "event-app"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 winit.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-novadraw = { path = "../../../novadraw", features = ["native-vello"] }
+novadraw = { path = "../../../novadraw" }
 novadraw-apps = { path = "../../support" }
 novadraw-demo-scenes = { path = "../../scenes" }
 pollster.workspace = true

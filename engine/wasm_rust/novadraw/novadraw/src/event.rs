@@ -1,6 +1,6 @@
 //! Input dispatch, observation, focus, tooltip, and accessibility APIs.
 
-pub use novadraw_scene::{
+pub use crate::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
     AccessibilityUpdate, ActionEvent, ActionListener, AncestorEvent, AncestorEventKind,

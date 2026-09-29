@@ -8,8 +8,8 @@ use std::{
     sync::Arc,
 };
 
-use novadraw_geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
-use novadraw_scene::{
+use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
+use novadraw::{
     AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
     ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome, Figure,
     FigureId, FigureTree, FramePreparationError, FreeformLayerFigure, FreeformLayeredPane,
@@ -869,7 +869,7 @@ where
 
     pub(crate) fn scroll_viewport_by_surface_delta(
         &mut self,
-        delta: novadraw_geometry::Vec2,
+        delta: novadraw::geometry::Vec2,
     ) -> Result<bool, ViewerError> {
         let transform = self
             .runtime
@@ -888,13 +888,7 @@ where
 
     pub(crate) fn viewport_ranges(
         &self,
-    ) -> Result<
-        (
-            novadraw_scene::RangeModelSnapshot,
-            novadraw_scene::RangeModelSnapshot,
-        ),
-        ViewerError,
-    > {
+    ) -> Result<(novadraw::RangeModelSnapshot, novadraw::RangeModelSnapshot), ViewerError> {
         let viewport = self.viewport_handle()?;
         Ok((viewport.horizontal_range(), viewport.vertical_range()))
     }
@@ -2432,13 +2426,7 @@ where
     fn resolve_connection_routing(
         &self,
         descriptor: ConnectionRoutingDescriptor,
-    ) -> Result<
-        (
-            RouterBinding,
-            Option<Box<dyn novadraw_scene::RoutingConstraint>>,
-        ),
-        ViewerError,
-    > {
+    ) -> Result<(RouterBinding, Option<Box<dyn novadraw::RoutingConstraint>>), ViewerError> {
         let (selection, constraint) = descriptor.into_parts();
         let binding = match selection {
             ConnectionRouterSelection::Inherited => RouterBinding::Inherited {
@@ -2476,7 +2464,7 @@ where
         &mut self,
         connection: ConnectionId,
         router: RouterBinding,
-        constraint: Option<Box<dyn novadraw_scene::RoutingConstraint>>,
+        constraint: Option<Box<dyn novadraw::RoutingConstraint>>,
     ) -> Result<bool, ViewerError> {
         self.runtime
             .set_connection_route_configuration(connection, router, constraint)

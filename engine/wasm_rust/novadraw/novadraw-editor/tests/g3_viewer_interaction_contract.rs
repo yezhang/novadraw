@@ -1,12 +1,10 @@
 use std::{collections::HashMap, convert::Infallible};
 
+use novadraw::geometry::Rectangle;
+use novadraw::{ClickableFigure, Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, HandleRole, ModelAdapter,
     ModelEvent, ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
-};
-use novadraw_geometry::Rectangle;
-use novadraw_scene::{
-    ClickableFigure, Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -162,7 +160,7 @@ fn viewport_scroll_changes_targeting_through_the_shared_transform_chain() {
     assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(first));
     assert!(
         viewer
-            .set_viewport_origin(novadraw_geometry::Point::new(100.0, 0.0))
+            .set_viewport_origin(novadraw::geometry::Point::new(100.0, 0.0))
             .unwrap()
     );
     assert_eq!(viewer.target_at(50.0, 40.0), ViewerTarget::Part(second));
