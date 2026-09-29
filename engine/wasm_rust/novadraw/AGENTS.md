@@ -114,7 +114,7 @@
 | 渲染热路径 | 不打印日志 |
 | 渲染主循环保护 | 当前主线只保护 `novadraw/src/graph/render_recursive.rs`；`render_iterative.rs` 已归档到 tag `archive/render-iterative-poc-20260617` |
 | 硬编码 | 业务代码中不使用 magic numbers |
-| 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，apps 只做平台输入适配 |
+| 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，examples 只做平台输入适配与示例编排 |
 | 第三方类型边界 | backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型 |
 | Git 提交 | 提交信息摘要必须使用中文，并按主题保持原子化 |
 

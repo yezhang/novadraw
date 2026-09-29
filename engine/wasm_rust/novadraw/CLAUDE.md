@@ -21,9 +21,11 @@ novadraw-platform-winit/   - Winit 平台适配
 novadraw-platform-web/     - Web 平台适配
 novadraw-editor/   - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
 novadraw-inspector/ - 只读诊断与观测
-apps/native/       - winit/macOS/桌面应用
-apps/web/          - Wasm/浏览器应用
-apps/benchmarks/   - 无窗口性能基线
+examples/native/   - winit/macOS/桌面示例
+examples/web/      - Wasm/浏览器示例
+examples/scenes/   - Native/Web 共用的无平台示例场景
+examples/support/  - 示例共享宿主与工具
+benchmarks/        - 无窗口性能基线
 ```
 
 ## 核心禁止事项
@@ -36,7 +38,7 @@ apps/benchmarks/   - 无窗口性能基线
 - **迭代渲染归档**：`render_iterative.rs`、`use_iterative_render` 和 I 键切换已从主线移除；历史 POC 归档在 git tag `archive/render-iterative-poc-20260617`
 - **保护渲染主循环**：`novadraw/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
 - **禁止提前恢复迭代渲染**：递归渲染在 M1-M10 核心契约完备前，不得把迭代渲染重新接入代码主线；未来仅能作为性能专项 delta 从归档 tag 恢复并重新设计
-- **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于 `novadraw` Core，`apps/*` 只做平台输入适配与示例编排
+- **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于 `novadraw` Core，`examples/*` 只做平台输入适配与示例编排
 - **第三方类型不得穿透公共契约**：backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型；Kurbo 只按 Geometry 私有实现、Render IR 私有算法和 Vello lowering 三类归属
 
 ## 分层验证与提交门禁

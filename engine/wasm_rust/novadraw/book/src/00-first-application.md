@@ -26,11 +26,11 @@ cargo run -p node-editor-demo
 
 这些应用分成两层：
 
-- `apps/scenes`：只构造可复用场景；
-- `apps/native/*`：只负责窗口入口和场景选择；
-- `apps/support`：仓库内部的 Winit/Vello 演示宿主。
+- `examples/scenes`：只构造可复用场景；
+- `examples/native/*`：只负责窗口入口和场景选择；
+- `examples/support`：仓库内部的 Winit/Vello 演示宿主。
 
-产品应用可以采用这套分层，但不应把 `novadraw-apps` 当作稳定产品框架。应用自己的
+产品应用可以采用这套分层，但不应把 `novadraw-example-support` 当作稳定产品框架。应用自己的
 composition root 应持有平台窗口、`Runtime` 或 `GraphicalViewer`，以及渲染后端。
 
 ## 2. 选择 Core 还是 Editor
@@ -158,8 +158,8 @@ fn build_scene() -> Result<AppScene, Box<dyn Error>> {
 3. 树交给 `Runtime` 后，运行期修改不再经过 Builder。
 
 完整可运行场景见
-[`apps/scenes/src/update.rs`](../../apps/scenes/src/update.rs) 和
-[`apps/scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)。
+[`examples/scenes/src/update.rs`](../../examples/scenes/src/update.rs) 和
+[`examples/scenes/src/layout.rs`](../../examples/scenes/src/layout.rs)。
 
 ## 5. 在运行期修改图形
 
@@ -217,8 +217,8 @@ runtime.pointer_exited();
 不要在平台适配层重复命中测试、滚动目标选择或坐标父链换算。这些规则由 Runtime
 统一维护，否则绘制与交互会在嵌套、滚动或缩放后产生偏差。
 
-桌面适配示例见
-[`apps/support/src/input.rs`](../../apps/support/src/input.rs)，输入状态机原理见
+桌面适配实现见
+[`novadraw-platform-winit/src/input.rs`](../../novadraw-platform-winit/src/input.rs)，输入状态机原理见
 [第 5 章](05-input-and-interaction.md)。
 
 ## 7. 驱动一帧
@@ -250,7 +250,7 @@ fn redraw(
 宿主必须把后端结果交还 `Runtime::complete_submission`。否则 Runtime 无法确认资源
 增量是否已消费，也无法安全开始下一帧。
 
-真实桌面实现见 [`apps/support/src/app.rs`](../../apps/support/src/app.rs)。帧准备状态和
+真实桌面实现见 [`examples/support/src/app.rs`](../../examples/support/src/app.rs)。帧准备状态和
 失败恢复见[第 4 章](04-layout-update-and-frame.md)。
 
 ## 8. 何时引入业务模型
@@ -276,7 +276,7 @@ let domain = EditorDomain::new();
 修改模型，查看器再把模型变化投影到场景。
 
 完整实现路线见[第 8 章](08-editor-framework.md)，可运行示例见
-[`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。
+[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。
 
 ## 9. 推荐的应用目录
 

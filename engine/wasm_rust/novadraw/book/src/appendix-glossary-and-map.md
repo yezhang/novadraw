@@ -153,10 +153,10 @@ Editor、Inspector、Vello backend 和 Winit/Web platform adapter 使用独立 c
 - 自由范围布局：
   [`novadraw/src/layout/freeform_layout.rs`](../../novadraw/src/layout/freeform_layout.rs)
 - 布局 demo 场景：
-  [`novadraw-demo-scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)
+  [`novadraw-example-scenes/src/layout.rs`](../../examples/scenes/src/layout.rs)
 - 更新与裁剪中的布局场景：
-  [`update.rs`](../../apps/scenes/src/update.rs)、
-  [`clip.rs`](../../apps/scenes/src/clip.rs)
+  [`update.rs`](../../examples/scenes/src/update.rs)、
+  [`clip.rs`](../../examples/scenes/src/clip.rs)
 - 图层（Layer）：
   [`novadraw/src/container/layer.rs`](../../novadraw/src/container/layer.rs)
 - 视口（Viewport）：

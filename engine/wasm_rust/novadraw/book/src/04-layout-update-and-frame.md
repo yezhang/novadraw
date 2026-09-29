@@ -144,7 +144,7 @@ runtime
 场景见[第 6 章](06-layers-and-viewport.md)。
 
 完整布局示例集中在
-[`apps/scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)。阅读时优先看场景构造
+[`examples/scenes/src/layout.rs`](../../examples/scenes/src/layout.rs)。阅读时优先看场景构造
 函数，不需要从 native 应用的窗口代码开始。
 
 ## 4.5 测量先于排列

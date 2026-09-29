@@ -134,7 +134,7 @@ cargo test -p novadraw validation_figure_effects_preserve_causal_order
 | `0`-`9` | 按索引切换到存在的场景 |
 | `Left` / `PageUp` | 上一个场景 |
 | `Right` / `PageDown` | 下一个场景 |
-| `S` | 保存当前帧到对应 `apps/native/<app>/screenshot/` |
+| `S` | 保存当前帧到对应 `examples/native/<app>/screenshot/` |
 | `U` | 切换 UpdateManager 与直接渲染，仅用于问题定位 |
 | `Esc` | 退出 |
 
@@ -195,7 +195,7 @@ cargo run -p event-app
 | 10 | 再按一次 `3` 重置场景，先点击目标外部，再点击目标内部 | 外部点击不改变蓝色目标；内部点击产生红色/紫色状态变化 |
 
 当前窗口颜色不编码键值、滚轮增量、双击次数或 target-domain 数值，因此这些内容
-不得仅凭肉眼签收。共享 `novadraw-apps::DemoApp` 当前不合成 `Hover` 和
+不得仅凭肉眼签收。共享 `novadraw-example-support::DemoApp` 当前不合成 `Hover` 和
 `DoubleClicked`，这两个事件只在 dispatcher verification 中验证；`editor` 已有
 double-click 平台适配，但不作为 `event-app` 的端到端证据。未来共享宿主接入后，
 应在此处补充对应窗口动作，不能用现有报告宣称平台适配链路已经覆盖。

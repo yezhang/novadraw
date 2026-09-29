@@ -336,8 +336,8 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 | 相同端点间多条边需要分离 | Fan |
 
 完整 Core 示例见
-[`apps/scenes/src/connection.rs`](../../apps/scenes/src/connection.rs)，Editor 连接实现见
-[`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。
+[`examples/scenes/src/connection.rs`](../../examples/scenes/src/connection.rs)，Editor 连接实现见
+[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。
 
 ## 7.15 失败模式
 

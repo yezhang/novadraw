@@ -15,7 +15,7 @@
 只安装核心引擎。
 
 同时，`novadraw-render` 混合 backend-neutral Render IR 与具体 Vello 实现，
-`apps/support` 混合可复用的平台输入/宿主适配和 demo shell。Winit、Web 与 Vello 的
+`examples/support` 混合可复用的平台输入/宿主适配和 demo shell。Winit、Web 与 Vello 的
 依赖边界没有对应到真实的可选安装和移植需求。
 
 未来可能加入完整 3D 场景、将二维 Figure 投影为 3D 视图，或在二维 Figure 树中嵌入
@@ -98,8 +98,9 @@ FigureTree 或 Runtime 的领域实现。
 
 ### 5. Workspace 私有 package 不发布
 
-`apps/*`、demo scenes、benchmarks 和 `xtask` 是部署或验证 package，显式设置
-`publish = false`。它们不构成框架公共 crate 集合。
+`examples/*`、`benchmarks/*` 和 `xtask` 是示例、验证或工具 package，显式设置
+`publish = false`。它们不构成框架公共 crate 集合；示例是否参与门禁由
+`verification/suites.toml` 表达，不通过目录归属区分。
 
 ### 6. 不保留旧 crate 转发壳
 

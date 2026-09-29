@@ -6,7 +6,7 @@
 
 - 日期：2026-09-08
 - 平台：macOS
-- 应用：`apps/native/widgets-app`
+- 应用：`examples/native/widgets-app`
 - 基线：`7b3a033`
 - 结果：PASS
 

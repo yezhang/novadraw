@@ -163,7 +163,8 @@ novadraw-inspector
 novadraw-backend-vello
 novadraw-platform-winit
 novadraw-platform-web
-apps/{native,web,benchmarks}/*
+examples/{native,web,support,scenes}/*
+benchmarks/*
 ```
 
 `novadraw` 直接拥有 Geometry、Figure、Layout、Tree、Runtime 和 Render protocol。

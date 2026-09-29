@@ -88,7 +88,7 @@ pub trait PlatformHost {
 }
 ```
 
-Runtime 不持有 Host。`novadraw-apps` 在输入事务、timer wake、稳定帧发布和场景替换后，
+Runtime 不持有 Host。`novadraw-example-support` 在输入事务、timer wake、稳定帧发布和场景替换后，
 按固定顺序同步：
 
 ```text

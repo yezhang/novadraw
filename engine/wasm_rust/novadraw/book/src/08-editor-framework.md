@@ -416,7 +416,7 @@ let domain = EditorDomain::new();
 | `app` | Viewer、EditorDomain、平台宿主和后端组合 |
 
 可运行示例：
-[`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。该示例包含完整能力，
+[`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。该示例包含完整能力，
 实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
 
 ## 8.15 失败模式

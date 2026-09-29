@@ -238,7 +238,7 @@ G5.5 自动与人工验证入口：
 
 ## 下游产品参考场景
 
-`apps/native/node-editor-demo` 是引擎验证入口，不是架构真源，也不是产品交付物。
+`examples/native/node-editor-demo` 是引擎验证入口，不是架构真源，也不是产品交付物。
 独立产品包可基于 `novadraw-editor` 公共 API 覆盖：
 
 1. 加载一个带节点和连接的模型；

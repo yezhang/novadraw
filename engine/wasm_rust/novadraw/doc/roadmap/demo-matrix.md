@@ -25,15 +25,15 @@
 |------|-----------|------|----------|--------------|
 | M1 | 无独立 demo | — | 仅类型单测 + Graphics 状态栈嵌套测试 | +30 |
 | M2 | 无独立 demo | — | active core Figure 的树、盒模型与三段式 paint 契约测试 | +60 |
-| M3 | `clip-app` nested clip 场景 | `apps/native/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
-| M4 | `transform-app` ✅ | `apps/native/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
-| M5 | `layout-app` ✅ + `update-app` ✅ | `apps/native/layout-app`、`apps/native/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
-| M6 | `event-app` ✅ | `apps/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
+| M3 | `clip-app` nested clip 场景 | `examples/native/clip-app` | 嵌套裁剪截图验证 + paint/hit-test 一致性测试 | +40 |
+| M4 | `transform-app` ✅ | `examples/native/transform-app` | 深层嵌套坐标转换 + 坐标根移动 + 入口域降域可视化 | +50 |
+| M5 | `layout-app` ✅ + `update-app` ✅ | `examples/native/layout-app`、`examples/native/update-app` | 6 布局截图验证 + bounds 契约 fixture；三种失效粒度 + 1,024 Figure 事务门禁 | +250 |
+| M6 | `event-app` ✅ | `examples/native/event-app` | 4 类监听 + hit-test 全图元 + capture/focus + gesture session 状态机断言 | +100 |
 | M7 | 集成入 `event-app` + `update-app` | 同上 | bounds 变化触发 `figureMoved`；坐标根移动触发 `coordinateSystemChanged`；UpdateManager 触发 validating/painting 通知 | +80 |
-| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `apps/native/scroll-pane-demo`、`apps/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
-| D2 | `scroll-pane-demo` ✅ + Web `layer-freeform` suite ✅ | `apps/native/scroll-pane-demo`、`apps/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、content-domain range 与锚点缩放；自动与人工验收通过 | — |
-| M9 | `connections-demo` | `apps/native/connections-demo` | 5 anchor + Direct/Bendpoint/shared Manhattan/Fan + Locator/Decoration + ConnectionLayer + viewport topology 八场景 | +150 |
-| M10 | `shape-app` + `border-app` + `text-app` + `widgets-app` + Web `text-image`/`widgets` suites ✅ | `apps/native/shape-app`、`apps/native/border-app`、`apps/native/text-app`、`apps/native/widgets-app`、`apps/web/web-validation` | deferred builtin Figure + 6 边框 + 文本/图像资源 + Clickable/Button/Toggle 交互 + Tooltip 悬停延迟/边界 placement + accessibility Snapshot/Delta/action；Native/Web 等价验收完成 | +220 |
+| M8 | `scroll-pane-demo` ✅ + `viewport-app` ✅ | `examples/native/scroll-pane-demo`、`examples/native/viewport-app` | ScrollBar + 行/像素滚动 + ZoomManager/macOS pinch 锚点缩放；24 项契约测试与 CLI 验证 | +120 |
+| D2 | `scroll-pane-demo` ✅ + Web `layer-freeform` suite ✅ | `examples/native/scroll-pane-demo`、`examples/web/web-validation` | layer 顺序/透明命中、负坐标四方向滚动、content-domain range 与锚点缩放；自动与人工验收通过 | — |
+| M9 | `connections-demo` | `examples/native/connections-demo` | 5 anchor + Direct/Bendpoint/shared Manhattan/Fan + Locator/Decoration + ConnectionLayer + viewport topology 八场景 | +150 |
+| M10 | `shape-app` + `border-app` + `text-app` + `widgets-app` + Web `text-image`/`widgets` suites ✅ | `examples/native/shape-app`、`examples/native/border-app`、`examples/native/text-app`、`examples/native/widgets-app`、`examples/web/web-validation` | deferred builtin Figure + 6 边框 + 文本/图像资源 + Clickable/Button/Toggle 交互 + Tooltip 悬停延迟/边界 placement + accessibility Snapshot/Delta/action；Native/Web 等价验收完成 | +220 |
 
 **测试增量合计**：+1,100（基线 146，目标 ~1,250）
 
@@ -72,7 +72,7 @@
 
 - M3 paint/hit-test 一致性：同一 border-inset clientArea 同时约束绘制裁剪、hit-test descent 和 mouse event target
 - M5 draw2d 反向等价：本项目 6 布局的输出与 g2 同输入下的 `bounds` 结果**位级一致**或在 ±1px 容差内
-- 路径：`novadraw/tests/` + `apps/benchmarks/`
+- 路径：`novadraw/tests/` + `benchmarks/`
 
 ### 阻塞收口规则
 
@@ -88,23 +88,23 @@
 
 ## Demo 完成清单（勾选区）
 
-- [x] M3 `apps/native/clip-app` nested clip 场景
-- [x] M4 `apps/native/transform-app`
-- [x] M5 `apps/native/layout-app`
-- [x] M5 `apps/native/update-app` stress 场景
-- [x] M6 `apps/native/event-app`
-- [x] M8 `apps/native/scroll-pane-demo`
-- [x] M8 `apps/native/viewport-app` 4 场景视觉验证
+- [x] M3 `examples/native/clip-app` nested clip 场景
+- [x] M4 `examples/native/transform-app`
+- [x] M5 `examples/native/layout-app`
+- [x] M5 `examples/native/update-app` stress 场景
+- [x] M6 `examples/native/event-app`
+- [x] M8 `examples/native/scroll-pane-demo`
+- [x] M8 `examples/native/viewport-app` 4 场景视觉验证
 - [x] D2 `layer-freeform` Native/Web 人工验收
-- [x] M9 `apps/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
+- [x] M9 `examples/native/connections-demo`（自动截图、视觉复核与六场景人工窗口验收完成）
 - [x] D3.1 `connections-demo` 增量（`shared_manhattan`、`unsupported_viewport_topology` 自动截图、视觉复核与人工窗口验收通过）
 - [x] D3.2 `d3_runtime_mutation`（Runtime layout/constraint/size/Z-order/clipping 与 callback FIFO 自动契约）
 - [x] D3.3 `d3_runtime_listener`（七类 Runtime listener、统一注销与 callback self-removal 自动契约）
 - [x] D4.0 `architecture-review-probe`（身份、释放、资源、backend 重建、route 与 Label 首帧证据复跑）
-- [x] M10.1 `apps/native/shape-app`（自动契约与人工窗口验收完成）
-- [x] M10.1 `apps/native/border-app`（含非对称 MarginBorder client-area 可视验证）
-- [x] M10.2-M10.3 `apps/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）
-- [x] M10.4 `apps/native/widgets-app`（自动契约、三场景截图与 macOS 人工窗口验收通过）
+- [x] M10.1 `examples/native/shape-app`（自动契约与人工窗口验收完成）
+- [x] M10.1 `examples/native/border-app`（含非对称 MarginBorder client-area 可视验证）
+- [x] M10.2-M10.3 `examples/native/text-app`（字体/CJK fallback、ellipsis、图标 placement、style inheritance、TitleBarBorder、PNG/SVG 与资源状态截图复核通过）
+- [x] M10.4 `examples/native/widgets-app`（自动契约、三场景截图与 macOS 人工窗口验收通过）
 - [x] M10.5 `widgets-app` Tooltip/Accessibility 场景（自动契约、Native 边界上翻截图、macOS 人工交互与 Web DOM/AX 验证完成）
 - [x] M10 Web `text-image`/`widgets` suites（11 个共享场景、WebGPU 资源状态、交互、Tooltip 与 accessibility 验收完成）
 
@@ -118,7 +118,7 @@
 
 ### 节点编辑器探索 demo
 
-- **路径**：`apps/native/node-editor-demo`（暂定）
+- **路径**：`examples/native/node-editor-demo`（暂定）
 - **触发时机**：M1-M10 全部 `behavior_verified` 之后
 - **能力范围**：创建节点 / 拖拽 / 连接 / 删除 / 滚动+缩放 / Tooltip
 - **GEF helper**：`AutoexposeHelper` 在拖拽期间驱动 Viewport 自动滚动，属于本层，

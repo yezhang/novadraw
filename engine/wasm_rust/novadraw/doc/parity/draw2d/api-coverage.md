@@ -245,7 +245,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
-Novadraw 验证入口：`novadraw/tests/m4_coordinate_contract.rs`、`apps/native/transform-app`。
+Novadraw 验证入口：`novadraw/tests/m4_coordinate_contract.rs`、`examples/native/transform-app`。
 
 ### M5 Layout / Validation / UpdateManager
 
@@ -268,10 +268,10 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 | `event.dispatcher` | `dispatchMousePressed/Released/Moved` | `EventDispatcher::{receive,dispatch_mouse_pressed,dispatch_mouse_released,dispatch_mouse_moved}`，`Event::Mouse`, `MouseEventKind` | verified | target-domain callback 与 capture 状态测试 |
 | `event.dispatcher` | dispatcher consumed / capture result | `DispatchOutcome::{target,is_handled,capture}` 从 Runtime 返回平台无关的分发结果 | verified | Editor G3 P2 delta；不改变既有 Figure callback 或 capture 状态机 |
 | `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 与 hover callback 由 `mouseTarget` 路由；`hoverSource` 专用于 tooltip source；pointer leave 清理 capture/pressed | verified | 交互父 + 非交互子、capture release/leave、mouse/cursor/tooltip target 分轨 |
-| `event.dispatcher` | `setRoot`, `setControl` | `Runtime::set_contents` 管理 root；`PlatformHost` 注入平台服务，避免 dispatcher 持有原生 control | verified | 接受组合根 + host adapter 变体，apps 只做平台输入适配 |
+| `event.dispatcher` | `setRoot`, `setControl` | `Runtime::set_contents` 管理 root；`PlatformHost` 注入平台服务，避免 dispatcher 持有原生 control | verified | 接受组合根 + host adapter 变体，examples 只做平台输入适配 |
 | `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `Runtime::{request_focus,clear_focus,traverse_focus}`、`InteractionState::focus_owner`、`FocusTraversalPolicy`、`FocusEvent` | verified | D1.5b 引擎 focus model 与 D1.5c Native/Web Tab traversal 已通过自动验证及 macOS/Web 人工验收 |
 | `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release 自动释放；`FigureTree::{captured,set_captured}` | verified | captured target 与 hoverSource 独立 |
-| `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`ZoomEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口；scroll/zoom session 固定 target | verified | Winit 只在 `novadraw-apps` 适配单位、DPI 与 phase；pointer capture 与 gesture session 分轨 |
+| `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`ZoomEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口；scroll/zoom session 固定 target | verified | Winit 只在 `novadraw-example-support` 适配单位、DPI 与 phase；pointer capture 与 gesture session 分轨 |
 | `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor 与 Tooltip 经 PlatformHost effect；Runtime 从 stable scene 发布 accessibility Snapshot/Delta，Host 只做平台映射 | verified | M10.5 保留 engine semantics / platform adapter 分层 |
 
 Draw2D 证据入口：`EventDispatcher.java`、`SWTEventDispatcher.java`、`MouseEvent.java`、listener 接口。
