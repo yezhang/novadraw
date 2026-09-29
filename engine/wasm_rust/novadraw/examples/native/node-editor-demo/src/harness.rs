@@ -6,8 +6,8 @@ use novadraw::render::text::BuiltinFont;
 use novadraw::{Color, FigureId, FigureStyle, Point, Rectangle, RectangleFigure, Runtime};
 use novadraw_editor::{
     AutoexposeTick, BendpointHandleSite, ConnectionEndpoint, ConnectionPartId, CreateRequest,
-    CreationType, DeleteRequest, EditorDomain, EditorRequest, HandleRole, RequestModifiers,
-    ResizeDirection,
+    CreationType, DeleteRequest, DirectTextFeature, EditorDomain, EditorRequest, HandleRole,
+    RequestModifiers, ResizeDirection, SessionTextInputEvent, TextInputEffect,
 };
 
 use super::{
@@ -37,6 +37,10 @@ impl EditorHarness {
         viewer
             .runtime_mut()
             .register_builtin_font(BuiltinFont::Inter)
+            .map_err(|error| error.to_string())?;
+        viewer
+            .runtime_mut()
+            .register_builtin_font(BuiltinFont::NotoSansSc)
             .map_err(|error| error.to_string())?;
         let viewport = viewer.root_layers().viewport();
         let style_changed = viewer
@@ -87,7 +91,9 @@ impl EditorHarness {
             self.viewer.selection().items().len(),
             self.domain.command_stack().undo_len(),
             self.domain.command_stack().redo_len(),
-            if self.domain.is_connection_creation_active() {
+            if self.direct_text_edit_active() {
+                " | TEXT EDIT"
+            } else if self.domain.is_connection_creation_active() {
                 " | CONNECTION"
             } else {
                 ""
@@ -234,6 +240,9 @@ impl EditorHarness {
         self.domain
             .refresh_after_viewport_change(&mut self.viewer)
             .map_err(|error| error.to_string())?;
+        self.viewer
+            .synchronize_direct_text_input_area()
+            .map_err(|error| error.to_string())?;
         self.sync_selection_handles()
     }
 
@@ -245,11 +254,46 @@ impl EditorHarness {
     }
 
     pub(crate) fn focus_lost(&mut self) -> HarnessResult<()> {
-        self.cancel_tool()?;
+        if self.viewer.direct_text_edit().is_some() {
+            self.domain
+                .direct_text_focus_lost(&mut self.viewer)
+                .map_err(|error| error.to_string())?;
+        } else {
+            self.cancel_tool()?;
+        }
         self.viewer.pointer_exited();
         self.viewer.runtime_mut().cancel_gestures();
         self.viewer.runtime_mut().release_focus();
         Ok(())
+    }
+
+    pub(crate) fn start_rename_selected(&mut self) -> HarnessResult<bool> {
+        let Some(source) = self.viewer.selection().primary() else {
+            return Ok(false);
+        };
+        self.domain
+            .start_direct_text_edit(
+                &mut self.viewer,
+                source,
+                DirectTextFeature::new("label").map_err(|error| error.to_string())?,
+            )
+            .map_err(|error| error.to_string())?;
+        self.sync_selection_handles()?;
+        Ok(true)
+    }
+
+    pub(crate) fn handle_text_input(&mut self, event: SessionTextInputEvent) -> HarnessResult<()> {
+        self.domain
+            .handle_text_input_event(&mut self.viewer, event)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn take_text_input_effects(&mut self) -> Vec<TextInputEffect> {
+        self.viewer.take_text_input_effects()
+    }
+
+    pub(crate) fn direct_text_edit_active(&self) -> bool {
+        self.viewer.direct_text_edit().is_some()
     }
 
     pub(crate) fn activate_connection_creation(&mut self) -> HarnessResult<()> {
@@ -340,6 +384,15 @@ impl EditorHarness {
             .nodes
             .get(&NodeId(id))
             .map(|node| node.bounds)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn node_label(&self, id: u64) -> Option<&str> {
+        self.viewer
+            .model()
+            .labels
+            .get(&NodeId(id))
+            .map(String::as_str)
     }
 
     pub(crate) fn node_bounds_in_surface(&self, id: u64) -> Option<Rectangle> {

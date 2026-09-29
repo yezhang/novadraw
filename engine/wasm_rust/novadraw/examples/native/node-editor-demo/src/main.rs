@@ -11,9 +11,11 @@ use novadraw::connection::{
 };
 use novadraw::container::FreeformLayerFigure;
 use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::border::LineBorder;
 use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
-    Color, Figure, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
+    Color, Figure, FlowPage, LabelFigure, PlatformHost, Point, PolylineFigure, Rectangle,
+    RectangleFigure, RenderBackend, TextFlowFigure,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
@@ -21,12 +23,13 @@ use novadraw_editor::{
     ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
     ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
     ConnectionRouterRegistration, ConnectionRoutingDescriptor, CreateConnectionRequest,
-    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorRequest, FeedbackVisual,
-    GraphicalViewer, ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext,
-    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ReconnectConnectionRequest,
-    VisualUpdateContext,
+    DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest, DirectTextEditState,
+    DirectTextFeedback, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy,
+    EditorRequest, FeedbackVisual, FocusLossPolicy, GraphicalViewer, ModelAdapter, ModelConnection,
+    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
+    PolicyRole, ReconnectConnectionRequest, TextEditMode, VisualUpdateContext,
 };
-use novadraw_platform_winit::WinitPlatformHost;
+use novadraw_platform_winit::{WinitPlatformHost, WinitTextInputBridge};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -148,6 +151,7 @@ struct Node {
 struct DemoModel {
     revision: ModelRevision,
     nodes: HashMap<NodeId, Node>,
+    labels: HashMap<NodeId, String>,
     children: HashMap<NodeId, Vec<NodeId>>,
     connections: Vec<ModelConnection<NodeId>>,
     bendpoints: HashMap<NodeId, Vec<Point>>,
@@ -199,6 +203,10 @@ impl DemoModel {
                     },
                 ),
             ]),
+            labels: HashMap::from([
+                (NodeId(2), "Source node".to_owned()),
+                (NodeId(3), "Target node".to_owned()),
+            ]),
             children: HashMap::from([(NodeId(1), vec![NodeId(2), NodeId(3), NodeId(4)])]),
             connections: Vec::new(),
             bendpoints: HashMap::new(),
@@ -241,8 +249,18 @@ impl DemoModel {
         self.publish(id);
     }
 
+    fn set_label(&mut self, id: NodeId, label: String) {
+        self.labels.insert(id, label);
+        self.publish(id);
+    }
+
     fn insert(&mut self, id: NodeId, node: Node, index: usize) {
         assert!(self.nodes.insert(id, node).is_none());
+        if matches!(node.kind, NodeKind::Shape(_)) {
+            self.labels
+                .entry(id)
+                .or_insert_with(|| format!("Node {}", id.0));
+        }
         self.children
             .entry(NodeId(1))
             .or_default()
@@ -262,6 +280,7 @@ impl DemoModel {
             .expect("delete command references a canvas child");
         children.remove(index);
         let node = self.nodes.remove(&id).expect("deleted node exists");
+        let label = self.labels.remove(&id);
         let mut connections = Vec::new();
         for (connection_index, connection) in self.connections.iter().copied().enumerate() {
             if connection.source() == id || connection.target() == id {
@@ -277,13 +296,18 @@ impl DemoModel {
         self.publish(NodeId(1));
         RemovedNode {
             node,
+            label,
             index,
             connections,
         }
     }
 
     fn restore(&mut self, id: NodeId, removed: RemovedNode) {
+        let label = removed.label;
         self.insert(id, removed.node, removed.index);
+        if let Some(label) = label {
+            self.labels.insert(id, label);
+        }
         for (index, connection, bendpoints) in removed.connections {
             self.connections.insert(index, connection);
             self.bendpoints.insert(connection.id(), bendpoints);
@@ -369,6 +393,7 @@ impl DemoModel {
 
 struct RemovedNode {
     node: Node,
+    label: Option<String>,
     index: usize,
     connections: Vec<(usize, ModelConnection<NodeId>, Vec<Point>)>,
 }
@@ -427,6 +452,28 @@ impl Command<DemoModel> for SetBoundsCommand {
 
     fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
         model.set_bounds(self.id, self.before);
+        Ok(())
+    }
+}
+
+struct SetLabelCommand {
+    id: NodeId,
+    before: String,
+    after: String,
+}
+
+impl Command<DemoModel> for SetLabelCommand {
+    fn label(&self) -> &str {
+        "Rename node"
+    }
+
+    fn execute(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.set_label(self.id, self.after.clone());
+        Ok(())
+    }
+
+    fn undo(&mut self, model: &mut DemoModel) -> Result<(), CommandError> {
+        model.set_label(self.id, self.before.clone());
         Ok(())
     }
 }
@@ -712,6 +759,62 @@ impl ConnectionCreation<DemoModel> for DemoConnectionCreation {
 
 struct NodePolicy;
 
+struct NodeDirectTextEdit {
+    node: NodeId,
+    bounds: Rectangle,
+    color: Color,
+    descriptor: DirectTextEditDescriptor,
+}
+
+impl DirectTextEdit<DemoModel> for NodeDirectTextEdit {
+    fn descriptor(&self) -> &DirectTextEditDescriptor {
+        &self.descriptor
+    }
+
+    fn feedback(
+        &mut self,
+        state: &DirectTextEditState,
+        _model: &DemoModel,
+    ) -> Result<DirectTextFeedback, PolicyError> {
+        DirectTextFeedback::new(
+            vec![
+                FeedbackVisual::scaled(Box::new(
+                    RectangleFigure::new_with_color(
+                        self.bounds.x,
+                        self.bounds.y,
+                        self.bounds.width,
+                        self.bounds.height,
+                        self.color,
+                    )
+                    .with_stroke(FEEDBACK_COLOR, 2.0),
+                )),
+                FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
+                    self.bounds,
+                    FlowPage::from_text(state.draft()),
+                ))),
+            ],
+            1,
+        )
+    }
+
+    fn command(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &DemoModel,
+    ) -> Result<Box<dyn Command<DemoModel>>, PolicyError> {
+        let before = model
+            .labels
+            .get(&self.node)
+            .ok_or_else(|| PolicyError::operation("direct-edit node no longer exists"))?
+            .clone();
+        Ok(Box::new(SetLabelCommand {
+            id: self.node,
+            before,
+            after: state.draft().to_owned(),
+        }))
+    }
+}
+
 impl EditPolicy<DemoModel> for NodePolicy {
     fn understands(&self, request: &EditorRequest) -> bool {
         matches!(
@@ -782,6 +885,40 @@ impl EditPolicy<DemoModel> for NodePolicy {
         )
         .with_stroke(FEEDBACK_COLOR, 2.0);
         Ok(vec![FeedbackVisual::scaled(Box::new(feedback))])
+    }
+
+    fn start_direct_text_edit(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        request: &DirectTextEditRequest,
+        model: &DemoModel,
+    ) -> Result<Option<Box<dyn DirectTextEdit<DemoModel>>>, PolicyError> {
+        let Some(node) = model.nodes.get(&host.model()).copied() else {
+            return Ok(None);
+        };
+        let NodeKind::Shape(color) = node.kind else {
+            return Ok(None);
+        };
+        if request.feature().as_str() != "label" {
+            return Ok(None);
+        }
+        let text = model
+            .labels
+            .get(&host.model())
+            .ok_or_else(|| PolicyError::operation("shape label is missing"))?
+            .clone();
+        Ok(Some(Box::new(NodeDirectTextEdit {
+            node: host.model(),
+            bounds: node.bounds,
+            color,
+            descriptor: DirectTextEditDescriptor::new(
+                request.feature().clone(),
+                text,
+                model.revision(),
+                TextEditMode::SingleLine,
+                FocusLossPolicy::Accept,
+            ),
+        })))
     }
 }
 
@@ -869,18 +1006,19 @@ impl EditPartBehavior<DemoModel> for DemoPart {
                 node.bounds.width,
                 node.bounds.height,
             )),
-            NodeKind::Shape(color) => Box::new(
-                RectangleFigure::new_with_color(
-                    node.bounds.x,
-                    node.bounds.y,
-                    node.bounds.width,
-                    node.bounds.height,
-                    color,
+            NodeKind::Shape(_) => Box::new(
+                LabelFigure::new(
+                    model
+                        .labels
+                        .get(&model_id)
+                        .expect("shape label exists")
+                        .clone(),
                 )
-                .with_stroke(
+                .with_bounds(node.bounds)
+                .with_border(LineBorder::new(
                     Color::from_hex("#17202A").expect("valid color literal"),
                     2.0,
-                ),
+                )),
             ),
             NodeKind::Widget => {
                 Box::new(novadraw::ButtonFigure::new("Widget").with_bounds(node.bounds))
@@ -894,7 +1032,23 @@ impl EditPartBehavior<DemoModel> for DemoPart {
         model_id: NodeId,
         context: &mut VisualUpdateContext<'_>,
     ) -> Result<(), EditPartError> {
-        context.set_primary_bounds(model.nodes[&model_id].bounds)?;
+        let node = model.nodes[&model_id];
+        context.set_primary_bounds(node.bounds)?;
+        if let NodeKind::Shape(color) = node.kind {
+            context.set_primary_style(novadraw::FigureStyle {
+                foreground: Some(Color::WHITE),
+                background: Some(color),
+                font: Some("16px Inter Variable".to_owned()),
+                ..novadraw::FigureStyle::default()
+            })?;
+            context.set_primary_label_text(
+                model
+                    .labels
+                    .get(&model_id)
+                    .expect("shape label exists")
+                    .clone(),
+            )?;
+        }
         Ok(())
     }
 
@@ -908,6 +1062,7 @@ impl EditPartBehavior<DemoModel> for DemoPart {
             NodeKind::Shape(_) => vec![
                 (PolicyRole::Component, Box::new(NodePolicy)),
                 (PolicyRole::ConnectionCreation, Box::new(ConnectionPolicy)),
+                (PolicyRole::DirectTextEdit, Box::new(NodePolicy)),
             ],
             NodeKind::Widget => vec![(PolicyRole::Component, Box::new(NodePolicy))],
         })
@@ -1421,6 +1576,7 @@ struct DemoApp {
     host: Option<WinitPlatformHost>,
     renderer: Option<VelloRenderer>,
     editor: Option<EditorHarness>,
+    text_input: WinitTextInputBridge,
     cursor: Option<(f64, f64)>,
     modifiers: KeyModifiers,
     last_autoexpose_step: Option<Instant>,
@@ -1433,6 +1589,7 @@ impl DemoApp {
             host: None,
             renderer: None,
             editor: None,
+            text_input: WinitTextInputBridge::new(),
             cursor: None,
             modifiers: KeyModifiers::default(),
             last_autoexpose_step: None,
@@ -1442,6 +1599,15 @@ impl DemoApp {
     fn request_redraw(&self) {
         if let Some(host) = &self.host {
             host.request_redraw();
+        }
+    }
+
+    fn flush_text_input_effects(&mut self) {
+        let (Some(editor), Some(window)) = (&mut self.editor, &self.window) else {
+            return;
+        };
+        for effect in editor.take_text_input_effects() {
+            self.text_input.apply_effect(window, &effect);
         }
     }
 
@@ -1721,7 +1887,35 @@ impl ApplicationHandler<()> for DemoApp {
                     meta: state.super_key(),
                 };
             }
+            WindowEvent::Ime(event) => {
+                if let Some(input) = self.text_input.adapt_ime(event)
+                    && let Some(editor) = &mut self.editor
+                    && let Err(error) = editor.handle_text_input(input)
+                {
+                    eprintln!("text input rejected: {error}");
+                }
+                self.request_redraw();
+            }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
+                if self
+                    .editor
+                    .as_ref()
+                    .is_some_and(EditorHarness::direct_text_edit_active)
+                {
+                    if let Some(input) = self.text_input.adapt_key_pressed(
+                        event.physical_key,
+                        event.text.as_deref(),
+                        self.modifiers,
+                    ) && let Some(editor) = &mut self.editor
+                        && let Err(error) = editor.handle_text_input(input)
+                    {
+                        eprintln!("text input rejected: {error}");
+                    }
+                    self.flush_text_input_effects();
+                    self.update_title();
+                    self.request_redraw();
+                    return;
+                }
                 match event.physical_key {
                     PhysicalKey::Code(KeyCode::Escape) => {
                         self.last_autoexpose_step = None;
@@ -1745,6 +1939,13 @@ impl ApplicationHandler<()> for DemoApp {
                     {
                         self.activate_connection_creation();
                     }
+                    PhysicalKey::Code(KeyCode::F2) => {
+                        if let Some(editor) = &mut self.editor
+                            && let Err(error) = editor.start_rename_selected()
+                        {
+                            eprintln!("direct edit rejected: {error}");
+                        }
+                    }
                     PhysicalKey::Code(KeyCode::KeyZ)
                         if self.modifiers.control || self.modifiers.meta =>
                     {
@@ -1767,6 +1968,7 @@ impl ApplicationHandler<()> for DemoApp {
             }
             _ => {}
         }
+        self.flush_text_input_effects();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
@@ -1837,6 +2039,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  press C, then click a source shape and a target shape to connect");
     println!("  select a connection; drag cyan segment handles to create bendpoints");
     println!("  drag orange bendpoint handles to move or collapse them");
+    println!("  select a shape and press F2 to edit its label with native IME");
     println!("  wheel scrolls; Command/Control-wheel zooms around the pointer");
     println!("  keep dragging near an edge to auto-scroll without losing feedback");
     println!("  Escape cancels the active connection gesture");
@@ -1853,7 +2056,49 @@ mod tests {
     use super::*;
     use novadraw::graphics::LineStyle;
     use novadraw::render::command::RenderCommandKind;
-    use novadraw_editor::HandleRole;
+    use novadraw_editor::{HandleRole, SessionTextInputEvent, TextInputEffect, TextInputEvent};
+
+    #[test]
+    fn direct_text_edit_commits_one_rename_and_round_trips_history() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame().unwrap();
+        let center = harness.node_bounds_in_surface(2).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        assert!(harness.start_rename_selected().unwrap());
+        let effects = harness.take_text_input_effects();
+        let [TextInputEffect::Acquire { session, .. }] = effects.as_slice() else {
+            panic!("rename must acquire one text-input lease");
+        };
+        let session = *session;
+
+        harness
+            .handle_text_input(SessionTextInputEvent::new(
+                session,
+                TextInputEvent::SelectAll,
+            ))
+            .unwrap();
+        harness
+            .handle_text_input(SessionTextInputEvent::new(
+                session,
+                TextInputEvent::InsertText("重命名节点".to_owned()),
+            ))
+            .unwrap();
+        assert_eq!(harness.node_label(2), Some("Source node"));
+        harness
+            .handle_text_input(SessionTextInputEvent::new(session, TextInputEvent::Accept))
+            .unwrap();
+
+        assert_eq!(harness.node_label(2), Some("重命名节点"));
+        assert!(!harness.direct_text_edit_active());
+        assert!(matches!(
+            harness.take_text_input_effects().last(),
+            Some(TextInputEffect::Release { session: released }) if *released == session
+        ));
+        assert!(harness.undo().unwrap());
+        assert_eq!(harness.node_label(2), Some("Source node"));
+        assert!(harness.redo().unwrap());
+        assert_eq!(harness.node_label(2), Some("重命名节点"));
+    }
 
     #[test]
     fn viewport_guide_uses_light_background_and_dashed_outline() {

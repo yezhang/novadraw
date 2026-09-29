@@ -10,10 +10,10 @@ use novadraw::{
 use crate::{
     AutoexposeTick, BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
     ConnectionCreationTool, ConnectionEndpointTool, CreationType, DirectTextEditRequest,
-    DirectTextEditSessionId, DirectTextFeature, EditPartFactory, EditPartId, EditorRequest,
-    ExtendTextSelection, GraphicalViewer, HandleRole, InteractionRevision,
-    InteractionRevisionError, ModelAdapter, SelectionTool, TextDelete, ToolError, ViewerError,
-    ViewerInputOutcome, ViewerTarget, autoexpose,
+    DirectTextEditSessionId, DirectTextEditState, DirectTextFeature, EditPartFactory, EditPartId,
+    EditorRequest, ExtendTextSelection, GraphicalViewer, HandleRole, InteractionRevision,
+    InteractionRevisionError, ModelAdapter, SelectionTool, SessionTextInputEvent, TextDelete,
+    TextInputEvent, ToolError, ViewerError, ViewerInputOutcome, ViewerTarget, autoexpose,
 };
 
 /// Failure while coordinating Tool, CommandStack, model, and Viewer.
@@ -342,6 +342,55 @@ where
         }
     }
 
+    /// Applies one normalized event only when its session still owns the text-input lease.
+    pub fn handle_text_input_event<F>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        input: SessionTextInputEvent,
+    ) -> Result<(), EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let active = viewer.direct_text_edit().map(DirectTextEditState::session);
+        if active != Some(input.session()) {
+            return Err(ViewerError::DirectTextEdit(
+                crate::DirectTextEditError::TextInputLeaseLost,
+            )
+            .into());
+        }
+        match input.into_event() {
+            TextInputEvent::Preedit { text, selection } => {
+                self.set_direct_text_preedit(viewer, &text, selection)?;
+            }
+            TextInputEvent::CancelComposition => {
+                self.cancel_direct_text_preedit(viewer)?;
+            }
+            TextInputEvent::InsertText(text) => {
+                self.insert_direct_text(viewer, &text)?;
+            }
+            TextInputEvent::Delete(deletion) => {
+                self.delete_direct_text(viewer, deletion)?;
+            }
+            TextInputEvent::Move { movement, extend } => {
+                self.move_direct_text(viewer, movement, extend)?;
+            }
+            TextInputEvent::SelectAll => viewer.select_all_direct_text()?,
+            TextInputEvent::Accept => {
+                self.accept_direct_text_edit(viewer)?;
+            }
+            TextInputEvent::Cancel => {
+                self.cancel_direct_text_edit(viewer)?;
+            }
+            TextInputEvent::FocusLost => {
+                self.direct_text_focus_lost(viewer)?;
+            }
+            TextInputEvent::LeaseLost => {
+                self.cancel_direct_text_edit(viewer)?;
+            }
+        }
+        Ok(())
+    }
+
     /// Cancels the current gesture and arms one connection-creation Tool.
     pub fn activate_connection_creation<F>(
         &mut self,
@@ -422,14 +471,22 @@ where
         self.pointer = Some(location);
         self.autoexpose_requested = false;
         if viewer.direct_text_edit().is_some() {
-            if button == MouseButton::Left {
+            if button == MouseButton::Left && viewer.direct_text_feedback_contains(location) {
                 viewer.hit_test_direct_text(location, modifiers.shift)?;
+                return Ok(viewer.dispatch_mouse_pressed_without_selection(
+                    location.x(),
+                    location.y(),
+                    button,
+                ));
             }
-            return Ok(viewer.dispatch_mouse_pressed_without_selection(
-                location.x(),
-                location.y(),
-                button,
-            ));
+            self.direct_text_focus_lost(viewer)?;
+            if viewer.direct_text_edit().is_some() {
+                return Ok(viewer.dispatch_mouse_pressed_without_selection(
+                    location.x(),
+                    location.y(),
+                    button,
+                ));
+            }
         }
         if let Some(tool) = &mut self.connection_tool {
             let revision = self.next_revision;
@@ -561,6 +618,7 @@ where
         let changed = viewer.set_viewport_scale_at(scale, anchor)?;
         if changed {
             self.refresh_after_viewport_change(viewer)?;
+            viewer.synchronize_direct_text_input_area()?;
         }
         Ok(changed)
     }
@@ -577,6 +635,7 @@ where
         let changed = viewer.set_viewport_origin(origin)?;
         if changed {
             self.refresh_after_viewport_change(viewer)?;
+            viewer.synchronize_direct_text_input_area()?;
         }
         Ok(changed)
     }

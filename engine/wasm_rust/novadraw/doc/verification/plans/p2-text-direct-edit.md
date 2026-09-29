@@ -2,7 +2,7 @@
 
 类型：`verification-plan`
 
-状态：`in_progress`（P2-T02、P2-E02a complete，P2-E02b planned）
+状态：`in_progress`（P2-T02、P2-E02a complete，P2-E02b 自动门禁通过、人工验收待执行）
 
 范围：P2-T02、P2-E02
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | `core.p2-t02-text-interaction` | contract | headless | `complete`：文档位置、caret、selection 与 movement 几何 |
 | `editor.p2-e02-direct-text-edit` | contract/application | headless | `complete`：session、draft、policy、Command 与 cleanup |
-| `platform.p2-e02-text-input` | platform/application | native-macos、web | IME、候选窗、DOM input bridge 与 replay |
+| `platform.p2-e02-text-input` | platform/application | native-macos、web | `automated-pass`：IME、候选窗、DOM input bridge 与 replay；人工验收待执行 |
 
 ## 2. Core 契约矩阵
 
@@ -129,3 +129,12 @@ P2-E02a 当前证据：
 - accept 前 feedback cleanup、单 Command、undo/redo 与无变化 accept；
 - stale revision、recoverable rejection、unsupported feature 和 source retire；
 - `cargo xtask verify editor.p2-e02-direct-text-edit`：PASS。
+
+P2-E02b 当前自动证据：
+
+- session-tagged event/effect 与 stale lease 拒绝；
+- Winit IME/keyboard bridge 与 logical candidate area；
+- Web hidden textarea、composition/beforeinput/input/keydown/focus bridge；
+- DOM UTF-16 selection 到 Editor UTF-8 range 转换；
+- Native node-editor F2 rename 与 undo/redo application contract；
+- `cargo xtask verify platform.p2-e02-text-input`：PASS。

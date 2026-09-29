@@ -1006,6 +1006,17 @@ impl<'a> VisualUpdateContext<'a> {
     pub fn set_primary_style(&mut self, style: FigureStyle) -> Result<bool, EditPartError> {
         Ok(self.runtime.figure(self.primary)?.set_style(style)?)
     }
+
+    /// Updates text when the primary Figure exposes Label capability.
+    pub fn set_primary_label_text(
+        &mut self,
+        text: impl Into<String>,
+    ) -> Result<bool, EditPartError> {
+        self.runtime
+            .figure(self.primary)?
+            .set_label_text(text)
+            .map_err(|error| EditPartError::operation(error.to_string()))
+    }
 }
 
 /// Application controller behavior for one model-backed EditPart.

@@ -222,6 +222,39 @@ args = [
   "p2_e02_direct_text_edit_contract",
 ]
 
+[commands."test.platform-winit-p2-e02"]
+description = "Run Winit direct text input bridge contracts"
+program = "cargo"
+args = ["test", "-p", "novadraw-platform-winit", "--features", "editor"]
+
+[commands."test.platform-web-p2-e02"]
+description = "Run Web direct text input bridge contracts"
+program = "cargo"
+args = ["test", "-p", "novadraw-platform-web", "--features", "editor"]
+
+[commands."build.platform-web-p2-e02"]
+description = "Compile the DOM text input host for wasm32"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "novadraw-platform-web",
+  "--features",
+  "editor",
+  "--target",
+  "wasm32-unknown-unknown",
+]
+
+[commands."test.node-editor-p2-e02"]
+description = "Run the native node-editor direct text edit application contract"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "node-editor-demo",
+  "direct_text_edit_commits_one_rename_and_round_trips_history",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -594,6 +627,37 @@ documents = [
   "doc/verification/plans/p2-text-direct-edit.md",
   "doc/verification/reviews/p2-direct-text-edit-session-2026-09-29.md",
 ]
+
+[[suites]]
+id = "platform.p2-e02-text-input"
+title = "Native and Web direct text input bridge contracts"
+milestone = "P2-E02"
+kind = "contract"
+layers = ["contract", "platform"]
+platforms = ["native-macos", "web"]
+commands = [
+  "test.editor-p2-e02",
+  "test.platform-winit-p2-e02",
+  "test.platform-web-p2-e02",
+  "build.platform-web-p2-e02",
+  "test.node-editor-p2-e02",
+]
+paths = [
+  "novadraw-editor/src/text_input.rs",
+  "novadraw-platform-winit/src/text_input.rs",
+  "novadraw-platform-web/src/text_input.rs",
+  "novadraw-platform-web/src/dom_text_input.rs",
+  "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs",
+  "examples/native/node-editor-demo/src/main.rs",
+  "examples/native/node-editor-demo/src/harness.rs",
+]
+documents = [
+  "doc/design/editor/p2-direct-text-edit.md",
+  "doc/verification/plans/p2-text-direct-edit.md",
+  "doc/verification/manual/p2-direct-text-edit.md",
+  "doc/verification/reviews/p2-text-input-bridge-2026-09-29.md",
+]
+manual = { command = "native.node-editor", document = "doc/verification/manual/p2-direct-text-edit.md" }
 
 [[suites]]
 id = "workspace.quality"

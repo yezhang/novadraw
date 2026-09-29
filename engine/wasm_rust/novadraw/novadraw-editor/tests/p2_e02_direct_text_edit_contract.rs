@@ -11,7 +11,8 @@ use novadraw_editor::{
     DirectTextFeedback, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain,
     EditorDomainError, ExtendTextSelection, FeedbackVisual, FocusLossPolicy, GraphicalViewer,
     ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
-    PolicyInstallation, PolicyRole, TextDelete, TextEditMode, ViewerError,
+    PolicyInstallation, PolicyRole, SessionTextInputEvent, TextDelete, TextEditMode,
+    TextInputEffect, TextInputEvent, TextInputPurpose, ViewerError,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -445,6 +446,15 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
     domain
         .start_direct_text_edit(&mut viewer, source, feature())
         .unwrap();
+    let session = viewer.direct_text_edit().unwrap().session();
+    assert!(matches!(
+        viewer.take_text_input_effects().as_slice(),
+        [TextInputEffect::Acquire {
+            session: acquired,
+            purpose: TextInputPurpose::Multiline,
+            ..
+        }] if *acquired == session
+    ));
     domain
         .set_direct_text_selection(
             &mut viewer,
@@ -456,11 +466,29 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
         .unwrap();
 
     domain
-        .set_direct_text_preedit(&mut viewer, "ni", Some(2..2))
+        .handle_text_input_event(
+            &mut viewer,
+            SessionTextInputEvent::new(
+                session,
+                TextInputEvent::Preedit {
+                    text: "ni".to_owned(),
+                    selection: Some(2..2),
+                },
+            ),
+        )
         .unwrap();
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "ni");
     domain
-        .set_direct_text_preedit(&mut viewer, "你", None)
+        .handle_text_input_event(
+            &mut viewer,
+            SessionTextInputEvent::new(
+                session,
+                TextInputEvent::Preedit {
+                    text: "你".to_owned(),
+                    selection: None,
+                },
+            ),
+        )
         .unwrap();
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "你");
     assert!(
@@ -494,4 +522,19 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
     assert!(viewer.direct_text_edit().unwrap().composition().is_none());
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "你");
     assert_eq!(viewer.model().text, "alpha");
+
+    domain.cancel_direct_text_edit(&mut viewer).unwrap();
+    assert!(matches!(
+        viewer.take_text_input_effects().last(),
+        Some(TextInputEffect::Release { session: released }) if *released == session
+    ));
+    assert!(matches!(
+        domain.handle_text_input_event(
+            &mut viewer,
+            SessionTextInputEvent::new(session, TextInputEvent::InsertText("late".to_owned()))
+        ),
+        Err(EditorDomainError::Viewer(ViewerError::DirectTextEdit(
+            DirectTextEditError::TextInputLeaseLost
+        )))
+    ));
 }

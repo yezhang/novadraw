@@ -25,3 +25,4 @@
 - [G5.3 Connection Reconnect](g5-connection-reconnect.md)
 - [G5.4 Connection Bendpoint](g5-connection-bendpoint.md)
 - [G5.5 Viewport Auto-expose](g5-viewport-autoexpose.md)
+- [P2 Direct Text Edit / IME](p2-direct-text-edit.md)

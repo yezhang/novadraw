@@ -57,7 +57,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `viewport.autoexpose` | AutoexposeHelper / ViewportAutoexposeHelper | host 注入单调 elapsed，拖拽期间按 surface edge band 推进 Viewport，并重算 request、target 与 feedback | verified | G5 |
 | `document.persistence` | 非 GEF 固定 API | 引擎不定义产品 document schema 与 serializer；只保证模型重新注入后的确定性重建 | rejected | - |
 | `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | P2 |
-| `direct_edit` | DirectEditManager/Request/Policy、CellEditorLocator | E02a 已完成单 session、draft/selection/preedit、feedback 与 Command；host input bridge 待 E02b | partial | P2-E02 |
+| `direct_edit` | DirectEditManager/Request/Policy、CellEditorLocator | 单 session、draft/selection/preedit、feedback、Command 与 host input bridge 已实现；Native/Web 人工验收待完成 | partial | P2-E02 |
 | `snap.guides` | SnapTo*/rulers/guides | grid/geometry/guide feedback | deferred | P2 |
 | `palette` | PaletteRoot/Viewer/ToolEntry | 可选工具选择 UI，不属于核心闭环 | deferred | P2 |
 | `tree.viewer` | TreeEditPart/TreeViewer | 非图形 viewer | rejected | - |

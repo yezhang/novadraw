@@ -19,6 +19,7 @@ mod part;
 mod policy;
 mod request;
 mod selection;
+mod text_input;
 mod tool;
 mod viewer;
 
@@ -55,6 +56,7 @@ pub use request::{
     ReconnectConnectionRequest, RequestModifiers, ResizeDirection,
 };
 pub use selection::{SelectionDelta, SelectionModel};
+pub use text_input::{SessionTextInputEvent, TextInputEffect, TextInputEvent, TextInputPurpose};
 pub use tool::{
     ConnectionBendpointTool, ConnectionCreationTool, ConnectionEndpointRelease,
     ConnectionEndpointTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,

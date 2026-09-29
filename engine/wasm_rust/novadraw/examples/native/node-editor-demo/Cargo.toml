@@ -8,7 +8,7 @@ publish = false
 novadraw = { path = "../../../novadraw" }
 novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = ["native"] }
 novadraw-editor = { path = "../../../novadraw-editor" }
-novadraw-platform-winit = { path = "../../../novadraw-platform-winit" }
+novadraw-platform-winit = { path = "../../../novadraw-platform-winit", features = ["editor"] }
 novadraw-example-support = { path = "../../support" }
 pollster.workspace = true
 serde.workspace = true

@@ -28,8 +28,8 @@ use crate::{
     DirectTextFeedback, EditPartError, EditPartFactory, EditPartId, EditorNamespace, EditorRequest,
     FeedbackId, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
     PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, PolicyRole,
-    ReconnectConnectionRequest, SelectionDelta, SelectionModel, VisualBuildContext, VisualOwner,
-    VisualUpdateContext,
+    ReconnectConnectionRequest, SelectionDelta, SelectionModel, TextEditMode, TextInputEffect,
+    TextInputPurpose, VisualBuildContext, VisualOwner, VisualUpdateContext,
     direct_edit::{ActiveDirectTextEdit, PreparedDirectTextEdit, position_to_offset},
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
@@ -679,6 +679,7 @@ where
     selection: SelectionModel<EditPartId>,
     direct_text_edit: Option<ActiveDirectTextEdit<A>>,
     next_direct_text_edit_session: u64,
+    text_input_effects: Vec<TextInputEffect>,
     applied_revision: ModelRevision,
     model_root: A::ModelId,
     faulted: bool,
@@ -731,6 +732,7 @@ where
             selection: SelectionModel::new(),
             direct_text_edit: None,
             next_direct_text_edit_session: 1,
+            text_input_effects: Vec::new(),
             applied_revision,
             model_root: snapshot.root,
             faulted: false,
@@ -1339,6 +1341,11 @@ where
         self.direct_text_edit.as_ref().map(|active| &active.state)
     }
 
+    /// Drains platform text-input operations emitted since the previous call.
+    pub fn take_text_input_effects(&mut self) -> Vec<TextInputEffect> {
+        std::mem::take(&mut self.text_input_effects)
+    }
+
     pub(crate) fn start_direct_text_edit(
         &mut self,
         request: &DirectTextEditRequest,
@@ -1381,10 +1388,21 @@ where
             text_feedback: self.root_layers.root(),
         };
         let projection = active.plan.feedback(&active.state, &self.model)?;
-        let (feedback, text_feedback) =
-            self.attach_direct_text_feedback(request.source(), projection)?;
+        let (feedback, text_feedback, area) = self.attach_direct_text_feedback(
+            request.source(),
+            active.state.selection().focus(),
+            projection,
+        )?;
         active.feedback = feedback;
         active.text_feedback = text_feedback;
+        self.text_input_effects.push(TextInputEffect::Acquire {
+            session,
+            purpose: match active.state.mode() {
+                TextEditMode::SingleLine => TextInputPurpose::SingleLine,
+                TextEditMode::Multiline => TextInputPurpose::Multiline,
+            },
+            area,
+        });
         self.direct_text_edit = Some(active);
         Ok(session)
     }
@@ -1474,6 +1492,17 @@ where
         Ok(changed)
     }
 
+    pub(crate) fn select_all_direct_text(&mut self) -> Result<(), ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        state.select_all();
+        self.replace_direct_text_state(state)
+    }
+
     /// Returns the active draft caret rectangle in logical surface coordinates.
     pub fn direct_text_caret_geometry(&self) -> Result<CaretGeometry, ViewerError> {
         let active = self
@@ -1494,6 +1523,42 @@ where
         self.runtime
             .text_flow_selection_geometry(active.text_feedback, active.state.selection())
             .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
+    }
+
+    pub(crate) fn direct_text_feedback_contains(&self, point: Point) -> bool {
+        let Some(active) = self.direct_text_edit.as_ref() else {
+            return false;
+        };
+        let Some(bounds) = self.runtime.tree().figure_bounds(active.text_feedback) else {
+            return false;
+        };
+        let Some(transform) = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(active.text_feedback)
+        else {
+            return false;
+        };
+        let mut surface_bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        surface_bounds.transform(transform);
+        surface_bounds.contains(point)
+    }
+
+    /// Emits an updated candidate-window area after an external surface transform change.
+    pub fn synchronize_direct_text_input_area(&mut self) -> Result<bool, ViewerError> {
+        let Some(active) = self.direct_text_edit.as_ref() else {
+            return Ok(false);
+        };
+        let area = self
+            .runtime
+            .text_flow_caret_geometry(active.text_feedback, active.state.selection().focus())
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
+            .bounds();
+        self.text_input_effects.push(TextInputEffect::SetArea {
+            session: active.state.session(),
+            area,
+        });
+        Ok(true)
     }
 
     pub(crate) fn move_direct_text(
@@ -1562,6 +1627,9 @@ where
             return Ok(false);
         };
         self.remove_direct_text_feedback(&active.feedback)?;
+        self.text_input_effects.push(TextInputEffect::Release {
+            session: active.state.session(),
+        });
         Ok(true)
     }
 
@@ -1608,6 +1676,9 @@ where
             return Err(error);
         }
         active.feedback.clear();
+        self.text_input_effects.push(TextInputEffect::Release {
+            session: active.state.session(),
+        });
         Ok(PreparedDirectTextEdit { active, command })
     }
 
@@ -1619,10 +1690,21 @@ where
             .active
             .plan
             .feedback(&prepared.active.state, &self.model)?;
-        let (feedback, text_feedback) =
-            self.attach_direct_text_feedback(prepared.active.state.source(), projection)?;
+        let (feedback, text_feedback, area) = self.attach_direct_text_feedback(
+            prepared.active.state.source(),
+            prepared.active.state.selection().focus(),
+            projection,
+        )?;
         prepared.active.feedback = feedback;
         prepared.active.text_feedback = text_feedback;
+        self.text_input_effects.push(TextInputEffect::Acquire {
+            session: prepared.active.state.session(),
+            purpose: match prepared.active.state.mode() {
+                TextEditMode::SingleLine => TextInputPurpose::SingleLine,
+                TextEditMode::Multiline => TextInputPurpose::Multiline,
+            },
+            area,
+        });
         self.direct_text_edit = Some(prepared.active);
         Ok(())
     }
@@ -1641,15 +1723,18 @@ where
                 return Err(error.into());
             }
         };
-        let (feedback, text_feedback) =
-            match self.attach_direct_text_feedback(active.state.source(), projection) {
-                Ok(attached) => attached,
-                Err(error) => {
-                    active.state = previous_state;
-                    self.direct_text_edit = Some(active);
-                    return Err(error);
-                }
-            };
+        let (feedback, text_feedback, area) = match self.attach_direct_text_feedback(
+            active.state.source(),
+            active.state.selection().focus(),
+            projection,
+        ) {
+            Ok(attached) => attached,
+            Err(error) => {
+                active.state = previous_state;
+                self.direct_text_edit = Some(active);
+                return Err(error);
+            }
+        };
         if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
             let _ = self.remove_direct_text_feedback(&feedback);
             active.state = previous_state;
@@ -1658,6 +1743,10 @@ where
         }
         active.feedback = feedback;
         active.text_feedback = text_feedback;
+        self.text_input_effects.push(TextInputEffect::SetArea {
+            session: active.state.session(),
+            area,
+        });
         self.direct_text_edit = Some(active);
         Ok(())
     }
@@ -1665,8 +1754,9 @@ where
     fn attach_direct_text_feedback(
         &mut self,
         owner: EditPartId,
+        caret: FlowTextPosition,
         feedback: DirectTextFeedback,
-    ) -> Result<(Vec<FigureId>, FigureId), ViewerError> {
+    ) -> Result<(Vec<FigureId>, FigureId, Rectangle), ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
         let mut figures = Vec::with_capacity(visuals.len());
         for visual in visuals {
@@ -1688,7 +1778,14 @@ where
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
         }
-        Ok((figures, text_feedback))
+        let area = match self.runtime.text_flow_caret_geometry(text_feedback, caret) {
+            Ok(caret) => caret.bounds(),
+            Err(_) => {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+            }
+        };
+        Ok((figures, text_feedback, area))
     }
 
     fn remove_direct_text_feedback(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
@@ -2289,6 +2386,9 @@ where
         let Some(active) = self.direct_text_edit.take() else {
             return;
         };
+        self.text_input_effects.push(TextInputEffect::Release {
+            session: active.state.session(),
+        });
         for figure in active.feedback {
             if self.runtime.tree().is_attached(figure) {
                 let _ = self.runtime.dispose_subtree(figure);

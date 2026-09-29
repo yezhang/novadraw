@@ -4,5 +4,31 @@ version.workspace = true
 edition.workspace = true
 description = "Web platform adapter for Novadraw"
 
+[features]
+default = []
+editor = ["dep:novadraw-editor", "dep:wasm-bindgen", "dep:web-sys"]
+
 [dependencies]
 novadraw = { path = "../novadraw" }
+novadraw-editor = { path = "../novadraw-editor", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2.127", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.web-sys]
+version = "0.3.104"
+optional = true
+features = [
+  "CompositionEvent",
+  "CssStyleDeclaration",
+  "Document",
+  "Element",
+  "Event",
+  "EventTarget",
+  "FocusEvent",
+  "HtmlElement",
+  "HtmlTextAreaElement",
+  "InputEvent",
+  "KeyboardEvent",
+  "Node",
+]

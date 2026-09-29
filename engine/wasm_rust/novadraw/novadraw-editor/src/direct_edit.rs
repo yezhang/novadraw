@@ -410,6 +410,13 @@ impl DirectTextEditState {
         true
     }
 
+    pub(crate) fn select_all(&mut self) {
+        self.selection = FlowTextRange::new(
+            FlowTextPosition::new(0, 0, TextAffinity::Downstream),
+            document_end(&self.draft),
+        );
+    }
+
     pub(crate) fn delete_range(
         &mut self,
         first: FlowTextPosition,
@@ -507,6 +514,8 @@ pub enum DirectTextEditError {
     InvalidPreeditRange,
     /// A session cannot be accepted while IME preedit remains active.
     ActiveComposition,
+    /// An input event belongs to a released or superseded host lease.
+    TextInputLeaseLost,
 }
 
 impl fmt::Display for DirectTextEditError {
@@ -538,6 +547,9 @@ impl fmt::Display for DirectTextEditError {
             Self::InvalidPreeditRange => formatter.write_str("preedit range is invalid"),
             Self::ActiveComposition => {
                 formatter.write_str("direct text edit has an active composition")
+            }
+            Self::TextInputLeaseLost => {
+                formatter.write_str("text input event belongs to an inactive lease")
             }
         }
     }

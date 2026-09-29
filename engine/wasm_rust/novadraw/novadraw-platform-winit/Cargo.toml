@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 description = "Winit platform adapter for Novadraw"
 
+[features]
+default = []
+editor = ["dep:novadraw-editor"]
+
 [dependencies]
 novadraw = { path = "../novadraw" }
+novadraw-editor = { path = "../novadraw-editor", optional = true }
 winit.workspace = true
