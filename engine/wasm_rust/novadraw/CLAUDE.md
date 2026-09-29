@@ -264,6 +264,7 @@ draw2d/GEF 的核心设计哲学：
 ## 参考代码
 
 - draw2d/GEF: `/Users/bytedance/Documents/code/GitHub/gef-classic`
+  - 可运行参考样例：`third_party/draw2d-examples/`，仅用于行为核验
   - 允许：`org.eclipse.draw2d`、`org.eclipse.gef`
   - 排除：`org.eclipse.zest` 上层扩展逻辑
 - SWT GC: `/Users/bytedance/Documents/code/GitHub/eclipse.platform.swt`

@@ -35,6 +35,8 @@
 ### 参考源码路径
 
 - draw2d/GEF: `/Users/bytedance/Documents/code/GitHub/gef-classic`
+- 可运行的 Draw2D 参考样例：`third_party/draw2d-examples/`；仅用于行为核验，不属于
+  Novadraw 一方示例或实现源码
 - 对标范围严格限定为该仓库中的 `org.eclipse.draw2d` 与 `org.eclipse.gef` 包；
   `org.eclipse.zest` 是基于 Draw2D 的上层扩展，不得作为 Novadraw 的需求语义、
   架构设计或实现逻辑参考
