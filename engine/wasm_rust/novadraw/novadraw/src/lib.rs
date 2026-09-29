@@ -37,7 +37,6 @@ pub mod layout;
 /// Common imports for Figure and Runtime application code.
 pub mod prelude;
 /// Backend-neutral rendering, text, resource, and submission protocols.
-#[allow(missing_docs)]
 pub mod render;
 /// Runtime lifecycle, mutation, resource, and frame APIs.
 #[allow(missing_docs)]
