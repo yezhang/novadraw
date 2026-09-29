@@ -189,6 +189,17 @@ description = "Run ScalablePolygonFigure contracts"
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_f01_scalable_polygon_contract"]
 
+[commands."test.p2-t01"]
+description = "Run TextFlow paragraph, wrapping, bidi, and truncation contracts"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "p2_t01_text_flow_contract",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -475,6 +486,25 @@ paths = [
 ]
 documents = [
   "doc/design/architecture/reusable-shape-border.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-t01-text-flow"
+title = "Read-only paragraph TextFlow contracts"
+milestone = "P2-T01"
+kind = "contract"
+layers = ["contract", "visual"]
+platforms = ["host", "native-macos", "web"]
+commands = ["test.p2-t01"]
+paths = [
+  "novadraw/src/figure/text_flow.rs",
+  "novadraw/src/render/text.rs",
+  "novadraw/tests/p2_t01_text_flow_contract.rs",
+  "examples/scenes/src/text.rs",
+]
+documents = [
+  "doc/design/architecture/text-layout.md",
   "doc/parity/draw2d/api-coverage.md",
 ]
 

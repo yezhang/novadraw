@@ -22,6 +22,7 @@ mod rectangle;
 mod root;
 mod rounded_rectangle;
 mod scalable_polygon;
+mod text_flow;
 mod triangle;
 pub(crate) mod widget;
 
@@ -40,6 +41,9 @@ pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
 pub use scalable_polygon::{
     PolygonScaleMode, ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure,
+};
+pub use text_flow::{
+    FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment, TextFlowBehavior, TextFlowFigure,
 };
 pub use triangle::{Direction, TriangleFigure};
 pub use widget::{
@@ -652,6 +656,16 @@ pub trait Figure: AsAny {
 
     /// Returns mutable bounds-driven polygon template behavior.
     fn scalable_polygon_mut(&mut self) -> Option<&mut dyn ScalablePolygonBehavior> {
+        None
+    }
+
+    /// Returns optional paragraph text-flow behavior.
+    fn text_flow(&self) -> Option<&dyn TextFlowBehavior> {
+        None
+    }
+
+    /// Returns mutable paragraph text-flow behavior.
+    fn text_flow_mut(&mut self) -> Option<&mut dyn TextFlowBehavior> {
         None
     }
 

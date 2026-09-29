@@ -287,20 +287,20 @@ pub struct FlowParagraph {
 
 pub struct InlineTextFragment {
     pub text: String,
-    pub style: InlineTextStyle,
 }
 ```
 
-`InlineTextStyle` 只覆盖文本布局与 paint 所需字段；未指定字段继承 Figure 的
-`ResolvedStyle`。公开类型由 Novadraw 定义，不暴露 Parley range、brush 或 bidi
-类型。空 fragment 合法但不产生 glyph；paragraph 顺序和 fragment 顺序是稳定的产品
-输入。
+第一阶段的 fragment 是语义边界，不单独覆盖样式；整页继承 Figure 的
+`ResolvedStyle`。这保证 paragraph 作为整体完成 bidi、shaping 与 line breaking，而
+不是逐 fragment 排版后拼接。公开类型由 Novadraw 定义，不暴露 Parley range、brush
+或 bidi 类型。空 fragment 合法但不产生 glyph；paragraph 顺序和 fragment 顺序是
+稳定的产品输入。fragment 级 font/foreground 属于后续独立 delta。
 
 布局主链路：
 
 ```text
 FlowPage + resolved style + MeasureConstraints
-→ flatten paragraph text and validated UTF-8 style ranges
+→ flatten paragraph text while preserving UTF-8 fragment boundaries
 → TextLayoutEngine
 → immutable TextLayout
 → FigureMeasurement + arranged glyph origins
@@ -314,15 +314,15 @@ FlowPage + resolved style + MeasureConstraints
 - `Truncate` 在有限 height/line limit 下只绘制可见 UTF-8 range；
 - bidi、script shaping、CJK breaking 和 font fallback 由同一个 TextLayoutEngine
   完成；
-- mixed-style fragment 可以产生多个 GlyphRun，但 line breaking 必须在完整 paragraph
-  上完成，不能把每个 fragment 独立布局后拼接；
+- fragment 先拼接为完整 paragraph，再统一 line breaking；不得逐 fragment 排版后
+  拼接；
 - measure、arrange 与 paint 在相同 constraints/revision 下复用同一 TextLayout，
   禁止 paint 阶段重新 shaping。
 
-缓存 key 除第 10 节字段外还必须包含 paragraph/fragment revision 与规范化 style
-ranges。fragment、style、width、wrapping 或 font revision 变化时，Runtime 在一次
-validation transaction 中更新 measurement、arranged glyph origins、bounds、
-freeform extent 与 old/new damage。相同输入不得发出虚假变化。
+缓存 key 除第 10 节字段外还必须包含 paragraph/fragment revision。fragment、width、
+wrapping 或 font revision 变化时，Runtime 在一次 validation transaction 中更新
+measurement、arranged glyph origins、bounds、freeform extent 与 old/new damage。
+相同输入不得发出虚假变化。
 
 第一阶段明确不包含 caret、selection、cluster-to-document 双向映射、IME composition、
 direct editing、inline embedded Figure 和跨 paragraph selection。这些能力需要独立
@@ -359,7 +359,7 @@ direct editing、inline embedded Figure 和跨 paragraph selection。这些能�
 ### P2-T01 TextFlow
 
 - FlowPage/Paragraph/InlineTextFragment 与结构化 replacement；
-- mixed-style paragraph shaping、soft/hard wrap、truncate 与 bidi；
+- paragraph-level shaping、soft/hard wrap、truncate 与 bidi；
 - width-dependent measurement、arrange、paint 同源；
 - `text-flow-app` Native/Web 共用示例与 headless contract suite。
 

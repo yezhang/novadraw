@@ -30,19 +30,19 @@ use crate::{
     ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionLocatorStrategy,
     ConnectionRouter, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
     CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction,
-    EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange,
-    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers,
-    LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle,
-    LayoutConstraint, LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime,
-    MouseButton, ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener,
-    Rectangle, ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata,
-    RouteOutput, RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle,
-    SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
-    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
-    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
-    WidgetError, ZoomEvent, ZoomManager,
+    EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree, FlowPage,
+    FlowWrapping, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
+    FocusTraversalPolicy, FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId,
+    InteractionState, Key, KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement,
+    LayeredPane, LayeredPaneHandle, LayoutConstraint, LayoutListener, LayoutManager, ListenerId,
+    ListenerScope, MonotonicTime, MouseButton, ObservationListener, PendingMutations,
+    PolygonScaleMode, PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry,
+    ResourceStatus, RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId,
+    RoutingConstraint, ScaleHandle, SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle,
+    ShapeMutationError, StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError,
+    TooltipSnapshot, TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal,
+    UnresolvedConnection, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
+    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
@@ -441,6 +441,17 @@ impl FigureEditor<'_> {
     ) -> Result<bool, ShapeMutationError> {
         self.runtime
             .set_scalable_polygon_alignment(self.figure, horizontal, vertical)
+    }
+
+    pub fn replace_text_flow_page(&mut self, page: FlowPage) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_text_flow_page(self.figure, page)
+    }
+
+    pub fn set_text_flow_wrapping(
+        &mut self,
+        wrapping: FlowWrapping,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_text_flow_wrapping(self.figure, wrapping)
     }
 
     pub fn set_border(
@@ -988,6 +999,16 @@ impl Runtime {
         let any_changed = !changed.is_empty();
         for figure in changed {
             self.refresh_label_icon_geometry(figure);
+            self.tree.repaint(&mut self.updates, figure, None);
+        }
+        Ok(any_changed)
+    }
+
+    fn refresh_text_flow_layouts(&mut self) -> Result<bool, TextError> {
+        let changed = self.tree.refresh_text_flow_layouts(self.text.as_mut())?;
+        let any_changed = !changed.is_empty();
+        for figure in changed {
+            self.tree.mark_invalid(&mut self.updates, figure);
             self.tree.repaint(&mut self.updates, figure, None);
         }
         Ok(any_changed)
@@ -2761,6 +2782,16 @@ impl Runtime {
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
 
+    pub fn text_flow_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        }
+        self.tree
+            .text_flow(id)
+            .and_then(crate::TextFlowFigure::text_layout)
+            .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
     pub fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {
         Ok(self.label(id)?.text())
     }
@@ -3189,6 +3220,30 @@ impl Runtime {
                 horizontal,
                 vertical,
             )
+        })
+    }
+
+    pub(crate) fn replace_text_flow_page(
+        &mut self,
+        id: FigureId,
+        page: FlowPage,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .replace_text_flow_page(&mut runtime.updates, id, page)
+        })
+    }
+
+    pub(crate) fn set_text_flow_wrapping(
+        &mut self,
+        id: FigureId,
+        wrapping: FlowWrapping,
+    ) -> Result<bool, ShapeMutationError> {
+        self.guarded_shape_mutation(move |runtime| {
+            runtime
+                .tree
+                .set_text_flow_wrapping(&mut runtime.updates, id, wrapping)
         })
     }
 
@@ -4393,6 +4448,8 @@ impl Runtime {
                         .map_err(FramePreparationError::Text)?;
                     self.refresh_label_intrinsic_metrics()
                         .map_err(FramePreparationError::Text)?;
+                    self.refresh_text_flow_layouts()
+                        .map_err(FramePreparationError::Text)?;
                     if self.updates.has_pending_layout() {
                         work.insert(DerivedWorkKind::Layout);
                     }
@@ -4433,6 +4490,12 @@ impl Runtime {
                     work.insert(DerivedWorkKind::Presentation);
                 }
                 DerivedWorkKind::Presentation => {
+                    if self
+                        .refresh_text_flow_layouts()
+                        .map_err(FramePreparationError::Text)?
+                    {
+                        work.insert(DerivedWorkKind::Layout);
+                    }
                     if self
                         .refresh_label_presentations()
                         .map_err(FramePreparationError::Text)?

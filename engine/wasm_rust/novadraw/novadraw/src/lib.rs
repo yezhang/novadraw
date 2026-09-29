@@ -81,12 +81,13 @@ pub use figure::{
     ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
     EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    FigureLifecycleContext, FigureMeasurement, Freeform, HitParticipation, ImageDisplayState,
-    ImageFigure, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
-    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
-    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
-    ScalablePolygonFigure, Shape, ShapeMutationError, TextPlacement, ToggleFigure, TriangleFigure,
-    WidgetError,
+    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowWrapping, Freeform,
+    HitParticipation, ImageDisplayState, ImageFigure, InlineTextFragment, LabelFigure, Layer,
+    MeasureConstraints, MeasureConstraintsError, PointListFigureBehavior, PolygonFigure,
+    PolygonScaleMode, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
+    ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure, Shape,
+    ShapeMutationError, TextFlowBehavior, TextFlowFigure, TextPlacement, ToggleFigure,
+    TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub use graph::{

@@ -2,7 +2,8 @@ use novadraw::figure::{Alignment, TextPlacement, border::TitleBarBorder};
 use novadraw::render::command::ImageData;
 use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    Color, FigureId, FigureStyle, ImageFigure, LabelFigure, Rectangle, RectangleFigure, Runtime,
+    Color, FigureId, FigureStyle, FlowPage, FlowParagraph, FlowWrapping, ImageFigure,
+    InlineTextFragment, LabelFigure, Rectangle, RectangleFigure, Runtime, TextFlowFigure,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -63,6 +64,7 @@ pub fn suite() -> DemoSuite {
                 size,
                 image_resources_scene,
             ),
+            SceneSpec::runtime_visual("text-flow", "Text_Flow", size, text_flow_scene),
         ],
     )
 }
@@ -506,6 +508,40 @@ fn image_resources_scene() -> Runtime {
     runtime
 }
 
+fn text_flow_scene() -> Runtime {
+    let mut runtime = runtime();
+    let root = root(&mut runtime);
+    let page = FlowPage::new(vec![
+        FlowParagraph::new(vec![
+            InlineTextFragment::new("Novadraw lays out a paragraph as one shaped flow. "),
+            InlineTextFragment::new("Inline fragments preserve their semantic boundaries."),
+        ]),
+        FlowParagraph::new(vec![
+            InlineTextFragment::new("中文、English 与 العربية "),
+            InlineTextFragment::new("share the same wrapping and bidi pipeline."),
+        ]),
+    ]);
+    let flow = TextFlowFigure::new(Rectangle::new(70.0, 70.0, 300.0, 220.0), page);
+    let truncated = TextFlowFigure::new(
+        Rectangle::new(430.0, 70.0, 280.0, 90.0),
+        FlowPage::from_text(
+            "A constrained flow truncates at a grapheme boundary after the configured line count.",
+        ),
+    )
+    .with_wrapping(FlowWrapping::Truncate { max_lines: 2 });
+    runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(flow))
+        .expect("valid Runtime mutation");
+    runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(truncated))
+        .expect("valid Runtime mutation");
+    runtime
+}
+
 #[cfg(test)]
 mod tests {
     use novadraw::render::{BackendCapabilities, SurfaceInfo};
@@ -515,7 +551,7 @@ mod tests {
     #[test]
     fn shared_text_suite_builds_every_web_scene_with_required_resources() {
         let mut suite = suite();
-        assert_eq!(suite.scenes.len(), 6);
+        assert_eq!(suite.scenes.len(), 7);
 
         for scene in &mut suite.scenes {
             let mut runtime = scene.build();

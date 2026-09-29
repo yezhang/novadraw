@@ -3108,6 +3108,72 @@ impl FigureTree {
         Ok(true)
     }
 
+    pub(crate) fn replace_text_flow_page(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        page: crate::FlowPage,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(flow) = block.figure.text_flow() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        if flow.page() == &page {
+            return Ok(false);
+        }
+        let old = format!("{:?}", flow.page());
+        self.blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.text_flow_mut())
+            .expect("validated TextFlow capability")
+            .replace_page(page.clone());
+        self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "flow_page",
+            old_value: PropertyValue::Text(old),
+            new_value: PropertyValue::Text(format!("{page:?}")),
+        });
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
+    pub(crate) fn set_text_flow_wrapping(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        wrapping: crate::FlowWrapping,
+    ) -> Result<bool, ShapeMutationError> {
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(flow) = block.figure.text_flow() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old = flow.wrapping();
+        if old == wrapping {
+            return Ok(false);
+        }
+        self.blocks
+            .get_mut(id)
+            .and_then(|block| block.figure.text_flow_mut())
+            .expect("validated TextFlow capability")
+            .replace_wrapping(wrapping);
+        self.notify_block_changed(id);
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "flow_wrapping",
+            old_value: PropertyValue::Text(format!("{old:?}")),
+            new_value: PropertyValue::Text(format!("{wrapping:?}")),
+        });
+        self.mark_invalid(update_manager, id);
+        self.repaint(update_manager, id, None);
+        Ok(true)
+    }
+
     pub(crate) fn replace_border(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -3567,6 +3633,34 @@ impl FigureTree {
         Ok(changed)
     }
 
+    pub(crate) fn refresh_text_flow_layouts(
+        &mut self,
+        text: &mut dyn TextLayoutEngine,
+    ) -> Result<Vec<FigureId>, TextError> {
+        let flows = self
+            .blocks
+            .iter()
+            .filter_map(|(id, block)| block.figure.text_flow().is_some().then_some(id))
+            .collect::<Vec<_>>();
+        let mut changed = Vec::new();
+        for id in flows {
+            let style = self
+                .resolved_style(id)
+                .expect("attached TextFlow has resolved style");
+            let font = crate::render::FontDescriptor::parse(&style.font)?;
+            let bounds = self.blocks[id].client_area();
+            let flow = self.blocks[id]
+                .figure
+                .as_any_mut()
+                .downcast_mut::<crate::TextFlowFigure>()
+                .expect("TextFlow capability belongs to TextFlowFigure");
+            if flow.refresh_layout(text, &font, bounds)? {
+                changed.push(id);
+            }
+        }
+        Ok(changed)
+    }
+
     pub(crate) fn refresh_image_figures(
         &mut self,
         resources: &crate::ResourceRegistry,
@@ -3609,6 +3703,10 @@ impl FigureTree {
 
     pub(crate) fn label(&self, id: FigureId) -> Option<&LabelFigure> {
         self.blocks.get(id)?.figure.label()
+    }
+
+    pub(crate) fn text_flow(&self, id: FigureId) -> Option<&crate::TextFlowFigure> {
+        self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
     }
 
     pub(crate) fn image_figure(&self, id: FigureId) -> Option<&ImageFigure> {

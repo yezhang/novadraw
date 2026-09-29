@@ -13,7 +13,7 @@
 | 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `complete` | M9、M10.1 |
 | 2 | P2-C02 | 障碍感知 shortest-path routing | `complete` | P2-C01 |
 | 3 | P2-F01 | ScalablePolygonFigure | `complete` | P2-C01 的 PointList envelope |
-| 4 | P2-T01 | TextFlow 第一阶段 | `not_started` | M10.2、D4.4 |
+| 4 | P2-T01 | TextFlow 第一阶段 | `complete` | M10.2、D4.4 |
 
 状态只表示本页 delta 的执行进度：
 
@@ -161,7 +161,7 @@ damage 协议。
 
 ### P2-T01: TextFlow 第一阶段
 
-状态：`not_started`
+状态：`complete`
 
 `api_semantics`：`text.flow`
 
@@ -172,12 +172,13 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
 交付范围：
 
 1. FlowPage 包含有序 Paragraph，Paragraph 包含有序 inline text fragment；
-2. fragment 可覆盖 font/foreground 等文本样式，空值继承 Figure resolved style；
+2. fragment 作为稳定语义边界；第一阶段整页继承 Figure resolved style，fragment
+   级 font/foreground 留给后续独立 delta；
 3. 支持 hard break、soft wrap 与尾部 truncate，bidi 由 TextLayoutEngine 解析；
 4. 相同 width constraint 的 measure、arrange、paint 复用同一 immutable layout；
 5. fragment 或 width 变化通过 Runtime validation 原子更新 measurement、glyph IR、
    bounds 与 damage；
-6. UTF-8/CJK/bidi、mixed-style run、窄宽换行、hard break、truncate 和 cache
+6. UTF-8/CJK/bidi、fragment 拼接、窄宽换行、hard break、truncate 和 cache
    invalidation 测试；
 7. `core.p2-t01-text-flow` suite 通过。
 
@@ -185,6 +186,15 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
 
 - `doc/design/architecture/text-layout.md`
 - `doc/parity/draw2d/api-coverage.md`
+
+完成证据（2026-09-29）：
+
+- `FlowPage`、`FlowParagraph`、`InlineTextFragment` 与 `TextFlowFigure` 已进入 Core；
+- NoWrap、SoftWrap 和行数 Truncate 复用 Runtime-owned TextLayoutEngine；
+- paragraph hard break、UTF-8 grapheme-safe ellipsis、CJK/bidi 与 width cache 已覆盖；
+- FigureEditor 支持 page 与 wrapping typed mutation；
+- `text-app` 增加共享 Native/Web TextFlow 场景；
+- `cargo xtask verify core.p2-t01-text-flow` 通过。
 
 ## Rendering
 
