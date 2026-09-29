@@ -30,6 +30,7 @@
 | 2026-09-20 | [Draw2D / GEF 核心语义后续审计](draw2d-gef-core-semantic-follow-up-audit-2026-09-20.md) |
 | 2026-09-22 | [Core 公开 API 语义与命名审计](core-public-api-audit-2026-09-22.md) |
 | 2026-09-28 | [引擎能力与 API 稳定化评估](engine-capability-assessment-2026-09-28.md) |
+| 2026-09-29 | [Crate 边界与发布结构审计](crate-boundary-audit-2026-09-29.md) |
 
 ## 平台与产品验收
 
