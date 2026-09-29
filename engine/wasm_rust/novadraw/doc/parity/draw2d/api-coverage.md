@@ -146,6 +146,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `connection.locator` | Locator | connection labels、decorations、endpoint/midpoint placement |
 | `builtin.figures` | 基础 Figure 类型 | rectangle、ellipse、rounded rectangle、polygon、polyline、label、image |
 | `text.flow` | 文本 Flow | FlowFigure、TextFlow、ParagraphTextLayout、基础文本测量与换行 |
+| `text.interaction` | 文本交互几何 | document position、caret placement、point hit-test、selection geometry |
 | `widgets.basic` | Widget 辅助 | button-like、toggle-like、clickable 等基础交互 figure |
 
 ## Milestone 到 API 语义映射
@@ -173,6 +174,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-C02 | `connection.router` | `complete` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
 | P2-F01 | `builtin.figures` | `complete` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `complete` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
+| P2-T02 | `text.interaction` | `not_started` | immutable layout 的 position/caret/selection/movement geometry |
 
 ## 方法级 API 跟踪矩阵
 
@@ -360,6 +362,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | `Label` text/icon constructors, alignment, gap, preferred size, truncate, paint | `LabelFigure` 支持 backend-neutral text/image resource snapshot、alignment、gap、ellipsis、Border 盒模型和 icon named geometry | verified | 四方向 placement 的 glyph/image/gap 与 named geometry、cache/shaping、资源事务及 `text-app` 截图 |
 | `builtin.figures` | `ImageFigure.getImage/setImage/getPreferredSize/setAlignment/paintFigure` | `ImageFigure` + `ImageId`；Runtime typed replacement/alignment；PNG/SVG decode；Pending/Ready/Failed/Unavailable；resource-referenced Image command | verified | Ready resource 删除会清除所有 dependent 的旧引用；Vello revision cache、`m10_label_contract` 与 Image_Resources 截图 |
 | `text.flow` | `TextFlow.getText/setText`, fragment paint, truncate, leading word width | `TextFlowFigure` 以 FlowPage/Paragraph/InlineTextFragment 表达只读文本流，复用 Runtime-owned TextLayoutEngine 完成 hard/soft wrap、行数 truncate、bidi、测量与 Glyph IR | verified | `core.p2-t01-text-flow`；fragment 样式、caret/selection/editing 明确后置 |
+| `text.interaction` | `TextFlow.getOffset/getCaretPlacement/getNextOffset/getFirstOffsetForLine/getLastOffsetForLine/setSelection` | immutable `TextInteractionMap` 提供 paragraph-local UTF-8 position、affinity、hit-test、caret、selection quad 与 movement 查询；mutable selection 属于 Editor session | specified | P2-T02；`core.p2-t02-text-interaction` 计划 suite |
 | `widgets.basic` | `Clickable.doClick`, action/change listener, model, selected, rollover, pressed/focus paint | `ClickableFigure` + `ClickableModel`；Runtime 唯一拥有 pointer/keyboard pressed、hover、focus、capture，Figure 仅消费派生 visual snapshot | verified | release-inside、drag-out/back、Enter/Space、disabled 与 typed action 契约测试 |
 | `widgets.basic` | `Button` text/image constructors and default button style | `ButtonFigure` / `ToggleFigure` 组合 `ClickableModel + LabelFigure`；bevel、pressed offset、selected/focus/disabled visual | verified | `widgets-app` 三场景截图；repeat firing 与 ButtonGroup 不进入 M10.4 |
 | `accessibility.bridge` | `Accessible`、AccessibilityDispatcher、focus/default action | namespaced node identity、name/description/value/role/state/bounds/children/focus、Snapshot/Delta 与受控 focus/default action | verified | `m10_accessibility_contract` 覆盖 stable publish、层级提升、Toggle action、dispose 与 10,000 层；完整原生 AT provider 延后 |
@@ -684,7 +687,8 @@ Novadraw 对照：
 
 P2 能力通过 `doc/roadmap/p2-delta-backlog.md` 独立跟踪，不改变已完成的 M1-M10
 状态。当前 Core 增强批次已纳入 connection decoration/ShortestPath、
-ScalablePolygonFigure 与 TextFlow 第一阶段。其余能力继续只作后续对照：
+ScalablePolygonFigure 与 TextFlow 第一阶段；下一批已规划 P2-T02 文本交互几何与
+P2-E02 Editor direct edit。其余能力继续只作后续对照：
 
 - widget：`ButtonGroup`、radio/checkbox、repeat firing、`Slider`
 - 图布局：`DirectedGraphLayout`、`CompoundDirectedGraphLayout`

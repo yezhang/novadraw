@@ -42,6 +42,13 @@
 | G5 | Connection 编辑与 Viewport 协作 | `complete` | create/reconnect/bendpoint、auto-expose、scroll/zoom 下反馈 | **检查点 C：PASS** |
 | G6 | 下游产品毕业 | `external` | 产品 schema、保存加载和产品级 Native/Web 场景由独立产品包负责 | 不属于引擎验收 |
 
+G0-G5 基线保持 complete。后续 Editor 增量使用 P2 delta，不重开或改写既有 G
+milestone：
+
+| Delta | 标题 | 状态 | 依赖 |
+|---|---|---|---|
+| P2-E02 | Direct text edit 与 IME | `not_started` | P2-T02、G1-G5 |
+
 人工验收只在对应 milestone 的自动门禁通过后进行：
 
 - 检查点 A：验证单选、多选、primary/focus、空白区回退和 widget 输入隔离；
@@ -236,6 +243,29 @@ G5.5 自动与人工验证入口：
 - `doc/verification/reviews/g5-viewport-autoexpose-behavior-2026-09-15.md`；
 - `doc/verification/manual/g5-viewport-autoexpose.md`。
 
+## P2-E02 规划
+
+P2-E02 分两步执行：
+
+1. `P2-E02a`：typed feature/request/policy、单一 direct-edit session、draft、
+   text selection、feedback、accept/cancel、Command 与 headless replay；
+2. `P2-E02b`：platform-neutral text-input lease、Winit IME、Web DOM composition
+   bridge、candidate area 与 Native/Web 人工验收。
+
+状态所有权：
+
+- application model 拥有已提交文本；
+- Editor session 拥有 draft、text selection 与 preedit；
+- Core P2-T02 提供 immutable layout 的位置和几何查询；
+- platform adapter 只拥有 IME/focus/candidate-window 绑定。
+
+规范与计划：
+
+- `doc/reference/gef/direct-editing.md`；
+- `doc/design/editor/p2-direct-text-edit.md`；
+- `doc/verification/plans/p2-text-direct-edit.md`；
+- `doc/roadmap/p2-delta-backlog.md`。
+
 ## 下游产品参考场景
 
 `examples/native/node-editor-demo` 是引擎验证入口，不是架构真源，也不是产品交付物。
@@ -256,7 +286,6 @@ G5.5 自动与人工验证入口：
 ## 明确后置
 
 - Palette UI；
-- direct text edit、caret 与 IME；
 - clipboard 与系统 DnD；
 - ruler、guide、snap-to-geometry；
 - TreeViewer；

@@ -26,6 +26,17 @@
 建立新的 P2 delta 并完成设计评审；FigureInspector、Studio、offscreen thumbnail
 与高级 self-loop 继续保持 deferred，不因本批次完成而自动进入实施。
 
+## 下一批规划
+
+| 顺序 | Delta | 范围 | 状态 | 依赖 |
+|---|---|---|---|---|
+| 1 | P2-T02 | TextFlow immutable interaction geometry | `not_started` | P2-T01 |
+| 2 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `not_started` | P2-T02、G1-G5 |
+
+本批次分成 Core 与 Editor 两个可独立验收的 delta。P2-T02 不引入 mutable editor
+state；P2-E02 不复制 shaping、caret 或 selection geometry。实施前先执行 P2-T02，
+再执行 P2-E02a headless session 和 P2-E02b Native/Web input bridge。
+
 ## Connection
 
 ### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
@@ -203,6 +214,42 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
   fragment、SoftWrap、NoWrap、CJK 与 Truncate 可视结果；
 - `cargo xtask verify core.p2-t01-text-flow` 通过。
 
+### P2-T02: TextFlow interaction geometry
+
+状态：`not_started`
+
+`api_semantics`：`text.interaction`
+
+Core 在 P2-T01 immutable TextLayout 上增加 document position、affinity、hit-test、
+caret、selection quad 与 movement 查询。`TextFlowFigure` 不拥有 draft、selection 或
+IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
+
+交付范围：
+
+1. paragraph-local UTF-8 position、upstream/downstream affinity 与有向 range；
+2. immutable interaction map 保存 paragraph/fragment、cluster、line、bidi 与 visible
+   range 映射；
+3. point/position 双向查询、caret geometry 和跨 paragraph selection quads；
+4. visual cluster、word、line、paragraph 与 document movement；
+5. 外部 TextLayoutEngine 可构造同等受检 interaction map，不暴露 Parley 类型；
+6. `core.p2-t02-text-interaction` suite。
+
+完成判据：
+
+1. ASCII/CJK/emoji/combining mark 与 grapheme-safe movement；
+2. soft/hard wrap affinity、空 paragraph、跨 fragment/paragraph selection；
+3. mixed bidi logical/visual 映射；
+4. truncate、stale revision、非法 UTF-8 boundary 的结构化拒绝；
+5. nested transform、viewport scroll/zoom 后 caret surface geometry；
+6. 纯查询不产生 validation 或 damage。
+
+规范入口：
+
+- `doc/design/architecture/text-layout.md`
+- `doc/design/editor/p2-direct-text-edit.md`
+- `doc/verification/plans/p2-text-direct-edit.md`
+- `doc/parity/draw2d/api-coverage.md`
+
 ## Rendering
 
 ### P2-R02: Image source rectangle
@@ -275,3 +322,38 @@ Core 与当前 G5 必须继续保证：
 3. 节点、端口、标签和其他连接的障碍避让；
 4. resize、端口迁移与自动布局后的形状保持；
 5. 对应基准、视觉回归和可序列化 routing descriptor。
+
+### P2-E02: Direct text edit 与 IME
+
+状态：`not_started`
+
+`api_semantics`：`direct_edit`
+
+Editor 在既有 Request/Policy/CommandStack 和 P2-T02 text geometry 上建立一次只允许
+一个 owner 的直接编辑会话。它采用 GEF manager/policy/command 的职责分离，但不采用
+SWT/JFace CellEditor 作为公共契约或可见文本真值。
+
+交付范围：
+
+1. typed feature descriptor、request/policy role、source revision 与 session identity；
+2. transient draft、text selection、preedit、feedback、caret blink 与 cleanup；
+3. accept/cancel、stale conflict、CommandStack、undo/redo 和 part retire；
+4. platform-neutral text-input event/effect 与 lease identity；
+5. Winit IME bridge、Web DOM input/composition bridge 和 candidate area；
+6. headless replay、Native/Web 示例与人工验收。
+
+完成判据：
+
+1. draft 不修改业务模型，accept 只生成一个 Command，cancel 不进入 history；
+2. Viewer selection 与 text selection 隔离，active session 阻止 Tool fallback；
+3. preedit/commit、dead key、focus loss 和迟到 lease event 有确定语义；
+4. stale source revision 不覆盖外部修改，cleanup failure 进入 faulted；
+5. scroll/zoom/resize 后 feedback、caret 与候选窗对齐；
+6. `editor.p2-e02-direct-text-edit` 与 `platform.p2-e02-text-input` suites 通过。
+
+规范入口：
+
+- `doc/reference/gef/direct-editing.md`
+- `doc/design/editor/p2-direct-text-edit.md`
+- `doc/verification/plans/p2-text-direct-edit.md`
+- `doc/parity/gef/api-coverage.md`

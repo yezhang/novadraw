@@ -57,7 +57,7 @@ crate 骨架和文档不能把 family 提升为 `partial`；至少需要可执�
 | `viewport.autoexpose` | AutoexposeHelper / ViewportAutoexposeHelper | host 注入单调 elapsed，拖拽期间按 surface edge band 推进 Viewport，并重算 request、target 与 feedback | verified | G5 |
 | `document.persistence` | 非 GEF 固定 API | 引擎不定义产品 document schema 与 serializer；只保证模型重新注入后的确定性重建 | rejected | - |
 | `clipboard.protocol` | actions / transfer | 平台无关 clipboard payload + host adapter | deferred | P2 |
-| `direct_edit` | DirectEditManager/Request | 文本编辑、IME、commit/cancel | deferred | P2 |
+| `direct_edit` | DirectEditManager/Request/Policy、CellEditorLocator | 单 session、draft/selection/preedit、feedback、Command 与 host input bridge | specified | P2-E02 |
 | `snap.guides` | SnapTo*/rulers/guides | grid/geometry/guide feedback | deferred | P2 |
 | `palette` | PaletteRoot/Viewer/ToolEntry | 可选工具选择 UI，不属于核心闭环 | deferred | P2 |
 | `tree.viewer` | TreeEditPart/TreeViewer | 非图形 viewer | rejected | - |
@@ -90,6 +90,18 @@ Command 修改模型，不修改 EditPart/Figure。新 execute 清空 redo；und
 
 Figure-native widget 和 Tool 必须共存。Figure 消费或 capture 后不再进入 Tool；Tool
 gesture 自身也必须保持 source/tracker 一致，直到 release/cancel。
+
+### Direct Edit
+
+采用 GEF 的 request/feature、manager lifecycle、policy feedback 与 Command 提交分层：
+草稿变化不直接修改业务模型，accept 前先清理临时 feedback，再由模型通知刷新稳定
+Figure。
+
+不采用 SWT/JFace CellEditor 作为公共契约。P2-E02 由 Editor session 拥有 draft、
+text selection 和 composition，Core P2-T02 提供 immutable text geometry，
+Native/Web adapter 通过带 session identity 的 host lease 桥接 IME。Viewer selection
+与 text selection 始终分离。规范见
+[`../../design/editor/p2-direct-text-edit.md`](../../design/editor/p2-direct-text-edit.md)。
 
 ## 推进规则
 

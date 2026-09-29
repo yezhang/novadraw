@@ -328,7 +328,27 @@ measurement、arranged glyph origins、bounds、freeform extent 与 old/new dama
 direct editing、inline embedded Figure 和跨 paragraph selection。这些能力需要独立
 编辑模型与输入契约，不能通过给 TextFlow 增加临时 mutable offset 实现。
 
-## 12. 分批顺序
+## 12. P2-T02 Text Interaction Geometry
+
+第二阶段只在 Core 增加 immutable layout 的文本交互查询：
+
+- paragraph-local UTF-8 position + upstream/downstream affinity；
+- point 到 document position 的 cluster-aware hit-test；
+- position 到 caret geometry 的双向映射；
+- 跨 fragment、跨行、跨 paragraph 的 visual selection quads；
+- visual cluster、word、line、paragraph 与 document movement；
+- interaction map 与 TextLayout revision 的一致性校验。
+
+`TextFlowFigure` 仍不保存 mutable caret、selection、draft 或 composition。默认 Parley
+engine 可以使用其 editing/cluster 能力生成 interaction map，但公共类型和外部 engine
+构造入口必须由 Novadraw 定义。非法 UTF-8 boundary、不可见 truncated position 与
+stale layout revision 返回结构化错误，不得 clamp 或重新用平均字符宽度测量。
+
+Editor direct-edit session、应用模型 Command 与 Native/Web IME bridge 属于 P2-E02，
+规范见
+[`../editor/p2-direct-text-edit.md`](../editor/p2-direct-text-edit.md)。
+
+## 13. 分批顺序
 
 ### M10.2a Text Core
 
@@ -363,7 +383,14 @@ direct editing、inline embedded Figure 和跨 paragraph selection。这些能�
 - width-dependent measurement、arrange、paint 同源；
 - `text-flow-app` Native/Web 共用示例与 headless contract suite。
 
-## 13. 错误模型
+### P2-T02 Text Interaction Geometry
+
+- immutable interaction map 与受检外部构造入口；
+- document position、affinity、caret 与 selection geometry；
+- cluster/word/line/paragraph movement；
+- UTF-8、grapheme、bidi、wrap、truncate 与 transform contract suite。
+
+## 14. 错误模型
 
 - 非法字号或约束：`TextError::InvalidMetric`；
 - 字体描述无法解析：`TextError::InvalidFontDescriptor`；

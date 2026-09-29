@@ -220,7 +220,8 @@ Request 是不可直接修改模型的交互意图。首批 typed request：
 - `CreateRequest`；
 - `DeleteRequest`；
 - `CreateConnectionRequest`；
-- `ReconnectRequest`。
+- `ReconnectRequest`；
+- `DirectTextEditRequest`（P2-E02）。
 
 Request 包含入口域位置、增量、modifier、source parts、target candidate 和 interaction
 revision。禁止使用无约束 `HashMap<String, Any>` 作为主协议。
@@ -295,6 +296,24 @@ Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Too
 `Runtime::dispatch_*` 通过最小、平台无关的 `DispatchOutcome` 返回 target、handled
 与 dispatch 后 capture；Editor 不得在 app 层根据 hover 或 repaint 猜测消费结果。
 
+### 10.1 Direct Text Edit
+
+P2-E02 在既有 Request/Policy/Command 链路上增加单一 direct-edit session：
+
+```text
+DirectTextEditRequest
+-> feature descriptor + source revision
+-> transient draft / text selection / composition
+-> DirectEditPolicy builds model Command
+-> CommandStack
+-> model notification refresh
+```
+
+草稿、caret、selection 和 IME composition 属于 Editor session；TextFlow Core 只提供
+immutable layout 上的位置与几何查询；Native/Web adapter 只桥接平台输入和候选窗。
+Viewer selection 与 session 内 text selection 不共享状态。完整契约见
+[`p2-direct-text-edit.md`](p2-direct-text-edit.md)。
+
 ## 11. 扩展点
 
 - `ModelAdapter`：业务模型与通知；
@@ -305,6 +324,7 @@ Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Too
 - `Tool` / tracker：输入解释；
 - `SelectionPolicy`：选择规则；
 - `RootLayerFactory`：root layer 组合；
+- `DirectEditPolicy`：feature snapshot、draft feedback 与模型 Command；
 - `ClipboardAdapter`、`Serializer`：后续产品集成。
 
 ## 12. 失败模式
@@ -331,4 +351,5 @@ Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Too
 - Contract：targeting、policy contribution、feedback cleanup、input arbitration；
 - Native/Web：create/move/delete/reconnect、zoom/scroll、keyboard；
 - Recovery：保存/加载、Runtime 重建、undo 后新 EditPart 身份；
+- P2 direct edit：文本几何、session、IME replay、Native/Web 输入等价；
 - Accessibility：稳定模型语义与 Figure snapshot 的组合，后置到基础编辑闭环之后。

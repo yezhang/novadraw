@@ -14,6 +14,7 @@ Viewport 协作。
 | 4 | [g5-connection-reconnect.md](g5-connection-reconnect.md) | 端点重连与事务边界 |
 | 5 | [g5-connection-bendpoint.md](g5-connection-bendpoint.md) | 折点约束与 self-loop |
 | 6 | [g5-viewport-autoexpose.md](g5-viewport-autoexpose.md) | 缩放反馈与双轴 auto-expose |
+| 7 | [p2-direct-text-edit.md](p2-direct-text-edit.md) | TextFlow 交互几何、直接编辑与 IME |
 
 相关入口：
 

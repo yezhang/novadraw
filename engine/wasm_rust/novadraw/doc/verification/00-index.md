@@ -9,6 +9,7 @@
 | `reference/` | 外部参考源码基线与纠错依据 | [索引](reference/00-index.md) |
 | `reviews/` | 阶段审计和实现验证报告 | [索引](reviews/00-index.md) |
 | `manual/` | 窗口、交互和视觉验收步骤 | [索引](manual/00-index.md) |
+| `plans/` | 尚未进入实现的验证矩阵与完成门禁 | [索引](plans/00-index.md) |
 | `performance/` | 可重复的性能基线 | [R8 基线](performance/r8-baseline-2026-09-02.md) |
 | `checklists/` | 开发与验证检查清单 | [渲染管线](checklists/rendering-pipeline.md) |
 
