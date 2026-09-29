@@ -11,6 +11,10 @@
 本文研究 AI 辅助创作和 Agent 工作流对专业图形编辑器的影响，并评估 Novadraw 的
 可持续价值。它是产品和商业决策输入，不定义运行时架构、公开 API 或路线图状态。
 
+本文首先回答“AI 如何参与一份关系图的编辑”。在此基础上，让 AI 进一步生成领域模型、
+视觉映射、连接规则和工具，从而动态形成一套图形编辑器的候选产品设计，见
+[AI 图形编辑器动态生成器产品设计](ai-graphical-editor-generator.md)。
+
 文中严格区分：
 
 - **外部事实**：公开产品、工程文章或研究论文已经陈述的能力与观察；
@@ -163,6 +167,10 @@ Novadraw 的 Anchor、Router、Connection Runtime、创建、重连、bendpoint 
 这比“Rust 绘图引擎”更接近客户购买的结果，也比“通用 AI 白板”更准确地利用当前技术
 资产。
 
+该定位还可以向上形成“AI 动态生成领域图形编辑器”的产品层：AI 生成版本化
+`EditorSpec`，确定性编译器将其装配为基于 Novadraw 的编辑器。两者并不冲突：
+前者约束 AI 如何修改业务图，后者约束 AI 如何定义用于修改业务图的编辑器。
+
 ### 5.2 优先场景
 
 | 场景 | AI 的作用 | 人工必须保留的决定 | 与 Novadraw 的匹配 |
@@ -182,7 +190,7 @@ Novadraw 的 Anchor、Router、Connection Runtime、创建、重连、bendpoint 
 
 | 优先级 | 能力 | 原因 | 当前边界 |
 |---|---|---|---|
-| P0 | 持久化文档、稳定业务身份、版本迁移 | Agent、用户和 CI 必须指向同一可重放事实 | G6 尚未开始 |
+| P0 | 持久化文档、稳定业务身份、版本迁移 | Agent、用户和 CI 必须指向同一可重放事实 | 已移交独立产品包，尚无产品协议 |
 | P0 | 受限 Agent mutation API | 防止 Agent 绕过 Command/Runtime 写入临时 Figure 状态 | 尚未定义 |
 | P0 | dry-run、语义诊断与批准前 diff | 使 AI 变更可检查、可拒绝、可解释 | 可复用现有事务，但尚无产品接口 |
 | P1 | 领域约束 capability | 端口类型、环路、权限和拓扑规则不能由 prompt 保证 | 需要垂直领域设计 |
@@ -233,8 +241,9 @@ Novadraw 的 Anchor、Router、Connection Runtime、创建、重连、bendpoint 
 ## 9. 结论
 
 AI 降低了图的初始创建成本，却提高了“如何审查、约束、修改和证明 AI 变更正确”的
-价值。Novadraw 最值得建设的不是生成器，而是使 AI 输出成为长期可维护业务图的执行与
-验证底座。
+价值。Novadraw 最值得建设的不是一次性图片或图文生成器，而是使 AI 输出成为长期
+可维护业务图的执行与验证底座；在该底座之上，可以进一步生成可版本化、可验证的领域
+图形编辑器。
 
 其长期公式可表达为：
 
@@ -254,6 +263,7 @@ AI 协作价值
 项目内：
 
 - [商业价值分析](commercial-value-analysis.md)
+- [AI 图形编辑器动态生成器产品设计](ai-graphical-editor-generator.md)
 - [Editor 架构](../design/editor/architecture.md)
 - [Editor 路线图](../roadmap/editor/00-index.md)
 - [Draw2D Core 1.0 最终审计](../verification/reviews/draw2d-core-1.0-final-audit-2026-09-13.md)

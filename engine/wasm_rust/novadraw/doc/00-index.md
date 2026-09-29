@@ -172,8 +172,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 ### 理解产品与商业价值
 
 1. [`strategy/commercial-value-analysis.md`](strategy/commercial-value-analysis.md)
-2. [`roadmap/00-index.md`](roadmap/00-index.md)
-3. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
+2. [`strategy/ai-era-relationship-editor-research.md`](strategy/ai-era-relationship-editor-research.md)
+3. [`strategy/ai-graphical-editor-generator.md`](strategy/ai-graphical-editor-generator.md)
+4. [`roadmap/00-index.md`](roadmap/00-index.md)
+5. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
 
 ## 命名与维护
 

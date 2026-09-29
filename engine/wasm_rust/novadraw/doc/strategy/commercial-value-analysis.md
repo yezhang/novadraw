@@ -22,6 +22,11 @@ AI 辅助生成、审查和执行关系图的外部调研，以及由此导出�
 [AI 时代的关系编辑器机会研究](ai-era-relationship-editor-research.md)。该专题不替代
 本文的整体商业分析。
 
+在该研究基础上，从“AI 修改一份关系图”进一步扩展到“AI 动态生成一套领域图形
+编辑器”的候选产品设计，见
+[AI 图形编辑器动态生成器产品设计](ai-graphical-editor-generator.md)。该方案把
+`EditorSpec`、业务文档和工作区状态分离，定位为独立产品层，不改变引擎边界。
+
 ## 2. 核心结论
 
 Novadraw 的商业价值不在于“用 Rust 重写 Eclipse Draw2D”，而在于：
@@ -355,20 +360,20 @@ Novadraw 应避免仅以“更便宜的 yFiles”竞争。可持续差异应是�
 ## 9. 当前项目的商业成熟度
 
 根据当前路线图，Draw2D Core M1-M10 与 Editor G0-G5 已完成，检查点 C 已通过人工
-验收，G6 尚未开始。由此可将当前价值判断为：
+验收；原 G6 的产品 schema、serializer 和产品级 Native/Web 场景已移交独立产品包。
+由此可将当前价值判断为：
 
-| 维度 | 当前 | 检查点 C 后 | G6 完成后 |
+| 维度 | 引擎现状 | 独立产品包完成后 | 领域套件验证后 |
 |---|---:|---:|---:|
 | 技术资产 | 很高 | 很高 | 很高 |
 | Rust 生态稀缺性 | 很高 | 很高 | 很高 |
-| 用户可感知价值 | 中高 | 高 | 高 |
-| 可售 SDK 程度 | 中低 | 中 | 高 |
-| 竞争壁垒 | 中高 | 高 | 高 |
-| 短期收入能力 | 中低 | 中 | 中高 |
+| 用户可感知价值 | 中高 | 高 | 很高 |
+| 可售 SDK 程度 | 中 | 高 | 很高 |
+| 竞争壁垒 | 高 | 高 | 很高 |
+| 短期收入能力 | 中 | 中高 | 高 |
 
-该表是定性判断，不是估值模型。项目已具备高质量图形核心和主要编辑闭环，但在 G6
-完成保存加载、Native/Web/Headless 等价与产品毕业前，仍不能视为可直接采购的完整
-商业 SDK。
+该表是定性判断，不是估值模型。项目已具备高质量图形核心和主要编辑闭环，但产品
+schema、持久化、宿主集成、交付制品和领域套件仍需在独立产品包中形成可采购闭环。
 
 ### 9.1 Draw2D Core 的商业作用
 
@@ -386,14 +391,15 @@ M1-M10 建立了正确性与基础产品能力：
 ### 9.2 Editor G1-G5 的商业作用
 
 Model Adapter、CommandStack、EditPart、Viewer、Selection、Tool、Request、
-EditPolicy 和 Connection 编辑已经把图形内核推进为可交互 Diagram 框架。G5
-检查点 C 仍需验证完整图编辑主流程。
+EditPolicy 和 Connection 编辑已经把图形内核推进为可交互 Diagram 框架。G5.4
+Connection Bendpoint、G5.5 Viewport/Auto-expose 与检查点 C 均已完成验证。
 
-### 9.3 G6 的商业作用
+### 9.3 独立产品交付层的商业作用
 
-G6 负责保存加载、重建身份和 Native/Web/Headless 等价，是从“框架能力可用”到
-“产品交付可验证”的边界。Clipboard、direct edit、IME 和 property editing 等能力
-仍可按明确的后续产品 delta 推进，不应回写 G0-G6 的既定完成定义。
+原 G6 的保存加载、schema、serializer 和产品级 Native/Web 场景已移交独立产品包，
+不再作为 Editor framework 门禁。该产品层负责把“框架能力可用”推进为“具体产品可
+交付、可升级、可采购”。Clipboard、direct edit、IME 和 property editing 等能力
+按真实产品需求进入对应产品或明确的引擎 delta，不回写 G0-G5 的完成定义。
 
 ## 10. 可持续护城河
 
@@ -656,10 +662,12 @@ Novadraw 具有三层商业价值：
 项目内：
 
 - [Novadraw 文档索引](../00-index.md)
+- [AI 时代的关系编辑器机会研究](ai-era-relationship-editor-research.md)
+- [AI 图形编辑器动态生成器产品设计](ai-graphical-editor-generator.md)
 - [Draw2D API 语义覆盖账本](../parity/draw2d/api-coverage.md)
 - [M1-M10 路线图](../roadmap/00-index.md)
 - [产品交付清单](../roadmap/product-deliverables.md)
-- [Editor G0-G6 路线图](../roadmap/editor/00-index.md)
+- [Editor G0-G5 路线图](../roadmap/editor/00-index.md)
 - [GEF 核心原则](../reference/gef/core-principles.md)
 - [Draw2D 设计公理](../reference/draw2d/architecture/design-axioms.md)
 
