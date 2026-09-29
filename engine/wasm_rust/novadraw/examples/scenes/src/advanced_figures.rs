@@ -1,4 +1,4 @@
-//! Shared visual validation scenes for the first Core P2 feature batch.
+//! Shared visual examples for advanced Figure and connection-routing features.
 
 use novadraw::connection::{
     ChopboxAnchor, ConnectionFigure, ConnectionLocator, CoordinateSpace, EndpointLocator,
@@ -26,36 +26,40 @@ const GREEN: Color = Color::rgba(0.06, 0.57, 0.42, 1.0);
 const RED: Color = Color::rgba(0.82, 0.24, 0.25, 1.0);
 const AMBER: Color = Color::rgba(0.91, 0.59, 0.08, 1.0);
 const CONNECTION_WIDTH: f64 = 3.0;
+const DECORATION_TEMPLATE_LENGTH: f64 = 10.0;
+const DECORATION_LINE_OVERLAP: f64 = 1.0;
+const SOURCE_DECORATION_SCALE: f64 = 1.5;
+const TARGET_DECORATION_SCALE_X: f64 = 1.8;
+const TARGET_DECORATION_SCALE_Y: f64 = 1.6;
+const SOURCE_DECORATION_INSET: f64 =
+    DECORATION_TEMPLATE_LENGTH * SOURCE_DECORATION_SCALE - DECORATION_LINE_OVERLAP;
+const TARGET_DECORATION_INSET: f64 =
+    DECORATION_TEMPLATE_LENGTH * TARGET_DECORATION_SCALE_X - DECORATION_LINE_OVERLAP;
 
 pub fn suite() -> DemoSuite {
     DemoSuite::new(
-        "p2-core",
-        "Core P2 Validation",
+        "advanced-figures",
+        "Advanced Figures",
         vec![
             SceneSpec::runtime_visual(
-                "p2-c01-connection-decoration",
-                "P2-C01 Connection Decoration",
+                "connection-decoration",
+                "Connection Decoration",
                 SCENE_SIZE,
                 connection_decoration_scene,
             ),
             SceneSpec::runtime_visual(
-                "p2-c02-shortest-path",
-                "P2-C02 Shortest Path",
+                "shortest-path-routing",
+                "Shortest Path Routing",
                 SCENE_SIZE,
                 shortest_path_scene,
             ),
             SceneSpec::runtime_visual(
-                "p2-f01-scalable-polygon",
-                "P2-F01 Scalable Polygon",
+                "scalable-polygon",
+                "Scalable Polygon",
                 SCENE_SIZE,
                 scalable_polygon_scene,
             ),
-            SceneSpec::runtime_visual(
-                "p2-t01-text-flow",
-                "P2-T01 Text Flow",
-                SCENE_SIZE,
-                text_flow_scene,
-            ),
+            SceneSpec::runtime_visual("text-flow", "Text Flow", SCENE_SIZE, text_flow_scene),
         ],
     )
 }
@@ -176,7 +180,7 @@ fn add_node(
 
 fn connection_decoration_scene() -> Runtime {
     let (mut runtime, root) = scene_runtime(
-        "P2-C01  Connection decoration",
+        "Connection decoration",
         "Open and filled endpoint figures rotate with the route; the badge uses tangent/normal offsets.",
     );
     add_panel(
@@ -191,7 +195,7 @@ fn connection_decoration_scene() -> Runtime {
         .add(Box::new(
             ConnectionFigure::new()
                 .with_stroke(BLUE, CONNECTION_WIDTH)
-                .with_decoration_insets(18.0, 20.0),
+                .with_decoration_insets(SOURCE_DECORATION_INSET, TARGET_DECORATION_INSET),
         ))
         .expect("valid connection");
     let source = add_node(
@@ -213,7 +217,7 @@ fn connection_decoration_scene() -> Runtime {
         .expect("connection container")
         .add(Box::new(
             PolylineDecorationFigure::arrow()
-                .with_scale(1.5, 1.5)
+                .with_scale(SOURCE_DECORATION_SCALE, SOURCE_DECORATION_SCALE)
                 .expect("valid decoration scale")
                 .with_color(BLUE)
                 .with_width(3.0)
@@ -225,7 +229,7 @@ fn connection_decoration_scene() -> Runtime {
         .expect("connection container")
         .add(Box::new(
             PolygonDecorationFigure::triangle()
-                .with_scale(1.8, 1.6)
+                .with_scale(TARGET_DECORATION_SCALE_X, TARGET_DECORATION_SCALE_Y)
                 .expect("valid decoration scale")
                 .with_fill_color(RED)
                 .with_stroke(INK, 1.5)
@@ -282,7 +286,7 @@ fn connection_decoration_scene() -> Runtime {
 
 fn shortest_path_scene() -> Runtime {
     let (mut runtime, root) = scene_runtime(
-        "P2-C02  Obstacle-aware shortest path",
+        "Obstacle-aware shortest path",
         "Two connections share one immutable obstacle snapshot and choose deterministic orthogonal paths.",
     );
     add_panel(
@@ -395,7 +399,7 @@ fn shortest_path_scene() -> Runtime {
 
 fn scalable_polygon_scene() -> Runtime {
     let (mut runtime, root) = scene_runtime(
-        "P2-F01  Scalable polygon",
+        "Scalable polygon",
         "One canonical asymmetric template maps into different bounds, scale modes, and alignments.",
     );
     let template = PointList::from_points(vec![
@@ -514,7 +518,7 @@ fn scalable_polygon_scene() -> Runtime {
 
 fn text_flow_scene() -> Runtime {
     let (mut runtime, root) = scene_runtime(
-        "P2-T01  Read-only text flow",
+        "Read-only text flow",
         "Paragraphs, inline fragments, CJK shaping, soft wrapping, and UTF-8-safe truncation.",
     );
     add_panel(
@@ -609,7 +613,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn p2_core_suite_builds_and_records_all_feature_scenes() {
+    fn advanced_figures_suite_builds_and_records_all_feature_scenes() {
         let mut suite = suite();
         assert_eq!(suite.scenes.len(), 4);
 

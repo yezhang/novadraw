@@ -4,13 +4,13 @@ use novadraw_example_support::{
 };
 
 fn main() {
-    let title = "Novadraw Core P2 Validation";
-    let app_name = "p2-core-app";
+    let title = "Novadraw Advanced Figures";
+    let app_name = "advanced-figures-app";
     let cli = VerificationCli::parse().unwrap_or_else(|error| {
         eprintln!("{error}");
         std::process::exit(2);
     });
-    let suite = novadraw_example_scenes::p2_core::suite();
+    let suite = novadraw_example_scenes::advanced_figures::suite();
     let screenshot_index = cli.screenshot.as_deref().map(|scenario| {
         scenario
             .parse::<usize>()
@@ -36,5 +36,5 @@ fn main() {
         run_runtime_demo_app(title, app_name, scenes)
     };
 
-    result.expect("Failed to run Core P2 validation app");
+    result.expect("Failed to run advanced figures app");
 }

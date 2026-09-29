@@ -1,5 +1,5 @@
 [package]
-name = "p2-core-app"
+name = "advanced-figures-app"
 version.workspace = true
 edition.workspace = true
 publish = false

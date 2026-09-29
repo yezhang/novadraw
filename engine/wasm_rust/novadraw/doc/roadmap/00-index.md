@@ -56,10 +56,11 @@ R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08
 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
 Core 1.0 完成。后续能力必须进入 Editor roadmap 或明确的 P2 delta。
 P2-R02 image source rectangle 已于 2026-09-29 完成。
-当前 Core 增强批次按
-[`p2-delta-backlog.md`](p2-delta-backlog.md) 依次推进 P2-C01 Connection
-decoration、P2-C02 shortest-path routing、P2-F01 ScalablePolygonFigure 与 P2-T01
-TextFlow 第一阶段；FigureInspector、Studio 与高级 self-loop 策略后置。
+P2-C01 Connection decoration、P2-C02 shortest-path routing、P2-F01
+ScalablePolygonFigure 与 P2-T01 TextFlow 第一阶段已于 2026-09-29 完成自动门禁和
+macOS Native/Vello 人工验收。当前没有自动进入实施的 Core delta；新能力必须先进入
+[`p2-delta-backlog.md`](p2-delta-backlog.md) 并通过设计评审。FigureInspector、
+Studio 与高级 self-loop 策略继续后置。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发从 ADR-020 的基础值与公开渲染契约整改继续。原 G6 的产品 schema、

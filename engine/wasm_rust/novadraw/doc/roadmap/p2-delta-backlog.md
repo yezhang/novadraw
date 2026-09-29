@@ -6,7 +6,7 @@
 每项进入实施前必须先补充对应的 design/parity delta、自动验证和完成证据；本页不定义
 运行时契约。
 
-## 当前执行批次
+## 已完成批次
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
@@ -22,8 +22,9 @@
 - `complete`：契约、实现、验证和 parity 证据全部闭合；
 - `deferred`：已确认边界，但不进入当前 Core 增强批次。
 
-当前批次完成后才启动 FigureInspector、Studio、offscreen thumbnail 或其他开发工具
-工作。批次内按表格顺序推进；每项完成后独立更新状态和提交证据。
+本批次已于 2026-09-29 完成自动门禁与 macOS Native/Vello 人工验收。后续工作必须
+建立新的 P2 delta 并完成设计评审；FigureInspector、Studio、offscreen thumbnail
+与高级 self-loop 继续保持 deferred，不因本批次完成而自动进入实施。
 
 ## Connection
 
@@ -73,8 +74,8 @@ Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope �
   Core 公开 API；
 - route preflight 同时校验 decoration geometry，terminal duplicate point 与
   AnchorSite normal fallback 已覆盖；
-- `p2-core-app` 提供 decoration orientation、line inset 与 EndpointLocator offset
-  的 Native 可视验收场景；
+- `advanced-figures-app` 提供 decoration orientation、line inset 与
+  EndpointLocator offset 的 Native 可视验收场景；
 - `cargo xtask verify core.p2-c01-connection-decoration` 通过。
 
 ### P2-C02: 障碍感知 Shortest-path Router
@@ -121,7 +122,8 @@ Connection 或使用全局可变状态的实现方式。
 - Hanan grid + bend-aware Dijkstra 生成确定性正交路径，直线与 L 路径使用无阻挡快速路径；
 - 几何、可见性和拓扑变化通过 tracked dependency 自动重路由；
 - 64 connections / 64 obstacles 验证为 1 次 snapshot build、64 次 route calculation；
-- `p2-core-app` 提供双连接共享 obstacle snapshot 与上下避障路径的 Native 可视场景；
+- `advanced-figures-app` 提供双连接共享 obstacle snapshot 与上下避障路径的 Native
+  可视场景；
 - `cargo xtask verify core.p2-c02-shortest-path-routing` 通过。
 
 ## Figures
@@ -157,7 +159,7 @@ damage 协议。
 - Stretch 与 PreserveAspect 支持双轴 alignment 和单轴/双轴退化模板；
 - stroke/miter outset、fill/outline 与 precise hit 共用同一派生点集；
 - FigureEditor 支持 template、scale mode 与 alignment 的 typed mutation；
-- `shape-app` 与 `p2-core-app` 提供 P2 scalable polygon 场景，后者集中验证
+- `shape-app` 与 `advanced-figures-app` 提供 scalable polygon 场景，后者集中验证
   Stretch、PreserveAspect、alignment 与 bounds mutation；
 - `cargo xtask verify core.p2-f01-scalable-polygon` 通过。
 
@@ -197,8 +199,8 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
 - NoWrap、SoftWrap 和行数 Truncate 复用 Runtime-owned TextLayoutEngine；
 - paragraph hard break、UTF-8 grapheme-safe ellipsis、CJK/bidi 与 width cache 已覆盖；
 - FigureEditor 支持 page 与 wrapping typed mutation；
-- `text-app` 增加共享 Native/Web TextFlow 场景；`p2-core-app` 集中验证段落、fragment、
-  SoftWrap、NoWrap、CJK 与 Truncate 可视结果；
+- `text-app` 增加共享 Native/Web TextFlow 场景；`advanced-figures-app` 集中验证段落、
+  fragment、SoftWrap、NoWrap、CJK 与 Truncate 可视结果；
 - `cargo xtask verify core.p2-t01-text-flow` 通过。
 
 ## Rendering

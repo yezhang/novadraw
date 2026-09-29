@@ -253,10 +253,10 @@ description = "Open the Native Editor manual validation application"
 program = "cargo"
 args = ["run", "-p", "node-editor-demo"]
 
-[commands."native.p2-core"]
-description = "Open the Native Core P2 manual validation application"
+[commands."native.advanced-figures"]
+description = "Open the Native advanced Figure and routing example"
 program = "cargo"
-args = ["run", "-p", "p2-core-app"]
+args = ["run", "-p", "advanced-figures-app"]
 
 [commands."replay.editor-g3"]
 description = "Replay selection, targeting, and widget arbitration without a window"
@@ -449,16 +449,16 @@ paths = [
   "novadraw/tests/m9_connection_contract.rs",
   "novadraw/tests/m9_connection_runtime.rs",
   "novadraw/tests/m10_reusable_shape_border_contract.rs",
-  "examples/scenes/src/p2_core.rs",
-  "examples/native/p2-core-app/**",
+  "examples/scenes/src/advanced_figures.rs",
+  "examples/native/advanced-figures-app/**",
 ]
 documents = [
   "doc/design/architecture/connection-routing.md",
   "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
-  "doc/verification/manual/p2-core-features.md",
+  "doc/verification/manual/advanced-figures.md",
 ]
-manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
+manual = { command = "native.advanced-figures", document = "doc/verification/manual/advanced-figures.md" }
 
 [[suites]]
 id = "core.p2-c02-shortest-path-routing"
@@ -474,15 +474,15 @@ paths = [
   "novadraw/src/connection/runtime.rs",
   "novadraw/src/connection/shortest_path.rs",
   "novadraw/tests/p2_c02_shortest_path_contract.rs",
-  "examples/scenes/src/p2_core.rs",
-  "examples/native/p2-core-app/**",
+  "examples/scenes/src/advanced_figures.rs",
+  "examples/native/advanced-figures-app/**",
 ]
 documents = [
   "doc/design/architecture/connection-routing.md",
   "doc/parity/draw2d/api-coverage.md",
-  "doc/verification/manual/p2-core-features.md",
+  "doc/verification/manual/advanced-figures.md",
 ]
-manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
+manual = { command = "native.advanced-figures", document = "doc/verification/manual/advanced-figures.md" }
 
 [[suites]]
 id = "core.p2-f01-scalable-polygon"
@@ -496,15 +496,15 @@ paths = [
   "novadraw/src/figure/scalable_polygon.rs",
   "novadraw/tests/p2_f01_scalable_polygon_contract.rs",
   "examples/scenes/src/shape.rs",
-  "examples/scenes/src/p2_core.rs",
-  "examples/native/p2-core-app/**",
+  "examples/scenes/src/advanced_figures.rs",
+  "examples/native/advanced-figures-app/**",
 ]
 documents = [
   "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
-  "doc/verification/manual/p2-core-features.md",
+  "doc/verification/manual/advanced-figures.md",
 ]
-manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
+manual = { command = "native.advanced-figures", document = "doc/verification/manual/advanced-figures.md" }
 
 [[suites]]
 id = "core.p2-t01-text-flow"
@@ -519,15 +519,15 @@ paths = [
   "novadraw/src/render/text.rs",
   "novadraw/tests/p2_t01_text_flow_contract.rs",
   "examples/scenes/src/text.rs",
-  "examples/scenes/src/p2_core.rs",
-  "examples/native/p2-core-app/**",
+  "examples/scenes/src/advanced_figures.rs",
+  "examples/native/advanced-figures-app/**",
 ]
 documents = [
   "doc/design/architecture/text-layout.md",
   "doc/parity/draw2d/api-coverage.md",
-  "doc/verification/manual/p2-core-features.md",
+  "doc/verification/manual/advanced-figures.md",
 ]
-manual = { command = "native.p2-core", document = "doc/verification/manual/p2-core-features.md" }
+manual = { command = "native.advanced-figures", document = "doc/verification/manual/advanced-figures.md" }
 
 [[suites]]
 id = "workspace.quality"

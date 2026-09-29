@@ -33,7 +33,7 @@
 | Native | `widgets-app` | Widget 与 Tooltip | `cargo run -p widgets-app` |
 | Native | `update-app` | 更新生命周期与通知 | `cargo run -p update-app` |
 | Native | `connections-demo` | Anchor、Router 与 Connection | `cargo run -p connections-demo` |
-| Native | `p2-core-app` | Core P2 Connection、Figure 与 TextFlow | `cargo run -p p2-core-app` |
+| Native | `advanced-figures-app` | 连接装饰与路由、可缩放多边形、TextFlow | `cargo run -p advanced-figures-app` |
 | Native | `node-editor-demo` | Editor 交互与命令历史 | `cargo run -p node-editor-demo` |
 | Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | Native | `vello-app` | Vello 原始 API | `cargo run -p vello-app` |
