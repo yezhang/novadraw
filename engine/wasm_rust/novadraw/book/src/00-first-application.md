@@ -30,7 +30,7 @@ cargo run -p node-editor-demo
 - `apps/native/*`：只负责窗口入口和场景选择；
 - `apps/support`：仓库内部的 Winit/Vello 演示宿主。
 
-产品应用可以参考这套分层，但不应把 `novadraw-apps` 当作稳定产品框架。应用自己的
+产品应用可以采用这套分层，但不应把 `novadraw-apps` 当作稳定产品框架。应用自己的
 composition root 应持有平台窗口、`Runtime` 或 `GraphicalViewer`，以及渲染后端。
 
 ## 2. 选择 Core 还是 Editor
@@ -150,7 +150,7 @@ fn build_scene() -> Result<AppScene, Box<dyn Error>> {
 2. `FigureTreeBuilder` 只负责分配 ID、组装拓扑和设置初始节点状态；
 3. 树交给 `Runtime` 后，运行期修改不再经过 Builder。
 
-完整可运行场景可参考
+完整可运行场景见
 [`apps/scenes/src/update.rs`](../../apps/scenes/src/update.rs) 和
 [`apps/scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)。
 
@@ -210,7 +210,7 @@ runtime.pointer_exited();
 不要在平台适配层重复命中测试、滚动目标选择或坐标父链换算。这些规则由 Runtime
 统一维护，否则绘制与交互会在嵌套、滚动或缩放后产生偏差。
 
-桌面适配参考
+桌面适配示例见
 [`apps/support/src/input.rs`](../../apps/support/src/input.rs)，输入状态机原理见
 [第 5 章](05-input-and-interaction.md)。
 
@@ -268,7 +268,7 @@ let domain = EditorDomain::new();
 应用模型保存自己的 `ModelId`；查看器内部管理 `EditPartId` 和 `FigureId`。命令只
 修改模型，查看器再把模型变化投影到场景。
 
-完整实现路线见[第 8 章](08-editor-framework.md)，可运行参考见
+完整实现路线见[第 8 章](08-editor-framework.md)，可运行示例见
 [`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。
 
 ## 9. 推荐的应用目录

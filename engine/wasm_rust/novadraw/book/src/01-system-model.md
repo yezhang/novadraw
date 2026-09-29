@@ -27,10 +27,9 @@ Editor 都遵守这条边界。
 
 ## 1.2 九条基础公理
 
-Novadraw 从 Draw2D 保留行为语义，再用 Rust 所有权和显式事务重新组织对象关系。
-这里的**事务**是指一组相关变化作为一个整体接受校验和提交；需要原子完成时，要么
-全部成功，要么不留下部分结果。**派生状态**是由原始输入或模型状态计算得到、可以
-在失效后重新生成的状态。
+Novadraw 使用 Rust 所有权和显式事务组织对象关系。这里的**事务**是指一组相关变化
+作为一个整体接受校验和提交；需要原子完成时，要么全部成功，要么不留下部分结果。
+**派生状态**是由原始输入或模型状态计算得到、可以在失效后重新生成的状态。
 
 | 公理 | Novadraw 中的承载者 | 直接后果 |
 |---|---|---|
@@ -43,11 +42,6 @@ Novadraw 从 Draw2D 保留行为语义，再用 Rust 所有权和显式事务重
 | 校验收敛先于重绘修复 | `UpdateManager`、`Runtime::stabilize` | 重绘区域基于稳定几何计算 |
 | 脏区必须投影到根 | `repair::propagate_damage_to_root` | 不能绕过变换与祖先裁剪 |
 | 输入是有状态分发 | `EventDispatcher`、`InteractionState` | 指针捕获、悬停、焦点统一管理 |
-
-外部参考：
-
-- [Draw2D 设计公理](../../doc/reference/draw2d/architecture/design-axioms.md)
-- [GEF 核心原理](../../doc/reference/gef/core-principles.md)
 
 ### 应用使用的是哪一段
 
@@ -385,8 +379,8 @@ pub struct FigureNode {
 
 ## 1.5 为什么使用 ID 引用树
 
-Java Draw2D 可以让对象互相保存引用。Rust 中如果 `Figure` 同时拥有父节点、子节点
-和管理器引用，会迅速形成自引用、别名可变借用与销毁顺序问题。
+如果 `Figure` 同时拥有父节点、子节点和管理器引用，会迅速形成自引用、别名可变
+借用与销毁顺序问题。
 
 Novadraw 使用：
 
@@ -504,12 +498,6 @@ Novadraw 不承诺回滚任意用户代码副作用。原子性按层划分：
 扩展代码恐慌（panic）、不可恢复的命令错误或无法保证一致性的结构提交，会使
 `Runtime`、`Viewer` 或 `CommandStack` 进入**故障锁定状态**（faulted）：系统拒绝
 继续提交，以免在未知状态上扩大损坏。
-
-规范依据：
-
-- [ADR-014：扩展协议、生命周期与稳定发布](../../doc/adr/adr-014-extensibility-and-lifecycle-boundaries.md)
-- [总体架构](../../doc/design/architecture/overview.md)
-- [动态协议](../../doc/design/architecture/dynamic-architecture.md)
 
 ## 1.10 应用设计检查清单
 

@@ -190,7 +190,6 @@ if handled {
 
 - [`EventDispatcher::dispatch_scroll`](../../novadraw-scene/src/runtime/event/mod.rs#L575-L598)
 - [`EventDispatcher::dispatch_zoom`](../../novadraw-scene/src/runtime/event/mod.rs#L600-L620)
-- [Scroll/Zoom 输入规范](../../doc/design/input/scroll-zoom-gesture-contract.md)
 
 ## 5.10 事件上下文与效果队列
 

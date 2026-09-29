@@ -315,5 +315,3 @@ runtime
 - [`m4_coordinate_contract.rs`](../../novadraw-scene/tests/m4_coordinate_contract.rs)
 - [`m8_viewport_contract.rs`](../../novadraw-scene/tests/m8_viewport_contract.rs)
 - [`bounds_test.rs`](../../novadraw-scene/src/graph/bounds_test.rs)
-- 规范唯一事实来源：
-  [`coordinate-system.md`](../../doc/design/coordinates/coordinate-system.md)

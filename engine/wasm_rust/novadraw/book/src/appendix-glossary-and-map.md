@@ -228,41 +228,18 @@
 - 编辑域（EditorDomain）：
   [`novadraw-editor/src/domain.rs`](../../novadraw-editor/src/domain.rs)
 
-## F. 设计唯一事实来源地图
-
-- [文档总入口](../../doc/00-index.md)
-- [Core 公开 API 边界（ADR-017）](../../doc/adr/adr-017-core-public-api-boundary.md)
-- [Runtime 驱动与测量 API（ADR-018）](../../doc/adr/adr-018-runtime-driving-and-measurement-api.md)
-- [可组装 API 与 scoped editor（ADR-019）](../../doc/adr/adr-019-composable-api-and-scoped-editors.md)
-- [引擎基础值与渲染契约（ADR-020）](../../doc/adr/adr-020-engine-value-and-render-contract.md)
-- [公开 facade 与 feature 边界（ADR-021）](../../doc/adr/adr-021-public-facade-and-feature-boundary.md)
-- [总体架构](../../doc/design/architecture/overview.md)
-- [静态结构](../../doc/design/architecture/static-architecture.md)
-- [动态协议](../../doc/design/architecture/dynamic-architecture.md)
-- [坐标协议](../../doc/design/coordinates/coordinate-system.md)
-- [更新管理器](../../doc/design/rendering/update-manager.md)
-- [派生状态收敛](../../doc/design/architecture/derived-state-convergence.md)
-- [连接路由](../../doc/design/architecture/connection-routing.md)
-- [编辑框架架构](../../doc/design/editor/architecture.md)
-- [编辑框架的视口与边缘自动滚动](../../doc/design/editor/g5-viewport-autoexpose.md)
-- [Draw2D 语义账本](../../doc/parity/draw2d/api-coverage.md)
-- [GEF 语义账本](../../doc/parity/gef/api-coverage.md)
-- [图形核心路线图](../../doc/roadmap/00-index.md)
-- [编辑框架路线图](../../doc/roadmap/editor/00-index.md)
-- [验证清单](../../verification/suites.toml)
-
-## G. 推荐检索
+## F. 示例与验证入口
 
 ```bash
-# 查类型或函数
-rg -n "struct Runtime|fn prepare_submission_state" novadraw-scene
+# 运行基础图形、布局和滚动示例
+cargo run -p shape-app
+cargo run -p layout-app
+cargo run -p scroll-pane-demo
 
-# 查某项语义的规范，不搜索 archive
-rg -n "stable_epoch|Damage Repair" doc/design doc/adr doc/parity
+# 运行完整节点编辑器
+cargo run -p node-editor-demo
 
-# 查看统一验证入口
+# 查看并执行验证套件
 cargo xtask list
-
-# 检查文档引用与账本
-cargo xtask docs
+cargo xtask run core.runtime
 ```

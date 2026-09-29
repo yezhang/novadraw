@@ -124,7 +124,7 @@ pub trait ConnectionAnchor {
 
 ## 7.5 双向端点求值
 
-默认端点解析保留 Draw2D 语义：
+默认端点解析采用双向求值：
 
 ```text
 source_reference = target.reference_point(routing_domain)
@@ -358,5 +358,3 @@ Runtime 会根据 `SceneQuery` 记录的依赖重新路由。
 - [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run test.scene-connection`
-- 规范 SSOT：
-  [`connection-routing.md`](../../doc/design/architecture/connection-routing.md)

@@ -415,7 +415,7 @@ let domain = EditorDomain::new();
 | `commands` | 只依赖模型 ID 的可撤销修改 |
 | `app` | Viewer、EditorDomain、平台宿主和后端组合 |
 
-可运行参考：
+可运行示例：
 [`apps/native/node-editor-demo`](../../apps/native/node-editor-demo)。该示例包含完整能力，
 实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
 
@@ -448,9 +448,3 @@ let domain = EditorDomain::new();
 - `cargo xtask run replay.editor-g5.3`
 - `cargo xtask run replay.editor-g5.4`
 - `cargo xtask run replay.editor-g5.5`
-
-规范依据：
-
-- [ADR-015](../../doc/adr/adr-015-editor-framework-boundary.md)
-- [Editor 架构](../../doc/design/editor/architecture.md)
-- [GEF 语义账本](../../doc/parity/gef/api-coverage.md)

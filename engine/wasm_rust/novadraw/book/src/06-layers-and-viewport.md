@@ -321,5 +321,3 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 - [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run verify.scroll-pane`
 - `cargo xtask run replay.editor-g5.5`
-- 规范 SSOT：
-  [`g5-viewport-autoexpose.md`](../../doc/design/editor/g5-viewport-autoexpose.md)

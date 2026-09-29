@@ -10,8 +10,7 @@
 
 本章所说的**图形对象**（Figure）是可绘制、可命中的轻量对象；**图形节点**
 （`FigureNode`）是图形对象在树中的运行时容器；**节点状态**（`NodeState`）保存
-所有图形共有的几何与可见性。Novadraw 不复制 Java Draw2D 职责很宽的 `IFigure`
-对象，而把一个运行时节点拆成三类信息：
+所有图形共有的几何与可见性。一个运行时节点拆成三类信息：
 
 ```mermaid
 classDiagram
@@ -137,12 +136,9 @@ Figure
 同一 `Runtime` 内更换父节点会保留 `FigureId`；销毁会使旧 ID 失效；跨 `Runtime`
 默认从模型重建。
 
-参考：
-[Figure 生命周期规范](../../doc/design/architecture/figure-lifecycle.md)。
-
 ## 3.5 绘制是受控模板
 
-当前主线是递归绘制，遍历顺序固定：
+绘制采用递归遍历，顺序固定：
 
 ```mermaid
 flowchart TD
@@ -296,15 +292,9 @@ flowchart LR
 
 ## 3.11 递归深度策略
 
-当前渲染主线是递归遍历，不是旧大纲中的迭代跳板（trampoline）方案。项目约束：
-
-- 树深度上限为 10,000；
-- 渲染和关键递归路径周期性使用 `stacker::maybe_grow`；
-- `render_iterative.rs` 已归档到
-  `archive/render-iterative-poc-20260617`；
-- 性能专项开始前不得重新引入迭代主线。
-
-这是一项已验证的工程取舍。书稿不能把归档 POC 写成当前架构。
+图形树使用递归遍历，深度上限为 10,000。渲染和关键递归路径周期性使用
+`stacker::maybe_grow` 扩展栈空间。应用构造场景时仍应避免无业务意义的超深单链，
+并在批量导入外部数据前校验树深度。
 
 ## 3.12 从构造场景到运行期更新
 

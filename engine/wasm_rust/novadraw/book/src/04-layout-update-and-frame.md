@@ -367,5 +367,3 @@ assert!(runtime.complete_submission(session_id, frame_id, outcome));
 - [`d4_notification_epoch.rs`](../../novadraw-scene/tests/d4_notification_epoch.rs)
 - [`runtime_resize_contract.rs`](../../novadraw-scene/tests/runtime_resize_contract.rs)
 - `cargo xtask run core.runtime`
-- 规范 SSOT：
-  [`update-manager.md`](../../doc/design/rendering/update-manager.md)
