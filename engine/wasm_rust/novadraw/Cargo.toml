@@ -27,6 +27,7 @@ members = [
   "examples/native/update-app",
   "examples/native/scroll-pane-demo",
   "examples/native/connections-demo",
+  "examples/native/p2-core-app",
   "examples/web/web-validation",
   "benchmarks/r8-perf",
 ]

@@ -1,0 +1,9 @@
+[package]
+name = "p2-core-app"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw-example-scenes = { path = "../../scenes" }
+novadraw-example-support = { path = "../../support" }

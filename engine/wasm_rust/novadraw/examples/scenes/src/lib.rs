@@ -10,6 +10,7 @@ pub mod focus;
 pub mod freeform;
 pub mod layout;
 pub mod ndcanvas;
+pub mod p2_core;
 pub mod scroll_pane;
 pub mod shape;
 pub mod style;
@@ -134,6 +135,7 @@ pub fn catalog() -> Vec<DemoSuite> {
         ndcanvas::suite(),
         text::suite(),
         widget::suite(),
+        p2_core::suite(),
     ]
 }
 
