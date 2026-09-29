@@ -6,14 +6,14 @@ use crate::command::PathOp;
 const ARC_APPROXIMATION_TOLERANCE: f64 = 0.1;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct CubicSegment {
-    pub(crate) control1: Point,
-    pub(crate) control2: Point,
-    pub(crate) end: Point,
+pub struct CubicSegment {
+    pub control1: Point,
+    pub control2: Point,
+    pub end: Point,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum NormalizedPathOp {
+pub enum NormalizedPathOp {
     MoveTo(Point),
     LineTo(Point),
     CubicTo(CubicSegment),
@@ -45,7 +45,7 @@ pub(crate) fn center_arc_cubics(
     segments
 }
 
-pub(crate) fn for_each_normalized(
+pub fn for_each_normalized(
     operations: &[PathOp],
     scale: f64,
     mut emit: impl FnMut(NormalizedPathOp),

@@ -6,6 +6,7 @@ members = [
   "novadraw-geometry",
   "novadraw-core",
   "novadraw-render",
+  "novadraw-backend-vello",
   "novadraw-scene",
   "novadraw-editor",
   "novadraw-inspector",

@@ -5,28 +5,29 @@
 
 use std::collections::HashMap;
 use std::fmt;
-#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use std::sync::Arc;
 
-#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
 use novadraw_geometry::{Affine2D, Point, Rectangle};
 use tracing::debug;
-#[cfg(any(feature = "vello", target_arch = "wasm32"))]
+#[cfg(any(feature = "native", target_arch = "wasm32"))]
 use vello::RendererOptions;
 use vello::kurbo::{Cap, Join, Stroke};
 use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer};
 
-use crate::command::{
-    ImageDrawDisposition, LineCap, LineJoin, LineStyle, Path, RenderCommand,
-    validate_image_draw_geometry,
+use novadraw_render::backend_support::{
+    ImageDrawDisposition, NormalizedPathOp, for_each_normalized, validate_image_draw_geometry,
 };
-use crate::path_geometry::{NormalizedPathOp, for_each_normalized};
-use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
-use crate::text::{GlyphPaint, GlyphRun};
-use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
+use novadraw_render::command::{LineCap, LineJoin, LineStyle, Path, RenderCommand};
+use novadraw_render::submission::{
+    BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload,
+};
+use novadraw_render::text::{GlyphPaint, GlyphRun};
+use novadraw_render::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
 const DASH_PATTERN_WIDTH_FACTORS: [f64; 2] = [3.0, 1.0];
@@ -39,13 +40,13 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
 };
 
 /// A native window that can provide the raw handles required by the GPU surface.
-#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 pub trait NativeWindow:
     raw_window_handle::HasDisplayHandle + raw_window_handle::HasWindowHandle + Send + Sync + 'static
 {
 }
 
-#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 impl<T> NativeWindow for T where
     T: raw_window_handle::HasDisplayHandle
         + raw_window_handle::HasWindowHandle
@@ -62,7 +63,7 @@ pub struct VelloInitializationError {
 }
 
 impl VelloInitializationError {
-    #[cfg(all(feature = "vello-web", target_arch = "wasm32"))]
+    #[cfg(all(feature = "web", target_arch = "wasm32"))]
     fn from_vello(error: vello::Error) -> Self {
         Self {
             message: error.to_string(),
@@ -187,7 +188,7 @@ fn append_image_draw(
 
 fn vello_stroke(width: f64, line_style: LineStyle, cap: LineCap, join: LineJoin) -> Stroke {
     let stroke = Stroke::new(width)
-        .with_miter_limit(crate::command::DEFAULT_STROKE_MITER_LIMIT)
+        .with_miter_limit(novadraw_render::command::DEFAULT_STROKE_MITER_LIMIT)
         .with_caps(match cap {
             LineCap::Butt => Cap::Butt,
             LineCap::Round => Cap::Round,
@@ -246,7 +247,7 @@ fn damage_rect_to_aligned_clip(
     ))
 }
 
-#[cfg(all(target_os = "macos", feature = "vello"))]
+#[cfg(all(target_os = "macos", feature = "native"))]
 fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
         return;
@@ -263,7 +264,7 @@ fn configure_macos_presentation_layer(surface: &vello::wgpu::Surface<'_>) {
     layer.setBackgroundColor(Some(&background));
 }
 
-#[cfg(all(target_os = "macos", feature = "vello"))]
+#[cfg(all(target_os = "macos", feature = "native"))]
 fn set_macos_transactional_present(surface: &vello::wgpu::Surface<'_>, enabled: bool) {
     let Some(surface) = (unsafe { surface.as_hal::<vello::wgpu::hal::api::Metal>() }) else {
         return;
@@ -373,8 +374,8 @@ pub struct VelloRenderer {
     /// 状态栈
     state_stack: Vec<RenderState>,
     session_gate: BackendSessionGate,
-    font_faces: HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
-    images: HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
+    font_faces: HashMap<(novadraw_render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    images: HashMap<(novadraw_render::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
     retained_texture: Option<(vello::wgpu::Texture, vello::wgpu::TextureView, u32, u32)>,
     /// 本帧临时渲染纹理
@@ -382,7 +383,7 @@ pub struct VelloRenderer {
 }
 
 impl VelloRenderer {
-    #[cfg(any(feature = "vello", target_arch = "wasm32"))]
+    #[cfg(any(feature = "native", target_arch = "wasm32"))]
     async fn new_for_surface(
         target: vello::wgpu::SurfaceTarget<'static>,
         pixel_width: u32,
@@ -398,7 +399,7 @@ impl VelloRenderer {
                 vello::wgpu::PresentMode::AutoVsync,
             )
             .await?;
-        #[cfg(all(target_os = "macos", feature = "vello"))]
+        #[cfg(all(target_os = "macos", feature = "native"))]
         configure_macos_presentation_layer(&surface.surface);
 
         let mut renderers = vec![];
@@ -426,7 +427,10 @@ impl VelloRenderer {
         (self.surface.config.width, self.surface.config.height)
     }
 
-    fn sync_submission_resources(&mut self, submission: &crate::RenderSubmission) -> bool {
+    fn sync_submission_resources(
+        &mut self,
+        submission: &novadraw_render::RenderSubmission,
+    ) -> bool {
         match self
             .session_gate
             .accept(submission.session_id, &submission.resources)
@@ -449,10 +453,10 @@ impl VelloRenderer {
 
     fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
         commands.iter().all(|command| match &command.kind {
-            crate::RenderCommandKind::DrawGlyphRun { run, .. } => self
+            novadraw_render::RenderCommandKind::DrawGlyphRun { run, .. } => self
                 .font_faces
                 .contains_key(&(run.font.resource_id(), run.font.revision())),
-            crate::RenderCommandKind::Image { image, .. } => self
+            novadraw_render::RenderCommandKind::Image { image, .. } => self
                 .images
                 .contains_key(&(image.resource_id(), image.revision())),
             _ => true,
@@ -499,8 +503,8 @@ impl VelloRenderer {
         self.pending_resize = Some(requested);
     }
 
-    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
-    pub fn new<W: NativeWindow>(window: Arc<W>, surface: crate::SurfaceInfo) -> Self {
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub fn new<W: NativeWindow>(window: Arc<W>, surface: novadraw_render::SurfaceInfo) -> Self {
         pollster::block_on(Self::new_for_surface(
             window.into(),
             surface.pixel_width,
@@ -510,10 +514,10 @@ impl VelloRenderer {
         .expect("Failed to create surface")
     }
 
-    #[cfg(all(feature = "vello-web", target_arch = "wasm32"))]
+    #[cfg(all(feature = "web", target_arch = "wasm32"))]
     pub async fn new_web(
         canvas: web_sys::HtmlCanvasElement,
-        surface: crate::SurfaceInfo,
+        surface: novadraw_render::SurfaceInfo,
     ) -> Result<Self, VelloInitializationError> {
         Self::new_for_surface(
             vello::wgpu::SurfaceTarget::Canvas(canvas),
@@ -560,7 +564,7 @@ impl VelloRenderer {
     fn recover_surface(
         &mut self,
         recovery: SurfaceRecovery,
-        surface: crate::SurfaceInfo,
+        surface: novadraw_render::SurfaceInfo,
     ) -> RenderOutcome {
         match recovery {
             SurfaceRecovery::Reconfigure => {
@@ -651,7 +655,7 @@ impl VelloRenderer {
 
     fn effective_damage_regions(
         &self,
-        submission: &crate::RenderSubmission,
+        submission: &novadraw_render::RenderSubmission,
     ) -> Option<(Rectangle, Vec<Rectangle>)> {
         let (width, height) = self.current_surface_size();
         match submission.damage.mode() {
@@ -705,12 +709,12 @@ impl VelloRenderer {
     fn render_command(&mut self, cmd: &RenderCommand) {
         match &cmd.kind {
             // ===== 状态管理命令 =====
-            crate::command::RenderCommandKind::PushState => {
+            novadraw_render::command::RenderCommandKind::PushState => {
                 debug!("PushState, stack depth: {}", self.state_stack.len());
                 self.state_stack.push(self.current_state().clone());
             }
 
-            crate::command::RenderCommandKind::RestoreState => {
+            novadraw_render::command::RenderCommandKind::RestoreState => {
                 debug!("RestoreState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() >= 2 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
@@ -719,7 +723,7 @@ impl VelloRenderer {
                 }
             }
 
-            crate::command::RenderCommandKind::PopState => {
+            novadraw_render::command::RenderCommandKind::PopState => {
                 debug!("PopState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() > 1 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
@@ -728,7 +732,7 @@ impl VelloRenderer {
                 }
             }
 
-            crate::command::RenderCommandKind::ConcatTransform { matrix } => {
+            novadraw_render::command::RenderCommandKind::ConcatTransform { matrix } => {
                 debug!("ConcatTransform: {:?}", matrix);
                 // 叠加变换
                 let new_transform = self.current_state().transform.post_concat(*matrix);
@@ -736,12 +740,12 @@ impl VelloRenderer {
                 self.current_state_mut().transform = new_transform;
             }
 
-            crate::command::RenderCommandKind::SetTransform { matrix } => {
+            novadraw_render::command::RenderCommandKind::SetTransform { matrix } => {
                 debug!("SetTransform: {:?}", matrix);
                 self.current_state_mut().transform = *matrix;
             }
 
-            crate::command::RenderCommandKind::ResetTransform => {
+            novadraw_render::command::RenderCommandKind::ResetTransform => {
                 debug!("ResetTransform");
                 self.current_state_mut().transform = Affine2D::IDENTITY;
             }
@@ -749,9 +753,9 @@ impl VelloRenderer {
             // NdCanvas bakes global alpha into every paint command. Retaining
             // this command in the IR preserves state-transition observability
             // without applying alpha a second time in the backend.
-            crate::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
+            novadraw_render::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
 
-            crate::command::RenderCommandKind::Clip { rect } => {
+            novadraw_render::command::RenderCommandKind::Clip { rect } => {
                 debug!("Clip: {:?}", rect);
                 let clip = RenderClip {
                     transform: self.current_state().transform,
@@ -761,7 +765,7 @@ impl VelloRenderer {
                 self.current_state_mut().clips.push(clip);
             }
 
-            crate::command::RenderCommandKind::ResetClip => {
+            novadraw_render::command::RenderCommandKind::ResetClip => {
                 debug!("ResetClip");
                 let depth = self.current_state().clips.len();
                 self.pop_clip_layers(depth);
@@ -769,7 +773,7 @@ impl VelloRenderer {
             }
 
             // ===== 绘制命令 =====
-            crate::command::RenderCommandKind::ClearRect { rect, color } => {
+            novadraw_render::command::RenderCommandKind::ClearRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -792,7 +796,7 @@ impl VelloRenderer {
                 );
             }
 
-            crate::command::RenderCommandKind::FillRect { rect, color } => {
+            novadraw_render::command::RenderCommandKind::FillRect { rect, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -815,7 +819,7 @@ impl VelloRenderer {
                 );
             }
 
-            crate::command::RenderCommandKind::StrokeRect {
+            novadraw_render::command::RenderCommandKind::StrokeRect {
                 rect,
                 color,
                 width,
@@ -841,7 +845,7 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &kurbo_rect);
             }
 
-            crate::command::RenderCommandKind::Line {
+            novadraw_render::command::RenderCommandKind::Line {
                 p1,
                 p2,
                 color,
@@ -878,7 +882,7 @@ impl VelloRenderer {
                 );
             }
 
-            crate::command::RenderCommandKind::Polyline {
+            novadraw_render::command::RenderCommandKind::Polyline {
                 points,
                 color,
                 width,
@@ -914,7 +918,7 @@ impl VelloRenderer {
                 self.scene.stroke(&stroke, affine, vello_color, None, &path);
             }
 
-            crate::command::RenderCommandKind::Ellipse {
+            novadraw_render::command::RenderCommandKind::Ellipse {
                 cx,
                 cy,
                 rx,
@@ -966,7 +970,7 @@ impl VelloRenderer {
                 }
             }
 
-            crate::command::RenderCommandKind::FillPath { path, color } => {
+            novadraw_render::command::RenderCommandKind::FillPath { path, color } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let vello_color = VelloColor::new([
@@ -987,7 +991,7 @@ impl VelloRenderer {
                 );
             }
 
-            crate::command::RenderCommandKind::StrokePath {
+            novadraw_render::command::RenderCommandKind::StrokePath {
                 path,
                 color,
                 width,
@@ -1017,7 +1021,7 @@ impl VelloRenderer {
                     .stroke(&stroke, affine, vello_color, None, &bez_path);
             }
 
-            crate::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
+            novadraw_render::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
                 let Some(font_data) = self
                     .font_faces
                     .get(&(run.font.resource_id(), run.font.revision()))
@@ -1039,7 +1043,7 @@ impl VelloRenderer {
                 );
             }
 
-            crate::command::RenderCommandKind::Image {
+            novadraw_render::command::RenderCommandKind::Image {
                 image,
                 source_rect,
                 dest_rect,
@@ -1122,7 +1126,7 @@ impl RenderBackend for VelloRenderer {
             .with_image_resources()
     }
 
-    fn submit(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &novadraw_render::RenderSubmission) -> RenderOutcome {
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
         }
@@ -1134,7 +1138,7 @@ impl RenderBackend for VelloRenderer {
             submission.surface.pixel_height,
             submission.surface.scale_factor,
         );
-        #[cfg(all(target_os = "macos", feature = "vello"))]
+        #[cfg(all(target_os = "macos", feature = "native"))]
         let is_resize_frame = self.pending_resize.is_some();
         self.apply_pending_resize();
         if self.surface_suspended {
@@ -1180,7 +1184,7 @@ impl RenderBackend for VelloRenderer {
         self.ensure_retained_texture();
         self.ensure_scratch_texture();
 
-        #[cfg(all(target_os = "macos", feature = "vello"))]
+        #[cfg(all(target_os = "macos", feature = "native"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, true);
         }
@@ -1189,7 +1193,7 @@ impl RenderBackend for VelloRenderer {
             vello::wgpu::CurrentSurfaceTexture::Success(texture) => (texture, false),
             vello::wgpu::CurrentSurfaceTexture::Suboptimal(texture) => (texture, true),
             status => {
-                #[cfg(all(target_os = "macos", feature = "vello"))]
+                #[cfg(all(target_os = "macos", feature = "native"))]
                 set_macos_transactional_present(&self.surface.surface, false);
                 let recovery =
                     surface_recovery(&status).expect("unavailable surface must define recovery");
@@ -1295,7 +1299,7 @@ impl RenderBackend for VelloRenderer {
 
         device_handle.queue.submit([encoder.finish()]);
         surface_texture.present();
-        #[cfg(all(target_os = "macos", feature = "vello"))]
+        #[cfg(all(target_os = "macos", feature = "native"))]
         if is_resize_frame {
             set_macos_transactional_present(&self.surface.surface, false);
         }
@@ -1313,8 +1317,11 @@ impl RenderBackend for VelloRenderer {
 impl VelloRenderer {
     /// Records a complete submission into the retained texture without acquiring
     /// a window surface drawable.
-    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
-    pub fn render_for_screenshot(&mut self, submission: &crate::RenderSubmission) -> RenderOutcome {
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub fn render_for_screenshot(
+        &mut self,
+        submission: &novadraw_render::RenderSubmission,
+    ) -> RenderOutcome {
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
         }
@@ -1378,7 +1385,7 @@ impl VelloRenderer {
     }
 
     /// 截图并保存为 PNG 文件
-    #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub fn screenshot(&self, path: &std::path::Path) -> std::io::Result<()> {
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let width = self.surface.config.width;
@@ -1476,14 +1483,14 @@ impl VelloRenderer {
 }
 
 fn sync_font_face_cache(
-    font_faces: &mut HashMap<(crate::ResourceId, u64), vello::peniko::Blob<u8>>,
-    resources: &crate::ResourceSync,
+    font_faces: &mut HashMap<(novadraw_render::ResourceId, u64), vello::peniko::Blob<u8>>,
+    resources: &novadraw_render::ResourceSync,
 ) {
-    if matches!(resources, crate::ResourceSync::Snapshot(_)) {
+    if matches!(resources, novadraw_render::ResourceSync::Snapshot(_)) {
         font_faces.clear();
     }
-    let mut apply = |operation: &crate::ResourceOp| match operation {
-        crate::ResourceOp::Upsert(update) => {
+    let mut apply = |operation: &novadraw_render::ResourceOp| match operation {
+        novadraw_render::ResourceOp::Upsert(update) => {
             if let ResourcePayload::Font(font) = &update.payload {
                 font_faces.retain(|(resource_id, _), _| resource_id != &update.id);
                 font_faces.insert(
@@ -1492,30 +1499,30 @@ fn sync_font_face_cache(
                 );
             }
         }
-        crate::ResourceOp::Remove(id) => {
+        novadraw_render::ResourceOp::Remove(id) => {
             font_faces.retain(|(resource_id, _), _| resource_id != id);
         }
     };
     match resources {
-        crate::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
-        crate::ResourceSync::Snapshot(snapshot) => snapshot
+        novadraw_render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        novadraw_render::ResourceSync::Snapshot(snapshot) => snapshot
             .ready
             .iter()
             .cloned()
-            .map(crate::ResourceOp::Upsert)
+            .map(novadraw_render::ResourceOp::Upsert)
             .for_each(|operation| apply(&operation)),
     }
 }
 
 fn sync_image_cache(
-    images: &mut HashMap<(crate::ResourceId, u64), vello::peniko::ImageData>,
-    resources: &crate::ResourceSync,
+    images: &mut HashMap<(novadraw_render::ResourceId, u64), vello::peniko::ImageData>,
+    resources: &novadraw_render::ResourceSync,
 ) {
-    if matches!(resources, crate::ResourceSync::Snapshot(_)) {
+    if matches!(resources, novadraw_render::ResourceSync::Snapshot(_)) {
         images.clear();
     }
-    let mut apply = |operation: &crate::ResourceOp| match operation {
-        crate::ResourceOp::Upsert(update) => {
+    let mut apply = |operation: &novadraw_render::ResourceOp| match operation {
+        novadraw_render::ResourceOp::Upsert(update) => {
             if let ResourcePayload::Image(image) = &update.payload {
                 images.retain(|(resource_id, _), _| resource_id != &update.id);
                 images.insert(
@@ -1530,22 +1537,22 @@ fn sync_image_cache(
                 );
             }
         }
-        crate::ResourceOp::Remove(id) => {
+        novadraw_render::ResourceOp::Remove(id) => {
             images.retain(|(resource_id, _), _| resource_id != id);
         }
     };
     match resources {
-        crate::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
-        crate::ResourceSync::Snapshot(snapshot) => snapshot
+        novadraw_render::ResourceSync::Delta(delta) => delta.ops.iter().for_each(&mut apply),
+        novadraw_render::ResourceSync::Snapshot(snapshot) => snapshot
             .ready
             .iter()
             .cloned()
-            .map(crate::ResourceOp::Upsert)
+            .map(novadraw_render::ResourceOp::Upsert)
             .for_each(|operation| apply(&operation)),
     }
 }
 
-#[cfg(any(feature = "vello", target_arch = "wasm32"))]
+#[cfg(any(feature = "native", target_arch = "wasm32"))]
 fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Renderer {
     Renderer::new(
         &render_cx.devices[surface.dev_id].device,
@@ -1557,12 +1564,12 @@ fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Re
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
+    use novadraw_core::Color;
+    use novadraw_render::{
         BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourceOp,
         ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate, TextConstraints,
         TextEngine,
     };
-    use novadraw_core::Color;
     use uuid::Uuid;
 
     #[test]
@@ -1814,12 +1821,9 @@ mod tests {
                 ops: vec![ResourceOp::Upsert(ResourceUpdate {
                     id,
                     revision: 1,
-                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
-                        1,
-                        1,
-                        vec![255, 0, 0, 255],
-                        1.0,
-                    ))),
+                    payload: ResourcePayload::Image(Arc::new(
+                        novadraw_render::ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0),
+                    )),
                 })],
             }),
         );
@@ -1831,12 +1835,9 @@ mod tests {
                 ops: vec![ResourceOp::Upsert(ResourceUpdate {
                     id,
                     revision: 2,
-                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
-                        1,
-                        1,
-                        vec![0, 0, 255, 255],
-                        1.0,
-                    ))),
+                    payload: ResourcePayload::Image(Arc::new(
+                        novadraw_render::ImageData::from_rgba(1, 1, vec![0, 0, 255, 255], 1.0),
+                    )),
                 })],
             }),
         );
@@ -1858,7 +1859,7 @@ mod tests {
         let image = |revision, value| ResourceUpdate {
             id,
             revision,
-            payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
+            payload: ResourcePayload::Image(Arc::new(novadraw_render::ImageData::from_rgba(
                 1,
                 1,
                 vec![value; 4],
@@ -1904,12 +1905,9 @@ mod tests {
                 ready: vec![ResourceUpdate {
                     id: ready,
                     revision: 2,
-                    payload: ResourcePayload::Image(Arc::new(crate::ImageData::from_rgba(
-                        1,
-                        1,
-                        vec![2; 4],
-                        1.0,
-                    ))),
+                    payload: ResourcePayload::Image(Arc::new(
+                        novadraw_render::ImageData::from_rgba(1, 1, vec![2; 4], 1.0),
+                    )),
                 }],
             }),
         );

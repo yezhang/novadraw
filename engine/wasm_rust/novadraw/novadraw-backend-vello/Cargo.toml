@@ -1,0 +1,37 @@
+[package]
+name = "novadraw-backend-vello"
+version.workspace = true
+edition.workspace = true
+description = "Vello rendering backend for Novadraw"
+
+[features]
+default = []
+native = [
+  "dep:image",
+  "dep:raw-window-handle",
+  "dep:pollster",
+  "dep:objc2-core-graphics",
+  "dep:objc2-quartz-core",
+]
+web = ["dep:web-sys"]
+
+[dependencies]
+novadraw-core = { path = "../novadraw-core" }
+novadraw-geometry = { path = "../novadraw-geometry" }
+novadraw-render = { path = "../novadraw-render" }
+tracing.workspace = true
+vello.workspace = true
+
+image = { version = "0.25", default-features = false, features = ["png"], optional = true }
+raw-window-handle = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-core-graphics = { version = "0.3.2", features = ["CGColor"], optional = true }
+objc2-quartz-core = { version = "0.3.2", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.104", features = ["HtmlCanvasElement"], optional = true }
+
+[dev-dependencies]
+uuid.workspace = true

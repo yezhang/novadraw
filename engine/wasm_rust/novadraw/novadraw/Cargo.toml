@@ -6,8 +6,8 @@ readme = "README.md"
 
 [features]
 default = []
-native-vello = ["novadraw-render/vello"]
-web-vello = ["novadraw-render/vello-web"]
+native-vello = ["dep:novadraw-backend-vello", "novadraw-backend-vello/native"]
+web-vello = ["dep:novadraw-backend-vello", "novadraw-backend-vello/web"]
 
 [dependencies]
 novadraw-geometry = { path = "../novadraw-geometry" }
@@ -15,6 +15,7 @@ novadraw-core = { path = "../novadraw-core" }
 novadraw-render = { path = "../novadraw-render" }
 novadraw-scene = { path = "../novadraw-scene" }
 novadraw-editor = { path = "../novadraw-editor" }
+novadraw-backend-vello = { path = "../novadraw-backend-vello", optional = true }
 
 [package.metadata.docs.rs]
 features = ["native-vello"]

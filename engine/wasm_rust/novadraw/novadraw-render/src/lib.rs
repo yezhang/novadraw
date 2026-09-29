@@ -7,13 +7,10 @@
 //! - [`command`] - 渲染命令类型
 //! - [`context`] - 渲染上下文
 //! - [`traits`] - 渲染器 traits
-//! - [`backend`] - 渲染后端实现
+//! - backend support - 具体渲染后端共享的归一化协议
 
 #![allow(missing_docs)]
 
-/// 渲染后端模块
-#[cfg(any(feature = "vello", feature = "vello-web"))]
-pub mod backend;
 /// 渲染命令模块
 pub mod command;
 /// 渲染上下文模块
@@ -25,6 +22,13 @@ pub mod submission;
 pub mod text;
 /// 渲染器 traits 模块
 pub mod traits;
+
+/// Shared implementation protocol for rendering backend crates.
+#[doc(hidden)]
+pub mod backend_support {
+    pub use crate::command::{ImageDrawDisposition, validate_image_draw_geometry};
+    pub use crate::path_geometry::{CubicSegment, NormalizedPathOp, for_each_normalized};
+}
 
 pub use command::{
     DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageDrawError, ImageResourceRef,

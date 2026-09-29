@@ -150,8 +150,8 @@ impl FontData {
         &self.bytes
     }
 
-    #[cfg(any(feature = "vello", feature = "vello-web"))]
-    pub(crate) fn shared_bytes(&self) -> Arc<Vec<u8>> {
+    #[doc(hidden)]
+    pub fn shared_bytes(&self) -> Arc<Vec<u8>> {
         Arc::clone(&self.bytes)
     }
 }

@@ -235,12 +235,14 @@ impl fmt::Display for ImageDrawError {
 impl std::error::Error for ImageDrawError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ImageDrawDisposition {
+#[doc(hidden)]
+pub enum ImageDrawDisposition {
     Draw,
     NoOp,
 }
 
-pub(crate) fn validate_image_draw_geometry(
+#[doc(hidden)]
+pub fn validate_image_draw_geometry(
     image_width: u32,
     image_height: u32,
     source_rect: Rectangle,
