@@ -4,6 +4,7 @@
 //! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
 use std::collections::HashMap;
+use std::fmt;
 #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
 use std::sync::Arc;
 
@@ -19,8 +20,10 @@ use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer};
 
 use crate::command::{
-    ImageDrawDisposition, LineCap, LineJoin, LineStyle, RenderCommand, validate_image_draw_geometry,
+    ImageDrawDisposition, LineCap, LineJoin, LineStyle, Path, RenderCommand,
+    validate_image_draw_geometry,
 };
+use crate::path_geometry::{NormalizedPathOp, for_each_normalized};
 use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
 use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
@@ -34,6 +37,46 @@ const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
     b: DEFAULT_BACKGROUND_COMPONENT,
     a: 1.0,
 };
+
+/// A native window that can provide the raw handles required by the GPU surface.
+#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+pub trait NativeWindow:
+    raw_window_handle::HasDisplayHandle + raw_window_handle::HasWindowHandle + Send + Sync + 'static
+{
+}
+
+#[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
+impl<T> NativeWindow for T where
+    T: raw_window_handle::HasDisplayHandle
+        + raw_window_handle::HasWindowHandle
+        + Send
+        + Sync
+        + 'static
+{
+}
+
+/// Failure to initialize a Vello rendering surface.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VelloInitializationError {
+    message: String,
+}
+
+impl VelloInitializationError {
+    #[cfg(all(feature = "vello-web", target_arch = "wasm32"))]
+    fn from_vello(error: vello::Error) -> Self {
+        Self {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl fmt::Display for VelloInitializationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for VelloInitializationError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SurfaceRecovery {
@@ -93,6 +136,34 @@ fn image_draw_plan(
             (dest_rect.y - source_rect.y * source_to_dest_y) * scale_factor,
         ]),
     })
+}
+
+fn path_to_vello(path: &Path, scale_factor: f64) -> vello::kurbo::BezPath {
+    let mut bezier = vello::kurbo::BezPath::new();
+    for_each_normalized(
+        path.operations(),
+        scale_factor,
+        |operation| match operation {
+            NormalizedPathOp::MoveTo(point) => {
+                bezier.move_to((point.x(), point.y()));
+            }
+            NormalizedPathOp::LineTo(point) => {
+                bezier.line_to((point.x(), point.y()));
+            }
+            NormalizedPathOp::CubicTo(segment) => {
+                bezier.curve_to(
+                    (segment.control1.x(), segment.control1.y()),
+                    (segment.control2.x(), segment.control2.y()),
+                    (segment.end.x(), segment.end.y()),
+                );
+            }
+            NormalizedPathOp::QuadTo { control, end } => {
+                bezier.quad_to((control.x(), control.y()), (end.x(), end.y()));
+            }
+            NormalizedPathOp::Close => bezier.close_path(),
+        },
+    );
+    bezier
 }
 
 fn append_image_draw(
@@ -429,20 +500,12 @@ impl VelloRenderer {
     }
 
     #[cfg(all(feature = "vello", not(target_arch = "wasm32")))]
-    pub fn new(
-        window: Arc<::winit::window::Window>,
-        logical_width: f64,
-        logical_height: f64,
-    ) -> Self {
-        let scale_factor = window.scale_factor();
-        let width = (logical_width * scale_factor) as u32;
-        let height = (logical_height * scale_factor) as u32;
-
+    pub fn new<W: NativeWindow>(window: Arc<W>, surface: crate::SurfaceInfo) -> Self {
         pollster::block_on(Self::new_for_surface(
             window.into(),
-            width,
-            height,
-            scale_factor,
+            surface.pixel_width,
+            surface.pixel_height,
+            surface.scale_factor,
         ))
         .expect("Failed to create surface")
     }
@@ -451,7 +514,7 @@ impl VelloRenderer {
     pub async fn new_web(
         canvas: web_sys::HtmlCanvasElement,
         surface: crate::SurfaceInfo,
-    ) -> Result<Self, vello::Error> {
+    ) -> Result<Self, VelloInitializationError> {
         Self::new_for_surface(
             vello::wgpu::SurfaceTarget::Canvas(canvas),
             surface.pixel_width,
@@ -459,6 +522,7 @@ impl VelloRenderer {
             surface.scale_factor,
         )
         .await
+        .map_err(VelloInitializationError::from_vello)
     }
 
     fn create_offscreen_texture(
@@ -912,7 +976,7 @@ impl VelloRenderer {
                     color.alpha() as f32,
                 ]);
 
-                let bez_path = path.to_kurbo_path(self.scale_factor);
+                let bez_path = path_to_vello(path, self.scale_factor);
 
                 self.scene.fill(
                     vello::peniko::Fill::NonZero,
@@ -947,7 +1011,7 @@ impl VelloRenderer {
                     *line_join,
                 );
 
-                let bez_path = path.to_kurbo_path(self.scale_factor);
+                let bez_path = path_to_vello(path, self.scale_factor);
 
                 self.scene
                     .stroke(&stroke, affine, vello_color, None, &bez_path);

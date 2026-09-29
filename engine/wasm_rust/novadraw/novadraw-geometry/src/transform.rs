@@ -177,14 +177,6 @@ impl Affine2D {
         Vec2::new(t.x, t.y)
     }
 
-    /// 转换为底层 kurbo 仿射值。
-    ///
-    /// 这是显式的 backend interop 边界，不属于默认渲染命令协议。
-    #[inline]
-    pub fn into_kurbo(self) -> Affine {
-        self.inner
-    }
-
     /// 追加平移
     ///
     /// 语义：`self.then_translate(...)` 等价于 `Affine2D::from_translation(...) * self`

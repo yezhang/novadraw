@@ -22,7 +22,7 @@ use novadraw::editor::{
     VisualUpdateContext,
 };
 use novadraw::event::{KeyModifiers, MouseButton};
-use novadraw::render::RenderOutcome;
+use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
     Color, Figure, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
 };
@@ -1567,8 +1567,13 @@ impl ApplicationHandler<()> for DemoApp {
         let scale = window.scale_factor();
         self.renderer = Some(VelloRenderer::new(
             Arc::clone(&window),
-            f64::from(size.width) / scale,
-            f64::from(size.height) / scale,
+            SurfaceInfo {
+                logical_width: f64::from(size.width) / scale,
+                logical_height: f64::from(size.height) / scale,
+                pixel_width: size.width,
+                pixel_height: size.height,
+                scale_factor: scale,
+            },
         ));
         self.host = Some(WinitPlatformHost::new(Arc::clone(&window)));
         self.window = Some(window);

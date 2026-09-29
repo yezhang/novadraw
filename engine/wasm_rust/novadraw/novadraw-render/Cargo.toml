@@ -15,14 +15,14 @@ resvg.workspace = true
 kurbo.workspace = true
 
 vello = { workspace = true, optional = true }
-winit = { workspace = true, optional = true }
+raw-window-handle = { workspace = true, optional = true }
 pollster = { version = "0.4.0", optional = true }
 
 [features]
 default = []
 vello = [
     "dep:vello",
-    "dep:winit",
+    "dep:raw-window-handle",
     "dep:pollster",
     "dep:objc2-core-graphics",
     "dep:objc2-quartz-core",

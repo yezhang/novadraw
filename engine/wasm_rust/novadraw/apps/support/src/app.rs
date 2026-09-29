@@ -407,7 +407,17 @@ impl ApplicationHandler<()> for DemoApp {
             self.host = Some(WinitPlatformHost::new(window.clone()));
         }
 
-        let renderer = VelloRenderer::new(window, self.width, self.height);
+        let scale_factor = window.scale_factor();
+        let renderer = VelloRenderer::new(
+            window,
+            SurfaceInfo {
+                logical_width: self.width,
+                logical_height: self.height,
+                pixel_width: (self.width * scale_factor).round() as u32,
+                pixel_height: (self.height * scale_factor).round() as u32,
+                scale_factor,
+            },
+        );
         self.renderer = Some(renderer);
         self.initial_frame_presented = false;
         self.initial_frame_attempts = 0;

@@ -18,6 +18,7 @@ pub mod backend;
 pub mod command;
 /// 渲染上下文模块
 pub mod context;
+mod path_geometry;
 /// 渲染提交协议模块
 pub mod submission;
 /// Text shaping and immutable layout snapshots.

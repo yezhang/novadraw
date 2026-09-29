@@ -4,7 +4,6 @@
 
 use std::fmt;
 
-use kurbo::Shape as _;
 use novadraw_core::Color;
 use novadraw_geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
 
@@ -405,14 +404,14 @@ impl Path {
 
         let start_angle = start_degrees.to_radians();
         let sweep_angle = canvas_sweep(start_degrees, end_degrees, anticlockwise);
-        let start = kurbo::Point::new(
+        let start = Point::new(
             x + radius * start_angle.cos(),
             y + radius * start_angle.sin(),
         );
         match self.current_point() {
-            None => self.move_to(start.x, start.y),
+            None => self.move_to(start.x(), start.y()),
             Some(current) if current.distance(start) > f64::EPSILON => {
-                self.line_to(start.x, start.y);
+                self.line_to(start.x(), start.y());
             }
             Some(_) => {}
         }
@@ -420,12 +419,21 @@ impl Path {
         if radius == 0.0 || sweep_angle == 0.0 {
             return;
         }
-        kurbo::Arc::new((x, y), (radius, radius), start_angle, sweep_angle, 0.0).to_cubic_beziers(
-            0.1,
-            |control1, control2, end| {
-                self.cubic_to(control1.x, control1.y, control2.x, control2.y, end.x, end.y);
-            },
-        );
+        for segment in crate::path_geometry::center_arc_cubics(
+            Point::new(x, y),
+            Dimension::new(radius, radius),
+            start_angle,
+            sweep_angle,
+        ) {
+            self.cubic_to(
+                segment.control1.x(),
+                segment.control1.y(),
+                segment.control2.x(),
+                segment.control2.y(),
+                segment.end.x(),
+                segment.end.y(),
+            );
+        }
     }
 
     /// 绘制矩形（添加到路径）
@@ -439,16 +447,7 @@ impl Path {
 
     /// 获取包围盒
     pub fn bounding_box(&self) -> Option<Rectangle> {
-        if self.operations.is_empty() {
-            return None;
-        }
-        let bounds = self.to_kurbo_path(1.0).bounding_box();
-        Some(Rectangle::new(
-            bounds.x0,
-            bounds.y0,
-            bounds.width(),
-            bounds.height(),
-        ))
+        crate::path_geometry::bounding_box(&self.operations)
     }
 
     /// 获取路径操作列表
@@ -456,119 +455,32 @@ impl Path {
         &self.operations
     }
 
-    pub(crate) fn to_kurbo_path(&self, scale: f64) -> kurbo::BezPath {
-        let mut path = kurbo::BezPath::new();
-        let mut current = None;
-        let mut subpath_start = None;
-
-        for operation in &self.operations {
-            match operation {
-                PathOp::MoveTo(point) => {
-                    let point = scaled_point(*point, scale);
-                    path.move_to(point);
-                    current = Some(point);
-                    subpath_start = Some(point);
-                }
-                PathOp::LineTo(point) => {
-                    let point = scaled_point(*point, scale);
-                    path.line_to(point);
-                    current = Some(point);
-                }
-                PathOp::HLineTo(x) => {
-                    let point = kurbo::Point::new(*x * scale, current.map_or(0.0, |point| point.y));
-                    path.line_to(point);
-                    current = Some(point);
-                }
-                PathOp::VLineTo(y) => {
-                    let point = kurbo::Point::new(current.map_or(0.0, |point| point.x), *y * scale);
-                    path.line_to(point);
-                    current = Some(point);
-                }
-                PathOp::CubicTo(control1, control2, end) => {
-                    let end = scaled_point(*end, scale);
-                    path.curve_to(
-                        scaled_point(*control1, scale),
-                        scaled_point(*control2, scale),
-                        end,
-                    );
-                    current = Some(end);
-                }
-                PathOp::QuadTo(control, end) => {
-                    let end = scaled_point(*end, scale);
-                    path.quad_to(scaled_point(*control, scale), end);
-                    current = Some(end);
-                }
-                PathOp::Arc {
-                    radii,
-                    rotation,
-                    large_arc,
-                    sweep,
-                    dest,
-                } => {
-                    let destination = scaled_point(*dest, scale);
-                    let Some(source) = current else {
-                        path.move_to(destination);
-                        current = Some(destination);
-                        subpath_start = Some(destination);
-                        continue;
-                    };
-                    let svg_arc = kurbo::SvgArc {
-                        from: source,
-                        to: destination,
-                        radii: kurbo::Vec2::new(radii.width * scale, radii.height * scale),
-                        x_rotation: *rotation,
-                        large_arc: *large_arc,
-                        sweep: *sweep,
-                    };
-                    if let Some(arc) = kurbo::Arc::from_svg_arc(&svg_arc) {
-                        arc.to_cubic_beziers(0.1, |control1, control2, end| {
-                            path.curve_to(control1, control2, end);
-                        });
-                    } else {
-                        path.line_to(destination);
-                    }
-                    current = Some(destination);
-                }
-                PathOp::Close => {
-                    path.close_path();
-                    current = subpath_start;
-                }
-            }
-        }
-        path
-    }
-
-    fn current_point(&self) -> Option<kurbo::Point> {
+    fn current_point(&self) -> Option<Point> {
         let mut current = None;
         let mut subpath_start = None;
         for operation in &self.operations {
             match operation {
                 PathOp::MoveTo(point) => {
-                    let point = scaled_point(*point, 1.0);
-                    current = Some(point);
-                    subpath_start = Some(point);
+                    current = Some(*point);
+                    subpath_start = Some(*point);
                 }
                 PathOp::LineTo(point) | PathOp::CubicTo(_, _, point) | PathOp::QuadTo(_, point) => {
-                    current = Some(scaled_point(*point, 1.0));
+                    current = Some(*point);
                 }
                 PathOp::HLineTo(x) => {
-                    current = Some(kurbo::Point::new(*x, current.map_or(0.0, |point| point.y)));
+                    current = Some(Point::new(*x, current.map_or(0.0, Point::y)));
                 }
                 PathOp::VLineTo(y) => {
-                    current = Some(kurbo::Point::new(current.map_or(0.0, |point| point.x), *y));
+                    current = Some(Point::new(current.map_or(0.0, Point::x), *y));
                 }
                 PathOp::Arc { dest, .. } => {
-                    current = Some(scaled_point(*dest, 1.0));
+                    current = Some(*dest);
                 }
                 PathOp::Close => current = subpath_start,
             }
         }
         current
     }
-}
-
-fn scaled_point(point: Point, scale: f64) -> kurbo::Point {
-    kurbo::Point::new(point.x() * scale, point.y() * scale)
 }
 
 fn canvas_sweep(start_degrees: f64, end_degrees: f64, anticlockwise: bool) -> f64 {

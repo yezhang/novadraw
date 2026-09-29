@@ -2,5 +2,7 @@
 
 /// Vello renderer enabled by `native-vello` or `web-vello`.
 pub mod vello {
-    pub use novadraw_render::backend::vello::VelloRenderer;
+    #[cfg(all(feature = "native-vello", not(target_arch = "wasm32")))]
+    pub use novadraw_render::backend::vello::NativeWindow;
+    pub use novadraw_render::backend::vello::{VelloInitializationError, VelloRenderer};
 }
