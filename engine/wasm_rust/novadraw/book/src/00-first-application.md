@@ -64,20 +64,27 @@ Editor 建立在 Core 之上。它不会替代业务模型，也不会把 `Figur
 novadraw = { path = "../novadraw" }
 ```
 
-默认构建不选择平台后端。桌面应用显式启用：
+默认构建不选择平台后端。桌面应用显式组合 Core、Vello backend 和 Winit adapter：
 
 ```toml
-novadraw = { path = "../novadraw", features = ["native-vello"] }
+novadraw = { path = "../novadraw" }
+novadraw-backend-vello = { path = "../novadraw-backend-vello", features = ["native"] }
+novadraw-platform-winit = { path = "../novadraw-platform-winit" }
 ```
 
-网页应用使用 `web-vello`。常规场景代码从 prelude 开始：
+网页应用将 backend feature 改为 `web`，并使用 `novadraw-platform-web`。常规场景代码
+从 prelude 开始：
 
 ```rust
 use novadraw::prelude::*;
 ```
 
-只有使用视口、连接、事件或 Editor 时才引入对应领域模块。不要从
-`novadraw::advanced` 开始构建普通应用。
+只有使用视口、连接或事件时才引入对应 Core 领域模块。Editor 通过
+`novadraw-editor` 单独安装。不要从 `novadraw::advanced` 开始构建普通应用。
+
+```toml
+novadraw-editor = { path = "../novadraw-editor" }
+```
 
 ## 4. 构造第一棵图形树
 
@@ -254,7 +261,7 @@ fn redraw(
 当编辑行为增多时，改用 Editor：
 
 ```rust
-use novadraw::editor::{EditorDomain, GraphicalViewer};
+use novadraw_editor::{EditorDomain, GraphicalViewer};
 
 let viewer = GraphicalViewer::new(
     model_adapter,

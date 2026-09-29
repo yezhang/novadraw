@@ -20,7 +20,7 @@ FigureTree、Runtime 更新事务和 Editor Viewer 各自维护不同但相关�
 
 ## 决策
 
-1. 新建独立 `novadraw-inspector` crate，只依赖 `novadraw-scene` 的公开只读协议。
+1. 新建独立 `novadraw-inspector` crate，只依赖 `novadraw` Core 的公开只读协议。
    Inspector 不属于 Runtime、FigureTree 或 RenderBackend 的所有权范围。
 2. Inspector 通过 `ObservationListener` 订阅提交后的 `NotificationRecord`，保留
    `source_epoch`、`sequence` 和原始 typed effect。它不得订阅或制造未提交 mutation。

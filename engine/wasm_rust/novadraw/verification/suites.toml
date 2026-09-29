@@ -39,28 +39,28 @@ description = "Compile the standard facade without a platform backend"
 program = "cargo"
 args = ["check", "-p", "novadraw", "--no-default-features"]
 
-[commands."facade.native-vello"]
-description = "Compile the standard facade with the native Vello backend"
+[commands."backend.native-vello"]
+description = "Compile the native Vello backend"
 program = "cargo"
 args = [
   "check",
   "-p",
-  "novadraw",
-  "--no-default-features",
+  "novadraw-backend-vello",
   "--features",
-  "native-vello",
+  "native",
 ]
 
-[commands."facade.web-vello"]
-description = "Compile the standard facade with the Web Vello backend"
+[commands."backend.web-vello"]
+description = "Compile the Web Vello backend"
 program = "cargo"
 args = [
   "check",
   "-p",
-  "novadraw",
-  "--no-default-features",
+  "novadraw-backend-vello",
+  "--target",
+  "wasm32-unknown-unknown",
   "--features",
-  "web-vello",
+  "web",
 ]
 
 [commands."facade.dependencies"]
@@ -85,7 +85,7 @@ program = "cargo"
 args = [
   "test",
   "-p",
-  "novadraw-render",
+  "novadraw",
   "--test",
   "image_source_rectangle_contract",
 ]
@@ -96,9 +96,9 @@ program = "cargo"
 args = [
   "test",
   "-p",
-  "novadraw-render",
+  "novadraw-backend-vello",
   "--features",
-  "vello",
+  "native",
   "--lib",
   "image_source_region_maps_to_destination_and_requires_a_destination_clip",
 ]
@@ -142,17 +142,17 @@ args = [
 [commands."test.scene-dispatch"]
 description = "Run the public Figure/Editor dispatch outcome contract"
 program = "cargo"
-args = ["test", "-p", "novadraw-scene", "--test", "p2_dispatch_outcome_contract"]
+args = ["test", "-p", "novadraw", "--test", "p2_dispatch_outcome_contract"]
 
 [commands."test.scene-viewport"]
 description = "Run the M8 viewport contract"
 program = "cargo"
-args = ["test", "-p", "novadraw-scene", "--test", "m8_viewport_contract"]
+args = ["test", "-p", "novadraw", "--test", "m8_viewport_contract"]
 
 [commands."test.scene-connection"]
 description = "Run the Draw2D connection, anchor, router, and locator contract"
 program = "cargo"
-args = ["test", "-p", "novadraw-scene", "--test", "m9_connection_contract"]
+args = ["test", "-p", "novadraw", "--test", "m9_connection_contract"]
 
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
@@ -288,8 +288,8 @@ commands = [
   "facade.dependencies",
   "api.third-party-types",
   "dependencies.kurbo",
-  "facade.native-vello",
-  "facade.web-vello",
+  "backend.native-vello",
+  "backend.web-vello",
 ]
 
 [profiles.full]
@@ -300,15 +300,15 @@ commands = [
   "facade.dependencies",
   "api.third-party-types",
   "dependencies.kurbo",
-  "facade.native-vello",
-  "facade.web-vello",
+  "backend.native-vello",
+  "backend.web-vello",
   "workspace.clippy",
   "workspace.test",
 ]
 
 [[suites]]
 id = "core.facade"
-title = "Public facade and backend feature boundaries"
+title = "Core API and optional package boundaries"
 milestone = "Core API"
 kind = "contract"
 layers = ["static", "contract"]
@@ -318,18 +318,22 @@ commands = [
   "facade.dependencies",
   "api.third-party-types",
   "dependencies.kurbo",
-  "facade.native-vello",
-  "facade.web-vello",
+  "backend.native-vello",
+  "backend.web-vello",
 ]
 paths = [
   "novadraw/**",
-  "novadraw-render/Cargo.toml",
-  "novadraw-scene/Cargo.toml",
+  "novadraw-backend-vello/**",
+  "novadraw-platform-winit/**",
+  "novadraw-platform-web/**",
+  "novadraw-editor/**",
+  "novadraw-inspector/**",
   "apps/**",
 ]
 documents = [
   "doc/adr/adr-021-public-facade-and-feature-boundary.md",
   "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md",
+  "doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md",
 ]
 
 [[suites]]
@@ -343,10 +347,13 @@ commands = ["report.binary-size"]
 paths = [
   "Cargo.lock",
   "**/Cargo.toml",
-  "novadraw-render/**",
+  "novadraw/src/render/**",
   "apps/native/shape-app/**",
 ]
-documents = ["doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md"]
+documents = [
+  "doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md",
+  "doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md",
+]
 artifacts = ["target/verification/reports/native-vello-binary-size.json"]
 
 [[suites]]
@@ -359,13 +366,13 @@ platforms = ["host", "native-macos", "web"]
 commands = [
   "test.render-image-source",
   "test.vello-image-source",
-  "facade.web-vello",
+  "backend.web-vello",
 ]
 paths = [
-  "novadraw-render/src/command.rs",
-  "novadraw-render/src/context.rs",
-  "novadraw-render/src/backend/vello/mod.rs",
-  "novadraw-render/tests/image_source_rectangle_contract.rs",
+  "novadraw/src/render/command.rs",
+  "novadraw/src/render/context.rs",
+  "novadraw-backend-vello/src/lib.rs",
+  "novadraw/tests/image_source_rectangle_contract.rs",
   "novadraw/src/graphics.rs",
 ]
 documents = [
@@ -398,7 +405,7 @@ layers = ["contract", "headless"]
 platforms = ["host", "headless"]
 commands = ["verify.update", "verify.event"]
 paths = [
-  "novadraw-scene/**",
+  "novadraw/src/**",
   "apps/support/**",
   "apps/scenes/src/update.rs",
   "apps/scenes/src/event.rs",
@@ -420,8 +427,8 @@ layers = ["contract", "headless", "visual"]
 platforms = ["host", "headless", "native-macos", "web"]
 commands = ["test.scene-viewport", "verify.scroll-pane"]
 paths = [
-  "novadraw-scene/src/container/**",
-  "novadraw-scene/tests/m8_viewport_contract.rs",
+  "novadraw/src/container/**",
+  "novadraw/tests/m8_viewport_contract.rs",
   "apps/scenes/src/viewport.rs",
   "apps/scenes/src/scroll_pane.rs",
   "apps/native/viewport-app/**",
@@ -518,8 +525,8 @@ paths = [
   "novadraw-editor/src/part/**",
   "novadraw-editor/src/viewer/**",
   "novadraw-editor/tests/g5_connection_projection_contract.rs",
-  "novadraw-scene/src/connection/**",
-  "novadraw-scene/tests/m9_connection_contract.rs",
+  "novadraw/src/connection/**",
+  "novadraw/tests/m9_connection_contract.rs",
 ]
 documents = [
   "doc/design/editor/g5-connection-projection.md",
@@ -541,7 +548,7 @@ commands = [
 paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
-  "novadraw-scene/src/connection/**",
+  "novadraw/src/connection/**",
   "apps/native/node-editor-demo/**",
 ]
 documents = [
@@ -566,7 +573,7 @@ commands = [
 paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
-  "novadraw-scene/src/connection/**",
+  "novadraw/src/connection/**",
   "apps/native/node-editor-demo/**",
 ]
 documents = [
@@ -591,7 +598,7 @@ commands = [
 paths = [
   "novadraw-editor/src/**",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
-  "novadraw-scene/src/connection/**",
+  "novadraw/src/connection/**",
   "apps/native/node-editor-demo/**",
 ]
 documents = [
@@ -620,8 +627,8 @@ paths = [
   "novadraw-editor/tests/g3_viewer_interaction_contract.rs",
   "novadraw-editor/tests/g4_editing_loop_contract.rs",
   "novadraw-editor/tests/g5_connection_creation_contract.rs",
-  "novadraw-scene/src/container/**",
-  "novadraw-scene/tests/m8_viewport_contract.rs",
+  "novadraw/src/container/**",
+  "novadraw/tests/m8_viewport_contract.rs",
   "apps/native/node-editor-demo/**",
 ]
 documents = [
@@ -643,6 +650,8 @@ commands = ["web.build"]
 paths = [
   "apps/web/web-validation/**",
   "apps/scenes/**",
+  "novadraw-backend-vello/**",
+  "novadraw-platform-web/**",
   "scripts/build_web_validation.sh",
 ]
 documents = ["apps/web/web-validation/README.md"]

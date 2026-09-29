@@ -72,7 +72,7 @@
 
 - M3 paint/hit-test 一致性：同一 border-inset clientArea 同时约束绘制裁剪、hit-test descent 和 mouse event target
 - M5 draw2d 反向等价：本项目 6 布局的输出与 g2 同输入下的 `bounds` 结果**位级一致**或在 ±1px 容差内
-- 路径：`novadraw-scene/tests/` + `novadraw-scene/benches/`
+- 路径：`novadraw/tests/` + `apps/benchmarks/`
 
 ### 阻塞收口规则
 

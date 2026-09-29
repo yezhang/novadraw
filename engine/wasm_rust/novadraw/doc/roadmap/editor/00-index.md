@@ -141,7 +141,7 @@ G5 闭合；G2 不在 root layer 尚未建立时创建临时连接投影。
 
 自动验证入口：
 
-- `novadraw-scene/tests/p2_dispatch_outcome_contract.rs`；
+- `novadraw/tests/p2_dispatch_outcome_contract.rs`；
 - `novadraw-editor/tests/g3_selection_contract.rs`；
 - `novadraw-editor/tests/g3_viewer_interaction_contract.rs`；
 - `doc/verification/reviews/g3-selection-targeting-behavior-2026-09-13.md`。
@@ -213,7 +213,7 @@ G5.3 自动与人工验证入口：
 - `cargo xtask verify g5.3`；
 - `cargo xtask manual g5.3`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `novadraw-scene/tests/m9_connection_contract.rs`；
+- `novadraw/tests/m9_connection_contract.rs`；
 - `doc/verification/reviews/g5-connection-reconnect-behavior-2026-09-15.md`；
 - `doc/verification/manual/g5-connection-reconnect.md`。
 
@@ -222,7 +222,7 @@ G5.4 自动与人工验证入口：
 - `cargo xtask verify g5.4`；
 - `cargo xtask manual g5.4`；
 - `novadraw-editor/tests/g5_connection_creation_contract.rs`；
-- `novadraw-scene/tests/m9_connection_contract.rs`；
+- `novadraw/tests/m9_connection_contract.rs`；
 - `doc/verification/reviews/g5-connection-bendpoint-behavior-2026-09-15.md`；
 - `doc/verification/manual/g5-connection-bendpoint.md`。
 

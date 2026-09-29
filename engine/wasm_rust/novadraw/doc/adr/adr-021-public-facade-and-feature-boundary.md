@@ -4,7 +4,7 @@
 
 ## 状态
 
-已接受，已验证
+已接受；package 聚合与 backend feature 部分已由 ADR-023 替代
 
 ## 背景
 
@@ -139,6 +139,9 @@ backend feature，因为 Scene/Runtime 只依赖 backend-neutral render protocol
 
 ## 关系
 
+- [ADR-023](adr-023-crate-consolidation-and-extension-boundaries.md) 保留本文的公开
+  API 分层原则，但将 `novadraw` 改为直接拥有 Core，并把 Editor、backend 和 platform
+  adapter 改为独立 package；
 - 落实 [ADR-017](adr-017-core-public-api-boundary.md) 的聚合导出后续项；
 - 保持 [ADR-018](adr-018-runtime-driving-and-measurement-api.md) 的 Runtime 驱动边界；
 - 保持 [ADR-019](adr-019-composable-api-and-scoped-editors.md) 的生命周期 API 分层；

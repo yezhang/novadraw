@@ -48,7 +48,7 @@
 2. 定义 `Command<M>` 的拥有数据、prepare、execute、undo、redo 和 dispose。
 3. 定义 CompoundCommand 的顺序、失败和补偿边界。
 4. 定义 CommandStack event、undo limit、save location 与 dirty。
-5. 保证 Command 不依赖 `novadraw-scene::FigureId`。
+5. 保证 Command 不持有 `novadraw::FigureId`。
 
 ### 自动门禁
 

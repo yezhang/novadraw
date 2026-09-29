@@ -61,7 +61,7 @@ pub(crate) fn client_area(&self) -> Rectangle {
 ```
 
 代码锚点：
-[`FigureNode::figure_bounds/client_area`](../../novadraw-scene/src/graph/mod.rs#L472-L505)。
+[`FigureNode::figure_bounds/client_area`](../../novadraw/src/graph/mod.rs#L472-L505)。
 
 注意，“统一真源”不表示只有一个矩形概念，而表示其他矩形必须由明确协议从
 `bounds` 和 `Figure` 能力推导，不能由各模块私存一份位置真相。
@@ -154,7 +154,7 @@ Affine2D::from_translation(left, top) * figure_transform.affine()
 ```
 
 代码锚点：
-[`FigureNode::child_transform`](../../novadraw-scene/src/graph/mod.rs#L496-L505)。
+[`FigureNode::child_transform`](../../novadraw/src/graph/mod.rs#L496-L505)。
 
 ## 2.6 矩阵组合顺序
 
@@ -174,7 +174,7 @@ let combined = parent * child;
 ```
 
 实际实现与非交换测试见
-[`Transform`](../../novadraw-geometry/src/transform.rs)。
+[`Transform`](../../novadraw/src/geometry/transform.rs)。
 
 ## 2.7 从节点到绘制表面
 
@@ -191,7 +191,7 @@ loop {
 ```
 
 实际实现见
-[`FigureTree::local_to_surface_transform`](../../novadraw-scene/src/graph/mod.rs#L3996-L4019)。
+[`FigureTree::local_to_surface_transform`](../../novadraw/src/graph/mod.rs#L3996-L4019)。
 
 逆向变换必须显式处理不可逆矩阵：
 
@@ -222,9 +222,9 @@ content_point = viewport_point / scale + origin
 
 代码锚点：
 
-- [`ViewportHandle`](../../novadraw-scene/src/container/viewport.rs)
-- [`ScalableLayeredPaneFigure`](../../novadraw-scene/src/container/scalable.rs)
-- [`DefaultRangeModel`](../../novadraw-scene/src/container/range_model.rs)
+- [`ViewportHandle`](../../novadraw/src/container/viewport.rs)
+- [`ScalableLayeredPaneFigure`](../../novadraw/src/container/scalable.rs)
+- [`DefaultRangeModel`](../../novadraw/src/container/range_model.rs)
 
 ## 2.9 几何变更事务
 
@@ -240,8 +240,8 @@ content_point = viewport_point / scale + origin
 ```
 
 实际实现见
-[`FigureTree::set_bounds_with_update`](../../novadraw-scene/src/graph/mod.rs#L3875-L3933) 和
-[`FigureEditor::set_bounds`](../../novadraw-scene/src/runtime/runtime.rs)。
+[`FigureTree::set_bounds_with_update`](../../novadraw/src/graph/mod.rs#L3875-L3933) 和
+[`FigureEditor::set_bounds`](../../novadraw/src/runtime/runtime.rs)。
 
 父节点移动时，后代的 `bounds` 不会被重写；父链变换的结果发生变化，并产生
 `CoordinateSystemChanged`。这避免与子树规模成正比的存储改写，也保持父级局部
@@ -260,7 +260,7 @@ bottom = max(all y)
 ```
 
 该原则用于投影边界和重绘区域。实现辅助函数见
-[`transform_rectangle`](../../novadraw-scene/src/graph/mod.rs#L40-L69)。
+[`transform_rectangle`](../../novadraw/src/graph/mod.rs#L40-L69)。
 
 ## 2.11 应用中的坐标用法
 
@@ -312,6 +312,6 @@ runtime
 
 ## 2.13 验证入口
 
-- [`m4_coordinate_contract.rs`](../../novadraw-scene/tests/m4_coordinate_contract.rs)
-- [`m8_viewport_contract.rs`](../../novadraw-scene/tests/m8_viewport_contract.rs)
-- [`bounds_test.rs`](../../novadraw-scene/src/graph/bounds_test.rs)
+- [`m4_coordinate_contract.rs`](../../novadraw/tests/m4_coordinate_contract.rs)
+- [`m8_viewport_contract.rs`](../../novadraw/tests/m8_viewport_contract.rs)
+- [`bounds_test.rs`](../../novadraw/src/graph/bounds_test.rs)

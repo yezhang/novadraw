@@ -37,8 +37,8 @@ GEF Classic 的核心事实是：
 - GEF Classic 是语义参考，不是待逐类翻译的 Java API；
 - 未来若确有兼容层需求，可单独评估 `novadraw-gef-compat`。
 
-`novadraw-editor` 依赖 `novadraw-scene` 和平台无关几何协议，不依赖 winit、DOM、
-AppKit 或具体 RenderBackend。
+`novadraw-editor` 只依赖平台无关的 `novadraw` Core，不依赖 winit、DOM、AppKit
+或具体 RenderBackend。
 
 ### 2. 模型、控制器和 Figure 身份分离
 

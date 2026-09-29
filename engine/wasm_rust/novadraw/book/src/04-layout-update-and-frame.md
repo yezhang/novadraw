@@ -197,9 +197,9 @@ runtime
 
 代码入口：
 
-- [`MeasureConstraints` 与 `FigureMeasurement`](../../novadraw-scene/src/figure/mod.rs)
-- [`LayoutSnapshot` 与 `LayoutOutput`](../../novadraw-scene/src/layout/mod.rs)
-- [约束文本测量测试](../../novadraw-scene/tests/d4_constrained_measurement.rs)
+- [`MeasureConstraints` 与 `FigureMeasurement`](../../novadraw/src/figure/mod.rs)
+- [`LayoutSnapshot` 与 `LayoutOutput`](../../novadraw/src/layout/mod.rs)
+- [约束文本测量测试](../../novadraw/tests/d4_constrained_measurement.rs)
 
 ## 4.6 应用运行期如何触发更新
 
@@ -243,7 +243,7 @@ Runtime 使用固定优先级工作列表：
 发布只完成一部分的场景或提交包。
 
 实现入口：
-[`Runtime::stabilize`](../../novadraw-scene/src/runtime/runtime.rs)。
+[`Runtime::stabilize`](../../novadraw/src/runtime/runtime.rs)。
 
 ## 4.8 重绘区域如何得到
 
@@ -274,7 +274,7 @@ Partial { union, regions }
 > 帧提交后，重绘区域外的可见像素必须与提交前等价。
 
 实现入口：
-[`repair.rs`](../../novadraw-scene/src/runtime/update/repair.rs)。
+[`repair.rs`](../../novadraw/src/runtime/update/repair.rs)。
 
 ## 4.9 帧准备状态
 
@@ -361,9 +361,9 @@ assert!(runtime.complete_submission(session_id, frame_id, outcome));
 
 ## 4.13 验证入口
 
-- [`m5_layout_contract.rs`](../../novadraw-scene/tests/m5_layout_contract.rs)
-- [`d4_constrained_measurement.rs`](../../novadraw-scene/tests/d4_constrained_measurement.rs)
-- [`d4_component_update.rs`](../../novadraw-scene/tests/d4_component_update.rs)
-- [`d4_notification_epoch.rs`](../../novadraw-scene/tests/d4_notification_epoch.rs)
-- [`runtime_resize_contract.rs`](../../novadraw-scene/tests/runtime_resize_contract.rs)
+- [`m5_layout_contract.rs`](../../novadraw/tests/m5_layout_contract.rs)
+- [`d4_constrained_measurement.rs`](../../novadraw/tests/d4_constrained_measurement.rs)
+- [`d4_component_update.rs`](../../novadraw/tests/d4_component_update.rs)
+- [`d4_notification_epoch.rs`](../../novadraw/tests/d4_notification_epoch.rs)
+- [`runtime_resize_contract.rs`](../../novadraw/tests/runtime_resize_contract.rs)
 - `cargo xtask run core.runtime`

@@ -152,26 +152,22 @@ src/
 
 平台实现和具体 GPU 后端即使早期位于同一 workspace，也应与上述领域模块分开。
 
-## 4. 长期 Workspace
+## 4. Workspace 发布边界
 
-当依赖方向和公共 API 稳定后，可以演进为：
+当前结构为：
 
 ```text
-novadraw-geometry
-novadraw-figure
-novadraw-layout
-novadraw-tree
-novadraw-runtime
-novadraw-render
-novadraw-render-vello
+novadraw
+novadraw-editor
+novadraw-inspector
+novadraw-backend-vello
 novadraw-platform-winit
 novadraw-platform-web
-novadraw-3d
-novadraw
 apps/{native,web,benchmarks}/*
 ```
 
-不要求每个逻辑层最终都成为 crate。只有满足以下条件才拆分：
+`novadraw` 直接拥有 Geometry、Figure、Layout、Tree、Runtime 和 Render protocol。
+这些逻辑层使用 module 隔离，不再拆成独立 package。只有满足以下条件才新增 crate：
 
 - 已有清晰且稳定的公开契约；
 - 依赖方向单向；
@@ -212,20 +208,22 @@ apps/{native,web,benchmarks}/*
 
 内部 arena、队列、具体 dispatcher 和 update 数据结构不应因 facade 便利而公开。
 
-自 ADR-021 起，facade 分为三层：
+Core 公开表面分为三层：
 
 - crate root 与 `prelude`：仅保留高频、无歧义的应用入口；
 - `figure`、`layout`、`container`、`connection`、`event`、`runtime`、`host`、
-  `graphics`、`render`、`editor`：稳定领域模块；
-- `advanced` 与 feature-gated `backend`：低层诊断协议和具体后端。
+  `graphics`、`render`：稳定领域模块；
+- `advanced`：低层诊断协议。
 
-默认 feature 为空；`native-vello` 与 `web-vello` 只从 facade 向 render crate 单向启用
-对应后端。Scene/Runtime 不转发具体后端 feature。
+Editor、Inspector、Vello backend 和 Winit/Web platform adapter 是独立 package，
+只单向依赖 `novadraw`。Core 不声明或转发具体后端 feature。
 
 自 ADR-022 起，第三方类型与渲染依赖还受以下边界约束：
 
 - backend-neutral 公共签名不得出现 Kurbo、Vello 或 Winit 类型；
 - Kurbo 按通用 Geometry 私有实现、Render IR 私有算法、Vello lowering 三类归属；
 - 完整 feature 依赖图只允许一个 Kurbo 版本；
-- Vello 保持 feature-gated 内部 backend，第二个真实 renderer 出现前不拆独立 crate；
+- Vello 位于独立 `novadraw-backend-vello`；
 - release 二进制体积生成独立趋势报告，不与无后端 facade 门禁混为一项。
+
+3D 继续保留独立 Scene3D/Projective3D 扩展方向，但真实用例出现前不创建空 crate。

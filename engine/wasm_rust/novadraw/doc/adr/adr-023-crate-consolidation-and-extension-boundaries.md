@@ -4,7 +4,7 @@
 
 ## 状态
 
-已接受，实施中
+已接受，已验证
 
 ## 背景
 
@@ -147,6 +147,16 @@ FigureTree 或 Runtime 的领域实现。
 7. 通过定向、quick、Web 与 full workspace 门禁。
 
 每个阶段独立提交，但只在完整依赖图闭合后对外发布。
+
+## 实施结果
+
+- `novadraw` 已直接拥有 Geometry、Render protocol、Figure、Layout、Tree 和 Runtime；
+- `novadraw-editor` 与 `novadraw-inspector` 已改为只依赖 `novadraw`；
+- Vello、Winit 和 Web 适配分别位于独立 crate；
+- 旧 Core/Geometry/Render/Scene package 与无消费者 Math package 已移除；
+- app、fixture、benchmark 和 xtask package 已标记为不发布；
+- 3D 扩展契约由现有 RenderBackend、surface composition 和独立 Scene3D 边界保留，
+  未创建占位 crate。
 
 ## 验收条件
 

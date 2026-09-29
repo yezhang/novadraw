@@ -4,7 +4,7 @@
 
 ## 状态
 
-已接受，已验证
+已接受，已验证；Vello package 归属已由 ADR-023 替代
 
 ## 背景
 
@@ -42,9 +42,9 @@ Kurbo 是算法实现依赖，不是 Vello 专属类型。使用位置按语义�
 
 | 类别 | 归属 | 规则 |
 |------|------|------|
-| 通用几何 | `novadraw-geometry` 私有实现 | `Affine2D` 可内部使用 Kurbo，但只公开系数和 Novadraw 值类型 |
-| Render IR 算法 | `novadraw-render::path_geometry` 私有模块 | arc normalization、curve bounds 可使用 Kurbo；输入输出必须是 `PathOp` 和 Novadraw 几何值 |
-| Vello lowering | `novadraw-render::backend::vello` | `vello::kurbo::BezPath`、stroke、clip 和 affine 只在 backend 内构造 |
+| 通用几何 | `novadraw::geometry` 私有实现 | `Affine2D` 可内部使用 Kurbo，但只公开系数和 Novadraw 值类型 |
+| Render IR 算法 | `novadraw::render` 私有实现 | arc normalization、curve bounds 可使用 Kurbo；输入输出必须是 `PathOp` 和 Novadraw 几何值 |
+| Vello lowering | `novadraw-backend-vello` | `vello::kurbo::BezPath`、stroke、clip 和 affine 只在 backend 内构造 |
 
 `RenderCommand` 与 `PathOp` 不持有 Kurbo 值。Vello backend 不反向定义通用几何或
 Render IR 语义。
@@ -69,11 +69,11 @@ Svgtypes、Vello、Geometry 和 Render 收敛到 Kurbo 0.13.1。
 体积报告是趋势证据，不设置缺乏历史数据支撑的固定阈值。需要在后续发布基线中比较同一
 target、profile 和 feature 组合。
 
-### 5. 暂不拆 Vello crate
+### 5. Vello 实现不得进入 Core
 
-当前只有一个生产 renderer。`backend/vello` 保持在 `novadraw-render` feature 后面。
-只有第二个真实渲染后端进入实现、并且共享协议与各 backend 依赖边界已经可由代码证明时，
-才评估拆分 `novadraw-backend-vello`。不为假设中的替换需求提前增加 crate 和 facade。
+ADR-023 执行整体 crate 收口时，Vello 被提取到 `novadraw-backend-vello`。该拆分依据是
+Core 的可选安装和平台依赖隔离，而不是预设第二个 renderer。共享 Render protocol
+仍由 `novadraw` 定义，具体 backend 只单向依赖 Core。
 
 ## 失败处理
 
@@ -87,14 +87,16 @@ target、profile 和 feature 组合。
 - 删除 `Affine2D::into_kurbo`；
 - 将 Path 的 arc normalization 与 bounds 收入私有 `path_geometry`；
 - 将 `vello::kurbo::BezPath` 构造移入 Vello lowering；
-- `novadraw-render` 不再依赖 Winit，native backend 通过窗口句柄能力和 `SurfaceInfo`
-  构造；
+- `novadraw` Core 不依赖 Winit 或 Vello，native backend 通过窗口句柄能力和
+  `SurfaceInfo` 构造；
 - Web backend 使用 `VelloInitializationError`；
 - Resvg 0.48.1 将依赖图统一为 Kurbo 0.13.1；
 - 公共 API、Kurbo 版本和二进制体积入口已登记到 `verification/suites.toml`。
 
 ## 关系
 
+- [ADR-023](adr-023-crate-consolidation-and-extension-boundaries.md) 保留本文的第三方
+  类型隔离原则，但已将 Vello lowering 提取到独立 backend crate；
 - 收紧 [ADR-020](adr-020-engine-value-and-render-contract.md) 的 Geometry 与 Render IR
   第三方类型边界；
 - 延续 [ADR-021](adr-021-public-facade-and-feature-boundary.md) 的 facade 与 backend

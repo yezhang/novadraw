@@ -25,6 +25,6 @@ cargo run -p shape-app
 
 ## 依赖模块
 
-- `novadraw-scene`: 场景图和 Figure 接口
-- `novadraw-render`: Vello 渲染后端
+- `novadraw`: 场景图、Figure 与渲染协议
+- `novadraw-backend-vello`: Vello 渲染后端
 - `winit`: 窗口和事件处理

@@ -32,10 +32,10 @@ envelope 计算，不能将该能力标记为已完成。
 
 当前证据：
 
-- `novadraw-scene/src/figure/polyline.rs::normalize_points`
-- `novadraw-scene/src/figure/polygon.rs`
-- `novadraw-scene/src/connection/figure.rs::route_visual_outset`
-- `novadraw-render/src/command.rs::DEFAULT_STROKE_MITER_LIMIT`
+- `novadraw/src/figure/polyline.rs::normalize_points`
+- `novadraw/src/figure/polygon.rs`
+- `novadraw/src/connection/figure.rs::route_visual_outset`
+- `novadraw/src/render/command.rs::DEFAULT_STROKE_MITER_LIMIT`
 
 ### P2-R02: Image source rectangle
 
@@ -55,7 +55,7 @@ envelope 计算，不能将该能力标记为已完成。
 
 - `doc/design/rendering/image-source-rectangle.md`
 - `doc/parity/draw2d/api-coverage.md`
-- `novadraw-render/tests/image_source_rectangle_contract.rs`
+- `novadraw/tests/image_source_rectangle_contract.rs`
 - `verification/suites.toml`
 
 ## Developer tooling

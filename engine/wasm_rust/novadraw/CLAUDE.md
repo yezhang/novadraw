@@ -15,12 +15,12 @@
 ### 模块结构
 
 ```text
-novadraw-core/     - 核心数据类型
-novadraw-math/     - 数学运算
-novadraw-geometry/ - 几何计算
-novadraw-render/   - 渲染抽象
-novadraw-scene/    - 场景图、Figure
+novadraw/                  - 平台无关 Core、几何、Render 协议、Figure/Runtime
+novadraw-backend-vello/    - Vello 渲染后端
+novadraw-platform-winit/   - Winit 平台适配
+novadraw-platform-web/     - Web 平台适配
 novadraw-editor/   - GEF 风格模型、命令历史、EditPart 与 Viewer 投影
+novadraw-inspector/ - 只读诊断与观测
 apps/native/       - winit/macOS/桌面应用
 apps/web/          - Wasm/浏览器应用
 apps/benchmarks/   - 无窗口性能基线
@@ -34,9 +34,9 @@ apps/benchmarks/   - 无窗口性能基线
 - **禁止热路径日志**：渲染循环中不打印日志
 - **禁止 magic numbers**：业务代码中不使用硬编码数字
 - **迭代渲染归档**：`render_iterative.rs`、`use_iterative_render` 和 I 键切换已从主线移除；历史 POC 归档在 git tag `archive/render-iterative-poc-20260617`
-- **保护渲染主循环**：`novadraw-scene/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
+- **保护渲染主循环**：`novadraw/src/graph/render_recursive.rs` 是当前 Draw2D 渲染主流程承载点，通常不应修改主循环逻辑；除非已对标 draw2d 证明当前主流程与 draw2d 不符，否则问题应优先定位到 Figure 协议、坐标转换、NdCanvas 命令、Vello 后端或调用路径
 - **禁止提前恢复迭代渲染**：递归渲染在 M1-M10 核心契约完备前，不得把迭代渲染重新接入代码主线；未来仅能作为性能专项 delta 从归档 tag 恢复并重新设计
-- **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于引擎 crate（如 `novadraw-scene`），`apps/*` 只做平台输入适配与示例编排
+- **通用机制下沉引擎层**：事件分发、坐标转换、target/source Figure 事件点适配、通用上下文等机制必须位于 `novadraw` Core，`apps/*` 只做平台输入适配与示例编排
 - **第三方类型不得穿透公共契约**：backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型；Kurbo 只按 Geometry 私有实现、Render IR 私有算法和 Vello lowering 三类归属
 
 ## 分层验证与提交门禁
@@ -100,6 +100,7 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 | Runtime 驱动与结构化测量 API | [doc/adr/adr-018-runtime-driving-and-measurement-api.md](doc/adr/adr-018-runtime-driving-and-measurement-api.md) |
 | 公开 Facade 与 Feature 边界 | [doc/adr/adr-021-public-facade-and-feature-boundary.md](doc/adr/adr-021-public-facade-and-feature-boundary.md) |
 | 第三方类型与渲染依赖边界 | [doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md](doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md) |
+| Crate 收口与扩展边界 | [doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md](doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md) |
 | Core 公开 API 审计 | [doc/verification/reviews/core-public-api-audit-2026-09-22.md](doc/verification/reviews/core-public-api-audit-2026-09-22.md) |
 
 ### Milestone 与路线图
@@ -126,8 +127,9 @@ Draw2D 后续能力必须进入明确的 P2 delta。
 Core 公开 API 的 P0 Batch A/B 已按 ADR-017 完成；Runtime 驱动、坐标查询和
 Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
 调用面已按 ADR-019 收口；Color、Render IR 与 Geometry 基础值已按 ADR-020 收口；
-聚合 facade、prelude 与 backend feature 边界已按 ADR-021 收口。Graphics 双方言
-与 Figure capability 属于后续 P1/P2；P2-R02 image source rectangle 已完成。
+公开 API 分层已按 ADR-021 收口；Core、Editor、Inspector、Vello backend 与平台
+adapter 的 package 边界已按 ADR-023 收口。Graphics 双方言与 Figure capability
+属于后续 P1/P2；P2-R02 image source rectangle 已完成。
 原 G6 的 schema、serializer 和产品级 Native/Web 场景已移交独立产品包，不再作为
 本仓库引擎门禁。
 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1

@@ -113,14 +113,14 @@ PASS coordinate_root
 需要定位单个 milestone 时，可使用以下定向命令：
 
 ```bash
-cargo test -p novadraw-geometry --test m1_product_existence
-cargo test -p novadraw-render --test m1_product_existence
-cargo test -p novadraw-scene --test m2_product_existence
-cargo test -p novadraw-scene --test m4_coordinate_contract
-cargo test -p novadraw-scene --test m5_layout_contract
-cargo test -p novadraw-scene --test m6_event_contract
-cargo test -p novadraw-scene typed_listeners_dispatch_and_remove_independently
-cargo test -p novadraw-scene validation_figure_effects_preserve_causal_order
+cargo test -p novadraw --test geometry_m1_product_existence
+cargo test -p novadraw --test render_m1_product_existence
+cargo test -p novadraw --test m2_product_existence
+cargo test -p novadraw --test m4_coordinate_contract
+cargo test -p novadraw --test m5_layout_contract
+cargo test -p novadraw --test m6_event_contract
+cargo test -p novadraw typed_listeners_dispatch_and_remove_independently
+cargo test -p novadraw validation_figure_effects_preserve_causal_order
 ```
 
 ## 5. 窗口 app 通用操作

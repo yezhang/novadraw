@@ -38,8 +38,9 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [018](adr-018-runtime-driving-and-measurement-api.md) | Runtime 驱动与结构化测量 API | 已接受 | 2026-09-24 |
 | [019](adr-019-composable-api-and-scoped-editors.md) | 可组装 API 与 Scoped Editor | 已接受，已验证 | 2026-09-28 |
 | [020](adr-020-engine-value-and-render-contract.md) | 引擎基础值与公开渲染契约 | 已接受，已验证 | 2026-09-28 |
-| [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 已接受，已验证 | 2026-09-28 |
-| [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 已接受，已验证 | 2026-09-29 |
+| [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 部分由 023 替代 | 2026-09-28 |
+| [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 部分由 023 替代 | 2026-09-29 |
+| [023](adr-023-crate-consolidation-and-extension-boundaries.md) | Crate 收口与扩展边界 | 已接受，已验证 | 2026-09-29 |
 
 ## 现行与历史隔离
 

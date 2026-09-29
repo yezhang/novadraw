@@ -59,6 +59,8 @@
   `doc/adr/adr-021-public-facade-and-feature-boundary.md`
 - **第三方类型与渲染依赖边界**：
   `doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md`
+- **Crate 收口与扩展边界**：
+  `doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md`
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
 - **可执行验证清单**：`verification/suites.toml`
@@ -78,8 +80,9 @@
 - Core 公开 API 的 P0 Batch A/B 已按 ADR-017 完成；Runtime 驱动、坐标查询和
   Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
   调用面已按 ADR-019 收口；Color、Render IR 与 Geometry 基础值已按 ADR-020 收口；
-  聚合 facade、prelude 与 backend feature 边界已按 ADR-021 收口。Graphics 双方言
-  与 Figure capability 属于后续 P1/P2；P2-R02 image source rectangle 已完成。
+  公开 API 分层已按 ADR-021 收口；Core、Editor、Inspector、Vello backend 与平台
+  adapter 的 package 边界已按 ADR-023 收口。Graphics 双方言与 Figure capability
+  属于后续 P1/P2；P2-R02 image source rectangle 已完成。
   原 G6 的 schema、serializer 和产品级 Native/Web 场景已移交独立产品包，不再作为
   本仓库引擎门禁。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
@@ -107,7 +110,7 @@
 | 禁止临时方案 | 问题必须从根因解决 |
 | 禁止全局状态 | 不使用 Singleton |
 | 渲染热路径 | 不打印日志 |
-| 渲染主循环保护 | 当前主线只保护 `render_recursive.rs`；`render_iterative.rs` 已归档到 tag `archive/render-iterative-poc-20260617` |
+| 渲染主循环保护 | 当前主线只保护 `novadraw/src/graph/render_recursive.rs`；`render_iterative.rs` 已归档到 tag `archive/render-iterative-poc-20260617` |
 | 硬编码 | 业务代码中不使用 magic numbers |
 | 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，apps 只做平台输入适配 |
 | 第三方类型边界 | backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型 |
@@ -121,8 +124,9 @@
 - **分层门禁**: 修改内环使用 crate 级 check/精确测试；功能切片运行对应 suite；
   `cargo xtask check --quick` 用于同类整改批次，`cargo xtask check --full` 只在最终
   提交、推送、合并或里程碑关闭前执行一次
-- **模块**: `novadraw-core`, `novadraw-scene`, `novadraw-render`, `novadraw-math`,
-  `novadraw-editor`（G5 已完成，检查点 C 已通过人工验收）
+- **公开包**: `novadraw` Core、`novadraw-editor`、`novadraw-inspector`、
+  `novadraw-backend-vello`、`novadraw-platform-winit`、`novadraw-platform-web`
+- **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate
 
 ## 交互方式原则（摘要）
 

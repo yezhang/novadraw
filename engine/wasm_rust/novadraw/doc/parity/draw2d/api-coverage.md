@@ -82,7 +82,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P1 | ClippingStrategy | `getClippingStrategy/setClippingStrategy` | child clip policy | 子节点是否被 parent/client area 裁剪，可替换策略 |
 | P1 | 基础 Figure 类型 | `Figure/Label/ImageFigure/RectangleFigure/Ellipse` | builtin figures | 基础图元、文本、图片、容器 figure |
 | P1 | SWT 宿主控件 | `FigureCanvas/LightweightSystem` | app/host integration | `FigureCanvas` 是承载 Draw2D 的 SWT Canvas，不是 Figure 子类 |
-| P1 | 几何 Primitive | `Rectangle/Point/Dimension/Insets/PointList/Precision*` | `novadraw-math` / `novadraw-geometry` | 整数/浮点策略、包含/相交/扩张/平移 |
+| P1 | 几何 Primitive | `Rectangle/Point/Dimension/Insets/PointList/Precision*` | `novadraw::geometry` | 整数/浮点策略、包含/相交/扩张/平移 |
 | P1 | 具体布局 | `XYLayout/StackLayout/BorderLayout/GridLayout/FlowLayout/ToolbarLayout` | layout implementations | 绝对布局、栈布局、边界布局、网格、流式、工具栏 |
 | P1 | Freeform / Layer | `Layer/FreeformLayer/FreeformLayout/FreeformViewport` | 大画布/自由坐标层 | 负坐标、内容范围、root/layer 分层 |
 | P1 | Viewport / Scroll | `Viewport/ScrollPane/ScrollBar/RangeModel` | 视口组件，当前可延后 | viewport clip、scroll offset、content extent |
@@ -245,7 +245,7 @@ Draw2D 证据入口：`Figure.java`、`Border.java`、`AbstractBorder.java`、`L
 | `event.point_reduction` | MouseEvent target point 转为 target local 域 | `MouseEvent::with_target_point`, `MouseEvent::entry_point`, `EventDispatcher` dispatch 路径 | verified | M4 contract 验证 hit-test、entry point 与 target-domain callback 同源 |
 
 Draw2D 证据入口：`IFigure.java`、`Figure.java`、`Viewport.java`。
-Novadraw 验证入口：`novadraw-scene/tests/m4_coordinate_contract.rs`、`apps/native/transform-app`。
+Novadraw 验证入口：`novadraw/tests/m4_coordinate_contract.rs`、`apps/native/transform-app`。
 
 ### M5 Layout / Validation / UpdateManager
 
@@ -558,7 +558,7 @@ Novadraw 对照：
 
 Novadraw 对照：
 
-- 坐标转换 API 应在 `novadraw-scene` 等引擎 crate。
+- 坐标转换 API 应位于 `novadraw` Core。
 - app 只负责平台输入点进入引擎前的最外层适配。
 
 建议 probes：

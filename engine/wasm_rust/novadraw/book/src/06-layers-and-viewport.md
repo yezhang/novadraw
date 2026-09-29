@@ -28,7 +28,7 @@ fn hit_participation(&self) -> HitParticipation {
 ```
 
 代码锚点：
-[`LayerFigure`](../../novadraw-scene/src/container/layer.rs)。
+[`LayerFigure`](../../novadraw/src/container/layer.rs)。
 
 ## 6.2 分层面板的两个索引
 
@@ -144,8 +144,8 @@ flowchart TB
 
 代码锚点：
 
-- [`ViewportHandle::set_view_location`](../../novadraw-scene/src/container/viewport.rs)
-- [`normalize_range`](../../novadraw-scene/src/container/range_model.rs)
+- [`ViewportHandle::set_view_location`](../../novadraw/src/container/viewport.rs)
+- [`normalize_range`](../../novadraw/src/container/range_model.rs)
 
 ## 6.6 滚动与缩放的状态真源
 
@@ -315,9 +315,9 @@ runtime.zoom(&zoom)?.set_zoom_at(1.25, None)?;
 
 ## 6.13 验证入口
 
-- [`d2_layer_contract.rs`](../../novadraw-scene/tests/d2_layer_contract.rs)
-- [`d2_freeform_contract.rs`](../../novadraw-scene/tests/d2_freeform_contract.rs)
-- [`m8_viewport_contract.rs`](../../novadraw-scene/tests/m8_viewport_contract.rs)
+- [`d2_layer_contract.rs`](../../novadraw/tests/d2_layer_contract.rs)
+- [`d2_freeform_contract.rs`](../../novadraw/tests/d2_freeform_contract.rs)
+- [`m8_viewport_contract.rs`](../../novadraw/tests/m8_viewport_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
 - `cargo xtask run verify.scroll-pane`
 - `cargo xtask run replay.editor-g5.5`

@@ -2,7 +2,7 @@
 
 类型：`architecture-review`
 
-状态：`proposal`
+状态：`implemented`
 
 日期：2026-09-29
 
@@ -213,3 +213,5 @@ ADR-022 的“第二个生产 backend 出现后再拆 Vello crate”适合单独
 3. 把 Inspector、backend、platform adapter 保持为真正独立的可选能力；
 4. 删除无消费者的 Math；
 5. 让 app/package/deployment 三种边界重新一致。
+
+上述结构已按 ADR-023 完成实施。

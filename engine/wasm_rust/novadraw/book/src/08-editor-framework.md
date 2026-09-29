@@ -26,7 +26,7 @@ Viewer 负责刷新。** 一旦让命令和 Figure 同时写同一项事实，�
 来源，投影可以删除并重建。
 
 因此 `novadraw-editor` 是独立的 Rust 包（crate），不把业务模型、选择状态或命令
-历史栈写入 `novadraw-scene`。
+历史栈写入 `novadraw` Core。
 
 ## 8.2 三个身份域
 
@@ -389,7 +389,7 @@ viewer.refresh()?;
 最小组合形态：
 
 ```rust
-use novadraw::editor::{EditorDomain, GraphicalViewer};
+use novadraw_editor::{EditorDomain, GraphicalViewer};
 use novadraw::Rectangle;
 
 let viewer = GraphicalViewer::new(

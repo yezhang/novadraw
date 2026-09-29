@@ -118,7 +118,7 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 - `Point` 与 `Vec2` 已成为独立类型，`Affine2D` 成为唯一公开仿射类型名；
 - Render IR 已使用 `Point`、`PointList`、`Rectangle` 和 `Dimension`，不再暴露 `glam`；
 - 无语义差异的 Geometry alias 已删除；
-- `novadraw-math` 保留为独立 workspace member，但已退出 2D 引擎依赖图。
+- `novadraw-math` 已由 ADR-023 从 workspace 移除；真实 3D 用例出现后再按独立能力恢复。
 - 2026-09-29 已删除公开 `Affine2D::into_kurbo`，Path 算法与 Vello lowering 按
   ADR-022 分离。
 

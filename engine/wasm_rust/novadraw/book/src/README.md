@@ -57,7 +57,7 @@
 
 ## 公开 API 从哪里进入
 
-普通应用依赖聚合 crate `novadraw`，不要先从内部 crate 拼装能力。
+普通绘图应用依赖 Core crate `novadraw`。
 
 ```rust
 use novadraw::prelude::*;
@@ -67,10 +67,11 @@ use novadraw::prelude::*;
 
 1. crate root：`Runtime`、`FigureTree`、常用 Figure、布局和基础值；
 2. `novadraw::prelude::*`：常规 Figure/Runtime 开发所需的常用导入；
-3. 领域模块：`container`、`connection`、`event`、`editor`、`render` 等专业能力。
+3. 领域模块：`container`、`connection`、`event`、`render` 等专业能力。
 
 `novadraw::advanced` 面向诊断和深度集成，不是普通应用的默认入口。Vello 后端也不是
-默认依赖，桌面与网页应用分别显式启用 `native-vello` 或 `web-vello` feature。
+默认依赖；Editor、Inspector、Vello backend 和 Winit/Web platform adapter 均由独立
+crate 按需组合。
 
 ## 四个生命周期阶段
 

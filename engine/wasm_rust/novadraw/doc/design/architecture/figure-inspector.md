@@ -32,7 +32,7 @@ novadraw-inspector
 Native / Web / headless host
 ```
 
-`novadraw-inspector` 只依赖 `novadraw-scene`。它不依赖 `novadraw-editor`、RenderBackend
+`novadraw-inspector` 只依赖 `novadraw` Core。它不依赖 `novadraw-editor`、RenderBackend
 或平台 crate。Editor 关联属于宿主 adapter 的可选增强：
 
 ```text

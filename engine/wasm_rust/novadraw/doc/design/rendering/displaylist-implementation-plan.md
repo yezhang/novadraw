@@ -149,7 +149,7 @@ protocol。
 在协议未稳定前：
 
 ```text
-novadraw-render/
+novadraw/src/render/
 └── experimental/display_list/
 ```
 
@@ -157,7 +157,7 @@ novadraw-render/
 
 ```text
 novadraw-display-list       # protocol + checked codec
-novadraw-render-vello       # consumer
+novadraw-backend-vello      # consumer
 ```
 
 独立发布必须额外具备：

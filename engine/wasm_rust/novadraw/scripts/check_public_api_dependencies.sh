@@ -7,11 +7,8 @@ host_target="$(rustc -vV | sed -n 's/^host: //p')"
 forbidden_pattern='title="(struct|enum|trait|type|fn|constant|union) (kurbo|vello|winit)::'
 crate_docs=(
   novadraw
-  novadraw_core
   novadraw_editor
-  novadraw_geometry
-  novadraw_render
-  novadraw_scene
+  novadraw_inspector
 )
 
 cargo clean --doc --target-dir "$target_dir"
@@ -23,11 +20,8 @@ check_target() {
 
   cargo doc \
     -p novadraw \
-    -p novadraw-core \
     -p novadraw-editor \
-    -p novadraw-geometry \
-    -p novadraw-render \
-    -p novadraw-scene \
+    -p novadraw-inspector \
     --all-features \
     --no-deps \
     --target "$target" \

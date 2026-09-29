@@ -504,25 +504,24 @@ Scene3D
 | UpdateManager | concrete |
 | Runtime | concrete |
 
-## 13. 长期 crate 边界
+## 13. Crate 边界
 
-稳定后可演进为：
+当前发布边界为：
 
 ```text
-novadraw-geometry
-novadraw-figure
-novadraw-layout
-novadraw-tree
-novadraw-runtime
-novadraw-render
-novadraw-platform
-novadraw-3d          # 独立可选能力
-novadraw             # facade
+novadraw                  # 平台无关 Core
+novadraw-editor           # 可选编辑框架
+novadraw-inspector        # 可选诊断能力
+novadraw-backend-vello    # Vello 渲染后端
+novadraw-platform-winit   # 桌面平台适配
+novadraw-platform-web     # 浏览器平台适配
 ```
 
 crate 拆分必须跟随稳定依赖方向，不能为了目录整齐预先制造 facade 和循环依赖。
 
-当前 `novadraw` 是上述引擎 crate 的规范聚合入口，并通过稳定领域模块转发 Core、
-Geometry、Render、Scene 与 Editor API。它默认不启用平台 backend；native/web Vello
-分别由 `native-vello`、`web-vello` feature 单向启用。内部 crate 仍可由 backend、
-host、诊断工具等明确扩展者直接依赖。
+`novadraw` 直接拥有 Geometry、Render protocol、Figure、Layout、Tree 和 Runtime
+模块，不依赖 Editor、Inspector、Vello、Winit 或 Web。应用按需组合独立的 Editor、
+Inspector、backend 和 platform adapter。
+
+未来 3D 使用独立 Scene3D/Projective3D 能力，通过明确的嵌入或合成边界与二维 Core
+协作；真实用例出现前不创建占位 crate。

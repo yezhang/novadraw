@@ -62,4 +62,4 @@ cargo run -p layout-app
 
 ## 依赖模块
 
-- `novadraw-scene`: 场景图和 Figure 接口
+- `novadraw`: 场景图、Figure 与布局接口

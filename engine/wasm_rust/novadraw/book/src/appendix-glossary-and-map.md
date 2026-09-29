@@ -82,126 +82,123 @@
 | `novadraw::connection` | 连接、锚点、路由器和定位器 |
 | `novadraw::event` | 输入、监听器、焦点、提示和无障碍 |
 | `novadraw::runtime` | scoped editor、资源、稳定查询和帧准备 |
-| `novadraw::editor` | 模型投影、选择、工具、策略和命令历史 |
 | `novadraw::render` | 后端无关的提交、资源和文本协议 |
-| `novadraw::backend` | feature 控制的具体后端 |
 | `novadraw::advanced` | 诊断与深度集成所需低层状态 |
 
-默认 feature 为空。桌面和网页 Vello 后端分别使用 `native-vello` 与 `web-vello`。
+Editor、Inspector、Vello backend 和 Winit/Web platform adapter 使用独立 crate。
 应用不应为了取得一个方便类型而直接依赖 `advanced`。
 
 ## C. Rust 包地图
 
 | Rust 包（crate） | 主要职责 | 关键入口 |
 |---|---|---|
-| `novadraw` | 普通应用使用的聚合 facade | [`src/lib.rs`](../../novadraw/src/lib.rs) |
-| `novadraw-core` | 基础颜色等值类型 | [`src/lib.rs`](../../novadraw-core/src/lib.rs) |
-| `novadraw-math` | 通用数学类型 | [`src/lib.rs`](../../novadraw-math/src/lib.rs) |
-| `novadraw-geometry` | 二维点、矩形、变换与点列表 | [`src/lib.rs`](../../novadraw-geometry/src/lib.rs) |
-| `novadraw-render` | 命令录制、渲染提交与后端接口 | [`src/lib.rs`](../../novadraw-render/src/lib.rs) |
-| `novadraw-scene` | 图形对象、树、布局、更新、输入、容器与连接 | [`src/lib.rs`](../../novadraw-scene/src/lib.rs) |
+| `novadraw` | 平台无关 Core：几何、渲染协议、Figure、布局、树与 Runtime | [`src/lib.rs`](../../novadraw/src/lib.rs) |
 | `novadraw-editor` | 模型投影、选择、工具、策略、命令历史 | [`src/lib.rs`](../../novadraw-editor/src/lib.rs) |
+| `novadraw-inspector` | 只读诊断与观测 | [`src/lib.rs`](../../novadraw-inspector/src/lib.rs) |
+| `novadraw-backend-vello` | Vello 渲染后端 | [`src/lib.rs`](../../novadraw-backend-vello/src/lib.rs) |
+| `novadraw-platform-winit` | Winit 输入与宿主适配 | [`src/lib.rs`](../../novadraw-platform-winit/src/lib.rs) |
+| `novadraw-platform-web` | Web 输入与宿主适配 | [`src/lib.rs`](../../novadraw-platform-web/src/lib.rs) |
 
 ## D. 图形核心代码地图
 
 ### 几何
 
 - 矩形与尺寸（Rectangle/Dimension）：
-  [`novadraw-geometry/src/rect.rs`](../../novadraw-geometry/src/rect.rs)
+  [`novadraw/src/geometry/rect.rs`](../../novadraw/src/geometry/rect.rs)
 - 仿射变换（Affine2D/Transform）：
-  [`novadraw-geometry/src/transform.rs`](../../novadraw-geometry/src/transform.rs)
+  [`novadraw/src/geometry/transform.rs`](../../novadraw/src/geometry/transform.rs)
 - 点列表（PointList）：
-  [`novadraw-geometry/src/point_list.rs`](../../novadraw-geometry/src/point_list.rs)
+  [`novadraw/src/geometry/point_list.rs`](../../novadraw/src/geometry/point_list.rs)
 
 ### 图形对象与树
 
 - 图形能力（Figure）：
-  [`novadraw-scene/src/figure/mod.rs`](../../novadraw-scene/src/figure/mod.rs)
+  [`novadraw/src/figure/mod.rs`](../../novadraw/src/figure/mod.rs)
 - 图形节点与图形树（FigureNode/FigureTree）：
-  [`novadraw-scene/src/graph/mod.rs`](../../novadraw-scene/src/graph/mod.rs)
+  [`novadraw/src/graph/mod.rs`](../../novadraw/src/graph/mod.rs)
 - 命中与树搜索：
-  [`novadraw-scene/src/graph/search.rs`](../../novadraw-scene/src/graph/search.rs)
+  [`novadraw/src/graph/search.rs`](../../novadraw/src/graph/search.rs)
 - 递归绘制：
-  [`novadraw-scene/src/graph/render_recursive.rs`](../../novadraw-scene/src/graph/render_recursive.rs)
+  [`novadraw/src/graph/render_recursive.rs`](../../novadraw/src/graph/render_recursive.rs)
 
 ### 场景运行时与更新
 
 - 场景运行时组合根（Runtime）：
-  [`novadraw-scene/src/runtime/runtime.rs`](../../novadraw-scene/src/runtime/runtime.rs)
+  [`novadraw/src/runtime/runtime.rs`](../../novadraw/src/runtime/runtime.rs)
 - 事件上下文与效果队列：
-  [`novadraw-scene/src/runtime/context.rs`](../../novadraw-scene/src/runtime/context.rs)
+  [`novadraw/src/runtime/context.rs`](../../novadraw/src/runtime/context.rs)
 - 事件分发器（EventDispatcher）：
-  [`novadraw-scene/src/runtime/event/mod.rs`](../../novadraw-scene/src/runtime/event/mod.rs)
+  [`novadraw/src/runtime/event/mod.rs`](../../novadraw/src/runtime/event/mod.rs)
 - 修改事务（Mutation）：
-  [`novadraw-scene/src/runtime/mutation/mod.rs`](../../novadraw-scene/src/runtime/mutation/mod.rs)
+  [`novadraw/src/runtime/mutation/mod.rs`](../../novadraw/src/runtime/mutation/mod.rs)
 - 更新管理器（UpdateManager）：
-  [`novadraw-scene/src/runtime/update/deferred.rs`](../../novadraw-scene/src/runtime/update/deferred.rs)
+  [`novadraw/src/runtime/update/deferred.rs`](../../novadraw/src/runtime/update/deferred.rs)
 - 重绘区域计算（Damage repair）：
-  [`novadraw-scene/src/runtime/update/repair.rs`](../../novadraw-scene/src/runtime/update/repair.rs)
+  [`novadraw/src/runtime/update/repair.rs`](../../novadraw/src/runtime/update/repair.rs)
 
 ### 布局与容器
 
 - 布局协议：
-  [`novadraw-scene/src/layout/mod.rs`](../../novadraw-scene/src/layout/mod.rs)
+  [`novadraw/src/layout/mod.rs`](../../novadraw/src/layout/mod.rs)
 - 精确坐标布局：
-  [`novadraw-scene/src/layout/xy_layout.rs`](../../novadraw-scene/src/layout/xy_layout.rs)
+  [`novadraw/src/layout/xy_layout.rs`](../../novadraw/src/layout/xy_layout.rs)
 - 单内容填充与多层堆叠布局：
-  [`fill_layout.rs`](../../novadraw-scene/src/layout/fill_layout.rs)、
-  [`stack_layout.rs`](../../novadraw-scene/src/layout/stack_layout.rs)
+  [`fill_layout.rs`](../../novadraw/src/layout/fill_layout.rs)、
+  [`stack_layout.rs`](../../novadraw/src/layout/stack_layout.rs)
 - 五区、流式、网格与工具栏布局：
-  [`border_layout.rs`](../../novadraw-scene/src/layout/border_layout.rs)、
-  [`flow_layout.rs`](../../novadraw-scene/src/layout/flow_layout.rs)、
-  [`grid_layout.rs`](../../novadraw-scene/src/layout/grid_layout.rs)、
-  [`toolbar_layout.rs`](../../novadraw-scene/src/layout/toolbar_layout.rs)
+  [`border_layout.rs`](../../novadraw/src/layout/border_layout.rs)、
+  [`flow_layout.rs`](../../novadraw/src/layout/flow_layout.rs)、
+  [`grid_layout.rs`](../../novadraw/src/layout/grid_layout.rs)、
+  [`toolbar_layout.rs`](../../novadraw/src/layout/toolbar_layout.rs)
 - 自由范围布局：
-  [`novadraw-scene/src/layout/freeform_layout.rs`](../../novadraw-scene/src/layout/freeform_layout.rs)
+  [`novadraw/src/layout/freeform_layout.rs`](../../novadraw/src/layout/freeform_layout.rs)
 - 布局 demo 场景：
   [`novadraw-demo-scenes/src/layout.rs`](../../apps/scenes/src/layout.rs)
 - 更新与裁剪中的布局场景：
   [`update.rs`](../../apps/scenes/src/update.rs)、
   [`clip.rs`](../../apps/scenes/src/clip.rs)
 - 图层（Layer）：
-  [`novadraw-scene/src/container/layer.rs`](../../novadraw-scene/src/container/layer.rs)
+  [`novadraw/src/container/layer.rs`](../../novadraw/src/container/layer.rs)
 - 视口（Viewport）：
-  [`novadraw-scene/src/container/viewport.rs`](../../novadraw-scene/src/container/viewport.rs)
+  [`novadraw/src/container/viewport.rs`](../../novadraw/src/container/viewport.rs)
 - 滚动面板专用布局：
-  [`novadraw-scene/src/container/scroll_pane.rs`](../../novadraw-scene/src/container/scroll_pane.rs)
+  [`novadraw/src/container/scroll_pane.rs`](../../novadraw/src/container/scroll_pane.rs)
 - 范围模型（RangeModel）：
-  [`novadraw-scene/src/container/range_model.rs`](../../novadraw-scene/src/container/range_model.rs)
+  [`novadraw/src/container/range_model.rs`](../../novadraw/src/container/range_model.rs)
 - 可缩放容器（Scalable）：
-  [`novadraw-scene/src/container/scalable.rs`](../../novadraw-scene/src/container/scalable.rs)
+  [`novadraw/src/container/scalable.rs`](../../novadraw/src/container/scalable.rs)
 - 滚动面板（ScrollPane）：
-  [`novadraw-scene/src/container/scroll_pane.rs`](../../novadraw-scene/src/container/scroll_pane.rs)
+  [`novadraw/src/container/scroll_pane.rs`](../../novadraw/src/container/scroll_pane.rs)
 
 ### 连接
 
 - 公共导出与 ID：
-  [`novadraw-scene/src/connection/mod.rs`](../../novadraw-scene/src/connection/mod.rs)
+  [`novadraw/src/connection/mod.rs`](../../novadraw/src/connection/mod.rs)
 - 锚点（Anchor）：
-  [`novadraw-scene/src/connection/anchor.rs`](../../novadraw-scene/src/connection/anchor.rs)
+  [`novadraw/src/connection/anchor.rs`](../../novadraw/src/connection/anchor.rs)
 - 场景查询（SceneQuery）：
-  [`novadraw-scene/src/connection/query.rs`](../../novadraw-scene/src/connection/query.rs)
+  [`novadraw/src/connection/query.rs`](../../novadraw/src/connection/query.rs)
 - 路由器（Router）：
-  [`novadraw-scene/src/connection/router.rs`](../../novadraw-scene/src/connection/router.rs)
+  [`novadraw/src/connection/router.rs`](../../novadraw/src/connection/router.rs)
 - 连接运行时（ConnectionRuntime）：
-  [`novadraw-scene/src/connection/runtime.rs`](../../novadraw-scene/src/connection/runtime.rs)
+  [`novadraw/src/connection/runtime.rs`](../../novadraw/src/connection/runtime.rs)
 - 连接图形与几何：
-  [`novadraw-scene/src/connection/figure.rs`](../../novadraw-scene/src/connection/figure.rs)
+  [`novadraw/src/connection/figure.rs`](../../novadraw/src/connection/figure.rs)
 - 定位器（Locator）：
-  [`novadraw-scene/src/connection/locator.rs`](../../novadraw-scene/src/connection/locator.rs)
+  [`novadraw/src/connection/locator.rs`](../../novadraw/src/connection/locator.rs)
 
 ### 渲染
 
 - 命令画布（NdCanvas）：
-  [`novadraw-render/src/context.rs`](../../novadraw-render/src/context.rs)
+  [`novadraw/src/render/context.rs`](../../novadraw/src/render/context.rs)
 - 渲染命令（RenderCommand）：
-  [`novadraw-render/src/command.rs`](../../novadraw-render/src/command.rs)
+  [`novadraw/src/render/command.rs`](../../novadraw/src/render/command.rs)
 - 渲染提交包（RenderSubmission）：
-  [`novadraw-render/src/submission.rs`](../../novadraw-render/src/submission.rs)
+  [`novadraw/src/render/submission.rs`](../../novadraw/src/render/submission.rs)
 - 渲染后端（RenderBackend）：
-  [`novadraw-render/src/traits.rs`](../../novadraw-render/src/traits.rs)
+  [`novadraw/src/render/traits.rs`](../../novadraw/src/render/traits.rs)
 - Vello 后端：
-  [`novadraw-render/src/backend/vello/mod.rs`](../../novadraw-render/src/backend/vello/mod.rs)
+  [`novadraw-backend-vello/src/lib.rs`](../../novadraw-backend-vello/src/lib.rs)
 
 ## E. 编辑框架代码地图
 
