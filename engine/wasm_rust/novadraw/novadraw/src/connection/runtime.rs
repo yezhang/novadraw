@@ -6,8 +6,8 @@ use super::{
     AnchorGroupKey, AnchorId, Bendpoint, BendpointConstraint, ConnectionAnchor, ConnectionId,
     ConnectionRouter, CoordinateSpace, DependencyObservation, DependencySubject, DirectRouter,
     LocatorError, LocatorPlacement, RouteError, RouteOutput, RouteRequest, RouterId,
-    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, SceneQueryError, SceneRead,
-    TrackedSceneQuery,
+    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, RoutingObstacle, SceneQuery,
+    SceneQueryError, SceneRead, TrackedSceneQuery,
 };
 use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
 
@@ -73,6 +73,15 @@ pub struct ConnectionStateSnapshot {
     pub resolution: ConnectionResolution,
     /// Number of tracked dependency subjects.
     pub dependency_count: usize,
+}
+
+/// Cumulative routing work counters for deterministic performance checks.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ConnectionRoutingStats {
+    /// Number of individual Router calculations.
+    pub route_calculations: u64,
+    /// Number of immutable obstacle snapshots built for routing batches.
+    pub obstacle_snapshot_builds: u64,
 }
 
 /// Failure produced by Connection Runtime state operations.
@@ -240,6 +249,8 @@ impl RouteCalculation {
 type TopologyObservations = Vec<DependencyObservation>;
 type ViewportChainResult =
     Result<(Vec<FigureId>, TopologyObservations), (RouteError, TopologyObservations)>;
+type ObstacleSnapshotResult =
+    Result<(Vec<RoutingObstacle>, TopologyObservations), (RouteError, TopologyObservations)>;
 
 /// Runtime-private ownership of Connection relationships and dependency state.
 pub(crate) struct ConnectionRuntime {
@@ -251,6 +262,7 @@ pub(crate) struct ConnectionRuntime {
     by_dependency: HashMap<DependencySubject, Vec<ConnectionId>>,
     layer_defaults: HashMap<FigureId, RouterId>,
     locators: Vec<ConnectionLocatorBinding>,
+    stats: ConnectionRoutingStats,
 }
 
 fn routing_constraints_equal(
@@ -339,11 +351,16 @@ impl ConnectionRuntime {
             by_dependency: HashMap::new(),
             layer_defaults: HashMap::new(),
             locators: Vec::new(),
+            stats: ConnectionRoutingStats::default(),
         }
     }
 
     pub(crate) fn direct_router(&self) -> RouterId {
         self.direct_router
+    }
+
+    pub(crate) const fn routing_stats(&self) -> ConnectionRoutingStats {
+        self.stats
     }
 
     pub(crate) fn register_anchor(&mut self, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
@@ -703,14 +720,48 @@ impl ConnectionRuntime {
                     return Err(self.fail_route_batch(vec![connection], error, Vec::new()));
                 }
             };
+        let obstacle_figures = self
+            .router(router_id)
+            .map(|router| router.obstacle_figures().to_vec())
+            .map_err(|error| self.fail_route_batch(members.clone(), error, Vec::new()))?;
+        let (obstacles, obstacle_observations) =
+            match build_obstacle_snapshot(&obstacle_figures, &members, routing_space, source) {
+                Ok(snapshot) => snapshot,
+                Err((error, observations)) => {
+                    let dependency_updates = members
+                        .iter()
+                        .copied()
+                        .map(|member| (member, observations.clone()))
+                        .collect();
+                    return Err(self.fail_route_batch(
+                        members,
+                        ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
+                            error,
+                        )),
+                        dependency_updates,
+                    ));
+                }
+            };
+        if !obstacle_figures.is_empty() {
+            self.stats.obstacle_snapshot_builds =
+                self.stats.obstacle_snapshot_builds.saturating_add(1);
+        }
         let mut group = RuntimeRoutingGroup {
             connections: members.clone(),
             routes: HashMap::new(),
+            obstacles,
         };
         let mut calculations = Vec::with_capacity(members.len());
 
         for member in &members {
-            let calculation = match self.calculate_route(*member, routing_space, source, &group) {
+            self.stats.route_calculations = self.stats.route_calculations.saturating_add(1);
+            let calculation = match self.calculate_route(
+                *member,
+                routing_space,
+                source,
+                &group,
+                &obstacle_observations,
+            ) {
                 Ok(calculation) => calculation,
                 Err((error, observations)) => {
                     let mut dependency_updates = calculations
@@ -818,6 +869,7 @@ impl ConnectionRuntime {
             .keys()
             .filter(|subject| match subject {
                 DependencySubject::FigureGeometry(candidate)
+                | DependencySubject::FigureVisibility(candidate)
                 | DependencySubject::NamedAnchorRegion(candidate, _) => *candidate == figure,
                 DependencySubject::Topology(candidate) => topology_changed && *candidate == figure,
                 // Ancestor movement can change a relative transform even when
@@ -959,6 +1011,7 @@ impl ConnectionRuntime {
         routing_space: CoordinateSpace,
         source: &dyn SceneRead,
         group: &RuntimeRoutingGroup,
+        obstacle_observations: &[DependencyObservation],
     ) -> Result<RouteCalculation, (ConnectionRuntimeError, Vec<DependencyObservation>)> {
         let (source_id, target_id, router_id) = self
             .route_input(connection)
@@ -973,19 +1026,22 @@ impl ConnectionRuntime {
             .get(target_id)
             .ok_or(ConnectionRuntimeError::UnknownAnchor(target_id))
             .map_err(|error| (error, Vec::new()))?;
-        let mut observations = validate_viewport_topology(
-            connection,
-            source_anchor.owner(),
-            target_anchor.owner(),
-            routing_space,
-            source,
-        )
-        .map_err(|(error, observations)| {
-            (
-                ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error)),
-                observations,
+        let mut observations = obstacle_observations.to_vec();
+        observations.extend(
+            validate_viewport_topology(
+                connection,
+                source_anchor.owner(),
+                target_anchor.owner(),
+                routing_space,
+                source,
             )
-        })?;
+            .map_err(|(error, observations)| {
+                (
+                    ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(error)),
+                    observations,
+                )
+            })?,
+        );
         if let CoordinateSpace::ChildContent(routing_domain) = routing_space {
             let subject = DependencySubject::Topology(routing_domain);
             observations.push(DependencyObservation {
@@ -1012,6 +1068,7 @@ impl ConnectionRuntime {
                 .then_some(group as &dyn RoutingGroupQuery),
         });
         observations.extend(query.into_observations());
+        observations = deduplicate_observations(observations);
         if dependency_cycle(connection, &observations, source) {
             return Err((
                 ConnectionRuntimeError::Unresolved(UnresolvedConnection::RouteFailed(
@@ -1329,6 +1386,7 @@ impl ConnectionRuntime {
 struct RuntimeRoutingGroup {
     connections: Vec<ConnectionId>,
     routes: HashMap<ConnectionId, RouteOutput>,
+    obstacles: Vec<RoutingObstacle>,
 }
 
 impl RoutingGroupQuery for RuntimeRoutingGroup {
@@ -1339,6 +1397,90 @@ impl RoutingGroupQuery for RuntimeRoutingGroup {
     fn route(&self, connection: ConnectionId) -> Option<&RouteOutput> {
         self.routes.get(&connection)
     }
+
+    fn obstacles(&self) -> &[RoutingObstacle] {
+        &self.obstacles
+    }
+}
+
+fn build_obstacle_snapshot(
+    obstacle_figures: &[FigureId],
+    connections: &[ConnectionId],
+    routing_space: CoordinateSpace,
+    scene: &dyn SceneRead,
+) -> ObstacleSnapshotResult {
+    let mut query = TrackedSceneQuery::new(scene);
+    let mut obstacles = Vec::with_capacity(obstacle_figures.len());
+    for figure in obstacle_figures {
+        let attached = match query.is_attached(*figure) {
+            Ok(attached) => attached,
+            Err(_) => {
+                return Err((
+                    RouteError::InvalidObstacle(*figure),
+                    query.into_observations(),
+                ));
+            }
+        };
+        if !attached || connections.iter().any(|member| member.figure() == *figure) {
+            continue;
+        }
+        let visible = match query.is_visible(*figure) {
+            Ok(visible) => visible,
+            Err(_) => {
+                return Err((
+                    RouteError::InvalidObstacle(*figure),
+                    query.into_observations(),
+                ));
+            }
+        };
+        if !visible {
+            continue;
+        }
+        let local_bounds = match query.border_box(*figure) {
+            Ok(bounds) => bounds,
+            Err(_) => {
+                return Err((
+                    RouteError::InvalidObstacle(*figure),
+                    query.into_observations(),
+                ));
+            }
+        };
+        let bounds = match query.map_rect(
+            local_bounds,
+            CoordinateSpace::FigureLocal(*figure),
+            routing_space,
+        ) {
+            Ok(bounds) => bounds,
+            Err(_) => {
+                return Err((
+                    RouteError::InvalidObstacle(*figure),
+                    query.into_observations(),
+                ));
+            }
+        };
+        if !finite_obstacle(bounds) {
+            return Err((
+                RouteError::InvalidObstacle(*figure),
+                query.into_observations(),
+            ));
+        }
+        obstacles.push(RoutingObstacle {
+            figure: *figure,
+            bounds,
+        });
+    }
+    Ok((obstacles, query.into_observations()))
+}
+
+fn finite_obstacle(bounds: crate::geometry::Rectangle) -> bool {
+    bounds.x.is_finite()
+        && bounds.y.is_finite()
+        && bounds.width.is_finite()
+        && bounds.height.is_finite()
+        && bounds.width >= 0.0
+        && bounds.height >= 0.0
+        && (bounds.x + bounds.width).is_finite()
+        && (bounds.y + bounds.height).is_finite()
 }
 
 fn validate_viewport_topology(
@@ -1428,6 +1570,7 @@ fn dependency_cycle(
 fn dependency_figures(subject: &DependencySubject) -> [Option<FigureId>; 2] {
     match subject {
         DependencySubject::FigureGeometry(figure)
+        | DependencySubject::FigureVisibility(figure)
         | DependencySubject::NamedAnchorRegion(figure, _)
         | DependencySubject::Topology(figure) => [Some(*figure), None],
         DependencySubject::RelativeTransform(from, to) => {

@@ -169,6 +169,21 @@ args = [
   "m10_reusable_shape_border_contract",
 ]
 
+[commands."test.p2-c02"]
+description = "Run obstacle-aware shortest-path routing contracts"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "m9_connection_contract",
+  "--test",
+  "m9_connection_runtime",
+  "--test",
+  "p2_c02_shortest_path_contract",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -417,6 +432,26 @@ paths = [
 documents = [
   "doc/design/architecture/connection-routing.md",
   "doc/design/architecture/reusable-shape-border.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-c02-shortest-path-routing"
+title = "Obstacle-aware deterministic shortest-path routing"
+milestone = "P2-C02"
+kind = "contract"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-c02"]
+paths = [
+  "novadraw/src/connection/query.rs",
+  "novadraw/src/connection/router.rs",
+  "novadraw/src/connection/runtime.rs",
+  "novadraw/src/connection/shortest_path.rs",
+  "novadraw/tests/p2_c02_shortest_path_contract.rs",
+]
+documents = [
+  "doc/design/architecture/connection-routing.md",
   "doc/parity/draw2d/api-coverage.md",
 ]
 

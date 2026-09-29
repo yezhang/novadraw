@@ -11,7 +11,7 @@
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
 | 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `complete` | M9、M10.1 |
-| 2 | P2-C02 | 障碍感知 shortest-path routing | `not_started` | P2-C01 |
+| 2 | P2-C02 | 障碍感知 shortest-path routing | `complete` | P2-C01 |
 | 3 | P2-F01 | ScalablePolygonFigure | `not_started` | P2-C01 的 PointList envelope |
 | 4 | P2-T01 | TextFlow 第一阶段 | `not_started` | M10.2、D4.4 |
 
@@ -77,7 +77,7 @@ Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope �
 
 ### P2-C02: 障碍感知 Shortest-path Router
 
-状态：`not_started`
+状态：`complete`
 
 `api_semantics`：`connection.router`
 
@@ -87,10 +87,10 @@ Connection 或使用全局可变状态的实现方式。
 
 交付范围：
 
-1. routing domain 显式生成 immutable obstacle snapshot；默认障碍来自同域、可见且
-   声明参与 routing obstacle 的非 Connection children；
-2. Router group state 保存稳定 obstacle revision、dirty member 与可复用求解输入，
-   obstacle geometry/topology 变化通过现有 dependency generation 增量失效；
+1. Router 配置显式给出有序 obstacle FigureId；Runtime 每批将其中 attached、可见且
+   非 Connection member 的 Figure 映射为 immutable routing-domain snapshot；
+2. 每个 routing batch 只构建一次稳定 obstacle snapshot；obstacle
+   geometry/visibility/topology/transform 通过现有 dependency generation 增量失效；
 3. 端点从 obstacle 边界安全出入，搜索结果为确定性正交 PointList，不穿越 obstacle
    interior，并移除重复点与共线冗余点；
 4. 同批 connection 先完成 route 与 locator geometry preflight，再原子提交；任一
@@ -110,6 +110,16 @@ Connection 或使用全局可变状态的实现方式。
 
 - `doc/design/architecture/connection-routing.md`
 - `doc/parity/draw2d/api-coverage.md`
+
+完成证据（2026-09-29）：
+
+- `ShortestPathConnectionRouter` 使用显式有序 obstacle FigureId 与可配置 clearance、
+  bend penalty、minimum stub；
+- Runtime 将障碍映射到 routing domain，一次 snapshot 服务同组全部 connection；
+- Hanan grid + bend-aware Dijkstra 生成确定性正交路径，直线与 L 路径使用无阻挡快速路径；
+- 几何、可见性和拓扑变化通过 tracked dependency 自动重路由；
+- 64 connections / 64 obstacles 验证为 1 次 snapshot build、64 次 route calculation；
+- `cargo xtask verify core.p2-c02-shortest-path-routing` 通过。
 
 ## Figures
 

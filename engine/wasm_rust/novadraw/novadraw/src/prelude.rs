@@ -11,6 +11,7 @@ pub use crate::{
     FigureId, FigureStyle, FigureTree, FigureTreeBuilder, FillLayout, FlowLayout, FreeformLayout,
     GridLayout, ImageFigure, Insets, LabelFigure, LayoutManager, NdCanvas, PlatformHost, Point,
     PointList, PolygonDecorationFigure, PolygonFigure, PolylineDecorationFigure, PolylineFigure,
-    Rectangle, RectangleFigure, RenderBackend, RoundedRectangleFigure, Runtime, StackLayout,
-    ToggleFigure, ToolbarLayout, TriangleFigure, Vec2, XYLayout,
+    Rectangle, RectangleFigure, RenderBackend, RoundedRectangleFigure, Runtime,
+    ShortestPathConnectionRouter, StackLayout, ToggleFigure, ToolbarLayout, TriangleFigure, Vec2,
+    XYLayout,
 };

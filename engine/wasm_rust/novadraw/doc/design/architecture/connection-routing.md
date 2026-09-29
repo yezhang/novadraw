@@ -407,15 +407,16 @@ P2-C02 使用 `RouterId + routing domain` 作为共享范围。Runtime 在 route
 ```text
 ObstacleSnapshot
 ├── routing_domain
-├── revision
 ├── ordered obstacles: FigureId + routing-domain bounds
+├── tracked dependency observations
 └── stable member order
 ```
 
-障碍默认来自 routing domain 的可见直接 child，且 Figure 必须显式声明参与
-connection routing obstacle；Connection Figure、当前 locator child 和 detached
-Figure 永不作为障碍。bounds 由 SceneQuery 映射到 routing domain，并在构建 snapshot
-时拒绝非有限或负尺寸结果。Router 不读取 FigureTree，也不注册 listener。
+障碍由 `ShortestPathConnectionRouter` 配置的有序 FigureId 显式声明。Runtime 每批
+保留其中 attached、有效可见且不属于当前 routing group 的 Figure，再将其 bounds
+通过 SceneQuery 映射到 routing domain。Connection Figure、detached Figure 与未列入
+配置的普通 child 不会被隐式当作障碍；非有限或负尺寸结果被拒绝。Router 不读取
+FigureTree，也不注册 listener。
 
 路由算法满足以下规范：
 
@@ -429,11 +430,11 @@ Figure 永不作为障碍。bounds 由 SceneQuery 映射到 routing domain，并
 5. 输出删除相邻重复点和共线中间点，但保留 endpoint 与必要 terminal stub；
 6. 无路径返回 `RouteError::NoObstacleFreePath`，不得回退为穿越障碍的 Direct route。
 
-snapshot revision 纳入 routing group state。障碍 geometry、visibility、participation
-或 child topology 变化只失效同一 routing domain 的 ShortestPath group；无关 style、
-其他 domain 或 locator child mutation 不得触发重路由。Runtime 仍执行完整 batch
-route、geometry/locator preflight 与 atomic commit，失败时整批 unresolved 并保留本次
-读取的 dependency observations。
+snapshot 的 geometry、visibility、topology 与 relative-transform observations
+纳入每个 group member 的 dependency state。相关 generation 变化只失效同一 routing
+domain 的 ShortestPath group；无关 style、其他 domain 或 locator child mutation
+不得触发重路由。Runtime 仍执行完整 batch route、geometry/locator preflight 与
+atomic commit，失败时整批 unresolved 并保留本次读取的 dependency observations。
 
 ## 7. M9.1 错误模型
 

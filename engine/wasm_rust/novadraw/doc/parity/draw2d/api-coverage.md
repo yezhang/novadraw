@@ -170,7 +170,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2 Delta | 主 API 语义 | 当前状态 | 完成后提升 |
 |---|---|---|---|
 | P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `complete` | PointList miter bounds、rotatable polygon/polyline decoration 与 endpoint locator 已验证 |
-| P2-C02 | `connection.router` | `not_started` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
+| P2-C02 | `connection.router` | `complete` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
 | P2-F01 | `builtin.figures` | `not_started` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `not_started` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 
@@ -330,7 +330,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.figure` | `get/setConnectionRouter`, `get/setRoutingConstraint` | `RouterRegistry` + `RouterId` + inherited/explicit binding 已实现；typed constraint 归 Connection | verified | reparent 前迁移内置 absolute bendpoint；无迁移协议的自定义 constraint 原子拒绝 |
 | `connection.figure` | `getPoints/setPoints` | `RouteOutput` 经 Runtime 规范化为 ConnectionFigure local points，并同步 NodeState path bounds、paint、hit-test 与 damage | verified | 外部 setPoints 不开放；route truth 与 child visual envelope 分离 |
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | route 计算或 geometry/Locator 预检失败均保留当前 observations，依赖恢复可自动重路由 |
-| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；Viewer 以受检批量 child-order 同步 connection layer，并对等价 None/Bendpoint 路由配置执行 no-op；normal frame 自动按规范 parent routing space 消费 dirty group | partial | M9 Router 主链路 verified；P2-C02 补齐 obstacle snapshot、ShortestPath、增量失效与性能基线 |
+| `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan、shared Manhattan 与 obstacle-aware ShortestPath 均使用 Runtime-owned stable group snapshot 和 atomic batch commit；ShortestPath 追踪 obstacle geometry/visibility/topology/transform，并提供确定性正交搜索与工作计数 | verified | `core.p2-c02-shortest-path-routing` 覆盖单/多障碍、不可达恢复、增量失效及 64×64 snapshot 复用 |
 | `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
 | `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Runtime-owned direct-child binding 消费 prepared local route；实现 endpoint、middle、indexed midpoint、path fraction、terminal tangent/normal 与 u/v offset；polygon/polyline decoration 作为普通 child 原子提交已旋转 geometry | verified | P2-C01 覆盖重复 terminal point、AnchorSite normal fallback、退化 route 与 decoration preflight |
 

@@ -28,16 +28,16 @@ use crate::{
     AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
     AnchorGeometryKey, AnchorId, Border, ChildClippingStrategy, ClickableSnapshot,
     ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionLocatorStrategy,
-    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateListener,
-    CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction, EventDispatcher,
-    Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
-    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
-    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
-    ObservationListener, PendingMutations, PropertyChangeListener, Rectangle, ResourceError,
-    ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput, RouteRequest,
-    RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
+    ConnectionRouter, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
+    CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction,
+    EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree, FocusChange,
+    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
+    FreeformError, ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers,
+    LabelFigure, LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle,
+    LayoutConstraint, LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime,
+    MouseButton, ObservationListener, PendingMutations, PropertyChangeListener, Rectangle,
+    ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput,
+    RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
     ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
     StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
     TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection, UpdateEvent, UpdateListener,
@@ -1206,6 +1206,11 @@ impl Runtime {
         connection: ConnectionId,
     ) -> Result<ConnectionStateSnapshot, ConnectionRuntimeError> {
         self.connections.state(connection)
+    }
+
+    /// Returns cumulative route and obstacle-snapshot work counters.
+    pub fn connection_routing_stats(&self) -> ConnectionRoutingStats {
+        self.connections.routing_stats()
     }
 
     pub fn set_connection_source(

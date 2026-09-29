@@ -7,6 +7,7 @@ mod locator;
 mod query;
 mod router;
 mod runtime;
+mod shortest_path;
 
 use crate::FigureId;
 
@@ -38,12 +39,16 @@ pub use router::{
     FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, MANHATTAN_DEFAULT_LANE_SPACING,
     MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter, RouteEnd, RouteEndpoint, RouteError,
     RouteMetadata, RouteOutput, RouteRequest, RoutingConstraint, RoutingGroupQuery,
-    RoutingGroupScope,
+    RoutingGroupScope, RoutingObstacle,
 };
 pub(crate) use runtime::ConnectionRuntime;
 pub use runtime::{
-    ConnectionResolution, ConnectionRuntimeError, ConnectionStateSnapshot, RouterBinding,
-    UnresolvedConnection,
+    ConnectionResolution, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
+    RouterBinding, UnresolvedConnection,
+};
+pub use shortest_path::{
+    SHORTEST_PATH_DEFAULT_BEND_PENALTY, SHORTEST_PATH_DEFAULT_CLEARANCE,
+    SHORTEST_PATH_DEFAULT_MINIMUM_STUB, ShortestPathConnectionRouter, ShortestPathRouterError,
 };
 
 pub use crate::identity::{AnchorId, RouterId};

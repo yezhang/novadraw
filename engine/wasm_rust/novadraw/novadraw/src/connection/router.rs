@@ -6,7 +6,9 @@ use std::{
 
 use crate::geometry::{ApproxEq, Point, PointList, Precision, Vec2};
 
-use super::{AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateSpace, SceneQuery};
+use super::{
+    AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateSpace, FigureId, SceneQuery,
+};
 
 /// Default perpendicular spacing between neighboring Fan routes.
 pub const FAN_DEFAULT_SEPARATION: f64 = 16.0;
@@ -25,6 +27,15 @@ pub enum RoutingGroupScope {
     AnchorPair,
     /// All members using one RouterId in one routing domain share state.
     RoutingDomain,
+}
+
+/// One immutable obstacle mapped into the active routing domain.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RoutingObstacle {
+    /// Figure that supplied the obstacle.
+    pub figure: FigureId,
+    /// Axis-aligned obstacle bounds in the routing domain.
+    pub bounds: crate::geometry::Rectangle,
 }
 
 /// Router-specific constraint with checked runtime type information.
@@ -53,6 +64,11 @@ pub trait RoutingGroupQuery {
 
     /// Returns an already computed route when available.
     fn route(&self, connection: ConnectionId) -> Option<&RouteOutput>;
+
+    /// Returns the immutable obstacle snapshot shared by this routing batch.
+    fn obstacles(&self) -> &[RoutingObstacle] {
+        &[]
+    }
 }
 
 /// Immutable input to one Router calculation.
@@ -179,6 +195,11 @@ pub trait ConnectionRouter {
         } else {
             RoutingGroupScope::None
         }
+    }
+
+    /// Returns the stable Figure identities included in this Router's obstacle snapshot.
+    fn obstacle_figures(&self) -> &[FigureId] {
+        &[]
     }
 }
 
@@ -479,7 +500,7 @@ impl fmt::Display for FanRouterError {
 
 impl Error for FanRouterError {}
 
-fn resolve_endpoints(
+pub(super) fn resolve_endpoints(
     source: &dyn ConnectionAnchor,
     target: &dyn ConnectionAnchor,
     scene: &mut dyn SceneQuery,
@@ -551,7 +572,7 @@ fn horizontal_normal(normal: Vec2) -> bool {
     normal.x().abs() >= normal.y().abs()
 }
 
-fn remove_adjacent_duplicates(points: &mut Vec<Point>) {
+pub(super) fn remove_adjacent_duplicates(points: &mut Vec<Point>) {
     points.dedup_by(|left, right| left.approx_eq(*right, Precision::DEFAULT));
 }
 
@@ -691,6 +712,10 @@ pub enum RouteError {
     UnsupportedRoutingGroup,
     /// Endpoint topology cannot be represented by the active clipping policy.
     UnsupportedViewportTopology,
+    /// A configured obstacle could not be mapped into the routing domain.
+    InvalidObstacle(FigureId),
+    /// No orthogonal path exists outside the configured obstacle interiors.
+    NoObstacleFreePath,
     /// Anchor, route, or locator dependencies contain a cycle.
     DependencyCycle,
 }
@@ -732,6 +757,10 @@ impl fmt::Display for RouteError {
             Self::UnsupportedViewportTopology => {
                 write!(formatter, "unsupported endpoint viewport topology")
             }
+            Self::InvalidObstacle(figure) => {
+                write!(formatter, "invalid routing obstacle {figure:?}")
+            }
+            Self::NoObstacleFreePath => formatter.write_str("no obstacle-free route exists"),
             Self::DependencyCycle => write!(formatter, "connection dependency cycle detected"),
         }
     }

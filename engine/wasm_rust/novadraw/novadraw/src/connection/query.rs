@@ -117,6 +117,8 @@ impl AnchorGeometry {
 pub enum DependencySubject {
     /// Figure-local geometry.
     FigureGeometry(FigureId),
+    /// Effective Figure visibility.
+    FigureVisibility(FigureId),
     /// Named geometry exposed by a Figure.
     NamedAnchorRegion(FigureId, AnchorGeometryKey),
     /// Relative transform between two coordinate spaces.
@@ -141,6 +143,11 @@ pub trait SceneRead {
 
     /// Returns the direct parent of a Figure.
     fn parent_id(&self, figure: FigureId) -> Option<FigureId>;
+
+    /// Returns effective visibility through the Figure ancestor chain.
+    fn is_visible(&self, figure: FigureId) -> bool {
+        self.is_attached(figure)
+    }
 
     /// Returns whether a Figure is a Viewport coordinate/clipping boundary.
     fn is_viewport(&self, _figure: FigureId) -> bool {
@@ -192,6 +199,11 @@ pub trait SceneQuery {
 
     /// Returns the direct parent of a Figure.
     fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, SceneQueryError>;
+
+    /// Returns effective visibility through the Figure ancestor chain.
+    fn is_visible(&mut self, figure: FigureId) -> Result<bool, SceneQueryError> {
+        self.is_attached(figure)
+    }
 
     /// Returns the Figure-local border box.
     fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, SceneQueryError>;
@@ -282,6 +294,11 @@ impl SceneQuery for TrackedSceneQuery<'_> {
     fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, SceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
         Ok(self.source.parent_id(figure))
+    }
+
+    fn is_visible(&mut self, figure: FigureId) -> Result<bool, SceneQueryError> {
+        self.observe(DependencySubject::FigureVisibility(figure))?;
+        Ok(self.source.is_visible(figure))
     }
 
     fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, SceneQueryError> {
@@ -385,6 +402,10 @@ impl SceneRead for FigureTreeSceneRead<'_> {
 
     fn parent_id(&self, figure: FigureId) -> Option<FigureId> {
         self.tree.parent_id(figure)
+    }
+
+    fn is_visible(&self, figure: FigureId) -> bool {
+        self.tree.is_effectively_visible(figure)
     }
 
     fn is_viewport(&self, figure: FigureId) -> bool {
@@ -507,6 +528,9 @@ impl SceneRead for FigureTreeSceneRead<'_> {
                 {
                     hash_anchor_geometry(geometry, &mut hasher);
                 }
+            }
+            DependencySubject::FigureVisibility(figure) => {
+                self.tree.is_effectively_visible(*figure).hash(&mut hasher);
             }
             DependencySubject::RelativeTransform(from, to) => {
                 if let Ok(transform) = self.transform(*from, *to) {
