@@ -14,6 +14,7 @@
 | 2 | P2-C02 | 障碍感知 shortest-path routing | `complete` | P2-C01 |
 | 3 | P2-F01 | ScalablePolygonFigure | `complete` | P2-C01 的 PointList envelope |
 | 4 | P2-T01 | TextFlow 第一阶段 | `complete` | M10.2、D4.4 |
+| 5 | P2-T02 | TextFlow immutable interaction geometry | `complete` | P2-T01 |
 
 状态只表示本页 delta 的执行进度：
 
@@ -30,12 +31,11 @@
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
-| 1 | P2-T02 | TextFlow immutable interaction geometry | `not_started` | P2-T01 |
-| 2 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `not_started` | P2-T02、G1-G5 |
+| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `not_started` | P2-T02、G1-G5 |
 
-本批次分成 Core 与 Editor 两个可独立验收的 delta。P2-T02 不引入 mutable editor
-state；P2-E02 不复制 shaping、caret 或 selection geometry。实施前先执行 P2-T02，
-再执行 P2-E02a headless session 和 P2-E02b Native/Web input bridge。
+P2-T02 已先行闭合且未引入 mutable editor state。下一步执行 P2-E02a headless
+session，再执行 P2-E02b Native/Web input bridge；P2-E02 不复制 shaping、caret 或
+selection geometry。
 
 ## Connection
 
@@ -216,7 +216,7 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
 
 ### P2-T02: TextFlow interaction geometry
 
-状态：`not_started`
+状态：`complete`
 
 `api_semantics`：`text.interaction`
 
@@ -249,6 +249,15 @@ IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
 - `doc/design/editor/p2-direct-text-edit.md`
 - `doc/verification/plans/p2-text-direct-edit.md`
 - `doc/parity/draw2d/api-coverage.md`
+
+完成证据（2026-09-29）：
+
+- `TextLayout` 通过 backend-neutral `TextInteractionProvider` 携带 interaction map；
+- Parley cursor/selection/cluster 数据被收口为 Novadraw position、caret 与 quad；
+- TextFlow 提供 paragraph-local UTF-8 position，并区分 fragment 内换行与 paragraph；
+- position 绑定 layout revision，旧位置在 relayout 后结构化拒绝；
+- Runtime query 完成 local/surface transform，查询不产生 validation 或 damage；
+- `cargo xtask verify core.p2-t02-text-interaction` 通过。
 
 ## Rendering
 

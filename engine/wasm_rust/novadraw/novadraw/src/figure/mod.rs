@@ -43,7 +43,8 @@ pub use scalable_polygon::{
     PolygonScaleMode, ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure,
 };
 pub use text_flow::{
-    FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment, TextFlowBehavior, TextFlowFigure,
+    FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, InlineTextFragment,
+    TextFlowBehavior, TextFlowFigure,
 };
 pub use triangle::{Direction, TriangleFigure};
 pub use widget::{

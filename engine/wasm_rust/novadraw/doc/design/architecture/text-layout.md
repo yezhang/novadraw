@@ -4,7 +4,7 @@
 
 状态：`accepted`
 
-范围：M10.2
+范围：M10.2、P2-T01、P2-T02
 
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)。
@@ -341,8 +341,8 @@ direct editing、inline embedded Figure 和跨 paragraph selection。这些能�
 
 `TextFlowFigure` 仍不保存 mutable caret、selection、draft 或 composition。默认 Parley
 engine 可以使用其 editing/cluster 能力生成 interaction map，但公共类型和外部 engine
-构造入口必须由 Novadraw 定义。非法 UTF-8 boundary、不可见 truncated position 与
-stale layout revision 返回结构化错误，不得 clamp 或重新用平均字符宽度测量。
+provider 契约必须由 Novadraw 定义。非法 UTF-8 boundary、不可见 truncated position
+与 stale layout revision 返回结构化错误，不得 clamp 或重新用平均字符宽度测量。
 
 Editor direct-edit session、应用模型 Command 与 Native/Web IME bridge 属于 P2-E02，
 规范见
@@ -385,7 +385,7 @@ Editor direct-edit session、应用模型 Command 与 Native/Web IME bridge 属�
 
 ### P2-T02 Text Interaction Geometry
 
-- immutable interaction map 与受检外部构造入口；
+- immutable interaction map 与受检外部 provider 入口；
 - document position、affinity、caret 与 selection geometry；
 - cluster/word/line/paragraph movement；
 - UTF-8、grapheme、bidi、wrap、truncate 与 transform contract suite。

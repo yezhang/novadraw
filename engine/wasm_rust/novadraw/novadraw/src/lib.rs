@@ -81,13 +81,13 @@ pub use figure::{
     ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
     EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowWrapping, Freeform,
-    HitParticipation, ImageDisplayState, ImageFigure, InlineTextFragment, LabelFigure, Layer,
-    MeasureConstraints, MeasureConstraintsError, PointListFigureBehavior, PolygonFigure,
-    PolygonScaleMode, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
-    ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure, Shape,
-    ShapeMutationError, TextFlowBehavior, TextFlowFigure, TextPlacement, ToggleFigure,
-    TriangleFigure, WidgetError,
+    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowTextPosition,
+    FlowTextRange, FlowWrapping, Freeform, HitParticipation, ImageDisplayState, ImageFigure,
+    InlineTextFragment, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
+    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
+    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
+    ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior, TextFlowFigure,
+    TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub use graph::{
@@ -106,8 +106,10 @@ pub use layout::{
     XYLayout,
 };
 pub use render::{
-    BackendCapabilities, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend, RenderCapability,
-    RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceSync, SurfaceInfo,
+    BackendCapabilities, CaretGeometry, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend,
+    RenderCapability, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceSync,
+    SelectionQuad, SurfaceInfo, TextAffinity, TextInteractionError, TextInteractionMap,
+    TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition, TextRange,
     UnsupportedRenderCapability,
 };
 pub use runtime::context::{EventContext, SceneDispatchContext};
@@ -136,9 +138,9 @@ pub use runtime::{
     FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError, ImageId,
     InteractionState, LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate,
     ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
-    ScaleEditor, ScrollPaneEditor, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor, ZoomEditor,
-    place_tooltip,
+    ScaleEditor, ScrollPaneEditor, TextFlowQueryError, TimeError, TooltipPlacement, TooltipSide,
+    TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor,
+    ZoomEditor, place_tooltip,
 };
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

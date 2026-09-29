@@ -2,7 +2,7 @@
 
 类型：`verification-plan`
 
-状态：`planned`
+状态：`in_progress`（P2-T02 complete，P2-E02 planned）
 
 范围：P2-T02、P2-E02
 
@@ -11,14 +11,14 @@
 - [`../../design/editor/p2-direct-text-edit.md`](../../design/editor/p2-direct-text-edit.md)
 - [`../../design/architecture/text-layout.md`](../../design/architecture/text-layout.md)
 
-本页只定义完成证据。实现开始后再把实际 command 和 suite 注册到
-`verification/suites.toml`，避免仓库出现不可执行的占位门禁。
+本页定义完成证据。P2-T02 的实际 command 和 suite 已注册到
+`verification/suites.toml`；P2-E02 仍不注册不可执行的占位门禁。
 
 ## 1. 计划 Suite
 
 | Suite ID | 层 | 平台 | 目标 |
 |---|---|---|---|
-| `core.p2-t02-text-interaction` | contract | headless | 文档位置、caret、selection 与 movement 几何 |
+| `core.p2-t02-text-interaction` | contract | headless | `complete`：文档位置、caret、selection 与 movement 几何 |
 | `editor.p2-e02-direct-text-edit` | contract/application | headless | session、draft、policy、Command 与 cleanup |
 | `platform.p2-e02-text-input` | platform/application | native-macos、web | IME、候选窗、DOM input bridge 与 replay |
 
@@ -35,7 +35,7 @@
 7. truncate 后不可见位置拒绝，visible range 仍可稳定定位；
 8. nested transform、viewport scroll/zoom 后 local 到 surface caret rectangle；
 9. 相同 layout/revision 查询确定，纯查询不产生 validation 或 damage；
-10. 外部 TextLayoutEngine 的 interaction-map parts 校验与非 Parley 实现路径。
+10. 外部 TextLayoutEngine 的 `TextInteractionProvider` 校验与非 Parley 实现路径。
 
 ## 3. Editor 契约矩阵
 

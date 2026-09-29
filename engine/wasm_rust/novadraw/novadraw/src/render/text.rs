@@ -4,13 +4,20 @@ use std::fmt;
 use std::ops::Range;
 use std::sync::Arc;
 
-use parley::{FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty};
+use parley::{
+    FontContext, FontFamily, Layout, LayoutContext, PositionedLayoutItem, StyleProperty,
+    editing::{Cursor, Selection},
+    layout::Affinity as ParleyAffinity,
+};
+use unicode_segmentation::UnicodeSegmentation;
 
-use crate::ResourceId;
+use crate::{Point, Rectangle, ResourceId};
 
 const DEFAULT_FONT_FAMILY: &str = "Inter Variable";
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const DEFAULT_FONT_WEIGHT: f32 = 400.0;
+const FNV_1A_64_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
+const FNV_1A_64_PRIME: u64 = 0x0000_0100_0000_01b3;
 const INTER_FONT: &[u8] = include_bytes!("../../../assets/fonts/InterVariable.ttf");
 const NOTO_SANS_SC_FONT: &[u8] = include_bytes!("../../../assets/fonts/NotoSansSC-VF.ttf");
 const JETBRAINS_MONO_FONT: &[u8] =
@@ -176,6 +183,348 @@ pub struct TextLineMetrics {
     pub advance: f32,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum TextAffinity {
+    Upstream,
+    #[default]
+    Downstream,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct TextLayoutRevision(u64);
+
+impl TextLayoutRevision {
+    pub const fn get(self) -> u64 {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct TextPosition {
+    byte_offset: usize,
+    affinity: TextAffinity,
+    layout_revision: Option<TextLayoutRevision>,
+}
+
+impl TextPosition {
+    pub const fn new(byte_offset: usize, affinity: TextAffinity) -> Self {
+        Self {
+            byte_offset,
+            affinity,
+            layout_revision: None,
+        }
+    }
+
+    pub const fn byte_offset(self) -> usize {
+        self.byte_offset
+    }
+
+    pub const fn affinity(self) -> TextAffinity {
+        self.affinity
+    }
+
+    pub const fn layout_revision(self) -> Option<TextLayoutRevision> {
+        self.layout_revision
+    }
+
+    pub const fn with_layout_revision(self, layout_revision: TextLayoutRevision) -> Self {
+        Self {
+            layout_revision: Some(layout_revision),
+            ..self
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct TextRange {
+    anchor: TextPosition,
+    focus: TextPosition,
+}
+
+impl TextRange {
+    pub const fn new(anchor: TextPosition, focus: TextPosition) -> Self {
+        Self { anchor, focus }
+    }
+
+    pub const fn anchor(self) -> TextPosition {
+        self.anchor
+    }
+
+    pub const fn focus(self) -> TextPosition {
+        self.focus
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum TextMovement {
+    PreviousVisual,
+    NextVisual,
+    PreviousWord,
+    NextWord,
+    PreviousLine,
+    NextLine,
+    LineStart,
+    LineEnd,
+    ParagraphStart,
+    ParagraphEnd,
+    DocumentStart,
+    DocumentEnd,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct CaretGeometry {
+    bounds: Rectangle,
+    line_index: usize,
+}
+
+impl CaretGeometry {
+    pub const fn new(bounds: Rectangle, line_index: usize) -> Self {
+        Self { bounds, line_index }
+    }
+
+    pub const fn bounds(self) -> Rectangle {
+        self.bounds
+    }
+
+    pub const fn line_index(self) -> usize {
+        self.line_index
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct SelectionQuad {
+    bounds: Rectangle,
+    line_index: usize,
+}
+
+impl SelectionQuad {
+    pub const fn new(bounds: Rectangle, line_index: usize) -> Self {
+        Self { bounds, line_index }
+    }
+
+    pub const fn bounds(self) -> Rectangle {
+        self.bounds
+    }
+
+    pub const fn line_index(self) -> usize {
+        self.line_index
+    }
+}
+
+pub trait TextInteractionProvider: Send + Sync {
+    fn text_len(&self) -> usize;
+
+    fn hit_test(&self, point: Point) -> Result<TextPosition, TextInteractionError>;
+
+    fn caret_geometry(&self, position: TextPosition)
+    -> Result<CaretGeometry, TextInteractionError>;
+
+    fn selection_geometry(
+        &self,
+        range: TextRange,
+    ) -> Result<Vec<SelectionQuad>, TextInteractionError>;
+
+    fn move_position(
+        &self,
+        position: TextPosition,
+        movement: TextMovement,
+    ) -> Result<TextPosition, TextInteractionError>;
+}
+
+#[derive(Clone)]
+pub struct TextInteractionMap {
+    source: Arc<str>,
+    visible_range: Range<usize>,
+    revision: TextLayoutRevision,
+    provider: Arc<dyn TextInteractionProvider>,
+}
+
+impl fmt::Debug for TextInteractionMap {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("TextInteractionMap")
+            .field("source", &self.source)
+            .field("visible_range", &self.visible_range)
+            .field("revision", &self.revision)
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for TextInteractionMap {
+    fn eq(&self, other: &Self) -> bool {
+        self.source == other.source
+            && self.visible_range == other.visible_range
+            && self.revision == other.revision
+    }
+}
+
+impl TextInteractionMap {
+    pub fn new(
+        source: impl Into<Arc<str>>,
+        provider: Arc<dyn TextInteractionProvider>,
+    ) -> Result<Self, TextInteractionError> {
+        let source = source.into();
+        if provider.text_len() != source.len() {
+            return Err(TextInteractionError::ProviderTextMismatch);
+        }
+        let visible_range = 0..source.len();
+        Ok(Self {
+            revision: source_revision(&source),
+            source,
+            visible_range,
+            provider,
+        })
+    }
+
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+
+    pub fn visible_range(&self) -> Range<usize> {
+        self.visible_range.clone()
+    }
+
+    pub const fn revision(&self) -> TextLayoutRevision {
+        self.revision
+    }
+
+    pub fn hit_test(&self, point: Point) -> Result<TextPosition, TextInteractionError> {
+        if !point.x().is_finite() || !point.y().is_finite() {
+            return Err(TextInteractionError::NonFinitePoint);
+        }
+        let position = self.normalize_provider_position(self.provider.hit_test(point)?, None);
+        let position = if position.byte_offset > self.visible_range.end {
+            TextPosition::new(self.visible_range.end, TextAffinity::Upstream)
+        } else {
+            position
+        };
+        self.validate_position(position)?;
+        Ok(position.with_layout_revision(self.revision))
+    }
+
+    pub fn caret_geometry(
+        &self,
+        position: TextPosition,
+    ) -> Result<CaretGeometry, TextInteractionError> {
+        self.validate_position(position)?;
+        let geometry = self.provider.caret_geometry(position)?;
+        validate_interaction_rectangle(geometry.bounds)?;
+        Ok(geometry)
+    }
+
+    pub fn selection_geometry(
+        &self,
+        range: TextRange,
+    ) -> Result<Vec<SelectionQuad>, TextInteractionError> {
+        self.validate_position(range.anchor)?;
+        self.validate_position(range.focus)?;
+        let quads = self.provider.selection_geometry(range)?;
+        for quad in &quads {
+            validate_interaction_rectangle(quad.bounds)?;
+        }
+        Ok(quads)
+    }
+
+    pub fn move_position(
+        &self,
+        position: TextPosition,
+        movement: TextMovement,
+    ) -> Result<TextPosition, TextInteractionError> {
+        self.validate_position(position)?;
+        let moved = match movement {
+            TextMovement::ParagraphStart => {
+                let start = self.source[..position.byte_offset]
+                    .rfind('\n')
+                    .map_or(0, |index| index + 1);
+                TextPosition::new(start, TextAffinity::Downstream)
+            }
+            TextMovement::ParagraphEnd => {
+                let end = self.source[position.byte_offset..]
+                    .find('\n')
+                    .map_or(self.source.len(), |index| position.byte_offset + index);
+                TextPosition::new(end, TextAffinity::Upstream)
+            }
+            TextMovement::DocumentStart => TextPosition::new(0, TextAffinity::Downstream),
+            TextMovement::DocumentEnd => {
+                TextPosition::new(self.visible_range.end, TextAffinity::Upstream)
+            }
+            _ => self.normalize_provider_position(
+                self.provider.move_position(position, movement)?,
+                Some(position),
+            ),
+        };
+        let moved = if moved.byte_offset > self.visible_range.end {
+            TextPosition::new(self.visible_range.end, TextAffinity::Upstream)
+        } else {
+            moved
+        };
+        self.validate_position(moved)?;
+        Ok(moved.with_layout_revision(self.revision))
+    }
+
+    fn validate_position(&self, position: TextPosition) -> Result<(), TextInteractionError> {
+        if position
+            .layout_revision
+            .is_some_and(|revision| revision != self.revision)
+        {
+            return Err(TextInteractionError::StaleTextLayoutRevision);
+        }
+        if position.byte_offset > self.source.len()
+            || !is_grapheme_boundary(&self.source, position.byte_offset)
+        {
+            return Err(TextInteractionError::InvalidTextPosition);
+        }
+        if position.byte_offset < self.visible_range.start
+            || position.byte_offset > self.visible_range.end
+        {
+            return Err(TextInteractionError::InvisibleTextPosition);
+        }
+        Ok(())
+    }
+
+    fn normalize_provider_position(
+        &self,
+        position: TextPosition,
+        origin: Option<TextPosition>,
+    ) -> TextPosition {
+        if is_grapheme_boundary(&self.source, position.byte_offset) {
+            return position;
+        }
+        let move_forward = origin.map_or(position.affinity == TextAffinity::Upstream, |origin| {
+            position.byte_offset >= origin.byte_offset
+        });
+        let boundary = if move_forward {
+            grapheme_boundaries(&self.source)
+                .find(|boundary| *boundary >= position.byte_offset)
+                .unwrap_or(self.source.len())
+        } else {
+            grapheme_boundaries(&self.source)
+                .take_while(|boundary| *boundary <= position.byte_offset)
+                .last()
+                .unwrap_or(0)
+        };
+        TextPosition::new(boundary, position.affinity)
+    }
+
+    fn with_visibility(
+        mut self,
+        source: Arc<str>,
+        visible_range: Range<usize>,
+    ) -> Result<Self, TextInteractionError> {
+        validate_interaction_visible_range(&source, &visible_range)?;
+        if visible_range.end > self.provider.text_len() {
+            return Err(TextInteractionError::ProviderTextMismatch);
+        }
+        self.source = source;
+        self.visible_range = visible_range;
+        Ok(self)
+    }
+
+    fn bind_revision(&mut self, revision: TextLayoutRevision) {
+        self.revision = revision;
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FontFaceRef {
     resource_id: ResourceId,
@@ -234,6 +583,7 @@ pub struct TextLayout {
     height: f32,
     lines: Vec<TextLineMetrics>,
     glyph_runs: Vec<GlyphRun>,
+    interaction: Option<Arc<TextInteractionMap>>,
     visible_range: Range<usize>,
     truncated: bool,
     key: TextLayoutKey,
@@ -326,6 +676,7 @@ impl TextLayout {
             height: parts.height,
             lines: parts.lines,
             glyph_runs: parts.glyph_runs,
+            interaction: None,
             visible_range: parts.visible_range,
             truncated: parts.truncated,
             key: TextLayoutKey {
@@ -355,6 +706,56 @@ impl TextLayout {
 
     pub fn glyph_runs(&self) -> &[GlyphRun] {
         &self.glyph_runs
+    }
+
+    pub fn with_interaction_map(
+        mut self,
+        mut interaction: TextInteractionMap,
+    ) -> Result<Self, TextError> {
+        if interaction.source() != self.key.text() {
+            return Err(TextError::InvalidInteractionMap);
+        }
+        interaction.bind_revision(self.interaction_revision());
+        self.interaction = Some(Arc::new(interaction));
+        Ok(self)
+    }
+
+    pub fn interaction_map(&self) -> Option<&TextInteractionMap> {
+        self.interaction.as_deref()
+    }
+
+    pub fn hit_test_text(&self, point: Point) -> Result<TextPosition, TextInteractionError> {
+        self.interaction_map()
+            .ok_or(TextInteractionError::Unavailable)?
+            .hit_test(point)
+    }
+
+    pub fn caret_geometry(
+        &self,
+        position: TextPosition,
+    ) -> Result<CaretGeometry, TextInteractionError> {
+        self.interaction_map()
+            .ok_or(TextInteractionError::Unavailable)?
+            .caret_geometry(position)
+    }
+
+    pub fn selection_geometry(
+        &self,
+        range: TextRange,
+    ) -> Result<Vec<SelectionQuad>, TextInteractionError> {
+        self.interaction_map()
+            .ok_or(TextInteractionError::Unavailable)?
+            .selection_geometry(range)
+    }
+
+    pub fn move_text_position(
+        &self,
+        position: TextPosition,
+        movement: TextMovement,
+    ) -> Result<TextPosition, TextInteractionError> {
+        self.interaction_map()
+            .ok_or(TextInteractionError::Unavailable)?
+            .move_position(position, movement)
     }
 
     pub fn visible_range(&self) -> Range<usize> {
@@ -397,12 +798,65 @@ impl TextLayout {
         TextConstraints::new(constraints.max_width)?;
         validate_metric(full_width)?;
         validate_visible_range(&source, &visible_range, truncated)?;
-        self.key.text = source;
+        self.key.text = Arc::clone(&source);
         self.key.constraints = constraints;
         self.visible_range = visible_range;
         self.truncated = truncated;
         self.full_width = full_width;
+        if let Some(interaction) = self.interaction.take() {
+            let mut interaction = (*interaction)
+                .clone()
+                .with_visibility(source, self.visible_range.clone())
+                .map_err(|_| TextError::InvalidInteractionMap)?;
+            interaction.bind_revision(self.interaction_revision());
+            self.interaction = Some(Arc::new(interaction));
+        }
         Ok(self)
+    }
+
+    fn interaction_revision(&self) -> TextLayoutRevision {
+        let mut revision = source_revision(self.key.text());
+        mix_revision(&mut revision, self.key.engine_revision().to_le_bytes());
+        mix_revision(
+            &mut revision,
+            self.key.font().family.as_bytes().iter().copied(),
+        );
+        mix_revision(&mut revision, self.key.font().size.to_bits().to_le_bytes());
+        mix_revision(
+            &mut revision,
+            self.key.font().weight.to_bits().to_le_bytes(),
+        );
+        mix_revision(
+            &mut revision,
+            [match self.key.font().style {
+                FontStyle::Normal => 0,
+                FontStyle::Italic => 1,
+                FontStyle::Oblique => 2,
+            }],
+        );
+        mix_revision(&mut revision, self.width.to_bits().to_le_bytes());
+        mix_revision(&mut revision, self.full_width.to_bits().to_le_bytes());
+        mix_revision(&mut revision, self.height.to_bits().to_le_bytes());
+        mix_revision(
+            &mut revision,
+            self.key
+                .constraints()
+                .max_width
+                .map(f32::to_bits)
+                .unwrap_or(u32::MAX)
+                .to_le_bytes(),
+        );
+        mix_revision(&mut revision, self.visible_range.start.to_le_bytes());
+        mix_revision(&mut revision, self.visible_range.end.to_le_bytes());
+        mix_revision(&mut revision, [u8::from(self.truncated)]);
+        for line in &self.lines {
+            mix_revision(&mut revision, line.ascent.to_bits().to_le_bytes());
+            mix_revision(&mut revision, line.descent.to_bits().to_le_bytes());
+            mix_revision(&mut revision, line.leading.to_bits().to_le_bytes());
+            mix_revision(&mut revision, line.baseline.to_bits().to_le_bytes());
+            mix_revision(&mut revision, line.advance.to_bits().to_le_bytes());
+        }
+        revision
     }
 }
 
@@ -414,6 +868,7 @@ pub enum TextError {
     InvalidMetric,
     InvalidVisibleRange,
     InvalidGlyphRun,
+    InvalidInteractionMap,
     NoUsableFont,
 }
 
@@ -434,12 +889,50 @@ impl fmt::Display for TextError {
             Self::InvalidGlyphRun => {
                 formatter.write_str("glyph run metrics must be finite and font size positive")
             }
+            Self::InvalidInteractionMap => {
+                formatter.write_str("text interaction map does not match the text layout")
+            }
             Self::NoUsableFont => formatter.write_str("no usable font was found for the text"),
         }
     }
 }
 
 impl Error for TextError {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TextInteractionError {
+    Unavailable,
+    InvalidParagraph,
+    InvalidTextPosition,
+    InvisibleTextPosition,
+    StaleTextLayoutRevision,
+    NonFinitePoint,
+    InvalidGeometry,
+    ProviderTextMismatch,
+}
+
+impl fmt::Display for TextInteractionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unavailable => formatter.write_str("text interaction data is unavailable"),
+            Self::InvalidParagraph => formatter.write_str("text paragraph is invalid"),
+            Self::InvalidTextPosition => formatter.write_str("text position is invalid"),
+            Self::InvisibleTextPosition => formatter.write_str("text position is not visible"),
+            Self::StaleTextLayoutRevision => {
+                formatter.write_str("text position belongs to a stale layout revision")
+            }
+            Self::NonFinitePoint => formatter.write_str("text hit-test point must be finite"),
+            Self::InvalidGeometry => {
+                formatter.write_str("text interaction geometry must be finite and non-negative")
+            }
+            Self::ProviderTextMismatch => {
+                formatter.write_str("text interaction provider does not match source text")
+            }
+        }
+    }
+}
+
+impl Error for TextInteractionError {}
 
 fn validate_metric(value: f32) -> Result<(), TextError> {
     if value.is_finite() && value >= 0.0 {
@@ -472,6 +965,169 @@ fn validate_visible_range(
     } else {
         Err(TextError::InvalidVisibleRange)
     }
+}
+
+fn validate_interaction_visible_range(
+    text: &str,
+    visible_range: &Range<usize>,
+) -> Result<(), TextInteractionError> {
+    if visible_range.start <= visible_range.end
+        && visible_range.end <= text.len()
+        && text.is_char_boundary(visible_range.start)
+        && text.is_char_boundary(visible_range.end)
+    {
+        Ok(())
+    } else {
+        Err(TextInteractionError::InvalidTextPosition)
+    }
+}
+
+fn grapheme_boundaries(text: &str) -> impl Iterator<Item = usize> + '_ {
+    text.grapheme_indices(true)
+        .map(|(index, _)| index)
+        .chain(std::iter::once(text.len()))
+}
+
+fn source_revision(text: &str) -> TextLayoutRevision {
+    let mut revision = TextLayoutRevision(FNV_1A_64_OFFSET_BASIS);
+    mix_revision(&mut revision, text.as_bytes().iter().copied());
+    revision
+}
+
+fn mix_revision(revision: &mut TextLayoutRevision, bytes: impl IntoIterator<Item = u8>) {
+    for byte in bytes {
+        revision.0 ^= u64::from(byte);
+        revision.0 = revision.0.wrapping_mul(FNV_1A_64_PRIME);
+    }
+}
+
+fn is_grapheme_boundary(text: &str, offset: usize) -> bool {
+    grapheme_boundaries(text).any(|boundary| boundary == offset)
+}
+
+fn validate_interaction_rectangle(rectangle: Rectangle) -> Result<(), TextInteractionError> {
+    if rectangle.x.is_finite()
+        && rectangle.y.is_finite()
+        && rectangle.width.is_finite()
+        && rectangle.height.is_finite()
+        && rectangle.width >= 0.0
+        && rectangle.height >= 0.0
+    {
+        Ok(())
+    } else {
+        Err(TextInteractionError::InvalidGeometry)
+    }
+}
+
+#[derive(Clone)]
+struct ParleyTextInteraction {
+    layout: Layout<()>,
+    text_len: usize,
+}
+
+impl TextInteractionProvider for ParleyTextInteraction {
+    fn text_len(&self) -> usize {
+        self.text_len
+    }
+
+    fn hit_test(&self, point: Point) -> Result<TextPosition, TextInteractionError> {
+        let cursor = Cursor::from_point(&self.layout, point.x() as f32, point.y() as f32);
+        Ok(text_position_from_parley(cursor))
+    }
+
+    fn caret_geometry(
+        &self,
+        position: TextPosition,
+    ) -> Result<CaretGeometry, TextInteractionError> {
+        let cursor = parley_cursor(&self.layout, position)?;
+        let bounds = cursor.geometry(&self.layout, 0.0);
+        let midpoint = ((bounds.y0 + bounds.y1) * 0.5) as f32;
+        let line_index = self
+            .layout
+            .lines()
+            .position(|line| {
+                let metrics = line.metrics();
+                midpoint >= metrics.min_coord && midpoint <= metrics.max_coord
+            })
+            .unwrap_or_else(|| self.layout.len().saturating_sub(1));
+        Ok(CaretGeometry::new(
+            Rectangle::new(bounds.x0, bounds.y0, bounds.width(), bounds.height()),
+            line_index,
+        ))
+    }
+
+    fn selection_geometry(
+        &self,
+        range: TextRange,
+    ) -> Result<Vec<SelectionQuad>, TextInteractionError> {
+        let anchor = parley_cursor(&self.layout, range.anchor)?;
+        let focus = parley_cursor(&self.layout, range.focus)?;
+        Ok(Selection::new(anchor, focus)
+            .geometry(&self.layout)
+            .into_iter()
+            .map(|(bounds, line_index)| {
+                SelectionQuad::new(
+                    Rectangle::new(bounds.x0, bounds.y0, bounds.width(), bounds.height()),
+                    line_index,
+                )
+            })
+            .collect())
+    }
+
+    fn move_position(
+        &self,
+        position: TextPosition,
+        movement: TextMovement,
+    ) -> Result<TextPosition, TextInteractionError> {
+        let cursor = parley_cursor(&self.layout, position)?;
+        let selection = Selection::new(cursor, cursor);
+        let moved = match movement {
+            TextMovement::PreviousVisual => selection.previous_visual(&self.layout, false),
+            TextMovement::NextVisual => selection.next_visual(&self.layout, false),
+            TextMovement::PreviousWord => selection.previous_visual_word(&self.layout, false),
+            TextMovement::NextWord => selection.next_visual_word(&self.layout, false),
+            TextMovement::PreviousLine => selection.previous_line(&self.layout, false),
+            TextMovement::NextLine => selection.next_line(&self.layout, false),
+            TextMovement::LineStart => selection.line_start(&self.layout, false),
+            TextMovement::LineEnd => selection.line_end(&self.layout, false),
+            TextMovement::ParagraphStart
+            | TextMovement::ParagraphEnd
+            | TextMovement::DocumentStart
+            | TextMovement::DocumentEnd => {
+                return Err(TextInteractionError::InvalidTextPosition);
+            }
+        };
+        Ok(text_position_from_parley(moved.focus()))
+    }
+}
+
+fn parley_cursor(
+    layout: &Layout<()>,
+    position: TextPosition,
+) -> Result<Cursor, TextInteractionError> {
+    let cursor = Cursor::from_byte_index(
+        layout,
+        position.byte_offset,
+        match position.affinity {
+            TextAffinity::Upstream => ParleyAffinity::Upstream,
+            TextAffinity::Downstream => ParleyAffinity::Downstream,
+        },
+    );
+    if cursor.index() == position.byte_offset {
+        Ok(cursor)
+    } else {
+        Err(TextInteractionError::InvalidTextPosition)
+    }
+}
+
+fn text_position_from_parley(cursor: Cursor) -> TextPosition {
+    TextPosition::new(
+        cursor.index(),
+        match cursor.affinity() {
+            ParleyAffinity::Upstream => TextAffinity::Upstream,
+            ParleyAffinity::Downstream => TextAffinity::Downstream,
+        },
+    )
 }
 
 pub trait TextLayoutEngine {
@@ -682,19 +1338,32 @@ impl TextLayoutEngine for ParleyTextEngine {
             return Err(TextError::NoUsableFont);
         }
 
+        let width = layout.width();
+        let full_width = layout.full_width();
+        let height = layout.height();
+        let interaction = TextInteractionMap::new(
+            text,
+            Arc::new(ParleyTextInteraction {
+                layout,
+                text_len: text.len(),
+            }),
+        )
+        .map_err(|_| TextError::InvalidInteractionMap)?;
+
         TextLayout::from_parts(TextLayoutParts {
             text: text.to_owned(),
             font: font.clone(),
             constraints,
             engine_revision: self.revision,
-            width: layout.width(),
-            full_width: layout.full_width(),
-            height: layout.height(),
+            width,
+            full_width,
+            height,
             lines,
             glyph_runs,
             visible_range: 0..text.len(),
             truncated: false,
         })
+        .and_then(|layout| layout.with_interaction_map(interaction))
     }
 }
 

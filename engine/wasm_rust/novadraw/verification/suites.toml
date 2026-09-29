@@ -200,6 +200,17 @@ args = [
   "p2_t01_text_flow_contract",
 ]
 
+[commands."test.p2-t02"]
+description = "Run TextFlow document-position and interaction geometry contracts"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "p2_t02_text_interaction_contract",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -528,6 +539,28 @@ documents = [
   "doc/verification/manual/advanced-figures.md",
 ]
 manual = { command = "native.advanced-figures", document = "doc/verification/manual/advanced-figures.md" }
+
+[[suites]]
+id = "core.p2-t02-text-interaction"
+title = "TextFlow document-position and interaction geometry"
+milestone = "P2-T02"
+kind = "contract"
+layers = ["contract"]
+platforms = ["host", "headless"]
+commands = ["test.p2-t02"]
+paths = [
+  "novadraw/src/render/text.rs",
+  "novadraw/src/figure/text_flow.rs",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/tests/p2_t02_text_interaction_contract.rs",
+]
+documents = [
+  "doc/design/architecture/text-layout.md",
+  "doc/design/editor/p2-direct-text-edit.md",
+  "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/plans/p2-text-direct-edit.md",
+  "doc/verification/reviews/p2-text-interaction-2026-09-29.md",
+]
 
 [[suites]]
 id = "workspace.quality"

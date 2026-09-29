@@ -59,8 +59,9 @@ P2-R02 image source rectangle 已于 2026-09-29 完成。
 P2-C01 Connection decoration、P2-C02 shortest-path routing、P2-F01
 ScalablePolygonFigure 与 P2-T01 TextFlow 第一阶段已于 2026-09-29 完成自动门禁和
 macOS Native/Vello 人工验收。下一批已规划 P2-T02 TextFlow interaction geometry 与
-P2-E02 direct text edit/IME，状态均为 `not_started`，须按 Core 几何、Editor session、
-Native/Web bridge 的顺序实施。FigureInspector、Studio 与高级 self-loop 策略继续后置。
+P2-E02 direct text edit/IME；P2-T02 已完成，下一执行项为 P2-E02a Editor session，
+随后实施 P2-E02b Native/Web bridge。FigureInspector、Studio 与高级 self-loop 策略
+继续后置。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发从 ADR-020 的基础值与公开渲染契约整改继续。原 G6 的产品 schema、

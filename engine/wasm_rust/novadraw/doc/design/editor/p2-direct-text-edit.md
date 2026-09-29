@@ -109,8 +109,9 @@ P2-T02 为每个可交互 `TextLayout` 生成不可变 `TextInteractionMap`。�
 - visible/truncated range 与 layout revision。
 
 默认 Parley engine 可以消费其 editing/cluster 能力生成该 map，但公开 API 只暴露
-Novadraw 类型。外部 `TextLayoutEngine` 必须通过受检的 parts 构造同等 map；不能返回
-可绘制 layout 却在交互查询时静默退回平均字符宽度。
+Novadraw 类型。外部 `TextLayoutEngine` 必须通过受检的
+`TextInteractionProvider` 构造同等 map；不能返回可绘制 layout 却在交互查询时静默
+退回平均字符宽度。
 
 Core 提供只读查询：
 

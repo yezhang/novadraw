@@ -1,8 +1,12 @@
 use unicode_segmentation::UnicodeSegmentation;
 
-use crate::geometry::Rectangle;
+use std::ops::Range;
+
+use crate::geometry::{Point, Rectangle};
 use crate::render::{
-    FontDescriptor, NdCanvas, TextConstraints, TextError, TextLayout, TextLayoutEngine,
+    CaretGeometry, FontDescriptor, NdCanvas, SelectionQuad, TextAffinity, TextConstraints,
+    TextError, TextInteractionError, TextLayout, TextLayoutEngine, TextLayoutRevision,
+    TextMovement, TextPosition, TextRange,
 };
 use crate::{Figure, FigureMeasurement, FigureStyle, MeasureConstraints};
 
@@ -77,6 +81,86 @@ impl FlowPage {
             .collect::<Vec<_>>()
             .join("\n")
     }
+
+    fn paragraph_ranges(&self) -> Vec<Range<usize>> {
+        let mut offset = 0;
+        self.paragraphs
+            .iter()
+            .enumerate()
+            .map(|(index, paragraph)| {
+                let length = paragraph
+                    .fragments
+                    .iter()
+                    .map(|fragment| fragment.text.len())
+                    .sum::<usize>();
+                let range = offset..offset + length;
+                offset = range.end + usize::from(index + 1 < self.paragraphs.len());
+                range
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct FlowTextPosition {
+    paragraph: usize,
+    byte_offset: usize,
+    affinity: TextAffinity,
+    layout_revision: Option<TextLayoutRevision>,
+}
+
+impl FlowTextPosition {
+    pub const fn new(paragraph: usize, byte_offset: usize, affinity: TextAffinity) -> Self {
+        Self {
+            paragraph,
+            byte_offset,
+            affinity,
+            layout_revision: None,
+        }
+    }
+
+    pub const fn paragraph(self) -> usize {
+        self.paragraph
+    }
+
+    pub const fn byte_offset(self) -> usize {
+        self.byte_offset
+    }
+
+    pub const fn affinity(self) -> TextAffinity {
+        self.affinity
+    }
+
+    pub const fn layout_revision(self) -> Option<TextLayoutRevision> {
+        self.layout_revision
+    }
+
+    fn with_layout_revision(self, layout_revision: Option<TextLayoutRevision>) -> Self {
+        Self {
+            layout_revision,
+            ..self
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct FlowTextRange {
+    anchor: FlowTextPosition,
+    focus: FlowTextPosition,
+}
+
+impl FlowTextRange {
+    pub const fn new(anchor: FlowTextPosition, focus: FlowTextPosition) -> Self {
+        Self { anchor, focus }
+    }
+
+    pub const fn anchor(self) -> FlowTextPosition {
+        self.anchor
+    }
+
+    pub const fn focus(self) -> FlowTextPosition {
+        self.focus
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -102,6 +186,7 @@ struct FlowLayoutKey {
 struct FlowLayoutSnapshot {
     key: FlowLayoutKey,
     layout: TextLayout,
+    paragraph_ranges: Vec<Range<usize>>,
 }
 
 pub trait TextFlowBehavior {
@@ -138,6 +223,77 @@ impl TextFlowFigure {
 
     pub fn text_layout(&self) -> Option<&TextLayout> {
         self.layout.as_ref().map(|snapshot| &snapshot.layout)
+    }
+
+    pub fn hit_test_text(&self, point: Point) -> Result<FlowTextPosition, TextInteractionError> {
+        let snapshot = self
+            .layout
+            .as_ref()
+            .ok_or(TextInteractionError::Unavailable)?;
+        snapshot.flow_position_for_text(snapshot.layout.hit_test_text(point)?)
+    }
+
+    pub fn caret_geometry(
+        &self,
+        position: FlowTextPosition,
+    ) -> Result<CaretGeometry, TextInteractionError> {
+        let snapshot = self
+            .layout
+            .as_ref()
+            .ok_or(TextInteractionError::Unavailable)?;
+        snapshot
+            .layout
+            .caret_geometry(snapshot.to_text_position(position)?)
+    }
+
+    pub fn selection_geometry(
+        &self,
+        range: FlowTextRange,
+    ) -> Result<Vec<SelectionQuad>, TextInteractionError> {
+        let snapshot = self
+            .layout
+            .as_ref()
+            .ok_or(TextInteractionError::Unavailable)?;
+        snapshot.layout.selection_geometry(TextRange::new(
+            snapshot.to_text_position(range.anchor)?,
+            snapshot.to_text_position(range.focus)?,
+        ))
+    }
+
+    pub fn move_text_position(
+        &self,
+        position: FlowTextPosition,
+        movement: TextMovement,
+    ) -> Result<FlowTextPosition, TextInteractionError> {
+        let snapshot = self
+            .layout
+            .as_ref()
+            .ok_or(TextInteractionError::Unavailable)?;
+        let moved = match movement {
+            TextMovement::ParagraphStart => {
+                FlowTextPosition::new(position.paragraph, 0, TextAffinity::Downstream)
+            }
+            TextMovement::ParagraphEnd => {
+                let paragraph = snapshot
+                    .paragraph_ranges
+                    .get(position.paragraph)
+                    .ok_or(TextInteractionError::InvalidParagraph)?;
+                FlowTextPosition::new(position.paragraph, paragraph.len(), TextAffinity::Upstream)
+            }
+            _ => snapshot.flow_position_for_text(
+                snapshot
+                    .layout
+                    .move_text_position(snapshot.to_text_position(position)?, movement)?,
+            )?,
+        };
+        let revision = snapshot
+            .layout
+            .interaction_map()
+            .ok_or(TextInteractionError::Unavailable)?
+            .revision();
+        let moved = moved.with_layout_revision(Some(revision));
+        snapshot.to_text_position(moved)?;
+        Ok(moved)
     }
 
     pub(crate) fn refresh_layout(
@@ -177,10 +333,70 @@ impl TextFlowFigure {
             }
             _ => full,
         };
-        let next = FlowLayoutSnapshot { key, layout };
+        let next = FlowLayoutSnapshot {
+            key,
+            layout,
+            paragraph_ranges: self.page.paragraph_ranges(),
+        };
         let changed = self.layout.as_ref() != Some(&next);
         self.layout = Some(next);
         Ok(changed)
+    }
+}
+
+impl FlowLayoutSnapshot {
+    fn to_text_position(
+        &self,
+        position: FlowTextPosition,
+    ) -> Result<TextPosition, TextInteractionError> {
+        let range = self
+            .paragraph_ranges
+            .get(position.paragraph)
+            .ok_or(TextInteractionError::InvalidParagraph)?;
+        if position.byte_offset > range.len()
+            || !self
+                .layout
+                .key()
+                .text()
+                .is_char_boundary(range.start + position.byte_offset)
+        {
+            return Err(TextInteractionError::InvalidTextPosition);
+        }
+        let position_in_layout =
+            TextPosition::new(range.start + position.byte_offset, position.affinity);
+        Ok(position
+            .layout_revision
+            .map_or(position_in_layout, |revision| {
+                position_in_layout.with_layout_revision(revision)
+            }))
+    }
+
+    fn flow_position_for_text(
+        &self,
+        position: TextPosition,
+    ) -> Result<FlowTextPosition, TextInteractionError> {
+        let offset = position.byte_offset();
+        let Some((paragraph, range)) =
+            self.paragraph_ranges
+                .iter()
+                .enumerate()
+                .find(|(index, range)| {
+                    offset >= range.start
+                        && (offset < range.end
+                            || (offset == range.end
+                                && (*index + 1 == self.paragraph_ranges.len()
+                                    || self
+                                        .paragraph_ranges
+                                        .get(*index + 1)
+                                        .is_none_or(|next| offset < next.start))))
+                })
+        else {
+            return Err(TextInteractionError::InvalidTextPosition);
+        };
+        Ok(
+            FlowTextPosition::new(paragraph, offset - range.start, position.affinity())
+                .with_layout_revision(position.layout_revision()),
+        )
     }
 }
 

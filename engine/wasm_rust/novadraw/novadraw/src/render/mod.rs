@@ -41,9 +41,11 @@ pub use submission::{
     ResourceSnapshot, ResourceSync, ResourceUpdate, SurfaceInfo,
 };
 pub use text::{
-    BuiltinFont, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun, ParleyTextEngine,
-    PositionedGlyph, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
-    TextLayoutKey, TextLayoutParts, TextLineMetrics,
+    BuiltinFont, CaretGeometry, FontDescriptor, FontFaceRef, FontStyle, GlyphPaint, GlyphRun,
+    ParleyTextEngine, PositionedGlyph, SelectionQuad, TextAffinity, TextConstraints, TextEngine,
+    TextError, TextInteractionError, TextInteractionMap, TextInteractionProvider, TextLayout,
+    TextLayoutEngine, TextLayoutKey, TextLayoutParts, TextLayoutRevision, TextLineMetrics,
+    TextMovement, TextPosition, TextRange,
 };
 pub use traits::{
     BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,

@@ -5,9 +5,10 @@ use std::{
 };
 
 use crate::render::{
-    BackendCapabilities, BackendSessionId, BuiltinFont, DamageMode, FontData, FontDescriptor,
-    FrameId, ImageData, ImageDecodeError, NdCanvas, RenderOutcome, RenderSubmission, ResourceId,
-    ResourceSync, SurfaceInfo, TextConstraints, TextError, TextLayout, TextLayoutEngine,
+    BackendCapabilities, BackendSessionId, BuiltinFont, CaretGeometry, DamageMode, FontData,
+    FontDescriptor, FrameId, ImageData, ImageDecodeError, NdCanvas, RenderOutcome,
+    RenderSubmission, ResourceId, ResourceSync, SelectionQuad, SurfaceInfo, TextConstraints,
+    TextError, TextInteractionError, TextLayout, TextLayoutEngine, TextMovement,
     UnsupportedRenderCapability,
 };
 
@@ -15,7 +16,7 @@ use crate::PropertyValue;
 use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
-use crate::geometry::{Dimension, Point, PointList};
+use crate::geometry::{Dimension, Point, PointList, Translatable};
 use crate::mutation::{
     ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
     FigureComponentUpdate, PendingMutation, PendingMutationKind, RuntimeMutationError,
@@ -31,18 +32,19 @@ use crate::{
     ConnectionRouter, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
     CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction,
     EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree, FlowPage,
-    FlowWrapping, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
-    FocusTraversalPolicy, FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId,
-    InteractionState, Key, KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement,
-    LayeredPane, LayeredPaneHandle, LayoutConstraint, LayoutListener, LayoutManager, ListenerId,
-    ListenerScope, MonotonicTime, MouseButton, ObservationListener, PendingMutations,
-    PolygonScaleMode, PropertyChangeListener, Rectangle, ResourceError, ResourceRegistry,
-    ResourceStatus, RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId,
-    RoutingConstraint, ScaleHandle, SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle,
-    ShapeMutationError, StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError,
-    TooltipSnapshot, TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal,
-    UnresolvedConnection, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
-    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
+    FlowTextPosition, FlowTextRange, FlowWrapping, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
+    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
+    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
+    ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
+    ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput,
+    RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
+    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
+    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
+    TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection, UpdateEvent, UpdateListener,
+    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
+    ZoomManager,
 };
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
@@ -157,6 +159,43 @@ impl fmt::Display for LogicalViewportResizeError {
 }
 
 impl std::error::Error for LogicalViewportResizeError {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TextFlowQueryError {
+    UnknownFigure(FigureId),
+    WrongCapability(FigureId),
+    NonInvertibleTransform(FigureId),
+    Interaction(TextInteractionError),
+}
+
+impl fmt::Display for TextFlowQueryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownFigure(id) => write!(formatter, "unknown Figure: {id:?}"),
+            Self::WrongCapability(id) => {
+                write!(
+                    formatter,
+                    "Figure does not support TextFlow queries: {id:?}"
+                )
+            }
+            Self::NonInvertibleTransform(id) => {
+                write!(
+                    formatter,
+                    "Figure has no invertible surface transform: {id:?}"
+                )
+            }
+            Self::Interaction(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for TextFlowQueryError {}
+
+impl From<TextInteractionError> for TextFlowQueryError {
+    fn from(error: TextInteractionError) -> Self {
+        Self::Interaction(error)
+    }
+}
 
 /// Owns one scene and enforces its input, mutation, and update transaction boundaries.
 pub struct Runtime {
@@ -2790,6 +2829,80 @@ impl Runtime {
             .text_flow(id)
             .and_then(crate::TextFlowFigure::text_layout)
             .ok_or(ShapeMutationError::WrongCapability(id))
+    }
+
+    pub fn text_flow_hit_test(
+        &self,
+        id: FigureId,
+        surface_point: Point,
+    ) -> Result<FlowTextPosition, TextFlowQueryError> {
+        let flow = self.text_flow_for_query(id)?;
+        let transform = self
+            .tree
+            .surface_to_local_transform(id)
+            .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
+        flow.hit_test_text(transform.transform_point(surface_point))
+            .map_err(Into::into)
+    }
+
+    pub fn text_flow_caret_geometry(
+        &self,
+        id: FigureId,
+        position: FlowTextPosition,
+    ) -> Result<CaretGeometry, TextFlowQueryError> {
+        let flow = self.text_flow_for_query(id)?;
+        let mut geometry = flow.caret_geometry(position)?;
+        let transform = self
+            .tree
+            .local_to_surface_transform(id)
+            .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
+        let mut bounds = geometry.bounds();
+        bounds.transform(transform);
+        geometry = CaretGeometry::new(bounds, geometry.line_index());
+        Ok(geometry)
+    }
+
+    pub fn text_flow_selection_geometry(
+        &self,
+        id: FigureId,
+        range: FlowTextRange,
+    ) -> Result<Vec<SelectionQuad>, TextFlowQueryError> {
+        let flow = self.text_flow_for_query(id)?;
+        let transform = self
+            .tree
+            .local_to_surface_transform(id)
+            .ok_or(TextFlowQueryError::NonInvertibleTransform(id))?;
+        flow.selection_geometry(range)?
+            .into_iter()
+            .map(|quad| {
+                let mut bounds = quad.bounds();
+                bounds.transform(transform);
+                Ok(SelectionQuad::new(bounds, quad.line_index()))
+            })
+            .collect()
+    }
+
+    pub fn text_flow_move_position(
+        &self,
+        id: FigureId,
+        position: FlowTextPosition,
+        movement: TextMovement,
+    ) -> Result<FlowTextPosition, TextFlowQueryError> {
+        self.text_flow_for_query(id)?
+            .move_text_position(position, movement)
+            .map_err(Into::into)
+    }
+
+    fn text_flow_for_query(
+        &self,
+        id: FigureId,
+    ) -> Result<&crate::TextFlowFigure, TextFlowQueryError> {
+        if self.tree.figure_bounds(id).is_none() {
+            return Err(TextFlowQueryError::UnknownFigure(id));
+        }
+        self.tree
+            .text_flow(id)
+            .ok_or(TextFlowQueryError::WrongCapability(id))
     }
 
     pub fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {

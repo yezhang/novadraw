@@ -9,10 +9,11 @@ pub use crate::layout::{
 pub use crate::{
     Affine2D, BorderLayout, ButtonFigure, Color, Dimension, EllipseFigure, EndpointLocator, Figure,
     FigureId, FigureStyle, FigureTree, FigureTreeBuilder, FillLayout, FlowLayout, FlowPage,
-    FlowParagraph, FlowWrapping, FreeformLayout, GridLayout, ImageFigure, InlineTextFragment,
-    Insets, LabelFigure, LayoutManager, NdCanvas, PlatformHost, Point, PointList,
-    PolygonDecorationFigure, PolygonFigure, PolygonScaleMode, PolylineDecorationFigure,
-    PolylineFigure, Rectangle, RectangleFigure, RenderBackend, RoundedRectangleFigure, Runtime,
-    ScalablePolygonFigure, ShortestPathConnectionRouter, StackLayout, TextFlowFigure, ToggleFigure,
-    ToolbarLayout, TriangleFigure, Vec2, XYLayout,
+    FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, FreeformLayout, GridLayout,
+    ImageFigure, InlineTextFragment, Insets, LabelFigure, LayoutManager, NdCanvas, PlatformHost,
+    Point, PointList, PolygonDecorationFigure, PolygonFigure, PolygonScaleMode,
+    PolylineDecorationFigure, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
+    RoundedRectangleFigure, Runtime, ScalablePolygonFigure, ShortestPathConnectionRouter,
+    StackLayout, TextAffinity, TextFlowFigure, TextMovement, ToggleFigure, ToolbarLayout,
+    TriangleFigure, Vec2, XYLayout,
 };
