@@ -14,6 +14,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   驱动、坐标查询与结构化测量收口；ADR-019 已完成 detached 构造与挂载后 scoped
   editor 调用面收口；ADR-020 已完成 Graphics、Geometry 与基础值契约整改；
   ADR-021 已完成聚合 facade 与 backend feature 边界收口。
+- Core P2 delta：P2-R02 image source rectangle 已完成，状态见
+  [`roadmap/p2-delta-backlog.md`](roadmap/p2-delta-backlog.md)。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及

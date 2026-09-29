@@ -172,6 +172,8 @@ pub enum RenderCommandKind {
     Image {
         /// 精确的图像资源 revision。
         image: ImageResourceRef,
+        /// 图像资源物理像素域中的源矩形。
+        source_rect: Rectangle,
         /// 目标矩形。
         dest_rect: Rectangle,
         /// 绘制透明度
@@ -194,6 +196,89 @@ impl RenderCommandKind {
             _ => None,
         }
     }
+}
+
+/// Invalid geometry supplied to an image drawing operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ImageDrawError {
+    /// The source rectangle or one of its derived edges is not finite.
+    NonFiniteSource,
+    /// The destination rectangle or one of its derived edges is not finite.
+    NonFiniteDestination,
+    /// The source width or height is negative.
+    NegativeSourceExtent,
+    /// The destination width or height is negative.
+    NegativeDestinationExtent,
+    /// The non-empty source rectangle is outside the image's physical pixel bounds.
+    SourceOutOfBounds,
+}
+
+impl fmt::Display for ImageDrawError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NonFiniteSource => formatter.write_str("image source rectangle must be finite"),
+            Self::NonFiniteDestination => {
+                formatter.write_str("image destination rectangle must be finite")
+            }
+            Self::NegativeSourceExtent => {
+                formatter.write_str("image source width and height must not be negative")
+            }
+            Self::NegativeDestinationExtent => {
+                formatter.write_str("image destination width and height must not be negative")
+            }
+            Self::SourceOutOfBounds => {
+                formatter.write_str("image source rectangle must be within the image pixel bounds")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ImageDrawError {}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ImageDrawDisposition {
+    Draw,
+    NoOp,
+}
+
+pub(crate) fn validate_image_draw_geometry(
+    image_width: u32,
+    image_height: u32,
+    source_rect: Rectangle,
+    dest_rect: Rectangle,
+) -> Result<ImageDrawDisposition, ImageDrawError> {
+    if !rectangle_has_finite_bounds(source_rect) {
+        return Err(ImageDrawError::NonFiniteSource);
+    }
+    if !rectangle_has_finite_bounds(dest_rect) {
+        return Err(ImageDrawError::NonFiniteDestination);
+    }
+    if source_rect.width < 0.0 || source_rect.height < 0.0 {
+        return Err(ImageDrawError::NegativeSourceExtent);
+    }
+    if dest_rect.width < 0.0 || dest_rect.height < 0.0 {
+        return Err(ImageDrawError::NegativeDestinationExtent);
+    }
+    if source_rect.is_empty() || dest_rect.is_empty() {
+        return Ok(ImageDrawDisposition::NoOp);
+    }
+    if source_rect.x < 0.0
+        || source_rect.y < 0.0
+        || source_rect.x + source_rect.width > f64::from(image_width)
+        || source_rect.y + source_rect.height > f64::from(image_height)
+    {
+        return Err(ImageDrawError::SourceOutOfBounds);
+    }
+    Ok(ImageDrawDisposition::Draw)
+}
+
+fn rectangle_has_finite_bounds(rectangle: Rectangle) -> bool {
+    rectangle.x.is_finite()
+        && rectangle.y.is_finite()
+        && rectangle.width.is_finite()
+        && rectangle.height.is_finite()
+        && (rectangle.x + rectangle.width).is_finite()
+        && (rectangle.y + rectangle.height).is_finite()
 }
 
 /// 线帽样式

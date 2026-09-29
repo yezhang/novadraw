@@ -27,6 +27,7 @@ fn prelude_supports_a_backend_neutral_scene() {
 fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::geometry::Precision> = None;
     let _: Option<novadraw::graphics::Path> = None;
+    let _: Option<novadraw::graphics::ImageDrawError> = None;
     let _: Option<novadraw::figure::FigureMeasurement> = None;
     let _: Option<novadraw::layout::LayoutOutput> = None;
     let _: Option<novadraw::connection::RouteOutput> = None;

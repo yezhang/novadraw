@@ -15,7 +15,7 @@ framework 使用 `G0-G5`；原 G6 产品毕业范围已移交独立产品包。�
 | `doc/roadmap/product-deliverables.md` | **产品视图**：每个 milestone 下要交付的图元数量、布局种类、边框种类等策略层清单 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G5 引擎里程碑与下游产品边界 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
-| `doc/roadmap/p2-delta-backlog.md` | **P2 backlog**：Core 1.0 之后已确认、尚未进入实施的 delta | 人读，后续能力入口 | 每项状态变化时 |
+| `doc/roadmap/p2-delta-backlog.md` | **P2 delta**：Core 1.0 之后已确认能力的统一状态 | 人读，后续能力入口 | 每项状态变化时 |
 
 ## 编号唯一来源
 
@@ -55,6 +55,7 @@ framework 使用 `G0-G5`；原 G6 产品毕业范围已移交独立产品包。�
 R8/R9、D0-D4 与 M1-M10 已完成；2026-09-08/10 长期架构审计的 A01-A08 已关闭。
 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
 Core 1.0 完成。后续能力必须进入 Editor roadmap 或明确的 P2 delta。
+P2-R02 image source rectangle 已于 2026-09-29 完成。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发从 ADR-020 的基础值与公开渲染契约整改继续。原 G6 的产品 schema、

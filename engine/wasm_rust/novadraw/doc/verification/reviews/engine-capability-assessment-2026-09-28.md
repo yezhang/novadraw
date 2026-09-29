@@ -81,18 +81,22 @@ facade 转发和内部协议公开化。
 
 ## 4. API 风险
 
-### 4.1 公开渲染契约存在可构造但不执行的状态
+### 4.1 公开渲染契约存在可构造但不执行的状态（已整改）
 
-- `PathOp::Arc` 可以公开构造，但 Vello lowering 当前忽略该操作；
-- `NdCanvas::arc` 忽略 `anticlockwise`，并固定使用八段折线；
-- `RenderCommandKind::Path` 为公开 variant，但没有实际 producer 或 Vello consumer；
-- `Image.src_rect` 可在公开 command 中表达，但 Vello 遇到非空 source rectangle 时
+- 审计时 `PathOp::Arc` 可以公开构造，但 Vello lowering 忽略该操作；
+- 审计时 `NdCanvas::arc` 忽略 `anticlockwise`，并固定使用八段折线；
+- 审计时 `RenderCommandKind::Path` 为公开 variant，但没有实际 producer 或 Vello consumer；
+- 审计时 `Image.src_rect` 可在公开 command 中表达，但 Vello 遇到非空 source rectangle 时
   静默跳过绘制；
 - backend capability 只区分 Glyph、Image 和 Projective Composition，不能阻止上述
   子能力静默降级。
 
 公共 Render IR 必须满足二选一：所有启用后端完整消费，或在提交前返回明确的
 unsupported capability。不得依赖 wildcard match 静默忽略。
+
+Arc、冗余 Path command 与当时未实现的 image source rect 已按 ADR-020 收口；
+2026-09-29 的 `core.image-source-rectangle` 后续切片已恢复完整 source rectangle
+协议、结构化输入失败和 Vello destination clip，以上静默降级风险均已关闭。
 
 ### 4.2 Graphics 表面存在两套方言
 
@@ -136,7 +140,7 @@ unsupported capability。不得依赖 wildcard match 静默忽略。
 3. PointList miter visual bounds：
    让普通 Polyline/Polygon 与 Connection 使用一致的 stroke envelope。
 4. Graphics 基础扩展：
-   custom dash、miter limit、path clip 和 image source rectangle。
+   custom dash、miter limit 和 path clip。
 5. Editor framework：
    marquee selection、专用 CreationTool 和 reparent Command。
 

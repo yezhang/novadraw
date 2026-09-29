@@ -2,9 +2,9 @@
 
 类型：`roadmap`
 
-本页记录 Draw2D Core 1.0 与当前 Editor roadmap 之外、已确认但尚未进入实施的
-能力缺口。每项进入实施前必须先补充对应的 design/parity delta、自动验证和完成
-证据；本页不定义运行时契约。
+本页记录 Draw2D Core 1.0 与当前 Editor roadmap 之外已确认的能力 delta 及其状态。
+每项进入实施前必须先补充对应的 design/parity delta、自动验证和完成证据；本页不定义
+运行时契约。
 
 ## Rendering
 
@@ -36,6 +36,27 @@ envelope 计算，不能将该能力标记为已完成。
 - `novadraw-scene/src/figure/polygon.rs`
 - `novadraw-scene/src/connection/figure.rs::route_visual_outset`
 - `novadraw-render/src/command.rs::DEFAULT_STROKE_MITER_LIMIT`
+
+### P2-R02: Image source rectangle
+
+状态：`complete`
+
+`api_semantics`：`graphics.context`
+
+2026-09-29 已完成 Draw2D `Graphics.drawImage(Image, source, destination)` 对等切片：
+
+1. Image Render IR 始终携带图像物理像素域的显式 source rectangle；
+2. `NdCanvas::draw_image_region` 使用结构化错误拒绝非有限、负尺寸和越界 source；
+3. Vello adapter 使用 source-to-destination affine 与 destination clip，完整消费该命令；
+4. 完整图像 convenience API 进入同一 IR，不保留 `Option` 或 backend 特判协议；
+5. `core.image-source-rectangle` 覆盖 backend-neutral、Vello 与 Web feature 门禁。
+
+规范与证据：
+
+- `doc/design/rendering/image-source-rectangle.md`
+- `doc/parity/draw2d/api-coverage.md`
+- `novadraw-render/tests/image_source_rectangle_contract.rs`
+- `verification/suites.toml`
 
 ## Developer tooling
 

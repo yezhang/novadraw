@@ -67,6 +67,30 @@ args = [
 description = "Reject platform rendering dependencies from the core facade"
 program = "./scripts/check_facade_dependencies.sh"
 
+[commands."test.render-image-source"]
+description = "Run the backend-neutral image source rectangle contract"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-render",
+  "--test",
+  "image_source_rectangle_contract",
+]
+
+[commands."test.vello-image-source"]
+description = "Run the Vello image source rectangle lowering contract"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-render",
+  "--features",
+  "vello",
+  "--lib",
+  "image_source_region_maps_to_destination_and_requires_a_destination_clip",
+]
+
 [commands."verify.update"]
 description = "Run deterministic UpdateManager application probes"
 program = "cargo"
@@ -286,6 +310,30 @@ paths = [
   "apps/**",
 ]
 documents = ["doc/adr/adr-021-public-facade-and-feature-boundary.md"]
+
+[[suites]]
+id = "core.image-source-rectangle"
+title = "Image source rectangle recording and backend lowering"
+milestone = "Core API"
+kind = "contract"
+layers = ["contract", "platform"]
+platforms = ["host", "native-macos", "web"]
+commands = [
+  "test.render-image-source",
+  "test.vello-image-source",
+  "facade.web-vello",
+]
+paths = [
+  "novadraw-render/src/command.rs",
+  "novadraw-render/src/context.rs",
+  "novadraw-render/src/backend/vello/mod.rs",
+  "novadraw-render/tests/image_source_rectangle_contract.rs",
+  "novadraw/src/graphics.rs",
+]
+documents = [
+  "doc/design/rendering/image-source-rectangle.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
 
 [[suites]]
 id = "workspace.quality"

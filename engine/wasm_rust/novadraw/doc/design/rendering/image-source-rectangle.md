@@ -50,6 +50,10 @@ Image
 - source 或 destination 任一宽高为零：成功但不记录命令；
 - global alpha 为零：成功但不记录命令。
 
+校验顺序为 non-finite、negative extent、zero extent、source containment、global alpha，
+因此混合负值与零值的输入仍返回 negative-extent 错误，透明度为零也不会掩盖越界
+source。
+
 失败和 no-op 都不得改变 command stream 或 damage。普通 `draw_image` 与
 `draw_image_with_size` 继续是完整 source 的 convenience API。
 

@@ -106,7 +106,11 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 ## 实施结果
 
 - `Color` 已改为私有分量和受检构造/反序列化；
-- 删除无 producer/consumer 的 `RenderCommandKind::Path` 与未实现的 image source rect；
+- 删除无 producer/consumer 的 `RenderCommandKind::Path`，并在本批次删除当时未实现的
+  image source rect；
+- 2026-09-29 后续切片已按
+  [图像源区域绘制契约](../design/rendering/image-source-rectangle.md) 恢复 image
+  source rectangle，同时补齐 producer、输入失败、Vello lowering 与验证 suite；
 - center arc、SVG endpoint arc、曲线 bounds 和 Vello lowering 已统一；
 - `Point` 与 `Vec2` 已成为独立类型，`Affine2D` 成为唯一公开仿射类型名；
 - Render IR 已使用 `Point`、`PointList`、`Rectangle` 和 `Dimension`，不再暴露 `glam`；
@@ -120,7 +124,7 @@ primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering 
 - `Bounded` 兼容 trait 与 Figure capability 收口；
 - Runtime service 和大文件内部拆分；
 - Connection decoration；
-- custom dash、path clip、image source rectangle；
+- custom dash、path clip；
 - TextFlow、ShortestPath 和完整 widget toolkit。
 
 ## 关系

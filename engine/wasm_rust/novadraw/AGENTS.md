@@ -77,8 +77,9 @@
   Layout measurement 已按 ADR-018 收口；detached 构造与挂载后 scoped editor
   调用面已按 ADR-019 收口；Color、Render IR 与 Geometry 基础值已按 ADR-020 收口；
   聚合 facade、prelude 与 backend feature 边界已按 ADR-021 收口。Graphics 双方言
-  与 Figure capability 属于后续 P1/P2，不得混入产品侧能力。原 G6 的 schema、
-  serializer 和产品级 Native/Web 场景已移交独立产品包，不再作为本仓库引擎门禁。
+  与 Figure capability 属于后续 P1/P2；P2-R02 image source rectangle 已完成。
+  原 G6 的 schema、serializer 和产品级 Native/Web 场景已移交独立产品包，不再作为
+  本仓库引擎门禁。
 - 2026-09-16 全量 Draw2D/GEF 语义审计及 2026-09-20 后续批次的 22 条 P1
   已全部关闭；18 条次级候选保留待定向验证，状态以
   `doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md` 为准。

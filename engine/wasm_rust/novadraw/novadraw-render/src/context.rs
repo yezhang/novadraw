@@ -5,7 +5,10 @@
 use novadraw_core::Color;
 use novadraw_geometry::{Affine2D, Point, PointList, Rectangle};
 
-use crate::command::{Path, RenderCommand, RenderCommandKind};
+use crate::command::{
+    ImageDrawDisposition, ImageDrawError, Path, RenderCommand, RenderCommandKind,
+    validate_image_draw_geometry,
+};
 use crate::submission::{DamageSet, RenderSubmission};
 use crate::text::TextLayout;
 
@@ -666,12 +669,51 @@ impl NdCanvas {
         if self.state.global_alpha <= 0.0 {
             return;
         }
+        let source_rect = Rectangle::new(
+            0.0,
+            0.0,
+            f64::from(image.width()),
+            f64::from(image.height()),
+        );
         let dest_rect = Rectangle::new(x, y, width, height);
         self.create_command(RenderCommandKind::Image {
             image,
+            source_rect,
             dest_rect,
             alpha: self.state.global_alpha,
         });
+    }
+
+    /// Draws a physical-pixel source region into a logical destination rectangle.
+    ///
+    /// Zero-sized source or destination rectangles and zero global alpha are successful no-ops.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ImageDrawError`] when either rectangle is non-finite, has a negative extent, or
+    /// when a non-empty source rectangle lies outside the image's physical pixel bounds.
+    pub fn draw_image_region(
+        &mut self,
+        image: crate::command::ImageResourceRef,
+        source_rect: Rectangle,
+        dest_rect: Rectangle,
+    ) -> Result<(), ImageDrawError> {
+        if validate_image_draw_geometry(image.width(), image.height(), source_rect, dest_rect)?
+            == ImageDrawDisposition::NoOp
+        {
+            return Ok(());
+        }
+        if self.state.global_alpha <= 0.0 {
+            return Ok(());
+        }
+
+        self.create_command(RenderCommandKind::Image {
+            image,
+            source_rect,
+            dest_rect,
+            alpha: self.state.global_alpha,
+        });
+        Ok(())
     }
 
     pub fn global_alpha(&mut self, alpha: f64) {
@@ -930,6 +972,7 @@ mod tests {
 
         let RenderCommandKind::Image {
             image,
+            source_rect,
             dest_rect,
             alpha,
         } = canvas.commands()[1].kind
@@ -938,6 +981,7 @@ mod tests {
         };
         assert_eq!(image.width(), 20);
         assert_eq!(image.revision(), 3);
+        assert_eq!(source_rect, Rectangle::new(0.0, 0.0, 20.0, 10.0));
         assert_eq!(dest_rect, Rectangle::new(4.0, 5.0, 10.0, 5.0));
         assert_eq!(alpha, 0.5);
 

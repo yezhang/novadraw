@@ -9,8 +9,8 @@ pub use novadraw_render::{
 /// Recorded drawing commands and immutable image references.
 pub mod command {
     pub use novadraw_render::command::{
-        DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageResourceRef, LineCap,
-        LineJoin, LineStyle, Path, PathOp, RenderCommand, RenderCommandKind,
+        DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageDrawError, ImageResourceRef,
+        LineCap, LineJoin, LineStyle, Path, PathOp, RenderCommand, RenderCommandKind,
     };
 }
 

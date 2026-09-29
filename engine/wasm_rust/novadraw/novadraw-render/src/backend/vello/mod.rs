@@ -18,7 +18,9 @@ use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer};
 
-use crate::command::{LineCap, LineJoin, LineStyle, RenderCommand};
+use crate::command::{
+    ImageDrawDisposition, LineCap, LineJoin, LineStyle, RenderCommand, validate_image_draw_geometry,
+};
 use crate::submission::{BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload};
 use crate::text::{GlyphPaint, GlyphRun};
 use crate::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
@@ -55,6 +57,61 @@ fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<Surfa
 
 fn surface_is_suspended(width: u32, height: u32) -> bool {
     width == 0 || height == 0
+}
+
+#[derive(Clone, Copy, Debug)]
+struct ImageDrawPlan {
+    clip_rect: Rectangle,
+    local_affine: vello::kurbo::Affine,
+}
+
+fn image_draw_plan(
+    image_width: u32,
+    image_height: u32,
+    source_rect: Rectangle,
+    dest_rect: Rectangle,
+    scale_factor: f64,
+) -> Option<ImageDrawPlan> {
+    if !scale_factor.is_finite()
+        || scale_factor <= 0.0
+        || validate_image_draw_geometry(image_width, image_height, source_rect, dest_rect)
+            != Ok(ImageDrawDisposition::Draw)
+    {
+        return None;
+    }
+
+    let source_to_dest_x = dest_rect.width / source_rect.width;
+    let source_to_dest_y = dest_rect.height / source_rect.height;
+    Some(ImageDrawPlan {
+        clip_rect: dest_rect,
+        local_affine: vello::kurbo::Affine::new([
+            source_to_dest_x * scale_factor,
+            0.0,
+            0.0,
+            source_to_dest_y * scale_factor,
+            (dest_rect.x - source_rect.x * source_to_dest_x) * scale_factor,
+            (dest_rect.y - source_rect.y * source_to_dest_y) * scale_factor,
+        ]),
+    })
+}
+
+fn append_image_draw(
+    scene: &mut vello::Scene,
+    image: &vello::peniko::ImageBrush,
+    image_affine: vello::kurbo::Affine,
+    clip_affine: vello::kurbo::Affine,
+    clip_rect: Rectangle,
+    scale_factor: f64,
+) {
+    let clip = vello::kurbo::Rect::new(
+        clip_rect.x * scale_factor,
+        clip_rect.y * scale_factor,
+        (clip_rect.x + clip_rect.width) * scale_factor,
+        (clip_rect.y + clip_rect.height) * scale_factor,
+    );
+    scene.push_clip_layer(vello::peniko::Fill::NonZero, clip_affine, &clip);
+    scene.draw_image(image, image_affine);
+    scene.pop_layer();
 }
 
 fn vello_stroke(width: f64, line_style: LineStyle, cap: LineCap, join: LineJoin) -> Stroke {
@@ -920,6 +977,7 @@ impl VelloRenderer {
 
             crate::command::RenderCommandKind::Image {
                 image,
+                source_rect,
                 dest_rect,
                 alpha,
             } => {
@@ -933,28 +991,33 @@ impl VelloRenderer {
                 else {
                     return;
                 };
-                let width = dest_rect.width;
-                let height = dest_rect.height;
-                if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+                let Some(plan) = image_draw_plan(
+                    image_data.width,
+                    image_data.height,
+                    *source_rect,
+                    *dest_rect,
+                    self.scale_factor,
+                ) else {
                     return;
-                }
+                };
                 let image = vello::peniko::ImageBrush {
                     image: image_data,
                     sampler: vello::peniko::ImageSampler::default().with_alpha(*alpha as f32),
                 };
                 let scale_factor = self.scale_factor;
-                let local = vello::kurbo::Affine::new([
-                    width / image.image.width as f64 * scale_factor,
-                    0.0,
-                    0.0,
-                    height / image.image.height as f64 * scale_factor,
-                    dest_rect.x * scale_factor,
-                    dest_rect.y * scale_factor,
-                ]);
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, scale_factor)
-                        * local;
-                self.scene.draw_image(&image, affine);
+                        * plan.local_affine;
+                let clip_affine =
+                    Self::transform_to_affine(&self.current_state().transform, scale_factor);
+                append_image_draw(
+                    &mut self.scene,
+                    &image,
+                    affine,
+                    clip_affine,
+                    plan.clip_rect,
+                    scale_factor,
+                );
             }
         }
     }
@@ -1789,5 +1852,57 @@ mod tests {
 
         assert!(!cache.keys().any(|(id, _)| *id == stale));
         assert!(cache.contains_key(&(ready, 2)));
+    }
+
+    #[test]
+    fn image_source_region_maps_to_destination_and_requires_a_destination_clip() {
+        let plan = image_draw_plan(
+            80,
+            40,
+            Rectangle::new(10.0, 5.0, 20.0, 10.0),
+            Rectangle::new(100.0, 200.0, 60.0, 80.0),
+            2.0,
+        )
+        .expect("valid image source region");
+
+        assert_eq!(
+            plan.local_affine.as_coeffs(),
+            [6.0, 0.0, 0.0, 16.0, 140.0, 320.0]
+        );
+        assert_eq!(plan.clip_rect, Rectangle::new(100.0, 200.0, 60.0, 80.0));
+
+        let image = vello::peniko::ImageBrush {
+            image: vello::peniko::ImageData {
+                data: vec![255; 80 * 40 * 4].into(),
+                format: vello::peniko::ImageFormat::Rgba8,
+                alpha_type: vello::peniko::ImageAlphaType::Alpha,
+                width: 80,
+                height: 40,
+            },
+            sampler: vello::peniko::ImageSampler::default(),
+        };
+        let mut scene = vello::Scene::new();
+        append_image_draw(
+            &mut scene,
+            &image,
+            plan.local_affine,
+            vello::kurbo::Affine::IDENTITY,
+            plan.clip_rect,
+            2.0,
+        );
+
+        assert_eq!(scene.encoding().n_clips, 2);
+        assert_eq!(scene.encoding().n_open_clips, 0);
+        assert!(!scene.encoding().resources.patches.is_empty());
+        assert!(
+            image_draw_plan(
+                80,
+                40,
+                Rectangle::new(79.0, 0.0, 2.0, 1.0),
+                plan.clip_rect,
+                2.0,
+            )
+            .is_none()
+        );
     }
 }
