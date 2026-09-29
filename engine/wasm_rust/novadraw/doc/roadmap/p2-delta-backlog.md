@@ -10,7 +10,7 @@
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
-| 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `in_progress` | M9、M10.1 |
+| 1 | P2-C01 | Connection decoration、endpoint locator 与 PointList visual bounds | `complete` | M9、M10.1 |
 | 2 | P2-C02 | 障碍感知 shortest-path routing | `not_started` | P2-C01 |
 | 3 | P2-F01 | ScalablePolygonFigure | `not_started` | P2-C01 的 PointList envelope |
 | 4 | P2-T01 | TextFlow 第一阶段 | `not_started` | M10.2、D4.4 |
@@ -29,7 +29,7 @@
 
 ### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
 
-状态：`in_progress`
+状态：`complete`
 
 `api_semantics`：`builtin.figures`、`connection.figure`、`connection.locator`
 
@@ -63,6 +63,17 @@ Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope �
 - `doc/design/architecture/reusable-shape-border.md`
 - `doc/design/architecture/connection-routing.md`
 - `doc/parity/draw2d/api-coverage.md`
+
+完成证据（2026-09-29）：
+
+- `PolylineFigure`、`PolygonFigure` 与 `ConnectionFigure` 共享
+  `DEFAULT_STROKE_MITER_LIMIT` visual outset；
+- `FigureEditor` 可原子修改 PointList stroke width / line join；
+- `PolygonDecorationFigure`、`PolylineDecorationFigure`、`EndpointLocator` 已进入
+  Core 公开 API；
+- route preflight 同时校验 decoration geometry，terminal duplicate point 与
+  AnchorSite normal fallback 已覆盖；
+- `cargo xtask verify core.p2-c01-connection-decoration` 通过。
 
 ### P2-C02: 障碍感知 Shortest-path Router
 

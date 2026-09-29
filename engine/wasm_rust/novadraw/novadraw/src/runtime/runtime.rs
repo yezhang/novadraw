@@ -402,6 +402,22 @@ impl FigureEditor<'_> {
         self.runtime.clear_points(self.figure)
     }
 
+    pub fn set_point_list_stroke_width(
+        &mut self,
+        stroke_width: f64,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_point_list_stroke_width(self.figure, stroke_width)
+    }
+
+    pub fn set_point_list_line_join(
+        &mut self,
+        line_join: crate::render::LineJoin,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_point_list_line_join(self.figure, line_join)
+    }
+
     pub fn set_border(
         &mut self,
         border: impl Border + 'static,
@@ -1356,10 +1372,15 @@ impl Runtime {
                         }
                         return Err(ConnectionRuntimeError::Unresolved(reason));
                     };
-                    let placements = match self
-                        .connections
-                        .locator_placements(candidate, geometry.local_points())
-                    {
+                    let local_metadata = route_metadata_in_local(
+                        calculation.output().metadata(),
+                        geometry.path_bounds(),
+                    );
+                    let placements = match self.connections.locator_placements(
+                        candidate,
+                        geometry.local_points(),
+                        &local_metadata,
+                    ) {
                         Ok(placements) => placements,
                         Err(reason) => {
                             self.connections.reject_route_batch(&batch, reason.clone());
@@ -1372,7 +1393,7 @@ impl Runtime {
                             return Err(ConnectionRuntimeError::Unresolved(reason));
                         }
                     };
-                    let mut child_bounds = Vec::with_capacity(placements.len());
+                    let mut child_updates = Vec::with_capacity(placements.len());
                     for (child, placement) in placements {
                         let finite_placement = [
                             placement.point.x(),
@@ -1402,37 +1423,65 @@ impl Runtime {
                             }
                             return Err(ConnectionRuntimeError::Unresolved(reason));
                         }
-                        let bounds = self
-                            .tree
-                            .figure_bounds(child)
-                            .expect("validated Locator child must remain attached");
-                        child_bounds.push((
-                            child,
-                            Rectangle::new(
-                                placement.point.x() - bounds.width / 2.0,
-                                placement.point.y() - bounds.height / 2.0,
-                                bounds.width,
-                                bounds.height,
-                            ),
-                        ));
+                        match self.tree.prepare_connection_decoration(child, placement) {
+                            Some(Ok(decoration)) => {
+                                child_updates.push((child, decoration.bounds(), Some(decoration)));
+                            }
+                            Some(Err(error)) => {
+                                let reason =
+                                    UnresolvedConnection::DecorationFailed { child, error };
+                                self.connections.reject_route_batch(&batch, reason.clone());
+                                for affected in batch.calculations() {
+                                    self.tree.clear_connection_route(
+                                        &mut self.updates,
+                                        affected.connection().figure(),
+                                    );
+                                }
+                                return Err(ConnectionRuntimeError::Unresolved(reason));
+                            }
+                            None => {
+                                let bounds = self
+                                    .tree
+                                    .figure_bounds(child)
+                                    .expect("validated Locator child must remain attached");
+                                child_updates.push((
+                                    child,
+                                    Rectangle::new(
+                                        placement.point.x() - bounds.width / 2.0,
+                                        placement.point.y() - bounds.height / 2.0,
+                                        bounds.width,
+                                        bounds.height,
+                                    ),
+                                    None,
+                                ));
+                            }
+                        }
                     }
-                    prepared.push((candidate, geometry, child_bounds));
+                    prepared.push((candidate, geometry, child_updates));
                 }
-                for (candidate, geometry, child_bounds) in prepared {
+                for (candidate, geometry, child_updates) in prepared {
                     self.tree.commit_prepared_connection_route(
                         &mut self.updates,
                         candidate.figure(),
                         geometry,
                     );
-                    for (child, bounds) in child_bounds {
-                        self.tree.set_bounds_with_update(
-                            &mut self.updates,
-                            child,
-                            bounds.x,
-                            bounds.y,
-                            bounds.width,
-                            bounds.height,
-                        );
+                    for (child, bounds, decoration) in child_updates {
+                        if let Some(decoration) = decoration {
+                            self.tree.commit_prepared_connection_decoration(
+                                &mut self.updates,
+                                child,
+                                decoration,
+                            );
+                        } else {
+                            self.tree.set_bounds_with_update(
+                                &mut self.updates,
+                                child,
+                                bounds.x,
+                                bounds.y,
+                                bounds.width,
+                                bounds.height,
+                            );
+                        }
                     }
                 }
                 self.connections.commit_route_batch(&batch, routing_space);
@@ -3021,6 +3070,58 @@ impl Runtime {
         self.replace_points(id, Vec::new())
     }
 
+    pub(crate) fn set_point_list_stroke_width(
+        &mut self,
+        id: FigureId,
+        stroke_width: f64,
+    ) -> Result<bool, ShapeMutationError> {
+        let line_join = self
+            .tree
+            .point_list_style(id)
+            .ok_or_else(|| {
+                if self.tree.figure_bounds(id).is_some() {
+                    ShapeMutationError::WrongCapability(id)
+                } else {
+                    ShapeMutationError::UnknownFigure(id)
+                }
+            })?
+            .1;
+        self.guarded_shape_mutation(move |runtime| {
+            runtime.tree.set_point_list_stroke_style(
+                &mut runtime.updates,
+                id,
+                stroke_width,
+                line_join,
+            )
+        })
+    }
+
+    pub(crate) fn set_point_list_line_join(
+        &mut self,
+        id: FigureId,
+        line_join: crate::render::LineJoin,
+    ) -> Result<bool, ShapeMutationError> {
+        let stroke_width = self
+            .tree
+            .point_list_style(id)
+            .ok_or_else(|| {
+                if self.tree.figure_bounds(id).is_some() {
+                    ShapeMutationError::WrongCapability(id)
+                } else {
+                    ShapeMutationError::UnknownFigure(id)
+                }
+            })?
+            .0;
+        self.guarded_shape_mutation(move |runtime| {
+            runtime.tree.set_point_list_stroke_style(
+                &mut runtime.updates,
+                id,
+                stroke_width,
+                line_join,
+            )
+        })
+    }
+
     pub(crate) fn set_border(
         &mut self,
         id: FigureId,
@@ -4504,6 +4605,26 @@ impl Runtime {
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
         frame
+    }
+}
+
+fn route_metadata_in_local(metadata: &RouteMetadata, path_bounds: Rectangle) -> RouteMetadata {
+    let translate_endpoint = |endpoint: crate::RouteEndpoint| crate::RouteEndpoint {
+        reference: Point::new(
+            endpoint.reference.x() - path_bounds.x,
+            endpoint.reference.y() - path_bounds.y,
+        ),
+        site: crate::AnchorSite {
+            point: Point::new(
+                endpoint.site.point.x() - path_bounds.x,
+                endpoint.site.point.y() - path_bounds.y,
+            ),
+            outward_normal: endpoint.site.outward_normal,
+        },
+    };
+    RouteMetadata {
+        source: translate_endpoint(metadata.source),
+        target: translate_endpoint(metadata.target),
     }
 }
 

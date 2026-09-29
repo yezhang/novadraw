@@ -1,6 +1,6 @@
 use std::{any::TypeId, marker::PhantomData};
 
-use novadraw::geometry::{Point, Vec2};
+use novadraw::geometry::{Point, PointList, Vec2};
 use novadraw::render::{
     BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderOutcome, SurfaceInfo,
     command::RenderCommandKind,
@@ -8,11 +8,11 @@ use novadraw::render::{
 use novadraw::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
     ConnectionLocator, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
-    CoordinateSpace, DirectRouter, FanRouter, FigureId, LocatorError,
+    CoordinateSpace, DirectRouter, EndpointLocator, FanRouter, FigureId, LocatorError,
     MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
-    PathFractionLocator, RectangleFigure, RouteError, RouteOutput, RouteRequest, RouterBinding,
-    Runtime, RuntimeMutationError, UnresolvedConnection, ViewportFigure, XYAnchor, XYConstraint,
-    XYLayout,
+    PathFractionLocator, PolygonDecorationFigure, PolylineDecorationFigure, RectangleFigure,
+    RouteError, RouteOutput, RouteRequest, RouterBinding, Runtime, RuntimeMutationError,
+    UnresolvedConnection, ViewportFigure, XYAnchor, XYConstraint, XYLayout,
 };
 
 struct ConstraintA;
@@ -199,6 +199,112 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
     );
     runtime.prepare_frame().expect("reroute and Locator layout");
     assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
+}
+
+#[test]
+fn runtime_orients_endpoint_decorations_and_offsets_labels_in_terminal_frames() {
+    let (mut runtime, root, source, target, connection_figure) = runtime_fixture();
+    let source_decoration = runtime
+        .container(connection_figure)
+        .unwrap()
+        .add(Box::new(PolylineDecorationFigure::arrow()))
+        .expect("valid Runtime mutation");
+    let target_decoration = runtime
+        .container(connection_figure)
+        .unwrap()
+        .add(Box::new(PolygonDecorationFigure::triangle()))
+        .expect("valid Runtime mutation");
+    let target_label = runtime
+        .container(connection_figure)
+        .unwrap()
+        .add(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0)))
+        .expect("valid Runtime mutation");
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let connection = runtime
+        .register_connection_state(
+            connection_figure,
+            Some(source_anchor),
+            Some(target_anchor),
+            RouterBinding::Explicit {
+                router: runtime.direct_connection_router(),
+            },
+            None,
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(
+            connection,
+            source_decoration,
+            Box::new(ConnectionLocator::Source),
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(
+            connection,
+            target_decoration,
+            Box::new(ConnectionLocator::Target),
+        )
+        .unwrap();
+    runtime
+        .set_connection_locator(
+            connection,
+            target_label,
+            Box::new(EndpointLocator::target(12.0, 6.0).unwrap()),
+        )
+        .unwrap();
+
+    let output = runtime
+        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .unwrap();
+    let connection_bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
+    let source_local =
+        output.points().get(0).unwrap() - Vec2::new(connection_bounds.x, connection_bounds.y);
+    let target_local = output.points().get(output.points().len() - 1).unwrap()
+        - Vec2::new(connection_bounds.x, connection_bounds.y);
+    let source_bounds = runtime.tree().figure_bounds(source_decoration).unwrap();
+    let target_bounds = runtime.tree().figure_bounds(target_decoration).unwrap();
+    assert!(source_bounds.contains(source_local));
+    assert!(target_bounds.contains(target_local));
+
+    let route_direction = target_local - source_local;
+    assert!((source_local - source_bounds.center()).dot(-route_direction) > 0.0);
+    assert!((target_local - target_bounds.center()).dot(route_direction) > 0.0);
+
+    let tangent = route_direction / route_direction.length();
+    let normal = Vec2::new(-tangent.y(), tangent.x());
+    let expected_label_center = target_local + tangent * 12.0 + normal * 6.0;
+    let actual_label_center = runtime.tree().figure_bounds(target_label).unwrap().center();
+    assert!((actual_label_center - expected_label_center).length() < 1.0e-9);
+
+    assert!(
+        runtime
+            .record_full_frame()
+            .commands()
+            .iter()
+            .any(|command| { matches!(command.kind, RenderCommandKind::FillPath { .. }) })
+    );
+}
+
+#[test]
+fn invalid_decoration_template_is_rejected_before_attachment() {
+    assert!(matches!(
+        PolygonDecorationFigure::from_template(PointList::from_points(vec![
+            Point::ZERO,
+            Point::new(1.0, 0.0),
+        ])),
+        Err(novadraw::DecorationError::TooFewTemplatePoints {
+            minimum: 3,
+            actual: 2,
+        })
+    ));
+    assert!(matches!(
+        PolylineDecorationFigure::from_template(PointList::from_points(vec![
+            Point::ZERO,
+            Point::new(f64::NAN, 0.0),
+        ])),
+        Err(novadraw::DecorationError::NonFiniteGeometry)
+    ));
 }
 
 #[test]

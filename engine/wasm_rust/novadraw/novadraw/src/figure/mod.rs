@@ -619,6 +619,18 @@ pub trait Figure: AsAny {
         None
     }
 
+    /// Returns optional route-oriented Connection decoration behavior.
+    fn connection_decoration(&self) -> Option<&dyn crate::ConnectionDecorationBehavior> {
+        None
+    }
+
+    /// Returns mutable route-oriented Connection decoration behavior.
+    fn connection_decoration_mut(
+        &mut self,
+    ) -> Option<&mut dyn crate::ConnectionDecorationBehavior> {
+        None
+    }
+
     /// Returns optional point-list geometry behavior.
     fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
         None
@@ -659,7 +671,13 @@ pub trait Figure: AsAny {
 pub trait PointListFigureBehavior {
     fn local_points(&self) -> &[Point];
     fn stroke_width(&self) -> f64;
+    fn line_join(&self) -> crate::render::command::LineJoin;
     fn painted_minimum(&self) -> usize;
+    fn commit_stroke_style(
+        &mut self,
+        stroke_width: f64,
+        line_join: crate::render::command::LineJoin,
+    );
     fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>);
 }
 

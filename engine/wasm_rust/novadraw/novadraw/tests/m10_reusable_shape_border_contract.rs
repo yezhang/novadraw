@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use novadraw::Color;
 use novadraw::geometry::{Dimension, Point, Rectangle};
-use novadraw::render::{NdCanvas, command::RenderCommandKind};
+use novadraw::render::{
+    DEFAULT_STROKE_MITER_LIMIT, LineJoin, NdCanvas, command::RenderCommandKind,
+};
 use novadraw::{
     BevelBorder, BevelStyle, Border, CompoundBorder, Direction, EtchedBorder, Figure, FigureStyle,
     LineBorder, MarginBorder, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
@@ -78,6 +80,41 @@ fn polyline_precise_hit_uses_segment_distance() {
 }
 
 #[test]
+fn point_list_visual_bounds_follow_line_join_contract() {
+    let points = vec![
+        Point::new(10.0, 20.0),
+        Point::new(60.0, 21.0),
+        Point::new(110.0, 20.0),
+    ];
+    let miter = PolylineFigure::from_points(points.clone()).with_width(4.0);
+    let round = PolylineFigure::from_points(points.clone())
+        .with_width(4.0)
+        .with_join(LineJoin::Round);
+    let bevel = PolygonFigure::from_points(points)
+        .with_stroke(Color::BLACK, 4.0)
+        .with_join(LineJoin::Bevel);
+
+    let miter_outset = 2.0 * DEFAULT_STROKE_MITER_LIMIT;
+    assert_eq!(
+        miter.initial_bounds(),
+        Rectangle::new(
+            10.0 - miter_outset,
+            20.0 - miter_outset,
+            100.0 + miter_outset * 2.0,
+            1.0 + miter_outset * 2.0,
+        )
+    );
+    assert_eq!(
+        round.initial_bounds(),
+        Rectangle::new(8.0, 18.0, 104.0, 5.0)
+    );
+    assert_eq!(
+        bevel.initial_bounds(),
+        Rectangle::new(8.0, 18.0, 104.0, 5.0)
+    );
+}
+
+#[test]
 fn polygon_precise_hit_uses_closed_interior() {
     let polygon = PolygonFigure::from_points(vec![
         Point::new(0.0, 0.0),
@@ -142,7 +179,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert_eq!(
         runtime.tree().figure_bounds(line),
-        Some(Rectangle::new(9.0, 19.0, 202.0, 32.0))
+        Some(Rectangle::new(6.0, 16.0, 208.0, 38.0))
     );
     assert_eq!(
         runtime.point_list_points(line).unwrap(),
@@ -183,6 +220,67 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     assert!(runtime.figure(line).unwrap().clear_points().unwrap());
     assert!(runtime.point_list_points(line).unwrap().is_empty());
     assert_eq!(runtime.tree().figure_bounds(line), Some(Rectangle::ZERO));
+}
+
+#[test]
+fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid Runtime mutation");
+    let line = runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(PolylineFigure::from_points(vec![
+            Point::new(20.0, 30.0),
+            Point::new(100.0, 32.0),
+            Point::new(180.0, 30.0),
+        ])))
+        .expect("valid Runtime mutation");
+
+    assert_eq!(
+        runtime.tree().figure_bounds(line),
+        Some(Rectangle::new(16.0, 26.0, 168.0, 10.0))
+    );
+    assert!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .set_point_list_line_join(LineJoin::Bevel)
+            .unwrap()
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(line),
+        Some(Rectangle::new(19.0, 29.0, 162.0, 4.0))
+    );
+    assert!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .set_point_list_stroke_width(6.0)
+            .unwrap()
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(line),
+        Some(Rectangle::new(17.0, 27.0, 166.0, 8.0))
+    );
+
+    let stable_bounds = runtime.tree().figure_bounds(line);
+    assert_eq!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .set_point_list_stroke_width(f64::NAN),
+        Err(ShapeMutationError::NonFiniteGeometry)
+    );
+    assert_eq!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .set_point_list_stroke_width(-1.0),
+        Err(ShapeMutationError::NegativeMetric)
+    );
+    assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);
 }
 
 struct MetricBorder {

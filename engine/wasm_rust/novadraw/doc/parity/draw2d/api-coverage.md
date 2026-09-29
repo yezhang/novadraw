@@ -169,7 +169,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 
 | P2 Delta | 主 API 语义 | 当前状态 | 完成后提升 |
 |---|---|---|---|
-| P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `in_progress` | PointList miter bounds 与 rotatable decoration/endpoint locator 由 partial 提升为 verified |
+| P2-C01 | `builtin.figures`, `connection.figure`, `connection.locator` | `complete` | PointList miter bounds、rotatable polygon/polyline decoration 与 endpoint locator 已验证 |
 | P2-C02 | `connection.router` | `not_started` | ShortestPath obstacle snapshot、确定性批量路由与增量失效 verified |
 | P2-F01 | `builtin.figures` | `not_started` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `not_started` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
@@ -332,7 +332,7 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `connection.anchor` | `ConnectionAnchor.getLocation`, `getOwner`, `getReferencePoint`, `add/removeAnchorListener` | 只读 Anchor 协议、5 个内置 Anchor、TrackedSceneQuery dependency tokens 已实现 | verified | route 计算或 geometry/Locator 预检失败均保留当前 observations，依赖恢复可自动重路由 |
 | `connection.router` | `ConnectionRouter.route`, `invalidate`, `remove`, `get/setConstraint` | Direct/Bendpoint/Fan 与 shared Manhattan 算法及批量提交已实现；Viewer 以受检批量 child-order 同步 connection layer，并对等价 None/Bendpoint 路由配置执行 no-op；normal frame 自动按规范 parent routing space 消费 dirty group | partial | M9 Router 主链路 verified；P2-C02 补齐 obstacle snapshot、ShortestPath、增量失效与性能基线 |
 | `clipping.strategy` | nested viewport connection clipping / unsupported topology | Core 1.0 严格比较 connection parent 与两端 owner 的 viewport chain；divergent chain 返回 `UnsupportedViewportTopology` 并清除旧 route | verified | nearest-common-viewport 多矩形 clipping 明确延后 |
-| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Runtime-owned direct-child binding 消费 prepared local route；实现 endpoint、middle、indexed midpoint 和 path fraction，并随 route 提交 child bounds | partial | P2-C01 补齐 terminal tangent/normal、u/v endpoint offset、rotatable decoration 与退化 route 错误 |
+| `connection.locator` | `Locator.relocate`, `ConnectionLocator`, `EndpointLocator`, `MidpointLocator` | Runtime-owned direct-child binding 消费 prepared local route；实现 endpoint、middle、indexed midpoint、path fraction、terminal tangent/normal 与 u/v offset；polygon/polyline decoration 作为普通 child 原子提交已旋转 geometry | verified | P2-C01 覆盖重复 terminal point、AnchorSite normal fallback、退化 route 与 decoration preflight |
 
 规范 Rust 契约、坐标域和错误模型见
 [`design/architecture/connection-routing.md`](../../design/architecture/connection-routing.md)；
@@ -352,6 +352,7 @@ Draw2D 证据入口：`Connection.java`、`PolylineConnection.java`、`Connectio
 | `builtin.figures` | rounded rectangle | `RoundedRectangleFigure::{set_corner_dimensions,corner_dimensions}` + `FigureEditor::set_corner_dimensions`；二维圆角 path 与精确命中 | verified | 单值 radius 仅为等宽高 convenience |
 | `builtin.figures` | point-list shape mutators | `FigureEditor::{replace_points,insert_point,set_point,remove_point,clear_points}`；parent-domain 输入原子规范化为 local points + NodeState bounds | verified | 非有限输入与非法 index 无 partial commit |
 | `builtin.figures` | `Polyline.containsPoint`, `Polygon.containsPoint`, paint | segment tolerance、closed polygon interior/edge、退化点数和 local point paint 已闭合 | verified | `m10_reusable_shape_border_contract` |
+| `builtin.figures` | PointList stroke envelope | Polyline、Polygon 与 Connection 共享 line join/stroke width visual outset；Runtime stroke style mutation 原子重建 bounds | verified | P2-C01；锐角 miter 与 Round/Bevel 定向测试 |
 | `builtin.figures` | `ScalablePolygonShape.setTemplate`, bounds-driven scaled points | 目标为 `ScalablePolygonFigure` 保存 template，按 bounds/stretch-or-preserve-aspect 派生 Polygon geometry | partial | P2-F01 补齐退化模板、resize、stroke/miter、precise hit、damage 与示例 |
 | `builtin.figures` | triangle figure | Draw2D client-box/resize/居中顶点语义、精确三角形命中、`FigureEditor::set_triangle_direction` | verified | 精确命中是 Novadraw 合理增强 |
 | `border.protocol` | concrete border implementations | `LineBorder`, `MarginBorder`, `CompoundBorder`, `EtchedBorder`, `BevelBorder`；preferred size、ring opacity、累计 inset 与 Runtime replacement | verified | `TitleBarBorder` 留在 M10.2 |

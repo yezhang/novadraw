@@ -13,6 +13,14 @@ use crate::render::text::{GlyphPaint, GlyphRun};
 /// Default ratio between miter length and stroke radius.
 pub const DEFAULT_STROKE_MITER_LIMIT: f64 = 4.0;
 
+pub(crate) fn stroke_visual_outset(stroke_width: f64, line_join: LineJoin) -> f64 {
+    let radius = stroke_width.max(0.0) / 2.0;
+    match line_join {
+        LineJoin::Miter => radius * DEFAULT_STROKE_MITER_LIMIT,
+        LineJoin::Round | LineJoin::Bevel => radius,
+    }
+}
+
 /// 渲染命令
 ///
 /// 包含一个渲染操作类型。

@@ -2836,6 +2836,11 @@ impl FigureTree {
         )
     }
 
+    pub(crate) fn point_list_style(&self, id: FigureId) -> Option<(f64, crate::render::LineJoin)> {
+        let point_list = self.blocks.get(id)?.figure.point_list()?;
+        Some((point_list.stroke_width(), point_list.line_join()))
+    }
+
     pub(crate) fn commit_point_list(
         &mut self,
         update_manager: &mut UpdateManager,
@@ -2867,6 +2872,7 @@ impl FigureTree {
         let (new_bounds, local_points) = normalize_points(
             parent_points.clone(),
             point_list.stroke_width(),
+            point_list.line_join(),
             point_list.painted_minimum(),
         );
         if !finite_rectangle(new_bounds) {
@@ -2901,6 +2907,95 @@ impl FigureTree {
         });
         self.mark_invalid(update_manager, id);
         self.mark_freeform_ancestor_extents_dirty(id);
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
+        Ok(true)
+    }
+
+    pub(crate) fn set_point_list_stroke_style(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        stroke_width: f64,
+        line_join: crate::render::command::LineJoin,
+    ) -> Result<bool, ShapeMutationError> {
+        if !stroke_width.is_finite() {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        if stroke_width < 0.0 {
+            return Err(ShapeMutationError::NegativeMetric);
+        }
+        let Some(block) = self.blocks.get(id) else {
+            return Err(ShapeMutationError::UnknownFigure(id));
+        };
+        let Some(point_list) = block.figure.point_list() else {
+            return Err(ShapeMutationError::WrongCapability(id));
+        };
+        let old_stroke_width = point_list.stroke_width();
+        let old_line_join = point_list.line_join();
+        if old_stroke_width == stroke_width && old_line_join == line_join {
+            return Ok(false);
+        }
+
+        let parent_points = self
+            .point_list_points(id)
+            .expect("validated point-list capability");
+        let old_bounds = block.figure_bounds();
+        let old_visual_bounds = block.visual_bounds();
+        let parent_id = block.parent;
+        let visible = self.is_effectively_visible(id);
+        let (new_bounds, local_points) = normalize_points(
+            parent_points,
+            stroke_width,
+            line_join,
+            point_list.painted_minimum(),
+        );
+        if !finite_rectangle(new_bounds) {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+
+        if visible {
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
+        }
+        let block = self
+            .blocks
+            .get_mut(id)
+            .ok_or(ShapeMutationError::UnknownFigure(id))?;
+        block.set_node_bounds(new_bounds);
+        let point_list = block
+            .figure
+            .point_list_mut()
+            .ok_or(ShapeMutationError::WrongCapability(id))?;
+        point_list.commit_stroke_style(stroke_width, line_join);
+        point_list.commit_geometry(new_bounds, local_points);
+
+        self.notify_block_changed(id);
+        if old_bounds != new_bounds {
+            self.emit_figure_event(FigureEvent::FigureMoved {
+                figure_id: id,
+                old_bounds,
+                new_bounds,
+            });
+            self.mark_freeform_ancestor_extents_dirty(id);
+        }
+        if old_stroke_width != stroke_width {
+            self.emit_property_event(PropertyChangeEvent {
+                figure_id: id,
+                property: "stroke_width",
+                old_value: PropertyValue::Number(old_stroke_width),
+                new_value: PropertyValue::Number(stroke_width),
+            });
+        }
+        if old_line_join != line_join {
+            self.emit_property_event(PropertyChangeEvent {
+                figure_id: id,
+                property: "line_join",
+                old_value: PropertyValue::Text(format!("{old_line_join:?}")),
+                new_value: PropertyValue::Text(format!("{line_join:?}")),
+            });
+        }
+        self.mark_invalid(update_manager, id);
         if visible {
             self.repaint(update_manager, id, None);
         }
@@ -3090,6 +3185,71 @@ impl FigureTree {
             .connection()?
             .prepare_route_geometry(parent_points)
             .ok()
+    }
+
+    pub(crate) fn prepare_connection_decoration(
+        &self,
+        id: FigureId,
+        placement: crate::LocatorPlacement,
+    ) -> Option<Result<crate::PreparedDecorationGeometry, crate::DecorationError>> {
+        Some(
+            self.blocks
+                .get(id)?
+                .figure
+                .connection_decoration()?
+                .prepare_decoration_geometry(placement),
+        )
+    }
+
+    pub(crate) fn commit_prepared_connection_decoration(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        id: FigureId,
+        geometry: crate::PreparedDecorationGeometry,
+    ) {
+        let (old_bounds, old_visual_bounds, parent_id, visible) = self
+            .blocks
+            .get(id)
+            .and_then(|block| {
+                block.figure.connection_decoration().map(|_| {
+                    (
+                        block.figure_bounds(),
+                        block.visual_bounds(),
+                        block.parent,
+                        self.is_effectively_visible(id),
+                    )
+                })
+            })
+            .expect("prepared decoration geometry references a live decoration Figure");
+        let bounds = geometry.bounds();
+
+        if visible {
+            self.erase(update_manager, id, old_visual_bounds, parent_id);
+        }
+        let block = self
+            .blocks
+            .get_mut(id)
+            .expect("prepared decoration geometry references a live Figure");
+        block.set_node_bounds(bounds);
+        block
+            .figure
+            .connection_decoration_mut()
+            .expect("prepared decoration geometry references decoration behavior")
+            .commit_decoration_geometry(geometry);
+
+        self.notify_block_changed(id);
+        if old_bounds != bounds {
+            self.emit_figure_event(FigureEvent::FigureMoved {
+                figure_id: id,
+                old_bounds,
+                new_bounds: bounds,
+            });
+            self.mark_freeform_ancestor_extents_dirty(id);
+        }
+        self.mark_invalid(update_manager, id);
+        if visible {
+            self.repaint(update_manager, id, None);
+        }
     }
 
     pub(crate) fn commit_prepared_connection_route(

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::Rectangle;
-use crate::render::NdCanvas;
+use crate::render::{NdCanvas, command::LineJoin};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
@@ -55,9 +55,20 @@ impl PolygonFigure {
         let points = self.polyline.parent_points();
         self.polyline.stroke_color = color;
         self.polyline.stroke_width = width.max(0.0);
-        let (bounds, local_points) =
-            super::polyline::normalize_points(points, self.polyline.stroke_width, 3);
+        let (bounds, local_points) = super::polyline::normalize_points(
+            points,
+            self.polyline.stroke_width,
+            self.polyline.line_join,
+            3,
+        );
         self.polyline.commit_geometry(bounds, local_points);
+        self
+    }
+
+    /// 设置轮廓连接样式。
+    pub fn with_join(mut self, join: LineJoin) -> Self {
+        self.polyline = self.polyline.with_join(join);
+        self.polyline.renormalize_for_minimum(3);
         self
     }
 
@@ -190,8 +201,17 @@ impl PointListFigureBehavior for PolygonFigure {
         self.polyline.stroke_width
     }
 
+    fn line_join(&self) -> LineJoin {
+        self.polyline.line_join
+    }
+
     fn painted_minimum(&self) -> usize {
         3
+    }
+
+    fn commit_stroke_style(&mut self, stroke_width: f64, line_join: LineJoin) {
+        self.polyline.stroke_width = stroke_width;
+        self.polyline.line_join = line_join;
     }
 
     fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<crate::geometry::Point>) {
@@ -234,7 +254,7 @@ impl Shape for PolygonFigure {
     }
 
     fn line_join(&self) -> crate::render::command::LineJoin {
-        self.polyline.line_join()
+        self.polyline.line_join
     }
 
     fn get_border(&self) -> Option<&dyn Border> {

@@ -3,8 +3,8 @@ use std::{error::Error, fmt};
 use crate::Color;
 use crate::geometry::{Point, PointList, Rectangle, Translatable};
 use crate::render::{
-    DEFAULT_STROKE_MITER_LIMIT, NdCanvas,
-    command::{LineCap, LineJoin},
+    NdCanvas,
+    command::{LineCap, LineJoin, stroke_visual_outset},
 };
 
 use crate::{Bounded, ChildClippingStrategy, Figure, FigureContainer, Layer};
@@ -179,12 +179,10 @@ impl ConnectionFigureBehavior for ConnectionFigure {
         &self,
         parent_points: &PointList,
     ) -> Result<PreparedConnectionGeometry, ConnectionGeometryError> {
-        let radius = self.stroke_width / 2.0;
-        let outset = match self.line_join {
-            LineJoin::Miter => radius * DEFAULT_STROKE_MITER_LIMIT,
-            LineJoin::Round | LineJoin::Bevel => radius,
-        };
-        PreparedConnectionGeometry::from_parent_points(parent_points, outset)
+        PreparedConnectionGeometry::from_parent_points(
+            parent_points,
+            stroke_visual_outset(self.stroke_width, self.line_join),
+        )
     }
 
     fn commit_route_points(&mut self, points: PointList) {

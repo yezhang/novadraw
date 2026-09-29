@@ -1,6 +1,7 @@
 //! Pure connection, anchor, and routing contracts.
 
 mod anchor;
+mod decoration;
 mod figure;
 mod locator;
 mod query;
@@ -14,13 +15,17 @@ pub use anchor::{
     ChopboxAnchor, ConnectionAnchor, EllipseAnchor, LabelAnchor, RoundedRectangleAnchor, XYAnchor,
     rectangle_boundary_site,
 };
+pub use decoration::{
+    ConnectionDecorationBehavior, DecorationError, PolygonDecorationFigure,
+    PolylineDecorationFigure, PreparedDecorationGeometry,
+};
 pub use figure::{
     ConnectionFigure, ConnectionFigureBehavior, ConnectionGeometryError, ConnectionLayerFigure,
     PreparedConnectionGeometry,
 };
 pub use locator::{
-    ConnectionLocator, ConnectionLocatorStrategy, LocatorError, LocatorPlacement, MidpointLocator,
-    PathFractionLocator,
+    ConnectionLocator, ConnectionLocatorStrategy, EndpointLocator, LocatorError, LocatorPlacement,
+    MidpointLocator, PathFractionLocator,
 };
 pub(crate) use query::FigureTreeSceneRead;
 pub use query::{

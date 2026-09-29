@@ -38,6 +38,13 @@ pub enum UnresolvedConnection {
         /// Pure locator failure.
         error: LocatorError,
     },
+    /// A Connection decoration rejected its route-oriented geometry.
+    DecorationFailed {
+        /// Decoration child whose geometry failed.
+        child: FigureId,
+        /// Pure decoration failure.
+        error: super::DecorationError,
+    },
     /// A registered Locator child no longer belongs to the Connection Figure.
     InvalidLocatorChild(FigureId),
 }
@@ -505,6 +512,7 @@ impl ConnectionRuntime {
         &self,
         connection: ConnectionId,
         points: &crate::geometry::PointList,
+        metadata: &super::RouteMetadata,
     ) -> Result<Vec<(FigureId, LocatorPlacement)>, UnresolvedConnection> {
         self.locators
             .iter()
@@ -512,7 +520,7 @@ impl ConnectionRuntime {
             .map(|binding| {
                 binding
                     .strategy
-                    .locate(points)
+                    .locate_with_metadata(points, metadata)
                     .map(|placement| (binding.child, placement))
                     .map_err(|error| UnresolvedConnection::LocatorFailed {
                         child: binding.child,

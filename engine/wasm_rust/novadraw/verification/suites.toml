@@ -154,6 +154,21 @@ description = "Run the Draw2D connection, anchor, router, and locator contract"
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "m9_connection_contract"]
 
+[commands."test.p2-c01"]
+description = "Run PointList bounds, endpoint locator, and decoration contracts"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "m9_connection_contract",
+  "--test",
+  "m9_connection_runtime",
+  "--test",
+  "m10_reusable_shape_border_contract",
+]
+
 [commands."test.editor-g1-model"]
 description = "Run the G1 model adapter contract"
 program = "cargo"
@@ -378,6 +393,30 @@ paths = [
 ]
 documents = [
   "doc/design/rendering/image-source-rectangle.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-c01-connection-decoration"
+title = "PointList bounds, endpoint locators, and Connection decorations"
+milestone = "P2-C01"
+kind = "contract"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-c01"]
+paths = [
+  "novadraw/src/figure/polyline.rs",
+  "novadraw/src/figure/polygon.rs",
+  "novadraw/src/connection/decoration.rs",
+  "novadraw/src/connection/locator.rs",
+  "novadraw/src/connection/runtime.rs",
+  "novadraw/tests/m9_connection_contract.rs",
+  "novadraw/tests/m9_connection_runtime.rs",
+  "novadraw/tests/m10_reusable_shape_border_contract.rs",
+]
+documents = [
+  "doc/design/architecture/connection-routing.md",
+  "doc/design/architecture/reusable-shape-border.md",
   "doc/parity/draw2d/api-coverage.md",
 ]
 

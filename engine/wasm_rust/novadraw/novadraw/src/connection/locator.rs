@@ -1,6 +1,8 @@
 use std::{error::Error, fmt};
 
-use crate::geometry::{Point, PointList};
+use crate::geometry::{Point, PointList, Vec2};
+
+use super::{RouteEnd, RouteMetadata};
 
 /// Position and direction reference produced by a Connection Locator.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -15,6 +17,15 @@ pub struct LocatorPlacement {
 pub trait ConnectionLocatorStrategy {
     /// Resolves one placement from node-local route points.
     fn locate(&self, points: &PointList) -> Result<LocatorPlacement, LocatorError>;
+
+    /// Resolves placement with endpoint metadata translated into the same coordinate space.
+    fn locate_with_metadata(
+        &self,
+        points: &PointList,
+        _metadata: &RouteMetadata,
+    ) -> Result<LocatorPlacement, LocatorError> {
+        self.locate(points)
+    }
 }
 
 /// Draw2D-compatible source, target, and topological middle locator.
@@ -32,17 +43,8 @@ impl ConnectionLocatorStrategy for ConnectionLocator {
     fn locate(&self, points: &PointList) -> Result<LocatorPlacement, LocatorError> {
         require_points(points, 2)?;
         match self {
-            Self::Source => Ok(LocatorPlacement {
-                point: points.get(0).expect("validated point count"),
-                reference: points.get(1).expect("validated point count"),
-            }),
-            Self::Target => {
-                let last = points.len() - 1;
-                Ok(LocatorPlacement {
-                    point: points.get(last).expect("validated point count"),
-                    reference: points.get(last - 1).expect("validated point count"),
-                })
-            }
+            Self::Source => terminal_placement(points, RouteEnd::Source, None),
+            Self::Target => terminal_placement(points, RouteEnd::Target, None),
             Self::Middle if points.len() % 2 == 1 => {
                 let middle = points.len() / 2;
                 let point = points.get(middle).expect("validated point count");
@@ -56,6 +58,84 @@ impl ConnectionLocatorStrategy for ConnectionLocator {
                 segment_midpoint(points, right - 1)
             }
         }
+    }
+
+    fn locate_with_metadata(
+        &self,
+        points: &PointList,
+        metadata: &RouteMetadata,
+    ) -> Result<LocatorPlacement, LocatorError> {
+        match self {
+            Self::Source => terminal_placement(
+                points,
+                RouteEnd::Source,
+                metadata.source.site.outward_normal,
+            ),
+            Self::Target => terminal_placement(
+                points,
+                RouteEnd::Target,
+                metadata.target.site.outward_normal,
+            ),
+            Self::Middle => self.locate(points),
+        }
+    }
+}
+
+/// Places a child relative to one route endpoint's tangent and normal.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct EndpointLocator {
+    end: RouteEnd,
+    u_distance: f64,
+    v_distance: f64,
+}
+
+impl EndpointLocator {
+    /// Creates a finite endpoint-relative locator.
+    pub fn new(end: RouteEnd, u_distance: f64, v_distance: f64) -> Result<Self, LocatorError> {
+        if !u_distance.is_finite() || !v_distance.is_finite() {
+            return Err(LocatorError::InvalidOffset);
+        }
+        Ok(Self {
+            end,
+            u_distance,
+            v_distance,
+        })
+    }
+
+    /// Creates a source endpoint locator.
+    pub fn source(u_distance: f64, v_distance: f64) -> Result<Self, LocatorError> {
+        Self::new(RouteEnd::Source, u_distance, v_distance)
+    }
+
+    /// Creates a target endpoint locator.
+    pub fn target(u_distance: f64, v_distance: f64) -> Result<Self, LocatorError> {
+        Self::new(RouteEnd::Target, u_distance, v_distance)
+    }
+}
+
+impl ConnectionLocatorStrategy for EndpointLocator {
+    fn locate(&self, points: &PointList) -> Result<LocatorPlacement, LocatorError> {
+        offset_terminal_placement(
+            terminal_placement(points, self.end, None)?,
+            self.u_distance,
+            self.v_distance,
+        )
+    }
+
+    fn locate_with_metadata(
+        &self,
+        points: &PointList,
+        metadata: &RouteMetadata,
+    ) -> Result<LocatorPlacement, LocatorError> {
+        let fallback = match self.end {
+            RouteEnd::Source => metadata.source.site.outward_normal,
+            RouteEnd::Target => metadata.target.site.outward_normal,
+        };
+        offset_terminal_placement(
+            terminal_placement(points, self.end, fallback)?,
+            self.u_distance,
+            self.v_distance,
+        )
     }
 }
 
@@ -137,6 +217,8 @@ pub enum LocatorError {
     SegmentOutOfRange { segment: usize, point_count: usize },
     /// Fraction is non-finite or outside `[0, 1]`.
     InvalidFraction,
+    /// Endpoint-relative offset is non-finite.
+    InvalidOffset,
     /// Route has no non-zero length.
     DegenerateRoute,
     /// Custom Locator returned a non-finite point or reference.
@@ -157,10 +239,68 @@ impl fmt::Display for LocatorError {
                 "segment {segment} is outside a route with {point_count} points"
             ),
             Self::InvalidFraction => write!(formatter, "path fraction must be in [0, 1]"),
+            Self::InvalidOffset => write!(formatter, "endpoint offset must be finite"),
             Self::DegenerateRoute => write!(formatter, "route has no non-zero length"),
             Self::NonFinitePlacement => write!(formatter, "locator placement must be finite"),
         }
     }
+}
+
+fn terminal_placement(
+    points: &PointList,
+    end: RouteEnd,
+    fallback_normal: Option<Vec2>,
+) -> Result<LocatorPlacement, LocatorError> {
+    require_points(points, 2)?;
+    let endpoint = match end {
+        RouteEnd::Source => points.get(0).expect("validated point count"),
+        RouteEnd::Target => points.get(points.len() - 1).expect("validated point count"),
+    };
+    let reference = match end {
+        RouteEnd::Source => points
+            .as_slice()
+            .iter()
+            .copied()
+            .skip(1)
+            .find(|candidate| (*candidate - endpoint).length_squared() > f64::EPSILON),
+        RouteEnd::Target => points
+            .as_slice()
+            .iter()
+            .copied()
+            .rev()
+            .skip(1)
+            .find(|candidate| (*candidate - endpoint).length_squared() > f64::EPSILON),
+    }
+    .or_else(|| {
+        fallback_normal.and_then(|normal| {
+            let length = normal.length();
+            (length.is_finite() && length > f64::EPSILON).then(|| endpoint - normal / length)
+        })
+    })
+    .ok_or(LocatorError::DegenerateRoute)?;
+    Ok(LocatorPlacement {
+        point: endpoint,
+        reference,
+    })
+}
+
+fn offset_terminal_placement(
+    placement: LocatorPlacement,
+    u_distance: f64,
+    v_distance: f64,
+) -> Result<LocatorPlacement, LocatorError> {
+    let outward = placement.point - placement.reference;
+    let length = outward.length();
+    if !length.is_finite() || length <= f64::EPSILON {
+        return Err(LocatorError::DegenerateRoute);
+    }
+    let tangent = outward / length;
+    let normal = Vec2::new(-tangent.y(), tangent.x());
+    let offset = tangent * u_distance + normal * v_distance;
+    Ok(LocatorPlacement {
+        point: placement.point + offset,
+        reference: placement.reference + offset,
+    })
 }
 
 impl Error for LocatorError {}

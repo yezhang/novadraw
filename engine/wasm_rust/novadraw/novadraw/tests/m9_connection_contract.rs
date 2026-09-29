@@ -2,11 +2,12 @@ use std::{cell::Cell, collections::HashMap};
 
 use novadraw::geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vec2};
 use novadraw::{
-    AnchorError, AnchorGeometry, AnchorGeometryKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
-    ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
-    DependencySubject, DirectRouter, EllipseAnchor, FigureId, LabelAnchor, MidpointLocator,
-    PathFractionLocator, RoundedRectangleAnchor, RouteError, RouteOutput, RouteRequest,
-    SceneQueryError, SceneRead, TrackedSceneQuery, rectangle_boundary_site,
+    AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorSite, ChopboxAnchor, ConnectionAnchor,
+    ConnectionId, ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
+    DependencySubject, DirectRouter, EllipseAnchor, EndpointLocator, FigureId, LabelAnchor,
+    MidpointLocator, PathFractionLocator, RoundedRectangleAnchor, RouteEndpoint, RouteError,
+    RouteMetadata, RouteOutput, RouteRequest, SceneQueryError, SceneRead, TrackedSceneQuery,
+    rectangle_boundary_site,
 };
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
@@ -524,5 +525,85 @@ fn locators_preserve_topological_middle_and_arc_fraction_semantics() {
             .unwrap()
             .point,
         Point::new(10.0, 5.0)
+    );
+}
+
+#[test]
+fn endpoint_locators_skip_duplicate_terminal_points_and_apply_tangent_offsets() {
+    let points = PointList::from_points(vec![
+        Point::new(0.0, 0.0),
+        Point::new(0.0, 0.0),
+        Point::new(10.0, 0.0),
+        Point::new(10.0, 0.0),
+    ]);
+
+    let source = ConnectionLocator::Source.locate(&points).unwrap();
+    assert_eq!(source.point, Point::ZERO);
+    assert_eq!(source.reference, Point::new(10.0, 0.0));
+    let target = ConnectionLocator::Target.locate(&points).unwrap();
+    assert_eq!(target.point, Point::new(10.0, 0.0));
+    assert_eq!(target.reference, Point::ZERO);
+
+    assert_eq!(
+        EndpointLocator::target(4.0, 3.0)
+            .unwrap()
+            .locate(&points)
+            .unwrap()
+            .point,
+        Point::new(14.0, 3.0)
+    );
+    assert_eq!(
+        EndpointLocator::source(4.0, 3.0)
+            .unwrap()
+            .locate(&points)
+            .unwrap()
+            .point,
+        Point::new(-4.0, -3.0)
+    );
+}
+
+#[test]
+fn endpoint_locator_uses_anchor_normal_only_for_fully_degenerate_route() {
+    let point = Point::new(20.0, 30.0);
+    let points = PointList::from_points(vec![point, point, point]);
+    let metadata = RouteMetadata {
+        source: RouteEndpoint {
+            reference: point,
+            site: AnchorSite {
+                point,
+                outward_normal: Some(Vec2::new(-2.0, 0.0)),
+            },
+        },
+        target: RouteEndpoint {
+            reference: point,
+            site: AnchorSite {
+                point,
+                outward_normal: Some(Vec2::new(2.0, 0.0)),
+            },
+        },
+    };
+
+    assert_eq!(
+        ConnectionLocator::Source
+            .locate_with_metadata(&points, &metadata)
+            .unwrap()
+            .reference,
+        Point::new(21.0, 30.0)
+    );
+    assert_eq!(
+        EndpointLocator::target(5.0, 0.0)
+            .unwrap()
+            .locate_with_metadata(&points, &metadata)
+            .unwrap()
+            .point,
+        Point::new(25.0, 30.0)
+    );
+    assert_eq!(
+        ConnectionLocator::Target.locate(&points),
+        Err(novadraw::LocatorError::DegenerateRoute)
+    );
+    assert_eq!(
+        EndpointLocator::source(f64::NAN, 0.0),
+        Err(novadraw::LocatorError::InvalidOffset)
     );
 }
