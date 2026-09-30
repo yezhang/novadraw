@@ -23,4 +23,5 @@
 # 第四部分：扩展并交付
 
 - [9. 扩展、验证与故障排查](09-verification-and-extension.md)
+- [附录：Vello 字形绘制机制](appendix-vello-glyph-rendering.md)
 - [附录：术语、公开 API 与代码地图](appendix-glossary-and-map.md)

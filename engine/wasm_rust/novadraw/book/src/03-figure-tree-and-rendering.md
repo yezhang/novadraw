@@ -290,6 +290,9 @@ flowchart LR
 代码锚点：
 [`VelloRenderer::submit`](../../novadraw-backend-vello/src/lib.rs#L1114-L1306)。
 
+普通轮廓字形如何从 `DrawGlyphRun` 进入 Vello 的路径缓存和 GPU 栅格化管线，见
+[附录：Vello 字形绘制机制](appendix-vello-glyph-rendering.md)。
+
 ## 3.11 递归深度策略
 
 图形树使用递归遍历，深度上限为 10,000。渲染和关键递归路径周期性使用
