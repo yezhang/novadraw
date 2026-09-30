@@ -8,9 +8,17 @@ use crate::render::{
     TextError, TextInteractionError, TextLayout, TextLayoutEngine, TextLayoutRevision,
     TextMovement, TextPosition, TextRange,
 };
-use crate::{Figure, FigureMeasurement, FigureStyle, MeasureConstraints};
+use crate::{Alignment, Figure, FigureMeasurement, MeasureConstraints};
 
 const ELLIPSIS: &str = "...";
+
+fn aligned(origin: f64, available: f64, used: f64, alignment: Alignment) -> f64 {
+    match alignment {
+        Alignment::Start => origin,
+        Alignment::Center => origin + (available - used).max(0.0) / 2.0,
+        Alignment::End => origin + (available - used).max(0.0),
+    }
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InlineTextFragment {
@@ -178,8 +186,10 @@ struct FlowLayoutKey {
     revision: u64,
     font: FontDescriptor,
     engine_revision: u64,
-    width: f64,
+    bounds: Rectangle,
     wrapping: FlowWrapping,
+    horizontal_alignment: Alignment,
+    vertical_alignment: Alignment,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -187,6 +197,7 @@ struct FlowLayoutSnapshot {
     key: FlowLayoutKey,
     layout: TextLayout,
     paragraph_ranges: Vec<Range<usize>>,
+    origin: Point,
 }
 
 pub trait TextFlowBehavior {
@@ -202,6 +213,8 @@ pub struct TextFlowFigure {
     page: FlowPage,
     revision: u64,
     wrapping: FlowWrapping,
+    horizontal_alignment: Alignment,
+    vertical_alignment: Alignment,
     layout: Option<FlowLayoutSnapshot>,
 }
 
@@ -212,12 +225,20 @@ impl TextFlowFigure {
             page,
             revision: 1,
             wrapping: FlowWrapping::SoftWrap,
+            horizontal_alignment: Alignment::Start,
+            vertical_alignment: Alignment::Start,
             layout: None,
         }
     }
 
     pub fn with_wrapping(mut self, wrapping: FlowWrapping) -> Self {
         self.wrapping = wrapping;
+        self
+    }
+
+    pub fn with_alignment(mut self, horizontal: Alignment, vertical: Alignment) -> Self {
+        self.horizontal_alignment = horizontal;
+        self.vertical_alignment = vertical;
         self
     }
 
@@ -230,7 +251,11 @@ impl TextFlowFigure {
             .layout
             .as_ref()
             .ok_or(TextInteractionError::Unavailable)?;
-        snapshot.flow_position_for_text(snapshot.layout.hit_test_text(point)?)
+        let local = Point::new(
+            point.x() - snapshot.origin.x(),
+            point.y() - snapshot.origin.y(),
+        );
+        snapshot.flow_position_for_text(snapshot.layout.hit_test_text(local)?)
     }
 
     pub fn caret_geometry(
@@ -241,9 +266,19 @@ impl TextFlowFigure {
             .layout
             .as_ref()
             .ok_or(TextInteractionError::Unavailable)?;
-        snapshot
+        let geometry = snapshot
             .layout
-            .caret_geometry(snapshot.to_text_position(position)?)
+            .caret_geometry(snapshot.to_text_position(position)?)?;
+        let bounds = geometry.bounds();
+        Ok(CaretGeometry::new(
+            Rectangle::new(
+                bounds.x + snapshot.origin.x(),
+                bounds.y + snapshot.origin.y(),
+                bounds.width,
+                bounds.height,
+            ),
+            geometry.line_index(),
+        ))
     }
 
     pub fn selection_geometry(
@@ -254,10 +289,26 @@ impl TextFlowFigure {
             .layout
             .as_ref()
             .ok_or(TextInteractionError::Unavailable)?;
-        snapshot.layout.selection_geometry(TextRange::new(
-            snapshot.to_text_position(range.anchor)?,
-            snapshot.to_text_position(range.focus)?,
-        ))
+        snapshot
+            .layout
+            .selection_geometry(TextRange::new(
+                snapshot.to_text_position(range.anchor)?,
+                snapshot.to_text_position(range.focus)?,
+            ))?
+            .into_iter()
+            .map(|quad| {
+                let bounds = quad.bounds();
+                Ok(SelectionQuad::new(
+                    Rectangle::new(
+                        bounds.x + snapshot.origin.x(),
+                        bounds.y + snapshot.origin.y(),
+                        bounds.width,
+                        bounds.height,
+                    ),
+                    quad.line_index(),
+                ))
+            })
+            .collect()
     }
 
     pub fn move_text_position(
@@ -306,8 +357,10 @@ impl TextFlowFigure {
             revision: self.revision,
             font: font.clone(),
             engine_revision: engine.revision(),
-            width: bounds.width.max(0.0),
+            bounds,
             wrapping: self.wrapping,
+            horizontal_alignment: self.horizontal_alignment,
+            vertical_alignment: self.vertical_alignment,
         };
         if self.layout.as_ref().is_some_and(|layout| layout.key == key) {
             return Ok(false);
@@ -316,7 +369,7 @@ impl TextFlowFigure {
         let constraints = match self.wrapping {
             FlowWrapping::NoWrap => TextConstraints::UNBOUNDED,
             FlowWrapping::SoftWrap | FlowWrapping::Truncate { .. } => {
-                TextConstraints::new(Some(key.width as f32))?
+                TextConstraints::new(Some(key.bounds.width.max(0.0) as f32))?
             }
         };
         let full = engine.layout(&text, font, constraints)?;
@@ -333,10 +386,25 @@ impl TextFlowFigure {
             }
             _ => full,
         };
+        let origin = Point::new(
+            aligned(
+                key.bounds.x,
+                key.bounds.width,
+                f64::from(layout.width()),
+                key.horizontal_alignment,
+            ),
+            aligned(
+                key.bounds.y,
+                key.bounds.height,
+                f64::from(layout.height()),
+                key.vertical_alignment,
+            ),
+        );
         let next = FlowLayoutSnapshot {
             key,
             layout,
             paragraph_ranges: self.page.paragraph_ranges(),
+            origin,
         };
         let changed = self.layout.as_ref() != Some(&next);
         self.layout = Some(next);
@@ -423,10 +491,6 @@ impl Figure for TextFlowFigure {
         "TextFlowFigure"
     }
 
-    fn initial_style(&self) -> FigureStyle {
-        FigureStyle::default()
-    }
-
     fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
         self.layout
             .as_ref()
@@ -441,7 +505,7 @@ impl Figure for TextFlowFigure {
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
         if let Some(snapshot) = &self.layout {
-            gc.draw_text_layout(&snapshot.layout, 0.0, 0.0);
+            gc.draw_text_layout(&snapshot.layout, snapshot.origin.x(), snapshot.origin.y());
         }
     }
 

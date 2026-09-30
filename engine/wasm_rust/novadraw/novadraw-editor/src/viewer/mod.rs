@@ -27,7 +27,7 @@ use crate::{
     ConnectionRouterSelection, ConnectionRoutingDescriptor, CreateConnectionRequest,
     DirectTextEditError, DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState,
     DirectTextFeedback, EditPartError, EditPartFactory, EditPartId, EditorNamespace, EditorRequest,
-    FeedbackId, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
+    FeedbackId, FeedbackVisual, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
     PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, PolicyRole,
     ReconnectConnectionRequest, SelectionDelta, SelectionModel, TextEditMode, TextInputEffect,
     TextInputPurpose, VisualBuildContext, VisualOwner, VisualUpdateContext,
@@ -47,6 +47,7 @@ const FEEDBACK_LAYER: &str = "feedback";
 const HANDLE_LAYER: &str = "handles";
 const DIRECT_TEXT_SELECTION_COLOR: Color = Color::rgba(0.18, 0.49, 0.89, 0.28);
 const DIRECT_TEXT_CARET_COLOR: Color = Color::rgba(0.07, 0.09, 0.12, 1.0);
+const DIRECT_TEXT_CARET_MINIMUM_WIDTH: f64 = 1.5;
 const DIRECT_TEXT_PREEDIT_COLOR: Color = Color::rgba(0.12, 0.38, 0.78, 1.0);
 const DIRECT_TEXT_PREEDIT_THICKNESS: f64 = 1.5;
 const DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS: u64 = 530_000;
@@ -1394,6 +1395,25 @@ where
         Ok((id, figure))
     }
 
+    fn add_feedback_contribution(
+        &mut self,
+        owner: Option<EditPartId>,
+        feedback: FeedbackVisual,
+    ) -> Result<(FeedbackId, FigureId), ViewerError> {
+        let (figure, scaled, style) = feedback.into_parts();
+        let attached = self.add_feedback_visual(owner, scaled, figure)?;
+        if let Some(style) = style
+            && let Err(error) = self
+                .runtime
+                .figure(attached.1)
+                .and_then(|mut figure| figure.set_style(style))
+        {
+            let _ = self.remove_overlay_visual(attached.1);
+            return Err(error.into());
+        }
+        Ok(attached)
+    }
+
     /// Removes a registered handle or feedback subtree.
     pub fn remove_overlay_visual(&mut self, figure: FigureId) -> Result<bool, ViewerError> {
         match self.visual_registry.get(&figure).copied() {
@@ -1843,8 +1863,7 @@ where
         let (visuals, text_visual) = feedback.into_parts();
         let mut figures = Vec::with_capacity(visuals.len());
         for visual in visuals {
-            let (figure, scaled) = visual.into_parts();
-            match self.add_feedback_visual(Some(owner), scaled, figure) {
+            match self.add_feedback_contribution(Some(owner), visual) {
                 Ok((_, figure)) => figures.push(figure),
                 Err(error) => {
                     let _ = self.remove_direct_text_feedback(&figures);
@@ -1937,9 +1956,15 @@ where
             .composition()
             .is_none_or(|composition| composition.selection().is_some());
         let caret_feedback = if caret_visible {
+            let caret_bounds = Rectangle::new(
+                area.x,
+                area.y,
+                area.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+                area.height,
+            );
             match self.attach_direct_text_decoration(
                 owner,
-                area,
+                caret_bounds,
                 DIRECT_TEXT_CARET_COLOR,
                 &mut figures,
             ) {
@@ -2144,8 +2169,7 @@ where
         }
         let mut figures = Vec::with_capacity(contributions.len());
         for (owner, feedback) in contributions {
-            let (figure, scaled) = feedback.into_parts();
-            let (_, figure) = self.add_feedback_visual(Some(owner), scaled, figure)?;
+            let (_, figure) = self.add_feedback_contribution(Some(owner), feedback)?;
             figures.push(figure);
         }
         Ok(figures)
@@ -2203,8 +2227,7 @@ where
             plan.feedback_with_route(source, target, request, route, &self.model)?;
         let mut figures = Vec::with_capacity(contributions.len());
         for feedback in contributions {
-            let (figure, scaled) = feedback.into_parts();
-            match self.add_feedback_visual(Some(request.source()), scaled, figure) {
+            match self.add_feedback_contribution(Some(request.source()), feedback) {
                 Ok((_, figure)) => figures.push(figure),
                 Err(error) => {
                     for figure in figures {
@@ -2305,9 +2328,8 @@ where
             plan.feedback_with_route(connection, fixed, candidate, request, route, &self.model)?;
         let mut figures = Vec::with_capacity(contributions.len());
         for feedback in contributions {
-            let (figure, scaled) = feedback.into_parts();
             let (_, figure) =
-                self.add_feedback_visual(Some(request.connection().edit_part()), scaled, figure)?;
+                self.add_feedback_contribution(Some(request.connection().edit_part()), feedback)?;
             figures.push(figure);
         }
         Ok(figures)

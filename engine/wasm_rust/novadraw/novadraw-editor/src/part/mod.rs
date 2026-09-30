@@ -1007,6 +1007,11 @@ impl<'a> VisualUpdateContext<'a> {
         Ok(self.runtime.figure(self.primary)?.set_style(style)?)
     }
 
+    /// Updates whether the primary Figure fills its bounds with the resolved background.
+    pub fn set_primary_opaque(&mut self, opaque: bool) -> Result<bool, EditPartError> {
+        Ok(self.runtime.figure(self.primary)?.set_opaque(opaque)?)
+    }
+
     /// Updates text when the primary Figure exposes Label capability.
     pub fn set_primary_label_text(
         &mut self,

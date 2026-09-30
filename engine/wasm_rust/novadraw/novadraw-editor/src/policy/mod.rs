@@ -7,8 +7,8 @@ use std::{
     sync::Arc,
 };
 
-use novadraw::Figure;
 use novadraw::geometry::Point;
+use novadraw::{Figure, FigureStyle};
 
 use crate::{
     Command, CreateConnectionRequest, DirectTextEdit, DirectTextEditRequest, EditPartId,
@@ -85,6 +85,7 @@ impl<I: Copy> PolicyHost<I> {
 pub struct FeedbackVisual {
     figure: Box<dyn Figure>,
     scaled: bool,
+    style: Option<FigureStyle>,
 }
 
 /// Source and target points resolved from endpoint Anchor providers for feedback.
@@ -116,6 +117,7 @@ impl FeedbackVisual {
         Self {
             figure,
             scaled: true,
+            style: None,
         }
     }
 
@@ -124,11 +126,18 @@ impl FeedbackVisual {
         Self {
             figure,
             scaled: false,
+            style: None,
         }
     }
 
-    pub(crate) fn into_parts(self) -> (Box<dyn Figure>, bool) {
-        (self.figure, self.scaled)
+    /// Applies a local Figure style after the feedback is attached.
+    pub fn with_style(mut self, style: FigureStyle) -> Self {
+        self.style = Some(style);
+        self
+    }
+
+    pub(crate) fn into_parts(self) -> (Box<dyn Figure>, bool, Option<FigureStyle>) {
+        (self.figure, self.scaled, self.style)
     }
 }
 

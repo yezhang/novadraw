@@ -4,7 +4,7 @@
 
 日期：2026-09-29
 
-结论：`complete`
+结论：`in_progress`
 
 ## 1. 完成范围
 
@@ -49,4 +49,9 @@ Suite：`platform.p2-e02-text-input`
 
 完整步骤和环境边界见
 [`../manual/p2-direct-text-edit.md`](../manual/p2-direct-text-edit.md)。
-P2-E02 与 GEF `direct_edit` 已提升为 `complete` / `verified`。
+
+## 4. 后续复验
+
+2026-09-30 后续人工复验发现旧构建存在首帧背景、编辑文本定位与 caret 可见性回归。
+修正版已通过 Web Vello 自动视觉复核；P2-E02 保持 `in_progress`，等待 Native/Web
+人工复验后恢复 `complete`。

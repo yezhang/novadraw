@@ -7,8 +7,9 @@ use std::{
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{BuiltinFont, DamageMode, SurfaceInfo};
 use novadraw::{
-    Color, Figure, FigureStyle, FlowPage, FreeformLayerFigure, LabelFigure, MouseButton,
-    PlatformHost, Point, Rectangle, RectangleFigure, RenderBackend, TextFlowFigure,
+    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FreeformLayerFigure,
+    LabelFigure, MouseButton, PlatformHost, Point, Rectangle, RectangleFigure, RenderBackend,
+    TextFlowFigure,
 };
 use novadraw_editor::{
     Command, CommandError, DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest,
@@ -42,6 +43,23 @@ const NODE_BORDER_WIDTH: f64 = 2.0;
 
 fn label_bounds() -> Rectangle {
     Rectangle::new(LABEL_X, LABEL_Y, LABEL_WIDTH, LABEL_HEIGHT)
+}
+
+fn label_style() -> FigureStyle {
+    FigureStyle {
+        foreground: Some(Color::WHITE),
+        background: Some(NODE_COLOR),
+        font: Some("28px Inter Variable".to_owned()),
+        ..FigureStyle::default()
+    }
+}
+
+fn direct_text_style() -> FigureStyle {
+    FigureStyle {
+        foreground: Some(Color::WHITE),
+        font: Some("28px Inter Variable".to_owned()),
+        ..FigureStyle::default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -154,10 +172,12 @@ impl DirectTextEdit<DirectEditModel> for LabelDirectEdit {
                     )
                     .with_stroke(EDIT_BORDER_COLOR, NODE_BORDER_WIDTH),
                 )),
-                FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
-                    label_bounds(),
-                    FlowPage::from_text(state.draft()),
-                ))),
+                FeedbackVisual::scaled(Box::new(
+                    TextFlowFigure::new(label_bounds(), FlowPage::from_text(state.draft()))
+                        .with_wrapping(FlowWrapping::NoWrap)
+                        .with_alignment(Alignment::Center, Alignment::Center),
+                ))
+                .with_style(direct_text_style()),
             ],
             1,
         )
@@ -257,12 +277,8 @@ impl EditPartBehavior<DirectEditModel> for DirectEditPart {
     ) -> Result<(), EditPartError> {
         if model_id == LABEL {
             context.set_primary_bounds(label_bounds())?;
-            context.set_primary_style(FigureStyle {
-                foreground: Some(Color::WHITE),
-                background: Some(NODE_COLOR),
-                font: Some("28px Inter Variable".to_owned()),
-                ..FigureStyle::default()
-            })?;
+            context.set_primary_style(label_style())?;
+            context.set_primary_opaque(true)?;
             if self.render_text {
                 context.set_primary_label_text(model.label.clone())?;
             }

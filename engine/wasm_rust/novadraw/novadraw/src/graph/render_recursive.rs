@@ -117,6 +117,10 @@ impl<'a> FigureRenderer<'a> {
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
+        if block.state().is_opaque() {
+            self.gc
+                .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+        }
         block.figure.paint_figure_in_bounds(
             self.gc,
             crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),

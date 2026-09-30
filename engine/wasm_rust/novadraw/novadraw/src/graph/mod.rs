@@ -5186,6 +5186,20 @@ mod tests {
         bounds: Rectangle,
     }
 
+    struct OpaqueProbeFigure {
+        bounds: Rectangle,
+    }
+
+    impl Figure for OpaqueProbeFigure {
+        fn initial_bounds(&self) -> Rectangle {
+            self.bounds
+        }
+
+        fn name(&self) -> &'static str {
+            "OpaqueProbeFigure"
+        }
+    }
+
     impl Bounded for AlphaStateFigure {
         fn bounds(&self) -> Rectangle {
             self.bounds
@@ -6714,6 +6728,34 @@ mod tests {
             .expect("styled descendant must paint");
 
         assert_eq!(color.alpha(), 0.5);
+    }
+
+    #[test]
+    fn opaque_figure_fills_bounds_with_resolved_background_before_content() {
+        let mut scene = FigureTree::new();
+        let parent = scene.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child = scene.add_child_to(
+            parent,
+            Box::new(OpaqueProbeFigure {
+                bounds: Rectangle::new(20.0, 30.0, 50.0, 40.0),
+            }),
+        );
+        let background = NovadrawCoreColor::from_hex("#2D7F5E").unwrap();
+        scene.set_figure_style(
+            child,
+            FigureStyle {
+                background: Some(background),
+                ..FigureStyle::default()
+            },
+        );
+        scene.set_opaque(child, true);
+
+        assert!(scene.render().commands().iter().any(|command| matches!(
+            command.kind,
+            RenderCommandKind::FillRect { rect, color }
+                if rect_signature(&rect) == [0.0, 0.0, 50.0, 40.0]
+                    && color == background
+        )));
     }
 
     #[test]

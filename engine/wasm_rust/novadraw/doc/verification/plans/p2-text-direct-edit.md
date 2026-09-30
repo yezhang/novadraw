@@ -2,7 +2,7 @@
 
 类型：`verification-plan`
 
-状态：`complete`
+状态：`in_progress`
 
 范围：P2-T02、P2-E02
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | `core.p2-t02-text-interaction` | contract | headless | `complete`：文档位置、caret、selection 与 movement 几何 |
 | `editor.p2-e02-direct-text-edit` | contract/application | headless | `complete`：session、draft、policy、Command 与 cleanup |
-| `platform.p2-e02-text-input` | platform/application | native-macos、web | `complete`：IME、候选窗、DOM input bridge、Web 场景与人工验收 |
+| `platform.p2-e02-text-input` | platform/application | native-macos、web | `in_progress`：自动门禁完成，视觉修正版等待人工复验 |
 
 ## 2. Core 契约矩阵
 
@@ -144,7 +144,8 @@ P2-E02b 当前自动证据：
 
 P2-E02 人工证据：
 
-- 2026-09-30 Native macOS/Vello 与系统输入法验收：PASS；
-- 2026-09-30 Web Vello 桌面/移动输入法验收：PASS；
+- 2026-09-30 后续复验发现 Native/Web 首帧背景、编辑文本定位与 caret 可见性回归；
+- 修正版 Web Vello 自动视觉复核：PASS；
+- 修正版 Native/Web 人工复验：待完成；
 - 详细环境与自动浏览器复核见
   [`../manual/p2-direct-text-edit.md`](../manual/p2-direct-text-edit.md)。

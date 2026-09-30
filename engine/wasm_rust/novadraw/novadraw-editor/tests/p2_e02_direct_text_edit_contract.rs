@@ -1,9 +1,9 @@
 use std::convert::Infallible;
 
-use novadraw::render::BuiltinFont;
+use novadraw::render::{BuiltinFont, command::RenderCommandKind};
 use novadraw::{
-    Figure, FlowPage, FlowTextPosition, FlowTextRange, Rectangle, RectangleFigure, RootFigure,
-    TextAffinity, TextFlowFigure, TextMovement,
+    Color, Figure, FigureStyle, FlowPage, FlowTextPosition, FlowTextRange, Rectangle,
+    RectangleFigure, RootFigure, TextAffinity, TextFlowFigure, TextMovement,
 };
 use novadraw_editor::{
     Command, CommandError, CommandStackError, DirectTextEdit, DirectTextEditDescriptor,
@@ -126,10 +126,17 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
         _model: &TextModel,
     ) -> Result<DirectTextFeedback, PolicyError> {
         DirectTextFeedback::new(
-            vec![FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
-                Rectangle::new(40.0, 40.0, 240.0, 120.0),
-                FlowPage::from_text(state.draft()),
-            )))],
+            vec![
+                FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
+                    Rectangle::new(40.0, 40.0, 240.0, 120.0),
+                    FlowPage::from_text(state.draft()),
+                )))
+                .with_style(FigureStyle {
+                    foreground: Some(Color::WHITE),
+                    font: Some("16px Inter Variable".to_owned()),
+                    ..FigureStyle::default()
+                }),
+            ],
             0,
         )
     }
@@ -275,6 +282,19 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
         1
     );
     assert_eq!(direct_text_decoration_count(&viewer), 1);
+    let text_feedback = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()[0];
+    assert_eq!(
+        viewer.runtime().tree().figure_style(text_feedback),
+        Some(&FigureStyle {
+            foreground: Some(Color::WHITE),
+            font: Some("16px Inter Variable".to_owned()),
+            ..FigureStyle::default()
+        })
+    );
     let caret = viewer.direct_text_caret_geometry().unwrap().bounds();
     let caret_figure = *viewer
         .runtime()
@@ -283,11 +303,20 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
         .unwrap()
         .last()
         .unwrap();
-    assert_eq!(
-        viewer.runtime().tree().figure_bounds(caret_figure),
-        Some(caret)
-    );
+    let caret_visual = viewer.runtime().tree().figure_bounds(caret_figure).unwrap();
+    assert_eq!(caret_visual.x, caret.x);
+    assert_eq!(caret_visual.y, caret.y);
+    assert_eq!(caret_visual.height, caret.height);
+    assert!(caret_visual.width >= 1.0);
     assert!(viewer.runtime().tree().is_visible(caret_figure));
+    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    assert!(frame.commands().iter().any(|command| matches!(
+        command.kind,
+        RenderCommandKind::FillRect { rect, color }
+            if color == Color::rgba(0.07, 0.09, 0.12, 1.0)
+                && rect.width >= 1.0
+                && rect.height == caret.height
+    )));
     let blink_off_at = viewer.next_wake_deadline().unwrap();
     assert!(viewer.advance_time(blink_off_at).unwrap());
     assert!(!viewer.runtime().tree().is_visible(caret_figure));

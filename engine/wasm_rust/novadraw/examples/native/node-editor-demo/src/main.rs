@@ -14,8 +14,8 @@ use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
-    Color, Figure, FlowPage, LabelFigure, MonotonicTime, PlatformHost, Point, PolylineFigure,
-    Rectangle, RectangleFigure, RenderBackend, TextFlowFigure,
+    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, LabelFigure, MonotonicTime,
+    PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, TextFlowFigure,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
@@ -64,6 +64,23 @@ const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 const VIEWPORT_BACKGROUND_COLOR: &str = "#F8FAFC";
 const VIEWPORT_BORDER_COLOR: &str = "#64748B";
 const VIEWPORT_BORDER_WIDTH: f64 = 2.0;
+
+fn node_label_style(color: Color) -> FigureStyle {
+    FigureStyle {
+        foreground: Some(Color::WHITE),
+        background: Some(color),
+        font: Some("16px Inter Variable".to_owned()),
+        ..FigureStyle::default()
+    }
+}
+
+fn direct_text_style() -> FigureStyle {
+    FigureStyle {
+        foreground: Some(Color::WHITE),
+        font: Some("16px Inter Variable".to_owned()),
+        ..FigureStyle::default()
+    }
+}
 
 fn bendpoint_router_key() -> ConnectionRouterKey {
     ConnectionRouterKey::new(BENDPOINT_ROUTER_KEY).expect("static Router key is valid")
@@ -788,10 +805,12 @@ impl DirectTextEdit<DemoModel> for NodeDirectTextEdit {
                     )
                     .with_stroke(FEEDBACK_COLOR, 2.0),
                 )),
-                FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
-                    self.bounds,
-                    FlowPage::from_text(state.draft()),
-                ))),
+                FeedbackVisual::scaled(Box::new(
+                    TextFlowFigure::new(self.bounds, FlowPage::from_text(state.draft()))
+                        .with_wrapping(FlowWrapping::NoWrap)
+                        .with_alignment(Alignment::Center, Alignment::Center),
+                ))
+                .with_style(direct_text_style()),
             ],
             1,
         )
@@ -1035,12 +1054,8 @@ impl EditPartBehavior<DemoModel> for DemoPart {
         let node = model.nodes[&model_id];
         context.set_primary_bounds(node.bounds)?;
         if let NodeKind::Shape(color) = node.kind {
-            context.set_primary_style(novadraw::FigureStyle {
-                foreground: Some(Color::WHITE),
-                background: Some(color),
-                font: Some("16px Inter Variable".to_owned()),
-                ..novadraw::FigureStyle::default()
-            })?;
+            context.set_primary_style(node_label_style(color))?;
+            context.set_primary_opaque(true)?;
             context.set_primary_label_text(
                 model
                     .labels
@@ -2091,6 +2106,29 @@ mod tests {
     use novadraw::graphics::LineStyle;
     use novadraw::render::command::RenderCommandKind;
     use novadraw_editor::{HandleRole, SessionTextInputEvent, TextInputEffect, TextInputEvent};
+
+    #[test]
+    fn node_labels_render_model_colors_before_interaction() {
+        let model = DemoModel::new();
+        let colors = [NodeId(2), NodeId(3)].map(|id| {
+            let NodeKind::Shape(color) = model.nodes[&id].kind else {
+                panic!("node {id:?} must be a shape");
+            };
+            color
+        });
+        let mut harness = EditorHarness::new().unwrap();
+        let frame = harness.runtime_mut().prepare_frame().unwrap();
+
+        for color in colors {
+            assert!(frame.commands().iter().any(|command| matches!(
+                command.kind,
+                RenderCommandKind::FillRect {
+                    color: actual,
+                    ..
+                } if actual == color
+            )));
+        }
+    }
 
     #[test]
     fn direct_text_edit_commits_one_rename_and_round_trips_history() {

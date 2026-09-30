@@ -3,10 +3,10 @@ use std::sync::Arc;
 use novadraw::geometry::Translatable;
 use novadraw::render::BuiltinFont;
 use novadraw::{
-    CaretGeometry, FigureTree, FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange, Point,
-    Rectangle, RectangleFigure, Runtime, SelectionQuad, TextAffinity, TextFlowFigure,
-    TextFlowQueryError, TextInteractionError, TextInteractionMap, TextInteractionProvider,
-    TextMovement, TextPosition, TextRange,
+    Alignment, CaretGeometry, FigureTree, FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange,
+    FlowWrapping, Point, Rectangle, RectangleFigure, Runtime, SelectionQuad, TextAffinity,
+    TextFlowFigure, TextFlowQueryError, TextInteractionError, TextInteractionMap,
+    TextInteractionProvider, TextMovement, TextPosition, TextRange,
 };
 
 fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::FigureId) {
@@ -42,6 +42,58 @@ fn caret_round_trips_through_surface_coordinates() {
 
     assert_eq!(hit.paragraph(), 0);
     assert_eq!(hit.byte_offset(), "alpha".len());
+}
+
+#[test]
+fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
+    let bounds = Rectangle::new(40.0, 30.0, 240.0, 120.0);
+    let mut runtime = Runtime::empty();
+    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .unwrap();
+    let unaligned_flow = runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
+                .with_wrapping(FlowWrapping::NoWrap),
+        ))
+        .unwrap();
+    let flow = runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
+                .with_wrapping(FlowWrapping::NoWrap)
+                .with_alignment(Alignment::Center, Alignment::Center),
+        ))
+        .unwrap();
+    runtime.prepare_frame().expect("centered TextFlow frame");
+
+    let layout = runtime.text_flow_layout(flow).unwrap();
+    let expected_x = bounds.x + (bounds.width - f64::from(layout.width())) / 2.0;
+    let expected_y = bounds.y + (bounds.height - f64::from(layout.height())) / 2.0;
+    let caret = runtime
+        .text_flow_caret_geometry(flow, FlowTextPosition::new(0, 0, TextAffinity::Downstream))
+        .unwrap();
+    let unaligned_caret = runtime
+        .text_flow_caret_geometry(
+            unaligned_flow,
+            FlowTextPosition::new(0, 0, TextAffinity::Downstream),
+        )
+        .unwrap();
+
+    assert!(
+        (caret.bounds().x - unaligned_caret.bounds().x - (expected_x - bounds.x)).abs() < 0.001
+    );
+    assert!(
+        (caret.bounds().y - unaligned_caret.bounds().y - (expected_y - bounds.y)).abs() < 0.001
+    );
+    let hit = runtime
+        .text_flow_hit_test(flow, caret.bounds().center())
+        .unwrap();
+    assert_eq!(hit.byte_offset(), 0);
 }
 
 #[test]
