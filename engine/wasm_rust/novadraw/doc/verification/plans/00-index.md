@@ -7,4 +7,4 @@
 
 | 文档 | 范围 | 状态 |
 |---|---|---|
-| [p2-text-direct-edit.md](p2-text-direct-edit.md) | P2-T02 TextFlow interaction geometry 与 P2-E02 direct edit/IME | `in_progress` |
+| [p2-text-direct-edit.md](p2-text-direct-edit.md) | P2-T02 TextFlow interaction geometry 与 P2-E02 direct edit/IME | `complete` |

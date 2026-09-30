@@ -4,7 +4,7 @@
 
 日期：2026-09-29
 
-结论：`in_progress`
+结论：`complete`
 
 ## 1. 完成范围
 
@@ -32,7 +32,7 @@ Suite：`platform.p2-e02-text-input`
 
 - Editor direct-edit contract：8 项；
 - Winit adapter tests：5 项；
-- Web adapter tests：8 项；
+- Web adapter tests：9 项；
 - Web DOM host `wasm32-unknown-unknown` 编译：PASS；
 - Web validation release bundle：PASS；
 - Native node-editor direct-edit application contract：PASS。
@@ -55,5 +55,6 @@ Suite：`platform.p2-e02-text-input`
 ## 4. 后续复验
 
 2026-09-30 后续人工复验发现旧构建存在首帧背景、编辑文本定位与 caret 可见性回归。
-修正版已通过 Web Vello 自动视觉复核；P2-E02 保持 `in_progress`，等待 Native/Web
-人工复验后恢复 `complete`。
+修正版已通过 Web Vello 自动视觉复核与 Native macOS/Vello 用户人工复验。Web
+Chrome/Vello 系统拼音复验确认输入 `pinyin` 时 caret 始终位于最后一个字母之后，
+P2-E02 恢复 `complete`。

@@ -2,7 +2,7 @@
 
 类型：`manual-verification`
 
-状态：`in_progress`
+状态：`complete`
 
 ## Native macOS
 
@@ -63,8 +63,8 @@ cargo xtask manual web.build
 
 | 平台 | 环境 | 结果 |
 |---|---|---|
-| Native | macOS 14.7.8、Vello、系统输入法 | 待复验：旧构建首帧缺少节点底色，F2 后文字未居中且 caret 不可见 |
-| Web | Google Chrome 154.0.8037.58、Vello | 自动视觉复核 PASS；等待用户复验 |
+| Native | macOS 14.7.8、Vello、系统输入法 | PASS：背景、文本居中、caret、长文本裁剪与移动清理均通过用户人工复验 |
+| Web | Google Chrome 154.0.8037.58、Vello | PASS：系统拼音输入 `pinyin` 时 caret 始终位于最后一个字母之后 |
 | Web 自动复核 | Chrome、Vello WebGPU 与 Canvas2D 诊断后端 | PASS |
 
 Web 自动复核覆盖：
@@ -82,4 +82,4 @@ Web 自动复核覆盖：
 - candidate area 加上 canvas client origin，resize 时重新同步。
 
 2026-09-30 用户复验发现旧构建存在首帧背景、编辑文本定位和 caret 可见性回归。
-修正版已完成 Web Vello 自动视觉复核；Native Vello 与真实输入法仍需按上述步骤复验。
+修正版完成自动门禁后，Native Vello 与 Web Vello 真实系统输入法均通过用户人工复验。

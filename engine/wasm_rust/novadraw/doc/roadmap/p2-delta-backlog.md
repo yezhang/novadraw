@@ -31,11 +31,11 @@
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
-| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `in_progress` | P2-T02、G1-G5 |
+| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `complete` | P2-T02、G1-G5 |
 
 P2-T02 已闭合且未向 Core 引入 mutable editor state。P2-E02b 的 Native/Web input
-bridge 与可运行场景已完成；2026-09-30 后续人工复验发现视觉回归，修正版等待
-Native/Web 人工复验。P2-E02 不复制 shaping、caret 或 selection geometry。
+bridge 与可运行场景已完成；2026-09-30 视觉回归修正版已通过 Native/Web 人工复验。
+P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## Connection
 
@@ -365,8 +365,8 @@ selection、preedit、TextFlow interaction geometry、feedback lifecycle、accep
 stale revision、source retire 与 CommandStack undo/redo。P2-E02b 已完成 host lease、
 Native Winit IME、Web DOM input bridge、可运行 Web composition root 与默认
 caret/selection/preedit 反馈。自动 suite 已通过；首帧背景、编辑文本居中与 caret
-可见性修复已通过 Web Vello 自动视觉复核，等待
-`doc/verification/manual/p2-direct-text-edit.md` 的 Native/Web 人工复验。
+可见性修复已通过 Web Vello 自动视觉复核，以及
+`doc/verification/manual/p2-direct-text-edit.md` 记录的 Native/Web 人工复验。
 
 规范入口：
 
