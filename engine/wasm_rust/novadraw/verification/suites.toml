@@ -246,13 +246,13 @@ args = [
 ]
 
 [commands."test.node-editor-p2-e02"]
-description = "Run the native node-editor direct text edit application contract"
+description = "Run the native node-editor direct text edit application contracts"
 program = "cargo"
 args = [
   "test",
   "-p",
   "node-editor-demo",
-  "direct_text_edit_commits_one_rename_and_round_trips_history",
+  "direct_text_edit",
 ]
 
 [commands."test.editor-g1-model"]

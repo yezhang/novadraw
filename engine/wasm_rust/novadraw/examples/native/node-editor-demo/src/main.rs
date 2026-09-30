@@ -64,6 +64,7 @@ const WHEEL_ZOOM_FACTOR: f64 = 1.1;
 const VIEWPORT_BACKGROUND_COLOR: &str = "#F8FAFC";
 const VIEWPORT_BORDER_COLOR: &str = "#64748B";
 const VIEWPORT_BORDER_WIDTH: f64 = 2.0;
+const DIRECT_TEXT_INSET: f64 = 4.0;
 
 fn node_label_style(color: Color) -> FigureStyle {
     FigureStyle {
@@ -778,8 +779,6 @@ struct NodePolicy;
 
 struct NodeDirectTextEdit {
     node: NodeId,
-    bounds: Rectangle,
-    color: Color,
     descriptor: DirectTextEditDescriptor,
 }
 
@@ -791,22 +790,33 @@ impl DirectTextEdit<DemoModel> for NodeDirectTextEdit {
     fn feedback(
         &mut self,
         state: &DirectTextEditState,
-        _model: &DemoModel,
+        model: &DemoModel,
     ) -> Result<DirectTextFeedback, PolicyError> {
+        let node = model
+            .nodes
+            .get(&self.node)
+            .ok_or_else(|| PolicyError::operation("direct-edit node no longer exists"))?;
+        let NodeKind::Shape(color) = node.kind else {
+            return Err(PolicyError::operation(
+                "direct-edit node no longer exposes a shape label",
+            ));
+        };
+        let bounds = node.bounds;
+        let text_bounds = bounds.inflate(-DIRECT_TEXT_INSET, -DIRECT_TEXT_INSET);
         DirectTextFeedback::new(
             vec![
                 FeedbackVisual::scaled(Box::new(
                     RectangleFigure::new_with_color(
-                        self.bounds.x,
-                        self.bounds.y,
-                        self.bounds.width,
-                        self.bounds.height,
-                        self.color,
+                        bounds.x,
+                        bounds.y,
+                        bounds.width,
+                        bounds.height,
+                        color,
                     )
                     .with_stroke(FEEDBACK_COLOR, 2.0),
                 )),
                 FeedbackVisual::scaled(Box::new(
-                    TextFlowFigure::new(self.bounds, FlowPage::from_text(state.draft()))
+                    TextFlowFigure::new(text_bounds, FlowPage::from_text(state.draft()))
                         .with_wrapping(FlowWrapping::NoWrap)
                         .with_alignment(Alignment::Center, Alignment::Center),
                 ))
@@ -915,7 +925,7 @@ impl EditPolicy<DemoModel> for NodePolicy {
         let Some(node) = model.nodes.get(&host.model()).copied() else {
             return Ok(None);
         };
-        let NodeKind::Shape(color) = node.kind else {
+        let NodeKind::Shape(_) = node.kind else {
             return Ok(None);
         };
         if request.feature().as_str() != "label" {
@@ -928,8 +938,6 @@ impl EditPolicy<DemoModel> for NodePolicy {
             .clone();
         Ok(Some(Box::new(NodeDirectTextEdit {
             node: host.model(),
-            bounds: node.bounds,
-            color,
             descriptor: DirectTextEditDescriptor::new(
                 request.feature().clone(),
                 text,
@@ -2170,6 +2178,53 @@ mod tests {
         assert_eq!(harness.node_label(2), Some("Source node"));
         assert!(harness.redo().unwrap());
         assert_eq!(harness.node_label(2), Some("重命名节点"));
+    }
+
+    #[test]
+    fn long_direct_text_edit_clips_to_the_node_and_commits_the_complete_label() {
+        let mut harness = EditorHarness::new().unwrap();
+        harness.runtime_mut().prepare_frame().unwrap();
+        let center = harness.node_bounds_in_surface(2).unwrap().center();
+        harness.click(center, KeyModifiers::default()).unwrap();
+        assert!(harness.start_rename_selected().unwrap());
+        let effects = harness.take_text_input_effects();
+        let [TextInputEffect::Acquire { session, .. }] = effects.as_slice() else {
+            panic!("rename must acquire one text-input lease");
+        };
+        let session = *session;
+        let label = "超长节点标签 👩‍💻 ".repeat(12);
+
+        harness
+            .handle_text_input(SessionTextInputEvent::new(
+                session,
+                TextInputEvent::SelectAll,
+            ))
+            .unwrap();
+        harness
+            .handle_text_input(SessionTextInputEvent::new(
+                session,
+                TextInputEvent::InsertText(label.clone()),
+            ))
+            .unwrap();
+        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        assert!(frame.commands().iter().any(|command| matches!(
+            command.kind,
+            RenderCommandKind::Clip { rect }
+                if rect
+                    == Rectangle::new(
+                        0.0,
+                        0.0,
+                        180.0 - DIRECT_TEXT_INSET * 2.0,
+                        120.0 - DIRECT_TEXT_INSET * 2.0,
+                    )
+        )));
+        assert_eq!(harness.node_label(2), Some("Source node"));
+
+        harness
+            .handle_text_input(SessionTextInputEvent::new(session, TextInputEvent::Accept))
+            .unwrap();
+        assert_eq!(harness.node_label(2), Some(label.as_str()));
+        assert!(!harness.direct_text_edit_active());
     }
 
     #[test]

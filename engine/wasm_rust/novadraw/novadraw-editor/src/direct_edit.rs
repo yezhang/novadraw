@@ -493,6 +493,7 @@ pub(crate) struct ActiveDirectTextEdit<A: ModelAdapter> {
     pub(crate) plan: Box<dyn DirectTextEdit<A>>,
     pub(crate) feedback: Vec<FigureId>,
     pub(crate) text_feedback: FigureId,
+    pub(crate) horizontal_scroll: f64,
     pub(crate) caret_feedback: Option<FigureId>,
     pub(crate) caret_visible: bool,
 }

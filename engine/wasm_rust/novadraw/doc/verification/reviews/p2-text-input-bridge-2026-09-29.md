@@ -30,13 +30,15 @@ Suite：`platform.p2-e02-text-input`
 
 结果：PASS：
 
-- Editor direct-edit contract：6 项；
+- Editor direct-edit contract：8 项；
 - Winit adapter tests：5 项；
 - Web adapter tests：8 项；
 - Web DOM host `wasm32-unknown-unknown` 编译：PASS；
 - Web validation release bundle：PASS；
 - Native node-editor direct-edit application contract：PASS。
 - 注入时间下 caret hide/show、preedit 无 caret 和 session cleanup 契约：PASS。
+- 单行长文本 viewport clip、caret reveal、selection clip 与目标移动 old/new damage：
+  PASS。
 
 ## 3. 平台验收
 

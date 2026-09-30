@@ -2,8 +2,8 @@ use std::convert::Infallible;
 
 use novadraw::render::{BuiltinFont, command::RenderCommandKind};
 use novadraw::{
-    Color, Figure, FigureStyle, FlowPage, FlowTextPosition, FlowTextRange, Rectangle,
-    RectangleFigure, RootFigure, TextAffinity, TextFlowFigure, TextMovement,
+    Alignment, Color, Figure, FigureStyle, FlowPage, FlowTextPosition, FlowTextRange, FlowWrapping,
+    Rectangle, RectangleFigure, RootFigure, TextAffinity, TextFlowFigure, TextMovement,
 };
 use novadraw_editor::{
     Command, CommandError, CommandStackError, DirectTextEdit, DirectTextEditDescriptor,
@@ -12,7 +12,7 @@ use novadraw_editor::{
     EditorDomainError, ExtendTextSelection, FeedbackVisual, FocusLossPolicy, GraphicalViewer,
     ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
     PolicyInstallation, PolicyRole, SessionTextInputEvent, TextDelete, TextEditMode,
-    TextInputEffect, TextInputEvent, TextInputPurpose, ViewerError,
+    TextInputEffect, TextInputEvent, TextInputPurpose, ViewerError, VisualUpdateContext,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -29,6 +29,7 @@ enum Event {
 struct TextModel {
     revision: ModelRevision,
     text: String,
+    bounds: Rectangle,
     children: Vec<ModelId>,
     events: Vec<ModelEvent<ModelId, Event>>,
 }
@@ -38,6 +39,7 @@ impl TextModel {
         Self {
             revision: ModelRevision::initial(),
             text: text.to_owned(),
+            bounds: Rectangle::new(40.0, 40.0, 240.0, 120.0),
             children: vec![TEXT],
             events: Vec::new(),
         }
@@ -51,6 +53,11 @@ impl TextModel {
 
     fn set_text(&mut self, text: String) {
         self.text = text;
+        self.publish(TEXT);
+    }
+
+    fn set_bounds(&mut self, bounds: Rectangle) {
+        self.bounds = bounds;
         self.publish(TEXT);
     }
 
@@ -123,14 +130,15 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
     fn feedback(
         &mut self,
         state: &DirectTextEditState,
-        _model: &TextModel,
+        model: &TextModel,
     ) -> Result<DirectTextFeedback, PolicyError> {
         DirectTextFeedback::new(
             vec![
-                FeedbackVisual::scaled(Box::new(TextFlowFigure::new(
-                    Rectangle::new(40.0, 40.0, 240.0, 120.0),
-                    FlowPage::from_text(state.draft()),
-                )))
+                FeedbackVisual::scaled(Box::new(
+                    TextFlowFigure::new(model.bounds, FlowPage::from_text(state.draft()))
+                        .with_wrapping(FlowWrapping::NoWrap)
+                        .with_alignment(Alignment::Center, Alignment::Center),
+                ))
                 .with_style(FigureStyle {
                     foreground: Some(Color::WHITE),
                     font: Some("16px Inter Variable".to_owned()),
@@ -183,7 +191,7 @@ impl EditPolicy<TextModel> for TextPolicy {
                 request.feature().clone(),
                 model.text.clone(),
                 model.revision(),
-                TextEditMode::Multiline,
+                TextEditMode::SingleLine,
                 FocusLossPolicy::Cancel,
             ),
         })))
@@ -195,14 +203,26 @@ struct TextPart;
 impl EditPartBehavior<TextModel> for TextPart {
     fn create_figure(
         &mut self,
-        _model: &TextModel,
+        model: &TextModel,
         model_id: ModelId,
     ) -> Result<Box<dyn Figure>, EditPartError> {
         Ok(if model_id == ROOT {
             Box::new(RootFigure::new(0.0, 0.0, 480.0, 320.0))
         } else {
-            Box::new(RectangleFigure::new(40.0, 40.0, 240.0, 120.0))
+            Box::new(RectangleFigure::from_bounds(model.bounds))
         })
+    }
+
+    fn refresh_visuals(
+        &mut self,
+        model: &TextModel,
+        model_id: ModelId,
+        context: &mut VisualUpdateContext<'_>,
+    ) -> Result<(), EditPartError> {
+        if model_id == TEXT {
+            context.set_primary_bounds(model.bounds)?;
+        }
+        Ok(())
     }
 
     fn create_policies(
@@ -352,6 +372,161 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     assert_eq!(viewer.model().text, "alpha");
     domain.redo(&mut viewer).unwrap();
     assert_eq!(viewer.model().text, "alpha beta");
+}
+
+#[test]
+fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
+    let text = "long 直接编辑 👩‍💻 text ".repeat(8);
+    let mut viewer = viewer(&text);
+    let source = viewer.part_for_model(TEXT).unwrap();
+    let mut domain = EditorDomain::new();
+    domain
+        .start_direct_text_edit(&mut viewer, source, feature())
+        .unwrap();
+    let text_feedback = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()[0];
+    let layout = viewer.runtime().text_flow_layout(text_feedback).unwrap();
+
+    assert!(!layout.is_truncated());
+    assert_eq!(layout.visible_range(), 0..text.len());
+    assert!(f64::from(layout.width()) > 240.0);
+    let end = viewer
+        .runtime()
+        .text_flow_local_caret_geometry(
+            text_feedback,
+            FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
+        )
+        .unwrap()
+        .bounds();
+    assert!(end.x >= 0.0);
+    assert!(end.x + end.width <= 240.0);
+
+    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    let clip = frame
+        .commands()
+        .iter()
+        .position(|command| {
+            matches!(
+                command.kind,
+                RenderCommandKind::Clip { rect }
+                    if rect == Rectangle::new(0.0, 0.0, 240.0, 120.0)
+            )
+        })
+        .expect("direct-edit TextFlow must clip to its fixed viewport");
+    let glyph = frame
+        .commands()
+        .iter()
+        .position(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
+        .expect("long draft must remain a full glyph layout");
+    assert!(clip < glyph);
+
+    let start = FlowTextPosition::new(0, 0, TextAffinity::Downstream);
+    domain
+        .set_direct_text_selection(&mut viewer, FlowTextRange::new(start, start))
+        .unwrap();
+    let text_feedback = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()[0];
+    let start = viewer
+        .runtime()
+        .text_flow_local_caret_geometry(text_feedback, start)
+        .unwrap()
+        .bounds();
+    assert!(start.x >= 0.0);
+    assert!(start.x + start.width <= 240.0);
+
+    domain
+        .set_direct_text_selection(
+            &mut viewer,
+            FlowTextRange::new(
+                FlowTextPosition::new(0, 0, TextAffinity::Downstream),
+                FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
+            ),
+        )
+        .unwrap();
+    for quad in viewer.direct_text_selection_geometry().unwrap() {
+        let bounds = quad.bounds();
+        assert!(bounds.x >= 40.0);
+        assert!(bounds.x + bounds.width <= 280.0);
+        assert!(bounds.y >= 40.0);
+        assert!(bounds.y + bounds.height <= 160.0);
+    }
+    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    let damage = frame
+        .damage()
+        .union()
+        .expect("selection replacement must damage the edit viewport");
+    assert!(damage.x >= 40.0);
+    assert!(damage.x + damage.width <= 280.0);
+    assert!(damage.y >= 40.0);
+    assert!(damage.y + damage.height <= 160.0);
+    let before_scale = viewer.direct_text_caret_geometry().unwrap().bounds();
+    assert!(viewer.set_viewport_scale_at(1.25, None).unwrap());
+    assert!(viewer.synchronize_direct_text_input_area().unwrap());
+    let after_scale = viewer.direct_text_caret_geometry().unwrap().bounds();
+    assert_ne!(after_scale, before_scale);
+    assert!(matches!(
+        viewer.take_text_input_effects().last(),
+        Some(TextInputEffect::SetArea { area, .. })
+            if area.x <= after_scale.x && area.x + area.width >= after_scale.x
+    ));
+    assert_eq!(viewer.direct_text_edit().unwrap().draft(), text);
+}
+
+#[test]
+fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bounds() {
+    let text = "moving long direct edit text ".repeat(6);
+    let mut viewer = viewer(&text);
+    let source = viewer.part_for_model(TEXT).unwrap();
+    let mut domain = EditorDomain::new();
+    domain
+        .start_direct_text_edit(&mut viewer, source, feature())
+        .unwrap();
+    viewer.runtime_mut().prepare_frame().unwrap();
+    let old_feedback = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()[0];
+    let old_bounds = viewer.runtime().tree().figure_bounds(old_feedback).unwrap();
+    let new_bounds = Rectangle::new(150.0, 95.0, 180.0, 90.0);
+
+    viewer.model_mut().unwrap().set_bounds(new_bounds);
+    assert!(viewer.refresh().unwrap());
+
+    let new_feedback = viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().scaled_feedback())
+        .unwrap()[0];
+    assert_ne!(new_feedback, old_feedback);
+    assert!(!viewer.runtime().tree().is_attached(old_feedback));
+    assert_eq!(
+        viewer.runtime().tree().figure_bounds(new_feedback),
+        Some(new_bounds)
+    );
+    let caret = viewer.direct_text_caret_geometry().unwrap().bounds();
+    assert!(caret.x >= new_bounds.x);
+    assert!(caret.x <= new_bounds.x + new_bounds.width);
+    assert!(caret.y >= new_bounds.y);
+    assert!(caret.y <= new_bounds.y + new_bounds.height);
+
+    let damage = viewer
+        .runtime_mut()
+        .prepare_frame()
+        .unwrap()
+        .damage()
+        .union()
+        .unwrap();
+    for bounds in [old_bounds, new_bounds] {
+        assert!(damage.contains(bounds.top_left()));
+        assert!(damage.contains(bounds.bottom_right()));
+    }
 }
 
 #[test]
@@ -512,7 +687,7 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
         viewer.take_text_input_effects().as_slice(),
         [TextInputEffect::Acquire {
             session: acquired,
-            purpose: TextInputPurpose::Multiline,
+            purpose: TextInputPurpose::SingleLine,
             ..
         }] if *acquired == session
     ));

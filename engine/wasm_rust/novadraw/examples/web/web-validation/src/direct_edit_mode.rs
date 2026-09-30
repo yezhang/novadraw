@@ -40,6 +40,7 @@ const NODE_COLOR: Color = Color::rgba(0.12, 0.42, 0.70, 1.0);
 const NODE_BORDER_COLOR: Color = Color::rgba(0.05, 0.16, 0.25, 1.0);
 const EDIT_BORDER_COLOR: Color = Color::rgba(0.94, 0.48, 0.08, 1.0);
 const NODE_BORDER_WIDTH: f64 = 2.0;
+const DIRECT_TEXT_INSET: f64 = 4.0;
 
 fn label_bounds() -> Rectangle {
     Rectangle::new(LABEL_X, LABEL_Y, LABEL_WIDTH, LABEL_HEIGHT)
@@ -160,6 +161,7 @@ impl DirectTextEdit<DirectEditModel> for LabelDirectEdit {
         state: &DirectTextEditState,
         _model: &DirectEditModel,
     ) -> Result<DirectTextFeedback, PolicyError> {
+        let text_bounds = label_bounds().inflate(-DIRECT_TEXT_INSET, -DIRECT_TEXT_INSET);
         DirectTextFeedback::new(
             vec![
                 FeedbackVisual::scaled(Box::new(
@@ -173,7 +175,7 @@ impl DirectTextEdit<DirectEditModel> for LabelDirectEdit {
                     .with_stroke(EDIT_BORDER_COLOR, NODE_BORDER_WIDTH),
                 )),
                 FeedbackVisual::scaled(Box::new(
-                    TextFlowFigure::new(label_bounds(), FlowPage::from_text(state.draft()))
+                    TextFlowFigure::new(text_bounds, FlowPage::from_text(state.draft()))
                         .with_wrapping(FlowWrapping::NoWrap)
                         .with_alignment(Alignment::Center, Alignment::Center),
                 ))

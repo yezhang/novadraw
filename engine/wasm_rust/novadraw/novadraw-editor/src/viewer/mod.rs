@@ -10,14 +10,15 @@ use std::{
 
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::{
-    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, Color, ConnectionAnchor,
-    ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome,
-    Figure, FigureId, FigureTree, FlowTextPosition, FlowTextRange, FramePreparationError,
-    FreeformLayerFigure, FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey,
-    LayerPlacement, LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy,
+    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, Color, ComponentUpdateError,
+    ConnectionAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace,
+    DispatchOutcome, Figure, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree,
+    FlowTextPosition, FlowTextRange, FramePreparationError, FreeformLayerFigure,
+    FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement,
+    LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy, PreparedFigureUpdate,
     RectangleFigure, RouterBinding, RouterId, Runtime, RuntimeMutationError,
-    ScalableFreeformLayeredPane, SelectionQuad, StackLayout, TextMovement, TimeError,
-    UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
+    ScalableFreeformLayeredPane, SelectionQuad, StackLayout, TextFlowFigure, TextFlowViewport,
+    TextMovement, TimeError, UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
 };
 
 use crate::{
@@ -51,6 +52,70 @@ const DIRECT_TEXT_CARET_MINIMUM_WIDTH: f64 = 1.5;
 const DIRECT_TEXT_PREEDIT_COLOR: Color = Color::rgba(0.12, 0.38, 0.78, 1.0);
 const DIRECT_TEXT_PREEDIT_THICKNESS: f64 = 1.5;
 const DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS: u64 = 530_000;
+const DIRECT_TEXT_REVEAL_MARGIN: f64 = 2.0;
+
+fn reveal_horizontal_caret(
+    previous: f64,
+    natural_caret: Rectangle,
+    viewport_width: f64,
+    content_width: f64,
+) -> f64 {
+    let maximum = (content_width - viewport_width).max(0.0);
+    if maximum == 0.0 {
+        return 0.0;
+    }
+    let margin = DIRECT_TEXT_REVEAL_MARGIN.min(viewport_width / 2.0);
+    let mut scroll = previous.clamp(0.0, maximum);
+    let visible_left = natural_caret.x - scroll;
+    let visible_right = visible_left + natural_caret.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH);
+    if visible_left < margin {
+        scroll = natural_caret.x - margin;
+    } else if visible_right > viewport_width - margin {
+        scroll += visible_right - (viewport_width - margin);
+    }
+    scroll.clamp(0.0, maximum)
+}
+
+struct AttachedDirectTextFeedback {
+    figures: Vec<FigureId>,
+    text_feedback: FigureId,
+    caret_feedback: Option<FigureId>,
+    area: Rectangle,
+    horizontal_scroll: f64,
+}
+
+struct SetDirectTextViewport(TextFlowViewport);
+
+impl FigureComponentUpdate for SetDirectTextViewport {
+    type Figure = TextFlowFigure;
+    type Prepared = TextFlowViewport;
+    type Error = &'static str;
+
+    fn prepare(
+        self,
+        _current: &Self::Figure,
+        _context: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error> {
+        let offset = self.0.content_offset();
+        if !offset.x().is_finite() || !offset.y().is_finite() {
+            return Err("direct-edit TextFlow viewport offset must be finite");
+        }
+        Ok(PreparedFigureUpdate::paint(self.0))
+    }
+
+    fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
+        target.set_viewport(prepared);
+    }
+}
+
+fn direct_text_viewport_error(error: ComponentUpdateError<&'static str>) -> ViewerError {
+    match error {
+        ComponentUpdateError::Runtime(error) => error.into(),
+        ComponentUpdateError::WrongFigureType { .. }
+        | ComponentUpdateError::RevisionExhausted(_)
+        | ComponentUpdateError::Rejected(_) => DirectTextEditError::InvalidFeedbackTarget.into(),
+    }
+}
 
 /// Stable Figure identities for the standard graphical Viewer layer topology.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1476,23 +1541,29 @@ where
             plan,
             feedback: Vec::new(),
             text_feedback: self.root_layers.root(),
+            horizontal_scroll: 0.0,
             caret_feedback: None,
             caret_visible: false,
         };
         let projection = active.plan.feedback(&active.state, &self.model)?;
-        let (feedback, text_feedback, caret_feedback, area) =
-            self.attach_direct_text_feedback(request.source(), &active.state, projection)?;
-        active.feedback = feedback;
-        active.text_feedback = text_feedback;
-        active.caret_feedback = caret_feedback;
-        active.caret_visible = caret_feedback.is_some();
+        let attached = self.attach_direct_text_feedback(
+            request.source(),
+            &active.state,
+            projection,
+            active.horizontal_scroll,
+        )?;
+        active.feedback = attached.figures;
+        active.text_feedback = attached.text_feedback;
+        active.horizontal_scroll = attached.horizontal_scroll;
+        active.caret_feedback = attached.caret_feedback;
+        active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
             session,
             purpose: match active.state.mode() {
                 TextEditMode::SingleLine => TextInputPurpose::SingleLine,
                 TextEditMode::Multiline => TextInputPurpose::Multiline,
             },
-            area,
+            area: attached.area,
         });
         self.direct_text_edit = Some(active);
         self.reset_direct_text_blink();
@@ -1613,9 +1684,19 @@ where
             .direct_text_edit
             .as_ref()
             .ok_or(DirectTextEditError::NoActiveSession)?;
-        self.runtime
+        let viewport = self.direct_text_viewport_in_surface(active.text_feedback)?;
+        let selection = self
+            .runtime
             .text_flow_selection_geometry(active.text_feedback, active.state.selection())
-            .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
+            .into_iter()
+            .filter_map(|quad| {
+                quad.bounds()
+                    .intersection(viewport)
+                    .map(|bounds| SelectionQuad::new(bounds, quad.line_index()))
+            })
+            .collect();
+        Ok(selection)
     }
 
     pub(crate) fn direct_text_feedback_contains(&self, point: Point) -> bool {
@@ -1637,22 +1718,73 @@ where
         surface_bounds.contains(point)
     }
 
-    /// Emits an updated candidate-window area after an external surface transform change.
+    /// Rebuilds direct-edit feedback and emits its candidate area after a transform change.
     pub fn synchronize_direct_text_input_area(&mut self) -> Result<bool, ViewerError> {
-        let Some(active) = self.direct_text_edit.as_ref() else {
+        let Some(mut active) = self.direct_text_edit.take() else {
             return Ok(false);
         };
-        let caret = active.state.caret_position()?;
-        let area = self
-            .runtime
-            .text_flow_caret_geometry(active.text_feedback, caret)
-            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
-            .bounds();
+        let projection = match active.plan.feedback(&active.state, &self.model) {
+            Ok(projection) => projection,
+            Err(error) => {
+                self.direct_text_edit = Some(active);
+                return Err(error.into());
+            }
+        };
+        let attached = match self.attach_direct_text_feedback(
+            active.state.source(),
+            &active.state,
+            projection,
+            active.horizontal_scroll,
+        ) {
+            Ok(attached) => attached,
+            Err(error) => {
+                self.direct_text_edit = Some(active);
+                return Err(error);
+            }
+        };
+        if !active.caret_visible
+            && let Some(caret) = attached.caret_feedback
+            && let Err(error) = self.runtime.figure(caret)?.set_visible(false)
+        {
+            let _ = self.remove_direct_text_feedback(&attached.figures);
+            self.direct_text_edit = Some(active);
+            return Err(error.into());
+        }
+        if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
+            let _ = self.remove_direct_text_feedback(&attached.figures);
+            self.direct_text_edit = Some(active);
+            return Err(error);
+        }
+        active.feedback = attached.figures;
+        active.text_feedback = attached.text_feedback;
+        active.horizontal_scroll = attached.horizontal_scroll;
+        active.caret_feedback = attached.caret_feedback;
+        active.caret_visible &= attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::SetArea {
             session: active.state.session(),
-            area,
+            area: attached.area,
         });
+        self.direct_text_edit = Some(active);
         Ok(true)
+    }
+
+    fn direct_text_viewport_in_surface(
+        &self,
+        text_feedback: FigureId,
+    ) -> Result<Rectangle, ViewerError> {
+        let bounds = self
+            .runtime
+            .tree()
+            .figure_bounds(text_feedback)
+            .ok_or(ViewerError::InconsistentState)?;
+        let transform = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(text_feedback)
+            .ok_or(ViewerError::InconsistentState)?;
+        let mut viewport = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        viewport.transform(transform);
+        Ok(viewport)
     }
 
     pub(crate) fn move_direct_text(
@@ -1789,22 +1921,24 @@ where
             .active
             .plan
             .feedback(&prepared.active.state, &self.model)?;
-        let (feedback, text_feedback, caret_feedback, area) = self.attach_direct_text_feedback(
+        let attached = self.attach_direct_text_feedback(
             prepared.active.state.source(),
             &prepared.active.state,
             projection,
+            prepared.active.horizontal_scroll,
         )?;
-        prepared.active.feedback = feedback;
-        prepared.active.text_feedback = text_feedback;
-        prepared.active.caret_feedback = caret_feedback;
-        prepared.active.caret_visible = caret_feedback.is_some();
+        prepared.active.feedback = attached.figures;
+        prepared.active.text_feedback = attached.text_feedback;
+        prepared.active.horizontal_scroll = attached.horizontal_scroll;
+        prepared.active.caret_feedback = attached.caret_feedback;
+        prepared.active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
             session: prepared.active.state.session(),
             purpose: match prepared.active.state.mode() {
                 TextEditMode::SingleLine => TextInputPurpose::SingleLine,
                 TextEditMode::Multiline => TextInputPurpose::Multiline,
             },
-            area,
+            area: attached.area,
         });
         self.direct_text_edit = Some(prepared.active);
         self.reset_direct_text_blink();
@@ -1825,9 +1959,12 @@ where
                 return Err(error.into());
             }
         };
-        let (feedback, text_feedback, caret_feedback, area) = match self
-            .attach_direct_text_feedback(active.state.source(), &active.state, projection)
-        {
+        let attached = match self.attach_direct_text_feedback(
+            active.state.source(),
+            &active.state,
+            projection,
+            active.horizontal_scroll,
+        ) {
             Ok(attached) => attached,
             Err(error) => {
                 active.state = previous_state;
@@ -1836,18 +1973,19 @@ where
             }
         };
         if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
-            let _ = self.remove_direct_text_feedback(&feedback);
+            let _ = self.remove_direct_text_feedback(&attached.figures);
             active.state = previous_state;
             self.direct_text_edit = Some(active);
             return Err(error);
         }
-        active.feedback = feedback;
-        active.text_feedback = text_feedback;
-        active.caret_feedback = caret_feedback;
-        active.caret_visible = caret_feedback.is_some();
+        active.feedback = attached.figures;
+        active.text_feedback = attached.text_feedback;
+        active.horizontal_scroll = attached.horizontal_scroll;
+        active.caret_feedback = attached.caret_feedback;
+        active.caret_visible = attached.caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::SetArea {
             session: active.state.session(),
-            area,
+            area: attached.area,
         });
         self.direct_text_edit = Some(active);
         self.reset_direct_text_blink();
@@ -1859,7 +1997,8 @@ where
         owner: EditPartId,
         state: &DirectTextEditState,
         feedback: DirectTextFeedback,
-    ) -> Result<(Vec<FigureId>, FigureId, Option<FigureId>, Rectangle), ViewerError> {
+        previous_horizontal_scroll: f64,
+    ) -> Result<AttachedDirectTextFeedback, ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
         let mut figures = Vec::with_capacity(visuals.len());
         for visual in visuals {
@@ -1871,11 +2010,21 @@ where
                 }
             }
         }
-        self.runtime.stabilize_for_query()?;
         let text_feedback = figures
             .get(text_visual)
             .copied()
             .ok_or(DirectTextEditError::InvalidFeedbackTarget)?;
+        if let Err(error) =
+            self.runtime
+                .figure(text_feedback)?
+                .update_component(SetDirectTextViewport(TextFlowViewport::clipped(
+                    Point::new(-previous_horizontal_scroll, 0.0),
+                )))
+        {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(direct_text_viewport_error(error));
+        }
+        self.runtime.stabilize_for_query()?;
         if self.runtime.text_flow_layout(text_feedback).is_err() {
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
@@ -1887,8 +2036,83 @@ where
                 return Err(error.into());
             }
         };
-        let area = match self.runtime.text_flow_caret_geometry(text_feedback, caret) {
+        let Some(text_bounds) = self.runtime.tree().figure_bounds(text_feedback) else {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+        };
+        if text_bounds.is_empty() {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+        }
+        let local_caret = match self
+            .runtime
+            .text_flow_local_caret_geometry(text_feedback, caret)
+        {
             Ok(caret) => caret.bounds(),
+            Err(_) => {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+            }
+        };
+        let content_width = self
+            .runtime
+            .text_flow_layout(text_feedback)
+            .map(|layout| f64::from(layout.full_width()))
+            .map_err(|_| DirectTextEditError::InvalidFeedbackTarget)?;
+        let natural_caret = Rectangle::new(
+            local_caret.x + previous_horizontal_scroll,
+            local_caret.y,
+            local_caret.width,
+            local_caret.height,
+        );
+        let content_width = content_width
+            .max(natural_caret.x + natural_caret.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH));
+        let horizontal_scroll = reveal_horizontal_caret(
+            previous_horizontal_scroll,
+            natural_caret,
+            text_bounds.width,
+            content_width,
+        );
+        if horizontal_scroll != previous_horizontal_scroll
+            && let Err(error) =
+                self.runtime
+                    .figure(text_feedback)?
+                    .update_component(SetDirectTextViewport(TextFlowViewport::clipped(
+                        Point::new(-horizontal_scroll, 0.0),
+                    )))
+        {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(direct_text_viewport_error(error));
+        }
+        let Some(transform) = self
+            .runtime
+            .tree()
+            .local_to_surface_transform(text_feedback)
+        else {
+            let _ = self.remove_direct_text_feedback(&figures);
+            return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+        };
+        let mut edit_viewport = Rectangle::new(0.0, 0.0, text_bounds.width, text_bounds.height);
+        edit_viewport.transform(transform);
+        let area = match self.runtime.text_flow_caret_geometry(text_feedback, caret) {
+            Ok(caret) => {
+                let bounds = caret.bounds();
+                Rectangle::new(
+                    bounds.x,
+                    bounds.y,
+                    bounds.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+                    bounds.height,
+                )
+                .intersection(edit_viewport)
+                .unwrap_or_else(|| {
+                    Rectangle::new(
+                        edit_viewport.x,
+                        edit_viewport.y,
+                        DIRECT_TEXT_CARET_MINIMUM_WIDTH.min(edit_viewport.width),
+                        edit_viewport.height,
+                    )
+                })
+            }
             Err(_) => {
                 let _ = self.remove_direct_text_feedback(&figures);
                 return Err(DirectTextEditError::InvalidFeedbackTarget.into());
@@ -1924,9 +2148,12 @@ where
         };
 
         for quad in selection {
+            let Some(bounds) = quad.bounds().intersection(edit_viewport) else {
+                continue;
+            };
             if let Err(error) = self.attach_direct_text_decoration(
                 owner,
-                quad.bounds(),
+                bounds,
                 DIRECT_TEXT_SELECTION_COLOR,
                 &mut figures,
             ) {
@@ -1935,7 +2162,9 @@ where
             }
         }
         for quad in preedit {
-            let bounds = quad.bounds();
+            let Some(bounds) = quad.bounds().intersection(edit_viewport) else {
+                continue;
+            };
             let underline = Rectangle::new(
                 bounds.x,
                 bounds.y + bounds.height - DIRECT_TEXT_PREEDIT_THICKNESS,
@@ -1977,7 +2206,13 @@ where
         } else {
             None
         };
-        Ok((figures, text_feedback, caret_feedback, area))
+        Ok(AttachedDirectTextFeedback {
+            figures,
+            text_feedback,
+            caret_feedback,
+            area,
+            horizontal_scroll,
+        })
     }
 
     fn attach_direct_text_decoration(
@@ -2549,6 +2784,7 @@ where
         match result {
             Ok(()) => {
                 self.applied_revision = final_revision;
+                self.synchronize_direct_text_input_area()?;
                 Ok(true)
             }
             Err(error) => self.fail(error),

@@ -471,7 +471,14 @@ where
         self.pointer = Some(location);
         self.autoexpose_requested = false;
         if viewer.direct_text_edit().is_some() {
-            if button == MouseButton::Left && viewer.direct_text_feedback_contains(location) {
+            let targets_handle = matches!(
+                viewer.target_at(location.x(), location.y()),
+                ViewerTarget::Handle { .. }
+            );
+            if button == MouseButton::Left
+                && !targets_handle
+                && viewer.direct_text_feedback_contains(location)
+            {
                 viewer.hit_test_direct_text(location, modifiers.shift)?;
                 return Ok(viewer.dispatch_mouse_pressed_without_selection(
                     location.x(),
@@ -618,7 +625,6 @@ where
         let changed = viewer.set_viewport_scale_at(scale, anchor)?;
         if changed {
             self.refresh_after_viewport_change(viewer)?;
-            viewer.synchronize_direct_text_input_area()?;
         }
         Ok(changed)
     }
@@ -635,7 +641,6 @@ where
         let changed = viewer.set_viewport_origin(origin)?;
         if changed {
             self.refresh_after_viewport_change(viewer)?;
-            viewer.synchronize_direct_text_input_area()?;
         }
         Ok(changed)
     }
@@ -800,6 +805,7 @@ where
             .runtime_mut()
             .stabilize_for_query()
             .map_err(ViewerError::from)?;
+        viewer.synchronize_direct_text_input_area()?;
         let Some(pointer) = self.pointer else {
             return Ok(());
         };
