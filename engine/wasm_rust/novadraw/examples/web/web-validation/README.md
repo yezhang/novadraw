@@ -33,6 +33,13 @@ P2-E02 direct-edit / IME 验证入口为
 候选窗位置、accept/cancel 与单调时间 caret blink。Canvas2D 可用于 DOM/Editor
 链路诊断，但不支持 glyph run，正式文本视觉验收使用 Vello。
 
+EditContext 集成验证入口为
+<http://127.0.0.1:4173/?mode=direct-edit&backend=vello&text-input=edit-context>。
+支持该 API 时，页面把 `WebEditContextHost` 直接附着到 canvas，并通过同一个
+`EditorDomain`、TextFlow feedback 和模型 Command 完成编辑；不支持或初始化失败时
+自动回退到隐藏 `textarea`。`body[data-text-input-host]` 和
+`body[data-text-input-active]` 暴露实际选中的 host 与租约状态。
+
 `layer-freeform` 场景中：
 
 - 普通滚轮或触控板双指滚动用于平移；

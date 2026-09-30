@@ -57,6 +57,34 @@ cargo xtask manual web.build
 8. canvas resize、page scroll 与 DPR 变化后 host 跟随 caret；
 9. accept/cancel 后 textarea blur，迟到事件不修改新 session。
 
+## Web EditContext 集成
+
+打开
+<http://127.0.0.1:4173/?mode=direct-edit&backend=vello&text-input=edit-context>。
+该入口运行与 textarea 路径相同的 Viewer、EditorDomain、TextFlow feedback 和模型
+Command，只替换浏览器文本输入 host。
+
+自动可观测项：
+
+1. `body[data-text-input-host="EditContext"]` 表示实际选择 EditContext host；
+2. 开始编辑前 `body[data-text-input-active="false"]`，点击节点后变为 `true`；
+3. 编辑时 canvas 的 `editContext.attachedElements()` 只包含当前 canvas；
+4. canvas 的 `editContext.text` 和 selection 与 `body[data-draft]` 对齐；
+5. 页面中不存在 `textarea`；
+6. canvas 像素非空，且控制台没有应用错误；
+7. 去掉 `text-input=edit-context` 后，原 textarea direct-edit 路径仍正常。
+
+真实系统输入法仍需人工验收：
+
+1. 点击节点开始编辑，输入 ASCII 和 emoji，`body[data-draft]` 与画布文本同步变化；
+2. 使用系统拼音或日文输入法，preedit 下划线与 caret 跟随组合文本；
+3. composition 期间候选窗靠近绘制的 caret，不发生首次错误定位后跳动；
+4. resize、page scroll 与 DPR 变化后，control bounds、selection bounds 和候选窗
+   继续对齐；
+5. Enter 接受后产生一个可撤销模型 Command，Escape 取消时模型不变；
+6. 在不支持 `EditContext` 的浏览器中，
+   `body[data-text-input-host="textarea"]`，原 direct-edit 行为不失效。
+
 ## 通过记录
 
 日期：2026-09-30
@@ -66,6 +94,7 @@ cargo xtask manual web.build
 | Native | macOS 14.7.8、Vello、系统输入法 | PASS：背景、文本居中、caret、长文本裁剪与移动清理均通过用户人工复验 |
 | Web | Google Chrome 154.0.8037.58、Vello | PASS：系统拼音输入 `pinyin` 时 caret 始终位于最后一个字母之后 |
 | Web 自动复核 | Chrome、Vello WebGPU 与 Canvas2D 诊断后端 | PASS |
+| EditContext 集成 | TraeCN 1.107.1、Chromium 142 | PARTIAL：Viewer session、canvas attachment、初始 draft/selection、无 textarea 与原路径回归通过；真实 IME 待人工验证 |
 
 Web 自动复核覆盖：
 

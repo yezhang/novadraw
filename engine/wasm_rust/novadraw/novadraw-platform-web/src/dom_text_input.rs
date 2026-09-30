@@ -10,7 +10,7 @@ use novadraw_editor::{SessionTextInputEvent, TextInputEffect, TextInputPurpose};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{CompositionEvent, Document, Event, HtmlTextAreaElement, InputEvent, KeyboardEvent};
 
-use crate::{WebTextInputAction, WebTextInputBridge};
+use crate::{WebTextInputAction, WebTextInputBridge, text_input::utf16_range_to_utf8};
 
 struct DomListener {
     event: &'static str,
@@ -199,6 +199,11 @@ impl WebTextInputHost {
         })
     }
 
+    /// Returns the session currently owning the hidden textarea.
+    pub fn active_session(&self) -> Option<novadraw_editor::DirectTextEditSessionId> {
+        self.bridge.borrow().active_session()
+    }
+
     /// Updates the canvas origin in browser client coordinates.
     pub fn set_surface_origin(&self, origin: Point) {
         if !origin.x().is_finite() || !origin.y().is_finite() {
@@ -322,40 +327,5 @@ fn dom_selection_in_utf8(
 ) -> Option<std::ops::Range<usize>> {
     let start = input.selection_start().ok().flatten()? as usize;
     let end = input.selection_end().ok().flatten()? as usize;
-    utf16_range_to_utf8(text, start, end)
-}
-
-fn utf16_range_to_utf8(text: &str, start: usize, end: usize) -> Option<std::ops::Range<usize>> {
-    if start > end {
-        return None;
-    }
-    let start = utf16_offset_to_utf8(text, start)?;
-    let end = utf16_offset_to_utf8(text, end)?;
-    Some(start..end)
-}
-
-fn utf16_offset_to_utf8(text: &str, target: usize) -> Option<usize> {
-    let mut utf16 = 0;
-    for (utf8, character) in text.char_indices() {
-        if utf16 == target {
-            return Some(utf8);
-        }
-        utf16 += character.len_utf16();
-        if utf16 > target {
-            return None;
-        }
-    }
-    (utf16 == target).then_some(text.len())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn utf16_dom_selection_converts_to_utf8_without_splitting_surrogates() {
-        assert_eq!(utf16_range_to_utf8("a😀中", 1, 3), Some(1..5));
-        assert_eq!(utf16_range_to_utf8("a😀中", 2, 3), None);
-        assert_eq!(utf16_range_to_utf8("a😀中", 3, 4), Some(5..8));
-    }
+    utf16_range_to_utf8(text, start..end).ok()
 }

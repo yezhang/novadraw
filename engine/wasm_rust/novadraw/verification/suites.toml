@@ -626,6 +626,7 @@ documents = [
   "doc/parity/gef/api-coverage.md",
   "doc/verification/plans/p2-text-direct-edit.md",
   "doc/verification/reviews/p2-direct-text-edit-session-2026-09-29.md",
+  "doc/verification/reviews/web-edit-context-capability-2026-09-30.md",
 ]
 
 [[suites]]
@@ -648,6 +649,7 @@ paths = [
   "novadraw-platform-winit/src/text_input.rs",
   "novadraw-platform-web/src/text_input.rs",
   "novadraw-platform-web/src/dom_text_input.rs",
+  "novadraw-platform-web/src/edit_context.rs",
   "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs",
   "examples/native/node-editor-demo/src/main.rs",
   "examples/native/node-editor-demo/src/harness.rs",

@@ -5,7 +5,7 @@ use std::ops::Range;
 use novadraw::Rectangle;
 use novadraw_editor::{
     DirectTextEditSessionId, SessionTextInputEvent, TextDelete, TextInputEffect, TextInputEvent,
-    TextInputPurpose,
+    TextInputPurpose, TextInputSnapshot,
 };
 
 /// DOM operation requested by [`WebTextInputBridge`].
@@ -33,6 +33,147 @@ pub struct WebTextInputBridge {
     composing: bool,
     suppress_input: Option<String>,
     purpose: Option<TextInputPurpose>,
+}
+
+/// Platform-neutral state adapter for a browser `EditContext`.
+#[derive(Debug, Default)]
+pub struct WebEditContextBridge {
+    active: Option<DirectTextEditSessionId>,
+    composing: bool,
+    purpose: Option<TextInputPurpose>,
+}
+
+/// Invalid UTF-16 offsets received from or sent to a browser text context.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct WebTextOffsetError;
+
+impl std::fmt::Display for WebTextOffsetError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("browser text offset splits a UTF-16 sequence")
+    }
+}
+
+impl std::error::Error for WebTextOffsetError {}
+
+impl WebEditContextBridge {
+    /// Creates an idle EditContext bridge.
+    pub const fn new() -> Self {
+        Self {
+            active: None,
+            composing: false,
+            purpose: None,
+        }
+    }
+
+    /// Returns the session currently owning the EditContext.
+    pub const fn active_session(&self) -> Option<DirectTextEditSessionId> {
+        self.active
+    }
+
+    /// Returns whether the browser is in an active composition.
+    pub const fn is_composing(&self) -> bool {
+        self.composing
+    }
+
+    /// Applies lease changes emitted by the Editor.
+    ///
+    /// Returns `false` for stale area/release effects.
+    pub fn apply_effect(&mut self, effect: &TextInputEffect) -> bool {
+        match effect {
+            TextInputEffect::Acquire {
+                session, purpose, ..
+            } => {
+                self.active = Some(*session);
+                self.composing = false;
+                self.purpose = Some(*purpose);
+                true
+            }
+            TextInputEffect::SetArea { session, .. } if self.active == Some(*session) => true,
+            TextInputEffect::Release { session } if self.active == Some(*session) => {
+                self.active = None;
+                self.composing = false;
+                self.purpose = None;
+                true
+            }
+            TextInputEffect::SetArea { .. } | TextInputEffect::Release { .. } => false,
+        }
+    }
+
+    /// Marks the start of browser-managed composition.
+    pub fn composition_started(&mut self) {
+        self.composing = self.active.is_some();
+    }
+
+    /// Converts an EditContext `textupdate` snapshot into one atomic Editor event.
+    pub fn text_updated(
+        &self,
+        text: impl Into<String>,
+        update_start_utf16: usize,
+        replacement: &str,
+        selection_utf16: Range<usize>,
+    ) -> Result<Option<SessionTextInputEvent>, WebTextOffsetError> {
+        let Some(session) = self.active else {
+            return Ok(None);
+        };
+        let snapshot = normalize_edit_context_snapshot(
+            text.into(),
+            update_start_utf16,
+            replacement,
+            selection_utf16,
+            self.composing,
+        )?;
+        Ok(Some(SessionTextInputEvent::new(
+            session,
+            TextInputEvent::Synchronize(snapshot),
+        )))
+    }
+
+    /// Ends composition and synchronizes the browser's committed buffer.
+    pub fn composition_ended(
+        &mut self,
+        text: impl Into<String>,
+        selection_utf16: Range<usize>,
+    ) -> Result<Option<SessionTextInputEvent>, WebTextOffsetError> {
+        self.composing = false;
+        let Some(session) = self.active else {
+            return Ok(None);
+        };
+        let text = text.into();
+        let selection = utf16_range_to_utf8(&text, selection_utf16)?;
+        Ok(Some(SessionTextInputEvent::new(
+            session,
+            TextInputEvent::Synchronize(TextInputSnapshot::new(text, selection, None)),
+        )))
+    }
+
+    /// Normalizes loss of the canvas text-input focus.
+    pub fn focus_lost(&mut self) -> Option<SessionTextInputEvent> {
+        let session = self.active?;
+        self.composing = false;
+        Some(SessionTextInputEvent::new(
+            session,
+            TextInputEvent::FocusLost,
+        ))
+    }
+
+    /// Normalizes commands not handled as EditContext text updates.
+    pub fn key_pressed(
+        &self,
+        key: &str,
+        control: bool,
+        meta: bool,
+    ) -> Option<SessionTextInputEvent> {
+        let session = self.active?;
+        let event = match key {
+            "Escape" if !self.composing => TextInputEvent::Cancel,
+            "Enter" if self.purpose == Some(TextInputPurpose::Multiline) && !control && !meta => {
+                TextInputEvent::InsertText("\n".to_owned())
+            }
+            "Enter" if !self.composing => TextInputEvent::Accept,
+            _ => return None,
+        };
+        Some(SessionTextInputEvent::new(session, event))
+    }
 }
 
 impl WebTextInputBridge {
@@ -289,6 +430,98 @@ fn normalize_composition_input(
     })
 }
 
+pub(crate) fn utf16_range_to_utf8(
+    text: &str,
+    range: Range<usize>,
+) -> Result<Range<usize>, WebTextOffsetError> {
+    if range.start > range.end {
+        return Err(WebTextOffsetError);
+    }
+    Ok(utf16_offset_to_utf8(text, range.start)?..utf16_offset_to_utf8(text, range.end)?)
+}
+
+pub(crate) fn utf16_offset_to_utf8(text: &str, target: usize) -> Result<usize, WebTextOffsetError> {
+    let mut utf16 = 0;
+    for (utf8, character) in text.char_indices() {
+        if utf16 == target {
+            return Ok(utf8);
+        }
+        utf16 += character.len_utf16();
+        if utf16 > target {
+            return Err(WebTextOffsetError);
+        }
+    }
+    (utf16 == target)
+        .then_some(text.len())
+        .ok_or(WebTextOffsetError)
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn utf8_range_to_utf16(
+    text: &str,
+    range: Range<usize>,
+) -> Result<Range<usize>, WebTextOffsetError> {
+    if range.start > range.end {
+        return Err(WebTextOffsetError);
+    }
+    Ok(utf8_offset_to_utf16(text, range.start)?..utf8_offset_to_utf16(text, range.end)?)
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn utf16_code_unit_ranges_to_utf8(
+    text: &str,
+    range: Range<usize>,
+) -> Result<Vec<Range<usize>>, WebTextOffsetError> {
+    if range.start > range.end {
+        return Err(WebTextOffsetError);
+    }
+    let utf16_len = text.encode_utf16().count();
+    if range.end > utf16_len {
+        return Err(WebTextOffsetError);
+    }
+
+    let mut result = Vec::with_capacity(range.end - range.start);
+    let mut utf16_start = 0;
+    for (utf8_start, character) in text.char_indices() {
+        let utf8_end = utf8_start + character.len_utf8();
+        let utf16_end = utf16_start + character.len_utf16();
+        for unit in utf16_start..utf16_end {
+            if range.contains(&unit) {
+                result.push(utf8_start..utf8_end);
+            }
+        }
+        utf16_start = utf16_end;
+    }
+    Ok(result)
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn utf8_offset_to_utf16(text: &str, target: usize) -> Result<usize, WebTextOffsetError> {
+    if target > text.len() || !text.is_char_boundary(target) {
+        return Err(WebTextOffsetError);
+    }
+    Ok(text[..target].encode_utf16().count())
+}
+
+fn normalize_edit_context_snapshot(
+    text: String,
+    update_start_utf16: usize,
+    replacement: &str,
+    selection_utf16: Range<usize>,
+    composing: bool,
+) -> Result<TextInputSnapshot, WebTextOffsetError> {
+    let selection = utf16_range_to_utf8(&text, selection_utf16)?;
+    let composition = if composing {
+        let end = update_start_utf16
+            .checked_add(replacement.encode_utf16().count())
+            .ok_or(WebTextOffsetError)?;
+        Some(utf16_range_to_utf8(&text, update_start_utf16..end)?)
+    } else {
+        None
+    };
+    Ok(TextInputSnapshot::new(text, selection, composition))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,5 +553,26 @@ mod tests {
             normalize_composition_input(false, "pinyin".to_owned(), Some(6..6)),
             None
         );
+    }
+
+    #[test]
+    fn edit_context_updates_are_normalized_to_utf8_snapshots() {
+        assert_eq!(
+            normalize_edit_context_snapshot("a😀中".to_owned(), 1, "😀", 3..3, true),
+            Ok(TextInputSnapshot::new("a😀中", 5..5, Some(1..5)))
+        );
+        assert_eq!(utf8_range_to_utf16("a😀中", 1..5), Ok(1..3));
+        assert_eq!(
+            utf16_code_unit_ranges_to_utf8("a😀中", 1..4),
+            Ok(vec![1..5, 1..5, 5..8])
+        );
+    }
+
+    #[test]
+    fn edit_context_rejects_offsets_inside_surrogate_pairs() {
+        assert_eq!(utf16_range_to_utf8("a😀中", 1..3), Ok(1..5));
+        assert_eq!(utf16_range_to_utf8("a😀中", 3..4), Ok(5..8));
+        assert_eq!(utf16_range_to_utf8("a😀中", 2..3), Err(WebTextOffsetError));
+        assert_eq!(utf8_range_to_utf16("a😀中", 2..5), Err(WebTextOffsetError));
     }
 }

@@ -1,6 +1,7 @@
 use std::{
     cell::{Cell, RefCell},
     convert::Infallible,
+    ops::Range,
     rc::{Rc, Weak},
 };
 
@@ -16,12 +17,16 @@ use novadraw_editor::{
     DirectTextEditState, DirectTextFeature, DirectTextFeedback, EditPartBehavior, EditPartError,
     EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual, FocusLossPolicy,
     GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError,
-    PolicyHost, PolicyInstallation, PolicyRole, TextEditMode, VisualUpdateContext,
+    PolicyHost, PolicyInstallation, PolicyRole, TextEditMode, TextInputEffect, TextInputSnapshot,
+    VisualUpdateContext,
 };
-use novadraw_platform_web::{WebPlatformHost, WebPointerInput, WebTextInputHost};
+use novadraw_platform_web::{
+    WebEditContextHost, WebPlatformHost, WebPointerInput, WebTextInputHost,
+};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{
-    Document, Event, HtmlButtonElement, HtmlCanvasElement, MouseEvent, PointerEvent, Window,
+    Document, Event, HtmlButtonElement, HtmlCanvasElement, MouseEvent, PointerEvent,
+    UrlSearchParams, Window,
 };
 
 use super::{ValidationBackend, browser_now, measure_surface, set_text, web_monotonic_time};
@@ -320,6 +325,60 @@ impl EditPartFactory<DirectEditModel> for DirectEditFactory {
 type DirectEditViewer = GraphicalViewer<DirectEditModel, DirectEditFactory>;
 type AppRef = Rc<RefCell<DirectEditWebApp>>;
 
+enum DirectEditTextInputHost {
+    Textarea(WebTextInputHost),
+    EditContext(WebEditContextHost),
+}
+
+impl DirectEditTextInputHost {
+    fn set_surface_origin(&self, origin: Point) -> Result<(), JsValue> {
+        match self {
+            Self::Textarea(host) => {
+                host.set_surface_origin(origin);
+                Ok(())
+            }
+            Self::EditContext(host) => host.set_surface_origin(origin),
+        }
+    }
+
+    fn apply_effect(
+        &self,
+        effect: &TextInputEffect,
+        snapshot: Option<&TextInputSnapshot>,
+    ) -> Result<(), JsValue> {
+        match self {
+            Self::Textarea(host) => {
+                host.apply_effect(effect);
+                Ok(())
+            }
+            Self::EditContext(host) => host.apply_effect(effect, snapshot).map(|_| ()),
+        }
+    }
+
+    fn take_events(&self) -> Result<Vec<novadraw_editor::SessionTextInputEvent>, JsValue> {
+        match self {
+            Self::Textarea(host) => Ok(host.take_events()),
+            Self::EditContext(host) => host
+                .take_events()
+                .map_err(|error| JsValue::from_str(&error.to_string())),
+        }
+    }
+
+    const fn name(&self) -> &'static str {
+        match self {
+            Self::Textarea(_) => "textarea",
+            Self::EditContext(_) => "EditContext",
+        }
+    }
+
+    fn active_session(&self) -> Option<novadraw_editor::DirectTextEditSessionId> {
+        match self {
+            Self::Textarea(host) => host.active_session(),
+            Self::EditContext(host) => host.active_session(),
+        }
+    }
+}
+
 struct DirectEditWebApp {
     window: Window,
     document: Document,
@@ -328,7 +387,8 @@ struct DirectEditWebApp {
     domain: EditorDomain<DirectEditModel>,
     host: WebPlatformHost,
     backend: ValidationBackend,
-    text_input: WebTextInputHost,
+    text_input: DirectEditTextInputHost,
+    text_input_fallback: Option<String>,
     redraw_pending: Rc<Cell<bool>>,
     wake_schedule_count: Rc<Cell<u64>>,
     frame_count: u64,
@@ -344,6 +404,7 @@ impl DirectEditWebApp {
         document: Document,
         canvas: HtmlCanvasElement,
         backend: ValidationBackend,
+        prefer_edit_context: bool,
     ) -> Result<AppRef, JsValue> {
         let render_text = backend.data_name() != "canvas2d";
         let mut viewer = DirectEditViewer::new(
@@ -366,15 +427,85 @@ impl DirectEditWebApp {
         let wake_schedule_count = Rc::new(Cell::new(0_u64));
         let clock_origin_millis = browser_now(&window);
         let app_slot: Rc<RefCell<Option<Weak<RefCell<Self>>>>> = Rc::new(RefCell::new(None));
-        let text_input = WebTextInputHost::new_with_event_ready(&document, {
-            let app_slot = Rc::clone(&app_slot);
-            move || {
-                let app = app_slot.borrow().as_ref().and_then(Weak::upgrade);
-                if let Some(app) = app {
-                    app.borrow_mut().on_text_input_ready();
-                }
-            }
-        })?;
+        let edit_context = if prefer_edit_context {
+            Some(WebEditContextHost::new_with_callbacks(
+                &canvas,
+                {
+                    let app_slot = Rc::clone(&app_slot);
+                    move || {
+                        let app = app_slot.borrow().as_ref().and_then(Weak::upgrade);
+                        if let Some(app) = app {
+                            app.borrow_mut().on_text_input_ready();
+                        }
+                    }
+                },
+                {
+                    let app_slot = Rc::clone(&app_slot);
+                    move |ranges: Vec<Range<usize>>| {
+                        let app = app_slot.borrow().as_ref().and_then(Weak::upgrade)?;
+                        let app = app.borrow();
+                        ranges
+                            .into_iter()
+                            .map(|range| app.viewer.direct_text_range_bounds(range).ok())
+                            .collect()
+                    }
+                },
+            ))
+        } else {
+            None
+        };
+        let (text_input, text_input_fallback) = match edit_context {
+            Some(Ok(Some(host))) => (DirectEditTextInputHost::EditContext(host), None),
+            Some(Ok(None)) => (
+                DirectEditTextInputHost::Textarea(WebTextInputHost::new_with_event_ready(
+                    &document,
+                    {
+                        let app_slot = Rc::clone(&app_slot);
+                        move || {
+                            let app = app_slot.borrow().as_ref().and_then(Weak::upgrade);
+                            if let Some(app) = app {
+                                app.borrow_mut().on_text_input_ready();
+                            }
+                        }
+                    },
+                )?),
+                Some("EditContext unsupported".to_owned()),
+            ),
+            Some(Err(error)) => (
+                DirectEditTextInputHost::Textarea(WebTextInputHost::new_with_event_ready(
+                    &document,
+                    {
+                        let app_slot = Rc::clone(&app_slot);
+                        move || {
+                            let app = app_slot.borrow().as_ref().and_then(Weak::upgrade);
+                            if let Some(app) = app {
+                                app.borrow_mut().on_text_input_ready();
+                            }
+                        }
+                    },
+                )?),
+                Some(
+                    error
+                        .as_string()
+                        .unwrap_or_else(|| "EditContext initialization failed".to_owned()),
+                ),
+            ),
+            None => (
+                DirectEditTextInputHost::Textarea(WebTextInputHost::new_with_event_ready(
+                    &document,
+                    {
+                        let app_slot = Rc::clone(&app_slot);
+                        move || {
+                            let app = app_slot.borrow().as_ref().and_then(Weak::upgrade);
+                            if let Some(app) = app {
+                                app.borrow_mut().on_text_input_ready();
+                            }
+                        }
+                    },
+                )?),
+                None,
+            ),
+        };
         let host = WebPlatformHost::new(
             SurfaceInfo::default(),
             {
@@ -436,6 +567,7 @@ impl DirectEditWebApp {
             host,
             backend,
             text_input,
+            text_input_fallback,
             redraw_pending,
             wake_schedule_count,
             frame_count: 0,
@@ -452,8 +584,16 @@ impl DirectEditWebApp {
         let surface = measure_surface(&self.window, &self.canvas, self.scale_override);
         self.host.set_surface_info(surface);
         let bounds = self.canvas.get_bounding_client_rect();
-        self.text_input
-            .set_surface_origin(Point::new(bounds.left(), bounds.top()));
+        if let Err(error) = self
+            .text_input
+            .set_surface_origin(Point::new(bounds.left(), bounds.top()))
+        {
+            self.last_error = Some(
+                error
+                    .as_string()
+                    .unwrap_or_else(|| "text input geometry update failed".to_owned()),
+            );
+        }
         if let Err(error) = self
             .viewer
             .runtime_mut()
@@ -569,7 +709,20 @@ impl DirectEditWebApp {
 
     fn on_text_input_ready(&mut self) {
         self.advance_time();
-        let events = self.text_input.take_events();
+        let events = match self.text_input.take_events() {
+            Ok(events) => events,
+            Err(error) => {
+                self.last_error = Some(
+                    error
+                        .as_string()
+                        .unwrap_or_else(|| "text input event conversion failed".to_owned()),
+                );
+                let _ = self.domain.cancel_direct_text_edit(&mut self.viewer);
+                self.sync_text_input_effects();
+                self.request_and_render();
+                return;
+            }
+        };
         for event in events {
             if let Err(error) = self.domain.handle_text_input_event(&mut self.viewer, event) {
                 self.last_error = Some(error.to_string());
@@ -581,10 +734,36 @@ impl DirectEditWebApp {
 
     fn sync_text_input_effects(&mut self) {
         let bounds = self.canvas.get_bounding_client_rect();
-        self.text_input
-            .set_surface_origin(Point::new(bounds.left(), bounds.top()));
+        if let Err(error) = self
+            .text_input
+            .set_surface_origin(Point::new(bounds.left(), bounds.top()))
+        {
+            self.last_error = Some(
+                error
+                    .as_string()
+                    .unwrap_or_else(|| "text input geometry update failed".to_owned()),
+            );
+        }
+        let snapshot = match self
+            .viewer
+            .direct_text_edit()
+            .map(DirectTextEditState::input_snapshot)
+            .transpose()
+        {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                self.last_error = Some(error.to_string());
+                return;
+            }
+        };
         for effect in self.viewer.take_text_input_effects() {
-            self.text_input.apply_effect(&effect);
+            if let Err(error) = self.text_input.apply_effect(&effect, snapshot.as_ref()) {
+                self.last_error = Some(
+                    error
+                        .as_string()
+                        .unwrap_or_else(|| "text input host effect failed".to_owned()),
+                );
+            }
         }
     }
 
@@ -663,7 +842,10 @@ impl DirectEditWebApp {
         set_text(
             &self.document,
             "scene-title",
-            "Direct text editing and browser IME",
+            &format!(
+                "Direct text editing · {} input host",
+                self.text_input.name()
+            ),
         );
         set_text(
             &self.document,
@@ -713,6 +895,20 @@ impl DirectEditWebApp {
                     .unwrap_or_default(),
             );
             let _ = body.set_attribute("data-backend", self.backend.data_name());
+            let _ = body.set_attribute("data-text-input-host", self.text_input.name());
+            if let Some(reason) = &self.text_input_fallback {
+                let _ = body.set_attribute("data-text-input-fallback", reason);
+            } else {
+                let _ = body.remove_attribute("data-text-input-fallback");
+            }
+            let _ = body.set_attribute(
+                "data-text-input-active",
+                if self.text_input.active_session().is_some() {
+                    "true"
+                } else {
+                    "false"
+                },
+            );
             if let Some(error) = &self.last_error {
                 let _ = body.set_attribute("data-error", error);
             } else {
@@ -728,7 +924,15 @@ pub(super) fn start(
     canvas: HtmlCanvasElement,
     backend: ValidationBackend,
 ) -> Result<(), JsValue> {
-    let app = DirectEditWebApp::new(window.clone(), document.clone(), canvas.clone(), backend)?;
+    let parameters = UrlSearchParams::new_with_str(&window.location().search()?)?;
+    let prefer_edit_context = parameters.get("text-input").as_deref() == Some("edit-context");
+    let app = DirectEditWebApp::new(
+        window.clone(),
+        document.clone(),
+        canvas.clone(),
+        backend,
+        prefer_edit_context,
+    )?;
     let target: &web_sys::EventTarget = canvas.as_ref();
     register_event(target, "pointermove", &app, |app, event| {
         app.on_pointer_move(event.unchecked_into::<PointerEvent>())

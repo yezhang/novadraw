@@ -104,6 +104,10 @@ macOS Native/Vello：
 5. page scroll、canvas resize 与 device pixel ratio 变化后 caret host 对齐；
 6. accept/cancel 后 DOM focus、selection 和 composition 状态被释放；
 7. Native 与 Web 对同一 normalized replay 产生相同 draft 和 Command。
+8. `text-input=edit-context` 时 canvas 直接持有 `EditContext`，不创建隐藏 textarea；
+9. EditContext 的 UTF-16 buffer/selection/composition 原子同步到 Editor UTF-8 状态；
+10. `characterboundsupdate` 使用 TextFlow 几何同步回应，不使用平均字宽近似；
+11. EditContext 不可用或初始化失败时回退 textarea host。
 
 ## 7. 完成门禁
 
@@ -142,6 +146,8 @@ P2-E02b 当前自动证据：
 - Native node-editor F2 rename 与 undo/redo application contract；
 - Web validation `?mode=direct-edit` composition root、canvas start/caret selection、
   event/effect drain、surface-origin 同步与可观测 host lease；
+- Web validation `?mode=direct-edit&text-input=edit-context` 复用同一 Editor composition
+  root，覆盖 canvas attachment、完整 draft/selection 同步和 textarea fallback；
 - `cargo xtask verify platform.p2-e02-text-input`：PASS。
 
 P2-E02 长文本编辑视口必须补充：

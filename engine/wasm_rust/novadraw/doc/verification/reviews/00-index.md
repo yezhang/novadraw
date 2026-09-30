@@ -42,6 +42,7 @@
 | 2026-09-12 | [macOS Live Resize](macos-live-resize-transaction-2026-09-12.md) |
 | 2026-09-12 | [M1-M8 人工验收](m1-m8-manual-acceptance-2026-09-12.md) |
 | 2026-09-13 | [M10 Web 等价](m10-web-equivalence-2026-09-13.md) |
+| 2026-09-30 | [Web EditContext 集成验证](web-edit-context-capability-2026-09-30.md) |
 
 ## Editor
 
