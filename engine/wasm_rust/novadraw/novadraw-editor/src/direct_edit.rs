@@ -6,6 +6,7 @@ use novadraw::{FigureId, FlowTextPosition, FlowTextRange, TextAffinity, TextMove
 
 use crate::{
     Command, EditPartId, EditorNamespace, FeedbackVisual, ModelAdapter, ModelRevision, PolicyError,
+    TextInputSnapshot,
 };
 
 /// Stable application-defined text feature exposed by one EditPart.
@@ -319,6 +320,21 @@ impl DirectTextEditState {
         self.draft != self.initial_text
     }
 
+    /// Returns the complete draft state for a platform text-input host.
+    pub fn input_snapshot(&self) -> Result<TextInputSnapshot, DirectTextEditError> {
+        let selection = absolute_range(&self.draft, self.selection)?;
+        let composition = self
+            .composition
+            .as_ref()
+            .map(|composition| absolute_range(&self.draft, composition.range))
+            .transpose()?;
+        Ok(TextInputSnapshot::new(
+            self.draft.clone(),
+            selection,
+            composition,
+        ))
+    }
+
     pub(crate) fn set_selection(
         &mut self,
         selection: FlowTextRange,
@@ -382,6 +398,61 @@ impl DirectTextEditState {
         );
         self.composition = Some(DirectTextComposition { range, selection });
         self.selection = range;
+        Ok(true)
+    }
+
+    pub(crate) fn synchronize_input(
+        &mut self,
+        snapshot: &TextInputSnapshot,
+    ) -> Result<bool, DirectTextEditError> {
+        let text = snapshot.text();
+        if self.mode == TextEditMode::SingleLine
+            && text
+                .chars()
+                .any(|character| matches!(character, '\n' | '\r'))
+        {
+            return Err(DirectTextEditError::LineBreakNotAllowed);
+        }
+
+        let selection_offsets = snapshot.selection();
+        let selection = range_from_offsets(text, selection_offsets.clone())?;
+        let composition_offsets = snapshot.composition();
+        let composition = composition_offsets
+            .as_ref()
+            .map(|range| {
+                if selection_offsets.start < range.start || selection_offsets.end > range.end {
+                    return Err(DirectTextEditError::InvalidPreeditRange);
+                }
+                Ok(DirectTextComposition {
+                    range: range_from_offsets(text, range.clone())
+                        .map_err(|_| DirectTextEditError::InvalidPreeditRange)?,
+                    selection: Some(
+                        selection_offsets.start - range.start..selection_offsets.end - range.start,
+                    ),
+                })
+            })
+            .transpose()?;
+
+        let changed =
+            self.draft != text || self.selection != selection || self.composition != composition;
+        if !changed {
+            return Ok(false);
+        }
+
+        let composition_base = if composition.is_some() {
+            self.composition_base.clone().or_else(|| {
+                Some(CompositionBase {
+                    draft: self.draft.clone(),
+                    selection: self.selection,
+                })
+            })
+        } else {
+            None
+        };
+        self.draft = text.to_owned();
+        self.selection = selection;
+        self.composition = composition;
+        self.composition_base = composition_base;
         Ok(true)
     }
 
@@ -619,6 +690,25 @@ pub(crate) fn position_from_offset(
     ))
 }
 
+fn absolute_range(text: &str, range: FlowTextRange) -> Result<Range<usize>, DirectTextEditError> {
+    let anchor = position_to_offset(text, range.anchor())?;
+    let focus = position_to_offset(text, range.focus())?;
+    Ok(anchor.min(focus)..anchor.max(focus))
+}
+
+fn range_from_offsets(
+    text: &str,
+    range: Range<usize>,
+) -> Result<FlowTextRange, DirectTextEditError> {
+    if range.start > range.end {
+        return Err(DirectTextEditError::InvalidTextPosition);
+    }
+    Ok(FlowTextRange::new(
+        position_from_offset(text, range.start)?,
+        position_from_offset(text, range.end)?,
+    ))
+}
+
 fn document_end(text: &str) -> FlowTextPosition {
     let ranges = paragraph_ranges(text);
     let paragraph = ranges.len() - 1;
@@ -713,5 +803,61 @@ mod tests {
             Err(DirectTextEditError::LineBreakNotAllowed)
         );
         assert_eq!(state.draft(), "name");
+    }
+
+    #[test]
+    fn synchronized_input_snapshot_updates_draft_selection_and_composition_atomically() {
+        let namespace = EditorNamespace::new();
+        let source = EditPartId::from_local(namespace, slotmap::KeyData::from_ffi(1));
+        let mut state = DirectTextEditState::new(
+            DirectTextEditSessionId::new(namespace, 1),
+            source,
+            &descriptor("a中", TextEditMode::SingleLine),
+        );
+
+        assert!(
+            state
+                .synchronize_input(&TextInputSnapshot::new("a😀中", 5..5, Some(1..5),))
+                .unwrap()
+        );
+        assert_eq!(state.draft(), "a😀中");
+        assert_eq!(
+            absolute_range(state.draft(), state.selection()).unwrap(),
+            5..5
+        );
+        assert_eq!(
+            state.composition().map(|composition| absolute_range(
+                state.draft(),
+                composition.range()
+            )
+            .unwrap()),
+            Some(1..5)
+        );
+        assert_eq!(state.composition().unwrap().selection(), Some(4..4));
+
+        assert!(
+            state
+                .synchronize_input(&TextInputSnapshot::new("a你中", 4..4, None))
+                .unwrap()
+        );
+        assert_eq!(state.draft(), "a你中");
+        assert!(state.composition().is_none());
+    }
+
+    #[test]
+    fn synchronized_input_snapshot_rejects_invalid_utf8_boundaries() {
+        let namespace = EditorNamespace::new();
+        let source = EditPartId::from_local(namespace, slotmap::KeyData::from_ffi(1));
+        let mut state = DirectTextEditState::new(
+            DirectTextEditSessionId::new(namespace, 1),
+            source,
+            &descriptor("a😀", TextEditMode::SingleLine),
+        );
+
+        assert_eq!(
+            state.synchronize_input(&TextInputSnapshot::new("a😀", 2..2, None)),
+            Err(DirectTextEditError::InvalidTextPosition)
+        );
+        assert_eq!(state.draft(), "a😀");
     }
 }

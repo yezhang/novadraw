@@ -12,7 +12,8 @@ use novadraw_editor::{
     EditorDomainError, ExtendTextSelection, FeedbackVisual, FocusLossPolicy, GraphicalViewer,
     ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
     PolicyInstallation, PolicyRole, SessionTextInputEvent, TextDelete, TextEditMode,
-    TextInputEffect, TextInputEvent, TextInputPurpose, ViewerError, VisualUpdateContext,
+    TextInputEffect, TextInputEvent, TextInputPurpose, TextInputSnapshot, ViewerError,
+    VisualUpdateContext,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -393,6 +394,11 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
     assert!(!layout.is_truncated());
     assert_eq!(layout.visible_range(), 0..text.len());
     assert!(f64::from(layout.width()) > 240.0);
+    let last_character = text.len() - 1..text.len();
+    let last_character_bounds = viewer.direct_text_range_bounds(last_character).unwrap();
+    assert!(!last_character_bounds.is_empty());
+    assert!(last_character_bounds.x >= 40.0);
+    assert!(last_character_bounds.x + last_character_bounds.width <= 280.0);
     let end = viewer
         .runtime()
         .text_flow_local_caret_geometry(
@@ -780,4 +786,40 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
             DirectTextEditError::TextInputLeaseLost
         )))
     ));
+}
+
+#[test]
+fn edit_context_snapshot_flows_through_domain_into_the_draft() {
+    let mut viewer = viewer("alpha");
+    let source = viewer.part_for_model(TEXT).unwrap();
+    let mut domain = EditorDomain::new();
+    let session = domain
+        .start_direct_text_edit(&mut viewer, source, feature())
+        .unwrap();
+
+    domain
+        .handle_text_input_event(
+            &mut viewer,
+            SessionTextInputEvent::new(
+                session,
+                TextInputEvent::Synchronize(TextInputSnapshot::new("alpha拼", 8..8, Some(5..8))),
+            ),
+        )
+        .unwrap();
+    assert_eq!(viewer.direct_text_edit().unwrap().draft(), "alpha拼");
+    assert!(viewer.direct_text_edit().unwrap().composition().is_some());
+    assert_eq!(viewer.model().text, "alpha");
+
+    domain
+        .handle_text_input_event(
+            &mut viewer,
+            SessionTextInputEvent::new(
+                session,
+                TextInputEvent::Synchronize(TextInputSnapshot::new("alpha拼", 8..8, None)),
+            ),
+        )
+        .unwrap();
+    assert!(viewer.direct_text_edit().unwrap().composition().is_none());
+    assert!(domain.accept_direct_text_edit(&mut viewer).unwrap());
+    assert_eq!(viewer.model().text, "alpha拼");
 }

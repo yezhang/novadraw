@@ -56,7 +56,9 @@ pub use request::{
     ReconnectConnectionRequest, RequestModifiers, ResizeDirection,
 };
 pub use selection::{SelectionDelta, SelectionModel};
-pub use text_input::{SessionTextInputEvent, TextInputEffect, TextInputEvent, TextInputPurpose};
+pub use text_input::{
+    SessionTextInputEvent, TextInputEffect, TextInputEvent, TextInputPurpose, TextInputSnapshot,
+};
 pub use tool::{
     ConnectionBendpointTool, ConnectionCreationTool, ConnectionEndpointRelease,
     ConnectionEndpointTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,

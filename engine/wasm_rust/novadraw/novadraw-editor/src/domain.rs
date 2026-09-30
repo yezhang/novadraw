@@ -359,6 +359,9 @@ where
             .into());
         }
         match input.into_event() {
+            TextInputEvent::Synchronize(snapshot) => {
+                viewer.synchronize_direct_text_input(&snapshot)?;
+            }
             TextInputEvent::Preedit { text, selection } => {
                 self.set_direct_text_preedit(viewer, &text, selection)?;
             }

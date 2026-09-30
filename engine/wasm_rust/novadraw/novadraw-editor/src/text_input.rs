@@ -6,6 +6,44 @@ use novadraw::{Rectangle, TextMovement};
 
 use crate::{DirectTextEditSessionId, ExtendTextSelection, TextDelete};
 
+/// Complete platform text-buffer state normalized to UTF-8 byte offsets.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TextInputSnapshot {
+    text: String,
+    selection: Range<usize>,
+    composition: Option<Range<usize>>,
+}
+
+impl TextInputSnapshot {
+    /// Creates a proposed text-buffer state.
+    pub fn new(
+        text: impl Into<String>,
+        selection: Range<usize>,
+        composition: Option<Range<usize>>,
+    ) -> Self {
+        Self {
+            text: text.into(),
+            selection,
+            composition,
+        }
+    }
+
+    /// Returns the complete proposed draft.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Returns the selection in UTF-8 byte offsets within the proposed draft.
+    pub fn selection(&self) -> Range<usize> {
+        self.selection.clone()
+    }
+
+    /// Returns the active composition range in UTF-8 byte offsets.
+    pub fn composition(&self) -> Option<Range<usize>> {
+        self.composition.clone()
+    }
+}
+
 /// Semantic purpose exposed to a platform text-input host.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TextInputPurpose {
@@ -55,6 +93,8 @@ impl TextInputEffect {
 /// Platform-normalized direct text input action.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TextInputEvent {
+    /// Atomically synchronizes a browser-owned text buffer into the active Editor draft.
+    Synchronize(TextInputSnapshot),
     /// Replace or update the current IME preedit.
     Preedit {
         /// Preedit string.

@@ -31,8 +31,10 @@ use crate::{
     FeedbackId, FeedbackVisual, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
     PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, PolicyRole,
     ReconnectConnectionRequest, SelectionDelta, SelectionModel, TextEditMode, TextInputEffect,
-    TextInputPurpose, VisualBuildContext, VisualOwner, VisualUpdateContext,
-    direct_edit::{ActiveDirectTextEdit, PreparedDirectTextEdit, position_to_offset},
+    TextInputPurpose, TextInputSnapshot, VisualBuildContext, VisualOwner, VisualUpdateContext,
+    direct_edit::{
+        ActiveDirectTextEdit, PreparedDirectTextEdit, position_from_offset, position_to_offset,
+    },
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
 };
@@ -1625,6 +1627,23 @@ where
         Ok(changed)
     }
 
+    pub(crate) fn synchronize_direct_text_input(
+        &mut self,
+        snapshot: &TextInputSnapshot,
+    ) -> Result<bool, ViewerError> {
+        let mut state = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?
+            .state
+            .clone();
+        let changed = state.synchronize_input(snapshot)?;
+        if changed {
+            self.replace_direct_text_state(state)?;
+        }
+        Ok(changed)
+    }
+
     pub(crate) fn set_direct_text_preedit(
         &mut self,
         text: &str,
@@ -1697,6 +1716,44 @@ where
             })
             .collect();
         Ok(selection)
+    }
+
+    /// Returns the surface bounds for one UTF-8 range in the active draft.
+    pub fn direct_text_range_bounds(
+        &self,
+        range: std::ops::Range<usize>,
+    ) -> Result<Rectangle, ViewerError> {
+        let active = self
+            .direct_text_edit
+            .as_ref()
+            .ok_or(DirectTextEditError::NoActiveSession)?;
+        if range.start > range.end {
+            return Err(DirectTextEditError::InvalidTextPosition.into());
+        }
+        let start = position_from_offset(active.state.draft(), range.start)?;
+        let end = position_from_offset(active.state.draft(), range.end)?;
+        let bounds = self
+            .runtime
+            .text_flow_selection_geometry(active.text_feedback, FlowTextRange::new(start, end))
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
+            .into_iter()
+            .map(|quad| quad.bounds())
+            .reduce(Rectangle::union);
+        if let Some(bounds) = bounds {
+            return Ok(bounds);
+        }
+
+        let caret = self
+            .runtime
+            .text_flow_caret_geometry(active.text_feedback, start)
+            .map_err(|_| DirectTextEditError::InvalidTextPosition)?
+            .bounds();
+        Ok(Rectangle::new(
+            caret.x,
+            caret.y,
+            caret.width.max(DIRECT_TEXT_CARET_MINIMUM_WIDTH),
+            caret.height,
+        ))
     }
 
     pub(crate) fn direct_text_feedback_contains(&self, point: Point) -> bool {
