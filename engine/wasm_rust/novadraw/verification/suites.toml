@@ -641,6 +641,7 @@ commands = [
   "test.platform-web-p2-e02",
   "build.platform-web-p2-e02",
   "test.node-editor-p2-e02",
+  "web.build",
 ]
 paths = [
   "novadraw-editor/src/text_input.rs",
@@ -650,6 +651,8 @@ paths = [
   "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs",
   "examples/native/node-editor-demo/src/main.rs",
   "examples/native/node-editor-demo/src/harness.rs",
+  "examples/web/web-validation/**",
+  "scripts/build_web_validation.sh",
 ]
 documents = [
   "doc/design/editor/p2-direct-text-edit.md",

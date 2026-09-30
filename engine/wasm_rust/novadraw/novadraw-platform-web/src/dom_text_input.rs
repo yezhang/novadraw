@@ -1,8 +1,11 @@
 //! Browser-owned hidden textarea used by direct text editing.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
-use novadraw::Rectangle;
+use novadraw::{Point, Rectangle};
 use novadraw_editor::{SessionTextInputEvent, TextInputEffect, TextInputPurpose};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{CompositionEvent, Document, Event, HtmlTextAreaElement, InputEvent, KeyboardEvent};
@@ -19,12 +22,22 @@ pub struct WebTextInputHost {
     input: HtmlTextAreaElement,
     bridge: Rc<RefCell<WebTextInputBridge>>,
     events: Rc<RefCell<Vec<SessionTextInputEvent>>>,
+    surface_origin: Cell<Point>,
+    logical_area: Cell<Option<Rectangle>>,
     listeners: Vec<DomListener>,
 }
 
 impl WebTextInputHost {
     /// Creates and attaches one hidden textarea to the document body.
     pub fn new(document: &Document) -> Result<Self, JsValue> {
+        Self::new_with_event_ready(document, || {})
+    }
+
+    /// Creates a hidden textarea and invokes `event_ready` after input is queued.
+    pub fn new_with_event_ready(
+        document: &Document,
+        event_ready: impl Fn() + 'static,
+    ) -> Result<Self, JsValue> {
         let input = document
             .create_element("textarea")?
             .dyn_into::<HtmlTextAreaElement>()?;
@@ -33,13 +46,21 @@ impl WebTextInputHost {
         input.set_attribute("autocapitalize", "off")?;
         input.set_attribute("spellcheck", "false")?;
         input.set_attribute("tabindex", "-1")?;
+        input.set_attribute("aria-label", "Novadraw text input")?;
+        input.set_attribute("data-novadraw-text-input", "true")?;
+        input.set_attribute("data-active", "false")?;
         let style = input.style();
         style.set_property("position", "fixed")?;
-        style.set_property("opacity", "0")?;
+        style.set_property("opacity", "0.01")?;
+        style.set_property("color", "transparent")?;
+        style.set_property("background", "transparent")?;
+        style.set_property("border", "0")?;
+        style.set_property("padding", "0")?;
+        style.set_property("caret-color", "transparent")?;
         style.set_property("pointer-events", "none")?;
         style.set_property("resize", "none")?;
         style.set_property("overflow", "hidden")?;
-        style.set_property("z-index", "-1")?;
+        style.set_property("z-index", "1")?;
         document
             .body()
             .ok_or_else(|| JsValue::from_str("document has no body"))?
@@ -47,6 +68,7 @@ impl WebTextInputHost {
 
         let bridge = Rc::new(RefCell::new(WebTextInputBridge::new()));
         let events = Rc::new(RefCell::new(Vec::new()));
+        let event_ready: Rc<dyn Fn()> = Rc::new(event_ready);
         let mut listeners = Vec::new();
 
         install_listener(&input, &mut listeners, "compositionstart", {
@@ -56,84 +78,104 @@ impl WebTextInputHost {
         install_listener(&input, &mut listeners, "compositionupdate", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             let input = input.clone();
             move |event| {
                 let event = event.unchecked_into::<CompositionEvent>();
                 let text = event.data().unwrap_or_default();
                 let selection = dom_selection_in_utf8(&input, &text);
-                if let Some(event) = bridge.borrow_mut().composition_updated(text, selection) {
+                let normalized = bridge.borrow_mut().composition_updated(text, selection);
+                if let Some(event) = normalized {
                     events.borrow_mut().push(event);
+                    event_ready();
                 }
             }
         })?;
         install_listener(&input, &mut listeners, "compositionend", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             let input = input.clone();
             move |event| {
                 let event = event.unchecked_into::<CompositionEvent>();
-                if let Some((event, action)) = bridge
+                let normalized = bridge
                     .borrow_mut()
-                    .composition_ended(event.data().unwrap_or_default())
-                {
+                    .composition_ended(event.data().unwrap_or_default());
+                if let Some((event, action)) = normalized {
                     events.borrow_mut().push(event);
                     apply_action(&input, action);
+                    event_ready();
                 }
             }
         })?;
         install_listener(&input, &mut listeners, "beforeinput", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             move |event| {
                 let input_event = event.clone().unchecked_into::<InputEvent>();
-                let normalized = match input_event.input_type().as_str() {
-                    "deleteContentBackward" => bridge.borrow().delete_backward(),
-                    "deleteContentForward" => bridge.borrow().delete_forward(),
-                    "deleteWordBackward" => bridge.borrow().delete_word_backward(),
-                    "deleteWordForward" => bridge.borrow().delete_word_forward(),
-                    _ => None,
+                let normalized = {
+                    let bridge = bridge.borrow();
+                    match input_event.input_type().as_str() {
+                        "deleteContentBackward" => bridge.delete_backward(),
+                        "deleteContentForward" => bridge.delete_forward(),
+                        "deleteWordBackward" => bridge.delete_word_backward(),
+                        "deleteWordForward" => bridge.delete_word_forward(),
+                        _ => None,
+                    }
                 };
                 if let Some(normalized) = normalized {
                     event.prevent_default();
                     events.borrow_mut().push(normalized);
+                    event_ready();
                 }
             }
         })?;
         install_listener(&input, &mut listeners, "keydown", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             move |event| {
                 let keyboard = event.clone().unchecked_into::<KeyboardEvent>();
-                let normalized = bridge.borrow_mut().key_pressed(
-                    &keyboard.key(),
-                    keyboard.shift_key(),
-                    keyboard.ctrl_key(),
-                    keyboard.alt_key(),
-                    keyboard.meta_key(),
-                );
+                let normalized = {
+                    bridge.borrow_mut().key_pressed(
+                        &keyboard.key(),
+                        keyboard.shift_key(),
+                        keyboard.ctrl_key(),
+                        keyboard.alt_key(),
+                        keyboard.meta_key(),
+                    )
+                };
                 if let Some(normalized) = normalized {
                     event.prevent_default();
                     events.borrow_mut().push(normalized);
+                    event_ready();
                 }
             }
         })?;
         install_listener(&input, &mut listeners, "input", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             let input = input.clone();
             move |_| {
-                if let Some((event, action)) = bridge.borrow_mut().input(input.value()) {
+                let normalized = bridge.borrow_mut().input(input.value());
+                if let Some((event, action)) = normalized {
                     events.borrow_mut().push(event);
                     apply_action(&input, action);
+                    event_ready();
                 }
             }
         })?;
         install_listener(&input, &mut listeners, "blur", {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
+            let event_ready = Rc::clone(&event_ready);
             move |_| {
-                if let Some(event) = bridge.borrow_mut().focus_lost() {
+                let normalized = bridge.borrow_mut().focus_lost();
+                if let Some(event) = normalized {
                     events.borrow_mut().push(event);
+                    event_ready();
                 }
             }
         })?;
@@ -142,14 +184,55 @@ impl WebTextInputHost {
             input,
             bridge,
             events,
+            surface_origin: Cell::new(Point::ORIGIN),
+            logical_area: Cell::new(None),
             listeners,
         })
+    }
+
+    /// Updates the canvas origin in browser client coordinates.
+    pub fn set_surface_origin(&self, origin: Point) {
+        if !origin.x().is_finite() || !origin.y().is_finite() {
+            return;
+        }
+        self.surface_origin.set(origin);
+        if let Some(area) = self.logical_area.get() {
+            set_area(&self.input, translated_area(area, origin));
+        }
     }
 
     /// Applies one Editor effect to the hidden textarea.
     pub fn apply_effect(&self, effect: &TextInputEffect) {
         if let Some(action) = self.bridge.borrow_mut().apply_effect(effect) {
-            apply_action(&self.input, action);
+            match action {
+                WebTextInputAction::Acquire { purpose, area } => {
+                    self.logical_area.set(Some(area));
+                    apply_action(
+                        &self.input,
+                        WebTextInputAction::Acquire {
+                            purpose,
+                            area: translated_area(area, self.surface_origin.get()),
+                        },
+                    );
+                }
+                WebTextInputAction::SetArea(area) => {
+                    self.logical_area.set(Some(area));
+                    apply_action(
+                        &self.input,
+                        WebTextInputAction::SetArea(translated_area(
+                            area,
+                            self.surface_origin.get(),
+                        )),
+                    );
+                }
+                WebTextInputAction::Release => {
+                    self.logical_area.set(None);
+                    apply_action(&self.input, WebTextInputAction::Release);
+                }
+                WebTextInputAction::ClearValue => {
+                    apply_action(&self.input, WebTextInputAction::ClearValue);
+                }
+            }
         }
     }
 
@@ -157,6 +240,15 @@ impl WebTextInputHost {
     pub fn take_events(&self) -> Vec<SessionTextInputEvent> {
         std::mem::take(&mut *self.events.borrow_mut())
     }
+}
+
+fn translated_area(area: Rectangle, origin: Point) -> Rectangle {
+    Rectangle::new(
+        area.x + origin.x(),
+        area.y + origin.y(),
+        area.width,
+        area.height,
+    )
 }
 
 impl Drop for WebTextInputHost {
@@ -194,11 +286,13 @@ fn apply_action(input: &HtmlTextAreaElement, action: WebTextInputAction) {
             let _ = input.set_attribute("enterkeyhint", enter_key_hint);
             set_area(input, area);
             input.set_value("");
+            let _ = input.set_attribute("data-active", "true");
             let _ = input.focus();
         }
         WebTextInputAction::SetArea(area) => set_area(input, area),
         WebTextInputAction::Release => {
             input.set_value("");
+            let _ = input.set_attribute("data-active", "false");
             let _ = input.blur();
         }
         WebTextInputAction::ClearValue => input.set_value(""),

@@ -130,6 +130,15 @@ main {
   gap: 6px;
 }
 
+body[data-mode="direct-edit"] .theme-tabs,
+body[data-mode="direct-edit"] .scene-controls {
+  display: none;
+}
+
+body[data-mode="direct-edit"] .workspace {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .scene-controls output {
   min-width: 36px;
   max-width: none;

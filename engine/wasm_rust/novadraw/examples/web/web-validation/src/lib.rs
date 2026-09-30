@@ -1,5 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
+mod direct_edit_mode;
+
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::f64::consts::TAU;
@@ -1314,6 +1316,10 @@ async fn start_async() -> Result<(), JsValue> {
     canvas.set_width(surface.pixel_width);
     canvas.set_height(surface.pixel_height);
     let backend = create_backend(&window, &canvas, surface).await?;
+    let parameters = UrlSearchParams::new_with_str(&window.location().search()?)?;
+    if parameters.get("mode").as_deref() == Some("direct-edit") {
+        return direct_edit_mode::start(window, document, canvas, backend);
+    }
 
     let app = WebValidationApp::new(window.clone(), document.clone(), canvas.clone(), backend);
     let target: &web_sys::EventTarget = canvas.as_ref();

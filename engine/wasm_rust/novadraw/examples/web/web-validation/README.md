@@ -27,6 +27,12 @@ cargo xtask manual web.build
 
 Canvas2D 对照入口为 <http://127.0.0.1:4173/?backend=canvas2d>。
 
+P2-E02 direct-edit / IME 验证入口为
+<http://127.0.0.1:4173/?mode=direct-edit&backend=vello>。单击画布中的标签开始编辑；
+该模式验证 Viewer session、默认 caret/selection/preedit feedback、浏览器输入宿主、
+候选窗位置、accept/cancel 与单调时间 caret blink。Canvas2D 可用于 DOM/Editor
+链路诊断，但不支持 glyph run，正式文本视觉验收使用 Vello。
+
 `layer-freeform` 场景中：
 
 - 普通滚轮或触控板双指滚动用于平移；
