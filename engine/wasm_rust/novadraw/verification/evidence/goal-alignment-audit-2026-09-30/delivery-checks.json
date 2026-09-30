@@ -1,0 +1,20 @@
+{
+  "head": "841be423815833d97c19862da7b1b0a8ad05591f",
+  "links_checked": 42,
+  "errors": [],
+  "changed_since_capture": [
+    "doc/roadmap/00-index.md",
+    "examples/native/node-editor-demo/src/main.rs",
+    "examples/web/web-validation/dist/index.html",
+    "examples/web/web-validation/src/direct_edit_mode.rs",
+    "novadraw/src/figure/label.rs",
+    "novadraw/src/figure/text_flow.rs",
+    "novadraw/tests/p2_t02_text_interaction_contract.rs",
+    "novadraw-editor/src/viewer/mod.rs",
+    "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs"
+  ],
+  "intentional_changes": [
+    "doc/roadmap/00-index.md"
+  ],
+  "note": "Generated dist may change externally; new audit files are outside baseline inventory."
+}

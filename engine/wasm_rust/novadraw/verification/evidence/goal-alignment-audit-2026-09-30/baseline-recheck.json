@@ -1,0 +1,7 @@
+{
+  "baseline_head": "811b748f0a510edb90ad198346950ca3752b404d",
+  "current_head": "841be423815833d97c19862da7b1b0a8ad05591f",
+  "changed_since_capture": [
+    "examples/web/web-validation/dist/index.html"
+  ]
+}

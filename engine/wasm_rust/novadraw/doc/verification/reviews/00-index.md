@@ -32,6 +32,7 @@
 | 2026-09-28 | [引擎能力与 API 稳定化评估](engine-capability-assessment-2026-09-28.md) |
 | 2026-09-29 | [Crate 边界与发布结构审计](crate-boundary-audit-2026-09-29.md) |
 | 2026-09-29 | [P2-T02 Text Interaction Geometry](p2-text-interaction-2026-09-29.md) |
+| 2026-09-30 | [项目目标、设计与实现一致性审计](goal-design-code-audit-2026-09-30.md) |
 
 ## 平台与产品验收
 

@@ -89,6 +89,9 @@ R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作�
 
 ## 文档列表
 
+2026-09-30 的[目标一致性调整计划](goal-alignment-adjustment-plan-2026-09-30.md)
+为待评审提案，覆盖 Draw2D 剩余能力、性能、扩展契约与四平台验证；不改变上述历史状态。
+
 | 文档 | 主题 |
 |------|------|
 | `product-deliverables.md` | 每个 milestone 下要交付的产品策略层清单 |

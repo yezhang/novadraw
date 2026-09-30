@@ -1,0 +1,92 @@
+[
+  {
+    "import": "FigureNode",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--emit=metadata",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_figurenode.rs",
+      "--extern",
+      "novadraw=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps/libnovadraw-c4e26ee507fdd876.rlib",
+      "-L",
+      "dependency=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps",
+      "--out-dir",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "import": "UpdateManager",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--emit=metadata",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_updatemanager.rs",
+      "--extern",
+      "novadraw=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps/libnovadraw-c4e26ee507fdd876.rlib",
+      "-L",
+      "dependency=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps",
+      "--out-dir",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "import": "RenderCommand",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--emit=metadata",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_rendercommand.rs",
+      "--extern",
+      "novadraw=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps/libnovadraw-c4e26ee507fdd876.rlib",
+      "-L",
+      "dependency=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps",
+      "--out-dir",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "error[E0432]: unresolved import `novadraw::RenderCommand`\n --> /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_rendercommand.rs:1:5\n  |\n1 | use novadraw::RenderCommand;\n  |     ^^^^^^^^^^^^^^^^^^^^^^^ no `RenderCommand` in the root\n  |\nhelp: consider importing this struct instead\n  |\n1 | use novadraw::render::RenderCommand;\n  |               ++++++++\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0432`.\n"
+  },
+  {
+    "import": "PendingMutations",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--emit=metadata",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_pendingmutations.rs",
+      "--extern",
+      "novadraw=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps/libnovadraw-c4e26ee507fdd876.rlib",
+      "-L",
+      "dependency=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps",
+      "--out-dir",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "import": "EventDispatcher",
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "--emit=metadata",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports/probe_eventdispatcher.rs",
+      "--extern",
+      "novadraw=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps/libnovadraw-c4e26ee507fdd876.rlib",
+      "-L",
+      "dependency=/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/debug/deps",
+      "--out-dir",
+      "/Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/verification/goal-alignment-imports"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]
