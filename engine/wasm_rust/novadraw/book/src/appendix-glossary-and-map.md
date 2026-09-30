@@ -63,6 +63,11 @@
 | 可撤销命令 | Command | 只操作应用模型，并支持撤销与重做的操作 |
 | 命令历史栈 | CommandStack | 执行、撤销、重做命令并记录保存位置的组件 |
 | 反馈图形 | Feedback | 命令提交前用于预览结果的临时图形 |
+| 直接文本编辑 | direct text edit | 在图形原位置用临时草稿编辑业务文本，并在接受时生成模型命令的会话 |
+| 插入光标 | caret | 由文本布局计算、表示当前插入位置的可视几何 |
+| 预编辑 | preedit/composition | 输入法候选确认前，可更新或取消的临时组合文本 |
+| 文本输入租约 | text-input lease | 用 session 身份约束平台文本焦点、事件和候选窗效果的所有权 |
+| 文本输入快照 | TextInputSnapshot | 平台文本缓冲区提交给 Editor 的完整草稿、选择与组合范围 |
 | 故障锁定状态 | faulted | 因无法证明状态一致而拒绝继续提交的安全状态 |
 | 全量快照/增量 | snapshot/delta | 分别表示一份完整状态和相对既有基线的变化 |
 
@@ -220,10 +225,25 @@ Editor、Inspector、Vello backend 和 Winit/Web platform adapter 使用独立 c
   [`novadraw-editor/src/command/mod.rs`](../../novadraw-editor/src/command/mod.rs)
 - 反馈与操作手柄：
   [`novadraw-editor/src/feedback/mod.rs`](../../novadraw-editor/src/feedback/mod.rs)
+- 直接文本编辑会话：
+  [`novadraw-editor/src/direct_edit.rs`](../../novadraw-editor/src/direct_edit.rs)
+- 平台无关文本输入协议：
+  [`novadraw-editor/src/text_input.rs`](../../novadraw-editor/src/text_input.rs)
 - 边缘自动滚动：
   [`novadraw-editor/src/autoexpose.rs`](../../novadraw-editor/src/autoexpose.rs)
 - 编辑域（EditorDomain）：
   [`novadraw-editor/src/domain.rs`](../../novadraw-editor/src/domain.rs)
+
+### 文本输入宿主
+
+- Winit 输入法桥：
+  [`novadraw-platform-winit/src/text_input.rs`](../../novadraw-platform-winit/src/text_input.rs)
+- Web 输入法桥：
+  [`novadraw-platform-web/src/text_input.rs`](../../novadraw-platform-web/src/text_input.rs)
+- Web 隐藏输入宿主：
+  [`novadraw-platform-web/src/dom_text_input.rs`](../../novadraw-platform-web/src/dom_text_input.rs)
+- Web EditContext 宿主：
+  [`novadraw-platform-web/src/edit_context.rs`](../../novadraw-platform-web/src/edit_context.rs)
 
 ## F. 示例与验证入口
 

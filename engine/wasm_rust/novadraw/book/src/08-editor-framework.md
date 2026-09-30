@@ -1,7 +1,7 @@
 # 8. 编辑框架：从业务模型到可撤销编辑
 
 > **本章解决的问题**：如何把应用自己的模型投影成节点和连接，并把选择、拖拽、
-> 创建、删除和连线转换成可撤销的业务命令。
+> 创建、删除、连线和直接文本编辑转换成可撤销的业务命令。
 
 Editor 的核心纪律是：**模型保存业务事实，Figure 只是投影，Command 只改模型，
 Viewer 负责刷新。** 一旦让命令和 Figure 同时写同一项事实，撤销、重建和多视图都会
@@ -366,7 +366,261 @@ viewer.refresh()?;
 拖拽到视口内边缘时只改变视口原点，然后用固定的表面指针位置重新运行活动工具。
 它不执行模型命令。
 
-## 8.14 实现一个编辑器的顺序
+## 8.14 直接文本编辑与插入光标
+
+**直接文本编辑**（direct text edit）是在图形原位置编辑某个业务文本属性。它不是
+把 `LabelFigure` 变成可变文本框，而是建立一个 Viewer 级临时会话：
+
+```text
+业务模型中的稳定文本
+-> DirectTextEditDescriptor 捕获初值与模型修订
+-> DirectTextEditState 保存草稿、选择和预编辑
+-> TextFlow feedback 完成排版
+-> Core 查询同一排版的光标与选择几何
+-> 接受时生成一个只修改模型的 Command
+```
+
+这种分层保证取消编辑时无需回滚模型，也避免把输入法状态写入可持久化业务对象。
+
+### 状态分别由谁拥有
+
+| 状态 | 所有者 | 原因 |
+|---|---|---|
+| 已提交文本 | 业务模型 | 可持久化、可撤销的事实 |
+| 初始文本与源修订 | `DirectTextEditDescriptor` | 检测编辑期间的模型漂移 |
+| 草稿、定向选择、预编辑 | `DirectTextEditState` | 仅在一个编辑会话内有效 |
+| 字形、行、光标和选择几何 | Core `TextFlow` 布局快照 | 必须与实际绘制使用同一次排版 |
+| 文本、选择、预编辑线和光标图形 | Viewer feedback | 临时显示，不写模型 |
+| 原生焦点与候选窗 | 平台文本宿主 | 只处理操作系统或浏览器差异 |
+
+一个 Viewer 同时只允许一个直接编辑会话。`DirectTextFeature` 标识要编辑的业务属性，
+`DirectTextEditRequest` 固定来源 EditPart 和属性，安装在
+`PolicyRole::DirectTextEdit` 的策略返回会话计划。描述符还明确单行/多行模式及失焦
+时接受或取消的策略。
+
+```rust
+pub trait DirectTextEdit<A: ModelAdapter> {
+    fn descriptor(&self) -> &DirectTextEditDescriptor;
+    fn feedback(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &A,
+    ) -> Result<DirectTextFeedback, PolicyError>;
+    fn validate(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &A,
+    ) -> Result<(), PolicyError>;
+    fn command(
+        &mut self,
+        state: &DirectTextEditState,
+        model: &A,
+    ) -> Result<Box<dyn Command<A>>, PolicyError>;
+}
+```
+
+代码锚点：
+
+- [`DirectTextEditState` 与 `DirectTextEdit`](../../novadraw-editor/src/direct_edit.rs)
+- [`EditPolicy::start_direct_text_edit`](../../novadraw-editor/src/policy/mod.rs#L220-L228)
+- [`GraphicalViewer::start_direct_text_edit`](../../novadraw-editor/src/viewer/mod.rs#L1504-L1570)
+
+### 草稿和输入法预编辑
+
+普通插入先替换当前选择，再把选择折叠到插入内容末尾。文本位置由段落索引、段落内
+UTF-8 字节偏移和 affinity 构成；位置必须落在合法字符边界上。删除和移动不按
+Unicode 标量或字节自行计算，而是查询排版产生的视觉字素、单词和行边界，因此 emoji、
+组合字符和双向文本不会被拆成无效片段。
+
+输入法预编辑需要额外的可恢复基线：
+
+```text
+第一次 Preedit
+-> 保存 composition_base = { draft, selection }
+-> 用 preedit 替换原选择
+-> 后续 Preedit 替换上一段 preedit
+
+Commit
+-> 用提交文本替换 preedit
+-> 清除 composition_base
+-> 仍停留在直接编辑会话
+
+CancelComposition
+-> 恢复 composition_base
+-> 清除 preedit
+```
+
+输入法提交只改变草稿，不等于接受整个会话。活动 preedit 尚未结束时也不能接受会话，
+否则业务模型可能得到候选选择过程中的中间文本。
+
+Web `EditContext` 维护完整的浏览器文本缓冲区，因此不把一次 `textupdate` 拆成“修改
+selection”和“插入文本”两个可观察步骤。`WebEditContextBridge` 先把 UTF-16 offset
+转换为 UTF-8 边界，再生成包含完整 draft、selection 和 composition range 的
+`TextInputSnapshot`；`EditorDomain` 在一次状态替换中应用它并重建 feedback。Viewer
+随后把校验后的快照同步回 EditContext，使浏览器缓冲区始终只是 Editor 状态的镜像。
+
+### 光标几何来自实际文本布局
+
+插入光标不能通过“字符数乘平均字宽”估算。`TextFlowFigure` 在排版时保存不可变的
+交互映射，命中、位置移动、选择矩形和光标矩形都查询这份映射：
+
+```mermaid
+flowchart LR
+    D[当前草稿] --> L[TextFlow 排版快照]
+    L --> P[Glyph 绘制]
+    L --> H[点到文本位置]
+    L --> M[视觉字素、单词与行移动]
+    L --> S[选择矩形]
+    L --> C[插入光标矩形]
+```
+
+`TextFlowFigure` 先在节点本地域返回几何；`Runtime` 再应用完整祖先变换，返回逻辑
+表面坐标。Viewer 使用同一个表面坐标结果绘制 feedback，并把可见光标矩形交给平台
+定位输入法候选窗。滚动、缩放、节点移动或窗口 resize 后必须重新同步，不能缓存旧的
+表面坐标。
+
+代码锚点：
+
+- [`TextFlowFigure` 的文本交互查询](../../novadraw/src/figure/text_flow.rs#L293-L390)
+- [`Runtime` 的表面坐标查询](../../novadraw/src/runtime/runtime.rs#L2834-L2903)
+- [`GraphicalViewer::direct_text_caret_geometry`](../../novadraw-editor/src/viewer/mod.rs#L1669-L1699)
+
+### 编辑反馈、裁剪与长文本
+
+策略生成的 `DirectTextFeedback` 必须指出其中哪个图形是可查询的
+`TextFlowFigure`。单行编辑通常使用目标 client area 扣除 padding 后的边界，并配置
+`NoWrap`；编辑态不能使用 `Truncate` 或省略号，因为被隐藏文本仍需参与选择和光标
+移动。
+
+Viewer 把完整草稿排版在这个固定视口内，并通过 `TextFlowViewport::clipped` 同时
+施加内容偏移和边界裁剪：
+
+```text
+完整文本宽度
+-> 查询未滚动的自然光标位置
+-> 计算最小水平 scroll offset，使光标留在可见边距内
+-> 以 -scroll offset 绘制文本
+-> 把文本、选择、preedit 下划线和光标裁剪到编辑视口
+```
+
+因此输入长度不受节点宽度限制；超长草稿在节点内水平滚动，而不是越界或被省略。
+选择区使用半透明矩形，preedit 使用下划线，插入光标使用带最小可见宽度的矩形。
+输入法未提供组合区内选择时，Viewer 隐藏组合光标，而不是伪造一个位置。
+
+每次草稿、选择或 preedit 改变时，Viewer 先构造并校验新 feedback，再移除旧
+feedback。添加与删除分别登记新旧可视区域的 damage，使目标移动或文本滚动后旧像素
+也会被清除；新投影失败时则保留旧状态。
+
+代码锚点：
+
+- [`TextFlowViewport`](../../novadraw/src/figure/text_flow.rs#L184-L215)
+- [`GraphicalViewer::attach_direct_text_feedback`](../../novadraw-editor/src/viewer/mod.rs#L1995-L2215)
+- [`GraphicalViewer::replace_direct_text_state`](../../novadraw-editor/src/viewer/mod.rs#L1948-L1993)
+
+### 光标闪烁由宿主时间驱动
+
+光标是 feedback 层中的普通矩形 Figure，不是 Native 控件或隐藏 `textarea` 自带的
+光标。它的绘制分成几何生成、图形挂载、定时切换和局部修复四步。
+
+#### 几何生成与图形挂载
+
+每次建立或更新编辑反馈时，Viewer 先稳定 `TextFlow` 布局，再从当前 selection focus
+或 preedit 内部选择得到 `FlowTextPosition`。这个位置经过以下变换：
+
+```mermaid
+flowchart LR
+    P[FlowTextPosition] --> L[TextFlow 本地 caret geometry]
+    L --> R[应用 TextFlow 内部滚动]
+    R --> S[变换到逻辑表面坐标]
+    S --> C[与编辑视口求交]
+    C --> F[创建 RectangleFigure]
+    F --> O[挂到 unscaled feedback 层]
+```
+
+光标宽度会被提升到最小可见宽度，高度直接采用当前文本行的 caret 高度。它挂在
+unscaled feedback 层，因此可见宽度不会随模型缩放放大；当 viewport、zoom 或祖先
+transform 改变时，Viewer 重新查询表面坐标并重建位置。这个表面矩形同时作为
+`TextInputEffect::Acquire/SetArea` 的候选窗锚点，但平台宿主不负责绘制它。
+
+普通 selection focus 总是产生光标。IME preedit 携带内部 selection 时，光标位于该
+selection 的末端；平台明确传入 `None` 时不创建光标 Figure，也不安排闪烁 deadline。
+
+#### 定时与局部重绘
+
+光标刚创建或文本交互发生后处于可见状态，Viewer 从当前单调时间计算下一个闪烁
+deadline。宿主只在 deadline 到达时唤醒：
+
+```mermaid
+sequenceDiagram
+    participant Viewer
+    participant Host as 平台宿主
+    participant Runtime
+    participant Backend as 渲染后端
+
+    Viewer-->>Host: next_wake_deadline()
+    Host->>Host: WaitUntil / timeout
+    Host->>Viewer: advance_time(now)
+    Viewer->>Runtime: caret.set_visible(false)
+    Runtime->>Runtime: 擦除旧 visual bounds
+    Runtime-->>Host: changed = true
+    Host->>Runtime: prepare_submission()
+    Runtime-->>Backend: 只提交 caret damage
+    Viewer-->>Host: 下一个 deadline
+    Host->>Viewer: advance_time(now)
+    Viewer->>Runtime: caret.set_visible(true)
+    Runtime->>Runtime: 登记 caret repaint
+```
+
+隐藏时，`set_visible(false)` 记录光标原有 `visual_bounds` 作为擦除区域；显示时，
+`set_visible(true)` 请求光标自身重绘。两者都使父级派生状态失效，之后由
+`UpdateManager` 把局部 damage 传播到表面并交给正常帧提交。因此闪烁复用已有文本与
+光标 feedback，不需要重建整组编辑反馈或强制全屏重绘。
+
+`advance_time` 会计算自上个 deadline 起已经跨过多少个闪烁间隔：跨过奇数个间隔才
+反转可见性，跨过偶数个间隔保持原状态，然后直接安排未来的下一个 deadline。窗口
+休眠或事件循环延迟时不会补画已经错过的中间帧，也不会让 deadline 永久落在当前时间
+之前。
+
+`next_wake_deadline()` 返回 Runtime 内部动画 deadline 与 caret deadline 中更早的
+一个。Native 宿主据此设置 `WaitUntil`，Web 宿主据此设置带 generation 的 timeout，
+旧 timeout 回调会被丢弃。Native 可依据 `advance_time` 的变化结果请求绘制；Web
+唤醒后进入统一 render 调度，没有待提交 damage 时不会产生新提交。
+
+使用宿主注入的单调时间而不是 wall clock，可以让 Native、Web 和 headless replay
+共用确定性逻辑。草稿、选择或预编辑更新会创建新的可见光标并重置闪烁周期；仅同步
+坐标变换时则保留原来的显示/隐藏相位。会话结束或不存在可见光标时清除 deadline。
+Web 的隐藏输入控件关闭自身 caret 显示，避免 canvas 光标与 DOM 光标重叠。
+
+代码锚点：
+
+- [`GraphicalViewer::attach_direct_text_feedback`](../../novadraw-editor/src/viewer/mod.rs#L2032-L2215)
+- [`GraphicalViewer::advance_time`](../../novadraw-editor/src/viewer/mod.rs#L880-L927)
+- [`GraphicalViewer::reset_direct_text_blink`](../../novadraw-editor/src/viewer/mod.rs#L2240-L2250)
+- [`FigureTree::set_visible_with_update`](../../novadraw/src/graph/mod.rs#L4177-L4205)
+- [`Native deadline 调度`](../../examples/native/node-editor-demo/src/main.rs#L2017-L2070)
+- [`Web deadline 调度`](../../examples/web/web-validation/src/direct_edit_mode.rs#L602-L644)
+
+### 接受、取消与失败恢复
+
+接受前依次检查：
+
+1. 来源 EditPart 仍然活动；
+2. 模型修订仍等于会话开始时捕获的修订；
+3. 没有活动的输入法预编辑；
+4. 策略验证草稿通过。
+
+草稿未变化时直接结束，不产生空命令；草稿变化时只生成一个模型 Command，交给
+`CommandStack` 执行，再由 Viewer 刷新投影。可恢复的命令拒绝会重新安装原草稿
+feedback 并重新获取输入租约。取消则只删除 feedback、停止闪烁并释放租约，不创建
+历史记录。来源节点退休或 Viewer 故障时也必须强制清理会话。
+
+代码锚点：
+
+- [`GraphicalViewer::prepare_direct_text_accept`](../../novadraw-editor/src/viewer/mod.rs#L1863-L1914)
+- [`EditorDomain::accept_direct_text_edit`](../../novadraw-editor/src/domain.rs#L283-L312)
+- [`GraphicalViewer::force_drop_direct_text_edit`](../../novadraw-editor/src/viewer/mod.rs#L2845-L2859)
+
+## 8.15 实现一个编辑器的顺序
 
 不要从拖拽工具开始。先按以下顺序建立闭环：
 
@@ -383,7 +637,10 @@ viewer.refresh()?;
    `Tool -> Request -> EditPolicy -> Command -> Model -> refresh`。
 6. **接入 `EditorDomain` 与 CommandStack**
    验证执行、撤销、重做、取消和保存位置。
-7. **最后加入连接、折点和边缘自动滚动**
+7. **按业务需要加入直接文本编辑**
+   为稳定的文本 feature 实现 policy、草稿 feedback 和模型 Command，再接入平台
+   文本输入宿主。
+8. **最后加入连接、折点和边缘自动滚动**
    这些能力依赖前面的身份、坐标、反馈和命令边界。
 
 最小组合形态：
@@ -411,15 +668,15 @@ let domain = EditorDomain::new();
 | `model` | 可持久化节点、连接和业务属性 |
 | `adapter` | 模型快照、修订与事件 |
 | `parts` | Figure 创建、视觉刷新和锚点描述 |
-| `policies` | 请求解释、反馈与命令生成 |
+| `policies` | 请求解释、反馈、直接编辑计划与命令生成 |
 | `commands` | 只依赖模型 ID 的可撤销修改 |
-| `app` | Viewer、EditorDomain、平台宿主和后端组合 |
+| `app` | Viewer、EditorDomain、文本输入宿主和后端组合 |
 
 可运行示例：
 [`examples/native/node-editor-demo`](../../examples/native/node-editor-demo)。该示例包含完整能力，
 实现自己的应用时应按上面的顺序逐层引入，而不是一次复制全部代码。
 
-## 8.15 失败模式
+## 8.16 失败模式
 
 | 错误 | 后果 |
 |---|---|
@@ -431,8 +688,14 @@ let domain = EditorDomain::new();
 | 反馈图形直接写模型 | 取消时无法恢复，撤销粒度错误 |
 | 图形已处理后编辑工具仍执行 | 控件点击同时触发编辑 |
 | 刷新时忽略版本缺口 | 丢失事件后仍宣称投影稳定 |
+| 把草稿写入稳定 Figure 或模型 | 取消、撤销和多视图同步失去边界 |
+| 光标几何自行估算 | 字体替换、emoji、换行或双向文本下错位 |
+| 编辑态使用省略号 | 光标和选择无法到达被截断文本 |
+| 只重绘新 feedback 区域 | 节点移动或内部滚动后留下旧像素 |
+| 接受活动 preedit | 候选过程中的中间文本进入模型 |
+| 不释放文本输入租约 | 候选窗和迟到输入污染后续会话 |
 
-## 8.16 验证入口
+## 8.17 验证入口
 
 - [`g1_model_contract.rs`](../../novadraw-editor/tests/g1_model_contract.rs)
 - [`g1_command_stack_contract.rs`](../../novadraw-editor/tests/g1_command_stack_contract.rs)
@@ -442,9 +705,12 @@ let domain = EditorDomain::new();
 - [`g4_editing_loop_contract.rs`](../../novadraw-editor/tests/g4_editing_loop_contract.rs)
 - [`g5_connection_projection_contract.rs`](../../novadraw-editor/tests/g5_connection_projection_contract.rs)
 - [`g5_connection_creation_contract.rs`](../../novadraw-editor/tests/g5_connection_creation_contract.rs)
+- [`p2_e02_direct_text_edit_contract.rs`](../../novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs)
 - `cargo xtask run replay.editor-g3`
 - `cargo xtask run replay.editor-g4`
 - `cargo xtask run replay.editor-g5.2`
 - `cargo xtask run replay.editor-g5.3`
 - `cargo xtask run replay.editor-g5.4`
 - `cargo xtask run replay.editor-g5.5`
+- `cargo xtask verify editor.p2-e02-direct-text-edit`
+- `cargo xtask verify platform.p2-e02-text-input`
