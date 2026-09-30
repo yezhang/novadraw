@@ -14,8 +14,8 @@ use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
-    Color, Figure, FlowPage, LabelFigure, PlatformHost, Point, PolylineFigure, Rectangle,
-    RectangleFigure, RenderBackend, TextFlowFigure,
+    Color, Figure, FlowPage, LabelFigure, MonotonicTime, PlatformHost, Point, PolylineFigure,
+    Rectangle, RectangleFigure, RenderBackend, TextFlowFigure,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
@@ -1580,6 +1580,7 @@ struct DemoApp {
     cursor: Option<(f64, f64)>,
     modifiers: KeyModifiers,
     last_autoexpose_step: Option<Instant>,
+    clock_origin: Instant,
 }
 
 impl DemoApp {
@@ -1593,12 +1594,30 @@ impl DemoApp {
             cursor: None,
             modifiers: KeyModifiers::default(),
             last_autoexpose_step: None,
+            clock_origin: Instant::now(),
         }
     }
 
     fn request_redraw(&self) {
         if let Some(host) = &self.host {
             host.request_redraw();
+        }
+    }
+
+    fn advance_editor_time(&mut self, now: Instant) {
+        let elapsed_micros = now
+            .saturating_duration_since(self.clock_origin)
+            .as_micros()
+            .min(u128::from(u64::MAX)) as u64;
+        let changed = self
+            .editor
+            .as_mut()
+            .map(|editor| editor.advance_time(MonotonicTime::from_micros(elapsed_micros)))
+            .transpose();
+        match changed {
+            Ok(Some(true)) => self.request_redraw(),
+            Ok(Some(false) | None) => {}
+            Err(error) => eprintln!("editor time update rejected: {error}"),
         }
     }
 
@@ -1762,6 +1781,7 @@ impl ApplicationHandler<()> for DemoApp {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        self.advance_editor_time(Instant::now());
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::RedrawRequested => self.render(),
@@ -1972,44 +1992,58 @@ impl ApplicationHandler<()> for DemoApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let Some(editor) = &mut self.editor else {
-            event_loop.set_control_flow(ControlFlow::Wait);
-            return;
-        };
-        if !editor.autoexpose_requested() {
-            self.last_autoexpose_step = None;
-            event_loop.set_control_flow(ControlFlow::Wait);
-            return;
+        let now = Instant::now();
+        self.advance_editor_time(now);
+        let mut redraw = false;
+        let mut next_wake;
+
+        {
+            let Some(editor) = &mut self.editor else {
+                event_loop.set_control_flow(ControlFlow::Wait);
+                return;
+            };
+            next_wake = editor
+                .next_wake_deadline()
+                .map(|deadline| self.clock_origin + Duration::from_micros(deadline.as_micros()));
+
+            if editor.autoexpose_requested() {
+                let elapsed = self
+                    .last_autoexpose_step
+                    .replace(now)
+                    .map_or(AUTOEXPOSE_FRAME_INTERVAL, |previous| {
+                        now.saturating_duration_since(previous)
+                    });
+                match editor.autoexpose_tick(elapsed) {
+                    Ok(outcome) => {
+                        redraw |= outcome.scrolled();
+                        if outcome.continue_requested() {
+                            let autoexpose_wake = now + AUTOEXPOSE_FRAME_INTERVAL;
+                            next_wake = Some(
+                                next_wake.map_or(autoexpose_wake, |wake| wake.min(autoexpose_wake)),
+                            );
+                        } else {
+                            self.last_autoexpose_step = None;
+                        }
+                    }
+                    Err(error) => {
+                        eprintln!("auto-expose rejected: {error}");
+                        self.last_autoexpose_step = None;
+                        editor
+                            .cancel_tool()
+                            .expect("failed auto-expose must cancel Tool state");
+                    }
+                }
+            } else {
+                self.last_autoexpose_step = None;
+            }
         }
 
-        let now = Instant::now();
-        let elapsed = self
-            .last_autoexpose_step
-            .replace(now)
-            .map_or(AUTOEXPOSE_FRAME_INTERVAL, |previous| {
-                now.saturating_duration_since(previous)
-            });
-        match editor.autoexpose_tick(elapsed) {
-            Ok(outcome) => {
-                if outcome.scrolled() {
-                    self.request_redraw();
-                }
-                if outcome.continue_requested() {
-                    event_loop
-                        .set_control_flow(ControlFlow::WaitUntil(now + AUTOEXPOSE_FRAME_INTERVAL));
-                } else {
-                    self.last_autoexpose_step = None;
-                    event_loop.set_control_flow(ControlFlow::Wait);
-                }
-            }
-            Err(error) => {
-                eprintln!("auto-expose rejected: {error}");
-                self.last_autoexpose_step = None;
-                editor
-                    .cancel_tool()
-                    .expect("failed auto-expose must cancel Tool state");
-                event_loop.set_control_flow(ControlFlow::Wait);
-            }
+        if redraw {
+            self.request_redraw();
+        }
+        match next_wake {
+            Some(deadline) => event_loop.set_control_flow(ControlFlow::WaitUntil(deadline)),
+            None => event_loop.set_control_flow(ControlFlow::Wait),
         }
     }
 

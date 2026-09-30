@@ -3,7 +3,9 @@ use std::time::Duration;
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::border::{BorderStyle, LineBorder};
 use novadraw::render::text::BuiltinFont;
-use novadraw::{Color, FigureId, FigureStyle, Point, Rectangle, RectangleFigure, Runtime};
+use novadraw::{
+    Color, FigureId, FigureStyle, MonotonicTime, Point, Rectangle, RectangleFigure, Runtime,
+};
 use novadraw_editor::{
     AutoexposeTick, BendpointHandleSite, ConnectionEndpoint, ConnectionPartId, CreateRequest,
     CreationType, DeleteRequest, DirectTextFeature, EditorDomain, EditorRequest, HandleRole,
@@ -83,6 +85,16 @@ impl EditorHarness {
 
     pub(crate) fn runtime_mut(&mut self) -> &mut Runtime {
         self.viewer.runtime_mut()
+    }
+
+    pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> HarnessResult<bool> {
+        self.viewer
+            .advance_time(now)
+            .map_err(|error| error.to_string())
+    }
+
+    pub(crate) fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+        self.viewer.next_wake_deadline()
     }
 
     pub(crate) fn title_status(&self) -> String {

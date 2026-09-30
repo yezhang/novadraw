@@ -10,13 +10,14 @@ use std::{
 
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::{
-    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, ConnectionAnchor, ConnectionId,
-    ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome, Figure,
-    FigureId, FigureTree, FlowTextPosition, FlowTextRange, FramePreparationError,
+    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, Color, ConnectionAnchor,
+    ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace, DispatchOutcome,
+    Figure, FigureId, FigureTree, FlowTextPosition, FlowTextRange, FramePreparationError,
     FreeformLayerFigure, FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey,
-    LayerPlacement, LayeredPane, MouseButton, MouseLocationZoomScrollPolicy, RouterBinding,
-    RouterId, Runtime, RuntimeMutationError, ScalableFreeformLayeredPane, SelectionQuad,
-    StackLayout, TextMovement, UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
+    LayerPlacement, LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy,
+    RectangleFigure, RouterBinding, RouterId, Runtime, RuntimeMutationError,
+    ScalableFreeformLayeredPane, SelectionQuad, StackLayout, TextMovement, TimeError,
+    UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
 };
 
 use crate::{
@@ -44,6 +45,11 @@ const CONNECTION_LAYER: &str = "connection";
 const SCALED_FEEDBACK_LAYER: &str = "scaled-feedback";
 const FEEDBACK_LAYER: &str = "feedback";
 const HANDLE_LAYER: &str = "handles";
+const DIRECT_TEXT_SELECTION_COLOR: Color = Color::rgba(0.18, 0.49, 0.89, 0.28);
+const DIRECT_TEXT_CARET_COLOR: Color = Color::rgba(0.07, 0.09, 0.12, 1.0);
+const DIRECT_TEXT_PREEDIT_COLOR: Color = Color::rgba(0.12, 0.38, 0.78, 1.0);
+const DIRECT_TEXT_PREEDIT_THICKNESS: f64 = 1.5;
+const DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS: u64 = 530_000;
 
 /// Stable Figure identities for the standard graphical Viewer layer topology.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -238,6 +244,8 @@ pub enum ViewerError {
     Runtime(RuntimeMutationError),
     /// Runtime derived state could not converge for an Editor query.
     RuntimePreparation(FramePreparationError),
+    /// Host-provided monotonic time violated Runtime timing constraints.
+    RuntimeTime(TimeError),
     /// Connection Runtime mutation or routing failed.
     Connection(ConnectionRuntimeError),
     /// Root layer construction or mutation failed.
@@ -318,6 +326,7 @@ impl fmt::Display for ViewerError {
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
             Self::RuntimePreparation(error) => error.fmt(formatter),
+            Self::RuntimeTime(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
             Self::Layer(error) => error.fmt(formatter),
             Self::Policy(error) => error.fmt(formatter),
@@ -335,6 +344,7 @@ impl Error for ViewerError {
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
             Self::RuntimePreparation(error) => Some(error),
+            Self::RuntimeTime(error) => Some(error),
             Self::Connection(error) => Some(error),
             Self::Layer(error) => Some(error),
             Self::Policy(error) => Some(error),
@@ -365,6 +375,12 @@ impl From<RuntimeMutationError> for ViewerError {
 impl From<FramePreparationError> for ViewerError {
     fn from(value: FramePreparationError) -> Self {
         Self::RuntimePreparation(value)
+    }
+}
+
+impl From<TimeError> for ViewerError {
+    fn from(value: TimeError) -> Self {
+        Self::RuntimeTime(value)
     }
 }
 
@@ -679,6 +695,8 @@ where
     selection: SelectionModel<EditPartId>,
     direct_text_edit: Option<ActiveDirectTextEdit<A>>,
     next_direct_text_edit_session: u64,
+    current_time: MonotonicTime,
+    direct_text_blink_deadline: Option<MonotonicTime>,
     text_input_effects: Vec<TextInputEffect>,
     applied_revision: ModelRevision,
     model_root: A::ModelId,
@@ -732,6 +750,8 @@ where
             selection: SelectionModel::new(),
             direct_text_edit: None,
             next_direct_text_edit_session: 1,
+            current_time: MonotonicTime::ZERO,
+            direct_text_blink_deadline: None,
             text_input_effects: Vec::new(),
             applied_revision,
             model_root: snapshot.root,
@@ -789,6 +809,56 @@ where
     /// Returns mutable Runtime access for rendering and platform integration.
     pub fn runtime_mut(&mut self) -> &mut Runtime {
         &mut self.runtime
+    }
+
+    /// Advances Runtime timers and the active direct-edit caret blink from host time.
+    pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
+        let runtime_changed = self.runtime.advance_time(now)?;
+        self.current_time = now;
+        let Some(deadline) = self.direct_text_blink_deadline else {
+            return Ok(runtime_changed);
+        };
+        if now < deadline {
+            return Ok(runtime_changed);
+        }
+        let Some(active) = self.direct_text_edit.as_mut() else {
+            self.direct_text_blink_deadline = None;
+            return Ok(runtime_changed);
+        };
+        let Some(caret) = active.caret_feedback else {
+            self.direct_text_blink_deadline = None;
+            return Ok(runtime_changed);
+        };
+
+        let elapsed = now.as_micros() - deadline.as_micros();
+        let intervals = elapsed / DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS + 1;
+        if intervals % 2 == 1 {
+            active.caret_visible = !active.caret_visible;
+        }
+        let next = intervals
+            .checked_mul(DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS)
+            .and_then(|advance| deadline.as_micros().checked_add(advance))
+            .map(MonotonicTime::from_micros)
+            .filter(|next| *next > now);
+        self.direct_text_blink_deadline = next;
+        let caret_changed = self
+            .runtime
+            .figure(caret)?
+            .set_visible(active.caret_visible)?;
+        Ok(runtime_changed || caret_changed)
+    }
+
+    /// Returns the earliest Runtime or direct-edit deadline requiring a host wakeup.
+    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+        match (
+            self.runtime.next_wake_deadline(),
+            self.direct_text_blink_deadline,
+        ) {
+            (Some(runtime), Some(direct_edit)) => Some(runtime.min(direct_edit)),
+            (Some(runtime), None) => Some(runtime),
+            (None, Some(direct_edit)) => Some(direct_edit),
+            (None, None) => None,
+        }
     }
 
     /// Returns the current root Viewport origin in content coordinates.
@@ -1386,15 +1456,16 @@ where
             plan,
             feedback: Vec::new(),
             text_feedback: self.root_layers.root(),
+            caret_feedback: None,
+            caret_visible: false,
         };
         let projection = active.plan.feedback(&active.state, &self.model)?;
-        let (feedback, text_feedback, area) = self.attach_direct_text_feedback(
-            request.source(),
-            active.state.selection().focus(),
-            projection,
-        )?;
+        let (feedback, text_feedback, caret_feedback, area) =
+            self.attach_direct_text_feedback(request.source(), &active.state, projection)?;
         active.feedback = feedback;
         active.text_feedback = text_feedback;
+        active.caret_feedback = caret_feedback;
+        active.caret_visible = caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
             session,
             purpose: match active.state.mode() {
@@ -1404,6 +1475,7 @@ where
             area,
         });
         self.direct_text_edit = Some(active);
+        self.reset_direct_text_blink();
         Ok(session)
     }
 
@@ -1509,8 +1581,9 @@ where
             .direct_text_edit
             .as_ref()
             .ok_or(DirectTextEditError::NoActiveSession)?;
+        let caret = active.state.caret_position()?;
         self.runtime
-            .text_flow_caret_geometry(active.text_feedback, active.state.selection().focus())
+            .text_flow_caret_geometry(active.text_feedback, caret)
             .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
     }
 
@@ -1549,9 +1622,10 @@ where
         let Some(active) = self.direct_text_edit.as_ref() else {
             return Ok(false);
         };
+        let caret = active.state.caret_position()?;
         let area = self
             .runtime
-            .text_flow_caret_geometry(active.text_feedback, active.state.selection().focus())
+            .text_flow_caret_geometry(active.text_feedback, caret)
             .map_err(|_| DirectTextEditError::InvalidTextPosition)?
             .bounds();
         self.text_input_effects.push(TextInputEffect::SetArea {
@@ -1626,6 +1700,7 @@ where
         let Some(active) = self.direct_text_edit.take() else {
             return Ok(false);
         };
+        self.direct_text_blink_deadline = None;
         self.remove_direct_text_feedback(&active.feedback)?;
         self.text_input_effects.push(TextInputEffect::Release {
             session: active.state.session(),
@@ -1645,6 +1720,7 @@ where
             .get(active.state.source())
             .is_none_or(|part| !part.is_active())
         {
+            self.direct_text_blink_deadline = None;
             self.remove_direct_text_feedback(&active.feedback)?;
             return Err(DirectTextEditError::ForeignOrRetiredPart.into());
         }
@@ -1676,6 +1752,9 @@ where
             return Err(error);
         }
         active.feedback.clear();
+        active.caret_feedback = None;
+        active.caret_visible = false;
+        self.direct_text_blink_deadline = None;
         self.text_input_effects.push(TextInputEffect::Release {
             session: active.state.session(),
         });
@@ -1690,13 +1769,15 @@ where
             .active
             .plan
             .feedback(&prepared.active.state, &self.model)?;
-        let (feedback, text_feedback, area) = self.attach_direct_text_feedback(
+        let (feedback, text_feedback, caret_feedback, area) = self.attach_direct_text_feedback(
             prepared.active.state.source(),
-            prepared.active.state.selection().focus(),
+            &prepared.active.state,
             projection,
         )?;
         prepared.active.feedback = feedback;
         prepared.active.text_feedback = text_feedback;
+        prepared.active.caret_feedback = caret_feedback;
+        prepared.active.caret_visible = caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::Acquire {
             session: prepared.active.state.session(),
             purpose: match prepared.active.state.mode() {
@@ -1706,6 +1787,7 @@ where
             area,
         });
         self.direct_text_edit = Some(prepared.active);
+        self.reset_direct_text_blink();
         Ok(())
     }
 
@@ -1723,11 +1805,9 @@ where
                 return Err(error.into());
             }
         };
-        let (feedback, text_feedback, area) = match self.attach_direct_text_feedback(
-            active.state.source(),
-            active.state.selection().focus(),
-            projection,
-        ) {
+        let (feedback, text_feedback, caret_feedback, area) = match self
+            .attach_direct_text_feedback(active.state.source(), &active.state, projection)
+        {
             Ok(attached) => attached,
             Err(error) => {
                 active.state = previous_state;
@@ -1743,20 +1823,23 @@ where
         }
         active.feedback = feedback;
         active.text_feedback = text_feedback;
+        active.caret_feedback = caret_feedback;
+        active.caret_visible = caret_feedback.is_some();
         self.text_input_effects.push(TextInputEffect::SetArea {
             session: active.state.session(),
             area,
         });
         self.direct_text_edit = Some(active);
+        self.reset_direct_text_blink();
         Ok(())
     }
 
     fn attach_direct_text_feedback(
         &mut self,
         owner: EditPartId,
-        caret: FlowTextPosition,
+        state: &DirectTextEditState,
         feedback: DirectTextFeedback,
-    ) -> Result<(Vec<FigureId>, FigureId, Rectangle), ViewerError> {
+    ) -> Result<(Vec<FigureId>, FigureId, Option<FigureId>, Rectangle), ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
         let mut figures = Vec::with_capacity(visuals.len());
         for visual in visuals {
@@ -1778,6 +1861,13 @@ where
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
         }
+        let caret = match state.caret_position() {
+            Ok(caret) => caret,
+            Err(error) => {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(error.into());
+            }
+        };
         let area = match self.runtime.text_flow_caret_geometry(text_feedback, caret) {
             Ok(caret) => caret.bounds(),
             Err(_) => {
@@ -1785,7 +1875,119 @@ where
                 return Err(DirectTextEditError::InvalidFeedbackTarget.into());
             }
         };
-        Ok((figures, text_feedback, area))
+        let selection = match state.composition() {
+            Some(_) => Vec::new(),
+            None => match self
+                .runtime
+                .text_flow_selection_geometry(text_feedback, state.selection())
+            {
+                Ok(selection) => selection,
+                Err(_) => {
+                    let _ = self.remove_direct_text_feedback(&figures);
+                    return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+                }
+            },
+        };
+        let preedit = match state.composition() {
+            Some(composition) => {
+                match self
+                    .runtime
+                    .text_flow_selection_geometry(text_feedback, composition.range())
+                {
+                    Ok(preedit) => preedit,
+                    Err(_) => {
+                        let _ = self.remove_direct_text_feedback(&figures);
+                        return Err(DirectTextEditError::InvalidFeedbackTarget.into());
+                    }
+                }
+            }
+            None => Vec::new(),
+        };
+
+        for quad in selection {
+            if let Err(error) = self.attach_direct_text_decoration(
+                owner,
+                quad.bounds(),
+                DIRECT_TEXT_SELECTION_COLOR,
+                &mut figures,
+            ) {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(error);
+            }
+        }
+        for quad in preedit {
+            let bounds = quad.bounds();
+            let underline = Rectangle::new(
+                bounds.x,
+                bounds.y + bounds.height - DIRECT_TEXT_PREEDIT_THICKNESS,
+                bounds.width,
+                DIRECT_TEXT_PREEDIT_THICKNESS,
+            );
+            if let Err(error) = self.attach_direct_text_decoration(
+                owner,
+                underline,
+                DIRECT_TEXT_PREEDIT_COLOR,
+                &mut figures,
+            ) {
+                let _ = self.remove_direct_text_feedback(&figures);
+                return Err(error);
+            }
+        }
+        let caret_visible = state
+            .composition()
+            .is_none_or(|composition| composition.selection().is_some());
+        let caret_feedback = if caret_visible {
+            match self.attach_direct_text_decoration(
+                owner,
+                area,
+                DIRECT_TEXT_CARET_COLOR,
+                &mut figures,
+            ) {
+                Ok(caret) => Some(caret),
+                Err(error) => {
+                    let _ = self.remove_direct_text_feedback(&figures);
+                    return Err(error);
+                }
+            }
+        } else {
+            None
+        };
+        Ok((figures, text_feedback, caret_feedback, area))
+    }
+
+    fn attach_direct_text_decoration(
+        &mut self,
+        owner: EditPartId,
+        bounds: Rectangle,
+        color: Color,
+        figures: &mut Vec<FigureId>,
+    ) -> Result<FigureId, ViewerError> {
+        let (_, figure) = self.add_feedback_visual(
+            Some(owner),
+            false,
+            Box::new(RectangleFigure::new_with_color(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height,
+                color,
+            )),
+        )?;
+        figures.push(figure);
+        Ok(figure)
+    }
+
+    fn reset_direct_text_blink(&mut self) {
+        self.direct_text_blink_deadline = self
+            .direct_text_edit
+            .as_ref()
+            .and_then(|active| active.caret_feedback)
+            .and_then(|_| {
+                self.current_time
+                    .as_micros()
+                    .checked_add(DIRECT_TEXT_CARET_BLINK_INTERVAL_MICROS)
+                    .map(MonotonicTime::from_micros)
+            });
     }
 
     fn remove_direct_text_feedback(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
@@ -2383,6 +2585,7 @@ where
     }
 
     fn force_drop_direct_text_edit(&mut self) {
+        self.direct_text_blink_deadline = None;
         let Some(active) = self.direct_text_edit.take() else {
             return;
         };

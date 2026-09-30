@@ -245,6 +245,15 @@ fn viewer(text: &str) -> GraphicalViewer<TextModel, TextFactory> {
     viewer
 }
 
+fn direct_text_decoration_count(viewer: &GraphicalViewer<TextModel, TextFactory>) -> usize {
+    viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().feedback())
+        .unwrap()
+        .len()
+}
+
 #[test]
 fn draft_is_transient_and_accept_creates_one_undoable_command() {
     let mut viewer = viewer("alpha");
@@ -265,6 +274,26 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
             .len(),
         1
     );
+    assert_eq!(direct_text_decoration_count(&viewer), 1);
+    let caret = viewer.direct_text_caret_geometry().unwrap().bounds();
+    let caret_figure = *viewer
+        .runtime()
+        .tree()
+        .child_order(viewer.root_layers().feedback())
+        .unwrap()
+        .last()
+        .unwrap();
+    assert_eq!(
+        viewer.runtime().tree().figure_bounds(caret_figure),
+        Some(caret)
+    );
+    assert!(viewer.runtime().tree().is_visible(caret_figure));
+    let blink_off_at = viewer.next_wake_deadline().unwrap();
+    assert!(viewer.advance_time(blink_off_at).unwrap());
+    assert!(!viewer.runtime().tree().is_visible(caret_figure));
+    let blink_on_at = viewer.next_wake_deadline().unwrap();
+    assert!(viewer.advance_time(blink_on_at).unwrap());
+    assert!(viewer.runtime().tree().is_visible(caret_figure));
     domain.insert_direct_text(&mut viewer, " beta").unwrap();
 
     assert_eq!(viewer.model().text, "alpha");
@@ -273,6 +302,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "alpha beta");
     assert!(viewer.direct_text_caret_geometry().is_ok());
     assert!(viewer.direct_text_selection_geometry().is_ok());
+    assert_eq!(direct_text_decoration_count(&viewer), 1);
 
     assert!(domain.accept_direct_text_edit(&mut viewer).unwrap());
     assert_eq!(viewer.model().text, "alpha beta");
@@ -286,6 +316,8 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
             .unwrap()
             .is_empty()
     );
+    assert_eq!(direct_text_decoration_count(&viewer), 0);
+    assert_eq!(viewer.next_wake_deadline(), None);
 
     domain.undo(&mut viewer).unwrap();
     assert_eq!(viewer.model().text, "alpha");
@@ -464,6 +496,7 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
             ),
         )
         .unwrap();
+    assert_eq!(direct_text_decoration_count(&viewer), 2);
 
     domain
         .handle_text_input_event(
@@ -478,6 +511,7 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
         )
         .unwrap();
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "ni");
+    assert_eq!(direct_text_decoration_count(&viewer), 2);
     domain
         .handle_text_input_event(
             &mut viewer,
@@ -500,8 +534,12 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
             .selection()
             .is_none()
     );
+    assert_eq!(direct_text_decoration_count(&viewer), 1);
+    assert_eq!(viewer.next_wake_deadline(), None);
     assert!(domain.cancel_direct_text_preedit(&mut viewer).unwrap());
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "alpha");
+    assert_eq!(direct_text_decoration_count(&viewer), 2);
+    assert!(viewer.next_wake_deadline().is_some());
 
     assert!(matches!(
         domain.set_direct_text_preedit(&mut viewer, "你", Some(1..2)),
@@ -524,6 +562,7 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
     assert_eq!(viewer.model().text, "alpha");
 
     domain.cancel_direct_text_edit(&mut viewer).unwrap();
+    assert_eq!(direct_text_decoration_count(&viewer), 0);
     assert!(matches!(
         viewer.take_text_input_effects().last(),
         Some(TextInputEffect::Release { session: released }) if *released == session

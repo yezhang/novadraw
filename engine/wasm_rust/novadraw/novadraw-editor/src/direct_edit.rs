@@ -417,6 +417,17 @@ impl DirectTextEditState {
         );
     }
 
+    pub(crate) fn caret_position(&self) -> Result<FlowTextPosition, DirectTextEditError> {
+        let Some(composition) = &self.composition else {
+            return Ok(self.selection.focus());
+        };
+        let Some(selection) = &composition.selection else {
+            return Ok(composition.range.focus());
+        };
+        let start = position_to_offset(&self.draft, composition.range.anchor())?;
+        position_from_offset(&self.draft, start + selection.end)
+    }
+
     pub(crate) fn delete_range(
         &mut self,
         first: FlowTextPosition,
@@ -482,6 +493,8 @@ pub(crate) struct ActiveDirectTextEdit<A: ModelAdapter> {
     pub(crate) plan: Box<dyn DirectTextEdit<A>>,
     pub(crate) feedback: Vec<FigureId>,
     pub(crate) text_feedback: FigureId,
+    pub(crate) caret_feedback: Option<FigureId>,
+    pub(crate) caret_visible: bool,
 }
 
 pub(crate) struct PreparedDirectTextEdit<A: ModelAdapter> {
