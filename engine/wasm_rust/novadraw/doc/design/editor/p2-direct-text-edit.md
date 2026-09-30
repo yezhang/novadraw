@@ -245,6 +245,71 @@ Policy 提供 feature 到 feedback projection 的映射。原文本的临时隐�
 projection，不能直接改业务模型。cleanup 必须先恢复稳定视图，再执行模型 Command；
 Command 完成后由模型通知产生新稳定文本。
 
+### 10.1 编辑视口与长文本
+
+直接编辑必须区分完整文本布局和可见编辑视口：
+
+```text
+full draft + NoWrap layout
+-> content origin + scroll offset
+-> clip to edit viewport
+-> text / selection / preedit / caret
+```
+
+单行节点标签默认使用目标 Figure 的 client area 作为固定编辑视口：
+
+- draft 始终以完整文本参与 shaping，不使用 ellipsis 或 truncate；
+- 文字不得绘制到编辑视口之外；
+- 文本宽度未超过视口时，沿用稳定标签的水平和垂直 alignment；
+- 文本宽度超过视口后仍允许继续输入，仅由业务 validator 限制内容；
+- overflow 通过水平 scroll offset 表达，每次输入、删除、移动 selection focus 或更新
+  composition 后必须使 caret 可见；
+- selection 与 preedit geometry 必须使用和文本相同的 content origin 与 scroll
+  offset，并裁剪到同一编辑视口；
+- host candidate area 使用滚动后的可见 caret rectangle。
+
+编辑视口是 presentation 约束，不是业务数据长度约束。不得因为文字不可完全显示而拒绝
+输入、截断 draft 或把 ellipsis 写回模型。
+
+多行编辑使用相同模型，但按有限宽度 soft-wrap；达到应用配置的最大可见高度后使用垂直
+scroll。单行与多行不得共享隐式 overflow 猜测。
+
+### 10.2 移动、缩放与重绘
+
+一次 direct-edit presentation 必须以同一 generation 原子发布：
+
+```text
+layout revision
+target transform revision
+edit viewport
+content scroll offset
+caret / selection / preedit geometry
+```
+
+目标 Figure、ancestor transform、viewport origin、zoom、DPI 或窗口尺寸变化时，Viewer
+重新计算完整 presentation。damage 至少覆盖旧、新 presentation bounds 的并集；内容
+滚动时重绘完整 edit viewport。任何 glyph 都不得依赖 viewport 外的 damage 才能被
+清除。
+
+直接编辑和节点拖动是两个互斥 gesture：
+
+- 编辑视口内的 pointer drag 只扩展文本 selection；
+- 从节点或 handle 发起拖动前，先按 direct-edit focus-loss policy 结束会话；
+- accept 失败时保留编辑会话并消费本次拖动，不允许两个 gesture 同时拥有目标；
+- viewport scroll/zoom、窗口 resize 或外部布局移动不等于节点拖动，session 保持活动，
+  feedback 与候选窗跟随新 transform；
+- source retire 或无法恢复 projection 时按既有失败模型 cancel/fault。
+
+### 10.3 提交后的布局
+
+框架默认使用 `PreserveBounds`：accept 只提交文本，稳定 Label 恢复自身 presentation
+策略；若固定节点无法容纳完整文本，可以在非编辑态显示 ellipsis。再次进入编辑时必须
+恢复完整模型文本。
+
+应用可以提供 `AutoSizeOnCommit` policy，使文本与节点 bounds 由同一个可撤销 Command
+原子更新。自动扩框必须服从应用的最小/最大尺寸、父布局和画布约束，并在提交后触发连接
+重路由；draft 阶段不得提前修改模型 bounds。
+
 ## 11. Accept、Cancel 与冲突
 
 accept 顺序：

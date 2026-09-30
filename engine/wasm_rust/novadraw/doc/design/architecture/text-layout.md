@@ -319,6 +319,17 @@ FlowPage + resolved style + MeasureConstraints
 - measure、arrange 与 paint 在相同 constraints/revision 下复用同一 TextLayout，
   禁止 paint 阶段重新 shaping。
 
+`TextFlowViewport` 是 layout 之后的纯 presentation：
+
+- `content_offset` 平移已经完成 shaping 的 glyph 与 interaction geometry；
+- `clip_to_bounds` 把 paint 限制在当前 Figure bounds；
+- viewport 变化只触发 repaint，不改变 layout revision、measurement 或 source text；
+- hit-test、caret 与 selection query 必须使用与 paint 相同的 content offset；
+- clipping 不修改 `visible_range`，也不把完整 layout 标记为 truncated。
+
+该能力用于 direct edit 内部滚动等固定窗口场景。它不是 scroll container，不拥有输入、
+selection 或业务文本。
+
 缓存 key 除第 10 节字段外还必须包含 paragraph/fragment revision。fragment、width、
 wrapping 或 font revision 变化时，Runtime 在一次 validation transaction 中更新
 measurement、arranged glyph origins、bounds、freeform extent 与 old/new damage。

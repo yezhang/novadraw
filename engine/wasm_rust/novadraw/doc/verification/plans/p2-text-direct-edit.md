@@ -142,6 +142,18 @@ P2-E02b 当前自动证据：
   event/effect drain、surface-origin 同步与可观测 host lease；
 - `cargo xtask verify platform.p2-e02-text-input`：PASS。
 
+P2-E02 长文本编辑视口必须补充：
+
+- 单行 draft 超过目标宽度后继续输入，不产生 ellipsis；
+- 文本、selection、preedit 与 caret 统一裁剪到目标 client area；
+- caret 位于首部、中部和尾部时，内部 scroll offset 分别保证其可见；
+- 内容滚动只重绘编辑视口，不在 viewport 外留下 glyph；
+- target、ancestor、viewport、zoom 或 resize 变化后，旧、新 presentation damage
+  完整且所有反馈使用同一 generation；
+- 编辑会话与节点拖动互斥；accept 失败时不启动拖动；
+- `PreserveBounds` 提交后稳定 Label 可以省略，但再次编辑恢复完整模型文本；
+- 可选 `AutoSizeOnCommit` 将文本和 bounds 作为一个 Command 撤销/重做。
+
 P2-E02 人工证据：
 
 - 2026-09-30 后续复验发现 Native/Web 首帧背景、编辑文本定位与 caret 可见性回归；

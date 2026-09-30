@@ -85,6 +85,16 @@ erase/revert feedback
 取消只撤销 feedback，不生成 Command。草稿变化不能直接写入业务模型；历史记录中也不
 保存 CellEditor、EditPart 或 Figure。
 
+GEF 示例没有统一的长文本窗口策略：
+
+- Flow 示例的 `ActivityCellEditorLocator` 按 SWT Text preferred size 扩宽原生 editor；
+- Logic 示例的 `LabelCellEditorLocator` 把 editor 固定在 Figure client area；
+- `CellEditorLocator` 只负责放置 control，是否扩张、裁剪或滚动由应用选择。
+
+Novadraw 不复制 SWT control 的可见文本路径。单行节点标签采用固定编辑视口、完整
+TextFlow layout、viewport clip 与 caret reveal 滚动；稳定态是否省略或提交时扩框由
+应用 policy 决定。
+
 ## 5. TextFlow 交互几何
 
 Draw2D `TextFlow` 在布局 fragment 上提供：
