@@ -136,6 +136,8 @@ P2-E02b 当前自动证据：
 - Winit IME/keyboard bridge 与 logical candidate area；
 - Web hidden textarea、composition/beforeinput/input/keydown/focus bridge；
 - DOM UTF-16 selection 到 Editor UTF-8 range 转换；
+- Web compositionupdate 的 provisional text 与 post-DOM input selection 分代处理，
+  `pinyin` 末尾 caret 校准为 UTF-8 `6..6`；
 - Viewer 默认 selection/caret/preedit 装饰与 host 注入单调时间 caret blink；
 - Native node-editor F2 rename 与 undo/redo application contract；
 - Web validation `?mode=direct-edit` composition root、canvas start/caret selection、

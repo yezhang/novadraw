@@ -361,6 +361,10 @@ Web adapter：
 - 不依赖 Winit Web 的 IME API，因为其 IME allow/cursor area 当前不实现；
 - 使用受控、不可见的 input host 获取 `compositionstart/update/end`、
   `beforeinput/input` 和 selection；
+- `compositionupdate.data` 先产生 provisional preedit；不能把此时尚未更新的 DOM
+  selection 与新 data 组合；
+- composing `input` 在 DOM 更新后，以同一代 host value 与 selection 原子校准
+  preedit，并把 DOM UTF-16 range 转为 Editor UTF-8 range；
 - `beforeinput` 可能缺失或不可取消，必须以 `input` 后的 host value 做确定性 reconcile；
 - DOM input 只承载平台输入与软键盘，不作为可见文本或业务模型真值；
 - input host 跟随 caret surface rectangle，session 结束后移除焦点和 composition 状态。

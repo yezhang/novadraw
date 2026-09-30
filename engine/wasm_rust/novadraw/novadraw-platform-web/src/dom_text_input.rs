@@ -79,12 +79,11 @@ impl WebTextInputHost {
             let bridge = Rc::clone(&bridge);
             let events = Rc::clone(&events);
             let event_ready = Rc::clone(&event_ready);
-            let input = input.clone();
             move |event| {
                 let event = event.unchecked_into::<CompositionEvent>();
                 let text = event.data().unwrap_or_default();
-                let selection = dom_selection_in_utf8(&input, &text);
-                let normalized = bridge.borrow_mut().composition_updated(text, selection);
+                // The DOM value and selection are updated after `compositionupdate`.
+                let normalized = bridge.borrow_mut().composition_updated(text, None);
                 if let Some(event) = normalized {
                     events.borrow_mut().push(event);
                     event_ready();
@@ -159,11 +158,21 @@ impl WebTextInputHost {
             let event_ready = Rc::clone(&event_ready);
             let input = input.clone();
             move |_| {
-                let normalized = bridge.borrow_mut().input(input.value());
-                if let Some((event, action)) = normalized {
-                    events.borrow_mut().push(event);
-                    apply_action(&input, action);
-                    event_ready();
+                if bridge.borrow().is_composing() {
+                    let text = input.value();
+                    let selection = dom_selection_in_utf8(&input, &text);
+                    let normalized = bridge.borrow().composition_reconciled(text, selection);
+                    if let Some(event) = normalized {
+                        events.borrow_mut().push(event);
+                        event_ready();
+                    }
+                } else {
+                    let normalized = bridge.borrow_mut().input(input.value());
+                    if let Some((event, action)) = normalized {
+                        events.borrow_mut().push(event);
+                        apply_action(&input, action);
+                        event_ready();
+                    }
                 }
             }
         })?;

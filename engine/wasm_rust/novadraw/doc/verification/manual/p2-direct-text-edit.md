@@ -50,7 +50,8 @@ cargo xtask manual web.build
 3. 输入超过标签宽度的文本，文字不越界、不出现省略号，内容在标签内滚动且 caret
    保持可见；
 4. hidden textarea 获取焦点但不可见、不遮挡 canvas；
-5. 中文或日文 composition 不产生重复文本；
+5. 使用系统拼音输入法依次输入 `pinyin`，每次 preedit 更新后 caret 都位于最后一个
+   字母之后；选择候选词后不产生重复文本；
 6. emoji、Backspace/Delete、方向键、Shift selection 与全选可用；
 7. composition 后的 `input` 不重复提交；
 8. canvas resize、page scroll 与 DPR 变化后 host 跟随 caret；

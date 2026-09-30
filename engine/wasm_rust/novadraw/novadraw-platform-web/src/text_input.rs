@@ -111,6 +111,18 @@ impl WebTextInputBridge {
         ))
     }
 
+    /// Reconciles preedit after the browser has updated the DOM input value and selection.
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) fn composition_reconciled(
+        &self,
+        text: impl Into<String>,
+        selection: Option<Range<usize>>,
+    ) -> Option<SessionTextInputEvent> {
+        let session = self.active?;
+        let event = normalize_composition_input(self.composing, text.into(), selection)?;
+        Some(SessionTextInputEvent::new(session, event))
+    }
+
     /// Normalizes `compositionend` without accepting the direct-edit session.
     pub fn composition_ended(
         &mut self,
@@ -265,6 +277,18 @@ fn normalize_input(composing: bool, value: String) -> Option<TextInputEvent> {
     (!composing && !value.is_empty()).then_some(TextInputEvent::InsertText(value))
 }
 
+#[cfg(any(target_arch = "wasm32", test))]
+fn normalize_composition_input(
+    composing: bool,
+    value: String,
+    selection: Option<Range<usize>>,
+) -> Option<TextInputEvent> {
+    composing.then_some(TextInputEvent::Preedit {
+        text: value,
+        selection,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,5 +305,20 @@ mod tests {
     #[test]
     fn input_during_composition_is_not_committed_twice() {
         assert_eq!(normalize_input(true, "ni".to_owned()), None);
+    }
+
+    #[test]
+    fn composing_input_reconciles_preedit_with_post_dom_selection() {
+        assert_eq!(
+            normalize_composition_input(true, "pinyin".to_owned(), Some(6..6)),
+            Some(TextInputEvent::Preedit {
+                text: "pinyin".to_owned(),
+                selection: Some(6..6),
+            })
+        );
+        assert_eq!(
+            normalize_composition_input(false, "pinyin".to_owned(), Some(6..6)),
+            None
+        );
     }
 }
