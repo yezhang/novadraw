@@ -181,6 +181,39 @@ pub enum FlowWrapping {
     },
 }
 
+/// Paint-only viewport applied to a shaped TextFlow layout.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct TextFlowViewport {
+    content_offset: Point,
+    clip_to_bounds: bool,
+}
+
+impl TextFlowViewport {
+    /// Leaves the shaped content unshifted and unclipped.
+    pub const UNCLIPPED: Self = Self {
+        content_offset: Point::ZERO,
+        clip_to_bounds: false,
+    };
+
+    /// Clips shaped content to the Figure bounds after applying an offset.
+    pub const fn clipped(content_offset: Point) -> Self {
+        Self {
+            content_offset,
+            clip_to_bounds: true,
+        }
+    }
+
+    /// Returns the node-local offset applied after layout alignment.
+    pub const fn content_offset(self) -> Point {
+        self.content_offset
+    }
+
+    /// Returns whether paint is clipped to the current Figure bounds.
+    pub const fn clips_to_bounds(self) -> bool {
+        self.clip_to_bounds
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct FlowLayoutKey {
     revision: u64,
@@ -215,6 +248,7 @@ pub struct TextFlowFigure {
     wrapping: FlowWrapping,
     horizontal_alignment: Alignment,
     vertical_alignment: Alignment,
+    viewport: TextFlowViewport,
     layout: Option<FlowLayoutSnapshot>,
 }
 
@@ -227,6 +261,7 @@ impl TextFlowFigure {
             wrapping: FlowWrapping::SoftWrap,
             horizontal_alignment: Alignment::Start,
             vertical_alignment: Alignment::Start,
+            viewport: TextFlowViewport::UNCLIPPED,
             layout: None,
         }
     }
@@ -242,6 +277,15 @@ impl TextFlowFigure {
         self
     }
 
+    pub fn with_viewport(mut self, viewport: TextFlowViewport) -> Self {
+        self.viewport = viewport;
+        self
+    }
+
+    pub fn viewport(&self) -> TextFlowViewport {
+        self.viewport
+    }
+
     pub fn text_layout(&self) -> Option<&TextLayout> {
         self.layout.as_ref().map(|snapshot| &snapshot.layout)
     }
@@ -251,10 +295,8 @@ impl TextFlowFigure {
             .layout
             .as_ref()
             .ok_or(TextInteractionError::Unavailable)?;
-        let local = Point::new(
-            point.x() - snapshot.origin.x(),
-            point.y() - snapshot.origin.y(),
-        );
+        let origin = self.visual_origin(snapshot);
+        let local = Point::new(point.x() - origin.x(), point.y() - origin.y());
         snapshot.flow_position_for_text(snapshot.layout.hit_test_text(local)?)
     }
 
@@ -270,10 +312,11 @@ impl TextFlowFigure {
             .layout
             .caret_geometry(snapshot.to_text_position(position)?)?;
         let bounds = geometry.bounds();
+        let origin = self.visual_origin(snapshot);
         Ok(CaretGeometry::new(
             Rectangle::new(
-                bounds.x + snapshot.origin.x(),
-                bounds.y + snapshot.origin.y(),
+                bounds.x + origin.x(),
+                bounds.y + origin.y(),
                 bounds.width,
                 bounds.height,
             ),
@@ -298,10 +341,11 @@ impl TextFlowFigure {
             .into_iter()
             .map(|quad| {
                 let bounds = quad.bounds();
+                let origin = self.visual_origin(snapshot);
                 Ok(SelectionQuad::new(
                     Rectangle::new(
-                        bounds.x + snapshot.origin.x(),
-                        bounds.y + snapshot.origin.y(),
+                        bounds.x + origin.x(),
+                        bounds.y + origin.y(),
                         bounds.width,
                         bounds.height,
                     ),
@@ -410,6 +454,17 @@ impl TextFlowFigure {
         self.layout = Some(next);
         Ok(changed)
     }
+
+    fn visual_origin(&self, snapshot: &FlowLayoutSnapshot) -> Point {
+        Point::new(
+            snapshot.origin.x() + self.viewport.content_offset.x(),
+            snapshot.origin.y() + self.viewport.content_offset.y(),
+        )
+    }
+
+    pub fn set_viewport(&mut self, viewport: TextFlowViewport) {
+        self.viewport = viewport;
+    }
 }
 
 impl FlowLayoutSnapshot {
@@ -503,9 +558,13 @@ impl Figure for TextFlowFigure {
             })
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
+    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
         if let Some(snapshot) = &self.layout {
-            gc.draw_text_layout(&snapshot.layout, snapshot.origin.x(), snapshot.origin.y());
+            if self.viewport.clips_to_bounds() {
+                gc.clip_rect(0.0, 0.0, bounds.width, bounds.height);
+            }
+            let origin = self.visual_origin(snapshot);
+            gc.draw_text_layout(&snapshot.layout, origin.x(), origin.y());
         }
     }
 

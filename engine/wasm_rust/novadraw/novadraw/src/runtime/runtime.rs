@@ -2850,8 +2850,7 @@ impl Runtime {
         id: FigureId,
         position: FlowTextPosition,
     ) -> Result<CaretGeometry, TextFlowQueryError> {
-        let flow = self.text_flow_for_query(id)?;
-        let mut geometry = flow.caret_geometry(position)?;
+        let mut geometry = self.text_flow_local_caret_geometry(id, position)?;
         let transform = self
             .tree
             .local_to_surface_transform(id)
@@ -2860,6 +2859,17 @@ impl Runtime {
         bounds.transform(transform);
         geometry = CaretGeometry::new(bounds, geometry.line_index());
         Ok(geometry)
+    }
+
+    /// Returns caret geometry in the TextFlow Figure's node-local coordinates.
+    pub fn text_flow_local_caret_geometry(
+        &self,
+        id: FigureId,
+        position: FlowTextPosition,
+    ) -> Result<CaretGeometry, TextFlowQueryError> {
+        self.text_flow_for_query(id)?
+            .caret_geometry(position)
+            .map_err(Into::into)
     }
 
     pub fn text_flow_selection_geometry(

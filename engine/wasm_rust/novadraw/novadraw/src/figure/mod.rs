@@ -44,7 +44,7 @@ pub use scalable_polygon::{
 };
 pub use text_flow::{
     FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, InlineTextFragment,
-    TextFlowBehavior, TextFlowFigure,
+    TextFlowBehavior, TextFlowFigure, TextFlowViewport,
 };
 pub use triangle::{Direction, TriangleFigure};
 pub use widget::{

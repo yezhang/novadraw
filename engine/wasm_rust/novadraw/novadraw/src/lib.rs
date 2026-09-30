@@ -87,7 +87,7 @@ pub use figure::{
     PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
     RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
     ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior, TextFlowFigure,
-    TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub use graph::{

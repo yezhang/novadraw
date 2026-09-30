@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use novadraw::geometry::Translatable;
-use novadraw::render::BuiltinFont;
+use novadraw::render::{BuiltinFont, command::RenderCommandKind};
 use novadraw::{
     Alignment, CaretGeometry, FigureTree, FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange,
     FlowWrapping, Point, Rectangle, RectangleFigure, Runtime, SelectionQuad, TextAffinity,
-    TextFlowFigure, TextFlowQueryError, TextInteractionError, TextInteractionMap,
+    TextFlowFigure, TextFlowQueryError, TextFlowViewport, TextInteractionError, TextInteractionMap,
     TextInteractionProvider, TextMovement, TextPosition, TextRange,
 };
 
@@ -94,6 +94,58 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         .text_flow_hit_test(flow, caret.bounds().center())
         .unwrap();
     assert_eq!(hit.byte_offset(), 0);
+}
+
+#[test]
+fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
+    let bounds = Rectangle::new(40.0, 30.0, 120.0, 48.0);
+    let text = "this complete line remains shaped while scrolled";
+    let mut runtime = Runtime::empty();
+    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .unwrap();
+    let flow = runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(
+            TextFlowFigure::new(bounds, FlowPage::from_text(text))
+                .with_wrapping(FlowWrapping::NoWrap)
+                .with_viewport(TextFlowViewport::clipped(Point::new(-80.0, 0.0))),
+        ))
+        .unwrap();
+    let frame = runtime.prepare_frame().expect("clipped TextFlow frame");
+    let layout = runtime.text_flow_layout(flow).unwrap();
+
+    assert!(!layout.is_truncated());
+    assert_eq!(layout.visible_range(), 0..text.len());
+    assert!(frame.commands().iter().any(|command| matches!(
+        command.kind,
+        RenderCommandKind::Clip { rect }
+            if rect == Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
+    )));
+    let caret = runtime
+        .text_flow_local_caret_geometry(
+            flow,
+            FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
+        )
+        .unwrap();
+    let hit = runtime
+        .text_flow_hit_test(
+            flow,
+            runtime
+                .text_flow_caret_geometry(
+                    flow,
+                    FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
+                )
+                .unwrap()
+                .bounds()
+                .center(),
+        )
+        .unwrap();
+
+    assert!(caret.bounds().x < f64::from(layout.full_width()));
+    assert_eq!(hit.byte_offset(), text.len());
 }
 
 #[test]
