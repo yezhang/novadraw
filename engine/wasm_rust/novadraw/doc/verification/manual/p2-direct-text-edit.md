@@ -2,7 +2,7 @@
 
 类型：`manual-verification`
 
-状态：`pending`
+状态：`complete`
 
 ## Native macOS
 
@@ -25,9 +25,18 @@ cargo xtask manual platform.p2-e02-text-input
 
 ## Web
 
-Web 产品 composition root 应创建 `WebTextInputHost`，将
-`GraphicalViewer::take_text_input_effects()` 逐项传给 host，并把
-`WebTextInputHost::take_events()` 逐项交给 `EditorDomain::handle_text_input_event()`。
+启动：
+
+```bash
+cargo xtask verify web.build
+cargo xtask manual web.build
+```
+
+打开
+<http://127.0.0.1:4173/?mode=direct-edit&backend=vello>。该入口创建
+`WebTextInputHost`，将 `GraphicalViewer::take_text_input_effects()` 逐项传给 host，
+并把 `WebTextInputHost::take_events()` 逐项交给
+`EditorDomain::handle_text_input_event()`。
 
 验收步骤：
 
@@ -40,5 +49,23 @@ Web 产品 composition root 应创建 `WebTextInputHost`，将
 
 ## 通过记录
 
-人工执行后记录日期、系统、浏览器/输入法版本及失败项。Native 与 Web 均通过前，
-P2-E02 保持 `in_progress`。
+日期：2026-09-30
+
+| 平台 | 环境 | 结果 |
+|---|---|---|
+| Native | macOS 14.7.8、Vello、系统输入法 | PASS（用户人工确认 8 项全部通过） |
+| Web | Google Chrome 154.0.8037.58、Vello、桌面与移动输入法 | PASS（用户人工确认 6 项全部通过） |
+| Web 自动复核 | Chrome、Canvas2D 诊断后端 | PASS |
+
+Web 自动复核覆盖：
+
+- canvas 点击启动 session，hidden textarea 获得焦点；
+- Unicode draft 更新但提交前模型保持不变；
+- Enter 接受后模型更新，textarea blur 且 lease release；
+- Escape 取消后丢弃 draft，已提交模型不变；
+- host wake 按 Viewer deadline 驱动 caret blink，session 结束后 deadline 清空；
+- canvas 像素采样非空，页面无应用控制台错误；
+- candidate area 加上 canvas client origin，resize 时重新同步。
+
+自动化环境无法完成 WebGPU 初始化，因此 Canvas2D 只用于 DOM/Editor 链路和非空像素
+复核；Vello 文本、caret、selection、preedit 与输入法候选窗以人工验收结果为准。

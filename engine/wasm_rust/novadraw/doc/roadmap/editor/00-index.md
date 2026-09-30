@@ -47,7 +47,7 @@ milestone：
 
 | Delta | 标题 | 状态 | 依赖 |
 |---|---|---|---|
-| P2-E02 | Direct text edit 与 IME | `in_progress`（自动门禁通过，人工验收待执行） | P2-T02、G1-G5 |
+| P2-E02 | Direct text edit 与 IME | `complete` | P2-T02、G1-G5 |
 
 人工验收只在对应 milestone 的自动门禁通过后进行：
 
@@ -254,7 +254,8 @@ P2-E02 分两步执行：
 
 P2-E02a 已于 2026-09-29 完成并由
 `cargo xtask verify editor.p2-e02-direct-text-edit` 验证。P2-E02b 的平台协议、Winit
-bridge、Web DOM host 与 Native 示例已通过自动门禁，当前仅剩 Native/Web 人工验收。
+bridge、Web DOM host、Native 示例与 Web validation direct-edit 场景已完成；
+2026-09-30 Native/Web 人工验收通过，P2-E02 已收口。
 
 状态所有权：
 

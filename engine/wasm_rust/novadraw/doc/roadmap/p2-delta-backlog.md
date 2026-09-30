@@ -31,10 +31,10 @@
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 |
 |---|---|---|---|---|
-| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `in_progress`（自动门禁通过，人工验收待执行） | P2-T02、G1-G5 |
+| 1 | P2-E02 | Direct text edit、draft、selection、IME 与 Command | `complete` | P2-T02、G1-G5 |
 
-P2-T02 与 P2-E02a 已闭合且未向 Core 引入 mutable editor state。P2-E02b
-Native/Web input bridge 已通过自动门禁，下一步执行真实平台人工验收；P2-E02 不复制
+P2-T02 与 P2-E02 已闭合且未向 Core 引入 mutable editor state。P2-E02b
+Native/Web input bridge、可运行场景与真实平台人工验收均已通过；P2-E02 不复制
 shaping、caret 或 selection geometry。
 
 ## Connection
@@ -334,7 +334,7 @@ Core 与当前 G5 必须继续保证：
 
 ### P2-E02: Direct text edit 与 IME
 
-状态：`in_progress`（P2-E02a complete，P2-E02b 自动门禁通过、人工验收待执行）
+状态：`complete`
 
 `api_semantics`：`direct_edit`
 
@@ -362,9 +362,10 @@ SWT/JFace CellEditor 作为公共契约或可见文本真值。
 
 P2-E02a 已完成 Viewer-scoped 单会话、typed feature/descriptor/policy plan、draft、
 selection、preedit、TextFlow interaction geometry、feedback lifecycle、accept/cancel、
-stale revision、source retire 与 CommandStack undo/redo。P2-E02b 继续实现 host lease、
-Native Winit IME 与 Web DOM input bridge。P2-E02b 自动实现与 suite 已闭合，待按
-`doc/verification/manual/p2-direct-text-edit.md` 完成真实平台验收。
+stale revision、source retire 与 CommandStack undo/redo。P2-E02b 已完成 host lease、
+Native Winit IME、Web DOM input bridge、可运行 Web composition root 与默认
+caret/selection/preedit 反馈。自动 suite 和
+`doc/verification/manual/p2-direct-text-edit.md` 的真实平台验收均已闭合。
 
 规范入口：
 

@@ -59,8 +59,8 @@ P2-R02 image source rectangle 已于 2026-09-29 完成。
 P2-C01 Connection decoration、P2-C02 shortest-path routing、P2-F01
 ScalablePolygonFigure 与 P2-T01 TextFlow 第一阶段已于 2026-09-29 完成自动门禁和
 macOS Native/Vello 人工验收。P2-T02 TextFlow interaction geometry 已完成；P2-E02
-direct-edit session、Winit bridge 与 Web DOM host 已通过自动门禁，等待 Native/Web
-人工验收。FigureInspector、Studio 与高级 self-loop 策略
+direct-edit session、Winit bridge、Web DOM host、Native/Web 场景及人工验收已于
+2026-09-30 完成。FigureInspector、Studio 与高级 self-loop 策略
 继续后置。
 2026-09-10 ADR-014 已替换旧 ADR-013；D4.3-D4.6 的新接口、所有权、约束测量、
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。

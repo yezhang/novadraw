@@ -4,7 +4,7 @@
 
 日期：2026-09-29
 
-结论：自动门禁通过，Native/Web 人工验收待执行
+结论：`complete`
 
 ## 1. 完成范围
 
@@ -15,8 +15,12 @@
 - Winit logical candidate rectangle 更新和 IME enable/disable；
 - Web composition、beforeinput、input、keydown 与 focus-loss 归一化；
 - wasm-only hidden textarea host、UTF-16 selection 到 UTF-8 range 转换；
+- DOM input 入队后唤醒 composition root，且唤醒前释放 bridge 借用，允许同步回写 effect；
+- candidate area 从 canvas logical surface 转换到 browser client coordinates；
+- Viewer 默认绘制 selection、caret 与 preedit underline，并由 host 单调时间驱动 blink；
 - DOM host 不承载可见文本或业务模型状态；
 - Native `node-editor-demo` 提供 F2 rename、IME、accept/cancel 和 undo/redo。
+- Web validation 提供 `?mode=direct-edit` 可运行 composition root。
 
 平台 adapter 的 Editor 集成通过可选 `editor` feature 提供；默认依赖图仍只有 Core。
 
@@ -30,17 +34,19 @@ Suite：`platform.p2-e02-text-input`
 - Winit adapter tests：5 项；
 - Web adapter tests：8 项；
 - Web DOM host `wasm32-unknown-unknown` 编译：PASS；
+- Web validation release bundle：PASS；
 - Native node-editor direct-edit application contract：PASS。
+- 注入时间下 caret hide/show、preedit 无 caret 和 session cleanup 契约：PASS。
 
-## 3. 未关闭项
+## 3. 平台验收
 
-以下项目需要真实窗口、系统输入法和浏览器人工验证：
+2026-09-30 验收结果：
 
-- macOS 拼音/日文候选窗位置与 composition 顺序；
-- Native resize、scroll、zoom 后候选窗对齐；
-- 浏览器 hidden textarea focus、移动端软键盘与不可取消 input；
-- Web page scroll、DPR 和 canvas resize 后候选窗对齐。
+- macOS 14.7.8 Native/Vello 与系统输入法：PASS（用户人工确认）；
+- Google Chrome 154.0.8037.58 Web/Vello 桌面与移动输入法：PASS（用户人工确认）；
+- Web/Canvas2D 自动浏览器复核：点击启动、Unicode draft、accept、cancel、focus
+  release、无应用控制台错误与非空 canvas 像素均 PASS。
 
-人工清单见
-[`../manual/p2-direct-text-edit.md`](../manual/p2-direct-text-edit.md)。两端人工证据完成前，
-P2-E02 与 GEF `direct_edit` 保持 `in_progress` / `partial`。
+完整步骤和环境边界见
+[`../manual/p2-direct-text-edit.md`](../manual/p2-direct-text-edit.md)。
+P2-E02 与 GEF `direct_edit` 已提升为 `complete` / `verified`。

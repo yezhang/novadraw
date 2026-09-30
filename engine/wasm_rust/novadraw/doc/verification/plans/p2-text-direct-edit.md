@@ -2,7 +2,7 @@
 
 类型：`verification-plan`
 
-状态：`in_progress`（P2-T02、P2-E02a complete，P2-E02b 自动门禁通过、人工验收待执行）
+状态：`complete`
 
 范围：P2-T02、P2-E02
 
@@ -20,7 +20,7 @@
 |---|---|---|---|
 | `core.p2-t02-text-interaction` | contract | headless | `complete`：文档位置、caret、selection 与 movement 几何 |
 | `editor.p2-e02-direct-text-edit` | contract/application | headless | `complete`：session、draft、policy、Command 与 cleanup |
-| `platform.p2-e02-text-input` | platform/application | native-macos、web | `automated-pass`：IME、候选窗、DOM input bridge 与 replay；人工验收待执行 |
+| `platform.p2-e02-text-input` | platform/application | native-macos、web | `complete`：IME、候选窗、DOM input bridge、Web 场景与人工验收 |
 
 ## 2. Core 契约矩阵
 
@@ -136,5 +136,15 @@ P2-E02b 当前自动证据：
 - Winit IME/keyboard bridge 与 logical candidate area；
 - Web hidden textarea、composition/beforeinput/input/keydown/focus bridge；
 - DOM UTF-16 selection 到 Editor UTF-8 range 转换；
+- Viewer 默认 selection/caret/preedit 装饰与 host 注入单调时间 caret blink；
 - Native node-editor F2 rename 与 undo/redo application contract；
+- Web validation `?mode=direct-edit` composition root、canvas start/caret selection、
+  event/effect drain、surface-origin 同步与可观测 host lease；
 - `cargo xtask verify platform.p2-e02-text-input`：PASS。
+
+P2-E02 人工证据：
+
+- 2026-09-30 Native macOS/Vello 与系统输入法验收：PASS；
+- 2026-09-30 Web Vello 桌面/移动输入法验收：PASS；
+- 详细环境与自动浏览器复核见
+  [`../manual/p2-direct-text-edit.md`](../manual/p2-direct-text-edit.md)。
