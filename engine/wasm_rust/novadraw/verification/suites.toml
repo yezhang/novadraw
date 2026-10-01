@@ -84,6 +84,18 @@ program = "./scripts/check_kurbo_versions.sh"
 description = "Build a representative release application and record its binary size"
 program = "./scripts/report_binary_size.sh"
 
+[commands."report.ga2-performance"]
+description = "Run the fixed headless CPU performance scenarios and retain raw samples"
+program = "cargo"
+args = [
+  "run",
+  "--release",
+  "-p",
+  "r8-perf",
+  "--",
+  "--report=target/verification/reports/ga2-novadraw.json",
+]
+
 [commands."test.render-image-source"]
 description = "Run the backend-neutral image source rectangle contract"
 program = "cargo"
@@ -468,6 +480,23 @@ documents = [
   "doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md",
 ]
 artifacts = ["target/verification/reports/native-vello-binary-size.json"]
+
+[[suites]]
+id = "core.performance"
+title = "Fixed headless CPU performance scenarios and deterministic work counters"
+milestone = "GA-2"
+kind = "quality"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["report.ga2-performance"]
+paths = [
+  "benchmarks/r8-perf/**",
+  "novadraw/src/graph/**",
+  "novadraw/src/connection/**",
+  "novadraw/src/runtime/**",
+]
+documents = ["doc/verification/performance/ga2-methodology.md"]
+artifacts = ["target/verification/reports/ga2-novadraw.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"

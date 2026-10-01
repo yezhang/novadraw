@@ -139,9 +139,9 @@ pub use runtime::{
     FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError, ImageId,
     LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate, ResourceError,
     ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError, ScaleEditor,
-    ScrollPaneEditor, TextFlowQueryError, TimeError, TooltipPlacement, TooltipSide,
-    TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor,
-    ZoomEditor, place_tooltip,
+    ScrollPaneEditor, TextFlowQueryError, TextLayoutStats, TimeError, TooltipPlacement,
+    TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal,
+    ViewportEditor, ZoomEditor, place_tooltip,
 };
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

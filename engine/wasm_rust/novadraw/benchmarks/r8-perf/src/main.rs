@@ -1,35 +1,42 @@
+use std::collections::BTreeMap;
 use std::hint::black_box;
 use std::path::PathBuf;
+use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use novadraw::container::ZoomManager;
-use novadraw::figure::Bounded;
-use novadraw::render::ResourceId;
-use novadraw::render::text::{
-    BuiltinFont, FontDescriptor, TextConstraints, TextEngine, TextLayout,
+use novadraw::render::BuiltinFont;
+use novadraw::{
+    ChopboxAnchor, Color, ConnectionFigure, ConnectionId, CoordinateSpace, DirectRouter, FanRouter,
+    FigureId, FigureStyle, FigureTree, FlowPage, LabelFigure, Rectangle, RectangleFigure,
+    RouterBinding, Runtime, TextFlowFigure,
 };
-use novadraw::{Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure, Runtime};
 use serde::Serialize;
-use uuid::Uuid;
 
-const DEFAULT_WARMUP_ITERATIONS: usize = 1;
-const DEFAULT_SAMPLE_ITERATIONS: usize = 7;
+const REPORT_SCHEMA_VERSION: u32 = 1;
+const DEFAULT_WARMUP_ITERATIONS: usize = 5;
+const DEFAULT_SAMPLE_ITERATIONS: usize = 30;
 const LARGE_TREE_FIGURES: usize = 4_096;
 const LARGE_TREE_COLUMNS: usize = 64;
 const DEEP_TREE_SHALLOW_DEPTH: usize = 1_000;
 const DEEP_TREE_MAX_DEPTH: usize = 10_000;
 const TEXT_FIGURES: usize = 1_000;
+const TEXT_FLOW_FIGURES: usize = 512;
+const INDEPENDENT_CONNECTIONS: usize = 1_000;
+const GROUPED_CONNECTIONS: usize = 256;
 const VIEWPORT_FIGURES: usize = 1_024;
 const VIEWPORT_COLUMNS: usize = 32;
 const ROOT_WIDTH: f64 = 1_024.0;
 const ROOT_HEIGHT: f64 = 768.0;
-const DEFAULT_REPORT: &str = "target/performance/r8-baseline.json";
+const LOGICAL_DPI: f64 = 96.0;
+const DEFAULT_REPORT: &str = "target/performance/ga2-novadraw.json";
 
 #[derive(Debug)]
 struct Cli {
     warmup_iterations: usize,
     sample_iterations: usize,
     report: PathBuf,
+    scenario: Option<String>,
 }
 
 impl Default for Cli {
@@ -38,6 +45,7 @@ impl Default for Cli {
             warmup_iterations: DEFAULT_WARMUP_ITERATIONS,
             sample_iterations: DEFAULT_SAMPLE_ITERATIONS,
             report: PathBuf::from(DEFAULT_REPORT),
+            scenario: None,
         }
     }
 }
@@ -52,14 +60,27 @@ impl Cli {
                 cli.sample_iterations = parse_positive("samples", value)?;
             } else if let Some(value) = argument.strip_prefix("--report=") {
                 cli.report = PathBuf::from(value);
+            } else if let Some(value) = argument.strip_prefix("--scenario=") {
+                cli.scenario = Some(value.to_owned());
+            } else if argument == "--help" {
+                println!(
+                    "r8-perf [--warmup=<count>] [--samples=<count>] \
+                     [--scenario=<name>] [--report=<path>]"
+                );
+                std::process::exit(0);
             } else {
                 return Err(format!(
-                    "unknown argument: {argument}; expected \
-                     --warmup=<count> --samples=<count> --report=<path>"
+                    "unknown argument: {argument}; run with --help for supported arguments"
                 ));
             }
         }
         Ok(cli)
+    }
+
+    fn includes(&self, name: &str) -> bool {
+        self.scenario
+            .as_deref()
+            .is_none_or(|requested| requested == name)
     }
 }
 
@@ -75,63 +96,81 @@ fn parse_positive(name: &str, value: &str) -> Result<usize, String> {
 
 #[derive(Serialize)]
 struct BenchmarkReport {
+    schema_version: u32,
     generated_at_unix_seconds: u64,
-    profile: &'static str,
+    harness: &'static str,
+    environment: EnvironmentReport,
+    sampling: SamplingReport,
+    measurement_scope: MeasurementScope,
+    scenarios: Vec<ScenarioReport>,
+}
+
+#[derive(Serialize)]
+struct EnvironmentReport {
+    git_revision: Option<String>,
+    git_dirty: Option<bool>,
+    rustc_verbose: Option<String>,
     operating_system: &'static str,
     architecture: &'static str,
+    cpu_model: Option<String>,
+}
+
+#[derive(Serialize)]
+struct SamplingReport {
     warmup_iterations: usize,
     sample_iterations: usize,
-    scenarios: Vec<ScenarioReport>,
+}
+
+#[derive(Serialize)]
+struct MeasurementScope {
+    cpu_setup: bool,
+    cpu_operation: bool,
+    gpu_submission: bool,
+    gpu_execution: bool,
+    present: bool,
+    input_to_present: bool,
+    process_memory: bool,
+}
+
+#[derive(Clone, Serialize)]
+struct ScenarioConfig {
+    figure_count: usize,
+    maximum_depth: usize,
+    viewport_logical: [f64; 2],
+    logical_dpi: f64,
+    visible_ratio: f64,
+    update_ratio: f64,
+    font: Option<&'static str>,
+    input_trajectory: &'static str,
 }
 
 #[derive(Serialize)]
 struct ScenarioReport {
     name: &'static str,
+    config: ScenarioConfig,
     setup_ns: u64,
     min_ns: u64,
-    median_ns: u64,
+    p50_ns: u64,
     p95_ns: u64,
-    output: usize,
+    samples_ns: Vec<u64>,
+    work: BTreeMap<&'static str, u64>,
     notes: &'static str,
 }
 
-struct TextProbeFigure {
-    bounds: Rectangle,
-    layout: TextLayout,
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ScenarioOutput {
+    work: BTreeMap<&'static str, u64>,
 }
 
-impl TextProbeFigure {
-    fn new(bounds: Rectangle, layout: TextLayout) -> Self {
-        Self { bounds, layout }
-    }
-}
-
-impl Bounded for TextProbeFigure {
-    fn bounds(&self) -> Rectangle {
-        self.bounds
+impl ScenarioOutput {
+    fn one(name: &'static str, value: usize) -> Self {
+        Self::from_pairs([(name, usize_to_u64(value))])
     }
 
-    fn set_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.bounds = Rectangle::new(x, y, width, height);
-    }
-
-    fn name(&self) -> &'static str {
-        "R8TextProbe"
-    }
-}
-
-impl Figure for TextProbeFigure {
-    fn initial_bounds(&self) -> Rectangle {
-        self.bounds
-    }
-
-    fn name(&self) -> &'static str {
-        Bounded::name(self)
-    }
-
-    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
-        canvas.fill_style(Color::BLACK);
-        canvas.fill_text_layout(&self.layout, 0.0, bounds.height);
+    fn from_pairs<const N: usize>(pairs: [(&'static str, u64); N]) -> Self {
+        Self {
+            work: pairs.into_iter().collect(),
+        }
     }
 }
 
@@ -145,28 +184,110 @@ fn main() {
         std::process::exit(2);
     }
 
-    let scenarios = vec![
-        benchmark_large_tree_render(&cli),
-        benchmark_large_tree_hit_test(&cli),
-        benchmark_deep_tree_render(&cli, DEEP_TREE_SHALLOW_DEPTH),
-        benchmark_deep_tree_render(&cli, DEEP_TREE_MAX_DEPTH),
-        benchmark_deep_tree_hit_test(&cli, DEEP_TREE_SHALLOW_DEPTH),
-        benchmark_deep_tree_hit_test(&cli, DEEP_TREE_MAX_DEPTH),
-        benchmark_deep_tree_validate(&cli, DEEP_TREE_SHALLOW_DEPTH),
-        benchmark_deep_tree_validate(&cli, DEEP_TREE_MAX_DEPTH),
-        benchmark_text_recording(&cli),
-        benchmark_viewport_render(&cli),
-    ];
+    let mut scenarios = Vec::new();
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "wide_tree_full_record_4096",
+        benchmark_large_tree_render,
+    );
+    push_if_selected(&mut scenarios, &cli, "deep_tree_full_record_1000", |cli| {
+        benchmark_deep_tree_render(cli, DEEP_TREE_SHALLOW_DEPTH)
+    });
+    push_if_selected(&mut scenarios, &cli, "deep_tree_full_record_10000", |cli| {
+        benchmark_deep_tree_render(cli, DEEP_TREE_MAX_DEPTH)
+    });
+    push_if_selected(&mut scenarios, &cli, "deep_tree_validate_1000", |cli| {
+        benchmark_deep_tree_validate(cli, DEEP_TREE_SHALLOW_DEPTH)
+    });
+    push_if_selected(&mut scenarios, &cli, "deep_tree_validate_10000", |cli| {
+        benchmark_deep_tree_validate(cli, DEEP_TREE_MAX_DEPTH)
+    });
+    push_if_selected(&mut scenarios, &cli, "label_refresh_wide_1000", |cli| {
+        benchmark_label_refresh(cli, false)
+    });
+    push_if_selected(&mut scenarios, &cli, "label_refresh_deep_1000", |cli| {
+        benchmark_label_refresh(cli, true)
+    });
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "text_flow_full_record_wide_512",
+        |cli| benchmark_text_flow(cli, false),
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "text_flow_full_record_deep_512",
+        |cli| benchmark_text_flow(cli, true),
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "independent_routing_1000",
+        benchmark_independent_routing,
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "grouped_routing_256",
+        benchmark_grouped_routing,
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "local_update_record_1pct_4096",
+        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES / 100),
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "full_update_record_100pct_4096",
+        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES),
+    );
+    push_if_selected(
+        &mut scenarios,
+        &cli,
+        "viewport_full_record_1024",
+        benchmark_viewport_render,
+    );
+
+    if scenarios.is_empty() {
+        eprintln!(
+            "unknown scenario `{}`",
+            cli.scenario.as_deref().unwrap_or_default()
+        );
+        std::process::exit(2);
+    }
+
     let report = BenchmarkReport {
+        schema_version: REPORT_SCHEMA_VERSION,
         generated_at_unix_seconds: SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs(),
-        profile: "release",
-        operating_system: std::env::consts::OS,
-        architecture: std::env::consts::ARCH,
-        warmup_iterations: cli.warmup_iterations,
-        sample_iterations: cli.sample_iterations,
+        harness: "novadraw-headless-cpu",
+        environment: EnvironmentReport {
+            git_revision: command_output("git", &["rev-parse", "HEAD"]),
+            git_dirty: git_dirty(),
+            rustc_verbose: command_output("rustc", &["-vV"]),
+            operating_system: std::env::consts::OS,
+            architecture: std::env::consts::ARCH,
+            cpu_model: cpu_model(),
+        },
+        sampling: SamplingReport {
+            warmup_iterations: cli.warmup_iterations,
+            sample_iterations: cli.sample_iterations,
+        },
+        measurement_scope: MeasurementScope {
+            cpu_setup: true,
+            cpu_operation: true,
+            gpu_submission: false,
+            gpu_execution: false,
+            present: false,
+            input_to_present: false,
+            process_memory: false,
+        },
         scenarios,
     };
     if let Some(parent) = cli.report.parent() {
@@ -180,56 +301,50 @@ fn main() {
     println!("REPORT {}", cli.report.display());
 }
 
-fn benchmark_large_tree_render(cli: &Cli) -> ScenarioReport {
-    benchmark_prepared(
-        "large_tree_render_4096",
-        cli,
-        || Runtime::new(build_large_tree()),
-        |runtime| runtime.record_full_frame().commands().len(),
-        "Records a full frame for a flat 4,096-Figure tree.",
-    )
+fn push_if_selected(
+    reports: &mut Vec<ScenarioReport>,
+    cli: &Cli,
+    name: &'static str,
+    benchmark: impl FnOnce(&Cli) -> ScenarioReport,
+) {
+    if cli.includes(name) {
+        reports.push(benchmark(cli));
+    }
 }
 
-fn benchmark_large_tree_hit_test(cli: &Cli) -> ScenarioReport {
+fn benchmark_large_tree_render(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
-        "large_tree_hit_test_4096",
+        "wide_tree_full_record_4096",
         cli,
-        build_large_tree,
-        |tree| {
-            usize::from(
-                tree.hit_test_simple((ROOT_WIDTH - 1.0, ROOT_HEIGHT - 1.0))
-                    .is_some(),
+        scenario_config(LARGE_TREE_FIGURES + 1, 2, 1.0, 1.0, None, "none"),
+        || Runtime::new(build_large_tree().0),
+        |runtime| {
+            ScenarioOutput::one(
+                "render_commands",
+                runtime.record_full_frame().commands().len(),
             )
         },
-        "Runs a worst-case child scan before hitting the flat tree root.",
+        "CPU stabilization and full command recording only.",
     )
 }
 
 fn benchmark_deep_tree_render(cli: &Cli, depth: usize) -> ScenarioReport {
     benchmark_prepared(
         if depth == DEEP_TREE_MAX_DEPTH {
-            "deep_tree_render_10000"
+            "deep_tree_full_record_10000"
         } else {
-            "deep_tree_render_1000"
+            "deep_tree_full_record_1000"
         },
         cli,
-        || Runtime::new(build_deep_tree(depth)),
-        |runtime| runtime.record_full_frame().commands().len(),
-        "Records the supported recursive tree path.",
-    )
-}
-
-fn benchmark_deep_tree_hit_test(cli: &Cli, depth: usize) -> ScenarioReport {
-    benchmark_prepared(
-        if depth == DEEP_TREE_MAX_DEPTH {
-            "deep_tree_hit_test_10000"
-        } else {
-            "deep_tree_hit_test_1000"
+        scenario_config(depth, depth, 1.0, 1.0, None, "none"),
+        || Runtime::new(build_deep_tree_with_leaf(depth).0),
+        |runtime| {
+            ScenarioOutput::one(
+                "render_commands",
+                runtime.record_full_frame().commands().len(),
+            )
         },
-        cli,
-        || build_deep_tree(depth),
-        |tree| usize::from(tree.hit_test_simple((0.5, 0.5)).is_some()),
-        "Runs hit testing through the complete recursive tree path.",
+        "CPU stabilization and the supported recursive recording path.",
     )
 }
 
@@ -242,6 +357,14 @@ fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
             "deep_tree_validate_1000"
         },
         cli,
+        scenario_config(
+            depth,
+            depth,
+            1.0,
+            1.0 / depth as f64,
+            None,
+            "deepest leaf size toggle",
+        ),
         || build_deep_tree_with_leaf(depth),
         |(tree, root, leaf)| {
             alternate = !alternate;
@@ -252,37 +375,268 @@ fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
             tree.builder()
                 .validate_subtree(*root)
                 .expect("validate deep tree");
-            usize::from(tree.is_valid(*leaf))
+            ScenarioOutput::one("validated_leaf", usize::from(tree.is_valid(*leaf)))
         },
-        "Invalidates the deepest leaf and validates the complete recursive path.",
+        "Invalidates the deepest leaf and validates the complete path.",
     )
 }
 
-fn benchmark_text_recording(cli: &Cli) -> ScenarioReport {
+fn benchmark_label_refresh(cli: &Cli, deep: bool) -> ScenarioReport {
     benchmark_prepared(
-        "text_recording_1000",
+        if deep {
+            "label_refresh_deep_1000"
+        } else {
+            "label_refresh_wide_1000"
+        },
         cli,
-        || Runtime::new(build_text_tree()),
-        |runtime| runtime.record_full_frame().commands().len(),
-        "Measures Figure traversal and text command recording, not glyph shaping.",
+        scenario_config(
+            TEXT_FIGURES + 1,
+            if deep { TEXT_FIGURES + 1 } else { 2 },
+            1.0,
+            0.0,
+            Some("Inter"),
+            "cached intrinsic refresh",
+        ),
+        || build_label_runtime(deep),
+        |runtime| {
+            let before = runtime.text_layout_stats();
+            runtime.refresh_label_layouts().expect("refresh labels");
+            let after = runtime.text_layout_stats();
+            ScenarioOutput::from_pairs([
+                (
+                    "label_style_nodes_visited",
+                    after
+                        .label_style_nodes_visited
+                        .saturating_sub(before.label_style_nodes_visited),
+                ),
+                (
+                    "label_figures_refreshed",
+                    after
+                        .label_figures_refreshed
+                        .saturating_sub(before.label_figures_refreshed),
+                ),
+            ])
+        },
+        "Uses real LabelFigure shaping caches; work counters expose style-resolution complexity.",
+    )
+}
+
+fn benchmark_text_flow(cli: &Cli, deep: bool) -> ScenarioReport {
+    benchmark_prepared(
+        if deep {
+            "text_flow_full_record_deep_512"
+        } else {
+            "text_flow_full_record_wide_512"
+        },
+        cli,
+        scenario_config(
+            TEXT_FLOW_FIGURES + 1,
+            if deep { TEXT_FLOW_FIGURES + 1 } else { 2 },
+            1.0,
+            1.0,
+            Some("Inter"),
+            "none",
+        ),
+        || build_text_flow_runtime(deep),
+        |runtime| {
+            let before = runtime.text_layout_stats();
+            let commands = runtime.record_full_frame().commands().len();
+            let after = runtime.text_layout_stats();
+            ScenarioOutput::from_pairs([
+                ("render_commands", usize_to_u64(commands)),
+                (
+                    "text_flow_style_nodes_visited",
+                    after
+                        .text_flow_style_nodes_visited
+                        .saturating_sub(before.text_flow_style_nodes_visited),
+                ),
+                (
+                    "text_flow_figures_refreshed",
+                    after
+                        .text_flow_figures_refreshed
+                        .saturating_sub(before.text_flow_figures_refreshed),
+                ),
+            ])
+        },
+        "Uses real TextFlowFigure layout and full CPU command recording.",
+    )
+}
+
+fn benchmark_independent_routing(cli: &Cli) -> ScenarioReport {
+    benchmark_prepared(
+        "independent_routing_1000",
+        cli,
+        scenario_config(
+            INDEPENDENT_CONNECTIONS + 3,
+            2,
+            1.0,
+            1.0,
+            None,
+            "resolve every DirectRouter connection in stable order",
+        ),
+        || build_connection_runtime(INDEPENDENT_CONNECTIONS, false),
+        |workload| {
+            let before = workload.runtime.connection_routing_stats();
+            for connection in &workload.connections {
+                workload
+                    .runtime
+                    .resolve_connection_route(*connection, workload.space)
+                    .expect("resolve independent connection");
+            }
+            let after = workload.runtime.connection_routing_stats();
+            ScenarioOutput::from_pairs([
+                (
+                    "route_calculations",
+                    after
+                        .route_calculations
+                        .saturating_sub(before.route_calculations),
+                ),
+                (
+                    "routing_order_entries",
+                    after
+                        .routing_order_entries
+                        .saturating_sub(before.routing_order_entries),
+                ),
+            ])
+        },
+        "DirectRouter routes are independent; stable-order work must grow linearly.",
+    )
+}
+
+fn benchmark_grouped_routing(cli: &Cli) -> ScenarioReport {
+    benchmark_prepared(
+        "grouped_routing_256",
+        cli,
+        scenario_config(
+            GROUPED_CONNECTIONS + 3,
+            2,
+            1.0,
+            1.0,
+            None,
+            "resolve one FanRouter anchor-pair batch",
+        ),
+        || build_connection_runtime(GROUPED_CONNECTIONS, true),
+        |workload| {
+            let before = workload.runtime.connection_routing_stats();
+            workload
+                .runtime
+                .resolve_connection_route(workload.connections[0], workload.space)
+                .expect("resolve grouped connections");
+            let after = workload.runtime.connection_routing_stats();
+            ScenarioOutput::from_pairs([
+                (
+                    "route_calculations",
+                    after
+                        .route_calculations
+                        .saturating_sub(before.route_calculations),
+                ),
+                (
+                    "routing_order_entries",
+                    after
+                        .routing_order_entries
+                        .saturating_sub(before.routing_order_entries),
+                ),
+            ])
+        },
+        "FanRouter preserves the stable anchor-pair group contract.",
+    )
+}
+
+fn benchmark_tree_update(cli: &Cli, changed: usize) -> ScenarioReport {
+    benchmark_prepared(
+        if changed == LARGE_TREE_FIGURES {
+            "full_update_record_100pct_4096"
+        } else {
+            "local_update_record_1pct_4096"
+        },
+        cli,
+        scenario_config(
+            LARGE_TREE_FIGURES + 1,
+            2,
+            1.0,
+            changed as f64 / LARGE_TREE_FIGURES as f64,
+            None,
+            "alternate selected Figure x coordinate by one logical pixel",
+        ),
+        || {
+            let (tree, figures) = build_large_tree();
+            let mut runtime = Runtime::new(tree);
+            runtime.prepare_frame();
+            UpdateWorkload {
+                runtime,
+                figures,
+                changed,
+                alternate: false,
+            }
+        },
+        |workload| {
+            workload.alternate = !workload.alternate;
+            let offset = if workload.alternate { 1.0 } else { 0.0 };
+            for (index, figure) in workload
+                .figures
+                .iter()
+                .copied()
+                .take(workload.changed)
+                .enumerate()
+            {
+                let column = index % LARGE_TREE_COLUMNS;
+                let row = index / LARGE_TREE_COLUMNS;
+                workload
+                    .runtime
+                    .figure(figure)
+                    .expect("attached benchmark Figure")
+                    .set_bounds(Rectangle::new(
+                        column as f64 * 8.0 + offset,
+                        row as f64 * 8.0,
+                        7.0,
+                        7.0,
+                    ))
+                    .expect("valid bounds update");
+            }
+            let commands = workload
+                .runtime
+                .prepare_frame()
+                .expect("mutation queues an incremental frame")
+                .commands()
+                .len();
+            ScenarioOutput::from_pairs([
+                ("mutated_figures", usize_to_u64(workload.changed)),
+                ("render_commands", usize_to_u64(commands)),
+            ])
+        },
+        "Measures Runtime mutation, validation, damage traversal and CPU command recording.",
     )
 }
 
 fn benchmark_viewport_render(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
-        "viewport_render_1024",
+        "viewport_full_record_1024",
         cli,
+        scenario_config(
+            VIEWPORT_FIGURES + 3,
+            4,
+            0.25,
+            1.0,
+            None,
+            "fixed scroll and 1.5x zoom",
+        ),
         || Runtime::new(build_viewport_tree()),
-        |runtime| runtime.record_full_frame().commands().len(),
-        "Records clipped, translated and scaled viewport content.",
+        |runtime| {
+            ScenarioOutput::one(
+                "render_commands",
+                runtime.record_full_frame().commands().len(),
+            )
+        },
+        "CPU recording includes viewport clip, translation and scale; no GPU or present timing.",
     )
 }
 
 fn benchmark_prepared<T>(
     name: &'static str,
     cli: &Cli,
+    config: ScenarioConfig,
     prepare: impl FnOnce() -> T,
-    mut operation: impl FnMut(&mut T) -> usize,
+    mut operation: impl FnMut(&mut T) -> ScenarioOutput,
     notes: &'static str,
 ) -> ScenarioReport {
     let setup_start = Instant::now();
@@ -294,39 +648,111 @@ fn benchmark_prepared<T>(
     }
 
     let mut samples = Vec::with_capacity(cli.sample_iterations);
-    let mut output = 0;
+    let mut output = None;
     for _ in 0..cli.sample_iterations {
         let start = Instant::now();
-        output = black_box(operation(black_box(&mut value)));
+        let current = black_box(operation(black_box(&mut value)));
         samples.push(duration_ns(start.elapsed()));
+        if let Some(previous) = &output {
+            assert_eq!(
+                previous, &current,
+                "scenario work counters must remain stable across samples"
+            );
+        }
+        output = Some(current);
     }
-    samples.sort_unstable();
+    let mut sorted = samples.clone();
+    sorted.sort_unstable();
     let report = ScenarioReport {
         name,
+        config,
         setup_ns,
-        min_ns: samples[0],
-        median_ns: percentile(&samples, 50),
-        p95_ns: percentile(&samples, 95),
-        output,
+        min_ns: sorted[0],
+        p50_ns: percentile(&sorted, 50),
+        p95_ns: percentile(&sorted, 95),
+        samples_ns: samples,
+        work: output.expect("at least one sample").work,
         notes,
     };
     println!(
-        "BENCH {} setup={}ns min={}ns median={}ns p95={}ns output={}",
-        report.name, report.setup_ns, report.min_ns, report.median_ns, report.p95_ns, report.output
+        "BENCH {} setup={}ns min={}ns p50={}ns p95={}ns work={:?}",
+        report.name, report.setup_ns, report.min_ns, report.p50_ns, report.p95_ns, report.work
     );
     report
 }
 
+fn scenario_config(
+    figure_count: usize,
+    maximum_depth: usize,
+    visible_ratio: f64,
+    update_ratio: f64,
+    font: Option<&'static str>,
+    input_trajectory: &'static str,
+) -> ScenarioConfig {
+    ScenarioConfig {
+        figure_count,
+        maximum_depth,
+        viewport_logical: [ROOT_WIDTH, ROOT_HEIGHT],
+        logical_dpi: LOGICAL_DPI,
+        visible_ratio,
+        update_ratio,
+        font,
+        input_trajectory,
+    }
+}
+
 fn percentile(samples: &[u64], percentile: usize) -> u64 {
-    let index = (samples.len() - 1) * percentile / 100;
-    samples[index]
+    let rank = samples.len().saturating_mul(percentile).div_ceil(100);
+    samples[rank.saturating_sub(1).min(samples.len() - 1)]
 }
 
 fn duration_ns(duration: std::time::Duration) -> u64 {
     duration.as_nanos().min(u128::from(u64::MAX)) as u64
 }
 
-fn root_tree() -> (FigureTree, novadraw::FigureId) {
+fn usize_to_u64(value: usize) -> u64 {
+    u64::try_from(value).unwrap_or(u64::MAX)
+}
+
+fn command_output(program: &str, args: &[&str]) -> Option<String> {
+    let output = Command::new(program).args(args).output().ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn git_dirty() -> Option<bool> {
+    let output = Command::new("git")
+        .args(["status", "--porcelain", "--untracked-files=no"])
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| !output.stdout.is_empty())
+}
+
+fn cpu_model() -> Option<String> {
+    if cfg!(target_os = "macos") {
+        command_output("sysctl", &["-n", "machdep.cpu.brand_string"])
+    } else if cfg!(target_os = "linux") {
+        std::fs::read_to_string("/proc/cpuinfo")
+            .ok()
+            .and_then(|source| {
+                source.lines().find_map(|line| {
+                    line.strip_prefix("model name")
+                        .and_then(|line| line.split_once(':'))
+                        .map(|(_, value)| value.trim().to_owned())
+                })
+            })
+    } else {
+        std::env::var("PROCESSOR_IDENTIFIER").ok()
+    }
+}
+
+fn root_tree() -> (FigureTree, FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -340,31 +766,30 @@ fn root_tree() -> (FigureTree, novadraw::FigureId) {
     (tree, root)
 }
 
-fn build_large_tree() -> FigureTree {
+fn build_large_tree() -> (FigureTree, Vec<FigureId>) {
     let (mut tree, root) = root_tree();
+    let mut figures = Vec::with_capacity(LARGE_TREE_FIGURES);
     for index in 0..LARGE_TREE_FIGURES {
         let column = index % LARGE_TREE_COLUMNS;
         let row = index / LARGE_TREE_COLUMNS;
-        tree.builder()
-            .add_child(
-                root,
-                Box::new(RectangleFigure::new(
-                    column as f64 * 8.0,
-                    row as f64 * 8.0,
-                    7.0,
-                    7.0,
-                )),
-            )
-            .expect("valid FigureTree construction");
+        figures.push(
+            tree.builder()
+                .add_child(
+                    root,
+                    Box::new(RectangleFigure::new(
+                        column as f64 * 8.0,
+                        row as f64 * 8.0,
+                        7.0,
+                        7.0,
+                    )),
+                )
+                .expect("valid FigureTree construction"),
+        );
     }
-    tree
+    (tree, figures)
 }
 
-fn build_deep_tree(depth: usize) -> FigureTree {
-    build_deep_tree_with_leaf(depth).0
-}
-
-fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, novadraw::FigureId, novadraw::FigureId) {
+fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, FigureId, FigureId) {
     let (mut tree, mut parent) = root_tree();
     let root = parent;
     for _ in 1..depth {
@@ -376,34 +801,145 @@ fn build_deep_tree_with_leaf(depth: usize) -> (FigureTree, novadraw::FigureId, n
     (tree, root, parent)
 }
 
-fn build_text_tree() -> FigureTree {
+fn build_label_runtime(deep: bool) -> Runtime {
     let (mut tree, root) = root_tree();
-    let mut text = TextEngine::new();
-    text.register_font(
-        ResourceId::new(Uuid::nil(), 1),
-        1,
-        BuiltinFont::Inter.bytes(),
-    )
-    .expect("benchmark font");
+    tree.builder()
+        .set_figure_style(
+            root,
+            FigureStyle {
+                font: Some("12px Inter".to_owned()),
+                ..FigureStyle::default()
+            },
+        )
+        .expect("valid root style");
+    let mut parent = root;
     for index in 0..TEXT_FIGURES {
         let row = index / 20;
         let column = index % 20;
-        tree.builder()
+        let label = tree
+            .builder()
             .add_child(
-                root,
-                Box::new(TextProbeFigure::new(
+                parent,
+                Box::new(LabelFigure::new(format!("label-{index:04}")).with_bounds(
                     Rectangle::new(column as f64 * 48.0, row as f64 * 15.0, 46.0, 14.0),
-                    text.layout(
-                        &format!("label-{index:04}"),
-                        &FontDescriptor::default(),
-                        TextConstraints::UNBOUNDED,
-                    )
-                    .expect("benchmark text layout"),
                 )),
             )
-            .expect("valid FigureTree construction");
+            .expect("valid Label tree");
+        if deep {
+            parent = label;
+        }
     }
-    tree
+    let mut runtime = Runtime::new(tree);
+    runtime
+        .register_builtin_font(BuiltinFont::Inter)
+        .expect("register benchmark font");
+    runtime
+        .refresh_label_layouts()
+        .expect("prime Label layouts");
+    runtime
+}
+
+fn build_text_flow_runtime(deep: bool) -> Runtime {
+    let (mut tree, root) = root_tree();
+    tree.builder()
+        .set_figure_style(
+            root,
+            FigureStyle {
+                font: Some("12px Inter".to_owned()),
+                ..FigureStyle::default()
+            },
+        )
+        .expect("valid root style");
+    let mut parent = root;
+    for index in 0..TEXT_FLOW_FIGURES {
+        let flow = tree
+            .builder()
+            .add_child(
+                parent,
+                Box::new(TextFlowFigure::new(
+                    Rectangle::new(0.0, index as f64 * 18.0, 160.0, 18.0),
+                    FlowPage::from_text(format!("flow paragraph {index:04}")),
+                )),
+            )
+            .expect("valid TextFlow tree");
+        if deep {
+            parent = flow;
+        }
+    }
+    let mut runtime = Runtime::new(tree);
+    runtime
+        .register_builtin_font(BuiltinFont::Inter)
+        .expect("register benchmark font");
+    runtime.record_full_frame();
+    runtime
+}
+
+struct ConnectionWorkload {
+    runtime: Runtime,
+    connections: Vec<ConnectionId>,
+    space: CoordinateSpace,
+}
+
+fn build_connection_runtime(count: usize, grouped: bool) -> ConnectionWorkload {
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(
+            0.0,
+            0.0,
+            ROOT_WIDTH,
+            ROOT_HEIGHT,
+        )))
+        .expect("benchmark root");
+    let source = runtime
+        .container(root)
+        .expect("root container")
+        .add(Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
+        .expect("source Figure");
+    let target = runtime
+        .container(root)
+        .expect("root container")
+        .add(Box::new(RectangleFigure::new(900.0, 600.0, 80.0, 40.0)))
+        .expect("target Figure");
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = if grouped {
+        runtime.register_connection_router(Box::new(
+            FanRouter::new(Box::new(DirectRouter), 16.0).expect("valid fan separation"),
+        ))
+    } else {
+        runtime.direct_connection_router()
+    };
+    let mut connections = Vec::with_capacity(count);
+    for _ in 0..count {
+        let figure = runtime
+            .container(root)
+            .expect("root container")
+            .add(Box::new(ConnectionFigure::new()))
+            .expect("connection Figure");
+        connections.push(
+            runtime
+                .register_connection_state(
+                    figure,
+                    Some(source_anchor),
+                    Some(target_anchor),
+                    RouterBinding::Explicit { router },
+                    None,
+                )
+                .expect("connection state"),
+        );
+    }
+    ConnectionWorkload {
+        runtime,
+        connections,
+        space: CoordinateSpace::ChildContent(root),
+    }
+}
+
+struct UpdateWorkload {
+    runtime: Runtime,
+    figures: Vec<FigureId>,
+    changed: usize,
+    alternate: bool,
 }
 
 fn build_viewport_tree() -> FigureTree {

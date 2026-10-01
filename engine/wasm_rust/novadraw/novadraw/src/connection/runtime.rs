@@ -80,6 +80,8 @@ pub struct ConnectionStateSnapshot {
 pub struct ConnectionRoutingStats {
     /// Number of individual Router calculations.
     pub route_calculations: u64,
+    /// Number of stable routing-order entries supplied to routing batches.
+    pub routing_order_entries: u64,
     /// Number of immutable obstacle snapshots built for routing batches.
     pub obstacle_snapshot_builds: u64,
 }
@@ -707,6 +709,10 @@ impl ConnectionRuntime {
         source: &dyn SceneRead,
         routing_order: &[ConnectionId],
     ) -> Result<ConnectionRouteBatch, ConnectionRouteBatchError> {
+        self.stats.routing_order_entries = self
+            .stats
+            .routing_order_entries
+            .saturating_add(u64::try_from(routing_order.len()).unwrap_or(u64::MAX));
         let router_id = match self.route_input(connection) {
             Ok((_, _, router)) => router,
             Err(error) => {

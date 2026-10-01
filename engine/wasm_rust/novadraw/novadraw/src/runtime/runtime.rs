@@ -127,6 +127,19 @@ pub enum BackendSessionError {
     Exhausted,
 }
 
+/// Cumulative work counters for Runtime-owned text layout refreshes.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct TextLayoutStats {
+    /// Ancestor style nodes inspected while refreshing Label intrinsic layouts.
+    pub label_style_nodes_visited: u64,
+    /// Label figures considered for intrinsic layout refresh.
+    pub label_figures_refreshed: u64,
+    /// Ancestor style nodes inspected while refreshing TextFlow layouts.
+    pub text_flow_style_nodes_visited: u64,
+    /// TextFlow figures considered for layout refresh.
+    pub text_flow_figures_refreshed: u64,
+}
+
 impl fmt::Display for BackendSessionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -216,6 +229,7 @@ pub struct Runtime {
     logical_viewport: Option<Rectangle>,
     resources: ResourceRegistry,
     text: Box<dyn TextLayoutEngine>,
+    text_layout_stats: TextLayoutStats,
     builtin_fonts: HashMap<BuiltinFont, FontId>,
     layered_panes: HashMap<FigureId, LayeredPaneState>,
     connections: ConnectionRuntime,
@@ -781,6 +795,7 @@ impl Runtime {
             logical_viewport: None,
             resources,
             text,
+            text_layout_stats: TextLayoutStats::default(),
             builtin_fonts: HashMap::new(),
             layered_panes: HashMap::new(),
             connections: ConnectionRuntime::with_namespace(namespace),
@@ -1026,9 +1041,18 @@ impl Runtime {
     }
 
     fn refresh_label_intrinsic_metrics(&mut self) -> Result<bool, TextError> {
-        let changed = self
+        let refresh = self
             .tree
             .refresh_label_intrinsic_layouts(self.text.as_mut(), &self.resources)?;
+        self.text_layout_stats.label_style_nodes_visited = self
+            .text_layout_stats
+            .label_style_nodes_visited
+            .saturating_add(refresh.style_nodes_visited);
+        self.text_layout_stats.label_figures_refreshed = self
+            .text_layout_stats
+            .label_figures_refreshed
+            .saturating_add(refresh.figures_refreshed);
+        let changed = refresh.changed;
         let any_changed = !changed.is_empty();
         for figure in changed {
             self.tree.mark_invalid(&mut self.updates, figure);
@@ -1048,7 +1072,16 @@ impl Runtime {
     }
 
     fn refresh_text_flow_layouts(&mut self) -> Result<bool, TextError> {
-        let changed = self.tree.refresh_text_flow_layouts(self.text.as_mut())?;
+        let refresh = self.tree.refresh_text_flow_layouts(self.text.as_mut())?;
+        self.text_layout_stats.text_flow_style_nodes_visited = self
+            .text_layout_stats
+            .text_flow_style_nodes_visited
+            .saturating_add(refresh.style_nodes_visited);
+        self.text_layout_stats.text_flow_figures_refreshed = self
+            .text_layout_stats
+            .text_flow_figures_refreshed
+            .saturating_add(refresh.figures_refreshed);
+        let changed = refresh.changed;
         let any_changed = !changed.is_empty();
         for figure in changed {
             self.tree.mark_invalid(&mut self.updates, figure);
@@ -1300,6 +1333,11 @@ impl Runtime {
     /// Returns cumulative route and obstacle-snapshot work counters.
     pub fn connection_routing_stats(&self) -> ConnectionRoutingStats {
         self.connections.routing_stats()
+    }
+
+    /// Returns cumulative text layout refresh work counters.
+    pub fn text_layout_stats(&self) -> TextLayoutStats {
+        self.text_layout_stats
     }
 
     pub fn set_connection_source(

@@ -36,7 +36,7 @@ pub use resource::{
 pub use runtime::{
     BackendSessionError, ContainerEditor, FigureEditor, FramePreparation, FramePreparationError,
     LogicalViewportResizeError, Runtime, ScaleEditor, ScrollPaneEditor, TextFlowQueryError,
-    ViewportEditor, ZoomEditor,
+    TextLayoutStats, ViewportEditor, ZoomEditor,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

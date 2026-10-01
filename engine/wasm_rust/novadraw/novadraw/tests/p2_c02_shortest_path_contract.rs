@@ -98,6 +98,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         runtime.connection_routing_stats(),
         novadraw::ConnectionRoutingStats {
             route_calculations: 1,
+            routing_order_entries: 4,
             obstacle_snapshot_builds: 1,
         }
     );
@@ -137,6 +138,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         runtime.connection_routing_stats(),
         novadraw::ConnectionRoutingStats {
             route_calculations: 6,
+            routing_order_entries: 23,
             obstacle_snapshot_builds: 6,
         }
     );
@@ -293,6 +295,7 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
         runtime.connection_routing_stats(),
         novadraw::ConnectionRoutingStats {
             route_calculations: COUNT as u64,
+            routing_order_entries: 2 * COUNT as u64 + 2,
             obstacle_snapshot_builds: 1,
         }
     );

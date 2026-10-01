@@ -650,6 +650,12 @@ pub struct FigureTree {
     notification_effects: NotificationQueue,
 }
 
+pub(crate) struct TextLayoutRefreshResult {
+    pub(crate) changed: Vec<FigureId>,
+    pub(crate) style_nodes_visited: u64,
+    pub(crate) figures_refreshed: u64,
+}
+
 /// Explicit construction-only facade for building a Figure tree before Runtime ownership.
 pub struct FigureTreeBuilder<'a> {
     tree: &'a mut FigureTree,
@@ -3560,6 +3566,11 @@ impl FigureTree {
     }
 
     pub fn resolved_style(&self, id: FigureId) -> Option<ResolvedStyle> {
+        self.resolved_style_with_node_visits(id)
+            .map(|(style, _)| style)
+    }
+
+    fn resolved_style_with_node_visits(&self, id: FigureId) -> Option<(ResolvedStyle, u64)> {
         self.blocks.get(id)?;
         let mut chain = Vec::new();
         let mut current = Some(id);
@@ -3568,11 +3579,12 @@ impl FigureTree {
             chain.push(node_id);
             current = node.parent;
         }
+        let node_visits = u64::try_from(chain.len()).unwrap_or(u64::MAX);
         let mut result = ResolvedStyle::default();
         for node_id in chain.into_iter().rev() {
             result.apply_override(&self.blocks[node_id].style);
         }
-        Some(result)
+        Some((result, node_visits))
     }
 
     pub(crate) fn tooltip_source(&self, hit: FigureId) -> Option<(FigureId, String)> {
@@ -3592,17 +3604,20 @@ impl FigureTree {
         &mut self,
         text: &mut dyn TextLayoutEngine,
         resources: &crate::ResourceRegistry,
-    ) -> Result<Vec<FigureId>, TextError> {
+    ) -> Result<TextLayoutRefreshResult, TextError> {
         let labels = self
             .blocks
             .iter()
             .filter_map(|(id, block)| block.figure.label().is_some().then_some(id))
             .collect::<Vec<_>>();
+        let figures_refreshed = u64::try_from(labels.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
+        let mut style_nodes_visited = 0_u64;
         for id in labels {
-            let style = self
-                .resolved_style(id)
+            let (style, node_visits) = self
+                .resolved_style_with_node_visits(id)
                 .expect("attached label has resolved style");
+            style_nodes_visited = style_nodes_visited.saturating_add(node_visits);
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let label = self.blocks[id]
                 .figure
@@ -3613,7 +3628,11 @@ impl FigureTree {
                 changed.push(id);
             }
         }
-        Ok(changed)
+        Ok(TextLayoutRefreshResult {
+            changed,
+            style_nodes_visited,
+            figures_refreshed,
+        })
     }
 
     pub(crate) fn refresh_label_presentations(
@@ -3642,17 +3661,20 @@ impl FigureTree {
     pub(crate) fn refresh_text_flow_layouts(
         &mut self,
         text: &mut dyn TextLayoutEngine,
-    ) -> Result<Vec<FigureId>, TextError> {
+    ) -> Result<TextLayoutRefreshResult, TextError> {
         let flows = self
             .blocks
             .iter()
             .filter_map(|(id, block)| block.figure.text_flow().is_some().then_some(id))
             .collect::<Vec<_>>();
+        let figures_refreshed = u64::try_from(flows.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
+        let mut style_nodes_visited = 0_u64;
         for id in flows {
-            let style = self
-                .resolved_style(id)
+            let (style, node_visits) = self
+                .resolved_style_with_node_visits(id)
                 .expect("attached TextFlow has resolved style");
+            style_nodes_visited = style_nodes_visited.saturating_add(node_visits);
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let bounds = self.blocks[id].client_area();
             let flow = self.blocks[id]
@@ -3664,7 +3686,11 @@ impl FigureTree {
                 changed.push(id);
             }
         }
-        Ok(changed)
+        Ok(TextLayoutRefreshResult {
+            changed,
+            style_nodes_visited,
+            figures_refreshed,
+        })
     }
 
     pub(crate) fn refresh_image_figures(
