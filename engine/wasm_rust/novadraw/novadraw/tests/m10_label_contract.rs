@@ -57,6 +57,53 @@ fn surface() -> SurfaceInfo {
 }
 
 #[test]
+fn deep_label_style_refresh_visits_each_tree_node_once() {
+    const LABEL_COUNT: usize = 128;
+
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
+    let mut parent = root;
+    for index in 0..LABEL_COUNT {
+        parent = tree
+            .builder()
+            .add_child(
+                parent,
+                Box::new(
+                    LabelFigure::new(format!("label-{index}"))
+                        .with_bounds(Rectangle::new(0.0, 0.0, 80.0, 20.0)),
+                ),
+            )
+            .unwrap();
+    }
+    let mut runtime = Runtime::new(tree);
+    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+
+    runtime.refresh_label_layouts().unwrap();
+
+    let stats = runtime.text_layout_stats();
+    assert_eq!(stats.label_figures_refreshed, LABEL_COUNT as u64);
+    assert_eq!(
+        stats.label_style_nodes_visited,
+        LABEL_COUNT as u64 + 2,
+        "synthetic root, contents, and each Label must be visited once"
+    );
+}
+
+#[test]
+fn non_text_tree_skips_style_propagation_work() {
+    let mut runtime = Runtime::empty();
+    runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .unwrap();
+
+    runtime.prepare_frame().expect("first frame");
+
+    assert_eq!(runtime.text_layout_stats(), Default::default());
+}
+
+#[test]
 fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
     const TEXT: &str = "A grapheme-safe label that must truncate";
     let mut runtime = Runtime::empty();

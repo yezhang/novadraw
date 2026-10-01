@@ -91,6 +91,50 @@ fn inherited_router_defaults_to_draw2d_equivalent_direct_routing() {
 }
 
 #[test]
+fn independent_routing_supplies_one_order_entry_per_connection() {
+    const CONNECTION_COUNT: usize = 128;
+
+    let (mut runtime, root, source, target, first_figure) = runtime_fixture();
+    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = runtime.direct_connection_router();
+    let mut figures = vec![first_figure];
+    for _ in 1..CONNECTION_COUNT {
+        figures.push(
+            runtime
+                .container(root)
+                .unwrap()
+                .add(Box::new(ConnectionFigure::new()))
+                .unwrap(),
+        );
+    }
+    let connections = figures
+        .into_iter()
+        .map(|figure| {
+            runtime
+                .register_connection_state(
+                    figure,
+                    Some(source_anchor),
+                    Some(target_anchor),
+                    RouterBinding::Explicit { router },
+                    None,
+                )
+                .unwrap()
+        })
+        .collect::<Vec<_>>();
+
+    for connection in connections {
+        runtime
+            .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+            .unwrap();
+    }
+
+    let stats = runtime.connection_routing_stats();
+    assert_eq!(stats.route_calculations, CONNECTION_COUNT as u64);
+    assert_eq!(stats.routing_order_entries, CONNECTION_COUNT as u64);
+}
+
+#[test]
 fn invalid_connection_geometry_never_commits_resolved_state() {
     let mut runtime = Runtime::empty();
     let root = runtime

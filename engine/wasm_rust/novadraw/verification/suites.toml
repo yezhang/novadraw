@@ -96,6 +96,19 @@ args = [
   "--report=target/verification/reports/ga2-novadraw.json",
 ]
 
+[commands."test.ga2-work-counters"]
+description = "Enforce linear text-style and independent-routing work counters"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "m9_connection_runtime",
+  "--test",
+  "m10_label_contract",
+]
+
 [commands."test.render-image-source"]
 description = "Run the backend-neutral image source rectangle contract"
 program = "cargo"
@@ -488,7 +501,7 @@ milestone = "GA-2"
 kind = "quality"
 layers = ["contract", "headless"]
 platforms = ["host", "headless"]
-commands = ["report.ga2-performance"]
+commands = ["test.ga2-work-counters", "report.ga2-performance"]
 paths = [
   "benchmarks/r8-perf/**",
   "novadraw/src/graph/**",

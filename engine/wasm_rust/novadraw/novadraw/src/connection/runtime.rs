@@ -961,6 +961,18 @@ impl ConnectionRuntime {
         Ok((source, target, self.resolve_router_binding(state.router)?))
     }
 
+    pub(crate) fn routing_group_scope(
+        &self,
+        connection: ConnectionId,
+    ) -> Result<RoutingGroupScope, ConnectionRuntimeError> {
+        let state = self
+            .states
+            .get(&connection)
+            .ok_or(ConnectionRuntimeError::UnknownConnection(connection))?;
+        let router = self.resolve_router_binding(state.router)?;
+        Ok(self.router(router)?.routing_group_scope())
+    }
+
     fn routing_group_members(
         &self,
         connection: ConnectionId,

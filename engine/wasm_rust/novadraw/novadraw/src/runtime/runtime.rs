@@ -39,12 +39,12 @@ use crate::{
     LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
     ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
     ResourceError, ResourceRegistry, ResourceStatus, RouteError, RouteMetadata, RouteOutput,
-    RouteRequest, RouterBinding, RouterId, RoutingConstraint, ScaleHandle, SceneDispatchContext,
-    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
-    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection, UpdateEvent, UpdateListener,
-    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
-    ZoomManager,
+    RouteRequest, RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope, ScaleHandle,
+    SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
+    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
+    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
+    WidgetError, ZoomEvent, ZoomManager,
 };
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
@@ -130,11 +130,11 @@ pub enum BackendSessionError {
 /// Cumulative work counters for Runtime-owned text layout refreshes.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TextLayoutStats {
-    /// Ancestor style nodes inspected while refreshing Label intrinsic layouts.
+    /// Style-propagation nodes inspected while refreshing Label intrinsic layouts.
     pub label_style_nodes_visited: u64,
     /// Label figures considered for intrinsic layout refresh.
     pub label_figures_refreshed: u64,
-    /// Ancestor style nodes inspected while refreshing TextFlow layouts.
+    /// Style-propagation nodes inspected while refreshing TextFlow layouts.
     pub text_flow_style_nodes_visited: u64,
     /// TextFlow figures considered for layout refresh.
     pub text_flow_figures_refreshed: u64,
@@ -1463,8 +1463,12 @@ impl Runtime {
         connection: ConnectionId,
         routing_space: CoordinateSpace,
     ) -> Result<RouteOutput, ConnectionRuntimeError> {
-        let routing_order: Vec<_> = match routing_space {
-            CoordinateSpace::ChildContent(parent) => self
+        let routing_order: Vec<_> = match (
+            self.connections.routing_group_scope(connection)?,
+            routing_space,
+        ) {
+            (RoutingGroupScope::None, _) => vec![connection],
+            (_, CoordinateSpace::ChildContent(parent)) => self
                 .tree
                 .child_order(parent)
                 .unwrap_or_default()

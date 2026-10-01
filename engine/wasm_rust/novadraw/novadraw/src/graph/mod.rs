@@ -3587,6 +3587,27 @@ impl FigureTree {
         Some((result, node_visits))
     }
 
+    fn resolved_styles_for(
+        &self,
+        mut include: impl FnMut(&FigureNode) -> bool,
+    ) -> (Vec<(FigureId, ResolvedStyle)>, u64) {
+        let mut matches = Vec::new();
+        let mut nodes_visited = 0_u64;
+        let mut stack = vec![(self.root, ResolvedStyle::default())];
+        while let Some((id, mut style)) = stack.pop() {
+            let node = &self.blocks[id];
+            nodes_visited = nodes_visited.saturating_add(1);
+            style.apply_override(&node.style);
+            if include(node) {
+                matches.push((id, style.clone()));
+            }
+            for child in node.children.iter().rev() {
+                stack.push((*child, style.clone()));
+            }
+        }
+        (matches, nodes_visited)
+    }
+
     pub(crate) fn tooltip_source(&self, hit: FigureId) -> Option<(FigureId, String)> {
         let mut current = Some(hit);
         while let Some(id) = current {
@@ -3605,19 +3626,23 @@ impl FigureTree {
         text: &mut dyn TextLayoutEngine,
         resources: &crate::ResourceRegistry,
     ) -> Result<TextLayoutRefreshResult, TextError> {
-        let labels = self
+        let label_ids = self
             .blocks
             .iter()
-            .filter_map(|(id, block)| block.figure.label().is_some().then_some(id))
+            .filter_map(|(id, node)| node.figure.label().is_some().then_some(id))
             .collect::<Vec<_>>();
-        let figures_refreshed = u64::try_from(labels.len()).unwrap_or(u64::MAX);
+        if label_ids.is_empty() {
+            return Ok(TextLayoutRefreshResult {
+                changed: Vec::new(),
+                style_nodes_visited: 0,
+                figures_refreshed: 0,
+            });
+        }
+        let (labels, style_nodes_visited) =
+            self.resolved_styles_for(|node| node.figure.label().is_some());
+        let figures_refreshed = u64::try_from(label_ids.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
-        let mut style_nodes_visited = 0_u64;
-        for id in labels {
-            let (style, node_visits) = self
-                .resolved_style_with_node_visits(id)
-                .expect("attached label has resolved style");
-            style_nodes_visited = style_nodes_visited.saturating_add(node_visits);
+        for (id, style) in labels {
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let label = self.blocks[id]
                 .figure
@@ -3662,19 +3687,23 @@ impl FigureTree {
         &mut self,
         text: &mut dyn TextLayoutEngine,
     ) -> Result<TextLayoutRefreshResult, TextError> {
-        let flows = self
+        let flow_ids = self
             .blocks
             .iter()
-            .filter_map(|(id, block)| block.figure.text_flow().is_some().then_some(id))
+            .filter_map(|(id, node)| node.figure.text_flow().is_some().then_some(id))
             .collect::<Vec<_>>();
-        let figures_refreshed = u64::try_from(flows.len()).unwrap_or(u64::MAX);
+        if flow_ids.is_empty() {
+            return Ok(TextLayoutRefreshResult {
+                changed: Vec::new(),
+                style_nodes_visited: 0,
+                figures_refreshed: 0,
+            });
+        }
+        let (flows, style_nodes_visited) =
+            self.resolved_styles_for(|node| node.figure.text_flow().is_some());
+        let figures_refreshed = u64::try_from(flow_ids.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
-        let mut style_nodes_visited = 0_u64;
-        for id in flows {
-            let (style, node_visits) = self
-                .resolved_style_with_node_visits(id)
-                .expect("attached TextFlow has resolved style");
-            style_nodes_visited = style_nodes_visited.saturating_add(node_visits);
+        for (id, style) in flows {
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let bounds = self.blocks[id].client_area();
             let flow = self.blocks[id]
