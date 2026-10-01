@@ -13,7 +13,8 @@
 后续证据说明：本报告的矩阵冻结于上述审计基线。后续 Linux X11/Wayland 与 Windows
 x86_64 构建证据已将三者提升为 `build_verified`，当前声明以
 [`platform-support-matrix.md`](../../roadmap/platform-support-matrix.md) 为准；
-三者真实窗口运行仍未验证，发布结论保持 `not_ready`。
+三者真实窗口运行仍未验证。Native 可见 surface present 调用也已验证，但 compositor
+回执和 input-to-present 仍缺失，发布结论保持 `not_ready`。
 
 ## 1. 结论
 

@@ -4,7 +4,7 @@
 
 日期：2026-10-01
 
-状态：`complete`（仅 Native Vello GPU queue completion 子阶段）
+状态：`in_progress`（GPU queue completion 与可见 surface present 调用已验证）
 
 方法：[GA-2 性能测量方法](ga2-methodology.md)
 
@@ -66,23 +66,42 @@ present 证据时，不能推导屏幕交互帧预算已满足。
 进程峰值 RSS 从启动前 31.75 MiB 增至采样后 141.64 MiB。该数值包含 winit、wgpu、
 Vello pipeline、Metal driver、surface 和 retained texture，不代表 Figure 树净内存。
 
-## 后续严格入口
+## 可见 Surface Present 证据
 
 `backend.native-presentation-performance` 已登记为独立 suite。它通过 macOS app bundle
 启动同一 harness，并要求真实 surface present；控制台锁屏或 drawable 持续不可用时
-直接失败，不再生成离屏 PASS。2026-10-01 探测确认当前执行会话处于锁屏状态，因此尚未
-产生 `target/verification/reports/ga2-native-presentation.json`。
+直接失败，不再生成离屏 PASS。
 
-该入口即使通过也只关闭 `SurfaceTexture::present()` 调用证据。compositor 回执与
+2026-10-01 在提交 `3665b9a`、已解锁且 focused/unoccluded 的 macOS 登录会话执行通过：
+
+| 阶段 | p50 | p95 |
+|---|---:|---:|
+| Runtime `prepare_submission` | 3.349 ms | 3.792 ms |
+| Vello backend surface submit CPU | 3.884 ms | 4.147 ms |
+| submit 后 GPU queue completion wait | 6.913 ms | 9.216 ms |
+| backend submit → GPU queue complete | 10.745 ms | 13.188 ms |
+| frame start → GPU queue complete | 14.069 ms | 16.487 ms |
+
+环境为 Apple M1 Pro / Metal、1024 × 768 logical viewport、2048 × 1536 physical
+surface、4,097 Figure、5 次预热与 30 次采样。surface probe 结果为 `presented`，
+正式样本全部使用 Surface 模式并调用 `SurfaceTexture::present()`。
+
+原始报告：
+`verification/evidence/ga2-performance-2026-10-01/native-presentation.json`，
+SHA-256 为
+`bc6a5e797abe59d21ec0bbe59db843ac7e0712f228d6e19a196a71f5623eb36b`。
+
+该 p95 接近 16.7ms 初始帧预算，但终点仍是 GPU queue completion，不是显示器扫描。
+该入口只关闭可见 `SurfaceTexture::present()` 调用证据。compositor 回执与
 input-to-present 仍需独立时间源，不能由 queue idle 或 present 调用返回替代。
 
 ## 剩余限制
 
 - Vello 未启用 `wgpu-profiler`，没有硬件 timestamp；
-- 当前 sandbox 无可见 drawable，surface present probe 为 `skipped`；
-- 未测 compositor present、display timing 和 input-to-present；
+- 可见 surface present 调用已验证，但未测 compositor present、display timing 和
+  input-to-present；
 - 尚未覆盖 TextFlow、连接与 viewport 的 Native GPU 场景；
 - WebGPU 预算应在浏览器环境独立测量。
 
-因此本报告关闭 Native GPU queue completion 证据缺口，但不关闭真实 present 与
-input-to-present 验收。
+因此本报告关闭 Native GPU queue completion 与可见 surface present 调用证据缺口，
+但不关闭 compositor present 与 input-to-present 验收。

@@ -18,7 +18,7 @@
 |---|---|---|
 | GA-0 目标与能力分母 | `complete` | 长期能力处置、9 个 P2 delta 与平台支持等级已登记 |
 | GA-1 API 与确定缺陷 | `complete` | Core/Web/Editor/Layout 修复、root API 与 Graphics 收口；quick gate 通过 |
-| GA-2 性能基线 | `in_progress` | CPU/内存、Draw2D 对照与 Native GPU queue 证据完成；严格可见 surface suite 已登记，当前控制台锁屏，待真实 present/input-to-present |
+| GA-2 性能基线 | `in_progress` | CPU/内存、Draw2D 对照、Native GPU queue 与可见 surface present 调用已验证；待 compositor present、input-to-present 与 WebGPU 浏览器预算 |
 | GA-3 四平台验证 | `in_progress` | macOS/Web 运行通过，Windows/Linux X11/Linux Wayland 已 `build_verified`；三者原生运行待 runner |
 | GA-4 模块与扩展表面 | `complete` | 所有权契约、内部职责拆分、外部消费者、投影 suite、性能 A/B 与 quick gate 通过 |
 | GA-5 文档与门禁 | `complete` | 文档漂移已修正；类型、链接、命令、索引、facade 与 api_semantics 门禁通过 |

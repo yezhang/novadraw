@@ -97,10 +97,12 @@ cargo xtask verify backend.native-presentation-performance
 `--require-surface-present`。锁屏、5 秒内始终 occluded、资源持续 Retry 或没有生成报告
 都会令 suite 失败，不允许回退离屏后返回 PASS。
 
-该严格入口当前只能证明生产 Vello backend 成功调用 `SurfaceTexture::present()`；
-JSON 中的 `compositor_present` 和 `input_to_present` 仍保持 `false`，直到接入平台
-呈现回执和真实输入时间戳。普通 `backend.native-performance` 继续允许无窗口环境降级，
-两者不能互相替代。
+2026-10-01 已在解锁、focused/unoccluded 的 macOS 登录会话执行通过。该严格入口只能
+证明生产 Vello backend 成功调用 `SurfaceTexture::present()`；JSON 中的
+`compositor_present` 和 `input_to_present` 仍保持 `false`，直到接入平台呈现回执和
+真实输入时间戳。结果见
+[Native Vello GPU 基线](ga2-native-vello-2026-10-01.md)。普通
+`backend.native-performance` 继续允许无窗口环境降级，两者不能互相替代。
 
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
