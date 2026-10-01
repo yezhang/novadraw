@@ -21,7 +21,15 @@
 
 ## 自动前置
 
-1. 运行该平台在 `verification/suites.toml` 中登记的 build suite；
+| 环境 | Suite |
+|---|---|
+| macOS | `platform.native-macos-release` |
+| Windows | `platform.native-windows-release` |
+| Linux X11 | `platform.native-linux-x11-release` |
+| Linux Wayland | `platform.native-linux-wayland-release` |
+| Chrome + WebGPU | `platform.web-chrome-release` |
+
+1. 运行本表对应的 suite；
 2. 运行受影响 Core/Editor contract suite；
 3. 保存原始日志，不只保存人工结论；
 4. 若缺少平台 runner，保持 `not_verified`，不得用 host check 替代。

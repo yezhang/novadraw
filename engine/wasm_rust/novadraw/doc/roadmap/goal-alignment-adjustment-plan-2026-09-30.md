@@ -19,7 +19,7 @@
 | GA-0 目标与能力分母 | `complete` | 长期能力处置、9 个 P2 delta 与平台支持等级已登记 |
 | GA-1 API 与确定缺陷 | `complete` | Core/Web/Editor/Layout 修复、root API 与 Graphics 收口；quick gate 通过 |
 | GA-2 性能基线 | `in_progress` | CPU/内存、Draw2D 对照与 Native GPU queue 证据完成；待真实 present/input-to-present |
-| GA-3 四平台验证 | `not_started` | 依赖 GA-0；Windows/Linux 真实运行需要对应环境 |
+| GA-3 四平台验证 | `in_progress` | release suite 与共享 Winit 适配已收口；macOS/Web 自动前置通过，Windows/Linux 待原生 runner |
 | GA-4 模块与扩展表面 | `not_started` | 依赖 GA-1、GA-2 |
 | GA-5 文档与门禁 | `not_started` | 可在 GA-0 后与 GA-1 并行 |
 | GA-6 发布审计 | `not_started` | 依赖 GA-1 至 GA-5 |

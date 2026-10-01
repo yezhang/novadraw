@@ -22,11 +22,11 @@
 
 | 平台 | 环境边界 | 等级 | 已有证据 | 主要缺口 | 下一验证 |
 |---|---|---|---|---|---|
-| macOS | Apple Silicon、Metal/Vello、winit | `runtime_verified` | M1-M10、G3-G5、P2-E02 人工验收 | 完整原生 AT provider、固定性能 runner | GA-2、P2-A01 |
-| Web | Chrome + WebGPU/Vello + wasm32 | `runtime_verified` | `web.build`、M10 Web、P2-E02 人工验收 | Firefox/Safari、DOM accessibility action、浏览器性能矩阵 | GA-3、P2-A01 |
-| Windows | winit + Vello/WGPU，具体 GPU 未固定 | `not_verified` | 仅架构与依赖目标 | target 构建、DirectX/Vulkan、DPI、IME、surface 恢复、AT | GA-3 Windows |
-| Linux X11 | winit + Vello/WGPU | `not_verified` | 仅架构与依赖目标 | target 构建、GPU、DPI、XIM/IME、clipboard、AT | GA-3 Linux X11 |
-| Linux Wayland | winit + Vello/WGPU | `not_verified` | 仅架构与依赖目标 | target 构建、fractional scale、IME、surface 恢复、AT | GA-3 Linux Wayland |
+| macOS | Apple Silicon、Metal/Vello、winit | `runtime_verified` | `platform.native-macos-release`、M1-M10、G3-G5、P2-E02 人工验收 | 完整原生 AT provider、固定性能 runner | GA-2、P2-A01 |
+| Web | Chrome + WebGPU/Vello + wasm32 | `runtime_verified` | `platform.web-chrome-release`、M10 Web、P2-E02 人工验收 | Firefox/Safari、DOM accessibility action、浏览器性能矩阵 | GA-3、P2-A01 |
+| Windows | x86_64、winit + Vello/WGPU，具体 GPU 未固定 | `not_verified` | `platform.native-windows-release` 已登记，尚无合格 runner 结果 | 原生构建、DirectX/Vulkan、DPI、IME、surface 恢复、AT | `platform.native-windows-release` |
+| Linux X11 | x86_64、winit + Vello/WGPU | `not_verified` | `platform.native-linux-x11-release` 已登记，尚无合格 runner 结果 | 原生构建、GPU、DPI、XIM/IME、clipboard、AT | `platform.native-linux-x11-release` |
+| Linux Wayland | x86_64、winit + Vello/WGPU | `not_verified` | `platform.native-linux-wayland-release` 已登记，尚无合格 runner 结果 | 原生构建、fractional scale、IME、surface 恢复、AT | `platform.native-linux-wayland-release` |
 | Headless | 无窗口、测试 backend/host | `runtime_verified` | contract tests 与 Editor replay | 不是桌面发布平台；不替代 GPU/输入验收 | 保持回归 |
 
 ## 浏览器范围
@@ -57,5 +57,7 @@
 - 平台无关行为由 `doc/design/` 和 ADR 定义；
 - 自动命令由 `verification/suites.toml` 定义；
 - 人工步骤由 `doc/verification/manual/platform-release.md` 定义；
+- 当前 GA-3 执行证据见
+  [`ga3-platform-qualification-2026-10-01.md`](../verification/reviews/ga3-platform-qualification-2026-10-01.md)；
 - 本页只维护支持声明和证据链接；
 - 历史审计保留当时结论，不因本页等级变化而改写。

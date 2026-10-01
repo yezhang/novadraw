@@ -365,7 +365,7 @@ program = "cargo"
 args = ["check", "-p", "node-editor-demo"]
 
 [commands."build.native-windows-release"]
-description = "Cross-check the representative Native release application for Windows"
+description = "Compile the representative Native release application for Windows x86_64 MSVC"
 program = "cargo"
 args = [
   "check",
@@ -376,7 +376,7 @@ args = [
 ]
 
 [commands."build.native-linux-x11-release"]
-description = "Cross-check the representative Native release application with Linux X11 support"
+description = "Compile the representative Native release application with Linux x86_64 X11 support"
 program = "cargo"
 args = [
   "check",
@@ -387,7 +387,7 @@ args = [
 ]
 
 [commands."build.native-linux-wayland-release"]
-description = "Cross-check the representative Native release application with Linux Wayland support"
+description = "Compile the representative Native release application with Linux x86_64 Wayland support"
 program = "cargo"
 args = [
   "check",
@@ -1120,6 +1120,7 @@ paths = [
 documents = [
   "doc/roadmap/platform-support-matrix.md",
   "doc/verification/manual/platform-release.md",
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md",
 ]
 manual = { command = "run.native-macos-release", document = "doc/verification/manual/platform-release.md" }
 
@@ -1140,6 +1141,7 @@ paths = [
 documents = [
   "doc/roadmap/platform-support-matrix.md",
   "doc/verification/manual/platform-release.md",
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md",
 ]
 manual = { command = "run.native-windows-release", document = "doc/verification/manual/platform-release.md" }
 
@@ -1160,6 +1162,7 @@ paths = [
 documents = [
   "doc/roadmap/platform-support-matrix.md",
   "doc/verification/manual/platform-release.md",
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md",
 ]
 manual = { command = "run.native-linux-x11-release", document = "doc/verification/manual/platform-release.md" }
 
@@ -1180,6 +1183,7 @@ paths = [
 documents = [
   "doc/roadmap/platform-support-matrix.md",
   "doc/verification/manual/platform-release.md",
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md",
 ]
 manual = { command = "run.native-linux-wayland-release", document = "doc/verification/manual/platform-release.md" }
 
@@ -1202,6 +1206,7 @@ documents = [
   "doc/roadmap/platform-support-matrix.md",
   "doc/verification/manual/platform-release.md",
   "doc/verification/manual/web-platform.md",
+  "doc/verification/reviews/ga3-platform-qualification-2026-10-01.md",
 ]
 artifacts = ["examples/web/web-validation/dist"]
 manual = { command = "web.serve", document = "doc/verification/manual/platform-release.md" }
