@@ -133,16 +133,16 @@ pub use runtime::update::{
 pub use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
-    AccessibilityUpdate, BackendSessionError, ClickableEditor, ComponentInvalidation,
+    AccessibilityUpdate, BackendSessionError, BorderEditor, ClickableEditor, ComponentInvalidation,
     ComponentUpdateError, ComponentUpdateReceipt, ContainerEditor, FigureComponentContext,
     FigureComponentUpdate, FigureEditor, FocusChange, FocusError, FocusTraversalDirection,
     FocusTraversalOutcome, FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError,
     ImageEditor, ImageId, LabelEditor, LogicalViewportResizeError, MonotonicTime, PointListEditor,
     PointerId, PreparedFigureUpdate, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
-    Runtime, RuntimeMutationError, ScalablePolygonEditor, ScaleEditor, ScrollPaneEditor,
-    TextFlowEditor, TextFlowQueryError, TextLayoutStats, TimeError, TooltipPlacement, TooltipSide,
-    TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor,
-    ZoomEditor, place_tooltip,
+    RoundedRectangleEditor, Runtime, RuntimeMutationError, ScalablePolygonEditor, ScaleEditor,
+    ScrollPaneEditor, TextFlowEditor, TextFlowQueryError, TextLayoutStats, TimeError,
+    TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
+    TreeOrderFocusTraversal, TriangleEditor, ViewportEditor, ZoomEditor, place_tooltip,
 };
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

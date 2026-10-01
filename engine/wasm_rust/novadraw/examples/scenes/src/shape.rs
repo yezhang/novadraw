@@ -1345,14 +1345,14 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
         .insert_point(1, novadraw::Point::new(140.0, 180.0))
         .expect("valid polyline mutation");
     runtime
-        .figure(rounded)
+        .rounded_rectangle(rounded)
         .unwrap()
         .set_corner_dimensions(novadraw::Dimension::new(64.0, 28.0))
         .expect("valid corner mutation");
     runtime
-        .figure(triangle)
+        .triangle(triangle)
         .unwrap()
-        .set_triangle_direction(novadraw::figure::Direction::West)
+        .set_direction(novadraw::figure::Direction::West)
         .expect("valid direction mutation");
     runtime
 }

@@ -8,7 +8,7 @@ use novadraw::render::{
 use novadraw::{
     BevelBorder, BevelStyle, Border, CompoundBorder, Direction, EtchedBorder, Figure, FigureStyle,
     LineBorder, MarginBorder, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
-    RoundedRectangleFigure, Runtime, ShapeMutationError, TriangleFigure,
+    RoundedRectangleFigure, Runtime, RuntimeMutationError, ShapeMutationError, TriangleFigure,
 };
 
 #[test]
@@ -374,47 +374,47 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
     let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));
     assert!(
         runtime
-            .figure(rounded)
+            .border(rounded)
             .unwrap()
-            .replace_border(Some(Arc::clone(&shared_border)))
+            .replace(Some(Arc::clone(&shared_border)))
             .unwrap()
     );
     assert_eq!(runtime.tree().insets(rounded), Some((3.0, 3.0, 3.0, 3.0)));
     assert!(
         runtime
-            .figure(rounded)
+            .rounded_rectangle(rounded)
             .unwrap()
             .set_corner_dimensions(Dimension::new(24.0, 12.0))
             .unwrap()
     );
     assert!(
         runtime
-            .figure(triangle)
+            .triangle(triangle)
             .unwrap()
-            .set_triangle_direction(Direction::West)
+            .set_direction(Direction::West)
             .unwrap()
     );
     assert!(runtime.has_pending_update());
 
     assert_eq!(
         runtime
-            .figure(rounded)
+            .rounded_rectangle(rounded)
             .unwrap()
             .set_corner_dimensions(Dimension::new(-1.0, 2.0)),
         Err(ShapeMutationError::NegativeMetric)
     );
-    assert_eq!(
-        runtime
-            .figure(rounded)
-            .unwrap()
-            .set_triangle_direction(Direction::South),
-        Err(ShapeMutationError::WrongCapability(rounded))
-    );
+    assert!(matches!(
+        runtime.triangle(rounded),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "triangle mutation",
+        }) if figure == rounded
+    ));
     assert!(
         !runtime
-            .figure(rounded)
+            .border(rounded)
             .unwrap()
-            .replace_border(Some(shared_border))
+            .replace(Some(shared_border))
             .unwrap()
     );
 }

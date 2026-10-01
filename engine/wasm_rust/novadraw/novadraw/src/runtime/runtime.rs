@@ -285,6 +285,24 @@ pub struct TextFlowEditor<'a> {
     runtime: &'a mut Runtime,
 }
 
+/// Short-lived, Runtime-backed mutation facade for one attached bordered Figure.
+pub struct BorderEditor<'a> {
+    bordered: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached RoundedRectangleFigure.
+pub struct RoundedRectangleEditor<'a> {
+    rounded_rectangle: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached TriangleFigure.
+pub struct TriangleEditor<'a> {
+    triangle: FigureId,
+    runtime: &'a mut Runtime,
+}
+
 /// Short-lived, Runtime-backed mutation facade for one attached container Figure.
 pub struct ContainerEditor<'a> {
     container: FigureId,
@@ -416,34 +434,6 @@ impl FigureEditor<'_> {
         U: FigureComponentUpdate,
     {
         self.runtime.update_component(self.figure, update)
-    }
-
-    pub fn set_border(
-        &mut self,
-        border: impl Border + 'static,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_border(self.figure, border)
-    }
-
-    pub fn replace_border(
-        &mut self,
-        border: Option<Arc<dyn Border>>,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_border(self.figure, border)
-    }
-
-    pub fn set_corner_dimensions(
-        &mut self,
-        dimensions: Dimension,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_corner_dimensions(self.figure, dimensions)
-    }
-
-    pub fn set_triangle_direction(
-        &mut self,
-        direction: Direction,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_triangle_direction(self.figure, direction)
     }
 }
 
@@ -589,6 +579,45 @@ impl TextFlowEditor<'_> {
     pub fn set_wrapping(&mut self, wrapping: FlowWrapping) -> Result<bool, ShapeMutationError> {
         self.runtime
             .set_text_flow_wrapping(self.text_flow, wrapping)
+    }
+}
+
+impl BorderEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.bordered
+    }
+
+    pub fn set(&mut self, border: impl Border + 'static) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_border(self.bordered, border)
+    }
+
+    pub fn replace(&mut self, border: Option<Arc<dyn Border>>) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_border(self.bordered, border)
+    }
+}
+
+impl RoundedRectangleEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.rounded_rectangle
+    }
+
+    pub fn set_corner_dimensions(
+        &mut self,
+        dimensions: Dimension,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_corner_dimensions(self.rounded_rectangle, dimensions)
+    }
+}
+
+impl TriangleEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.triangle
+    }
+
+    pub fn set_direction(&mut self, direction: Direction) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_triangle_direction(self.triangle, direction)
     }
 }
 
@@ -968,6 +997,57 @@ impl Runtime {
         }
         Ok(TextFlowEditor {
             text_flow,
+            runtime: self,
+        })
+    }
+
+    pub fn border(&mut self, bordered: FigureId) -> Result<BorderEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(bordered)?;
+        if !self.tree.has_border_capability(bordered) {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: bordered,
+                capability: "border mutation",
+            });
+        }
+        Ok(BorderEditor {
+            bordered,
+            runtime: self,
+        })
+    }
+
+    pub fn rounded_rectangle(
+        &mut self,
+        rounded_rectangle: FigureId,
+    ) -> Result<RoundedRectangleEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(rounded_rectangle)?;
+        if !self
+            .tree
+            .has_rounded_rectangle_capability(rounded_rectangle)
+        {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: rounded_rectangle,
+                capability: "rounded-rectangle mutation",
+            });
+        }
+        Ok(RoundedRectangleEditor {
+            rounded_rectangle,
+            runtime: self,
+        })
+    }
+
+    pub fn triangle(
+        &mut self,
+        triangle: FigureId,
+    ) -> Result<TriangleEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(triangle)?;
+        if !self.tree.has_triangle_capability(triangle) {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: triangle,
+                capability: "triangle mutation",
+            });
+        }
+        Ok(TriangleEditor {
+            triangle,
             runtime: self,
         })
     }

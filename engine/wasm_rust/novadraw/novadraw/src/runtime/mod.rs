@@ -34,10 +34,11 @@ pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
 pub use runtime::{
-    BackendSessionError, ClickableEditor, ContainerEditor, FigureEditor, FramePreparation,
-    FramePreparationError, ImageEditor, LabelEditor, LogicalViewportResizeError, PointListEditor,
-    Runtime, ScalablePolygonEditor, ScaleEditor, ScrollPaneEditor, TextFlowEditor,
-    TextFlowQueryError, TextLayoutStats, ViewportEditor, ZoomEditor,
+    BackendSessionError, BorderEditor, ClickableEditor, ContainerEditor, FigureEditor,
+    FramePreparation, FramePreparationError, ImageEditor, LabelEditor, LogicalViewportResizeError,
+    PointListEditor, RoundedRectangleEditor, Runtime, ScalablePolygonEditor, ScaleEditor,
+    ScrollPaneEditor, TextFlowEditor, TextFlowQueryError, TextLayoutStats, TriangleEditor,
+    ViewportEditor, ZoomEditor,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

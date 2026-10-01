@@ -498,11 +498,7 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
         let root = runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 120.0)))
             .expect("valid Runtime mutation");
-        runtime
-            .figure(root)
-            .unwrap()
-            .replace_border(Some(border))
-            .unwrap();
+        runtime.border(root).unwrap().replace(Some(border)).unwrap();
 
         let submission = runtime
             .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -565,14 +561,14 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
         TitleBarBorder::new("Shared", novadraw::Color::rgba(0.1, 0.3, 0.6, 1.0)),
     ));
     runtime
-        .figure(root)
+        .border(root)
         .unwrap()
-        .replace_border(Some(Arc::clone(&shared)))
+        .replace(Some(Arc::clone(&shared)))
         .unwrap();
     runtime
-        .figure(child)
+        .border(child)
         .unwrap()
-        .replace_border(Some(Arc::clone(&shared)))
+        .replace(Some(Arc::clone(&shared)))
         .unwrap();
 
     runtime

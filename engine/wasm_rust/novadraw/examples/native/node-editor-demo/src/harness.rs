@@ -61,9 +61,9 @@ impl EditorHarness {
         }
         viewer
             .runtime_mut()
-            .figure(viewport)
+            .border(viewport)
             .map_err(|error| error.to_string())?
-            .set_border(
+            .set(
                 LineBorder::new(
                     Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal"),
                     VIEWPORT_BORDER_WIDTH,

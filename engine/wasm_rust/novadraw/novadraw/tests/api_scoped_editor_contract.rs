@@ -1,6 +1,7 @@
 use novadraw::geometry::Rectangle;
 use novadraw::{
-    FigureTree, LineBorder, RectangleFigure, Runtime, RuntimeMutationError, StackLayout,
+    FigureTree, FlowPage, LineBorder, RectangleFigure, Runtime, RuntimeMutationError, StackLayout,
+    TextFlowFigure,
 };
 
 fn runtime_with_child() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
@@ -121,7 +122,15 @@ fn scoped_editor_acquisition_rejects_replaced_contents() {
 
 #[test]
 fn specialized_editor_rejects_a_figure_without_the_capability() {
-    let (mut runtime, _, child) = runtime_with_child();
+    let (mut runtime, root, child) = runtime_with_child();
+    let text_flow = runtime
+        .container(root)
+        .unwrap()
+        .add(Box::new(TextFlowFigure::new(
+            Rectangle::new(0.0, 0.0, 20.0, 20.0),
+            FlowPage::from_text("text"),
+        )))
+        .unwrap();
     let pending_before = runtime.has_pending_update();
     let bounds_before = runtime.tree().figure_bounds(child);
 
@@ -179,6 +188,27 @@ fn specialized_editor_rejects_a_figure_without_the_capability() {
         Err(RuntimeMutationError::WrongCapability {
             figure,
             capability: "text-flow mutation",
+        }) if figure == child
+    ));
+    assert!(matches!(
+        runtime.border(text_flow),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "border mutation",
+        }) if figure == text_flow
+    ));
+    assert!(matches!(
+        runtime.rounded_rectangle(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "rounded-rectangle mutation",
+        }) if figure == child
+    ));
+    assert!(matches!(
+        runtime.triangle(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "triangle mutation",
         }) if figure == child
     ));
     assert_eq!(runtime.has_pending_update(), pending_before);

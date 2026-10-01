@@ -3193,6 +3193,34 @@ impl FigureTree {
         Ok(true)
     }
 
+    pub(crate) fn has_border_capability(&mut self, id: FigureId) -> bool {
+        self.blocks
+            .get_mut(id)
+            .is_some_and(|block| block.figure.bordered_mut().is_some())
+    }
+
+    pub(crate) fn has_rounded_rectangle_capability(&self, id: FigureId) -> bool {
+        self.blocks.get(id).is_some_and(|block| {
+            block
+                .figure
+                .as_ref()
+                .as_any()
+                .downcast_ref::<RoundedRectangleFigure>()
+                .is_some()
+        })
+    }
+
+    pub(crate) fn has_triangle_capability(&self, id: FigureId) -> bool {
+        self.blocks.get(id).is_some_and(|block| {
+            block
+                .figure
+                .as_ref()
+                .as_any()
+                .downcast_ref::<TriangleFigure>()
+                .is_some()
+        })
+    }
+
     pub(crate) fn replace_border(
         &mut self,
         update_manager: &mut UpdateManager,
