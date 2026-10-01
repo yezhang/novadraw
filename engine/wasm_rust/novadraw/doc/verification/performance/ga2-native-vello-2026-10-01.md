@@ -12,7 +12,7 @@
 
 | 项目 | 值 |
 |---|---|
-| 提交 | `657b37652407b78f1db94d9afd3d1a85e2dc7485` |
+| 提交 | `dcf1bc808b6db722929eacf9af049cdc8084c5da` |
 | 工作区 | clean |
 | OS / CPU | macOS / Apple M1 Pro |
 | GPU / backend | Apple M1 Pro integrated GPU / Metal |
@@ -23,7 +23,7 @@
 | Figure / command | 4,097 / 53,258 |
 | 预热 / 采样 | 5 / 30 |
 | 原始报告 | `target/verification/reports/ga2-native-vello.json` |
-| SHA-256 | `e86032dbbca721504e3c0f18666d1257e4d3e316d7c6813a18f002285bf710bc` |
+| SHA-256 | `c3d644f6fd3d37908fe75dd057865f7ceccfbd76390a3477b6d055f5c600b1f0` |
 
 执行入口：
 
@@ -53,17 +53,17 @@ submit 开始到 queue 全部完成的端到端墙钟，仍不是硬件 timestam
 
 | 阶段 | p50 | p95 |
 |---|---:|---:|
-| Runtime `prepare_submission` | 2.959 ms | 3.598 ms |
-| Vello backend submit CPU | 3.225 ms | 3.569 ms |
-| submit 后 GPU queue completion wait | 5.094 ms | 7.646 ms |
-| backend submit → GPU queue complete | 8.379 ms | 10.846 ms |
-| frame start → GPU queue complete | 11.544 ms | 13.634 ms |
+| Runtime `prepare_submission` | 2.940 ms | 3.600 ms |
+| Vello backend submit CPU | 3.524 ms | 3.769 ms |
+| submit 后 GPU queue completion wait | 5.105 ms | 6.393 ms |
+| backend submit → GPU queue complete | 8.700 ms | 10.220 ms |
+| frame start → GPU queue complete | 11.881 ms | 13.725 ms |
 
 该固定场景的 frame-to-GPU-complete p95 低于 16.7ms 初始预算，但该结论只适用于
 4,096 矩形、当前硬件、2× physical surface 和离屏 GPU 路径。没有 compositor
 present 证据时，不能推导屏幕交互帧预算已满足。
 
-进程峰值 RSS 从启动前 31.56 MiB 增至采样后 130.33 MiB。该数值包含 winit、wgpu、
+进程峰值 RSS 从启动前 31.75 MiB 增至采样后 141.64 MiB。该数值包含 winit、wgpu、
 Vello pipeline、Metal driver、surface 和 retained texture，不代表 Figure 树净内存。
 
 ## 剩余限制
