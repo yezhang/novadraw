@@ -151,6 +151,14 @@ description = "Measure Native Vello with a required visible macOS surface presen
 program = "./benchmarks/native-vello-perf/run_macos_app.sh"
 args = ["--report=target/verification/reports/ga2-native-presentation.json"]
 
+[commands."report.ga2-native-window-server-performance"]
+description = "Measure synthetic input through WindowServer-visible marker presentation on macOS"
+program = "./benchmarks/native-vello-perf/run_macos_app.sh"
+args = [
+  "--require-window-server-present",
+  "--report=target/verification/reports/ga2-native-window-server.json",
+]
+
 [commands."test.ga2-work-counters"]
 description = "Enforce linear text-style and independent-routing work counters"
 program = "cargo"
@@ -701,6 +709,25 @@ documents = [
   "doc/verification/performance/ga2-native-vello-2026-10-01.md",
 ]
 artifacts = ["target/verification/reports/ga2-native-presentation.json"]
+
+[[suites]]
+id = "backend.native-window-server-performance"
+title = "Native Vello synthetic input to WindowServer-visible presentation"
+milestone = "GA-2"
+kind = "quality"
+api_semantics = ["event.input_listeners", "frame.preparation", "render.backend_session"]
+layers = ["platform", "visual"]
+platforms = ["native-macos"]
+commands = ["report.ga2-native-window-server-performance"]
+paths = [
+  "benchmarks/native-vello-perf/**",
+  "novadraw-backend-vello/src/lib.rs",
+]
+documents = [
+  "doc/verification/performance/ga2-methodology.md",
+  "doc/verification/performance/ga2-native-vello-2026-10-01.md",
+]
+artifacts = ["target/verification/reports/ga2-native-window-server.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"

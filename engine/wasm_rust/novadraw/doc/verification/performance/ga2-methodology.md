@@ -104,6 +104,30 @@ cargo xtask verify backend.native-presentation-performance
 [Native Vello GPU 基线](ga2-native-vello-2026-10-01.md)。普通
 `backend.native-performance` 继续允许无窗口环境降级，两者不能互相替代。
 
+WindowServer 可见回执与合成输入链路使用独立入口：
+
+```bash
+cargo xtask verify backend.native-window-server-performance
+```
+
+该 suite 在严格可见 surface 条件上再增加以下不可降级契约：
+
+1. macOS Screen Recording preflight 必须通过，窗口必须 focused 且 unoccluded；
+2. CoreGraphics 向当前进程投递合成 Space 键，Winit 必须收到对应 pressed 事件；
+3. 事件通过 Runtime typed component update 切换中心 marker，并由生产 Vello backend
+   提交 surface frame；
+4. `CGWindowListCreateImage` 必须观察到自身窗口中心像素签名发生变化；
+5. 每个样本保存 input post、Winit event receipt、submit return、首次 WindowServer
+   可见时间、轮询次数和前后像素签名。
+
+这一口径证明合成 OS 输入到 WindowServer 可见内容的端到端链路，并在报告中设置
+`compositor_present=true`、`input_to_present=true`。它同时明确设置
+`synthetic_input=true`、`physical_input=false` 和 `display_scanout=false`：结果不包含
+物理 HID 设备延迟，也不证明显示器扫描时刻。首次变化由轮询捕获，因而测得延迟包含
+CoreGraphics 捕获开销，是实际 WindowServer 可见时刻的保守上界。任何权限、事件、
+surface、像素变化或超时失败都会令 suite 失败，不回退到 queue completion 或
+`present()` 调用。
+
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
 下比较。
