@@ -2102,6 +2102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use novadraw::event::MouseButton;
     use novadraw::graphics::LineStyle;
     use novadraw::render::command::RenderCommandKind;
     use novadraw_editor::{HandleRole, SessionTextInputEvent, TextInputEffect, TextInputEvent};
