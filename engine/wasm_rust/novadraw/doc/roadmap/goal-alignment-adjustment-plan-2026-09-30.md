@@ -17,8 +17,8 @@
 | 阶段 | 状态 | 当前证据或阻塞 |
 |---|---|---|
 | GA-0 目标与能力分母 | `complete` | 长期能力处置、9 个 P2 delta 与平台支持等级已登记 |
-| GA-1 API 与确定缺陷 | `in_progress` | 修复确定缺陷并收口公开 API |
-| GA-2 性能基线 | `not_started` | 依赖 GA-0 |
+| GA-1 API 与确定缺陷 | `complete` | Core/Web/Editor/Layout 修复、root API 与 Graphics 收口；quick gate 通过 |
+| GA-2 性能基线 | `in_progress` | 固定场景、工作量计数与优化前后证据 |
 | GA-3 四平台验证 | `not_started` | 依赖 GA-0；Windows/Linux 真实运行需要对应环境 |
 | GA-4 模块与扩展表面 | `not_started` | 依赖 GA-1、GA-2 |
 | GA-5 文档与门禁 | `not_started` | 可在 GA-0 后与 GA-1 并行 |
