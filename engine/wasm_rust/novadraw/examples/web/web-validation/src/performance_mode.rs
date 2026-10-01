@@ -307,6 +307,11 @@ impl PerformanceBenchmark {
 
         if let Some(pending) = &self.pending {
             if pending.completion.done.load(Ordering::Acquire) {
+                let completed_at_ms =
+                    f64::from_bits(pending.completion.completed_at_bits.load(Ordering::Acquire));
+                if completed_at_ms.is_finite() && raf_timestamp_ms < completed_at_ms {
+                    return Ok(true);
+                }
                 self.finish_frame(raf_timestamp_ms)?;
             } else if raf_timestamp_ms - pending.submit_returned_at_ms > GPU_COMPLETION_TIMEOUT_MS {
                 return Err(JsValue::from_str(
