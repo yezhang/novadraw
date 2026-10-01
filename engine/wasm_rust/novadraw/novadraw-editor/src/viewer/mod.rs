@@ -3749,6 +3749,7 @@ where
             &mut self.runtime,
             node.primary_figure(),
             node.content_pane(),
+            node.visuals(),
         );
         self.behaviors
             .get_mut(part)

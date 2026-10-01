@@ -7,8 +7,8 @@ use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 use novadraw::advanced::RuntimeNamespace;
 use novadraw::geometry::Rectangle;
 use novadraw::{
-    AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, Figure, FigureId, FigureStyle,
-    RoutingConstraint, Runtime, RuntimeMutationError,
+    AnchorSemanticKey, ComponentUpdateReceipt, ConnectionAnchor, ConnectionRouter, Figure,
+    FigureComponentUpdate, FigureId, FigureStyle, RoutingConstraint, Runtime, RuntimeMutationError,
 };
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;
@@ -977,14 +977,21 @@ pub struct VisualUpdateContext<'a> {
     runtime: &'a mut Runtime,
     primary: FigureId,
     content_pane: FigureId,
+    visuals: &'a [FigureId],
 }
 
 impl<'a> VisualUpdateContext<'a> {
-    pub(crate) fn new(runtime: &'a mut Runtime, primary: FigureId, content_pane: FigureId) -> Self {
+    pub(crate) fn new(
+        runtime: &'a mut Runtime,
+        primary: FigureId,
+        content_pane: FigureId,
+        visuals: &'a [FigureId],
+    ) -> Self {
         Self {
             runtime,
             primary,
             content_pane,
+            visuals,
         }
     }
 
@@ -996,6 +1003,32 @@ impl<'a> VisualUpdateContext<'a> {
     /// Returns the child EditPart content pane.
     pub const fn content_pane(&self) -> FigureId {
         self.content_pane
+    }
+
+    /// Returns whether this Figure belongs to the current EditPart visual subtree.
+    pub fn owns_visual(&self, visual: FigureId) -> bool {
+        self.visuals.contains(&visual)
+    }
+
+    /// Updates a private component of one Figure owned by the current EditPart.
+    pub fn update_visual_component<U>(
+        &mut self,
+        visual: FigureId,
+        update: U,
+    ) -> Result<ComponentUpdateReceipt, EditPartError>
+    where
+        U: FigureComponentUpdate,
+        U::Error: fmt::Display,
+    {
+        if !self.owns_visual(visual) {
+            return Err(EditPartError::operation(
+                "component update target is not owned by this EditPart",
+            ));
+        }
+        self.runtime
+            .figure(visual)?
+            .update_component(update)
+            .map_err(|error| EditPartError::operation(error.to_string()))
     }
 
     /// Updates primary Figure bounds through the Runtime transaction boundary.

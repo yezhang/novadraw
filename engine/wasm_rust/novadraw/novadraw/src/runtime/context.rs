@@ -3,11 +3,11 @@ use std::sync::Arc;
 use crate::geometry::Point;
 
 use crate::{
-    ChildClippingStrategy, DispatchContext, Event, Figure, FigureEvent, FigureId, FigureTree,
-    GestureSessionId, InteractionState, LayerKey, LayerPlacement, LayoutManager, MouseEventKind,
-    MouseLocationZoomScrollPolicy, NotificationEffect, PendingMutations, PropertyChangeEvent,
-    PropertyValue, Rectangle, ScrollPaneFigure, UpdateManager, ViewportFigure, WheelEvent,
-    ZoomEvent, ZoomManager,
+    ChildClippingStrategy, DispatchContext, Event, Figure, FigureComponentUpdate, FigureEvent,
+    FigureId, FigureTree, GestureSessionId, InteractionState, LayerKey, LayerPlacement,
+    LayoutManager, MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect,
+    PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle, ScrollPaneFigure,
+    UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
     mutation::{MutationContext, PendingMutation, SizeOverrideKind},
 };
 
@@ -191,6 +191,21 @@ impl<'a> EventContext<'a> {
 
     pub fn invalidate(&mut self) {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
+    }
+
+    /// Enqueues an owned typed update for the current callback target.
+    ///
+    /// Runtime applies the update after the callback releases its Figure borrow. Any rejection is
+    /// reported through `Runtime::take_deferred_mutation_errors`.
+    pub fn update_component_later<U>(&mut self, update: U)
+    where
+        U: FigureComponentUpdate + 'static,
+    {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::update_component(
+                self.target_id,
+                update,
+            )));
     }
 
     /// Enqueues a structural mutation for application after top-level dispatch.

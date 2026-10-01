@@ -341,6 +341,32 @@ description = "Run the G5 create, reconnect, and bendpoint contract"
 program = "cargo"
 args = ["test", "-p", "novadraw-editor", "--test", "g5_connection_creation_contract"]
 
+[commands."test.ga4-core-extension-consumers"]
+description = "Compile and run external Figure, Layout, component-update, and text/backend consumers"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "d4_component_update",
+  "--test",
+  "d4_constrained_measurement",
+  "--test",
+  "m10_text_extension_contract",
+]
+
+[commands."test.ga4-editor-extension-consumer"]
+description = "Compile and run the external Editor compound-visual component consumer"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-editor",
+  "--test",
+  "ga4_external_visual_component",
+]
+
 [commands."web.build"]
 description = "Build the Web validation application and wasm-bindgen output"
 program = "./scripts/build_web_validation.sh"
@@ -840,6 +866,34 @@ commands = [
 paths = ["**/*.rs", "**/Cargo.toml", "Cargo.toml"]
 documents = ["CLAUDE.md"]
 artifacts = ["target/verification/runs"]
+
+[[suites]]
+id = "ga4.extension-consumers"
+title = "External Figure, Layout, text/backend, and Editor visual extension consumers"
+milestone = "GA-4"
+kind = "contract"
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = [
+  "test.ga4-core-extension-consumers",
+  "test.ga4-editor-extension-consumer",
+]
+paths = [
+  "novadraw/src/runtime/context.rs",
+  "novadraw/src/runtime/mutation/**",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/tests/d4_component_update.rs",
+  "novadraw/tests/d4_constrained_measurement.rs",
+  "novadraw/tests/m10_text_extension_contract.rs",
+  "novadraw-editor/src/part/**",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/ga4_external_visual_component.rs",
+]
+documents = [
+  "doc/design/architecture/component-update.md",
+  "doc/design/architecture/runtime-ownership-and-module-boundaries.md",
+  "doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md",
+]
 
 [[suites]]
 id = "core.runtime"

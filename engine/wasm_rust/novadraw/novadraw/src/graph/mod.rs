@@ -1250,7 +1250,8 @@ impl FigureTree {
                 | PendingMutationKind::MoveChildToIndex { .. }
                 | PendingMutationKind::BringChildToFront { .. }
                 | PendingMutationKind::SendChildToBack { .. }
-                | PendingMutationKind::SetChildClippingStrategy { .. } => false,
+                | PendingMutationKind::SetChildClippingStrategy { .. }
+                | PendingMutationKind::UpdateComponent(_) => false,
             };
         }
 

@@ -4,9 +4,10 @@ use novadraw::render::{
 };
 use novadraw::{
     ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Figure,
-    FigureComponentContext, FigureComponentUpdate, FigureLifecycle, FigureTree, FocusError,
-    FramePreparation, FramePreparationError, PreparedFigureUpdate, Rectangle, RectangleFigure,
-    ResourceError, Runtime, RuntimeMutationError, WidgetError,
+    FigureComponentContext, FigureComponentUpdate, FigureEventHandler, FigureLifecycle, FigureTree,
+    FocusError, FramePreparation, FramePreparationError, MouseButton, MouseEvent,
+    PreparedFigureUpdate, Rectangle, RectangleFigure, ResourceError, Runtime, RuntimeMutationError,
+    WidgetError,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -21,6 +22,7 @@ struct BadgeFigure {
     text: String,
     measured_width: f64,
     paint_snapshot: String,
+    reject_first_callback_update: bool,
 }
 
 impl BadgeFigure {
@@ -31,7 +33,13 @@ impl BadgeFigure {
             measured_width: text.len() as f64 * 8.0,
             paint_snapshot: format!("badge:{text}"),
             text,
+            reject_first_callback_update: false,
         }
+    }
+
+    fn rejecting_first_callback_update(mut self) -> Self {
+        self.reject_first_callback_update = true;
+        self
     }
 
     fn snapshot(&self) -> BadgeSnapshot {
@@ -56,6 +64,24 @@ impl Figure for BadgeFigure {
 
     fn intrinsic_size(&self) -> (f64, f64) {
         (self.measured_width, self.bounds.height)
+    }
+
+    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
+        Some(self)
+    }
+}
+
+impl FigureEventHandler for BadgeFigure {
+    fn on_mouse_pressed(
+        &self,
+        _event: &MouseEvent,
+        context: &mut novadraw::EventContext<'_>,
+    ) -> bool {
+        if self.reject_first_callback_update {
+            context.update_component_later(SetBadgeText(String::new()));
+        }
+        context.update_component_later(SetBadgeText("clicked".to_owned()));
+        true
     }
 }
 
@@ -265,6 +291,47 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     );
     assert_eq!(runtime.tree().component_revision(badge), Some(1));
     assert_eq!(runtime.has_pending_update(), pending_before);
+}
+
+#[test]
+fn external_figure_callback_can_defer_a_typed_self_update() {
+    let mut tree = FigureTree::new();
+    let badge = tree
+        .builder()
+        .set_contents(Box::new(BadgeFigure::new("old")));
+    let mut runtime = Runtime::new(tree);
+
+    runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
+
+    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    let snapshot = runtime
+        .figure(badge)
+        .unwrap()
+        .update_component(ProbeBadge)
+        .unwrap_err();
+    assert!(matches!(
+        snapshot,
+        ComponentUpdateError::Rejected(snapshot)
+            if snapshot.text == "clicked" && snapshot.paint_snapshot == "badge:clicked"
+    ));
+    assert!(runtime.take_deferred_mutation_errors().is_empty());
+}
+
+#[test]
+fn deferred_component_rejection_is_reported_without_losing_fifo_suffix() {
+    let mut tree = FigureTree::new();
+    let badge = tree.builder().set_contents(Box::new(
+        BadgeFigure::new("old").rejecting_first_callback_update(),
+    ));
+    let mut runtime = Runtime::new(tree);
+
+    runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
+
+    assert_eq!(runtime.tree().component_revision(badge), Some(1));
+    assert_eq!(
+        runtime.take_deferred_mutation_errors(),
+        vec![RuntimeMutationError::ComponentUpdateRejected(badge)]
+    );
 }
 
 #[test]

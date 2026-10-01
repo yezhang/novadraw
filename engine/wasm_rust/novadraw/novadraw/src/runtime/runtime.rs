@@ -4363,6 +4363,7 @@ impl Runtime {
             PendingMutationKind::AddChildFigure { parent, figure } => {
                 self.add_figure(parent, figure).map(|_| true)
             }
+            PendingMutationKind::UpdateComponent(update) => update.apply(self),
         }
     }
 

@@ -7,6 +7,8 @@ use crate::{
     LayoutConstraint, LayoutError, LayoutManager,
 };
 
+use super::runtime::Runtime;
+
 pub trait FigureComponentUpdate {
     type Figure: Figure + 'static;
     type Prepared;
@@ -138,6 +140,13 @@ pub enum RuntimeMutationError {
         figure: FigureId,
         capability: &'static str,
     },
+    WrongComponentType {
+        figure: FigureId,
+        expected: &'static str,
+        actual: &'static str,
+    },
+    ComponentRevisionExhausted(FigureId),
+    ComponentUpdateRejected(FigureId),
     InvalidParentRelation {
         parent: FigureId,
         child: FigureId,
@@ -184,6 +193,26 @@ impl fmt::Display for RuntimeMutationError {
             }
             Self::WrongCapability { figure, capability } => {
                 write!(formatter, "Figure {figure:?} does not support {capability}")
+            }
+            Self::WrongComponentType {
+                figure,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "Figure {figure:?} has component type {actual}, expected {expected}"
+            ),
+            Self::ComponentRevisionExhausted(figure) => {
+                write!(
+                    formatter,
+                    "component revision is exhausted for Figure {figure:?}"
+                )
+            }
+            Self::ComponentUpdateRejected(figure) => {
+                write!(
+                    formatter,
+                    "deferred component update was rejected for Figure {figure:?}"
+                )
             }
             Self::InvalidParentRelation { parent, child } => {
                 write!(formatter, "{child:?} is not a direct child of {parent:?}")
@@ -255,6 +284,43 @@ pub(crate) struct PendingMutation {
     kind: PendingMutationKind,
 }
 
+pub(crate) trait DeferredComponentUpdate {
+    fn apply(self: Box<Self>, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError>;
+}
+
+struct TypedDeferredComponentUpdate<U> {
+    figure: FigureId,
+    update: U,
+}
+
+impl<U> DeferredComponentUpdate for TypedDeferredComponentUpdate<U>
+where
+    U: FigureComponentUpdate + 'static,
+{
+    fn apply(self: Box<Self>, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError> {
+        let Self { figure, update } = *self;
+        match runtime.update_component(figure, update) {
+            Ok(_) => Ok(true),
+            Err(ComponentUpdateError::Runtime(error)) => Err(error),
+            Err(ComponentUpdateError::WrongFigureType {
+                figure,
+                expected,
+                actual,
+            }) => Err(RuntimeMutationError::WrongComponentType {
+                figure,
+                expected,
+                actual,
+            }),
+            Err(ComponentUpdateError::RevisionExhausted(figure)) => {
+                Err(RuntimeMutationError::ComponentRevisionExhausted(figure))
+            }
+            Err(ComponentUpdateError::Rejected(_)) => {
+                Err(RuntimeMutationError::ComponentUpdateRejected(figure))
+            }
+        }
+    }
+}
+
 pub(crate) enum PendingMutationKind {
     AddChildFigure {
         parent: FigureId,
@@ -322,6 +388,7 @@ pub(crate) enum PendingMutationKind {
         key: LayerKey,
         placement: LayerPlacement,
     },
+    UpdateComponent(Box<dyn DeferredComponentUpdate>),
 }
 
 impl PendingMutation {
@@ -453,6 +520,18 @@ impl PendingMutation {
                 key,
                 placement,
             },
+        }
+    }
+
+    pub(crate) fn update_component<U>(figure: FigureId, update: U) -> Self
+    where
+        U: FigureComponentUpdate + 'static,
+    {
+        Self {
+            kind: PendingMutationKind::UpdateComponent(Box::new(TypedDeferredComponentUpdate {
+                figure,
+                update,
+            })),
         }
     }
 
