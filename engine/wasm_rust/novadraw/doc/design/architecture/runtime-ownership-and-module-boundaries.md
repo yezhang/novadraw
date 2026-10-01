@@ -6,6 +6,8 @@
 
 范围：GA-4 Core/Editor 内部依赖与扩展更新入口。
 
+实现状态：`complete`（2026-10-01）
+
 ## 1. 所有权图
 
 ```mermaid
@@ -44,9 +46,21 @@ FigureTree、UpdateManager 或 Viewer 状态。
 - 用 identity handle 建立第二套 `FigureTree + UpdateManager` 提交入口。
 
 因此 `graph` 与 `runtime::update` 是同一 Core 事务内的协作模块，不是可独立发布的
-package。后续按 topology/query、layout/measurement、presentation、
-component update、connection service、frame/resource 拆文件时，仍保持 Runtime
-单一所有权。
+package。GA-4 已在不改变所有权的前提下完成以下内部拆分：
+
+| 职责 | 实现位置 |
+|---|---|
+| Figure 拓扑原语与事务 | `novadraw/src/graph/topology.rs` |
+| Figure 查询 | `novadraw/src/graph/query.rs` |
+| 布局与测量 | `novadraw/src/graph/layout_measurement.rs` |
+| 呈现能力与渲染入口 | `novadraw/src/graph/presentation.rs`、`render_recursive.rs` |
+| typed component update | `novadraw/src/runtime/runtime/component_update.rs` |
+| Connection service | `novadraw/src/runtime/runtime/connection_service.rs` |
+| 帧资源与提交事务 | `novadraw/src/runtime/runtime/frame_resource.rs`、`frame_submission.rs` |
+| Viewer 模型投影 | `novadraw-editor/src/viewer/projection.rs` |
+
+这些文件只形成内部职责边界。`Runtime` 仍是 Core 可变服务的唯一 owner，
+`GraphicalViewer` 仍拥有单一 Runtime 与 Part/Policy 状态，没有新增共享可变服务。
 
 ## 3. 扩展组件更新
 
@@ -86,9 +100,11 @@ component update、connection service、frame/resource 拆文件时，仍保持 
 - layout constraint、reparent、revalidate 和 repaint；
 - `FigureComponentUpdate` 的统一提交。
 
-Label、Image、PointList、TextFlow 等内置专用 mutator 是待迁移的 capability editor，
-不应继续扩张 FigureEditor。迁移必须按 API 主题进行，并保留现有 Runtime 原语与验证，
-不能用公开 downcast 或任意 mutation closure 代替。
+Label、Clickable、Image、PointList、ScalablePolygon、TextFlow、Border 与专用图形
+已经使用受检 capability editor。获取 editor 时同时验证 Runtime identity 与 capability；
+错误类型、revision、invalidation、damage 和 notification 继续复用 Runtime 原语。
+后续内置能力不得重新扩张 `FigureEditor`，也不能用公开 downcast 或任意 mutation
+closure 代替 capability editor。
 
 ## 5. 失败语义
 
@@ -109,3 +125,14 @@ GA-4 至少保留两个独立外部消费者：
 2. 自定义 Router + Editor compound visual，覆盖模型 refresh 的 owned visual update。
 
 消费者只能依赖公开 package API，不得使用 `pub(crate)`、测试 helper 或修改 Core 枚举。
+
+实现验证：
+
+- `cargo xtask verify ga4.extension-consumers`：PASS；
+- `cargo xtask verify g2.viewer-projection`：PASS；
+- `cargo xtask verify g5.1.connection-projection`：PASS；
+- `cargo xtask verify core.performance`：PASS；
+- `cargo xtask check --quick`：PASS。
+
+完成证据见
+[GA-4 模块与扩展表面完成记录](../../verification/reviews/ga4-module-extension-completion-2026-10-01.md)。

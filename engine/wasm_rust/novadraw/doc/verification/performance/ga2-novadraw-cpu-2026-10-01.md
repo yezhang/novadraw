@@ -85,6 +85,17 @@ m9_connection_runtime: 29 passed
 不等同于活跃堆、allocator 独占内存或 GPU 显存；不同场景的完整原始字节值保存在 JSON
 报告中。普通 gate 不设置跨机器 RSS 阈值。
 
+## GA-4 模块拆分复核
+
+GA-4 完成 Core/Editor 内部职责拆分后，以 `d320149` 为拆分前基线、`c95272f` 为实现
+基线，在同一机器、Rust、release profile 和 `Cargo.lock` 下各执行三轮完整 harness。
+14 个场景的确定性工作量全部一致，p50 median-of-medians 最大回退为 4.6%，低于既有
+15% 调查阈值。
+
+个别 p95 存在本地调度尾噪声，但没有伴随 p50 或工作量回退。本次复核不替换本报告的
+正式 GA-2 数值，也不产生“性能提升”结论。完整边界与结果见
+[GA-4 模块与扩展表面完成记录](../reviews/ga4-module-extension-completion-2026-10-01.md)。
+
 ## 限制
 
 本报告只覆盖 headless CPU setup、validation、routing 和 command recording，不覆盖：

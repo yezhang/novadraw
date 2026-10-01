@@ -20,7 +20,7 @@
 | GA-1 API 与确定缺陷 | `complete` | Core/Web/Editor/Layout 修复、root API 与 Graphics 收口；quick gate 通过 |
 | GA-2 性能基线 | `in_progress` | CPU/内存、Draw2D 对照与 Native GPU queue 证据完成；待真实 present/input-to-present |
 | GA-3 四平台验证 | `in_progress` | release suite 与共享 Winit 适配已收口；macOS/Web 自动前置通过，Windows/Linux 待原生 runner |
-| GA-4 模块与扩展表面 | `not_started` | 依赖 GA-1、GA-2 |
+| GA-4 模块与扩展表面 | `complete` | 所有权契约、内部职责拆分、外部消费者、投影 suite、性能 A/B 与 quick gate 通过 |
 | GA-5 文档与门禁 | `not_started` | 可在 GA-0 后与 GA-1 并行 |
 | GA-6 发布审计 | `not_started` | 依赖 GA-1 至 GA-5 |
 
@@ -174,6 +174,18 @@ XOR、SWT 特有入口等先判断可观察行为与现代替代方案，不直�
 毕业：依赖契约与实现相符；新增第三方能力不扩张核心枚举；基线性能无未解释回退。
 按文件职责拆分、按主题提交。保留现有六 package；新增 crate 必须有独立发布、
 依赖隔离或真实复用证据。
+
+完成证据：
+
+- 所有权与协作规范：
+  [Runtime 所有权与模块协作边界](../design/architecture/runtime-ownership-and-module-boundaries.md)；
+- topology/query、layout/measurement、presentation、component update、connection
+  service、frame/resource 与 viewer projection 已按职责拆分；
+- `ga4.extension-consumers`、`g2.viewer-projection`、`g5.1.connection-projection`、
+  `core.performance` 与 `cargo xtask check --quick` 通过；
+- GA-4 前后各三轮同锁文件 release A/B，14 个场景工作量一致，p50 最大回退 4.6%；
+- 完成记录：
+  [GA-4 模块与扩展表面](../verification/reviews/ga4-module-extension-completion-2026-10-01.md)。
 
 ### GA-5：文档可执行性与状态同步
 
