@@ -143,11 +143,11 @@ impl WebInputAdapter {
             return None;
         }
         let (delta_x, delta_y, delta_kind) = match delta_mode {
-            WebWheelDeltaMode::Pixel => (delta_x, delta_y, ScrollDeltaKind::LogicalPixels),
-            WebWheelDeltaMode::Line => (delta_x, delta_y, ScrollDeltaKind::Lines),
+            WebWheelDeltaMode::Pixel => (-delta_x, -delta_y, ScrollDeltaKind::LogicalPixels),
+            WebWheelDeltaMode::Line => (-delta_x, -delta_y, ScrollDeltaKind::Lines),
             WebWheelDeltaMode::Page => (
-                delta_x * viewport_width.max(0.0),
-                delta_y * viewport_height.max(0.0),
+                -delta_x * viewport_width.max(0.0),
+                -delta_y * viewport_height.max(0.0),
                 ScrollDeltaKind::LogicalPixels,
             ),
         };
@@ -229,7 +229,8 @@ mod tests {
         assert_eq!(pixel.x, 90.0);
         assert_eq!(pixel.y, 60.0);
         assert_eq!(pixel.delta_kind, ScrollDeltaKind::LogicalPixels);
-        assert_eq!(pixel.delta_y, -10.0);
+        assert_eq!(pixel.delta_x, -5.0);
+        assert_eq!(pixel.delta_y, 10.0);
 
         let page = adapter
             .adapt_wheel(
@@ -243,7 +244,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(page.delta_kind, ScrollDeltaKind::LogicalPixels);
-        assert_eq!(page.delta_y, 600.0);
+        assert_eq!(page.delta_y, -600.0);
     }
 
     #[test]
@@ -308,7 +309,7 @@ mod tests {
             panic!("plain wheel must remain a scroll gesture");
         };
         assert_eq!(wheel.entry_point(), Point::new(90.0, 60.0));
-        assert_eq!(wheel.delta_x, 5.0);
-        assert_eq!(wheel.delta_y, -10.0);
+        assert_eq!(wheel.delta_x, -5.0);
+        assert_eq!(wheel.delta_y, 10.0);
     }
 }

@@ -217,7 +217,8 @@ impl WebTextInputHost {
 
     /// Applies one Editor effect to the hidden textarea.
     pub fn apply_effect(&self, effect: &TextInputEffect) {
-        if let Some(action) = self.bridge.borrow_mut().apply_effect(effect) {
+        let action = self.bridge.borrow_mut().apply_effect(effect);
+        if let Some(action) = action {
             match action {
                 WebTextInputAction::Acquire { purpose, area } => {
                     self.logical_area.set(Some(area));
