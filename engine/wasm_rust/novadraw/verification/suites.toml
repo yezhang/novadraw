@@ -100,6 +100,18 @@ args = [
 description = "Run same-host Draw2D reference scenarios with isolated JVMs"
 program = "./third_party/draw2d-examples/run_performance.sh"
 
+[commands."report.ga2-native-vello-performance"]
+description = "Measure Native Vello CPU stages and GPU queue completion"
+program = "cargo"
+args = [
+  "run",
+  "--release",
+  "-p",
+  "native-vello-perf",
+  "--",
+  "--report=target/verification/reports/ga2-native-vello.json",
+]
+
 [commands."test.ga2-work-counters"]
 description = "Enforce linear text-style and independent-routing work counters"
 program = "cargo"
@@ -535,6 +547,24 @@ documents = [
   "doc/verification/performance/ga2-draw2d-comparison-2026-10-01.md",
 ]
 artifacts = ["target/verification/reports/ga2-draw2d"]
+
+[[suites]]
+id = "backend.native-performance"
+title = "Native Vello CPU stages, GPU queue completion, and surface-present probe"
+milestone = "GA-2"
+kind = "quality"
+layers = ["platform", "visual"]
+platforms = ["native-macos"]
+commands = ["report.ga2-native-vello-performance"]
+paths = [
+  "benchmarks/native-vello-perf/**",
+  "novadraw-backend-vello/src/lib.rs",
+]
+documents = [
+  "doc/verification/performance/ga2-methodology.md",
+  "doc/verification/performance/ga2-native-vello-2026-10-01.md",
+]
+artifacts = ["target/verification/reports/ga2-native-vello.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"

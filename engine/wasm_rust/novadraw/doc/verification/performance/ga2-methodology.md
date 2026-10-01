@@ -74,6 +74,18 @@ Draw2D runner 位于 `third_party/draw2d-examples/`，不属于 Novadraw 示例�
 预热和采样次数。每个场景使用独立 JVM，报告写入
 `target/verification/reports/ga2-draw2d/`。
 
+Native Vello GPU queue completion：
+
+```bash
+cargo xtask verify backend.native-performance
+```
+
+该 runner 先探测真实 surface submit。可见 drawable 不可用时，转为离屏 Vello GPU
+submit，并在 JSON 中把 `surface_present_call`、`compositor_present` 和
+`input_to_present` 明确记为 `false`。`wait_for_gpu_idle` 的墙钟结果证明此前 queue
+work 已完成，但不是硬件 timestamp 或 compositor present 时间。结果见
+[Native Vello GPU 基线](ga2-native-vello-2026-10-01.md)。
+
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
 下比较。
