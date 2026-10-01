@@ -1,11 +1,11 @@
 use novadraw::Color;
+use novadraw::advanced::{FigureNode, InteractionState, LayoutState, NodeState};
 use novadraw::geometry::{Point, Rectangle};
 use novadraw::render::{NdCanvas, command::RenderCommandKind};
 use novadraw::{
-    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureNode,
-    FigureTree, InteractionState, LayoutState, LineBorder, NodeState, PolygonFigure,
-    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
-    ViewportFigure,
+    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureTree,
+    LineBorder, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
+    Runtime, TriangleFigure, ViewportFigure,
 };
 
 const ROOT_COLOR: Color = Color::rgba(0.10, 0.20, 0.30, 1.0);
@@ -14,7 +14,7 @@ const CHILD_COLOR: Color = Color::rgba(0.40, 0.50, 0.60, 1.0);
 const CHILD_BORDER_COLOR: Color = Color::rgba(0.45, 0.55, 0.65, 1.0);
 
 #[test]
-fn architecture_level_runtime_types_are_public() {
+fn architecture_level_runtime_types_are_available_through_advanced() {
     fn assert_type<T>() {}
 
     assert_type::<FigureId>();

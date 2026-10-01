@@ -1,13 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::Color;
+use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
 use novadraw::geometry::{Point, Rectangle, Translatable};
 use novadraw::render::{NdCanvas, command::LineCap, command::LineJoin};
 use novadraw::{
-    Bounded, CoordinateListener, EventContext, EventDispatcher, Figure, FigureEvent,
-    FigureEventHandler, FigureListener, FigureTree, InteractionState, LineBorder,
-    ListenerDirective, MouseButton, MouseEvent, PendingMutations, RectangleFigure, Runtime,
-    SceneDispatchContext, Shape, UpdateManager,
+    Bounded, CoordinateListener, EventContext, Figure, FigureEvent, FigureEventHandler,
+    FigureListener, FigureTree, LineBorder, ListenerDirective, MouseButton, MouseEvent,
+    RectangleFigure, Runtime, SceneDispatchContext, Shape,
 };
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {

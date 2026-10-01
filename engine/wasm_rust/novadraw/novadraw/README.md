@@ -36,7 +36,43 @@ named modules:
 Low-level protocols are intentionally not available at the crate root:
 
 ```compile_fail
-use novadraw::{FigureNode, RenderCommand, UpdateManager};
+use novadraw::FigureNode;
+```
+
+```compile_fail
+use novadraw::NodeState;
+```
+
+```compile_fail
+use novadraw::LayoutState;
+```
+
+```compile_fail
+use novadraw::EventDispatcher;
+```
+
+```compile_fail
+use novadraw::InteractionState;
+```
+
+```compile_fail
+use novadraw::PendingMutations;
+```
+
+```compile_fail
+use novadraw::NotificationQueue;
+```
+
+```compile_fail
+use novadraw::UpdateManager;
+```
+
+```compile_fail
+use novadraw::RuntimeNamespace;
+```
+
+```compile_fail
+use novadraw::RenderCommand;
 ```
 
 Use their explicit modules when required:

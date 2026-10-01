@@ -90,14 +90,14 @@ pub use figure::{
     TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
+pub(crate) use graph::FigureNode;
 pub use graph::{
-    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FigureId, FigureNode,
-    FigureTree, FigureTreeBuilder, FreeformError, FreeformState, GraphMutationError,
-    IdentitySearch, LayoutState, MAX_TREE_DEPTH, NodeState, TreeQueryError, TreeSearch,
-    TreeSearchContext, ValidationError,
+    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FigureId, FigureTree,
+    FigureTreeBuilder, FreeformError, GraphMutationError, IdentitySearch, MAX_TREE_DEPTH,
+    TreeQueryError, TreeSearch, TreeSearchContext, ValidationError,
 };
 pub use host::{HeadlessHost, ImeState, PlatformHost};
-pub use identity::RuntimeNamespace;
+pub(crate) use identity::RuntimeNamespace;
 pub use layout::{
     BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
     FreeformConstraint, FreeformConstraintError, FreeformLayout, GridAlignment, GridConstraint,
@@ -112,22 +112,23 @@ pub use render::{
     TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition, TextRange,
     UnsupportedRenderCapability,
 };
+pub(crate) use runtime::InteractionState;
 pub use runtime::context::{EventContext, SceneDispatchContext};
+pub(crate) use runtime::event::EventDispatcher;
 pub use runtime::event::{
-    DispatchContext, DispatchOutcome, Event, EventDispatcher, FocusEvent, FocusEventKind,
-    GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
-    MouseEvent, MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
+    DispatchContext, DispatchOutcome, Event, FocusEvent, FocusEventKind, GesturePhase,
+    GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
-pub use runtime::mutation;
-pub use runtime::mutation::PendingMutations;
-pub use runtime::update;
+pub(crate) use runtime::mutation;
+pub(crate) use runtime::mutation::PendingMutations;
+pub(crate) use runtime::update::UpdateManager;
 pub use runtime::update::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
-    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
-    NotificationRecord, ObservationListener, PropertyChangeEvent, PropertyChangeListener,
-    PropertyValue, StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, UpdateManager,
-    ValidatingListener,
+    ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationRecord,
+    ObservationListener, PropertyChangeEvent, PropertyChangeListener, PropertyValue,
+    StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, ValidatingListener,
 };
 pub use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
@@ -136,9 +137,9 @@ pub use runtime::{
     ComponentUpdateReceipt, ContainerEditor, FigureComponentContext, FigureComponentUpdate,
     FigureEditor, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
     FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError, ImageId,
-    InteractionState, LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate,
-    ResourceError, ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError,
-    ScaleEditor, ScrollPaneEditor, TextFlowQueryError, TimeError, TooltipPlacement, TooltipSide,
+    LogicalViewportResizeError, MonotonicTime, PointerId, PreparedFigureUpdate, ResourceError,
+    ResourceKind, ResourceRegistry, ResourceStatus, Runtime, RuntimeMutationError, ScaleEditor,
+    ScrollPaneEditor, TextFlowQueryError, TimeError, TooltipPlacement, TooltipSide,
     TooltipSnapshot, TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, ViewportEditor,
     ZoomEditor, place_tooltip,
 };

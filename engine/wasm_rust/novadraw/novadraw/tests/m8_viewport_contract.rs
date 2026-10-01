@@ -1,14 +1,15 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::Color;
+use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
 use novadraw::geometry::{Affine2D, Point, Rectangle, Translatable};
 use novadraw::render::command::RenderCommandKind;
 use novadraw::{
-    Bounded, DefaultRangeModel, EventDispatcher, Figure, FigureEventHandler, FigureTree,
-    GesturePhase, GestureSessionId, InteractionState, KeyModifiers, LineBorder, MouseButton,
-    PendingMutations, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
-    RectangleFigure, Runtime, SceneDispatchContext, ScrollBarVisibility, ScrollDeltaKind,
-    UpdateManager, ViewportFigure, WheelEvent, ZoomError, ZoomEvent, ZoomManager,
+    Bounded, DefaultRangeModel, Figure, FigureEventHandler, FigureTree, GesturePhase,
+    GestureSessionId, KeyModifiers, LineBorder, MouseButton, RangeChange, RangeListener,
+    RangeModel, RangeModelError, RangeProperty, RectangleFigure, Runtime, SceneDispatchContext,
+    ScrollBarVisibility, ScrollDeltaKind, ViewportFigure, WheelEvent, ZoomError, ZoomEvent,
+    ZoomManager,
 };
 
 struct RecordingRangeListener {

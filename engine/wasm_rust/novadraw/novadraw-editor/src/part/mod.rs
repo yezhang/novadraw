@@ -4,10 +4,11 @@
 
 use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 
+use novadraw::advanced::RuntimeNamespace;
 use novadraw::geometry::Rectangle;
 use novadraw::{
     AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, Figure, FigureId, FigureStyle,
-    RoutingConstraint, Runtime, RuntimeMutationError, RuntimeNamespace,
+    RoutingConstraint, Runtime, RuntimeMutationError,
 };
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;

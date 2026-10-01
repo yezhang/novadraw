@@ -1,10 +1,11 @@
 use std::sync::{Arc, Mutex};
 
+use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
 use novadraw::{
-    Bounded, EventDispatcher, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind,
-    GesturePhase, GestureSessionId, InteractionState, Key, KeyEvent, KeyEventKind, KeyModifiers,
-    MouseButton, MouseEvent, MouseEventKind, PendingMutations, Rectangle, RectangleFigure, Runtime,
-    SceneDispatchContext, ScrollDeltaKind, UpdateManager, WheelEvent,
+    Bounded, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind, GesturePhase,
+    GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
+    MouseEventKind, Rectangle, RectangleFigure, Runtime, SceneDispatchContext, ScrollDeltaKind,
+    WheelEvent,
 };
 
 #[derive(Clone, Debug, PartialEq)]

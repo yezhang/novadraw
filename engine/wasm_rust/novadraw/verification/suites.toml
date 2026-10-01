@@ -39,6 +39,11 @@ description = "Compile the standard facade without a platform backend"
 program = "cargo"
 args = ["check", "-p", "novadraw", "--no-default-features"]
 
+[commands."test.facade-doc"]
+description = "Verify positive and negative facade import examples independently"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--doc"]
+
 [commands."backend.native-vello"]
 description = "Compile the native Vello backend"
 program = "cargo"
@@ -64,7 +69,7 @@ args = [
 ]
 
 [commands."facade.dependencies"]
-description = "Reject platform rendering dependencies from the core facade"
+description = "Reject editor, inspector, backend, and platform dependencies from Core"
 program = "./scripts/check_facade_dependencies.sh"
 
 [commands."api.third-party-types"]
@@ -421,6 +426,7 @@ layers = ["static", "contract"]
 platforms = ["host", "native-macos", "web"]
 commands = [
   "facade.core",
+  "test.facade-doc",
   "facade.dependencies",
   "api.third-party-types",
   "dependencies.kurbo",
