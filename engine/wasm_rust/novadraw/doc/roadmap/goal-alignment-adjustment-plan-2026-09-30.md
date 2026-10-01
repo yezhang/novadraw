@@ -22,7 +22,7 @@
 | GA-3 四平台验证 | `in_progress` | release suite 与共享 Winit 适配已收口；macOS/Web 自动前置通过，Windows/Linux 待原生 runner |
 | GA-4 模块与扩展表面 | `complete` | 所有权契约、内部职责拆分、外部消费者、投影 suite、性能 A/B 与 quick gate 通过 |
 | GA-5 文档与门禁 | `complete` | 文档漂移已修正；类型、链接、命令、索引、facade 与 api_semantics 门禁通过 |
-| GA-6 发布审计 | `not_started` | 依赖 GA-1 至 GA-5 |
+| GA-6 发布审计 | `complete` | 目标矩阵与 full gate 已审计；因 GA-2/GA-3 外部证据缺口，发布结论为 `not_ready` |
 
 ## 1. 调整方向
 
@@ -230,6 +230,14 @@ Book 修订仅展示当前机制与正确使用路径，不把 ADR、审计历�
 
 毕业：可以逐项回答“实现了什么、在哪些平台验证、性能是什么、如何扩展、仍缺什么”。
 只关闭有证据的能力，不因 full gate 通过自动关闭性能、平台或人工验收项。
+
+完成证据：
+
+- `cargo xtask check --full` 在修复 bin-test 显式输入类型后完整通过；
+- GOAL-CAP/PERF/EXT/PORT 已逐项给出证据、限制和后续顺序；
+- GA-2 与 GA-3 保持 `in_progress`，总体发布结论为 `not_ready`；
+- 完成报告：
+  [GA-6 目标矩阵审计](../verification/reviews/ga6-goal-matrix-audit-2026-10-01.md)。
 
 ## 4. 执行依赖
 
