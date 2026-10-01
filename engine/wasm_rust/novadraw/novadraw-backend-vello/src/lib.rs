@@ -80,7 +80,10 @@ impl fmt::Display for VelloInitializationError {
 impl std::error::Error for VelloInitializationError {}
 
 /// Backend-owned adapter metadata for diagnostics and performance evidence.
-#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+#[cfg(any(
+    all(feature = "native", not(target_arch = "wasm32")),
+    all(feature = "web", target_arch = "wasm32")
+))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VelloAdapterInfo {
     pub name: String,
@@ -545,7 +548,10 @@ impl VelloRenderer {
     }
 
     /// Returns stable, backend-owned adapter metadata without exposing wgpu types.
-    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    #[cfg(any(
+        all(feature = "native", not(target_arch = "wasm32")),
+        all(feature = "web", target_arch = "wasm32")
+    ))]
     pub fn adapter_info(&self) -> VelloAdapterInfo {
         let info = self.render_context.devices[self.surface.dev_id]
             .adapter()
@@ -559,6 +565,17 @@ impl VelloRenderer {
             driver: info.driver,
             driver_info: info.driver_info,
         }
+    }
+
+    /// Invokes `callback` after all queue work submitted before this call completes.
+    ///
+    /// This is a diagnostic synchronization point. Queue completion does not
+    /// prove compositor presentation or physical display scanout.
+    #[cfg(all(feature = "web", target_arch = "wasm32"))]
+    pub fn on_submitted_work_done(&self, callback: impl FnOnce() + Send + 'static) {
+        self.render_context.devices[self.surface.dev_id]
+            .queue
+            .on_submitted_work_done(callback);
     }
 
     /// Waits until all queue work submitted before this call has completed.

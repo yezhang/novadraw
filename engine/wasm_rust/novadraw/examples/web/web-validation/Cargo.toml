@@ -13,6 +13,9 @@ novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = 
 novadraw-editor = { path = "../../../novadraw-editor" }
 novadraw-platform-web = { path = "../../../novadraw-platform-web", features = ["editor"] }
 novadraw-example-scenes = { path = "../../scenes" }
+js-sys = "0.3.104"
+serde.workspace = true
+serde_json.workspace = true
 wasm-bindgen = "0.2.127"
 wasm-bindgen-futures = "0.4.54"
 
@@ -33,6 +36,7 @@ features = [
   "KeyboardEvent",
   "Location",
   "MouseEvent",
+  "Navigator",
   "PointerEvent",
   "Performance",
   "UrlSearchParams",

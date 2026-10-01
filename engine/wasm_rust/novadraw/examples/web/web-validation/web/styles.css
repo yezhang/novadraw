@@ -139,6 +139,39 @@ body[data-mode="direct-edit"] .workspace {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+body[data-mode="performance"] {
+  overflow: hidden;
+  background: #101419;
+}
+
+body[data-mode="performance"] header,
+body[data-mode="performance"] .theme-tabs,
+body[data-mode="performance"] .scene-toolbar,
+body[data-mode="performance"] aside,
+body[data-mode="performance"] #novadraw-tooltip {
+  display: none;
+}
+
+body[data-mode="performance"] main {
+  display: block;
+  min-height: 100vh;
+}
+
+body[data-mode="performance"] .workspace {
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #101419;
+}
+
+body[data-mode="performance"] canvas {
+  max-width: none;
+  border: 0;
+}
+
 .scene-controls output {
   min-width: 36px;
   max-width: none;

@@ -1,6 +1,7 @@
 #![cfg(target_arch = "wasm32")]
 
 mod direct_edit_mode;
+mod performance_mode;
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -1317,13 +1318,21 @@ async fn start_async() -> Result<(), JsValue> {
         .document()
         .ok_or_else(|| JsValue::from_str("missing document"))?;
     let canvas: HtmlCanvasElement = element(&document, "novadraw-canvas")?;
-    let surface = measure_surface(&window, &canvas, None);
+    let parameters = UrlSearchParams::new_with_str(&window.location().search()?)?;
+    let mode = parameters.get("mode");
+    let surface = if mode.as_deref() == Some("performance") {
+        performance_mode::surface_info()
+    } else {
+        measure_surface(&window, &canvas, None)
+    };
     canvas.set_width(surface.pixel_width);
     canvas.set_height(surface.pixel_height);
     let backend = create_backend(&window, &canvas, surface).await?;
-    let parameters = UrlSearchParams::new_with_str(&window.location().search()?)?;
-    if parameters.get("mode").as_deref() == Some("direct-edit") {
+    if mode.as_deref() == Some("direct-edit") {
         return direct_edit_mode::start(window, document, canvas, backend);
+    }
+    if mode.as_deref() == Some("performance") {
+        return performance_mode::start(window, document, canvas, backend);
     }
 
     let app = WebValidationApp::new(window.clone(), document.clone(), canvas.clone(), backend);
