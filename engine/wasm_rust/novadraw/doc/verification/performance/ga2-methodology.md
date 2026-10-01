@@ -63,6 +63,17 @@ cargo run --release -p r8-perf -- \
   --report=target/performance/label-deep.json
 ```
 
+macOS 上的 Draw2D 同环境对照：
+
+```bash
+cargo xtask verify reference.draw2d-performance
+```
+
+Draw2D runner 位于 `third_party/draw2d-examples/`，不属于 Novadraw 示例或实现。
+它固定 Draw2D JAR 源码提交、SWT artifact、JVM 参数、Inter 字体、viewport、逻辑 DPI、
+预热和采样次数。每个场景使用独立 JVM，报告写入
+`target/verification/reports/ga2-draw2d/`。
+
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
 下比较。
@@ -72,6 +83,11 @@ p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile
 Draw2D 对照必须使用相同 OS、硬件、viewport、DPI、字体、Figure 数、可见比例、更新
 比例和输入轨迹，并保存两端提交、JVM/Rust 工具链、预热与原始样本。完成同场景 runner
 前，不得声称 Novadraw 在未测场景上快于 Draw2D。
+
+Draw2D 的离屏 SWT GC paint 包含 traversal 与 raster，而 Novadraw headless harness
+止于 CPU command recording。这两类结果只能分别观察，不能计算性能倍数。当前可直接
+对照的是 validation 与 connection routing；具体边界和结果见
+[Draw2D 同环境对照基线](ga2-draw2d-comparison-2026-10-01.md)。
 
 Web 结果单独记录浏览器版本、WebGPU adapter、GPU 和 present；Draw2D 不存在 Web
 运行结果，因此 Web 预算不能伪装成跨框架对照。

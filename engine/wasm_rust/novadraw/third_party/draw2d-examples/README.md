@@ -29,3 +29,19 @@
 ```
 
 Maven 生成的 `target/` 目录不纳入版本控制。
+
+## GA-2 性能对照
+
+`run_performance.sh` 提供固定场景的 Draw2D 参考 runner。它不依赖本机 Maven，
+会下载与当前 Draw2D JAR 要求相容的 SWT，并把依赖、原生库与编译输出保存在本目录
+`target/`。
+
+从 Novadraw 仓库根目录运行：
+
+```sh
+third_party/draw2d-examples/run_performance.sh
+```
+
+默认执行 5 次预热和 30 次采样，报告写入
+`target/verification/reports/ga2-draw2d/`。当前自动入口支持 macOS Cocoa aarch64/x86_64
+和 Linux GTK aarch64/x86_64；正式同环境证据以 macOS aarch64 为准。
