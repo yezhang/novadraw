@@ -38,6 +38,7 @@ use crate::style::{FigureStyle, ResolvedStyle};
 
 // 渲染模块
 mod layout_measurement;
+mod presentation;
 mod query;
 mod render_recursive;
 mod search;
@@ -1066,52 +1067,6 @@ impl FigureTree {
         let mut canvas = NdCanvas::new();
         update_manager.perform_update(self, &mut canvas);
         canvas
-    }
-
-    pub(crate) fn set_child_clipping_strategy(
-        &mut self,
-        figure_id: FigureId,
-        strategy: ChildClippingStrategy,
-    ) -> bool {
-        let Some(block) = self.blocks.get_mut(figure_id) else {
-            return false;
-        };
-        if block.child_clipping_strategy() == strategy {
-            return false;
-        }
-        block.state.child_clipping_strategy = Some(strategy);
-        self.notify_block_changed(figure_id);
-        true
-    }
-
-    pub fn child_clipping_strategy(&self, figure_id: FigureId) -> Option<ChildClippingStrategy> {
-        self.blocks
-            .get(figure_id)
-            .map(FigureNode::child_clipping_strategy)
-    }
-
-    /// 渲染场景图
-    ///
-    /// 使用递归实现 Figure 树的渲染遍历。
-    /// 渲染顺序（参考 draw2d）：
-    /// 1. paintFigure() - 绘制自身
-    /// 2. paintClientArea() - 绘制子元素
-    /// 3. paintBorder() - 绘制边框
-    pub(crate) fn render(&self) -> NdCanvas {
-        let mut gc = NdCanvas::new();
-        gc.damage_mut().set_full();
-        self.render_to(&mut gc);
-        gc
-    }
-
-    /// 渲染到上下文（递归实现）
-    pub(crate) fn render_to(&self, gc: &mut NdCanvas) {
-        let start_id = self.contents.unwrap_or(self.root);
-        let scene_ref = FigureTreeRenderRef {
-            blocks: &self.blocks,
-        };
-        let mut renderer = FigureRenderer::new(&scene_ref, gc);
-        renderer.render(start_id);
     }
 
     // ========== 调试验证方法 ==========
