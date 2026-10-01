@@ -6,6 +6,8 @@
 
 实现基线：`24b9f43`
 
+后续构建证据基线：`5ec80a6`
+
 本页记录 GA-3 平台构建与真实运行资格，不用交叉工具链诊断替代目标环境证据。
 支持等级的唯一声明入口仍是
 [`platform-support-matrix.md`](../../roadmap/platform-support-matrix.md)。
@@ -17,11 +19,12 @@
 | macOS Apple Silicon | `platform.native-macos-release` | PASS | 当前提交可编译 representative Native Editor |
 | Web wasm32 | `platform.web-chrome-release` | PASS | 当前提交可生成 Web validation 与 wasm-bindgen 产物 |
 | Windows x86_64 MSVC | `platform.native-windows-release` | `not_run` | 缺少原生 Windows runner |
-| Linux x86_64 X11 | `platform.native-linux-x11-release` | `not_run` | 缺少原生 Linux X11 runner |
-| Linux x86_64 Wayland | `platform.native-linux-wayland-release` | `not_run` | 缺少原生 Linux Wayland runner |
+| Linux x86_64 X11 | `platform.native-linux-x11-release` | PASS | Linux VM 内 x86_64 target 与 X11/Wayland feature 图编译通过 |
+| Linux x86_64 Wayland | `platform.native-linux-wayland-release` | PASS | Linux VM 内 x86_64 target 与 X11/Wayland feature 图编译通过 |
 
-macOS 与 Web 的自动前置于 2026-10-01 在提交 `24b9f43` 上执行通过。已有真实运行
-记录继续支撑两者的 `runtime_verified`，本轮没有把一次构建通过解释成新的运行证据。
+macOS 与 Web 的自动前置于 2026-10-01 在提交 `24b9f43` 上执行通过。Linux 两项
+构建前置随后在提交 `5ec80a6` 上执行通过。已有真实运行记录继续支撑 macOS 与 Web
+的 `runtime_verified`；Linux 只提升到 `build_verified`。
 
 ## 非资格性诊断
 
@@ -35,8 +38,27 @@ macOS 与 Web 的自动前置于 2026-10-01 在提交 `24b9f43` 上执行通过�
   `fontique` 的静态 API 契约。
 
 这些结果只证明 macOS 交叉环境不完整，不证明 Windows/Linux 源码通过或失败。
-因此三个 Native 环境均保持 `not_verified`，Wayland 未因 X11 使用同一 Rust target
-而继承任何运行结论。
+后续 Linux VM 证据已独立闭合 Linux 构建，不反向改变这次 macOS 诊断的性质。
+Windows 仍保持 `not_verified`，Wayland 也未因共享 Rust target 继承 X11 的运行结论。
+
+## Linux 构建证据
+
+Docker Desktop Linux VM 内执行环境：
+
+- kernel：Linux 6.12.76-linuxkit，容器 host 为 aarch64；
+- Rust：1.94.1，安装 `x86_64-unknown-linux-gnu` target；
+- C toolchain：`x86_64-linux-gnu-gcc/g++`；
+- target sysroot：amd64 fontconfig、X11、XKB 与 Wayland development packages；
+- `pkg-config` 明确解析到 `/usr/lib/x86_64-linux-gnu`；
+- winit feature 图同时包含 `x11`、`x11rb`、`wayland` 与 `wayland-dlopen`。
+
+两个已登记 suite 均执行通过。原始日志：
+`verification/evidence/ga3-platform-qualification-2026-10-01/linux-x86_64-build.log`，
+SHA-256 为
+`e7aa443918ee3b9bafffbd7c940e6097497dfd7fb19e9d90091ef4e63a72b87a`。
+
+该证据证明 x86_64 Linux target 的代表应用可重复检查，不包含 X11 server、Wayland
+compositor、GPU surface 或输入法运行，因此不能提升到 `runtime_verified`。
 
 ## 真实运行缺口
 

@@ -1,0 +1,33 @@
+kernel: Linux 6.12.76-linuxkit #1 SMP Thu Jun 25 13:45:40 UTC 2026 aarch64
+container_arch: aarch64
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: aarch64-unknown-linux-gnu
+release: 1.94.1
+LLVM version: 21.1.8
+target_std: x86_64-unknown-linux-gnu
+fontconfig_target: -I/usr/include/freetype2 -I/usr/include/libpng16 -L/usr/lib/x86_64-linux-gnu -lfontconfig -lfreetype
+winit_window_system_features:
+│   │   │           ├── winit feature "wayland"
+│   │   │           │   ├── winit feature "wayland-backend"
+│   │   │           │   ├── winit feature "wayland-backend" (*)
+│   │   │           │   ├── winit feature "wayland-client"
+│   │   │           ├── winit feature "wayland-csd-adwaita"
+│   │   │           ├── winit feature "wayland-dlopen"
+│   │   │           │   ├── winit feature "wayland-protocols"
+│   │   │           │   └── winit feature "wayland-protocols-plasma"
+│   │   │           └── winit feature "x11"
+│   │   │               ├── winit feature "x11-dl"
+│   │   │               ├── winit feature "x11rb"
+Suite platform.native-linux-x11-release (GA-3)
+
+==> build.native-linux-x11-release: Compile the representative Native release application with Linux x86_64 X11 support
+    $ cargo check --target x86_64-unknown-linux-gnu -p node-editor-demo
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.18s
+Suite platform.native-linux-wayland-release (GA-3)
+
+==> build.native-linux-wayland-release: Compile the representative Native release application with Linux x86_64 Wayland support
+    $ cargo check --target x86_64-unknown-linux-gnu -p node-editor-demo
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.11s
