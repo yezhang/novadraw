@@ -4656,6 +4656,25 @@ impl FigureTree {
             .collect()
     }
 
+    pub(crate) fn invalid_validation_roots(&self) -> Vec<FigureId> {
+        let mut roots = self
+            .blocks
+            .iter()
+            .filter_map(|(id, block)| {
+                if block.is_valid {
+                    return None;
+                }
+                let parent_is_valid = block
+                    .parent
+                    .and_then(|parent| self.blocks.get(parent))
+                    .is_some_and(|parent| parent.is_valid);
+                (block.parent.is_none() || parent_is_valid).then_some(id)
+            })
+            .collect::<Vec<_>>();
+        roots.sort_by_key(|id| self.depth(*id).unwrap_or(usize::MAX));
+        roots
+    }
+
     fn effective_flag_from(
         &self,
         mut figure_id: FigureId,

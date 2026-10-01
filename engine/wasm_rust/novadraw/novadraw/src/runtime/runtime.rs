@@ -759,6 +759,10 @@ impl Runtime {
         let namespace = tree.namespace();
         let resources = ResourceRegistry::with_namespace(namespace.as_uuid());
         let backend_session_id = BackendSessionId::initial(resources.namespace());
+        let mut updates = UpdateManager::with_namespace(namespace);
+        for root in tree.invalid_validation_roots() {
+            updates.add_invalid_figure(root);
+        }
         let mut runtime = Self {
             tree,
             interaction: InteractionState::default(),
@@ -766,7 +770,7 @@ impl Runtime {
             tooltip_controller: TooltipController::default(),
             accessibility: AccessibilityManager::default(),
             focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
-            updates: UpdateManager::with_namespace(namespace),
+            updates,
             mutations: PendingMutations::new(),
             full_redraw_pending: true,
             backend_session_id,
@@ -4705,9 +4709,10 @@ impl Runtime {
         self.updates.set_publication_epoch(self.stable_epoch);
 
         let has_resource_delta = self.resources.has_pending_delta();
+        let force_full_frame = self.full_redraw_pending || self.session_sync_pending;
         let mut canvas = if self.updates.is_update_queued() {
             self.tree.perform_update(&mut self.updates)
-        } else if self.full_redraw_pending || self.session_sync_pending {
+        } else if force_full_frame {
             self.tree.render()
         } else if has_resource_delta {
             NdCanvas::new()
@@ -4720,12 +4725,14 @@ impl Runtime {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::Validation(error));
         }
-        if self.full_redraw_pending
-            || self.session_sync_pending
-            || (canvas.damage().mode() == DamageMode::Partial
-                && !capabilities.supports_partial_damage())
-        {
-            canvas = self.tree.render();
+        let promote_partial = canvas.damage().mode() == DamageMode::Partial
+            && !capabilities.supports_partial_damage();
+        if force_full_frame || promote_partial {
+            if canvas.damage().mode() == DamageMode::None {
+                canvas = self.tree.render();
+            } else {
+                canvas.damage_mut().set_full();
+            }
         }
         if let Some(error) = canvas.commands().iter().find_map(|command| {
             command
@@ -4898,7 +4905,28 @@ mod tests {
         Bounded, EventContext, FigureEvent, FigureEventHandler, FocusEvent, FocusEventKind,
         Rectangle, RectangleFigure,
     };
-    use std::sync::{Arc, Mutex};
+    use std::sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    struct PaintCounterFigure {
+        paints: Arc<AtomicUsize>,
+    }
+
+    impl Figure for PaintCounterFigure {
+        fn name(&self) -> &'static str {
+            "PaintCounterFigure"
+        }
+
+        fn initial_bounds(&self) -> Rectangle {
+            Rectangle::new(0.0, 0.0, 100.0, 100.0)
+        }
+
+        fn paint_figure(&self, _canvas: &mut NdCanvas) {
+            self.paints.fetch_add(1, Ordering::SeqCst);
+        }
+    }
 
     struct FocusProbeFigure {
         bounds: Rectangle,
@@ -4973,6 +5001,49 @@ mod tests {
             pixel_height: height,
             scale_factor: 1.0,
         }
+    }
+
+    #[test]
+    fn runtime_imports_builder_validation_state_before_first_frame() {
+        let mut tree = FigureTree::new();
+        let root = tree
+            .builder()
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        let child = tree
+            .builder()
+            .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+            .unwrap();
+        tree.builder()
+            .set_layout_manager(root, Box::new(StackLayout::new()))
+            .unwrap();
+
+        let mut runtime = Runtime::new(tree);
+        assert!(!runtime.tree().is_valid(root));
+
+        assert!(runtime.prepare_frame().is_some());
+        assert!(runtime.tree().is_valid(root));
+        assert_eq!(
+            runtime.tree().figure_bounds(child),
+            Some(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+        );
+    }
+
+    #[test]
+    fn first_full_submission_paints_each_figure_once() {
+        let paints = Arc::new(AtomicUsize::new(0));
+        let mut tree = FigureTree::new();
+        let root = tree.builder().set_contents(Box::new(PaintCounterFigure {
+            paints: Arc::clone(&paints),
+        }));
+        tree.builder().validate_subtree(root).unwrap();
+        let mut runtime = Runtime::new(tree);
+
+        assert!(matches!(
+            runtime
+                .prepare_submission_state(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::Ready(_)
+        ));
+        assert_eq!(paints.load(Ordering::SeqCst), 1);
     }
 
     #[test]
