@@ -85,7 +85,7 @@ description = "Build a representative release application and record its binary 
 program = "./scripts/report_binary_size.sh"
 
 [commands."report.ga2-performance"]
-description = "Run the fixed headless CPU performance scenarios and retain raw samples"
+description = "Run isolated headless CPU scenarios and retain timing, work, and peak RSS samples"
 program = "cargo"
 args = [
   "run",
@@ -496,7 +496,7 @@ artifacts = ["target/verification/reports/native-vello-binary-size.json"]
 
 [[suites]]
 id = "core.performance"
-title = "Fixed headless CPU performance scenarios and deterministic work counters"
+title = "Isolated headless CPU timing, process memory, and deterministic work counters"
 milestone = "GA-2"
 kind = "quality"
 layers = ["contract", "headless"]

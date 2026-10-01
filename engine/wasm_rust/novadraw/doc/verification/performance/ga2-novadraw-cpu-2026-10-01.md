@@ -64,12 +64,32 @@ m9_connection_runtime: 29 passed
 连接失败路径同时复核了缺失端点、unresolved 状态和旧几何清理，未以性能修改绕过失败
 语义。
 
+## 进程内存
+
+提交 `3a05b4d80ffee2fd064767eea27cf332fbda23d1` 将 14 个场景改为独立进程运行，
+并记录场景构建和采样阶段的峰值 RSS。clean workspace 最终报告为
+`target/verification/reports/ga2-novadraw.json`，SHA-256：
+`7bb53201408275dac3ec1162992e4c9f303399be11bf75fcedfc676045f6ad00`。
+
+| 场景 | 采样后峰值 RSS | 构建峰值增长 | 采样峰值增长 |
+|---|---:|---:|---:|
+| 宽树全量录制 4,096 | 48.58 MiB | 10.84 MiB | 28.47 MiB |
+| 深树全量录制 10,000 | 142.69 MiB | 24.89 MiB | 108.44 MiB |
+| 深树 validation 10,000 | 84.36 MiB | 23.73 MiB | 51.33 MiB |
+| 深 Label 刷新 1,000 | 22.14 MiB | 12.39 MiB | 0.47 MiB |
+| 深 TextFlow 录制 512 | 19.44 MiB | 10.16 MiB | 0.02 MiB |
+| 独立连接 routing 1,000 | 30.34 MiB | 4.36 MiB | 16.69 MiB |
+| 100% 更新 4,096 | 53.83 MiB | 22.25 MiB | 22.33 MiB |
+
+本次 macOS 运行使用 `getrusage` 的 `ru_maxrss` 字节值。该指标是进程生命周期峰值，
+不等同于活跃堆、allocator 独占内存或 GPU 显存；不同场景的完整原始字节值保存在 JSON
+报告中。普通 gate 不设置跨机器 RSS 阈值。
+
 ## 限制
 
 本报告只覆盖 headless CPU setup、validation、routing 和 command recording，不覆盖：
 
 - GPU submission、GPU execution、present 或 input-to-present；
-- 进程峰值或增量内存；
 - Draw2D 同场景、同环境对照；
 - 浏览器/WebGPU 运行预算。
 
