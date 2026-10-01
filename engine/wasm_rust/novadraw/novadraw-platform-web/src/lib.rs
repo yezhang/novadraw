@@ -16,7 +16,7 @@ pub use edit_context::WebEditContextHost;
 pub use host::WebPlatformHost;
 pub use input::{
     AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPointerInput, WebWheelDeltaMode,
-    adapt_key_input,
+    adapt_key_input, adapt_pointer_button,
 };
 #[cfg(feature = "editor")]
 pub use text_input::{

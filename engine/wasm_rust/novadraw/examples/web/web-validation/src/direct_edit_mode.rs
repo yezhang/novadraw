@@ -21,7 +21,7 @@ use novadraw_editor::{
     VisualUpdateContext,
 };
 use novadraw_platform_web::{
-    WebEditContextHost, WebPlatformHost, WebPointerInput, WebTextInputHost,
+    WebEditContextHost, WebPlatformHost, WebPointerInput, WebTextInputHost, adapt_pointer_button,
 };
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{
@@ -633,6 +633,9 @@ impl DirectEditWebApp {
 
     fn on_pointer_down(&mut self, event: PointerEvent) {
         self.advance_time();
+        let Some(button) = adapt_pointer_button(event.button()) else {
+            return;
+        };
         if self.viewer.direct_text_edit().is_some() {
             event.prevent_default();
         } else {
@@ -643,7 +646,7 @@ impl DirectEditWebApp {
             && let Err(error) = self.domain.pointer_pressed(
                 &mut self.viewer,
                 point,
-                MouseButton::Left,
+                button,
                 pointer_modifiers(&event),
             )
         {
@@ -655,14 +658,18 @@ impl DirectEditWebApp {
 
     fn on_pointer_up(&mut self, event: PointerEvent) {
         self.advance_time();
-        if let Some(point) = self.pointer_input(&event).logical_position() {
-            if let Err(error) =
-                self.domain
-                    .pointer_released(&mut self.viewer, point, MouseButton::Left)
+        if let Some(button) = adapt_pointer_button(event.button())
+            && let Some(point) = self.pointer_input(&event).logical_position()
+        {
+            if let Err(error) = self
+                .domain
+                .pointer_released(&mut self.viewer, point, button)
             {
                 self.last_error = Some(error.to_string());
             }
-            self.start_edit_at(point);
+            if button == MouseButton::Left {
+                self.start_edit_at(point);
+            }
         }
         let _ = self.canvas.release_pointer_capture(event.pointer_id());
         self.sync_text_input_effects();

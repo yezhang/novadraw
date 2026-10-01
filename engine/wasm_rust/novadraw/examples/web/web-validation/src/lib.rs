@@ -9,8 +9,8 @@ use std::rc::Rc;
 
 use novadraw::event::{
     AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate, EventContext,
-    FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MonotonicTime, MouseButton,
-    TooltipUpdate, place_tooltip,
+    FigureEventHandler, FocusTraversalOutcome, Key, KeyModifiers, MonotonicTime, TooltipUpdate,
+    place_tooltip,
 };
 use novadraw::figure::{Bounded, CursorIcon, Shape};
 use novadraw::graphics::{LineCap, LineJoin};
@@ -28,7 +28,7 @@ use novadraw_example_scenes::{
 };
 use novadraw_platform_web::{
     AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPlatformHost, WebPointerInput,
-    WebWheelDeltaMode, adapt_key_input,
+    WebWheelDeltaMode, adapt_key_input, adapt_pointer_button,
 };
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -929,21 +929,26 @@ impl WebValidationApp {
 
     fn on_pointer_down(&mut self, event: PointerEvent) {
         self.advance_runtime_time();
+        let Some(button) = adapt_pointer_button(event.button()) else {
+            return;
+        };
         let _ = self.canvas.focus();
         let _ = self.canvas.set_pointer_capture(event.pointer_id());
         if let Some(point) = self.pointer_input(&event).logical_position() {
             self.runtime.dispatch_mouse_moved(point.x(), point.y());
             self.runtime
-                .dispatch_mouse_pressed(point.x(), point.y(), MouseButton::Left);
+                .dispatch_mouse_pressed(point.x(), point.y(), button);
             self.request_and_render();
         }
     }
 
     fn on_pointer_up(&mut self, event: PointerEvent) {
         self.advance_runtime_time();
-        if let Some(point) = self.pointer_input(&event).logical_position() {
+        if let Some(button) = adapt_pointer_button(event.button())
+            && let Some(point) = self.pointer_input(&event).logical_position()
+        {
             self.runtime
-                .dispatch_mouse_released(point.x(), point.y(), MouseButton::Left);
+                .dispatch_mouse_released(point.x(), point.y(), button);
         }
         let _ = self.canvas.release_pointer_capture(event.pointer_id());
         self.request_and_render();

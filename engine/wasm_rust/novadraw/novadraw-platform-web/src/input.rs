@@ -1,7 +1,7 @@
 use novadraw::Point;
 use novadraw::event::{
-    FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, PointerId,
-    ScrollDeltaKind, WheelEvent, ZoomEvent,
+    FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, MouseButton,
+    PointerId, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,6 +53,15 @@ pub enum AdaptedKeyInput {
         modifiers: KeyModifiers,
     },
     Ignored,
+}
+
+pub const fn adapt_pointer_button(button: i16) -> Option<MouseButton> {
+    match button {
+        0 => Some(MouseButton::Left),
+        1 => Some(MouseButton::Middle),
+        2 => Some(MouseButton::Right),
+        _ => None,
+    }
 }
 
 pub fn adapt_key_input(key: Key, pressed: bool, modifiers: KeyModifiers) -> AdaptedKeyInput {
@@ -190,6 +199,16 @@ mod tests {
             AdaptedKeyInput::Ignored
         );
     }
+
+    #[test]
+    fn dom_pointer_buttons_map_without_promoting_unknown_buttons_to_left() {
+        assert_eq!(adapt_pointer_button(0), Some(MouseButton::Left));
+        assert_eq!(adapt_pointer_button(1), Some(MouseButton::Middle));
+        assert_eq!(adapt_pointer_button(2), Some(MouseButton::Right));
+        assert_eq!(adapt_pointer_button(-1), None);
+        assert_eq!(adapt_pointer_button(3), None);
+    }
+
     #[test]
     fn web_pointer_coordinates_remain_in_css_logical_units() {
         let input = WebPointerInput {
