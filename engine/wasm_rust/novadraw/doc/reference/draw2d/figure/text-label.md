@@ -1,6 +1,6 @@
 # Draw2D Text、Label 与 TitleBarBorder 源码语义
 
-类型：`reference`
+类型：`reference-analysis`
 
 范围：M10.2
 

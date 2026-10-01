@@ -74,7 +74,7 @@ flowchart TB
 ```bash
 cargo xtask list
 cargo xtask docs
-cargo xtask run workspace.quality
+cargo xtask verify workspace.quality
 cargo xtask check --full
 ```
 

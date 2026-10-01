@@ -263,7 +263,9 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 | `ManhattanConnectionRouter` | `ManhattanConnectionRouter` | 直角路由 |
 | `FanRouter` | `FanRouter` | 多线分散 |
 
-**显式不做**：`ShortestPathConnectionRouter`（图算法复杂，留到 Year 2）
+`ShortestPathConnectionRouter` 已作为 Core 1.0 之后的 P2-C02 delta 完成，不改写
+M9 原始“三种 Router”交付范围。实现与验证状态见
+[`p2-delta-backlog.md`](p2-delta-backlog.md#p2-c02-障碍感知-shortest-path-router)。
 
 ### 装饰与层
 

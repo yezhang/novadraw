@@ -366,4 +366,4 @@ assert!(runtime.complete_submission(session_id, frame_id, outcome));
 - [`d4_component_update.rs`](../../novadraw/tests/d4_component_update.rs)
 - [`d4_notification_epoch.rs`](../../novadraw/tests/d4_notification_epoch.rs)
 - [`runtime_resize_contract.rs`](../../novadraw/tests/runtime_resize_contract.rs)
-- `cargo xtask run core.runtime`
+- `cargo xtask verify core.runtime`

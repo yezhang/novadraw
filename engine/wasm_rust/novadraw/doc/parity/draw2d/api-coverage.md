@@ -236,7 +236,7 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `graphics.context` | `Graphics.pushState/popState/restoreState` | `novadraw_render::NdCanvas::{push_state,pop_state,restore_state}` | verified | 保持 M1 state stack probe |
+| `graphics.context` | `Graphics.pushState/popState/restoreState` | `novadraw::graphics::NdCanvas::{push_state,pop_state,restore_state}` | verified | 保持 M1 state stack probe |
 | `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,set_clip,reset_clip,clip_depth}` 覆盖 Core 1.0 矩形裁剪；`getClip/clipPath` 未提供 | partial | 矩形 clip 已验证；clip 查询与 path clip 明确延后到出现真实产品需求 |
 | `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `NdCanvas::{translate,scale,rotate,transform,set_transform,reset_transform}`；任意 affine 可表达 shear，未提供 `getAbsoluteScale` convenience | partial | transform 语义已验证；状态查询 convenience 明确延后 |
 | `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `NdCanvas::{line,draw_rectangle,draw_oval,draw_polygon,polyline}`；路径使用 `begin_path/move_to/line_to/.../stroke/fill` | verified | M1 状态栈与 M10.1 reusable Figure 已覆盖实际消费路径 |
@@ -245,7 +245,7 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 | `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`NdCanvas::{draw_text_layout,fill_text_layout,stroke_text_layout}` 只消费 Runtime shaping 后的 `TextLayout` / `DrawGlyphRun` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
 | `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size,draw_image_region}` 消费 `ImageResourceRef`；source 使用图像物理像素域，destination 使用 Canvas 逻辑坐标域 | verified | `core.image-source-rectangle` 覆盖完整/局部 source、结构化失败、Vello 仿射映射与 destination clip |
 | `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,set_line_style,line_cap,line_join}`；Solid/Dash/Dot 由 RenderCommand 跨后端传递并映射为 Vello Stroke pattern | partial | 内置 line style 已验证；自定义 dash array、miter setter、antialias、XOR 明确延后 |
-| `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw_geometry::{Point,Vec2,Dimension,Rectangle,Insets,PointList,Affine2D,Precision}`；位置与向量类型分离，统一使用 f64 精度 | verified | M1/M4/M9/M10 已覆盖点向量运算、变换与 point-list 消费路径 |
+| `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw::geometry::{Point,Vec2,Dimension,Rectangle,Insets,PointList,Affine2D,Precision}`；位置与向量类型分离，统一使用 f64 精度 | verified | M1/M4/M9/M10 已覆盖点向量运算、变换与 point-list 消费路径 |
 
 Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.java`、`PrinterGraphics.java`。
 
@@ -260,7 +260,7 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}`、parent-first activation、descendant-first disposal、旧 visual damage 与 side-state 清理 | verified | D4.3 自动契约覆盖 10,000 层 dispose 与 panic/fault 边界 |
 | `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`FigureEditor::{set_bounds,translate}` update-aware 修改 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源 |
 | `figure.box.client_area` | `getClientArea()`, `getClientArea(Rectangle)`, `getInsets()` | `Bounded::{client_area,insets}` | verified | M5 layout area、M8 viewport client area 继续复查 |
-| `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{set_visible,set_enabled,is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` | verified | M6 复查 disabled 对 event target 的策略 |
+| `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` 只读查询；`FigureEditor::{set_visible,set_enabled}` 提交 mutation | verified | M6 复查 disabled 对 event target 的策略 |
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |
 | `hit_test.search` | `findFigureAtExcluding`, `TreeSearch.accept/prune` | `TreeSearch`、`TreeSearchContext`、`ExclusionSearch`、`FigureTree::{hit_test_with,hit_test_excluding,find_in_subtree,ancestor_ids,descendant_ids,is_ancestor_of}` | verified | D1.5a：共享 hit-test traversal、prune 子树与稳定结构查询已有契约测试 |
 | `figure.properties` | `foreground/background/font/cursor/opaque` | `FigureStyle`、`ResolvedStyle`、Runtime update-aware style/opaque mutation 与 cursor 查询 | verified | D1.4：继承、局部覆盖、通知、绘制应用与 macOS 人工验收已完成 |
@@ -318,7 +318,7 @@ Draw2D 证据入口：`LayoutManager.java`、`UpdateManager.java`、`DeferredUpd
 | `event.dispatcher` | `dispatchMouseDragged/Entered/Exited/Hover/DoubleClicked` | entered/exited 与 hover callback 由 `mouseTarget` 路由；`hoverSource` 专用于 tooltip source；pointer leave 清理 capture/pressed | verified | 交互父 + 非交互子、capture release/leave、mouse/cursor/tooltip target 分轨 |
 | `event.dispatcher` | `setRoot`, `setControl` | `Runtime::set_contents` 管理 root；`PlatformHost` 注入平台服务，避免 dispatcher 持有原生 control | verified | 接受组合根 + host adapter 变体，examples 只做平台输入适配 |
 | `event.focus` | `requestFocus`, `requestRemoveFocus`, `getFocusOwner`, `hasFocus`, `isFocusTraversable` | `Runtime::{request_focus,clear_focus,traverse_focus}`、`InteractionState::focus_owner`、`FocusTraversalPolicy`、`FocusEvent` | verified | D1.5b 引擎 focus model 与 D1.5c Native/Web Tab traversal 已通过自动验证及 macOS/Web 人工验收 |
-| `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release 自动释放；`FigureTree::{captured,set_captured}` | verified | captured target 与 hoverSource 独立 |
+| `event.dispatcher` | `setCapture`, `releaseCapture`, `isCaptured` | handled press 自动 capture，release/leave 自动释放；`DispatchOutcome::capture` 暴露本次结果，capture 状态由 Runtime interaction state 内部维护 | verified | captured target 与 hoverSource 独立，不公开任意 capture mutator |
 | `event.input_listeners` | `MouseWheelListener`, `KeyListener`, `FocusListener` | `WheelEvent`、`ZoomEvent`、`KeyEvent`、`FocusEvent` 与 Figure callback 端口；scroll/zoom session 固定 target | verified | Winit 只在 `novadraw-example-support` 适配单位、DPI 与 phase；pointer capture 与 gesture session 分轨 |
 | `event.dispatcher` | `updateCursor`, `getAccessibilityDispatcher` | cursor 与 Tooltip 经 PlatformHost effect；Runtime 从 stable scene 发布 accessibility Snapshot/Delta，Host 只做平台映射 | verified | M10.5 保留 engine semantics / platform adapter 分层 |
 
@@ -341,12 +341,12 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`、`UpdateManager.java`、li
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportHandle::{contents,set_contents}`；`ChildPolicy::Single` 在 add/reparent 入口强制单 contents | verified | `m8_viewport_contract` 覆盖替换与原子拒绝 |
+| `viewport.scroll_zoom` | `Viewport.getContents/setContents` | `ViewportHandle::contents` 只读查询；`ViewportEditor::set_contents` 提交替换；`ChildPolicy::Single` 在 add/reparent 入口强制单 contents | verified | `m8_viewport_contract` 覆盖替换与原子拒绝 |
 | `viewport.scroll_zoom` | `get/setHorizontalRangeModel`, `get/setVerticalRangeModel` | `RangeModel` / `DefaultRangeModel`；Viewport 与 ScrollBar 在私有 runtime 中共享模型，公开 handle 提供 snapshot | verified | ViewportLayout 通过 sealed typed effect 在完整 LayoutOutput 校验后提交 range/content scale |
-| `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `ViewportHandle::{view_location,set_view_location,set_horizontal_location,set_vertical_location,scroll_by}` | verified | clamp、property/coordinate effect 与 repaint 已覆盖 |
+| `viewport.scroll_zoom` | `getViewLocation`, `setViewLocation`, `setHorizontalLocation`, `setVerticalLocation` | `ViewportHandle::view_location` 只读查询；`ViewportEditor::{set_view_location,set_horizontal_location,set_vertical_location,scroll_by}` 提交 mutation | verified | clamp、property/coordinate effect 与 repaint 已覆盖 |
 | `viewport.scroll_zoom` | `ScalableFigure`、`AbstractZoomManager`、`IZoomScrollPolicy`、zoom levels、fit | `ScalableFigure`、`ScaleHandle`、`ZoomManager`、`ZoomScrollPolicy`、`DefaultScrollPolicy`、`MouseLocationZoomScrollPolicy` | verified | `setScale` 只失效；manager 执行 location → scale → validate → scroll；Viewport 不保存 zoom |
-| `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height,set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
-| `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::{viewport,set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
+| `viewport.scroll_zoom` | `get/setContentsTracksWidth/Height` | `ViewportHandle::{contents_tracks_width,contents_tracks_height}` 只读查询；`ViewportEditor::{set_tracks_width,set_tracks_height}` + `ViewportLayout` | verified | minimum/preferred size 与 range extent 已覆盖 |
+| `viewport.scroll_zoom` | `ScrollPane.getViewport/setViewport`, `setContents`, `scrollTo`, scrollbar visibility | `ScrollPaneHandle::viewport` 只读查询；`ScrollPaneEditor::{set_contents,scroll_to,set_scroll_bar_visibility}` + `ScrollPaneLayout` | verified | 标准组合固定持有一个 viewport，不开放破坏组合不变量的 setViewport |
 | `viewport.scroll_zoom` | `ScrollBar.get/setRangeModel`, `get/setValue`, `stepUp/stepDown`, increments | `ScrollBarFigure` 与 Viewport 共享 RangeModel，支持单次 press step、page 与 thumb drag；Lines/LogicalPixels 分级，wheel 未消费时沿祖先 fallback | verified | `m8_viewport_contract` + `scroll-pane-demo --verify`；Draw2D `REPEAT_FIRING` 按住连发随 P2 widget repeat scheduler 延后 |
 | `layer.freeform` | `Layer.containsPoint/findFigureAt`, `LayeredPane.add/getLayer/removeLayer`, `FreeformLayer.getFreeformExtent/setFreeformBounds`, `ScalableFreeformLayeredPane` | Layer、keyed pane、Freeform 类型、派生 extent、nested 映射、OverflowVisible、`FreeformLayout` 与 content-domain Viewport/Zoom 集成 | verified | D2.1-D2.5 自动契约与 Native/Web 人工验收通过；不递归改写普通 child bounds |
 

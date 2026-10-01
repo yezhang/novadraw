@@ -45,7 +45,8 @@
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
-新增设计尚待实现，不沿用旧验证结果推断完成。
+规范效力不等于实现状态。专题文档必须分别声明两者，不能用 accepted 推断 implemented，
+也不能沿用旧验证结果推断当前完成状态。
 
 ## 非规范提案
 

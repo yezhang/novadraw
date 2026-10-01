@@ -2,7 +2,9 @@
 
 类型：`normative-design`
 
-状态：`in_progress`
+规范效力：`accepted`
+
+实现状态：`partial`（本地快照与事件观察已实现；跨进程宿主与 wire protocol 延后）
 
 ## 1. 目标
 
@@ -58,10 +60,15 @@ Figure App                         Inspector App
 - Figure App 是被观察对象，拥有 Runtime、平台窗口和真实用户输入；
 - Inspector App 是独立诊断工具，即使未连接 Figure App 也可以浏览离线 trace；
 - `novadraw-inspector` 保持本地观察与快照模型；
-- 后续新增 `novadraw-inspector-protocol` crate，承载版本化 wire message，不依赖
-  Runtime、Vello、winit 或具体 UI；
+- 首个跨进程消费者出现前，wire message schema 与 transport adapter 属于具体宿主；
+  只有出现独立版本兼容或多个真实消费者时，才评估
+  `novadraw-inspector-protocol` package；
+- 若后续拆分 protocol package，它不得依赖 Runtime、Vello、winit 或具体 UI；
 - Figure App 只在明确启用开发态 `devtools` feature 时创建 bridge；产品构建不监听
   Inspector 端点。
+
+该边界遵循 ADR-023：协议 package 是有版本与复用证据后的可选结果，不是当前设计的
+预先交付项。
 
 ### 3.1 本地传输与会话
 
@@ -212,4 +219,5 @@ flattening、展开状态、过滤和选中状态均属于 Inspector UI，不得
 
 - [UpdateManager](../rendering/update-manager.md)
 - [ADR-016](../../adr/adr-016-figure-inspector-observability.md)
+- [ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md)
 - [P2 delta backlog](../../roadmap/p2-delta-backlog.md)

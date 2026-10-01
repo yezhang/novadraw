@@ -558,5 +558,5 @@ resize 或节点移动后，Viewer 重新执行几何查询并发出 `SetArea`�
 - [`g3_viewer_interaction_contract.rs`](../../novadraw-editor/tests/g3_viewer_interaction_contract.rs)
 - [`Winit 文本输入桥测试`](../../novadraw-platform-winit/src/text_input.rs)
 - [`Web 文本输入桥测试`](../../novadraw-platform-web/src/text_input.rs)
-- `cargo xtask run core.runtime`
+- `cargo xtask verify core.runtime`
 - `cargo xtask verify platform.p2-e02-text-input`

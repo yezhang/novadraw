@@ -2,7 +2,9 @@
 
 类型：`normative-design`
 
-状态：`accepted / initial-contract-implemented`
+规范效力：`accepted`
+
+实现状态：`implemented`
 
 范围：ADR-014 D4.4 `typed component update`。
 

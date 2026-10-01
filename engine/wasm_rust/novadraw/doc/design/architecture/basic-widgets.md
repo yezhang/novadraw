@@ -1,6 +1,6 @@
 # Basic Widgets Contract
 
-类型：`architecture`
+类型：`normative-design`
 
 ## 范围
 
