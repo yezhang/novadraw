@@ -431,14 +431,7 @@ args = ["check", "-p", "node-editor-demo"]
 
 [commands."build.native-windows-release"]
 description = "Compile the representative Native release application for Windows x86_64 MSVC"
-program = "cargo"
-args = [
-  "check",
-  "--target",
-  "x86_64-pc-windows-msvc",
-  "-p",
-  "node-editor-demo",
-]
+program = "./scripts/build_windows_target.sh"
 
 [commands."build.native-linux-x11-release"]
 description = "Compile the representative Native release application with Linux x86_64 X11 support"
@@ -1294,6 +1287,7 @@ paths = [
   "novadraw-platform-winit/**",
   "novadraw-backend-vello/**",
   "examples/native/node-editor-demo/**",
+  "scripts/build_windows_target.sh",
   "scripts/run_native_platform_validation.sh",
 ]
 documents = [
