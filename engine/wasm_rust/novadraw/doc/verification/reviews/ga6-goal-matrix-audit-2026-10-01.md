@@ -10,6 +10,11 @@
 
 代码基线：`32b9568`
 
+后续证据说明：本报告的矩阵冻结于上述审计基线。后续 Linux X11/Wayland 与 Windows
+x86_64 构建证据已将三者提升为 `build_verified`，当前声明以
+[`platform-support-matrix.md`](../../roadmap/platform-support-matrix.md) 为准；
+三者真实窗口运行仍未验证，发布结论保持 `not_ready`。
+
 ## 1. 结论
 
 GA-0 至 GA-5 已完成可在当前仓库和 macOS 环境闭合的目标登记、API 修复、平台任务

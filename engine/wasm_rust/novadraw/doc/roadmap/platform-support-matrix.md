@@ -24,7 +24,7 @@
 |---|---|---|---|---|---|
 | macOS | Apple Silicon、Metal/Vello、winit | `runtime_verified` | `platform.native-macos-release`、M1-M10、G3-G5、P2-E02 人工验收 | 完整原生 AT provider、固定性能 runner | GA-2、P2-A01 |
 | Web | Chrome + WebGPU/Vello + wasm32 | `runtime_verified` | `platform.web-chrome-release`、M10 Web、P2-E02 人工验收 | Firefox/Safari、DOM accessibility action、浏览器性能矩阵 | GA-3、P2-A01 |
-| Windows | x86_64、winit + Vello/WGPU，具体 GPU 未固定 | `not_verified` | `platform.native-windows-release` 已登记，尚无合格 runner 结果 | 原生构建、DirectX/Vulkan、DPI、IME、surface 恢复、AT | `platform.native-windows-release` |
+| Windows | x86_64 MSVC、winit + Vello/WGPU，具体 GPU 未固定 | `build_verified` | macOS arm64 上以 cargo-xwin 0.23.1、SDK 10.0.26100、CRT 14.44.17.14 执行 `platform.native-windows-release` 通过 | 原生 Windows 窗口、DirectX/Vulkan、DPI、IME、surface 恢复、AT | `run.native-windows-release` |
 | Linux X11 | x86_64、winit + Vello/WGPU | `build_verified` | Linux 6.12 VM 中以 Rust 1.94.1、x86_64 sysroot 执行 `platform.native-linux-x11-release` 通过 | 真实 X11 窗口、GPU、DPI、XIM/IME、clipboard、AT | `run.native-linux-x11-release` |
 | Linux Wayland | x86_64、winit + Vello/WGPU | `build_verified` | Linux 6.12 VM 中以 Rust 1.94.1、x86_64 sysroot 执行 `platform.native-linux-wayland-release` 通过 | 真实 Wayland compositor、GPU、fractional scale、IME、surface 恢复、AT | `run.native-linux-wayland-release` |
 | Headless | 无窗口、测试 backend/host | `runtime_verified` | contract tests 与 Editor replay | 不是桌面发布平台；不替代 GPU/输入验收 | 保持回归 |

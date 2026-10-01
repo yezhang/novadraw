@@ -1,0 +1,23 @@
+timestamp_utc: 2026-10-01T12:12:44Z
+commit: 379f1aca570af341d460cfaa3d8dcb579168a0d5
+kernel: Darwin JW6LVY3705 23.6.0 Darwin Kernel Version 23.6.0: Wed May 14 13:52:22 PDT 2025; root:xnu-10063.141.1.705.2~2/RELEASE_ARM64_T6000 arm64
+rustc 1.94.1 (e408947bf 2026-03-25)
+binary: rustc
+commit-hash: e408947bfd200af42db322daf0fadfe7e26d3bd1
+commit-date: 2026-03-25
+host: aarch64-apple-darwin
+release: 1.94.1
+LLVM version: 21.1.8
+windows_target_std: x86_64-pc-windows-msvc
+llvm_tools: llvm-tools-aarch64-apple-darwin
+cargo-xwin 0.23.1
+Suite platform.native-windows-release (GA-3)
+
+==> build.native-windows-release: Compile the representative Native release application for Windows x86_64 MSVC
+    $ ./scripts/build_windows_target.sh
+Windows cross-check host: aarch64-apple-darwin
+Windows cross-check target: x86_64-pc-windows-msvc
+cargo-xwin: cargo-xwin 0.23.1
+xwin SDK/CRT: 10.0.26100 / 14.44.17.14
+xwin cache: /Users/bytedance/Documents/code/GitHub/drawjs/engine/wasm_rust/novadraw/target/xwin-cache
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.37s
