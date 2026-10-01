@@ -2410,6 +2410,16 @@ where
     where
         A: 'static,
     {
+        self.with_policy_fault_boundary(|viewer| viewer.command_for_request_inner(request))
+    }
+
+    fn command_for_request_inner(
+        &mut self,
+        request: &EditorRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
         let mut commands = Vec::new();
         for target in self.resolve_policy_targets(request)? {
             let host = self.policy_host(target)?;
@@ -2442,6 +2452,13 @@ where
         &mut self,
         request: &EditorRequest,
     ) -> Result<Vec<FigureId>, ViewerError> {
+        self.with_policy_fault_boundary(|viewer| viewer.show_feedback_for_request_inner(request))
+    }
+
+    fn show_feedback_for_request_inner(
+        &mut self,
+        request: &EditorRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
         let mut contributions = Vec::new();
         for target in self.resolve_policy_targets(request)? {
             let host = self.policy_host(target)?;
@@ -2465,6 +2482,21 @@ where
             figures.push(figure);
         }
         Ok(figures)
+    }
+
+    fn with_policy_fault_boundary<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> Result<T, ViewerError>,
+    ) -> Result<T, ViewerError> {
+        self.ensure_ready()?;
+        match catch_unwind(AssertUnwindSafe(|| operation(self))) {
+            Ok(result) => result,
+            Err(payload) => {
+                self.force_drop_direct_text_edit();
+                self.faulted = true;
+                resume_unwind(payload)
+            }
+        }
     }
 
     /// Resolves one unambiguous source policy into a connection-creation plan.

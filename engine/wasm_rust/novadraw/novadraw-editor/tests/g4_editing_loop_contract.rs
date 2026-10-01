@@ -1,4 +1,11 @@
-use std::{cell::RefCell, collections::HashMap, convert::Infallible, rc::Rc, time::Duration};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    convert::Infallible,
+    panic::{AssertUnwindSafe, catch_unwind},
+    rc::Rc,
+    time::Duration,
+};
 
 use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
 use novadraw::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
@@ -343,6 +350,8 @@ struct PolicyRoutingState {
     target: Option<novadraw_editor::EditPartId>,
     command_hosts: Vec<NodeId>,
     feedback_hosts: Vec<NodeId>,
+    panic_command: bool,
+    panic_feedback: bool,
 }
 
 struct RoutingPolicy {
@@ -369,6 +378,10 @@ impl EditPolicy<DiagramModel> for RoutingPolicy {
         _request: &EditorRequest,
         _model: &DiagramModel,
     ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+        assert!(
+            !self.state.borrow().panic_command,
+            "policy command extension panicked"
+        );
         self.state.borrow_mut().command_hosts.push(host.model());
         Ok(None)
     }
@@ -379,6 +392,10 @@ impl EditPolicy<DiagramModel> for RoutingPolicy {
         _request: &EditorRequest,
         model: &DiagramModel,
     ) -> Result<Vec<FeedbackVisual>, PolicyError> {
+        assert!(
+            !self.state.borrow().panic_feedback,
+            "policy feedback extension panicked"
+        );
         self.state.borrow_mut().feedback_hosts.push(host.model());
         Ok(vec![FeedbackVisual::scaled(Box::new(
             RectangleFigure::from_bounds(model.nodes[&host.model()].bounds),
@@ -863,6 +880,57 @@ fn policy_target_routes_command_and_feedback_to_the_resolved_part_once() {
         viewer.visual_owner(feedback[0]).unwrap().owner_part(),
         Some(second)
     );
+}
+
+#[test]
+fn policy_command_panic_faults_viewer_and_rejects_follow_up_operations() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState {
+        panic_command: true,
+        ..PolicyRoutingState::default()
+    }));
+    let mut viewer = routing_viewer(state);
+    let source = viewer.part_for_model(FIRST).unwrap();
+    let request = EditorRequest::Delete(DeleteRequest::new(
+        vec![source],
+        InteractionRevision::initial(),
+    ));
+
+    let panic = catch_unwind(AssertUnwindSafe(|| viewer.command_for_request(&request)));
+    assert!(panic.is_err());
+    assert!(viewer.is_faulted());
+    assert!(matches!(viewer.model_mut(), Err(ViewerError::Faulted)));
+    assert!(matches!(
+        viewer.command_for_request(&request),
+        Err(ViewerError::Faulted)
+    ));
+    assert!(matches!(
+        viewer.show_feedback_for_request(&request),
+        Err(ViewerError::Faulted)
+    ));
+}
+
+#[test]
+fn policy_feedback_panic_faults_viewer_before_attaching_feedback() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState {
+        panic_feedback: true,
+        ..PolicyRoutingState::default()
+    }));
+    let mut viewer = routing_viewer(state);
+    let source = viewer.part_for_model(FIRST).unwrap();
+    let request = EditorRequest::Delete(DeleteRequest::new(
+        vec![source],
+        InteractionRevision::initial(),
+    ));
+
+    let panic = catch_unwind(AssertUnwindSafe(|| {
+        viewer.show_feedback_for_request(&request)
+    }));
+    assert!(panic.is_err());
+    assert!(viewer.is_faulted());
+    assert!(matches!(
+        viewer.show_feedback_for_request(&request),
+        Err(ViewerError::Faulted)
+    ));
 }
 
 #[test]
