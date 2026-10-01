@@ -508,7 +508,10 @@ paths = [
   "novadraw/src/connection/**",
   "novadraw/src/runtime/**",
 ]
-documents = ["doc/verification/performance/ga2-methodology.md"]
+documents = [
+  "doc/verification/performance/ga2-methodology.md",
+  "doc/verification/performance/ga2-novadraw-cpu-2026-10-01.md",
+]
 artifacts = ["target/verification/reports/ga2-novadraw.json"]
 
 [[suites]]
