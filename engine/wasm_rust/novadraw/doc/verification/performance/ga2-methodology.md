@@ -128,6 +128,25 @@ CoreGraphics 捕获开销，是实际 WindowServer 可见时刻的保守上界�
 surface、像素变化或超时失败都会令 suite 失败，不回退到 queue completion 或
 `present()` 调用。
 
+Chrome WebGPU 使用独立入口：
+
+```bash
+cargo xtask verify backend.webgpu-browser-performance
+```
+
+该 suite 固定 Google Chrome 154.x、Node.js 24、1024 × 768 surface、1× DPR、
+4,096 个矩形、5 次预热和 30 次采样。runner 启动非 headless 的独立 Chrome profile，
+并同时校验 CDP GPU diagnostics、`navigator.gpu` adapter info 和 Vello backend
+metadata；fallback、SwiftShader/软件 adapter、Canvas2D 或非 Apple/Metal 环境均失败。
+页面必须持续 visible、focused，且 canvas 必须完整位于 viewport 内。正式证据还要求
+构建注入的 Git revision 与当前 HEAD 一致、dirty 为 `false`。
+
+每个样本记录 Runtime prepare、backend submit CPU、submit 返回到 WebGPU queue
+completion 回调、completion 回调到其后首个 RAF，以及 frame start 到该 RAF。queue
+completion 不是硬件 timestamp；其后首个 RAF 只是浏览器可提交下一帧的保守呈现机会，
+不是 compositor 精确 present 回执或物理 scanout。因此报告固定把这两项 scope 记为
+`false`，不得据此声称已测显示器 input-to-present。
+
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
 下比较。

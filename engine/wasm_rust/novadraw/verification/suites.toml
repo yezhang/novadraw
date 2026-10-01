@@ -159,6 +159,14 @@ args = [
   "--report=target/verification/reports/ga2-native-window-server.json",
 ]
 
+[commands."report.ga2-webgpu-browser-performance"]
+description = "Measure Vello WebGPU queue completion and the following visible Chrome animation frame"
+program = "./scripts/run_webgpu_browser_performance.sh"
+
+[commands."test.ga2-webgpu-browser-runner"]
+description = "Reject incomplete, hidden, dirty, software-rendered, or overstated WebGPU evidence"
+program = "./scripts/test_webgpu_browser_performance.sh"
+
 [commands."test.ga2-work-counters"]
 description = "Enforce linear text-style and independent-routing work counters"
 program = "cargo"
@@ -728,6 +736,33 @@ documents = [
   "doc/verification/performance/ga2-native-vello-2026-10-01.md",
 ]
 artifacts = ["target/verification/reports/ga2-native-window-server.json"]
+
+[[suites]]
+id = "backend.webgpu-browser-performance"
+title = "Vello WebGPU queue completion and visible Chrome presentation opportunity"
+milestone = "GA-2"
+kind = "quality"
+api_semantics = ["frame.preparation", "render.backend_session"]
+layers = ["platform", "visual"]
+platforms = ["native-macos", "web"]
+commands = [
+  "test.ga2-webgpu-browser-runner",
+  "report.ga2-webgpu-browser-performance",
+]
+paths = [
+  "examples/web/web-validation/**",
+  "novadraw-backend-vello/src/lib.rs",
+  "scripts/build_web_validation.sh",
+  "scripts/run_webgpu_browser_performance.mjs",
+  "scripts/run_webgpu_browser_performance.sh",
+  "scripts/run_webgpu_browser_performance.test.mjs",
+  "scripts/test_webgpu_browser_performance.sh",
+]
+documents = [
+  "doc/verification/performance/ga2-methodology.md",
+  "doc/verification/performance/ga2-webgpu-browser-2026-10-01.md",
+]
+artifacts = ["target/verification/reports/ga2-webgpu-browser.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"
