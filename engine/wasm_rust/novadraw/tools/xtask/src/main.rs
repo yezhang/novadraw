@@ -73,6 +73,9 @@ enum VerificationPlatform {
     Host,
     Headless,
     NativeMacos,
+    NativeWindows,
+    NativeLinuxX11,
+    NativeLinuxWayland,
     Wasm,
     Web,
 }

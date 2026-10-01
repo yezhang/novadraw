@@ -359,6 +359,64 @@ description = "Open the Native advanced Figure and routing example"
 program = "cargo"
 args = ["run", "-p", "advanced-figures-app"]
 
+[commands."build.native-macos-release"]
+description = "Compile the representative Native release application for macOS"
+program = "cargo"
+args = ["check", "-p", "node-editor-demo"]
+
+[commands."build.native-windows-release"]
+description = "Cross-check the representative Native release application for Windows"
+program = "cargo"
+args = [
+  "check",
+  "--target",
+  "x86_64-pc-windows-msvc",
+  "-p",
+  "node-editor-demo",
+]
+
+[commands."build.native-linux-x11-release"]
+description = "Cross-check the representative Native release application with Linux X11 support"
+program = "cargo"
+args = [
+  "check",
+  "--target",
+  "x86_64-unknown-linux-gnu",
+  "-p",
+  "node-editor-demo",
+]
+
+[commands."build.native-linux-wayland-release"]
+description = "Cross-check the representative Native release application with Linux Wayland support"
+program = "cargo"
+args = [
+  "check",
+  "--target",
+  "x86_64-unknown-linux-gnu",
+  "-p",
+  "node-editor-demo",
+]
+
+[commands."run.native-macos-release"]
+description = "Open the Native release validation application on macOS"
+program = "./scripts/run_native_platform_validation.sh"
+args = ["macos"]
+
+[commands."run.native-windows-release"]
+description = "Open the Native release validation application on Windows"
+program = "./scripts/run_native_platform_validation.sh"
+args = ["windows"]
+
+[commands."run.native-linux-x11-release"]
+description = "Open the Native release validation application in an X11 session"
+program = "./scripts/run_native_platform_validation.sh"
+args = ["linux-x11"]
+
+[commands."run.native-linux-wayland-release"]
+description = "Open the Native release validation application in a Wayland session"
+program = "./scripts/run_native_platform_validation.sh"
+args = ["linux-wayland"]
+
 [commands."replay.editor-g3"]
 description = "Replay selection, targeting, and widget arbitration without a window"
 program = "cargo"
@@ -1044,3 +1102,106 @@ paths = [
 documents = ["examples/web/web-validation/README.md"]
 artifacts = ["examples/web/web-validation/dist"]
 manual = { command = "web.serve", document = "doc/verification/manual/web-platform.md" }
+
+[[suites]]
+id = "platform.native-macos-release"
+title = "macOS Native release build and real-window qualification"
+milestone = "GA-3"
+kind = "application"
+layers = ["static", "platform", "visual"]
+platforms = ["native-macos"]
+commands = ["build.native-macos-release"]
+paths = [
+  "novadraw-platform-winit/**",
+  "novadraw-backend-vello/**",
+  "examples/native/node-editor-demo/**",
+  "scripts/run_native_platform_validation.sh",
+]
+documents = [
+  "doc/roadmap/platform-support-matrix.md",
+  "doc/verification/manual/platform-release.md",
+]
+manual = { command = "run.native-macos-release", document = "doc/verification/manual/platform-release.md" }
+
+[[suites]]
+id = "platform.native-windows-release"
+title = "Windows Native build and real-window qualification"
+milestone = "GA-3"
+kind = "application"
+layers = ["static", "platform", "visual"]
+platforms = ["native-windows"]
+commands = ["build.native-windows-release"]
+paths = [
+  "novadraw-platform-winit/**",
+  "novadraw-backend-vello/**",
+  "examples/native/node-editor-demo/**",
+  "scripts/run_native_platform_validation.sh",
+]
+documents = [
+  "doc/roadmap/platform-support-matrix.md",
+  "doc/verification/manual/platform-release.md",
+]
+manual = { command = "run.native-windows-release", document = "doc/verification/manual/platform-release.md" }
+
+[[suites]]
+id = "platform.native-linux-x11-release"
+title = "Linux X11 Native build and real-window qualification"
+milestone = "GA-3"
+kind = "application"
+layers = ["static", "platform", "visual"]
+platforms = ["native-linux-x11"]
+commands = ["build.native-linux-x11-release"]
+paths = [
+  "novadraw-platform-winit/**",
+  "novadraw-backend-vello/**",
+  "examples/native/node-editor-demo/**",
+  "scripts/run_native_platform_validation.sh",
+]
+documents = [
+  "doc/roadmap/platform-support-matrix.md",
+  "doc/verification/manual/platform-release.md",
+]
+manual = { command = "run.native-linux-x11-release", document = "doc/verification/manual/platform-release.md" }
+
+[[suites]]
+id = "platform.native-linux-wayland-release"
+title = "Linux Wayland Native build and real-window qualification"
+milestone = "GA-3"
+kind = "application"
+layers = ["static", "platform", "visual"]
+platforms = ["native-linux-wayland"]
+commands = ["build.native-linux-wayland-release"]
+paths = [
+  "novadraw-platform-winit/**",
+  "novadraw-backend-vello/**",
+  "examples/native/node-editor-demo/**",
+  "scripts/run_native_platform_validation.sh",
+]
+documents = [
+  "doc/roadmap/platform-support-matrix.md",
+  "doc/verification/manual/platform-release.md",
+]
+manual = { command = "run.native-linux-wayland-release", document = "doc/verification/manual/platform-release.md" }
+
+[[suites]]
+id = "platform.web-chrome-release"
+title = "Chrome WebGPU build and browser qualification"
+milestone = "GA-3"
+kind = "application"
+layers = ["static", "platform", "visual"]
+platforms = ["wasm", "web"]
+commands = ["web.build"]
+paths = [
+  "novadraw-platform-web/**",
+  "novadraw-backend-vello/**",
+  "examples/web/web-validation/**",
+  "scripts/build_web_validation.sh",
+  "scripts/serve_web_validation.sh",
+]
+documents = [
+  "doc/roadmap/platform-support-matrix.md",
+  "doc/verification/manual/platform-release.md",
+  "doc/verification/manual/web-platform.md",
+]
+artifacts = ["examples/web/web-validation/dist"]
+manual = { command = "web.serve", document = "doc/verification/manual/platform-release.md" }
