@@ -1052,8 +1052,8 @@ impl<'a> VisualUpdateContext<'a> {
         text: impl Into<String>,
     ) -> Result<bool, EditPartError> {
         self.runtime
-            .figure(self.primary)?
-            .set_label_text(text)
+            .label(self.primary)?
+            .set_text(text)
             .map_err(|error| EditPartError::operation(error.to_string()))
     }
 }

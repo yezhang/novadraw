@@ -249,6 +249,18 @@ pub struct FigureEditor<'a> {
     runtime: &'a mut Runtime,
 }
 
+/// Short-lived, Runtime-backed mutation facade for one attached Label.
+pub struct LabelEditor<'a> {
+    label: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached clickable Figure.
+pub struct ClickableEditor<'a> {
+    clickable: FigureId,
+    runtime: &'a mut Runtime,
+}
+
 /// Short-lived, Runtime-backed mutation facade for one attached container Figure.
 pub struct ContainerEditor<'a> {
     container: FigureId,
@@ -382,49 +394,6 @@ impl FigureEditor<'_> {
         self.runtime.update_component(self.figure, update)
     }
 
-    pub fn set_label_text(&mut self, text: impl Into<String>) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_text(self.figure, text)
-    }
-
-    pub fn set_label_icon(&mut self, icon: Option<ImageId>) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_icon(self.figure, icon)
-    }
-
-    pub fn set_label_text_placement(
-        &mut self,
-        placement: TextPlacement,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_label_text_placement(self.figure, placement)
-    }
-
-    pub fn set_label_alignment(
-        &mut self,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_alignment(self.figure, alignment)
-    }
-
-    pub fn set_label_text_alignment(
-        &mut self,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_label_text_alignment(self.figure, alignment)
-    }
-
-    pub fn set_label_icon_alignment(
-        &mut self,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_label_icon_alignment(self.figure, alignment)
-    }
-
-    pub fn set_label_icon_text_gap(&mut self, gap: f64) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_icon_text_gap(self.figure, gap)
-    }
-
     pub fn set_image(&mut self, image: ImageId) -> Result<bool, ShapeMutationError> {
         self.runtime.set_image_figure(self.figure, image)
     }
@@ -535,13 +504,57 @@ impl FigureEditor<'_> {
     ) -> Result<bool, ShapeMutationError> {
         self.runtime.set_triangle_direction(self.figure, direction)
     }
+}
 
-    pub fn set_clickable_selected(&mut self, selected: bool) -> Result<bool, WidgetError> {
-        self.runtime.set_clickable_selected(self.figure, selected)
+impl LabelEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.label
+    }
+
+    pub fn set_text(&mut self, text: impl Into<String>) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_text(self.label, text)
+    }
+
+    pub fn set_icon(&mut self, icon: Option<ImageId>) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_icon(self.label, icon)
+    }
+
+    pub fn set_text_placement(
+        &mut self,
+        placement: TextPlacement,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_text_placement(self.label, placement)
+    }
+
+    pub fn set_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_alignment(self.label, alignment)
+    }
+
+    pub fn set_text_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_text_alignment(self.label, alignment)
+    }
+
+    pub fn set_icon_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_icon_alignment(self.label, alignment)
+    }
+
+    pub fn set_icon_text_gap(&mut self, gap: f64) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_label_icon_text_gap(self.label, gap)
+    }
+}
+
+impl ClickableEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.clickable
+    }
+
+    pub fn set_selected(&mut self, selected: bool) -> Result<bool, WidgetError> {
+        self.runtime
+            .set_clickable_selected(self.clickable, selected)
     }
 
     pub fn set_rollover_enabled(&mut self, enabled: bool) -> Result<bool, WidgetError> {
-        self.runtime.set_rollover_enabled(self.figure, enabled)
+        self.runtime.set_rollover_enabled(self.clickable, enabled)
     }
 }
 
@@ -825,6 +838,37 @@ impl Runtime {
         self.validate_attached_figure(figure)?;
         Ok(FigureEditor {
             figure,
+            runtime: self,
+        })
+    }
+
+    pub fn label(&mut self, label: FigureId) -> Result<LabelEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(label)?;
+        if self.tree.label(label).is_none() {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: label,
+                capability: "label mutation",
+            });
+        }
+        Ok(LabelEditor {
+            label,
+            runtime: self,
+        })
+    }
+
+    pub fn clickable(
+        &mut self,
+        clickable: FigureId,
+    ) -> Result<ClickableEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(clickable)?;
+        if self.tree.clickable_snapshot(clickable).is_none() {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: clickable,
+                capability: "clickable mutation",
+            });
+        }
+        Ok(ClickableEditor {
+            clickable,
             runtime: self,
         })
     }
@@ -2745,7 +2789,7 @@ impl Runtime {
         id: FigureId,
         text: String,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.text().to_string();
+        let old = self.label_figure(id)?.text().to_string();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -2758,7 +2802,7 @@ impl Runtime {
     }
 
     pub fn label_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
-        self.label(id)?
+        self.label_figure(id)?
             .text_layout()
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
@@ -2858,7 +2902,7 @@ impl Runtime {
     }
 
     pub fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {
-        Ok(self.label(id)?.text())
+        Ok(self.label_figure(id)?.text())
     }
 
     pub fn title_bar_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
@@ -2884,7 +2928,7 @@ impl Runtime {
         id: FigureId,
         icon: Option<ImageId>,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.icon();
+        let old = self.label_figure(id)?.icon();
         let changed = self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -2923,7 +2967,7 @@ impl Runtime {
         id: FigureId,
         placement: TextPlacement,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.text_placement();
+        let old = self.label_figure(id)?.text_placement();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -2948,7 +2992,7 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.label_alignment();
+        let old = self.label_figure(id)?.label_alignment();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -2973,7 +3017,7 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.text_alignment();
+        let old = self.label_figure(id)?.text_alignment();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -2998,7 +3042,7 @@ impl Runtime {
         id: FigureId,
         alignment: Alignment,
     ) -> Result<bool, ShapeMutationError> {
-        let old = self.label(id)?.icon_alignment();
+        let old = self.label_figure(id)?.icon_alignment();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -3029,7 +3073,7 @@ impl Runtime {
         if gap < 0.0 {
             return Err(ShapeMutationError::NegativeMetric);
         }
-        let old = self.label(id)?.icon_text_gap();
+        let old = self.label_figure(id)?.icon_text_gap();
         self.tree.mutate_label(
             &mut self.updates,
             id,
@@ -3102,7 +3146,7 @@ impl Runtime {
             })
     }
 
-    fn label(&self, id: FigureId) -> Result<&LabelFigure, ShapeMutationError> {
+    fn label_figure(&self, id: FigureId) -> Result<&LabelFigure, ShapeMutationError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(ShapeMutationError::UnknownFigure(id));
         }

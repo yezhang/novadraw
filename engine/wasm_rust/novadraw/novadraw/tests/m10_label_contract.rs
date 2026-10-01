@@ -207,17 +207,17 @@ fn label_cache_reshapes_only_when_measurement_inputs_change() {
     assert_eq!(layouts.load(Ordering::Relaxed), initial);
 
     runtime
-        .figure(label)
+        .label(label)
         .unwrap()
-        .set_label_alignment(Alignment::End)
+        .set_alignment(Alignment::End)
         .unwrap();
     runtime.refresh_label_layouts().unwrap();
     assert_eq!(layouts.load(Ordering::Relaxed), initial);
 
     runtime
-        .figure(label)
+        .label(label)
         .unwrap()
-        .set_label_text("cache invalidated")
+        .set_text("cache invalidated")
         .unwrap();
     runtime.refresh_label_layouts().unwrap();
     assert!(layouts.load(Ordering::Relaxed) > initial);
@@ -257,48 +257,48 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
 
     assert!(
         runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_icon(Some(replacement))
-            .unwrap()
-    );
-    assert!(
-        !runtime
-            .figure(label)
-            .unwrap()
-            .set_label_icon(Some(replacement))
-            .unwrap()
-    );
-    assert!(
-        runtime
-            .figure(label)
-            .unwrap()
-            .set_label_text_placement(TextPlacement::South)
-            .unwrap()
-    );
-    assert!(
-        runtime
-            .figure(label)
-            .unwrap()
-            .set_label_icon_text_gap(9.0)
-            .unwrap()
-    );
-    assert!(
-        runtime
-            .figure(label)
-            .unwrap()
-            .set_label_alignment(Alignment::End)
+            .set_icon(Some(replacement))
             .unwrap()
     );
     assert!(
         !runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_alignment(Alignment::End)
+            .set_icon(Some(replacement))
+            .unwrap()
+    );
+    assert!(
+        runtime
+            .label(label)
+            .unwrap()
+            .set_text_placement(TextPlacement::South)
+            .unwrap()
+    );
+    assert!(
+        runtime
+            .label(label)
+            .unwrap()
+            .set_icon_text_gap(9.0)
+            .unwrap()
+    );
+    assert!(
+        runtime
+            .label(label)
+            .unwrap()
+            .set_alignment(Alignment::End)
+            .unwrap()
+    );
+    assert!(
+        !runtime
+            .label(label)
+            .unwrap()
+            .set_alignment(Alignment::End)
             .unwrap()
     );
     assert_eq!(
-        runtime.figure(label).unwrap().set_label_icon_text_gap(-1.0),
+        runtime.label(label).unwrap().set_icon_text_gap(-1.0),
         Err(novadraw::ShapeMutationError::NegativeMetric)
     );
     let submission = runtime
@@ -358,14 +358,14 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
             ))
             .expect("valid Runtime mutation");
         runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_text_placement(placement)
+            .set_text_placement(placement)
             .unwrap();
         runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_icon_text_gap(GAP)
+            .set_icon_text_gap(GAP)
             .unwrap();
 
         let submission = runtime

@@ -328,14 +328,14 @@ fn icon_placement_scene() -> Runtime {
             ))
             .expect("valid Runtime mutation");
         runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_text_placement(placement)
+            .set_text_placement(placement)
             .expect("label placement");
         runtime
-            .figure(label)
+            .label(label)
             .unwrap()
-            .set_label_alignment(Alignment::Center)
+            .set_alignment(Alignment::Center)
             .expect("label alignment");
         runtime
             .figure(label)

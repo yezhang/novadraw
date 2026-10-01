@@ -139,6 +139,20 @@ fn specialized_editor_rejects_a_figure_without_the_capability() {
             capability: "scale mutation",
         }) if figure == child
     ));
+    assert!(matches!(
+        runtime.label(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "label mutation",
+        }) if figure == child
+    ));
+    assert!(matches!(
+        runtime.clickable(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "clickable mutation",
+        }) if figure == child
+    ));
     assert_eq!(runtime.has_pending_update(), pending_before);
     assert_eq!(runtime.tree().figure_bounds(child), bounds_before);
 }

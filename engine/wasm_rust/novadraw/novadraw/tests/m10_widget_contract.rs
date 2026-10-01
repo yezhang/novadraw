@@ -202,9 +202,9 @@ fn selected_state_is_model_owned_and_programmatic_click_uses_same_transaction() 
 
     assert!(
         runtime
-            .figure(toggle)
+            .clickable(toggle)
             .unwrap()
-            .set_clickable_selected(true)
+            .set_selected(true)
             .unwrap()
     );
     assert!(runtime.clickable_snapshot(toggle).unwrap().selected);
@@ -223,9 +223,9 @@ fn button_exposes_composed_label_contract() {
 
     assert!(
         runtime
-            .figure(button)
+            .label(button)
             .unwrap()
-            .set_label_text("Save changes")
+            .set_text("Save changes")
             .unwrap()
     );
     assert_eq!(runtime.label_text(button).unwrap(), "Save changes");
