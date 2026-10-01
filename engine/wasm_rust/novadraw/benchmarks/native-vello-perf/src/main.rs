@@ -1,20 +1,29 @@
+use std::convert::Infallible;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[cfg(target_os = "macos")]
+use std::thread;
+
 use novadraw::{
-    Color, FigureTree, RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
+    Color, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree,
+    PreparedFigureUpdate, RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
 };
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
 
-const REPORT_SCHEMA_VERSION: u32 = 2;
+#[cfg(target_os = "macos")]
+mod macos_probe;
+
+const REPORT_SCHEMA_VERSION: u32 = 3;
 const DEFAULT_WARMUP_ITERATIONS: usize = 5;
 const DEFAULT_SAMPLE_ITERATIONS: usize = 30;
 const DEFAULT_REPORT: &str = "target/performance/ga2-native-vello.json";
@@ -24,7 +33,12 @@ const LOGICAL_WIDTH: f64 = 1_024.0;
 const LOGICAL_HEIGHT: f64 = 768.0;
 const GPU_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
 const SURFACE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const INPUT_EVENT_TIMEOUT: Duration = Duration::from_secs(2);
+const WINDOW_SERVER_VISIBILITY_TIMEOUT: Duration = Duration::from_secs(2);
+const WINDOW_SERVER_POLL_INTERVAL: Duration = Duration::from_micros(250);
+const INPUT_SAMPLE_INTERVAL: Duration = Duration::from_millis(50);
 const REDRAW_INTERVAL: Duration = Duration::from_millis(16);
+const MARKER_SIZE: f64 = 128.0;
 
 #[derive(Debug)]
 struct Cli {
@@ -33,6 +47,7 @@ struct Cli {
     report: PathBuf,
     workspace: Option<PathBuf>,
     require_surface_present: bool,
+    require_window_server_present: bool,
 }
 
 impl Default for Cli {
@@ -43,6 +58,7 @@ impl Default for Cli {
             report: PathBuf::from(DEFAULT_REPORT),
             workspace: None,
             require_surface_present: false,
+            require_window_server_present: false,
         }
     }
 }
@@ -61,10 +77,14 @@ impl Cli {
                 cli.workspace = Some(PathBuf::from(value));
             } else if argument == "--require-surface-present" {
                 cli.require_surface_present = true;
+            } else if argument == "--require-window-server-present" {
+                cli.require_surface_present = true;
+                cli.require_window_server_present = true;
             } else if argument == "--help" {
                 println!(
                     "native-vello-perf [--warmup=<count>] [--samples=<count>] \
-                     [--report=<path>] [--workspace=<path>] [--require-surface-present]"
+                     [--report=<path>] [--workspace=<path>] [--require-surface-present] \
+                     [--require-window-server-present]"
                 );
                 std::process::exit(0);
             } else {
@@ -97,6 +117,66 @@ struct FrameSample {
     command_count: usize,
 }
 
+#[derive(Clone, Copy, Serialize)]
+struct InputPresentationSample {
+    input_post_to_event_ns: u64,
+    event_to_window_server_visible_ns: u64,
+    input_post_to_window_server_visible_ns: u64,
+    submit_return_to_window_server_visible_ns: u64,
+    capture_attempts: usize,
+    baseline_signature: [u8; 4],
+    visible_signature: [u8; 4],
+}
+
+#[cfg(target_os = "macos")]
+enum InputProbePhase {
+    Idle,
+    AwaitingInput {
+        posted_at: Instant,
+        deadline: Instant,
+        baseline: macos_probe::CapturedPixel,
+    },
+    AwaitingRender {
+        posted_at: Instant,
+        event_received_at: Instant,
+        deadline: Instant,
+        baseline: macos_probe::CapturedPixel,
+    },
+}
+
+#[cfg(target_os = "macos")]
+struct InputProbeState {
+    window_server: macos_probe::WindowServerProbe,
+    phase: InputProbePhase,
+    warmups_completed: usize,
+    samples: Vec<InputPresentationSample>,
+    next_input_at: Instant,
+    marker_is_green: bool,
+    image_width: usize,
+    image_height: usize,
+    bits_per_pixel: usize,
+}
+
+struct SetRectangleFill(Color);
+
+impl FigureComponentUpdate for SetRectangleFill {
+    type Figure = RectangleFigure;
+    type Prepared = Color;
+    type Error = Infallible;
+
+    fn prepare(
+        self,
+        _current: &Self::Figure,
+        _context: FigureComponentContext,
+    ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error> {
+        Ok(PreparedFigureUpdate::paint(self.0))
+    }
+
+    fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
+        target.fill_color = prepared;
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RenderMode {
     SurfaceProbe,
@@ -109,6 +189,7 @@ struct NativeVelloBenchmark {
     window: Option<Arc<Window>>,
     renderer: Option<VelloRenderer>,
     runtime: Option<Runtime>,
+    marker: Option<FigureId>,
     adapter: Option<VelloAdapterInfo>,
     surface: Option<SurfaceInfo>,
     warmups_completed: usize,
@@ -121,6 +202,8 @@ struct NativeVelloBenchmark {
     next_redraw_at: Instant,
     focused: bool,
     occluded: Option<bool>,
+    #[cfg(target_os = "macos")]
+    input_probe: Option<InputProbeState>,
     finished: bool,
 }
 
@@ -132,6 +215,7 @@ impl NativeVelloBenchmark {
             window: None,
             renderer: None,
             runtime: None,
+            marker: None,
             adapter: None,
             surface: None,
             warmups_completed: 0,
@@ -144,6 +228,8 @@ impl NativeVelloBenchmark {
             next_redraw_at: Instant::now(),
             focused: false,
             occluded: None,
+            #[cfg(target_os = "macos")]
+            input_probe: None,
             finished: false,
         }
     }
@@ -257,10 +343,263 @@ impl NativeVelloBenchmark {
         }
 
         if self.samples.len() == self.cli.sample_iterations {
-            self.finish(event_loop);
+            if !self.cli.require_window_server_present {
+                self.finish(event_loop);
+            }
         } else {
             window.request_redraw();
         }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn post_input_probe(&mut self) {
+        assert!(
+            self.focused,
+            "input-to-present probe requires a focused window"
+        );
+        assert_eq!(
+            self.occluded,
+            Some(false),
+            "input-to-present probe requires an unoccluded window"
+        );
+        let input_probe = self
+            .input_probe
+            .as_mut()
+            .expect("initialized WindowServer probe");
+        assert!(
+            matches!(input_probe.phase, InputProbePhase::Idle),
+            "input probe must be idle before posting input"
+        );
+        let baseline = input_probe
+            .window_server
+            .capture_center_pixel()
+            .unwrap_or_else(|error| panic!("capture input baseline: {error}"));
+        if input_probe.image_width == 0 {
+            input_probe.image_width = baseline.image_width;
+            input_probe.image_height = baseline.image_height;
+            input_probe.bits_per_pixel = baseline.bits_per_pixel;
+        } else {
+            assert_eq!(input_probe.image_width, baseline.image_width);
+            assert_eq!(input_probe.image_height, baseline.image_height);
+            assert_eq!(input_probe.bits_per_pixel, baseline.bits_per_pixel);
+        }
+        let posted_at = Instant::now();
+        input_probe
+            .window_server
+            .post_space_to_self()
+            .unwrap_or_else(|error| panic!("post synthetic input: {error}"));
+        input_probe.phase = InputProbePhase::AwaitingInput {
+            posted_at,
+            deadline: posted_at + INPUT_EVENT_TIMEOUT,
+            baseline,
+        };
+    }
+
+    #[cfg(target_os = "macos")]
+    fn receive_input_probe(&mut self) {
+        let (posted_at, baseline, marker_color) = {
+            let input_probe = self
+                .input_probe
+                .as_mut()
+                .expect("initialized WindowServer probe");
+            let phase = std::mem::replace(&mut input_probe.phase, InputProbePhase::Idle);
+            let InputProbePhase::AwaitingInput {
+                posted_at,
+                baseline,
+                ..
+            } = phase
+            else {
+                return;
+            };
+            input_probe.marker_is_green = !input_probe.marker_is_green;
+            let marker_color = if input_probe.marker_is_green {
+                Color::GREEN
+            } else {
+                Color::RED
+            };
+            (posted_at, baseline, marker_color)
+        };
+
+        let event_received_at = Instant::now();
+        let marker = self.marker.expect("input marker Figure");
+        let mut editor = self
+            .runtime
+            .as_mut()
+            .expect("initialized Runtime")
+            .figure(marker)
+            .unwrap_or_else(|error| panic!("edit input marker: {error}"));
+        editor
+            .update_component(SetRectangleFill(marker_color))
+            .unwrap_or_else(|error| panic!("update input marker: {error}"));
+        self.input_probe
+            .as_mut()
+            .expect("initialized WindowServer probe")
+            .phase = InputProbePhase::AwaitingRender {
+            posted_at,
+            event_received_at,
+            deadline: event_received_at + WINDOW_SERVER_VISIBILITY_TIMEOUT,
+            baseline,
+        };
+        self.window
+            .as_ref()
+            .expect("initialized window")
+            .request_redraw();
+    }
+
+    #[cfg(target_os = "macos")]
+    fn render_input_probe(&mut self, event_loop: &ActiveEventLoop) {
+        let (posted_at, event_received_at, deadline, baseline) = {
+            let input_probe = self
+                .input_probe
+                .as_mut()
+                .expect("initialized WindowServer probe");
+            let phase = std::mem::replace(&mut input_probe.phase, InputProbePhase::Idle);
+            let InputProbePhase::AwaitingRender {
+                posted_at,
+                event_received_at,
+                deadline,
+                baseline,
+            } = phase
+            else {
+                return;
+            };
+            (posted_at, event_received_at, deadline, baseline)
+        };
+
+        let window = self.window.as_ref().expect("initialized window");
+        let renderer = self.renderer.as_mut().expect("initialized renderer");
+        let runtime = self.runtime.as_mut().expect("initialized Runtime");
+        let surface = surface_info(window);
+        let submission = runtime
+            .prepare_submission(surface, renderer.capabilities())
+            .expect("input marker update must prepare a submission");
+        let session_id = submission.session_id;
+        let frame_id = submission.frame_id;
+        let outcome = renderer.submit(&submission);
+        let submit_returned_at = Instant::now();
+        assert_eq!(
+            outcome,
+            RenderOutcome::Presented,
+            "input marker surface submission must present"
+        );
+
+        let mut capture_attempts = 0usize;
+        let visible = loop {
+            capture_attempts += 1;
+            let captured = self
+                .input_probe
+                .as_ref()
+                .expect("initialized WindowServer probe")
+                .window_server
+                .capture_center_pixel()
+                .unwrap_or_else(|error| panic!("capture WindowServer marker: {error}"));
+            if captured.signature != baseline.signature {
+                break captured;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "input marker did not become WindowServer-visible within \
+                 {WINDOW_SERVER_VISIBILITY_TIMEOUT:?}"
+            );
+            thread::sleep(WINDOW_SERVER_POLL_INTERVAL);
+        };
+        let visible_at = Instant::now();
+        renderer
+            .wait_for_gpu_idle(GPU_WAIT_TIMEOUT)
+            .unwrap_or_else(|error| panic!("wait for input frame GPU completion: {error}"));
+        runtime.complete_submission(session_id, frame_id, outcome);
+
+        let sample = InputPresentationSample {
+            input_post_to_event_ns: duration_ns(event_received_at.duration_since(posted_at)),
+            event_to_window_server_visible_ns: duration_ns(
+                visible_at.duration_since(event_received_at),
+            ),
+            input_post_to_window_server_visible_ns: duration_ns(
+                visible_at.duration_since(posted_at),
+            ),
+            submit_return_to_window_server_visible_ns: duration_ns(
+                visible_at.duration_since(submit_returned_at),
+            ),
+            capture_attempts,
+            baseline_signature: baseline.signature.bytes(),
+            visible_signature: visible.signature.bytes(),
+        };
+
+        let input_probe = self
+            .input_probe
+            .as_mut()
+            .expect("initialized WindowServer probe");
+        if input_probe.warmups_completed < self.cli.warmup_iterations {
+            input_probe.warmups_completed += 1;
+        } else {
+            input_probe.samples.push(sample);
+        }
+        input_probe.next_input_at = Instant::now() + INPUT_SAMPLE_INTERVAL;
+        input_probe.phase = InputProbePhase::Idle;
+        if input_probe.samples.len() == self.cli.sample_iterations {
+            self.finish(event_loop);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    fn window_server_report(&self) -> Option<WindowServerVisibilityReport> {
+        let input_probe = self.input_probe.as_ref()?;
+        assert_eq!(
+            input_probe.samples.len(),
+            self.cli.sample_iterations,
+            "WindowServer report requires all input samples"
+        );
+        Some(WindowServerVisibilityReport {
+            method: "CGWindowListCreateImage self-window center-pixel transition",
+            input_source: "CGEventPostToPid synthetic Space key",
+            window_id: input_probe.window_server.window_id(),
+            image_width: input_probe.image_width,
+            image_height: input_probe.image_height,
+            bits_per_pixel: input_probe.bits_per_pixel,
+            warmup_iterations: input_probe.warmups_completed,
+            sample_iterations: input_probe.samples.len(),
+            input_post_to_event: StageReport::from_samples(
+                input_probe
+                    .samples
+                    .iter()
+                    .map(|sample| sample.input_post_to_event_ns)
+                    .collect(),
+            ),
+            event_to_window_server_visible: StageReport::from_samples(
+                input_probe
+                    .samples
+                    .iter()
+                    .map(|sample| sample.event_to_window_server_visible_ns)
+                    .collect(),
+            ),
+            input_post_to_window_server_visible: StageReport::from_samples(
+                input_probe
+                    .samples
+                    .iter()
+                    .map(|sample| sample.input_post_to_window_server_visible_ns)
+                    .collect(),
+            ),
+            submit_return_to_window_server_visible: StageReport::from_samples(
+                input_probe
+                    .samples
+                    .iter()
+                    .map(|sample| sample.submit_return_to_window_server_visible_ns)
+                    .collect(),
+            ),
+            capture_attempts: CountReport::from_samples(
+                input_probe
+                    .samples
+                    .iter()
+                    .map(|sample| sample.capture_attempts as u64)
+                    .collect(),
+            ),
+            samples: input_probe.samples.clone(),
+        })
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    fn window_server_report(&self) -> Option<WindowServerVisibilityReport> {
+        None
     }
 
     fn finish(&mut self, event_loop: &ActiveEventLoop) {
@@ -268,6 +607,8 @@ impl NativeVelloBenchmark {
             return;
         }
         self.finished = true;
+        let window_server_visibility = self.window_server_report();
+        let window_server_present = window_server_visibility.is_some();
         let report = BenchmarkReport {
             schema_version: REPORT_SCHEMA_VERSION,
             generated_at_unix_seconds: SystemTime::now()
@@ -301,17 +642,26 @@ impl NativeVelloBenchmark {
                 offscreen_vello_submit: self.render_mode == RenderMode::Offscreen,
                 surface_present_call: self.render_mode == RenderMode::Surface,
                 surface_present_required: self.cli.require_surface_present,
-                compositor_present: false,
-                input_to_present: false,
+                window_server_visible: window_server_present,
+                compositor_present: window_server_present,
+                display_scanout: false,
+                synthetic_input: window_server_present,
+                physical_input: false,
+                input_to_present: window_server_present,
             },
             scenario: ScenarioReport {
-                name: match self.render_mode {
-                    RenderMode::Surface => "wide_tree_full_surface_4096",
-                    RenderMode::Offscreen => "wide_tree_full_offscreen_gpu_4096",
-                    RenderMode::SurfaceProbe => unreachable!("probe must resolve before samples"),
+                name: match (self.render_mode, window_server_present) {
+                    (RenderMode::Surface, true) => {
+                        "wide_tree_full_surface_4096_window_server_input"
+                    }
+                    (RenderMode::Surface, false) => "wide_tree_full_surface_4096",
+                    (RenderMode::Offscreen, _) => "wide_tree_full_offscreen_gpu_4096",
+                    (RenderMode::SurfaceProbe, _) => {
+                        unreachable!("probe must resolve before samples")
+                    }
                 }
                 .to_owned(),
-                figure_count: FIGURE_COUNT + 1,
+                figure_count: FIGURE_COUNT + 1 + usize::from(self.marker.is_some()),
                 logical_viewport: [LOGICAL_WIDTH, LOGICAL_HEIGHT],
                 surface: self.surface.expect("initialized surface").into(),
                 present_mode: "AutoVsync",
@@ -353,24 +703,33 @@ impl NativeVelloBenchmark {
                         .map(|sample| sample.frame_to_gpu_complete_ns)
                         .collect(),
                 ),
+                window_server_visibility,
                 memory: ProcessMemoryReport {
                     method: peak_rss_method(),
                     before_setup_peak_rss_bytes: self.before_setup_peak_rss_bytes,
                     after_samples_peak_rss_bytes: peak_rss_bytes(),
                 },
-                notes: match self.render_mode {
-                    RenderMode::Surface => {
+                notes: match (self.render_mode, window_server_present) {
+                    (RenderMode::Surface, true) => {
+                        "Surface submit includes SurfaceTexture::present(). A synthetic \
+                         process-targeted input changes a marker, and WindowServer capture \
+                         observes the new pixel. This is compositor-visible evidence, not \
+                         physical display scanout."
+                    }
+                    (RenderMode::Surface, false) => {
                         "Surface submit includes Vello lowering, command encoding, internal queue \
                          submissions, retained-texture blit submission, and \
                          SurfaceTexture::present(). Queue completion is not a compositor \
                          presentation signal."
                     }
-                    RenderMode::Offscreen => {
+                    (RenderMode::Offscreen, _) => {
                         "The surface present probe was skipped, so samples use \
                          render_for_screenshot plus queue completion. No surface present call or \
                          compositor presentation is included."
                     }
-                    RenderMode::SurfaceProbe => unreachable!("probe must resolve before samples"),
+                    (RenderMode::SurfaceProbe, _) => {
+                        unreachable!("probe must resolve before samples")
+                    }
                 },
             },
         };
@@ -400,9 +759,32 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
         window.focus_window();
         let surface = surface_info(&window);
         let renderer = VelloRenderer::new(Arc::clone(&window), surface);
+        let (runtime, marker) = build_runtime(self.cli.require_window_server_present);
+        #[cfg(target_os = "macos")]
+        if self.cli.require_window_server_present {
+            let window_server = macos_probe::WindowServerProbe::new(&window)
+                .unwrap_or_else(|error| panic!("initialize WindowServer probe: {error}"));
+            self.input_probe = Some(InputProbeState {
+                window_server,
+                phase: InputProbePhase::Idle,
+                warmups_completed: 0,
+                samples: Vec::with_capacity(self.cli.sample_iterations),
+                next_input_at: Instant::now(),
+                marker_is_green: false,
+                image_width: 0,
+                image_height: 0,
+                bits_per_pixel: 0,
+            });
+        }
+        #[cfg(not(target_os = "macos"))]
+        assert!(
+            !self.cli.require_window_server_present,
+            "WindowServer input-to-present probe requires macOS"
+        );
         self.adapter = Some(renderer.adapter_info());
         self.surface = Some(surface);
-        self.runtime = Some(build_runtime());
+        self.runtime = Some(runtime);
+        self.marker = marker;
         self.renderer = Some(renderer);
         self.window = Some(window);
         self.surface_probe_deadline = Some(Instant::now() + SURFACE_PROBE_TIMEOUT);
@@ -422,7 +804,25 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Focused(focused) => self.focused = focused,
             WindowEvent::Occluded(occluded) => self.occluded = Some(occluded),
-            WindowEvent::RedrawRequested => self.render_sample(event_loop),
+            WindowEvent::KeyboardInput { event, .. }
+                if event.state == ElementState::Pressed
+                    && event.physical_key == PhysicalKey::Code(KeyCode::Space) =>
+            {
+                #[cfg(target_os = "macos")]
+                self.receive_input_probe();
+            }
+            WindowEvent::RedrawRequested => {
+                #[cfg(target_os = "macos")]
+                if self.input_probe.as_ref().is_some_and(|probe| {
+                    matches!(probe.phase, InputProbePhase::AwaitingRender { .. })
+                }) {
+                    self.render_input_probe(event_loop);
+                    return;
+                }
+                if self.samples.len() < self.cli.sample_iterations {
+                    self.render_sample(event_loop);
+                }
+            }
             _ => {}
         }
     }
@@ -432,13 +832,60 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
             return;
         }
         let now = Instant::now();
-        if now >= self.next_redraw_at {
-            self.next_redraw_at = now + REDRAW_INTERVAL;
-            if let Some(window) = &self.window {
-                window.request_redraw();
+        if self.samples.len() < self.cli.sample_iterations {
+            if now >= self.next_redraw_at {
+                self.next_redraw_at = now + REDRAW_INTERVAL;
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
+            }
+            event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_redraw_at));
+            return;
+        }
+
+        if self.cli.require_window_server_present {
+            #[cfg(target_os = "macos")]
+            {
+                let should_post = self.input_probe.as_ref().is_some_and(|probe| {
+                    matches!(probe.phase, InputProbePhase::Idle) && now >= probe.next_input_at
+                });
+                if should_post {
+                    self.post_input_probe();
+                }
+                let wake_at = match &self
+                    .input_probe
+                    .as_ref()
+                    .expect("initialized WindowServer probe")
+                    .phase
+                {
+                    InputProbePhase::Idle => {
+                        self.input_probe
+                            .as_ref()
+                            .expect("initialized WindowServer probe")
+                            .next_input_at
+                    }
+                    InputProbePhase::AwaitingInput { deadline, .. } => {
+                        assert!(
+                            now < *deadline,
+                            "synthetic input was not received within {INPUT_EVENT_TIMEOUT:?}"
+                        );
+                        *deadline
+                    }
+                    InputProbePhase::AwaitingRender { deadline, .. } => {
+                        assert!(
+                            now < *deadline,
+                            "input update was not redrawn within \
+                             {WINDOW_SERVER_VISIBILITY_TIMEOUT:?}"
+                        );
+                        *deadline
+                    }
+                };
+                event_loop.set_control_flow(ControlFlow::WaitUntil(wake_at));
+                return;
             }
         }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_redraw_at));
+
+        event_loop.set_control_flow(ControlFlow::Wait);
     }
 }
 
@@ -505,7 +952,11 @@ struct MeasurementScope {
     offscreen_vello_submit: bool,
     surface_present_call: bool,
     surface_present_required: bool,
+    window_server_visible: bool,
     compositor_present: bool,
+    display_scanout: bool,
+    synthetic_input: bool,
+    physical_input: bool,
     input_to_present: bool,
 }
 
@@ -527,8 +978,27 @@ struct ScenarioReport {
     gpu_completion_wait: StageReport,
     submit_to_gpu_complete: StageReport,
     frame_to_gpu_complete: StageReport,
+    window_server_visibility: Option<WindowServerVisibilityReport>,
     memory: ProcessMemoryReport,
     notes: &'static str,
+}
+
+#[derive(Serialize)]
+struct WindowServerVisibilityReport {
+    method: &'static str,
+    input_source: &'static str,
+    window_id: u32,
+    image_width: usize,
+    image_height: usize,
+    bits_per_pixel: usize,
+    warmup_iterations: usize,
+    sample_iterations: usize,
+    input_post_to_event: StageReport,
+    event_to_window_server_visible: StageReport,
+    input_post_to_window_server_visible: StageReport,
+    submit_return_to_window_server_visible: StageReport,
+    capture_attempts: CountReport,
+    samples: Vec<InputPresentationSample>,
 }
 
 #[derive(Clone, Copy, Serialize)]
@@ -555,6 +1025,27 @@ impl StageReport {
             p50_ns: percentile(&sorted, 50),
             p95_ns: percentile(&sorted, 95),
             samples_ns: samples,
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct CountReport {
+    min: u64,
+    p50: u64,
+    p95: u64,
+    samples: Vec<u64>,
+}
+
+impl CountReport {
+    fn from_samples(samples: Vec<u64>) -> Self {
+        let mut sorted = samples.clone();
+        sorted.sort_unstable();
+        Self {
+            min: sorted[0],
+            p50: percentile(&sorted, 50),
+            p95: percentile(&sorted, 95),
+            samples,
         }
     }
 }
@@ -588,7 +1079,7 @@ impl From<SurfaceInfo> for SurfaceReport {
     }
 }
 
-fn build_runtime() -> Runtime {
+fn build_runtime(include_input_marker: bool) -> (Runtime, Option<FigureId>) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -614,7 +1105,21 @@ fn build_runtime() -> Runtime {
             )
             .expect("performance Figure");
     }
-    Runtime::new(tree)
+    let marker = include_input_marker.then(|| {
+        tree.builder()
+            .add_child(
+                root,
+                Box::new(RectangleFigure::new_with_color(
+                    (LOGICAL_WIDTH - MARKER_SIZE) / 2.0,
+                    (LOGICAL_HEIGHT - MARKER_SIZE) / 2.0,
+                    MARKER_SIZE,
+                    MARKER_SIZE,
+                    Color::RED,
+                )),
+            )
+            .expect("input marker Figure")
+    });
+    (Runtime::new(tree), marker)
 }
 
 fn percentile(samples: &[u64], percentile: usize) -> u64 {
@@ -708,6 +1213,31 @@ fn peak_rss_bytes() -> Option<u64> {
 #[cfg(not(unix))]
 fn peak_rss_bytes() -> Option<u64> {
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn standard_scenario_has_no_input_marker() {
+        let (_, marker) = build_runtime(false);
+        assert!(marker.is_none());
+    }
+
+    #[test]
+    fn input_marker_color_change_uses_paint_only_component_update() {
+        let (mut runtime, marker) = build_runtime(true);
+        let marker = marker.expect("input marker");
+        let receipt = runtime
+            .figure(marker)
+            .expect("edit marker")
+            .update_component(SetRectangleFill(Color::GREEN))
+            .expect("update marker");
+
+        assert_eq!(receipt.figure, marker);
+        assert_eq!(receipt.invalidation, novadraw::ComponentInvalidation::Paint);
+    }
 }
 
 fn main() {
