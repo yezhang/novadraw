@@ -43,6 +43,7 @@ NATIVE_DIR="$DEPS_DIR/native-$SWT_ARTIFACT-$SWT_VERSION"
 DRAW2D_JAR="$ROOT/lib/org.eclipse.draw2d-3.22.0-SNAPSHOT.jar"
 SWT_JAR="$DEPS_DIR/$SWT_ARTIFACT-$SWT_VERSION.jar"
 SWT_URL="https://repo1.maven.org/maven2/org/eclipse/platform/$SWT_ARTIFACT/$SWT_VERSION/$SWT_ARTIFACT-$SWT_VERSION.jar"
+INTER_FONT="$ROOT/../../assets/fonts/InterVariable.ttf"
 SOURCE="$ROOT/src/main/java/org/example/draw2d/performance/Draw2dPerformanceRunner.java"
 
 mkdir -p "$DEPS_DIR" "$CLASSES_DIR" "$REPORT_DIR"
@@ -60,15 +61,23 @@ javac -encoding UTF-8 --release 17 \
   -d "$CLASSES_DIR" \
   "$SOURCE"
 
-SCENARIOS="
+DEFAULT_SCENARIOS="
 wide_tree_full_paint_4096
 deep_tree_full_paint_1000
 deep_tree_full_paint_10000
 deep_tree_validate_1000
 deep_tree_validate_10000
+label_refresh_wide_1000
+label_refresh_deep_1000
+text_flow_full_paint_wide_512
+text_flow_full_paint_deep_512
+independent_routing_1000
+grouped_routing_256
 local_update_full_paint_1pct_4096
 full_update_full_paint_100pct_4096
+viewport_full_paint_1024
 "
+SCENARIOS=${SCENARIOS:-"$DEFAULT_SCENARIOS"}
 
 for SCENARIO in $SCENARIOS; do
   TIME_REPORT="$REPORT_DIR/.$SCENARIO.time"
@@ -84,6 +93,7 @@ for SCENARIO in $SCENARIOS; do
     -Ddraw2d.jar="$DRAW2D_JAR" \
     -Dswt.jar="$SWT_JAR" \
     -Dswt.library.path="$NATIVE_DIR" \
+    -Dinter.font="$INTER_FONT" \
     -cp "$CLASSES_DIR:$DRAW2D_JAR:$SWT_JAR" \
     org.example.draw2d.performance.Draw2dPerformanceRunner \
     "--scenario=$SCENARIO" \

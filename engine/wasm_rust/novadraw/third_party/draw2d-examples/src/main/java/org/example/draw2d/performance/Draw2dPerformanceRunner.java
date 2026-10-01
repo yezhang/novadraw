@@ -19,12 +19,22 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.eclipse.draw2d.Figure;
+import org.eclipse.draw2d.FanRouter;
 import org.eclipse.draw2d.IFigure;
+import org.eclipse.draw2d.Label;
+import org.eclipse.draw2d.ChopboxAnchor;
+import org.eclipse.draw2d.ConnectionRouter;
+import org.eclipse.draw2d.PolylineConnection;
 import org.eclipse.draw2d.RectangleFigure;
+import org.eclipse.draw2d.ScalableLayeredPane;
 import org.eclipse.draw2d.SWTGraphics;
+import org.eclipse.draw2d.Viewport;
 import org.eclipse.draw2d.geometry.Dimension;
 import org.eclipse.draw2d.geometry.Rectangle;
+import org.eclipse.draw2d.text.FlowPage;
+import org.eclipse.draw2d.text.TextFlow;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
@@ -42,6 +52,12 @@ public final class Draw2dPerformanceRunner {
 	private static final int LARGE_TREE_COLUMNS = 64;
 	private static final int SHALLOW_DEPTH = 1_000;
 	private static final int MAX_DEPTH = 10_000;
+	private static final int TEXT_FIGURES = 1_000;
+	private static final int TEXT_FLOW_FIGURES = 512;
+	private static final int INDEPENDENT_CONNECTIONS = 1_000;
+	private static final int GROUPED_CONNECTIONS = 256;
+	private static final int VIEWPORT_FIGURES = 1_024;
+	private static final int VIEWPORT_COLUMNS = 32;
 	private static final int WIDTH = 1_024;
 	private static final int HEIGHT = 768;
 	private static final int LOGICAL_DPI = 96;
@@ -94,10 +110,17 @@ public final class Draw2dPerformanceRunner {
 		case "deep_tree_full_paint_10000" -> prepareDeepPaint(display, MAX_DEPTH);
 		case "deep_tree_validate_1000" -> prepareDeepValidation(display, SHALLOW_DEPTH);
 		case "deep_tree_validate_10000" -> prepareDeepValidation(display, MAX_DEPTH);
+		case "label_refresh_wide_1000" -> prepareLabelRefresh(display, false);
+		case "label_refresh_deep_1000" -> prepareLabelRefresh(display, true);
+		case "text_flow_full_paint_wide_512" -> prepareTextFlowPaint(display, false);
+		case "text_flow_full_paint_deep_512" -> prepareTextFlowPaint(display, true);
+		case "independent_routing_1000" -> prepareRouting(display, INDEPENDENT_CONNECTIONS, false);
+		case "grouped_routing_256" -> prepareRouting(display, GROUPED_CONNECTIONS, true);
 		case "local_update_full_paint_1pct_4096" ->
 			prepareUpdateAndPaint(display, LARGE_TREE_FIGURES / 100);
 		case "full_update_full_paint_100pct_4096" ->
 			prepareUpdateAndPaint(display, LARGE_TREE_FIGURES);
+		case "viewport_full_paint_1024" -> prepareViewportPaint(display);
 		default -> throw new IllegalArgumentException("unknown scenario: " + scenario);
 		};
 	}
@@ -141,6 +164,143 @@ public final class Draw2dPerformanceRunner {
 				"Invalidates the deepest Draw2D Figure and validates the complete path.");
 	}
 
+	private static PreparedScenario prepareLabelRefresh(Display display, boolean deep) {
+		Font font = loadInterFont(display);
+		Figure root = rootFigure(display);
+		root.setFont(font);
+		List<Label> labels = new ArrayList<>(TEXT_FIGURES);
+		IFigure parent = root;
+		for (int index = 0; index < TEXT_FIGURES; index++) {
+			int row = index / 20;
+			int column = index % 20;
+			Label label = new Label(String.format(Locale.ROOT, "label-%04d", index));
+			label.setBounds(new Rectangle(column * 48, row * 15, 46, 14));
+			parent.add(label);
+			labels.add(label);
+			if (deep) {
+				parent = label;
+			}
+		}
+		root.validate();
+		ScenarioOperation operation = new ScenarioOperation() {
+			@Override
+			public Map<String, Long> run() {
+				long width = 0;
+				for (Label label : labels) {
+					width += label.getPreferredSize().width();
+				}
+				Map<String, Long> work = new LinkedHashMap<>();
+				work.put("label_figures_refreshed", (long) labels.size());
+				work.put("preferred_width_checksum", width);
+				return work;
+			}
+
+			@Override
+			public void close() {
+				font.dispose();
+			}
+		};
+		return new PreparedScenario(
+				new ScenarioConfig(
+						TEXT_FIGURES + 1,
+						deep ? TEXT_FIGURES + 1 : 2,
+						1.0,
+						0.0,
+						"cached intrinsic refresh"),
+				operation,
+				"Queries cached Draw2D Label preferred sizes using the repository Inter font.");
+	}
+
+	private static PreparedScenario prepareTextFlowPaint(Display display, boolean deep) {
+		Font font = loadInterFont(display);
+		Figure root = rootFigure(display);
+		root.setFont(font);
+		IFigure parent = root;
+		for (int index = 0; index < TEXT_FLOW_FIGURES; index++) {
+			FlowPage page = new FlowPage();
+			int row = deep ? 0 : index % 40;
+			page.setBounds(new Rectangle(0, row * 18, 160, 18));
+			page.add(new TextFlow(String.format(Locale.ROOT, "flow paragraph %04d", index)));
+			parent.add(page);
+			if (deep) {
+				parent = page;
+			}
+		}
+		root.validate();
+		PaintOperation paint = new PaintOperation(
+				display,
+				root,
+				1L + TEXT_FLOW_FIGURES * 2L);
+		ScenarioOperation operation = closeWithFont(paint, font);
+		return new PreparedScenario(
+				new ScenarioConfig(
+						TEXT_FLOW_FIGURES + 1,
+						deep ? TEXT_FLOW_FIGURES + 1 : 2,
+						1.0,
+						1.0,
+						"none"),
+				operation,
+				"Paints 512 logical text flows; Draw2D represents each as FlowPage plus TextFlow.");
+	}
+
+	private static PreparedScenario prepareRouting(Display display, int count, boolean grouped) {
+		Figure root = rootFigure(display);
+		RectangleFigure source = rectangleFigure(display, new Rectangle(20, 40, 80, 40));
+		RectangleFigure target = rectangleFigure(display, new Rectangle(900, 600, 80, 40));
+		root.add(source);
+		root.add(target);
+		ChopboxAnchor sourceAnchor = new ChopboxAnchor(source);
+		ChopboxAnchor targetAnchor = new ChopboxAnchor(target);
+		ConnectionRouter router;
+		if (grouped) {
+			FanRouter fan = new FanRouter();
+			fan.setSeparation(16);
+			router = fan;
+		} else {
+			router = ConnectionRouter.NULL;
+		}
+		List<PolylineConnection> connections = new ArrayList<>(count);
+		for (int index = 0; index < count; index++) {
+			PolylineConnection connection = new PolylineConnection();
+			connection.setSourceAnchor(sourceAnchor);
+			connection.setTargetAnchor(targetAnchor);
+			connection.setConnectionRouter(router);
+			root.add(connection);
+			connections.add(connection);
+		}
+		root.validate();
+		ScenarioOperation operation = new ScenarioOperation() {
+			@Override
+			public Map<String, Long> run() {
+				for (PolylineConnection connection : connections) {
+					router.invalidate(connection);
+				}
+				long pointCount = 0;
+				for (PolylineConnection connection : connections) {
+					router.route(connection);
+					pointCount += connection.getPoints().size();
+				}
+				Map<String, Long> work = new LinkedHashMap<>();
+				work.put("route_calculations", (long) connections.size());
+				work.put("route_point_count", pointCount);
+				return work;
+			}
+		};
+		return new PreparedScenario(
+				new ScenarioConfig(
+						count + 3,
+						2,
+						1.0,
+						1.0,
+						grouped
+								? "route one shared FanRouter anchor-pair group"
+								: "route every independent direct connection"),
+				operation,
+				grouped
+						? "Invalidates and routes the complete Draw2D FanRouter group."
+						: "Invalidates and routes independent Draw2D direct connections.");
+	}
+
 	private static PreparedScenario prepareUpdateAndPaint(Display display, int changed) {
 		Tree tree = buildWideTree(display);
 		List<IFigure> figures = List.copyOf(tree.root().getChildren());
@@ -179,6 +339,62 @@ public final class Draw2dPerformanceRunner {
 						"alternate selected Figure x coordinate by one logical pixel"),
 				operation,
 				"Measures Draw2D mutation, validation, and full offscreen SWT paint.");
+	}
+
+	private static PreparedScenario prepareViewportPaint(Display display) {
+		Figure root = rootFigure(display);
+		Viewport viewport = new Viewport();
+		viewport.setBounds(new Rectangle(100, 80, 800, 560));
+		ScalableLayeredPane scalable = new ScalableLayeredPane();
+		scalable.setBounds(new Rectangle(0, 0, 2_048, 2_048));
+		for (int index = 0; index < VIEWPORT_FIGURES; index++) {
+			int column = index % VIEWPORT_COLUMNS;
+			int row = index / VIEWPORT_COLUMNS;
+			scalable.add(rectangleFigure(
+					display,
+					new Rectangle(column * 56, row * 48, 48, 40)));
+		}
+		scalable.setScale(1.5);
+		viewport.setContents(scalable);
+		viewport.setViewLocation(160, 120);
+		root.add(viewport);
+		root.validate();
+		PaintOperation operation = new PaintOperation(display, root, VIEWPORT_FIGURES + 3L);
+		return new PreparedScenario(
+				new ScenarioConfig(
+						VIEWPORT_FIGURES + 3,
+						4,
+						0.25,
+						1.0,
+						"fixed scroll and 1.5x zoom"),
+				operation,
+				"Paints Draw2D Viewport clipping, translation, and ScalableLayeredPane scaling.");
+	}
+
+	private static Font loadInterFont(Display display) {
+		String path = System.getProperty("inter.font");
+		if (path == null || !display.loadFont(path)) {
+			throw new IllegalStateException("failed to load repository Inter font: " + path);
+		}
+		return new Font(display, "Inter", 12, SWT.NORMAL);
+	}
+
+	private static ScenarioOperation closeWithFont(ScenarioOperation operation, Font font) {
+		return new ScenarioOperation() {
+			@Override
+			public Map<String, Long> run() {
+				return operation.run();
+			}
+
+			@Override
+			public void close() {
+				try {
+					operation.close();
+				} finally {
+					font.dispose();
+				}
+			}
+		};
 	}
 
 	private static Tree buildWideTree(Display display) {
