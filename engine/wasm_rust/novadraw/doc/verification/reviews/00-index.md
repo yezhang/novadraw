@@ -34,6 +34,7 @@
 | 2026-09-29 | [P2-T02 Text Interaction Geometry](p2-text-interaction-2026-09-29.md) |
 | 2026-09-30 | [项目目标、设计与实现一致性审计](goal-design-code-audit-2026-09-30.md) |
 | 2026-10-01 | [GA-4 模块与扩展表面](ga4-module-extension-completion-2026-10-01.md) |
+| 2026-10-01 | [GA-5 文档与门禁](ga5-documentation-gate-completion-2026-10-01.md) |
 
 ## 平台与产品验收
 

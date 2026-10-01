@@ -21,7 +21,7 @@
 | GA-2 性能基线 | `in_progress` | CPU/内存、Draw2D 对照与 Native GPU queue 证据完成；待真实 present/input-to-present |
 | GA-3 四平台验证 | `in_progress` | release suite 与共享 Winit 适配已收口；macOS/Web 自动前置通过，Windows/Linux 待原生 runner |
 | GA-4 模块与扩展表面 | `complete` | 所有权契约、内部职责拆分、外部消费者、投影 suite、性能 A/B 与 quick gate 通过 |
-| GA-5 文档与门禁 | `not_started` | 可在 GA-0 后与 GA-1 并行 |
+| GA-5 文档与门禁 | `complete` | 文档漂移已修正；类型、链接、命令、索引、facade 与 api_semantics 门禁通过 |
 | GA-6 发布审计 | `not_started` | 依赖 GA-1 至 GA-5 |
 
 ## 1. 调整方向
@@ -206,6 +206,15 @@ Book 修订仅展示当前机制与正确使用路径，不把 ADR、审计历�
 
 毕业：新读者沿索引到规范、公开 API、可执行验证不会进入失效路径；
 故意加入错误命令/符号/归类时，相关定向检查会失败。
+
+完成证据：
+
+- `cargo xtask docs` 校验 208 份 Markdown 的类型、链接、xtask 引用与设计索引分类；
+- 10 个独立 facade compile-fail probe 与 5 个正向 doctest 通过；
+- 26 个 contract/application suite 已映射到 parity ledger `api_semantics`；
+- `cargo test -p xtask`、`cargo clippy -p xtask -- -D warnings` 与 quick gate 通过；
+- 完成记录：
+  [GA-5 文档与门禁](../verification/reviews/ga5-documentation-gate-completion-2026-10-01.md)。
 
 ### GA-6：按目标矩阵完成一次发布审计
 
