@@ -86,6 +86,22 @@ submit，并在 JSON 中把 `surface_present_call`、`compositor_present` 和
 work 已完成，但不是硬件 timestamp 或 compositor present 时间。结果见
 [Native Vello GPU 基线](ga2-native-vello-2026-10-01.md)。
 
+需要真实可见 surface 时使用严格入口：
+
+```bash
+cargo xtask verify backend.native-presentation-performance
+```
+
+该 suite 在 macOS 上构建 app bundle，并通过 LaunchServices 进入当前登录会话。它会
+先检查控制台是否解锁，运行期间保持显示唤醒，并向 harness 传入
+`--require-surface-present`。锁屏、5 秒内始终 occluded、资源持续 Retry 或没有生成报告
+都会令 suite 失败，不允许回退离屏后返回 PASS。
+
+该严格入口当前只能证明生产 Vello backend 成功调用 `SurfaceTexture::present()`；
+JSON 中的 `compositor_present` 和 `input_to_present` 仍保持 `false`，直到接入平台
+呈现回执和真实输入时间戳。普通 `backend.native-performance` 继续允许无窗口环境降级，
+两者不能互相替代。
+
 普通 CI 只校验场景可复跑且确定性工作量稳定，不使用跨机器墙钟或 RSS 阈值。
 p50/p95 与峰值 RSS 只能在相同硬件、操作系统、工具链、profile、场景配置和采样口径
 下比较。

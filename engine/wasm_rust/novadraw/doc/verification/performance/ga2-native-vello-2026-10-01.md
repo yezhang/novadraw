@@ -66,6 +66,16 @@ present 证据时，不能推导屏幕交互帧预算已满足。
 进程峰值 RSS 从启动前 31.75 MiB 增至采样后 141.64 MiB。该数值包含 winit、wgpu、
 Vello pipeline、Metal driver、surface 和 retained texture，不代表 Figure 树净内存。
 
+## 后续严格入口
+
+`backend.native-presentation-performance` 已登记为独立 suite。它通过 macOS app bundle
+启动同一 harness，并要求真实 surface present；控制台锁屏或 drawable 持续不可用时
+直接失败，不再生成离屏 PASS。2026-10-01 探测确认当前执行会话处于锁屏状态，因此尚未
+产生 `target/verification/reports/ga2-native-presentation.json`。
+
+该入口即使通过也只关闭 `SurfaceTexture::present()` 调用证据。compositor 回执与
+input-to-present 仍需独立时间源，不能由 queue idle 或 present 调用返回替代。
+
 ## 剩余限制
 
 - Vello 未启用 `wgpu-profiler`，没有硬件 timestamp；

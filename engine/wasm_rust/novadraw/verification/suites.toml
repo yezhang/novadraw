@@ -146,6 +146,11 @@ args = [
   "--report=target/verification/reports/ga2-native-vello.json",
 ]
 
+[commands."report.ga2-native-presentation-performance"]
+description = "Measure Native Vello with a required visible macOS surface present"
+program = "./benchmarks/native-vello-perf/run_macos_app.sh"
+args = ["--report=target/verification/reports/ga2-native-presentation.json"]
+
 [commands."test.ga2-work-counters"]
 description = "Enforce linear text-style and independent-routing work counters"
 program = "cargo"
@@ -684,6 +689,25 @@ documents = [
   "doc/verification/performance/ga2-native-vello-2026-10-01.md",
 ]
 artifacts = ["target/verification/reports/ga2-native-vello.json"]
+
+[[suites]]
+id = "backend.native-presentation-performance"
+title = "Native Vello visible surface-present performance"
+milestone = "GA-2"
+kind = "quality"
+api_semantics = ["frame.preparation", "render.backend_session"]
+layers = ["platform", "visual"]
+platforms = ["native-macos"]
+commands = ["report.ga2-native-presentation-performance"]
+paths = [
+  "benchmarks/native-vello-perf/**",
+  "novadraw-backend-vello/src/lib.rs",
+]
+documents = [
+  "doc/verification/performance/ga2-methodology.md",
+  "doc/verification/performance/ga2-native-vello-2026-10-01.md",
+]
+artifacts = ["target/verification/reports/ga2-native-presentation.json"]
 
 [[suites]]
 id = "core.image-source-rectangle"

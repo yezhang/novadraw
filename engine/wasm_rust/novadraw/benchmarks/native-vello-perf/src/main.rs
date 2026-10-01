@@ -12,9 +12,9 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{Window, WindowAttributes, WindowId};
+use winit::window::{Window, WindowAttributes, WindowId, WindowLevel};
 
-const REPORT_SCHEMA_VERSION: u32 = 1;
+const REPORT_SCHEMA_VERSION: u32 = 2;
 const DEFAULT_WARMUP_ITERATIONS: usize = 5;
 const DEFAULT_SAMPLE_ITERATIONS: usize = 30;
 const DEFAULT_REPORT: &str = "target/performance/ga2-native-vello.json";
@@ -23,13 +23,16 @@ const COLUMNS: usize = 64;
 const LOGICAL_WIDTH: f64 = 1_024.0;
 const LOGICAL_HEIGHT: f64 = 768.0;
 const GPU_WAIT_TIMEOUT: Duration = Duration::from_secs(5);
-const SUBMISSION_RETRY_LIMIT: usize = 60;
+const SURFACE_PROBE_TIMEOUT: Duration = Duration::from_secs(5);
+const REDRAW_INTERVAL: Duration = Duration::from_millis(16);
 
 #[derive(Debug)]
 struct Cli {
     warmup_iterations: usize,
     sample_iterations: usize,
     report: PathBuf,
+    workspace: Option<PathBuf>,
+    require_surface_present: bool,
 }
 
 impl Default for Cli {
@@ -38,6 +41,8 @@ impl Default for Cli {
             warmup_iterations: DEFAULT_WARMUP_ITERATIONS,
             sample_iterations: DEFAULT_SAMPLE_ITERATIONS,
             report: PathBuf::from(DEFAULT_REPORT),
+            workspace: None,
+            require_surface_present: false,
         }
     }
 }
@@ -52,10 +57,14 @@ impl Cli {
                 cli.sample_iterations = parse_positive("samples", value)?;
             } else if let Some(value) = argument.strip_prefix("--report=") {
                 cli.report = PathBuf::from(value);
+            } else if let Some(value) = argument.strip_prefix("--workspace=") {
+                cli.workspace = Some(PathBuf::from(value));
+            } else if argument == "--require-surface-present" {
+                cli.require_surface_present = true;
             } else if argument == "--help" {
                 println!(
                     "native-vello-perf [--warmup=<count>] [--samples=<count>] \
-                     [--report=<path>]"
+                     [--report=<path>] [--workspace=<path>] [--require-surface-present]"
                 );
                 std::process::exit(0);
             } else {
@@ -105,9 +114,13 @@ struct NativeVelloBenchmark {
     warmups_completed: usize,
     samples: Vec<FrameSample>,
     before_setup_peak_rss_bytes: Option<u64>,
-    submission_attempts: usize,
+    surface_probe_attempts: usize,
     render_mode: RenderMode,
     surface_probe_outcome: Option<&'static str>,
+    surface_probe_deadline: Option<Instant>,
+    next_redraw_at: Instant,
+    focused: bool,
+    occluded: Option<bool>,
     finished: bool,
 }
 
@@ -124,9 +137,13 @@ impl NativeVelloBenchmark {
             warmups_completed: 0,
             samples: Vec::with_capacity(sample_capacity),
             before_setup_peak_rss_bytes: peak_rss_bytes(),
-            submission_attempts: 0,
+            surface_probe_attempts: 0,
             render_mode: RenderMode::SurfaceProbe,
             surface_probe_outcome: None,
+            surface_probe_deadline: None,
+            next_redraw_at: Instant::now(),
+            focused: false,
+            occluded: None,
             finished: false,
         }
     }
@@ -151,7 +168,9 @@ impl NativeVelloBenchmark {
         let command_count = submission.commands.len();
         let session_id = submission.session_id;
         let frame_id = submission.frame_id;
-        self.submission_attempts += 1;
+        if self.render_mode == RenderMode::SurfaceProbe {
+            self.surface_probe_attempts += 1;
+        }
 
         let submit_start = Instant::now();
         let outcome = match self.render_mode {
@@ -168,19 +187,30 @@ impl NativeVelloBenchmark {
                 }
                 RenderOutcome::Skipped => {
                     runtime.complete_submission(session_id, frame_id, outcome);
-                    self.render_mode = RenderMode::Offscreen;
-                    self.surface_probe_outcome = Some("skipped");
-                    window.request_redraw();
+                    let deadline = self
+                        .surface_probe_deadline
+                        .expect("surface probe deadline initialized");
+                    if Instant::now() >= deadline {
+                        assert!(
+                            !self.cli.require_surface_present,
+                            "surface present was required but remained unavailable after \
+                             {SURFACE_PROBE_TIMEOUT:?}; focused={}, occluded={:?}",
+                            self.focused, self.occluded
+                        );
+                        self.render_mode = RenderMode::Offscreen;
+                        self.surface_probe_outcome = Some("skipped_after_timeout");
+                    }
                     return;
                 }
                 RenderOutcome::Retry => {
                     runtime.complete_submission(session_id, frame_id, outcome);
+                    let deadline = self
+                        .surface_probe_deadline
+                        .expect("surface probe deadline initialized");
                     assert!(
-                        self.submission_attempts < SUBMISSION_RETRY_LIMIT,
-                        "native Vello surface probe did not resolve after \
-                         {SUBMISSION_RETRY_LIMIT} attempts"
+                        Instant::now() < deadline,
+                        "surface probe kept returning Retry for {SURFACE_PROBE_TIMEOUT:?}"
                     );
-                    window.request_redraw();
                     return;
                 }
                 RenderOutcome::Unsupported(capability) => {
@@ -270,6 +300,7 @@ impl NativeVelloBenchmark {
                 surface_present_probe: true,
                 offscreen_vello_submit: self.render_mode == RenderMode::Offscreen,
                 surface_present_call: self.render_mode == RenderMode::Surface,
+                surface_present_required: self.cli.require_surface_present,
                 compositor_present: false,
                 input_to_present: false,
             },
@@ -288,6 +319,9 @@ impl NativeVelloBenchmark {
                 surface_present_probe_outcome: self
                     .surface_probe_outcome
                     .expect("surface probe outcome"),
+                surface_present_probe_attempts: self.surface_probe_attempts,
+                focused_at_finish: self.focused,
+                occluded_at_finish: self.occluded,
                 command_count: self.samples[0].command_count,
                 prepare_submission: StageReport::from_samples(
                     self.samples
@@ -357,7 +391,8 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
                     WindowAttributes::default()
                         .with_title("Novadraw GA-2 Native Vello Performance")
                         .with_inner_size(LogicalSize::new(LOGICAL_WIDTH, LOGICAL_HEIGHT))
-                        .with_resizable(false),
+                        .with_resizable(false)
+                        .with_window_level(WindowLevel::AlwaysOnTop),
                 )
                 .expect("create performance window"),
         );
@@ -370,6 +405,7 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
         self.runtime = Some(build_runtime());
         self.renderer = Some(renderer);
         self.window = Some(window);
+        self.surface_probe_deadline = Some(Instant::now() + SURFACE_PROBE_TIMEOUT);
         self.window
             .as_ref()
             .expect("initialized window")
@@ -384,6 +420,8 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
     ) {
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::Focused(focused) => self.focused = focused,
+            WindowEvent::Occluded(occluded) => self.occluded = Some(occluded),
             WindowEvent::RedrawRequested => self.render_sample(event_loop),
             _ => {}
         }
@@ -393,10 +431,14 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
         if self.finished {
             return;
         }
-        event_loop.set_control_flow(ControlFlow::Poll);
-        if let Some(window) = &self.window {
-            window.request_redraw();
+        let now = Instant::now();
+        if now >= self.next_redraw_at {
+            self.next_redraw_at = now + REDRAW_INTERVAL;
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
         }
+        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_redraw_at));
     }
 }
 
@@ -462,6 +504,7 @@ struct MeasurementScope {
     surface_present_probe: bool,
     offscreen_vello_submit: bool,
     surface_present_call: bool,
+    surface_present_required: bool,
     compositor_present: bool,
     input_to_present: bool,
 }
@@ -475,6 +518,9 @@ struct ScenarioReport {
     present_mode: &'static str,
     render_mode: String,
     surface_present_probe_outcome: &'static str,
+    surface_present_probe_attempts: usize,
+    focused_at_finish: bool,
+    occluded_at_finish: Option<bool>,
     command_count: usize,
     prepare_submission: StageReport,
     backend_submit_cpu: StageReport,
@@ -669,6 +715,14 @@ fn main() {
         eprintln!("{error}");
         std::process::exit(2);
     });
+    if let Some(workspace) = &cli.workspace {
+        std::env::set_current_dir(workspace).unwrap_or_else(|error| {
+            panic!(
+                "set native Vello performance workspace {}: {error}",
+                workspace.display()
+            )
+        });
+    }
     if cfg!(debug_assertions) {
         eprintln!("native-vello-perf must run with --release");
         std::process::exit(2);
