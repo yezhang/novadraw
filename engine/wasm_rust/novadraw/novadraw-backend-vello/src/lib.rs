@@ -79,6 +79,36 @@ impl fmt::Display for VelloInitializationError {
 
 impl std::error::Error for VelloInitializationError {}
 
+/// Backend-owned adapter metadata for diagnostics and performance evidence.
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VelloAdapterInfo {
+    pub name: String,
+    pub vendor: u32,
+    pub device: u32,
+    pub device_type: String,
+    pub backend: String,
+    pub driver: String,
+    pub driver_info: String,
+}
+
+/// Failure while waiting for all submitted GPU work to complete.
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VelloGpuWaitError {
+    message: String,
+}
+
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+impl fmt::Display for VelloGpuWaitError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+impl std::error::Error for VelloGpuWaitError {}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SurfaceRecovery {
     Reconfigure,
@@ -512,6 +542,41 @@ impl VelloRenderer {
             surface.scale_factor,
         ))
         .expect("Failed to create surface")
+    }
+
+    /// Returns stable, backend-owned adapter metadata without exposing wgpu types.
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub fn adapter_info(&self) -> VelloAdapterInfo {
+        let info = self.render_context.devices[self.surface.dev_id]
+            .adapter()
+            .get_info();
+        VelloAdapterInfo {
+            name: info.name,
+            vendor: info.vendor,
+            device: info.device,
+            device_type: format!("{:?}", info.device_type),
+            backend: format!("{:?}", info.backend),
+            driver: info.driver,
+            driver_info: info.driver_info,
+        }
+    }
+
+    /// Waits until all queue work submitted before this call has completed.
+    ///
+    /// This is a diagnostic synchronization point. The elapsed wait is not a
+    /// native GPU timestamp and does not prove compositor presentation.
+    #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
+    pub fn wait_for_gpu_idle(&self, timeout: std::time::Duration) -> Result<(), VelloGpuWaitError> {
+        let device = &self.render_context.devices[self.surface.dev_id].device;
+        device
+            .poll(vello::wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(timeout),
+            })
+            .map(|_| ())
+            .map_err(|error| VelloGpuWaitError {
+                message: error.to_string(),
+            })
     }
 
     #[cfg(all(feature = "web", target_arch = "wasm32"))]
