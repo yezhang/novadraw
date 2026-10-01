@@ -2240,9 +2240,15 @@ impl FigureTree {
     ) -> Result<(), LayoutError> {
         for change in &output.changes {
             let child_id = match change {
-                LayoutChange::Bounds(child_id, _)
-                | LayoutChange::Visibility(child_id, _)
-                | LayoutChange::Invalidate(child_id) => Some(*child_id),
+                LayoutChange::Bounds(child_id, bounds) => {
+                    if !finite_rectangle(*bounds) || bounds.width < 0.0 || bounds.height < 0.0 {
+                        return Err(LayoutError::NonFiniteGeometry { figure: *child_id });
+                    }
+                    Some(*child_id)
+                }
+                LayoutChange::Visibility(child_id, _) | LayoutChange::Invalidate(child_id) => {
+                    Some(*child_id)
+                }
                 LayoutChange::Property { figure, .. }
                 | LayoutChange::CoordinateSystemChanged(figure)
                 | LayoutChange::Repaint(figure)

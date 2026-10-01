@@ -405,6 +405,44 @@ struct InvalidOutputLayout {
     invalid_child: FigureId,
 }
 
+struct InvalidGeometryLayout {
+    first_child: FigureId,
+    invalid_child: FigureId,
+    invalid_bounds: Rectangle,
+}
+
+impl LayoutManager for InvalidGeometryLayout {
+    fn preferred_measurement(
+        &self,
+        _container: FigureId,
+        _constraints: MeasureConstraints,
+        _snapshot: &LayoutSnapshot<'_>,
+    ) -> FigureMeasurement {
+        FigureMeasurement::default()
+    }
+
+    fn minimum_size(
+        &self,
+        container: FigureId,
+        constraints: MeasureConstraints,
+        snapshot: &LayoutSnapshot<'_>,
+    ) -> Dimension {
+        self.preferred_measurement(container, constraints, snapshot)
+            .size()
+    }
+
+    fn layout(
+        &mut self,
+        _container: FigureId,
+        _snapshot: &LayoutSnapshot<'_>,
+        out: &mut LayoutOutput,
+    ) -> Result<(), LayoutError> {
+        out.set_child_bounds(self.first_child, Rectangle::new(50.0, 60.0, 70.0, 80.0));
+        out.set_child_bounds(self.invalid_child, self.invalid_bounds);
+        Ok(())
+    }
+}
+
 impl LayoutManager for InvalidOutputLayout {
     fn preferred_measurement(
         &self,
@@ -475,6 +513,88 @@ fn layout_output_is_validated_before_any_change_is_committed() {
         Rectangle::new(10.0, 20.0, 30.0, 40.0),
     );
     assert!(graph.layout_manager(root).is_some());
+}
+
+#[test]
+fn builder_rejects_negative_layout_geometry_before_any_change_is_committed() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let first = graph
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .unwrap();
+    let invalid = graph
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 50.0)))
+        .unwrap();
+    graph
+        .builder()
+        .set_layout_manager(
+            root,
+            Box::new(InvalidGeometryLayout {
+                first_child: first,
+                invalid_child: invalid,
+                invalid_bounds: Rectangle::new(1.0, 2.0, -1.0, 4.0),
+            }),
+        )
+        .unwrap();
+
+    assert_eq!(
+        graph.builder().validate_subtree(root),
+        Err(LayoutError::NonFiniteGeometry { figure: invalid })
+    );
+    assert_rect(
+        graph.figure_bounds(first),
+        Rectangle::new(10.0, 20.0, 30.0, 40.0),
+    );
+    assert_rect(
+        graph.figure_bounds(invalid),
+        Rectangle::new(20.0, 30.0, 40.0, 50.0),
+    );
+}
+
+#[test]
+fn runtime_rejects_non_finite_layout_geometry_before_any_change_is_committed() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+    let first = graph
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
+        .unwrap();
+    let invalid = graph
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(20.0, 30.0, 40.0, 50.0)))
+        .unwrap();
+    graph.builder().validate_subtree(root).unwrap();
+    let mut runtime = Runtime::new(graph);
+    runtime
+        .container(root)
+        .unwrap()
+        .set_layout_manager(Box::new(InvalidGeometryLayout {
+            first_child: first,
+            invalid_child: invalid,
+            invalid_bounds: Rectangle::new(f64::NAN, 2.0, 3.0, 4.0),
+        }))
+        .unwrap();
+
+    assert!(matches!(
+        runtime.stabilize_for_query(),
+        Err(FramePreparationError::Validation(ValidationError::Layout(
+            LayoutError::NonFiniteGeometry { figure }
+        ))) if figure == invalid
+    ));
+    assert_rect(
+        runtime.tree().figure_bounds(first),
+        Rectangle::new(10.0, 20.0, 30.0, 40.0),
+    );
+    assert_rect(
+        runtime.tree().figure_bounds(invalid),
+        Rectangle::new(20.0, 30.0, 40.0, 50.0),
+    );
 }
 
 #[test]

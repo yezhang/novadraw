@@ -206,7 +206,10 @@ impl fmt::Display for LayoutError {
                 write!(f, "{child:?} is not a direct child of {container:?}")
             }
             Self::NonFiniteGeometry { figure } => {
-                write!(f, "Figure {figure:?} produced non-finite layout geometry")
+                write!(
+                    f,
+                    "Figure {figure:?} produced non-finite or negative-size layout geometry"
+                )
             }
         }
     }
