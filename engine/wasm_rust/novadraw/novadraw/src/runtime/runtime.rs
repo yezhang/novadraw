@@ -18,9 +18,8 @@ use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
 use crate::geometry::{Dimension, Point, PointList, Translatable};
 use crate::mutation::{
-    ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
-    FigureComponentUpdate, PendingMutation, PendingMutationKind, RuntimeMutationError,
-    SizeOverrideKind,
+    ComponentUpdateError, ComponentUpdateReceipt, FigureComponentUpdate, PendingMutation,
+    PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
 };
 use crate::runtime::accessibility::AccessibilityManager;
 use crate::runtime::tooltip::TooltipController;
@@ -46,6 +45,8 @@ use crate::{
     UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
     WidgetError, ZoomEvent, ZoomManager,
 };
+
+mod component_update;
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
 const DERIVED_WORK_KIND_COUNT: usize = 6;
@@ -2063,111 +2064,6 @@ impl Runtime {
 
     pub fn is_faulted(&self) -> bool {
         self.faulted
-    }
-
-    pub(crate) fn update_component<U>(
-        &mut self,
-        figure: FigureId,
-        update: U,
-    ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
-    where
-        U: FigureComponentUpdate,
-    {
-        self.validate_attached_figure(figure)?;
-        let (previous_revision, revision, bounds, actual, old_visual_bounds, visible) = {
-            let node = self
-                .tree
-                .node(figure)
-                .expect("attached Figure must have a node");
-            let actual = node.figure.as_ref().type_name();
-            if node
-                .figure
-                .as_ref()
-                .as_any()
-                .downcast_ref::<U::Figure>()
-                .is_none()
-            {
-                return Err(ComponentUpdateError::WrongFigureType {
-                    figure,
-                    expected: std::any::type_name::<U::Figure>(),
-                    actual,
-                });
-            }
-            let revision = node
-                .component_revision
-                .checked_add(1)
-                .ok_or(ComponentUpdateError::RevisionExhausted(figure))?;
-            (
-                node.component_revision,
-                revision,
-                node.figure_bounds(),
-                actual,
-                node.visual_bounds(),
-                self.tree.is_effectively_visible(figure),
-            )
-        };
-        let context = FigureComponentContext {
-            figure_id: figure,
-            component_revision: previous_revision,
-            bounds,
-        };
-
-        self.guarded(move |runtime| {
-            let prepared = {
-                let node = runtime
-                    .tree
-                    .node(figure)
-                    .expect("validated Figure must remain attached during update");
-                let target = node
-                    .figure
-                    .as_ref()
-                    .as_any()
-                    .downcast_ref::<U::Figure>()
-                    .ok_or(ComponentUpdateError::WrongFigureType {
-                        figure,
-                        expected: std::any::type_name::<U::Figure>(),
-                        actual,
-                    })?;
-                update
-                    .prepare(target, context)
-                    .map_err(ComponentUpdateError::Rejected)?
-            };
-
-            let invalidation = prepared.invalidation;
-            if visible {
-                runtime
-                    .updates
-                    .freeze_figure_damage(&runtime.tree, figure, old_visual_bounds);
-            }
-
-            let node = runtime
-                .tree
-                .node_mut(figure)
-                .expect("validated Figure must remain attached during update");
-            let target = node
-                .figure
-                .as_mut()
-                .as_any_mut()
-                .downcast_mut::<U::Figure>()
-                .expect("Figure type cannot change during component update");
-            U::commit(prepared.value, target);
-            node.component_revision = revision;
-
-            if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
-                runtime.tree.mark_invalid(&mut runtime.updates, figure);
-            }
-            if invalidation != ComponentInvalidation::Paint {
-                runtime.invalidate_connection_figure_change(figure, false);
-            }
-            runtime.tree.repaint(&mut runtime.updates, figure, None);
-
-            Ok(ComponentUpdateReceipt {
-                figure,
-                previous_revision,
-                revision,
-                invalidation,
-            })
-        })
     }
 
     pub fn dispose_subtree(&mut self, root: FigureId) -> Result<(), RuntimeMutationError> {
