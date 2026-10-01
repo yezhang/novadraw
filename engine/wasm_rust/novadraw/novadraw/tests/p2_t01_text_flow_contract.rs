@@ -115,16 +115,16 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
 
     assert!(
         runtime
-            .figure(flow)
+            .text_flow(flow)
             .unwrap()
-            .replace_text_flow_page(FlowPage::from_text("replacement paragraph"))
+            .replace_page(FlowPage::from_text("replacement paragraph"))
             .unwrap()
     );
     assert!(
         runtime
-            .figure(flow)
+            .text_flow(flow)
             .unwrap()
-            .set_text_flow_wrapping(FlowWrapping::NoWrap)
+            .set_wrapping(FlowWrapping::NoWrap)
             .unwrap()
     );
     runtime.record_full_frame();

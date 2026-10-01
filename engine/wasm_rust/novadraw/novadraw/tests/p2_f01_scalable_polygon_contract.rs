@@ -143,17 +143,17 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
     assert!(
         runtime
-            .figure(polygon)
+            .scalable_polygon(polygon)
             .unwrap()
-            .set_scalable_polygon_scale_mode(PolygonScaleMode::PreserveAspect)
+            .set_scale_mode(PolygonScaleMode::PreserveAspect)
             .unwrap()
     );
     assert_ne!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
     assert!(
         runtime
-            .figure(polygon)
+            .scalable_polygon(polygon)
             .unwrap()
-            .set_scalable_polygon_alignment(Alignment::Center, Alignment::Start)
+            .set_alignment(Alignment::Center, Alignment::Start)
             .unwrap()
     );
     assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
@@ -178,19 +178,18 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     );
     assert_eq!(
         runtime
-            .figure(polygon)
+            .scalable_polygon(polygon)
             .unwrap()
-            .replace_scalable_polygon_template(PointList::from_points(vec![Point::new(
-                f64::INFINITY,
-                0.0,
-            )])),
+            .replace_template(PointList::from_points(vec![
+                Point::new(f64::INFINITY, 0.0,)
+            ])),
         Err(ShapeMutationError::NonFiniteGeometry)
     );
     assert!(
         runtime
-            .figure(polygon)
+            .scalable_polygon(polygon)
             .unwrap()
-            .replace_scalable_polygon_template(PointList::new())
+            .replace_template(PointList::new())
             .unwrap()
     );
     let frame = runtime.record_full_frame();

@@ -273,6 +273,18 @@ pub struct PointListEditor<'a> {
     runtime: &'a mut Runtime,
 }
 
+/// Short-lived, Runtime-backed mutation facade for one attached scalable polygon.
+pub struct ScalablePolygonEditor<'a> {
+    polygon: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached TextFlow.
+pub struct TextFlowEditor<'a> {
+    text_flow: FigureId,
+    runtime: &'a mut Runtime,
+}
+
 /// Short-lived, Runtime-backed mutation facade for one attached container Figure.
 pub struct ContainerEditor<'a> {
     container: FigureId,
@@ -406,42 +418,6 @@ impl FigureEditor<'_> {
         self.runtime.update_component(self.figure, update)
     }
 
-    pub fn replace_scalable_polygon_template(
-        &mut self,
-        template: PointList,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .replace_scalable_polygon_template(self.figure, template)
-    }
-
-    pub fn set_scalable_polygon_scale_mode(
-        &mut self,
-        mode: PolygonScaleMode,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_scalable_polygon_scale_mode(self.figure, mode)
-    }
-
-    pub fn set_scalable_polygon_alignment(
-        &mut self,
-        horizontal: Alignment,
-        vertical: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_scalable_polygon_alignment(self.figure, horizontal, vertical)
-    }
-
-    pub fn replace_text_flow_page(&mut self, page: FlowPage) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_text_flow_page(self.figure, page)
-    }
-
-    pub fn set_text_flow_wrapping(
-        &mut self,
-        wrapping: FlowWrapping,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_text_flow_wrapping(self.figure, wrapping)
-    }
-
     pub fn set_border(
         &mut self,
         border: impl Border + 'static,
@@ -573,6 +549,46 @@ impl PointListEditor<'_> {
     ) -> Result<bool, ShapeMutationError> {
         self.runtime
             .set_point_list_line_join(self.point_list, line_join)
+    }
+}
+
+impl ScalablePolygonEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.polygon
+    }
+
+    pub fn replace_template(&mut self, template: PointList) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .replace_scalable_polygon_template(self.polygon, template)
+    }
+
+    pub fn set_scale_mode(&mut self, mode: PolygonScaleMode) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_scalable_polygon_scale_mode(self.polygon, mode)
+    }
+
+    pub fn set_alignment(
+        &mut self,
+        horizontal: Alignment,
+        vertical: Alignment,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_scalable_polygon_alignment(self.polygon, horizontal, vertical)
+    }
+}
+
+impl TextFlowEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.text_flow
+    }
+
+    pub fn replace_page(&mut self, page: FlowPage) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_text_flow_page(self.text_flow, page)
+    }
+
+    pub fn set_wrapping(&mut self, wrapping: FlowWrapping) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_text_flow_wrapping(self.text_flow, wrapping)
     }
 }
 
@@ -918,6 +934,40 @@ impl Runtime {
         }
         Ok(PointListEditor {
             point_list,
+            runtime: self,
+        })
+    }
+
+    pub fn scalable_polygon(
+        &mut self,
+        polygon: FigureId,
+    ) -> Result<ScalablePolygonEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(polygon)?;
+        if !self.tree.has_scalable_polygon_capability(polygon) {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: polygon,
+                capability: "scalable-polygon mutation",
+            });
+        }
+        Ok(ScalablePolygonEditor {
+            polygon,
+            runtime: self,
+        })
+    }
+
+    pub fn text_flow(
+        &mut self,
+        text_flow: FigureId,
+    ) -> Result<TextFlowEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(text_flow)?;
+        if self.tree.text_flow(text_flow).is_none() {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: text_flow,
+                capability: "text-flow mutation",
+            });
+        }
+        Ok(TextFlowEditor {
+            text_flow,
             runtime: self,
         })
     }

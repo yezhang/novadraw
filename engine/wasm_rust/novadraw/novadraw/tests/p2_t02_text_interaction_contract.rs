@@ -237,9 +237,9 @@ fn invalid_utf8_and_truncated_positions_are_rejected() {
         FlowPage::from_text("中文 mixed text that wraps"),
     );
     runtime
-        .figure(flow)
+        .text_flow(flow)
         .unwrap()
-        .set_text_flow_wrapping(novadraw::FlowWrapping::Truncate { max_lines: 1 })
+        .set_wrapping(novadraw::FlowWrapping::Truncate { max_lines: 1 })
         .unwrap();
     runtime.record_full_frame();
 

@@ -474,14 +474,14 @@ fn scalable_polygon_scene() -> Runtime {
     }
     let runtime_mutated = runtime_mutated.expect("runtime mutation target");
     runtime
-        .figure(runtime_mutated)
+        .scalable_polygon(runtime_mutated)
         .expect("attached scalable polygon")
-        .set_scalable_polygon_scale_mode(PolygonScaleMode::PreserveAspect)
+        .set_scale_mode(PolygonScaleMode::PreserveAspect)
         .expect("valid mode mutation");
     runtime
-        .figure(runtime_mutated)
+        .scalable_polygon(runtime_mutated)
         .expect("attached scalable polygon")
-        .set_scalable_polygon_alignment(Alignment::End, Alignment::Start)
+        .set_alignment(Alignment::End, Alignment::Start)
         .expect("valid alignment mutation");
 
     add_panel(

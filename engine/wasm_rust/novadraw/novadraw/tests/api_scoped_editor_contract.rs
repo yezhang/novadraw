@@ -167,6 +167,20 @@ fn specialized_editor_rejects_a_figure_without_the_capability() {
             capability: "point-list mutation",
         }) if figure == child
     ));
+    assert!(matches!(
+        runtime.scalable_polygon(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "scalable-polygon mutation",
+        }) if figure == child
+    ));
+    assert!(matches!(
+        runtime.text_flow(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "text-flow mutation",
+        }) if figure == child
+    ));
     assert_eq!(runtime.has_pending_update(), pending_before);
     assert_eq!(runtime.tree().figure_bounds(child), bounds_before);
 }

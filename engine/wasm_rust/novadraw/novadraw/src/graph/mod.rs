@@ -3015,6 +3015,12 @@ impl FigureTree {
         Ok(true)
     }
 
+    pub(crate) fn has_scalable_polygon_capability(&self, id: FigureId) -> bool {
+        self.blocks
+            .get(id)
+            .is_some_and(|block| block.figure.scalable_polygon().is_some())
+    }
+
     pub(crate) fn replace_scalable_polygon_template(
         &mut self,
         update_manager: &mut UpdateManager,
