@@ -691,7 +691,6 @@ mod tests {
         FigureListener, FigureMeasurement, FigureTree, LayoutError, LayoutEvent, LayoutListener,
         LayoutManager, LayoutOutput, LayoutSnapshot, MeasureConstraints, PropertyChangeEvent,
         PropertyChangeListener, RectangleFigure, StackLayout, XYConstraint, XYLayout,
-        update::UpdateManager,
     };
     use slotmap::KeyData;
     use std::sync::Arc;
