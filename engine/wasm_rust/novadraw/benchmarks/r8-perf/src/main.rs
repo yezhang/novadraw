@@ -11,9 +11,9 @@ use novadraw::{
     FigureId, FigureStyle, FigureTree, FlowPage, LabelFigure, Rectangle, RectangleFigure,
     RouterBinding, Runtime, TextFlowFigure,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-const REPORT_SCHEMA_VERSION: u32 = 1;
+const REPORT_SCHEMA_VERSION: u32 = 2;
 const DEFAULT_WARMUP_ITERATIONS: usize = 5;
 const DEFAULT_SAMPLE_ITERATIONS: usize = 30;
 const LARGE_TREE_FIGURES: usize = 4_096;
@@ -30,6 +30,22 @@ const ROOT_WIDTH: f64 = 1_024.0;
 const ROOT_HEIGHT: f64 = 768.0;
 const LOGICAL_DPI: f64 = 96.0;
 const DEFAULT_REPORT: &str = "target/performance/ga2-novadraw.json";
+const SCENARIO_NAMES: &[&str] = &[
+    "wide_tree_full_record_4096",
+    "deep_tree_full_record_1000",
+    "deep_tree_full_record_10000",
+    "deep_tree_validate_1000",
+    "deep_tree_validate_10000",
+    "label_refresh_wide_1000",
+    "label_refresh_deep_1000",
+    "text_flow_full_record_wide_512",
+    "text_flow_full_record_deep_512",
+    "independent_routing_1000",
+    "grouped_routing_256",
+    "local_update_record_1pct_4096",
+    "full_update_record_100pct_4096",
+    "viewport_full_record_1024",
+];
 
 #[derive(Debug)]
 struct Cli {
@@ -94,34 +110,34 @@ fn parse_positive(name: &str, value: &str) -> Result<usize, String> {
     Ok(parsed)
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct BenchmarkReport {
     schema_version: u32,
     generated_at_unix_seconds: u64,
-    harness: &'static str,
+    harness: String,
     environment: EnvironmentReport,
     sampling: SamplingReport,
     measurement_scope: MeasurementScope,
     scenarios: Vec<ScenarioReport>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct EnvironmentReport {
     git_revision: Option<String>,
     git_dirty: Option<bool>,
     rustc_verbose: Option<String>,
-    operating_system: &'static str,
-    architecture: &'static str,
+    operating_system: String,
+    architecture: String,
     cpu_model: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct SamplingReport {
     warmup_iterations: usize,
     sample_iterations: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct MeasurementScope {
     cpu_setup: bool,
     cpu_operation: bool,
@@ -132,7 +148,7 @@ struct MeasurementScope {
     process_memory: bool,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 struct ScenarioConfig {
     figure_count: usize,
     maximum_depth: usize,
@@ -140,21 +156,33 @@ struct ScenarioConfig {
     logical_dpi: f64,
     visible_ratio: f64,
     update_ratio: f64,
-    font: Option<&'static str>,
-    input_trajectory: &'static str,
+    font: Option<String>,
+    input_trajectory: String,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 struct ScenarioReport {
-    name: &'static str,
+    name: String,
     config: ScenarioConfig,
     setup_ns: u64,
     min_ns: u64,
     p50_ns: u64,
     p95_ns: u64,
     samples_ns: Vec<u64>,
-    work: BTreeMap<&'static str, u64>,
-    notes: &'static str,
+    memory: ProcessMemoryReport,
+    work: BTreeMap<String, u64>,
+    notes: String,
+}
+
+#[derive(Deserialize, Serialize)]
+struct ProcessMemoryReport {
+    method: String,
+    process_isolated: bool,
+    before_setup_peak_rss_bytes: Option<u64>,
+    after_setup_peak_rss_bytes: Option<u64>,
+    after_samples_peak_rss_bytes: Option<u64>,
+    setup_peak_growth_bytes: Option<u64>,
+    sample_peak_growth_bytes: Option<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -184,73 +212,11 @@ fn main() {
         std::process::exit(2);
     }
 
-    let mut scenarios = Vec::new();
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "wide_tree_full_record_4096",
-        benchmark_large_tree_render,
-    );
-    push_if_selected(&mut scenarios, &cli, "deep_tree_full_record_1000", |cli| {
-        benchmark_deep_tree_render(cli, DEEP_TREE_SHALLOW_DEPTH)
-    });
-    push_if_selected(&mut scenarios, &cli, "deep_tree_full_record_10000", |cli| {
-        benchmark_deep_tree_render(cli, DEEP_TREE_MAX_DEPTH)
-    });
-    push_if_selected(&mut scenarios, &cli, "deep_tree_validate_1000", |cli| {
-        benchmark_deep_tree_validate(cli, DEEP_TREE_SHALLOW_DEPTH)
-    });
-    push_if_selected(&mut scenarios, &cli, "deep_tree_validate_10000", |cli| {
-        benchmark_deep_tree_validate(cli, DEEP_TREE_MAX_DEPTH)
-    });
-    push_if_selected(&mut scenarios, &cli, "label_refresh_wide_1000", |cli| {
-        benchmark_label_refresh(cli, false)
-    });
-    push_if_selected(&mut scenarios, &cli, "label_refresh_deep_1000", |cli| {
-        benchmark_label_refresh(cli, true)
-    });
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "text_flow_full_record_wide_512",
-        |cli| benchmark_text_flow(cli, false),
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "text_flow_full_record_deep_512",
-        |cli| benchmark_text_flow(cli, true),
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "independent_routing_1000",
-        benchmark_independent_routing,
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "grouped_routing_256",
-        benchmark_grouped_routing,
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "local_update_record_1pct_4096",
-        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES / 100),
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "full_update_record_100pct_4096",
-        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES),
-    );
-    push_if_selected(
-        &mut scenarios,
-        &cli,
-        "viewport_full_record_1024",
-        benchmark_viewport_render,
-    );
+    let scenarios = if cli.scenario.is_none() {
+        run_isolated_scenarios(&cli)
+    } else {
+        run_selected_scenarios(&cli)
+    };
 
     if scenarios.is_empty() {
         eprintln!(
@@ -266,13 +232,13 @@ fn main() {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs(),
-        harness: "novadraw-headless-cpu",
+        harness: "novadraw-headless-cpu".to_owned(),
         environment: EnvironmentReport {
             git_revision: command_output("git", &["rev-parse", "HEAD"]),
             git_dirty: git_dirty(),
             rustc_verbose: command_output("rustc", &["-vV"]),
-            operating_system: std::env::consts::OS,
-            architecture: std::env::consts::ARCH,
+            operating_system: std::env::consts::OS.to_owned(),
+            architecture: std::env::consts::ARCH.to_owned(),
             cpu_model: cpu_model(),
         },
         sampling: SamplingReport {
@@ -286,19 +252,131 @@ fn main() {
             gpu_execution: false,
             present: false,
             input_to_present: false,
-            process_memory: false,
+            process_memory: peak_rss_bytes().is_some(),
         },
         scenarios,
     };
-    if let Some(parent) = cli.report.parent() {
+    write_report(&cli.report, &report);
+}
+
+fn run_selected_scenarios(cli: &Cli) -> Vec<ScenarioReport> {
+    let mut scenarios = Vec::new();
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "wide_tree_full_record_4096",
+        benchmark_large_tree_render,
+    );
+    push_if_selected(&mut scenarios, cli, "deep_tree_full_record_1000", |cli| {
+        benchmark_deep_tree_render(cli, DEEP_TREE_SHALLOW_DEPTH)
+    });
+    push_if_selected(&mut scenarios, cli, "deep_tree_full_record_10000", |cli| {
+        benchmark_deep_tree_render(cli, DEEP_TREE_MAX_DEPTH)
+    });
+    push_if_selected(&mut scenarios, cli, "deep_tree_validate_1000", |cli| {
+        benchmark_deep_tree_validate(cli, DEEP_TREE_SHALLOW_DEPTH)
+    });
+    push_if_selected(&mut scenarios, cli, "deep_tree_validate_10000", |cli| {
+        benchmark_deep_tree_validate(cli, DEEP_TREE_MAX_DEPTH)
+    });
+    push_if_selected(&mut scenarios, cli, "label_refresh_wide_1000", |cli| {
+        benchmark_label_refresh(cli, false)
+    });
+    push_if_selected(&mut scenarios, cli, "label_refresh_deep_1000", |cli| {
+        benchmark_label_refresh(cli, true)
+    });
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "text_flow_full_record_wide_512",
+        |cli| benchmark_text_flow(cli, false),
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "text_flow_full_record_deep_512",
+        |cli| benchmark_text_flow(cli, true),
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "independent_routing_1000",
+        benchmark_independent_routing,
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "grouped_routing_256",
+        benchmark_grouped_routing,
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "local_update_record_1pct_4096",
+        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES / 100),
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "full_update_record_100pct_4096",
+        |cli| benchmark_tree_update(cli, LARGE_TREE_FIGURES),
+    );
+    push_if_selected(
+        &mut scenarios,
+        cli,
+        "viewport_full_record_1024",
+        benchmark_viewport_render,
+    );
+    scenarios
+}
+
+fn run_isolated_scenarios(cli: &Cli) -> Vec<ScenarioReport> {
+    let executable = std::env::current_exe().expect("resolve r8-perf executable");
+    let mut scenarios = Vec::with_capacity(SCENARIO_NAMES.len());
+    for name in SCENARIO_NAMES {
+        let child_report =
+            std::env::temp_dir().join(format!("r8-perf-{}-{name}.json", std::process::id()));
+        let status = Command::new(&executable)
+            .arg(format!("--warmup={}", cli.warmup_iterations))
+            .arg(format!("--samples={}", cli.sample_iterations))
+            .arg(format!("--scenario={name}"))
+            .arg(format!("--report={}", child_report.display()))
+            .status()
+            .unwrap_or_else(|error| panic!("run isolated scenario {name}: {error}"));
+        assert!(
+            status.success(),
+            "isolated scenario {name} failed: {status}"
+        );
+        let child_json = std::fs::read(&child_report).unwrap_or_else(|error| {
+            panic!("read child report {}: {error}", child_report.display())
+        });
+        let mut child: BenchmarkReport =
+            serde_json::from_slice(&child_json).unwrap_or_else(|error| {
+                panic!("parse child report {}: {error}", child_report.display())
+            });
+        assert_eq!(
+            child.scenarios.len(),
+            1,
+            "isolated scenario {name} must emit exactly one result"
+        );
+        scenarios.push(child.scenarios.remove(0));
+        std::fs::remove_file(&child_report).unwrap_or_else(|error| {
+            panic!("remove child report {}: {error}", child_report.display())
+        });
+    }
+    scenarios
+}
+
+fn write_report(path: &PathBuf, report: &BenchmarkReport) {
+    if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).unwrap_or_else(|error| {
             panic!("create report directory {}: {error}", parent.display())
         });
     }
     let json = serde_json::to_string_pretty(&report).expect("serialize benchmark report");
-    std::fs::write(&cli.report, json)
-        .unwrap_or_else(|error| panic!("write report {}: {error}", cli.report.display()));
-    println!("REPORT {}", cli.report.display());
+    std::fs::write(path, json)
+        .unwrap_or_else(|error| panic!("write report {}: {error}", path.display()));
+    println!("REPORT {}", path.display());
 }
 
 fn push_if_selected(
@@ -639,9 +717,11 @@ fn benchmark_prepared<T>(
     mut operation: impl FnMut(&mut T) -> ScenarioOutput,
     notes: &'static str,
 ) -> ScenarioReport {
+    let before_setup_peak_rss_bytes = peak_rss_bytes();
     let setup_start = Instant::now();
     let mut value = prepare();
     let setup_ns = duration_ns(setup_start.elapsed());
+    let after_setup_peak_rss_bytes = peak_rss_bytes();
 
     for _ in 0..cli.warmup_iterations {
         black_box(operation(black_box(&mut value)));
@@ -661,18 +741,39 @@ fn benchmark_prepared<T>(
         }
         output = Some(current);
     }
+    let after_samples_peak_rss_bytes = peak_rss_bytes();
     let mut sorted = samples.clone();
     sorted.sort_unstable();
     let report = ScenarioReport {
-        name,
+        name: name.to_owned(),
         config,
         setup_ns,
         min_ns: sorted[0],
         p50_ns: percentile(&sorted, 50),
         p95_ns: percentile(&sorted, 95),
         samples_ns: samples,
-        work: output.expect("at least one sample").work,
-        notes,
+        memory: ProcessMemoryReport {
+            method: peak_rss_method().to_owned(),
+            process_isolated: cli.scenario.is_some(),
+            before_setup_peak_rss_bytes,
+            after_setup_peak_rss_bytes,
+            after_samples_peak_rss_bytes,
+            setup_peak_growth_bytes: memory_growth(
+                before_setup_peak_rss_bytes,
+                after_setup_peak_rss_bytes,
+            ),
+            sample_peak_growth_bytes: memory_growth(
+                after_setup_peak_rss_bytes,
+                after_samples_peak_rss_bytes,
+            ),
+        },
+        work: output
+            .expect("at least one sample")
+            .work
+            .into_iter()
+            .map(|(name, value)| (name.to_owned(), value))
+            .collect(),
+        notes: notes.to_owned(),
     };
     println!(
         "BENCH {} setup={}ns min={}ns p50={}ns p95={}ns work={:?}",
@@ -696,8 +797,8 @@ fn scenario_config(
         logical_dpi: LOGICAL_DPI,
         visible_ratio,
         update_ratio,
-        font,
-        input_trajectory,
+        font: font.map(str::to_owned),
+        input_trajectory: input_trajectory.to_owned(),
     }
 }
 
@@ -714,6 +815,74 @@ fn usize_to_u64(value: usize) -> u64 {
     u64::try_from(value).unwrap_or(u64::MAX)
 }
 
+fn memory_growth(before: Option<u64>, after: Option<u64>) -> Option<u64> {
+    before
+        .zip(after)
+        .map(|(before, after)| after.saturating_sub(before))
+}
+
+#[cfg(target_os = "macos")]
+fn peak_rss_method() -> &'static str {
+    "getrusage-ru_maxrss-bytes"
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn peak_rss_method() -> &'static str {
+    "getrusage-ru_maxrss-kib"
+}
+
+#[cfg(windows)]
+fn peak_rss_method() -> &'static str {
+    "GetProcessMemoryInfo-PeakWorkingSetSize"
+}
+
+#[cfg(not(any(unix, windows)))]
+fn peak_rss_method() -> &'static str {
+    "unsupported"
+}
+
+#[cfg(unix)]
+fn peak_rss_bytes() -> Option<u64> {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+    // SAFETY: getrusage initializes the supplied rusage when it returns zero.
+    let status = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if status != 0 {
+        return None;
+    }
+    // SAFETY: a successful getrusage call initialized usage.
+    let usage = unsafe { usage.assume_init() };
+    let peak = u64::try_from(usage.ru_maxrss).ok()?;
+    if cfg!(target_os = "macos") {
+        Some(peak)
+    } else {
+        peak.checked_mul(1_024)
+    }
+}
+
+#[cfg(windows)]
+fn peak_rss_bytes() -> Option<u64> {
+    use windows_sys::Win32::System::ProcessStatus::{
+        GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
+    };
+    use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+    let mut counters = std::mem::MaybeUninit::<PROCESS_MEMORY_COUNTERS>::zeroed();
+    let size = u32::try_from(std::mem::size_of::<PROCESS_MEMORY_COUNTERS>()).ok()?;
+    // SAFETY: counters points to writable storage of the size passed to the Windows API.
+    let status = unsafe { GetProcessMemoryInfo(GetCurrentProcess(), counters.as_mut_ptr(), size) };
+    if status == 0 {
+        return None;
+    }
+    // SAFETY: a successful GetProcessMemoryInfo call initialized counters.
+    let counters = unsafe { counters.assume_init() };
+    u64::try_from(counters.PeakWorkingSetSize).ok()
+}
+
+#[cfg(not(any(unix, windows)))]
+fn peak_rss_bytes() -> Option<u64> {
+    None
+}
+
 fn command_output(program: &str, args: &[&str]) -> Option<String> {
     let output = Command::new(program).args(args).output().ok()?;
     output
@@ -728,7 +897,7 @@ fn git_dirty() -> Option<bool> {
         .args(["status", "--porcelain", "--untracked-files=no"])
         .output()
         .ok()?;
-    output.status.success().then(|| !output.stdout.is_empty())
+    output.status.success().then_some(!output.stdout.is_empty())
 }
 
 fn cpu_model() -> Option<String> {
