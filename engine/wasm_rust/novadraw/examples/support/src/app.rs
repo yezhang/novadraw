@@ -18,6 +18,7 @@ pub use novadraw::{
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
     AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,
+    adapt_modifiers, adapt_mouse_button, adapt_physical_key,
 };
 pub use winit::dpi::{LogicalSize, PhysicalSize};
 pub use winit::event::WindowEvent;
@@ -498,7 +499,7 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|host| host.window().scale_factor())
                     .unwrap_or(1.0);
-                let button = map_mouse_button(button);
+                let button = adapt_mouse_button(button);
                 self.dispatch_input(|runtime| match state {
                     winit::event::ElementState::Pressed => {
                         runtime.dispatch_mouse_pressed(x / scale_factor, y / scale_factor, button);
@@ -579,13 +580,7 @@ impl ApplicationHandler<()> for DemoApp {
                 });
             }
             WindowEvent::ModifiersChanged(modifiers) => {
-                let state = modifiers.state();
-                self.modifiers = KeyModifiers {
-                    shift: state.shift_key(),
-                    control: state.control_key(),
-                    alt: state.alt_key(),
-                    meta: state.super_key(),
-                };
+                self.modifiers = adapt_modifiers(modifiers.state());
             }
             WindowEvent::Focused(false) => {
                 self.gesture_adapter.cancel_all();
@@ -597,7 +592,7 @@ impl ApplicationHandler<()> for DemoApp {
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 let pressed = event.state == winit::event::ElementState::Pressed;
-                if map_key(event.physical_key) == Some(Key::Tab) {
+                if adapt_physical_key(event.physical_key) == Some(Key::Tab) {
                     if let AdaptedKeyInput::FocusTraversal(direction) =
                         adapt_key_input(Key::Tab, pressed, self.modifiers)
                     {
@@ -608,7 +603,7 @@ impl ApplicationHandler<()> for DemoApp {
                     return;
                 }
                 if !pressed {
-                    if let Some(key) = map_key(event.physical_key) {
+                    if let Some(key) = adapt_physical_key(event.physical_key) {
                         let modifiers = self.modifiers;
                         self.dispatch_input(|runtime| {
                             runtime.dispatch_key_released(key, modifiers);
@@ -684,7 +679,7 @@ impl ApplicationHandler<()> for DemoApp {
                         if let Some(digit) = get_digit_index(&event.physical_key) {
                             self.switch_scene(digit);
                             self.host.as_ref().unwrap().request_redraw();
-                        } else if let Some(key) = map_key(event.physical_key) {
+                        } else if let Some(key) = adapt_physical_key(event.physical_key) {
                             let modifiers = self.modifiers;
                             self.dispatch_input(|runtime| {
                                 runtime.dispatch_key_pressed(key, modifiers);
@@ -824,40 +819,6 @@ fn get_digit_index(key: &winit::keyboard::PhysicalKey) -> Option<usize> {
         winit::keyboard::PhysicalKey::Code(KeyCode::Digit9) => Some(9),
         _ => None,
     }
-}
-
-fn map_mouse_button(button: winit::event::MouseButton) -> MouseButton {
-    match button {
-        winit::event::MouseButton::Left => MouseButton::Left,
-        winit::event::MouseButton::Right => MouseButton::Right,
-        winit::event::MouseButton::Middle => MouseButton::Middle,
-        winit::event::MouseButton::Back
-        | winit::event::MouseButton::Forward
-        | winit::event::MouseButton::Other(_) => MouseButton::None,
-    }
-}
-
-fn map_key(key: PhysicalKey) -> Option<Key> {
-    let PhysicalKey::Code(code) = key else {
-        return None;
-    };
-    Some(match code {
-        KeyCode::Enter => Key::Enter,
-        KeyCode::Space => Key::Character(' '),
-        KeyCode::Escape => Key::Escape,
-        KeyCode::Tab => Key::Tab,
-        KeyCode::ArrowUp => Key::ArrowUp,
-        KeyCode::ArrowDown => Key::ArrowDown,
-        KeyCode::ArrowLeft => Key::ArrowLeft,
-        KeyCode::ArrowRight => Key::ArrowRight,
-        KeyCode::KeyA => Key::Character('a'),
-        KeyCode::KeyB => Key::Character('b'),
-        KeyCode::KeyC => Key::Character('c'),
-        KeyCode::KeyH => Key::Character('h'),
-        KeyCode::KeyM => Key::Character('m'),
-        KeyCode::KeyT => Key::Character('t'),
-        _ => return None,
-    })
 }
 
 /// 应用构建器

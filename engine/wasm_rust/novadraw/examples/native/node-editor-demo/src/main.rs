@@ -10,7 +10,7 @@ use novadraw::connection::{
     CoordinateSpace, XYAnchor, rectangle_boundary_site,
 };
 use novadraw::container::FreeformLayerFigure;
-use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::event::KeyModifiers;
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
@@ -29,7 +29,9 @@ use novadraw_editor::{
     ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
     PolicyRole, ReconnectConnectionRequest, TextEditMode, VisualUpdateContext,
 };
-use novadraw_platform_winit::{WinitPlatformHost, WinitTextInputBridge};
+use novadraw_platform_winit::{
+    WinitPlatformHost, WinitTextInputBridge, adapt_modifiers, adapt_mouse_button,
+};
 use winit::{
     application::ApplicationHandler,
     dpi::LogicalSize,
@@ -1844,12 +1846,7 @@ impl ApplicationHandler<()> for DemoApp {
                     .as_ref()
                     .map(|window| window.scale_factor())
                     .unwrap_or(1.0);
-                let button = match button {
-                    winit::event::MouseButton::Left => MouseButton::Left,
-                    winit::event::MouseButton::Middle => MouseButton::Middle,
-                    winit::event::MouseButton::Right => MouseButton::Right,
-                    _ => MouseButton::None,
-                };
+                let button = adapt_mouse_button(button);
                 if let Some(editor) = &mut self.editor {
                     match state {
                         ElementState::Pressed => {
@@ -1922,13 +1919,7 @@ impl ApplicationHandler<()> for DemoApp {
                 self.request_redraw();
             }
             WindowEvent::ModifiersChanged(modifiers) => {
-                let state = modifiers.state();
-                self.modifiers = KeyModifiers {
-                    shift: state.shift_key(),
-                    control: state.control_key(),
-                    alt: state.alt_key(),
-                    meta: state.super_key(),
-                };
+                self.modifiers = adapt_modifiers(modifiers.state());
             }
             WindowEvent::Ime(event) => {
                 if let Some(input) = self.text_input.adapt_ime(event)

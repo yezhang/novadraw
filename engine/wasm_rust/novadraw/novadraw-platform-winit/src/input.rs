@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
+use novadraw::event::MouseButton;
 use novadraw::event::{
     FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, ScrollDeltaKind,
     WheelEvent, ZoomEvent,
 };
-use winit::event::{DeviceId, MouseScrollDelta, TouchPhase};
+use winit::event::{DeviceId, MouseButton as WinitMouseButton, MouseScrollDelta, TouchPhase};
+use winit::keyboard::{KeyCode, ModifiersState, PhysicalKey};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AdaptedGesture {
@@ -21,6 +23,49 @@ pub enum AdaptedKeyInput {
         modifiers: KeyModifiers,
     },
     Ignored,
+}
+
+pub fn adapt_modifiers(modifiers: ModifiersState) -> KeyModifiers {
+    KeyModifiers {
+        shift: modifiers.shift_key(),
+        control: modifiers.control_key(),
+        alt: modifiers.alt_key(),
+        meta: modifiers.super_key(),
+    }
+}
+
+pub fn adapt_mouse_button(button: WinitMouseButton) -> MouseButton {
+    match button {
+        WinitMouseButton::Left => MouseButton::Left,
+        WinitMouseButton::Right => MouseButton::Right,
+        WinitMouseButton::Middle => MouseButton::Middle,
+        WinitMouseButton::Back | WinitMouseButton::Forward | WinitMouseButton::Other(_) => {
+            MouseButton::None
+        }
+    }
+}
+
+pub fn adapt_physical_key(key: PhysicalKey) -> Option<Key> {
+    let PhysicalKey::Code(code) = key else {
+        return None;
+    };
+    Some(match code {
+        KeyCode::Enter => Key::Enter,
+        KeyCode::Space => Key::Character(' '),
+        KeyCode::Escape => Key::Escape,
+        KeyCode::Tab => Key::Tab,
+        KeyCode::ArrowUp => Key::ArrowUp,
+        KeyCode::ArrowDown => Key::ArrowDown,
+        KeyCode::ArrowLeft => Key::ArrowLeft,
+        KeyCode::ArrowRight => Key::ArrowRight,
+        KeyCode::KeyA => Key::Character('a'),
+        KeyCode::KeyB => Key::Character('b'),
+        KeyCode::KeyC => Key::Character('c'),
+        KeyCode::KeyH => Key::Character('h'),
+        KeyCode::KeyM => Key::Character('m'),
+        KeyCode::KeyT => Key::Character('t'),
+        _ => return None,
+    })
 }
 
 pub fn adapt_key_input(key: Key, pressed: bool, modifiers: KeyModifiers) -> AdaptedKeyInput {
@@ -212,6 +257,37 @@ fn valid_scale_factor(scale_factor: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn winit_buttons_modifiers_and_keys_map_to_core_input() {
+        assert_eq!(
+            adapt_mouse_button(WinitMouseButton::Left),
+            MouseButton::Left
+        );
+        assert_eq!(
+            adapt_mouse_button(WinitMouseButton::Other(7)),
+            MouseButton::None
+        );
+        assert_eq!(
+            adapt_modifiers(
+                ModifiersState::SHIFT
+                    | ModifiersState::CONTROL
+                    | ModifiersState::ALT
+                    | ModifiersState::SUPER
+            ),
+            KeyModifiers {
+                shift: true,
+                control: true,
+                alt: true,
+                meta: true,
+            }
+        );
+        assert_eq!(
+            adapt_physical_key(PhysicalKey::Code(KeyCode::ArrowLeft)),
+            Some(Key::ArrowLeft)
+        );
+        assert_eq!(adapt_physical_key(PhysicalKey::Code(KeyCode::F2)), None);
+    }
 
     #[test]
     fn tab_is_adapted_to_one_traversal_without_an_ordinary_key_release() {
