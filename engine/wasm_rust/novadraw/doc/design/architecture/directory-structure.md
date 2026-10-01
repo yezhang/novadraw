@@ -191,7 +191,9 @@ benchmarks/*
 - core 不依赖 Figure、Layout、Tree 或 Runtime；
 - Figure 不依赖 FigureTree、Runtime、PlatformHost 或 RenderBackend；
 - LayoutManager 不长期持有 FigureTree；
-- FigureTree 不依赖 InteractionState、UpdateManager 或平台层；
+- FigureTree 不拥有 InteractionState、UpdateManager 或平台层；同 crate 的
+  tree/update 原语可在 Runtime 事务内通过短生命周期借用协作，详见
+  [Runtime 所有权与模块协作边界](runtime-ownership-and-module-boundaries.md)；
 - Runtime 不依赖 winit、DOM、AppKit、Win32 或具体 GPU 后端；
 - RenderBackend 不回调修改 Runtime；
 - PlatformHost 不执行布局、命中或 Figure 回调；

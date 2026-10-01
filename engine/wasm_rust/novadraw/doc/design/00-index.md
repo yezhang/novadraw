@@ -40,6 +40,8 @@
 22. [`editor/g5-connection-bendpoint.md`](editor/g5-connection-bendpoint.md)
 23. [`editor/g5-viewport-autoexpose.md`](editor/g5-viewport-autoexpose.md)
 24. [`rendering/image-source-rectangle.md`](rendering/image-source-rectangle.md)
+25. [`architecture/component-update.md`](architecture/component-update.md)
+26. [`architecture/runtime-ownership-and-module-boundaries.md`](architecture/runtime-ownership-and-module-boundaries.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
@@ -47,7 +49,6 @@
 
 ## 非规范提案
 
-- [`architecture/component-update.md`](architecture/component-update.md)
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

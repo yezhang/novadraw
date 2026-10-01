@@ -119,7 +119,21 @@ derived component 协议，不能在 source commit 中读取未来布局结果�
 提升 layout generation、产生非空 damage，且完整 Runtime 移动之外不存在可变
 Figure 逃逸。
 
-## 6. 暂不包含
+## 6. 受控调用源
+
+FigureEditor 是同步更新入口。以下调用源复用同一协议，不获得 `&mut Figure`：
+
+- `EventContext::update_component_later` 只排队更新当前 callback target；Runtime 在
+  callback 借用结束后按 effect FIFO 应用，失败进入 deferred mutation errors；
+- `VisualUpdateContext::update_visual_component` 只同步更新当前 EditPart 已登记的
+  primary/content/internal visual，非 owned visual 在进入 Runtime 前拒绝。
+
+Event callback 不返回 receipt，因为提交发生在 callback 之后。Editor refresh 可取得
+receipt，但对 behavior 统一转换为 `EditPartError`，继续受 Viewer refresh fault 边界保护。
+两条路径的所有权和失败规则见
+[Runtime 所有权与模块协作边界](runtime-ownership-and-module-boundaries.md)。
+
+## 7. 暂不包含
 
 - 任意 closure mutation；
 - 跨 Figure 原子事务；

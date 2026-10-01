@@ -13,6 +13,7 @@
 | [directory-structure.md](directory-structure.md) | Crate 与模块边界 |
 | [static-architecture.md](static-architecture.md) | 类型、所有权与依赖结构 |
 | [dynamic-architecture.md](dynamic-architecture.md) | 运行时交互和事务时序 |
+| [runtime-ownership-and-module-boundaries.md](runtime-ownership-and-module-boundaries.md) | Runtime 所有权、tree/update 协作与扩展更新入口 |
 
 ## 核心协议
 
@@ -24,7 +25,7 @@
 | [derived-state-convergence.md](derived-state-convergence.md) | 派生状态收敛事务 |
 | [resource-lifecycle.md](resource-lifecycle.md) | 资源因果与 Backend Session |
 | [figure-inspector.md](figure-inspector.md) | 稳定场景与提交后事件诊断 |
-| [component-update.md](component-update.md) | 第三方组件更新提案 |
+| [component-update.md](component-update.md) | 第三方组件 typed update 规范 |
 
 ## Figure 能力
 
