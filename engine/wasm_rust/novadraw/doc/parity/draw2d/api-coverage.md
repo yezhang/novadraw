@@ -176,6 +176,43 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-T01 | `text.flow` | `complete` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
 
+## 长期能力分母与处置
+
+本节是“能力对等或超过 Draw2D”的长期分母。M1-M10 `complete` 只表示对应交付切片完成，
+不表示本表所有能力已完成。处置状态使用以下稳定词汇：
+
+- `adopted`：保留 Draw2D 可观察行为，使用 Rust API 表达；
+- `adapted`：保留行为目标，但所有权、失败或调度协议按 Novadraw 调整；
+- `substituted`：由可证明等价的组合能力替代，不增加同名 API；
+- `pending`：属于长期目标，已有正式 delta，尚未完成；
+- `rejected`：明确不进入目标，必须记录现代替代方案与理由。
+
+| 能力 ID | Draw2D 能力 | 目标归属 | 处置 | Novadraw 公开入口或目标入口 | 验证 suite / delta | 差异理由或退出条件 |
+|---|---|---|---|---|---|---|
+| `CAP-FIGURE-TREE` | Figure tree、bounds、paint、hit-test | GOAL-CAP/EXT | `adapted` | `FigureTreeBuilder`、`FigureTree`、Runtime scoped editor | M2-M6 suites | arena + generational ID 替代 Java 对象引用 |
+| `CAP-UPDATE` | Validation / Damage Repair | GOAL-CAP/PERF | `adapted` | `Runtime::prepare_*`、`FigureEditor::{revalidate,repaint}` | `core.runtime`、GA-2 | Runtime 是唯一驱动边界；仍需真实工作量基线 |
+| `CAP-LAYOUT` | LayoutManager 与具体布局 | GOAL-CAP/EXT | `adopted` | `LayoutManager`、`LayoutSnapshot`、`LayoutOutput` | M5 contracts | 输出先预检再发布，不允许 manager 持有树 |
+| `CAP-COORDINATES` | absolute/relative/parent 坐标转换 | GOAL-CAP | `adapted` | `FigureTree::*_transform` | M4 contracts | 返回纯变换，失败不静默修改输入 |
+| `CAP-EVENTS` | dispatcher、capture、focus、listeners | GOAL-CAP/PORT | `adapted` | `Runtime::dispatch_*`、平台 input adapter | M6/M7 suites、GA-3 | 平台只规范化输入；状态机位于 Core |
+| `CAP-GRAPHICS-CORE` | state、transform、rect/path/text/image | GOAL-CAP | `adopted` | `NdCanvas` stateful API | M1、M10、P2-R02 | Render IR 必须被启用 backend 完整消费或拒绝 |
+| `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | 目标：`NdCanvas` + backend-neutral Render IR | P2-G01 | producer、IR、Vello lowering 与失败语义全部闭合后退出 |
+| `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 目标替代：feedback layer / explicit compositing | P2-G01 设计裁决 | 现代 GPU 合成不承诺设备相关 XOR 像素语义 |
+| `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `pending` | 目标：Builder/ContainerEditor 命名复合操作 | P2-S01 | 一次预检 admission、constraint、order 与 publication |
+| `CAP-CLIPPING-EXT` | replaceable/multi-rect clipping | GOAL-CAP/EXT | `pending` | 目标：受控 clipping provider | P2-C03 | 先闭合跨 viewport Connection 可见性真实用例 |
+| `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
+| `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `pending` | `TextFlowFigure`、`TextLayoutEngine` | P2-T01/T02 complete；P2-T03 pending | 剩余 fragment style 与 inline/block 组合进入 P2-T03 |
+| `CAP-WIDGETS` | Clickable/Button/Toggle 与完整 widget family | GOAL-CAP | `pending` | `ClickableFigure`、`ButtonFigure`、`ToggleFigure` | M10.4 complete；P2-W01 pending | repeat scheduler、group/radio/slider 不污染 Core 状态机 |
+| `CAP-GRAPH-LAYOUT` | Directed/CompoundDirectedGraphLayout | GOAL-CAP/EXT | `pending` | 目标：独立图布局输入/输出 adapter | P2-L01 | 属于 `org.eclipse.draw2d.graph`，不得按 Zest 排除 |
+| `CAP-PRINT-EXPORT` | PrinterGraphics / ScaledGraphics | GOAL-CAP/PORT | `pending` | 目标：输出目标与 scale adapter | P2-O01 | 不把 SWT Printer 类型引入 Core |
+| `CAP-ACCESSIBILITY` | Accessible / dispatcher / actions | GOAL-CAP/PORT | `pending` | Core snapshot/action；Web/Native provider | M10.5 complete；P2-A01 pending | Core 语义完成不等于原生 AT provider 完成 |
+| `CAP-LIVE-UNMOUNT` | remove 后由应用保活并再次挂载 | GOAL-EXT | `pending` | 目标待 ADR | P2-LC01 | 先定义所有权、ID、扫描参与和退出路径 |
+| `CAP-PLATFORM-HOST` | LightweightSystem / FigureCanvas | GOAL-PORT/EXT | `adapted` | `PlatformHost` + winit/web package | GA-3 | 不复制 SWT control；逐平台验证实际生命周期 |
+
+长期能力的执行状态只在
+[`doc/roadmap/p2-delta-backlog.md`](../../roadmap/p2-delta-backlog.md) 维护。
+平台支持声明只在
+[`doc/roadmap/platform-support-matrix.md`](../../roadmap/platform-support-matrix.md) 维护。
+
 ## 方法级 API 跟踪矩阵
 
 本节记录从 draw2d 源码抽取的方法级 API 语义，用于后续把 family 级覆盖拆成可执行的

@@ -37,11 +37,38 @@ P2-T02 已闭合且未向 Core 引入 mutable editor state。P2-E02b 的 Native/
 bridge 与可运行场景已完成；2026-09-30 视觉回归修正版已通过 Native/Web 人工复验。
 P2-E02 不复制 shaping、caret 或 selection geometry。
 
+## 长期能力分母批次
+
+以下 delta 承接
+[`Draw2D 长期能力分母`](../parity/draw2d/api-coverage.md#长期能力分母与处置)。
+`deferred` 表示已确认目标和退出条件，但未进入当前实施主线；不能从长期分母中删除。
+
+| 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
+|---|---|---|---|---|---|
+| 1 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `not_started` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
+| 2 | P2-S01 | 原子 indexed + constraint child add | `not_started` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
+| 3 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
+| 4 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
+| 5 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
+| 6 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 7 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
+| 8 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
+| 9 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
+
+共同约束：
+
+1. 每项实施前新增或修订 `normative-design` / ADR，并列出 `api_semantics`；
+2. 不以复制 Java 类名作为毕业条件，以可观察行为和失败语义为准；
+3. 所有 public Render IR 必须被启用 backend 完整消费，或在提交前结构化拒绝；
+4. P2-L01 只参考 `org.eclipse.draw2d.graph`，不得使用 Zest 定义目标；
+5. P2-LC01 不恢复自动跨 Runtime 活对象迁移，默认仍是模型/描述重建；
+6. 平台相关 delta 的支持声明以 `platform-support-matrix.md` 为准。
+
 ## Connection
 
 ### P2-C01: Decoration、Endpoint Locator 与 PointList visual bounds
 
-状态：`in_progress`
+状态：`complete`
 
 `api_semantics`：`builtin.figures`、`connection.figure`、`connection.locator`
 

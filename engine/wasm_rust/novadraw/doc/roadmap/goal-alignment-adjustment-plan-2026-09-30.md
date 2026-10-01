@@ -1,14 +1,28 @@
 # 项目目标一致性调整计划
 
-类型：`proposal`
+类型：`roadmap`
 
 日期：2026-09-30
+
+状态：`in_progress`
 
 依据：[目标、设计与实现一致性审计](../verification/reviews/goal-design-code-audit-2026-09-30.md)。
 
 本计划以“使用 Rust 实现能力对等或超过 Draw2D，尤其性能、可扩展性、跨平台”为目标。
-这是待评审的后续实施计划；本次只交付审计与计划，不修改既有 M1-M10、G0-G5、
-P2 delta 完成状态，不表示以下能力已经实现。
+本计划已于 2026-10-01 获准执行。它不修改既有 M1-M10、G0-G5、P2 delta 的历史
+完成含义；各 GA 阶段只在对应毕业条件和证据闭合后更新状态。
+
+## 0. 执行状态
+
+| 阶段 | 状态 | 当前证据或阻塞 |
+|---|---|---|
+| GA-0 目标与能力分母 | `complete` | 长期能力处置、9 个 P2 delta 与平台支持等级已登记 |
+| GA-1 API 与确定缺陷 | `in_progress` | 修复确定缺陷并收口公开 API |
+| GA-2 性能基线 | `not_started` | 依赖 GA-0 |
+| GA-3 四平台验证 | `not_started` | 依赖 GA-0；Windows/Linux 真实运行需要对应环境 |
+| GA-4 模块与扩展表面 | `not_started` | 依赖 GA-1、GA-2 |
+| GA-5 文档与门禁 | `not_started` | 可在 GA-0 后与 GA-1 并行 |
+| GA-6 发布审计 | `not_started` | 依赖 GA-1 至 GA-5 |
 
 ## 1. 调整方向
 

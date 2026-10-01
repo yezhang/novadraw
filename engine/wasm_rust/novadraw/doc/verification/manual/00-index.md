@@ -16,6 +16,7 @@
 - [M10 Tooltip / Accessibility](m10-tooltip-accessibility.md)
 - [高级 Figure 与路由](advanced-figures.md)
 - [Web 平台](web-platform.md)
+- [四平台发布资格](platform-release.md)
 
 ## Editor
 
