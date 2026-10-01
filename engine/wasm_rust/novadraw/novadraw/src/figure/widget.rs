@@ -212,7 +212,7 @@ fn paint_focus(gc: &mut NdCanvas, bounds: Rectangle, focused: bool) {
     }
     let width = (bounds.width - FOCUS_INSET * 2.0).max(0.0);
     let height = (bounds.height - FOCUS_INSET * 2.0).max(0.0);
-    gc.stroke_rect(
+    gc.stroke_rect_with_style(
         FOCUS_INSET,
         FOCUS_INSET,
         width,
@@ -248,7 +248,7 @@ fn paint_widget(
     } else {
         BUTTON_BACKGROUND
     };
-    gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, background);
+    gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, background);
     if let Some(label) = label {
         let offset = if snapshot.visual.pressed || push_selected {
             PRESSED_CONTENT_OFFSET

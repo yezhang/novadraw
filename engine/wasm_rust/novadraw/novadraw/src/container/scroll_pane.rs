@@ -259,7 +259,7 @@ impl Figure for ScrollPaneFigure {
     }
 
     fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rect(
+        gc.fill_rect_with_color(
             0.0,
             0.0,
             self.bounds.width,
@@ -269,7 +269,7 @@ impl Figure for ScrollPaneFigure {
     }
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, PANE_BACKGROUND);
+        gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, PANE_BACKGROUND);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
@@ -429,7 +429,7 @@ impl Figure for ScrollBarFigure {
     }
 
     fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
+        gc.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
         let geometry = self.geometry(self.bounds);
         let thickness = match self.orientation {
             ScrollOrientation::Horizontal => self.bounds.height,
@@ -437,21 +437,21 @@ impl Figure for ScrollBarFigure {
         };
         match self.orientation {
             ScrollOrientation::Horizontal => {
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     geometry.axis_start,
                     0.0,
                     geometry.button_length,
                     thickness,
                     BUTTON_COLOR,
                 );
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     geometry.axis_end - geometry.button_length,
                     0.0,
                     geometry.button_length,
                     thickness,
                     BUTTON_COLOR,
                 );
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     geometry.thumb_start,
                     0.0,
                     geometry.thumb_length,
@@ -460,21 +460,21 @@ impl Figure for ScrollBarFigure {
                 );
             }
             ScrollOrientation::Vertical => {
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     0.0,
                     geometry.axis_start,
                     thickness,
                     geometry.button_length,
                     BUTTON_COLOR,
                 );
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     0.0,
                     geometry.axis_end - geometry.button_length,
                     thickness,
                     geometry.button_length,
                     BUTTON_COLOR,
                 );
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     0.0,
                     geometry.thumb_start,
                     thickness,

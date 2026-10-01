@@ -225,7 +225,7 @@ impl Shape for TargetDomainFigure {
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
         let bounds = self.bounds;
-        gc.fill_rect(0.0, 0.0, bounds.width, bounds.height, TARGET_COLOR);
+        gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, TARGET_COLOR);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
@@ -235,7 +235,7 @@ impl Shape for TargetDomainFigure {
         } else {
             Color::WHITE
         };
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             0.0,
             0.0,
             bounds.width,

@@ -785,14 +785,14 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
     canvas.push_state();
     canvas.reset_transform();
     canvas.set_alpha(1.0);
-    canvas.fill_rect(
+    canvas.fill_rect_with_color(
         bounds.x,
         bounds.y,
         bounds.width,
         bounds.height,
         TOOLTIP_BORDER,
     );
-    canvas.fill_rect(
+    canvas.fill_rect_with_color(
         bounds.x + TOOLTIP_BORDER_WIDTH,
         bounds.y + TOOLTIP_BORDER_WIDTH,
         (bounds.width - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),

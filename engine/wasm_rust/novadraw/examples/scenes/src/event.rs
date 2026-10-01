@@ -108,7 +108,7 @@ impl Figure for EventProbeFigure {
         } else {
             Color::from_hex("#3498db").expect("valid color literal")
         };
-        canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
+        canvas.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, color);
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {

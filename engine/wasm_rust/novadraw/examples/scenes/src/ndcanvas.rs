@@ -73,9 +73,9 @@ fn create_scene_fill_rect() -> novadraw::FigureTree {
 
     // 直接调用 fill_rect
     let test = TestFigure::new("fill_rect", |gc| {
-        gc.fill_rect(50.0, 50.0, 200.0, 100.0, Color::rgba(1.0, 0.0, 0.0, 1.0)); // 红色
-        gc.fill_rect(300.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 1.0, 0.0, 1.0)); // 绿色
-        gc.fill_rect(550.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 0.0, 1.0, 1.0)); // 蓝色
+        gc.fill_rect_with_color(50.0, 50.0, 200.0, 100.0, Color::rgba(1.0, 0.0, 0.0, 1.0)); // 红色
+        gc.fill_rect_with_color(300.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 1.0, 0.0, 1.0)); // 绿色
+        gc.fill_rect_with_color(550.0, 50.0, 200.0, 100.0, Color::rgba(0.0, 0.0, 1.0, 1.0)); // 蓝色
     });
     scene
         .builder()
@@ -91,7 +91,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
 
     // 直接调用 stroke_rect
     let test = TestFigure::new("stroke_rect", |gc| {
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             50.0,
             50.0,
             200.0,
@@ -101,7 +101,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             LineCap::Butt,
             LineJoin::Miter,
         );
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             300.0,
             50.0,
             200.0,
@@ -111,7 +111,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             LineCap::Round,
             LineJoin::Round,
         );
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             550.0,
             50.0,
             200.0,
@@ -353,7 +353,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
     // 测试变换
     let test = TestFigure::new("transform", |gc| {
         // 原始矩形
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             50.0,
             50.0,
             100.0,
@@ -366,7 +366,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
 
         // 平移
         gc.translate(50.0, 50.0);
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             50.0,
             50.0,
             100.0,
@@ -380,7 +380,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
         // 旋转
         gc.translate(100.0, 50.0);
         gc.rotate(45.0);
-        gc.stroke_rect(
+        gc.stroke_rect_with_style(
             50.0,
             50.0,
             100.0,

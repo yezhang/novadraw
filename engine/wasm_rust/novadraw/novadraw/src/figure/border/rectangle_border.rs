@@ -92,7 +92,7 @@ impl Border for RectangleBorder {
         let join = crate::render::command::LineJoin::Miter;
 
         gc.set_line_style(render_line_style(self.style));
-        gc.stroke_rect(x, y, width, height, self.color, self.width, cap, join);
+        gc.stroke_rect_with_style(x, y, width, height, self.color, self.width, cap, join);
     }
 
     fn is_opaque(&self) -> bool {

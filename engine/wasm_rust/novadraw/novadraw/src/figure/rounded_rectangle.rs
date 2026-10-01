@@ -352,10 +352,10 @@ impl RoundedRectangleFigure {
         // 如果没有圆角，退化为普通矩形
         if radius_x <= 0.0 || radius_y <= 0.0 {
             if let Some(color) = fill_color {
-                gc.fill_rect(x, y, width, height, color);
+                gc.fill_rect_with_color(x, y, width, height, color);
             }
             if let Some(color) = stroke_color {
-                gc.stroke_rect(
+                gc.stroke_rect_with_style(
                     x,
                     y,
                     width,

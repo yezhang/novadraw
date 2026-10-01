@@ -4933,7 +4933,7 @@ mod tests {
         }
 
         fn fill_shape(&self, gc: &mut NdCanvas) {
-            gc.fill_rect(
+            gc.fill_rect_with_color(
                 self.paint_rect.x,
                 self.paint_rect.y,
                 self.paint_rect.width,
@@ -5250,7 +5250,7 @@ mod tests {
 
         fn paint_figure(&self, gc: &mut NdCanvas) {
             let bounds = self.bounds;
-            gc.fill_rect(
+            gc.fill_rect_with_color(
                 bounds.x,
                 bounds.y,
                 bounds.width,

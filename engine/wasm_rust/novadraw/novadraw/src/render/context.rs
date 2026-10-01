@@ -161,14 +161,14 @@ impl NdCanvas {
         self.create_command(RenderCommandKind::ClearRect { rect, color });
     }
 
-    pub fn fill_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+    pub fn fill_rect_with_color(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
         let rect = Rectangle::new(x, y, width, height);
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::FillRect { rect, color });
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn stroke_rect(
+    pub fn stroke_rect_with_style(
         &mut self,
         x: f64,
         y: f64,
@@ -193,13 +193,13 @@ impl NdCanvas {
 
     pub fn fill_rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) {
         if let Some(color) = self.state.fill_color {
-            self.fill_rect(x, y, width, height, color);
+            self.fill_rect_with_color(x, y, width, height, color);
         }
     }
 
     pub fn draw_rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) {
         if let Some(color) = self.state.stroke_color {
-            self.stroke_rect(
+            self.stroke_rect_with_style(
                 x,
                 y,
                 width,
@@ -882,7 +882,7 @@ mod tests {
         let mut canvas = NdCanvas::new();
         assert!(canvas.damage().is_empty());
 
-        canvas.fill_rect(0.0, 0.0, 10.0, 10.0, Color::WHITE);
+        canvas.fill_rect_with_color(0.0, 0.0, 10.0, 10.0, Color::WHITE);
 
         assert!(canvas.damage().is_full());
     }

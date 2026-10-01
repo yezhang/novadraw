@@ -142,13 +142,13 @@ impl Shape for WebProbeFigure {
 
     fn fill_shape(&self, canvas: &mut NdCanvas) {
         if let Some(color) = self.fill_color() {
-            canvas.fill_rect(0.0, 0.0, self.bounds.width, self.bounds.height, color);
+            canvas.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, color);
         }
     }
 
     fn outline_shape(&self, canvas: &mut NdCanvas) {
         if let Some(color) = self.stroke_color() {
-            canvas.stroke_rect(
+            canvas.stroke_rect_with_style(
                 0.0,
                 0.0,
                 self.bounds.width,

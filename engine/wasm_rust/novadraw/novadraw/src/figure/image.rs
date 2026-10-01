@@ -130,7 +130,7 @@ impl Figure for ImageFigure {
                 gc.draw_image(image, x, y);
             }
             (ImageDisplayState::Pending, _) => {
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     0.0,
                     0.0,
                     bounds.width,
@@ -139,7 +139,7 @@ impl Figure for ImageFigure {
                 );
             }
             (ImageDisplayState::Failed, _) => {
-                gc.fill_rect(
+                gc.fill_rect_with_color(
                     0.0,
                     0.0,
                     bounds.width,
