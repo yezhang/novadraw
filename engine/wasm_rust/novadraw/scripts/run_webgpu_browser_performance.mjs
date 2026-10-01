@@ -9,15 +9,18 @@ import { pathToFileURL } from "node:url";
 
 const POLL_INTERVAL_MS = 100;
 const CDP_STARTUP_TIMEOUT_MS = 15_000;
+const CDP_COMMAND_TIMEOUT_MS = 10_000;
+const NAVIGATION_TIMEOUT_MS = 30_000;
 const BENCHMARK_TIMEOUT_MS = 120_000;
 const RESULT_GLOBAL = "__NOVADRAW_PERFORMANCE_RESULT__";
 const RESULT_ELEMENT_ID = "novadraw-performance-result";
 
-class CdpClient {
+export class CdpClient {
   constructor(url) {
     this.url = url;
     this.nextId = 1;
     this.pending = new Map();
+    this.eventWaiters = new Map();
   }
 
   async connect() {
@@ -29,6 +32,12 @@ class CdpClient {
     this.socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data));
       if (!message.id) {
+        const waiters = this.eventWaiters.get(message.method) ?? [];
+        this.eventWaiters.delete(message.method);
+        for (const waiter of waiters) {
+          clearTimeout(waiter.timer);
+          waiter.resolve(message.params ?? {});
+        }
         return;
       }
       const pending = this.pending.get(message.id);
@@ -36,6 +45,7 @@ class CdpClient {
         return;
       }
       this.pending.delete(message.id);
+      clearTimeout(pending.timer);
       if (message.error) {
         pending.reject(
           new Error(
@@ -48,17 +58,53 @@ class CdpClient {
     });
     this.socket.addEventListener("close", () => {
       for (const pending of this.pending.values()) {
+        clearTimeout(pending.timer);
         pending.reject(new Error(`CDP websocket closed during ${pending.method}`));
       }
       this.pending.clear();
+      for (const waiters of this.eventWaiters.values()) {
+        for (const waiter of waiters) {
+          clearTimeout(waiter.timer);
+          waiter.reject(new Error(`CDP websocket closed before ${waiter.method}`));
+        }
+      }
+      this.eventWaiters.clear();
     });
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = CDP_COMMAND_TIMEOUT_MS) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { method, resolve, reject });
-      this.socket.send(JSON.stringify({ id, method, params }));
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error(`${method} exceeded ${timeoutMs} ms`));
+      }, timeoutMs);
+      this.pending.set(id, { method, resolve, reject, timer });
+      try {
+        this.socket.send(JSON.stringify({ id, method, params }));
+      } catch (error) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(error);
+      }
+    });
+  }
+
+  waitForEvent(method, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        const waiters = this.eventWaiters.get(method) ?? [];
+        const remaining = waiters.filter((waiter) => waiter.timer !== timer);
+        if (remaining.length) {
+          this.eventWaiters.set(method, remaining);
+        } else {
+          this.eventWaiters.delete(method);
+        }
+        reject(new Error(`${method} event exceeded ${timeoutMs} ms`));
+      }, timeoutMs);
+      const waiters = this.eventWaiters.get(method) ?? [];
+      waiters.push({ method, resolve, reject, timer });
+      this.eventWaiters.set(method, waiters);
     });
   }
 
@@ -167,7 +213,10 @@ async function fetchJsonWithRetry(url) {
   let lastError;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(url, { cache: "no-store" });
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())),
+      });
       if (response.ok) {
         return await response.json();
       }
@@ -464,7 +513,11 @@ async function main() {
     });
     await pageClient.send("Page.bringToFront");
     await evaluate(pageClient, "window.focus(); true");
-    await pageClient.send("Page.navigate", { url });
+    const loaded = pageClient.waitForEvent(
+      "Page.loadEventFired",
+      NAVIGATION_TIMEOUT_MS,
+    );
+    await Promise.all([loaded, pageClient.send("Page.navigate", { url })]);
     await pageClient.send("Page.bringToFront");
     const benchmarkState = await waitForBenchmark(pageClient);
     await pageClient.send("Page.bringToFront");
@@ -505,8 +558,10 @@ async function main() {
   } finally {
     pageClient?.close();
     browserClient?.close();
-    server.close();
-    await once(server, "close");
+    await new Promise((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+      server.closeAllConnections();
+    });
   }
 }
 

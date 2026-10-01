@@ -1,9 +1,35 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateEvidence } from "./run_webgpu_browser_performance.mjs";
+import { CdpClient, validateEvidence } from "./run_webgpu_browser_performance.mjs";
 
 const REVISION = "0123456789abcdef0123456789abcdef01234567";
+
+test("unanswered CDP command rejects and releases its pending entry", async () => {
+  const client = new CdpClient("ws://unused");
+  client.socket = { send() {} };
+  await assert.rejects(
+    client.send("Runtime.evaluate", {}, 10),
+    /Runtime.evaluate exceeded 10 ms/,
+  );
+  assert.equal(client.pending.size, 0);
+});
+
+test("CDP transport failure rejects immediately and releases the timer", async () => {
+  const client = new CdpClient("ws://unused");
+  client.socket = { send() { throw new Error("transport closed"); } };
+  await assert.rejects(client.send("Page.navigate"), /transport closed/);
+  assert.equal(client.pending.size, 0);
+});
+
+test("missing navigation event times out and releases its waiter", async () => {
+  const client = new CdpClient("ws://unused");
+  await assert.rejects(
+    client.waitForEvent("Page.loadEventFired", 10),
+    /Page.loadEventFired event exceeded 10 ms/,
+  );
+  assert.equal(client.eventWaiters.size, 0);
+});
 
 function validInput() {
   const samples = Array.from({ length: 30 }, () => ({
