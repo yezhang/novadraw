@@ -6,6 +6,28 @@ parity_ledgers = [
   "doc/parity/draw2d/api-coverage.md",
   "doc/parity/gef/api-coverage.md",
 ]
+markdown_roots = ["doc", "book/src"]
+typed_markdown_roots = ["doc"]
+command_reference_roots = ["doc", "book/src"]
+public_api_command = "test.facade-doc"
+allowed_document_types = [
+  "archive",
+  "architecture-decision",
+  "architecture-review",
+  "documentation-index",
+  "implementation-verification",
+  "manual-verification",
+  "migration-guide",
+  "normative-design",
+  "parity-contract",
+  "product-strategy",
+  "proposal",
+  "reference-analysis",
+  "roadmap",
+  "verification",
+  "verification-plan",
+  "verification-record",
+]
 allowed_parity_statuses = [
   "specified",
   "partial",
@@ -13,6 +35,18 @@ allowed_parity_statuses = [
   "deferred",
   "rejected",
 ]
+
+[[documentation.index_sections]]
+index = "doc/design/00-index.md"
+heading = "核心设计"
+target_root = "doc/design"
+allowed_types = ["normative-design"]
+
+[[documentation.index_sections]]
+index = "doc/design/00-index.md"
+heading = "非规范提案"
+target_root = "doc/design"
+allowed_types = ["proposal"]
 
 [commands."workspace.fmt"]
 description = "Check Rust formatting for the complete workspace"
@@ -547,6 +581,7 @@ id = "core.facade"
 title = "Core API and optional package boundaries"
 milestone = "Core API"
 kind = "contract"
+api_semantics = ["runtime.identity", "frame.preparation"]
 layers = ["static", "contract"]
 platforms = ["host", "native-macos", "web"]
 commands = [
@@ -655,6 +690,7 @@ id = "core.image-source-rectangle"
 title = "Image source rectangle recording and backend lowering"
 milestone = "Core API"
 kind = "contract"
+api_semantics = ["graphics.context", "resource.lifecycle", "render.backend_session"]
 layers = ["contract", "platform"]
 platforms = ["host", "native-macos", "web"]
 commands = [
@@ -679,6 +715,7 @@ id = "core.p2-c01-connection-decoration"
 title = "PointList bounds, endpoint locators, and Connection decorations"
 milestone = "P2-C01"
 kind = "contract"
+api_semantics = ["builtin.figures", "connection.figure", "connection.locator"]
 layers = ["contract", "headless", "visual", "platform"]
 platforms = ["host", "headless", "native-macos"]
 commands = ["test.p2-c01"]
@@ -707,6 +744,7 @@ id = "core.p2-c02-shortest-path-routing"
 title = "Obstacle-aware deterministic shortest-path routing"
 milestone = "P2-C02"
 kind = "contract"
+api_semantics = ["connection.router"]
 layers = ["contract", "headless", "visual", "platform"]
 platforms = ["host", "headless", "native-macos"]
 commands = ["test.p2-c02"]
@@ -731,6 +769,7 @@ id = "core.p2-f01-scalable-polygon"
 title = "Bounds-driven scalable polygon contracts"
 milestone = "P2-F01"
 kind = "contract"
+api_semantics = ["builtin.figures"]
 layers = ["contract", "visual", "platform"]
 platforms = ["host", "native-macos", "web"]
 commands = ["test.p2-f01"]
@@ -753,6 +792,7 @@ id = "core.p2-t01-text-flow"
 title = "Read-only paragraph TextFlow contracts"
 milestone = "P2-T01"
 kind = "contract"
+api_semantics = ["text.flow"]
 layers = ["contract", "visual", "platform"]
 platforms = ["host", "native-macos", "web"]
 commands = ["test.p2-t01"]
@@ -776,6 +816,7 @@ id = "core.p2-t02-text-interaction"
 title = "TextFlow document-position and interaction geometry"
 milestone = "P2-T02"
 kind = "contract"
+api_semantics = ["text.interaction"]
 layers = ["contract"]
 platforms = ["host", "headless"]
 commands = ["test.p2-t02"]
@@ -798,6 +839,7 @@ id = "editor.p2-e02-direct-text-edit"
 title = "Viewer-scoped direct text edit session contracts"
 milestone = "P2-E02"
 kind = "contract"
+api_semantics = ["direct_edit"]
 layers = ["contract", "headless"]
 platforms = ["host", "headless"]
 commands = ["test.editor-p2-e02"]
@@ -821,6 +863,7 @@ id = "platform.p2-e02-text-input"
 title = "Native and Web direct text input bridge contracts"
 milestone = "P2-E02"
 kind = "contract"
+api_semantics = ["direct_edit", "event.input_listeners"]
 layers = ["contract", "platform"]
 platforms = ["native-macos", "web"]
 commands = [
@@ -872,6 +915,14 @@ id = "ga4.extension-consumers"
 title = "External Figure, Layout, text/backend, and Editor visual extension consumers"
 milestone = "GA-4"
 kind = "contract"
+api_semantics = [
+  "figure.tree",
+  "layout.manager",
+  "text.flow",
+  "part.visual",
+  "part.refresh",
+  "connection.router",
+]
 layers = ["contract", "headless"]
 platforms = ["host", "headless"]
 commands = [
@@ -900,6 +951,15 @@ id = "core.runtime"
 title = "Core update and event application contracts"
 milestone = "M1-M7"
 kind = "application"
+api_semantics = [
+  "figure.tree",
+  "validation.protocol",
+  "update_manager.two_phase",
+  "event.dispatcher",
+  "event.focus",
+  "notification.layout_update",
+  "frame.preparation",
+]
 layers = ["contract", "headless"]
 platforms = ["host", "headless"]
 commands = ["verify.update", "verify.event"]
@@ -922,6 +982,7 @@ id = "m8.viewport-scroll-zoom"
 title = "Viewport, scroll, freeform, and zoom contracts"
 milestone = "M8"
 kind = "application"
+api_semantics = ["viewport.scroll_zoom", "layer.freeform"]
 layers = ["contract", "headless", "visual"]
 platforms = ["host", "headless", "native-macos", "web"]
 commands = ["test.scene-viewport", "verify.scroll-pane"]
@@ -944,6 +1005,13 @@ id = "g1.model-command"
 title = "Model adapter and command history"
 milestone = "G1"
 kind = "contract"
+api_semantics = [
+  "model.identity",
+  "model.notification",
+  "command.protocol",
+  "command.stack",
+  "command.dirty_state",
+]
 layers = ["contract"]
 platforms = ["headless"]
 commands = ["test.editor-g1-model", "test.editor-g1-command"]
@@ -959,6 +1027,16 @@ id = "g2.viewer-projection"
 title = "EditPart tree and Viewer projection"
 milestone = "G2"
 kind = "contract"
+api_semantics = [
+  "part.identity",
+  "part.tree",
+  "part.factory",
+  "part.lifecycle",
+  "part.visual",
+  "part.refresh",
+  "viewer.contents_root",
+  "viewer.registry",
+]
 layers = ["contract"]
 platforms = ["headless"]
 commands = ["test.editor-g2"]
@@ -974,6 +1052,14 @@ id = "g3.selection-targeting"
 title = "Selection, targeting, and input arbitration"
 milestone = "G3"
 kind = "application"
+api_semantics = [
+  "viewer.targeting",
+  "viewer.selection",
+  "viewer.focus",
+  "root.layers",
+  "input.arbitration",
+  "interaction.selection",
+]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = [
@@ -997,6 +1083,15 @@ id = "g4.editing-loop"
 title = "Tool, request, policy, and command editing loop"
 milestone = "G4"
 kind = "application"
+api_semantics = [
+  "request.protocol",
+  "policy.protocol",
+  "tool.lifecycle",
+  "tool.tracker",
+  "feedback.protocol",
+  "interaction.delete",
+  "interaction.change_bounds",
+]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = ["test.editor-g4", "replay.editor-g4"]
@@ -1017,6 +1112,7 @@ id = "g5.1.connection-projection"
 title = "Connection projection and lifecycle"
 milestone = "G5.1"
 kind = "contract"
+api_semantics = ["connection.part"]
 layers = ["contract"]
 platforms = ["headless"]
 commands = ["test.editor-g5-projection", "test.scene-connection"]
@@ -1037,6 +1133,7 @@ id = "g5.2.connection-creation"
 title = "Two-stage connection creation"
 milestone = "G5.2"
 kind = "application"
+api_semantics = ["connection.create"]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = [
@@ -1062,6 +1159,7 @@ id = "g5.3.connection-reconnect"
 title = "Connection endpoint reconnect"
 milestone = "G5.3"
 kind = "application"
+api_semantics = ["connection.reconnect"]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = [
@@ -1087,6 +1185,7 @@ id = "g5.4.connection-bendpoint"
 title = "Connection bendpoint create, move, and delete"
 milestone = "G5.4"
 kind = "application"
+api_semantics = ["connection.bendpoint"]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = [
@@ -1112,6 +1211,7 @@ id = "g5.5.viewport-autoexpose"
 title = "Viewport-aware feedback and drag auto-expose"
 milestone = "G5.5"
 kind = "application"
+api_semantics = ["viewport.autoexpose"]
 layers = ["contract", "visual", "platform"]
 platforms = ["headless", "native-macos"]
 commands = [
@@ -1162,6 +1262,7 @@ id = "platform.native-macos-release"
 title = "macOS Native release build and real-window qualification"
 milestone = "GA-3"
 kind = "application"
+api_semantics = ["event.input_listeners", "frame.preparation", "render.backend_session"]
 layers = ["static", "platform", "visual"]
 platforms = ["native-macos"]
 commands = ["build.native-macos-release"]
@@ -1183,6 +1284,7 @@ id = "platform.native-windows-release"
 title = "Windows Native build and real-window qualification"
 milestone = "GA-3"
 kind = "application"
+api_semantics = ["event.input_listeners", "frame.preparation", "render.backend_session"]
 layers = ["static", "platform", "visual"]
 platforms = ["native-windows"]
 commands = ["build.native-windows-release"]
@@ -1204,6 +1306,7 @@ id = "platform.native-linux-x11-release"
 title = "Linux X11 Native build and real-window qualification"
 milestone = "GA-3"
 kind = "application"
+api_semantics = ["event.input_listeners", "frame.preparation", "render.backend_session"]
 layers = ["static", "platform", "visual"]
 platforms = ["native-linux-x11"]
 commands = ["build.native-linux-x11-release"]
@@ -1225,6 +1328,7 @@ id = "platform.native-linux-wayland-release"
 title = "Linux Wayland Native build and real-window qualification"
 milestone = "GA-3"
 kind = "application"
+api_semantics = ["event.input_listeners", "frame.preparation", "render.backend_session"]
 layers = ["static", "platform", "visual"]
 platforms = ["native-linux-wayland"]
 commands = ["build.native-linux-wayland-release"]
@@ -1246,6 +1350,12 @@ id = "platform.web-chrome-release"
 title = "Chrome WebGPU build and browser qualification"
 milestone = "GA-3"
 kind = "application"
+api_semantics = [
+  "event.input_listeners",
+  "frame.preparation",
+  "render.backend_session",
+  "accessibility.bridge",
+]
 layers = ["static", "platform", "visual"]
 platforms = ["wasm", "web"]
 commands = ["web.build"]

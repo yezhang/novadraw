@@ -26,6 +26,21 @@ struct VerificationManifest {
 struct DocumentationSpec {
     parity_ledgers: Vec<String>,
     allowed_parity_statuses: BTreeSet<String>,
+    markdown_roots: Vec<String>,
+    typed_markdown_roots: Vec<String>,
+    command_reference_roots: Vec<String>,
+    allowed_document_types: BTreeSet<String>,
+    index_sections: Vec<DocumentationIndexSectionSpec>,
+    public_api_command: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DocumentationIndexSectionSpec {
+    index: String,
+    heading: String,
+    target_root: String,
+    allowed_types: BTreeSet<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -94,6 +109,8 @@ struct SuiteSpec {
     title: String,
     milestone: String,
     kind: SuiteKind,
+    #[serde(default)]
+    api_semantics: Vec<String>,
     layers: Vec<VerificationLayer>,
     platforms: Vec<VerificationPlatform>,
     commands: Vec<String>,
@@ -164,6 +181,7 @@ impl VerificationManifest {
         }
 
         let mut suite_ids = HashSet::new();
+        let api_semantics = parity_family_ids(root, &self.documentation.parity_ledgers)?;
         for suite in &self.suites {
             validate_id(&suite.id, "suite")?;
             if !suite_ids.insert(suite.id.as_str()) {
@@ -174,6 +192,29 @@ impl VerificationManifest {
             }
             if suite.layers.is_empty() || suite.platforms.is_empty() {
                 bail!("suite `{}` must define layers and platforms", suite.id);
+            }
+            if matches!(suite.kind, SuiteKind::Contract | SuiteKind::Application)
+                && suite.api_semantics.is_empty()
+            {
+                bail!(
+                    "suite `{}` must map at least one parity API family",
+                    suite.id
+                );
+            }
+            let mut suite_semantics = HashSet::new();
+            for family in &suite.api_semantics {
+                if !suite_semantics.insert(family) {
+                    bail!(
+                        "suite `{}` maps API family `{family}` more than once",
+                        suite.id
+                    );
+                }
+                if !api_semantics.contains(family) {
+                    bail!(
+                        "suite `{}` maps unknown parity API family `{family}`",
+                        suite.id
+                    );
+                }
             }
             validate_command_refs(
                 &suite.commands,
@@ -221,6 +262,19 @@ impl VerificationManifest {
                 &self.documentation.allowed_parity_statuses,
             )?;
         }
+        if self.documentation.allowed_document_types.is_empty() {
+            bail!("documentation.allowed_document_types must not be empty");
+        }
+        if !self
+            .commands
+            .contains_key(&self.documentation.public_api_command)
+        {
+            bail!(
+                "documentation.public_api_command references unknown command `{}`",
+                self.documentation.public_api_command
+            );
+        }
+        validate_documentation(root, self)?;
         Ok(())
     }
 
@@ -378,6 +432,339 @@ fn validate_parity_statuses(path: &Path, allowed: &BTreeSet<String>) -> Result<(
     Ok(())
 }
 
+fn parity_family_ids(root: &Path, ledgers: &[String]) -> Result<BTreeSet<String>> {
+    let mut families = BTreeSet::new();
+    for ledger in ledgers {
+        let path = root.join(ledger);
+        let source = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        for line in source.lines().filter(|line| line.starts_with("| `")) {
+            let columns = line
+                .trim_matches('|')
+                .split('|')
+                .map(str::trim)
+                .collect::<Vec<_>>();
+            if columns.len() == 5 {
+                families.insert(columns[0].trim_matches('`').to_owned());
+            }
+        }
+    }
+    if families.is_empty() {
+        bail!("documentation parity ledgers contain no API families");
+    }
+    Ok(families)
+}
+
+fn validate_documentation(root: &Path, manifest: &VerificationManifest) -> Result<()> {
+    let documentation = &manifest.documentation;
+    let markdown_files = markdown_files_for_roots(root, &documentation.markdown_roots)?;
+    for path in &markdown_files {
+        validate_markdown_links(root, path)?;
+    }
+
+    for path in markdown_files_for_roots(root, &documentation.typed_markdown_roots)? {
+        let document_type = read_document_type(&path)?;
+        if !documentation
+            .allowed_document_types
+            .contains(&document_type)
+        {
+            bail!(
+                "{} uses unsupported document type `{document_type}`",
+                path.display()
+            );
+        }
+    }
+
+    for path in markdown_files_for_roots(root, &documentation.command_reference_roots)? {
+        validate_xtask_references(&path, manifest)?;
+    }
+
+    for section in &documentation.index_sections {
+        validate_index_section(root, section)?;
+    }
+    Ok(())
+}
+
+fn markdown_files_for_roots(root: &Path, roots: &[String]) -> Result<BTreeSet<PathBuf>> {
+    if roots.is_empty() {
+        bail!("documentation markdown roots must not be empty");
+    }
+    let mut files = BTreeSet::new();
+    for relative in roots {
+        validate_existing_path(root, relative, "documentation root")?;
+        collect_markdown_files(&root.join(relative), &mut files)?;
+    }
+    Ok(files)
+}
+
+fn collect_markdown_files(path: &Path, files: &mut BTreeSet<PathBuf>) -> Result<()> {
+    if path.is_file() {
+        if path.extension().is_some_and(|extension| extension == "md") {
+            files.insert(path.to_path_buf());
+        }
+        return Ok(());
+    }
+    let entries =
+        fs::read_dir(path).with_context(|| format!("failed to read {}", path.display()))?;
+    for entry in entries {
+        let entry = entry.with_context(|| format!("failed to read {}", path.display()))?;
+        collect_markdown_files(&entry.path(), files)?;
+    }
+    Ok(())
+}
+
+fn read_document_type(path: &Path) -> Result<String> {
+    let source =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    source
+        .lines()
+        .find_map(|line| {
+            line.strip_prefix("类型：`")
+                .and_then(|value| value.strip_suffix('`'))
+        })
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .with_context(|| format!("{} is missing a `类型：`...`` marker", path.display()))
+}
+
+fn validate_markdown_links(root: &Path, path: &Path) -> Result<()> {
+    let source =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    for (line_index, line) in source.lines().enumerate() {
+        for raw_target in markdown_links(line) {
+            let Some(target) = local_markdown_target(raw_target) else {
+                continue;
+            };
+            let resolved = path
+                .parent()
+                .expect("markdown file has a parent directory")
+                .join(target);
+            if !resolved.exists() {
+                let relative = path.strip_prefix(root).unwrap_or(path);
+                bail!(
+                    "{}:{} references missing local path `{target}`",
+                    relative.display(),
+                    line_index + 1
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+fn markdown_links(line: &str) -> Vec<&str> {
+    let mut links = Vec::new();
+    let mut remaining = line;
+    while let Some(start) = remaining.find("](") {
+        let target = &remaining[start + 2..];
+        let Some(end) = target.find(')') else {
+            break;
+        };
+        links.push(&target[..end]);
+        remaining = &target[end + 1..];
+    }
+    links
+}
+
+fn local_markdown_target(raw: &str) -> Option<&str> {
+    let target = raw
+        .split_whitespace()
+        .next()?
+        .trim()
+        .trim_start_matches('<')
+        .trim_end_matches('>');
+    if target.is_empty()
+        || target.starts_with('#')
+        || target.starts_with("mailto:")
+        || target.contains("://")
+    {
+        return None;
+    }
+    target
+        .split(['#', '?'])
+        .next()
+        .filter(|target| !target.is_empty())
+}
+
+fn validate_xtask_references(path: &Path, manifest: &VerificationManifest) -> Result<()> {
+    let source =
+        fs::read_to_string(path).with_context(|| format!("failed to read {}", path.display()))?;
+    for (line_index, line) in source.lines().enumerate() {
+        let mut remaining = line;
+        while let Some(start) = remaining.find("cargo xtask ") {
+            let reference = &remaining[start + "cargo xtask ".len()..];
+            validate_xtask_reference(reference, manifest)
+                .with_context(|| format!("{}:{}", path.display(), line_index + 1))?;
+            remaining = reference.get(1..).unwrap_or_default();
+        }
+    }
+    Ok(())
+}
+
+fn validate_xtask_reference(reference: &str, manifest: &VerificationManifest) -> Result<()> {
+    let tokens = reference
+        .split_whitespace()
+        .map(clean_command_token)
+        .filter(|token| !token.is_empty())
+        .take(2)
+        .collect::<Vec<_>>();
+    let Some(command) = tokens.first().copied() else {
+        bail!("empty `cargo xtask` reference");
+    };
+    match command {
+        "list" | "docs" => Ok(()),
+        "check" => {
+            let profile = required_reference_argument(&tokens, command)?
+                .strip_prefix("--")
+                .unwrap_or(tokens[1]);
+            if manifest.profiles.contains_key(profile) {
+                Ok(())
+            } else {
+                bail!("unknown check profile `{profile}`")
+            }
+        }
+        "verify" => {
+            let selector = required_reference_argument(&tokens, command)?;
+            if selector == "<suite-id>" || selector == "--all" {
+                Ok(())
+            } else {
+                manifest.resolve_suite(selector).map(|_| ())
+            }
+        }
+        "manual" => {
+            let selector = required_reference_argument(&tokens, command)?;
+            if selector == "<suite-id>" {
+                return Ok(());
+            }
+            let suite = manifest.resolve_suite(selector)?;
+            if suite.manual.is_some() {
+                Ok(())
+            } else {
+                bail!("suite `{}` has no manual step", suite.id)
+            }
+        }
+        "run" => {
+            let command_id = required_reference_argument(&tokens, command)?;
+            if manifest.commands.contains_key(command_id) {
+                Ok(())
+            } else {
+                bail!("unknown command `{command_id}`")
+            }
+        }
+        _ => bail!("unknown xtask subcommand `{command}`"),
+    }
+}
+
+fn clean_command_token(token: &str) -> &str {
+    let token = token.trim_start_matches(['`', '"', '\'']);
+    let end = token
+        .find([
+            '`', '"', '\'', ',', ';', ':', ')', ']', '}', '|', '，', '。', '；', '：', '、', '）',
+        ])
+        .unwrap_or(token.len());
+    &token[..end]
+}
+
+fn required_reference_argument<'a>(tokens: &'a [&str], command: &str) -> Result<&'a str> {
+    tokens
+        .get(1)
+        .copied()
+        .with_context(|| format!("`cargo xtask {command}` is missing an argument"))
+}
+
+fn validate_index_section(root: &Path, spec: &DocumentationIndexSectionSpec) -> Result<()> {
+    validate_existing_path(root, &spec.index, "documentation index")?;
+    validate_existing_path(root, &spec.target_root, "documentation index target root")?;
+    if spec.allowed_types.is_empty() {
+        bail!(
+            "documentation index section `{}#{}` has no allowed types",
+            spec.index,
+            spec.heading
+        );
+    }
+    let index_path = root.join(&spec.index);
+    let source = fs::read_to_string(&index_path)
+        .with_context(|| format!("failed to read {}", index_path.display()))?;
+    let marker = format!("## {}", spec.heading);
+    let mut in_section = false;
+    let mut section_source = String::new();
+    for line in source.lines() {
+        if line.starts_with("## ") {
+            if in_section {
+                break;
+            }
+            in_section = line.trim() == marker;
+            continue;
+        }
+        if in_section {
+            section_source.push_str(line);
+            section_source.push('\n');
+        }
+    }
+    if !in_section {
+        bail!("{} is missing section `{marker}`", spec.index);
+    }
+
+    let target_root = fs::canonicalize(root.join(&spec.target_root))
+        .with_context(|| format!("failed to resolve {}", spec.target_root))?;
+    let mut checked = 0;
+    for raw_target in markdown_links(&section_source) {
+        let Some(target) = local_markdown_target(raw_target) else {
+            continue;
+        };
+        let target_path = index_path
+            .parent()
+            .expect("documentation index has a parent directory")
+            .join(target);
+        if target_path
+            .extension()
+            .is_none_or(|extension| extension != "md")
+            || !target_path.exists()
+        {
+            continue;
+        }
+        let canonical = fs::canonicalize(&target_path)
+            .with_context(|| format!("failed to resolve {}", target_path.display()))?;
+        if !canonical.starts_with(&target_root) {
+            continue;
+        }
+        checked += 1;
+        let document_type = read_document_type(&target_path)?;
+        validate_indexed_document_type(spec, target, &document_type)?;
+    }
+    if checked == 0 {
+        bail!(
+            "{} section `{}` contains no markdown documents under {}",
+            spec.index,
+            spec.heading,
+            spec.target_root
+        );
+    }
+    Ok(())
+}
+
+fn validate_indexed_document_type(
+    spec: &DocumentationIndexSectionSpec,
+    target: &str,
+    document_type: &str,
+) -> Result<()> {
+    if spec.allowed_types.contains(document_type) {
+        return Ok(());
+    }
+    bail!(
+        "{} section `{}` classifies {} as `{document_type}`; expected one of {}",
+        spec.index,
+        spec.heading,
+        target,
+        spec.allowed_types
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
 fn workspace_root() -> Result<PathBuf> {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -428,8 +815,10 @@ fn run() -> Result<()> {
             }
         }
         [command] if command == "docs" => {
+            manifest.run_command(&root, &manifest.documentation.public_api_command)?;
             println!(
-                "PASS {}: {} commands, {} profiles, {} suites",
+                "PASS {}: {} commands, {} profiles, {} suites; documentation metadata, links, \
+                 xtask references, index classification, and public API probes are valid",
                 MANIFEST_PATH,
                 manifest.commands.len(),
                 manifest.profiles.len(),
@@ -518,5 +907,36 @@ mod tests {
             manifest.resolve_suite("g5.4").unwrap().id,
             "g5.4.connection-bendpoint"
         );
+    }
+
+    #[test]
+    fn documentation_commands_distinguish_suites_from_commands() {
+        let root = workspace_root().unwrap();
+        let manifest = VerificationManifest::load(&root).unwrap();
+        assert!(validate_xtask_reference("verify workspace.quality", &manifest).is_ok());
+        assert!(validate_xtask_reference("run workspace.test", &manifest).is_ok());
+        assert!(validate_xtask_reference("manual g5.4", &manifest).is_ok());
+        assert!(validate_xtask_reference("run workspace.quality", &manifest).is_err());
+        assert!(validate_xtask_reference("verify missing.suite", &manifest).is_err());
+    }
+
+    #[test]
+    fn documentation_index_rejects_wrong_document_type() {
+        let spec = DocumentationIndexSectionSpec {
+            index: "doc/design/00-index.md".to_owned(),
+            heading: "核心设计".to_owned(),
+            target_root: "doc/design".to_owned(),
+            allowed_types: BTreeSet::from(["normative-design".to_owned()]),
+        };
+        assert!(validate_indexed_document_type(&spec, "valid.md", "normative-design").is_ok());
+        assert!(validate_indexed_document_type(&spec, "proposal.md", "proposal").is_err());
+    }
+
+    #[test]
+    fn markdown_link_parser_keeps_local_targets_and_ignores_anchors() {
+        let links = markdown_links("[local](guide.md#section) [web](https://example.com)");
+        assert_eq!(local_markdown_target(links[0]), Some("guide.md"));
+        assert_eq!(local_markdown_target(links[1]), None);
+        assert_eq!(local_markdown_target("#section"), None);
     }
 }
