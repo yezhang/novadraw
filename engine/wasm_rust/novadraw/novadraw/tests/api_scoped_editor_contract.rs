@@ -153,6 +153,20 @@ fn specialized_editor_rejects_a_figure_without_the_capability() {
             capability: "clickable mutation",
         }) if figure == child
     ));
+    assert!(matches!(
+        runtime.image(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "image mutation",
+        }) if figure == child
+    ));
+    assert!(matches!(
+        runtime.point_list(child),
+        Err(RuntimeMutationError::WrongCapability {
+            figure,
+            capability: "point-list mutation",
+        }) if figure == child
+    ));
     assert_eq!(runtime.has_pending_update(), pending_before);
     assert_eq!(runtime.tree().figure_bounds(child), bounds_before);
 }

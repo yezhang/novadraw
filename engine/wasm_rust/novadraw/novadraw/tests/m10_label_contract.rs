@@ -714,16 +714,16 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
     );
     assert!(
         runtime
-            .figure(figure)
+            .image(figure)
             .unwrap()
-            .set_image_alignment(Alignment::End)
+            .set_alignment(Alignment::End)
             .unwrap()
     );
     assert!(
         !runtime
-            .figure(figure)
+            .image(figure)
             .unwrap()
-            .set_image_alignment(Alignment::End)
+            .set_alignment(Alignment::End)
             .unwrap()
     );
 

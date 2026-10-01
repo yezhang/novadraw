@@ -261,6 +261,18 @@ pub struct ClickableEditor<'a> {
     runtime: &'a mut Runtime,
 }
 
+/// Short-lived, Runtime-backed mutation facade for one attached ImageFigure.
+pub struct ImageEditor<'a> {
+    image: FigureId,
+    runtime: &'a mut Runtime,
+}
+
+/// Short-lived, Runtime-backed mutation facade for one attached point-list Figure.
+pub struct PointListEditor<'a> {
+    point_list: FigureId,
+    runtime: &'a mut Runtime,
+}
+
 /// Short-lived, Runtime-backed mutation facade for one attached container Figure.
 pub struct ContainerEditor<'a> {
     container: FigureId,
@@ -394,53 +406,6 @@ impl FigureEditor<'_> {
         self.runtime.update_component(self.figure, update)
     }
 
-    pub fn set_image(&mut self, image: ImageId) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_image_figure(self.figure, image)
-    }
-
-    pub fn set_image_alignment(
-        &mut self,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_image_alignment(self.figure, alignment)
-    }
-
-    pub fn replace_points(&mut self, points: Vec<Point>) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_points(self.figure, points)
-    }
-
-    pub fn insert_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
-        self.runtime.insert_point(self.figure, index, point)
-    }
-
-    pub fn set_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_point(self.figure, index, point)
-    }
-
-    pub fn remove_point(&mut self, index: usize) -> Result<bool, ShapeMutationError> {
-        self.runtime.remove_point(self.figure, index)
-    }
-
-    pub fn clear_points(&mut self) -> Result<bool, ShapeMutationError> {
-        self.runtime.clear_points(self.figure)
-    }
-
-    pub fn set_point_list_stroke_width(
-        &mut self,
-        stroke_width: f64,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_point_list_stroke_width(self.figure, stroke_width)
-    }
-
-    pub fn set_point_list_line_join(
-        &mut self,
-        line_join: crate::render::LineJoin,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_point_list_line_join(self.figure, line_join)
-    }
-
     pub fn replace_scalable_polygon_template(
         &mut self,
         template: PointList,
@@ -555,6 +520,59 @@ impl ClickableEditor<'_> {
 
     pub fn set_rollover_enabled(&mut self, enabled: bool) -> Result<bool, WidgetError> {
         self.runtime.set_rollover_enabled(self.clickable, enabled)
+    }
+}
+
+impl ImageEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.image
+    }
+
+    pub fn set_image(&mut self, image: ImageId) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_image_figure(self.image, image)
+    }
+
+    pub fn set_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_image_alignment(self.image, alignment)
+    }
+}
+
+impl PointListEditor<'_> {
+    pub fn figure_id(&self) -> FigureId {
+        self.point_list
+    }
+
+    pub fn replace_points(&mut self, points: Vec<Point>) -> Result<bool, ShapeMutationError> {
+        self.runtime.replace_points(self.point_list, points)
+    }
+
+    pub fn insert_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
+        self.runtime.insert_point(self.point_list, index, point)
+    }
+
+    pub fn set_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
+        self.runtime.set_point(self.point_list, index, point)
+    }
+
+    pub fn remove_point(&mut self, index: usize) -> Result<bool, ShapeMutationError> {
+        self.runtime.remove_point(self.point_list, index)
+    }
+
+    pub fn clear_points(&mut self) -> Result<bool, ShapeMutationError> {
+        self.runtime.clear_points(self.point_list)
+    }
+
+    pub fn set_stroke_width(&mut self, stroke_width: f64) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_point_list_stroke_width(self.point_list, stroke_width)
+    }
+
+    pub fn set_line_join(
+        &mut self,
+        line_join: crate::render::LineJoin,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_point_list_line_join(self.point_list, line_join)
     }
 }
 
@@ -869,6 +887,37 @@ impl Runtime {
         }
         Ok(ClickableEditor {
             clickable,
+            runtime: self,
+        })
+    }
+
+    pub fn image(&mut self, image: FigureId) -> Result<ImageEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(image)?;
+        if self.tree.image_figure(image).is_none() {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: image,
+                capability: "image mutation",
+            });
+        }
+        Ok(ImageEditor {
+            image,
+            runtime: self,
+        })
+    }
+
+    pub fn point_list(
+        &mut self,
+        point_list: FigureId,
+    ) -> Result<PointListEditor<'_>, RuntimeMutationError> {
+        self.validate_attached_figure(point_list)?;
+        if self.tree.point_list_style(point_list).is_none() {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure: point_list,
+                capability: "point-list mutation",
+            });
+        }
+        Ok(PointListEditor {
+            point_list,
             runtime: self,
         })
     }

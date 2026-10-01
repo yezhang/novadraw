@@ -172,7 +172,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
             .set_point(1, Point::new(210.0, 50.0))
             .unwrap()
@@ -187,15 +187,15 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     );
     assert!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
             .insert_point(1, Point::new(80.0, 70.0))
             .unwrap()
     );
-    assert!(runtime.figure(line).unwrap().remove_point(1).unwrap());
+    assert!(runtime.point_list(line).unwrap().remove_point(1).unwrap());
     assert!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
             .replace_points(vec![Point::new(20.0, 30.0), Point::new(120.0, 80.0)])
             .unwrap()
@@ -204,12 +204,12 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     let stable_points = runtime.point_list_points(line).unwrap();
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
-        runtime.figure(line).unwrap().remove_point(9),
+        runtime.point_list(line).unwrap().remove_point(9),
         Err(ShapeMutationError::PointIndexOutOfRange { index: 9, len: 2 })
     );
     assert_eq!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
             .replace_points(vec![Point::new(f64::NAN, 0.0)]),
         Err(ShapeMutationError::NonFiniteGeometry)
@@ -217,7 +217,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
     assert_eq!(runtime.point_list_points(line).unwrap(), stable_points);
     assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);
 
-    assert!(runtime.figure(line).unwrap().clear_points().unwrap());
+    assert!(runtime.point_list(line).unwrap().clear_points().unwrap());
     assert!(runtime.point_list_points(line).unwrap().is_empty());
     assert_eq!(runtime.tree().figure_bounds(line), Some(Rectangle::ZERO));
 }
@@ -244,9 +244,9 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
-            .set_point_list_line_join(LineJoin::Bevel)
+            .set_line_join(LineJoin::Bevel)
             .unwrap()
     );
     assert_eq!(
@@ -255,9 +255,9 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert!(
         runtime
-            .figure(line)
+            .point_list(line)
             .unwrap()
-            .set_point_list_stroke_width(6.0)
+            .set_stroke_width(6.0)
             .unwrap()
     );
     assert_eq!(
@@ -267,17 +267,11 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
 
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
-        runtime
-            .figure(line)
-            .unwrap()
-            .set_point_list_stroke_width(f64::NAN),
+        runtime.point_list(line).unwrap().set_stroke_width(f64::NAN),
         Err(ShapeMutationError::NonFiniteGeometry)
     );
     assert_eq!(
-        runtime
-            .figure(line)
-            .unwrap()
-            .set_point_list_stroke_width(-1.0),
+        runtime.point_list(line).unwrap().set_stroke_width(-1.0),
         Err(ShapeMutationError::NegativeMetric)
     );
     assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);

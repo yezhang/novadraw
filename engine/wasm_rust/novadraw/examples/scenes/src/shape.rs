@@ -1340,7 +1340,7 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
         .expect("valid Runtime mutation");
 
     runtime
-        .figure(polyline)
+        .point_list(polyline)
         .unwrap()
         .insert_point(1, novadraw::Point::new(140.0, 180.0))
         .expect("valid polyline mutation");
