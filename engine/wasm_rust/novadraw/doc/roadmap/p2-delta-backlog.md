@@ -45,12 +45,12 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 | 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
 |---|---|---|---|---|---|
-| 1 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `not_started` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
-| 2 | P2-S01 | 原子 indexed + constraint child add | `not_started` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
-| 3 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
-| 4 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
-| 5 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
-| 6 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
+| 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `not_started` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
+| 3 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 4 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
+| 5 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
+| 6 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
 | 7 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
 | 8 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
 | 9 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
@@ -63,6 +63,42 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 4. P2-L01 只参考 `org.eclipse.draw2d.graph`，不得使用 Zest 定义目标；
 5. P2-LC01 不恢复自动跨 Runtime 活对象迁移，默认仍是模型/描述重建；
 6. 平台相关 delta 的支持声明以 `platform-support-matrix.md` 为准。
+
+## Figure 树 API
+
+### P2-S01: 原子 indexed + constraint child add
+
+状态：`complete`
+
+目标：`GOAL-CAP`、`GOAL-EXT`。2026-10-02 核心 API 主线首个切片。
+
+`api_semantics`：`figure.tree`、`layout.manager`、`notification.ancestor`、
+`notification.layout_update`、`validation.protocol`、`damage.repaint`。
+
+规范入口：[动态协议 §5.1](../design/architecture/dynamic-architecture.md#51-原子-child-insertionp2-s01)。
+对标 `org.eclipse.draw2d.Figure.add(IFigure,Object,int)` 的顺序、constraint 与通知时序；
+延续 ADR-019 命名复合操作，使用 Rust owned Figure 与 Result 失败语义。
+
+交付与毕业条件：
+
+1. Builder/ContainerEditor 提供指定 index 的添加及携带外部 typed constraint 的添加；
+2. 预检 parent、admission、index、深度及 manager compatibility，失败不发布半成品；
+3. 无 manager 的 constraint 保留、后续替换 manager 校验、生命周期与通知顺序一致；
+4. 外部自定义 Figure/Layout 消费者验证，不修改引擎枚举即可接入新 constraint；
+5. `core.p2-s01-child-insertion` suite 覆盖顺序、布局、错误原子性与发布通知；
+6. 使用平台无关 headless 契约验证，O(n) 有序插入不新增全树扫描；平台采证后置。
+
+实现与验证证据（2026-10-02）：
+
+- Builder 与 ContainerEditor 已共享结构预检/发布原语；既有 add 与 Layer 添加继续
+  复用该原语，Runtime 资源登记、失效与生命周期复用既有路径；
+- `novadraw/tests/p2_child_insertion.rs` 仅通过公开 API 实现外部 Figure/Layout 与
+  自定义 Placement constraint，验证 Builder/Runtime 得到相同顺序与布局；
+- `core.p2-s01-child-insertion`：8 项通过，覆盖原子拒绝、失败 ID 作废、通知、
+  admission、10,000 层深度及 validator panic 隔离；
+- `cargo xtask check --quick`：通过，包含 Native/Web 编译与第三方类型边界检查；
+- `cargo xtask check --full`：通过，包含 Clippy 与 workspace 单元、集成、文档测试；
+- 本项不改变 callback FIFO、已有 Figure reparent 或 keyed Layer 协议。
 
 ## Connection
 

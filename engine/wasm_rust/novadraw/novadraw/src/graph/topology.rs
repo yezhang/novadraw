@@ -415,6 +415,30 @@ impl FigureTree {
         self.new_block_with_parent(figure, parent_id)
     }
 
+    pub(crate) fn insert_child_at(
+        &mut self,
+        parent: FigureId,
+        index: usize,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        self.insert_child_prepared(figure, parent, false, Some(index), |_, _| Ok(None))
+    }
+
+    pub(crate) fn insert_child_with_constraint_at(
+        &mut self,
+        parent: FigureId,
+        index: usize,
+        figure: Box<dyn Figure>,
+        constraint: Box<dyn LayoutConstraint>,
+    ) -> Result<FigureId, ChildInsertionError> {
+        self.insert_child_prepared(figure, parent, false, Some(index), |tree, child| {
+            if let Some(manager) = tree.layout_manager(parent) {
+                manager.validate_constraint(parent, child, constraint.as_ref())?;
+            }
+            Ok(Some(constraint))
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn add_child(
         &mut self,
@@ -433,13 +457,20 @@ impl FigureTree {
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, GraphMutationError> {
         let child_id = self.try_add_child_to(parent_id, figure)?;
-        let visual_bounds = self.blocks[child_id].visual_bounds();
+        self.invalidate_child_insertion(update_manager, parent_id, child_id);
+        Ok(child_id)
+    }
 
+    pub(crate) fn invalidate_child_insertion(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        parent_id: FigureId,
+        child_id: FigureId,
+    ) {
+        let visual_bounds = self.blocks[child_id].visual_bounds();
         self.mark_invalid(update_manager, parent_id);
         update_manager.add_dirty_region(child_id, visual_bounds);
         self.mark_invalid(update_manager, child_id);
-
-        Ok(child_id)
     }
 
     #[cfg(test)]
@@ -541,6 +572,17 @@ impl FigureTree {
         parent_id: FigureId,
         layer_admission: bool,
     ) -> Result<FigureId, GraphMutationError> {
+        self.insert_child_prepared(figure, parent_id, layer_admission, None, |_, _| Ok(None))
+    }
+
+    fn insert_child_prepared<E: From<GraphMutationError>>(
+        &mut self,
+        figure: Box<dyn Figure>,
+        parent_id: FigureId,
+        layer_admission: bool,
+        index: Option<usize>,
+        prepare: impl FnOnce(&Self, FigureId) -> Result<Option<Box<dyn LayoutConstraint>>, E>,
+    ) -> Result<FigureId, E> {
         let bounds = figure.initial_bounds();
         let insets = figure.initial_insets();
         let style = figure.initial_style();
@@ -555,15 +597,24 @@ impl FigureTree {
         let parent = &self.blocks[parent_id];
         match parent.child_policy() {
             ChildPolicy::Single if !parent.children.is_empty() => {
-                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 });
+                return Err(GraphMutationError::ChildLimitExceeded { limit: 1 }.into());
             }
             ChildPolicy::Layered if !layer_admission => {
-                return Err(GraphMutationError::LayerKeyRequired);
+                return Err(GraphMutationError::LayerKeyRequired.into());
             }
             ChildPolicy::Layered if figure.layer().is_none() => {
-                return Err(GraphMutationError::LayerChildRequired);
+                return Err(GraphMutationError::LayerChildRequired.into());
             }
             _ => {}
+        }
+        let index = index.unwrap_or(parent.children.len());
+        if index > parent.children.len() {
+            return Err(GraphMutationError::InvalidChildIndex {
+                parent: parent_id,
+                index,
+                child_count: parent.children.len(),
+            }
+            .into());
         }
         let depth = parent_depth
             .checked_add(1)
@@ -577,7 +628,7 @@ impl FigureTree {
             id: key,
             uuid,
             children: Vec::new(),
-            parent: Some(parent_id),
+            parent: None,
             depth,
             figure,
             component_revision: 0,
@@ -591,13 +642,42 @@ impl FigureTree {
                 ..NodeState::default()
             },
         });
+        // Reserve an identity without publishing topology, UUID lookup or effects. Retiring a
+        // rejected reservation ensures that an ID seen by a validator never aliases a later child.
+        let prepared = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| prepare(self, id)));
+        let constraint = match prepared {
+            Ok(Ok(constraint)) => constraint,
+            Ok(Err(error)) => {
+                drop(self.blocks.remove(id));
+                return Err(error);
+            }
+            Err(payload) => {
+                drop(self.blocks.remove(id));
+                std::panic::resume_unwind(payload);
+            }
+        };
+        self.blocks[id].parent = Some(parent_id);
         self.uuid_map.insert(uuid, id);
-        self.blocks[parent_id].children.push(id);
+        self.blocks[parent_id].children.insert(index, id);
+        let has_constraint = constraint.is_some();
+        if let Some(constraint) = constraint {
+            self.blocks[parent_id]
+                .layout
+                .constraints
+                .insert(id, constraint);
+        }
         self.emit_ancestor_event(AncestorEvent {
             kind: AncestorEventKind::Added,
             figure_id: id,
             parent_id,
         });
+        if has_constraint {
+            self.emit_layout_event(LayoutEvent {
+                kind: LayoutEventKind::ConstraintChanged,
+                container_id: parent_id,
+                child_id: Some(id),
+            });
+        }
         self.mark_validation_path_invalid(parent_id);
         Ok(id)
     }

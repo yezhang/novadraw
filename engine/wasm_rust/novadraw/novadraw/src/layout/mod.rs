@@ -311,6 +311,9 @@ pub trait LayoutManager {
     ///
     /// Managers that consume constraints must override this method and accept every concrete
     /// compatibility type that their layout implementation can read.
+    /// During atomic insertion, `child` is a reserved identity that is not yet attached.
+    /// Validation must not require a published child; a rejected identity is retired and
+    /// cannot identify a future Figure.
     fn validate_constraint(
         &self,
         container: FigureId,

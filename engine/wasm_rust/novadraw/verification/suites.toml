@@ -411,6 +411,11 @@ args = [
   "m10_text_extension_contract",
 ]
 
+[commands."test.p2-child-insertion"]
+description = "Verify atomic indexed child insertion with external layout constraints"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "p2_child_insertion"]
+
 [commands."test.ga4-editor-extension-consumer"]
 description = "Compile and run the external Editor compound-visual component consumer"
 program = "cargo"
@@ -1023,6 +1028,34 @@ documents = [
   "doc/design/architecture/component-update.md",
   "doc/design/architecture/runtime-ownership-and-module-boundaries.md",
   "doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md",
+]
+
+[[suites]]
+id = "core.p2-s01-child-insertion"
+title = "Atomic child insertion and external constraint consumers"
+milestone = "P2-S01"
+kind = "contract"
+api_semantics = [
+  "figure.tree",
+  "layout.manager",
+  "notification.ancestor",
+  "notification.layout_update",
+  "validation.protocol",
+  "damage.repaint",
+]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-child-insertion"]
+paths = [
+  "novadraw/src/graph/**",
+  "novadraw/src/tree.rs",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/tests/p2_child_insertion.rs",
+]
+documents = [
+  "doc/design/architecture/dynamic-architecture.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/parity/draw2d/api-coverage.md",
 ]
 
 [[suites]]

@@ -632,6 +632,29 @@ impl ContainerEditor<'_> {
         self.runtime.add_figure(self.container, figure)
     }
 
+    /// Inserts a new child at `0..=children.len()` as one Runtime operation.
+    pub fn insert(
+        &mut self,
+        index: usize,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        self.runtime
+            .insert_figure(self.container, index, figure, None)
+    }
+
+    /// Atomically inserts a child and its parent-owned layout constraint.
+    ///
+    /// A rejected index, admission or constraint publishes no partial state.
+    pub fn insert_with_constraint<C: LayoutConstraint>(
+        &mut self,
+        index: usize,
+        figure: Box<dyn Figure>,
+        constraint: C,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        self.runtime
+            .insert_figure(self.container, index, figure, Some(Box::new(constraint)))
+    }
+
     pub fn remove(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
         self.runtime.remove_figure(self.container, child)
     }
@@ -1452,6 +1475,40 @@ impl Runtime {
         self.guarded_runtime_mutation(move |runtime| runtime.add_figure_checked(parent, figure))
     }
 
+    fn insert_figure(
+        &mut self,
+        parent: FigureId,
+        index: usize,
+        figure: Box<dyn Figure>,
+        constraint: Option<Box<dyn LayoutConstraint>>,
+    ) -> Result<FigureId, RuntimeMutationError> {
+        self.guarded_runtime_mutation(move |runtime| {
+            runtime.validate_attached_figure(parent)?;
+            if runtime.tree.is_layered_pane(parent) {
+                return Err(RuntimeMutationError::LayeredParent(parent));
+            }
+            let id = match constraint {
+                Some(constraint) => runtime
+                    .tree
+                    .insert_child_with_constraint_at(parent, index, figure, constraint)
+                    .map_err(|error| match error {
+                        crate::tree::ChildInsertionError::Graph(error) => {
+                            RuntimeMutationError::Graph(error)
+                        }
+                        crate::tree::ChildInsertionError::Layout(error) => {
+                            RuntimeMutationError::Layout(error)
+                        }
+                    })?,
+                None => runtime.tree.insert_child_at(parent, index, figure)?,
+            };
+            runtime
+                .tree
+                .invalidate_child_insertion(&mut runtime.updates, parent, id);
+            runtime.complete_figure_insertion(parent, id);
+            Ok(id)
+        })
+    }
+
     /// Adds a Viewport Figure and returns its transactional handle.
     pub fn add_viewport(
         &mut self,
@@ -1496,11 +1553,15 @@ impl Runtime {
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
         let id = self.tree.try_add_child(&mut self.updates, parent, figure)?;
+        self.complete_figure_insertion(parent, id);
+        Ok(id)
+    }
+
+    fn complete_figure_insertion(&mut self, parent: FigureId, id: FigureId) {
         self.register_layered_pane(id);
         self.register_label_icon_dependency(id);
         self.register_image_figure_dependency(id);
         self.tree.complete_attachment(id, parent);
-        Ok(id)
     }
 
     pub fn add_layered_pane(

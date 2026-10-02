@@ -99,6 +99,12 @@ preferred/minimum/maximum 三者的大小关系，以保持 Draw2D 的独立属�
 D3.2 不新增 `add(child, constraint, index)` 复合入口；新增 Figure 继续使用既有
 Runtime add API，原子 indexed add 留待出现真实调用需求后单独设计。
 
+2026-10-02 补充：P2-S01 在 ADR-019 的命名复合操作边界内增加
+Builder `insert_child/insert_child_with_constraint` 与 ContainerEditor
+`insert/insert_with_constraint`。索引、constraint 与新增节点一次预检/发布，
+规范见 [动态协议 §5.1](../design/architecture/dynamic-architecture.md#51-原子-child-insertionp2-s01)；
+不改变既有 reorder、reparent 或 callback FIFO 语义。
+
 ### 5. Clipping 真值进入 NodeState
 
 `NodeState` 保存 Runtime 显式设置的 clipping override。没有 override 时，仍委托

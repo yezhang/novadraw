@@ -152,6 +152,38 @@ Effect 严格保持产生顺序。Runtime 可以合并 repaint 区域，但不�
 不按 mutation 类型重新排序。调用者产生的 FIFO 顺序就是语义顺序；需要复合原子操作
 时应使用单个 `Reparent`、`ReplaceContents` 等高层 mutation。
 
+### 5.1 原子 child insertion（P2-S01）
+
+`api_semantics`：`figure.tree`、`layout.manager`、`notification.ancestor`、
+`notification.layout_update`、`validation.protocol`、`damage.repaint`。
+
+构建期使用 `FigureTreeBuilder::insert_child(parent, index, figure)` 或
+`insert_child_with_constraint(parent, index, figure, constraint)`；运行期使用
+`Runtime::container(parent)?.insert(index, figure)` 或
+`insert_with_constraint(index, figure, constraint)`。输入是新 owned Figure，
+输出是唯一新 FigureId；已有 Figure 的移动仍使用 reparent/reorder。
+
+1. index 是插入前 children 的 `0..=len`，`len` 表示追加；不使用负数 sentinel。
+2. 先检查 parent、single/layer admission、index 和深度上限，再以待插入 FigureId
+   调用 parent LayoutManager 的只读 `validate_constraint`；不能传入 null ID。
+3. 有 constraint 但尚无 manager 时保留 parent-owned constraint；后续安装 manager
+   仍须校验。约束类型开放给外部实现，不增加内置 constraint 枚举。
+4. 全部预检成功后一次发布 parent/child 关系、顺序与 constraint，再记录
+   `Ancestor Added`、可选 `ConstraintChanged`，最后执行既有 invalidation、damage、
+   Runtime 资源登记与 attachment lifecycle。监听器不能观察到中间顺序或缺失约束。
+5. 可恢复失败不留下 live 节点、UUID 索引、parent constraint、通知、validation 或
+   damage；返回 graph/layout 结构化错误。内部可消耗未发布 ID 的代际，失败 ID
+   永不成为后续活对象。输入 owned value 在失败时释放，不承诺返还。
+6. 普通 insertion 拒绝 LayeredPane；keyed Layer API 不变。运行期拒绝
+   foreign/disposed/faulted/synthetic-root 目标，沿用 scoped editor 门禁。
+7. 不扩展 callback mutation 方言或通用 batch；本项只提供同步命名复合操作。
+   用户扩展 callback/Drop panic 沿 ADR-014 fault 边界，不承诺回滚外部副作用。
+
+Builder 与 Runtime 共享结构预检/发布原语。构建期错误使用
+`tree::ChildInsertionError::{Graph, Layout}`（无约束入口保持 `GraphMutationError`），
+运行期映射到既有 `RuntimeMutationError::{Graph, Layout}`。children 顺序更新为 O(n)，
+失效传播沿既有祖先链；不新增整树扫描或共享可变服务，不修改渲染遍历。
+
 ## 6. 几何变更
 
 `set_bounds` 是一个原子 effect：

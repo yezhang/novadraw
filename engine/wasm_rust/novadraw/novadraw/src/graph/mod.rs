@@ -159,6 +159,43 @@ impl fmt::Display for GraphMutationError {
 
 impl Error for GraphMutationError {}
 
+/// A child insertion rejected by topology admission or layout constraint validation.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ChildInsertionError {
+    Graph(GraphMutationError),
+    Layout(LayoutError),
+}
+
+impl From<GraphMutationError> for ChildInsertionError {
+    fn from(error: GraphMutationError) -> Self {
+        Self::Graph(error)
+    }
+}
+
+impl From<LayoutError> for ChildInsertionError {
+    fn from(error: LayoutError) -> Self {
+        Self::Layout(error)
+    }
+}
+
+impl fmt::Display for ChildInsertionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Graph(error) => error.fmt(formatter),
+            Self::Layout(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl Error for ChildInsertionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Graph(error) => Some(error),
+            Self::Layout(error) => Some(error),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ValidationError {
     Layout(LayoutError),
@@ -699,6 +736,30 @@ impl<'a> FigureTreeBuilder<'a> {
         figure: Box<dyn super::Figure>,
     ) -> Result<FigureId, GraphMutationError> {
         self.tree.try_add_child_to(parent, figure)
+    }
+
+    /// Inserts a new child at `0..=children.len()`; the last position appends.
+    pub fn insert_child(
+        &mut self,
+        parent: FigureId,
+        index: usize,
+        figure: Box<dyn super::Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        self.tree.insert_child_at(parent, index, figure)
+    }
+
+    /// Inserts a new child and its parent-owned constraint as one source operation.
+    ///
+    /// Rejection publishes no node, constraint, invalidation or notification.
+    pub fn insert_child_with_constraint<C: LayoutConstraint>(
+        &mut self,
+        parent: FigureId,
+        index: usize,
+        figure: Box<dyn super::Figure>,
+        constraint: C,
+    ) -> Result<FigureId, ChildInsertionError> {
+        self.tree
+            .insert_child_with_constraint_at(parent, index, figure, Box::new(constraint))
     }
 
     pub fn add_child_with_bounds(

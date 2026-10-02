@@ -197,7 +197,7 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | `CAP-GRAPHICS-CORE` | state、transform、rect/path/text/image | GOAL-CAP | `adopted` | `NdCanvas` stateful API | M1、M10、P2-R02 | Render IR 必须被启用 backend 完整消费或拒绝 |
 | `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | 目标：`NdCanvas` + backend-neutral Render IR | P2-G01 | producer、IR、Vello lowering 与失败语义全部闭合后退出 |
 | `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 目标替代：feedback layer / explicit compositing | P2-G01 设计裁决 | 现代 GPU 合成不承诺设备相关 XOR 像素语义 |
-| `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `pending` | 目标：Builder/ContainerEditor 命名复合操作 | P2-S01 | 一次预检 admission、constraint、order 与 publication |
+| `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `adapted` | `FigureTreeBuilder::insert_child_with_constraint`、`ContainerEditor::insert_with_constraint` | `core.p2-s01-child-insertion` / P2-S01 | 新 owned Figure 一次预检 admission、constraint、order 与 publication；Result 失败不发布节点，已有 Figure 移动仍用 reparent |
 | `CAP-CLIPPING-EXT` | replaceable/multi-rect clipping | GOAL-CAP/EXT | `pending` | 目标：受控 clipping provider | P2-C03 | 先闭合跨 viewport Connection 可见性真实用例 |
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
 | `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `pending` | `TextFlowFigure`、`TextLayoutEngine` | P2-T01/T02 complete；P2-T03 pending | 剩余 fragment style 与 inline/block 组合进入 P2-T03 |
@@ -254,7 +254,7 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `figure.tree` | `IFigure.add(IFigure)` | 构建期 `FigureTreeBuilder::{set_contents,add_child}`；运行期 `Runtime::set_contents` 与 `Runtime::container(parent)?.add(...)` | verified | 保持 child order、single/layer admission、no-cycle 与 10,000 层深度门禁 |
-| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | 构建期可组合 add + index/constraint；`ContainerEditor` 提供现有 child 的 `move_child_to_index/bring_child_to_front/send_child_to_back`，尚无原子 indexed add | partial | D3.2 已闭合动态 reorder；原子 indexed/constraint add 等待真实调用需求 |
+| `figure.tree` | `add(IFigure,int)`, `add(IFigure,Object,int)` | `FigureTreeBuilder::{insert_child,insert_child_with_constraint}`、`ContainerEditor::{insert,insert_with_constraint}`；已有 child 使用 reorder/reparent | verified | P2-S01 suite 验证 0..=len、外部 typed constraint、原子拒绝、一次通知与 lifecycle；无 null ID 或分步 add/set/reorder |
 | `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `ContainerEditor::remove`、`FigureEditor::reparent`、`Runtime::dispose_subtree` 与 `FigureTree::parent_id`；remove 释放 arena slot 与 side state，reparent 保持同 Runtime 身份 | partial | D4.3 已闭合 dispose/reparent；通用活对象迁移撤回，`removeAll` convenience 延后 |
 | `figure.tree` | `getChildren()` | `FigureNode::children_count`、`FigureTree::child_order/descendant_ids` 提供稳定只读查询 | verified | 不暴露可修改内部 children 集合的引用 |
 | `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}`、parent-first activation、descendant-first disposal、旧 visual damage 与 side-state 清理 | verified | D4.3 自动契约覆盖 10,000 层 dispose 与 panic/fault 边界 |
