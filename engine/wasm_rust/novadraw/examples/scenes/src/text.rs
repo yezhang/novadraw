@@ -549,6 +549,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn text_flow_renders_mixed_scripts_without_missing_glyphs() {
+        let mut runtime = text_flow_scene();
+        runtime.record_full_frame();
+        let root = runtime.tree().contents().unwrap();
+        let children = runtime.tree().child_order(root).unwrap();
+        let layout = runtime.text_flow_layout(children[0]).unwrap();
+        assert!(layout.key().text().contains("English 与 العربية share the"));
+        assert!(!layout.glyph_runs().is_empty());
+        for run in layout.glyph_runs() {
+            for glyph in &run.glyphs {
+                assert_ne!(glyph.id, 0, "missing glyph in Text_Flow: {glyph:?}");
+            }
+        }
+    }
+
+    #[test]
     fn shared_text_suite_builds_every_web_scene_with_required_resources() {
         let mut suite = suite();
         assert_eq!(suite.scenes.len(), 7);

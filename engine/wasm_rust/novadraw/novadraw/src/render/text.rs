@@ -22,22 +22,30 @@ const INTER_FONT: &[u8] = include_bytes!("../../../assets/fonts/InterVariable.tt
 const NOTO_SANS_SC_FONT: &[u8] = include_bytes!("../../../assets/fonts/NotoSansSC-VF.ttf");
 const JETBRAINS_MONO_FONT: &[u8] =
     include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf");
+const NOTO_SANS_ARABIC_FONT: &[u8] = include_bytes!("../../../assets/fonts/NotoSansArabic-VF.ttf");
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BuiltinFont {
     Inter,
     NotoSansSc,
     JetBrainsMono,
+    NotoSansArabic,
 }
 
 impl BuiltinFont {
-    pub const ALL: [Self; 3] = [Self::Inter, Self::NotoSansSc, Self::JetBrainsMono];
+    pub const ALL: [Self; 4] = [
+        Self::Inter,
+        Self::NotoSansSc,
+        Self::JetBrainsMono,
+        Self::NotoSansArabic,
+    ];
 
     pub const fn family(self) -> &'static str {
         match self {
             Self::Inter => "Inter Variable",
             Self::NotoSansSc => "Noto Sans SC",
             Self::JetBrainsMono => "JetBrains Mono",
+            Self::NotoSansArabic => "Noto Sans Arabic",
         }
     }
 
@@ -46,6 +54,7 @@ impl BuiltinFont {
             Self::Inter => INTER_FONT,
             Self::NotoSansSc => NOTO_SANS_SC_FONT,
             Self::JetBrainsMono => JETBRAINS_MONO_FONT,
+            Self::NotoSansArabic => NOTO_SANS_ARABIC_FONT,
         }
     }
 }

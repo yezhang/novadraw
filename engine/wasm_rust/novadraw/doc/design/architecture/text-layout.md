@@ -102,7 +102,8 @@ Novadraw 分发以下 OFL-1.1 内置字体，但 Runtime 启动时不自动注�
 
 - Inter：默认 UI 与拉丁文本；
 - Noto Sans SC：简体中文及 CJK fallback；
-- JetBrains Mono：代码和技术标注。
+- JetBrains Mono：代码和技术标注；
+- Noto Sans Arabic：阿拉伯文 shaping 及 RTL 混排 fallback。
 
 字体文件、许可证和校验值位于 `assets/fonts/`。应用必须通过
 `Runtime::register_builtin_font` 显式选择需要的字体；这会同时更新 ResourceRegistry
