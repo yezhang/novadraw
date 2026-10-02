@@ -70,6 +70,11 @@
 
 ### 当前执行门禁
 
+- 2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
+  GA-1/GA-4 为基础，先推进 P2-S01，再评审 Graphics 与外部布局算法扩展。
+  WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
+  保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
+  `doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` 为准。
 - M1-M10、D3.1-D3.4 与 D4.1-D4.6 已完成；最近一次长期架构审计的 A01-A08 已关闭。
 - 2026-09-13 macOS/Web/Headless 总审计与 R9.4 capability 消融复查通过，Draw2D
   Core 1.0 完成。Editor framework 已按 ADR-015 完成独立 G0-G5 roadmap，G0 架构启动与

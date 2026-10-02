@@ -68,7 +68,9 @@ direct-edit session、Winit bridge、Web DOM host、Native/Web 场景与 2026-09
 scope、历史事件、串行 session handoff、递归性能和最终回归门禁已完成。
 当前引擎开发按
 [`目标一致性调整计划`](goal-alignment-adjustment-plan-2026-09-30.md)
-推进 GA-0 至 GA-6。原 G6 的产品 schema、
+的 2026-10-02 优先级推进核心架构与 API：GA-1/GA-4 已完成，先推进 P2-S01，
+再评审 Graphics 与外部布局算法扩展。GA-2/GA-3 剩余环境采证后置到发布准备，
+保留未完成状态，不阻塞平台无关核心开发。原 G6 的产品 schema、
 serializer 和产品级 Native/Web 场景由独立产品包负责；已完成的 D0-D4、M8/M9 与
 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为当前工作入口。
 

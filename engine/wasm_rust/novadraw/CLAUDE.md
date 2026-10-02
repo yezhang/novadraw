@@ -107,6 +107,12 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 
 ### Milestone 与路线图
 
+2026-10-02 起优先推进框架核心架构与 API 的灵活、扩展和稳定；以已完成的
+GA-1/GA-4 为基础，先推进 P2-S01，再评审 Graphics 与外部布局算法扩展。
+WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
+保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
+`doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` 为准。
+
 - **Draw2D API 语义覆盖账本**：`doc/parity/draw2d/api-coverage.md`（API family、语义契约、Novadraw 合理变体、M1-M10 映射）
 - **产品交付清单**：`doc/roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）
 - **Demo + 验证矩阵**：`doc/roadmap/demo-matrix.md`（每个 milestone 配套 demo + 截图断言策略 + GEF 层探索附录）
