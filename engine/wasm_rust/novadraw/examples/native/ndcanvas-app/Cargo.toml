@@ -1,5 +1,6 @@
 [package]
 name = "ndcanvas-app"
+default-run = "ndcanvas-app"
 version.workspace = true
 edition.workspace = true
 publish = false
@@ -11,4 +12,6 @@ tracing-subscriber.workspace = true
 novadraw = { path = "../../../novadraw" }
 novadraw-example-support = { path = "../../support" }
 novadraw-example-scenes = { path = "../../scenes" }
+novadraw-backend-vello = { path = "../../../novadraw-backend-vello", features = ["native"] }
 pollster.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }

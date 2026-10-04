@@ -180,6 +180,36 @@ args = [
   "m10_label_contract",
 ]
 
+[commands."test.p2-g01-graphics"]
+description = "Exercise checked Graphics values and external Canvas consumers"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "p2_graphics_contract"]
+
+[commands."test.vello-p2-graphics"]
+description = "Exercise Vello Graphics lowering, clipping and resource acceptance"
+program = "cargo"
+args = ["test", "-p", "novadraw-backend-vello", "--lib"]
+
+[commands."native.p2-g01-pixels"]
+description = "Capture and assert real Vello offscreen Graphics pixels at DPI 1 and 2"
+program = "cargo"
+args = ["run", "-p", "ndcanvas-app", "--bin", "graphics-proof"]
+
+[commands."native.p2-g01-present"]
+description = "Assert retained partial repair and surface submission at DPI 1 and 2"
+program = "cargo"
+args = ["run", "-p", "ndcanvas-app", "--bin", "graphics-proof", "--", "--present"]
+
+[commands."web.p2-g01-pixels-1"]
+description = "Assert exported WebGPU canvas pixels at DPI 1"
+program = "cargo"
+args = ["run", "-p", "ndcanvas-app", "--bin", "graphics-proof", "--", "--verify-image", "target/verification/p2-g01/web-1.png", "1"]
+
+[commands."web.p2-g01-pixels-2"]
+description = "Assert exported WebGPU canvas pixels at DPI 2"
+program = "cargo"
+args = ["run", "-p", "ndcanvas-app", "--bin", "graphics-proof", "--", "--verify-image", "target/verification/p2-g01/web-2.png", "2"]
+
 [commands."test.render-image-source"]
 description = "Run the backend-neutral image source rectangle contract"
 program = "cargo"
@@ -1057,6 +1087,83 @@ documents = [
   "doc/roadmap/p2-delta-backlog.md",
   "doc/parity/draw2d/api-coverage.md",
 ]
+
+[[suites]]
+id = "core.p2-g01-graphics"
+title = "Graphics paint, stroke, path clipping and capability contracts"
+milestone = "P2-G01"
+kind = "contract"
+api_semantics = [
+  "graphics.context",
+  "geometry.primitives",
+  "paint.protocol",
+  "builtin.figures",
+  "connection.figure",
+  "damage.repaint",
+  "frame.preparation",
+  "render.backend_session",
+]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-g01-graphics", "test.vello-p2-graphics"]
+paths = [
+  "novadraw/src/render/**",
+  "novadraw/src/graphics.rs",
+  "novadraw-backend-vello/src/**",
+  "novadraw/tests/p2_graphics_contract.rs",
+]
+documents = [
+  "doc/adr/adr-024-graphics-paint-stroke-and-clipping.md",
+  "doc/design/rendering/p2-g01-graphics-extension.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "graphics.p2-g01-visual"
+title = "Shared external Graphics consumer and retained pixel evidence"
+milestone = "P2-G01"
+kind = "application"
+api_semantics = ["graphics.context", "paint.protocol", "damage.repaint", "render.backend_session"]
+layers = ["platform", "visual"]
+platforms = ["native-macos"]
+commands = ["native.p2-g01-pixels"]
+paths = [
+  "examples/scenes/src/graphics.rs",
+  "examples/native/ndcanvas-app/**",
+  "novadraw-backend-vello/src/**",
+]
+documents = [
+  "doc/design/rendering/p2-g01-graphics-extension.md",
+  "doc/verification/reviews/p2-g01-graphics-evidence.md",
+]
+artifacts = ["target/verification/p2-g01"]
+
+[[suites]]
+id = "graphics.p2-g01-present"
+title = "Graphics retained partial repair through native surface submission"
+milestone = "P2-G01"
+kind = "application"
+api_semantics = ["damage.repaint", "render.backend_session"]
+layers = ["platform", "visual"]
+platforms = ["native-macos"]
+commands = ["native.p2-g01-present"]
+paths = ["examples/native/ndcanvas-app/**", "novadraw-backend-vello/src/**"]
+documents = ["doc/verification/reviews/p2-g01-graphics-evidence.md"]
+artifacts = ["target/verification/p2-g01/present"]
+
+[[suites]]
+id = "graphics.p2-g01-web-pixels"
+title = "Exported WebGPU Graphics pixels against the shared native assertions"
+milestone = "P2-G01"
+kind = "application"
+api_semantics = ["graphics.context", "paint.protocol"]
+layers = ["platform", "visual"]
+platforms = ["web"]
+commands = ["web.p2-g01-pixels-1", "web.p2-g01-pixels-2"]
+paths = ["examples/scenes/src/graphics.rs", "examples/web/web-validation/**"]
+documents = ["doc/verification/reviews/p2-g01-graphics-evidence.md"]
+artifacts = ["target/verification/p2-g01/web-1.png", "target/verification/p2-g01/web-2.png"]
 
 [[suites]]
 id = "core.runtime"

@@ -31,6 +31,13 @@ GA-1/GA-4 已完成的边界作为基础，先推进 P2-S01 原子 child inserti
 Graphics 扩展与 P2-L01 外部布局算法集成。每个切片先明确契约、失败语义和外部消费者，
 再实现与验证；不以新增方法数量或内部文件拆分作为扩展性证据。
 
+P2-S01 已完成，证据见 [P2 backlog](p2-delta-backlog.md)。P2-G01 已按
+[Graphics 契约](../design/rendering/p2-g01-graphics-extension.md) 与 ADR-024 获准实施，
+覆盖统一 Paint/StrokeStyle、可恢复 path clip、多能力预检及 XOR 处置；
+实现与共享外部消费者已贯通，Native GPU 离屏和 WebGPU DPI 1/2 像素已验证；
+Native surface 局部修复验收仍未闭合，不能因编译或离屏通过而关闭。
+证据见 [P2-G01 验证记录](../verification/reviews/p2-g01-graphics-evidence.md)。
+
 GA-2/GA-3 剩余的 WindowServer、Chrome WebGPU 性能采证和 Windows/Linux 原生
 runner 验收移至发布准备阶段。保留已有工具、支持等级和未完成状态；这些环境证据
 不阻塞平台无关 Core API 开发，也不因本次重排被视为完成。常规工作保留对应契约、

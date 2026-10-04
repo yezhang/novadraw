@@ -195,8 +195,8 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | `CAP-COORDINATES` | absolute/relative/parent 坐标转换 | GOAL-CAP | `adapted` | `FigureTree::*_transform` | M4 contracts | 返回纯变换，失败不静默修改输入 |
 | `CAP-EVENTS` | dispatcher、capture、focus、listeners | GOAL-CAP/PORT | `adapted` | `Runtime::dispatch_*`、平台 input adapter | M6/M7 suites、GA-3 | 平台只规范化输入；状态机位于 Core |
 | `CAP-GRAPHICS-CORE` | state、transform、rect/path/text/image | GOAL-CAP | `adopted` | `NdCanvas` stateful API | M1、M10、P2-R02 | Render IR 必须被启用 backend 完整消费或拒绝 |
-| `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | 目标：`NdCanvas` + backend-neutral Render IR | P2-G01 | producer、IR、Vello lowering 与失败语义全部闭合后退出 |
-| `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 目标替代：feedback layer / explicit compositing | P2-G01 设计裁决 | 现代 GPU 合成不承诺设备相关 XOR 像素语义 |
+| `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | `NdCanvas` + Paint/StrokeStyle/ClipPath + backend-neutral Render IR 已实现 | [P2-G01 证据](../../verification/reviews/p2-g01-graphics-evidence.md) | Core/Vello 与 Native/Web 像素已验证；surface 局部修复验证仍需闭合 |
+| `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 交互用途替代：retained feedback layer | [P2-G01 契约](../../design/rendering/p2-g01-graphics-extension.md) | 不承诺设备 XOR 像素语义；反馈用途替代需独立验证，不以 Difference blend 冒充等价 |
 | `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `adapted` | `FigureTreeBuilder::insert_child_with_constraint`、`ContainerEditor::insert_with_constraint` | `core.p2-s01-child-insertion` / P2-S01 | 新 owned Figure 一次预检 admission、constraint、order 与 publication；Result 失败不发布节点，已有 Figure 移动仍用 reparent |
 | `CAP-CLIPPING-EXT` | replaceable/multi-rect clipping | GOAL-CAP/EXT | `pending` | 目标：受控 clipping provider | P2-C03 | 先闭合跨 viewport Connection 可见性真实用例 |
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
@@ -237,14 +237,14 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
 | `graphics.context` | `Graphics.pushState/popState/restoreState` | `novadraw::graphics::NdCanvas::{push_state,pop_state,restore_state}` | verified | 保持 M1 state stack probe |
-| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,set_clip,reset_clip,clip_depth}` 覆盖 Core 1.0 矩形裁剪；`getClip/clipPath` 未提供 | partial | 矩形 clip 已验证；clip 查询与 path clip 明确延后到出现真实产品需求 |
+| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,clip_path,set_clip,reset_clip,clip_depth}`，ClipPath/FillRule 覆盖可恢复的矩形/路径交集 | partial | P2-G01 曲线、空 clip、洞与恢复已验证；getClip 查询 convenience 继续延后 |
 | `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `NdCanvas::{translate,scale,rotate,transform,set_transform,reset_transform}`；任意 affine 可表达 shear，未提供 `getAbsoluteScale` convenience | partial | transform 语义已验证；状态查询 convenience 明确延后 |
 | `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `NdCanvas::{line,draw_rectangle,draw_oval,draw_polygon,polyline}`；路径使用 `begin_path/move_to/line_to/.../stroke/fill` | verified | M1 状态栈与 M10.1 reusable Figure 已覆盖实际消费路径 |
-| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | stateful `NdCanvas::{fill_rectangle,fill_oval,fill_polygon,fill}`；显式 recorder 使用 `fill_rect_with_color`；`fillPath` 对应 path + `fill()` | partial | solid fill 已验证；gradient 进入 P2-G01 |
+| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | stateful `NdCanvas::{fill_rectangle,fill_oval,fill_polygon,fill}` + `set_fill_paint(Paint)`；`fillPath` 对应 path + `fill()` | verified | P2-G01 统一 solid/linear gradient，Native/Web DPI 1/2 像素和 alpha/状态恢复验证 |
 | `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | `RoundedRectangleFigure` 通过通用 path + stroke/fill 等价表达，不增加 convenience primitive | verified | 除非出现新的跨 Figure 复用证据，否则不机械增加同名 API |
 | `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`NdCanvas::{draw_text_layout,fill_text_layout,stroke_text_layout}` 只消费 Runtime shaping 后的 `TextLayout` / `DrawGlyphRun` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
 | `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size,draw_image_region}` 消费 `ImageResourceRef`；source 使用图像物理像素域，destination 使用 Canvas 逻辑坐标域 | verified | `core.image-source-rectangle` 覆盖完整/局部 source、结构化失败、Vello 仿射映射与 destination clip |
-| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::{set_alpha,set_line_style,line_cap,line_join}`；Solid/Dash/Dot 由 RenderCommand 跨后端传递并映射为 Vello Stroke pattern | partial | 内置 line style 已验证；自定义 dash array、miter setter、antialias、XOR 明确延后 |
+| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::set_stroke(StrokeStyle)` 统一 width/cap/join/dash/offset/miter，保留单属性 setter 与 set_alpha | partial | custom dash/offset/miter 已贯通 IR 与实际 bounds；XOR 拒绝，反馈替代证据见 P2-G01；antialias 开关继续延后 |
 | `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw::geometry::{Point,Vec2,Dimension,Rectangle,Insets,PointList,Affine2D,Precision}`；位置与向量类型分离，统一使用 f64 精度 | verified | M1/M4/M9/M10 已覆盖点向量运算、变换与 point-list 消费路径 |
 
 Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.java`、`PrinterGraphics.java`。

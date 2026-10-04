@@ -46,7 +46,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
 |---|---|---|---|---|---|
 | 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
-| 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `not_started` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
+| 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
 | 3 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
 | 4 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
 | 5 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
@@ -99,6 +99,82 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 - `cargo xtask check --quick`：通过，包含 Native/Web 编译与第三方类型边界检查；
 - `cargo xtask check --full`：通过，包含 Clippy 与 workspace 单元、集成、文档测试；
 - 本项不改变 callback FIFO、已有 Figure reparent 或 keyed Layer 协议。
+
+## Graphics
+
+### P2-G01: Graphics 扩展
+
+状态：`in_progress`（实现已贯通，Native GPU 离屏与 WebGPU 像素已验证；
+Native surface 局部修复验收尚未闭合）。
+
+目标：`GOAL-CAP`、`GOAL-EXT`。
+
+`api_semantics`：`graphics.context`、`geometry.primitives`、`paint.protocol`、
+`builtin.figures`、`connection.figure`、`damage.repaint`、`frame.preparation`、
+`render.backend_session`。
+
+规范入口：[Graphics 扩展契约](../design/rendering/p2-g01-graphics-extension.md)、
+[ADR-024](../adr/adr-024-graphics-paint-stroke-and-clipping.md)。
+已对标 Draw2D/GEF，并核对锁定版本 Vello 0.10 的 lowering 能力；
+规范已获批准，能力毕业仍需实现和视觉证据。
+
+实施顺序：
+
+1. 统一 StrokeStyle，贯通 custom dash/offset/miter、backend 与实际 visual bounds；
+2. ClipPath/FillRule 与矩形 clip 共享可恢复状态链；
+3. Paint/linear gradient 贯通形状、路径和 glyph，以及多能力与非法输入拒绝；
+4. 反馈 layer 替代 XOR 交互用途，完成外部消费者及 Native/Web 视觉验收。
+
+公共 IR、RenderOutcome 错误边界与 XOR 处置已获批准；
+`core.p2-g01-graphics` 已登记，随切片加入对应验证。毕业仍要求 Core IR、
+Vello lowering、失败原子性和视觉证据全部闭合。
+本项不推进后置的 WindowServer/Chrome 性能采证或原生 runner 建设。
+
+实现切片进展（2026-10-03，尚未毕业）：
+
+- 受检 `StrokeStyle`、custom dash/offset/miter 已贯通 Canvas 状态与矢量 IR、
+  Vello lowering；显式 recorder 携带完整样式，宽度 setter 返回 Result。
+- Polyline/Polygon、Connection、端点 decoration 与 ScalablePolygon 统一持有
+  完整受检描边；包围盒与绘制使用相同实际 miter/cap。PointList scoped editor
+  支持完整替换及 miter/cap/dash/offset 修改，在同一事务中完成几何重归一、
+  新旧 damage、freeform extent 失效与单次 FigureMoved。
+- `required_capabilities` 与统一预检已接入 Runtime、Vello 和 Canvas2D fallback；
+  backend 在接受资源/session 前拒绝不支持的描边。
+- `core.p2-g01-graphics` 已登记 Core 和 Vello 两个验证入口。描边基础轮次 Core
+  8 项公开契约、Vello 17 项单测通过，M1/M10 相关回归 16 项通过。Figure 轮次
+  Core 公开契约扩展到 13 项通过，M10 图元/边框 14 项及 M9 Connection 29 项
+  回归通过，workspace 全目标类型检查通过。新增用例覆盖 miter 增大/缩小、
+  dash 重绘、非法修改不排入重绘、实际 decoration envelope、freeform extent
+  与一次移动通知；旧无效 Connection 几何 fixture 已迁移为有限描边包络溢出。
+- 路径裁剪已贯通受检 `ClipPath`、独立路径所有权、Canvas 状态深度及 Vello
+  矩形/路径混合裁剪链；`FillPath` 携带 NonZero/EvenOdd。恢复前缀比较包含完整
+  几何、fill rule 和调用时 transform；空裁剪保留抑制绘制的语义。Vello 单测
+  扩展到 19 项通过，workspace 全目标类型检查通过。
+- Paint/LinearGradient/GradientStop 已贯通矢量与 glyph 消费，原颜色 setter
+  替换为 Solid；Canvas 快照将 alpha 乘入所有渐变站点一次，恢复原 Paint。
+  Vello 显式使用 Pad、sRGB 与 premultiplied alpha；渐变端点随几何缩放。
+- GlyphPaint 使用完整 StrokeStyle。锁定版 Vello glyph cache 忽略 dash，
+  因而有虚线的轮廓字形由 backend 私有 Skrifa 轮廓转换接入共享路径描边；
+  没有矢量轮廓的彩色/位图字形延续 Vello 行为，不声称其具有轮廓虚线。
+- 多能力预检覆盖 ellipse 两种 Paint 和 glyph 的三项组合；Runtime 发布前、
+  Vello 接收资源/session 前（含截图入口）拒绝实际 DPI/transform 下的溢出、
+  退化渐变与裁剪曲线溢出。结构化 InvalidGraphicsInput 携带命令索引与原因。
+- Core 公开契约扩展到 23 项通过，Core 完整 crate 测试通过；新增用例覆盖
+  alpha/state、颜色覆盖渐变、逐项能力消融、派生值拒绝、重复拒绝后帧号和资源
+  snapshot 保留并重试。Vello 21 项单测、Editor 9 项直接文本编辑回归通过。
+  跨 crate quick gate（含 Native/Web 后端）、文档门禁通过。
+- 2026-10-05 共享外部消费者与像素程序已落地，使用真实公开 API 组合渐变、
+  custom stroke、曲线路径裁剪、glyph/image 及专用 feedback layer。
+  Native GPU 离屏 DPI 1/2 通过；WebGPU 使用可选帧内 PNG 快照避免读取已清空的
+  交换缓冲区，复用相同像素断言。miter 增大/还原与反馈显示/移动/取消有连续帧证据，
+  后端两个提交入口拒绝非法输入后保留原像素且原合法帧可重试。
+- 最终 Core/Vello 契约、Native 离屏、WebGPU 像素、文档门禁通过；
+  full 质量门禁各入口通过（Clippy 奇偶判断等价整改后续跑 Clippy 与 workspace
+  单测、集成和 doctest，未重复已通过入口）。
+- Native surface suite 在重绘事件后首帧仍返回 Skipped，局部 retained repair
+  不能用离屏完整重绘结果替代，因此本 delta 保留 `in_progress`。
+  详细 suite、结果、平台范围与复现方式见
+  [P2-G01 验证记录](../verification/reviews/p2-g01-graphics-evidence.md)。
 
 ## Connection
 

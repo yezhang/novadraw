@@ -42,6 +42,7 @@
 24. [`rendering/image-source-rectangle.md`](rendering/image-source-rectangle.md)
 25. [`architecture/component-update.md`](architecture/component-update.md)
 26. [`architecture/runtime-ownership-and-module-boundaries.md`](architecture/runtime-ownership-and-module-boundaries.md)
+27. [`rendering/p2-g01-graphics-extension.md`](rendering/p2-g01-graphics-extension.md)
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
