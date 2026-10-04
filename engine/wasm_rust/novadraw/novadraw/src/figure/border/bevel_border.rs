@@ -72,37 +72,37 @@ impl Border for BevelBorder {
             if right < left || bottom < top {
                 break;
             }
-            gc.line(
+            gc.line_with_style(
                 Point::new(left, bottom),
                 Point::new(left, top),
                 top_left,
-                1.0,
-                LineCap::Butt,
-                LineJoin::Miter,
+                crate::graphics::StrokeStyle::default()
+                    .with_cap(LineCap::Butt)
+                    .with_join(LineJoin::Miter),
             );
-            gc.line(
+            gc.line_with_style(
                 Point::new(left, top),
                 Point::new(right, top),
                 top_left,
-                1.0,
-                LineCap::Butt,
-                LineJoin::Miter,
+                crate::graphics::StrokeStyle::default()
+                    .with_cap(LineCap::Butt)
+                    .with_join(LineJoin::Miter),
             );
-            gc.line(
+            gc.line_with_style(
                 Point::new(right, top),
                 Point::new(right, bottom),
                 bottom_right,
-                1.0,
-                LineCap::Butt,
-                LineJoin::Miter,
+                crate::graphics::StrokeStyle::default()
+                    .with_cap(LineCap::Butt)
+                    .with_join(LineJoin::Miter),
             );
-            gc.line(
+            gc.line_with_style(
                 Point::new(right, bottom),
                 Point::new(left, bottom),
                 bottom_right,
-                1.0,
-                LineCap::Butt,
-                LineJoin::Miter,
+                crate::graphics::StrokeStyle::default()
+                    .with_cap(LineCap::Butt)
+                    .with_join(LineJoin::Miter),
             );
         }
     }

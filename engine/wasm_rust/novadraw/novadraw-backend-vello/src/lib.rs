@@ -3,6 +3,8 @@
 //! 实现 RenderCommand 解释器，维护独立的状态栈。
 //! 状态管理从 NdCanvas 移到本模块（参考 Skia/Flutter 的 retained command state）。
 
+mod glyph_outline;
+
 use std::collections::HashMap;
 use std::fmt;
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
@@ -19,10 +21,11 @@ use vello::peniko::Color as VelloColor;
 use vello::util::{RenderContext, RenderSurface};
 use vello::{AaConfig, Renderer};
 
+use novadraw::graphics::{ClipPath, FillRule, Paint, StrokeStyle};
 use novadraw::render::backend_support::{
     ImageDrawDisposition, NormalizedPathOp, for_each_normalized, validate_image_draw_geometry,
 };
-use novadraw::render::command::{LineCap, LineJoin, LineStyle, Path, RenderCommand};
+use novadraw::render::command::{LineCap, LineJoin, Path, RenderCommand};
 use novadraw::render::submission::{
     BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload,
 };
@@ -30,8 +33,6 @@ use novadraw::render::text::{GlyphPaint, GlyphRun};
 use novadraw::render::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
-const DASH_PATTERN_WIDTH_FACTORS: [f64; 2] = [3.0, 1.0];
-const DOT_PATTERN_WIDTH_FACTORS: [f64; 2] = [1.0, 1.0];
 const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
     r: DEFAULT_BACKGROUND_COMPONENT,
     g: DEFAULT_BACKGROUND_COMPONENT,
@@ -200,6 +201,13 @@ fn path_to_vello(path: &Path, scale_factor: f64) -> vello::kurbo::BezPath {
     bezier
 }
 
+fn vello_fill(rule: FillRule) -> vello::peniko::Fill {
+    match rule {
+        FillRule::NonZero => vello::peniko::Fill::NonZero,
+        FillRule::EvenOdd => vello::peniko::Fill::EvenOdd,
+    }
+}
+
 fn append_image_draw(
     scene: &mut vello::Scene,
     image: &vello::peniko::ImageBrush,
@@ -219,29 +227,24 @@ fn append_image_draw(
     scene.pop_layer();
 }
 
-fn vello_stroke(width: f64, line_style: LineStyle, cap: LineCap, join: LineJoin) -> Stroke {
-    let stroke = Stroke::new(width)
-        .with_miter_limit(novadraw::render::command::DEFAULT_STROKE_MITER_LIMIT)
-        .with_caps(match cap {
+fn vello_stroke(style: &StrokeStyle, scale: f64) -> Stroke {
+    let stroke = Stroke::new(style.width() * scale)
+        .with_miter_limit(style.miter_limit())
+        .with_caps(match style.cap() {
             LineCap::Butt => Cap::Butt,
             LineCap::Round => Cap::Round,
             LineCap::Square => Cap::Square,
         })
-        .with_join(match join {
+        .with_join(match style.join() {
             LineJoin::Miter => Join::Miter,
             LineJoin::Round => Join::Round,
             LineJoin::Bevel => Join::Bevel,
         });
 
-    match line_style {
-        LineStyle::Solid => stroke,
-        LineStyle::Dash => {
-            stroke.with_dashes(0.0, DASH_PATTERN_WIDTH_FACTORS.map(|factor| factor * width))
-        }
-        LineStyle::Dot => {
-            stroke.with_dashes(0.0, DOT_PATTERN_WIDTH_FACTORS.map(|factor| factor * width))
-        }
-    }
+    stroke.with_dashes(
+        style.normalized_dash_offset() * scale,
+        style.dash_lengths().iter().map(|length| length * scale),
+    )
 }
 
 fn damage_rect_to_copy_region(
@@ -317,12 +320,60 @@ fn scratch_base_rgba() -> [f32; 4] {
     ]
 }
 
+fn vello_paint(paint: &Paint, scale_factor: f64) -> vello::peniko::Brush {
+    use vello::peniko::color::ColorSpaceTag;
+    use vello::peniko::{ColorStop, Extend, Gradient, InterpolationAlphaSpace};
+    match paint {
+        Paint::Solid(color) => VelloColor::new([
+            color.red() as f32,
+            color.green() as f32,
+            color.blue() as f32,
+            color.alpha() as f32,
+        ])
+        .into(),
+        Paint::LinearGradient(gradient) => {
+            let stops: Vec<_> = gradient
+                .stops()
+                .iter()
+                .map(|stop| {
+                    let color = stop.color();
+                    ColorStop {
+                        offset: stop.offset() as f32,
+                        color: VelloColor::new([
+                            color.red() as f32,
+                            color.green() as f32,
+                            color.blue() as f32,
+                            color.alpha() as f32,
+                        ])
+                        .into(),
+                    }
+                })
+                .collect();
+            Gradient::new_linear(
+                (
+                    gradient.start().x() * scale_factor,
+                    gradient.start().y() * scale_factor,
+                ),
+                (
+                    gradient.end().x() * scale_factor,
+                    gradient.end().y() * scale_factor,
+                ),
+            )
+            .with_extend(Extend::Pad)
+            .with_interpolation_cs(ColorSpaceTag::Srgb)
+            .with_interpolation_alpha_space(InterpolationAlphaSpace::Premultiplied)
+            .with_stops(stops.as_slice())
+            .into()
+        }
+    }
+}
+
 fn append_glyph_run(
     scene: &mut vello::Scene,
     run: &GlyphRun,
     font: &vello::peniko::FontData,
     origin: Point,
-    paint: GlyphPaint,
+    paint: &GlyphPaint,
     transform: &Affine2D,
     scale_factor: f64,
 ) {
@@ -330,15 +381,7 @@ fn append_glyph_run(
         return;
     }
     let affine = VelloRenderer::transform_to_affine(transform, scale_factor);
-    let color = match paint {
-        GlyphPaint::Fill(color) | GlyphPaint::Stroke { color, .. } => color,
-    };
-    let color = VelloColor::new([
-        color.red() as f32,
-        color.green() as f32,
-        color.blue() as f32,
-        color.alpha() as f32,
-    ]);
+    let brush = vello_paint(paint.paint(), scale_factor);
     let glyph_transform = run
         .skew_degrees
         .map(|degrees| vello::kurbo::Affine::skew((degrees.to_radians().tan()) as f64, 0.0));
@@ -349,9 +392,40 @@ fn append_glyph_run(
             y: ((origin.y() as f32) + glyph.y) * scale_factor as f32,
         })
     };
+    if let GlyphPaint::Stroke { stroke, .. } = paint
+        && stroke.width() > 0.0
+        && !stroke.dash_lengths().is_empty()
+    {
+        let style = vello_stroke(stroke, scale_factor);
+        for glyph in glyphs() {
+            if let Some(path) = glyph_outline::outline(font, run, glyph.id, scale_factor) {
+                let local = vello::kurbo::Affine::new([
+                    1.0,
+                    0.0,
+                    0.0,
+                    -1.0,
+                    f64::from(glyph.x),
+                    f64::from(glyph.y),
+                ]) * glyph_transform.unwrap_or(vello::kurbo::Affine::IDENTITY);
+                scene.stroke(&style, affine * local, &brush, Some(local.inverse()), &path);
+            } else {
+                // Keep Vello's color/bitmap glyph behavior when no vector outline exists.
+                scene
+                    .draw_glyphs(font)
+                    .brush(&brush)
+                    .hint(false)
+                    .transform(affine)
+                    .glyph_transform(glyph_transform)
+                    .font_size(run.font_size * scale_factor as f32)
+                    .normalized_coords(&run.normalized_coords)
+                    .draw(&style, std::iter::once(glyph));
+            }
+        }
+        return;
+    }
     let builder = scene
         .draw_glyphs(font)
-        .brush(color)
+        .brush(&brush)
         .hint(false)
         .transform(affine)
         .glyph_transform(glyph_transform)
@@ -359,8 +433,10 @@ fn append_glyph_run(
         .normalized_coords(&run.normalized_coords);
     match paint {
         GlyphPaint::Fill(_) => builder.draw(vello::peniko::Fill::NonZero, glyphs()),
-        GlyphPaint::Stroke { width, .. } => {
-            builder.draw(&Stroke::new(width * scale_factor), glyphs());
+        GlyphPaint::Stroke { stroke, .. } => {
+            if stroke.width() > 0.0 {
+                builder.draw(&vello_stroke(stroke, scale_factor), glyphs());
+            }
         }
     }
 }
@@ -377,7 +453,13 @@ struct RenderState {
 #[derive(Clone, Debug, PartialEq)]
 struct RenderClip {
     transform: Affine2D,
-    rect: Rectangle,
+    geometry: ClipGeometry,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum ClipGeometry {
+    Rectangle(Rectangle),
+    Path(ClipPath),
 }
 
 fn clip_restore_plan<'a>(
@@ -841,7 +923,16 @@ impl VelloRenderer {
                 debug!("Clip: {:?}", rect);
                 let clip = RenderClip {
                     transform: self.current_state().transform,
-                    rect: *rect,
+                    geometry: ClipGeometry::Rectangle(*rect),
+                };
+                self.push_clip_layer(&clip);
+                self.current_state_mut().clips.push(clip);
+            }
+
+            novadraw::render::command::RenderCommandKind::ClipPath { clip } => {
+                let clip = RenderClip {
+                    transform: self.current_state().transform,
+                    geometry: ClipGeometry::Path(clip.clone()),
                 };
                 self.push_clip_layer(&clip);
                 self.current_state_mut().clips.push(clip);
@@ -878,7 +969,7 @@ impl VelloRenderer {
                 );
             }
 
-            novadraw::render::command::RenderCommandKind::FillRect { rect, color } => {
+            novadraw::render::command::RenderCommandKind::FillRect { rect, paint, rule } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -886,29 +977,19 @@ impl VelloRenderer {
                 let x1 = (rect.x + rect.width) * self.scale_factor;
                 let y1 = (rect.y + rect.height) * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
-                self.scene.fill(
-                    vello::peniko::Fill::NonZero,
-                    affine,
-                    vello_color,
-                    None,
-                    &kurbo_rect,
-                );
+                let brush = vello_paint(paint, self.scale_factor);
+                self.scene
+                    .fill(vello_fill(*rule), affine, &brush, None, &kurbo_rect);
             }
 
             novadraw::render::command::RenderCommandKind::StrokeRect {
                 rect,
-                color,
-                width,
-                line_style,
-                cap,
-                join,
+                paint,
+                stroke,
             } => {
+                if stroke.width() == 0.0 {
+                    return;
+                }
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let x0 = rect.x * self.scale_factor;
@@ -916,26 +997,21 @@ impl VelloRenderer {
                 let x1 = (rect.x + rect.width) * self.scale_factor;
                 let y1 = (rect.y + rect.height) * self.scale_factor;
                 let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
-                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
+                let brush = vello_paint(paint, self.scale_factor);
+                let stroke = vello_stroke(stroke, self.scale_factor);
                 self.scene
-                    .stroke(&stroke, affine, vello_color, None, &kurbo_rect);
+                    .stroke(&stroke, affine, &brush, None, &kurbo_rect);
             }
 
             novadraw::render::command::RenderCommandKind::Line {
                 p1,
                 p2,
-                color,
-                width,
-                line_style,
-                cap,
-                join,
+                paint,
+                stroke,
             } => {
+                if stroke.width() == 0.0 {
+                    return;
+                }
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
                 let v1 = vello::kurbo::Point::new(
@@ -946,19 +1022,14 @@ impl VelloRenderer {
                     p2.x() * self.scale_factor,
                     p2.y() * self.scale_factor,
                 );
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
+                let brush = vello_paint(paint, self.scale_factor);
 
-                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
+                let stroke = vello_stroke(stroke, self.scale_factor);
 
                 self.scene.stroke(
                     &stroke,
                     affine,
-                    vello_color,
+                    &brush,
                     None,
                     &vello::kurbo::Line::new(v1, v2),
                 );
@@ -966,25 +1037,17 @@ impl VelloRenderer {
 
             novadraw::render::command::RenderCommandKind::Polyline {
                 points,
-                color,
-                width,
-                line_style,
-                cap,
-                join,
+                paint,
+                stroke,
             } => {
-                if points.len() < 2 {
+                if points.len() < 2 || stroke.width() == 0.0 {
                     return;
                 }
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
+                let brush = vello_paint(paint, self.scale_factor);
 
-                let stroke = vello_stroke(*width * self.scale_factor, *line_style, *cap, *join);
+                let stroke = vello_stroke(stroke, self.scale_factor);
 
                 // 构建折线路径
                 let mut path = vello::kurbo::BezPath::new();
@@ -997,7 +1060,7 @@ impl VelloRenderer {
                     path.line_to((point.x() * self.scale_factor, point.y() * self.scale_factor));
                 }
 
-                self.scene.stroke(&stroke, affine, vello_color, None, &path);
+                self.scene.stroke(&stroke, affine, &brush, None, &path);
             }
 
             novadraw::render::command::RenderCommandKind::Ellipse {
@@ -1005,12 +1068,10 @@ impl VelloRenderer {
                 cy,
                 rx,
                 ry,
-                fill_color,
-                stroke_color,
-                stroke_width,
-                line_style,
-                cap,
-                join,
+                fill_paint,
+                stroke_paint,
+                stroke,
+                rule,
             } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
@@ -1021,86 +1082,51 @@ impl VelloRenderer {
                 let ellipse = vello::kurbo::Ellipse::new(center, radii, 0.0);
 
                 // 填充椭圆
-                if let Some(color) = fill_color {
-                    let vello_color = VelloColor::new([
-                        color.red() as f32,
-                        color.green() as f32,
-                        color.blue() as f32,
-                        color.alpha() as f32,
-                    ]);
-                    self.scene.fill(
-                        vello::peniko::Fill::NonZero,
-                        affine,
-                        vello_color,
-                        None,
-                        &ellipse,
-                    );
+                if let Some(paint) = fill_paint {
+                    let brush = vello_paint(paint, self.scale_factor);
+                    self.scene
+                        .fill(vello_fill(*rule), affine, &brush, None, &ellipse);
                 }
 
                 // 描边椭圆
-                if let Some(color) = stroke_color {
-                    let vello_color = VelloColor::new([
-                        color.red() as f32,
-                        color.green() as f32,
-                        color.blue() as f32,
-                        color.alpha() as f32,
-                    ]);
-                    let stroke =
-                        vello_stroke(*stroke_width * self.scale_factor, *line_style, *cap, *join);
-                    self.scene
-                        .stroke(&stroke, affine, vello_color, None, &ellipse);
+                if stroke.width() == 0.0 {
+                    return;
+                }
+                if let Some(paint) = stroke_paint {
+                    let brush = vello_paint(paint, self.scale_factor);
+                    let stroke = vello_stroke(stroke, self.scale_factor);
+                    self.scene.stroke(&stroke, affine, &brush, None, &ellipse);
                 }
             }
 
-            novadraw::render::command::RenderCommandKind::FillPath { path, color } => {
+            novadraw::render::command::RenderCommandKind::FillPath { path, paint, rule } => {
                 let affine =
                     Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
-
-                let bez_path = path_to_vello(path, self.scale_factor);
-
-                self.scene.fill(
-                    vello::peniko::Fill::NonZero,
-                    affine,
-                    vello_color,
-                    None,
-                    &bez_path,
-                );
-            }
-
-            novadraw::render::command::RenderCommandKind::StrokePath {
-                path,
-                color,
-                width,
-                line_style,
-                line_cap,
-                line_join,
-            } => {
-                let affine =
-                    Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
-                let vello_color = VelloColor::new([
-                    color.red() as f32,
-                    color.green() as f32,
-                    color.blue() as f32,
-                    color.alpha() as f32,
-                ]);
-
-                let stroke = vello_stroke(
-                    *width * self.scale_factor,
-                    *line_style,
-                    *line_cap,
-                    *line_join,
-                );
+                let brush = vello_paint(paint, self.scale_factor);
 
                 let bez_path = path_to_vello(path, self.scale_factor);
 
                 self.scene
-                    .stroke(&stroke, affine, vello_color, None, &bez_path);
+                    .fill(vello_fill(*rule), affine, &brush, None, &bez_path);
+            }
+
+            novadraw::render::command::RenderCommandKind::StrokePath {
+                path,
+                paint,
+                stroke,
+            } => {
+                if stroke.width() == 0.0 {
+                    return;
+                }
+                let affine =
+                    Self::transform_to_affine(&self.current_state().transform, self.scale_factor);
+                let brush = vello_paint(paint, self.scale_factor);
+
+                let stroke = vello_stroke(stroke, self.scale_factor);
+
+                let bez_path = path_to_vello(path, self.scale_factor);
+
+                self.scene.stroke(&stroke, affine, &brush, None, &bez_path);
             }
 
             novadraw::render::command::RenderCommandKind::DrawGlyphRun { run, origin, paint } => {
@@ -1119,7 +1145,7 @@ impl VelloRenderer {
                     run,
                     &font,
                     *origin,
-                    *paint,
+                    paint,
                     &transform,
                     scale_factor,
                 );
@@ -1190,14 +1216,30 @@ impl VelloRenderer {
     /// 推送裁剪层到场景
     fn push_clip_layer(&mut self, clip: &RenderClip) {
         let affine = Self::transform_to_affine(&clip.transform, self.scale_factor);
-        let rect = &clip.rect;
-        let x0 = rect.x * self.scale_factor;
-        let y0 = rect.y * self.scale_factor;
-        let x1 = (rect.x + rect.width) * self.scale_factor;
-        let y1 = (rect.y + rect.height) * self.scale_factor;
-        let kurbo_rect = vello::kurbo::Rect::new(x0, y0, x1, y1);
-        self.scene
-            .push_clip_layer(vello::peniko::Fill::NonZero, affine, &kurbo_rect);
+        append_clip_layer(&mut self.scene, &clip.geometry, affine, self.scale_factor);
+    }
+}
+
+fn append_clip_layer(
+    scene: &mut vello::Scene,
+    geometry: &ClipGeometry,
+    affine: vello::kurbo::Affine,
+    scale: f64,
+) {
+    match geometry {
+        ClipGeometry::Rectangle(rect) => {
+            let rect = vello::kurbo::Rect::new(
+                rect.x * scale,
+                rect.y * scale,
+                (rect.x + rect.width) * scale,
+                (rect.y + rect.height) * scale,
+            );
+            scene.push_clip_layer(vello::peniko::Fill::NonZero, affine, &rect);
+        }
+        ClipGeometry::Path(clip) => {
+            let path = path_to_vello(clip.path(), scale);
+            scene.push_clip_layer(vello_fill(clip.rule()), affine, &path);
+        }
     }
 }
 
@@ -1206,9 +1248,24 @@ impl RenderBackend for VelloRenderer {
         BackendCapabilities::RETAINED_PARTIAL
             .with_glyph_runs()
             .with_image_resources()
+            .with_custom_strokes()
+            .with_path_clips()
+            .with_linear_gradients()
     }
 
     fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderOutcome {
+        if let Err(error) = self
+            .capabilities()
+            .validate_capabilities(&submission.commands)
+        {
+            return RenderOutcome::Unsupported(error);
+        }
+        if let Err(error) = novadraw::render::validate_graphics_input(
+            &submission.commands,
+            submission.surface.scale_factor,
+        ) {
+            return RenderOutcome::InvalidGraphicsInput(error);
+        }
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
         }
@@ -1254,7 +1311,7 @@ impl RenderBackend for VelloRenderer {
 
         self.push_clip_layer(&RenderClip {
             transform: Affine2D::IDENTITY,
-            rect: clip_rect,
+            geometry: ClipGeometry::Rectangle(clip_rect),
         });
         for cmd in commands {
             self.render_command(cmd);
@@ -1404,6 +1461,18 @@ impl VelloRenderer {
         &mut self,
         submission: &novadraw::render::RenderSubmission,
     ) -> RenderOutcome {
+        if let Err(error) = self
+            .capabilities()
+            .validate_capabilities(&submission.commands)
+        {
+            return RenderOutcome::Unsupported(error);
+        }
+        if let Err(error) = novadraw::render::validate_graphics_input(
+            &submission.commands,
+            submission.surface.scale_factor,
+        ) {
+            return RenderOutcome::InvalidGraphicsInput(error);
+        }
         if !self.sync_submission_resources(submission) {
             return RenderOutcome::Skipped;
         }
@@ -1432,7 +1501,7 @@ impl VelloRenderer {
         self.state_stack.push(RenderState::default());
         self.push_clip_layer(&RenderClip {
             transform: Affine2D::IDENTITY,
-            rect: full,
+            geometry: ClipGeometry::Rectangle(full),
         });
         for command in &submission.commands {
             self.render_command(command);
@@ -1485,7 +1554,10 @@ impl VelloRenderer {
         };
 
         // 创建输出缓冲区
-        let buffer_size = (width * height * 4) as u64;
+        let row_bytes = width * std::mem::size_of::<image::Rgba<u8>>() as u32;
+        let alignment = vello::wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let padded_row_bytes = row_bytes.div_ceil(alignment) * alignment;
+        let buffer_size = u64::from(padded_row_bytes) * u64::from(height);
         let buffer = device_handle
             .device
             .create_buffer(&vello::wgpu::BufferDescriptor {
@@ -1515,7 +1587,7 @@ impl VelloRenderer {
                 buffer: &buffer,
                 layout: vello::wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(width * 4),
+                    bytes_per_row: Some(padded_row_bytes),
                     rows_per_image: Some(height),
                 },
             },
@@ -1546,7 +1618,10 @@ impl VelloRenderer {
 
         // 获取像素数据
         let data = buffer_slice.get_mapped_range();
-        let data: Vec<u8> = data.to_vec();
+        let data: Vec<u8> = data
+            .chunks_exact(padded_row_bytes as usize)
+            .flat_map(|row| row[..row_bytes as usize].iter().copied())
+            .collect();
 
         // 创建 RGBA8 图片并保存为 PNG
         let buffer = ImageBuffer::<image::Rgba<u8>, _>::from_raw(width, height, data)
@@ -1652,13 +1727,16 @@ mod tests {
         ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate, TextConstraints,
         TextEngine,
     };
+    use std::sync::Arc;
     use uuid::Uuid;
 
     #[test]
     fn line_styles_map_to_width_scaled_vello_dash_patterns() {
-        let solid = vello_stroke(2.0, LineStyle::Solid, LineCap::Butt, LineJoin::Miter);
-        let dash = vello_stroke(2.0, LineStyle::Dash, LineCap::Butt, LineJoin::Miter);
-        let dot = vello_stroke(2.0, LineStyle::Dot, LineCap::Butt, LineJoin::Miter);
+        use novadraw::graphics::DashPattern;
+        let style = StrokeStyle::default().with_width(2.0).unwrap();
+        let solid = vello_stroke(&style, 1.0);
+        let dash = vello_stroke(&style.clone().with_dash_pattern(DashPattern::Dash), 1.0);
+        let dot = vello_stroke(&style.with_dash_pattern(DashPattern::Dot), 1.0);
 
         assert!(solid.dash_pattern.is_empty());
         assert_eq!(dash.dash_pattern.as_slice(), &[6.0, 2.0]);
@@ -1667,9 +1745,14 @@ mod tests {
 
     #[test]
     fn vello_scene_expands_dash_and_dot_into_multiple_path_segments() {
-        let encoded_segments = |line_style| {
+        use novadraw::graphics::LineStyle;
+        let encoded_segments = |line_style: LineStyle| {
             let mut scene = vello::Scene::new();
-            let stroke = vello_stroke(2.0, line_style, LineCap::Butt, LineJoin::Miter);
+            let style = StrokeStyle::default()
+                .with_width(2.0)
+                .unwrap()
+                .with_dash_pattern(line_style.into());
+            let stroke = vello_stroke(&style, 1.0);
             scene.stroke(
                 &stroke,
                 vello::kurbo::Affine::IDENTITY,
@@ -1686,10 +1769,34 @@ mod tests {
     }
 
     #[test]
+    fn custom_stroke_scales_lengths_once_and_preserves_dimensionless_miter() {
+        use novadraw::graphics::{CustomDash, DashPattern};
+        let style = StrokeStyle::try_new(
+            3.0,
+            LineCap::Square,
+            LineJoin::Miter,
+            DashPattern::Custom(CustomDash::try_new(&[6.0, 2.0, 1.0]).unwrap()),
+            -2.0,
+            8.0,
+        )
+        .unwrap();
+        let lowered = vello_stroke(&style, 2.0);
+        assert_eq!(lowered.width, 6.0);
+        assert_eq!(
+            lowered.dash_pattern.as_slice(),
+            &[12.0, 4.0, 2.0, 12.0, 4.0, 2.0]
+        );
+        assert_eq!(lowered.dash_offset, 32.0);
+        assert_eq!(lowered.miter_limit, 8.0);
+        assert_eq!(lowered.start_cap, Cap::Square);
+        assert_eq!(lowered.end_cap, Cap::Square);
+    }
+
+    #[test]
     fn clip_restore_plan_replays_saved_outer_clip_after_reset() {
         let outer = RenderClip {
             transform: Affine2D::from_translation(10.0, 20.0),
-            rect: Rectangle::new(0.0, 0.0, 100.0, 100.0),
+            geometry: ClipGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 100.0)),
         };
         let current_after_reset = RenderState::default();
         let saved = RenderState {
@@ -1707,11 +1814,11 @@ mod tests {
     fn clip_restore_plan_keeps_the_common_prefix() {
         let outer = RenderClip {
             transform: Affine2D::IDENTITY,
-            rect: Rectangle::new(0.0, 0.0, 100.0, 100.0),
+            geometry: ClipGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 100.0)),
         };
         let inner = RenderClip {
             transform: Affine2D::IDENTITY,
-            rect: Rectangle::new(10.0, 10.0, 10.0, 10.0),
+            geometry: ClipGeometry::Rectangle(Rectangle::new(10.0, 10.0, 10.0, 10.0)),
         };
         let current = RenderState {
             transform: Affine2D::IDENTITY,
@@ -1723,6 +1830,94 @@ mod tests {
 
         assert_eq!(pop_count, 1);
         assert!(clips_to_replay.is_empty());
+    }
+
+    #[test]
+    fn clip_restore_compares_path_geometry_rule_and_captured_transform() {
+        let mut path = Path::new();
+        path.rect(0.0, 0.0, 100.0, 100.0);
+        path.rect(25.0, 25.0, 50.0, 50.0);
+        let outer = RenderClip {
+            transform: Affine2D::IDENTITY,
+            geometry: ClipGeometry::Rectangle(Rectangle::new(0.0, 0.0, 100.0, 100.0)),
+        };
+        let saved_path = RenderClip {
+            transform: Affine2D::from_translation(10.0, 20.0),
+            geometry: ClipGeometry::Path(ClipPath::try_new(&path, FillRule::EvenOdd).unwrap()),
+        };
+        let saved = vec![outer.clone(), saved_path.clone()];
+        let mut triangle = Path::new();
+        triangle.move_to(0.0, 0.0);
+        triangle.line_to(100.0, 0.0);
+        triangle.line_to(50.0, 100.0);
+        triangle.close();
+        for changed in [
+            RenderClip {
+                transform: Affine2D::IDENTITY,
+                ..saved_path.clone()
+            },
+            RenderClip {
+                geometry: ClipGeometry::Path(ClipPath::try_new(&path, FillRule::NonZero).unwrap()),
+                ..saved_path.clone()
+            },
+            RenderClip {
+                geometry: ClipGeometry::Path(
+                    ClipPath::try_new(&triangle, FillRule::EvenOdd).unwrap(),
+                ),
+                ..saved_path.clone()
+            },
+        ] {
+            let current = RenderState {
+                transform: Affine2D::IDENTITY,
+                clips: vec![outer.clone(), changed],
+            };
+            let (pop, replay) = clip_restore_plan(&current, &saved);
+            assert_eq!(pop, 1);
+            assert_eq!(replay, std::slice::from_ref(&saved_path));
+        }
+        let current = RenderState {
+            transform: Affine2D::from_scale(2.0, 3.0),
+            clips: saved.clone(),
+        };
+        let (pop, replay) = clip_restore_plan(&current, &saved);
+        assert_eq!(
+            pop, 0,
+            "later drawing transforms must not move the saved clip"
+        );
+        assert!(replay.is_empty());
+        let (pop, replay) = clip_restore_plan(&RenderState::default(), &saved);
+        assert_eq!(pop, 0);
+        assert_eq!(replay, saved);
+    }
+
+    #[test]
+    fn path_clip_lowering_keeps_curves_rules_and_empty_clip_layers() {
+        let mut path = Path::new();
+        path.move_to(0.0, 0.0);
+        path.cubic_to(0.0, 10.0, 10.0, 10.0, 10.0, 0.0);
+        let lowered = path_to_vello(&path, 2.0);
+        assert!(matches!(lowered.elements()[1],
+            vello::kurbo::PathEl::CurveTo(a, b, c)
+            if a == (0.0, 20.0).into() && b == (20.0, 20.0).into() && c == (20.0, 0.0).into()));
+        for (rule, expected) in [
+            (FillRule::EvenOdd, vello::peniko::Fill::EvenOdd),
+            (FillRule::NonZero, vello::peniko::Fill::NonZero),
+        ] {
+            assert_eq!(vello_fill(rule), expected);
+            for source in [&path, &Path::new()] {
+                let clip = ClipGeometry::Path(ClipPath::try_new(source, rule).unwrap());
+                let mut scene = vello::Scene::new();
+                append_clip_layer(&mut scene, &clip, vello::kurbo::Affine::IDENTITY, 2.0);
+                assert_eq!(scene.encoding().n_open_clips, 1);
+                assert!(
+                    !scene.encoding().path_tags.is_empty(),
+                    "empty clip still suppresses paint"
+                );
+                scene.pop_layer();
+                assert_eq!(scene.encoding().n_open_clips, 0);
+                assert_eq!(scene.encoding().n_clips, 2);
+            }
+        }
     }
 
     #[test]
@@ -1845,7 +2040,7 @@ mod tests {
                 run,
                 &font,
                 Point::new(8.0, 12.0),
-                GlyphPaint::Fill(Color::BLACK),
+                &GlyphPaint::Fill(Color::BLACK.into()),
                 &Affine2D::IDENTITY,
                 2.0,
             );
@@ -1854,6 +2049,89 @@ mod tests {
         assert!(!scene.encoding().resources.glyph_runs.is_empty());
         assert!(!scene.encoding().resources.glyphs.is_empty());
         assert!(!scene.encoding().resources.patches.is_empty());
+    }
+
+    #[test]
+    fn gradient_lowering_keeps_stops_and_explicit_interpolation_with_dpi() {
+        use novadraw::graphics::{GradientStop, LinearGradient};
+        use vello::peniko::{Brush, Extend, GradientKind, InterpolationAlphaSpace};
+        let gradient = LinearGradient::try_new(
+            Point::new(10.0, 20.0),
+            Point::new(30.0, 40.0),
+            &[
+                GradientStop::try_new(0.0, Color::BLACK).unwrap(),
+                GradientStop::try_new(0.5, Color::BLACK.with_alpha(0.25)).unwrap(),
+                GradientStop::try_new(0.5, Color::WHITE).unwrap(),
+                GradientStop::try_new(1.0, Color::WHITE).unwrap(),
+            ],
+        )
+        .unwrap();
+        let Brush::Gradient(lowered) = vello_paint(&gradient.into(), 2.0) else {
+            panic!("expected gradient brush")
+        };
+        let GradientKind::Linear(position) = lowered.kind else {
+            panic!("expected linear")
+        };
+        assert_eq!(position.start, vello::kurbo::Point::new(20.0, 40.0));
+        assert_eq!(position.end, vello::kurbo::Point::new(60.0, 80.0));
+        assert_eq!(lowered.extend, Extend::Pad);
+        assert_eq!(
+            lowered.interpolation_cs,
+            vello::peniko::color::ColorSpaceTag::Srgb
+        );
+        assert_eq!(
+            lowered.interpolation_alpha_space,
+            InterpolationAlphaSpace::Premultiplied
+        );
+        assert_eq!(
+            lowered.stops.iter().map(|s| s.offset).collect::<Vec<_>>(),
+            vec![0.0, 0.5, 0.5, 1.0]
+        );
+        assert_eq!(lowered.stops[1].color.components[3], 0.25);
+    }
+
+    #[test]
+    fn dashed_glyphs_use_paths_because_vello_glyph_cache_ignores_dash() {
+        use novadraw::graphics::{CustomDash, DashPattern};
+        let mut engine = TextEngine::new();
+        engine
+            .register_font(
+                ResourceId::new(Uuid::nil(), 1),
+                1,
+                BuiltinFont::Inter.bytes(),
+            )
+            .unwrap();
+        let layout = engine
+            .layout(
+                "Vello",
+                &FontDescriptor::default(),
+                TextConstraints::UNBOUNDED,
+            )
+            .unwrap();
+        let paint = GlyphPaint::Stroke {
+            paint: Color::BLACK.into(),
+            stroke: StrokeStyle::default().with_dash_pattern(DashPattern::Custom(
+                CustomDash::try_new(&[2.0, 1.0]).unwrap(),
+            )),
+        };
+        let mut scene = vello::Scene::new();
+        for run in layout.glyph_runs() {
+            let font = vello::peniko::FontData::new(
+                BuiltinFont::Inter.bytes().to_vec().into(),
+                run.font.collection_index(),
+            );
+            append_glyph_run(
+                &mut scene,
+                run,
+                &font,
+                Point::new(8.0, 12.0),
+                &paint,
+                &Affine2D::IDENTITY,
+                2.0,
+            );
+        }
+        assert!(scene.encoding().resources.glyph_runs.is_empty());
+        assert!(!scene.encoding().path_data.is_empty());
     }
 
     #[test]

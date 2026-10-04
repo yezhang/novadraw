@@ -355,15 +355,18 @@ impl RoundedRectangleFigure {
                 gc.fill_rect_with_color(x, y, width, height, color);
             }
             if let Some(color) = stroke_color {
+                let Ok(stroke) =
+                    crate::graphics::StrokeStyle::default().with_width(self.stroke_width)
+                else {
+                    return;
+                };
                 gc.stroke_rect_with_style(
                     x,
                     y,
                     width,
                     height,
                     color,
-                    self.stroke_width,
-                    self.line_cap,
-                    self.line_join,
+                    stroke.with_cap(self.line_cap).with_join(self.line_join),
                 );
             }
             return;
@@ -410,7 +413,9 @@ impl RoundedRectangleFigure {
         // 描边
         if let Some(color) = stroke_color {
             let _ = color;
-            gc.line_width(self.stroke_width);
+            if gc.line_width(self.stroke_width).is_err() {
+                return;
+            }
             gc.line_cap(self.line_cap);
             gc.line_join(self.line_join);
             gc.stroke();

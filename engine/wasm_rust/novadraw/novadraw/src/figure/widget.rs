@@ -218,9 +218,11 @@ fn paint_focus(gc: &mut NdCanvas, bounds: Rectangle, focused: bool) {
         width,
         height,
         FOCUS_COLOR,
-        FOCUS_STROKE_WIDTH,
-        LineCap::Butt,
-        LineJoin::Miter,
+        crate::graphics::StrokeStyle::default()
+            .with_width(FOCUS_STROKE_WIDTH)
+            .expect("valid focus stroke")
+            .with_cap(LineCap::Butt)
+            .with_join(LineJoin::Miter),
     );
 }
 

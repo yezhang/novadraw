@@ -241,9 +241,11 @@ impl Shape for TargetDomainFigure {
             bounds.width,
             bounds.height,
             color,
-            BORDER_WIDTH,
-            LineCap::default(),
-            LineJoin::default(),
+            novadraw::graphics::StrokeStyle::default()
+                .with_width(BORDER_WIDTH)
+                .expect("valid demo border")
+                .with_cap(LineCap::default())
+                .with_join(LineJoin::default()),
         );
     }
 }

@@ -9,6 +9,7 @@ pub mod connection;
 pub mod event;
 pub mod focus;
 pub mod freeform;
+pub mod graphics;
 pub mod layout;
 pub mod ndcanvas;
 pub mod scroll_pane;

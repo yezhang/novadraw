@@ -97,6 +97,7 @@ pub enum FramePreparationError {
     Validation(ValidationError),
     Accessibility(AccessibilityError),
     UnsupportedRenderCapability(UnsupportedRenderCapability),
+    InvalidGraphicsInput(crate::render::InvalidGraphicsInput),
     DidNotConverge,
 }
 
@@ -108,6 +109,7 @@ impl fmt::Display for FramePreparationError {
             Self::Validation(error) => error.fmt(formatter),
             Self::Accessibility(error) => error.fmt(formatter),
             Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
+            Self::InvalidGraphicsInput(error) => error.fmt(formatter),
             Self::DidNotConverge => formatter.write_str("derived state did not converge"),
         }
     }
@@ -533,6 +535,51 @@ impl PointListEditor<'_> {
     pub fn set_stroke_width(&mut self, stroke_width: f64) -> Result<bool, ShapeMutationError> {
         self.runtime
             .set_point_list_stroke_width(self.point_list, stroke_width)
+    }
+
+    /// Replaces all stroke attributes in one bounds/damage transaction.
+    pub fn set_stroke_style(
+        &mut self,
+        stroke: crate::render::StrokeStyle,
+    ) -> Result<bool, ShapeMutationError> {
+        self.runtime
+            .set_point_list_stroke_style(self.point_list, stroke)
+    }
+
+    pub fn stroke_style(&self) -> Result<crate::render::StrokeStyle, ShapeMutationError> {
+        self.runtime.point_list_stroke_style(self.point_list)
+    }
+
+    pub fn set_miter_limit(&mut self, limit: f64) -> Result<bool, ShapeMutationError> {
+        let stroke = self
+            .stroke_style()?
+            .with_miter_limit(limit)
+            .map_err(ShapeMutationError::InvalidStroke)?;
+        self.set_stroke_style(stroke)
+    }
+
+    pub fn set_line_cap(
+        &mut self,
+        cap: crate::render::LineCap,
+    ) -> Result<bool, ShapeMutationError> {
+        let stroke = self.stroke_style()?.with_cap(cap);
+        self.set_stroke_style(stroke)
+    }
+
+    pub fn set_dash_pattern(
+        &mut self,
+        dash: crate::render::DashPattern,
+    ) -> Result<bool, ShapeMutationError> {
+        let stroke = self.stroke_style()?.with_dash_pattern(dash);
+        self.set_stroke_style(stroke)
+    }
+
+    pub fn set_dash_offset(&mut self, offset: f64) -> Result<bool, ShapeMutationError> {
+        let stroke = self
+            .stroke_style()?
+            .with_dash_offset(offset)
+            .map_err(ShapeMutationError::InvalidStroke)?;
+        self.set_stroke_style(stroke)
     }
 
     pub fn set_line_join(
@@ -3007,24 +3054,44 @@ impl Runtime {
         id: FigureId,
         stroke_width: f64,
     ) -> Result<bool, ShapeMutationError> {
-        let line_join = self
-            .tree
-            .point_list_style(id)
-            .ok_or_else(|| {
-                if self.tree.figure_bounds(id).is_some() {
-                    ShapeMutationError::WrongCapability(id)
-                } else {
-                    ShapeMutationError::UnknownFigure(id)
-                }
-            })?
-            .1;
+        if !stroke_width.is_finite() {
+            return Err(ShapeMutationError::NonFiniteGeometry);
+        }
+        if stroke_width < 0.0 {
+            return Err(ShapeMutationError::NegativeMetric);
+        }
+        let stroke = self
+            .point_list_stroke_style(id)?
+            .with_width(stroke_width)
+            .map_err(ShapeMutationError::InvalidStroke)?;
+        self.set_point_list_stroke_style(id, stroke)
+    }
+
+    fn point_list_stroke_style(
+        &self,
+        id: FigureId,
+    ) -> Result<crate::render::StrokeStyle, ShapeMutationError> {
+        if self.is_faulted() {
+            return Err(ShapeMutationError::Faulted);
+        }
+        self.tree.point_list_style(id).ok_or_else(|| {
+            if self.tree.figure_bounds(id).is_some() {
+                ShapeMutationError::WrongCapability(id)
+            } else {
+                ShapeMutationError::UnknownFigure(id)
+            }
+        })
+    }
+
+    fn set_point_list_stroke_style(
+        &mut self,
+        id: FigureId,
+        stroke: crate::render::StrokeStyle,
+    ) -> Result<bool, ShapeMutationError> {
         self.guarded_shape_mutation(move |runtime| {
-            runtime.tree.set_point_list_stroke_style(
-                &mut runtime.updates,
-                id,
-                stroke_width,
-                line_join,
-            )
+            runtime
+                .tree
+                .set_point_list_stroke_style(&mut runtime.updates, id, stroke)
         })
     }
 
@@ -3033,25 +3100,8 @@ impl Runtime {
         id: FigureId,
         line_join: crate::render::LineJoin,
     ) -> Result<bool, ShapeMutationError> {
-        let stroke_width = self
-            .tree
-            .point_list_style(id)
-            .ok_or_else(|| {
-                if self.tree.figure_bounds(id).is_some() {
-                    ShapeMutationError::WrongCapability(id)
-                } else {
-                    ShapeMutationError::UnknownFigure(id)
-                }
-            })?
-            .0;
-        self.guarded_shape_mutation(move |runtime| {
-            runtime.tree.set_point_list_stroke_style(
-                &mut runtime.updates,
-                id,
-                stroke_width,
-                line_join,
-            )
-        })
+        let stroke = self.point_list_stroke_style(id)?.with_join(line_join);
+        self.set_point_list_stroke_style(id, stroke)
     }
 
     pub(crate) fn replace_scalable_polygon_template(

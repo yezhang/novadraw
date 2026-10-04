@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use novadraw::Color;
 use novadraw::geometry::{Dimension, Point, Rectangle};
+use novadraw::graphics::Paint;
 use novadraw::render::{
     DEFAULT_STROKE_MITER_LIMIT, LineJoin, NdCanvas, command::RenderCommandKind,
 };
@@ -30,18 +31,18 @@ fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
                 cy,
                 rx,
                 ry,
-                fill_color,
-                stroke_color,
-                stroke_width,
+                fill_paint,
+                stroke_paint,
+                stroke,
                 ..
             } => Some((
                 *cx,
                 *cy,
                 *rx,
                 *ry,
-                *fill_color,
-                *stroke_color,
-                *stroke_width,
+                fill_paint.clone(),
+                stroke_paint.clone(),
+                stroke.width(),
             )),
             _ => None,
         })
@@ -50,11 +51,27 @@ fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
     assert_eq!(ellipses.len(), 2);
     assert_eq!(
         ellipses[0],
-        (50.0, 30.0, 48.0, 28.0, Some(Color::WHITE), None, 1.0)
+        (
+            50.0,
+            30.0,
+            48.0,
+            28.0,
+            Some(Paint::Solid(Color::WHITE)),
+            None,
+            1.0
+        )
     );
     assert_eq!(
         ellipses[1],
-        (50.0, 30.0, 48.0, 28.0, None, Some(Color::BLACK), 4.0)
+        (
+            50.0,
+            30.0,
+            48.0,
+            28.0,
+            None,
+            Some(Paint::Solid(Color::BLACK)),
+            4.0
+        )
     );
 }
 
@@ -331,7 +348,11 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
-            RenderCommandKind::StrokeRect { rect, color, .. } => Some((*rect, *color)),
+            RenderCommandKind::StrokeRect {
+                rect,
+                paint: Paint::Solid(color),
+                ..
+            } => Some((*rect, *color)),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -451,14 +472,14 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
     assert!(canvas.commands().iter().any(|command| {
         matches!(
             command.kind,
-            RenderCommandKind::FillRect { color, .. } if color == fill
+            RenderCommandKind::FillRect { paint: Paint::Solid(color), .. } if color == fill
         )
     }));
     assert!(canvas.commands().iter().any(|command| {
         matches!(
             command.kind,
-            RenderCommandKind::StrokeRect { color, width, .. }
-                if color == stroke && width == 2.0
+            RenderCommandKind::StrokeRect { paint: Paint::Solid(color), stroke: ref style, .. }
+                if color == stroke && style.width() == 2.0
         )
     }));
 }

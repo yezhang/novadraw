@@ -278,7 +278,10 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
-            RenderCommandKind::FillRect { color, .. } => Some(color),
+            RenderCommandKind::FillRect {
+                paint: novadraw::graphics::Paint::Solid(color),
+                ..
+            } => Some(color),
             _ => None,
         })
         .copied()

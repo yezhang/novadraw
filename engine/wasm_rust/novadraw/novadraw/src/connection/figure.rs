@@ -3,8 +3,8 @@ use std::{error::Error, fmt};
 use crate::Color;
 use crate::geometry::{Point, PointList, Rectangle, Translatable};
 use crate::render::{
-    NdCanvas,
-    command::{LineCap, LineJoin, stroke_visual_outset},
+    NdCanvas, StrokeStyle,
+    command::{LineCap, LineJoin},
 };
 
 use crate::{Bounded, ChildClippingStrategy, Figure, FigureContainer, Layer};
@@ -103,9 +103,7 @@ pub trait ConnectionFigureBehavior {
 pub struct ConnectionFigure {
     points: PointList,
     stroke_color: Color,
-    stroke_width: f64,
-    line_cap: LineCap,
-    line_join: LineJoin,
+    stroke: StrokeStyle,
     hit_tolerance: f64,
     source_decoration_inset: f64,
     target_decoration_inset: f64,
@@ -123,9 +121,9 @@ impl ConnectionFigure {
         Self {
             points: PointList::new(),
             stroke_color: DEFAULT_CONNECTION_COLOR,
-            stroke_width: DEFAULT_CONNECTION_WIDTH,
-            line_cap: LineCap::default(),
-            line_join: LineJoin::default(),
+            stroke: StrokeStyle::default()
+                .with_width(DEFAULT_CONNECTION_WIDTH)
+                .expect("valid default stroke"),
             hit_tolerance: DEFAULT_HIT_TOLERANCE,
             source_decoration_inset: 0.0,
             target_decoration_inset: 0.0,
@@ -135,14 +133,22 @@ impl ConnectionFigure {
     /// Sets immutable construction-time stroke style.
     pub fn with_stroke(mut self, color: Color, width: f64) -> Self {
         self.stroke_color = color;
-        self.stroke_width = width.max(0.0);
+        self.stroke = self
+            .stroke
+            .with_width(width.max(0.0))
+            .expect("valid stroke width");
         self
     }
 
     /// Sets line cap and join style.
     pub fn with_line_style(mut self, cap: LineCap, join: LineJoin) -> Self {
-        self.line_cap = cap;
-        self.line_join = join;
+        self.stroke = self.stroke.with_cap(cap).with_join(join);
+        self
+    }
+
+    /// Sets complete immutable stroke style used for both route bounds and painting.
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.stroke = stroke;
         self
     }
 
@@ -179,10 +185,7 @@ impl ConnectionFigureBehavior for ConnectionFigure {
         &self,
         parent_points: &PointList,
     ) -> Result<PreparedConnectionGeometry, ConnectionGeometryError> {
-        PreparedConnectionGeometry::from_parent_points(
-            parent_points,
-            stroke_visual_outset(self.stroke_width, self.line_join),
-        )
+        PreparedConnectionGeometry::from_parent_points(parent_points, self.stroke.visual_outset())
     }
 
     fn commit_route_points(&mut self, points: PointList) {
@@ -190,7 +193,7 @@ impl ConnectionFigureBehavior for ConnectionFigure {
     }
 
     fn connection_stroke_width(&self) -> f64 {
-        self.stroke_width
+        self.stroke.width()
     }
 
     fn connection_stroke_color(&self) -> Color {
@@ -208,24 +211,18 @@ impl Figure for ConnectionFigure {
     }
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
-        if self.points.len() < 2 || self.stroke_width <= 0.0 {
+        if self.points.len() < 2 || self.stroke.width() <= 0.0 {
             return;
         }
         let points = self.painted_points();
-        gc.polyline(
-            &points,
-            self.stroke_color,
-            self.stroke_width,
-            self.line_cap,
-            self.line_join,
-        );
+        gc.polyline_with_style(&points, self.stroke_color, self.stroke.clone());
     }
 
     fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {
         if self.points.len() < 2 {
             return false;
         }
-        let threshold = self.stroke_width / 2.0 + self.hit_tolerance;
+        let threshold = self.stroke.width() / 2.0 + self.hit_tolerance;
         self.painted_points().windows(2).any(|segment| {
             point_segment_distance(Point::new(x, y), segment[0], segment[1]) <= threshold
         })

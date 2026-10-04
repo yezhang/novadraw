@@ -1,10 +1,7 @@
 use std::{error::Error, fmt};
 
 use crate::geometry::{Point, PointList, Rectangle};
-use crate::render::{
-    LineJoin, NdCanvas,
-    command::{LineCap, stroke_visual_outset},
-};
+use crate::render::{LineJoin, NdCanvas, StrokeStyle};
 use crate::{Alignment, Color, Figure, FigureStyle};
 
 const DEFAULT_STROKE_WIDTH: f64 = 2.0;
@@ -68,9 +65,7 @@ pub struct ScalablePolygonFigure {
     vertical_alignment: Alignment,
     fill_color: Color,
     stroke_color: Color,
-    stroke_width: f64,
-    line_cap: LineCap,
-    line_join: LineJoin,
+    stroke: StrokeStyle,
 }
 
 impl ScalablePolygonFigure {
@@ -86,9 +81,9 @@ impl ScalablePolygonFigure {
             vertical_alignment: Alignment::Center,
             fill_color: Color::from_hex("#3498db").expect("valid color literal"),
             stroke_color: Color::from_hex("#2c3e50").expect("valid color literal"),
-            stroke_width: DEFAULT_STROKE_WIDTH,
-            line_cap: LineCap::default(),
-            line_join: LineJoin::default(),
+            stroke: StrokeStyle::default()
+                .with_width(DEFAULT_STROKE_WIDTH)
+                .expect("valid default stroke"),
         })
     }
 
@@ -114,12 +109,22 @@ impl ScalablePolygonFigure {
     /// Sets outline color, width, and join.
     pub fn with_stroke(mut self, color: Color, width: f64, join: LineJoin) -> Self {
         self.stroke_color = color;
-        self.stroke_width = if width.is_finite() {
+        let width = if width.is_finite() {
             width.max(0.0)
         } else {
             0.0
         };
-        self.line_join = join;
+        self.stroke = self
+            .stroke
+            .with_width(width)
+            .expect("valid stroke width")
+            .with_join(join);
+        self
+    }
+
+    /// Reserves the complete stroke envelope inside the assigned bounds.
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.stroke = stroke;
         self
     }
 
@@ -131,7 +136,7 @@ impl ScalablePolygonFigure {
             self.scale_mode,
             self.horizontal_alignment,
             self.vertical_alignment,
-            stroke_visual_outset(self.stroke_width, self.line_join),
+            self.stroke.visual_outset(),
         ))
     }
 }
@@ -180,11 +185,9 @@ impl Figure for ScalablePolygonFigure {
         }
         gc.close_path();
         let fill = self.fill_color.alpha() > 0.0;
-        let stroke = self.stroke_color.alpha() > 0.0 && self.stroke_width > 0.0;
+        let stroke = self.stroke_color.alpha() > 0.0 && self.stroke.width() > 0.0;
         if stroke {
-            gc.line_width(self.stroke_width);
-            gc.line_cap(self.line_cap);
-            gc.line_join(self.line_join);
+            gc.set_stroke(self.stroke.clone());
         }
         match (fill, stroke) {
             (true, true) => gc.fill_and_stroke(),

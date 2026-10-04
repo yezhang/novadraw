@@ -2123,7 +2123,7 @@ mod tests {
             assert!(frame.commands().iter().any(|command| matches!(
                 command.kind,
                 RenderCommandKind::FillRect {
-                    color: actual,
+                    paint: novadraw::graphics::Paint::Solid(actual),
                     ..
                 } if actual == color
             )));
@@ -2226,7 +2226,7 @@ mod tests {
 
         assert!(frame.commands().iter().any(|command| matches!(
             command.kind,
-            RenderCommandKind::FillRect { color, .. }
+            RenderCommandKind::FillRect { paint: novadraw::graphics::Paint::Solid(color), .. }
                 if color == Color::from_hex(VIEWPORT_BACKGROUND_COLOR).expect("valid color literal")
         )));
         let initial_outline = frame
@@ -2235,13 +2235,14 @@ mod tests {
             .find_map(|command| match command.kind {
                 RenderCommandKind::StrokeRect {
                     rect,
-                    color,
-                    width,
-                    line_style: LineStyle::Dash,
+                    paint: novadraw::graphics::Paint::Solid(color),
+                    ref stroke,
                     ..
                 } if color
                     == Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal")
-                    && width == VIEWPORT_BORDER_WIDTH =>
+                    && stroke.width() == VIEWPORT_BORDER_WIDTH
+                    && stroke.dash_pattern()
+                        == &novadraw::graphics::DashPattern::from(LineStyle::Dash) =>
                 {
                     Some(rect)
                 }
@@ -2257,13 +2258,14 @@ mod tests {
             .find_map(|command| match command.kind {
                 RenderCommandKind::StrokeRect {
                     rect,
-                    color,
-                    width,
-                    line_style: LineStyle::Dash,
+                    paint: novadraw::graphics::Paint::Solid(color),
+                    ref stroke,
                     ..
                 } if color
                     == Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal")
-                    && width == VIEWPORT_BORDER_WIDTH =>
+                    && stroke.width() == VIEWPORT_BORDER_WIDTH
+                    && stroke.dash_pattern()
+                        == &novadraw::graphics::DashPattern::from(LineStyle::Dash) =>
                 {
                     Some(rect)
                 }

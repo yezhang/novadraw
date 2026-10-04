@@ -69,8 +69,7 @@ impl FigureTree {
         let visible = self.is_effectively_visible(id);
         let (new_bounds, local_points) = normalize_points(
             parent_points.clone(),
-            point_list.stroke_width(),
-            point_list.line_join(),
+            point_list.stroke_style(),
             point_list.painted_minimum(),
         );
         if !finite_rectangle(new_bounds) {
@@ -115,24 +114,20 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        stroke_width: f64,
-        line_join: crate::render::command::LineJoin,
+        stroke: crate::render::StrokeStyle,
     ) -> Result<bool, ShapeMutationError> {
-        if !stroke_width.is_finite() {
-            return Err(ShapeMutationError::NonFiniteGeometry);
-        }
-        if stroke_width < 0.0 {
-            return Err(ShapeMutationError::NegativeMetric);
-        }
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
         let Some(point_list) = block.figure.point_list() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
-        let old_stroke_width = point_list.stroke_width();
-        let old_line_join = point_list.line_join();
-        if old_stroke_width == stroke_width && old_line_join == line_join {
+        let old_stroke = point_list.stroke_style().clone();
+        let old_stroke_width = old_stroke.width();
+        let old_line_join = old_stroke.join();
+        let stroke_width = stroke.width();
+        let line_join = stroke.join();
+        if old_stroke == stroke {
             return Ok(false);
         }
 
@@ -143,12 +138,8 @@ impl FigureTree {
         let old_visual_bounds = block.visual_bounds();
         let parent_id = block.parent;
         let visible = self.is_effectively_visible(id);
-        let (new_bounds, local_points) = normalize_points(
-            parent_points,
-            stroke_width,
-            line_join,
-            point_list.painted_minimum(),
-        );
+        let (new_bounds, local_points) =
+            normalize_points(parent_points, &stroke, point_list.painted_minimum());
         if !finite_rectangle(new_bounds) {
             return Err(ShapeMutationError::NonFiniteGeometry);
         }
@@ -165,7 +156,7 @@ impl FigureTree {
             .figure
             .point_list_mut()
             .ok_or(ShapeMutationError::WrongCapability(id))?;
-        point_list.commit_stroke_style(stroke_width, line_join);
+        point_list.commit_stroke_style(stroke.clone());
         point_list.commit_geometry(new_bounds, local_points);
 
         self.notify_block_changed(id);
@@ -193,6 +184,12 @@ impl FigureTree {
                 new_value: PropertyValue::Text(format!("{line_join:?}")),
             });
         }
+        self.emit_property_event(PropertyChangeEvent {
+            figure_id: id,
+            property: "stroke_style",
+            old_value: PropertyValue::Text(format!("{old_stroke:?}")),
+            new_value: PropertyValue::Text(format!("{stroke:?}")),
+        });
         self.mark_invalid(update_manager, id);
         if visible {
             self.repaint(update_manager, id, None);

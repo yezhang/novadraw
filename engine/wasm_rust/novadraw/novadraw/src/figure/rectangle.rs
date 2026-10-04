@@ -257,7 +257,9 @@ impl Shape for RectangleFigure {
             // - 外边缘：x + w - sw/2 + sw/2 = x + w（原始右边界）
             // 这样描边正好填满原始 bounds
             let _ = color;
-            gc.line_width(self.stroke_width);
+            if gc.line_width(self.stroke_width).is_err() {
+                return;
+            }
             gc.line_cap(self.line_cap);
             gc.line_join(self.line_join);
             gc.draw_rectangle(x, y, width.max(0.0), height.max(0.0));

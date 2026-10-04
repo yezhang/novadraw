@@ -8,7 +8,7 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
     let mut canvas = NdCanvas::new();
     canvas.set_background_color(Color::rgba(1.0, 0.0, 0.0, 1.0));
     canvas.set_foreground_color(Color::rgba(0.0, 0.0, 1.0, 1.0));
-    canvas.set_line_width(3.0);
+    canvas.set_line_width(3.0).unwrap();
     canvas.set_line_style(LineStyle::Dash);
 
     canvas.fill_rectangle(0.0, 0.0, 10.0, 20.0);
@@ -32,31 +32,31 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
         RenderCommandKind::FillRect { .. }
     ));
 
-    let RenderCommandKind::StrokeRect {
-        width, line_style, ..
-    } = commands[1].kind
-    else {
+    let RenderCommandKind::StrokeRect { stroke, .. } = &commands[1].kind else {
         panic!("expected draw_rectangle to emit StrokeRect");
     };
-    assert_eq!(width, 3.0);
-    assert_eq!(line_style, LineStyle::Dash);
+    assert_eq!(stroke.width(), 3.0);
+    assert_eq!(
+        stroke.dash_pattern(),
+        &novadraw::graphics::DashPattern::Dash
+    );
 
     assert!(matches!(
         commands[2].kind,
         RenderCommandKind::Ellipse {
-            fill_color: Some(_),
-            stroke_color: None,
+            fill_paint: Some(_),
+            stroke_paint: None,
             ..
         }
     ));
     assert!(matches!(
         commands[3].kind,
         RenderCommandKind::Ellipse {
-            fill_color: None,
-            stroke_color: Some(_),
-            line_style: LineStyle::Dash,
+            fill_paint: None,
+            stroke_paint: Some(_),
+            ref stroke,
             ..
-        }
+        } if stroke.dash_pattern() == &novadraw::graphics::DashPattern::Dash
     ));
     assert!(matches!(
         commands[4].kind,
@@ -65,9 +65,9 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
     assert!(matches!(
         commands[5].kind,
         RenderCommandKind::Polyline {
-            line_style: LineStyle::Dash,
+            ref stroke,
             ..
-        }
+        } if stroke.dash_pattern() == &novadraw::graphics::DashPattern::Dash
     ));
 }
 

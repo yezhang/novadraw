@@ -579,10 +579,21 @@ pub struct GlyphRun {
     pub glyphs: Vec<PositionedGlyph>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum GlyphPaint {
-    Fill(crate::Color),
-    Stroke { color: crate::Color, width: f64 },
+    Fill(super::Paint),
+    Stroke {
+        paint: super::Paint,
+        stroke: super::StrokeStyle,
+    },
+}
+
+impl GlyphPaint {
+    pub fn paint(&self) -> &super::Paint {
+        match self {
+            Self::Fill(paint) | Self::Stroke { paint, .. } => paint,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -1666,7 +1677,10 @@ mod tests {
             panic!("expected glyph run");
         };
         assert_eq!(*origin, Point::new(10.0, 20.0));
-        assert_eq!(*paint, GlyphPaint::Fill(Color::rgba(0.2, 0.4, 0.6, 0.4)));
+        assert_eq!(
+            *paint,
+            GlyphPaint::Fill(Color::rgba(0.2, 0.4, 0.6, 0.4).into())
+        );
         assert!(!run.glyphs.is_empty());
     }
 

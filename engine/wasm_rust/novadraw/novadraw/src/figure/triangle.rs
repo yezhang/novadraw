@@ -537,6 +537,9 @@ impl Shape for TriangleFigure {
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
+        if gc.line_width(self.stroke_width).is_err() {
+            return;
+        }
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 
@@ -546,7 +549,6 @@ impl Shape for TriangleFigure {
         gc.line_to(points[2].0, points[2].1);
         gc.close_path();
 
-        gc.line_width(self.stroke_width);
         gc.line_cap(self.line_cap);
         gc.line_join(self.line_join);
         gc.stroke();

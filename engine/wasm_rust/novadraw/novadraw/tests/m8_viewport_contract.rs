@@ -296,7 +296,11 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
             }
             RenderCommandKind::SetTransform { matrix } => transform = matrix,
             RenderCommandKind::ResetTransform => transform = Affine2D::IDENTITY,
-            RenderCommandKind::FillRect { rect, color } if color == child_color => {
+            RenderCommandKind::FillRect {
+                rect,
+                paint: novadraw::graphics::Paint::Solid(color),
+                ..
+            } if color == child_color => {
                 let mut bounds = rect;
                 bounds.transform(transform);
                 projected_child = Some(bounds);

@@ -250,16 +250,18 @@ impl Runtime {
                 canvas.damage_mut().set_full();
             }
         }
-        if let Some(error) = canvas.commands().iter().find_map(|command| {
-            command
-                .kind
-                .required_capability()
-                .and_then(|capability| capabilities.require(capability).err())
-        }) {
+        if let Err(error) = capabilities.validate_capabilities(canvas.commands()) {
             self.full_redraw_pending = true;
             return FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(
                 error,
             ));
+        }
+
+        if let Err(error) =
+            crate::render::validate_graphics_input(canvas.commands(), surface.scale_factor)
+        {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(error));
         }
 
         let frame_id = self.next_frame_id;

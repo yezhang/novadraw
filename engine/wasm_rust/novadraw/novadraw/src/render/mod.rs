@@ -11,17 +11,25 @@
 
 #![allow(missing_docs)]
 
+mod clip;
 /// 渲染命令模块
 pub mod command;
 /// 渲染上下文模块
 pub mod context;
+pub use clip::{ClipPath, FillRule};
+mod paint;
 mod path_geometry;
+pub use paint::{GradientStop, LinearGradient, Paint};
+mod stroke;
+pub use stroke::{CustomDash, DashPattern, GraphicsInputError, StrokeStyle};
 /// 渲染提交协议模块
 pub mod submission;
 /// Text shaping and immutable layout snapshots.
 pub mod text;
 /// 渲染器 traits 模块
 pub mod traits;
+mod validation;
+pub use validation::{InvalidGraphicsInput, validate_graphics_input};
 
 /// Shared implementation protocol for rendering backend crates.
 #[doc(hidden)]

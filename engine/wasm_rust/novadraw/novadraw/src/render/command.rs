@@ -7,19 +7,13 @@ use std::fmt;
 use crate::Color;
 use crate::geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
 
+use super::stroke::StrokeStyle;
+use super::{ClipPath, FillRule, Paint};
 use crate::render::submission::ResourceId;
 use crate::render::text::{GlyphPaint, GlyphRun};
 
 /// Default ratio between miter length and stroke radius.
 pub const DEFAULT_STROKE_MITER_LIMIT: f64 = 4.0;
-
-pub(crate) fn stroke_visual_outset(stroke_width: f64, line_join: LineJoin) -> f64 {
-    let radius = stroke_width.max(0.0) / 2.0;
-    match line_join {
-        LineJoin::Miter => radius * DEFAULT_STROKE_MITER_LIMIT,
-        LineJoin::Round | LineJoin::Bevel => radius,
-    }
-}
 
 /// 渲染命令
 ///
@@ -65,6 +59,9 @@ pub enum RenderCommandKind {
         rect: Rectangle,
     },
 
+    /// Intersect with an owned path at the current transform.
+    ClipPath { clip: ClipPath },
+
     /// 清空当前裁剪区域
     ResetClip,
 
@@ -78,19 +75,17 @@ pub enum RenderCommandKind {
     ClearRect { rect: Rectangle, color: Color },
 
     /// 填充矩形
-    FillRect { rect: Rectangle, color: Color },
+    FillRect {
+        rect: Rectangle,
+        paint: Paint,
+        rule: FillRule,
+    },
 
     /// 描边矩形
     StrokeRect {
         rect: Rectangle,
-        color: Color,
-        width: f64,
-        /// 线型样式
-        line_style: LineStyle,
-        /// 线帽样式
-        cap: LineCap,
-        /// 连接样式
-        join: LineJoin,
+        paint: Paint,
+        stroke: StrokeStyle,
     },
 
     /// 绘制椭圆
@@ -104,17 +99,11 @@ pub enum RenderCommandKind {
         /// y 轴半径
         ry: f64,
         /// 填充颜色
-        fill_color: Option<Color>,
+        fill_paint: Option<Paint>,
         /// 描边颜色
-        stroke_color: Option<Color>,
-        /// 描边宽度
-        stroke_width: f64,
-        /// 线型样式
-        line_style: LineStyle,
-        /// 线帽样式
-        cap: LineCap,
-        /// 连接样式
-        join: LineJoin,
+        stroke_paint: Option<Paint>,
+        stroke: StrokeStyle,
+        rule: FillRule,
     },
 
     /// 绘制直线
@@ -124,15 +113,8 @@ pub enum RenderCommandKind {
         /// 终点
         p2: Point,
         /// 线条颜色
-        color: Color,
-        /// 线条宽度
-        width: f64,
-        /// 线型样式
-        line_style: LineStyle,
-        /// 线帽样式
-        cap: LineCap,
-        /// 连接样式
-        join: LineJoin,
+        paint: Paint,
+        stroke: StrokeStyle,
     },
 
     /// 绘制折线
@@ -140,15 +122,8 @@ pub enum RenderCommandKind {
         /// 点列表
         points: PointList,
         /// 线条颜色
-        color: Color,
-        /// 线条宽度
-        width: f64,
-        /// 线型样式
-        line_style: LineStyle,
-        /// 线帽样式
-        cap: LineCap,
-        /// 连接样式
-        join: LineJoin,
+        paint: Paint,
+        stroke: StrokeStyle,
     },
 
     /// 填充路径
@@ -156,7 +131,8 @@ pub enum RenderCommandKind {
         /// 路径数据
         path: Path,
         /// 填充颜色
-        color: Color,
+        paint: Paint,
+        rule: FillRule,
     },
 
     /// 描边路径
@@ -164,15 +140,8 @@ pub enum RenderCommandKind {
         /// 路径数据
         path: Path,
         /// 描边颜色
-        color: Color,
-        /// 描边宽度
-        width: f64,
-        /// 线型样式
-        line_style: LineStyle,
-        /// 线帽样式
-        line_cap: LineCap,
-        /// 线连接样式
-        line_join: LineJoin,
+        paint: Paint,
+        stroke: StrokeStyle,
     },
 
     /// 绘制图像
@@ -196,12 +165,64 @@ pub enum RenderCommandKind {
 }
 
 impl RenderCommandKind {
-    pub const fn required_capability(&self) -> Option<crate::RenderCapability> {
+    /// All paints consumed by this command, including both ellipse branches.
+    pub fn paints(&self) -> impl Iterator<Item = &Paint> {
+        let paints = match self {
+            Self::FillRect { paint, .. }
+            | Self::StrokeRect { paint, .. }
+            | Self::Line { paint, .. }
+            | Self::Polyline { paint, .. }
+            | Self::FillPath { paint, .. }
+            | Self::StrokePath { paint, .. } => [Some(paint), None],
+            Self::Ellipse {
+                fill_paint,
+                stroke_paint,
+                ..
+            } => [fill_paint.as_ref(), stroke_paint.as_ref()],
+            Self::DrawGlyphRun { paint, .. } => [Some(paint.paint()), None],
+            _ => [None, None],
+        };
+        paints.into_iter().flatten()
+    }
+
+    pub fn stroke(&self) -> Option<&StrokeStyle> {
         match self {
-            Self::Image { .. } => Some(crate::RenderCapability::ImageResources),
-            Self::DrawGlyphRun { .. } => Some(crate::RenderCapability::GlyphRuns),
+            Self::StrokeRect { stroke, .. }
+            | Self::Line { stroke, .. }
+            | Self::Polyline { stroke, .. }
+            | Self::StrokePath { stroke, .. }
+            | Self::Ellipse {
+                stroke,
+                stroke_paint: Some(_),
+                ..
+            }
+            | Self::DrawGlyphRun {
+                paint: GlyphPaint::Stroke { stroke, .. },
+                ..
+            } => Some(stroke),
             _ => None,
         }
+    }
+
+    pub fn required_capabilities(&self) -> impl Iterator<Item = crate::RenderCapability> {
+        use crate::RenderCapability;
+        let mut required = [None; 3];
+        match self {
+            Self::ClipPath { .. } => required[0] = Some(RenderCapability::PathClips),
+            Self::Image { .. } => required[0] = Some(RenderCapability::ImageResources),
+            Self::DrawGlyphRun { .. } => required[0] = Some(RenderCapability::GlyphRuns),
+            _ => {}
+        };
+        if self
+            .stroke()
+            .is_some_and(StrokeStyle::requires_custom_strokes)
+        {
+            required[1] = Some(RenderCapability::CustomStrokes);
+        }
+        if self.paints().any(Paint::requires_linear_gradients) {
+            required[2] = Some(RenderCapability::LinearGradients);
+        }
+        required.into_iter().flatten()
     }
 }
 
@@ -318,7 +339,7 @@ pub enum LineStyle {
 }
 
 /// 路径数据类型
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Path {
     operations: Vec<PathOp>,
 }
@@ -514,7 +535,7 @@ fn canvas_sweep(start_degrees: f64, end_degrees: f64, anticlockwise: bool) -> f6
 }
 
 /// 路径操作
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PathOp {
     /// 移动到指定点（起点）
     MoveTo(Point),

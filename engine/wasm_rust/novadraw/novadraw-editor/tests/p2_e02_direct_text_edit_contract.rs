@@ -333,7 +333,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     let frame = viewer.runtime_mut().prepare_frame().unwrap();
     assert!(frame.commands().iter().any(|command| matches!(
         command.kind,
-        RenderCommandKind::FillRect { rect, color }
+        RenderCommandKind::FillRect { rect, paint: novadraw::graphics::Paint::Solid(color), .. }
             if color == Color::rgba(0.07, 0.09, 0.12, 1.0)
                 && rect.width >= 1.0
                 && rect.height == caret.height

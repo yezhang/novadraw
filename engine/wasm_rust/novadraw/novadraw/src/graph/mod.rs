@@ -3426,11 +3426,11 @@ mod tests {
             .commands()
             .iter()
             .find_map(|command| match &command.kind {
-                RenderCommandKind::FillRect { rect, color }
-                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
-                {
-                    Some(*color)
-                }
+                RenderCommandKind::FillRect {
+                    rect,
+                    paint: crate::graphics::Paint::Solid(color),
+                    ..
+                } if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] => Some(*color),
                 _ => None,
             })
             .expect("second sibling must paint");
@@ -3677,11 +3677,11 @@ mod tests {
             .commands()
             .iter()
             .find_map(|command| match &command.kind {
-                RenderCommandKind::FillRect { rect, color }
-                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
-                {
-                    Some(*color)
-                }
+                RenderCommandKind::FillRect {
+                    rect,
+                    paint: crate::graphics::Paint::Solid(color),
+                    ..
+                } if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] => Some(*color),
                 _ => None,
             })
             .expect("styled descendant must paint");
@@ -3711,7 +3711,7 @@ mod tests {
 
         assert!(scene.render().commands().iter().any(|command| matches!(
             command.kind,
-            RenderCommandKind::FillRect { rect, color }
+            RenderCommandKind::FillRect { rect, paint: crate::graphics::Paint::Solid(color), .. }
                 if rect_signature(&rect) == [0.0, 0.0, 50.0, 40.0]
                     && color == background
         )));
@@ -3747,11 +3747,11 @@ mod tests {
             .commands()
             .iter()
             .find_map(|command| match &command.kind {
-                RenderCommandKind::FillRect { rect, color }
-                    if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] =>
-                {
-                    Some(*color)
-                }
+                RenderCommandKind::FillRect {
+                    rect,
+                    paint: crate::graphics::Paint::Solid(color),
+                    ..
+                } if rect_signature(rect) == [20.0, 0.0, 30.0, 10.0] => Some(*color),
                 _ => None,
             })
             .expect("child paint must be emitted");

@@ -699,14 +699,9 @@ pub trait Figure: AsAny {
 /// Runtime-controlled point-list geometry capability.
 pub trait PointListFigureBehavior {
     fn local_points(&self) -> &[Point];
-    fn stroke_width(&self) -> f64;
-    fn line_join(&self) -> crate::render::command::LineJoin;
+    fn stroke_style(&self) -> &crate::render::StrokeStyle;
     fn painted_minimum(&self) -> usize;
-    fn commit_stroke_style(
-        &mut self,
-        stroke_width: f64,
-        line_join: crate::render::command::LineJoin,
-    );
+    fn commit_stroke_style(&mut self, stroke: crate::render::StrokeStyle);
     fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>);
 }
 
@@ -723,6 +718,7 @@ pub enum ShapeMutationError {
     WrongCapability(FigureId),
     NonFiniteGeometry,
     NegativeMetric,
+    InvalidStroke(crate::render::GraphicsInputError),
     PointIndexOutOfRange { index: usize, len: usize },
 }
 
@@ -739,6 +735,7 @@ impl std::fmt::Display for ShapeMutationError {
             }
             Self::NonFiniteGeometry => write!(formatter, "geometry must be finite"),
             Self::NegativeMetric => write!(formatter, "shape metrics must be non-negative"),
+            Self::InvalidStroke(error) => error.fmt(formatter),
             Self::PointIndexOutOfRange { index, len } => {
                 write!(
                     formatter,

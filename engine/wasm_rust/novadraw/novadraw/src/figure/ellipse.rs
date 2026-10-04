@@ -293,7 +293,9 @@ impl Shape for EllipseFigure {
         if let Some(color) = self.stroke_color {
             let bounds = self.optimized_bounds();
             let _ = color;
-            gc.line_width(self.stroke_width);
+            if gc.line_width(self.stroke_width).is_err() {
+                return;
+            }
             gc.line_cap(self.line_cap);
             gc.line_join(self.line_join);
             gc.draw_oval(bounds.x, bounds.y, bounds.width, bounds.height);

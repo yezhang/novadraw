@@ -302,6 +302,9 @@ impl NativeVelloBenchmark {
                 RenderOutcome::Unsupported(capability) => {
                     panic!("native Vello surface probe lacks capability {capability:?}");
                 }
+                RenderOutcome::InvalidGraphicsInput(error) => {
+                    panic!("native Vello surface probe received invalid graphics: {error}");
+                }
             }
         }
 

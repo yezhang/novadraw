@@ -27,7 +27,7 @@ impl Figure for StyleProbeFigure {
 
     fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
         canvas.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
-        canvas.set_line_width(3.0);
+        canvas.set_line_width(3.0).expect("valid demo stroke");
         canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
     }
 }

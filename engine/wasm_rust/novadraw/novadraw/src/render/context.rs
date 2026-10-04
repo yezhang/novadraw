@@ -5,6 +5,8 @@
 use crate::Color;
 use crate::geometry::{Affine2D, Point, PointList, Rectangle};
 
+use super::stroke::{DashPattern, GraphicsInputError, StrokeStyle};
+use super::{ClipPath, FillRule, Paint};
 use crate::render::command::{
     ImageDrawDisposition, ImageDrawError, Path, RenderCommand, RenderCommandKind,
     validate_image_draw_geometry,
@@ -14,12 +16,10 @@ use crate::render::text::TextLayout;
 
 #[derive(Clone, Debug)]
 struct GraphicsState {
-    fill_color: Option<Color>,
-    stroke_color: Option<Color>,
-    stroke_width: f64,
-    line_cap: crate::render::command::LineCap,
-    line_join: crate::render::command::LineJoin,
-    line_style: crate::render::command::LineStyle,
+    fill_paint: Option<Paint>,
+    stroke_paint: Option<Paint>,
+    stroke: StrokeStyle,
+    fill_rule: FillRule,
     global_alpha: f64,
     transform: Affine2D,
     clip_depth: usize,
@@ -28,12 +28,10 @@ struct GraphicsState {
 impl Default for GraphicsState {
     fn default() -> Self {
         Self {
-            fill_color: None,
-            stroke_color: None,
-            stroke_width: 1.0,
-            line_cap: crate::render::command::LineCap::Butt,
-            line_join: crate::render::command::LineJoin::Miter,
-            line_style: crate::render::command::LineStyle::Solid,
+            fill_paint: None,
+            stroke_paint: None,
+            stroke: StrokeStyle::default(),
+            fill_rule: FillRule::default(),
             global_alpha: 1.0,
             transform: Affine2D::IDENTITY,
             clip_depth: 0,
@@ -162,9 +160,22 @@ impl NdCanvas {
     }
 
     pub fn fill_rect_with_color(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
+        self.fill_rect_with_paint(x, y, width, height, color.into(), FillRule::NonZero);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn fill_rect_with_paint(
+        &mut self,
+        x: f64,
+        y: f64,
+        width: f64,
+        height: f64,
+        paint: Paint,
+        rule: FillRule,
+    ) {
         let rect = Rectangle::new(x, y, width, height);
-        let color = self.color_with_global_alpha(color);
-        self.create_command(RenderCommandKind::FillRect { rect, color });
+        let paint = paint.with_global_alpha(self.state.global_alpha);
+        self.create_command(RenderCommandKind::FillRect { rect, paint, rule });
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -174,41 +185,27 @@ impl NdCanvas {
         y: f64,
         width: f64,
         height: f64,
-        color: Color,
-        stroke_width: f64,
-        cap: crate::render::command::LineCap,
-        join: crate::render::command::LineJoin,
+        paint: impl Into<Paint>,
+        stroke: StrokeStyle,
     ) {
         let rect = Rectangle::new(x, y, width, height);
-        let color = self.color_with_global_alpha(color);
+        let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::StrokeRect {
             rect,
-            color,
-            width: stroke_width,
-            line_style: self.state.line_style,
-            cap,
-            join,
+            paint,
+            stroke,
         });
     }
 
     pub fn fill_rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        if let Some(color) = self.state.fill_color {
-            self.fill_rect_with_color(x, y, width, height, color);
+        if let Some(paint) = self.state.fill_paint.clone() {
+            self.fill_rect_with_paint(x, y, width, height, paint, self.state.fill_rule);
         }
     }
 
     pub fn draw_rectangle(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        if let Some(color) = self.state.stroke_color {
-            self.stroke_rect_with_style(
-                x,
-                y,
-                width,
-                height,
-                color,
-                self.state.stroke_width,
-                self.state.line_cap,
-                self.state.line_join,
-            );
+        if let Some(paint) = self.state.stroke_paint.clone() {
+            self.stroke_rect_with_style(x, y, width, height, paint, self.state.stroke.clone());
         }
     }
 
@@ -216,7 +213,7 @@ impl NdCanvas {
     ///
     /// 椭圆中心为 (cx, cy)，x 轴半径 rx，y 轴半径 ry
     #[allow(clippy::too_many_arguments)]
-    pub fn ellipse(
+    pub fn ellipse_with_style(
         &mut self,
         cx: f64,
         cy: f64,
@@ -224,100 +221,109 @@ impl NdCanvas {
         ry: f64,
         fill_color: Option<Color>,
         stroke_color: Option<Color>,
-        stroke_width: f64,
-        cap: crate::render::command::LineCap,
-        join: crate::render::command::LineJoin,
+        stroke: StrokeStyle,
     ) {
-        let fill_color = fill_color.map(|color| self.color_with_global_alpha(color));
-        let stroke_color = stroke_color.map(|color| self.color_with_global_alpha(color));
+        self.ellipse_with_paints(
+            cx,
+            cy,
+            rx,
+            ry,
+            fill_color.map(Paint::from),
+            stroke_color.map(Paint::from),
+            stroke,
+            FillRule::NonZero,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn ellipse_with_paints(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        rx: f64,
+        ry: f64,
+        fill_paint: Option<Paint>,
+        stroke_paint: Option<Paint>,
+        stroke: StrokeStyle,
+        rule: FillRule,
+    ) {
+        let fill_paint = fill_paint.map(|paint| paint.with_global_alpha(self.state.global_alpha));
+        let stroke_paint =
+            stroke_paint.map(|paint| paint.with_global_alpha(self.state.global_alpha));
         self.create_command(RenderCommandKind::Ellipse {
             cx,
             cy,
             rx,
             ry,
-            fill_color,
-            stroke_color,
-            stroke_width,
-            line_style: self.state.line_style,
-            cap,
-            join,
+            fill_paint,
+            stroke_paint,
+            stroke,
+            rule,
         });
     }
 
     pub fn fill_oval(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.ellipse(
+        self.ellipse_with_paints(
             x + width / 2.0,
             y + height / 2.0,
             width / 2.0,
             height / 2.0,
-            self.state.fill_color,
+            self.state.fill_paint.clone(),
             None,
-            self.state.stroke_width,
-            self.state.line_cap,
-            self.state.line_join,
+            self.state.stroke.clone(),
+            self.state.fill_rule,
         );
     }
 
     pub fn draw_oval(&mut self, x: f64, y: f64, width: f64, height: f64) {
-        self.ellipse(
+        self.ellipse_with_paints(
             x + width / 2.0,
             y + height / 2.0,
             width / 2.0,
             height / 2.0,
             None,
-            self.state.stroke_color,
-            self.state.stroke_width,
-            self.state.line_cap,
-            self.state.line_join,
+            self.state.stroke_paint.clone(),
+            self.state.stroke.clone(),
+            self.state.fill_rule,
         );
     }
 
     /// 绘制直线
     ///
     /// 从 p1 到 p2 的直线
-    pub fn line(
+    pub fn line_with_style(
         &mut self,
         p1: Point,
         p2: Point,
-        color: Color,
-        width: f64,
-        cap: crate::render::command::LineCap,
-        join: crate::render::command::LineJoin,
+        paint: impl Into<Paint>,
+        stroke: StrokeStyle,
     ) {
-        let color = self.color_with_global_alpha(color);
+        let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::Line {
             p1,
             p2,
-            color,
-            width,
-            line_style: self.state.line_style,
-            cap,
-            join,
+            paint,
+            stroke,
         });
     }
 
     /// 绘制折线
     ///
     /// 从 `points[0]` 到 `points[1]` ... 到 `points[n]` 的折线
-    pub fn polyline(
+    pub fn polyline_with_style(
         &mut self,
         points: &[Point],
-        color: Color,
-        width: f64,
-        cap: crate::render::command::LineCap,
-        join: crate::render::command::LineJoin,
+        paint: impl Into<Paint>,
+        stroke: StrokeStyle,
     ) {
         if points.len() < 2 {
             return;
         }
-        let color = self.color_with_global_alpha(color);
+        let paint = paint.into().with_global_alpha(self.state.global_alpha);
         self.create_command(RenderCommandKind::Polyline {
             points: PointList::from_points(points.to_vec()),
-            color,
-            width,
-            line_style: self.state.line_style,
-            cap,
-            join,
+            paint,
+            stroke,
         });
     }
 
@@ -325,20 +331,14 @@ impl NdCanvas {
         if points.len() < 2 {
             return;
         }
-        let Some(color) = self.state.stroke_color else {
+        let Some(paint) = self.state.stroke_paint.clone() else {
             return;
         };
         let mut closed = points.to_vec();
         if points.first() != points.last() {
             closed.push(points[0]);
         }
-        self.polyline(
-            &closed,
-            color,
-            self.state.stroke_width,
-            self.state.line_cap,
-            self.state.line_join,
-        );
+        self.polyline_with_style(&closed, paint, self.state.stroke.clone());
     }
 
     pub fn fill_polygon(&mut self, points: &[Point]) {
@@ -420,11 +420,15 @@ impl NdCanvas {
     #[allow(clippy::collapsible_if)]
     pub fn fill(&mut self) {
         if let Some(path) = self.current_path.take() {
-            if let Some(color) = self.state.fill_color {
-                let color = self.color_with_global_alpha(color);
+            if let Some(paint) = &self.state.fill_paint {
+                let paint = paint.with_global_alpha(self.state.global_alpha);
                 // 跳过完全透明的颜色
-                if color.alpha() > 0.0 {
-                    self.create_command(RenderCommandKind::FillPath { path, color });
+                if paint.is_visible() {
+                    self.create_command(RenderCommandKind::FillPath {
+                        path,
+                        paint,
+                        rule: self.state.fill_rule,
+                    });
                 }
             }
         }
@@ -434,18 +438,12 @@ impl NdCanvas {
     #[allow(clippy::collapsible_if)]
     pub fn stroke(&mut self) {
         if let Some(path) = self.current_path.take() {
-            if let Some(color) = self.state.stroke_color {
-                let color = self.color_with_global_alpha(color);
-                let width = self.state.stroke_width;
-                let line_cap = self.state.line_cap;
-                let line_join = self.state.line_join;
+            if let Some(paint) = &self.state.stroke_paint {
+                let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::StrokePath {
                     path,
-                    color,
-                    width,
-                    line_style: self.state.line_style,
-                    line_cap,
-                    line_join,
+                    paint,
+                    stroke: self.state.stroke.clone(),
                 });
             }
         }
@@ -454,28 +452,32 @@ impl NdCanvas {
     /// 填充并描边当前路径
     pub fn fill_and_stroke(&mut self) {
         if let Some(path) = self.current_path.take() {
-            if let Some(color) = self.state.fill_color {
-                let color = self.color_with_global_alpha(color);
+            if let Some(paint) = &self.state.fill_paint {
+                let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::FillPath {
                     path: path.clone(),
-                    color,
+                    paint,
+                    rule: self.state.fill_rule,
                 });
             }
-            if let Some(color) = self.state.stroke_color {
-                let color = self.color_with_global_alpha(color);
-                let width = self.state.stroke_width;
-                let line_cap = self.state.line_cap;
-                let line_join = self.state.line_join;
+            if let Some(paint) = &self.state.stroke_paint {
+                let paint = paint.with_global_alpha(self.state.global_alpha);
                 self.create_command(RenderCommandKind::StrokePath {
                     path,
-                    color,
-                    width,
-                    line_style: self.state.line_style,
-                    line_cap,
-                    line_join,
+                    paint,
+                    stroke: self.state.stroke.clone(),
                 });
             }
         }
+    }
+
+    pub fn set_fill_rule(&mut self, rule: FillRule) {
+        self.state.fill_rule = rule;
+    }
+
+    pub fn clip_path(&mut self, clip: &ClipPath) {
+        self.state.clip_depth += 1;
+        self.create_command(RenderCommandKind::ClipPath { clip: clip.clone() });
     }
 
     pub fn clip_rect(&mut self, x: f64, y: f64, width: f64, height: f64) {
@@ -557,7 +559,11 @@ impl NdCanvas {
     }
 
     pub fn fill_style(&mut self, color: Color) {
-        self.state.fill_color = Some(color);
+        self.set_fill_paint(color.into());
+    }
+
+    pub fn set_fill_paint(&mut self, paint: Paint) {
+        self.state.fill_paint = Some(paint);
     }
 
     pub fn set_background_color(&mut self, color: Color) {
@@ -565,31 +571,54 @@ impl NdCanvas {
     }
 
     pub fn stroke_style(&mut self, color: Color) {
-        self.state.stroke_color = Some(color);
+        self.set_stroke_paint(color.into());
+    }
+
+    pub fn set_stroke_paint(&mut self, paint: Paint) {
+        self.state.stroke_paint = Some(paint);
     }
 
     pub fn set_foreground_color(&mut self, color: Color) {
         self.stroke_style(color);
     }
 
-    pub fn line_width(&mut self, width: f64) {
-        self.state.stroke_width = width;
+    pub fn set_stroke(&mut self, stroke: StrokeStyle) {
+        self.state.stroke = stroke;
     }
 
-    pub fn set_line_width(&mut self, width: f64) {
-        self.line_width(width);
+    pub fn line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+        self.state.stroke = self.state.stroke.with_width(width)?;
+        Ok(())
+    }
+
+    pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
+        self.line_width(width)
+    }
+
+    pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
+        self.state.stroke = self.state.stroke.with_miter_limit(limit)?;
+        Ok(())
+    }
+
+    pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
+        self.state.stroke = self.state.stroke.with_dash_offset(offset)?;
+        Ok(())
+    }
+
+    pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
+        self.state.stroke = self.state.stroke.clone().with_dash_pattern(pattern);
     }
 
     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
-        self.state.line_cap = cap;
+        self.state.stroke = self.state.stroke.clone().with_cap(cap);
     }
 
     pub fn line_join(&mut self, join: crate::render::command::LineJoin) {
-        self.state.line_join = join;
+        self.state.stroke = self.state.stroke.clone().with_join(join);
     }
 
     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
-        self.state.line_style = style;
+        self.set_dash_pattern(style.into());
     }
 
     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
@@ -597,38 +626,38 @@ impl NdCanvas {
     }
 
     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
-        let Some(color) = self.state.stroke_color else {
+        let Some(paint) = &self.state.stroke_paint else {
             return;
         };
-        let color = self.color_with_global_alpha(color);
-        if color.alpha() > 0.0 {
-            self.draw_glyph_runs(layout, x, y, crate::render::text::GlyphPaint::Fill(color));
+        let paint = paint.with_global_alpha(self.state.global_alpha);
+        if paint.is_visible() {
+            self.draw_glyph_runs(layout, x, y, crate::render::text::GlyphPaint::Fill(paint));
         }
     }
 
     pub fn fill_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
-        let Some(color) = self.state.fill_color else {
+        let Some(paint) = &self.state.fill_paint else {
             return;
         };
-        let color = self.color_with_global_alpha(color);
-        if color.alpha() > 0.0 {
-            self.draw_glyph_runs(layout, x, y, crate::render::text::GlyphPaint::Fill(color));
+        let paint = paint.with_global_alpha(self.state.global_alpha);
+        if paint.is_visible() {
+            self.draw_glyph_runs(layout, x, y, crate::render::text::GlyphPaint::Fill(paint));
         }
     }
 
     pub fn stroke_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
-        let Some(color) = self.state.stroke_color else {
+        let Some(paint) = &self.state.stroke_paint else {
             return;
         };
-        let color = self.color_with_global_alpha(color);
-        if color.alpha() > 0.0 {
+        let paint = paint.with_global_alpha(self.state.global_alpha);
+        if paint.is_visible() {
             self.draw_glyph_runs(
                 layout,
                 x,
                 y,
                 crate::render::text::GlyphPaint::Stroke {
-                    color,
-                    width: self.state.stroke_width,
+                    paint,
+                    stroke: self.state.stroke.clone(),
                 },
             );
         }
@@ -648,7 +677,7 @@ impl NdCanvas {
             self.create_command(RenderCommandKind::DrawGlyphRun {
                 run: run.clone(),
                 origin: Point::new(x, y),
-                paint,
+                paint: paint.clone(),
             });
         }
     }
@@ -796,12 +825,12 @@ mod tests {
         let mut canvas = NdCanvas::new();
         canvas.translate(10.0, 0.0);
         canvas.clip_rect(0.0, 0.0, 100.0, 100.0);
-        canvas.line_width(2.0);
+        canvas.line_width(2.0).unwrap();
 
         canvas.push_state();
         canvas.scale(2.0, 2.0);
         canvas.clip_rect(10.0, 10.0, 20.0, 20.0);
-        canvas.line_width(7.0);
+        canvas.line_width(7.0).unwrap();
 
         assert_eq!(canvas.clip_depth(), 2);
 
@@ -816,14 +845,11 @@ mod tests {
         canvas.stroke();
 
         let stroke = canvas.commands().last().expect("stroke command");
-        let RenderCommandKind::StrokePath {
-            width, line_join, ..
-        } = stroke.kind
-        else {
+        let RenderCommandKind::StrokePath { stroke, .. } = &stroke.kind else {
             panic!("expected StrokePath after restored state");
         };
-        assert_eq!(width, 2.0);
-        assert_eq!(line_join, LineJoin::Bevel);
+        assert_eq!(stroke.width(), 2.0);
+        assert_eq!(stroke.join(), LineJoin::Bevel);
 
         canvas.pop_state();
         assert_eq!(canvas.clip_depth(), 1);
@@ -939,17 +965,29 @@ mod tests {
             RenderCommandKind::SetGlobalAlpha { alpha } if alpha == 0.5
         ));
 
-        let RenderCommandKind::FillRect { color, .. } = commands[1].kind else {
+        let RenderCommandKind::FillRect {
+            paint: Paint::Solid(color),
+            ..
+        } = commands[1].kind
+        else {
             panic!("expected FillRect");
         };
         assert_eq!(color.alpha(), 0.4);
 
-        let RenderCommandKind::FillRect { color, .. } = commands[4].kind else {
+        let RenderCommandKind::FillRect {
+            paint: Paint::Solid(color),
+            ..
+        } = commands[4].kind
+        else {
             panic!("expected FillRect");
         };
         assert_eq!(color.alpha(), 0.2);
 
-        let RenderCommandKind::FillRect { color, .. } = commands[6].kind else {
+        let RenderCommandKind::FillRect {
+            paint: Paint::Solid(color),
+            ..
+        } = commands[6].kind
+        else {
             panic!("expected restored FillRect");
         };
         assert_eq!(color.alpha(), 0.4);

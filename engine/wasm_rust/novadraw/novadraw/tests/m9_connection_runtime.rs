@@ -154,7 +154,14 @@ fn invalid_connection_geometry_never_commits_resolved_state() {
         .container(root)
         .unwrap()
         .add(Box::new(
-            ConnectionFigure::new().with_stroke(novadraw::Color::BLACK, f64::INFINITY),
+            // The style is finite, but doubling its envelope overflows route bounds.
+            ConnectionFigure::new().with_stroke_style(
+                novadraw::graphics::StrokeStyle::default()
+                    .with_width(2.0)
+                    .unwrap()
+                    .with_miter_limit(f64::MAX)
+                    .unwrap(),
+            ),
         ))
         .expect("valid Runtime mutation");
     let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));

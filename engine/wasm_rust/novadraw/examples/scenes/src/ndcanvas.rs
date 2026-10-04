@@ -84,6 +84,14 @@ fn create_scene_fill_rect() -> novadraw::FigureTree {
     scene
 }
 
+fn stroke(width: f64, cap: LineCap, join: LineJoin) -> novadraw::graphics::StrokeStyle {
+    novadraw::graphics::StrokeStyle::default()
+        .with_width(width)
+        .expect("valid demo stroke")
+        .with_cap(cap)
+        .with_join(join)
+}
+
 fn create_scene_stroke_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
@@ -97,9 +105,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             200.0,
             100.0,
             Color::RED,
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
         gc.stroke_rect_with_style(
             300.0,
@@ -107,9 +113,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             200.0,
             100.0,
             Color::GREEN,
-            5.0,
-            LineCap::Round,
-            LineJoin::Round,
+            stroke(5.0, LineCap::Round, LineJoin::Round),
         );
         gc.stroke_rect_with_style(
             550.0,
@@ -117,9 +121,7 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
             200.0,
             100.0,
             Color::BLUE,
-            8.0,
-            LineCap::Square,
-            LineJoin::Bevel,
+            stroke(8.0, LineCap::Square, LineJoin::Bevel),
         );
     });
     scene
@@ -137,40 +139,34 @@ fn create_scene_ellipse() -> novadraw::FigureTree {
     // 直接调用 ellipse
     let test = TestFigure::new("ellipse", |gc| {
         // 填充椭圆
-        gc.ellipse(
+        gc.ellipse_with_style(
             150.0,
             150.0,
             80.0,
             50.0,
             Some(Color::RED),
             None,
-            0.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(0.0, LineCap::Butt, LineJoin::Miter),
         );
         // 描边椭圆
-        gc.ellipse(
+        gc.ellipse_with_style(
             400.0,
             150.0,
             80.0,
             50.0,
             None,
             Some(Color::GREEN),
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
         // 填充+描边椭圆
-        gc.ellipse(
+        gc.ellipse_with_style(
             650.0,
             150.0,
             80.0,
             50.0,
             Some(Color::BLUE),
             Some(Color::WHITE),
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
     });
     scene
@@ -188,64 +184,50 @@ fn create_scene_line() -> novadraw::FigureTree {
     // 直接调用 line
     let test = TestFigure::new("line", |gc| {
         // 水平线
-        gc.line(
+        gc.line_with_style(
             Point::new(50.0, 50.0),
             Point::new(250.0, 50.0),
             Color::RED,
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
         // 垂直线
-        gc.line(
+        gc.line_with_style(
             Point::new(300.0, 30.0),
             Point::new(300.0, 200.0),
             Color::GREEN,
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
         // 斜线
-        gc.line(
+        gc.line_with_style(
             Point::new(400.0, 30.0),
             Point::new(550.0, 200.0),
             Color::BLUE,
-            3.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
         );
         // 不同线宽
-        gc.line(
+        gc.line_with_style(
             Point::new(50.0, 250.0),
             Point::new(150.0, 250.0),
             Color::BLACK,
-            1.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(1.0, LineCap::Butt, LineJoin::Miter),
         );
-        gc.line(
+        gc.line_with_style(
             Point::new(170.0, 250.0),
             Point::new(270.0, 250.0),
             Color::BLACK,
-            2.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(2.0, LineCap::Butt, LineJoin::Miter),
         );
-        gc.line(
+        gc.line_with_style(
             Point::new(290.0, 250.0),
             Point::new(390.0, 250.0),
             Color::BLACK,
-            4.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(4.0, LineCap::Butt, LineJoin::Miter),
         );
-        gc.line(
+        gc.line_with_style(
             Point::new(410.0, 250.0),
             Point::new(510.0, 250.0),
             Color::BLACK,
-            8.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(8.0, LineCap::Butt, LineJoin::Miter),
         );
     });
     scene
@@ -268,7 +250,11 @@ fn create_scene_polyline() -> novadraw::FigureTree {
             Point::new(150.0, 100.0),
             Point::new(250.0, 50.0),
         ];
-        gc.polyline(&points1, Color::RED, 3.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points1,
+            Color::RED,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         // 多段折线
         let points2 = vec![
@@ -278,27 +264,55 @@ fn create_scene_polyline() -> novadraw::FigureTree {
             Point::new(450.0, 80.0),
             Point::new(500.0, 30.0),
         ];
-        gc.polyline(&points2, Color::GREEN, 3.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points2,
+            Color::GREEN,
+            stroke(3.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         // 不同线宽
         let points3 = vec![Point::new(50.0, 200.0), Point::new(200.0, 200.0)];
-        gc.polyline(&points3, Color::BLACK, 1.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points3,
+            Color::BLACK,
+            stroke(1.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         let points4 = vec![Point::new(230.0, 200.0), Point::new(380.0, 200.0)];
-        gc.polyline(&points4, Color::BLACK, 2.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points4,
+            Color::BLACK,
+            stroke(2.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         let points5 = vec![Point::new(410.0, 200.0), Point::new(560.0, 200.0)];
-        gc.polyline(&points5, Color::BLACK, 4.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points5,
+            Color::BLACK,
+            stroke(4.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         // 不同线帽
         let points6 = vec![Point::new(50.0, 300.0), Point::new(150.0, 300.0)];
-        gc.polyline(&points6, Color::RED, 8.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points6,
+            Color::RED,
+            stroke(8.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         let points7 = vec![Point::new(200.0, 300.0), Point::new(300.0, 300.0)];
-        gc.polyline(&points7, Color::GREEN, 8.0, LineCap::Round, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points7,
+            Color::GREEN,
+            stroke(8.0, LineCap::Round, LineJoin::Miter),
+        );
 
         let points8 = vec![Point::new(350.0, 300.0), Point::new(450.0, 300.0)];
-        gc.polyline(&points8, Color::BLUE, 8.0, LineCap::Square, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points8,
+            Color::BLUE,
+            stroke(8.0, LineCap::Square, LineJoin::Miter),
+        );
     });
     scene
         .builder()
@@ -320,7 +334,11 @@ fn create_scene_line_join() -> novadraw::FigureTree {
             Point::new(100.0, 100.0),
             Point::new(150.0, 50.0),
         ];
-        gc.polyline(&points1, Color::RED, 8.0, LineCap::Butt, LineJoin::Miter);
+        gc.polyline_with_style(
+            &points1,
+            Color::RED,
+            stroke(8.0, LineCap::Butt, LineJoin::Miter),
+        );
 
         // Round
         let points2 = vec![
@@ -328,7 +346,11 @@ fn create_scene_line_join() -> novadraw::FigureTree {
             Point::new(250.0, 100.0),
             Point::new(300.0, 50.0),
         ];
-        gc.polyline(&points2, Color::GREEN, 8.0, LineCap::Butt, LineJoin::Round);
+        gc.polyline_with_style(
+            &points2,
+            Color::GREEN,
+            stroke(8.0, LineCap::Butt, LineJoin::Round),
+        );
 
         // Bevel
         let points3 = vec![
@@ -336,7 +358,11 @@ fn create_scene_line_join() -> novadraw::FigureTree {
             Point::new(400.0, 100.0),
             Point::new(450.0, 50.0),
         ];
-        gc.polyline(&points3, Color::BLUE, 8.0, LineCap::Butt, LineJoin::Bevel);
+        gc.polyline_with_style(
+            &points3,
+            Color::BLUE,
+            stroke(8.0, LineCap::Butt, LineJoin::Bevel),
+        );
     });
     scene
         .builder()
@@ -359,9 +385,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
             100.0,
             60.0,
             Color::RED,
-            2.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(2.0, LineCap::Butt, LineJoin::Miter),
         );
 
         // 平移
@@ -372,9 +396,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
             100.0,
             60.0,
             Color::GREEN,
-            2.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(2.0, LineCap::Butt, LineJoin::Miter),
         );
 
         // 旋转
@@ -386,9 +408,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
             100.0,
             60.0,
             Color::BLUE,
-            2.0,
-            LineCap::Butt,
-            LineJoin::Miter,
+            stroke(2.0, LineCap::Butt, LineJoin::Miter),
         );
     });
     scene
@@ -421,6 +441,12 @@ pub fn suite() -> DemoSuite {
             SceneSpec::visual("polyline", "5:Polyline", size, create_scene_polyline),
             SceneSpec::visual("line-join", "6:LineJoin", size, create_scene_line_join),
             SceneSpec::visual("transform", "7:Transform", size, create_scene_transform),
+            SceneSpec::runtime_visual(
+                "graphics-extension",
+                "8:Graphics_Extension",
+                size,
+                crate::graphics::scene,
+            ),
         ],
     )
 }

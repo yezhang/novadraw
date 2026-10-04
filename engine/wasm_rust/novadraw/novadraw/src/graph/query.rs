@@ -104,9 +104,9 @@ impl FigureTree {
         )
     }
 
-    pub(crate) fn point_list_style(&self, id: FigureId) -> Option<(f64, crate::render::LineJoin)> {
+    pub(crate) fn point_list_style(&self, id: FigureId) -> Option<crate::render::StrokeStyle> {
         let point_list = self.blocks.get(id)?.figure.point_list()?;
-        Some((point_list.stroke_width(), point_list.line_join()))
+        Some(point_list.stroke_style().clone())
     }
 
     /// 返回节点从 FigureTree 根节点开始计算的深度。

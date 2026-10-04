@@ -12,6 +12,9 @@ pub enum RenderCapability {
     ProjectiveComposition,
     GlyphRuns,
     ImageResources,
+    CustomStrokes,
+    PathClips,
+    LinearGradients,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -38,6 +41,9 @@ pub struct BackendCapabilities {
     pub projective_composition: bool,
     pub glyph_runs: bool,
     pub image_resources: bool,
+    pub custom_strokes: bool,
+    pub path_clips: bool,
+    pub linear_gradients: bool,
 }
 
 impl BackendCapabilities {
@@ -47,6 +53,9 @@ impl BackendCapabilities {
         projective_composition: false,
         glyph_runs: false,
         image_resources: false,
+        custom_strokes: false,
+        path_clips: false,
+        linear_gradients: false,
     };
 
     pub const RETAINED_PARTIAL: Self = Self {
@@ -55,6 +64,9 @@ impl BackendCapabilities {
         projective_composition: false,
         glyph_runs: true,
         image_resources: true,
+        custom_strokes: false,
+        path_clips: false,
+        linear_gradients: false,
     };
 
     pub const fn supports_partial_damage(self) -> bool {
@@ -66,6 +78,9 @@ impl BackendCapabilities {
             RenderCapability::ProjectiveComposition => self.projective_composition,
             RenderCapability::GlyphRuns => self.glyph_runs,
             RenderCapability::ImageResources => self.image_resources,
+            RenderCapability::CustomStrokes => self.custom_strokes,
+            RenderCapability::PathClips => self.path_clips,
+            RenderCapability::LinearGradients => self.linear_gradients,
         }
     }
 
@@ -77,6 +92,34 @@ impl BackendCapabilities {
     pub const fn with_image_resources(mut self) -> Self {
         self.image_resources = true;
         self
+    }
+
+    pub const fn with_custom_strokes(mut self) -> Self {
+        self.custom_strokes = true;
+        self
+    }
+
+    pub const fn with_path_clips(mut self) -> Self {
+        self.path_clips = true;
+        self
+    }
+
+    pub const fn with_linear_gradients(mut self) -> Self {
+        self.linear_gradients = true;
+        self
+    }
+
+    /// Checks all requirements before accepting resources or publishing a frame.
+    pub fn validate_capabilities(
+        self,
+        commands: &[crate::render::command::RenderCommand],
+    ) -> Result<(), UnsupportedRenderCapability> {
+        for command in commands {
+            for capability in command.kind.required_capabilities() {
+                self.require(capability)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn require(self, capability: RenderCapability) -> Result<(), UnsupportedRenderCapability> {
@@ -100,6 +143,7 @@ pub enum RenderOutcome {
     Skipped,
     Retry,
     Unsupported(UnsupportedRenderCapability),
+    InvalidGraphicsInput(super::InvalidGraphicsInput),
 }
 
 /// 渲染后端 trait

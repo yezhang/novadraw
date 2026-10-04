@@ -4,10 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::Rectangle;
-use crate::render::{
-    NdCanvas,
-    command::{LineCap, LineJoin, stroke_visual_outset},
-};
+use crate::render::{NdCanvas, StrokeStyle};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
@@ -15,6 +12,7 @@ use super::{
 };
 
 const DEFAULT_HIT_TOLERANCE: f64 = 2.0;
+const DEFAULT_STROKE_WIDTH: f64 = 2.0;
 
 /// 折线图形
 ///
@@ -31,12 +29,8 @@ pub struct PolylineFigure {
     bounds: Rectangle,
     /// 线条颜色
     pub stroke_color: Color,
-    /// 线条宽度
-    pub stroke_width: f64,
-    /// 线帽样式
-    pub line_cap: crate::render::command::LineCap,
-    /// 连接样式
-    pub line_join: crate::render::command::LineJoin,
+    /// 经过校验的完整描边。
+    stroke: StrokeStyle,
     /// 命中测试使用的最小容差
     hit_tolerance: f64,
     /// 绘制子节点时使用的裁剪策略
@@ -58,16 +52,15 @@ impl PolylineFigure {
 
     /// 从点列表创建折线
     pub fn from_points(points: Vec<crate::geometry::Point>) -> Self {
-        let stroke_width = 2.0;
-        let line_join = LineJoin::default();
-        let (bounds, points) = normalize_points(points, stroke_width, line_join, 2);
+        let stroke = StrokeStyle::default()
+            .with_width(DEFAULT_STROKE_WIDTH)
+            .expect("valid default stroke");
+        let (bounds, points) = normalize_points(points, &stroke, 2);
         Self {
             points,
             bounds,
             stroke_color: Color::from_hex("#2c3e50").expect("valid color literal"),
-            stroke_width,
-            line_cap: LineCap::default(),
-            line_join,
+            stroke,
             hit_tolerance: DEFAULT_HIT_TOLERANCE,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
@@ -93,7 +86,7 @@ impl PolylineFigure {
 
     /// 设置点列表
     pub fn set_points(&mut self, points: Vec<crate::geometry::Point>) {
-        (self.bounds, self.points) = normalize_points(points, self.stroke_width, self.line_join, 2);
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
     }
 
     /// 获取起点
@@ -120,22 +113,39 @@ impl PolylineFigure {
     /// 设置线条宽度
     pub fn with_width(mut self, width: f64) -> Self {
         let points = self.parent_points();
-        self.stroke_width = width.max(0.0);
-        (self.bounds, self.points) = normalize_points(points, self.stroke_width, self.line_join, 2);
+        self.stroke = self
+            .stroke
+            .with_width(width.max(0.0))
+            .expect("valid stroke width");
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
         self
+    }
+
+    /// Replaces the complete checked stroke and recomputes its envelope.
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        let points = self.parent_points();
+        (self.bounds, self.points) = normalize_points(points, &stroke, 2);
+        self.stroke = stroke;
+        self
+    }
+
+    pub fn stroke_style(&self) -> &StrokeStyle {
+        &self.stroke
     }
 
     /// 设置线帽样式
     pub fn with_cap(mut self, cap: crate::render::command::LineCap) -> Self {
-        self.line_cap = cap;
+        let points = self.parent_points();
+        self.stroke = self.stroke.with_cap(cap);
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
         self
     }
 
     /// 设置连接样式
     pub fn with_join(mut self, join: crate::render::command::LineJoin) -> Self {
         let points = self.parent_points();
-        self.line_join = join;
-        (self.bounds, self.points) = normalize_points(points, self.stroke_width, self.line_join, 2);
+        self.stroke = self.stroke.with_join(join);
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, 2);
         self
     }
 
@@ -178,8 +188,7 @@ impl PolylineFigure {
 
     pub(crate) fn renormalize_for_minimum(&mut self, painted_minimum: usize) {
         let points = self.parent_points();
-        (self.bounds, self.points) =
-            normalize_points(points, self.stroke_width, self.line_join, painted_minimum);
+        (self.bounds, self.points) = normalize_points(points, &self.stroke, painted_minimum);
     }
 }
 
@@ -254,7 +263,7 @@ impl Figure for PolylineFigure {
     }
 
     fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {
-        let tolerance = (self.stroke_width / 2.0).max(self.hit_tolerance);
+        let tolerance = (self.stroke.width() / 2.0).max(self.hit_tolerance);
         self.points.windows(2).any(|segment| {
             point_segment_distance_squared(
                 x,
@@ -293,21 +302,16 @@ impl PointListFigureBehavior for PolylineFigure {
         &self.points
     }
 
-    fn stroke_width(&self) -> f64 {
-        self.stroke_width
-    }
-
-    fn line_join(&self) -> LineJoin {
-        self.line_join
+    fn stroke_style(&self) -> &StrokeStyle {
+        &self.stroke
     }
 
     fn painted_minimum(&self) -> usize {
         2
     }
 
-    fn commit_stroke_style(&mut self, stroke_width: f64, line_join: LineJoin) {
-        self.stroke_width = stroke_width;
-        self.line_join = line_join;
+    fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
+        self.stroke = stroke;
     }
 
     fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<crate::geometry::Point>) {
@@ -358,7 +362,7 @@ impl Shape for PolylineFigure {
     }
 
     fn stroke_width(&self) -> f64 {
-        self.stroke_width
+        self.stroke.width()
     }
 
     fn fill_color(&self) -> Option<Color> {
@@ -366,11 +370,11 @@ impl Shape for PolylineFigure {
     }
 
     fn line_cap(&self) -> crate::render::command::LineCap {
-        self.line_cap
+        self.stroke.cap()
     }
 
     fn line_join(&self) -> crate::render::command::LineJoin {
-        self.line_join
+        self.stroke.join()
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -393,23 +397,20 @@ impl Shape for PolylineFigure {
         if self.points.len() < 2 {
             return;
         }
+        gc.set_stroke(self.stroke.clone());
 
         gc.begin_path();
         gc.move_to(self.points[0].x(), self.points[0].y());
         for point in &self.points[1..] {
             gc.line_to(point.x(), point.y());
         }
-        gc.line_width(self.stroke_width);
-        gc.line_cap(self.line_cap);
-        gc.line_join(self.line_join);
         gc.stroke();
     }
 }
 
 pub(crate) fn normalize_points(
     points: Vec<crate::geometry::Point>,
-    stroke_width: f64,
-    line_join: LineJoin,
+    stroke: &StrokeStyle,
     painted_minimum: usize,
 ) -> (Rectangle, Vec<crate::geometry::Point>) {
     if points.is_empty() {
@@ -426,7 +427,7 @@ pub(crate) fn normalize_points(
         max_y = max_y.max(point.y());
     }
     let expansion = if points.len() >= painted_minimum {
-        stroke_visual_outset(stroke_width, line_join)
+        stroke.visual_outset()
     } else {
         0.0
     };

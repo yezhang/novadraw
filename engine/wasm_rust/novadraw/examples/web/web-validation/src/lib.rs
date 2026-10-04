@@ -18,8 +18,7 @@ use novadraw::graphics::{LineCap, LineJoin};
 use novadraw::render::command::RenderCommandKind;
 use novadraw::render::submission::{BackendSessionDecision, BackendSessionGate};
 use novadraw::render::{
-    BackendCapabilities, DamageMode, RenderCapability, RenderOutcome, RenderSubmission,
-    SurfaceInfo, UnsupportedRenderCapability,
+    BackendCapabilities, DamageMode, RenderOutcome, RenderSubmission, SurfaceInfo,
 };
 use novadraw::{Color, Figure, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime};
 use novadraw_backend_vello::VelloRenderer;
@@ -155,9 +154,11 @@ impl Shape for WebProbeFigure {
                 self.bounds.width,
                 self.bounds.height,
                 color,
-                self.stroke_width(),
-                self.line_cap(),
-                self.line_join(),
+                novadraw::graphics::StrokeStyle::default()
+                    .with_width(self.stroke_width())
+                    .expect("valid probe stroke")
+                    .with_cap(self.line_cap())
+                    .with_join(self.line_join()),
             );
         }
     }
@@ -355,6 +356,18 @@ impl RenderBackend for Canvas2dBackend {
     }
 
     fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+        if let Err(error) = self
+            .capabilities()
+            .validate_capabilities(&submission.commands)
+        {
+            return RenderOutcome::Unsupported(error);
+        }
+        if let Err(error) = novadraw::render::validate_graphics_input(
+            &submission.commands,
+            submission.surface.scale_factor,
+        ) {
+            return RenderOutcome::InvalidGraphicsInput(error);
+        }
         match self
             .session_gate
             .accept(submission.session_id, &submission.resources)
@@ -365,24 +378,6 @@ impl RenderBackend for Canvas2dBackend {
             BackendSessionDecision::Initialize
             | BackendSessionDecision::Continue
             | BackendSessionDecision::Replace => {}
-        }
-        if submission
-            .commands
-            .iter()
-            .any(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
-        {
-            return RenderOutcome::Unsupported(UnsupportedRenderCapability {
-                capability: RenderCapability::GlyphRuns,
-            });
-        }
-        if submission
-            .commands
-            .iter()
-            .any(|command| matches!(command.kind, RenderCommandKind::Image { .. }))
-        {
-            return RenderOutcome::Unsupported(UnsupportedRenderCapability {
-                capability: RenderCapability::ImageResources,
-            });
         }
         self.resize(
             submission.surface.pixel_width,
@@ -434,19 +429,25 @@ impl RenderBackend for Canvas2dBackend {
                     self.context.rect(rect.x, rect.y, rect.width, rect.height);
                     self.context.clip();
                 }
-                RenderCommandKind::SetGlobalAlpha { alpha } => {
-                    self.context.set_global_alpha(*alpha);
-                }
+                // Paint alpha is already captured by NdCanvas.
+                RenderCommandKind::SetGlobalAlpha { .. } => {}
                 RenderCommandKind::ClearRect { rect, color }
-                | RenderCommandKind::FillRect { rect, color } => {
+                | RenderCommandKind::FillRect {
+                    rect,
+                    paint: novadraw::graphics::Paint::Solid(color),
+                    ..
+                } => {
                     self.set_fill(*color);
                     self.context
                         .fill_rect(rect.x, rect.y, rect.width, rect.height);
                 }
                 RenderCommandKind::StrokeRect {
-                    rect, color, width, ..
+                    rect,
+                    paint: novadraw::graphics::Paint::Solid(color),
+                    stroke,
+                    ..
                 } => {
-                    self.set_stroke(*color, *width);
+                    self.set_stroke(*color, stroke.width());
                     self.context
                         .stroke_rect(rect.x, rect.y, rect.width, rect.height);
                 }
@@ -455,19 +456,19 @@ impl RenderBackend for Canvas2dBackend {
                     cy,
                     rx,
                     ry,
-                    fill_color,
-                    stroke_color,
-                    stroke_width,
+                    fill_paint,
+                    stroke_paint,
+                    stroke,
                     ..
                 } => {
                     self.context.begin_path();
                     let _ = self.context.ellipse(*cx, *cy, *rx, *ry, 0.0, 0.0, TAU);
-                    if let Some(color) = fill_color {
+                    if let Some(novadraw::graphics::Paint::Solid(color)) = fill_paint {
                         self.set_fill(*color);
                         self.context.fill();
                     }
-                    if let Some(color) = stroke_color {
-                        self.set_stroke(*color, *stroke_width);
+                    if let Some(novadraw::graphics::Paint::Solid(color)) = stroke_paint {
+                        self.set_stroke(*color, stroke.width());
                         self.context.stroke();
                     }
                 }
@@ -595,6 +596,7 @@ struct WebValidationApp {
     redraw_pending: Rc<Cell<bool>>,
     frame_count: u64,
     scale_override: Option<f64>,
+    capture_png: bool,
     clock_origin_millis: f64,
 }
 
@@ -609,6 +611,13 @@ impl WebValidationApp {
         let mut themes = vec![input_theme(probe.clone())];
         themes.extend(catalog());
         let (current_theme, current_scene) = theme_selection(&window, &themes);
+        let capture_png = window
+            .location()
+            .search()
+            .ok()
+            .and_then(|search| UrlSearchParams::new_with_str(&search).ok())
+            .and_then(|query| query.get("capture"))
+            .is_some_and(|capture| capture == "png");
         let (width, height) = themes[current_theme].scenes[current_scene].logical_size;
         let _ = canvas
             .style()
@@ -708,6 +717,7 @@ impl WebValidationApp {
                 redraw_pending,
                 frame_count: 0,
                 scale_override: None,
+                capture_png,
                 clock_origin_millis,
             })
         })
@@ -833,6 +843,22 @@ impl WebValidationApp {
         };
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);
+        // Capture before the browser discards a presented WebGPU canvas texture.
+        // Explicitly opt in: normal validation and performance runs do no PNG encoding.
+        if self.capture_png && outcome == RenderOutcome::Presented {
+            match self.canvas.to_data_url() {
+                Ok(png) => {
+                    let _ = self.canvas.set_attribute("data-frame-png", &png);
+                    let _ = self
+                        .canvas
+                        .set_attribute("data-captured-frame", &(self.frame_count + 1).to_string());
+                }
+                Err(_) => {
+                    let _ = self.canvas.remove_attribute("data-frame-png");
+                    let _ = self.canvas.remove_attribute("data-captured-frame");
+                }
+            }
+        }
         self.runtime
             .complete_submission(submission.session_id, submission.frame_id, outcome);
         self.sync_platform_effects();

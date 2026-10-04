@@ -19,6 +19,7 @@ web = ["dep:web-sys"]
 novadraw = { path = "../novadraw" }
 tracing.workspace = true
 vello.workspace = true
+skrifa = "0.44.0"
 
 image = { version = "0.25", default-features = false, features = ["png"], optional = true }
 raw-window-handle = { workspace = true, optional = true }

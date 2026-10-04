@@ -91,8 +91,20 @@ impl Border for RectangleBorder {
         let cap = crate::render::command::LineCap::Butt;
         let join = crate::render::command::LineJoin::Miter;
 
-        gc.set_line_style(render_line_style(self.style));
-        gc.stroke_rect_with_style(x, y, width, height, self.color, self.width, cap, join);
+        let Ok(stroke) = crate::graphics::StrokeStyle::default().with_width(self.width) else {
+            return;
+        };
+        gc.stroke_rect_with_style(
+            x,
+            y,
+            width,
+            height,
+            self.color,
+            stroke
+                .with_cap(cap)
+                .with_join(join)
+                .with_dash_pattern(render_line_style(self.style).into()),
+        );
     }
 
     fn is_opaque(&self) -> bool {

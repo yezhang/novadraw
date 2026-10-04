@@ -2,7 +2,7 @@ use std::{error::Error, fmt};
 
 use crate::figure::normalize_points;
 use crate::geometry::{Point, PointList, Rectangle};
-use crate::render::{LineJoin, NdCanvas};
+use crate::render::{LineJoin, NdCanvas, StrokeStyle};
 use crate::{
     Color, Figure, FigureStyle, LocatorPlacement, PointListFigureBehavior, PolygonFigure,
     PolylineFigure,
@@ -138,6 +138,11 @@ impl PolygonDecorationFigure {
         self.polygon = self.polygon.with_join(join);
         self
     }
+
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.polygon = self.polygon.with_stroke_style(stroke);
+        self
+    }
 }
 
 impl ConnectionDecorationBehavior for PolygonDecorationFigure {
@@ -150,8 +155,7 @@ impl ConnectionDecorationBehavior for PolygonDecorationFigure {
             self.scale_x,
             self.scale_y,
             placement,
-            PointListFigureBehavior::stroke_width(&self.polygon),
-            PointListFigureBehavior::line_join(&self.polygon),
+            PointListFigureBehavior::stroke_style(&self.polygon),
             3,
         )
     }
@@ -248,6 +252,11 @@ impl PolylineDecorationFigure {
         self.polyline = self.polyline.with_join(join);
         self
     }
+
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.polyline = self.polyline.with_stroke_style(stroke);
+        self
+    }
 }
 
 impl ConnectionDecorationBehavior for PolylineDecorationFigure {
@@ -260,8 +269,7 @@ impl ConnectionDecorationBehavior for PolylineDecorationFigure {
             self.scale_x,
             self.scale_y,
             placement,
-            PointListFigureBehavior::stroke_width(&self.polyline),
-            PointListFigureBehavior::line_join(&self.polyline),
+            self.polyline.stroke_style(),
             2,
         )
     }
@@ -307,8 +315,7 @@ fn prepare_geometry(
     scale_x: f64,
     scale_y: f64,
     placement: LocatorPlacement,
-    stroke_width: f64,
-    line_join: LineJoin,
+    stroke: &StrokeStyle,
     painted_minimum: usize,
 ) -> Result<PreparedDecorationGeometry, DecorationError> {
     let direction = placement.point - placement.reference;
@@ -330,7 +337,7 @@ fn prepare_geometry(
     {
         return Err(DecorationError::NonFiniteGeometry);
     }
-    let (bounds, local_points) = normalize_points(points, stroke_width, line_join, painted_minimum);
+    let (bounds, local_points) = normalize_points(points, stroke, painted_minimum);
     if !finite_rectangle(bounds) {
         return Err(DecorationError::NonFiniteGeometry);
     }

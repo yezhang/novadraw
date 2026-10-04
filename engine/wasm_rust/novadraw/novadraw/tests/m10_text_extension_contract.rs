@@ -131,7 +131,9 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
         })
         .expect("text layout should lower to DrawGlyphRun");
     assert!(!command.0.glyphs.is_empty());
-    assert!(matches!(command.1, GlyphPaint::Fill(color) if *color == Color::BLACK));
+    assert!(
+        matches!(command.1, GlyphPaint::Fill(novadraw::graphics::Paint::Solid(color)) if *color == Color::BLACK)
+    );
 
     let submission = canvas.to_submission_for_frame(
         SurfaceInfo {

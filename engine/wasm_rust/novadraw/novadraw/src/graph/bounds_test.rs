@@ -1035,7 +1035,11 @@ fn test_clip_test_scene_commands() {
                     i, x, y, w, h, desc
                 );
             }
-            RenderCommandKind::FillRect { rect, color } => {
+            RenderCommandKind::FillRect {
+                rect,
+                paint: crate::graphics::Paint::Solid(color),
+                ..
+            } => {
                 let x = rect.x;
                 let y = rect.y;
                 let w = rect.width;
@@ -1059,14 +1063,19 @@ fn test_clip_test_scene_commands() {
                     i, x, y, w, h, desc
                 );
             }
-            RenderCommandKind::StrokeRect { rect, width, .. } => {
+            RenderCommandKind::StrokeRect { rect, stroke, .. } => {
                 let x = rect.x;
                 let y = rect.y;
                 let w = rect.width;
                 let h = rect.height;
                 println!(
                     "[{:2}] StrokeRect: ({:.0}, {:.0}, {:.0}, {:.0}) w={:.0}",
-                    i, x, y, w, h, width
+                    i,
+                    x,
+                    y,
+                    w,
+                    h,
+                    stroke.width()
                 );
             }
             RenderCommandKind::ConcatTransform { matrix } => {
