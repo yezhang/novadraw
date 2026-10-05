@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::{FontDescriptor, NdCanvas, TextError, TextLayoutEngine};
 
 use super::{Border, BorderSnapshot, add_insets};
@@ -32,10 +32,7 @@ impl CompoundBorder {
         self.inner.as_deref()
     }
 
-    fn resolved_insets(
-        border: Option<&dyn Border>,
-        snapshot: Option<&BorderSnapshot>,
-    ) -> (f64, f64, f64, f64) {
+    fn resolved_insets(border: Option<&dyn Border>, snapshot: Option<&BorderSnapshot>) -> Insets {
         snapshot
             .map(BorderSnapshot::insets)
             .or_else(|| border.map(Border::get_insets))
@@ -45,7 +42,7 @@ impl CompoundBorder {
     fn resolved_preferred_size(
         border: Option<&dyn Border>,
         snapshot: Option<&BorderSnapshot>,
-    ) -> (f64, f64) {
+    ) -> Dimension {
         snapshot
             .map(BorderSnapshot::preferred_size)
             .or_else(|| border.map(Border::preferred_size))
@@ -54,7 +51,7 @@ impl CompoundBorder {
 }
 
 impl Border for CompoundBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
+    fn get_insets(&self) -> Insets {
         add_insets(
             self.outer
                 .as_deref()
@@ -67,7 +64,7 @@ impl Border for CompoundBorder {
         )
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         let outer_insets = self
             .outer
             .as_deref()
@@ -83,9 +80,9 @@ impl Border for CompoundBorder {
             .as_deref()
             .map(Border::preferred_size)
             .unwrap_or_default();
-        (
-            outer.0.max(inner.0 + outer_insets.1 + outer_insets.3),
-            outer.1.max(inner.1 + outer_insets.0 + outer_insets.2),
+        Dimension::new(
+            outer.width.max(inner.width + outer_insets.width()),
+            outer.height.max(inner.height + outer_insets.height()),
         )
     }
 
@@ -95,15 +92,10 @@ impl Border for CompoundBorder {
     }
 
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), gc);
+        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
     }
 
-    fn paint_with_insets(
-        &self,
-        figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
-        gc: &mut NdCanvas,
-    ) {
+    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
         if let Some(outer) = self.outer.as_deref() {
             gc.push_state();
             outer.paint_with_insets(figure_bounds, incoming, gc);
@@ -122,7 +114,7 @@ impl Border for CompoundBorder {
     fn paint_snapshot_with_insets(
         &self,
         figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
+        incoming: Insets,
         snapshot: &BorderSnapshot,
         gc: &mut NdCanvas,
     ) {
@@ -175,13 +167,13 @@ impl Border for CompoundBorder {
         let inner_insets = Self::resolved_insets(self.inner.as_deref(), inner.as_ref());
         let outer_preferred = Self::resolved_preferred_size(self.outer.as_deref(), outer.as_ref());
         let inner_preferred = Self::resolved_preferred_size(self.inner.as_deref(), inner.as_ref());
-        let preferred = (
+        let preferred = Dimension::new(
             outer_preferred
-                .0
-                .max(inner_preferred.0 + outer_insets.1 + outer_insets.3),
+                .width
+                .max(inner_preferred.width + outer_insets.width()),
             outer_preferred
-                .1
-                .max(inner_preferred.1 + outer_insets.0 + outer_insets.2),
+                .height
+                .max(inner_preferred.height + outer_insets.height()),
         );
         Ok(Some(BorderSnapshot::compound(
             outer,

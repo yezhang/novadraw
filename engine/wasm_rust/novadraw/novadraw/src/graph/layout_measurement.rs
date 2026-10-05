@@ -612,9 +612,11 @@ impl FigureTree {
         let block = self.blocks.get(figure_id)?;
         let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.preferred_size {
-            return Some(
-                block.project_preferred_measurement(FigureMeasurement::new(size.0, size.1, None)),
-            );
+            return Some(block.project_preferred_measurement(FigureMeasurement::new(
+                size.width,
+                size.height,
+                None,
+            )));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let generation = block.layout.generation();
@@ -657,7 +659,7 @@ impl FigureTree {
         let block = self.blocks.get(figure_id)?;
         let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.minimum_size {
-            return Some(block.project_minimum_size(size.into()));
+            return Some(block.project_minimum_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
             let generation = block.layout.generation();
@@ -700,15 +702,14 @@ impl FigureTree {
         Some(
             block
                 .maximum_size
-                .unwrap_or((f64::INFINITY, f64::INFINITY))
-                .into(),
+                .unwrap_or(Dimension::new(f64::INFINITY, f64::INFINITY)),
         )
     }
 
     pub(crate) fn set_preferred_size(
         &mut self,
         figure_id: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> bool {
         let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
@@ -724,7 +725,7 @@ impl FigureTree {
     pub(crate) fn set_minimum_size(
         &mut self,
         figure_id: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> bool {
         let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;
@@ -740,7 +741,7 @@ impl FigureTree {
     pub(crate) fn set_maximum_size(
         &mut self,
         figure_id: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> bool {
         let Some(block) = self.blocks.get_mut(figure_id) else {
             return false;

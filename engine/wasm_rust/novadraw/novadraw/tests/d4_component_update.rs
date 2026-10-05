@@ -3,9 +3,9 @@ use novadraw::render::{
     TextConstraints, TextError,
 };
 use novadraw::{
-    ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Figure,
-    FigureComponentContext, FigureComponentUpdate, FigureEventHandler, FigureLifecycle, FigureTree,
-    FocusError, FramePreparation, FramePreparationError, MouseButton, MouseEvent,
+    ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Dimension,
+    Figure, FigureComponentContext, FigureComponentUpdate, FigureEventHandler, FigureLifecycle,
+    FigureTree, FocusError, FramePreparation, FramePreparationError, MouseButton, MouseEvent,
     PreparedFigureUpdate, Rectangle, RectangleFigure, ResourceError, Runtime, RuntimeMutationError,
     WidgetError,
 };
@@ -62,8 +62,8 @@ impl Figure for BadgeFigure {
 
     fn paint_figure(&self, _canvas: &mut NdCanvas) {}
 
-    fn intrinsic_size(&self) -> (f64, f64) {
-        (self.measured_width, self.bounds.height)
+    fn intrinsic_size(&self) -> Dimension {
+        Dimension::new(self.measured_width, self.bounds.height)
     }
 
     fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
@@ -431,7 +431,7 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
     runtime
         .figure(figure)
         .unwrap()
-        .set_preferred_size((20.0, 20.0))
+        .set_preferred_size(Dimension::new(20.0, 20.0))
         .unwrap();
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)

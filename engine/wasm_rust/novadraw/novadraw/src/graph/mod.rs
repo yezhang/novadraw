@@ -10,7 +10,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::geometry::{Affine2D, Dimension, Point, PointList, Rectangle};
+use crate::geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle};
 use crate::render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
@@ -258,11 +258,11 @@ fn owner_scoped_border_size(content: Dimension, snapshot: Option<&BorderSnapshot
     let Some(snapshot) = snapshot else {
         return content;
     };
-    let (top, left, bottom, right) = snapshot.insets();
+    let insets = snapshot.insets();
     let preferred = snapshot.preferred_size();
     Dimension::new(
-        (content.width + left + right).max(preferred.0),
-        (content.height + top + bottom).max(preferred.1),
+        (content.width + insets.width()).max(preferred.width),
+        (content.height + insets.height()).max(preferred.height),
     )
 }
 
@@ -273,11 +273,11 @@ fn owner_scoped_border_measurement(
     let Some(snapshot) = snapshot else {
         return measurement;
     };
-    let (top, left, bottom, right) = snapshot.insets();
+    let insets = snapshot.insets();
     let preferred = snapshot.preferred_size();
-    measurement.width = (measurement.width + left + right).max(preferred.0);
-    measurement.height = (measurement.height + top + bottom).max(preferred.1);
-    measurement.baseline = measurement.baseline.map(|baseline| baseline + top);
+    measurement.width = (measurement.width + insets.width()).max(preferred.width);
+    measurement.height = (measurement.height + insets.height()).max(preferred.height);
+    measurement.baseline = measurement.baseline.map(|baseline| baseline + insets.top);
     measurement
 }
 
@@ -287,7 +287,7 @@ fn owner_scoped_border_measurement(
 /// interaction and update algorithms consume this state without downcasting.
 pub struct NodeState {
     pub(crate) bounds: Rectangle,
-    pub(crate) insets: (f64, f64, f64, f64),
+    pub(crate) insets: Insets,
     pub(crate) border_snapshot: Option<BorderSnapshot>,
     pub(crate) is_visible: bool,
     pub(crate) is_enabled: bool,
@@ -295,9 +295,9 @@ pub struct NodeState {
     pub(crate) is_focusable: bool,
     pub(crate) is_focus_traversable: bool,
     pub(crate) is_valid: bool,
-    pub(crate) preferred_size: Option<(f64, f64)>,
-    pub(crate) minimum_size: Option<(f64, f64)>,
-    pub(crate) maximum_size: Option<(f64, f64)>,
+    pub(crate) preferred_size: Option<Dimension>,
+    pub(crate) minimum_size: Option<Dimension>,
+    pub(crate) maximum_size: Option<Dimension>,
     pub(crate) child_clipping_strategy: Option<ChildClippingStrategy>,
     pub(crate) style: FigureStyle,
 }
@@ -306,7 +306,7 @@ impl Default for NodeState {
     fn default() -> Self {
         Self {
             bounds: Rectangle::ZERO,
-            insets: (0.0, 0.0, 0.0, 0.0),
+            insets: Insets::ZERO,
             border_snapshot: None,
             is_visible: true,
             is_enabled: true,
@@ -352,7 +352,7 @@ impl NodeState {
         self.is_valid
     }
 
-    pub fn insets(&self) -> (f64, f64, f64, f64) {
+    pub fn insets(&self) -> Insets {
         self.insets
     }
 
@@ -567,12 +567,12 @@ impl FigureNode {
 
     pub(crate) fn client_area(&self) -> Rectangle {
         let bounds = self.state.bounds;
-        let (top, left, bottom, right) = self.state.insets;
+        let insets = self.state.insets;
         Rectangle::new(
-            left,
-            top,
-            (bounds.width - left - right).max(0.0),
-            (bounds.height - top - bottom).max(0.0),
+            insets.left,
+            insets.top,
+            (bounds.width - insets.width()).max(0.0),
+            (bounds.height - insets.height()).max(0.0),
         )
     }
 
@@ -582,14 +582,15 @@ impl FigureNode {
     }
 
     pub(crate) fn child_transform(&self) -> super::ChildTransform {
-        let (top, left, _, _) = self.state.insets;
+        let insets = self.state.insets;
         let figure_transform = self
             .figure
             .container()
             .map(|container| container.child_transform())
             .unwrap_or(super::ChildTransform::IDENTITY);
         super::ChildTransform::from_affine(
-            crate::geometry::Affine2D::from_translation(left, top) * figure_transform.affine(),
+            crate::geometry::Affine2D::from_translation(insets.left, insets.top)
+                * figure_transform.affine(),
         )
     }
 
@@ -641,16 +642,16 @@ impl FigureNode {
     }
 
     /// 获取首选尺寸
-    pub fn get_preferred_size(&self) -> (f64, f64) {
+    pub fn get_preferred_size(&self) -> Dimension {
         if let Some(size) = self.preferred_size {
             return size;
         }
         let bounds = self.state.bounds;
-        (bounds.width, bounds.height)
+        Dimension::new(bounds.width, bounds.height)
     }
 
     /// 获取最小尺寸
-    pub fn get_minimum_size(&self) -> (f64, f64) {
+    pub fn get_minimum_size(&self) -> Dimension {
         if let Some(size) = self.minimum_size {
             return size;
         }
@@ -658,11 +659,11 @@ impl FigureNode {
     }
 
     /// 获取最大尺寸
-    pub fn get_maximum_size(&self) -> (f64, f64) {
+    pub fn get_maximum_size(&self) -> Dimension {
         if let Some(size) = self.maximum_size {
             return size;
         }
-        (f64::INFINITY, f64::INFINITY)
+        Dimension::new(f64::INFINITY, f64::INFINITY)
     }
 }
 
@@ -812,7 +813,7 @@ impl<'a> FigureTreeBuilder<'a> {
     pub fn set_preferred_size(
         &mut self,
         figure: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Result<bool, GraphMutationError> {
         self.tree.ensure_figure(figure)?;
         Ok(self.tree.set_preferred_size(figure, size))
@@ -821,7 +822,7 @@ impl<'a> FigureTreeBuilder<'a> {
     pub fn set_minimum_size(
         &mut self,
         figure: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Result<bool, GraphMutationError> {
         self.tree.ensure_figure(figure)?;
         Ok(self.tree.set_minimum_size(figure, size))
@@ -830,7 +831,7 @@ impl<'a> FigureTreeBuilder<'a> {
     pub fn set_maximum_size(
         &mut self,
         figure: FigureId,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Result<bool, GraphMutationError> {
         self.tree.ensure_figure(figure)?;
         Ok(self.tree.set_maximum_size(figure, size))
@@ -1717,9 +1718,9 @@ mod tests {
     use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
     use crate::{
         EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureLifecycle, FigureTree,
-        LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle, RootFigure,
-        RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure, UpdateManager,
-        ViewportFigure,
+        Insets, LineBorder, NotificationEffect, PolygonFigure, PolylineFigure, Rectangle,
+        RootFigure, RoundedRectangleFigure, ScalableLayeredPaneFigure, TriangleFigure,
+        UpdateManager, ViewportFigure,
     };
 
     #[derive(Debug, PartialEq)]
@@ -1952,14 +1953,14 @@ mod tests {
     #[derive(Clone, Copy)]
     struct TestFigureWithInsets {
         bounds: Rectangle,
-        insets: (f64, f64, f64, f64),
+        insets: Insets,
     }
 
     impl TestFigureWithInsets {
         fn new(x: f64, y: f64, width: f64, height: f64, insets: (f64, f64, f64, f64)) -> Self {
             Self {
                 bounds: Rectangle::new(x, y, width, height),
-                insets,
+                insets: Insets::new(insets.0, insets.1, insets.2, insets.3),
             }
         }
     }
@@ -1973,7 +1974,7 @@ mod tests {
             self.bounds = Rectangle::new(x, y, width, height);
         }
 
-        fn insets(&self) -> (f64, f64, f64, f64) {
+        fn insets(&self) -> Insets {
             self.insets
         }
 
@@ -2091,7 +2092,7 @@ mod tests {
                         Bounded::name(self)
                     }
 
-                    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+                    fn initial_insets(&self) -> Insets {
                         Bounded::insets(self)
                     }
 

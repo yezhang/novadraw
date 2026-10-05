@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use novadraw::Color;
-use novadraw::geometry::{Dimension, Point, Rectangle};
+use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
 use novadraw::graphics::Paint;
 use novadraw::render::{
     DEFAULT_STROKE_MITER_LIMIT, LineJoin, NdCanvas, command::RenderCommandKind,
@@ -295,18 +295,18 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
 }
 
 struct MetricBorder {
-    insets: (f64, f64, f64, f64),
-    preferred: (f64, f64),
+    insets: Insets,
+    preferred: Dimension,
 }
 
 impl Border for MetricBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
+    fn get_insets(&self) -> Insets {
         self.insets
     }
 
     fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {}
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         self.preferred
     }
 }
@@ -314,23 +314,23 @@ impl Border for MetricBorder {
 #[test]
 fn border_metrics_and_compound_formula_match_draw2d() {
     let line = LineBorder::new(Color::BLACK, 2.0);
-    assert_eq!(line.get_insets(), (2.0, 2.0, 2.0, 2.0));
-    assert_eq!(line.preferred_size(), (0.0, 0.0));
+    assert_eq!(line.get_insets(), Insets::uniform(2.0));
+    assert_eq!(line.preferred_size(), Dimension::ZERO);
     assert!(line.is_opaque());
 
     let margin = MarginBorder::new(Color::TRANSPARENT, 1.0).with_margins(1.0, 2.0, 3.0, 4.0);
-    assert_eq!(margin.get_insets(), (1.0, 2.0, 3.0, 4.0));
+    assert_eq!(margin.get_insets(), Insets::new(1.0, 2.0, 3.0, 4.0));
     assert!(!margin.is_opaque());
 
     let compound = CompoundBorder::new(
         line,
         MetricBorder {
-            insets: (3.0, 4.0, 5.0, 6.0),
-            preferred: (10.0, 20.0),
+            insets: Insets::new(3.0, 4.0, 5.0, 6.0),
+            preferred: Dimension::new(10.0, 20.0),
         },
     );
-    assert_eq!(compound.get_insets(), (5.0, 6.0, 7.0, 8.0));
-    assert_eq!(compound.preferred_size(), (14.0, 24.0));
+    assert_eq!(compound.get_insets(), Insets::new(5.0, 6.0, 7.0, 8.0));
+    assert_eq!(compound.preferred_size(), Dimension::new(14.0, 24.0));
     assert!(!compound.is_opaque());
 }
 
@@ -400,7 +400,7 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
             .replace(Some(Arc::clone(&shared_border)))
             .unwrap()
     );
-    assert_eq!(runtime.tree().insets(rounded), Some((3.0, 3.0, 3.0, 3.0)));
+    assert_eq!(runtime.tree().insets(rounded), Some(Insets::uniform(3.0)));
     assert!(
         runtime
             .rounded_rectangle(rounded)
@@ -536,8 +536,8 @@ fn etched_and_bevel_borders_expose_product_metrics_and_commands() {
     let raised = BevelBorder::new(BevelStyle::Raised, highlight, shadow, 2);
     let lowered = BevelBorder::new(BevelStyle::Lowered, highlight, shadow, 2);
 
-    assert_eq!(etched.get_insets(), (2.0, 2.0, 2.0, 2.0));
-    assert_eq!(raised.get_insets(), (2.0, 2.0, 2.0, 2.0));
+    assert_eq!(etched.get_insets(), Insets::uniform(2.0));
+    assert_eq!(raised.get_insets(), Insets::uniform(2.0));
     assert!(etched.is_opaque());
     assert!(raised.is_opaque());
     assert!(lowered.is_opaque());

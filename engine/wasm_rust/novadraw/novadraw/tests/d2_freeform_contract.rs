@@ -1,6 +1,6 @@
 use novadraw::render::RenderCommandKind;
 use novadraw::{
-    FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
+    Dimension, FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
     FreeformError, FreeformLayerFigure, FreeformLayout, LayerKey, LayerPlacement, LayoutError,
     ListenerDirective, MeasureConstraints, MouseLocationZoomScrollPolicy, Point,
     PropertyChangeEvent, PropertyChangeListener, PropertyValue, Rectangle, RectangleFigure,
@@ -469,7 +469,7 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
         .set_layout_manager(host, Box::new(FreeformLayout::new()))
         .expect("valid FigureTree construction");
     tree.builder()
-        .set_preferred_size(child, Some((40.0, 50.0)))
+        .set_preferred_size(child, Some(Dimension::new(40.0, 50.0)))
         .expect("valid FigureTree construction");
     tree.builder()
         .set_layout_constraint(

@@ -6,7 +6,7 @@
 //! paint() 方法为空实现，不绘制任何可见内容。
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH};
@@ -111,8 +111,8 @@ fn assert_valid_margin(margin: f64) {
 }
 
 impl Border for MarginBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
-        (self.top, self.left, self.bottom, self.right)
+    fn get_insets(&self) -> Insets {
+        Insets::new(self.top, self.left, self.bottom, self.right)
     }
 
     /// 绘制边框

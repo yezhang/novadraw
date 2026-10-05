@@ -210,11 +210,11 @@ fn toolbar_layout_compresses_main_axis_and_stretches_minor_axis() {
         .expect("valid FigureTree construction");
     graph
         .builder()
-        .set_minimum_size(first, Some((60.0, 10.0)))
+        .set_minimum_size(first, Some(Dimension::new(60.0, 10.0)))
         .expect("valid FigureTree construction");
     graph
         .builder()
-        .set_minimum_size(second, Some((100.0, 10.0)))
+        .set_minimum_size(second, Some(Dimension::new(100.0, 10.0)))
         .expect("valid FigureTree construction");
     graph
         .builder()
@@ -735,7 +735,7 @@ fn layout_measurements_are_cached_until_generation_changes() {
     let old_generation = graph.node(root).unwrap().layout_state().generation();
     graph
         .builder()
-        .set_preferred_size(child, Some((20.0, 20.0)))
+        .set_preferred_size(child, Some(Dimension::new(20.0, 20.0)))
         .expect("valid FigureTree construction");
     let new_generation = graph.node(root).unwrap().layout_state().generation();
     assert!(new_generation > old_generation);
@@ -798,7 +798,7 @@ fn explicit_zero_size_is_not_treated_as_a_missing_measurement() {
         .expect("valid FigureTree construction");
     graph
         .builder()
-        .set_preferred_size(root, Some((0.0, 0.0)))
+        .set_preferred_size(root, Some(Dimension::ZERO))
         .expect("valid FigureTree construction");
 
     assert_eq!(

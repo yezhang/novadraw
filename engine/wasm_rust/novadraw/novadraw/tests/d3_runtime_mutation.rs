@@ -95,21 +95,21 @@ fn runtime_size_overrides_are_checked_and_clearable() {
         runtime
             .figure(child)
             .unwrap()
-            .set_preferred_size((50.0, 60.0))
+            .set_preferred_size(Dimension::new(50.0, 60.0))
             .unwrap()
     );
     assert!(
         runtime
             .figure(child)
             .unwrap()
-            .set_minimum_size((20.0, 30.0))
+            .set_minimum_size(Dimension::new(20.0, 30.0))
             .unwrap()
     );
     assert!(
         runtime
             .figure(child)
             .unwrap()
-            .set_maximum_size((100.0, 120.0))
+            .set_maximum_size(Dimension::new(100.0, 120.0))
             .unwrap()
     );
     assert_eq!(
@@ -133,7 +133,7 @@ fn runtime_size_overrides_are_checked_and_clearable() {
     let invalid = runtime
         .figure(child)
         .unwrap()
-        .set_preferred_size((f64::NAN, 10.0))
+        .set_preferred_size(Dimension::new(f64::NAN, 10.0))
         .unwrap_err();
     assert!(matches!(
         invalid,
@@ -559,10 +559,10 @@ impl Figure for DeferredMutationFigure {
 
 impl FigureEventHandler for DeferredMutationFigure {
     fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        context.set_preferred_size_later(self.child, (40.0, 50.0));
+        context.set_preferred_size_later(self.child, Dimension::new(40.0, 50.0));
         context.move_child_to_index_later(self.parent, self.child, 99);
-        context.set_preferred_size_later(self.child, (60.0, 70.0));
-        context.set_minimum_size_later(self.child, (20.0, 30.0));
+        context.set_preferred_size_later(self.child, Dimension::new(60.0, 70.0));
+        context.set_minimum_size_later(self.child, Dimension::new(20.0, 30.0));
         true
     }
 }

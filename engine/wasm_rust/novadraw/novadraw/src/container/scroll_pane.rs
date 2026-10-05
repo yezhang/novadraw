@@ -407,10 +407,10 @@ impl Bounded for ScrollBarFigure {
         "ScrollBarFigure"
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         match self.orientation {
-            ScrollOrientation::Horizontal => (0.0, DEFAULT_SCROLL_BAR_THICKNESS),
-            ScrollOrientation::Vertical => (DEFAULT_SCROLL_BAR_THICKNESS, 0.0),
+            ScrollOrientation::Horizontal => Dimension::new(0.0, DEFAULT_SCROLL_BAR_THICKNESS),
+            ScrollOrientation::Vertical => Dimension::new(DEFAULT_SCROLL_BAR_THICKNESS, 0.0),
         }
     }
 }
@@ -424,7 +424,7 @@ impl Figure for ScrollBarFigure {
         "ScrollBarFigure"
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         Bounded::preferred_size(self)
     }
 

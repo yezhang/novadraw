@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use super::{BevelBorder, BevelStyle, Border, CompoundBorder};
@@ -29,11 +29,11 @@ impl EtchedBorder {
 }
 
 impl Border for EtchedBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
+    fn get_insets(&self) -> Insets {
         self.compound.get_insets()
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         self.compound.preferred_size()
     }
 
@@ -45,12 +45,7 @@ impl Border for EtchedBorder {
         self.compound.paint(figure_bounds, gc);
     }
 
-    fn paint_with_insets(
-        &self,
-        figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
-        gc: &mut NdCanvas,
-    ) {
+    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
         self.compound.paint_with_insets(figure_bounds, incoming, gc);
     }
 }

@@ -1,5 +1,5 @@
 use crate::Color;
-use crate::geometry::{Point, Rectangle};
+use crate::geometry::{Insets, Point, Rectangle};
 use crate::render::{
     NdCanvas,
     command::{LineCap, LineJoin},
@@ -42,9 +42,9 @@ impl BevelBorder {
 }
 
 impl Border for BevelBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
+    fn get_insets(&self) -> Insets {
         let width = f64::from(self.width);
-        (width, width, width, width)
+        Insets::uniform(width)
     }
 
     fn is_opaque(&self) -> bool {
@@ -52,15 +52,10 @@ impl Border for BevelBorder {
     }
 
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), gc);
+        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
     }
 
-    fn paint_with_insets(
-        &self,
-        figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
-        gc: &mut NdCanvas,
-    ) {
+    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
         let bounds = inset_rectangle(figure_bounds, incoming);
         let (top_left, bottom_right) = self.colors();
         for layer in 0..self.width {

@@ -20,14 +20,14 @@ pub use rectangle_border::RectangleBorder;
 pub use title_bar_border::TitleBarBorder;
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::{FontDescriptor, NdCanvas, TextError, TextLayoutEngine};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BorderSnapshot {
     kind: BorderSnapshotKind,
-    insets: (f64, f64, f64, f64),
-    preferred: (f64, f64),
+    insets: Insets,
+    preferred: Dimension,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,8 +53,8 @@ impl BorderSnapshot {
     pub(crate) fn compound(
         outer: Option<BorderSnapshot>,
         inner: Option<BorderSnapshot>,
-        insets: (f64, f64, f64, f64),
-        preferred: (f64, f64),
+        insets: Insets,
+        preferred: Dimension,
     ) -> Self {
         Self {
             kind: BorderSnapshotKind::Compound {
@@ -66,11 +66,11 @@ impl BorderSnapshot {
         }
     }
 
-    pub(crate) fn insets(&self) -> (f64, f64, f64, f64) {
+    pub(crate) fn insets(&self) -> Insets {
         self.insets
     }
 
-    pub(crate) fn preferred_size(&self) -> (f64, f64) {
+    pub(crate) fn preferred_size(&self) -> Dimension {
         self.preferred
     }
 
@@ -110,8 +110,7 @@ pub trait Border: Send + Sync {
     /// 获取边框内边距
     ///
     /// 对应 draw2d: getInsets()
-    /// 返回 (top, left, bottom, right)
-    fn get_insets(&self) -> (f64, f64, f64, f64);
+    fn get_insets(&self) -> Insets;
 
     /// 绘制边框
     ///
@@ -120,12 +119,7 @@ pub trait Border: Send + Sync {
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas);
 
     /// 在调用方已经累计的 inset 内绘制。
-    fn paint_with_insets(
-        &self,
-        figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
-        gc: &mut NdCanvas,
-    ) {
+    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
         self.paint(inset_rectangle(figure_bounds, incoming), gc);
     }
 
@@ -135,7 +129,7 @@ pub trait Border: Send + Sync {
         snapshot: &BorderSnapshot,
         gc: &mut NdCanvas,
     ) {
-        self.paint_snapshot_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), snapshot, gc);
+        self.paint_snapshot_with_insets(figure_bounds, Insets::ZERO, snapshot, gc);
     }
 
     /// Paints an owner-scoped snapshot inside the caller's accumulated insets.
@@ -143,7 +137,7 @@ pub trait Border: Send + Sync {
     fn paint_snapshot_with_insets(
         &self,
         figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
+        incoming: Insets,
         _snapshot: &BorderSnapshot,
         gc: &mut NdCanvas,
     ) {
@@ -168,8 +162,8 @@ pub trait Border: Send + Sync {
     }
 
     /// Border 自身正确显示所需的最小外部尺寸。
-    fn preferred_size(&self) -> (f64, f64) {
-        (0.0, 0.0)
+    fn preferred_size(&self) -> Dimension {
+        Dimension::ZERO
     }
 
     /// Border 配置是否完全覆盖其 border ring。
@@ -193,24 +187,21 @@ pub trait Border: Send + Sync {
     }
 }
 
-pub(crate) fn add_insets(
-    first: (f64, f64, f64, f64),
-    second: (f64, f64, f64, f64),
-) -> (f64, f64, f64, f64) {
-    (
-        first.0 + second.0,
-        first.1 + second.1,
-        first.2 + second.2,
-        first.3 + second.3,
+pub(crate) fn add_insets(first: Insets, second: Insets) -> Insets {
+    Insets::new(
+        first.top + second.top,
+        first.left + second.left,
+        first.bottom + second.bottom,
+        first.right + second.right,
     )
 }
 
-pub(crate) fn inset_rectangle(bounds: Rectangle, insets: (f64, f64, f64, f64)) -> Rectangle {
+pub(crate) fn inset_rectangle(bounds: Rectangle, insets: Insets) -> Rectangle {
     Rectangle::new(
-        bounds.x + insets.1,
-        bounds.y + insets.0,
-        (bounds.width - insets.1 - insets.3).max(0.0),
-        (bounds.height - insets.0 - insets.2).max(0.0),
+        bounds.x + insets.left,
+        bounds.y + insets.top,
+        (bounds.width - insets.width()).max(0.0),
+        (bounds.height - insets.height()).max(0.0),
     )
 }
 
@@ -243,7 +234,7 @@ pub struct BorderBuilder {
     color: Color,
     width: f64,
     style: BorderStyle,
-    insets: (f64, f64, f64, f64),
+    insets: Insets,
 }
 
 impl BorderBuilder {
@@ -253,7 +244,7 @@ impl BorderBuilder {
             color,
             width,
             style: BorderStyle::Solid,
-            insets: (0.0, 0.0, 0.0, 0.0),
+            insets: Insets::ZERO,
         }
     }
 
@@ -265,7 +256,7 @@ impl BorderBuilder {
 
     /// 设置内边距
     pub fn with_insets(mut self, top: f64, left: f64, bottom: f64, right: f64) -> Self {
-        self.insets = (top, left, bottom, right);
+        self.insets = Insets::new(top, left, bottom, right);
         self
     }
 

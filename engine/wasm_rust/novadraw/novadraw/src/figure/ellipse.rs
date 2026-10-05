@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use super::{
@@ -171,11 +171,11 @@ impl Bounded for EllipseFigure {
         self.child_clipping_strategy
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.border
             .as_ref()
             .map(|border| border.get_insets())
-            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+            .unwrap_or(Insets::ZERO)
     }
 }
 
@@ -188,7 +188,7 @@ impl Figure for EllipseFigure {
         "EllipseFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 

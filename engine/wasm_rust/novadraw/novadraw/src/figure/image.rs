@@ -1,5 +1,5 @@
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Rectangle};
 use crate::render::{ImageResourceRef, NdCanvas};
 
 use crate::{Alignment, ImageId, ResourceStatus};
@@ -117,8 +117,8 @@ impl Figure for ImageFigure {
         "ImageFigure"
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
-        self.size()
+    fn intrinsic_size(&self) -> Dimension {
+        self.size().into()
     }
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {

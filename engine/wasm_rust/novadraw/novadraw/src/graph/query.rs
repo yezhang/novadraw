@@ -134,7 +134,7 @@ impl FigureTree {
         self.blocks.get(id).is_some_and(|block| block.is_opaque)
     }
 
-    pub fn insets(&self, id: FigureId) -> Option<(f64, f64, f64, f64)> {
+    pub fn insets(&self, id: FigureId) -> Option<Insets> {
         self.blocks.get(id).map(|block| block.insets)
     }
 

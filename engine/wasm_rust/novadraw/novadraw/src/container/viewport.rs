@@ -11,7 +11,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::geometry::{Dimension, Point, Rectangle};
+use crate::geometry::{Dimension, Insets, Point, Rectangle};
 use crate::render::NdCanvas;
 
 use super::range_model::normalize_range;
@@ -589,20 +589,20 @@ impl Bounded for ViewportFigure {
         ChildPolicy::Single
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.border
             .as_ref()
             .map(|border| border.get_insets())
-            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+            .unwrap_or(Insets::ZERO)
     }
 
     fn client_area(&self) -> Rectangle {
-        let (top, left, bottom, right) = self.insets();
+        let insets = self.insets();
         Rectangle::new(
-            left,
-            top,
-            (self.bounds.width - left - right).max(0.0),
-            (self.bounds.height - top - bottom).max(0.0),
+            insets.left,
+            insets.top,
+            (self.bounds.width - insets.width()).max(0.0),
+            (self.bounds.height - insets.height()).max(0.0),
         )
     }
 }
@@ -616,7 +616,7 @@ impl Figure for ViewportFigure {
         "ViewportFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 

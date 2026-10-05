@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::{
     FontDescriptor, ImageResourceRef, NdCanvas, TextConstraints, TextError, TextLayout,
     TextLayoutEngine,
@@ -358,15 +358,15 @@ impl Bounded for LabelFigure {
     fn name(&self) -> &'static str {
         "LabelFigure"
     }
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         with_border_size(
-            self.preferred_size().unwrap_or_default(),
+            self.preferred_size().unwrap_or_default().into(),
             self.border.as_deref(),
         )
     }
-    fn minimum_size(&self) -> (f64, f64) {
+    fn minimum_size(&self) -> Dimension {
         with_border_size(
-            self.minimum_size().unwrap_or_default(),
+            self.minimum_size().unwrap_or_default().into(),
             self.border.as_deref(),
         )
     }
@@ -379,23 +379,23 @@ impl Figure for LabelFigure {
     fn name(&self) -> &'static str {
         "LabelFigure"
     }
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         with_border_size(
-            self.preferred_size().unwrap_or_default(),
+            self.preferred_size().unwrap_or_default().into(),
             self.border.as_deref(),
         )
     }
-    fn intrinsic_content_size(&self) -> (f64, f64) {
-        self.preferred_size().unwrap_or_default()
+    fn intrinsic_content_size(&self) -> Dimension {
+        self.preferred_size().unwrap_or_default().into()
     }
-    fn intrinsic_minimum_size(&self) -> (f64, f64) {
+    fn intrinsic_minimum_size(&self) -> Dimension {
         with_border_size(
-            self.minimum_size().unwrap_or_default(),
+            self.minimum_size().unwrap_or_default().into(),
             self.border.as_deref(),
         )
     }
-    fn intrinsic_content_minimum_size(&self) -> (f64, f64) {
-        self.minimum_size().unwrap_or_default()
+    fn intrinsic_content_minimum_size(&self) -> Dimension {
+        self.minimum_size().unwrap_or_default().into()
     }
     fn paint_figure(&self, gc: &mut NdCanvas) {
         self.paint_with_icon(gc, self.icon_ref);
@@ -421,7 +421,7 @@ impl Figure for LabelFigure {
             .map_or(base, |ink| base.union(ink))
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         self.border
             .as_deref()
             .map(Border::get_insets)
@@ -469,15 +469,15 @@ impl BorderedFigure for LabelFigure {
     }
 }
 
-fn with_border_size(size: (f64, f64), border: Option<&dyn Border>) -> (f64, f64) {
+fn with_border_size(size: Dimension, border: Option<&dyn Border>) -> Dimension {
     let Some(border) = border else {
         return size;
     };
-    let (top, left, bottom, right) = border.get_insets();
+    let insets = border.get_insets();
     let preferred = border.preferred_size();
-    (
-        (size.0 + left + right).max(preferred.0),
-        (size.1 + top + bottom).max(preferred.1),
+    Dimension::new(
+        (size.width + insets.width()).max(preferred.width),
+        (size.height + insets.height()).max(preferred.height),
     )
 }
 

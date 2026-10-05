@@ -3,7 +3,7 @@
 //! 验证 bounds 位于 parent content domain，Figure 绘制位于 node-local domain。
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use crate::container::{scalable::ScalableLayeredPaneFigure, viewport::ViewportFigure};
@@ -16,21 +16,21 @@ use crate::graph::FigureTree;
 #[derive(Clone, Copy)]
 struct TestCoordRootFigure {
     bounds: Rectangle,
-    insets: (f64, f64, f64, f64),
+    insets: Insets,
 }
 
 impl TestCoordRootFigure {
     fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            insets: (0.0, 0.0, 0.0, 0.0),
+            insets: Insets::ZERO,
         }
     }
 
     fn with_insets(x: f64, y: f64, width: f64, height: f64, insets: (f64, f64, f64, f64)) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            insets,
+            insets: Insets::new(insets.0, insets.1, insets.2, insets.3),
         }
     }
 }
@@ -44,7 +44,7 @@ impl Bounded for TestCoordRootFigure {
         self.bounds = Rectangle::new(x, y, width, height);
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.insets
     }
 
@@ -57,14 +57,14 @@ impl Bounded for TestCoordRootFigure {
 #[derive(Clone, Copy)]
 struct TestInsetFigure {
     bounds: Rectangle,
-    insets: (f64, f64, f64, f64),
+    insets: Insets,
 }
 
 impl TestInsetFigure {
     fn new(x: f64, y: f64, width: f64, height: f64, insets: (f64, f64, f64, f64)) -> Self {
         Self {
             bounds: Rectangle::new(x, y, width, height),
-            insets,
+            insets: Insets::new(insets.0, insets.1, insets.2, insets.3),
         }
     }
 }
@@ -78,7 +78,7 @@ impl Bounded for TestInsetFigure {
         self.bounds = Rectangle::new(x, y, width, height);
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.insets
     }
 
@@ -167,7 +167,7 @@ macro_rules! impl_test_shape_figure {
                     Bounded::name(self)
                 }
 
-                fn initial_insets(&self) -> (f64, f64, f64, f64) {
+                fn initial_insets(&self) -> Insets {
                     Bounded::insets(self)
                 }
 

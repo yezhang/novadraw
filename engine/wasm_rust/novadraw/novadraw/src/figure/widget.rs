@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::{Point, Rectangle};
+use crate::geometry::{Dimension, Insets, Point, Rectangle};
 use crate::render::{
     NdCanvas,
     command::{LineCap, LineJoin},
@@ -441,9 +441,9 @@ impl Figure for ButtonFigure {
         "ButtonFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         let width = f64::from(BUTTON_BEVEL_WIDTH) + BUTTON_PADDING;
-        (width, width, width, width)
+        Insets::uniform(width)
     }
 
     fn initial_style(&self) -> FigureStyle {
@@ -461,10 +461,10 @@ impl Figure for ButtonFigure {
         true
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         let (width, height) = self.label.preferred_size().unwrap_or_default();
         let inset = (f64::from(BUTTON_BEVEL_WIDTH) + BUTTON_PADDING) * 2.0;
-        (width + inset, height + inset)
+        Dimension::new(width + inset, height + inset)
     }
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
@@ -591,9 +591,9 @@ impl Figure for ToggleFigure {
         "ToggleFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         let width = f64::from(BUTTON_BEVEL_WIDTH) + BUTTON_PADDING;
-        (width, width, width, width)
+        Insets::uniform(width)
     }
 
     fn initial_style(&self) -> FigureStyle {
@@ -611,10 +611,10 @@ impl Figure for ToggleFigure {
         true
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         let (width, height) = self.label.preferred_size().unwrap_or_default();
         let inset = (f64::from(BUTTON_BEVEL_WIDTH) + BUTTON_PADDING) * 2.0;
-        (width + inset, height + inset)
+        Dimension::new(width + inset, height + inset)
     }
 
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {

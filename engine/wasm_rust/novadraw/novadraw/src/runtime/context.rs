@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::geometry::Point;
+use crate::geometry::{Dimension, Point};
 
 use crate::{
     ChildClippingStrategy, DispatchContext, Event, Figure, FigureComponentUpdate, FigureEvent,
@@ -246,7 +246,7 @@ impl<'a> EventContext<'a> {
         MutationContext::remove_layout_constraint_later(self, child);
     }
 
-    pub fn set_preferred_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+    pub fn set_preferred_size_later(&mut self, figure: FigureId, size: Dimension) {
         MutationContext::set_size_override_later(
             self,
             figure,
@@ -259,7 +259,7 @@ impl<'a> EventContext<'a> {
         MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Preferred, None);
     }
 
-    pub fn set_minimum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+    pub fn set_minimum_size_later(&mut self, figure: FigureId, size: Dimension) {
         MutationContext::set_size_override_later(
             self,
             figure,
@@ -272,7 +272,7 @@ impl<'a> EventContext<'a> {
         MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Minimum, None);
     }
 
-    pub fn set_maximum_size_later(&mut self, figure: FigureId, size: (f64, f64)) {
+    pub fn set_maximum_size_later(&mut self, figure: FigureId, size: Dimension) {
         MutationContext::set_size_override_later(
             self,
             figure,
@@ -453,12 +453,12 @@ impl<'a> SceneDispatchContext<'a> {
             let Some(block) = self.scene.node(viewport_id) else {
                 return false;
             };
-            let (top, left, _, _) = block.state().insets();
+            let insets = block.state().insets();
             let Some(transform) = self.scene.surface_to_local_transform(viewport_id) else {
                 return false;
             };
             let point = transform.transform_point(event.entry_point());
-            Point::new(point.x() - left, point.y() - top)
+            Point::new(point.x() - insets.left, point.y() - insets.top)
         };
         let mut zoom_manager = ZoomManager::new(scalable, viewport);
         zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));

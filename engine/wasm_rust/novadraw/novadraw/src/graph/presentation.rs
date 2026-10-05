@@ -471,12 +471,12 @@ impl FigureTree {
         });
         if metrics.is_some_and(|(insets, preferred)| {
             [
-                insets.0,
-                insets.1,
-                insets.2,
-                insets.3,
-                preferred.0,
-                preferred.1,
+                insets.top,
+                insets.left,
+                insets.bottom,
+                insets.right,
+                preferred.width,
+                preferred.height,
             ]
             .into_iter()
             .any(|value| !value.is_finite() || value < 0.0)

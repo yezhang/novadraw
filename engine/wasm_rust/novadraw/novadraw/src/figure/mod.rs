@@ -57,7 +57,7 @@ pub use widget::{
 use std::{any::Any, sync::Arc};
 
 use crate::Color;
-use crate::geometry::{Affine2D, Dimension, Point, Rectangle, Translatable};
+use crate::geometry::{Affine2D, Dimension, Insets, Point, Rectangle, Translatable};
 use crate::render::NdCanvas;
 use crate::render::command::{LineCap, LineJoin};
 
@@ -208,8 +208,8 @@ pub trait Bounded {
     }
 
     /// 获取内边距 (top, left, bottom, right)
-    fn insets(&self) -> (f64, f64, f64, f64) {
-        (0.0, 0.0, 0.0, 0.0)
+    fn insets(&self) -> Insets {
+        Insets::ZERO
     }
 
     /// 当前 Figure 提供的 `child content -> node local` 坐标变换。
@@ -241,19 +241,19 @@ pub trait Bounded {
     /// 返回值位于 node local domain。
     fn client_area(&self) -> Rectangle {
         let b = self.bounds();
-        let (top, left, bottom, right) = self.insets();
-        let width = b.width - left - right;
-        let height = b.height - top - bottom;
-        Rectangle::new(left, top, width, height)
+        let insets = self.insets();
+        let width = b.width - insets.left - insets.right;
+        let height = b.height - insets.top - insets.bottom;
+        Rectangle::new(insets.left, insets.top, width, height)
     }
 
     /// 获取首选大小
     ///
     /// 对应 draw2d: getPreferredSize()
     /// 默认返回 bounds 的尺寸
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         let b = self.bounds();
-        (b.width, b.height)
+        Dimension::new(b.width, b.height)
     }
 
     /// Converts parent constraints into this Figure's unscaled layout domain.
@@ -270,7 +270,7 @@ pub trait Bounded {
     ///
     /// 对应 draw2d: getMinimumSize()
     /// 默认返回首选大小
-    fn minimum_size(&self) -> (f64, f64) {
+    fn minimum_size(&self) -> Dimension {
         self.preferred_size()
     }
 
@@ -283,8 +283,8 @@ pub trait Bounded {
     ///
     /// 对应 draw2d: getMaximumSize()
     /// 默认不限制布局增长，对齐 Draw2D Figure.MAX_DIMENSION。
-    fn maximum_size(&self) -> (f64, f64) {
-        (DEFAULT_MAXIMUM_DIMENSION, DEFAULT_MAXIMUM_DIMENSION)
+    fn maximum_size(&self) -> Dimension {
+        Dimension::new(DEFAULT_MAXIMUM_DIMENSION, DEFAULT_MAXIMUM_DIMENSION)
     }
 }
 
@@ -442,8 +442,8 @@ pub trait Figure: AsAny {
     fn name(&self) -> &'static str;
 
     /// Returns construction-time insets copied into NodeState on attach.
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
-        (0.0, 0.0, 0.0, 0.0)
+    fn initial_insets(&self) -> Insets {
+        Insets::ZERO
     }
 
     /// Returns construction-time local style copied into NodeState on attach.
@@ -487,16 +487,16 @@ pub trait Figure: AsAny {
     }
 
     /// 返回 Figure 的内在尺寸，供无 LayoutManager 时测量。
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         let bounds = self.initial_bounds();
         let Some(border) = self.get_border() else {
-            return (bounds.width, bounds.height);
+            return Dimension::new(bounds.width, bounds.height);
         };
-        let (top, left, bottom, right) = border.get_insets();
+        let insets = border.get_insets();
         let preferred = border.preferred_size();
-        (
-            (bounds.width + left + right).max(preferred.0),
-            (bounds.height + top + bottom).max(preferred.1),
+        Dimension::new(
+            (bounds.width + insets.width()).max(preferred.width),
+            (bounds.height + insets.height()).max(preferred.height),
         )
     }
 
@@ -504,41 +504,41 @@ pub trait Figure: AsAny {
     ///
     /// Figures with owner-dependent Borders and custom intrinsic measurement
     /// should override this together with `intrinsic_content_measurement`.
-    fn intrinsic_content_size(&self) -> (f64, f64) {
+    fn intrinsic_content_size(&self) -> Dimension {
         let bounds = self.initial_bounds();
-        (bounds.width, bounds.height)
+        Dimension::new(bounds.width, bounds.height)
     }
 
     fn intrinsic_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
-        let (width, height) = self.intrinsic_size();
-        FigureMeasurement::new(width, height, None)
+        let size = self.intrinsic_size();
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
     fn intrinsic_content_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
-        let (width, height) = self.intrinsic_content_size();
-        FigureMeasurement::new(width, height, None)
+        let size = self.intrinsic_content_size();
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
     /// Returns the Figure's intrinsic minimum size when no LayoutManager supplies one.
-    fn intrinsic_minimum_size(&self) -> (f64, f64) {
+    fn intrinsic_minimum_size(&self) -> Dimension {
         self.intrinsic_size()
     }
 
-    fn intrinsic_content_minimum_size(&self) -> (f64, f64) {
+    fn intrinsic_content_minimum_size(&self) -> Dimension {
         self.intrinsic_content_size()
     }
 
     fn intrinsic_minimum_measurement(&self, _constraints: MeasureConstraints) -> FigureMeasurement {
-        let (width, height) = self.intrinsic_minimum_size();
-        FigureMeasurement::new(width, height, None)
+        let size = self.intrinsic_minimum_size();
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
     fn intrinsic_content_minimum_measurement(
         &self,
         _constraints: MeasureConstraints,
     ) -> FigureMeasurement {
-        let (width, height) = self.intrinsic_content_minimum_size();
-        FigureMeasurement::new(width, height, None)
+        let size = self.intrinsic_content_minimum_size();
+        FigureMeasurement::new(size.width, size.height, None)
     }
 
     /// 在 NodeState 当前 border-box 中执行精确命中。

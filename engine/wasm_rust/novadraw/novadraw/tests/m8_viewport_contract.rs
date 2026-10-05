@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use novadraw::Color;
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
-use novadraw::geometry::{Affine2D, Point, Rectangle, Translatable};
+use novadraw::geometry::{Affine2D, Dimension, Point, Rectangle, Translatable};
 use novadraw::render::command::RenderCommandKind;
 use novadraw::{
     Bounded, DefaultRangeModel, Figure, FigureEventHandler, FigureTree, GesturePhase,
@@ -219,7 +219,7 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
         .unwrap();
     graph
         .builder()
-        .set_minimum_size(contents, Some((180.0, 120.0)))
+        .set_minimum_size(contents, Some(Dimension::new(180.0, 120.0)))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     runtime
@@ -355,7 +355,7 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     assert!(
         graph
             .builder()
-            .set_preferred_size(scalable.figure_id(), Some((500.0, 300.0)))
+            .set_preferred_size(scalable.figure_id(), Some(Dimension::new(500.0, 300.0)),)
             .expect("valid FigureTree construction")
     );
     let mut runtime = Runtime::new(graph);

@@ -3,7 +3,7 @@
 //! 绘制矩形边框。
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle, render_line_style};
@@ -19,8 +19,8 @@ pub struct RectangleBorder {
     pub width: f64,
     /// 边框样式
     pub style: BorderStyle,
-    /// 内边距 (top, left, bottom, right)
-    pub insets: (f64, f64, f64, f64),
+    /// 内边距
+    pub insets: Insets,
 }
 
 impl RectangleBorder {
@@ -34,7 +34,7 @@ impl RectangleBorder {
             color,
             width,
             style: BorderStyle::Solid,
-            insets: (width, width, width, width),
+            insets: Insets::uniform(width),
         }
     }
 
@@ -51,7 +51,7 @@ impl RectangleBorder {
                 .all(|value| value.is_finite() && value >= 0.0),
             "rectangle border insets must be finite and non-negative"
         );
-        self.insets = (top, left, bottom, right);
+        self.insets = Insets::new(top, left, bottom, right);
         self
     }
 
@@ -63,20 +63,15 @@ impl RectangleBorder {
 }
 
 impl Border for RectangleBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
+    fn get_insets(&self) -> Insets {
         self.insets
     }
 
     fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, (0.0, 0.0, 0.0, 0.0), gc);
+        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
     }
 
-    fn paint_with_insets(
-        &self,
-        figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
-        gc: &mut NdCanvas,
-    ) {
+    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
         let figure_bounds = inset_rectangle(figure_bounds, incoming);
         let half_width = self.width / 2.0;
         let x = figure_bounds.x + half_width;

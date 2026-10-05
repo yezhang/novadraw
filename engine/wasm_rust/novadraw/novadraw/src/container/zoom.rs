@@ -355,10 +355,10 @@ impl ZoomManager {
             let scalable_block = graph
                 .node(self.scalable.figure_id())
                 .ok_or(ZoomError::Scale(ScaleError::MissingFigure))?;
-            let (top, left, bottom, right) = scalable_block.state().insets();
+            let insets = scalable_block.state().insets();
             (
-                (preferred.width - left - right) / old_zoom,
-                (preferred.height - top - bottom) / old_zoom,
+                (preferred.width - insets.width()) / old_zoom,
+                (preferred.height - insets.height()) / old_zoom,
             )
         };
         if content_width <= 0.0

@@ -375,7 +375,7 @@ impl FigureEditor<'_> {
         self.runtime.remove_layout_constraint(self.figure)
     }
 
-    pub fn set_preferred_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+    pub fn set_preferred_size(&mut self, size: Dimension) -> Result<bool, RuntimeMutationError> {
         self.runtime.set_preferred_size(self.figure, size)
     }
 
@@ -383,7 +383,7 @@ impl FigureEditor<'_> {
         self.runtime.clear_preferred_size(self.figure)
     }
 
-    pub fn set_minimum_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+    pub fn set_minimum_size(&mut self, size: Dimension) -> Result<bool, RuntimeMutationError> {
         self.runtime.set_minimum_size(self.figure, size)
     }
 
@@ -391,7 +391,7 @@ impl FigureEditor<'_> {
         self.runtime.clear_minimum_size(self.figure)
     }
 
-    pub fn set_maximum_size(&mut self, size: (f64, f64)) -> Result<bool, RuntimeMutationError> {
+    pub fn set_maximum_size(&mut self, size: Dimension) -> Result<bool, RuntimeMutationError> {
         self.runtime.set_maximum_size(self.figure, size)
     }
 
@@ -2221,7 +2221,7 @@ impl Runtime {
     pub(crate) fn set_preferred_size(
         &mut self,
         figure: FigureId,
-        size: (f64, f64),
+        size: Dimension,
     ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Preferred, Some(size))
     }
@@ -2236,7 +2236,7 @@ impl Runtime {
     pub(crate) fn set_minimum_size(
         &mut self,
         figure: FigureId,
-        size: (f64, f64),
+        size: Dimension,
     ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Minimum, Some(size))
     }
@@ -2251,7 +2251,7 @@ impl Runtime {
     pub(crate) fn set_maximum_size(
         &mut self,
         figure: FigureId,
-        size: (f64, f64),
+        size: Dimension,
     ) -> Result<bool, RuntimeMutationError> {
         self.set_size_override(figure, SizeOverrideKind::Maximum, Some(size))
     }
@@ -2267,7 +2267,7 @@ impl Runtime {
         &mut self,
         figure: FigureId,
         kind: SizeOverrideKind,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Result<bool, RuntimeMutationError> {
         self.guarded_runtime_mutation(|runtime| runtime.set_size_override_inner(figure, kind, size))
     }
@@ -2276,11 +2276,14 @@ impl Runtime {
         &mut self,
         figure: FigureId,
         kind: SizeOverrideKind,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Result<bool, RuntimeMutationError> {
         self.validate_attached_figure(figure)?;
         if let Some(size) = size
-            && (!size.0.is_finite() || !size.1.is_finite() || size.0 < 0.0 || size.1 < 0.0)
+            && (!size.width.is_finite()
+                || !size.height.is_finite()
+                || size.width < 0.0
+                || size.height < 0.0)
         {
             return Err(RuntimeMutationError::InvalidSize { figure, size });
         }
@@ -5648,7 +5651,9 @@ mod adr014_tests {
         assert_eq!(tree.depth(deepest), Some(crate::MAX_TREE_DEPTH));
 
         let mut runtime = Runtime::new(tree);
-        runtime.set_preferred_size(deepest, (2.0, 2.0)).unwrap();
+        runtime
+            .set_preferred_size(deepest, Dimension::new(2.0, 2.0))
+            .unwrap();
         let initial = runtime
             .prepare_frame()
             .expect("deep tree validation and render must complete");

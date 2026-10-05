@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use crate::geometry::{Dimension, Rectangle};
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use crate::figure::{
@@ -58,8 +58,8 @@ impl ScaleRuntime {
         }
     }
 
-    fn unscaled_preferred_size(&self) -> (f64, f64) {
-        (
+    fn unscaled_preferred_size(&self) -> Dimension {
+        Dimension::new(
             self.unscaled_preferred_width,
             self.unscaled_preferred_height,
         )
@@ -73,8 +73,8 @@ impl ScaleRuntime {
             return Ok(None);
         }
         let old_scale = self.scale;
-        let (width, height) = self.unscaled_preferred_size();
-        let (width, height) = (width * scale, height * scale);
+        let size = self.unscaled_preferred_size();
+        let (width, height) = (size.width * scale, size.height * scale);
         if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
             return Err(ScaleError::InvalidScale);
         }
@@ -181,12 +181,12 @@ impl ScalableLayeredPaneFigure {
         self
     }
 
-    fn project_layout_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_layout_size(&self, size: Dimension) -> Dimension {
         let scale = self.scale();
-        let (top, left, bottom, right) = self.insets();
-        (
-            (size.0 - left - right).max(0.0) * scale + left + right,
-            (size.1 - top - bottom).max(0.0) * scale + top + bottom,
+        let insets = self.insets();
+        Dimension::new(
+            (size.width - insets.width()).max(0.0) * scale + insets.width(),
+            (size.height - insets.height()).max(0.0) * scale + insets.height(),
         )
     }
 }
@@ -204,7 +204,7 @@ impl Bounded for ScalableLayeredPaneFigure {
         "ScalableLayeredPaneFigure"
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
         self.project_layout_size(size)
     }
@@ -219,11 +219,11 @@ impl Bounded for ScalableLayeredPaneFigure {
     }
 
     fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
-        let size = self.project_layout_size(measurement.size().into());
-        let (top, _, _, _) = self.insets();
+        let size = self.project_layout_size(measurement.size());
+        let top = self.insets().top;
         FigureMeasurement::new(
-            size.0,
-            size.1,
+            size.width,
+            size.height,
             measurement
                 .baseline
                 .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
@@ -231,7 +231,7 @@ impl Bounded for ScalableLayeredPaneFigure {
     }
 
     fn project_minimum_size(&self, size: Dimension) -> Dimension {
-        self.project_layout_size(size.into()).into()
+        self.project_layout_size(size)
     }
 
     fn child_transform(&self) -> ChildTransform {
@@ -243,20 +243,20 @@ impl Bounded for ScalableLayeredPaneFigure {
         self.child_clipping_strategy
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.border
             .as_ref()
             .map(|border| border.get_insets())
-            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+            .unwrap_or(Insets::ZERO)
     }
 
     fn client_area(&self) -> Rectangle {
-        let (top, left, bottom, right) = self.insets();
+        let insets = self.insets();
         Rectangle::new(
-            left,
-            top,
-            (self.bounds.width - left - right).max(0.0),
-            (self.bounds.height - top - bottom).max(0.0),
+            insets.left,
+            insets.top,
+            (self.bounds.width - insets.width()).max(0.0),
+            (self.bounds.height - insets.height()).max(0.0),
         )
     }
 }
@@ -270,11 +270,11 @@ impl Figure for ScalableLayeredPaneFigure {
         "ScalableLayeredPaneFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         Bounded::preferred_size(self)
     }
 
@@ -354,12 +354,12 @@ impl ScalableFreeformLayeredPane {
         self
     }
 
-    fn project_layout_size(&self, size: (f64, f64)) -> (f64, f64) {
+    fn project_layout_size(&self, size: Dimension) -> Dimension {
         let scale = self.scale();
-        let (top, left, bottom, right) = self.insets();
-        (
-            (size.0 - left - right).max(0.0) * scale + left + right,
-            (size.1 - top - bottom).max(0.0) * scale + top + bottom,
+        let insets = self.insets();
+        Dimension::new(
+            (size.width - insets.width()).max(0.0) * scale + insets.width(),
+            (size.height - insets.height()).max(0.0) * scale + insets.height(),
         )
     }
 }
@@ -377,7 +377,7 @@ impl Bounded for ScalableFreeformLayeredPane {
         "ScalableFreeformLayeredPane"
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
+    fn preferred_size(&self) -> Dimension {
         let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
         self.project_layout_size(size)
     }
@@ -392,11 +392,11 @@ impl Bounded for ScalableFreeformLayeredPane {
     }
 
     fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
-        let size = self.project_layout_size(measurement.size().into());
-        let (top, _, _, _) = self.insets();
+        let size = self.project_layout_size(measurement.size());
+        let top = self.insets().top;
         FigureMeasurement::new(
-            size.0,
-            size.1,
+            size.width,
+            size.height,
             measurement
                 .baseline
                 .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
@@ -404,7 +404,7 @@ impl Bounded for ScalableFreeformLayeredPane {
     }
 
     fn project_minimum_size(&self, size: Dimension) -> Dimension {
-        self.project_layout_size(size.into()).into()
+        self.project_layout_size(size)
     }
 
     fn child_transform(&self) -> ChildTransform {
@@ -419,20 +419,20 @@ impl Bounded for ScalableFreeformLayeredPane {
         ChildPolicy::Layered
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.border
             .as_ref()
             .map(|border| border.get_insets())
-            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+            .unwrap_or(Insets::ZERO)
     }
 
     fn client_area(&self) -> Rectangle {
-        let (top, left, bottom, right) = self.insets();
+        let insets = self.insets();
         Rectangle::new(
-            left,
-            top,
-            (self.bounds.width - left - right).max(0.0),
-            (self.bounds.height - top - bottom).max(0.0),
+            insets.left,
+            insets.top,
+            (self.bounds.width - insets.width()).max(0.0),
+            (self.bounds.height - insets.height()).max(0.0),
         )
     }
 }
@@ -446,11 +446,11 @@ impl Figure for ScalableFreeformLayeredPane {
         "ScalableFreeformLayeredPane"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 
-    fn intrinsic_size(&self) -> (f64, f64) {
+    fn intrinsic_size(&self) -> Dimension {
         Bounded::preferred_size(self)
     }
 

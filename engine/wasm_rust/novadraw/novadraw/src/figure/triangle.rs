@@ -27,7 +27,7 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::NdCanvas;
 
 use super::{
@@ -228,12 +228,12 @@ impl TriangleFigure {
     /// 2. 主尖角完整，不被裁剪（在收缩后的边界内，考虑描边向外扩展）
     /// 3. 底部两角的裁剪由渲染器的 line join 行为自然产生
     fn compute_points(&self) -> [(f64, f64); 3] {
-        let (top, left, bottom, right) = Bounded::insets(self);
+        let insets = Bounded::insets(self);
         let mut r = Rectangle::new(
-            left,
-            top,
-            (self.bounds.width - left - right).max(0.0),
-            (self.bounds.height - top - bottom).max(0.0),
+            insets.left,
+            insets.top,
+            (self.bounds.width - insets.width()).max(0.0),
+            (self.bounds.height - insets.height()).max(0.0),
         );
 
         if r.width <= 0.0 || r.height <= 0.0 {
@@ -354,11 +354,11 @@ impl Bounded for TriangleFigure {
         self.child_clipping_strategy
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.border
             .as_ref()
             .map(|border| border.get_insets())
-            .unwrap_or((0.0, 0.0, 0.0, 0.0))
+            .unwrap_or(Insets::ZERO)
     }
 }
 
@@ -391,7 +391,7 @@ impl Figure for TriangleFigure {
         "TriangleFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 

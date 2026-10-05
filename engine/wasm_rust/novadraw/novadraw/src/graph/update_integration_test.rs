@@ -591,9 +591,9 @@ fn test_explicit_size_overrides_take_precedence() {
     assert!(maximum.width > 30.0);
     assert!(maximum.height > 40.0);
 
-    assert!(scene.set_preferred_size(block, Some((50.0, 60.0))));
-    assert!(scene.set_minimum_size(block, Some((10.0, 20.0))));
-    assert!(scene.set_maximum_size(block, Some((100.0, 120.0))));
+    assert!(scene.set_preferred_size(block, Some(Dimension::new(50.0, 60.0))));
+    assert!(scene.set_minimum_size(block, Some(Dimension::new(10.0, 20.0))));
+    assert!(scene.set_maximum_size(block, Some(Dimension::new(100.0, 120.0))));
     assert_eq!(
         scene
             .preferred_measurement(block, MeasureConstraints::UNBOUNDED)

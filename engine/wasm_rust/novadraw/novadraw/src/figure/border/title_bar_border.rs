@@ -1,5 +1,5 @@
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Insets, Rectangle};
 use crate::render::{
     FontDescriptor, NdCanvas, TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
@@ -14,8 +14,8 @@ const DEFAULT_VERTICAL_PADDING: f64 = 4.0;
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct TitleBarMetrics {
     pub(crate) layout: TextLayout,
-    pub(crate) insets: (f64, f64, f64, f64),
-    pub(crate) preferred: (f64, f64),
+    pub(crate) insets: Insets,
+    pub(crate) preferred: Dimension,
 }
 
 /// Immutable TitleBarBorder configuration.
@@ -59,13 +59,13 @@ impl TitleBarBorder {
     }
 
     pub(crate) fn measure(&self, layout: TextLayout) -> TitleBarMetrics {
-        let preferred = (
+        let preferred = Dimension::new(
             layout.width() as f64 + self.horizontal_padding * 2.0,
             layout.height() as f64 + self.vertical_padding * 2.0,
         );
         TitleBarMetrics {
             layout,
-            insets: (preferred.1, 0.0, 0.0, 0.0),
+            insets: Insets::new(preferred.height, 0.0, 0.0, 0.0),
             preferred,
         }
     }
@@ -77,7 +77,7 @@ impl TitleBarBorder {
         gc: &mut NdCanvas,
     ) {
         let layout = &metrics.layout;
-        let height = metrics.insets.0.min(figure_bounds.height);
+        let height = metrics.insets.top.min(figure_bounds.height);
         gc.push_state();
         gc.set_background_color(self.background);
         gc.fill_rectangle(
@@ -116,8 +116,8 @@ impl TitleBarBorder {
 }
 
 impl Border for TitleBarBorder {
-    fn get_insets(&self) -> (f64, f64, f64, f64) {
-        (0.0, 0.0, 0.0, 0.0)
+    fn get_insets(&self) -> Insets {
+        Insets::ZERO
     }
 
     fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {}
@@ -125,7 +125,7 @@ impl Border for TitleBarBorder {
     fn paint_snapshot_with_insets(
         &self,
         figure_bounds: Rectangle,
-        incoming: (f64, f64, f64, f64),
+        incoming: Insets,
         snapshot: &BorderSnapshot,
         gc: &mut NdCanvas,
     ) {
@@ -160,8 +160,8 @@ impl Border for TitleBarBorder {
         true
     }
 
-    fn preferred_size(&self) -> (f64, f64) {
-        (0.0, 0.0)
+    fn preferred_size(&self) -> Dimension {
+        Dimension::ZERO
     }
 
     fn is_opaque(&self) -> bool {

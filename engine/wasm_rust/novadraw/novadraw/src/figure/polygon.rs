@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::Rectangle;
+use crate::geometry::{Insets, Rectangle};
 use crate::render::{NdCanvas, StrokeStyle, command::LineJoin};
 
 use super::{
@@ -98,7 +98,7 @@ impl Bounded for PolygonFigure {
         Bounded::child_clipping_strategy(&self.polyline)
     }
 
-    fn insets(&self) -> (f64, f64, f64, f64) {
+    fn insets(&self) -> Insets {
         self.polyline.insets()
     }
 
@@ -116,7 +116,7 @@ impl Figure for PolygonFigure {
         "PolygonFigure"
     }
 
-    fn initial_insets(&self) -> (f64, f64, f64, f64) {
+    fn initial_insets(&self) -> Insets {
         Bounded::insets(self)
     }
 

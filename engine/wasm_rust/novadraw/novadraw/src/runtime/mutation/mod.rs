@@ -1,7 +1,7 @@
 use std::{collections::VecDeque, error::Error, fmt};
 
 use crate::connection::ConnectionRuntimeError;
-use crate::geometry::Rectangle;
+use crate::geometry::{Dimension, Rectangle};
 use crate::{
     ChildClippingStrategy, Figure, FigureId, GraphMutationError, LayerKey, LayerPlacement,
     LayoutConstraint, LayoutError, LayoutManager,
@@ -164,7 +164,7 @@ pub enum RuntimeMutationError {
     },
     InvalidSize {
         figure: FigureId,
-        size: (f64, f64),
+        size: Dimension,
     },
     InvalidBounds {
         figure: FigureId,
@@ -348,7 +348,7 @@ pub(crate) enum PendingMutationKind {
     SetSizeOverride {
         figure: FigureId,
         kind: SizeOverrideKind,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     },
     MoveChildToIndex {
         parent: FigureId,
@@ -437,7 +437,7 @@ impl PendingMutation {
     pub(crate) fn set_size_override(
         figure: FigureId,
         kind: SizeOverrideKind,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) -> Self {
         Self {
             kind: PendingMutationKind::SetSizeOverride { figure, kind, size },
@@ -602,7 +602,7 @@ pub(crate) trait MutationContext {
         &mut self,
         figure: FigureId,
         kind: SizeOverrideKind,
-        size: Option<(f64, f64)>,
+        size: Option<Dimension>,
     ) {
         self.enqueue_mutation(PendingMutation::set_size_override(figure, kind, size));
     }

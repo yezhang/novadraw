@@ -7,9 +7,9 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use novadraw::container::ZoomManager;
 use novadraw::render::BuiltinFont;
 use novadraw::{
-    ChopboxAnchor, Color, ConnectionFigure, ConnectionId, CoordinateSpace, DirectRouter, FanRouter,
-    FigureId, FigureStyle, FigureTree, FlowPage, LabelFigure, Rectangle, RectangleFigure,
-    RouterBinding, Runtime, TextFlowFigure,
+    ChopboxAnchor, Color, ConnectionFigure, ConnectionId, CoordinateSpace, Dimension, DirectRouter,
+    FanRouter, FigureId, FigureStyle, FigureTree, FlowPage, LabelFigure, Rectangle,
+    RectangleFigure, RouterBinding, Runtime, TextFlowFigure,
 };
 use serde::{Deserialize, Serialize};
 
@@ -448,7 +448,7 @@ fn benchmark_deep_tree_validate(cli: &Cli, depth: usize) -> ScenarioReport {
             alternate = !alternate;
             let size = if alternate { 2.0 } else { 3.0 };
             tree.builder()
-                .set_preferred_size(*leaf, Some((size, size)))
+                .set_preferred_size(*leaf, Some(Dimension::new(size, size)))
                 .expect("valid FigureTree construction");
             tree.builder()
                 .validate_subtree(*root)
