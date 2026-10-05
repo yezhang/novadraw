@@ -16,6 +16,7 @@ framework 使用 `G0-G5`；原 G6 产品毕业范围已移交独立产品包。�
 | `doc/roadmap/demo-matrix.md` | **验证视图**：每个 milestone 配套的 demo 名称、覆盖范围、截图/帧率断言策略 | 人读，启动期定稿 | 启动期一次，后续微调 |
 | `doc/roadmap/editor/00-index.md` | **Editor 路线图**：G0-G5 引擎里程碑与下游产品边界 | 人读，Editor 里程碑唯一入口 | 每个 milestone 状态变化时 |
 | `doc/roadmap/p2-delta-backlog.md` | **P2 delta**：Core 1.0 之后已确认能力的统一状态 | 人读，后续能力入口 | 每项状态变化时 |
+| `doc/roadmap/draw2d-capability-enrichment-plan-2026-10-05.md` | **能力丰富度规划**：动画与表现平面、图布局、内置组件、概览和输出能力的价值分组与建议顺序 | 人读，不维护 delta 状态 | 能力优先级或分组变化时 |
 | `doc/roadmap/platform-support-matrix.md` | **平台支持**：Web/macOS/Windows/Linux 的证据等级 | 人读，平台声明唯一入口 | 平台证据变化时 |
 | `doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` | **目标整改**：GA-0 至 GA-6 状态与毕业条件 | 人读，当前整改入口 | 每个 GA 阶段变化时 |
 
@@ -73,6 +74,9 @@ scope、历史事件、串行 session handoff、递归性能和最终回归门�
 保留未完成状态，不阻塞平台无关核心开发。原 G6 的产品 schema、
 serializer 和产品级 Native/Web 场景由独立产品包负责；已完成的 D0-D4、M8/M9 与
 R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作为当前工作入口。
+Core 机制之后的动画与表现平面、图布局、内置组件、Thumbnail、打印和平台能力建议顺序见
+[`Draw2D 内置能力丰富度补齐计划`](draw2d-capability-enrichment-plan-2026-10-05.md)；
+具体执行状态仍只由 P2 backlog 与平台支持矩阵维护。
 
 `D0-D4` 是跨 milestone 的 architecture delta，不是新的 milestone 编号。它们负责
 消除会被 M9/M10 放大的公共协议缺口；M1-M10 的状态仍只在本文维护。
@@ -102,5 +106,6 @@ R8/R9 执行计划保留在 [`../archive/`](../archive/00-index.md)，不再作�
 | `editor/00-index.md` | Editor G0-G5 编号、状态和验收检查点 |
 | `editor/implementation-plan.md` | Editor 各阶段实施边界和毕业条件 |
 | `p2-delta-backlog.md` | 已确认但尚未进入实施的 P2 delta |
+| `draw2d-capability-enrichment-plan-2026-10-05.md` | Draw2D 内置能力丰富度分组、优先级与建议执行顺序 |
 | `platform-support-matrix.md` | 平台支持等级、环境边界和证据缺口 |
 | `goal-alignment-adjustment-plan-2026-09-30.md` | GA-0 至 GA-6 整改状态 |

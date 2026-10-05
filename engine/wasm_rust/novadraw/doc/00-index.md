@@ -17,6 +17,9 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   Kurbo 版本与渲染依赖门禁。
 - Core P2 delta：P2-R02 image source rectangle 已完成，状态见
   [`roadmap/p2-delta-backlog.md`](roadmap/p2-delta-backlog.md)。
+- Draw2D Core 之后的动画与表现平面、图布局、内置组件、概览和输出能力建议顺序见
+  [`roadmap/draw2d-capability-enrichment-plan-2026-10-05.md`](roadmap/draw2d-capability-enrichment-plan-2026-10-05.md)；
+  该计划不替代 P2 backlog 的状态真源。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
