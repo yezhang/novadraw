@@ -216,6 +216,7 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
             },
             BackendCapabilities::RETAINED_PARTIAL,
         )
+        .into_ready()
         .unwrap();
     assert!(runtime.complete_submission(
         baseline.session_id,

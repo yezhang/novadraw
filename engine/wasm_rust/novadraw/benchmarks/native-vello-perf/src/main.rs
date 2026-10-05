@@ -8,7 +8,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use std::thread;
 
 use novadraw::{
-    Color, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree,
+    Color, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree, FramePreparation,
     PreparedFigureUpdate, RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
 };
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
@@ -246,9 +246,15 @@ impl NativeVelloBenchmark {
         runtime.request_full_redraw();
         let frame_start = Instant::now();
         let prepare_start = Instant::now();
-        let Some(submission) = runtime.prepare_submission(surface, renderer.capabilities()) else {
-            window.request_redraw();
-            return;
+        let submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(error) => panic!("benchmark frame preparation failed: {error}"),
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => {
+                window.request_redraw();
+                return;
+            }
         };
         let prepare_submission_ns = duration_ns(prepare_start.elapsed());
         let command_count = submission.commands.len();
@@ -475,6 +481,7 @@ impl NativeVelloBenchmark {
         let surface = surface_info(window);
         let submission = runtime
             .prepare_submission(surface, renderer.capabilities())
+            .into_ready()
             .expect("input marker update must prepare a submission");
         let session_id = submission.session_id;
         let frame_id = submission.frame_id;

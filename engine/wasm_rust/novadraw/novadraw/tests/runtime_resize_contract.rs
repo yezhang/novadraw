@@ -14,6 +14,7 @@ fn surface(width: u32, height: u32) -> SurfaceInfo {
 fn complete_frame(runtime: &mut Runtime, surface: SurfaceInfo) {
     let submission = runtime
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .expect("resize must produce a frame");
     assert_eq!(submission.damage.mode(), DamageMode::Full);
     assert!(runtime.complete_submission(
@@ -55,11 +56,10 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
     );
 
     assert!(!runtime.resize_logical_viewport(640.0, 480.0).unwrap());
-    assert!(
-        runtime
-            .prepare_submission(surface(640, 480), BackendCapabilities::RETAINED_PARTIAL)
-            .is_none()
-    );
+    assert!(matches!(
+        runtime.prepare_submission(surface(640, 480), BackendCapabilities::RETAINED_PARTIAL),
+        novadraw::FramePreparation::Idle
+    ));
 }
 
 #[test]

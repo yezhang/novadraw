@@ -41,7 +41,7 @@ fn main() {
         logical_width: 100.0, logical_height: 100.0,
         pixel_width: 100, pixel_height: 100, scale_factor: 1.0,
     };
-    let frame = runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL);
+    let frame = runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL);
     println!("initial_submission_ready={} paint_calls={}",
         matches!(frame, novadraw::runtime::FramePreparation::Ready(_)), paints.get());
 }

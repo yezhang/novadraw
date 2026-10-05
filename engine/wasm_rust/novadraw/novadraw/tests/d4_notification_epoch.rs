@@ -78,6 +78,7 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         baseline.session_id,
@@ -117,6 +118,7 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     let stable = runtime.stable_query().unwrap();
     assert!(stable.epoch() > baseline_epoch);
@@ -174,7 +176,7 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         }) if latest_stable_epoch == previous_epoch
     ));
     assert!(matches!(
-        runtime.prepare_submission_state(surface(), BackendCapabilities::RETAINED_PARTIAL),
+        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
         novadraw::FramePreparation::Idle
     ));
     let stable_epoch = runtime.stable_query().unwrap().epoch();

@@ -20,7 +20,9 @@ use novadraw::render::submission::{BackendSessionDecision, BackendSessionGate};
 use novadraw::render::{
     BackendCapabilities, DamageMode, RenderOutcome, RenderSubmission, SurfaceInfo,
 };
-use novadraw::{Color, Figure, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime};
+use novadraw::{
+    Color, Figure, FramePreparation, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime,
+};
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_example_scenes::{
     DemoSuite, SceneSpec, ValidationKind, catalog,
@@ -833,13 +835,27 @@ impl WebValidationApp {
             self.sync_platform_effects();
             return;
         }
-        let Some(submission) = self
+        let preparation = self
             .runtime
-            .prepare_submission(self.host.surface_info(), self.backend.capabilities())
-        else {
-            self.sync_platform_effects();
-            self.update_status(DamageMode::None);
-            return;
+            .prepare_submission(self.host.surface_info(), self.backend.capabilities());
+        let submission = match preparation {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(error) => {
+                set_text(
+                    &self.document,
+                    "runtime-status",
+                    &format!("Frame preparation failed: {error}"),
+                );
+                self.sync_platform_effects();
+                return;
+            }
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => {
+                self.sync_platform_effects();
+                self.update_status(DamageMode::None);
+                return;
+            }
         };
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);

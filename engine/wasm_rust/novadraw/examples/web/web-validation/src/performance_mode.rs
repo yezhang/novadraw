@@ -5,7 +5,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use novadraw::render::submission::{BackendSessionId, FrameId};
 use novadraw::{
-    Color, FigureTree, RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
+    Color, FigureTree, FramePreparation, RectangleFigure, RenderBackend, RenderOutcome, Runtime,
+    SurfaceInfo,
 };
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
@@ -203,10 +204,28 @@ impl PerformanceBenchmark {
         self.runtime.request_full_redraw();
         let frame_started_at_ms = browser_now(&self.window)?;
         let prepare_started_at_ms = browser_now(&self.window)?;
-        let submission = self
+        let preparation = self
             .runtime
-            .prepare_submission(surface_info(), self.backend.capabilities())
-            .ok_or_else(|| JsValue::from_str("performance frame produced no submission"))?;
+            .prepare_submission(surface_info(), self.backend.capabilities());
+        let submission = match preparation {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(error) => {
+                return Err(JsValue::from_str(&format!(
+                    "performance frame preparation failed: {error}"
+                )));
+            }
+            FramePreparation::Idle => {
+                return Err(JsValue::from_str("performance frame was idle"));
+            }
+            FramePreparation::Suspended => {
+                return Err(JsValue::from_str("performance surface was suspended"));
+            }
+            FramePreparation::AwaitingCompletion => {
+                return Err(JsValue::from_str(
+                    "performance frame awaited prior completion",
+                ));
+            }
+        };
         let prepare_finished_at_ms = browser_now(&self.window)?;
         let prepare_submission_ns = duration_ns(prepare_started_at_ms, prepare_finished_at_ms)?;
         let session_id = submission.session_id;

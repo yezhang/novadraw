@@ -2,8 +2,8 @@ use super::{
     BackendCapabilities, BackendSessionId, ConnectionRuntimeError, ConnectionStateSnapshot,
     CoordinateSpace, DERIVED_STATE_FEEDBACK_LIMIT, DERIVED_WORK_KIND_COUNT, DamageMode,
     DerivedWorkKind, DerivedWorkSet, FigureTreeSceneRead, FrameId, FramePreparation,
-    FramePreparationError, InFlightFrame, NdCanvas, RenderOutcome, RenderSubmission, ResourceSync,
-    Runtime, SurfaceInfo, UpdateEvent,
+    FramePreparationError, InFlightFrame, NdCanvas, RenderOutcome, ResourceSync, Runtime,
+    SurfaceInfo, UpdateEvent,
 };
 
 impl Runtime {
@@ -182,28 +182,14 @@ impl Runtime {
         &mut self,
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
-    ) -> Option<RenderSubmission> {
-        match self.prepare_submission_state(surface, capabilities) {
-            FramePreparation::Ready(submission) => Some(submission),
-            FramePreparation::Idle
-            | FramePreparation::Suspended
-            | FramePreparation::AwaitingCompletion
-            | FramePreparation::Error(_) => None,
-        }
-    }
-
-    pub fn prepare_submission_state(
-        &mut self,
-        surface: SurfaceInfo,
-        capabilities: BackendCapabilities,
     ) -> FramePreparation {
         if self.faulted {
             return FramePreparation::Error(FramePreparationError::Faulted);
         }
-        self.guarded(|runtime| runtime.prepare_submission_state_inner(surface, capabilities))
+        self.guarded(|runtime| runtime.prepare_submission_inner(surface, capabilities))
     }
 
-    fn prepare_submission_state_inner(
+    fn prepare_submission_inner(
         &mut self,
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,

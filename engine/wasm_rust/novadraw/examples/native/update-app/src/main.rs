@@ -252,7 +252,8 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
 
     let first = runtime
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
-        .ok_or("initial submission was not prepared")?;
+        .into_ready()
+        .map_err(|state| format!("initial submission was not ready: {state:?}"))?;
     if first.damage.mode() != DamageMode::Full
         || !matches!(
             &first.resources,
@@ -269,7 +270,8 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
 
     let retry = runtime
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
-        .ok_or("retry submission was not prepared")?;
+        .into_ready()
+        .map_err(|state| format!("retry submission was not ready: {state:?}"))?;
     if retry.damage.mode() != DamageMode::Full
         || !matches!(
             &retry.resources,

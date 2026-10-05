@@ -411,18 +411,17 @@ fn rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_ret
     };
     let capabilities = BackendCapabilities::FULL_FRAME_ONLY.with_linear_gradients();
     assert!(matches!(
-        runtime.prepare_submission_state(surface, BackendCapabilities::FULL_FRAME_ONLY),
+        runtime.prepare_submission(surface, BackendCapabilities::FULL_FRAME_ONLY),
         FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(_))
     ));
     for _ in 0..2 {
         assert!(matches!(
-            runtime.prepare_submission_state(surface, capabilities),
+            runtime.prepare_submission(surface, capabilities),
             FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(_))
         ));
     }
     invalid.store(false, Ordering::Relaxed);
-    let FramePreparation::Ready(submission) =
-        runtime.prepare_submission_state(surface, capabilities)
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(surface, capabilities)
     else {
         panic!("corrected paint must be retriable")
     };

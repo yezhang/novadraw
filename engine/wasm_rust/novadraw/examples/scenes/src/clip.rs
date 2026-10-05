@@ -527,6 +527,7 @@ mod tests {
         runtime.resize_logical_viewport(600.0, 400.0).unwrap();
         runtime
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .expect("resize frame");
 
         assert_eq!(

@@ -13,7 +13,8 @@ pub use novadraw::render::command::RenderCommand;
 pub use novadraw::render::text::{FontDescriptor, TextConstraints};
 pub use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
 pub use novadraw::{
-    Color, FigureId, FigureTree, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime,
+    Color, FigureId, FigureTree, FramePreparation, NdCanvas, PlatformHost, Rectangle,
+    RenderBackend, Runtime,
 };
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
@@ -186,10 +187,18 @@ impl DemoApp {
             runtime.request_full_redraw();
         }
         let tooltip_commands = tooltip_overlay_commands(runtime, surface);
-        let submission = runtime.prepare_submission(surface, renderer.capabilities());
-        let Some(mut submission) = submission else {
-            self.sync_platform_effects();
-            return RenderOutcome::Skipped;
+        let mut submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(_) => {
+                self.sync_platform_effects();
+                return RenderOutcome::Retry;
+            }
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => {
+                self.sync_platform_effects();
+                return RenderOutcome::Skipped;
+            }
         };
         submission.commands.extend(tooltip_commands);
         let outcome = renderer.submit(&submission);
@@ -219,10 +228,18 @@ impl DemoApp {
             runtime.visible_tooltip().is_none() || !tooltip_commands.is_empty(),
             "a visible tooltip must lower to native overlay commands"
         );
-        let submission = runtime.prepare_submission(surface, renderer.capabilities());
-        let Some(mut submission) = submission else {
-            self.sync_platform_effects();
-            return RenderOutcome::Skipped;
+        let mut submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(_) => {
+                self.sync_platform_effects();
+                return RenderOutcome::Retry;
+            }
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => {
+                self.sync_platform_effects();
+                return RenderOutcome::Skipped;
+            }
         };
         submission.commands.extend(tooltip_commands);
         let outcome = renderer.render_for_screenshot(&submission);
@@ -1143,6 +1160,7 @@ mod tests {
                 },
                 BackendCapabilities::RETAINED_PARTIAL,
             )
+            .into_ready()
             .unwrap();
         assert!(runtime.complete_submission(
             submission.session_id,
@@ -1168,6 +1186,7 @@ mod tests {
         };
         let submission = runtime
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(!runtime.has_pending_update());
 
@@ -1180,6 +1199,7 @@ mod tests {
 
         let submission = runtime
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(runtime.complete_submission(
             submission.session_id,
@@ -1221,6 +1241,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(matches!(&first.resources, ResourceSync::Snapshot(_)));
         assert_eq!(
@@ -1234,6 +1255,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_ne!(
             first.session_id.runtime_namespace(),

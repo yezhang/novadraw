@@ -21,8 +21,7 @@ fn surface() -> SurfaceInfo {
 }
 
 fn stabilize(runtime: &mut Runtime) {
-    let preparation =
-        runtime.prepare_submission_state(surface(), BackendCapabilities::RETAINED_PARTIAL);
+    let preparation = runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
     let FramePreparation::Ready(submission) = preparation else {
         panic!("fixture preparation: {preparation:?}");
     };

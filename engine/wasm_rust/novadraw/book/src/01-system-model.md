@@ -104,8 +104,8 @@ flowchart TD
     end
 
     subgraph Stabilize["3. 帧准备与派生状态收敛"]
-        Redraw --> Prepare[Runtime.prepare_submission_state]
-        Prepare -->|Suspended / AwaitingCompletion / Error| NotReady[本轮不产生提交包]
+        Redraw --> Prepare[Runtime.prepare_submission]
+        Prepare -->|Idle / Suspended / AwaitingCompletion / Error| NotReady[本轮不产生提交包]
         Prepare --> Mutations[应用待处理结构修改]
         Mutations --> Worklist[DerivedWorkKind 固定优先级工作列表]
         Worklist --> Metrics[内在尺寸与资源状态]
@@ -200,7 +200,7 @@ sequenceDiagram
     end
 
     Runtime-->>Host: PlatformHost.request_redraw
-    Host->>Runtime: prepare_submission_state(surface, capabilities)
+    Host->>Runtime: prepare_submission(surface, capabilities)
 
     alt 表面暂停、前帧未完成或准备失败
         Runtime-->>Host: Suspended / AwaitingCompletion / Error
@@ -287,7 +287,7 @@ sequenceDiagram
 - 平台帧循环与后端提交：
   [`novadraw-example-support/src/app.rs`](../../examples/support/src/app.rs)
 - 帧准备、派生状态收敛与完成反馈：
-  [`Runtime::prepare_submission_state / stabilize / complete_submission`](../../novadraw/src/runtime/runtime.rs)
+  [`Runtime::prepare_submission / stabilize / complete_submission`](../../novadraw/src/runtime/runtime.rs)
 - 图形树递归命令录制：
   [`render_recursive.rs`](../../novadraw/src/graph/render_recursive.rs)
 - 渲染提交包与后端接口：

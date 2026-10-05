@@ -496,6 +496,7 @@ fn external_figure_prepares_and_paints_through_phase_limited_contexts() {
             },
             BackendCapabilities::RETAINED_PARTIAL,
         )
+        .into_ready()
         .unwrap();
     assert!(
         runtime

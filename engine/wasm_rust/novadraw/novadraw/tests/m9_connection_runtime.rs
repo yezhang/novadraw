@@ -676,6 +676,7 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
     assert!(runtime.has_pending_update());
     let initial = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .expect("dirty route must schedule a frame");
     runtime.complete_submission(
         initial.session_id,
@@ -699,6 +700,7 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
     assert!(runtime.has_pending_update());
     let moved = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .expect("owner geometry change must reroute in the same frame");
     runtime.complete_submission(moved.session_id, moved.frame_id, RenderOutcome::Presented);
     assert_ne!(

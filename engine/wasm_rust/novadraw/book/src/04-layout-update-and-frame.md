@@ -278,7 +278,7 @@ Partial { union, regions }
 
 ## 4.9 帧准备状态
 
-`Runtime::prepare_submission_state` 用明确状态表示当前能否产生一帧：
+`Runtime::prepare_submission` 用明确状态表示当前能否产生一帧：
 
 ```rust
 pub enum FramePreparation {
@@ -298,8 +298,7 @@ pub enum FramePreparation {
 | `AwaitingCompletion` | 等待前一帧完成，不能并发提交下一帧 |
 | `Error` | 记录并按错误类型恢复或停止 |
 
-`prepare_submission` 是只关心“是否有提交包”的便利入口；需要区分暂停、等待和错误的
-产品宿主应使用状态版本。
+宿主必须显式区分暂停、等待、无工作和错误，不能把它们统一折叠成“没有提交包”。
 
 ## 4.10 渲染提交与完成反馈
 
@@ -314,10 +313,12 @@ pub enum FramePreparation {
 宿主的概念流程：
 
 ```rust
-let Some(submission) =
-    runtime.prepare_submission(surface, backend.capabilities())
-else {
-    return;
+let submission = match runtime.prepare_submission(surface, backend.capabilities()) {
+    FramePreparation::Ready(submission) => submission,
+    FramePreparation::Idle => return,
+    FramePreparation::Suspended => return,
+    FramePreparation::AwaitingCompletion => return,
+    FramePreparation::Error(error) => return handle_frame_error(error),
 };
 
 let session_id = submission.session_id;

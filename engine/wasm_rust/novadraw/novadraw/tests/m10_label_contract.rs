@@ -138,6 +138,7 @@ fn label_uses_runtime_shaping_for_measurement_truncation_and_paint() {
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert!(
         submission
@@ -168,6 +169,7 @@ fn first_submission_shapes_label_after_parent_layout() {
 
     runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .expect("the stable first frame must be submitted");
 
     assert_eq!(
@@ -303,6 +305,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
     );
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert!(
         submission
@@ -370,6 +373,7 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
 
         let submission = runtime
             .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         let text = runtime.label_text_layout(label).unwrap();
         let text_origin = submission
@@ -432,6 +436,7 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
 
     assert!(runtime.tree().insets(root).unwrap().0 > 0.0);
@@ -502,6 +507,7 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
 
         let submission = runtime
             .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         let (top, left, bottom, right) = runtime.tree().insets(root).unwrap();
@@ -573,6 +579,7 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
 
     runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
 
     let root_top = runtime.tree().insets(root).unwrap().0;
@@ -605,6 +612,7 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
 
     let initial = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         initial.session_id,
@@ -627,6 +635,7 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .unwrap();
     let failed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         failed.session_id,
@@ -658,6 +667,7 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .unwrap();
     let recovered = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         recovered.session_id,
@@ -674,6 +684,7 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
     runtime.remove_resource(inter.resource_id()).unwrap();
     let removed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         removed.session_id,
@@ -725,6 +736,7 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
 
     let pending = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert!(
         pending
@@ -743,6 +755,7 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
         .unwrap();
     let ready = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert_eq!(
         runtime.image_display_state(figure),
@@ -765,6 +778,7 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
         .unwrap();
     let failed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert_eq!(
         runtime.image_display_state(figure),
@@ -811,6 +825,7 @@ fn removing_ready_image_clears_all_shared_figure_references() {
 
     let ready = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert_eq!(
         ready
@@ -829,6 +844,7 @@ fn removing_ready_image_clears_all_shared_figure_references() {
     runtime.remove_resource(image.resource_id()).unwrap();
     let removed = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
 
     assert_eq!(
@@ -859,7 +875,7 @@ fn removing_ready_image_clears_all_shared_figure_references() {
         novadraw::render::RenderOutcome::Presented
     ));
     assert!(matches!(
-        runtime.prepare_submission_state(surface(), BackendCapabilities::RETAINED_PARTIAL),
+        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
         novadraw::FramePreparation::Idle
     ));
 }

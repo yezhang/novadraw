@@ -584,6 +584,7 @@ mod tests {
                         .with_glyph_runs()
                         .with_image_resources(),
                 )
+                .into_ready()
                 .expect("text/image scene must produce a supported initial frame");
 
             assert!(!submission.commands.is_empty(), "empty scene: {}", scene.id);

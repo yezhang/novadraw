@@ -264,9 +264,8 @@ pub enum FramePreparation {
 }
 ```
 
-`prepare_submission -> Option<RenderSubmission>` 仅作为兼容入口；Host 需要诊断、
-调度或恢复决策时使用 `prepare_submission_state`，不能把 surface 暂停、等待 ack、
-无工作和稳定化失败都解释成 Idle。
+`prepare_submission -> FramePreparation` 是唯一规范入口。Host 必须区分 surface
+暂停、等待 ack、无工作和稳定化失败，不能将这些状态统一解释成 Idle。
 
 Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_capability`。
 永久缺失 GlyphRuns、ImageResources 或其他声明能力时返回

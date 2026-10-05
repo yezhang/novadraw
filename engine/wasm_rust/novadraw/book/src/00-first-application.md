@@ -234,10 +234,12 @@ fn redraw(
     backend: &mut impl RenderBackend,
     surface: novadraw::render::SurfaceInfo,
 ) {
-    let Some(submission) =
-        runtime.prepare_submission(surface, backend.capabilities())
-    else {
-        return;
+    let submission = match runtime.prepare_submission(surface, backend.capabilities()) {
+        FramePreparation::Ready(submission) => submission,
+        FramePreparation::Idle
+        | FramePreparation::Suspended
+        | FramePreparation::AwaitingCompletion => return,
+        FramePreparation::Error(error) => return handle_frame_error(error),
     };
 
     let session_id = submission.session_id;

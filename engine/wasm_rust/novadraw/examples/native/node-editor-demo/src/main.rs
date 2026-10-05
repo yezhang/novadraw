@@ -14,8 +14,9 @@ use novadraw::event::KeyModifiers;
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{RenderOutcome, SurfaceInfo};
 use novadraw::{
-    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, LabelFigure, MonotonicTime,
-    PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend, TextFlowFigure,
+    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FramePreparation, LabelFigure,
+    MonotonicTime, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
+    TextFlowFigure,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
@@ -1681,11 +1682,15 @@ impl DemoApp {
         else {
             return;
         };
-        let Some(submission) = editor
+        let preparation = editor
             .runtime_mut()
-            .prepare_submission(host.surface_info(), renderer.capabilities())
-        else {
-            return;
+            .prepare_submission(host.surface_info(), renderer.capabilities());
+        let submission = match preparation {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(error) => panic!("frame preparation failed: {error}"),
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => return,
         };
         let outcome = renderer.submit(&submission);
         editor.runtime_mut().complete_submission(

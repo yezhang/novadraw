@@ -219,6 +219,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert!(runtime.complete_submission(
         baseline.session_id,
@@ -256,6 +257,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     );
     let updated = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     assert_ne!(updated.damage.mode(), DamageMode::None);
     assert!(runtime.complete_submission(
@@ -390,7 +392,7 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
     assert!(matches!(
-        runtime.prepare_submission_state(surface(), BackendCapabilities::RETAINED_PARTIAL,),
+        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL,),
         FramePreparation::Error(FramePreparationError::Faulted)
     ));
 
@@ -433,6 +435,7 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         .unwrap();
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     runtime.complete_submission(
         baseline.session_id,

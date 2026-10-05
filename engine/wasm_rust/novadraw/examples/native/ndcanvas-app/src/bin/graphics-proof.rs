@@ -91,6 +91,7 @@ impl Proof {
                 let submission = scene
                     .runtime
                     .prepare_submission(surface, renderer.capabilities())
+                    .into_ready()
                     .expect("changed scene produces a frame");
                 // Reject a new frame before its resources/session can be accepted.
                 // The untouched frame must still be accepted afterwards.
@@ -158,6 +159,7 @@ impl Proof {
             let submission = scene
                 .runtime
                 .prepare_submission(surface, renderer.capabilities())
+                .into_ready()
                 .unwrap();
             assert_eq!(
                 renderer.render_for_screenshot(&submission),

@@ -153,6 +153,7 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
 
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
     let arranged = runtime.tree().figure_bounds(text_figure).unwrap();
     assert_eq!(arranged.width, f64::from(WIDTH));
@@ -227,6 +228,7 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
 
     runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+        .into_ready()
         .unwrap();
 
     assert_eq!(

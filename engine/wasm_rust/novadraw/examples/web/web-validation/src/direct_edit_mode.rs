@@ -8,9 +8,9 @@ use std::{
 use novadraw::figure::border::LineBorder;
 use novadraw::render::{BuiltinFont, DamageMode, SurfaceInfo};
 use novadraw::{
-    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FreeformLayerFigure,
-    LabelFigure, MouseButton, PlatformHost, Point, Rectangle, RectangleFigure, RenderBackend,
-    TextFlowFigure,
+    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FramePreparation,
+    FreeformLayerFigure, LabelFigure, MouseButton, PlatformHost, Point, Rectangle, RectangleFigure,
+    RenderBackend, TextFlowFigure,
 };
 use novadraw_editor::{
     Command, CommandError, DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest,
@@ -809,14 +809,25 @@ impl DirectEditWebApp {
             self.update_status(DamageMode::None);
             return;
         }
-        let Some(submission) = self
+        let preparation = self
             .viewer
             .runtime_mut()
-            .prepare_submission(self.host.surface_info(), self.backend.capabilities())
-        else {
-            self.schedule_next_wake();
-            self.update_status(DamageMode::None);
-            return;
+            .prepare_submission(self.host.surface_info(), self.backend.capabilities());
+        let submission = match preparation {
+            FramePreparation::Ready(submission) => submission,
+            FramePreparation::Error(error) => {
+                self.last_error = Some(error.to_string());
+                self.schedule_next_wake();
+                self.update_status(DamageMode::None);
+                return;
+            }
+            FramePreparation::Idle
+            | FramePreparation::Suspended
+            | FramePreparation::AwaitingCompletion => {
+                self.schedule_next_wake();
+                self.update_status(DamageMode::None);
+                return;
+            }
         };
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);

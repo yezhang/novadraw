@@ -128,6 +128,16 @@ pub enum FramePreparation {
     Error(FramePreparationError),
 }
 
+impl FramePreparation {
+    /// Returns the prepared submission without discarding a non-ready state.
+    pub fn into_ready(self) -> Result<RenderSubmission, Self> {
+        match self {
+            Self::Ready(submission) => Ok(submission),
+            state => Err(state),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BackendSessionError {
     Faulted,
@@ -4262,8 +4272,7 @@ mod tests {
         let mut runtime = Runtime::new(tree);
 
         assert!(matches!(
-            runtime
-                .prepare_submission_state(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL),
+            runtime.prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::Ready(_)
         ));
         assert_eq!(paints.load(Ordering::SeqCst), 1);
@@ -4359,6 +4368,7 @@ mod tests {
 
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert!(matches!(
@@ -4761,6 +4771,7 @@ mod tests {
 
         let first = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(first.frame_id, FrameId::INITIAL);
         assert_eq!(first.surface, surface(100, 100));
@@ -4780,6 +4791,7 @@ mod tests {
         runtime.request_full_redraw();
         let second = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(second.frame_id, first.frame_id.next());
         assert!(runtime.complete_submission(
@@ -4787,11 +4799,10 @@ mod tests {
             second.frame_id,
             RenderOutcome::Presented
         ));
-        assert!(
-            runtime
-                .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
-                .is_none()
-        );
+        assert!(matches!(
+            runtime.prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::Idle
+        ));
     }
 
     #[test]
@@ -4802,6 +4813,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -4815,6 +4827,7 @@ mod tests {
             .unwrap();
         let resource_only = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert_eq!(resource_only.damage.mode(), DamageMode::None);
@@ -4841,6 +4854,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -4863,6 +4877,7 @@ mod tests {
         assert!(runtime.has_pending_update());
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(matches!(
             &submission.resources,
@@ -4888,6 +4903,7 @@ mod tests {
             .unwrap();
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -4900,6 +4916,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             replacement.session_id,
@@ -4911,6 +4928,7 @@ mod tests {
             .unwrap();
         let resource_only = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert_eq!(resource_only.damage.mode(), DamageMode::None);
@@ -4927,6 +4945,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -4942,6 +4961,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let partial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(partial.damage.mode(), DamageMode::Partial);
         runtime.complete_submission(
@@ -4958,6 +4978,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let promoted = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY)
+            .into_ready()
             .unwrap();
         assert_eq!(promoted.damage.mode(), DamageMode::Full);
     }
@@ -4970,6 +4991,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -4984,6 +5006,7 @@ mod tests {
         );
         let moved = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert_eq!(moved.damage.mode(), DamageMode::Full);
@@ -5004,6 +5027,7 @@ mod tests {
             .unwrap();
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(runtime.complete_submission(
             initial.session_id,
@@ -5013,6 +5037,7 @@ mod tests {
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(retry.damage.mode(), DamageMode::Full);
         assert!(matches!(
@@ -5025,6 +5050,7 @@ mod tests {
 
         let resized = runtime
             .prepare_submission(surface(120, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(resized.damage.mode(), DamageMode::Full);
         assert!(matches!(
@@ -5041,6 +5067,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -5054,6 +5081,7 @@ mod tests {
             .unwrap();
         let first_update = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
@@ -5066,6 +5094,7 @@ mod tests {
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         let ResourceSync::Delta(delta) = &retry.resources else {
             panic!("incremental retry must carry a delta");
@@ -5090,6 +5119,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -5110,6 +5140,7 @@ mod tests {
 
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         let ResourceSync::Delta(delta) = &submission.resources else {
             panic!("established session must use an incremental delta");
@@ -5142,6 +5173,7 @@ mod tests {
             .unwrap();
         let old = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         let new_session = runtime.reset_backend_session().unwrap();
@@ -5154,6 +5186,7 @@ mod tests {
 
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(replacement.session_id, new_session);
         assert_eq!(replacement.damage.mode(), DamageMode::Full);
@@ -5172,6 +5205,7 @@ mod tests {
         runtime.request_full_redraw();
         let redraw = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(redraw.session_id, new_session);
         assert!(matches!(
@@ -5202,6 +5236,7 @@ mod tests {
             .unwrap();
         let snapshot = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         runtime
@@ -5218,6 +5253,7 @@ mod tests {
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(matches!(
             &retry.resources,
@@ -5244,6 +5280,7 @@ mod tests {
             .unwrap();
         let snapshot = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         runtime
@@ -5257,6 +5294,7 @@ mod tests {
 
         let delta = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert!(matches!(
             &delta.resources,
@@ -5278,6 +5316,7 @@ mod tests {
             .expect("valid Runtime mutation");
         let initial = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             initial.session_id,
@@ -5294,6 +5333,7 @@ mod tests {
         };
         let submission = runtime
             .prepare_submission(hidpi_surface, BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert_eq!(submission.surface, hidpi_surface);
@@ -5307,15 +5347,15 @@ mod tests {
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
 
-        assert!(
-            runtime
-                .prepare_submission(surface(0, 100), BackendCapabilities::RETAINED_PARTIAL)
-                .is_none()
-        );
+        assert!(matches!(
+            runtime.prepare_submission(surface(0, 100), BackendCapabilities::RETAINED_PARTIAL),
+            FramePreparation::Suspended
+        ));
         assert!(runtime.has_pending_update());
 
         let resumed = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         assert_eq!(resumed.damage.mode(), DamageMode::Full);
     }
@@ -5325,12 +5365,12 @@ mod tests {
         let mut runtime = Runtime::empty();
         let surface = surface(100, 100);
         let FramePreparation::Ready(first) =
-            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL)
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         else {
             panic!("initial frame must be ready");
         };
         assert!(matches!(
-            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::AwaitingCompletion
         ));
         assert!(runtime.complete_submission(
@@ -5339,11 +5379,11 @@ mod tests {
             RenderOutcome::Presented
         ));
         assert!(matches!(
-            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::Idle
         ));
         assert!(matches!(
-            runtime.prepare_submission_state(
+            runtime.prepare_submission(
                 SurfaceInfo {
                     pixel_width: 0,
                     ..surface
@@ -5354,7 +5394,7 @@ mod tests {
         ));
         runtime.faulted = true;
         assert!(matches!(
-            runtime.prepare_submission_state(surface, BackendCapabilities::RETAINED_PARTIAL),
+            runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::Error(FramePreparationError::Faulted)
         ));
     }
@@ -5367,8 +5407,8 @@ mod tests {
             .set_contents(Box::new(crate::LabelFigure::new("unsupported")))
             .expect("valid Runtime mutation");
 
-        let preparation = runtime
-            .prepare_submission_state(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY);
+        let preparation =
+            runtime.prepare_submission(surface(100, 100), BackendCapabilities::FULL_FRAME_ONLY);
         assert!(
             matches!(
                 preparation,
@@ -5410,6 +5450,7 @@ mod tests {
 
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
         runtime.complete_submission(
             submission.session_id,
@@ -5463,6 +5504,7 @@ mod tests {
 
         let submission = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
+            .into_ready()
             .unwrap();
 
         assert_eq!(runtime.tree.child_order(root).unwrap().len(), 1);

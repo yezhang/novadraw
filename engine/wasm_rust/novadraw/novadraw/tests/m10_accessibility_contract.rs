@@ -1,8 +1,8 @@
 use novadraw::render::{BackendCapabilities, BuiltinFont, RenderOutcome, SurfaceInfo};
 use novadraw::{
     AccessibilityAction, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate,
-    AccessibleFigure, ButtonFigure, Figure, FigureId, FigureTree, MAX_TREE_DEPTH, Rectangle,
-    RectangleFigure, Runtime, ToggleFigure,
+    AccessibleFigure, ButtonFigure, Figure, FigureId, FigureTree, FramePreparation, MAX_TREE_DEPTH,
+    Rectangle, RectangleFigure, Runtime, ToggleFigure,
 };
 
 struct AccessibleGroup;
@@ -42,7 +42,7 @@ fn surface() -> SurfaceInfo {
 }
 
 fn publish(runtime: &mut Runtime) {
-    if let Some(submission) =
+    if let FramePreparation::Ready(submission) =
         runtime.prepare_submission(surface(), BackendCapabilities::FULL_FRAME_ONLY)
     {
         runtime.complete_submission(

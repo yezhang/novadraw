@@ -188,6 +188,7 @@ mod tests {
         assert!(host.take_redraw_request());
         let submission = runtime
             .prepare_submission(host.surface_info(), BackendCapabilities::FULL_FRAME_ONLY)
+            .into_ready()
             .expect("headless frame");
 
         assert_eq!(submission.surface, surface);
