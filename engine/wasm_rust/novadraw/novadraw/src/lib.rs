@@ -41,6 +41,8 @@ pub mod render;
 /// Runtime lifecycle, mutation, resource, and frame APIs.
 #[allow(missing_docs)]
 pub mod runtime;
+/// Text measurement, immutable layouts and glyph outline extensions.
+pub mod text;
 /// Figure tree construction and query APIs.
 pub mod tree;
 
@@ -80,14 +82,14 @@ pub use figure::{
     AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
     ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
-    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowTextPosition,
-    FlowTextRange, FlowWrapping, Freeform, HitParticipation, ImageDisplayState, ImageFigure,
-    InlineTextFragment, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
-    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
-    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
-    ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior, TextFlowFigure,
-    TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    EllipseFigure, Figure, FigureContainer, FigureDrawing, FigureEventHandler, FigureLifecycle,
+    FigureLifecycleContext, FigureMeasurement, FigurePreparation, FigurePresentation, FlowPage,
+    FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, Freeform, HitParticipation,
+    ImageDisplayState, ImageFigure, InlineTextFragment, LabelFigure, Layer, MeasureConstraints,
+    MeasureConstraintsError, PointListFigureBehavior, PolygonFigure, PolygonScaleMode,
+    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior,
+    ScalablePolygonError, ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior,
+    TextFlowFigure, TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub(crate) use graph::FigureNode;

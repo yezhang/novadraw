@@ -16,6 +16,7 @@ use crate::render::text::TextLayout;
 
 #[derive(Clone, Debug)]
 struct GraphicsState {
+    font: crate::text::FontDescriptor,
     fill_paint: Option<Paint>,
     stroke_paint: Option<Paint>,
     stroke: StrokeStyle,
@@ -28,6 +29,7 @@ struct GraphicsState {
 impl Default for GraphicsState {
     fn default() -> Self {
         Self {
+            font: crate::text::FontDescriptor::default(),
             fill_paint: None,
             stroke_paint: None,
             stroke: StrokeStyle::default(),
@@ -46,6 +48,8 @@ pub struct NdCanvas {
     current_path: Option<Path>,
     state: GraphicsState,
     state_stack: Vec<GraphicsState>,
+    recording_error: Option<crate::graphics::GraphicsError>,
+    font_dependencies: Vec<crate::text::FontFaceRef>,
 }
 
 impl Default for NdCanvas {
@@ -62,6 +66,141 @@ impl NdCanvas {
             current_path: None,
             state: GraphicsState::default(),
             state_stack: Vec::new(),
+            recording_error: None,
+            font_dependencies: Vec::new(),
+        }
+    }
+
+    pub(crate) fn recording_error(&self) -> Option<&crate::graphics::GraphicsError> {
+        self.recording_error.as_ref()
+    }
+
+    pub(crate) fn state_depth(&self) -> usize {
+        self.state_stack.len()
+    }
+
+    pub(crate) fn stroke_paint(&self) -> Option<&Paint> {
+        self.state.stroke_paint.as_ref()
+    }
+
+    pub(crate) fn validate_recording(
+        &self,
+        resources: &crate::ResourceRegistry,
+    ) -> Result<(), crate::graphics::GraphicsError> {
+        use crate::graphics::GraphicsError;
+        if let Some(error) = &self.recording_error {
+            return Err(error.clone());
+        }
+        for face in &self.font_dependencies {
+            let resource = resources
+                .snapshot_resource(face.resource_id())
+                .map_err(GraphicsError::Resource)?;
+            crate::text::outline::FontInstanceRef::new(face, &resource, &[])
+                .map_err(GraphicsError::Font)?;
+        }
+        let mut depth = 0_usize;
+        for command in &self.commands {
+            match &command.kind {
+                RenderCommandKind::PushState => depth += 1,
+                RenderCommandKind::RestoreState if depth == 0 => {
+                    return Err(GraphicsError::UnbalancedState);
+                }
+                RenderCommandKind::PopState => {
+                    depth = depth.checked_sub(1).ok_or(GraphicsError::UnbalancedState)?;
+                }
+                RenderCommandKind::DrawGlyphRun { run, .. } => {
+                    let resource = resources
+                        .snapshot_resource(run.font.resource_id())
+                        .map_err(GraphicsError::Resource)?;
+                    crate::text::outline::FontInstanceRef::new(
+                        &run.font,
+                        &resource,
+                        &run.normalized_coords,
+                    )
+                    .map_err(GraphicsError::Font)?;
+                }
+                _ => {}
+            }
+        }
+        if depth != 0 {
+            return Err(GraphicsError::UnbalancedState);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn font(&self) -> &crate::text::FontDescriptor {
+        &self.state.font
+    }
+
+    pub(crate) fn set_font(&mut self, font: crate::text::FontDescriptor) {
+        self.state.font = font;
+    }
+
+    pub(crate) fn reject_recording(&mut self, error: crate::graphics::GraphicsError) {
+        self.recording_error.get_or_insert(error);
+    }
+
+    /// Validates only this call's new commands and rolls back its state on failure.
+    pub(crate) fn record_checked(
+        &mut self,
+        record: impl FnOnce(&mut Self),
+    ) -> Result<(), crate::graphics::GraphicsError> {
+        let start = self.commands.len();
+        let state = self.state.clone();
+        let path = self.current_path.clone();
+        let damage = self.damage.clone();
+        let dependencies = self.font_dependencies.len();
+        record(self);
+        let mut candidate = Vec::with_capacity(self.commands.len() - start + 1);
+        candidate.push(RenderCommand {
+            kind: RenderCommandKind::SetTransform {
+                matrix: state.transform,
+            },
+        });
+        candidate.extend_from_slice(&self.commands[start..]);
+        let result = self.recording_error.clone().map_or_else(
+            || {
+                super::validate_graphics_input(&candidate, 1.0)
+                    .map_err(|error| crate::graphics::GraphicsError::Input(error.reason))
+            },
+            Err,
+        );
+        if let Err(error) = result {
+            self.commands.truncate(start);
+            self.state = state;
+            self.current_path = path;
+            self.damage = damage;
+            self.font_dependencies.truncate(dependencies);
+            self.reject_recording(error.clone());
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn record_path(&mut self, path: &Path, stroke: bool) {
+        let paint = if stroke {
+            &self.state.stroke_paint
+        } else {
+            &self.state.fill_paint
+        };
+        if let Some(paint) = paint {
+            let paint = paint.with_global_alpha(self.state.global_alpha);
+            if paint.is_visible() {
+                let kind = if stroke {
+                    RenderCommandKind::StrokePath {
+                        path: path.clone(),
+                        paint,
+                        stroke: self.state.stroke.clone(),
+                    }
+                } else {
+                    RenderCommandKind::FillPath {
+                        path: path.clone(),
+                        paint,
+                        rule: self.state.fill_rule,
+                    }
+                };
+                self.create_command(kind);
+            }
         }
     }
 
@@ -625,6 +764,10 @@ impl NdCanvas {
         self.line_style(style);
     }
 
+    #[deprecated(
+        since = "0.1.0",
+        note = "use fill_text_layout with fill paint, or Graphics::fill_text"
+    )]
     pub fn draw_text_layout(&mut self, layout: &TextLayout, x: f64, y: f64) {
         let Some(paint) = &self.state.stroke_paint else {
             return;
@@ -670,6 +813,38 @@ impl NdCanvas {
         y: f64,
         paint: crate::render::text::GlyphPaint,
     ) {
+        if let Some(outlines) = layout.outlines() {
+            let path = match outlines.path_at(Point::new(x, y)) {
+                Ok(path) => path,
+                Err(error) => {
+                    self.reject_recording(crate::graphics::GraphicsError::Font(error));
+                    return;
+                }
+            };
+            for run in layout.glyph_runs() {
+                if !self.font_dependencies.contains(&run.font) {
+                    self.font_dependencies.push(run.font.clone());
+                }
+            }
+            if !path.operations().is_empty() {
+                let kind = match paint {
+                    crate::render::text::GlyphPaint::Fill(paint) => RenderCommandKind::FillPath {
+                        path,
+                        paint,
+                        rule: FillRule::NonZero,
+                    },
+                    crate::render::text::GlyphPaint::Stroke { paint, stroke } => {
+                        RenderCommandKind::StrokePath {
+                            path,
+                            paint,
+                            stroke,
+                        }
+                    }
+                };
+                self.create_command(kind);
+            }
+            return;
+        }
         for run in layout.glyph_runs() {
             if run.glyphs.is_empty() {
                 continue;

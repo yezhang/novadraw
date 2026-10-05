@@ -51,6 +51,7 @@ pub enum ResourceError {
     Faulted,
     WrongNamespace,
     UnknownResource,
+    NotReady,
     KindMismatch {
         expected: ResourceKind,
         actual: ResourceKind,
@@ -66,6 +67,7 @@ impl fmt::Display for ResourceError {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::WrongNamespace => formatter.write_str("resource belongs to another runtime"),
             Self::UnknownResource => formatter.write_str("resource does not exist"),
+            Self::NotReady => formatter.write_str("resource is not ready"),
             Self::KindMismatch { expected, actual } => {
                 write!(
                     formatter,
@@ -132,6 +134,26 @@ impl ResourceRegistry {
             .get(key)
             .map(|entry| &entry.status)
             .ok_or(ResourceError::UnknownResource)
+    }
+
+    /// Retains an immutable ready resource without consuming pending synchronization.
+    pub fn snapshot_resource(&self, id: ResourceId) -> Result<ResourceUpdate, ResourceError> {
+        let key = self.key(id)?;
+        let entry = self
+            .entries
+            .get(key)
+            .ok_or(ResourceError::UnknownResource)?;
+        let ResourceStatus::Ready { revision } = entry.status else {
+            return Err(ResourceError::NotReady);
+        };
+        Ok(ResourceUpdate {
+            id,
+            revision,
+            payload: entry
+                .payload
+                .clone()
+                .expect("ready resources own a payload"),
+        })
     }
 
     pub(crate) fn image_ref(&self, id: ImageId) -> Option<ImageResourceRef> {

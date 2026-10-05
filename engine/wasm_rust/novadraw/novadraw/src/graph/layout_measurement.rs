@@ -636,7 +636,9 @@ impl FigureTree {
             });
             return Some(measurement);
         }
-        let measurement = if block.border_snapshot.is_some() {
+        let measurement = if let Some(prepared) = &block.prepared {
+            prepared.presentation.measurement()
+        } else if block.border_snapshot.is_some() {
             block.figure.intrinsic_content_measurement(constraints)
         } else {
             block.figure.intrinsic_measurement(constraints)
@@ -674,7 +676,9 @@ impl FigureTree {
             });
             return Some(size);
         }
-        let content = if block.border_snapshot.is_some() {
+        let content = if let Some(prepared) = &block.prepared {
+            prepared.presentation.minimum_size()
+        } else if block.border_snapshot.is_some() {
             block
                 .figure
                 .intrinsic_content_minimum_measurement(constraints)

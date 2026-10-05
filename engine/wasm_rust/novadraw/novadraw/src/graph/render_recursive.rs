@@ -121,10 +121,18 @@ impl<'a> FigureRenderer<'a> {
             self.gc
                 .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
         }
-        block.figure.paint_figure_in_bounds(
-            self.gc,
-            crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-        );
+        let mut context = crate::graphics::PaintContext::for_figure(self.gc);
+        if let Some(prepared) = &block.prepared {
+            if let Err(error) = prepared.presentation.paint(&mut context) {
+                context.canvas.reject_recording(error);
+            }
+        } else {
+            block.figure.paint(
+                &mut context,
+                crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            );
+        }
+        drop(context);
         self.gc.pop_state();
 
         // 3. 绘制子元素区域。

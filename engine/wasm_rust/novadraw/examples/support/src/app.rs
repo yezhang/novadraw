@@ -794,8 +794,8 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         (bounds.height - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),
         TOOLTIP_BACKGROUND,
     );
-    canvas.set_foreground_color(TOOLTIP_FOREGROUND);
-    canvas.draw_text_layout(
+    canvas.set_background_color(TOOLTIP_FOREGROUND);
+    canvas.fill_text_layout(
         &layout,
         bounds.x + TOOLTIP_HORIZONTAL_PADDING,
         bounds.y + TOOLTIP_VERTICAL_PADDING,

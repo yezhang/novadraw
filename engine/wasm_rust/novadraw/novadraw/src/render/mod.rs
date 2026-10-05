@@ -20,7 +20,9 @@ pub use clip::{ClipPath, FillRule};
 mod paint;
 mod path_geometry;
 pub use paint::{GradientStop, LinearGradient, Paint};
+mod recorder;
 mod stroke;
+pub use recorder::{CommandRecorder, RecordedDrawing};
 pub use stroke::{CustomDash, DashPattern, GraphicsInputError, StrokeStyle};
 /// 渲染提交协议模块
 pub mod submission;

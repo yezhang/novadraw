@@ -1,6 +1,61 @@
 use super::*;
 
 impl FigureTree {
+    pub(crate) fn refresh_prepared_figures(
+        &mut self,
+        text: &mut dyn TextLayoutEngine,
+        updates: &mut UpdateManager,
+    ) -> Result<bool, TextError> {
+        use crate::figure::preparation::{PreparationKey, PreparedFigure};
+        let (figures, _) = self.resolved_styles_for(|node| node.figure.preparation().is_some());
+        let mut candidates = Vec::new();
+        for (id, style) in figures {
+            let node = &self.blocks[id];
+            let preparation = node.figure.preparation().expect("capability selected");
+            let bounds = node.client_area();
+            let key = PreparationKey {
+                component: node.component_revision,
+                provider: preparation.revision(),
+                text: text.revision(),
+                font: style.font.clone(),
+                bounds,
+            };
+            if node.prepared.as_ref().is_some_and(|p| p.key == key) {
+                continue;
+            }
+            let mut context = crate::text::MeasureContext::new(
+                text,
+                crate::text::FontDescriptor::parse(&style.font)?,
+            );
+            let presentation = preparation.prepare(&mut context, bounds)?;
+            candidates.push((id, PreparedFigure { key, presentation }));
+        }
+        let mut metrics_changed = false;
+        for (id, candidate) in candidates {
+            let node = &self.blocks[id];
+            let changed = node.prepared.as_ref().is_none_or(|old| {
+                old.presentation.measurement() != candidate.presentation.measurement()
+                    || old.presentation.minimum_size() != candidate.presentation.minimum_size()
+            });
+            let old_visual = node.visual_bounds();
+            let parent = node.parent;
+            let visible = self.is_effectively_visible(id);
+            if visible {
+                self.erase(updates, id, old_visual, parent);
+            }
+            self.blocks[id].prepared = Some(candidate);
+            if changed {
+                metrics_changed = true;
+                self.mark_invalid(updates, id);
+            }
+            self.mark_freeform_ancestor_extents_dirty(id);
+            if visible {
+                self.repaint(updates, id, None);
+            }
+        }
+        Ok(metrics_changed)
+    }
+
     pub(crate) fn set_child_clipping_strategy(
         &mut self,
         figure_id: FigureId,
@@ -617,6 +672,7 @@ impl FigureTree {
     pub(crate) fn refresh_label_presentations(
         &mut self,
         text: &mut dyn TextLayoutEngine,
+        updates: &mut UpdateManager,
     ) -> Result<Vec<FigureId>, TextError> {
         let labels = self
             .blocks
@@ -626,11 +682,17 @@ impl FigureTree {
         let mut changed = Vec::new();
         for id in labels {
             let bounds = self.blocks[id].client_area();
+            let old_visual = self.blocks[id].visual_bounds();
+            let parent = self.blocks[id].parent;
             let label = self.blocks[id]
                 .figure
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
             if label.refresh_presentation(text, bounds)? {
+                if self.is_effectively_visible(id) {
+                    self.erase(updates, id, old_visual, parent);
+                }
+                self.mark_freeform_ancestor_extents_dirty(id);
                 changed.push(id);
             }
         }
@@ -640,6 +702,7 @@ impl FigureTree {
     pub(crate) fn refresh_text_flow_layouts(
         &mut self,
         text: &mut dyn TextLayoutEngine,
+        updates: &mut UpdateManager,
     ) -> Result<TextLayoutRefreshResult, TextError> {
         let flow_ids = self
             .blocks
@@ -660,12 +723,18 @@ impl FigureTree {
         for (id, style) in flows {
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let bounds = self.blocks[id].client_area();
+            let old_visual = self.blocks[id].visual_bounds();
+            let parent = self.blocks[id].parent;
             let flow = self.blocks[id]
                 .figure
                 .as_any_mut()
                 .downcast_mut::<crate::TextFlowFigure>()
                 .expect("TextFlow capability belongs to TextFlowFigure");
             if flow.refresh_layout(text, &font, bounds)? {
+                if self.is_effectively_visible(id) {
+                    self.erase(updates, id, old_visual, parent);
+                }
+                self.mark_freeform_ancestor_extents_dirty(id);
                 changed.push(id);
             }
         }

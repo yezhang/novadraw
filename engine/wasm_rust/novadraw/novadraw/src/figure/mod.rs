@@ -18,6 +18,8 @@ mod image;
 mod label;
 mod polygon;
 mod polyline;
+pub(crate) mod preparation;
+pub use preparation::{FigureDrawing, FigurePreparation, FigurePresentation};
 mod rectangle;
 mod root;
 mod rounded_rectangle;
@@ -455,6 +457,18 @@ pub trait Figure: AsAny {
 
     fn initial_focus_traversable(&self) -> bool {
         false
+    }
+
+    /// Optional immutable measure/arrange/paint preparation capability.
+    fn preparation(&self) -> Option<&dyn FigurePreparation> {
+        None
+    }
+
+    /// Drawing-only callback for Figures that do not need a prepared presentation.
+    ///
+    /// The default preserves the legacy Shape/Border adapters during migration.
+    fn paint(&self, gc: &mut crate::graphics::PaintContext<'_>, bounds: Rectangle) {
+        self.paint_figure_in_bounds(gc.canvas, bounds);
     }
 
     /// ===== PaintSelf 阶段方法 =====

@@ -499,6 +499,7 @@ pub struct FigureNode {
     pub(crate) figure: Box<dyn super::Figure>,
     /// Runtime 提交的私有组件状态版本。
     pub(crate) component_revision: u64,
+    pub(crate) prepared: Option<crate::figure::preparation::PreparedFigure>,
     /// 容器布局策略、关系约束和后续布局缓存的唯一归属。
     pub(crate) layout: LayoutState,
     /// 所有 Figure 共享的节点状态。
@@ -558,7 +559,10 @@ impl FigureNode {
     }
 
     pub(crate) fn visual_bounds(&self) -> Rectangle {
-        self.figure.visual_bounds_in(self.state.bounds)
+        let bounds = self.figure.visual_bounds_in(self.state.bounds);
+        self.prepared.as_ref().map_or(bounds, |prepared| {
+            bounds.union(prepared.presentation.visual_bounds())
+        })
     }
 
     pub(crate) fn client_area(&self) -> Rectangle {
@@ -989,6 +993,7 @@ impl FigureTree {
             depth: 0,
             figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
             component_revision: 0,
+            prepared: None,
             layout: LayoutState::default(),
             state: NodeState {
                 bounds: root_bounds,

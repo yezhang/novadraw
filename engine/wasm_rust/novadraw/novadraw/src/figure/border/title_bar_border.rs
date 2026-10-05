@@ -102,7 +102,16 @@ impl TitleBarBorder {
                     - layout.width() as f64
             }
         };
-        gc.draw_text_layout(layout, x, figure_bounds.y + self.vertical_padding);
+        if let Some(foreground) = gc.stroke_paint().cloned() {
+            let mut paint = crate::graphics::PaintContext::for_figure(gc);
+            paint.push_state();
+            paint.set_fill_paint(foreground);
+            let _ = paint.fill_text(
+                layout,
+                crate::Point::new(x, figure_bounds.y + self.vertical_padding),
+            );
+            paint.pop_state();
+        }
     }
 }
 

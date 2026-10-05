@@ -335,11 +335,16 @@ impl LabelFigure {
         if let (Some(origin), Some(image)) = (presentation.icon_origin, icon) {
             gc.draw_image(image, origin.0, origin.1);
         }
-        gc.draw_text_layout(
-            &presentation.text,
-            presentation.text_origin.0,
-            presentation.text_origin.1,
-        );
+        if let Some(foreground) = gc.stroke_paint().cloned() {
+            let mut paint = crate::graphics::PaintContext::for_figure(gc);
+            paint.push_state();
+            paint.set_fill_paint(foreground);
+            let _ = paint.fill_text(
+                &presentation.text,
+                crate::Point::new(presentation.text_origin.0, presentation.text_origin.1),
+            );
+            paint.pop_state();
+        }
     }
 }
 
@@ -397,6 +402,23 @@ impl Figure for LabelFigure {
     }
     fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
         self.paint_with_icon(gc, self.icon_ref);
+    }
+
+    fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
+        let base = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        self.presentation
+            .as_ref()
+            .and_then(|p| {
+                p.text.ink_bounds().map(|ink| {
+                    Rectangle::new(
+                        ink.x + p.text_origin.0,
+                        ink.y + p.text_origin.1,
+                        ink.width,
+                        ink.height,
+                    )
+                })
+            })
+            .map_or(base, |ink| base.union(ink))
     }
 
     fn initial_insets(&self) -> (f64, f64, f64, f64) {

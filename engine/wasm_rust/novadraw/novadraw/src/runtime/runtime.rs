@@ -94,6 +94,7 @@ impl DerivedWorkSet {
 pub enum FramePreparationError {
     Faulted,
     Text(TextError),
+    Graphics(crate::graphics::GraphicsError),
     Validation(ValidationError),
     Accessibility(AccessibilityError),
     UnsupportedRenderCapability(UnsupportedRenderCapability),
@@ -106,6 +107,7 @@ impl fmt::Display for FramePreparationError {
         match self {
             Self::Faulted => formatter.write_str("Runtime is faulted"),
             Self::Text(error) => error.fmt(formatter),
+            Self::Graphics(error) => error.fmt(formatter),
             Self::Validation(error) => error.fmt(formatter),
             Self::Accessibility(error) => error.fmt(formatter),
             Self::UnsupportedRenderCapability(error) => error.fmt(formatter),
@@ -1358,7 +1360,9 @@ impl Runtime {
     }
 
     fn refresh_label_presentations(&mut self) -> Result<bool, TextError> {
-        let changed = self.tree.refresh_label_presentations(self.text.as_mut())?;
+        let changed = self
+            .tree
+            .refresh_label_presentations(self.text.as_mut(), &mut self.updates)?;
         let any_changed = !changed.is_empty();
         for figure in changed {
             self.refresh_label_icon_geometry(figure);
@@ -1368,7 +1372,9 @@ impl Runtime {
     }
 
     fn refresh_text_flow_layouts(&mut self) -> Result<bool, TextError> {
-        let refresh = self.tree.refresh_text_flow_layouts(self.text.as_mut())?;
+        let refresh = self
+            .tree
+            .refresh_text_flow_layouts(self.text.as_mut(), &mut self.updates)?;
         self.text_layout_stats.text_flow_style_nodes_visited = self
             .text_layout_stats
             .text_flow_style_nodes_visited

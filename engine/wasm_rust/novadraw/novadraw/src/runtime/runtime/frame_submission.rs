@@ -93,6 +93,9 @@ impl Runtime {
                         .map_err(FramePreparationError::Text)?;
                     self.refresh_text_flow_layouts()
                         .map_err(FramePreparationError::Text)?;
+                    self.tree
+                        .refresh_prepared_figures(self.text.as_mut(), &mut self.updates)
+                        .map_err(FramePreparationError::Text)?;
                     if self.updates.has_pending_layout() {
                         work.insert(DerivedWorkKind::Layout);
                     }
@@ -133,6 +136,13 @@ impl Runtime {
                     work.insert(DerivedWorkKind::Presentation);
                 }
                 DerivedWorkKind::Presentation => {
+                    if self
+                        .tree
+                        .refresh_prepared_figures(self.text.as_mut(), &mut self.updates)
+                        .map_err(FramePreparationError::Text)?
+                    {
+                        work.insert(DerivedWorkKind::Layout);
+                    }
                     if self
                         .refresh_text_flow_layouts()
                         .map_err(FramePreparationError::Text)?
@@ -249,6 +259,10 @@ impl Runtime {
             } else {
                 canvas.damage_mut().set_full();
             }
+        }
+        if let Err(error) = canvas.validate_recording(&self.resources) {
+            self.full_redraw_pending = true;
+            return FramePreparation::Error(FramePreparationError::Graphics(error));
         }
         if let Err(error) = capabilities.validate_capabilities(canvas.commands()) {
             self.full_redraw_pending = true;

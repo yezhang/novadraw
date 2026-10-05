@@ -564,12 +564,39 @@ impl Figure for TextFlowFigure {
                 gc.clip_rect(0.0, 0.0, bounds.width, bounds.height);
             }
             let origin = self.visual_origin(snapshot);
-            gc.draw_text_layout(&snapshot.layout, origin.x(), origin.y());
+            if let Some(foreground) = gc.stroke_paint().cloned() {
+                let mut paint = crate::graphics::PaintContext::for_figure(gc);
+                paint.push_state();
+                paint.set_fill_paint(foreground);
+                let _ = paint.fill_text(&snapshot.layout, origin);
+                paint.pop_state();
+            }
         }
     }
 
     fn text_flow(&self) -> Option<&dyn TextFlowBehavior> {
         Some(self)
+    }
+
+    fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
+        let base = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
+        if self.viewport.clips_to_bounds() {
+            return base;
+        }
+        self.layout
+            .as_ref()
+            .and_then(|snapshot| {
+                snapshot.layout.ink_bounds().map(|ink| {
+                    let origin = self.visual_origin(snapshot);
+                    Rectangle::new(
+                        ink.x + origin.x(),
+                        ink.y + origin.y(),
+                        ink.width,
+                        ink.height,
+                    )
+                })
+            })
+            .map_or(base, |ink| base.union(ink))
     }
 
     fn text_flow_mut(&mut self) -> Option<&mut dyn TextFlowBehavior> {

@@ -69,10 +69,10 @@ pub enum FontStyle {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FontDescriptor {
-    pub family: String,
-    pub size: f32,
-    pub weight: f32,
-    pub style: FontStyle,
+    pub(crate) family: String,
+    pub(crate) size: f32,
+    pub(crate) weight: f32,
+    pub(crate) style: FontStyle,
 }
 
 impl Default for FontDescriptor {
@@ -87,6 +87,19 @@ impl Default for FontDescriptor {
 }
 
 impl FontDescriptor {
+    pub fn family(&self) -> &str {
+        &self.family
+    }
+    pub fn size(&self) -> f32 {
+        self.size
+    }
+    pub fn weight(&self) -> f32 {
+        self.weight
+    }
+    pub fn style(&self) -> FontStyle {
+        self.style
+    }
+
     pub fn new(family: impl Into<String>, size: f32) -> Result<Self, TextError> {
         let descriptor = Self {
             family: family.into(),
@@ -534,7 +547,7 @@ impl TextInteractionMap {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct FontFaceRef {
     resource_id: ResourceId,
     revision: u64,
@@ -607,6 +620,7 @@ pub struct TextLayout {
     visible_range: Range<usize>,
     truncated: bool,
     key: TextLayoutKey,
+    pub(crate) outlines: Option<Arc<crate::text::outline::OutlinedText>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -662,6 +676,34 @@ impl TextLayoutKey {
 }
 
 impl TextLayout {
+    pub(crate) fn set_engine_revision(&mut self, revision: u64) {
+        self.key.engine_revision = revision;
+        let interaction_revision = self.interaction_revision();
+        if let Some(interaction) = self.interaction.as_mut() {
+            Arc::make_mut(interaction).bind_revision(interaction_revision);
+        }
+    }
+
+    /// Prepared neutral geometry, present only when an outline consumer was selected.
+    pub fn outlines(&self) -> Option<&crate::text::outline::OutlinedText> {
+        self.outlines.as_deref()
+    }
+
+    /// Exact unhinted ink for prepared outlines; independent of layout advance.
+    pub fn ink_bounds(&self) -> Option<Rectangle> {
+        self.outlines().and_then(|outlines| outlines.ink_bounds())
+    }
+
+    /// Logical layout size; this is not the visible ink envelope.
+    pub fn size(&self) -> crate::Dimension {
+        crate::Dimension::new(f64::from(self.width), f64::from(self.height))
+    }
+
+    /// Metrics from this exact immutable shaping snapshot.
+    pub fn metrics(&self) -> crate::text::TextMetrics {
+        crate::text::TextMetrics::from_layout(self)
+    }
+
     pub fn from_parts(parts: TextLayoutParts) -> Result<Self, TextError> {
         parts.font.validate()?;
         TextConstraints::new(parts.constraints.max_width)?;
@@ -697,6 +739,7 @@ impl TextLayout {
             lines: parts.lines,
             glyph_runs: parts.glyph_runs,
             interaction: None,
+            outlines: None,
             visible_range: parts.visible_range,
             truncated: parts.truncated,
             key: TextLayoutKey {
@@ -890,6 +933,8 @@ pub enum TextError {
     InvalidGlyphRun,
     InvalidInteractionMap,
     NoUsableFont,
+    FontMetricsUnsupported,
+    Outline(crate::text::outline::FontError),
 }
 
 impl fmt::Display for TextError {
@@ -913,6 +958,10 @@ impl fmt::Display for TextError {
                 formatter.write_str("text interaction map does not match the text layout")
             }
             Self::NoUsableFont => formatter.write_str("no usable font was found for the text"),
+            Self::FontMetricsUnsupported => {
+                formatter.write_str("layout engine does not provide font metrics")
+            }
+            Self::Outline(error) => error.fmt(formatter),
         }
     }
 }
@@ -1153,6 +1202,14 @@ fn text_position_from_parley(cursor: Cursor) -> TextPosition {
 pub trait TextLayoutEngine {
     fn revision(&self) -> u64;
 
+    /// Metrics of the resolved font instance, independent of text advance.
+    fn font_metrics(
+        &mut self,
+        _font: &FontDescriptor,
+    ) -> Result<crate::text::FontMetrics, TextError> {
+        Err(TextError::FontMetricsUnsupported)
+    }
+
     fn register_font(
         &mut self,
         resource_id: ResourceId,
@@ -1234,6 +1291,40 @@ impl ParleyTextEngine {
 impl TextLayoutEngine for ParleyTextEngine {
     fn revision(&self) -> u64 {
         self.revision
+    }
+
+    fn font_metrics(
+        &mut self,
+        font: &FontDescriptor,
+    ) -> Result<crate::text::FontMetrics, TextError> {
+        use skrifa::{
+            FontRef, MetadataProvider,
+            instance::{NormalizedCoord, Size},
+        };
+        // Resolve through the same explicit collection and synthesis policy as layout.
+        // A space selects the primary face without using its advance as a metric.
+        let layout = self.layout(" ", font, TextConstraints::UNBOUNDED)?;
+        let run = layout.glyph_runs().first().ok_or(TextError::NoUsableFont)?;
+        let registered = self
+            .registered_fonts
+            .get(&run.font.resource_id())
+            .ok_or(TextError::NoUsableFont)?;
+        let face = FontRef::from_index(&registered.bytes, run.font.collection_index())
+            .map_err(|_| TextError::InvalidFontData)?;
+        let coords: Vec<_> = run
+            .normalized_coords
+            .iter()
+            .map(|value| NormalizedCoord::from_bits(*value))
+            .collect();
+        let metrics = face.metrics(Size::new(run.font_size), coords.as_slice());
+        crate::text::FontMetrics::new(
+            run.font.clone(),
+            run.font_size,
+            run.normalized_coords.clone(),
+            metrics.ascent,
+            -metrics.descent,
+            metrics.leading,
+        )
     }
 
     fn register_font(
