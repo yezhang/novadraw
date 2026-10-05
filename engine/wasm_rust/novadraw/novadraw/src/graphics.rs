@@ -8,6 +8,6 @@ pub use crate::render::command::{
 };
 pub use crate::render::{
     ClipPath, CustomDash, DashPattern, FillRule, GradientStop, GraphicsInputError, ImageDrawError,
-    LinearGradient, NdCanvas, Paint, StrokeStyle,
+    ImageRegion, LinearGradient, NdCanvas, Paint, StrokeStyle,
 };
 pub use crate::{Color, ColorError, ParseColorError};

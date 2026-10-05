@@ -8,7 +8,7 @@ use crate::geometry::{Affine2D, Point, PointList, Rectangle};
 use super::stroke::{DashPattern, GraphicsInputError, StrokeStyle};
 use super::{ClipPath, FillRule, Paint};
 use crate::render::command::{
-    ImageDrawDisposition, ImageDrawError, Path, RenderCommand, RenderCommandKind,
+    ImageDrawDisposition, ImageDrawError, ImageRegion, Path, RenderCommand, RenderCommandKind,
     validate_image_draw_geometry,
 };
 use crate::render::submission::{DamageSet, RenderSubmission};
@@ -898,10 +898,11 @@ impl NdCanvas {
     /// when a non-empty source rectangle lies outside the image's physical pixel bounds.
     pub fn draw_image_region(
         &mut self,
-        image: crate::render::command::ImageResourceRef,
-        source_rect: Rectangle,
+        region: ImageRegion,
         dest_rect: Rectangle,
     ) -> Result<(), ImageDrawError> {
+        let image = region.image();
+        let source_rect = region.source_pixels();
         if validate_image_draw_geometry(image.width(), image.height(), source_rect, dest_rect)?
             == ImageDrawDisposition::NoOp
         {

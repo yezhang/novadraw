@@ -247,21 +247,16 @@ impl<'a> PaintContext<'a> {
         image: crate::render::ImageResourceRef,
         destination: Rectangle,
     ) -> Result<(), GraphicsError> {
-        let source = Rectangle::new(
-            0.0,
-            0.0,
-            f64::from(image.width()),
-            f64::from(image.height()),
-        );
-        self.draw_image_region(image, source, destination)
+        self.draw_image_region(crate::render::ImageRegion::full(image), destination)
     }
 
     pub fn draw_image_region(
         &mut self,
-        image: crate::render::ImageResourceRef,
-        source: Rectangle,
+        region: crate::render::ImageRegion,
         destination: Rectangle,
     ) -> Result<(), GraphicsError> {
+        let image = region.image();
+        let source = region.source_pixels();
         match crate::render::command::validate_image_draw_geometry(
             image.width(),
             image.height(),
@@ -293,7 +288,7 @@ impl<'a> PaintContext<'a> {
         };
         self.canvas.record_checked(|gc| {
             // Geometry was checked before entering the atomic recording operation.
-            let _ = gc.draw_image_region(image, source, destination);
+            let _ = gc.draw_image_region(region, destination);
         })?;
         if let (Some(resource), Some(leases)) = (resource, self.leases.as_mut())
             && !leases.iter().any(|old| old.id == resource.id)
@@ -437,10 +432,9 @@ impl<'a> Graphics<'a> {
     }
     pub fn draw_image_region(
         &mut self,
-        image: crate::render::ImageResourceRef,
-        source: Rectangle,
+        region: crate::render::ImageRegion,
         destination: Rectangle,
     ) -> Result<(), GraphicsError> {
-        self.paint.draw_image_region(image, source, destination)
+        self.paint.draw_image_region(region, destination)
     }
 }

@@ -1,5 +1,7 @@
 use novadraw::geometry::Rectangle;
-use novadraw::render::{ImageDrawError, ImageResourceRef, NdCanvas, RenderCommandKind, ResourceId};
+use novadraw::render::{
+    ImageDrawError, ImageRegion, ImageResourceRef, NdCanvas, RenderCommandKind, ResourceId,
+};
 use uuid::Uuid;
 
 fn image() -> ImageResourceRef {
@@ -43,8 +45,8 @@ fn image_region_records_source_pixels_destination_and_alpha() {
 
     assert_eq!(
         canvas.draw_image_region(
-            image(),
-            Rectangle::new(10.0, 5.0, 20.0, 10.0),
+            ImageRegion::new(image(), Rectangle::new(10.0, 5.0, 20.0, 10.0))
+                .expect("valid source region"),
             Rectangle::new(100.0, 200.0, 60.0, 80.0),
         ),
         Ok(())
@@ -103,7 +105,8 @@ fn image_region_rejects_invalid_geometry_without_recording_work() {
     for (source_rect, dest_rect, expected) in invalid_cases {
         let mut canvas = NdCanvas::new();
         assert_eq!(
-            canvas.draw_image_region(image(), source_rect, dest_rect),
+            ImageRegion::new(image(), source_rect)
+                .and_then(|region| canvas.draw_image_region(region, dest_rect)),
             Err(expected)
         );
         assert!(canvas.commands().is_empty());
@@ -119,16 +122,18 @@ fn image_region_zero_extent_and_zero_alpha_are_noops() {
 
     assert_eq!(
         canvas.draw_image_region(
-            image(),
-            Rectangle::new(source.x, source.y, 0.0, source.height),
+            ImageRegion::new(
+                image(),
+                Rectangle::new(source.x, source.y, 0.0, source.height),
+            )
+            .expect("zero-width source region is valid"),
             destination,
         ),
         Ok(())
     );
     assert_eq!(
         canvas.draw_image_region(
-            image(),
-            source,
+            ImageRegion::new(image(), source).expect("valid source region"),
             Rectangle::new(destination.x, destination.y, destination.width, 0.0),
         ),
         Ok(())
@@ -136,12 +141,15 @@ fn image_region_zero_extent_and_zero_alpha_are_noops() {
     canvas.global_alpha(0.0);
     let command_count = canvas.commands().len();
     assert_eq!(
-        canvas.draw_image_region(image(), source, destination),
+        canvas.draw_image_region(
+            ImageRegion::new(image(), source).expect("valid source region"),
+            destination,
+        ),
         Ok(())
     );
     assert_eq!(canvas.commands().len(), command_count);
     assert_eq!(
-        canvas.draw_image_region(image(), Rectangle::new(79.0, 0.0, 2.0, 1.0), destination,),
+        ImageRegion::new(image(), Rectangle::new(79.0, 0.0, 2.0, 1.0)),
         Err(ImageDrawError::SourceOutOfBounds)
     );
     assert_eq!(canvas.commands().len(), command_count);

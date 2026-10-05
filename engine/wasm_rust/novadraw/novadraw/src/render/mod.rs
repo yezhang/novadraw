@@ -41,8 +41,8 @@ pub mod backend_support {
 }
 
 pub use command::{
-    DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageDrawError, ImageResourceRef,
-    LineCap, LineJoin, LineStyle, RenderCommand, RenderCommandKind,
+    DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageDrawError, ImageRegion,
+    ImageResourceRef, LineCap, LineJoin, LineStyle, RenderCommand, RenderCommandKind,
 };
 pub use context::NdCanvas;
 pub use submission::{

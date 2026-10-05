@@ -263,6 +263,52 @@ impl fmt::Display for ImageDrawError {
 
 impl std::error::Error for ImageDrawError {}
 
+/// An exact image resource revision paired with a source rectangle in physical pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ImageRegion {
+    image: ImageResourceRef,
+    source_pixels: Rectangle,
+}
+
+impl ImageRegion {
+    /// Creates a checked source region for an image resource revision.
+    pub fn new(image: ImageResourceRef, source_pixels: Rectangle) -> Result<Self, ImageDrawError> {
+        validate_image_source(image.width(), image.height(), source_pixels)?;
+        Ok(Self {
+            image,
+            source_pixels,
+        })
+    }
+
+    /// Creates a region covering the image's complete physical pixel extent.
+    pub fn full(image: ImageResourceRef) -> Self {
+        Self {
+            image,
+            source_pixels: Rectangle::new(
+                0.0,
+                0.0,
+                f64::from(image.width()),
+                f64::from(image.height()),
+            ),
+        }
+    }
+
+    /// Returns the exact immutable image resource revision.
+    pub const fn image(self) -> ImageResourceRef {
+        self.image
+    }
+
+    /// Returns the source rectangle in the image's physical pixel domain.
+    pub const fn source_pixels(self) -> Rectangle {
+        self.source_pixels
+    }
+
+    /// Returns whether this region has no drawable pixel area.
+    pub fn is_empty(self) -> bool {
+        self.source_pixels.is_empty()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[doc(hidden)]
 pub enum ImageDrawDisposition {
@@ -300,6 +346,30 @@ pub fn validate_image_draw_geometry(
         return Err(ImageDrawError::SourceOutOfBounds);
     }
     Ok(ImageDrawDisposition::Draw)
+}
+
+fn validate_image_source(
+    image_width: u32,
+    image_height: u32,
+    source_rect: Rectangle,
+) -> Result<(), ImageDrawError> {
+    if !rectangle_has_finite_bounds(source_rect) {
+        return Err(ImageDrawError::NonFiniteSource);
+    }
+    if source_rect.width < 0.0 || source_rect.height < 0.0 {
+        return Err(ImageDrawError::NegativeSourceExtent);
+    }
+    if source_rect.is_empty() {
+        return Ok(());
+    }
+    if source_rect.x < 0.0
+        || source_rect.y < 0.0
+        || source_rect.x + source_rect.width > f64::from(image_width)
+        || source_rect.y + source_rect.height > f64::from(image_height)
+    {
+        return Err(ImageDrawError::SourceOutOfBounds);
+    }
+    Ok(())
 }
 
 fn rectangle_has_finite_bounds(rectangle: Rectangle) -> bool {
