@@ -401,7 +401,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
 
         // 旋转
         gc.translate(100.0, 50.0);
-        gc.rotate(45.0);
+        gc.rotate_degrees(45.0);
         gc.stroke_rect_with_style(
             50.0,
             50.0,

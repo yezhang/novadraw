@@ -87,7 +87,7 @@ impl Affine2D {
 
     /// 从旋转创建 (弧度，绕原点，逆时针)
     #[inline]
-    pub fn from_rotation(radians: f64) -> Self {
+    pub fn from_rotation_radians(radians: f64) -> Self {
         Self {
             inner: Affine::rotate(radians),
         }
@@ -205,7 +205,7 @@ impl Affine2D {
 
     /// 追加旋转（弧度，绕原点，逆时针）
     #[inline]
-    pub fn then_rotate(self, radians: f64) -> Self {
+    pub fn then_rotate_radians(self, radians: f64) -> Self {
         Self {
             inner: self.inner.then_rotate(radians),
         }
@@ -213,7 +213,7 @@ impl Affine2D {
 
     /// 追加旋转（绕指定点）
     #[inline]
-    pub fn then_rotate_about(self, radians: f64, cx: f64, cy: f64) -> Self {
+    pub fn then_rotate_about_radians(self, radians: f64, cx: f64, cy: f64) -> Self {
         Self {
             inner: self
                 .inner
@@ -350,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_rotation() {
-        let t = Affine2D::from_rotation(std::f64::consts::FRAC_PI_2);
+        let t = Affine2D::from_rotation_radians(std::f64::consts::FRAC_PI_2);
         let p = t.transform_point(Point::new(0.0, 1.0));
         // 逆时针旋转90度: (0, 1) -> (-1, 0)
         assert!((p.x() + 1.0).abs() < 1e-10);
@@ -413,7 +413,7 @@ mod tests {
 
     #[test]
     fn test_then_rotate() {
-        let t = Affine2D::IDENTITY.then_rotate(std::f64::consts::FRAC_PI_2);
+        let t = Affine2D::IDENTITY.then_rotate_radians(std::f64::consts::FRAC_PI_2);
         let p = t.transform_point(Point::new(1.0, 0.0));
         // 逆时针旋转90度: (1, 0) -> (0, 1)
         assert!((p.x() - 0.0).abs() < 1e-10);
@@ -423,7 +423,7 @@ mod tests {
     #[test]
     fn test_then_rotate_about() {
         // 绕点(1,0)旋转90度
-        let t = Affine2D::IDENTITY.then_rotate_about(std::f64::consts::FRAC_PI_2, 1.0, 0.0);
+        let t = Affine2D::IDENTITY.then_rotate_about_radians(std::f64::consts::FRAC_PI_2, 1.0, 0.0);
         let p = t.transform_point(Point::new(1.0, 0.0));
         // 绕(1,0)旋转，自身不变
         assert!((p.x() - 1.0).abs() < 1e-10);
@@ -444,7 +444,7 @@ mod tests {
     fn test_then_chain() {
         let t = Affine2D::IDENTITY
             .then_translate(10.0, 0.0)
-            .then_rotate(std::f64::consts::FRAC_PI_2)
+            .then_rotate_radians(std::f64::consts::FRAC_PI_2)
             .then_scale(2.0);
 
         let p = t.transform_point(Point::new(5.0, 0.0));

@@ -77,8 +77,8 @@ impl Vec2 {
     /// 使用标准旋转矩阵，在 Y 轴向下的坐标系中表现为顺时针旋转。
     /// 角度为正时，向量向顺时针方向旋转。
     #[inline]
-    pub fn rotate(self, angle: f64) -> Self {
-        let (s, c) = angle.sin_cos();
+    pub fn rotate_radians(self, radians: f64) -> Self {
+        let (s, c) = radians.sin_cos();
         Vec2::new(self.x * c + self.y * s, -self.x * s + self.y * c)
     }
 

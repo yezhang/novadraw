@@ -79,6 +79,29 @@ fn one_context_measures_and_records_a_retained_layout() {
 }
 
 #[test]
+fn graphics_rotation_names_degrees_and_rejects_non_finite_input_atomically() {
+    let mut text = text_system();
+    let mut recorder = CommandRecorder::new();
+    let mut graphics = Graphics::new(&mut text, &mut recorder);
+
+    assert!(matches!(
+        graphics.rotate_degrees(f64::NAN),
+        Err(GraphicsError::Input(_))
+    ));
+    drop(graphics);
+    assert!(recorder.commands().is_empty());
+
+    let mut recorder = CommandRecorder::new();
+    let mut graphics = Graphics::new(&mut text, &mut recorder);
+    graphics.rotate_degrees(90.0).unwrap();
+    drop(graphics);
+    assert!(matches!(
+        recorder.commands()[0].kind,
+        RenderCommandKind::ConcatTransform { .. }
+    ));
+}
+
+#[test]
 fn stale_and_foreign_layouts_fail_without_partial_recording() {
     let mut text = text_system();
     let layout = text

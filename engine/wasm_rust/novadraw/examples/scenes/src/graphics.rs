@@ -127,7 +127,7 @@ impl Figure for GraphicsFigure {
         gc.push_state();
         gc.clip_rect(560.0, 120.0, 140.0, 120.0);
         gc.translate(620.0, 140.0);
-        gc.rotate(90.0);
+        gc.rotate_degrees(90.0);
         gc.scale(1.5, 0.75);
         gc.set_fill_paint(red_blue(0.0, 60.0));
         gc.fill_rectangle(0.0, -40.0, 60.0, 80.0);

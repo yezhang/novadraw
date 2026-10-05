@@ -265,7 +265,9 @@ mod tests {
     #[test]
     fn rectangle_affine_transform_returns_conservative_aabb() {
         let mut rect = Rectangle::new(0.0, 0.0, 20.0, 10.0);
-        rect.transform(crate::Affine2D::from_rotation(std::f64::consts::FRAC_PI_2));
+        rect.transform(crate::Affine2D::from_rotation_radians(
+            std::f64::consts::FRAC_PI_2,
+        ));
 
         assert!((rect.x + 10.0).abs() < 1e-10);
         assert!(rect.y.abs() < 1e-10);

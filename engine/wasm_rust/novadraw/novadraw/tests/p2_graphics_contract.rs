@@ -359,7 +359,7 @@ fn device_preflight_replays_transform_restore_for_paints_and_clips() {
     use novadraw::render::validate_graphics_input;
     let mut canvas = NdCanvas::new();
     canvas.set_fill_paint(gradient_paint());
-    canvas.rotate(30.0);
+    canvas.rotate_degrees(30.0);
     canvas.scale(2.0, 0.5);
     canvas.push_state();
     canvas.scale(0.0, 0.0);

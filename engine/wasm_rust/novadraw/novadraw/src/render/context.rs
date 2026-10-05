@@ -260,8 +260,8 @@ impl NdCanvas {
     ///
     /// 与 Draw2D `Graphics::rotate` 一致，参数单位为度。
     /// 生成 ConcatTransform 命令
-    pub fn rotate(&mut self, degrees: f64) {
-        let t = Affine2D::from_rotation(degrees.to_radians());
+    pub fn rotate_degrees(&mut self, degrees: f64) {
+        let t = Affine2D::from_rotation_radians(degrees.to_radians());
         self.state.transform = self.state.transform.post_concat(t);
         self.create_command(RenderCommandKind::ConcatTransform { matrix: t });
     }
@@ -527,7 +527,7 @@ impl NdCanvas {
     }
 
     /// Adds a circular arc using Draw2D-compatible degree angles.
-    pub fn arc(
+    pub fn arc_degrees(
         &mut self,
         x: f64,
         y: f64,
@@ -537,7 +537,7 @@ impl NdCanvas {
         anticlockwise: bool,
     ) {
         if let Some(ref mut path) = self.current_path {
-            path.arc(x, y, radius, start_angle, end_angle, anticlockwise);
+            path.arc_degrees(x, y, radius, start_angle, end_angle, anticlockwise);
         }
     }
 
@@ -950,7 +950,7 @@ mod tests {
     fn rotate_uses_draw2d_degree_units() {
         let mut canvas = NdCanvas::new();
 
-        canvas.rotate(90.0);
+        canvas.rotate_degrees(90.0);
 
         let RenderCommandKind::ConcatTransform { matrix } = canvas.commands()[0].kind else {
             panic!("expected rotate as ConcatTransform");
@@ -971,7 +971,7 @@ mod tests {
             let mut canvas = NdCanvas::new();
             canvas.stroke_style(Color::BLACK);
             canvas.begin_path();
-            canvas.arc(0.0, 0.0, 10.0, 0.0, 90.0, anticlockwise);
+            canvas.arc_degrees(0.0, 0.0, 10.0, 0.0, 90.0, anticlockwise);
             canvas.stroke();
 
             let RenderCommandKind::StrokePath { path, .. } =

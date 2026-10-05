@@ -394,7 +394,7 @@ impl Path {
 
     /// 绘制弧线到指定点
     #[allow(clippy::too_many_arguments)]
-    pub fn arc_to(
+    pub fn arc_to_degrees(
         &mut self,
         rx: f64,
         ry: f64,
@@ -414,7 +414,7 @@ impl Path {
     }
 
     /// Adds a center-defined circular arc using degree angles.
-    pub fn arc(
+    pub fn arc_degrees(
         &mut self,
         x: f64,
         y: f64,
@@ -779,7 +779,7 @@ mod tests {
     fn path_bounds_include_svg_arc_extent() {
         let mut path = Path::new();
         path.move_to(0.0, 0.0);
-        path.arc_to(50.0, 50.0, 0.0, false, true, 100.0, 0.0);
+        path.arc_to_degrees(50.0, 50.0, 0.0, false, true, 100.0, 0.0);
 
         let bounds = path.bounding_box().expect("non-empty path");
 

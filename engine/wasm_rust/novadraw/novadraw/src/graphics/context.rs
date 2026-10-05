@@ -215,6 +215,18 @@ impl<'a> PaintContext<'a> {
         self.canvas
             .record_checked(|gc| gc.transform(a, b, c, d, e, f))
     }
+    pub fn rotate_degrees(&mut self, degrees: f64) -> Result<(), GraphicsError> {
+        if !degrees.is_finite() {
+            return self.reject(
+                GraphicsInputError::NonFinite {
+                    field: "rotation degrees",
+                    index: None,
+                }
+                .into(),
+            );
+        }
+        self.concat_transform(crate::Affine2D::from_rotation_radians(degrees.to_radians()))
+    }
     pub fn set_transform(&mut self, matrix: crate::Affine2D) -> Result<(), GraphicsError> {
         let [a, b, c, d, e, f] = matrix.coeffs();
         self.canvas
@@ -403,6 +415,9 @@ impl<'a> Graphics<'a> {
     }
     pub fn concat_transform(&mut self, matrix: crate::Affine2D) -> Result<(), GraphicsError> {
         self.paint.concat_transform(matrix)
+    }
+    pub fn rotate_degrees(&mut self, degrees: f64) -> Result<(), GraphicsError> {
+        self.paint.rotate_degrees(degrees)
     }
     pub fn set_transform(&mut self, matrix: crate::Affine2D) -> Result<(), GraphicsError> {
         self.paint.set_transform(matrix)
