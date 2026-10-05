@@ -102,6 +102,44 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 ## Graphics
 
+### P2-G02: 统一测量/绘制 API 与 glyph 准备链路
+
+状态：`complete`（2026-10-05 API、默认/可替换轮廓链路与验证门禁已完成）。
+
+目标：`GOAL-CAP`、`GOAL-EXT`。在现有布局与 Graphics 基础上提供统一调用集合，
+并为未来片段着色器字体后端保留“布局 → 曲线 → 预处理 → 绘制实例”链路。
+
+`api_semantics`：`graphics.context`、`text.flow`、`text.interaction`、
+`paint.protocol`、`damage.repaint`、`render.backend_session`。
+
+规范入口：[ADR-025](../adr/adr-025-unified-graphics-and-glyph-preparation.md)、
+[文字与图形整合](../design/rendering/text-graphics-integration.md)。
+本项与 deferred 的 P2-T03 富文本样式无关，也不关闭 P2-G01 未完成的 surface 验收。
+
+交付切片：
+
+1. Graphics 同一 API 集合提供 font metrics、measure/layout text 与图文绘制，
+   MeasureContext/PaintContext 保持阶段边界，复用 Runtime-owned 服务。
+2. 默认 Parley/Vello 主链路与独立 GlyphOutlineProvider 消费者；
+   保留字体身份、变体、曲线、baseline、布局与 ink 的一致性。
+3. 独立字体后端 consumer 验证定位 glyph、曲线预处理和实例组合；
+   网格/曲线索引格式保持 backend-local，覆盖缓存复用、资产导入校验和失效。
+4. 外部 Figure、失败原子性、图文交错 clip/transform/paint 的 Native/Web 验证。
+
+实现证据：
+
+- `Graphics`、`MeasureContext`、`PaintContext` 和 `RecordedDrawing` 已形成统一、
+  分阶段且资源闭合的公开调用面；外部 Figure 通过不可变 `FigurePresentation`
+  原子发布 measurement、visual bounds 与 drawing。
+- `SkrifaOutlineProvider`、`OutlineCache`、`GlyphInstance` 与显式
+  `OutlineTextEngine` 已实现；默认 glyph 路径保持不变，显式 provider 路径降低为
+  backend-neutral Path 并由 Vello 编码。
+- `core.p2-g02-text-graphics` 覆盖 fallback/RTL/variation、空轮廓、缓存复用、
+  stale/foreign revision、状态栈和外部 Figure；详细记录见
+  [P2-G02 实现证据](../verification/reviews/p2-g02-text-graphics-evidence.md)。
+- 用户未来自研片段着色器、分网格算法和 GPU 数据格式仍属于 backend-local 后续实现，
+  不作为本项 Core API 交付。
+
 ### P2-G01: Graphics 扩展
 
 状态：`in_progress`（实现已贯通，Native GPU 离屏与 WebGPU 像素已验证；

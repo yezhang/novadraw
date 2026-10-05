@@ -43,6 +43,8 @@
 25. [`architecture/component-update.md`](architecture/component-update.md)
 26. [`architecture/runtime-ownership-and-module-boundaries.md`](architecture/runtime-ownership-and-module-boundaries.md)
 27. [`rendering/p2-g01-graphics-extension.md`](rendering/p2-g01-graphics-extension.md)
+28. [`rendering/text-graphics-integration.md`](rendering/text-graphics-integration.md)：
+    统一测量/绘制与 glyph 预处理合同，ADR-025 已接受，实现状态见 P2-G02
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
@@ -51,6 +53,9 @@
 
 ## 非规范提案
 
+- [公共 API 统一设计与迁移](architecture/public-api-experience-proposal.md)：
+  六包角色、命名、组合和迁移总入口；文字合同详见已接受的整合专题，
+  录制完成接口及其他领域的迁移候选仍待评审
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

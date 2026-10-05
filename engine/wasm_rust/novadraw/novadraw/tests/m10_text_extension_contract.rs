@@ -71,7 +71,7 @@ impl TextLayoutEngine for ExternalTextEngine {
             }],
             glyph_runs: vec![GlyphRun {
                 font: face,
-                font_size: font.size,
+                font_size: font.size(),
                 normalized_coords: Vec::new(),
                 skew_degrees: None,
                 glyphs: vec![PositionedGlyph {
@@ -119,8 +119,8 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     assert_eq!(layout.key().engine_revision(), engine.revision());
     assert!(layout.baseline() > 0.0);
     let mut canvas = NdCanvas::new();
-    canvas.set_foreground_color(Color::BLACK);
-    canvas.draw_text_layout(&layout, 12.0, 24.0);
+    canvas.set_background_color(Color::BLACK);
+    canvas.fill_text_layout(&layout, 12.0, 24.0);
 
     let command = canvas
         .commands()
@@ -186,8 +186,8 @@ fn external_text_engine_constructs_non_empty_backend_neutral_layout() {
     assert_eq!(layout.glyph_runs()[0].font.resource_id(), font_id);
 
     let mut canvas = NdCanvas::new();
-    canvas.set_foreground_color(Color::BLACK);
-    canvas.draw_text_layout(&layout, 4.0, 12.0);
+    canvas.set_background_color(Color::BLACK);
+    canvas.fill_text_layout(&layout, 4.0, 12.0);
     assert!(
         canvas
             .commands()

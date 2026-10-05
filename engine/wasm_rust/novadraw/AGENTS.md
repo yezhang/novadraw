@@ -63,6 +63,10 @@
   `doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md`
 - **Crate 收口与扩展边界**：
   `doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md`
+- **统一 Graphics 与 glyph 预处理边界**：
+  `doc/adr/adr-025-unified-graphics-and-glyph-preparation.md`；
+  字体指标、文字测量与图文绘制统一 API，布局后曲线预处理与片段着色器数据归后端；
+  已接受并完成 P2-G02 Core API 与默认/可替换轮廓链路；自研后端算法不属于当前交付
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
 - **可执行验证清单**：`verification/suites.toml`

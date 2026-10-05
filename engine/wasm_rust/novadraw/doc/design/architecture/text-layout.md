@@ -6,6 +6,12 @@
 
 范围：M10.2、P2-T01、P2-T02
 
+P2-G02 的统一字体指标/文字测量/绘制 API、glyph 轮廓与后端预处理边界以
+[ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md) 和
+[文字与图形整合设计](../rendering/text-graphics-integration.md) 为准。
+本页保留已交付切片的布局语义；其中 Runtime/NdCanvas 的调用形式不限制 P2-G02
+的统一 facade。设计接受不代表新 API 已实现。
+
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)。
 

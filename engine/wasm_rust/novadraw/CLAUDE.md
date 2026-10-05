@@ -103,6 +103,7 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 | 公开 Facade 与 Feature 边界 | [doc/adr/adr-021-public-facade-and-feature-boundary.md](doc/adr/adr-021-public-facade-and-feature-boundary.md) |
 | 第三方类型与渲染依赖边界 | [doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md](doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md) |
 | Crate 收口与扩展边界 | [doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md](doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md) |
+| 统一 Graphics 与 glyph 预处理边界 | [ADR-025](doc/adr/adr-025-unified-graphics-and-glyph-preparation.md) |
 | Core 公开 API 审计 | [doc/verification/reviews/core-public-api-audit-2026-09-22.md](doc/verification/reviews/core-public-api-audit-2026-09-22.md) |
 
 ### Milestone 与路线图
@@ -112,6 +113,11 @@ GA-1/GA-4 为基础，先推进 P2-S01，再评审 Graphics 与外部布局算�
 WindowServer/Chrome 性能采证及 Windows/Linux 原生 runner 验收后置到发布准备，
 保留未完成状态，不阻塞平台无关 Core 开发；当前顺序以
 `doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md` 为准。
+
+2026-10-05 已接受 ADR-025：同一 Graphics API 集合提供字体指标、文字测量与图文绘制；
+布局后 glyph 轮廓、位置与后端专有预处理数据分离，支持未来片段着色器字体引擎。
+P2-G02 Core API 与默认/可替换轮廓链路已实现；预处理网格/GPU 格式归具体后端，不进入 Core 布局结果，
+不将未来自研 shader 算法列为当前必须交付的功能。
 
 - **Draw2D API 语义覆盖账本**：`doc/parity/draw2d/api-coverage.md`（API family、语义契约、Novadraw 合理变体、M1-M10 映射）
 - **产品交付清单**：`doc/roadmap/product-deliverables.md`（5 图元 / 6 布局 / 6 边框 等策略层清单）

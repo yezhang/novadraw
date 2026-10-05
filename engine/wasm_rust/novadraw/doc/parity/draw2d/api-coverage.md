@@ -175,6 +175,11 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-F01 | `builtin.figures` | `complete` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `complete` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
+| P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `not_started` | ADR-025 已接受统一测量/绘制与布局后 glyph 准备合同；实现及外部后端消费者待验证 |
+
+P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持
+文本度量/绘制同源、图文有序合成、字体资源 revision 与失败发布合同；
+自研 fragment shader 的曲线预处理格式属于 backend 扩展，不冒充 Draw2D 的现有 API。
 
 ## 长期能力分母与处置
 
@@ -258,7 +263,7 @@ Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.jav
 | `figure.tree` | `remove(IFigure)`, `removeAll()`, `getParent()`, `setParent(IFigure)` | `ContainerEditor::remove`、`FigureEditor::reparent`、`Runtime::dispose_subtree` 与 `FigureTree::parent_id`；remove 释放 arena slot 与 side state，reparent 保持同 Runtime 身份 | partial | D4.3 已闭合 dispose/reparent；通用活对象迁移撤回，`removeAll` convenience 延后 |
 | `figure.tree` | `getChildren()` | `FigureNode::children_count`、`FigureTree::child_order/descendant_ids` 提供稳定只读查询 | verified | 不暴露可修改内部 children 集合的引用 |
 | `figure.lifecycle` | `addNotify()`, `removeNotify()` | `FigureLifecycle::{on_attached,on_detached}`、parent-first activation、descendant-first disposal、旧 visual damage 与 side-state 清理 | verified | D4.3 自动契约覆盖 10,000 层 dispose 与 panic/fault 边界 |
-| `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`FigureEditor::{set_bounds,translate}` update-aware 修改 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源 |
+| `figure.geometry.bounds` | `getBounds/setBounds/getLocation/getSize/setSize/translate` | `NodeState` 是运行时几何真源；`FigureTree::figure_bounds` 只读，`FigureEditor::{set_bounds,translate}` update-aware 修改；Figure callback 使用 `EventContext::set_bounds_later` 延迟提交 | verified | `Bounded` 仅保留构造期和独立图元兼容，不是树内真源；UML probe 覆盖 capture drag、damage 与 Connection 重路由 |
 | `figure.box.client_area` | `getClientArea()`, `getClientArea(Rectangle)`, `getInsets()` | `Bounded::{client_area,insets}` | verified | M5 layout area、M8 viewport client area 继续复查 |
 | `figure.visibility.enabled` | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | `FigureTree::{is_visible,is_enabled,is_effectively_visible,is_effectively_enabled}` 只读查询；`FigureEditor::{set_visible,set_enabled}` 提交 mutation | verified | M6 复查 disabled 对 event target 的策略 |
 | `hit_test.search` | `containsPoint`, `intersects`, `findFigureAt`, `findMouseEventTargetAt` | `Bounded::{contains_point,intersects}`, `FigureTree::{hit_test,hit_test_simple,find_mouse_event_target_at}` | verified | 保持逆序命中和 visible/enabled probes |

@@ -185,6 +185,11 @@ description = "Exercise checked Graphics values and external Canvas consumers"
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_graphics_contract"]
 
+[commands."test.p2-g02-text-graphics"]
+description = "Exercise unified text measurement, resource-closed recording and glyph outlines"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "p2_text_graphics_contract"]
+
 [commands."test.vello-p2-graphics"]
 description = "Exercise Vello Graphics lowering, clipping and resource acceptance"
 program = "cargo"
@@ -1117,6 +1122,33 @@ documents = [
   "doc/design/rendering/p2-g01-graphics-extension.md",
   "doc/roadmap/p2-delta-backlog.md",
   "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-g02-text-graphics"
+title = "Unified Graphics text services and glyph outline contracts"
+milestone = "P2-G02"
+kind = "contract"
+api_semantics = ["graphics.context", "text.flow", "text.interaction", "paint.protocol", "damage.repaint", "render.backend_session"]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-g02-text-graphics", "test.vello-p2-graphics"]
+paths = [
+  "novadraw/src/text.rs",
+  "novadraw/src/text/**",
+  "novadraw/src/graphics/**",
+  "novadraw/src/render/**",
+  "novadraw/src/figure/preparation.rs",
+  "novadraw/src/graph/**",
+  "novadraw/src/runtime/**",
+  "novadraw-backend-vello/src/**",
+  "novadraw/tests/p2_text_graphics_contract.rs",
+]
+documents = [
+  "doc/adr/adr-025-unified-graphics-and-glyph-preparation.md",
+  "doc/design/rendering/text-graphics-integration.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/reviews/p2-g02-text-graphics-evidence.md",
 ]
 
 [[suites]]

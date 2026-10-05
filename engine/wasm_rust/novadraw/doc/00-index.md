@@ -20,6 +20,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 - Draw2D Core 之后的动画与表现平面、图布局、内置组件、概览和输出能力建议顺序见
   [`roadmap/draw2d-capability-enrichment-plan-2026-10-05.md`](roadmap/draw2d-capability-enrichment-plan-2026-10-05.md)；
   该计划不替代 P2 backlog 的状态真源。
+- 统一 Graphics API 与 glyph 预处理：ADR-025 已接受，P2-G02 已实现并进入最终门禁；
+  字体指标、文字测量与图文绘制使用同一 API 集合，自研后端预处理格式保持独立。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及
@@ -56,6 +58,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-021-public-facade-and-feature-boundary.md`](adr/adr-021-public-facade-and-feature-boundary.md)
 - 第三方类型与渲染依赖边界：
   [`adr/adr-022-third-party-type-and-render-dependency-boundary.md`](adr/adr-022-third-party-type-and-render-dependency-boundary.md)
+- 统一 Graphics API 与 glyph 预处理边界：
+  [`adr/adr-025-unified-graphics-and-glyph-preparation.md`](adr/adr-025-unified-graphics-and-glyph-preparation.md)
 - Core 公开 API 审计与整改状态：
   [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - ADR-001 至 ADR-013 审计与替代关系：
@@ -72,6 +76,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/reusable-shape-border.md`](design/architecture/reusable-shape-border.md)
 - Text Layout、Label 与 TitleBarBorder：
   [`design/architecture/text-layout.md`](design/architecture/text-layout.md)
+- 统一文字测量/图形绘制与自研字体后端输入：
+  [`design/rendering/text-graphics-integration.md`](design/rendering/text-graphics-integration.md)
 - Clickable、Button 与 Toggle：
   [`design/architecture/basic-widgets.md`](design/architecture/basic-widgets.md)
 - Tooltip 与 Accessibility Bridge：

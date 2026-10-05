@@ -41,6 +41,8 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [021](adr-021-public-facade-and-feature-boundary.md) | 公开 Facade 与 Feature 边界 | 部分由 023 替代 | 2026-09-28 |
 | [022](adr-022-third-party-type-and-render-dependency-boundary.md) | 第三方类型与渲染依赖边界 | 部分由 023 替代 | 2026-09-29 |
 | [023](adr-023-crate-consolidation-and-extension-boundaries.md) | Crate 收口与扩展边界 | 已接受，已验证 | 2026-09-29 |
+| [024](adr-024-graphics-paint-stroke-and-clipping.md) | Graphics Paint、Stroke 与路径裁剪 | 已接受 | 2026-10-02 |
+| [025](adr-025-unified-graphics-and-glyph-preparation.md) | 统一 Graphics API 与 Glyph 预处理边界 | 已接受，已实现 | 2026-10-05 |
 
 ## 现行与历史隔离
 

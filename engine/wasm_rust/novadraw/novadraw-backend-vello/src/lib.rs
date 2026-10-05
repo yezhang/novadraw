@@ -2052,6 +2052,50 @@ mod tests {
     }
 
     #[test]
+    fn prepared_outline_text_is_encoded_as_vello_paths() {
+        use novadraw::graphics::Graphics;
+        use novadraw::render::{CommandRecorder, ParleyTextEngine, RenderCommandKind};
+        use novadraw::text::{
+            TextSystem,
+            outline::{OutlineTextEngine, SkrifaOutlineProvider},
+        };
+
+        let mut text = TextSystem::with_engine(Box::new(OutlineTextEngine::new(
+            Box::new(ParleyTextEngine::new()),
+            Box::new(SkrifaOutlineProvider),
+        )));
+        text.register_builtin_font(BuiltinFont::Inter).unwrap();
+        let mut recorder = CommandRecorder::new();
+        let mut graphics = Graphics::new(&mut text, &mut recorder);
+        let layout = graphics
+            .layout_text("Vello path", TextConstraints::UNBOUNDED)
+            .unwrap();
+        graphics.set_fill_paint(Color::BLACK);
+        graphics.fill_text(&layout, Point::new(8.0, 24.0)).unwrap();
+        drop(graphics);
+        let drawing = recorder.finish().unwrap();
+        let path = drawing
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::FillPath { path, .. } => Some(path),
+                _ => None,
+            })
+            .expect("selected outline provider must lower text to a path");
+
+        let mut scene = vello::Scene::new();
+        let path = path_to_vello(path, 2.0);
+        scene.fill(
+            vello::peniko::Fill::NonZero,
+            vello::kurbo::Affine::IDENTITY,
+            VelloColor::new([0.0, 0.0, 0.0, 1.0]),
+            None,
+            &path,
+        );
+        assert!(!scene.encoding().path_tags.is_empty());
+    }
+
+    #[test]
     fn gradient_lowering_keeps_stops_and_explicit_interpolation_with_dpi() {
         use novadraw::graphics::{GradientStop, LinearGradient};
         use vello::peniko::{Brush, Extend, GradientKind, InterpolationAlphaSpace};

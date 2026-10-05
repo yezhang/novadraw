@@ -36,6 +36,7 @@
 | 2026-10-01 | [GA-4 模块与扩展表面](ga4-module-extension-completion-2026-10-01.md) |
 | 2026-10-01 | [GA-5 文档与门禁](ga5-documentation-gate-completion-2026-10-01.md) |
 | 2026-10-01 | [GA-6 目标矩阵审计](ga6-goal-matrix-audit-2026-10-01.md) |
+| 2026-10-05 | [P2-G02 统一文字与 Graphics](p2-g02-text-graphics-evidence.md) |
 
 ## 平台与产品验收
 
