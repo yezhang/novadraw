@@ -45,13 +45,24 @@ benchmarks/        - 无窗口性能基线
 
 验证成本必须随变更风险逐级提升，不得在每个小修改后重复执行 workspace 全量门禁：
 
-1. **修改内环**：运行受影响 crate 的 `cargo check -p <crate>` 和精确定向测试；
-   Rust 格式使用 `cargo fmt --all` 或提交前的格式检查。
-2. **功能切片完成**：运行受影响 crate 的完整测试，以及
-   `cargo xtask verify <suite-id>` 对应的契约或应用门禁。
+1. **修改内环**：先运行受影响 crate 的 `cargo check -p <crate> --lib`；涉及单个
+   integration target 时使用 `cargo check -p <crate> --test <target>` 或直接运行该
+   精确定向测试。内环不得使用 `--tests` 或 `--all-targets` 扫描无关测试目标。
+   Clippy 同样先限定为 `--lib` 或受影响的 `--test <target>`。
+2. **功能切片完成**：先运行 `cargo xtask verify <suite-id>` 对应的契约或应用门禁；
+   只有修改共享行为、跨多个 integration target 或定向 suite 覆盖不足时，再运行受影响
+   crate 的完整测试。suite 已包含的相同命令不得紧接着手工重复执行。
 3. **同类整改批次完成**：运行 `cargo xtask check --quick`。
 4. **最终提交、推送、合并或里程碑关闭前**：只需运行一次
    `cargo xtask check --full`。
+
+`cargo fmt --all` 成本较低，但只在一个连贯编辑批次结束或提交前运行一次；不要在每个
+小补丁后重复格式化并触发后续目标重编译。多个验证命令应从低成本到高成本顺序执行，
+前一层失败时先修复，不继续启动更宽的门禁。
+
+若精确定向 `cargo check` 长时间处于低 CPU 等待，先用
+`cargo clean -p <crate> --dry-run` 检查包级缓存；只有确认出现异常数量或体积的增量
+产物时，才执行一次 `cargo clean -p <crate>`。不得把 clean 放入常规验证脚本。
 
 纯文档变更默认只运行：
 

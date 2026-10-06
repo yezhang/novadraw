@@ -132,9 +132,10 @@
 - **语言**: Rust (Edition 2024)
 - **渲染**: Vello (WebGPU)
 - **构建**: `cargo build && cargo test`
-- **分层门禁**: 修改内环使用 crate 级 check/精确测试；功能切片运行对应 suite；
-  `cargo xtask check --quick` 用于同类整改批次，`cargo xtask check --full` 只在最终
-  提交、推送、合并或里程碑关闭前执行一次
+- **分层门禁**: 修改内环使用 crate `--lib` 或单个 `--test` 的 check/Clippy/精确测试，
+  不使用 `--tests`、`--all-targets` 扫描无关目标；功能切片先运行对应 suite，suite
+  已含命令不重复手工执行；`cargo xtask check --quick` 用于同类整改批次，
+  `cargo xtask check --full` 只在最终提交、推送、合并或里程碑关闭前执行一次
 - **公开包**: `novadraw` Core、`novadraw-editor`、`novadraw-inspector`、
   `novadraw-backend-vello`、`novadraw-platform-winit`、`novadraw-platform-web`
 - **3D 边界**: 保留独立 Scene3D / Projective3D 扩展契约；真实用例出现前不建设空 crate
