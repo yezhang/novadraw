@@ -1,8 +1,9 @@
 use std::convert::Infallible;
 
+use novadraw::runtime::PreparedFigureUpdate;
 use novadraw::{
     ComponentUpdateError, Figure, FigureComponentContext, FigureComponentUpdate, NdCanvas,
-    PreparedFigureUpdate, Rectangle, RectangleFigure,
+    Rectangle, RectangleFigure,
 };
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,

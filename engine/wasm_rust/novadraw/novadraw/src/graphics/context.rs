@@ -1,10 +1,11 @@
 use super::*;
 use crate::render::ResourceUpdate;
+use crate::runtime::ResourceRegistry;
 use crate::text::{
     FontDescriptor, FontMetrics, MeasureContext, TextConstraints, TextError, TextLayout,
     TextMetrics, TextSystem,
 };
-use crate::{Point, Rectangle, ResourceRegistry};
+use crate::{Point, Rectangle};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum GraphicsError {

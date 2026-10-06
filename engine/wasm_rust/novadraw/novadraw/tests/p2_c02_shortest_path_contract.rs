@@ -1,7 +1,8 @@
+use novadraw::connection::{ConnectionRoutingStats, UnresolvedConnection};
 use novadraw::geometry::{Point, Rectangle};
 use novadraw::{
     ChopboxAnchor, ConnectionFigure, ConnectionResolution, CoordinateSpace, RectangleFigure,
-    RouteError, RouterBinding, Runtime, ShortestPathConnectionRouter, UnresolvedConnection,
+    RouteError, RouterBinding, Runtime, ShortestPathConnectionRouter,
 };
 
 const CLEARANCE: f64 = 10.0;
@@ -96,7 +97,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     }));
     assert_eq!(
         runtime.connection_routing_stats(),
-        novadraw::ConnectionRoutingStats {
+        ConnectionRoutingStats {
             route_calculations: 1,
             routing_order_entries: 4,
             obstacle_snapshot_builds: 1,
@@ -136,7 +137,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
     assert_eq!(
         runtime.connection_routing_stats(),
-        novadraw::ConnectionRoutingStats {
+        ConnectionRoutingStats {
             route_calculations: 6,
             routing_order_entries: 23,
             obstacle_snapshot_builds: 6,
@@ -293,7 +294,7 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
         .unwrap();
     assert_eq!(
         runtime.connection_routing_stats(),
-        novadraw::ConnectionRoutingStats {
+        ConnectionRoutingStats {
             route_calculations: COUNT as u64,
             routing_order_entries: 2 * COUNT as u64 + 2,
             obstacle_snapshot_builds: 1,

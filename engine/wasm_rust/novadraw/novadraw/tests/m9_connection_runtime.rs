@@ -1,5 +1,6 @@
 use std::{any::TypeId, marker::PhantomData};
 
+use novadraw::connection::{RouteOutput, RouteRequest, UnresolvedConnection};
 use novadraw::geometry::{Point, PointList, Vec2};
 use novadraw::render::{
     BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderOutcome, SurfaceInfo,
@@ -11,8 +12,8 @@ use novadraw::{
     CoordinateSpace, DirectRouter, EndpointLocator, FanRouter, FigureId, LocatorError,
     MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
     PathFractionLocator, PolygonDecorationFigure, PolylineDecorationFigure, RectangleFigure,
-    RouteError, RouteOutput, RouteRequest, RouterBinding, Runtime, RuntimeMutationError,
-    UnresolvedConnection, ViewportFigure, XYAnchor, XYConstraint, XYLayout,
+    RouteError, RouterBinding, Runtime, RuntimeMutationError, ViewportFigure, XYAnchor,
+    XYConstraint, XYLayout,
 };
 
 struct ConstraintA;

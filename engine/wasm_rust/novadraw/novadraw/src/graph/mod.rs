@@ -1224,7 +1224,7 @@ impl FigureTree {
         &self,
         id: FigureId,
         parent_points: &PointList,
-    ) -> Option<crate::PreparedConnectionGeometry> {
+    ) -> Option<crate::connection::PreparedConnectionGeometry> {
         self.blocks
             .get(id)?
             .figure
@@ -1237,7 +1237,7 @@ impl FigureTree {
         &self,
         id: FigureId,
         placement: crate::LocatorPlacement,
-    ) -> Option<Result<crate::PreparedDecorationGeometry, crate::DecorationError>> {
+    ) -> Option<Result<crate::connection::PreparedDecorationGeometry, crate::DecorationError>> {
         Some(
             self.blocks
                 .get(id)?
@@ -1251,7 +1251,7 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        geometry: crate::PreparedDecorationGeometry,
+        geometry: crate::connection::PreparedDecorationGeometry,
     ) {
         let (old_bounds, old_visual_bounds, parent_id, visible) = self
             .blocks
@@ -1302,7 +1302,7 @@ impl FigureTree {
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        geometry: crate::PreparedConnectionGeometry,
+        geometry: crate::connection::PreparedConnectionGeometry,
     ) {
         let (old_bounds, old_visual_bounds, parent_id, visible) = self
             .blocks

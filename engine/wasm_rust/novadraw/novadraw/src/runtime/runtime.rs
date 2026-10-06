@@ -12,7 +12,10 @@ use crate::render::{
 };
 
 use crate::PropertyValue;
-use crate::connection::{ConnectionRuntime, FigureTreeSceneRead};
+use crate::connection::{
+    ConnectionRoutingStats, ConnectionRuntime, DependencySubject, FigureTreeSceneRead,
+    RouteMetadata, RouteOutput, RouteRequest, TrackedSceneQuery, UnresolvedConnection,
+};
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
 use crate::geometry::{Dimension, Point, PointList, Translatable};
@@ -21,28 +24,27 @@ use crate::mutation::{
     PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
 };
 use crate::runtime::accessibility::AccessibilityManager;
+use crate::runtime::resource::ResourceRegistry;
 use crate::runtime::tooltip::TooltipController;
 use crate::{
     AccessibilityAction, AccessibilityError, AccessibilityNodeId, AccessibilitySnapshot,
     AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
     AnchorGeometryKey, AnchorId, Border, ChildClippingStrategy, ClickableSnapshot,
     ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionLocatorStrategy,
-    ConnectionRouter, ConnectionRoutingStats, ConnectionRuntimeError, ConnectionStateSnapshot,
-    CoordinateListener, CoordinateSpace, CursorIcon, DependencySubject, DirectRouter, Direction,
-    EventDispatcher, Figure, FigureId, FigureListener, FigureStyle, FigureTree, FlowPage,
-    FlowTextPosition, FlowTextRange, FlowWrapping, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
-    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneMut, LayoutConstraint,
-    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
-    ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
-    ResourceError, ResourceRegistry, RouteError, RouteMetadata, RouteOutput, RouteRequest,
-    RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope, ScaleHandle,
-    SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
-    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TrackedSceneQuery, TreeOrderFocusTraversal, UnresolvedConnection,
-    UpdateEvent, UpdateListener, UpdateManager, ValidationError, ViewportHandle, WheelEvent,
-    WidgetError, ZoomEvent, ZoomManager,
+    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateListener,
+    CoordinateSpace, CursorIcon, DirectRouter, Direction, EventDispatcher, Figure, FigureId,
+    FigureListener, FigureStyle, FigureTree, FlowPage, FlowTextPosition, FlowTextRange,
+    FlowWrapping, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
+    FocusTraversalPolicy, FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId,
+    InteractionState, Key, KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement,
+    LayeredPane, LayeredPaneMut, LayoutConstraint, LayoutListener, LayoutManager, ListenerId,
+    ListenerScope, MonotonicTime, MouseButton, ObservationListener, PendingMutations,
+    PolygonScaleMode, PropertyChangeListener, Rectangle, ResourceError, RouteError, RouterBinding,
+    RouterId, RoutingConstraint, RoutingGroupScope, ScaleHandle, SceneDispatchContext,
+    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
+    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
+    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
+    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
 
 mod component_update;
@@ -1165,10 +1167,7 @@ impl Runtime {
         })
     }
 
-    pub fn scalable(
-        &mut self,
-        scalable: FigureId,
-    ) -> Result<ScaleMut<'_>, RuntimeMutationError> {
+    pub fn scalable(&mut self, scalable: FigureId) -> Result<ScaleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(scalable)?;
         let scalable =
             self.tree

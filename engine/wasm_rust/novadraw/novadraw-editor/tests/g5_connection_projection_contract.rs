@@ -8,11 +8,12 @@ use std::{
     },
 };
 
+use novadraw::connection::{RouteOutput, RouteRequest};
 use novadraw::geometry::Rectangle;
 use novadraw::{
     AnchorSemanticKey, ChopboxAnchor, ConnectionFigure, ConnectionId, ConnectionResolution,
     ConnectionRouter, ConnectionRuntimeError, DirectRouter, Figure, RectangleFigure, RootFigure,
-    RouteError, RouteOutput, RouteRequest,
+    RouteError,
 };
 use novadraw_editor::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionPartFactoryContext,

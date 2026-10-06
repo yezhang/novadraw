@@ -1,4 +1,5 @@
 use super::*;
+use crate::runtime::ResourceRegistry;
 
 impl FigureTree {
     pub(crate) fn refresh_prepared_figures(
@@ -633,7 +634,7 @@ impl FigureTree {
     pub(crate) fn refresh_label_intrinsic_layouts(
         &mut self,
         text: &mut dyn TextLayoutEngine,
-        resources: &crate::ResourceRegistry,
+        resources: &ResourceRegistry,
     ) -> Result<TextLayoutRefreshResult, TextError> {
         let label_ids = self
             .blocks
@@ -745,10 +746,7 @@ impl FigureTree {
         })
     }
 
-    pub(crate) fn refresh_image_figures(
-        &mut self,
-        resources: &crate::ResourceRegistry,
-    ) -> Vec<FigureId> {
+    pub(crate) fn refresh_image_figures(&mut self, resources: &ResourceRegistry) -> Vec<FigureId> {
         let images = self
             .blocks
             .iter()

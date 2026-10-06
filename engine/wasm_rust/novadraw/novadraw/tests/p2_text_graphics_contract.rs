@@ -1,7 +1,7 @@
 //! External consumers of the unified text/graphics protocol.
 use novadraw::{
-    Color, Dimension, Figure, FigureDrawing, FigureMeasurement, FigurePreparation,
-    FigurePresentation, FigureTree, Point, Rectangle, Runtime,
+    Color, Dimension, Figure, FigureMeasurement, FigureTree, Point, Rectangle, Runtime,
+    figure::{FigureDrawing, FigurePreparation, FigurePresentation},
     graphics::{Graphics, GraphicsError, PaintContext, Path},
     render::{
         BackendCapabilities, CommandRecorder, FontData, ParleyTextEngine, RenderCommandKind,

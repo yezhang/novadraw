@@ -117,7 +117,7 @@ impl OutlineCache {
     pub fn prepare(
         &mut self,
         layout: &TextLayout,
-        resources: &crate::ResourceRegistry,
+        resources: &crate::runtime::ResourceRegistry,
     ) -> Result<OutlinedText, FontError> {
         self.prepare_with(layout, |id| {
             resources

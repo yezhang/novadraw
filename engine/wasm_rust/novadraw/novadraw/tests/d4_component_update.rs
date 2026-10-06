@@ -2,12 +2,12 @@ use novadraw::render::{
     BackendCapabilities, DamageMode, FontDescriptor, NdCanvas, RenderOutcome, SurfaceInfo,
     TextConstraints, TextError,
 };
+use novadraw::runtime::PreparedFigureUpdate;
 use novadraw::{
     ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Dimension,
     Figure, FigureComponentContext, FigureComponentUpdate, FigureEventHandler, FigureLifecycle,
     FigureTree, FocusError, FramePreparation, FramePreparationError, MouseButton, MouseEvent,
-    PreparedFigureUpdate, Rectangle, RectangleFigure, ResourceError, Runtime, RuntimeMutationError,
-    WidgetError,
+    Rectangle, RectangleFigure, ResourceError, Runtime, RuntimeMutationError, WidgetError,
 };
 
 #[derive(Clone, Debug, PartialEq)]

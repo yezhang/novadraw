@@ -1,11 +1,11 @@
 use std::{any::TypeId, collections::HashMap, convert::Infallible, time::Duration};
 
+use novadraw::connection::{RouteMetadata, RouteOutput, RouteRequest};
 use novadraw::geometry::{Point, PointList, Rectangle, Vec2};
 use novadraw::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
     ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
-    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RouteMetadata, RouteOutput,
-    RouteRequest, RoutingGroupScope,
+    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RoutingGroupScope,
 };
 use novadraw_editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,

@@ -53,18 +53,15 @@ pub use connection::{
     BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionAnchor,
     ConnectionDecorationBehavior, ConnectionFigure, ConnectionFigureBehavior,
     ConnectionGeometryError, ConnectionId, ConnectionLayerFigure, ConnectionLocator,
-    ConnectionLocatorStrategy, ConnectionResolution, ConnectionRouter, ConnectionRoutingStats,
-    ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateSpace, DecorationError,
-    DependencyObservation, DependencySubject, DirectRouter, EllipseAnchor, EndpointLocator,
-    FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, LabelAnchor, LocatorError, LocatorPlacement,
-    MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
-    MidpointLocator, PathFractionLocator, PolygonDecorationFigure, PolylineDecorationFigure,
-    PreparedConnectionGeometry, PreparedDecorationGeometry, RoundedRectangleAnchor, RouteEnd,
-    RouteEndpoint, RouteError, RouteMetadata, RouteOutput, RouteRequest, RouterBinding, RouterId,
-    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, RoutingObstacle,
+    ConnectionLocatorStrategy, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
+    ConnectionStateSnapshot, CoordinateSpace, DecorationError, DirectRouter, EllipseAnchor,
+    EndpointLocator, FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, LabelAnchor, LocatorError,
+    LocatorPlacement, MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB,
+    ManhattanConnectionRouter, MidpointLocator, PathFractionLocator, PolygonDecorationFigure,
+    PolylineDecorationFigure, RoundedRectangleAnchor, RouteEnd, RouteEndpoint, RouteError,
+    RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope,
     SHORTEST_PATH_DEFAULT_BEND_PENALTY, SHORTEST_PATH_DEFAULT_CLEARANCE,
-    SHORTEST_PATH_DEFAULT_MINIMUM_STUB, SceneQuery, SceneQueryError, SceneRead,
-    ShortestPathConnectionRouter, ShortestPathRouterError, TrackedSceneQuery, UnresolvedConnection,
+    SHORTEST_PATH_DEFAULT_MINIMUM_STUB, ShortestPathConnectionRouter, ShortestPathRouterError,
     XYAnchor, rectangle_boundary_site,
 };
 pub use container::viewport;
@@ -82,14 +79,14 @@ pub use figure::{
     AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
     ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
     ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
-    EllipseFigure, Figure, FigureContainer, FigureDrawing, FigureEventHandler, FigureLifecycle,
-    FigureLifecycleContext, FigureMeasurement, FigurePreparation, FigurePresentation, FlowPage,
-    FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, Freeform, HitParticipation,
-    ImageDisplayState, ImageFigure, InlineTextFragment, LabelFigure, Layer, MeasureConstraints,
-    MeasureConstraintsError, PointListFigureBehavior, PolygonFigure, PolygonScaleMode,
-    PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior,
-    ScalablePolygonError, ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior,
-    TextFlowFigure, TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
+    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowTextPosition,
+    FlowTextRange, FlowWrapping, Freeform, HitParticipation, ImageDisplayState, ImageFigure,
+    InlineTextFragment, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
+    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
+    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
+    ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior, TextFlowFigure,
+    TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub(crate) use graph::FigureNode;
@@ -108,11 +105,10 @@ pub use layout::{
     XYLayout,
 };
 pub use render::{
-    BackendCapabilities, CaretGeometry, DamageMode, DamageSet, FrameId, NdCanvas, RenderBackend,
-    RenderCapability, RenderOutcome, RenderSubmission, ResourceDelta, ResourceId, ResourceSync,
-    SelectionQuad, SurfaceInfo, TextAffinity, TextInteractionError, TextInteractionMap,
-    TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition, TextRange,
-    UnsupportedRenderCapability,
+    BackendCapabilities, CaretGeometry, DamageMode, NdCanvas, RenderBackend, RenderCapability,
+    RenderOutcome, ResourceId, SelectionQuad, SurfaceInfo, TextAffinity, TextInteractionError,
+    TextInteractionMap, TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition,
+    TextRange, UnsupportedRenderCapability,
 };
 pub(crate) use runtime::InteractionState;
 pub use runtime::context::{EventContext, SceneDispatchContext};
@@ -139,12 +135,12 @@ pub use runtime::{
     ComponentUpdateError, ComponentUpdateReceipt, ContainerMut, FigureComponentContext,
     FigureComponentUpdate, FigureMut, FocusChange, FocusError, FocusTraversalDirection,
     FocusTraversalOutcome, FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError,
-    ImageMut, ImageId, LabelMut, LogicalViewportResizeError, MonotonicTime, PointListMut,
-    PointerId, PreparedFigureUpdate, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
-    RoundedRectangleMut, Runtime, RuntimeMutationError, ScalablePolygonMut, ScaleMut,
-    ScrollPaneMut, TextFlowMut, TextFlowQueryError, TextLayoutStats, TimeError,
-    TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut, place_tooltip,
+    ImageId, ImageMut, LabelMut, LogicalViewportResizeError, MonotonicTime, PointListMut,
+    PointerId, ResourceError, ResourceKind, ResourceStatus, RoundedRectangleMut, Runtime,
+    RuntimeMutationError, ScalablePolygonMut, ScaleMut, ScrollPaneMut, TextFlowMut,
+    TextFlowQueryError, TextLayoutStats, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut,
+    place_tooltip,
 };
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};

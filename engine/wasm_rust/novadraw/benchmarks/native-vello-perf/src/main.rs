@@ -7,9 +7,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(target_os = "macos")]
 use std::thread;
 
+use novadraw::runtime::PreparedFigureUpdate;
 use novadraw::{
     Color, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree, FramePreparation,
-    PreparedFigureUpdate, RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
+    RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
 };
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;

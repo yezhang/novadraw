@@ -3,7 +3,8 @@ use super::{
     BuiltinFont, FontDescriptor, FontMetrics, TextConstraints, TextError, TextLayout, TextMetrics,
 };
 use crate::render::FontData;
-use crate::{FontId, ResourceError, ResourceRegistry};
+use crate::runtime::ResourceRegistry;
+use crate::{FontId, ResourceError};
 
 /// Explicit composition root for standalone text preparation.
 /// Attached figures borrow their Runtime's service instead.

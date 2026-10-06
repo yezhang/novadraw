@@ -13,6 +13,7 @@ use crate::render::command::{
 };
 use crate::render::submission::{DamageSet, RenderSubmission};
 use crate::render::text::TextLayout;
+use crate::runtime::ResourceRegistry;
 
 #[derive(Clone, Debug)]
 struct GraphicsState {
@@ -85,7 +86,7 @@ impl NdCanvas {
 
     pub(crate) fn validate_recording(
         &self,
-        resources: &crate::ResourceRegistry,
+        resources: &ResourceRegistry,
     ) -> Result<(), crate::graphics::GraphicsError> {
         use crate::graphics::GraphicsError;
         if let Some(error) = &self.recording_error {

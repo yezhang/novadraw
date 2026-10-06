@@ -1,12 +1,15 @@
 use std::{cell::Cell, collections::HashMap};
 
+use novadraw::connection::{
+    DependencySubject, RouteMetadata, RouteOutput, RouteRequest, SceneQueryError, SceneRead,
+    TrackedSceneQuery,
+};
 use novadraw::geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vec2};
 use novadraw::{
     AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorSite, ChopboxAnchor, ConnectionAnchor,
     ConnectionId, ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
-    DependencySubject, DirectRouter, EllipseAnchor, EndpointLocator, FigureId, LabelAnchor,
-    MidpointLocator, PathFractionLocator, RoundedRectangleAnchor, RouteEndpoint, RouteError,
-    RouteMetadata, RouteOutput, RouteRequest, SceneQueryError, SceneRead, TrackedSceneQuery,
+    DirectRouter, EllipseAnchor, EndpointLocator, FigureId, LabelAnchor, MidpointLocator,
+    PathFractionLocator, RoundedRectangleAnchor, RouteEndpoint, RouteError,
     rectangle_boundary_site,
 };
 

@@ -10,17 +10,19 @@ use std::{
     sync::Arc,
 };
 
+use novadraw::connection::UnresolvedConnection;
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
+use novadraw::runtime::PreparedFigureUpdate;
 use novadraw::{
     AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, Color, ComponentUpdateError,
     ConnectionAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace,
     DispatchOutcome, Figure, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree,
     FlowTextPosition, FlowTextRange, FramePreparationError, FreeformLayerFigure,
     FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement,
-    LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy, PreparedFigureUpdate,
-    RectangleFigure, RouterBinding, RouterId, Runtime, RuntimeMutationError,
-    ScalableFreeformLayeredPane, SelectionQuad, StackLayout, TextFlowFigure, TextFlowViewport,
-    TextMovement, TimeError, UnresolvedConnection, ViewportHandle, XYAnchor, ZoomManager,
+    LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy, RectangleFigure,
+    RouterBinding, RouterId, Runtime, RuntimeMutationError, ScalableFreeformLayeredPane,
+    SelectionQuad, StackLayout, TextFlowFigure, TextFlowViewport, TextMovement, TimeError,
+    ViewportHandle, XYAnchor, ZoomManager,
 };
 
 use crate::{

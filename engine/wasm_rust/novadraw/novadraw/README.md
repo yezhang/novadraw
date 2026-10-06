@@ -75,16 +75,50 @@ use novadraw::RuntimeNamespace;
 use novadraw::RenderCommand;
 ```
 
+```compile_fail
+use novadraw::RouteOutput;
+```
+
+```compile_fail
+use novadraw::SceneQuery;
+```
+
+```compile_fail
+use novadraw::TrackedSceneQuery;
+```
+
+```compile_fail
+use novadraw::FigurePreparation;
+```
+
+```compile_fail
+use novadraw::PreparedFigureUpdate;
+```
+
+```compile_fail
+use novadraw::ResourceRegistry;
+```
+
+```compile_fail
+use novadraw::RenderSubmission;
+```
+
 Use their explicit modules when required:
 
 ```rust
 use novadraw::advanced::{FigureNode, UpdateManager};
+use novadraw::connection::RouteOutput;
 use novadraw::render::command::RenderCommand;
+use novadraw::render::RenderSubmission;
+use novadraw::runtime::ResourceRegistry;
 
 fn accepts_low_level_types(
     _node: Option<FigureNode>,
     _updates: Option<UpdateManager>,
     _command: Option<RenderCommand>,
+    _route: Option<RouteOutput>,
+    _submission: Option<RenderSubmission>,
+    _resources: Option<ResourceRegistry>,
 ) {
 }
 ```
