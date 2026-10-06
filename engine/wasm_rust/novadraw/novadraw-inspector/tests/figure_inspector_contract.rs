@@ -64,7 +64,9 @@ fn captures_parent_first_tree_and_committed_effect_order() {
     );
     stabilize(&mut runtime);
 
-    let snapshot = inspector.capture(&runtime).expect("runtime is stable");
+    let snapshot = inspector
+        .capture_tree(&runtime)
+        .expect("runtime is stable");
     assert_eq!(snapshot.nodes().len(), 3);
     assert_eq!(snapshot.nodes()[0].id, runtime.tree().root_id());
     assert_eq!(snapshot.nodes()[1].id, contents);
@@ -99,7 +101,7 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     inspector.attach(&mut runtime);
 
     assert!(matches!(
-        inspector.capture(&runtime),
+        inspector.capture_tree(&runtime),
         Err(StableQueryError::NotStable { .. })
     ));
 

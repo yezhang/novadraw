@@ -154,7 +154,7 @@ impl FigureInspector {
     }
 
     /// Captures a tree snapshot only after Runtime reports a stable scene.
-    pub fn capture(&self, runtime: &Runtime) -> Result<FigureTreeSnapshot, StableQueryError> {
+    pub fn capture_tree(&self, runtime: &Runtime) -> Result<FigureTreeSnapshot, StableQueryError> {
         let stable = runtime.stable_query()?;
         Ok(FigureTreeSnapshot::from_tree(
             stable.epoch(),

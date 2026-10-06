@@ -10,18 +10,18 @@
 #![deny(missing_docs)]
 
 mod autoexpose;
-mod command;
+pub mod command;
 mod direct_edit;
 mod domain;
 mod feedback;
-mod model;
+pub mod model;
 mod part;
-mod policy;
+pub mod policy;
 mod request;
 mod selection;
-mod text_input;
-mod tool;
-mod viewer;
+pub mod text_input;
+pub mod tool;
+pub mod viewer;
 
 pub use autoexpose::AutoexposeTick;
 pub use command::{
