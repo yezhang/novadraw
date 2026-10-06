@@ -125,7 +125,7 @@ children 顺序。Layer key 是 parent-child 关系身份，不是布局约束�
 不得删除或改变 key。
 
 `LayeredPane` 是内置容器 Figure，Runtime 通过短生命周期
-`LayeredPaneHandle` 提供命名操作：
+`LayeredPaneMut` 提供命名操作：
 
 ```rust
 runtime.layered_pane(pane_id)?.add_layer(layer, key, placement)

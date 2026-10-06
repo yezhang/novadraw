@@ -1,4 +1,5 @@
 use novadraw::prelude::*;
+use novadraw::{FrameNotReady, FramePreparation, FramePreparationError};
 
 fn accepts_figure(_: &dyn Figure) {}
 fn accepts_layout(_: &dyn LayoutManager) {}
@@ -42,4 +43,24 @@ fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::render::RenderSubmission> = None;
     let _: Option<novadraw::container::LayeredPaneMut<'static>> = None;
     let _: Option<novadraw::advanced::NodeState> = None;
+}
+
+#[test]
+fn frame_preparation_preserves_compact_non_ready_states() {
+    assert!(matches!(
+        FramePreparation::Idle.into_ready(),
+        Err(FrameNotReady::Idle)
+    ));
+    assert!(matches!(
+        FramePreparation::Suspended.into_ready(),
+        Err(FrameNotReady::Suspended)
+    ));
+    assert!(matches!(
+        FramePreparation::AwaitingCompletion.into_ready(),
+        Err(FrameNotReady::AwaitingCompletion)
+    ));
+    assert!(matches!(
+        FramePreparation::Error(FramePreparationError::Faulted).into_ready(),
+        Err(FrameNotReady::Error(FramePreparationError::Faulted))
+    ));
 }

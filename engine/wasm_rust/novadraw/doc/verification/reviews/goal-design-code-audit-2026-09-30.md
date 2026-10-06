@@ -74,7 +74,7 @@ Inventory 数量只代表候选范围，不能当作逐行审查覆盖率。
 | 性能 | 增量更新、derived worklist、damage、R8/D4.5 | 有历史 CPU 改善证据；当前仍有全扫描、重复录制、文本祖先重复访问 | 不足以证明等于或超过 Draw2D |
 | 扩展性 | ADR-014/019、Figure/Layout/Router/TextLayoutEngine | 外部组件、路由和文本构造入口真实存在 | 局部可扩展；callback/Editor/派生快照链路尚不完整 |
 | 跨平台 | overview 四平台、ADR-023、PlatformHost | Core 依赖隔离；macOS/Chrome 的历史运行记录；Web 编译链路 | Windows/Linux、其他浏览器不能由这些记录推导 |
-| 模块/API | ADR-017—023 | package 方向合理，scoped editor 保持统一提交 | 内部模块约束与实现矛盾，root 导出和 capability 表面继续扩大 |
+| 模块/API | ADR-017—023 | package 方向合理，scoped mutable facade 保持统一提交 | 内部模块约束与实现矛盾，root 导出和 capability 表面继续扩大 |
 | 可验证与可维护 | docs/parity/suite 权威分工 | 47 commands、23 suites；契约测试丰富 | 状态、符号、能力分母和性能结果之间缺少机器校验 |
 
 ## 4. 文档与目标的偏差
@@ -219,7 +219,7 @@ update 通路；不让应用借共享可变 Figure 绕开 Runtime。通用节点
 |---|---|---|
 | [design 索引](../../design/00-index.md#L48-L54) | component-update 被列为非规范提案，专题却已 accepted/implemented | 统一规范效力与索引 |
 | [Inspector 设计](../../design/architecture/figure-inspector.md) | 承诺后续独立 protocol crate，与 ADR-023 的按实际版本需求拆分不一致 | 引用最新裁决，区分 target 与 deferred |
-| [parity](../../parity/draw2d/api-coverage.md#L202-L225) | 已删除 crate 路径；FigureTree 私有 setter 仍作为 verified 公开 API | 对齐真实模块与 scoped editor |
+| [parity](../../parity/draw2d/api-coverage.md#L202-L225) | 已删除 crate 路径；FigureTree 私有 setter 仍作为 verified 公开 API | 对齐真实模块与 scoped mutable facade |
 | [viewport parity](../../parity/draw2d/api-coverage.md#L304-L309) | 把已经内部化的 handle mutator 作为公开入口 | identity handle 与 Runtime editor 分开 |
 | [product-deliverables](../../roadmap/product-deliverables.md) | ShortestPath 仍为 Year 2，而 P2-C02 已完成 | 更新能力清单，保留旧阶段范围说明 |
 | [roadmap](../../roadmap/00-index.md) | 当前执行方向仍写从已完成的 ADR-020 继续 | 当前入口只指向真实下一步 |

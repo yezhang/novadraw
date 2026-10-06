@@ -86,7 +86,7 @@
 | `novadraw::container` | 图层、自由范围、视口、滚动和缩放 |
 | `novadraw::connection` | 连接、锚点、路由器和定位器 |
 | `novadraw::event` | 输入、监听器、焦点、提示和无障碍 |
-| `novadraw::runtime` | scoped editor、资源、稳定查询和帧准备 |
+| `novadraw::runtime` | scoped mutable facade、资源、稳定查询和帧准备 |
 | `novadraw::render` | 后端无关的提交、资源和文本协议 |
 | `novadraw::advanced` | 诊断与深度集成所需低层状态 |
 

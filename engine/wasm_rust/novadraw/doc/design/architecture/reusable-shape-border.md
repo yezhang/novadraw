@@ -81,17 +81,17 @@ RoundedRectangleFigure 当前可由 path 表达，因此
 
 pre-Runtime 构建可使用 Figure 构造器和 FigureTreeBuilder。Figure 进入 Runtime 后：
 
-- 通用 style 使用 `FigureEditor::set_style`，构建期才可由 builder 写入；
-- bounds 使用 `FigureEditor::set_bounds`；
-- point list、corner dimensions 和 triangle direction 使用 `FigureEditor` 上命名的
+- 通用 style 使用 `FigureMut::set_style`，构建期才可由 builder 写入；
+- bounds 使用 `FigureMut::set_bounds`；
+- point list、corner dimensions 和 triangle direction 使用 `FigureMut` 上命名的
   typed mutation；
-- Border replacement 使用 `FigureEditor::{set_border,replace_border}`。
+- Border replacement 使用 `FigureMut::{set_border,replace_border}`。
 
 运行期不得向调用方暴露可变 PointList、可变 Border 引用或可绕过
 validation/damage 的具体 Figure 可变引用。
 
 命名 setter 不是封闭类型清单。按 ADR-014，自定义组件通过 owned typed update
-准备候选，并通过 `FigureEditor::update_component` 统一发布 revision/facts；不要求
+准备候选，并通过 `FigureMut::update_component` 统一发布 revision/facts；不要求
 为每个第三方 Shape 修改 Runtime。
 
 ### 3.4 Shape 是绘制辅助，不是第二棵对象树
@@ -133,7 +133,7 @@ Shape 专属状态只包含：
 - line join。
 
 M10.1 不增加宽的统一 Shape setter 接口。构建期由具体 Figure builder 设置 Shape
-参数；运行期只有出现真实产品 mutation 时才增加对应 typed editor operation。
+参数；运行期只有出现真实产品 mutation 时才增加对应 typed mutable facade operation。
 
 变化分类：
 
@@ -287,7 +287,7 @@ ScalablePolygonFigure 继续复用 Polygon 的 fill/outline、precise hit 和 Re
 ### 6.1 不可变、可复用策略
 
 Border 在附加后视为不可变配置。需要改变颜色、宽度、padding 或组合关系时，构造新
-Border 并通过 FigureEditor 替换。
+Border 并通过 FigureMut 替换。
 
 这保留 Draw2D 的可复用性，同时避免 mutable shared Border 修改后无法通知所有 owner。
 禁止 Border 持有 owner Figure、Runtime、FigureTree 或全局注册表。
@@ -446,7 +446,7 @@ backend 添加 Shape/Border 类型识别。
 |---|---|---|
 | Shape paint | fill 后 outline | 相同 |
 | 通用颜色 | Graphics foreground/background | ResolvedStyle 写入 NdCanvas，语义相同 |
-| PointList mutation | 暴露可变列表并手工通知 | FigureEditor typed mutation，经 Runtime 原子提交 |
+| PointList mutation | 暴露可变列表并手工通知 | FigureMut typed mutation，经 Runtime 原子提交 |
 | Polyline bounds | points + stroke 派生 cache | points + stroke 派生 NodeState bounds |
 | ScalablePolygon | template 按 Figure bounds 缩放并缓存点 | template 与派生 geometry 分离，由 Runtime 原子重建 |
 | Triangle hit | 默认矩形 | 精确三角形 |

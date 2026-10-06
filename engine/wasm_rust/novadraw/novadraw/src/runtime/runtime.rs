@@ -130,12 +130,23 @@ pub enum FramePreparation {
     Error(FramePreparationError),
 }
 
+#[derive(Clone, Debug)]
+pub enum FrameNotReady {
+    Idle,
+    Suspended,
+    AwaitingCompletion,
+    Error(FramePreparationError),
+}
+
 impl FramePreparation {
-    /// Returns the prepared submission without discarding a non-ready state.
-    pub fn into_ready(self) -> Result<RenderSubmission, Self> {
+    /// Returns the prepared submission or the non-ready preparation state.
+    pub fn into_ready(self) -> Result<RenderSubmission, FrameNotReady> {
         match self {
             Self::Ready(submission) => Ok(submission),
-            state => Err(state),
+            Self::Idle => Err(FrameNotReady::Idle),
+            Self::Suspended => Err(FrameNotReady::Suspended),
+            Self::AwaitingCompletion => Err(FrameNotReady::AwaitingCompletion),
+            Self::Error(error) => Err(FrameNotReady::Error(error)),
         }
     }
 }

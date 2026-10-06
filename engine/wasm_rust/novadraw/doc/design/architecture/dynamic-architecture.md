@@ -175,7 +175,7 @@ Effect 严格保持产生顺序。Runtime 可以合并 repaint 区域，但不�
    damage；返回 graph/layout 结构化错误。内部可消耗未发布 ID 的代际，失败 ID
    永不成为后续活对象。输入 owned value 在失败时释放，不承诺返还。
 6. 普通 insertion 拒绝 LayeredPane；keyed Layer API 不变。运行期拒绝
-   foreign/disposed/faulted/synthetic-root 目标，沿用 scoped editor 门禁。
+   foreign/disposed/faulted/synthetic-root 目标，沿用 scoped mutable facade 门禁。
 7. 不扩展 callback mutation 方言或通用 batch；本项只提供同步命名复合操作。
    用户扩展 callback/Drop panic 沿 ADR-014 fault 边界，不承诺回滚外部副作用。
 

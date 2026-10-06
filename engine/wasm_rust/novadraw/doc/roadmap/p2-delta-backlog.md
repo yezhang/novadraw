@@ -81,7 +81,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 交付与毕业条件：
 
-1. Builder/ContainerEditor 提供指定 index 的添加及携带外部 typed constraint 的添加；
+1. Builder/ContainerMut 提供指定 index 的添加及携带外部 typed constraint 的添加；
 2. 预检 parent、admission、index、深度及 manager compatibility，失败不发布半成品；
 3. 无 manager 的 constraint 保留、后续替换 manager 校验、生命周期与通知顺序一致；
 4. 外部自定义 Figure/Layout 消费者验证，不修改引擎枚举即可接入新 constraint；
@@ -90,7 +90,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 
 实现与验证证据（2026-10-02）：
 
-- Builder 与 ContainerEditor 已共享结构预检/发布原语；既有 add 与 Layer 添加继续
+- Builder 与 ContainerMut 已共享结构预检/发布原语；既有 add 与 Layer 添加继续
   复用该原语，Runtime 资源登记、失效与生命周期复用既有路径；
 - `novadraw/tests/p2_child_insertion.rs` 仅通过公开 API 实现外部 Figure/Layout 与
   自定义 Placement constraint，验证 Builder/Runtime 得到相同顺序与布局；
@@ -173,7 +173,7 @@ Vello lowering、失败原子性和视觉证据全部闭合。
 - 受检 `StrokeStyle`、custom dash/offset/miter 已贯通 Canvas 状态与矢量 IR、
   Vello lowering；显式 recorder 携带完整样式，宽度 setter 返回 Result。
 - Polyline/Polygon、Connection、端点 decoration 与 ScalablePolygon 统一持有
-  完整受检描边；包围盒与绘制使用相同实际 miter/cap。PointList scoped editor
+  完整受检描边；包围盒与绘制使用相同实际 miter/cap。PointList scoped mutable facade
   支持完整替换及 miter/cap/dash/offset 修改，在同一事务中完成几何重归一、
   新旧 damage、freeform extent 失效与单次 FigureMoved。
 - `required_capabilities` 与统一预检已接入 Runtime、Vello 和 Canvas2D fallback；
@@ -257,7 +257,7 @@ Polyline/Polygon 与 Connection decoration 必须共享同一 stroke envelope �
 
 - `PolylineFigure`、`PolygonFigure` 与 `ConnectionFigure` 共享
   `DEFAULT_STROKE_MITER_LIMIT` visual outset；
-- `FigureEditor` 可原子修改 PointList stroke width / line join；
+- `FigureMut` 可原子修改 PointList stroke width / line join；
 - `PolygonDecorationFigure`、`PolylineDecorationFigure`、`EndpointLocator` 已进入
   Core 公开 API；
 - route preflight 同时校验 decoration geometry，terminal duplicate point 与
@@ -346,7 +346,7 @@ damage 协议。
 - `ScalablePolygonFigure` 将不可变 template 映射到当前 NodeState bounds；
 - Stretch 与 PreserveAspect 支持双轴 alignment 和单轴/双轴退化模板；
 - stroke/miter outset、fill/outline 与 precise hit 共用同一派生点集；
-- FigureEditor 支持 template、scale mode 与 alignment 的 typed mutation；
+- FigureMut 支持 template、scale mode 与 alignment 的 typed mutation；
 - `shape-app` 与 `advanced-figures-app` 提供 scalable polygon 场景，后者集中验证
   Stretch、PreserveAspect、alignment 与 bounds mutation；
 - `cargo xtask verify core.p2-f01-scalable-polygon` 通过。
@@ -386,7 +386,7 @@ Runtime-owned `TextLayoutEngine`、`TextLayout`、GlyphRun 与受宽度约束测
 - `FlowPage`、`FlowParagraph`、`InlineTextFragment` 与 `TextFlowFigure` 已进入 Core；
 - NoWrap、SoftWrap 和行数 Truncate 复用 Runtime-owned TextLayoutEngine；
 - paragraph hard break、UTF-8 grapheme-safe ellipsis、CJK/bidi 与 width cache 已覆盖；
-- FigureEditor 支持 page 与 wrapping typed mutation；
+- FigureMut 支持 page 与 wrapping typed mutation；
 - `text-app` 增加共享 Native/Web TextFlow 场景；`advanced-figures-app` 集中验证段落、
   fragment、SoftWrap、NoWrap、CJK 与 Truncate 可视结果；
 - `cargo xtask verify core.p2-t01-text-flow` 通过。

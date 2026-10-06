@@ -235,7 +235,7 @@ P2-O01 应抽象为输出目标和 scale/clip adapter，而不是引入 SWT Prin
 2. 将 LabeledContainer/GroupBox、Separator/Focus Border 与 MultiLineLabel facade
    拆成最小独立切片；
 3. 每个切片先定义无动画行为，再声明可选 hover/pressed/focus/lifecycle transition；
-4. 每个切片证明组合价值，避免扩大基础 `Figure` trait 或通用 `FigureEditor`。
+4. 每个切片证明组合价值，避免扩大基础 `Figure` trait 或通用 `FigureMut`。
 
 ### 阶段 4：生命周期、结构动画与概览
 

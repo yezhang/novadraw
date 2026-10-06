@@ -32,7 +32,7 @@ P0 实施日期：2026-09-24
 [ADR-018](../../adr/adr-018-runtime-driving-and-measurement-api.md) 裁决并完成
 API-03/API-04 剩余项与 API-06。2026-09-28 又由
 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md) 将挂载后领域 mutation
-整理为 Runtime-backed scoped editor；同日 ADR-020 完成 Color、Render IR 与 Geometry
+整理为 Runtime-backed scoped mutable facade；同日 ADR-020 完成 Color、Render IR 与 Geometry
 基础值收口；ADR-021 随后完成聚合 facade 与 backend feature 分层。实施证据见第 9
 至 12 节。Graphics 双方言仍留待独立小批次，不改变 Core 1.0、roadmap 或 parity
 ledger 状态。
@@ -54,7 +54,7 @@ ledger 状态。
 2026-09-24 更新：上述 P0 术语、阶段边界、显式目标和失败模型已完成收口；
 Layout measurement 与坐标查询也已完成结构化迁移。2026-09-28 更新：Runtime 继续是
 唯一提交权威，但 Figure、Container、Viewport、Scale、ScrollPane 和 Zoom 的挂载后
-领域操作改由短生命周期 scoped editor 组织。ADR-020/021 随后完成 Color、Geometry、
+领域操作改由短生命周期 scoped mutable facade 组织。ADR-020/021 随后完成 Color、Geometry、
 Render IR 与 crate root 分层。剩余风险集中在 Graphics 双方言和 Figure capability
 等 P1/P2 项。
 
@@ -524,7 +524,7 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 
 2026-09-24 完成：
 
-> 本节保留 2026-09-24 的公开名称；2026-09-28 的 scoped editor 迁移见第 11 节。
+> 本节保留 2026-09-24 的公开名称；2026-09-28 的 scoped mutable facade 迁移见第 11 节。
 
 - 公共身份术语统一为 `FigureId`、Figure、node 和 container；查询采用
   `contents`、`node`、`depth`、`layout_manager`、`layout_constraint`，句柄和事件
@@ -581,7 +581,7 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 - detached Figure、LayoutManager、Border、Router 和 Anchor 继续作为普通 owned
   value 直接构造；`FigureTreeBuilder` 只负责 pre-Runtime 拓扑和通用 NodeState；
 - `Runtime::{figure,container,viewport,scalable,scroll_pane,zoom}` 返回只借用当前
-  Runtime 的 scoped editor，获取时校验 namespace、attached 状态和专用 capability；
+  Runtime 的 scoped mutable facade，获取时校验 namespace、attached 状态和专用 capability；
 - 通用节点、布局、拓扑、Viewport、Scale、ScrollPane、Zoom 及内置 Figure mutation
   已迁移到 editor 调用面；`Runtime::set_contents` 和跨 registry 协调服务继续保留在
   组合根；
@@ -592,7 +592,7 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
 - `ViewportHandle`、`ScaleHandle`、`ScrollPaneHandle` 与 `ZoomManager` 的运行期树写入
   方法已收为 crate 内部，公开 handle 只保留 identity、snapshot 或 detached 配置；
 - `FigureTree::component_revision` 提供只读 revision 查询，
-  `FigureEditor::update_component` 保持 ADR-014 的 prepare/validate/commit 协议；
+  `FigureMut::update_component` 保持 ADR-014 的 prepare/validate/commit 协议；
 - `api_scoped_editor_contract` 覆盖 detached/build/attached 阶段、foreign、disposed 和
   capability mismatch；原 D3/D4/M4-M10 契约测试已迁移到规范调用面。
 

@@ -203,7 +203,7 @@ runtime
 
 ## 4.6 应用运行期如何触发更新
 
-常见修改都通过 scoped editor：
+常见修改都通过 scoped mutable facade：
 
 ```rust
 runtime.figure(node)?.set_bounds(new_bounds)?;
@@ -351,7 +351,7 @@ assert!(runtime.complete_submission(session_id, frame_id, outcome));
 |---|---|
 | 图形尺寸没有按内容变化 | Figure 没有内在测量，或父布局给了固定尺寸 |
 | 换布局器后约束报错 | 旧约束类型与新布局器不兼容 |
-| 修改后没有重排 | 绕过 scoped editor，或自定义更新没有请求 revalidate |
+| 修改后没有重排 | 绕过 scoped mutable facade，或自定义更新没有请求 revalidate |
 | 移动后留下残影 | 旧视觉边界没有进入 damage |
 | 绘制需要第二帧才正确 | 在绘制阶段才改变测量或布局事实 |
 | 一直返回 `AwaitingCompletion` | 宿主没有回传前一帧的完成结果 |

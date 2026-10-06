@@ -41,7 +41,7 @@ Runtime、EditPart 与 Figure 投影可以按公开契约确定性重建。
 
 1. arena、代际 ID 与 Runtime namespace 提供稳定身份隔离；
 2. Runtime 是挂载后 source mutation、派生状态、通知和 damage 的唯一提交权威；
-3. FigureTreeBuilder、scoped editor、只读查询和 Runtime drive 已按生命周期分层；
+3. FigureTreeBuilder、scoped mutable facade、只读查询和 Runtime drive 已按生命周期分层；
 4. Figure、LayoutManager、Router、Anchor、RenderBackend 和 typed component update
    已形成可替换扩展边界；
 5. Layout、事件、Viewport、Connection、文本、资源和 Editor 编辑闭环均已有自动证据。
@@ -117,14 +117,14 @@ Arc、冗余 Path command 与当时未实现的 image source rect 已按 ADR-020
 ### 4.4 Figure capability 仍有闭集倾向
 
 `Figure` 基础 trait 当前知道 `connection`、`point_list`、`bordered`、`label` 和
-`clickable` 等具体能力；`FigureEditor` 同时承载通用节点与多种内置 Figure mutation。
+`clickable` 等具体能力；`FigureMut` 同时承载通用节点与多种内置 Figure mutation。
 这会让新增内置能力继续修改基础 trait 或扩大通用 editor。
 
 目标应是：
 
-- `FigureEditor` 只保留 NodeState、拓扑关系和 typed component update；
+- `FigureMut` 只保留 NodeState、拓扑关系和 typed component update；
 - 通用横切能力保留小 trait；
-- 内置或第三方 Figure 私有状态通过 typed update 或专用 capability editor 修改；
+- 内置或第三方 Figure 私有状态通过 typed update 或专用 capability mutable facade 修改；
 - capability 获取阶段完成类型校验，不把错误延迟到每个 setter。
 
 ## 5. Draw2D 对等能力
@@ -169,7 +169,7 @@ Arc、冗余 Path command 与当时未实现的 image source rect 已按 ADR-020
 ## 7. 文档一致性问题
 
 - `doc/parity/draw2d/api-coverage.md` 的 Viewport/Scale/ScrollPane 行仍把 handle mutator
-  写作公开入口，与 ADR-019 scoped editor 实现不一致；
+  写作公开入口，与 ADR-019 scoped mutable facade 实现不一致；
 - `doc/00-index.md` 仍称 2026-09-16 语义整改“进行中”，而整改报告状态已为
   `complete`；
 - Editor roadmap 的 G6 仍包含产品 schema、serializer 和产品级 Native/Web 场景，

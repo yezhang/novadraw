@@ -34,7 +34,7 @@ crate 内部：
 生产宿主通过 `Runtime::{prepare_submission,prepare_frame,record_full_frame}` 驱动帧。
 需要显式请求局部更新时，通过
 `Runtime::figure(figure)?.{revalidate,repaint}` 提交，unknown、foreign 或 disposed
-Figure 在 scoped editor 获取阶段返回 `RuntimeMutationError`。
+Figure 在 scoped mutable facade 获取阶段返回 `RuntimeMutationError`。
 
 `UpdateManager` 仍可作为公开扩展协议类型供 listener 等能力使用，但不再与公开
 `FigureTree` 组合成第二套运行时。
@@ -113,7 +113,7 @@ deprecated 双入口。
 - 延续 [ADR-003](adr-003-rust-runtime-and-geometry-boundaries.md) 的 Runtime 所有权边界；
 - 完成 [ADR-017](adr-017-core-public-api-boundary.md) 的 API-03/API-04 剩余项；
 - 公开更新请求的命名空间由
-  [ADR-019](adr-019-composable-api-and-scoped-editors.md) 调整为 scoped editor，
+  [ADR-019](adr-019-composable-api-and-scoped-editors.md) 调整为 scoped mutable facade，
   Runtime 仍是唯一提交权威；
 - 落实 Core API 审计 API-06 的领域类型迁移；
 - 对应 `api_semantics`：

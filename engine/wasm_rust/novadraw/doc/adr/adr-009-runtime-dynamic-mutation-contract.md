@@ -48,7 +48,7 @@ set_child_clipping_strategy
 一般用户 callback 或 Drop 的 panic 不在可恢复参数错误的原子承诺内。
 
 2026-09-28 补充：ADR-019 将上述公开调用面组织为
-`Runtime::figure(...)`、`Runtime::container(...)` 等短生命周期 scoped editor。
+`Runtime::figure(...)`、`Runtime::container(...)` 等短生命周期 scoped mutable facade。
 Runtime 内部 mutation primitive 与本 ADR 的逐操作原子、FIFO、失效和错误语义保持
 不变；该调整只分离“提交权威”与“API 命名空间”，不建立第二套写路径。
 
@@ -100,7 +100,7 @@ D3.2 不新增 `add(child, constraint, index)` 复合入口；新增 Figure 继�
 Runtime add API，原子 indexed add 留待出现真实调用需求后单独设计。
 
 2026-10-02 补充：P2-S01 在 ADR-019 的命名复合操作边界内增加
-Builder `insert_child/insert_child_with_constraint` 与 ContainerEditor
+Builder `insert_child/insert_child_with_constraint` 与 ContainerMut
 `insert/insert_with_constraint`。索引、constraint 与新增节点一次预检/发布，
 规范见 [动态协议 §5.1](../design/architecture/dynamic-architecture.md#51-原子-child-insertionp2-s01)；
 不改变既有 reorder、reparent 或 callback FIFO 语义。

@@ -319,7 +319,7 @@ let child = tree
 let mut runtime = Runtime::new(tree);
 ```
 
-运行期使用 scoped editor：
+运行期使用 scoped mutable facade：
 
 ```rust
 runtime.figure(child)?.translate(20.0, 0.0)?;
@@ -332,7 +332,7 @@ runtime.container(root)?.bring_child_to_front(added)?;
 ```
 
 应用不应在 `Runtime::new(tree)` 后继续通过 Builder 修改同一场景。Builder 没有
-交互、damage、通知和资源事务；scoped editor 才是已挂载场景的写入口。
+交互、damage、通知和资源事务；scoped mutable facade 才是已挂载场景的写入口。
 
 自定义 Figure 的最小职责通常只有三项：
 

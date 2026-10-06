@@ -36,7 +36,7 @@
 1. 选择 Core 或 Editor；
 2. 用 `novadraw` facade 构造场景；
 3. 区分 detached、build、attached、drive 四个生命周期阶段；
-4. 通过 Runtime scoped editor 修改已挂载图形；
+4. 通过 Runtime scoped mutable facade 修改已挂载图形；
 5. 把平台输入和后端提交接到正确边界；
 6. 构建滚动缩放画布、连接和模型驱动编辑；
 7. 用契约测试和无窗口回放验证应用。
@@ -67,7 +67,7 @@
 - 依赖 `novadraw` facade；
 - 构造 FigureTree；
 - 创建 Runtime；
-- 使用 scoped editor 更新；
+- 使用 scoped mutable facade 更新；
 - 接入输入和帧提交；
 - 选择产品代码目录和后续阅读路径。
 

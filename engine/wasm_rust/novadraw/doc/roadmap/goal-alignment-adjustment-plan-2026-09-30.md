@@ -183,8 +183,8 @@ XOR、SWT 特有入口等先判断可观察行为与现代替代方案，不直�
 3. 按 topology/query、layout/measurement、presentation、component update、
    connection service、frame/resource、viewer projection 拆内部文件；
 4. 所有权保持在现有 Runtime/Viewer，避免新建多个共享可变服务；
-5. `FigureEditor` 保留通用节点操作与 typed component update，内置私有能力使用专用
-   capability editor 或类型化 update；获取阶段验证身份与能力；
+5. `FigureMut` 保留通用节点操作与 typed component update，内置私有能力使用专用
+   capability mutable facade 或类型化 update；获取阶段验证身份与能力；
 6. 增加至少两个独立外部消费者：一个自定义 Figure/布局，一个自定义 Router/文本或
    host/backend 集成，验证扩展不需要修改 Core 分支。
 

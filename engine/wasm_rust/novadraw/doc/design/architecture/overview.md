@@ -118,15 +118,15 @@ Runtime 对外提供命名操作，不暴露能够绕过事务约束的多个可
 singleton，也不承担应用业务逻辑。
 
 “Runtime 是事务边界”不等于“所有领域方法都平铺在 Runtime”。挂载后的 Figure 和
-Container 通过借用 Runtime 的短生命周期 scoped editor 提交 mutation：
+Container 通过借用 Runtime 的短生命周期可变 facade 提交 mutation：
 
 ```text
-runtime.figure(id)    -> FigureEditor<'_>
-runtime.container(id) -> ContainerEditor<'_>
-runtime.layered_pane(id) -> LayeredPaneHandle<'_>
+runtime.figure(id)    -> FigureMut<'_>
+runtime.container(id) -> ContainerMut<'_>
+runtime.layered_pane(id) -> LayeredPaneMut<'_>
 ```
 
-editor 只组织按能力分组的调用表面，内部仍进入同一 Runtime 校验、提交、失效和通知
+facade 只组织按能力分组的调用表面，内部仍进入同一 Runtime 校验、提交、失效和通知
 协议。它不能暴露 FigureTree/UpdateManager 可变引用，也不能逃逸 Runtime 的可变借用。
 完整裁决见 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)。
 

@@ -34,7 +34,7 @@ pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
 };
 pub use runtime::{
-    BackendSessionError, BorderMut, ClickableMut, ContainerMut, FigureMut,
+    BackendSessionError, BorderMut, ClickableMut, ContainerMut, FigureMut, FrameNotReady,
     FramePreparation, FramePreparationError, ImageMut, LabelMut, LogicalViewportResizeError,
     PointListMut, RoundedRectangleMut, Runtime, ScalablePolygonMut, ScaleMut,
     ScrollPaneMut, TextFlowMut, TextFlowQueryError, TextLayoutStats, TriangleMut,

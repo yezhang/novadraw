@@ -224,7 +224,7 @@ cargo xtask check --full
 | 图形显示正确但点击偏移 | 坐标域与逆变换 | 平台未换算逻辑单位、应用手写滚动/缩放公式 |
 | 移动后留下残影 | 新旧视觉边界与 damage | 绕过 Runtime 修改边界、视觉边界过小 |
 | 子节点看得见但点不到 | 客户区与裁剪策略 | 绘制、命中和 damage 使用了不同裁剪 |
-| 修改后尺寸没有变化 | 布局约束和 validation | 约束设置到错误父级、未走 scoped editor |
+| 修改后尺寸没有变化 | 布局约束和 validation | 约束设置到错误父级、未走 scoped mutable facade |
 | 拖拽离开图形后中断 | 指针捕获 | 平台适配器重复命中或未传递释放/离开 |
 | 滚动后反馈漂移 | 表面坐标重投影 | 工具缓存了内容坐标或缩放比例 |
 | 节点移动但连接不更新 | SceneQuery 依赖 | 锚点缓存旧矩形、应用手工维护路径 |
@@ -251,7 +251,7 @@ cargo xtask check --full
 ### 架构
 
 - 应用只通过 `novadraw` facade 使用常规能力；
-- 挂载后修改全部经过 Runtime scoped editor；
+- 挂载后修改全部经过 Runtime scoped mutable facade；
 - 平台适配器不包含布局、命中或业务编辑逻辑；
 - 使用 Editor 时，Command 只保存模型身份和自有数据；
 - 产品文档格式与业务模型不进入引擎 crate。

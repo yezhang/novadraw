@@ -24,7 +24,7 @@ Draw2D Core 1.0 完成后，Novadraw 的行为语义已经闭合，但公开 API
 中的 P0 项，不处理 Graphics、Geometry alias 或聚合 crate 导出等 P1/P2 项。
 后续 Runtime 驱动、坐标查询和结构化测量由
 [ADR-018](adr-018-runtime-driving-and-measurement-api.md) 补充裁决。
-构建期直接值对象与运行期 scoped editor 的 API 组织由
+构建期直接值对象与运行期 scoped mutable facade 的 API 组织由
 [ADR-019](adr-019-composable-api-and-scoped-editors.md) 补充裁决。
 
 ## 决策
@@ -87,7 +87,7 @@ figure(child)?.reparent(new_parent) -> Result<bool, RuntimeMutationError>
 
 不再提供 `try_*` 与吞错 convenience 双入口。非法、foreign、disposed、detached 或
 layered parent 等情况必须返回结构化错误；`Ok(false)` 只表示合法幂等操作没有改变状态。
-这些 scoped editor 只是借用 Runtime 的能力视图，提交权威仍只有 Runtime。
+这些 scoped mutable facade 只是借用 Runtime 的能力视图，提交权威仍只有 Runtime。
 
 Builder 的 fallible topology/layout 操作同样返回 `Result`，不返回
 `FigureId::null()`。Null handle 可继续作为显式无效身份和测试输入，但不能表示正常 API

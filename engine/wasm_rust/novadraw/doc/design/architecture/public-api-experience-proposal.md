@@ -2,7 +2,7 @@
 
 类型：`proposal`
 
-状态：文字整合部分已由 ADR-025 接受并完成 P2-G02；其他领域待评审
+状态：P2-G02 与已批准跨领域迁移已完成；后续定向项保留
 
 日期：2026-10-05
 
@@ -15,6 +15,13 @@
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md) 与
 [文字与图形整合专题](../rendering/text-graphics-integration.md)。
 以下 Graphics/录制分离方案据此细化为按阶段借用的上下文，不再只做 NdCanvas 改名。
+
+2026-10-06 跨领域迁移已按独立切片完成：帧准备状态、角度单位、Dimension/Insets、
+ImageRegion、受检图元构造、`*Mut` Runtime 可变借用、Editor/Inspector 领域出口、
+Core root 收口以及 Vello 初始化失败传播。提交与验证映射见
+[公共 API 统一迁移完成记录](../../verification/reviews/public-api-unification-completion-2026-10-06.md)。
+Figure capability 全面改造和 Editor direct-edit session facade 仍为后续定向，不在本轮
+完成范围内。
 
 本页是公共 API 的总设计和迁移入口；文字专题是文字/图形合同的唯一详细定义。
 阅读顺序：第 2 节定位角色与入口 → 第 4 节理解组合 → 第 5 节检查值与失败 →
@@ -45,7 +52,7 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 
 | 调用者任务 | 应当接触的概念 | 不应成为前置知识 |
 |---|---|---|
-| 添加标签、图形、布局 | LabelFigure、FigureId、LayoutManager、scoped editor | GlyphRun、资源增量、backend session |
+| 添加标签、图形、布局 | LabelFigure、FigureId、LayoutManager、scoped mutable facade | GlyphRun、资源增量、backend session |
 | 编写自定义 Figure | MeasureContext/PaintContext、Paint、StrokeStyle、TextLayout、测量与命中 | RenderSubmission 构造、damage 队列修改 |
 | 替换排版或布局算法 | TextLayoutEngine、受检排版结果；LayoutSnapshot/Output | Vello、DOM、全局服务 |
 | 接入后端和平台 | RenderBackend、RenderSubmission、PlatformHost | 应用模型和 Editor Command |
@@ -75,7 +82,7 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 | 可组合值 | Paint、StrokeStyle、Path、FontDescriptor、布局/Border/Router 配置 | owned 构造和配置，进入绘制/运行期时冻结所消费的值 |
 | 身份 | FigureId、ImageId、FontId、EditPartId | 不携带可变场景权限，不把不同身份折叠成 NodeId |
 | 服务 | Runtime、TextSystem、TextLayoutEngine、RenderBackend | 明确拥有资源或算法；仅在真实替换边界使用 trait |
-| 借用上下文 | Graphics、MeasureContext、PaintContext、scoped editor | 不拥有第二份状态；取得上下文不等于已经提交操作 |
+| 借用上下文 | Graphics、MeasureContext、PaintContext、scoped mutable facade | 不拥有第二份状态；取得上下文不等于已经提交操作 |
 | 不可变结果 | TextLayout、TextMetrics、LayoutSnapshot、FigureTreeSnapshot | 可查询、可共享；不通过 getter 隐式推进 Runtime |
 | 录制/提交结果 | CommandRecorder、RecordedDrawing（候选）、RenderSubmission | 区分命令记录、资源保活和后端接受，不能互相冒充 |
 
@@ -92,7 +99,7 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 | `text` | FontDescriptor、FontMetrics、TextMetrics、TextLayout、TextConstraints | 算法缓存和 GPU buffer |
 | `text::shaping` / `text::outline` | TextLayoutEngine、受检布局产出；GlyphOutlineProvider 与曲线值 | 应用模型、Vello/Skrifa 类型 |
 | `figure` / `layout` | Figure、MeasureContext、capability、LayoutManager、Snapshot/Output | 后端驱动 |
-| `runtime` / `tree` | 生命周期、scoped editor、查询、Builder、明确的帧准备 | 任意 `&mut FigureTree` 出口 |
+| `runtime` / `tree` | 生命周期、scoped mutable facade、查询、Builder、明确的帧准备 | 任意 `&mut FigureTree` 出口 |
 | `render` / `host` | RenderBackend、CommandRecorder、RenderSubmission、资源与平台合同 | 应用入门便利函数 |
 | 独立 Editor/Inspector 包 | 模型编辑与只读诊断各自的领域入口 | Core 反向依赖和聚合重导出 |
 | 独立 Vello/Winit/Web 包 | 具体构造、平台差异、backend-local PreparedGlyph | 把具体实现类型传进 Core |
@@ -137,7 +144,7 @@ Figure 的 paint 阶段不重新 shaping。现有 `Runtime::layout_text` 是当�
 | 当前公开 API | 目标 | 分类与原因 |
 |---|---|---|
 | `NdCanvas` | Graphics facade + Figure 的 PaintContext | 统一文字准备/测量/绘制，按阶段限制可借用能力 |
-| `line_width` / `set_line_width` | `set_stroke_width` | 同一 setter；与 StrokeStyle/PointListEditor 对齐 |
+| `line_width` / `set_line_width` | `set_stroke_width` | 同一 setter；与 StrokeStyle/PointListMut 对齐 |
 | `line_cap` / `line_join` | `set_line_cap` / `set_line_join` | 明确写操作；保留 LineCap/LineJoin 专业词 |
 | `line_style` / `set_line_style` | `set_dash_pattern(DashPattern)` | 消除 LineStyle 与 DashPattern 的并行表达 |
 | `set_stroke` | `set_stroke_style(StrokeStyle)` | 明确完整描边几何配置，与 stroke paint 区分 |
@@ -279,7 +286,7 @@ Vello glyph fast path 与自研曲线路径由组合根选择，不能由 Label 
 |---|---|
 | Graphics `rotate` 接受度；Affine2D `from_rotation/then_rotate` 接受弧度 | Graphics 改 `rotate_degrees`；Affine2D 改 `from_rotation_radians/then_rotate_radians/then_rotate_about_radians`，数值语义不变 |
 | Path arc 接受角度与方向标量 | 在迁移清单逐个标明当前角度单位；保留现有 degree 入口的数值含义，以 `*_degrees` 明示，不能只把参数名改为 radians；SVG endpoint arc 单独保留旗标语义 |
-| FigureEditor/Builder/EventContext 尺寸 override 仍使用 tuple | 统一 Dimension；Figure intrinsic size 与 Insets 的 tuple 同批形成逐项映射 |
+| FigureMut/Builder/EventContext 尺寸 override 仍使用 tuple | 统一 Dimension；Figure intrinsic size 与 Insets 的 tuple 同批形成逐项映射 |
 | Canvas transform 接受六个 f64 | 使用 Affine2D；`concat`、`set` 保持不同含义，矩阵乘法顺序不改 |
 | 图像 source/dest 都是 Rectangle，但前者物理像素、后者逻辑坐标 | `ImageRegion` 受检值组合 image + source_pixels；绘制接收 destination；可先文档和参数名明确，再迁移类型 |
 | Triangle `with_stroke_width` 直接存 f64，paint 时才遇到 fallible setter | detached 构造就校验，复用 StrokeStyle；不把错误延迟到渲染时静默漏画 |
@@ -340,10 +347,10 @@ paint 回调传播错误后整帧不发布；先前成功的局部命令不意�
 | Core figure | Figure 同时有 tuple/measurement、paint/in_bounds、大量 capability accessor | 分清 intrinsic/arranged/paint envelope；本轮先类型与文档一致性，capability 重构后续定向 |
 | Core figure 构造 | `new(x,y,w,h)`、`from_bounds`、`with_bounds` 混用 | 几何必需类型统一 `new(Rectangle)`；Label `new(text).with_bounds(...)` 保留，不能强求所有构造同形 |
 | Core shape | `prim_translate`、公开 validate/invalidate；raw width 输入 | primitive 内收；用户保留具名 detached 配置，attached 只用 editor；不得简单将 prim 去前缀而暴露另一条写路径 |
-| Core tree | FigureTreeBuilder / FigureTree 查询 / scoped editor | 保留阶段与所有权；container 和 parent 必须显式；不恢复隐式 root layout |
+| Core tree | FigureTreeBuilder / FigureTree 查询 / scoped mutable facade | 保留阶段与所有权；container 和 parent 必须显式；不恢复隐式 root layout |
 | Core query | `FigureNode::get_preferred_size` 等仍是 override/bounds 局部值 | 内收或明确为 configured override；测量入口保持 FigureTree/LayoutSnapshot 权威，不机械删 get |
 | Core layout | LayoutManager、LayoutSnapshot、LayoutOutput、constraint_as | 保留小协议与受检输出，外部算法通过 snapshot/constraints/placement 组合；不增加万能 layout plugin |
-| Core container | ViewportHandle/ScaleHandle 与 editor；LayeredPaneHandle 借用 Runtime | 借用可变 facade 统一 `LayeredPaneEditor`，identity/read handle 保留 Handle；不改变 state 归属 |
+| Core container | ViewportHandle/ScaleHandle 与 editor；LayeredPaneMut 借用 Runtime | 借用可变 facade 统一 `LayeredPaneMut`，identity/read handle 保留 Handle；不改变 state 归属 |
 | Core connection | Anchor、Router、Locator、RouteRequest/Output、RoutingConstraint | 保留角色分离，避免改成泛称 ConnectionStyle；专业路由查询从 root 移至 connection |
 | Core runtime | `prepare_submission` 将 Idle/Suspended/AwaitingCompletion/Error 全折叠为 None | 规范 `prepare_submission(...) -> FramePreparation`，吸收 `_state` 版本，完整状态必须到调用者 |
 | Core frame capture | `prepare_frame` / `record_full_frame` 返回 owned NdCanvas | 与 recorder 拆分一起明确离线记录结果和错误；不把它们改名后当作真实 submission 成功证据 |
@@ -385,7 +392,7 @@ let stable = runtime.stable_query()?;
 ```
 
 这组现有路径应保留；不再增加 `runtime.set_label_text(id, ...)` 的第二入口。
-通用几何归 FigureEditor，容器拓扑归 ContainerEditor，具体组件语义归 typed editor；
+通用几何归 FigureMut，容器拓扑归 ContainerMut，具体组件语义归 typed mutable facade；
 新增第三方组件通过已有 FigureComponentUpdate 协议，不要求引擎不断增加类型分支。
 
 | 组合对象 | 允许的组装方式 | 提交/派生权威 |
@@ -487,8 +494,8 @@ match runtime.prepare_submission(surface, backend.capabilities()) {
 8. 同一绘制 helper 在 Graphics 与 Figure PaintContext 中消费相同 TextLayout/Path；
    独立录制保有资源，不能在资源释放后只凭旧 ID 产生伪成功。
 
-P2-G02 已按受影响 crate/精确测试、功能 suite、跨 crate quick 和最终 full
-完成分层验证；其他候选仍需各自执行对应门禁。
+P2-G02 与本轮已批准的跨领域候选均按受影响 crate/精确测试、功能 suite、
+跨 crate quick 和最终 full 完成分层验证；后续定向项仍需独立设计与门禁。
 
 ## 9. 设计效力与取舍
 
@@ -501,14 +508,15 @@ P2-G02 已按受影响 crate/精确测试、功能 suite、跨 crate quick 和�
 
 ADR-019/023 的所有权与 package 边界、ADR-025 的统一文字 API 与 glyph 后端边界
 已经接受。P2-G02 已完成 Graphics/MeasureContext/PaintContext、RecordedDrawing、
-FigurePreparation 和 outline consumer；非文字跨领域迁移仍是评审建议。
+FigurePreparation 和 outline consumer；获准实施的非文字跨领域迁移也已按第 8 节
+切片闭合。
 
 成本：公共签名、外部 Figure/后端实现、导入路径和示例均需迁移。
 收益：调用者可从动作、类型和模块判断行为，专业扩展仍保有同一底层能力。
 不选择只加一层“简单 API”并长期保留所有旧入口，因为歧义与验证成本会继续累积。
 
-文字整合部分以 ADR-025 和规范专题为 SSOT；本页保留其余候选清单，
-不以 P2-G02 完成状态推断其他候选已经实现。
+文字整合部分以 ADR-025 和规范专题为 SSOT；本页保留后续定向清单，
+不以本轮迁移完成状态推断 Figure capability 或 Editor session facade 已实现。
 
 ## 10. 证据导航
 
@@ -519,7 +527,7 @@ FigurePreparation 和 outline consumer；非文字跨领域迁移仍是评审建
   [Figure 协议](../../../novadraw/src/figure/mod.rs)、
   [Triangle 构造与绘制](../../../novadraw/src/figure/triangle.rs)
 - [树与 Builder](../../../novadraw/src/graph/mod.rs)、
-  [Runtime/scoped editors](../../../novadraw/src/runtime/runtime.rs)、
+  [Runtime/scoped mutable facades](../../../novadraw/src/runtime/runtime.rs)、
   [帧准备](../../../novadraw/src/runtime/runtime/frame_submission.rs)
 - [Layout 协议](../../../novadraw/src/layout/mod.rs)、
   [Affine2D](../../../novadraw/src/geometry/transform.rs)

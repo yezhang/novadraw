@@ -20,7 +20,7 @@ GA-4 保持六个公开 package、Runtime 单一提交权威和 Viewer 单一投
 - Runtime component update、connection service、frame/resource、frame submission；
 - Viewer containment/connection projection。
 
-`FigureEditor` 保留通用节点操作与 typed component update。Label、Clickable、
+`FigureMut` 保留通用节点操作与 typed component update。Label、Clickable、
 Image、PointList、ScalablePolygon、TextFlow、Border 和专用图形通过受检 capability
 editor 更新，不公开 downcast 或任意 mutation closure。
 

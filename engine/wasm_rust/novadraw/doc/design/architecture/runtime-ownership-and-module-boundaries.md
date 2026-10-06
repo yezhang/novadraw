@@ -73,7 +73,7 @@ package。GA-4 已在不改变所有权的前提下完成以下内部拆分：
 
 1. callback 移交 owned update；
 2. Figure 不再被借用后，Runtime 按 effect FIFO 应用；
-3. prepare/commit、revision、invalidation、damage 与 fault 语义复用 FigureEditor；
+3. prepare/commit、revision、invalidation、damage 与 fault 语义复用 FigureMut；
 4. deferred rejection 进入 Runtime deferred mutation errors；
 5. callback 不能取得 receipt，也不能更新未被捕获的任意 Figure。
 
@@ -85,26 +85,26 @@ package。GA-4 已在不改变所有权的前提下完成以下内部拆分：
 
 1. Viewer 从 PartNode 的 visual ownership 建立短生命周期 context；
 2. behavior 传入 owned typed update；
-3. context 先验证 visual ownership，再通过 Runtime FigureEditor 提交；
+3. context 先验证 visual ownership，再通过 Runtime FigureMut 提交；
 4. 非本 Part visual 在进入 Runtime 前拒绝；
 5. update 错误转换为 `EditPartError`，Viewer 保持既有 refresh fault 边界。
 
 该入口覆盖 primary Figure、content pane 和 `configure_visual` 登记的内部 visual，
 不允许 behavior 修改其他 Part 或 feedback layer。
 
-## 4. FigureEditor 边界
+## 4. FigureMut 边界
 
-`FigureEditor` 保留以下通用职责：
+`FigureMut` 保留以下通用职责：
 
 - 通用节点状态与 bounds/style；
 - layout constraint、reparent、revalidate 和 repaint；
 - `FigureComponentUpdate` 的统一提交。
 
 Label、Clickable、Image、PointList、ScalablePolygon、TextFlow、Border 与专用图形
-已经使用受检 capability editor。获取 editor 时同时验证 Runtime identity 与 capability；
+已经使用受检 capability mutable facade。获取 facade 时同时验证 Runtime identity 与 capability；
 错误类型、revision、invalidation、damage 和 notification 继续复用 Runtime 原语。
-后续内置能力不得重新扩张 `FigureEditor`，也不能用公开 downcast 或任意 mutation
-closure 代替 capability editor。
+后续内置能力不得重新扩张 `FigureMut`，也不能用公开 downcast 或任意 mutation
+closure 代替 capability mutable facade。
 
 ## 5. 失败语义
 
@@ -121,7 +121,7 @@ closure 代替 capability editor。
 
 GA-4 至少保留两个独立外部消费者：
 
-1. 自定义 Figure + Layout，覆盖 FigureEditor 与 EventContext deferred component update；
+1. 自定义 Figure + Layout，覆盖 FigureMut 与 EventContext deferred component update；
 2. 自定义 Router + Editor compound visual，覆盖模型 refresh 的 owned visual update。
 
 消费者只能依赖公开 package API，不得使用 `pub(crate)`、测试 helper 或修改 Core 枚举。

@@ -33,7 +33,7 @@ input-to-present 和 GA-3 的 Windows/Linux 原生运行证据仍缺失，因此
 | GOAL-PERF | `partial` | Novadraw CPU/内存、同机 Draw2D、Native GPU queue；GA-4 A/B 无可归因回退 | compositor present、input-to-present、WebGPU 浏览器预算；validation/routing 仍落后 Draw2D |
 | GOAL-EXT | `verified` | 外部 Figure/Layout/component/text/backend 与 Editor compound visual 消费者；Runtime/Viewer 单一 owner | 后续新扩展仍需按真实消费者维持验证 |
 | GOAL-PORT | `partial` | macOS、Chrome Web、Headless 为 `runtime_verified` | Windows、Linux X11/Wayland、Firefox、Safari 为 `not_verified`；原生 AT provider 待 P2-A01 |
-| API/模块 | `verified` | facade、依赖方向、第三方类型、capability editor、GA-4 模块边界 | 不代表未实施 P2 能力已存在 |
+| API/模块 | `verified` | facade、依赖方向、第三方类型、capability mutable facade、GA-4 模块边界 | 不代表未实施 P2 能力已存在 |
 | 文档/验证 | `verified` | 208 份 Markdown、26 个行为 suite 的 `api_semantics`、独立 facade probes | 外部 URL 在线性与行为语义仍需人工评审 |
 
 ## 3. 性能边界

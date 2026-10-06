@@ -62,7 +62,7 @@ pub enum ComponentUpdateError<E> {
     Rejected(E),
 }
 
-impl FigureEditor<'_> {
+impl FigureMut<'_> {
     pub fn update_component<U>(
         &mut self,
         update: U,
@@ -77,7 +77,7 @@ impl FigureEditor<'_> {
 “无影响”。`paint` 和 `geometry_and_paint` 是显式窄化构造器，本期不提供 `None`。
 `ComponentUpdateReceipt` 返回 Figure、提交前后 revision 和实际 invalidation。
 `FigureTree::component_revision` 提供只读 revision 查询，不暴露可变 Figure。
-`FigureEditor` 只借用 Runtime 并转交目标身份，不拥有另一份状态或提交协议。
+`FigureMut` 只借用 Runtime 并转交目标身份，不拥有另一份状态或提交协议。
 
 ## 3. 执行顺序
 
@@ -123,7 +123,7 @@ Figure 逃逸。
 
 ## 6. 受控调用源
 
-FigureEditor 是同步更新入口。以下调用源复用同一协议，不获得 `&mut Figure`：
+FigureMut 是同步更新入口。以下调用源复用同一协议，不获得 `&mut Figure`：
 
 - `EventContext::update_component_later` 只排队更新当前 callback target；Runtime 在
   callback 借用结束后按 effect FIFO 应用，失败进入 deferred mutation errors；

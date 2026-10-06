@@ -14,7 +14,7 @@
 -> 接入平台输入
 -> 收敛布局和派生状态
 -> 生成并提交一帧
--> 运行期通过 scoped editor 更新
+-> 运行期通过 scoped mutable facade 更新
 ```
 
 需要节点选择、拖拽、连线和撤销重做时，再在这条主线之上加入 Editor：
@@ -81,7 +81,7 @@ crate 按需组合。
 |---|---|---|
 | Detached | 具体类型构造器、`with_*` | 配置尚未入树的 Figure、布局器、边框、锚点和路由器 |
 | Build | `FigureTreeBuilder` | 分配 `FigureId`，组装拓扑、初始边界和布局约束 |
-| Attached | `Runtime` scoped editor | 更新已挂载 Figure，并自动维护失效、重绘和通知 |
+| Attached | `Runtime` scoped mutable facade | 更新已挂载 Figure，并自动维护失效、重绘和通知 |
 | Drive | `Runtime` + Host/Backend | 分发输入、准备提交、提交后端并确认结果 |
 
 典型错误是在挂载后继续寻找对原 Figure 值的可变引用。Figure 一旦进入树，应用应保存

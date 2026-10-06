@@ -50,7 +50,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-017-core-public-api-boundary.md`](adr/adr-017-core-public-api-boundary.md)
 - Runtime 驱动、坐标查询与结构化测量：
   [`adr/adr-018-runtime-driving-and-measurement-api.md`](adr/adr-018-runtime-driving-and-measurement-api.md)
-- 可组装构造与挂载后 scoped editor：
+- 可组装构造与挂载后 scoped mutable facade：
   [`adr/adr-019-composable-api-and-scoped-editors.md`](adr/adr-019-composable-api-and-scoped-editors.md)
 - 引擎基础值与公开渲染契约：
   [`adr/adr-020-engine-value-and-render-contract.md`](adr/adr-020-engine-value-and-render-contract.md)

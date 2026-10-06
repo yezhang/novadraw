@@ -241,7 +241,7 @@ content_point = viewport_point / scale + origin
 
 实际实现见
 [`FigureTree::set_bounds_with_update`](../../novadraw/src/graph/mod.rs#L3875-L3933) 和
-[`FigureEditor::set_bounds`](../../novadraw/src/runtime/runtime.rs)。
+[`FigureMut::set_bounds`](../../novadraw/src/runtime/runtime.rs)。
 
 父节点移动时，后代的 `bounds` 不会被重写；父链变换的结果发生变化，并产生
 `CoordinateSystemChanged`。这避免与子树规模成正比的存储改写，也保持父级局部
@@ -281,7 +281,7 @@ let local = transform.transform_point(Point::new(surface_x, surface_y));
 `(surface / scale) + origin`，因为真实父链还可能包含内边距、嵌套容器、旋转和
 自由范围变换。
 
-运行期移动或调整尺寸时，通过 scoped editor：
+运行期移动或调整尺寸时，通过 scoped mutable facade：
 
 ```rust
 runtime
