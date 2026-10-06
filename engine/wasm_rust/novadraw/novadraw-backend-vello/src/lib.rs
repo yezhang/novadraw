@@ -64,7 +64,10 @@ pub struct VelloInitializationError {
 }
 
 impl VelloInitializationError {
-    #[cfg(all(feature = "web", target_arch = "wasm32"))]
+    #[cfg(any(
+        all(feature = "native", not(target_arch = "wasm32")),
+        all(feature = "web", target_arch = "wasm32")
+    ))]
     fn from_vello(error: vello::Error) -> Self {
         Self {
             message: error.to_string(),
@@ -619,14 +622,17 @@ impl VelloRenderer {
     }
 
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub fn new<W: NativeWindow>(window: Arc<W>, surface: novadraw::render::SurfaceInfo) -> Self {
+    pub fn new<W: NativeWindow>(
+        window: Arc<W>,
+        surface: novadraw::render::SurfaceInfo,
+    ) -> Result<Self, VelloInitializationError> {
         pollster::block_on(Self::new_for_surface(
             window.into(),
             surface.pixel_width,
             surface.pixel_height,
             surface.scale_factor,
         ))
-        .expect("Failed to create surface")
+        .map_err(VelloInitializationError::from_vello)
     }
 
     /// Returns stable, backend-owned adapter metadata without exposing wgpu types.
@@ -1634,7 +1640,7 @@ impl VelloRenderer {
     }
 
     /// 获取窗口尺寸（像素）
-    pub fn size(&self) -> (u32, u32) {
+    pub fn pixel_size(&self) -> (u32, u32) {
         (self.surface.config.width, self.surface.config.height)
     }
 }

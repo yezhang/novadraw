@@ -769,7 +769,8 @@ impl ApplicationHandler<()> for NativeVelloBenchmark {
         window.set_visible(true);
         window.focus_window();
         let surface = surface_info(&window);
-        let renderer = VelloRenderer::new(Arc::clone(&window), surface);
+        let renderer = VelloRenderer::new(Arc::clone(&window), surface)
+            .unwrap_or_else(|error| panic!("initialize Vello renderer: {error}"));
         let (runtime, marker) = build_runtime(self.cli.require_window_server_present);
         #[cfg(target_os = "macos")]
         if self.cli.require_window_server_present {

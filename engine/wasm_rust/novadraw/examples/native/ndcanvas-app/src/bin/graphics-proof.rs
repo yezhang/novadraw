@@ -56,7 +56,8 @@ impl Proof {
                 pixel_height: SIZE.1 * dpi,
                 scale_factor: dpi as f64,
             };
-            let mut renderer = VelloRenderer::new(window.clone(), surface);
+            let mut renderer = VelloRenderer::new(window.clone(), surface)
+                .unwrap_or_else(|error| panic!("initialize Vello renderer: {error}"));
             let mut scene = fixture();
             for phase in [
                 "baseline",

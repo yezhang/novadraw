@@ -427,7 +427,7 @@ impl ApplicationHandler<()> for DemoApp {
         }
 
         let scale_factor = window.scale_factor();
-        let renderer = VelloRenderer::new(
+        let renderer = match VelloRenderer::new(
             window,
             SurfaceInfo {
                 logical_width: self.width,
@@ -436,7 +436,14 @@ impl ApplicationHandler<()> for DemoApp {
                 pixel_height: (self.height * scale_factor).round() as u32,
                 scale_factor,
             },
-        );
+        ) {
+            Ok(renderer) => renderer,
+            Err(error) => {
+                eprintln!("failed to initialize Vello renderer: {error}");
+                event_loop.exit();
+                return;
+            }
+        };
         self.renderer = Some(renderer);
         self.initial_frame_presented = false;
         self.initial_frame_attempts = 0;

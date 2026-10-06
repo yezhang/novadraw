@@ -1780,16 +1780,19 @@ impl ApplicationHandler<()> for DemoApp {
         });
         let size = window.inner_size();
         let scale = window.scale_factor();
-        self.renderer = Some(VelloRenderer::new(
-            Arc::clone(&window),
-            SurfaceInfo {
-                logical_width: f64::from(size.width) / scale,
-                logical_height: f64::from(size.height) / scale,
-                pixel_width: size.width,
-                pixel_height: size.height,
-                scale_factor: scale,
-            },
-        ));
+        self.renderer = Some(
+            VelloRenderer::new(
+                Arc::clone(&window),
+                SurfaceInfo {
+                    logical_width: f64::from(size.width) / scale,
+                    logical_height: f64::from(size.height) / scale,
+                    pixel_width: size.width,
+                    pixel_height: size.height,
+                    scale_factor: scale,
+                },
+            )
+            .unwrap_or_else(|error| panic!("initialize Vello renderer: {error}")),
+        );
         self.host = Some(WinitPlatformHost::new(Arc::clone(&window)));
         self.window = Some(window);
 
