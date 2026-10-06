@@ -47,13 +47,14 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 |---|---|---|---|---|---|
 | 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
 | 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
-| 3 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
-| 4 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
-| 5 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
-| 6 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
-| 7 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
-| 8 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
-| 9 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
+| 3 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02 complete；M01-B 前闭合 P2-G01 visual surface | 确定时钟、双平面、跨域消费者、禁用零工作与视觉证据 |
+| 4 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 5 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
+| 6 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
+| 7 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
+| 8 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
+| 9 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
+| 10 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
 
 共同约束：
 
@@ -213,6 +214,83 @@ Vello lowering、失败原子性和视觉证据全部闭合。
   不能用离屏完整重绘结果替代，因此本 delta 保留 `in_progress`。
   详细 suite、结果、平台范围与复现方式见
   [P2-G01 验证记录](../verification/reviews/p2-g01-graphics-evidence.md)。
+
+## Animation
+
+### P2-M01: Animation Timeline 与 Presentation Plane
+
+状态：`in_progress`。ADR-026 已接受；M01-A、M01-B 已完成，下一切片为 M01-C
+领域消费者。
+
+目标：`GOAL-CAP`、`GOAL-EXT`、`GOAL-PERF`。建立可选的一等动画基础设施，
+让属性、布局结果、Connection route、Viewport、生命周期和持续效果共享同一
+Runtime 时钟、编排、取消、damage 与提交协议。
+
+`api_semantics`：`animation.timeline`、`animation.presentation`、
+`frame.preparation`、`damage.repaint`。
+
+规范入口：[ADR-026](../adr/adr-026-animation-and-presentation-plane.md)、
+[Animation / Presentation Plane 设计](../design/animation/animation-system.md)、
+[Animation 公开 API 合同](../design/animation/public-api-contract.md)、
+[Animation 领域能力集成矩阵](../design/animation/capability-integration.md)。
+评审检查见
+[P2-M01 Animation 架构评审记录](../verification/reviews/p2-m01-animation-architecture-review.md)。
+Draw2D 源码事实见
+[Animation / Animator 分析](../reference/draw2d/figure/animation.md)。
+
+依赖与启动门禁：
+
+1. P2-G02 的统一 Graphics、FigurePresentation 与 glyph 准备链路已经完成；
+2. M01-B 前必须关闭 P2-G01 的 Native surface visual repair 验收，避免在未稳定的
+   presentation/damage surface 上叠加逐帧状态；纯 Core/Headless 的 M01-A 不受阻塞；
+3. ADR-026、公开 API、错误枚举与外部 typed consumer 已完成人工评审；
+4. `core.p2-m01-animation` 是保留的目标 suite；有可执行 contract test 与命令后才写入
+   `verification/suites.toml`，不登记空门禁。
+
+分阶段毕业证据：
+
+1. **M01-A Clock / Timeline / optionality**：确定性单调时间、Tween/Keyframes、
+   Parallel/Sequence/Stagger、取消/替换/retarget、三种模式及无活动动画零工作；
+2. **M01-B Presentation / damage**：committed/presentation 分离、old/new visual
+   envelope、temporary visual 生命周期、hidden/suspend/dispose 与 fault 清理；
+3. **M01-C 领域消费者**：属性、布局结果、Connection route、Viewport、dash flow，
+   以及沿 route arc length 移动的 pulse 到 endpoint decoration 的交接；
+4. **M01-D 平台与视觉**：Headless 固定时间 replay、Native/Web 关键帧等价、
+   DPI/nested transform/scroll/zoom、disabled/reduced-motion 与
+   1/64/1,024 active track 工作量基线。
+
+完成态必须证明关闭动画不改变 committed state、通知、命中、accessibility 或 history；
+Core 默认不安装隐式 Trigger，无 active track 时不持续 tick、request redraw、扫描全树
+或提交空帧。
+
+M01-A 实现证据（2026-10-06）：
+
+- Runtime-owned typed channel、AnimationId、Clock 与 scoped `AnimationMut` 已实现；
+- Tween/Keyframes/Spring/Decay 与 Parallel/Sequence/Stagger/Delay/Repeat/Reverse 已实现；
+- Enabled/Disabled/ReducedMotion、Replace/Ignore、cancel、atomic retarget、预算与有界
+  terminal journal 已实现；
+- 外部自定义 `AnimationValue` 不修改 Core 枚举即可接入；
+- `core.p2-m01-animation` 14 项、Core 完整 crate 测试与 Clippy 通过；
+- 详细证据见
+  [P2-M01A 实现记录](../verification/reviews/p2-m01a-animation-evidence.md)。
+
+M01-B 实现证据（2026-10-06）：
+
+- Figure opacity/transform override、old/new surface envelope 与 immutable frame snapshot
+  已接入既有 damage/recording/submission；
+- Runtime-owned temporary visual、hidden/suspend/dispose/cancel/completion/fault 清理已实现；
+- provider 非法 sample 结构化失败，provider panic 进入 Runtime fault boundary；
+- 无 active presentation 时不构造 snapshot，active 路径只遍历 active subject；
+- 详细证据见
+  [P2-M01B 实现记录](../verification/reviews/p2-m01b-animation-presentation-evidence.md)。
+
+M01-C 当前进展：
+
+- Figure bounds one-shot capture、source-final transition、stable-order stagger 已实现；
+- empty/duplicate/foreign/disposed capture 与退化尺寸变换已结构化拒绝；
+- route、viewport、continuous dash 与 pulse 仍待实现；
+- 进展证据见
+  [P2-M01C 实现记录](../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
 
 ## Connection
 

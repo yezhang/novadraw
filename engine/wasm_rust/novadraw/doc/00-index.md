@@ -22,6 +22,13 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   该计划不替代 P2 backlog 的状态真源。
 - 统一 Graphics API 与 glyph 预处理：ADR-025 已接受，P2-G02 已实现并进入最终门禁；
   字体指标、文字测量与图文绘制使用同一 API 集合，自研后端预处理格式保持独立。
+- 动画正交模型已登记为
+  [`P2-M01`](roadmap/p2-delta-backlog.md)，当前为 `in_progress`；
+  [Animation / Presentation Plane 设计](design/animation/animation-system.md)、
+  [公开 API 合同](design/animation/public-api-contract.md)、
+  [领域能力集成矩阵](design/animation/capability-integration.md)与
+  [ADR-026](adr/adr-026-animation-and-presentation-plane.md)已接受；M01-A、M01-B
+  已完成，当前推进 M01-C 领域消费者。
 - 2026-09-16 与 2026-09-20 两批语义审计整改均已完成，状态见
   [`verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`](verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md)。
 - 里程碑状态只在 [`roadmap/00-index.md`](roadmap/00-index.md) 及

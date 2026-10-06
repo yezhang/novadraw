@@ -96,6 +96,7 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P2 | 完整 Widget Toolkit | `ButtonGroup/CheckBox/RadioButton/Slider`、repeat firing | 可选控件库 | 不污染核心 draw2d 协议 |
 | P2 | 图布局 | `DirectedGraphLayout/CompoundDirectedGraphLayout` | 后续自动布局能力 | DAG/复合图布局，可作为独立算法模块 |
 | P2 | 打印 / 缩放 Graphics | `PrinterGraphics/ScaledGraphics` | backend adapter | 缩放代理、打印目标、非主线渲染后端 |
+| P2 | 动画 / 表现过渡 | `Animation/Animator/LayoutAnimator/RoutingAnimator` | Runtime-owned Timeline/Track + Presentation Plane | 可选时钟、before/after snapshot、布局/路由/属性/持续效果 |
 | GEF 层 | Viewer 映射 | `EditPartViewer.findObjectAt` | 编辑器层，不进 draw2d core | Figure 到 app object / EditPart 映射 |
 | GEF 层 | Request / Tool | `Request/SelectionRequest/LocationRequest` | 编辑器交互层 | selection、drag、create、reconnect 请求 |
 | GEF 层 | EditPolicy / Command | `EditPolicy/getCommand` | 后续 GEF-like 层 | 命令生成、交互策略，不属于 M1-M10 核心 |
@@ -128,6 +129,8 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | `update_manager.two_phase` | UpdateManager | Validation -> Damage Repair 两阶段更新事务 |
 | `damage.repaint` | Damage / Repaint | repaint、dirty region、intersects、damage parent-chain 映射 |
 | `frame.preparation` | Frame preparation | 稳定派生状态、validation、damage、resource 与 in-flight submission 的因果边界 |
+| `animation.timeline` | Animation timeline | 单调时钟、Track、Motion、Trigger、Composition、中断与确定性采样 |
+| `animation.presentation` | Presentation Plane | committed/presentation 分离、temporary visual、表现 damage 与交互几何策略 |
 | `runtime.identity` | Runtime 身份域 | 公开 handle 的 Runtime 归属与跨 Runtime 误用拒绝 |
 | `resource.lifecycle` | Resource 生命周期 | Pending/Ready/Failed/Removed、revision、提交顺序与 retry 恢复 |
 | `render.backend_session` | Backend session | backend 建立/重建、Ready 资源快照与完整场景恢复 |
@@ -175,7 +178,8 @@ Core 1.0 后的 P2 delta 使用同一组稳定 Family ID，不发明平行语义
 | P2-F01 | `builtin.figures` | `complete` | ScalablePolygonFigure template-to-bounds 几何 verified |
 | P2-T01 | `text.flow` | `complete` | 只读 paragraph/fragment/wrap/bidi TextFlow verified |
 | P2-T02 | `text.interaction` | `complete` | immutable layout 的 position/caret/selection/movement geometry verified |
-| P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `not_started` | ADR-025 已接受统一测量/绘制与布局后 glyph 准备合同；实现及外部后端消费者待验证 |
+| P2-G02 | `graphics.context`, `text.flow`, `text.interaction`, `paint.protocol`, `damage.repaint`, `render.backend_session` | `complete` | 统一测量/绘制、默认与可替换 glyph 轮廓链路及外部消费者已验证 |
+| P2-M01 | `animation.timeline`, `animation.presentation`, `frame.preparation`, `damage.repaint` | `in_progress` | ADR-026 已接受；M01-A/B complete，当前推进 M01-C 领域消费者 |
 
 P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade 必须继续保持
 文本度量/绘制同源、图文有序合成、字体资源 revision 与失败发布合同；
@@ -203,6 +207,7 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | `NdCanvas` + Paint/StrokeStyle/ClipPath + backend-neutral Render IR 已实现 | [P2-G01 证据](../../verification/reviews/p2-g01-graphics-evidence.md) | Core/Vello 与 Native/Web 像素已验证；surface 局部修复验证仍需闭合 |
 | `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 交互用途替代：retained feedback layer | [P2-G01 契约](../../design/rendering/p2-g01-graphics-extension.md) | 不承诺设备 XOR 像素语义；反馈用途替代需独立验证，不以 Difference blend 冒充等价 |
 | `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `adapted` | `FigureTreeBuilder::insert_child_with_constraint`、`ContainerMut::insert_with_constraint` | `core.p2-s01-child-insertion` / P2-S01 | 新 owned Figure 一次预检 admission、constraint、order 与 publication；Result 失败不发布节点，已有 Figure 移动仍用 reparent |
+| `CAP-ANIMATION` | Animation、Animator、LayoutAnimator、RoutingAnimator | GOAL-CAP/EXT/PERF | `pending` | 目标：Runtime-owned Timeline/Track + Presentation Plane | P2-M01；目标 suite `core.p2-m01-animation` | 不复制静态全局状态、阻塞 run loop 或逐帧 source mutation；默认无隐式动画 |
 | `CAP-CLIPPING-EXT` | replaceable/multi-rect clipping | GOAL-CAP/EXT | `pending` | 目标：受控 clipping provider | P2-C03 | 先闭合跨 viewport Connection 可见性真实用例 |
 | `CAP-CONNECTION` | Connection/Anchor/Router/Locator | GOAL-CAP/EXT | `adapted` | `connection` module + Runtime registries | M9、P2-C01/C02 | 策略纯计算，Runtime 原子提交 route batch |
 | `CAP-TEXT-FLOW` | FlowPage/TextFlow/ParagraphTextLayout | GOAL-CAP/EXT | `pending` | `TextFlowFigure`、`TextLayoutEngine` | P2-T01/T02 complete；P2-T03 pending | 剩余 fragment style 与 inline/block 组合进入 P2-T03 |
@@ -365,6 +370,13 @@ Draw2D 证据入口：`Viewport.java`、`ScrollPane.java`、`RangeModel.java`、
 | `resource.lifecycle` | 图像/字体状态变化必须按提交因果顺序到达 renderer | ResourceRegistry revision + ordered `ResourceOp`；delta retry 恢复精确前缀，Ready -> Failed -> Ready 顺序闭合 | verified | D4.2 自动契约与 Vello cache 测试 |
 | `render.backend_session` | 新 Graphics/backend 必须能恢复当前资源与完整场景 | Host 串行接管以 Snapshot + Full 建立基线；拒绝缺基线 Delta 与同域 stale generation | verified | D4.2/D4.4 已验证；并发 producer activation token 不在 Core 1.0 范围 |
 | `frame.preparation` | validate -> derived state -> damage repair 的稳定更新边界 | Runtime typed worklist 在 stable epoch 前收敛；公开 Ready/Idle/Suspended/AwaitingCompletion/Error，失败不提交 frame | verified | D4.1/D4.4 自动契约 |
+
+### P2 Animation / Presentation
+
+| Family ID | Draw2D 方法级 API / 合理变体 | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
+|---|---|---|---|---|
+| `animation.timeline` | `Animation.markBegin/run`、Animator playback 与共享 session | Runtime-owned typed channel、Tween/Keyframes/Spring/Decay、Parallel/Sequence/Stagger/Repeat、模式、cancel/retarget 与单调时间 | partial | M01-A/B 已验证；M01-C 已完成 Figure bounds capture，route/viewport/continuous consumer 待实现 |
+| `animation.presentation` | LayoutAnimator/RoutingAnimator 的 before/after 表现过渡 | committed truth + Runtime presentation override/temporary visual；layout/route/viewport/continuous effect 共享 channel | partial | M01-B 已验证，M01-C 进行中；动画不得逐帧修改 source bounds、route、通知或 history |
 
 ### M9 Connection / Anchor / Router / Locator
 

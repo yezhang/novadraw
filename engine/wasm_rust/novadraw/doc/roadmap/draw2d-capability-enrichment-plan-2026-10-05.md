@@ -50,7 +50,7 @@ Novadraw 已完成的主要能力包括：
 
 | 优先级 | 能力组 | 主要缺口 | 当前去向 |
 |---|---|---|---|
-| P0 | 动画与表现平面 | 显式时钟、Timeline/Track、属性/布局/路由/生命周期/视口动画、无动画快速路径 | 尚未登记正式 delta |
+| P0 | 动画与表现平面 | 显式时钟、Timeline/Track、属性/布局/路由/生命周期/视口动画、无动画快速路径 | P2-M01，ADR-026 已接受；M01-A/B complete，M01-C in progress |
 | P1 | 内置控件族 | repeat scheduler、ButtonGroup、checkbox、radio 互斥；Slider 作为现代扩展候选 | P2-W01 |
 | P1 | 组合 Figure 与边框 | LabeledContainer/GroupBox、Separator、Focus/Frame 类边框、MultiLineLabel 高层入口 | 尚未登记正式 delta |
 | P1 | 图自动布局 | DirectedGraphLayout、CompoundDirectedGraphLayout 与外部算法 adapter | P2-L01 |
@@ -113,6 +113,11 @@ Draw2D 的 Animation/Animator、LayoutAnimator 和 RoutingAnimator 提供关键�
 插值，但其静态全局状态、Singleton animator 和同步阻塞播放不适合 Novadraw。
 市场框架的共同做法是分离动画目标、时间模型、触发方式和时间编排；Novadraw 应采用
 同样的正交模型，而不是为每种组合增加独立类。
+详细合同见
+[Animation / Presentation Plane 设计](../design/animation/animation-system.md)、
+[Animation 公开 API 合同](../design/animation/public-api-contract.md)、
+[Animation 领域能力集成矩阵](../design/animation/capability-integration.md)与
+[ADR-026](../adr/adr-026-animation-and-presentation-plane.md)。
 
 ```text
 AnimationPlan
@@ -156,6 +161,84 @@ AnimationPlan
 1. **结果过渡**：布局算法一次计算最终结果，表现层在旧/新快照间插值；作为首批能力。
 2. **求解过程动画**：force-directed 等算法持续产出中间状态；属于算法 driver，
    必须有取消、预算、checkpoint 和交互语义，不能冒充普通 Tween。
+
+#### 5.2.1 应用案例：Connection 虚线流向动画
+
+动画基础设施必须能够表达 Connection 虚线沿 source → target 或反方向持续流动的效果。
+该案例属于持续程序动画，不属于路由动画：Connection route、Anchor、Locator 和
+PointList 保持不变，Timeline 只采样表现态 dash phase。
+
+概念计算为：
+
+```text
+period = validated_dash_period
+phase(t) = wrap(direction * speed * (t - start_time), period)
+effective_dash_offset = wrap(source_dash_offset + phase(t), period)
+```
+
+约束：
+
+- 复用受检 `StrokeStyle` 的 dash pattern、source dash offset 与 visual envelope；
+- `speed` 使用 Canvas 逻辑长度/秒，不使用物理像素/帧；
+- 公开方向使用 `Forward` / `Reverse` 语义；`Forward` 固定表示 source → target，
+  dash offset 的正负映射由引擎内部按规范路径方向处理；
+- 使用 Host 提供的单调绝对时间采样，不通过逐帧累加推进相位，避免掉帧改变流速；
+- 动画只覆盖 presentation dash offset，不修改 source `StrokeStyle`、route points、
+  Figure bounds、hit-test、通知或 undo/redo history；
+- route 在其他事务中变化时保留当前规范化 phase，并在新路径上继续播放；dash pattern
+  改变时按新周期重新规范化，非法 pattern 继续由 Graphics 输入契约拒绝；
+- 每帧 damage 保守覆盖 Connection 的完整 visual envelope；后端只有在能证明等价时
+  才能进一步缩小局部区域；
+- 多条流动 Connection 共享 Runtime Clock 和同一次 frame tick，不为每条连接创建 timer；
+- effectively hidden、surface suspended 或无可见 damage 时暂停持续帧请求；
+- `Disabled` 保留 source dash offset 的静态虚线；`Reduced motion` 默认使用静态箭头或
+  方向标记，不强制持续移动；
+- 终点箭头表达稳定业务方向，虚线相位只表达活动或流动感，不能作为方向真值的唯一来源。
+
+该案例的最低验证包括：
+
+1. source → target 与 target → source 两个方向的固定时间采样；
+2. 不同刷新间隔得到相同时间点的相同 phase；
+3. nested transform、Viewport scroll/zoom 与 DPI 变化不改变逻辑流速；
+4. route 更新、dash pattern 更新、中断与恢复保持确定相位；
+5. Disabled/Reduced motion 不产生持续 tick，且静态像素与 source style 一致；
+6. 多连接共享 Clock，不触发 reroute、layout、FigureMoved 或全树扫描。
+
+#### 5.2.2 应用案例：移动 pulse 到端点箭头交接
+
+动画基础设施还必须支持从 Connection source 发起小型 pulse（视觉上的“鼓包”），
+沿 route 传播，并在到达 target 时平滑交接为最终 endpoint arrow decoration。
+该效果由程序 Motion、temporary visual 与 endpoint presentation override 组合，
+不创建专用时钟或修改 Connection source route。
+
+阶段语义：
+
+1. **Travel**：按 route arc length 采样 pulse 的位置、切线和法线，避免折线分段长度
+   不同时产生速度跳变；
+2. **Handoff**：pulse 进入 target decoration envelope 后，通过 crossfade/scale
+   将 temporary pulse 交接到 committed endpoint arrow；
+3. **Finish**：清除 pulse 与 decoration override，直接显示已经提交的最终箭头。
+
+约束：
+
+- committed state 在动画开始前已包含最终 route 与 endpoint arrow；动画只暂时控制
+  pulse 和 arrow 的 presentation，不延迟业务方向提交；
+- pulse 使用规范化 route arc length 与绝对单调时间采样，刷新率、分段数量和 DPI
+  不改变逻辑速度；
+- pulse 方向由 Connection source/target 语义确定，不能依赖当前 path command 顺序猜测；
+- route 更新时从当前 presentation 位置按新 route 重投影或按显式 interruption policy
+  重新开始，不允许跳回已提交前的旧 route；
+- zero-length route、缺失 target decoration、disposed endpoint 或中途取消必须结构化
+  降级并清理 temporary visual，不留下持续 wakeup；
+- pulse 默认 `NonInteractive`，不参与 hit-test、cursor、selection 或 accessibility；
+- damage 覆盖 pulse 的 old/new envelope 与 handoff 期间 decoration 的 old/new envelope；
+- 多 pulse 通过 Stagger 组合并共享一次 Clock advance，数量受 active-track 预算限制；
+- `Disabled` 立即显示 committed arrow；`Reduced motion` 使用静态箭头或短时淡入，
+  不强制执行沿线移动。
+
+最低验证包括固定时间下的端点位置/切线、折线路由匀速、route 变更与中断、handoff
+首尾像素连续性、取消/dispose 清理、三种动画模式，以及不产生 route/layout/通知/history
+副作用。
 
 ### 5.3 动画可选性与禁用协议
 
@@ -206,17 +289,19 @@ P2-O01 应抽象为输出目标和 scale/clip adapter，而不是引入 SWT Prin
 ### 阶段 0：关闭当前 Graphics 主线
 
 1. 完成 P2-G01 剩余的 Native surface 局部修复验收；
-2. 按 ADR-025 完成 P2-G02 统一测量/绘制 API 与 glyph 准备链路；
+2. P2-G02 已按 ADR-025 完成统一测量/绘制 API 与 glyph 准备链路；
 3. 保持 Graphics、TextLayout、Figure paint 和 backend capability 单一合同。
 
 ### 阶段 1：动画与表现平面
 
-1. 对标 Draw2D Animation/Animator 及市场框架，形成 normative design 或 ADR；
-2. 登记正式动画 delta、稳定 API family、suite 和外部消费者；
-3. 建立显式 Clock、Timeline、Track、Motion、Trigger 与 Composition 边界；
-4. 建立 source/committed state 与 presentation state 双平面；
-5. 先实现显式属性动画、并行/顺序/错峰编排和确定性 headless clock；
-6. 用布局结果过渡、Connection 路由过渡和 Viewport transition 验证跨域能力；
+1. 已完成 Draw2D Animation/Animator 对标，ADR-026 已接受；
+2. 已登记 P2-M01 与稳定 API family；suite 名称已保留，待首个可执行测试存在时登记；
+3. 已在提案中冻结 Clock、Timeline、Track、Motion、Trigger 与 Composition 边界；
+4. 已冻结 source/committed state、presentation state 与 backend state 三平面；
+5. M01-A 已实现 typed 属性 channel、并行/顺序/错峰编排和确定性 headless clock；
+6. M01-B 已实现 Figure presentation override、old/new damage、temporary visual 与
+   suspend/dispose/fault 清理；当前推进 M01-C，以布局结果、Connection route 和
+   Viewport transition 验证跨域能力；
 7. 验证 Disabled、Enabled、Reduced motion 及零活动动画快速路径；
 8. 暂不实现通用 path morph、shared element、force solver 逐轮动画或 backend
    专有 compositor 快路径。
@@ -312,6 +397,16 @@ Windows/Linux 原生运行、Safari/Firefox 和完整 AT provider 保留到对�
   [`../design/architecture/text-layout.md`](../design/architecture/text-layout.md)
 - Connection Routing：
   [`../design/architecture/connection-routing.md`](../design/architecture/connection-routing.md)
+- Draw2D Animation 源码事实：
+  [`../reference/draw2d/figure/animation.md`](../reference/draw2d/figure/animation.md)
+- Animation / Presentation Plane：
+  [`../design/animation/animation-system.md`](../design/animation/animation-system.md)
+- Animation 公开 API 合同：
+  [`../design/animation/public-api-contract.md`](../design/animation/public-api-contract.md)
+- Animation 领域能力集成矩阵：
+  [`../design/animation/capability-integration.md`](../design/animation/capability-integration.md)
+- ADR-026：
+  [`../adr/adr-026-animation-and-presentation-plane.md`](../adr/adr-026-animation-and-presentation-plane.md)
 - Qt Quick Animation and Transitions：
   <https://doc.qt.io/Qt-6/qtquick-statesanimations-animations.html>
 - Flutter Animations：
