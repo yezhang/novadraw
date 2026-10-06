@@ -12,7 +12,7 @@ pub mod zoom;
 
 pub use layer::{
     FreeformLayerFigure, FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError,
-    LayerPlacement, LayeredPane, LayeredPaneHandle,
+    LayerPlacement, LayeredPane, LayeredPaneMut,
 };
 pub use range_model::{
     DefaultRangeModel, RangeChange, RangeChangeSet, RangeListener, RangeListenerId, RangeModel,

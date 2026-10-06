@@ -367,12 +367,12 @@ impl FigureContainer for FreeformLayeredPane {
 impl Layer for FreeformLayeredPane {}
 impl Freeform for FreeformLayeredPane {}
 
-pub struct LayeredPaneHandle<'a> {
+pub struct LayeredPaneMut<'a> {
     pane_id: FigureId,
     runtime: &'a mut Runtime,
 }
 
-impl<'a> LayeredPaneHandle<'a> {
+impl<'a> LayeredPaneMut<'a> {
     pub(crate) fn new(pane_id: FigureId, runtime: &'a mut Runtime) -> Self {
         Self { pane_id, runtime }
     }

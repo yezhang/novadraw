@@ -33,7 +33,7 @@ use crate::{
     FlowTextPosition, FlowTextRange, FlowWrapping, FocusChange, FocusError,
     FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
     ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneHandle, LayoutConstraint,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneMut, LayoutConstraint,
     LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
     ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
     ResourceError, ResourceRegistry, RouteError, RouteMetadata, RouteOutput, RouteRequest,
@@ -260,91 +260,91 @@ pub struct Runtime {
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached Figure.
-pub struct FigureEditor<'a> {
+pub struct FigureMut<'a> {
     figure: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached Label.
-pub struct LabelEditor<'a> {
+pub struct LabelMut<'a> {
     label: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached clickable Figure.
-pub struct ClickableEditor<'a> {
+pub struct ClickableMut<'a> {
     clickable: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached ImageFigure.
-pub struct ImageEditor<'a> {
+pub struct ImageMut<'a> {
     image: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached point-list Figure.
-pub struct PointListEditor<'a> {
+pub struct PointListMut<'a> {
     point_list: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached scalable polygon.
-pub struct ScalablePolygonEditor<'a> {
+pub struct ScalablePolygonMut<'a> {
     polygon: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached TextFlow.
-pub struct TextFlowEditor<'a> {
+pub struct TextFlowMut<'a> {
     text_flow: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached bordered Figure.
-pub struct BorderEditor<'a> {
+pub struct BorderMut<'a> {
     bordered: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached RoundedRectangleFigure.
-pub struct RoundedRectangleEditor<'a> {
+pub struct RoundedRectangleMut<'a> {
     rounded_rectangle: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached TriangleFigure.
-pub struct TriangleEditor<'a> {
+pub struct TriangleMut<'a> {
     triangle: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived, Runtime-backed mutation facade for one attached container Figure.
-pub struct ContainerEditor<'a> {
+pub struct ContainerMut<'a> {
     container: FigureId,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived mutation facade for one attached Viewport.
-pub struct ViewportEditor<'a> {
+pub struct ViewportMut<'a> {
     viewport: ViewportHandle,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived mutation facade for one attached scalable Figure.
-pub struct ScaleEditor<'a> {
+pub struct ScaleMut<'a> {
     scalable: ScaleHandle,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived mutation facade for one attached ScrollPane.
-pub struct ScrollPaneEditor<'a> {
+pub struct ScrollPaneMut<'a> {
     pane: ScrollPaneHandle,
     runtime: &'a mut Runtime,
 }
 
 /// Short-lived mutation facade for one attached Viewport/Scale pair.
-pub struct ZoomEditor<'a> {
+pub struct ZoomMut<'a> {
     zoom: &'a ZoomManager,
     runtime: &'a mut Runtime,
 }
@@ -355,7 +355,7 @@ struct InFlightFrame {
     resources: ResourceSync,
 }
 
-impl FigureEditor<'_> {
+impl FigureMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.figure
     }
@@ -453,7 +453,7 @@ impl FigureEditor<'_> {
     }
 }
 
-impl LabelEditor<'_> {
+impl LabelMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.label
     }
@@ -490,7 +490,7 @@ impl LabelEditor<'_> {
     }
 }
 
-impl ClickableEditor<'_> {
+impl ClickableMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.clickable
     }
@@ -505,7 +505,7 @@ impl ClickableEditor<'_> {
     }
 }
 
-impl ImageEditor<'_> {
+impl ImageMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.image
     }
@@ -519,7 +519,7 @@ impl ImageEditor<'_> {
     }
 }
 
-impl PointListEditor<'_> {
+impl PointListMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.point_list
     }
@@ -603,7 +603,7 @@ impl PointListEditor<'_> {
     }
 }
 
-impl ScalablePolygonEditor<'_> {
+impl ScalablePolygonMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.polygon
     }
@@ -628,7 +628,7 @@ impl ScalablePolygonEditor<'_> {
     }
 }
 
-impl TextFlowEditor<'_> {
+impl TextFlowMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.text_flow
     }
@@ -643,7 +643,7 @@ impl TextFlowEditor<'_> {
     }
 }
 
-impl BorderEditor<'_> {
+impl BorderMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.bordered
     }
@@ -657,7 +657,7 @@ impl BorderEditor<'_> {
     }
 }
 
-impl RoundedRectangleEditor<'_> {
+impl RoundedRectangleMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.rounded_rectangle
     }
@@ -671,7 +671,7 @@ impl RoundedRectangleEditor<'_> {
     }
 }
 
-impl TriangleEditor<'_> {
+impl TriangleMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.triangle
     }
@@ -682,7 +682,7 @@ impl TriangleEditor<'_> {
     }
 }
 
-impl ContainerEditor<'_> {
+impl ContainerMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.container
     }
@@ -759,7 +759,7 @@ impl ContainerEditor<'_> {
     }
 }
 
-impl ViewportEditor<'_> {
+impl ViewportMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.viewport.figure_id()
     }
@@ -818,7 +818,7 @@ impl ViewportEditor<'_> {
     }
 }
 
-impl ScaleEditor<'_> {
+impl ScaleMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.scalable.figure_id()
     }
@@ -834,7 +834,7 @@ impl ScaleEditor<'_> {
     }
 }
 
-impl ScrollPaneEditor<'_> {
+impl ScrollPaneMut<'_> {
     pub fn figure_id(&self) -> FigureId {
         self.pane.pane_id()
     }
@@ -866,7 +866,7 @@ impl ScrollPaneEditor<'_> {
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
         let viewport = self.pane.viewport().clone();
-        ViewportEditor {
+        ViewportMut {
             viewport,
             runtime: self.runtime,
         }
@@ -874,7 +874,7 @@ impl ScrollPaneEditor<'_> {
     }
 }
 
-impl ZoomEditor<'_> {
+impl ZoomMut<'_> {
     pub fn set_zoom(&mut self, scale: f64) -> Result<bool, RuntimeMutationError> {
         self.runtime.set_zoom_at(self.zoom, scale, None)
     }
@@ -981,15 +981,15 @@ impl Runtime {
         &self.tree
     }
 
-    pub fn figure(&mut self, figure: FigureId) -> Result<FigureEditor<'_>, RuntimeMutationError> {
+    pub fn figure(&mut self, figure: FigureId) -> Result<FigureMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(figure)?;
-        Ok(FigureEditor {
+        Ok(FigureMut {
             figure,
             runtime: self,
         })
     }
 
-    pub fn label(&mut self, label: FigureId) -> Result<LabelEditor<'_>, RuntimeMutationError> {
+    pub fn label(&mut self, label: FigureId) -> Result<LabelMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(label)?;
         if self.tree.label(label).is_none() {
             return Err(RuntimeMutationError::WrongCapability {
@@ -997,7 +997,7 @@ impl Runtime {
                 capability: "label mutation",
             });
         }
-        Ok(LabelEditor {
+        Ok(LabelMut {
             label,
             runtime: self,
         })
@@ -1006,7 +1006,7 @@ impl Runtime {
     pub fn clickable(
         &mut self,
         clickable: FigureId,
-    ) -> Result<ClickableEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ClickableMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(clickable)?;
         if self.tree.clickable_snapshot(clickable).is_none() {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1014,13 +1014,13 @@ impl Runtime {
                 capability: "clickable mutation",
             });
         }
-        Ok(ClickableEditor {
+        Ok(ClickableMut {
             clickable,
             runtime: self,
         })
     }
 
-    pub fn image(&mut self, image: FigureId) -> Result<ImageEditor<'_>, RuntimeMutationError> {
+    pub fn image(&mut self, image: FigureId) -> Result<ImageMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(image)?;
         if self.tree.image_figure(image).is_none() {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1028,7 +1028,7 @@ impl Runtime {
                 capability: "image mutation",
             });
         }
-        Ok(ImageEditor {
+        Ok(ImageMut {
             image,
             runtime: self,
         })
@@ -1037,7 +1037,7 @@ impl Runtime {
     pub fn point_list(
         &mut self,
         point_list: FigureId,
-    ) -> Result<PointListEditor<'_>, RuntimeMutationError> {
+    ) -> Result<PointListMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(point_list)?;
         if self.tree.point_list_style(point_list).is_none() {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1045,7 +1045,7 @@ impl Runtime {
                 capability: "point-list mutation",
             });
         }
-        Ok(PointListEditor {
+        Ok(PointListMut {
             point_list,
             runtime: self,
         })
@@ -1054,7 +1054,7 @@ impl Runtime {
     pub fn scalable_polygon(
         &mut self,
         polygon: FigureId,
-    ) -> Result<ScalablePolygonEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ScalablePolygonMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(polygon)?;
         if !self.tree.has_scalable_polygon_capability(polygon) {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1062,7 +1062,7 @@ impl Runtime {
                 capability: "scalable-polygon mutation",
             });
         }
-        Ok(ScalablePolygonEditor {
+        Ok(ScalablePolygonMut {
             polygon,
             runtime: self,
         })
@@ -1071,7 +1071,7 @@ impl Runtime {
     pub fn text_flow(
         &mut self,
         text_flow: FigureId,
-    ) -> Result<TextFlowEditor<'_>, RuntimeMutationError> {
+    ) -> Result<TextFlowMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(text_flow)?;
         if self.tree.text_flow(text_flow).is_none() {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1079,13 +1079,13 @@ impl Runtime {
                 capability: "text-flow mutation",
             });
         }
-        Ok(TextFlowEditor {
+        Ok(TextFlowMut {
             text_flow,
             runtime: self,
         })
     }
 
-    pub fn border(&mut self, bordered: FigureId) -> Result<BorderEditor<'_>, RuntimeMutationError> {
+    pub fn border(&mut self, bordered: FigureId) -> Result<BorderMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(bordered)?;
         if !self.tree.has_border_capability(bordered) {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1093,7 +1093,7 @@ impl Runtime {
                 capability: "border mutation",
             });
         }
-        Ok(BorderEditor {
+        Ok(BorderMut {
             bordered,
             runtime: self,
         })
@@ -1102,7 +1102,7 @@ impl Runtime {
     pub fn rounded_rectangle(
         &mut self,
         rounded_rectangle: FigureId,
-    ) -> Result<RoundedRectangleEditor<'_>, RuntimeMutationError> {
+    ) -> Result<RoundedRectangleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(rounded_rectangle)?;
         if !self
             .tree
@@ -1113,7 +1113,7 @@ impl Runtime {
                 capability: "rounded-rectangle mutation",
             });
         }
-        Ok(RoundedRectangleEditor {
+        Ok(RoundedRectangleMut {
             rounded_rectangle,
             runtime: self,
         })
@@ -1122,7 +1122,7 @@ impl Runtime {
     pub fn triangle(
         &mut self,
         triangle: FigureId,
-    ) -> Result<TriangleEditor<'_>, RuntimeMutationError> {
+    ) -> Result<TriangleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(triangle)?;
         if !self.tree.has_triangle_capability(triangle) {
             return Err(RuntimeMutationError::WrongCapability {
@@ -1130,7 +1130,7 @@ impl Runtime {
                 capability: "triangle mutation",
             });
         }
-        Ok(TriangleEditor {
+        Ok(TriangleMut {
             triangle,
             runtime: self,
         })
@@ -1139,9 +1139,9 @@ impl Runtime {
     pub fn container(
         &mut self,
         container: FigureId,
-    ) -> Result<ContainerEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ContainerMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(container)?;
-        Ok(ContainerEditor {
+        Ok(ContainerMut {
             container,
             runtime: self,
         })
@@ -1150,7 +1150,7 @@ impl Runtime {
     pub fn viewport(
         &mut self,
         viewport: FigureId,
-    ) -> Result<ViewportEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ViewportMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(viewport)?;
         let viewport =
             self.tree
@@ -1159,7 +1159,7 @@ impl Runtime {
                     figure: viewport,
                     capability: "viewport mutation",
                 })?;
-        Ok(ViewportEditor {
+        Ok(ViewportMut {
             viewport,
             runtime: self,
         })
@@ -1168,7 +1168,7 @@ impl Runtime {
     pub fn scalable(
         &mut self,
         scalable: FigureId,
-    ) -> Result<ScaleEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ScaleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(scalable)?;
         let scalable =
             self.tree
@@ -1177,7 +1177,7 @@ impl Runtime {
                     figure: scalable,
                     capability: "scale mutation",
                 })?;
-        Ok(ScaleEditor {
+        Ok(ScaleMut {
             scalable,
             runtime: self,
         })
@@ -1186,10 +1186,10 @@ impl Runtime {
     pub fn scroll_pane(
         &mut self,
         pane: &ScrollPaneHandle,
-    ) -> Result<ScrollPaneEditor<'_>, RuntimeMutationError> {
+    ) -> Result<ScrollPaneMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(pane.pane_id())?;
         self.validate_attached_figure(pane.viewport().figure_id())?;
-        Ok(ScrollPaneEditor {
+        Ok(ScrollPaneMut {
             pane: pane.clone(),
             runtime: self,
         })
@@ -1198,10 +1198,10 @@ impl Runtime {
     pub fn zoom<'a>(
         &'a mut self,
         zoom: &'a ZoomManager,
-    ) -> Result<ZoomEditor<'a>, RuntimeMutationError> {
+    ) -> Result<ZoomMut<'a>, RuntimeMutationError> {
         self.validate_attached_figure(zoom.viewport().figure_id())?;
         self.validate_attached_figure(zoom.scalable().figure_id())?;
-        Ok(ZoomEditor {
+        Ok(ZoomMut {
             zoom,
             runtime: self,
         })
@@ -1631,12 +1631,12 @@ impl Runtime {
         &mut self,
         parent: FigureId,
         bounds: Rectangle,
-    ) -> Result<LayeredPaneHandle<'_>, LayerError> {
+    ) -> Result<LayeredPaneMut<'_>, LayerError> {
         if self.faulted {
             return Err(LayerError::Faulted);
         }
         let pane_id = self.guarded(|runtime| runtime.add_layered_pane_inner(parent, bounds))?;
-        Ok(LayeredPaneHandle::new(pane_id, self))
+        Ok(LayeredPaneMut::new(pane_id, self))
     }
 
     fn add_layered_pane_inner(
@@ -1661,12 +1661,12 @@ impl Runtime {
         Ok(pane_id)
     }
 
-    pub fn layered_pane(&mut self, pane_id: FigureId) -> Result<LayeredPaneHandle<'_>, LayerError> {
+    pub fn layered_pane(&mut self, pane_id: FigureId) -> Result<LayeredPaneMut<'_>, LayerError> {
         if self.faulted {
             return Err(LayerError::Faulted);
         }
         self.guarded(|runtime| runtime.validate_layered_pane_handle(pane_id))?;
-        Ok(LayeredPaneHandle::new(pane_id, self))
+        Ok(LayeredPaneMut::new(pane_id, self))
     }
 
     fn validate_layered_pane_handle(&mut self, pane_id: FigureId) -> Result<(), LayerError> {

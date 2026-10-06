@@ -33,6 +33,8 @@ fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::connection::RouteOutput> = None;
     let _: Option<novadraw::event::DispatchOutcome> = None;
     let _: Option<novadraw::runtime::FramePreparation> = None;
+    let _: Option<novadraw::runtime::FigureMut<'static>> = None;
     let _: Option<novadraw::render::RenderSubmission> = None;
+    let _: Option<novadraw::container::LayeredPaneMut<'static>> = None;
     let _: Option<novadraw::advanced::NodeState> = None;
 }

@@ -71,7 +71,7 @@ pub use container::viewport;
 pub use container::{
     DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, FreeformLayerFigure,
     FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement,
-    LayeredPane, LayeredPaneHandle, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
+    LayeredPane, LayeredPaneMut, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
     RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
     ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError,
     ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
@@ -135,16 +135,16 @@ pub use runtime::update::{
 pub use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
-    AccessibilityUpdate, BackendSessionError, BorderEditor, ClickableEditor, ComponentInvalidation,
-    ComponentUpdateError, ComponentUpdateReceipt, ContainerEditor, FigureComponentContext,
-    FigureComponentUpdate, FigureEditor, FocusChange, FocusError, FocusTraversalDirection,
+    AccessibilityUpdate, BackendSessionError, BorderMut, ClickableMut, ComponentInvalidation,
+    ComponentUpdateError, ComponentUpdateReceipt, ContainerMut, FigureComponentContext,
+    FigureComponentUpdate, FigureMut, FocusChange, FocusError, FocusTraversalDirection,
     FocusTraversalOutcome, FocusTraversalPolicy, FontId, FramePreparation, FramePreparationError,
-    ImageEditor, ImageId, LabelEditor, LogicalViewportResizeError, MonotonicTime, PointListEditor,
+    ImageMut, ImageId, LabelMut, LogicalViewportResizeError, MonotonicTime, PointListMut,
     PointerId, PreparedFigureUpdate, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
-    RoundedRectangleEditor, Runtime, RuntimeMutationError, ScalablePolygonEditor, ScaleEditor,
-    ScrollPaneEditor, TextFlowEditor, TextFlowQueryError, TextLayoutStats, TimeError,
+    RoundedRectangleMut, Runtime, RuntimeMutationError, ScalablePolygonMut, ScaleMut,
+    ScrollPaneMut, TextFlowMut, TextFlowQueryError, TextLayoutStats, TimeError,
     TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TreeOrderFocusTraversal, TriangleEditor, ViewportEditor, ZoomEditor, place_tooltip,
+    TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut, place_tooltip,
 };
 pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};
