@@ -9,6 +9,8 @@
 - `coordinates/`：坐标域、变换、命中、事件点与 damage 投影
 - [`editor/`](editor/00-index.md)：模型、EditPart、Viewer、Tool、Request、Policy 与 Command
 - `input/`：平台无关输入与手势分发
+- `animation/`：动画时钟、Timeline/Track、Presentation Plane 与领域 transition；
+  ADR-026 已接受，按 M01-A 至 M01-D 实施
 - `rendering/`：UpdateManager 与渲染提交协议；DisplayList 文件仅为 proposal
 
 `architecture/overview.md` 是导航和总体约束；出现细节冲突时，范围更窄的专题设计
@@ -45,6 +47,12 @@
 27. [`rendering/p2-g01-graphics-extension.md`](rendering/p2-g01-graphics-extension.md)
 28. [`rendering/text-graphics-integration.md`](rendering/text-graphics-integration.md)：
     统一测量/绘制与 glyph 预处理合同，ADR-025 已接受，实现状态见 P2-G02
+29. [`animation/animation-system.md`](animation/animation-system.md)：
+    动画正交模型、可选性、时间驱动与 Presentation Plane
+30. [`animation/public-api-contract.md`](animation/public-api-contract.md)：
+    scoped mutable facade、typed channel、snapshot capture、取消/retarget 与错误
+31. [`animation/capability-integration.md`](animation/capability-integration.md)：
+    属性、布局、路由、视口、生命周期、持续效果及后续能力接入
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

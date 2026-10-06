@@ -25,6 +25,7 @@
 - [Connection、Anchor 与 Router](figure/connection-routing.md)
 - [Reusable Shape 与 Border](figure/reusable-shape-border.md)
 - [Text、Label 与 TitleBarBorder](figure/text-label.md)
+- [Animation、LayoutAnimator 与 RoutingAnimator](figure/animation.md)
 
 ## Rendering
 
