@@ -536,7 +536,7 @@ mod tests {
         );
         assert_eq!(
             runtime.tree().insets(clip_parent),
-            Some((4.0, 4.0, 4.0, 4.0))
+            Some(novadraw::Insets::uniform(4.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(child),

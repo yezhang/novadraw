@@ -28,7 +28,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::render::{GraphicsInputError, NdCanvas, StrokeStyle};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -66,14 +66,10 @@ pub struct TriangleFigure {
     pub fill_color: Color,
     /// 描边颜色
     pub stroke_color: Color,
-    /// 描边宽度
-    pub stroke_width: f64,
+    /// 受检描边几何。
+    stroke: StrokeStyle,
     /// 方向
     pub direction: Direction,
-    /// 线帽样式
-    pub line_cap: crate::render::command::LineCap,
-    /// 连接样式
-    pub line_join: crate::render::command::LineJoin,
     /// 缓存的顶点（validate 后有效）
     cached_points: Option<[(f64, f64); 3]>,
     /// 缓存的 bounds（用于检测是否需要重新计算）
@@ -87,54 +83,23 @@ pub struct TriangleFigure {
 impl TriangleFigure {
     /// 创建三角形
     ///
-    /// # Arguments
-    ///
-    /// * `x` - 左上角 x 坐标
-    /// * `y` - 左上角 y 坐标
-    /// * `width` - 宽度
-    /// * `height` - 高度
-    pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
+    pub fn new(bounds: Rectangle) -> Self {
         Self {
-            bounds: Rectangle::new(x, y, width, height),
+            bounds,
             fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
             stroke_color: Color::from_hex("#c0392b").expect("valid color literal"),
-            stroke_width: 1.0,
+            stroke: StrokeStyle::default(),
             direction: Direction::North,
-            line_cap: crate::render::command::LineCap::Butt,
-            line_join: crate::render::command::LineJoin::Miter,
             cached_points: None,
             cached_bounds: None,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
         }
-    }
-
-    /// 从 Rectangle 创建三角形
-    pub fn from_bounds(bounds: Rectangle) -> Self {
-        Self::new(bounds.x, bounds.y, bounds.width, bounds.height)
     }
 
     /// 创建指定方向的三角形
-    pub fn new_with_direction(
-        x: f64,
-        y: f64,
-        width: f64,
-        height: f64,
-        direction: Direction,
-    ) -> Self {
-        Self {
-            bounds: Rectangle::new(x, y, width, height),
-            fill_color: Color::from_hex("#e74c3c").expect("valid color literal"),
-            stroke_color: Color::from_hex("#c0392b").expect("valid color literal"),
-            stroke_width: 1.0,
-            direction,
-            line_cap: crate::render::command::LineCap::Butt,
-            line_join: crate::render::command::LineJoin::Miter,
-            cached_points: None,
-            cached_bounds: None,
-            child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
-            border: None,
-        }
+    pub fn new_with_direction(bounds: Rectangle, direction: Direction) -> Self {
+        Self::new(bounds).with_direction(direction)
     }
 
     /// 设置填充颜色
@@ -150,9 +115,20 @@ impl TriangleFigure {
     }
 
     /// 设置描边宽度
-    pub fn with_stroke_width(mut self, width: f64) -> Self {
-        self.stroke_width = width;
+    pub fn with_stroke_width(mut self, width: f64) -> Result<Self, GraphicsInputError> {
+        self.stroke = self.stroke.with_width(width)?;
+        Ok(self)
+    }
+
+    /// Replaces the complete checked stroke geometry.
+    pub fn with_stroke_style(mut self, stroke: StrokeStyle) -> Self {
+        self.stroke = stroke;
         self
+    }
+
+    /// Returns the complete checked stroke geometry.
+    pub fn stroke_style(&self) -> &StrokeStyle {
+        &self.stroke
     }
 
     /// 设置方向
@@ -197,10 +173,10 @@ impl TriangleFigure {
     }
 
     /// 设置线条样式
-    pub fn with_style(mut self, fill: Color, stroke: Color, stroke_width: f64) -> Self {
+    pub fn with_style(mut self, fill: Color, stroke_color: Color, stroke: StrokeStyle) -> Self {
         self.fill_color = fill;
-        self.stroke_color = stroke;
-        self.stroke_width = stroke_width;
+        self.stroke_color = stroke_color;
+        self.stroke = stroke;
         self
     }
 
@@ -492,7 +468,7 @@ impl Shape for TriangleFigure {
     }
 
     fn stroke_width(&self) -> f64 {
-        self.stroke_width
+        self.stroke.width()
     }
 
     fn fill_color(&self) -> Option<Color> {
@@ -504,11 +480,11 @@ impl Shape for TriangleFigure {
     }
 
     fn line_cap(&self) -> crate::render::command::LineCap {
-        self.line_cap
+        self.stroke.cap()
     }
 
     fn line_join(&self) -> crate::render::command::LineJoin {
-        self.line_join
+        self.stroke.join()
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -520,7 +496,7 @@ impl Shape for TriangleFigure {
     }
 
     fn outline_enabled(&self) -> bool {
-        self.stroke_color.alpha() > 0.0 && self.stroke_width > 0.0
+        self.stroke_color.alpha() > 0.0 && self.stroke.width() > 0.0
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
@@ -537,9 +513,7 @@ impl Shape for TriangleFigure {
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
-        if gc.line_width(self.stroke_width).is_err() {
-            return;
-        }
+        gc.set_stroke(self.stroke.clone());
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 
@@ -549,8 +523,6 @@ impl Shape for TriangleFigure {
         gc.line_to(points[2].0, points[2].1);
         gc.close_path();
 
-        gc.line_cap(self.line_cap);
-        gc.line_join(self.line_join);
         gc.stroke();
     }
 }
@@ -566,7 +538,7 @@ mod tests {
     /// 测试：validate 计算并缓存顶点
     #[test]
     fn test_validate_computes_and_caches_points() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
 
         // 初始没有缓存
         assert!(triangle.cached_points.is_none());
@@ -585,7 +557,7 @@ mod tests {
     /// 测试：bounds 变化后 validate 重新计算顶点
     #[test]
     fn test_validate_recomputes_when_bounds_change() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 获取原始缓存的顶点
@@ -608,7 +580,7 @@ mod tests {
     /// 测试：大小不变只平移时缓存被保留
     #[test]
     fn test_prim_translate_preserves_cache() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 获取原始缓存
@@ -626,7 +598,7 @@ mod tests {
     /// 测试：set_direction 清除缓存
     #[test]
     fn test_set_direction_clears_cache() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 缓存存在
@@ -642,7 +614,7 @@ mod tests {
     /// 测试：set_bounds 大小变化时清除缓存
     #[test]
     fn test_set_bounds_size_change_clears_cache() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 缓存存在
@@ -658,7 +630,7 @@ mod tests {
     /// 测试：set_bounds 只改变位置不清除缓存
     #[test]
     fn test_set_bounds_position_only_preserves_cache() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 缓存存在
@@ -678,7 +650,7 @@ mod tests {
     /// 测试：invalidate 清除缓存
     #[test]
     fn test_invalidate_clears_cache() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
         triangle.validate();
 
         // 缓存存在
@@ -691,10 +663,33 @@ mod tests {
         assert!(triangle.cached_points.is_none());
     }
 
+    #[test]
+    fn stroke_configuration_is_validated_before_paint() {
+        let bounds = Rectangle::new(0.0, 0.0, 20.0, 20.0);
+        assert!(matches!(
+            TriangleFigure::new(bounds).with_stroke_width(f64::NAN),
+            Err(GraphicsInputError::NonFinite {
+                field: "stroke width",
+                index: None,
+            })
+        ));
+        assert!(matches!(
+            TriangleFigure::new(bounds).with_stroke_width(-1.0),
+            Err(GraphicsInputError::NegativeStrokeWidth)
+        ));
+
+        let stroke = StrokeStyle::default()
+            .with_width(3.0)
+            .expect("valid stroke width")
+            .with_join(crate::render::LineJoin::Round);
+        let triangle = TriangleFigure::new(bounds).with_stroke_style(stroke.clone());
+        assert_eq!(triangle.stroke_style(), &stroke);
+    }
+
     /// 测试：不同方向的顶点计算
     #[test]
     fn test_different_directions() {
-        let mut triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+        let mut triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
 
         // North 方向
         triangle.direction = Direction::North;

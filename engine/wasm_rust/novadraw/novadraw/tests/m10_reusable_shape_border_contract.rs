@@ -146,7 +146,7 @@ fn polygon_precise_hit_uses_closed_interior() {
 
 #[test]
 fn triangle_uses_draw2d_resize_and_centering_geometry() {
-    let triangle = TriangleFigure::new(0.0, 0.0, 20.0, 20.0);
+    let triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
     let mut canvas = NdCanvas::new();
     canvas.fill_style(Color::from_hex("#e74c3c").expect("valid color literal"));
     canvas.stroke_style(Color::from_hex("#c0392b").expect("valid color literal"));
@@ -389,7 +389,9 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
     let triangle = runtime
         .container(root)
         .unwrap()
-        .add(Box::new(TriangleFigure::new(150.0, 20.0, 40.0, 40.0)))
+        .add(Box::new(TriangleFigure::new(Rectangle::new(
+            150.0, 20.0, 40.0, 40.0,
+        ))))
         .expect("valid Runtime mutation");
 
     let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));

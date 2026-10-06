@@ -3496,9 +3496,10 @@ mod tests {
                 "triangle",
                 Box::new(|| {
                     Box::new(
-                        TriangleFigure::new(0.0, 0.0, 100.0, 100.0).with_child_clipping_strategy(
-                            ChildClippingStrategy::DoNotClipChildBounds,
-                        ),
+                        TriangleFigure::new(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+                            .with_child_clipping_strategy(
+                                ChildClippingStrategy::DoNotClipChildBounds,
+                            ),
                     )
                 }),
             ),

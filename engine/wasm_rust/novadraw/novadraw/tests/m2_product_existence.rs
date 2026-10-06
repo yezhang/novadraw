@@ -1,6 +1,6 @@
 use novadraw::Color;
 use novadraw::advanced::{FigureNode, InteractionState, LayoutState, NodeState};
-use novadraw::geometry::{Point, Rectangle};
+use novadraw::geometry::{Insets, Point, Rectangle};
 use novadraw::render::{NdCanvas, command::RenderCommandKind};
 use novadraw::{
     Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureTree,
@@ -92,10 +92,7 @@ fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
         ])),
         Box::new(RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)),
         Box::new(TriangleFigure::new_with_direction(
-            0.0,
-            0.0,
-            20.0,
-            10.0,
+            Rectangle::new(0.0, 0.0, 20.0, 10.0),
             Direction::South,
         )),
     ];
@@ -138,7 +135,10 @@ fn existing_product_figures_expose_child_clipping_strategy_api() {
             RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)
                 .with_child_clipping_strategy(strategy),
         ),
-        Box::new(TriangleFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
+        Box::new(
+            TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0))
+                .with_child_clipping_strategy(strategy),
+        ),
         Box::new(RootFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
         Box::new(ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
     ];
@@ -167,7 +167,7 @@ fn existing_product_figures_expose_border_api() {
             .with_border(border()),
         ),
         Box::new(RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0).with_border(border())),
-        Box::new(TriangleFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
+        Box::new(TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0)).with_border(border())),
         Box::new(RootFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
         Box::new(ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_border(border())),
     ];
@@ -176,7 +176,7 @@ fn existing_product_figures_expose_border_api() {
     assert!(
         figures
             .iter()
-            .all(|figure| figure.initial_insets() == (1.0, 2.0, 3.0, 4.0))
+            .all(|figure| figure.initial_insets() == Insets::new(1.0, 2.0, 3.0, 4.0))
     );
 }
 

@@ -443,7 +443,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
         scene
             .builder()
-            .set_minimum_size(child, Some((100.0, 40.0)))
+            .set_minimum_size(child, Some(novadraw::Dimension::new(100.0, 40.0)))
             .expect("valid FigureTree construction");
     }
     scene

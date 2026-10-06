@@ -999,127 +999,105 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
 
     // 不同线宽的三角形测试
     let tri_w1 = novadraw::TriangleFigure::new_with_direction(
-        50.0,
-        30.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(50.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(1.0);
+    .with_stroke_width(1.0)
+    .expect("valid triangle stroke");
 
     let tri_w3 = novadraw::TriangleFigure::new_with_direction(
-        150.0,
-        30.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(150.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     let tri_w5 = novadraw::TriangleFigure::new_with_direction(
-        250.0,
-        30.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(250.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(5.0);
+    .with_stroke_width(5.0)
+    .expect("valid triangle stroke");
 
     let tri_w10 = novadraw::TriangleFigure::new_with_direction(
-        350.0,
-        30.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(350.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(10.0);
+    .with_stroke_width(10.0)
+    .expect("valid triangle stroke");
 
     let tri_w20 = novadraw::TriangleFigure::new_with_direction(
-        450.0,
-        30.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(450.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#f39c12").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(20.0);
+    .with_stroke_width(20.0)
+    .expect("valid triangle stroke");
 
     // 不同方向的三角形
     let tri_north = novadraw::TriangleFigure::new_with_direction(
-        50.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(50.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     let tri_south = novadraw::TriangleFigure::new_with_direction(
-        150.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(150.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::South,
     )
     .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     let tri_east = novadraw::TriangleFigure::new_with_direction(
-        250.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(250.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::East,
     )
     .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     let tri_west = novadraw::TriangleFigure::new_with_direction(
-        350.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(350.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::West,
     )
     .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::BLACK)
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     // 纯填充和纯描边
     let tri_fill = novadraw::TriangleFigure::new_with_direction(
-        450.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(450.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_color(novadraw::Color::TRANSPARENT)
-    .with_stroke_width(0.0);
+    .with_stroke_width(0.0)
+    .expect("valid triangle stroke");
 
     let tri_stroke = novadraw::TriangleFigure::new_with_direction(
-        550.0,
-        150.0,
-        60.0,
-        60.0,
+        novadraw::Rectangle::new(550.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
     .with_fill_color(novadraw::Color::TRANSPARENT)
     .with_stroke_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
-    .with_stroke_width(3.0);
+    .with_stroke_width(3.0)
+    .expect("valid triangle stroke");
 
     scene
         .builder()
@@ -1333,9 +1311,10 @@ fn create_m10_runtime_mutations() -> novadraw::Runtime {
         .container(root)
         .unwrap()
         .add(Box::new(
-            novadraw::TriangleFigure::new(570.0, 70.0, 120.0, 120.0).with_fill_color(
-                novadraw::Color::from_hex("#f59e0b").expect("valid color literal"),
-            ),
+            novadraw::TriangleFigure::new(novadraw::Rectangle::new(570.0, 70.0, 120.0, 120.0))
+                .with_fill_color(
+                    novadraw::Color::from_hex("#f59e0b").expect("valid color literal"),
+                ),
         ))
         .expect("valid Runtime mutation");
 

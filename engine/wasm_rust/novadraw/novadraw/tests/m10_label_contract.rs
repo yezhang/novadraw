@@ -4,8 +4,9 @@ use novadraw::render::{
 };
 use novadraw::{
     Alignment, AnchorGeometry, AnchorGeometryKey, Border, CompoundBorder, FigureStyle, FigureTree,
-    ImageDisplayState, ImageFigure, LabelFigure, LineBorder, MarginBorder, MeasureConstraints,
-    Rectangle, RectangleFigure, Runtime, StackLayout, TextPlacement, TitleBarBorder,
+    ImageDisplayState, ImageFigure, Insets, LabelFigure, LineBorder, MarginBorder,
+    MeasureConstraints, Rectangle, RectangleFigure, Runtime, StackLayout, TextPlacement,
+    TitleBarBorder,
 };
 use std::sync::{
     Arc,
@@ -319,7 +320,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }) })
     );
-    assert_eq!(runtime.tree().insets(label), Some((2.0, 2.0, 2.0, 2.0)));
+    assert_eq!(runtime.tree().insets(label), Some(Insets::uniform(2.0)));
     let Some(AnchorGeometry::Rectangle(icon_bounds)) =
         runtime.anchor_geometry(label, &AnchorGeometryKey::icon())
     else {
@@ -439,7 +440,7 @@ fn title_bar_border_uses_resolved_font_metrics_and_glyph_commands() {
         .into_ready()
         .unwrap();
 
-    assert!(runtime.tree().insets(root).unwrap().0 > 0.0);
+    assert!(runtime.tree().insets(root).unwrap().top > 0.0);
     assert!(
         submission
             .commands
@@ -510,16 +511,16 @@ fn compound_border_resolves_title_bar_snapshots_at_every_nesting_position() {
             .into_ready()
             .unwrap();
 
-        let (top, left, bottom, right) = runtime.tree().insets(root).unwrap();
-        assert!(top > 2.0);
+        let insets = runtime.tree().insets(root).unwrap();
+        assert!(insets.top > 2.0);
         assert_eq!(
             runtime
                 .tree()
                 .preferred_measurement(root, MeasureConstraints::UNBOUNDED)
                 .map(|measurement| measurement.size()),
             Some(novadraw::Dimension::new(
-                320.0 + left + right,
-                120.0 + top + bottom,
+                320.0 + insets.width(),
+                120.0 + insets.height(),
             ))
         );
         assert_eq!(
@@ -582,11 +583,11 @@ fn shared_compound_title_bar_border_keeps_metrics_per_owner() {
         .into_ready()
         .unwrap();
 
-    let root_top = runtime.tree().insets(root).unwrap().0;
-    let child_top = runtime.tree().insets(child).unwrap().0;
+    let root_top = runtime.tree().insets(root).unwrap().top;
+    let child_top = runtime.tree().insets(child).unwrap().top;
     assert!(child_top > root_top);
-    assert_eq!(runtime.tree().insets(root).unwrap().1, 2.0);
-    assert_eq!(runtime.tree().insets(child).unwrap().1, 2.0);
+    assert_eq!(runtime.tree().insets(root).unwrap().left, 2.0);
+    assert_eq!(runtime.tree().insets(child).unwrap().left, 2.0);
 }
 
 #[test]
