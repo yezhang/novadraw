@@ -79,20 +79,41 @@ impl FigureTree {
             .map(FigureNode::child_clipping_strategy)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn render(&self) -> NdCanvas {
+        self.render_with_presentation(None)
+    }
+
+    pub(crate) fn render_with_presentation(
+        &self,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+    ) -> NdCanvas {
         let mut gc = NdCanvas::new();
         gc.damage_mut().set_full();
-        self.render_to(&mut gc);
+        self.render_to_with_presentation(&mut gc, presentation);
         gc
     }
 
+    #[allow(dead_code)]
     pub(crate) fn render_to(&self, gc: &mut NdCanvas) {
+        self.render_to_with_presentation(gc, None);
+    }
+
+    pub(crate) fn render_to_with_presentation(
+        &self,
+        gc: &mut NdCanvas,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+    ) {
         let start_id = self.contents.unwrap_or(self.root);
         let scene_ref = FigureTreeRenderRef {
             blocks: &self.blocks,
+            presentation,
         };
         let mut renderer = FigureRenderer::new(&scene_ref, gc);
         renderer.render(start_id);
+        if let Some(presentation) = presentation {
+            presentation.paint_temporaries(gc);
+        }
     }
 
     pub(crate) fn commit_point_list(

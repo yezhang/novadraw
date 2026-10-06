@@ -319,6 +319,32 @@ impl FigureTree {
         Some(self.local_to_surface_transform(figure_id)? * block.child_transform().affine())
     }
 
+    pub(crate) fn presentation_envelope(
+        &self,
+        figure_id: FigureId,
+        local_transform: Affine2D,
+    ) -> Option<Rectangle> {
+        if !self.is_effectively_visible(figure_id) {
+            return None;
+        }
+        let root_to_surface = self.local_to_surface_transform(figure_id)?;
+        let surface_to_root = root_to_surface.inverse()?;
+        let mut ids = vec![figure_id];
+        ids.extend(self.descendant_ids(figure_id)?);
+        let mut local_envelope = None;
+        for id in ids {
+            if !self.is_effectively_visible(id) {
+                continue;
+            }
+            let node = self.blocks.get(id)?;
+            let descendant_to_root = surface_to_root * self.local_to_surface_transform(id)?;
+            let visual = super::transform_rectangle(descendant_to_root, node.visual_bounds())?;
+            local_envelope =
+                Some(local_envelope.map_or(visual, |envelope: Rectangle| envelope.union(visual)));
+        }
+        super::transform_rectangle(root_to_surface * local_transform, local_envelope?)
+    }
+
     fn effective_flag_from(
         &self,
         mut figure_id: FigureId,

@@ -12,6 +12,7 @@ use crate::render::{
 };
 
 use crate::PropertyValue;
+use crate::animation::{AnimationMut, AnimationService};
 use crate::connection::{
     ConnectionRoutingStats, ConnectionRuntime, DependencySubject, FigureTreeSceneRead,
     RouteMetadata, RouteOutput, RouteRequest, TrackedSceneQuery, UnresolvedConnection,
@@ -246,6 +247,7 @@ pub struct Runtime {
     interaction: InteractionState,
     interaction_dispatcher: EventDispatcher,
     tooltip_controller: TooltipController,
+    animations: AnimationService,
     accessibility: AccessibilityManager,
     focus_traversal_policy: Box<dyn FocusTraversalPolicy>,
     updates: UpdateManager,
@@ -956,6 +958,7 @@ impl Runtime {
             interaction: InteractionState::default(),
             interaction_dispatcher: EventDispatcher,
             tooltip_controller: TooltipController::default(),
+            animations: AnimationService::new(namespace),
             accessibility: AccessibilityManager::default(),
             focus_traversal_policy: Box::new(TreeOrderFocusTraversal),
             updates,
@@ -1243,15 +1246,41 @@ impl Runtime {
         self.tooltip_controller.set_timing(timing)
     }
 
+    pub fn animations(&mut self) -> AnimationMut<'_> {
+        self.animations.editor(
+            &self.tree,
+            &mut self.updates,
+            &mut self.full_redraw_pending,
+            &mut self.faulted,
+        )
+    }
+
     pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
         if self.faulted {
             return Ok(false);
         }
-        self.tooltip_controller.advance_time(now)
+        let tooltip_changed = self.tooltip_controller.advance_time(now)?;
+        let animation_changed = self
+            .animations
+            .editor(
+                &self.tree,
+                &mut self.updates,
+                &mut self.full_redraw_pending,
+                &mut self.faulted,
+            )
+            .advance_time(now)?;
+        Ok(tooltip_changed || animation_changed)
     }
 
     pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
-        self.tooltip_controller.next_wake_deadline()
+        match (
+            self.tooltip_controller.next_wake_deadline(),
+            self.animations.next_wake_deadline(),
+        ) {
+            (Some(tooltip), Some(animation)) => Some(tooltip.min(animation)),
+            (Some(deadline), None) | (None, Some(deadline)) => Some(deadline),
+            (None, None) => None,
+        }
     }
 
     pub fn visible_tooltip(&self) -> Option<&TooltipSnapshot> {
@@ -1963,6 +1992,7 @@ impl Runtime {
         self.guarded(|runtime| {
             let damage = runtime.updates.freeze_removed_damage(&runtime.tree, &ids);
             let removed: std::collections::HashSet<_> = ids.iter().copied().collect();
+            runtime.animations.retire_figures(&removed);
             let focused = runtime
                 .interaction
                 .focus_owner()
@@ -2005,6 +2035,7 @@ impl Runtime {
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self))) {
             Ok(value) => value,
             Err(payload) => {
+                self.animations.clear_presentation();
                 self.faulted = true;
                 std::panic::resume_unwind(payload)
             }
@@ -2530,6 +2561,16 @@ impl Runtime {
         let changed = self
             .tree
             .set_visible_with_update(&mut self.updates, id, visible);
+        if changed {
+            self.animations
+                .editor(
+                    &self.tree,
+                    &mut self.updates,
+                    &mut self.full_redraw_pending,
+                    &mut self.faulted,
+                )
+                .reconcile_visibility();
+        }
         self.retain_interactive_figures();
         changed
     }

@@ -1130,9 +1130,18 @@ impl FigureTree {
     /// Phase 2: 脏区域重绘
     /// - 如果有待重绘的脏区域，使用脏区域裁剪渲染
     /// - 清空脏区域
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn perform_update(&mut self, update_manager: &mut UpdateManager) -> NdCanvas {
+        self.perform_update_with_presentation(update_manager, None)
+    }
+
+    pub(crate) fn perform_update_with_presentation(
+        &mut self,
+        update_manager: &mut UpdateManager,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
+    ) -> NdCanvas {
         let mut canvas = NdCanvas::new();
-        update_manager.perform_update(self, &mut canvas);
+        update_manager.perform_update_with_presentation(self, &mut canvas, presentation);
         canvas
     }
 

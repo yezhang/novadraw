@@ -206,12 +206,37 @@ impl Runtime {
             self.full_redraw_pending = true;
         }
         if !surface.is_renderable() {
+            self.animations
+                .editor(
+                    &self.tree,
+                    &mut self.updates,
+                    &mut self.full_redraw_pending,
+                    &mut self.faulted,
+                )
+                .set_surface_suspended(true);
             self.full_redraw_pending = true;
             return FramePreparation::Suspended;
         }
+        self.animations
+            .editor(
+                &self.tree,
+                &mut self.updates,
+                &mut self.full_redraw_pending,
+                &mut self.faulted,
+            )
+            .set_surface_suspended(false);
         if let Err(error) = self.try_stabilize() {
             return FramePreparation::Error(error);
         }
+        self.animations
+            .editor(
+                &self.tree,
+                &mut self.updates,
+                &mut self.full_redraw_pending,
+                &mut self.faulted,
+            )
+            .reconcile_visibility();
+        let presentation = self.animations.snapshot();
         if let Err(error) =
             self.accessibility
                 .publish(&self.tree, &self.interaction, self.stable_epoch, surface)
@@ -223,9 +248,10 @@ impl Runtime {
         let has_resource_delta = self.resources.has_pending_delta();
         let force_full_frame = self.full_redraw_pending || self.session_sync_pending;
         let mut canvas = if self.updates.is_update_queued() {
-            self.tree.perform_update(&mut self.updates)
+            self.tree
+                .perform_update_with_presentation(&mut self.updates, presentation.as_ref())
         } else if force_full_frame {
-            self.tree.render()
+            self.tree.render_with_presentation(presentation.as_ref())
         } else if has_resource_delta {
             NdCanvas::new()
         } else {
@@ -241,7 +267,7 @@ impl Runtime {
             && !capabilities.supports_partial_damage();
         if force_full_frame || promote_partial {
             if canvas.damage().mode() == DamageMode::None {
-                canvas = self.tree.render();
+                canvas = self.tree.render_with_presentation(presentation.as_ref());
             } else {
                 canvas.damage_mut().set_full();
             }
@@ -353,16 +379,27 @@ impl Runtime {
         if self.try_stabilize().is_err() {
             return None;
         }
+        self.animations
+            .editor(
+                &self.tree,
+                &mut self.updates,
+                &mut self.full_redraw_pending,
+                &mut self.faulted,
+            )
+            .reconcile_visibility();
+        let presentation = self.animations.snapshot();
         self.updates.set_publication_epoch(self.stable_epoch);
         let frame = if self.updates.is_update_queued() {
-            let incremental = self.tree.perform_update(&mut self.updates);
+            let incremental = self
+                .tree
+                .perform_update_with_presentation(&mut self.updates, presentation.as_ref());
             if std::mem::take(&mut self.full_redraw_pending) {
-                Some(self.tree.render())
+                Some(self.tree.render_with_presentation(presentation.as_ref()))
             } else {
                 Some(incremental)
             }
         } else if std::mem::take(&mut self.full_redraw_pending) {
-            Some(self.tree.render())
+            Some(self.tree.render_with_presentation(presentation.as_ref()))
         } else {
             None
         };
@@ -381,8 +418,17 @@ impl Runtime {
         self.apply_pending_mutations_for_frame();
         self.stabilize()
             .expect("full-frame recording requires stable derived state");
+        self.animations
+            .editor(
+                &self.tree,
+                &mut self.updates,
+                &mut self.full_redraw_pending,
+                &mut self.faulted,
+            )
+            .reconcile_visibility();
+        let presentation = self.animations.snapshot();
         self.updates.set_publication_epoch(self.stable_epoch);
-        let frame = self.tree.render();
+        let frame = self.tree.render_with_presentation(presentation.as_ref());
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
         frame

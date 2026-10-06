@@ -15,6 +15,7 @@ const RECURSIVE_STACK_GROWTH: usize = 4 * 1024 * 1024;
 /// 场景图引用（用于渲染）
 pub(super) struct FigureTreeRenderRef<'a> {
     pub(crate) blocks: &'a crate::identity::RuntimeArena<FigureId, super::FigureNode>,
+    pub(crate) presentation: Option<&'a crate::animation::PresentationSnapshot>,
 }
 
 impl<'a> FigureTreeRenderRef<'a> {
@@ -22,12 +23,17 @@ impl<'a> FigureTreeRenderRef<'a> {
     pub(super) fn get(&self, id: FigureId) -> Option<&super::FigureNode> {
         self.blocks.get(id)
     }
+
+    fn presentation(&self, id: FigureId) -> Option<crate::animation::FigurePresentationEffect> {
+        self.presentation.and_then(|snapshot| snapshot.figure(id))
+    }
 }
 
 impl<'a> Clone for FigureTreeRenderRef<'a> {
     fn clone(&self) -> Self {
         Self {
             blocks: self.blocks,
+            presentation: self.presentation,
         }
     }
 }
@@ -48,6 +54,7 @@ impl<'a> FigureRenderer<'a> {
         Self {
             scene: FigureTreeRenderRef {
                 blocks: scene.blocks,
+                presentation: scene.presentation,
             },
             gc,
             counter: 0,
@@ -113,7 +120,15 @@ impl<'a> FigureRenderer<'a> {
         if let Some(alpha) = block.style.alpha {
             self.gc.set_alpha(alpha);
         }
+        let presentation = self.scene.presentation(figure_id);
+        if let Some(alpha) = presentation.and_then(|effect| effect.opacity) {
+            self.gc.set_alpha(alpha);
+        }
         self.gc.translate(bounds.x, bounds.y);
+        if let Some(transform) = presentation.and_then(|effect| effect.transform) {
+            let [a, b, c, d, e, f] = transform.coeffs();
+            self.gc.transform(a, b, c, d, e, f);
+        }
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
@@ -251,8 +266,13 @@ impl<'a> FigureRenderer<'a> {
             };
 
             self.gc.push_state();
-            let child_overflow =
-                child_block.child_clipping_strategy() == ChildClippingStrategy::OverflowVisible;
+            let child_overflow = child_block.child_clipping_strategy()
+                == ChildClippingStrategy::OverflowVisible
+                || self
+                    .scene
+                    .presentation(child_id)
+                    .and_then(|effect| effect.transform)
+                    .is_some_and(|transform| transform != crate::Affine2D::IDENTITY);
             match (clipping_strategy, child_overflow) {
                 (ChildClippingStrategy::ClipToChildBounds, false) => {
                     let child_bounds = child_block.figure_bounds();

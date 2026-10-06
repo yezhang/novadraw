@@ -190,6 +190,19 @@ description = "Exercise unified text measurement, resource-closed recording and 
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_text_graphics_contract"]
 
+[commands."test.p2-m01-animation"]
+description = "Exercise Runtime-owned animation timelines, presentation damage and temporary visuals"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "p2_animation_contract",
+  "--test",
+  "p2_animation_transition_contract",
+]
+
 [commands."test.vello-p2-graphics"]
 description = "Exercise Vello Graphics lowering, clipping and resource acceptance"
 program = "cargo"
@@ -1149,6 +1162,38 @@ documents = [
   "doc/design/rendering/text-graphics-integration.md",
   "doc/roadmap/p2-delta-backlog.md",
   "doc/verification/reviews/p2-g02-text-graphics-evidence.md",
+]
+
+[[suites]]
+id = "core.p2-m01-animation"
+title = "Runtime-owned animation timeline, presentation and damage contracts"
+milestone = "P2-M01"
+kind = "contract"
+api_semantics = ["animation.timeline", "animation.presentation", "frame.preparation", "damage.repaint"]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-m01-animation"]
+paths = [
+  "novadraw/src/animation/**",
+  "novadraw/src/graph/presentation.rs",
+  "novadraw/src/graph/query.rs",
+  "novadraw/src/graph/render_recursive.rs",
+  "novadraw/src/identity.rs",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/src/runtime/runtime/frame_submission.rs",
+  "novadraw/src/runtime/update/deferred.rs",
+  "novadraw/tests/p2_animation_contract.rs",
+  "novadraw/tests/p2_animation_transition_contract.rs",
+]
+documents = [
+  "doc/adr/adr-026-animation-and-presentation-plane.md",
+  "doc/design/animation/animation-system.md",
+  "doc/design/animation/public-api-contract.md",
+  "doc/design/animation/capability-integration.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/reviews/p2-m01a-animation-evidence.md",
+  "doc/verification/reviews/p2-m01b-animation-presentation-evidence.md",
+  "doc/verification/reviews/p2-m01c-animation-consumer-evidence.md",
 ]
 
 [[suites]]

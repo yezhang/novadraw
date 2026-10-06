@@ -13,6 +13,8 @@ mod style;
 
 /// Low-level types for diagnostics and deep engine integration.
 pub mod advanced;
+/// Runtime-owned animation clocks, typed channels, motions, and timelines.
+pub mod animation;
 /// Connection, anchor, router, and locator APIs.
 #[allow(missing_docs)]
 pub mod connection;

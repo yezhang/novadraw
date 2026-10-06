@@ -40,6 +40,7 @@ macro_rules! runtime_handle {
                 self.namespace
             }
 
+            #[allow(dead_code)]
             pub fn null() -> Self {
                 Self {
                     namespace: RuntimeNamespace(Uuid::nil()),
@@ -47,6 +48,7 @@ macro_rules! runtime_handle {
                 }
             }
 
+            #[allow(dead_code)]
             pub fn is_null(self) -> bool {
                 DefaultKey::from(self.local).is_null()
             }
@@ -79,6 +81,9 @@ macro_rules! runtime_handle {
 runtime_handle!(FigureId);
 runtime_handle!(AnchorId);
 runtime_handle!(RouterId);
+runtime_handle!(AnimationId);
+runtime_handle!(AnimationChannelId);
+runtime_handle!(TemporaryVisualId);
 
 pub(crate) struct RuntimeArena<I, T> {
     namespace: RuntimeNamespace,

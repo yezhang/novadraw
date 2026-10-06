@@ -544,6 +544,7 @@ impl UpdateManager {
         &mut self,
         graph: &mut crate::graph::FigureTree,
         canvas: &mut NdCanvas,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
         dirty_snapshot: &mut Option<std::collections::HashMap<FigureId, Rectangle>>,
         frozen_surface_snapshot: &mut Option<Vec<Rectangle>>,
     ) -> Result<(), ValidationError> {
@@ -574,7 +575,7 @@ impl UpdateManager {
                     damage: reported_damage,
                 });
             if damage.is_some() {
-                graph.render_to(canvas);
+                graph.render_to_with_presentation(canvas, presentation);
             }
             self.notification_effects.emit_update(UpdateEvent::Painted {
                 damage: reported_damage,
@@ -615,10 +616,20 @@ impl UpdateManager {
         }
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn perform_update(
         &mut self,
         graph: &mut crate::graph::FigureTree,
         canvas: &mut NdCanvas,
+    ) {
+        self.perform_update_with_presentation(graph, canvas, None);
+    }
+
+    pub(crate) fn perform_update_with_presentation(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+        canvas: &mut NdCanvas,
+        presentation: Option<&crate::animation::PresentationSnapshot>,
     ) {
         if self.updating {
             return;
@@ -632,6 +643,7 @@ impl UpdateManager {
             self.perform_update_transaction(
                 graph,
                 canvas,
+                presentation,
                 &mut dirty_snapshot,
                 &mut frozen_surface_snapshot,
             )
