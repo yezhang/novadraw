@@ -25,22 +25,29 @@ struct Proof {
     window: Option<Arc<Window>>,
     deadline: Option<Instant>,
     completed: bool,
+    retry_pending: bool,
 }
 
 impl Proof {
-    fn finish(&mut self, event_loop: &ActiveEventLoop) {
+    fn attempt_capture(&mut self, event_loop: &ActiveEventLoop) {
         if self.completed {
             return;
         }
-        self.completed = true;
-        self.deadline = None;
-        if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.capture())).is_err() {
-            std::process::exit(1);
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.capture())) {
+            Ok(true) => {
+                self.completed = true;
+                self.deadline = None;
+                event_loop.exit();
+            }
+            Ok(false) => {
+                self.retry_pending = true;
+                event_loop.set_control_flow(ControlFlow::Poll);
+            }
+            Err(_) => std::process::exit(1),
         }
-        event_loop.exit();
     }
 
-    fn capture(&self) {
+    fn capture(&self) -> bool {
         let output = PathBuf::from("target/verification/p2-g01").join(if self.present {
             "present"
         } else {
@@ -141,6 +148,15 @@ impl Proof {
                 } else {
                     renderer.render_for_screenshot(&submission)
                 };
+                if self.present && matches!(outcome, RenderOutcome::Skipped | RenderOutcome::Retry)
+                {
+                    scene.runtime.complete_submission(
+                        submission.session_id,
+                        submission.frame_id,
+                        outcome,
+                    );
+                    return false;
+                }
                 assert_eq!(
                     outcome,
                     RenderOutcome::Presented,
@@ -176,6 +192,7 @@ impl Proof {
             "P2-G01 GPU pixel assertions passed at DPI 1 and 2; surface present: {}",
             self.present
         );
+        true
     }
 }
 
@@ -198,24 +215,33 @@ impl ApplicationHandler for Proof {
             self.deadline = Some(deadline);
             event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
         } else {
-            self.finish(event_loop);
+            self.attempt_capture(event_loop);
         }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
         if matches!(event, WindowEvent::RedrawRequested) {
             // Catch assertion failures before they unwind across the platform callback.
-            self.finish(event_loop);
+            self.attempt_capture(event_loop);
         }
     }
 
-    fn about_to_wait(&mut self, _: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self
             .deadline
             .is_some_and(|deadline| Instant::now() >= deadline)
         {
             eprintln!("P2-G01 surface evidence unavailable: no window redraw within 10 seconds");
             std::process::exit(1);
+        }
+        if self.retry_pending {
+            self.retry_pending = false;
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
+            event_loop.set_control_flow(ControlFlow::Poll);
+        } else if let Some(deadline) = self.deadline {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
         }
     }
 }
@@ -235,6 +261,7 @@ fn main() {
             window: None,
             deadline: None,
             completed: false,
+            retry_pending: false,
         })
         .unwrap();
 }
