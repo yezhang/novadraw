@@ -312,7 +312,7 @@ mod tests {
 
     #[test]
     fn test_compute_damage_union_merges_multiple_rectangles() {
-        let rects = vec![
+        let rects = [
             Rectangle::new(10.0, 20.0, 30.0, 40.0),
             Rectangle::new(25.0, 5.0, 10.0, 15.0),
             Rectangle::new(-5.0, 18.0, 8.0, 10.0),

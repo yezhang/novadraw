@@ -378,46 +378,6 @@ fn border_constraint(
     }))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_border_region_from_str() {
-        assert_eq!(BorderRegion::from_name("north"), BorderRegion::North);
-        assert_eq!(BorderRegion::from_name("N"), BorderRegion::North);
-        assert_eq!(BorderRegion::from_name("south"), BorderRegion::South);
-        assert_eq!(BorderRegion::from_name("S"), BorderRegion::South);
-        assert_eq!(BorderRegion::from_name("east"), BorderRegion::East);
-        assert_eq!(BorderRegion::from_name("E"), BorderRegion::East);
-        assert_eq!(BorderRegion::from_name("west"), BorderRegion::West);
-        assert_eq!(BorderRegion::from_name("W"), BorderRegion::West);
-        assert_eq!(BorderRegion::from_name("center"), BorderRegion::Center);
-        assert_eq!(BorderRegion::from_name("unknown"), BorderRegion::Center);
-    }
-
-    #[test]
-    fn test_border_layout_creation() {
-        let layout = BorderLayout::new();
-        // 默认尺寸应该设置正确
-        let measured = layout.preferred_measurement(
-            FigureId::from(slotmap::KeyData::from_ffi(0)),
-            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
-        );
-        assert_eq!(measured.size(), Dimension::ZERO);
-    }
-
-    #[test]
-    fn test_border_layout_with_sizes() {
-        let layout = BorderLayout::with_sizes(80.0, 80.0, 100.0, 100.0);
-        assert_eq!(layout.north_height, 80.0);
-        assert_eq!(layout.south_height, 80.0);
-        assert_eq!(layout.west_width, 100.0);
-        assert_eq!(layout.east_width, 100.0);
-    }
-}
-
 /// Mock LayoutContext for testing
 #[cfg(test)]
 struct MockLayoutContext {
@@ -455,5 +415,45 @@ impl super::LayoutContext for MockLayoutContext {
 
     fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
         self.container_bounds
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_border_region_from_str() {
+        assert_eq!(BorderRegion::from_name("north"), BorderRegion::North);
+        assert_eq!(BorderRegion::from_name("N"), BorderRegion::North);
+        assert_eq!(BorderRegion::from_name("south"), BorderRegion::South);
+        assert_eq!(BorderRegion::from_name("S"), BorderRegion::South);
+        assert_eq!(BorderRegion::from_name("east"), BorderRegion::East);
+        assert_eq!(BorderRegion::from_name("E"), BorderRegion::East);
+        assert_eq!(BorderRegion::from_name("west"), BorderRegion::West);
+        assert_eq!(BorderRegion::from_name("W"), BorderRegion::West);
+        assert_eq!(BorderRegion::from_name("center"), BorderRegion::Center);
+        assert_eq!(BorderRegion::from_name("unknown"), BorderRegion::Center);
+    }
+
+    #[test]
+    fn test_border_layout_creation() {
+        let layout = BorderLayout::new();
+        // 默认尺寸应该设置正确
+        let measured = layout.preferred_measurement(
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
+        );
+        assert_eq!(measured.size(), Dimension::ZERO);
+    }
+
+    #[test]
+    fn test_border_layout_with_sizes() {
+        let layout = BorderLayout::with_sizes(80.0, 80.0, 100.0, 100.0);
+        assert_eq!(layout.north_height, 80.0);
+        assert_eq!(layout.south_height, 80.0);
+        assert_eq!(layout.west_width, 100.0);
+        assert_eq!(layout.east_width, 100.0);
     }
 }

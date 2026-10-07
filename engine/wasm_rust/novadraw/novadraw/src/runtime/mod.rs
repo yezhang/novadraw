@@ -36,9 +36,8 @@ pub use resource::{
 pub use runtime::{
     BackendSessionError, BorderMut, ClickableMut, ContainerMut, FigureMut, FrameNotReady,
     FramePreparation, FramePreparationError, ImageMut, LabelMut, LogicalViewportResizeError,
-    PointListMut, RoundedRectangleMut, Runtime, ScalablePolygonMut, ScaleMut,
-    ScrollPaneMut, TextFlowMut, TextFlowQueryError, TextLayoutStats, TriangleMut,
-    ViewportMut, ZoomMut,
+    PointListMut, RoundedRectangleMut, Runtime, ScalablePolygonMut, ScaleMut, ScrollPaneMut,
+    TextFlowMut, TextFlowQueryError, TextLayoutStats, TriangleMut, ViewportMut, ZoomMut,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

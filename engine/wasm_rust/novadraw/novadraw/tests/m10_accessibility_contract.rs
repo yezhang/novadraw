@@ -176,14 +176,16 @@ fn dispose_removes_accessibility_identity_in_the_next_delta() {
 #[test]
 fn accessibility_projection_supports_the_maximum_tree_depth() {
     let mut tree = FigureTree::new();
-    let mut builder = tree.builder();
-    let mut parent = builder.set_contents(Box::new(AccessibleGroup));
-    for _ in 1..MAX_TREE_DEPTH {
-        parent = builder
-            .add_child(parent, Box::new(AccessibleGroup))
-            .expect("valid FigureTree construction");
-    }
-    drop(builder);
+    let parent = {
+        let mut builder = tree.builder();
+        let mut parent = builder.set_contents(Box::new(AccessibleGroup));
+        for _ in 1..MAX_TREE_DEPTH {
+            parent = builder
+                .add_child(parent, Box::new(AccessibleGroup))
+                .expect("valid FigureTree construction");
+        }
+        parent
+    };
     let mut runtime = Runtime::new(tree);
 
     publish(&mut runtime);

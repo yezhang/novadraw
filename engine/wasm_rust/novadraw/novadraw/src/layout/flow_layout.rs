@@ -296,39 +296,6 @@ fn measure_wrapped(
     Dimension::new(total_main, total_minor)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_flow_layout_creation() {
-        let layout = FlowLayout::new();
-        let measured = layout.preferred_measurement(
-            FigureId::from(slotmap::KeyData::from_ffi(0)),
-            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
-        );
-        assert_eq!(measured.size(), Dimension::ZERO);
-    }
-
-    #[test]
-    fn test_flow_layout_with_direction() {
-        let layout = FlowLayout::with_direction(FlowDirection::Vertical);
-        assert_eq!(layout.direction, FlowDirection::Vertical);
-    }
-
-    #[test]
-    fn test_flow_layout_with_spacing() {
-        let layout = FlowLayout::new().with_spacing(20.0).with_row_spacing(15.0);
-        // 通过 preferred_measurement 间接验证
-        let _ = layout.preferred_measurement(
-            FigureId::from(slotmap::KeyData::from_ffi(0)),
-            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
-        );
-    }
-}
-
 /// Mock LayoutContext for testing
 #[cfg(test)]
 struct MockLayoutContext {
@@ -366,5 +333,38 @@ impl super::LayoutContext for MockLayoutContext {
 
     fn get_container_bounds(&self, _container_id: FigureId) -> Rectangle {
         self.container_bounds
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_flow_layout_creation() {
+        let layout = FlowLayout::new();
+        let measured = layout.preferred_measurement(
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
+        );
+        assert_eq!(measured.size(), Dimension::ZERO);
+    }
+
+    #[test]
+    fn test_flow_layout_with_direction() {
+        let layout = FlowLayout::with_direction(FlowDirection::Vertical);
+        assert_eq!(layout.direction, FlowDirection::Vertical);
+    }
+
+    #[test]
+    fn test_flow_layout_with_spacing() {
+        let layout = FlowLayout::new().with_spacing(20.0).with_row_spacing(15.0);
+        // 通过 preferred_measurement 间接验证
+        let _ = layout.preferred_measurement(
+            FigureId::from(slotmap::KeyData::from_ffi(0)),
+            MeasureConstraints::bounded(800.0, 600.0).unwrap(),
+            &LayoutSnapshot::new(&MockLayoutContext::new()),
+        );
     }
 }

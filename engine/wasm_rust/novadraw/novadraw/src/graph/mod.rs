@@ -3455,7 +3455,8 @@ mod tests {
 
     #[test]
     fn test_existing_figures_expose_child_clipping_strategy() {
-        let parent_factories: Vec<(&str, Box<dyn Fn() -> Box<dyn Figure>>)> = vec![
+        type FigureFactory = Box<dyn Fn() -> Box<dyn Figure>>;
+        let parent_factories: Vec<(&str, FigureFactory)> = vec![
             (
                 "ellipse",
                 Box::new(|| {

@@ -45,14 +45,15 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 - [ADR-023](../../adr/adr-023-crate-consolidation-and-extension-boundaries.md) 的六包边界；
 - [ADR-024](../../adr/adr-024-graphics-paint-stroke-and-clipping.md) 的 Paint、
   StrokeStyle、clip 和能力预检契约；
-- [文本规范](text-layout.md) 的测量与绘制同源、Runtime-owned 文本服务和后端不排版；
+- [文本规范](text-layout.md) 的测量与绘制同源、Runtime-owned
+  （术语解释见[附录 A](#附录-aowned-与-scoped-术语说明)）文本服务和后端不排版；
 - [坐标规范](../coordinates/coordinate-system.md) 的显式坐标域与转换方向。
 
 ## 2. 调用者与设计准则
 
 | 调用者任务 | 应当接触的概念 | 不应成为前置知识 |
 |---|---|---|
-| 添加标签、图形、布局 | LabelFigure、FigureId、LayoutManager、scoped mutable facade | GlyphRun、资源增量、backend session |
+| 添加标签、图形、布局 | LabelFigure、FigureId、LayoutManager、scoped mutable facade（见[附录 A](#附录-aowned-与-scoped-术语说明)） | GlyphRun、资源增量、backend session |
 | 编写自定义 Figure | MeasureContext/PaintContext、Paint、StrokeStyle、TextLayout、测量与命中 | RenderSubmission 构造、damage 队列修改 |
 | 替换排版或布局算法 | TextLayoutEngine、受检排版结果；LayoutSnapshot/Output | Vello、DOM、全局服务 |
 | 接入后端和平台 | RenderBackend、RenderSubmission、PlatformHost | 应用模型和 Editor Command |
@@ -545,3 +546,65 @@ Graphics.java 314–372（文字与 foreground）、783–793（状态栈）、
 IFigure/Figure/LayoutManager（对象组合与布局）、
 commands/CommandStack.java（模型命令历史）。
 不从 Zest 推导任何本提案能力。
+
+## 附录 A：owned 与 scoped 术语说明
+
+### A.1 owned：独立持有并可转交所有权
+
+本文中的 `owned` 采用 Rust 所有权语义，表示调用者持有一个不依赖外部借用生命周期的
+值。最直接的类型区别是 `T` 与 `&T` / `&mut T`：前者可以独立保存并按 API 合同
+`move` 给其他所有者，后两者只能在被借用对象仍然有效且借用规则允许的期间使用。
+
+本文按上下文使用 `owned`：
+
+| 表达 | 含义 |
+|---|---|
+| owned value / owned 配置 | 调用者可在 detached 阶段独立构造、校验和组合的值，如 Paint、StrokeStyle、Border、Router |
+| `with_*` 配置 owned value | 通常消费 `self` 并返回配置后的 `Self` 或 `Result<Self, E>`，不表示修改已挂载的 Runtime 状态 |
+| move 进入 Builder / Runtime | 值的所有权转交给树或 Runtime；调用者不能保留旧可变引用绕过 Runtime 修改 attached 状态 |
+| 进入绘制/运行期时冻结 | 被消费的配置按确定值或资源 revision 记录；之后修改另一个 clone 不得反向改变已录制命令或已提交状态 |
+| Runtime-owned 服务 | 服务的生命周期、缓存、revision 和失效处理由 Runtime 统一拥有和协调，不是全局单例，也不由 Figure 或 backend 各持一份 |
+| owned 录制状态 / owned 返回值 | Recorder、NdCanvas 等对象自身持有命令或状态，不借用生产它们的局部对象；这不等于已经完成 Runtime submission |
+
+`owned` 不表示必须使用 `Box`、必须堆分配、底层资源绝对独占、不可 `Clone`，也不表示
+值永远可变。owned value 内部仍可通过 `Arc` 等方式共享不可变数据；这里强调的是该值
+自身具有明确的所有者、生命周期和转交边界。`Clone` 只产生合同允许的共享或复制值，
+不授予 attached mutation 或跨 namespace 迁移权限。
+
+典型生命周期如下：
+
+```text
+调用者持有 detached owned value
+    -- move / Box 所有权转交 -->
+Builder 或 Runtime 挂载
+    -- attached 后 -->
+Runtime 成为状态与提交权威
+    -- 短期借用 -->
+scoped mutable facade 提供对象式修改入口
+```
+
+### A.2 scoped：能力被限制在一次借用生命周期内
+
+`scoped mutable facade` 中的 `scoped` 表示 facade 的有效范围受一次 Runtime 借用约束。
+它不是可长期保存、可复制并独立修改场景的 handle，也不拥有第二份 FigureTree、
+UpdateManager 或组件状态。其内部概念上只保存目标身份、能力信息和
+`&mut Runtime`，所有修改仍委托 Runtime 的统一 mutation primitive。
+
+```rust,ignore
+{
+    let mut figure = runtime.figure(figure_id)?;
+    figure.set_bounds(bounds)?;
+} // facade 的 Runtime 可变借用在此结束，之后才能再次使用 runtime
+```
+
+这里的 scope 由 Rust 借用生命周期决定，不要求一定与显式花括号完全相同；编译器可以
+在最后一次使用后提前结束借用。关键合同是：
+
+- facade 不能比所借用的 Runtime 活得更久；
+- facade 存在期间，调用者不能同时取得冲突的 Runtime 可变借用；
+- 获取 facade 只验证 namespace、attached 状态和 capability，不等于已经修改状态；
+- facade 方法失败时不得绕过 Runtime 的校验、失效、通知和 damage 合同；
+- 借用结束后，状态仍归 Runtime，不归已经失效的 facade。
+
+因此，`scoped mutable facade` 可以理解为“受 Runtime 借用期限制的能力视图”：它提供接近对象
+方法的调用体验，同时保持 Runtime 是挂载后状态的唯一提交权威。
