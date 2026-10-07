@@ -8,8 +8,8 @@ use novadraw::{
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         AnimationSuppression, AnimationValue, Decay, Easing, InteractionGeometryPolicy,
-        InterruptionPolicy, Keyframe, Keyframes, Motion, Opacity, RepeatBehavior, Spring,
-        SuspensionPolicy, Tween,
+        InterruptionPolicy, Keyframe, Keyframes, Motion, Opacity, Procedural, RepeatBehavior,
+        Spring, SuspensionPolicy, Tween,
     },
     figure::{FigureDrawing, FigurePresentation},
     graphics::{GraphicsError, PaintContext},
@@ -1267,4 +1267,82 @@ fn unsupported_presentation_hit_testing_is_rejected_before_channel_creation() {
             .bind_figure(figure, InteractionGeometryPolicy::NonInteractive),
         Err(AnimationError::UnsupportedInteractionGeometry)
     );
+}
+
+#[test]
+fn procedural_motion_distinguishes_finite_and_continuous_lifetimes() {
+    let mut runtime = Runtime::empty();
+    runtime.advance_time(time(0)).unwrap();
+
+    let finite_channel = runtime.animations().create_channel(10.0).unwrap();
+    let finite = AnimationPlan::track(
+        finite_channel,
+        Motion::Procedural(Procedural::finite(0.0, 10.0, Duration::from_millis(100)).unwrap()),
+    )
+    .unwrap();
+    let AnimationStart::Running(finite_id) = runtime.animations().start(finite).unwrap() else {
+        panic!("finite procedural motion must run");
+    };
+    runtime.advance_time(time(100)).unwrap();
+    assert_eq!(
+        runtime.animations().state(finite_id).unwrap(),
+        AnimationState::Completed
+    );
+    assert_eq!(runtime.animations().value(finite_channel).unwrap(), 10.0);
+
+    let continuous_channel = runtime.animations().create_channel(0.0).unwrap();
+    let continuous = AnimationPlan::track(
+        continuous_channel,
+        Motion::Procedural(Procedural::continuous(0.0, 1.0, Duration::from_millis(100)).unwrap()),
+    )
+    .unwrap();
+    let AnimationStart::Running(continuous_id) = runtime.animations().start(continuous).unwrap()
+    else {
+        panic!("continuous procedural motion must run");
+    };
+    runtime.advance_time(time(250)).unwrap();
+    assert_eq!(runtime.animations().value(continuous_channel).unwrap(), 0.5);
+    assert_eq!(
+        runtime.animations().state(continuous_id).unwrap(),
+        AnimationState::Running
+    );
+    assert!(runtime.animations().cancel(continuous_id).unwrap());
+    assert_eq!(runtime.animations().value(continuous_channel).unwrap(), 0.0);
+}
+
+#[test]
+fn active_track_work_scales_exactly_at_1_64_and_1024_tracks() {
+    for track_count in [1_usize, 64, 1_024] {
+        let mut runtime = Runtime::empty();
+        runtime.advance_time(time(0)).unwrap();
+        let mut plans = Vec::with_capacity(track_count);
+        for _ in 0..track_count {
+            let channel = runtime.animations().create_channel(1.0).unwrap();
+            plans.push(
+                AnimationPlan::track(
+                    channel,
+                    Motion::Tween(Tween::between(0.0, 1.0, Duration::from_millis(100)).unwrap()),
+                )
+                .unwrap(),
+            );
+        }
+        let before = runtime.animations().stats();
+        let plan = AnimationPlan::parallel(plans).unwrap();
+        assert!(matches!(
+            runtime.animations().start(plan).unwrap(),
+            AnimationStart::Running(_)
+        ));
+        let admitted = runtime.animations().stats();
+        assert_eq!(
+            admitted.tracks_sampled - before.tracks_sampled,
+            track_count as u64
+        );
+
+        runtime.advance_time(time(50)).unwrap();
+        let advanced = runtime.animations().stats();
+        assert_eq!(
+            advanced.tracks_sampled - admitted.tracks_sampled,
+            track_count as u64
+        );
+    }
 }

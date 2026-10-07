@@ -1,20 +1,31 @@
 //! Runtime-owned animation clock and timeline primitives.
 
+mod behavior;
 mod service;
 mod timeline;
 mod value;
 
 use std::{fmt, marker::PhantomData, time::Duration};
 
-pub use crate::identity::{AnimationId, TemporaryVisualId};
+pub use crate::identity::{AnimationBehaviorId, AnimationId, TemporaryVisualId};
 use crate::{Affine2D, FigureId, Rectangle, identity::AnimationChannelId};
+pub(crate) use behavior::facts_from_effects;
+pub use behavior::{
+    AnimationBehavior, AnimationBehaviorContext, AnimationBehaviorFailure, AnimationBehaviorScope,
+    AnimationFact, AnimationFactCoalescing, AnimationLifecycle, AnimationPlanFactory,
+    AnimationTrigger,
+};
 pub use service::AnimationMut;
 pub(crate) use service::{AnimationService, FigurePresentationEffect, PresentationSnapshot};
 pub use timeline::{AnimationPlan, RepeatBehavior};
-pub use value::{AnimationValue, Decay, Easing, Keyframe, Keyframes, Motion, Spring, Tween};
+pub use value::{
+    AnimationValue, Decay, Easing, Keyframe, Keyframes, Motion, Procedural, Spring, Tween,
+};
 
 /// Maximum number of registered typed presentation channels in one Runtime.
 pub const DEFAULT_MAX_ANIMATION_CHANNELS: usize = 4_096;
+/// Maximum number of installed committed-fact behaviors in one Runtime.
+pub const DEFAULT_MAX_ANIMATION_BEHAVIORS: usize = 1_024;
 /// Maximum number of simultaneously active animations in one Runtime.
 pub const DEFAULT_MAX_ACTIVE_ANIMATIONS: usize = 1_024;
 /// Maximum total number of tracks owned by active animations.
@@ -119,6 +130,8 @@ pub enum InterruptionPolicy {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AnimationBudgetKind {
+    /// Installed committed-fact behaviors.
+    Behaviors,
     /// Registered typed channels.
     Channels,
     /// Active timeline count.
@@ -185,12 +198,26 @@ pub enum AnimationError {
     UnsupportedInteractionGeometry,
     /// Old and new bounds cannot form a finite presentation transform.
     IncompatibleBoundsTransition,
+    /// A Viewport has no stable contents Figure to animate.
+    MissingViewportContents,
+    /// A Viewport replaced its contents during one transition transaction.
+    ViewportContentsChanged,
+    /// Old and new Viewport mappings cannot form a finite presentation transform.
+    IncompatibleViewportTransition,
+    /// A Connection Figure does not implement presentation-route painting.
+    UnsupportedRoutePresentation,
+    /// A route cannot be projected into the final Connection-local domain.
+    IncompatibleRouteTransition,
     /// A temporary visual is stale or no longer registered.
     UnknownTemporaryVisual,
     /// An animation ID belongs to another Runtime.
     ForeignAnimation,
     /// An animation ID is stale or no longer retained.
     UnknownAnimation,
+    /// A behavior ID belongs to another Runtime.
+    ForeignBehavior,
+    /// A behavior ID is stale or no longer installed.
+    UnknownBehavior,
     /// A replacement plan attempted to take a channel owned by another animation.
     ChannelConflict,
     /// A track's terminal value differs from its committed channel value.
@@ -247,6 +274,21 @@ impl fmt::Display for AnimationError {
             Self::IncompatibleBoundsTransition => {
                 formatter.write_str("Figure bounds cannot form a finite presentation transition")
             }
+            Self::MissingViewportContents => {
+                formatter.write_str("Viewport has no contents Figure to animate")
+            }
+            Self::ViewportContentsChanged => {
+                formatter.write_str("Viewport contents changed during animation transaction")
+            }
+            Self::IncompatibleViewportTransition => {
+                formatter.write_str("Viewport mappings cannot form a finite transition")
+            }
+            Self::UnsupportedRoutePresentation => {
+                formatter.write_str("Connection Figure does not support route presentation")
+            }
+            Self::IncompatibleRouteTransition => {
+                formatter.write_str("Connection routes cannot form a finite transition")
+            }
             Self::UnknownTemporaryVisual => {
                 formatter.write_str("temporary visual is stale or unknown")
             }
@@ -254,6 +296,12 @@ impl fmt::Display for AnimationError {
                 formatter.write_str("animation ID belongs to another Runtime")
             }
             Self::UnknownAnimation => formatter.write_str("animation ID is stale or unknown"),
+            Self::ForeignBehavior => {
+                formatter.write_str("animation behavior ID belongs to another Runtime")
+            }
+            Self::UnknownBehavior => {
+                formatter.write_str("animation behavior ID is stale or unknown")
+            }
             Self::ChannelConflict => formatter.write_str("animation channel is already owned"),
             Self::FinalValueMismatch => {
                 formatter.write_str("animation terminal value differs from committed value")
@@ -264,6 +312,54 @@ impl fmt::Display for AnimationError {
 }
 
 impl std::error::Error for AnimationError {}
+
+/// Failure phase for one Runtime-orchestrated bounds transition transaction.
+#[derive(Debug, PartialEq)]
+#[non_exhaustive]
+pub enum AnimationTransactionError<E> {
+    /// The committed scene could not stabilize before capture.
+    BeforeStabilization(crate::FramePreparationError),
+    /// The before-state capture was rejected.
+    Capture(AnimationError),
+    /// The caller-provided source mutation failed.
+    Mutation(E),
+    /// The committed scene could not stabilize after source mutation.
+    AfterStabilization(crate::FramePreparationError),
+    /// The presentation transition was rejected after source mutation committed.
+    Transition(AnimationError),
+}
+
+impl<E: fmt::Display> fmt::Display for AnimationTransactionError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BeforeStabilization(error) => {
+                write!(
+                    formatter,
+                    "animation pre-capture stabilization failed: {error}"
+                )
+            }
+            Self::Capture(error) => write!(formatter, "animation capture failed: {error}"),
+            Self::Mutation(error) => write!(formatter, "animation source mutation failed: {error}"),
+            Self::AfterStabilization(error) => {
+                write!(
+                    formatter,
+                    "animation post-mutation stabilization failed: {error}"
+                )
+            }
+            Self::Transition(error) => write!(formatter, "animation transition failed: {error}"),
+        }
+    }
+}
+
+impl<E: std::error::Error + 'static> std::error::Error for AnimationTransactionError<E> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::BeforeStabilization(error) | Self::AfterStabilization(error) => Some(error),
+            Self::Capture(error) | Self::Transition(error) => Some(error),
+            Self::Mutation(error) => Some(error),
+        }
+    }
+}
 
 /// Typed handle for one Runtime-owned presentation channel.
 #[derive(Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -377,6 +473,111 @@ impl BoundsTransition {
     /// Replaces hidden and surface suspension behavior.
     pub const fn with_suspension(mut self, suspension: SuspensionPolicy) -> Self {
         self.suspension = suspension;
+        self
+    }
+}
+
+/// Timing policy for a Viewport pan, zoom, or fit transition.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ViewportTransition {
+    pub(crate) duration: Duration,
+    pub(crate) easing: Easing,
+    pub(crate) interruption: InterruptionPolicy,
+    pub(crate) suspension: SuspensionPolicy,
+}
+
+impl ViewportTransition {
+    /// Creates a linear Viewport transition.
+    pub const fn new(duration: Duration) -> Self {
+        Self {
+            duration,
+            easing: Easing::Linear,
+            interruption: InterruptionPolicy::Replace,
+            suspension: SuspensionPolicy::Advance,
+        }
+    }
+
+    /// Replaces the easing curve.
+    pub const fn with_easing(mut self, easing: Easing) -> Self {
+        self.easing = easing;
+        self
+    }
+
+    /// Replaces the channel interruption policy.
+    pub const fn with_interruption(mut self, interruption: InterruptionPolicy) -> Self {
+        self.interruption = interruption;
+        self
+    }
+
+    /// Replaces hidden and surface suspension behavior.
+    pub const fn with_suspension(mut self, suspension: SuspensionPolicy) -> Self {
+        self.suspension = suspension;
+        self
+    }
+}
+
+/// Timing policy for committed Connection route changes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConnectionRouteTransition {
+    pub(crate) duration: Duration,
+    pub(crate) easing: Easing,
+    pub(crate) interruption: InterruptionPolicy,
+    pub(crate) suspension: SuspensionPolicy,
+}
+
+impl ConnectionRouteTransition {
+    /// Creates a linear route transition.
+    pub const fn new(duration: Duration) -> Self {
+        Self {
+            duration,
+            easing: Easing::Linear,
+            interruption: InterruptionPolicy::Replace,
+            suspension: SuspensionPolicy::Advance,
+        }
+    }
+
+    /// Replaces the easing curve.
+    pub const fn with_easing(mut self, easing: Easing) -> Self {
+        self.easing = easing;
+        self
+    }
+
+    /// Replaces the channel interruption policy.
+    pub const fn with_interruption(mut self, interruption: InterruptionPolicy) -> Self {
+        self.interruption = interruption;
+        self
+    }
+
+    /// Replaces hidden and surface suspension behavior.
+    pub const fn with_suspension(mut self, suspension: SuspensionPolicy) -> Self {
+        self.suspension = suspension;
+        self
+    }
+}
+
+/// Arc-length Connection pulse and optional endpoint-decoration handoff.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ConnectionPulse {
+    pub(crate) duration: Duration,
+    pub(crate) radius: f64,
+    pub(crate) color: crate::Color,
+    pub(crate) handoff: Option<(FigureId, Duration)>,
+}
+
+impl ConnectionPulse {
+    /// Creates a pulse that travels from source to target.
+    pub const fn new(duration: Duration, radius: f64, color: crate::Color) -> Self {
+        Self {
+            duration,
+            radius,
+            color,
+            handoff: None,
+        }
+    }
+
+    /// Adds a terminal scale/fade handoff to an endpoint decoration.
+    pub const fn with_endpoint_handoff(mut self, decoration: FigureId, duration: Duration) -> Self {
+        self.handoff = Some((decoration, duration));
         self
     }
 }

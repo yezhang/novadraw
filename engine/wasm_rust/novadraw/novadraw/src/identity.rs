@@ -82,6 +82,7 @@ runtime_handle!(FigureId);
 runtime_handle!(AnchorId);
 runtime_handle!(RouterId);
 runtime_handle!(AnimationId);
+runtime_handle!(AnimationBehaviorId);
 runtime_handle!(AnimationChannelId);
 runtime_handle!(TemporaryVisualId);
 

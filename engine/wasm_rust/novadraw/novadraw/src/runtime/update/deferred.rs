@@ -60,6 +60,7 @@ pub struct UpdateManager {
     pub(crate) update_queued: bool,
     pub(crate) updating: bool,
     notification_effects: NotificationQueue,
+    animation_effect_cursor: usize,
     listeners: Vec<(ListenerId, Box<dyn UpdateListener>)>,
     figure_listeners: Vec<(ListenerId, Box<dyn FigureListener>)>,
     coordinate_listeners: Vec<(ListenerId, Box<dyn CoordinateListener>)>,
@@ -177,6 +178,7 @@ impl UpdateManager {
             update_queued: false,
             updating: false,
             notification_effects: NotificationQueue::new(),
+            animation_effect_cursor: 0,
             listeners: Vec::new(),
             figure_listeners: Vec::new(),
             coordinate_listeners: Vec::new(),
@@ -359,11 +361,24 @@ impl UpdateManager {
             .extend(graph.drain_notification_effects());
     }
 
+    pub(crate) fn take_animation_effects(
+        &mut self,
+        graph: &mut crate::graph::FigureTree,
+    ) -> Vec<NotificationEffect> {
+        self.absorb_graph_effects(graph);
+        let effects = self.notification_effects.effects();
+        let cursor = self.animation_effect_cursor.min(effects.len());
+        let unconsumed = effects[cursor..].to_vec();
+        self.animation_effect_cursor = effects.len();
+        unconsumed
+    }
+
     /// 统一 flush：收集 FigureTree 和 UpdateManager 两边的 effect，
     /// 在事务边界统一分发到所有注册的 listener。
     pub(crate) fn flush_notifications(&mut self, graph: &mut crate::graph::FigureTree) {
         self.absorb_graph_effects(graph);
         let effects = self.notification_effects.drain();
+        self.animation_effect_cursor = 0;
         self.dispatch_effects(&effects, graph, self.publication_epoch);
         self.retain_live_listener_scopes();
     }
@@ -494,6 +509,7 @@ impl UpdateManager {
         self.updating = false;
         self.last_validation_error = None;
         self.notification_effects.drain();
+        self.animation_effect_cursor = 0;
     }
 
     /// 返回当前积累的更新通知 effect。

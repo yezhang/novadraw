@@ -232,6 +232,7 @@ Runtime 时钟、编排、取消、damage 与提交协议。
 规范入口：[ADR-026](../adr/adr-026-animation-and-presentation-plane.md)、
 [Animation / Presentation Plane 设计](../design/animation/animation-system.md)、
 [Animation 公开 API 合同](../design/animation/public-api-contract.md)、
+[Animation Behavior / Trigger 合同](../design/animation/behavior-trigger-contract.md)、
 [Animation 领域能力集成矩阵](../design/animation/capability-integration.md)。
 评审检查见
 [P2-M01 Animation 架构评审记录](../verification/reviews/p2-m01-animation-architecture-review.md)。
@@ -284,11 +285,14 @@ M01-B 实现证据（2026-10-06）：
 - 详细证据见
   [P2-M01B 实现记录](../verification/reviews/p2-m01b-animation-presentation-evidence.md)。
 
-M01-C 当前进展：
+M01-C 已完成：
 
 - Figure bounds one-shot capture、source-final transition、stable-order stagger 已实现；
 - empty/duplicate/foreign/disposed capture 与退化尺寸变换已结构化拒绝；
-- route、viewport、continuous dash 与 pulse 仍待实现；
+- Behavior/Trigger 已作为独立于 AnimationPlan 的稳定边界实现，覆盖 scope、stable
+  fact coalescing、PlanFactory、ReducedMotion fallback、failure journal 与 dispose；
+- layout transaction、route interpolation/crossfade、viewport transition、
+  continuous dash 与 arc-length pulse/handoff 已实现；
 - 进展证据见
   [P2-M01C 实现记录](../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
 

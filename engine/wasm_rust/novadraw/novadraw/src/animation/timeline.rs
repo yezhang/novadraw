@@ -290,7 +290,10 @@ impl<V: AnimationValue> ErasedTrackSpec for TypedTrackSpec<V> {
     }
 
     fn terminal_matches(&self, channel: &ChannelState) -> Result<bool, AnimationError> {
-        Ok(self.motion.terminal_value() == channel.committed::<V>()?)
+        match self.motion.terminal_value() {
+            Some(terminal) => Ok(terminal == channel.committed::<V>()?),
+            None => Ok(true),
+        }
     }
 
     fn prepare(

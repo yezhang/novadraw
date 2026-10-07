@@ -1247,7 +1247,7 @@ impl Runtime {
     }
 
     pub fn animations(&mut self) -> AnimationMut<'_> {
-        self.animations.editor(
+        self.animations.access_mut(
             &self.tree,
             &mut self.updates,
             &mut self.full_redraw_pending,
@@ -1262,7 +1262,7 @@ impl Runtime {
         let tooltip_changed = self.tooltip_controller.advance_time(now)?;
         let animation_changed = self
             .animations
-            .editor(
+            .access_mut(
                 &self.tree,
                 &mut self.updates,
                 &mut self.full_redraw_pending,
@@ -2563,7 +2563,7 @@ impl Runtime {
             .set_visible_with_update(&mut self.updates, id, visible);
         if changed {
             self.animations
-                .editor(
+                .access_mut(
                     &self.tree,
                     &mut self.updates,
                     &mut self.full_redraw_pending,

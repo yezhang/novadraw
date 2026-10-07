@@ -121,33 +121,48 @@ impl<'a> FigureRenderer<'a> {
             self.gc.set_alpha(alpha);
         }
         let presentation = self.scene.presentation(figure_id);
-        if let Some(alpha) = presentation.and_then(|effect| effect.opacity) {
+        if let Some(alpha) = presentation.as_ref().and_then(|effect| effect.opacity) {
             self.gc.set_alpha(alpha);
         }
         self.gc.translate(bounds.x, bounds.y);
-        if let Some(transform) = presentation.and_then(|effect| effect.transform) {
+        if let Some(transform) = presentation.as_ref().and_then(|effect| effect.transform) {
             let [a, b, c, d, e, f] = transform.coeffs();
             self.gc.transform(a, b, c, d, e, f);
         }
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
-        if block.state().is_opaque() {
-            self.gc
-                .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
-        }
-        let mut context = crate::graphics::PaintContext::for_figure(self.gc);
-        if let Some(prepared) = &block.prepared {
-            if let Err(error) = prepared.presentation.paint(&mut context) {
-                context.canvas.reject_recording(error);
+        let route_painted = presentation.as_ref().is_some_and(|effect| {
+            let Some(connection) = block.figure.connection() else {
+                return false;
+            };
+            if effect.route.is_none() && effect.dash_offset.is_none() {
+                return false;
             }
-        } else {
-            block.figure.paint(
-                &mut context,
-                crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-            );
+            let route = effect
+                .route
+                .as_ref()
+                .unwrap_or_else(|| connection.route_points());
+            connection.paint_route_presentation(self.gc, route, effect.dash_offset)
+        });
+        if !route_painted {
+            if block.state().is_opaque() {
+                self.gc
+                    .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+            }
+            let mut context = crate::graphics::PaintContext::for_figure(self.gc);
+            if let Some(prepared) = &block.prepared {
+                if let Err(error) = prepared.presentation.paint(&mut context) {
+                    context.canvas.reject_recording(error);
+                }
+            } else {
+                block.figure.paint(
+                    &mut context,
+                    crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                );
+            }
+            drop(context);
         }
-        drop(context);
         self.gc.pop_state();
 
         // 3. 绘制子元素区域。

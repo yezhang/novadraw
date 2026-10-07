@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::{Affine2D, Color, Dimension, Point, Rectangle};
+use crate::{Affine2D, Color, Dimension, Point, PointList, Rectangle};
 
 use super::AnimationError;
 
@@ -8,6 +8,11 @@ use super::AnimationError;
 pub trait AnimationValue: Clone + PartialEq + Send + Sync + 'static {
     /// Returns whether the value can safely enter an animation plan.
     fn is_valid(&self) -> bool;
+
+    /// Returns whether this value and `target` share an interpolable representation.
+    fn can_interpolate(&self, _target: &Self) -> bool {
+        true
+    }
 
     /// Interpolates from `self` to `target` at a clamped progress in `[0, 1]`.
     fn interpolate(&self, target: &Self, progress: f64) -> Self;
@@ -47,6 +52,27 @@ impl AnimationValue for Point {
 
     fn interpolate(&self, target: &Self, progress: f64) -> Self {
         self.lerp(*target, progress)
+    }
+}
+
+impl AnimationValue for PointList {
+    fn is_valid(&self) -> bool {
+        self.len() >= 2
+            && self
+                .iter()
+                .all(|point| point.x().is_finite() && point.y().is_finite())
+    }
+
+    fn can_interpolate(&self, target: &Self) -> bool {
+        self.len() == target.len()
+    }
+
+    fn interpolate(&self, target: &Self, progress: f64) -> Self {
+        debug_assert!(self.can_interpolate(target));
+        self.iter()
+            .zip(target.iter())
+            .map(|(start, end)| start.lerp(*end, progress))
+            .collect()
     }
 }
 
@@ -148,7 +174,7 @@ pub struct Tween<V> {
 impl<V: AnimationValue> Tween<V> {
     /// Creates a Tween with an explicit start and terminal value.
     pub fn between(start: V, end: V, duration: Duration) -> Result<Self, AnimationError> {
-        if !start.is_valid() || !end.is_valid() {
+        if !start.is_valid() || !end.is_valid() || !start.can_interpolate(&end) {
             return Err(AnimationError::InvalidValue);
         }
         Ok(Self {
@@ -176,6 +202,39 @@ impl<V: AnimationValue> Tween<V> {
     pub fn with_easing(mut self, easing: Easing) -> Self {
         self.easing = easing;
         self
+    }
+}
+
+/// Deterministic procedural interpolation with a finite or continuous lifetime.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Procedural<V> {
+    start: V,
+    end: V,
+    period_micros: u64,
+    continuous: bool,
+}
+
+impl<V: AnimationValue> Procedural<V> {
+    /// Creates a finite procedural interpolation that reaches `end` once.
+    pub fn finite(start: V, end: V, duration: Duration) -> Result<Self, AnimationError> {
+        Self::new(start, end, duration, false)
+    }
+
+    /// Creates a continuous cycle that restarts after each period.
+    pub fn continuous(start: V, end: V, period: Duration) -> Result<Self, AnimationError> {
+        Self::new(start, end, period, true)
+    }
+
+    fn new(start: V, end: V, period: Duration, continuous: bool) -> Result<Self, AnimationError> {
+        if !start.is_valid() || !end.is_valid() || !start.can_interpolate(&end) {
+            return Err(AnimationError::InvalidValue);
+        }
+        Ok(Self {
+            start,
+            end,
+            period_micros: nonzero_duration_micros(period)?,
+            continuous,
+        })
     }
 }
 
@@ -249,6 +308,7 @@ fn validate_spring<V: AnimationValue>(
 ) -> Result<(), AnimationError> {
     if !start.is_valid()
         || !end.is_valid()
+        || !start.can_interpolate(end)
         || !mass.is_finite()
         || mass <= 0.0
         || !stiffness.is_finite()
@@ -306,7 +366,12 @@ impl<V: AnimationValue> Decay<V> {
 }
 
 fn validate_decay<V: AnimationValue>(start: &V, end: &V, rate: f64) -> Result<(), AnimationError> {
-    if !start.is_valid() || !end.is_valid() || !rate.is_finite() || rate <= 0.0 {
+    if !start.is_valid()
+        || !end.is_valid()
+        || !start.can_interpolate(end)
+        || !rate.is_finite()
+        || rate <= 0.0
+    {
         return Err(AnimationError::InvalidDecay);
     }
     Ok(())
@@ -353,6 +418,9 @@ impl<V: AnimationValue> Keyframes<V> {
             if index > 0 && frame.offset <= frames[index - 1].offset {
                 return Err(AnimationError::KeyframesOutOfOrder { index });
             }
+            if index > 0 && !frames[index - 1].value.can_interpolate(&frame.value) {
+                return Err(AnimationError::InvalidValue);
+            }
         }
         if frames.first().map(|frame| frame.offset) != Some(0.0)
             || frames.last().map(|frame| frame.offset) != Some(1.0)
@@ -378,6 +446,8 @@ pub enum Motion<V> {
     Spring(Spring<V>),
     /// Bounded exponential decay.
     Decay(Decay<V>),
+    /// Deterministic finite interpolation or continuous cycle.
+    Procedural(Procedural<V>),
 }
 
 impl<V: AnimationValue> Motion<V> {
@@ -387,6 +457,8 @@ impl<V: AnimationValue> Motion<V> {
             Self::Keyframes(keyframes) => keyframes.duration_micros,
             Self::Spring(spring) => spring.max_duration_micros,
             Self::Decay(decay) => decay.max_duration_micros,
+            Self::Procedural(procedural) if procedural.continuous => u64::MAX,
+            Self::Procedural(procedural) => procedural.period_micros,
         }
     }
 
@@ -414,21 +486,24 @@ impl<V: AnimationValue> Motion<V> {
                 rate: decay.rate,
                 max_duration_micros: decay.max_duration_micros,
             },
+            Self::Procedural(procedural) => PreparedMotion::Procedural(procedural),
         }
     }
 
-    pub(crate) fn terminal_value(&self) -> &V {
+    pub(crate) fn terminal_value(&self) -> Option<&V> {
         match self {
-            Self::Tween(tween) => &tween.end,
-            Self::Keyframes(keyframes) => {
+            Self::Tween(tween) => Some(&tween.end),
+            Self::Keyframes(keyframes) => Some(
                 &keyframes
                     .frames
                     .last()
                     .expect("validated keyframes contain an endpoint")
-                    .value
-            }
-            Self::Spring(spring) => &spring.end,
-            Self::Decay(decay) => &decay.end,
+                    .value,
+            ),
+            Self::Spring(spring) => Some(&spring.end),
+            Self::Decay(decay) => Some(&decay.end),
+            Self::Procedural(procedural) if procedural.continuous => None,
+            Self::Procedural(procedural) => Some(&procedural.end),
         }
     }
 
@@ -485,6 +560,15 @@ impl<V: AnimationValue> Motion<V> {
                     max_duration_micros: decay.max_duration_micros,
                 })
             }
+            Self::Procedural(procedural) if procedural.continuous => {
+                return Err(AnimationError::InvalidComposition);
+            }
+            Self::Procedural(procedural) => Self::Procedural(Procedural {
+                start: procedural.end.clone(),
+                end: procedural.start.clone(),
+                period_micros: procedural.period_micros,
+                continuous: false,
+            }),
         })
     }
 }
@@ -512,6 +596,7 @@ pub(crate) enum PreparedMotion<V> {
         rate: f64,
         max_duration_micros: u64,
     },
+    Procedural(Procedural<V>),
 }
 
 impl<V: AnimationValue> PreparedMotion<V> {
@@ -592,6 +677,15 @@ impl<V: AnimationValue> PreparedMotion<V> {
                 let denominator = 1.0 - (-rate * duration_seconds).exp();
                 let progress = (1.0 - (-rate * elapsed_seconds).exp()) / denominator;
                 start.interpolate(end, progress.clamp(0.0, 1.0))
+            }
+            Self::Procedural(procedural) => {
+                let progress = if procedural.continuous {
+                    (elapsed_micros % procedural.period_micros) as f64
+                        / procedural.period_micros as f64
+                } else {
+                    normalized_progress(elapsed_micros, procedural.period_micros)
+                };
+                procedural.start.interpolate(&procedural.end, progress)
             }
         }
     }

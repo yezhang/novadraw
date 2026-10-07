@@ -26,7 +26,8 @@
 
 ## 2. 正交维度与状态平面
 
-四个正交维度回答不同问题：
+四个正交维度回答不同问题，但不属于同一个对象：Target、Motion、Composition 位于
+`AnimationPlan`，Trigger 位于可选的 `AnimationBehavior`。显式调用直接创建 Plan。
 
 | 维度 | 回答 | 不负责 |
 |---|---|---|
@@ -34,6 +35,9 @@
 | Motion | 给定时间如何采样值 | 查找 Figure、提交帧 |
 | Trigger | 何时创建或 retarget plan | 插值、组合 |
 | Composition | Track 的并行、顺序、错峰和重复关系 | source mutation |
+
+Behavior 的 Scope、PlanFactory、stable-boundary coalescing 与 reduced-motion fallback
+见 [Animation Behavior / Trigger 合同](behavior-trigger-contract.md)。
 
 所有领域能力共享三层状态：
 

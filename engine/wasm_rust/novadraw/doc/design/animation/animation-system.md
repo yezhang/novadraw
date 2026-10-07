@@ -54,15 +54,22 @@ Novadraw 采用这些共同边界，不复制任一框架的对象模型。
 
 ## 4. 正交模型
 
-一个动画由四个独立维度组合：
+动画机制由“触发”和“执行”两个正交对象组成。Trigger 不进入
+`AnimationPlan`；它属于可选的 `AnimationBehavior`，负责在 committed fact 的稳定边界
+创建或 retarget Plan：
 
 ```text
-AnimationPlan
-├── Target       property / layout / route / lifecycle / viewport
-├── Motion       tween / keyframes / spring / decay / procedural
-├── Trigger      explicit / property change / state / transaction / lifecycle
-└── Composition  parallel / sequence / stagger / repeat
+AnimationBehavior                     AnimationPlan
+├── Trigger                           ├── Target
+├── Scope                             ├── Motion
+├── PlanFactory              ───────→ ├── Composition
+└── ReducedMotionFallback             ├── Interruption
+                                      └── Suspension
 ```
+
+显式调用直接创建 Plan，不需要构造 `ExplicitTrigger`。Behavior/Trigger 的注册、事实
+合并、稳定边界和失败语义见
+[Animation Behavior / Trigger 合同](behavior-trigger-contract.md)。
 
 ### 4.1 Target
 
@@ -88,7 +95,7 @@ Motion 不读取系统墙钟，不请求重绘，不修改 Runtime。
 
 ### 4.3 Trigger
 
-Trigger 决定 plan 何时创建：
+Trigger 决定 plan 何时创建，但由独立 `AnimationBehavior` 持有：
 
 - Explicit：应用显式启动；
 - PropertyChange/State：已安装 Behavior 对 committed fact 响应；
@@ -96,7 +103,8 @@ Trigger 决定 plan 何时创建：
 - Lifecycle：attach、dispose、show/hide；
 - Host gesture：viewport/scroll 等平台无关输入结果。
 
-Core 默认不为普通 mutation 安装隐式 Trigger。
+Core 默认不为普通 mutation 安装隐式 Trigger。Trigger 只消费稳定后的 committed fact，
+不作为 listener 回调重入 Runtime，也不参与 Motion 采样或 Composition。
 
 ### 4.4 Composition
 
@@ -382,7 +390,8 @@ auto-expose 的实时驱动保持独立，不伪装为普通 Tween。
 
 ### M01-C：领域消费者
 
-状态：`in_progress`。Figure bounds capture/transition 已完成，证据见
+状态：`complete`。transaction/layout、Connection route、Viewport、continuous
+procedural、dash flow 与 pulse/handoff 已完成，证据见
 [P2-M01C 实现记录](../../verification/reviews/p2-m01c-animation-consumer-evidence.md)。
 
 - property；

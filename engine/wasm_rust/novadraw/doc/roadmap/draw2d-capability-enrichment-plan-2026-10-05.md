@@ -50,7 +50,7 @@ Novadraw 已完成的主要能力包括：
 
 | 优先级 | 能力组 | 主要缺口 | 当前去向 |
 |---|---|---|---|
-| P0 | 动画与表现平面 | 显式时钟、Timeline/Track、属性/布局/路由/生命周期/视口动画、无动画快速路径 | P2-M01，ADR-026 已接受；M01-A/B complete，M01-C in progress |
+| P0 | 动画与表现平面 | 显式时钟、Timeline/Track、属性/布局/路由/生命周期/视口动画、无动画快速路径 | P2-M01，ADR-026 已接受；M01-A/B/C complete，M01-D verification pending |
 | P1 | 内置控件族 | repeat scheduler、ButtonGroup、checkbox、radio 互斥；Slider 作为现代扩展候选 | P2-W01 |
 | P1 | 组合 Figure 与边框 | LabeledContainer/GroupBox、Separator、Focus/Frame 类边框、MultiLineLabel 高层入口 | 尚未登记正式 delta |
 | P1 | 图自动布局 | DirectedGraphLayout、CompoundDirectedGraphLayout 与外部算法 adapter | P2-L01 |
@@ -120,12 +120,17 @@ Draw2D 的 Animation/Animator、LayoutAnimator 和 RoutingAnimator 提供关键�
 [ADR-026](../adr/adr-026-animation-and-presentation-plane.md)。
 
 ```text
-AnimationPlan
-├── Target       property / layout / route / lifecycle / viewport
-├── Motion       tween / keyframes / spring / decay / procedural
-├── Trigger      explicit / property change / state / transaction / lifecycle
-└── Composition  parallel / sequence / stagger / repeat
+AnimationBehavior                     AnimationPlan
+├── Trigger                           ├── Target
+├── Scope                             ├── Motion
+├── PlanFactory              ───────→ ├── Composition
+└── ReducedMotionFallback             ├── Interruption
+                                      └── Suspension
 ```
+
+Trigger 不属于 `AnimationPlan`。显式调用直接创建 Plan；只有属性、状态、事务或生命周期
+等隐式策略才安装 Behavior。详细合同见
+[Animation Behavior / Trigger 合同](../design/animation/behavior-trigger-contract.md)。
 
 一等公民的目标边界：
 
@@ -204,41 +209,102 @@ effective_dash_offset = wrap(source_dash_offset + phase(t), period)
 5. Disabled/Reduced motion 不产生持续 tick，且静态像素与 source style 一致；
 6. 多连接共享 Clock，不触发 reroute、layout、FigureMoved 或全树扫描。
 
-#### 5.2.2 应用案例：移动 pulse 到端点箭头交接
+#### 5.2.2 应用案例：沿线 pulse、拖尾与端点箭头交接
 
-动画基础设施还必须支持从 Connection source 发起小型 pulse（视觉上的“鼓包”），
-沿 route 传播，并在到达 target 时平滑交接为最终 endpoint arrow decoration。
-该效果由程序 Motion、temporary visual 与 endpoint presentation override 组合，
-不创建专用时钟或修改 Connection source route。
+市场上的流向动画通常不是把移动物体直接做几何 morph，而是组合稳定路径、沿路径
+移动的 traveler、可选拖尾和终点反馈：
+
+| 参考 | 常见效果 | 对本案例的启示 |
+|---|---|---|
+| [React Flow Animating Edges](https://reactflow.dev/examples/edges/animating-edges) | 圆点、自定义 SVG 或节点沿 edge path 移动；路径重算与动画播放分离 | traveler 应是独立 temporary visual，不能成为 Connection route 的一部分 |
+| [G6 Animation](https://g6.antv.antgroup.com/en/manual/animation/animation) | dash offset 形成 ant-line，halo 呼吸用于局部强调 | 流向、活动和到达强调应拆成可组合 channel |
+| [GoJS Process Flow](https://gojs.net/latest/samples/processFlow.html) | 管线通过 stroke dash offset 表达持续流动 | 密集或低缩放场景可降级为低成本 dash flow |
+| [deck.gl TripsLayer](https://deck.gl/docs/api-reference/geo-layers/trips-layer) | 以 `currentTime` 驱动路径头部和渐隐 trail | 拖尾应由当前时间和 route 区间重建，不应依赖逐帧历史点累积 |
+
+Novadraw 采用“稳定方向层 + traveler 层 + 到达反馈层”，不把 literal path morph
+作为基础合同：
+
+1. **稳定方向层**：committed Connection path 与 endpoint arrow 始终是业务方向真值；
+2. **Traveler 层**：紧凑 pulse 沿 source → target 匀速移动，可带短拖尾并按路径切线定向；
+3. **到达反馈层**：pulse 进入 target handoff zone 后压缩/淡出，箭头同步增强；主题可以
+   追加一次性 endpoint halo，但不得启动第二条私有时间线；
+4. **稳定收尾**：清除 temporary visual 和 presentation override，只留下 committed
+   Connection 与 arrow。
+
+同一能力提供两种语义明确的表现策略：
+
+- **Reveal**：用于新 Connection 首次出现。最终箭头已提交，但在首帧录制前原子安装
+  presentation override，使箭头从低强调度随 pulse 到达而显现，不能先闪现一帧再隐藏；
+- **Activity**：用于已有 Connection 的一次或重复活动。箭头全程保持可见，pulse 到达
+  只产生短时强调，不重新揭示或替换箭头。动画结束只表示视觉序列完成，除非应用另有
+  已提交事件，否则不得解释为消息已送达或任务已成功。
+
+概念采样为：
+
+```text
+route_length = arc_length(route)
+head_distance(t) = clamp(speed * (t - start_time), 0, route_length)
+head = sample_by_arc_length(route, head_distance)
+trail = route_interval(max(0, head_distance - trail_length), head_distance)
+handoff = ease(saturate(
+    (head_distance - (route_length - handoff_length)) / handoff_length
+))
+```
+
+`handoff_length` 必须按当前 route length 和 target decoration envelope 受检收敛。
+拖尾是 route 上的瞬时区间及透明度分布，不保存逐帧采样点，因此掉帧、暂停和恢复不会
+改变形状或逻辑速度。
 
 阶段语义：
 
-1. **Travel**：按 route arc length 采样 pulse 的位置、切线和法线，避免折线分段长度
-   不同时产生速度跳变；
-2. **Handoff**：pulse 进入 target decoration envelope 后，通过 crossfade/scale
-   将 temporary pulse 交接到 committed endpoint arrow；
-3. **Finish**：清除 pulse 与 decoration override，直接显示已经提交的最终箭头。
+1. **Admission**：校验 route、方向、速度、视觉预算与 fallback；提交最终 arrow，并按
+   Reveal/Activity 策略在下一次 frame recording 前安装 presentation override；
+2. **Travel**：按 route arc length 采样 pulse 的 position、tangent 和 normal，拖尾末端
+   连续衰减，折线、曲线及不等长 segment 均保持逻辑匀速；
+3. **Approach/Handoff**：进入 handoff zone 后，pulse 与 trail 渐隐或压缩，arrow
+   emphasis 渐入；不得要求任意 pulse 轮廓与任意 decoration 具有可 morph 拓扑；
+4. **Finish**：清除 pulse、trail、halo 与 decoration override，不保留 frame callback
+   或重复 wakeup。
 
 约束：
 
-- committed state 在动画开始前已包含最终 route 与 endpoint arrow；动画只暂时控制
-  pulse 和 arrow 的 presentation，不延迟业务方向提交；
-- pulse 使用规范化 route arc length 与绝对单调时间采样，刷新率、分段数量和 DPI
-  不改变逻辑速度；
-- pulse 方向由 Connection source/target 语义确定，不能依赖当前 path command 顺序猜测；
-- route 更新时从当前 presentation 位置按新 route 重投影或按显式 interruption policy
-  重新开始，不允许跳回已提交前的旧 route；
-- zero-length route、缺失 target decoration、disposed endpoint 或中途取消必须结构化
-  降级并清理 temporary visual，不留下持续 wakeup；
-- pulse 默认 `NonInteractive`，不参与 hit-test、cursor、selection 或 accessibility；
-- damage 覆盖 pulse 的 old/new envelope 与 handoff 期间 decoration 的 old/new envelope；
-- 多 pulse 通过 Stagger 组合并共享一次 Clock advance，数量受 active-track 预算限制；
-- `Disabled` 立即显示 committed arrow；`Reduced motion` 使用静态箭头或短时淡入，
-  不强制执行沿线移动。
+- committed state 在动画开始前已包含最终 route 与 endpoint arrow；动画只控制
+  presentation，不延迟业务方向、通知或 history 提交；
+- `speed`、`trail_length` 与 handoff 距离使用 Canvas 逻辑长度，时间来自 Host 单调绝对
+  Clock；刷新率、route 分段数量、Viewport zoom 和 DPI 不改变逻辑进度；
+- pulse 方向由 Connection source/target 语义确定，不能依赖 path command 顺序猜测；
+- pulse 的视觉 token 可以是 dot、capsule 或领域图标，但位置采样、朝向、拖尾和交接
+  使用同一通用 motion-path 合同，不为每种外观建立专用动画类型；
+- route 更新时优先把当前 traveler head 投影到新 route 的方向一致最近点，并按剩余弧长
+  继续；若投影超过调用方声明的视觉连续性预算，则按显式 interruption policy 执行
+  crossfade、restart 或 cancel，不允许回退到旧 committed route；
+- 缺失 endpoint decoration 时，按 target port 一次性强调、pulse 在端点淡出、立即显示
+  静态 Connection 的顺序降级；zero-length route、disposed endpoint、预算拒绝或中途取消
+  必须清理全部 temporary visual；
+- pulse、trail 与 halo 默认 `NonInteractive`，不参与 hit-test、cursor、selection 或
+  accessibility；箭头和 Connection 的交互语义来自 committed Figure；
+- damage 覆盖 pulse/trail 的 old/new envelope，以及 handoff 期间 arrow/halo 的 old/new
+  envelope；不得为单个 traveler 扫描全树；
+- 多 pulse 使用 Stagger 与同一次 Clock advance。高密度、低缩放或预算受限时，策略可以
+  依次关闭 halo、缩短/关闭 trail、降级为 dash flow 或静态箭头，但不能改变方向语义；
+- `Disabled` 立即显示 committed arrow；`Reduced motion` 默认使用静态箭头加一次短时
+  opacity/emphasis，或完全静态，不执行沿线位移；
+- Reveal 与 Activity 共享 Runtime Clock、temporary visual、damage 和清理协议，不创建
+  Connection 私有 timer、backend 动画循环或第二套 route cache。
 
-最低验证包括固定时间下的端点位置/切线、折线路由匀速、route 变更与中断、handoff
-首尾像素连续性、取消/dispose 清理、三种动画模式，以及不产生 route/layout/通知/history
-副作用。
+最低验证包括：
+
+1. 固定时间下 pulse 的 position/tangent/normal、trail 区间与 handoff progress；
+2. 直线、折线与曲线路由按弧长匀速，刷新间隔变化不改变同一时刻的结果；
+3. Reveal 不出现箭头首帧闪烁，Activity 全程保留稳定箭头；
+4. handoff 前后 pulse、trail 与箭头的合成像素连续，无双箭头或越过 target 的拖尾；
+5. route 变更时的重投影、crossfade/restart/cancel 及剩余距离语义；
+6. decoration 缺失、zero-length、预算拒绝、cancel 和 dispose 的降级与清理；
+7. nested transform、Viewport scroll/zoom、clip 与 DPI 变化下的几何和 damage；
+8. Disabled、Enabled、Reduced motion 三种模式及低缩放/高密度降级；
+9. 多 pulse 的 Stagger、共享 Clock、active-track/temporary-visual 预算；
+10. 不产生 route/layout、Figure 通知、accessibility、undo/redo history 或业务送达状态
+    副作用，结束后不保留持续 tick。
 
 ### 5.3 动画可选性与禁用协议
 
@@ -295,13 +361,14 @@ P2-O01 应抽象为输出目标和 scale/clip adapter，而不是引入 SWT Prin
 ### 阶段 1：动画与表现平面
 
 1. 已完成 Draw2D Animation/Animator 对标，ADR-026 已接受；
-2. 已登记 P2-M01 与稳定 API family；suite 名称已保留，待首个可执行测试存在时登记；
-3. 已在提案中冻结 Clock、Timeline、Track、Motion、Trigger 与 Composition 边界；
+2. 已登记 P2-M01、稳定 API family 与 `core.p2-m01-animation` 可执行 suite；
+3. 已在提案中冻结 Clock、Timeline、Track、Motion、Composition 以及独立
+   Behavior/Trigger 边界；
 4. 已冻结 source/committed state、presentation state 与 backend state 三平面；
 5. M01-A 已实现 typed 属性 channel、并行/顺序/错峰编排和确定性 headless clock；
 6. M01-B 已实现 Figure presentation override、old/new damage、temporary visual 与
-   suspend/dispose/fault 清理；当前推进 M01-C，以布局结果、Connection route 和
-   Viewport transition 验证跨域能力；
+   suspend/dispose/fault 清理；M01-C 已实现 transaction/layout、Connection route、
+   Viewport、continuous procedural、dash flow 与 pulse/handoff；
 7. 验证 Disabled、Enabled、Reduced motion 及零活动动画快速路径；
 8. 暂不实现通用 path morph、shared element、force solver 逐轮动画或 backend
    专有 compositor 快路径。
@@ -417,6 +484,12 @@ Windows/Linux 原生运行、Safari/Firefox 和完整 AT provider 保留到对�
   <https://gojs.net/latest/learn/animation>
 - G6 Animation Overview：
   <https://g6.antv.antgroup.com/en/manual/animation/animation>
+- React Flow Animating Edges：
+  <https://reactflow.dev/examples/edges/animating-edges>
+- GoJS Process Flow：
+  <https://gojs.net/latest/samples/processFlow.html>
+- deck.gl TripsLayer：
+  <https://deck.gl/docs/api-reference/geo-layers/trips-layer>
 - Cytoscape.js：
   <https://js.cytoscape.org/>
 - D3 Transition：

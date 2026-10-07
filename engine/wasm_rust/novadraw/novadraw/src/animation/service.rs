@@ -1,23 +1,29 @@
 use std::{
     any::Any,
     collections::{HashMap, HashSet, VecDeque},
+    time::Duration,
 };
 
 use crate::{
-    Affine2D, FigureId, FigureTree, MonotonicTime, Rectangle, TimeError, UpdateManager,
-    figure::FigurePresentation,
+    Affine2D, Color, Dimension, FigureId, FigureMeasurement, FigureTree, MonotonicTime,
+    NotificationEffect, PointList, Rectangle, StableSceneQuery, TimeError, UpdateManager,
+    figure::{FigureDrawing, FigurePresentation},
+    graphics::{GraphicsError, PaintContext},
     identity::{
-        AnimationChannelId, AnimationId, RuntimeArena, RuntimeNamespace, TemporaryVisualId,
+        AnimationBehaviorId, AnimationChannelId, AnimationId, RuntimeArena, RuntimeNamespace,
+        TemporaryVisualId,
     },
 };
 
 use super::{
-    AnimationBudgetKind, AnimationChannel, AnimationError, AnimationMode, AnimationStart,
-    AnimationState, AnimationStats, AnimationSuppression, AnimationValue, BoundsTransition,
+    AnimationBehavior, AnimationBehaviorFailure, AnimationBehaviorScope, AnimationBudgetKind,
+    AnimationChannel, AnimationError, AnimationMode, AnimationStart, AnimationState,
+    AnimationStats, AnimationSuppression, AnimationValue, BoundsTransition, ConnectionPulse,
     DEFAULT_ANIMATION_TERMINAL_HISTORY, DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS,
-    DEFAULT_MAX_ACTIVE_ANIMATIONS, DEFAULT_MAX_ANIMATION_CHANNELS, DEFAULT_MAX_TEMPORARY_VISUALS,
-    FigurePresentationChannels, FigureTransitionCapture, InteractionGeometryPolicy,
-    InterruptionPolicy, Motion, Opacity, SuspensionPolicy, TemporaryVisual, Tween,
+    DEFAULT_MAX_ACTIVE_ANIMATIONS, DEFAULT_MAX_ANIMATION_BEHAVIORS, DEFAULT_MAX_ANIMATION_CHANNELS,
+    DEFAULT_MAX_TEMPORARY_VISUALS, FigurePresentationChannels, FigureTransitionCapture,
+    InteractionGeometryPolicy, InterruptionPolicy, Motion, Opacity, Procedural, SuspensionPolicy,
+    TemporaryVisual, Tween, facts_from_effects,
     timeline::{AnimationPlan, PreparedPlanTrack},
 };
 
@@ -26,6 +32,8 @@ enum ChannelBinding {
     Detached,
     FigureOpacity(FigureId),
     FigureTransform(FigureId),
+    FigureRoute(FigureId),
+    FigureDashOffset(FigureId),
     TemporaryOpacity(TemporaryVisualId),
     TemporaryTransform(TemporaryVisualId),
 }
@@ -121,13 +129,22 @@ impl ChannelBinding {
             Self::FigureTransform(_) | Self::TemporaryTransform(_) => {
                 (value as &dyn Any).downcast_ref::<Affine2D>().is_some()
             }
+            Self::FigureRoute(_) => (value as &dyn Any)
+                .downcast_ref::<PointList>()
+                .is_some_and(AnimationValue::is_valid),
+            Self::FigureDashOffset(_) => (value as &dyn Any)
+                .downcast_ref::<f64>()
+                .is_some_and(AnimationValue::is_valid),
             Self::Detached => true,
         }
     }
 
     fn figure(self) -> Option<FigureId> {
         match self {
-            Self::FigureOpacity(figure) | Self::FigureTransform(figure) => Some(figure),
+            Self::FigureOpacity(figure)
+            | Self::FigureTransform(figure)
+            | Self::FigureRoute(figure)
+            | Self::FigureDashOffset(figure) => Some(figure),
             _ => None,
         }
     }
@@ -140,10 +157,12 @@ impl ChannelBinding {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct FigurePresentationEffect {
     pub(crate) opacity: Option<f64>,
     pub(crate) transform: Option<Affine2D>,
+    pub(crate) route: Option<PointList>,
+    pub(crate) dash_offset: Option<f64>,
 }
 
 #[derive(Clone)]
@@ -162,7 +181,7 @@ pub(crate) struct PresentationSnapshot {
 
 impl PresentationSnapshot {
     pub(crate) fn figure(&self, id: FigureId) -> Option<FigurePresentationEffect> {
-        self.figures.get(&id).copied()
+        self.figures.get(&id).cloned()
     }
 
     pub(crate) fn paint_temporaries(&self, canvas: &mut crate::NdCanvas) {
@@ -193,17 +212,39 @@ struct TemporaryVisualState {
     owner: Option<AnimationId>,
 }
 
+struct PulseDrawing {
+    radius: f64,
+    color: Color,
+}
+
+impl FigureDrawing for PulseDrawing {
+    fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        context.canvas.ellipse_with_style(
+            0.0,
+            0.0,
+            self.radius,
+            self.radius,
+            Some(self.color),
+            None,
+            crate::graphics::StrokeStyle::default(),
+        );
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum DamageSubject {
     Figure(FigureId),
     Temporary(TemporaryVisualId),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum DamageSubjectState {
     Figure {
         opacity: f64,
         transform: Affine2D,
+        route: Option<PointList>,
+        dash_offset: Option<f64>,
         envelope: Option<Rectangle>,
     },
     Temporary {
@@ -239,7 +280,11 @@ pub(crate) struct AnimationService {
     surface_suspended: bool,
     channels: RuntimeArena<AnimationChannelId, ChannelState>,
     active: RuntimeArena<AnimationId, ActiveAnimation>,
+    behaviors: RuntimeArena<AnimationBehaviorId, AnimationBehavior>,
+    behavior_failures: VecDeque<AnimationBehaviorFailure>,
     figure_channels: HashMap<FigureId, FigureChannels>,
+    route_channels: HashMap<FigureId, AnimationChannelId>,
+    dash_channels: HashMap<FigureId, AnimationChannelId>,
     temporary_visuals: RuntimeArena<TemporaryVisualId, TemporaryVisualState>,
     channel_owners: HashMap<AnimationChannelId, AnimationId>,
     terminal: VecDeque<(AnimationId, AnimationState)>,
@@ -257,7 +302,11 @@ impl AnimationService {
             surface_suspended: false,
             channels: RuntimeArena::new(namespace),
             active: RuntimeArena::new(namespace),
+            behaviors: RuntimeArena::new(namespace),
+            behavior_failures: VecDeque::new(),
             figure_channels: HashMap::new(),
+            route_channels: HashMap::new(),
+            dash_channels: HashMap::new(),
             temporary_visuals: RuntimeArena::new(namespace),
             channel_owners: HashMap::new(),
             terminal: VecDeque::new(),
@@ -266,7 +315,7 @@ impl AnimationService {
         }
     }
 
-    pub(crate) fn editor<'a>(
+    pub(crate) fn access_mut<'a>(
         &'a mut self,
         tree: &'a FigureTree,
         updates: &'a mut UpdateManager,
@@ -351,24 +400,50 @@ impl AnimationService {
         let (active_figures, active_temporaries) = self.active_subjects();
         let mut figures = HashMap::new();
         for figure in active_figures {
-            let Some(channels) = self.figure_channels.get(&figure) else {
-                continue;
-            };
-            let opacity = self.channels.get(channels.opacity).and_then(|channel| {
-                channel
-                    .has_override()
-                    .then(|| channel.effective::<Opacity>().ok().copied())
-                    .flatten()
-                    .map(Opacity::get)
+            let opacity = self.figure_channels.get(&figure).and_then(|channels| {
+                self.channels.get(channels.opacity).and_then(|channel| {
+                    channel
+                        .has_override()
+                        .then(|| channel.effective::<Opacity>().ok().copied())
+                        .flatten()
+                        .map(Opacity::get)
+                })
             });
-            let transform = self.channels.get(channels.transform).and_then(|channel| {
-                channel
-                    .has_override()
-                    .then(|| channel.effective::<Affine2D>().ok().copied())
-                    .flatten()
+            let transform = self.figure_channels.get(&figure).and_then(|channels| {
+                self.channels.get(channels.transform).and_then(|channel| {
+                    channel
+                        .has_override()
+                        .then(|| channel.effective::<Affine2D>().ok().copied())
+                        .flatten()
+                })
             });
-            if opacity.is_some() || transform.is_some() {
-                figures.insert(figure, FigurePresentationEffect { opacity, transform });
+            let route = self.route_channels.get(&figure).and_then(|channel| {
+                self.channels.get(*channel).and_then(|channel| {
+                    channel
+                        .has_override()
+                        .then(|| channel.effective::<PointList>().ok().cloned())
+                        .flatten()
+                })
+            });
+            let dash_offset = self.dash_channels.get(&figure).and_then(|channel| {
+                self.channels.get(*channel).and_then(|channel| {
+                    channel
+                        .has_override()
+                        .then(|| channel.effective::<f64>().ok().copied())
+                        .flatten()
+                })
+            });
+            if opacity.is_some() || transform.is_some() || route.is_some() || dash_offset.is_some()
+            {
+                figures.insert(
+                    figure,
+                    FigurePresentationEffect {
+                        opacity,
+                        transform,
+                        route,
+                        dash_offset,
+                    },
+                );
             }
         }
 
@@ -426,11 +501,25 @@ impl AnimationService {
             else {
                 continue;
             };
+            let route = self.route_channels.get(&figure).and_then(|channel| {
+                self.channels
+                    .get(*channel)
+                    .and_then(|channel| channel.effective::<PointList>().ok())
+                    .cloned()
+            });
+            let dash_offset = self.dash_channels.get(&figure).and_then(|channel| {
+                self.channels
+                    .get(*channel)
+                    .and_then(|channel| channel.effective::<f64>().ok())
+                    .copied()
+            });
             state.insert(
                 DamageSubject::Figure(figure),
                 DamageSubjectState::Figure {
                     opacity,
                     transform,
+                    route,
+                    dash_offset,
                     envelope: tree.presentation_envelope(figure, transform),
                 },
             );
@@ -521,13 +610,25 @@ impl AnimationService {
     }
 
     pub(crate) fn retire_figures(&mut self, figures: &HashSet<FigureId>) {
-        let owners: HashSet<_> = self
+        let mut owners: HashSet<_> = self
             .figure_channels
             .iter()
             .filter(|(figure, _)| figures.contains(figure))
             .flat_map(|(_, channels)| [channels.opacity, channels.transform])
             .filter_map(|channel| self.channel_owners.get(&channel).copied())
             .collect();
+        owners.extend(
+            self.route_channels
+                .iter()
+                .filter(|(figure, _)| figures.contains(figure))
+                .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
+        );
+        owners.extend(
+            self.dash_channels
+                .iter()
+                .filter(|(figure, _)| figures.contains(figure))
+                .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
+        );
         for owner in owners {
             self.finish(owner, AnimationState::Cancelled);
         }
@@ -543,6 +644,39 @@ impl AnimationService {
                 self.channels.remove(channels.transform);
             }
         }
+        let retired_routes: Vec<_> = self
+            .route_channels
+            .keys()
+            .copied()
+            .filter(|figure| figures.contains(figure))
+            .collect();
+        for figure in retired_routes {
+            if let Some(channel) = self.route_channels.remove(&figure) {
+                self.channels.remove(channel);
+            }
+        }
+        let retired_dash: Vec<_> = self
+            .dash_channels
+            .keys()
+            .copied()
+            .filter(|figure| figures.contains(figure))
+            .collect();
+        for figure in retired_dash {
+            if let Some(channel) = self.dash_channels.remove(&figure) {
+                self.channels.remove(channel);
+            }
+        }
+        let retired_behaviors: Vec<_> = self
+            .behaviors
+            .iter()
+            .filter_map(|(id, behavior)| match behavior.scope {
+                AnimationBehaviorScope::Figure(figure) if figures.contains(&figure) => Some(id),
+                AnimationBehaviorScope::Runtime | AnimationBehaviorScope::Figure(_) => None,
+            })
+            .collect();
+        for behavior in retired_behaviors {
+            self.behaviors.remove(behavior);
+        }
     }
 
     pub(crate) fn clear_presentation(&mut self) {
@@ -553,6 +687,64 @@ impl AnimationService {
         let dormant: Vec<_> = self.temporary_visuals.iter().map(|(id, _)| id).collect();
         for visual in dormant {
             self.remove_temporary_visual_state(visual);
+        }
+    }
+
+    fn process_behaviors(
+        &mut self,
+        effects: &[NotificationEffect],
+        epoch: u64,
+        scene: StableSceneQuery<'_>,
+    ) -> bool {
+        let facts = facts_from_effects(effects);
+        if facts.is_empty() || self.mode == AnimationMode::Disabled {
+            return false;
+        }
+
+        let ids: Vec<_> = self.behaviors.iter().map(|(id, _)| id).collect();
+        let mut changed = false;
+        for id in ids {
+            let result = {
+                let Some(behavior) = self.behaviors.get_mut(id) else {
+                    continue;
+                };
+                let matching = behavior.matching_facts(&facts);
+                if matching.is_empty() {
+                    continue;
+                }
+                let context = super::AnimationBehaviorContext::new(epoch, &matching, scene);
+                match self.mode {
+                    AnimationMode::Enabled => behavior.factory.create_plan(context),
+                    AnimationMode::ReducedMotion => behavior
+                        .reduced_motion_factory
+                        .as_mut()
+                        .map_or(Ok(None), |factory| factory.create_plan(context)),
+                    AnimationMode::Disabled => unreachable!("disabled behavior processing exits"),
+                }
+            };
+            match result {
+                Ok(Some(plan)) => match self.start_from_behavior(plan) {
+                    Ok(AnimationStart::Running(_)) => changed = true,
+                    Ok(AnimationStart::Existing(_) | AnimationStart::Suppressed(_)) => {}
+                    Err(error) => self.record_behavior_failure(id, epoch, error),
+                },
+                Ok(None) => {}
+                Err(error) => self.record_behavior_failure(id, epoch, error),
+            }
+        }
+        changed
+    }
+
+    fn record_behavior_failure(
+        &mut self,
+        behavior: AnimationBehaviorId,
+        epoch: u64,
+        error: AnimationError,
+    ) {
+        self.behavior_failures
+            .push_back(AnimationBehaviorFailure::new(behavior, epoch, error));
+        while self.behavior_failures.len() > DEFAULT_ANIMATION_TERMINAL_HISTORY {
+            self.behavior_failures.pop_front();
         }
     }
 
@@ -656,17 +848,32 @@ impl AnimationService {
     }
 
     fn start(&mut self, plan: AnimationPlan) -> Result<AnimationStart, AnimationError> {
+        self.start_with_mode(plan, false)
+    }
+
+    fn start_from_behavior(
+        &mut self,
+        plan: AnimationPlan,
+    ) -> Result<AnimationStart, AnimationError> {
+        self.start_with_mode(plan, true)
+    }
+
+    fn start_with_mode(
+        &mut self,
+        plan: AnimationPlan,
+        reduced_motion_fallback: bool,
+    ) -> Result<AnimationStart, AnimationError> {
         let prepared = self.prepare(plan)?;
         match self.mode {
             AnimationMode::Disabled => {
                 return Ok(AnimationStart::Suppressed(AnimationSuppression::Disabled));
             }
-            AnimationMode::ReducedMotion => {
+            AnimationMode::ReducedMotion if !reduced_motion_fallback => {
                 return Ok(AnimationStart::Suppressed(
                     AnimationSuppression::ReducedMotionStaticFallback,
                 ));
             }
-            AnimationMode::Enabled => {}
+            AnimationMode::Enabled | AnimationMode::ReducedMotion => {}
         }
         if prepared.duration_micros == 0 {
             return Ok(AnimationStart::Suppressed(
@@ -1107,6 +1314,22 @@ impl AnimationMut<'_> {
         changed
     }
 
+    pub(crate) fn process_behaviors(
+        &mut self,
+        effects: &[NotificationEffect],
+        stable_epoch: u64,
+    ) -> bool {
+        if effects.is_empty() {
+            return false;
+        }
+        let before = self.service.damage_state(self.tree);
+        let scene = StableSceneQuery::new(stable_epoch, self.tree);
+        let changed =
+            self.guarded_service(|service| service.process_behaviors(effects, stable_epoch, scene));
+        self.reconcile_damage(before);
+        changed
+    }
+
     /// Returns the Runtime-wide mode.
     pub fn mode(&self) -> AnimationMode {
         self.service.mode
@@ -1131,6 +1354,54 @@ impl AnimationMut<'_> {
         }
         self.reconcile_damage(before);
         true
+    }
+
+    /// Installs a committed-fact behavior. It observes only future stable transactions.
+    pub fn install_behavior(
+        &mut self,
+        behavior: AnimationBehavior,
+    ) -> Result<AnimationBehaviorId, AnimationError> {
+        self.ensure_not_faulted()?;
+        if let AnimationBehaviorScope::Figure(figure) = behavior.scope {
+            if figure.namespace() != self.service.namespace {
+                return Err(AnimationError::ForeignTarget);
+            }
+            if !self.tree.is_attached(figure) {
+                return Err(AnimationError::DisposedTarget);
+            }
+        }
+        if self.service.behaviors.len() >= DEFAULT_MAX_ANIMATION_BEHAVIORS {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::Behaviors,
+            ));
+        }
+        Ok(self.service.behaviors.insert(behavior))
+    }
+
+    /// Removes an installed behavior.
+    pub fn remove_behavior(
+        &mut self,
+        behavior: AnimationBehaviorId,
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        if behavior.namespace() != self.service.namespace {
+            return Err(AnimationError::ForeignBehavior);
+        }
+        self.service
+            .behaviors
+            .remove(behavior)
+            .map(|_| true)
+            .ok_or(AnimationError::UnknownBehavior)
+    }
+
+    /// Returns the number of installed behaviors.
+    pub fn behavior_count(&self) -> usize {
+        self.service.behaviors.len()
+    }
+
+    /// Drains bounded recoverable behavior failures in occurrence order.
+    pub fn take_behavior_failures(&mut self) -> Vec<AnimationBehaviorFailure> {
+        self.service.behavior_failures.drain(..).collect()
     }
 
     /// Registers a typed committed value as an animation presentation channel.
@@ -1249,6 +1520,269 @@ impl AnimationMut<'_> {
             AnimationChannel::new(opacity),
             AnimationChannel::new(transform),
         ))
+    }
+
+    /// Creates or returns the Runtime-managed route presentation channel for a Connection.
+    pub fn bind_connection_route(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<AnimationChannel<PointList>, AnimationError> {
+        self.ensure_not_faulted()?;
+        if figure.namespace() != self.service.namespace {
+            return Err(AnimationError::ForeignTarget);
+        }
+        let connection = self
+            .tree
+            .node(figure)
+            .and_then(|node| node.figure.connection())
+            .filter(|connection| connection.supports_route_presentation())
+            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
+        if let Some(channel) = self.service.route_channels.get(&figure).copied() {
+            return Ok(AnimationChannel::new(channel));
+        }
+        let required = usize::from(!self.service.figure_channels.contains_key(&figure)) * 2 + 1;
+        if self.service.channels.len().saturating_add(required) > DEFAULT_MAX_ANIMATION_CHANNELS {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::Channels,
+            ));
+        }
+        let committed = connection.route_points().clone();
+        self.bind_figure(figure, InteractionGeometryPolicy::Committed)?;
+        let channel = self.service.channels.insert(ChannelState::new_bound(
+            committed,
+            ChannelBinding::FigureRoute(figure),
+        ));
+        self.service.route_channels.insert(figure, channel);
+        Ok(AnimationChannel::new(channel))
+    }
+
+    pub(crate) fn set_connection_route_committed(
+        &mut self,
+        channel: AnimationChannel<PointList>,
+        committed: PointList,
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        let state = self.channel_mut(channel)?;
+        if !matches!(state.binding, ChannelBinding::FigureRoute(_)) {
+            return Err(AnimationError::ManagedChannel);
+        }
+        state.set_committed(committed)
+    }
+
+    /// Creates or returns the Runtime-managed dash-offset channel for a Connection.
+    pub fn bind_connection_dash_offset(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<AnimationChannel<f64>, AnimationError> {
+        self.ensure_not_faulted()?;
+        if figure.namespace() != self.service.namespace {
+            return Err(AnimationError::ForeignTarget);
+        }
+        let connection = self
+            .tree
+            .node(figure)
+            .and_then(|node| node.figure.connection())
+            .filter(|connection| connection.supports_route_presentation())
+            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
+        if let Some(channel) = self.service.dash_channels.get(&figure).copied() {
+            return Ok(AnimationChannel::new(channel));
+        }
+        let required = usize::from(!self.service.figure_channels.contains_key(&figure)) * 2 + 1;
+        if self.service.channels.len().saturating_add(required) > DEFAULT_MAX_ANIMATION_CHANNELS {
+            return Err(AnimationError::BudgetExceeded(
+                AnimationBudgetKind::Channels,
+            ));
+        }
+        let committed = connection.connection_dash_offset();
+        self.bind_figure(figure, InteractionGeometryPolicy::Committed)?;
+        let channel = self.service.channels.insert(ChannelState::new_bound(
+            committed,
+            ChannelBinding::FigureDashOffset(figure),
+        ));
+        self.service.dash_channels.insert(figure, channel);
+        Ok(AnimationChannel::new(channel))
+    }
+
+    /// Starts a continuous source-to-target dash flow in logical units per second.
+    pub fn start_connection_dash_flow(
+        &mut self,
+        figure: FigureId,
+        speed: f64,
+    ) -> Result<AnimationStart, AnimationError> {
+        self.ensure_not_faulted()?;
+        if !speed.is_finite() || speed == 0.0 {
+            return Err(AnimationError::InvalidValue);
+        }
+        let connection = self
+            .tree
+            .node(figure)
+            .and_then(|node| node.figure.connection())
+            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
+        let period = connection.connection_dash_period();
+        if !period.is_finite() || period <= 0.0 {
+            return Err(AnimationError::InvalidValue);
+        }
+        let channel = self.bind_connection_dash_offset(figure)?;
+        let start = self.value(channel)?;
+        let duration = Duration::try_from_secs_f64(period / speed.abs())
+            .map_err(|_| AnimationError::InvalidDuration)?;
+        let end = start + period.copysign(speed);
+        let plan = AnimationPlan::track(
+            channel,
+            Motion::Procedural(Procedural::continuous(start, end, duration)?),
+        )?
+        .with_suspension(SuspensionPolicy::Pause);
+        self.start(plan)
+    }
+
+    /// Starts a non-interactive pulse that follows committed route arc length.
+    pub fn start_connection_pulse(
+        &mut self,
+        figure: FigureId,
+        pulse: ConnectionPulse,
+    ) -> Result<AnimationStart, AnimationError> {
+        self.ensure_not_faulted()?;
+        if !pulse.radius.is_finite()
+            || pulse.radius <= 0.0
+            || !pulse.color.is_valid()
+            || pulse.duration.is_zero()
+        {
+            return Err(AnimationError::InvalidValue);
+        }
+        let local_to_surface = self
+            .tree
+            .local_to_surface_transform(figure)
+            .ok_or(AnimationError::DisposedTarget)?;
+        let route = self
+            .tree
+            .connection_route_points(figure)
+            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
+        let points: Vec<_> = route
+            .iter()
+            .map(|point| local_to_surface.transform_point(*point))
+            .collect();
+        let segments: Vec<_> = points
+            .windows(2)
+            .filter_map(|segment| {
+                let length = (segment[1] - segment[0]).length();
+                (length > f64::EPSILON).then_some((segment[0], segment[1], length))
+            })
+            .collect();
+        let total_length: f64 = segments.iter().map(|(_, _, length)| length).sum();
+        let duration_micros = u64::try_from(pulse.duration.as_micros())
+            .map_err(|_| AnimationError::InvalidDuration)?;
+        if segments.is_empty()
+            || !total_length.is_finite()
+            || duration_micros < segments.len() as u64
+        {
+            return Err(AnimationError::InvalidValue);
+        }
+        if let Some((decoration, _)) = pulse.handoff
+            && !self.tree.is_attached(decoration)
+        {
+            return Err(AnimationError::DisposedTarget);
+        }
+        if pulse
+            .handoff
+            .is_some_and(|(_, handoff_duration)| handoff_duration.is_zero())
+        {
+            return Err(AnimationError::InvalidDuration);
+        }
+
+        let final_point = segments.last().expect("non-empty segments").1;
+        let visual = self.create_temporary_visual(
+            FigurePresentation::new(
+                FigureMeasurement::new(pulse.radius * 2.0, pulse.radius * 2.0, None),
+                Dimension::new(pulse.radius * 2.0, pulse.radius * 2.0),
+                Rectangle::new(
+                    -pulse.radius,
+                    -pulse.radius,
+                    pulse.radius * 2.0,
+                    pulse.radius * 2.0,
+                ),
+                std::sync::Arc::new(PulseDrawing {
+                    radius: pulse.radius,
+                    color: pulse.color,
+                }),
+            )
+            .map_err(|_| AnimationError::InvalidValue)?,
+            Affine2D::from_translation(final_point.x(), final_point.y()),
+            if pulse.handoff.is_some() { 0.0 } else { 1.0 },
+        )?;
+
+        let build_result = (|| {
+            let mut travel = Vec::with_capacity(segments.len());
+            let mut elapsed = 0_u64;
+            let mut traversed = 0.0;
+            for (index, (start, end, length)) in segments.iter().copied().enumerate() {
+                traversed += length;
+                let segment_end = if index + 1 == segments.len() {
+                    duration_micros
+                } else {
+                    ((traversed / total_length) * duration_micros as f64).round() as u64
+                };
+                let segment_duration = segment_end.saturating_sub(elapsed);
+                elapsed = segment_end;
+                travel.push(AnimationPlan::track(
+                    visual.transform(),
+                    Motion::Tween(Tween::between(
+                        Affine2D::from_translation(start.x(), start.y()),
+                        Affine2D::from_translation(end.x(), end.y()),
+                        Duration::from_micros(segment_duration),
+                    )?),
+                )?);
+            }
+            let travel = AnimationPlan::sequence(travel)?;
+            let plan = if let Some((decoration, handoff_duration)) = pulse.handoff {
+                let decoration = self
+                    .bind_figure(decoration, InteractionGeometryPolicy::Committed)?
+                    .transform();
+                let visible_travel = AnimationPlan::parallel(vec![
+                    travel,
+                    AnimationPlan::track(
+                        visual.opacity(),
+                        Motion::Tween(Tween::between(
+                            Opacity::OPAQUE,
+                            Opacity::OPAQUE,
+                            pulse.duration,
+                        )?),
+                    )?,
+                ])?;
+                let handoff = AnimationPlan::parallel(vec![
+                    AnimationPlan::track(
+                        visual.opacity(),
+                        Motion::Tween(Tween::between(
+                            Opacity::OPAQUE,
+                            Opacity::TRANSPARENT,
+                            handoff_duration,
+                        )?),
+                    )?,
+                    AnimationPlan::track(
+                        decoration,
+                        Motion::Tween(Tween::between(
+                            Affine2D::from_uniform_scale(1.35),
+                            Affine2D::IDENTITY,
+                            handoff_duration,
+                        )?),
+                    )?,
+                ])?;
+                AnimationPlan::sequence(vec![visible_travel, handoff])?
+            } else {
+                travel
+            };
+            self.start(plan.with_suspension(SuspensionPolicy::Pause))
+        })();
+        match build_result {
+            Ok(start @ AnimationStart::Running(_)) => Ok(start),
+            Ok(start) => {
+                let _ = self.remove_temporary_visual(visual.id());
+                Ok(start)
+            }
+            Err(error) => {
+                let _ = self.remove_temporary_visual(visual.id());
+                Err(error)
+            }
+        }
     }
 
     /// Captures committed Figure bounds in stable input order.
@@ -1456,7 +1990,7 @@ impl AnimationMut<'_> {
         Ok(self.channel(channel)?.has_override())
     }
 
-    /// Admits and starts a finite plan.
+    /// Admits and starts a finite or continuous plan.
     pub fn start(&mut self, plan: AnimationPlan) -> Result<AnimationStart, AnimationError> {
         if *self.faulted {
             return Err(AnimationError::RuntimeFaulted);
@@ -1579,6 +2113,11 @@ impl AnimationMut<'_> {
                 continue;
             }
             changed = true;
+            if old.is_some_and(DamageSubjectState::has_connection_presentation)
+                || new.is_some_and(DamageSubjectState::has_connection_presentation)
+            {
+                *self.full_redraw_pending = true;
+            }
             let fallback = match subject {
                 DamageSubject::Figure(figure) => {
                     self.tree.presentation_envelope(figure, Affine2D::IDENTITY)
@@ -1618,14 +2157,25 @@ impl AnimationMut<'_> {
 
 impl DamageSubjectState {
     fn visible_envelope(&self) -> Option<Rectangle> {
-        match *self {
-            Self::Figure { envelope, .. } => envelope,
+        match self {
+            Self::Figure { envelope, .. } => *envelope,
             Self::Temporary {
                 envelope,
                 active: true,
                 ..
-            } => envelope,
+            } => *envelope,
             Self::Temporary { active: false, .. } => None,
         }
+    }
+
+    fn has_connection_presentation(&self) -> bool {
+        matches!(
+            self,
+            Self::Figure { route: Some(_), .. }
+                | Self::Figure {
+                    dash_offset: Some(_),
+                    ..
+                }
+        )
     }
 }

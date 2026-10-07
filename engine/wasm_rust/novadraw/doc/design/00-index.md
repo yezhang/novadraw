@@ -53,6 +53,8 @@
     scoped mutable facade、typed channel、snapshot capture、取消/retarget 与错误
 31. [`animation/capability-integration.md`](animation/capability-integration.md)：
     属性、布局、路由、视口、生命周期、持续效果及后续能力接入
+32. [`animation/behavior-trigger-contract.md`](animation/behavior-trigger-contract.md)：
+    Behavior/Trigger 的 scope、stable fact、coalescing、factory 与模式合同
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

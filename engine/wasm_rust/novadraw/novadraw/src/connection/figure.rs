@@ -1,13 +1,17 @@
-use std::{error::Error, fmt};
+use std::{error::Error, fmt, sync::Arc};
 
 use crate::Color;
 use crate::geometry::{Point, PointList, Rectangle, Translatable};
+use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
     NdCanvas, StrokeStyle,
     command::{LineCap, LineJoin},
 };
 
-use crate::{Bounded, ChildClippingStrategy, Figure, FigureContainer, Layer};
+use crate::{
+    Bounded, ChildClippingStrategy, Dimension, Figure, FigureContainer, FigureMeasurement, Layer,
+    figure::{FigureDrawing, FigurePresentation},
+};
 
 const DEFAULT_CONNECTION_COLOR: Color = Color::rgba(44.0 / 255.0, 62.0 / 255.0, 80.0 / 255.0, 1.0);
 const DEFAULT_CONNECTION_WIDTH: f64 = 2.0;
@@ -96,6 +100,42 @@ pub trait ConnectionFigureBehavior {
 
     /// Returns the stroke color inherited by endpoint decorations.
     fn connection_stroke_color(&self) -> Color;
+
+    /// Returns the committed dash offset.
+    fn connection_dash_offset(&self) -> f64 {
+        0.0
+    }
+
+    /// Returns the effective dash period, or zero for a solid stroke.
+    fn connection_dash_period(&self) -> f64 {
+        0.0
+    }
+
+    /// Returns whether this Figure can paint a presentation-only route override.
+    fn supports_route_presentation(&self) -> bool {
+        false
+    }
+
+    /// Paints a presentation-only route override.
+    ///
+    /// Custom Connection Figures return `false` until they implement this optional channel.
+    fn paint_route_presentation(
+        &self,
+        _gc: &mut NdCanvas,
+        _points: &PointList,
+        _dash_offset: Option<f64>,
+    ) -> bool {
+        false
+    }
+
+    /// Captures an immutable route visual for incompatible-topology crossfades.
+    fn capture_route_presentation(
+        &self,
+        _points: &PointList,
+        _bounds: Rectangle,
+    ) -> Option<FigurePresentation> {
+        None
+    }
 }
 
 /// Polyline-backed Figure whose geometry is committed only by Runtime.
@@ -168,8 +208,12 @@ impl ConnectionFigure {
     }
 
     fn painted_points(&self) -> Vec<Point> {
+        self.painted_points_for(&self.points)
+    }
+
+    fn painted_points_for(&self, points: &PointList) -> Vec<Point> {
         trim_polyline(
-            self.points.as_slice(),
+            points.as_slice(),
             self.source_decoration_inset,
             self.target_decoration_inset,
         )
@@ -198,6 +242,66 @@ impl ConnectionFigureBehavior for ConnectionFigure {
 
     fn connection_stroke_color(&self) -> Color {
         self.stroke_color
+    }
+
+    fn connection_dash_offset(&self) -> f64 {
+        self.stroke.dash_offset()
+    }
+
+    fn connection_dash_period(&self) -> f64 {
+        self.stroke.dash_lengths().iter().sum()
+    }
+
+    fn supports_route_presentation(&self) -> bool {
+        true
+    }
+
+    fn paint_route_presentation(
+        &self,
+        gc: &mut NdCanvas,
+        points: &PointList,
+        dash_offset: Option<f64>,
+    ) -> bool {
+        if points.len() >= 2 && self.stroke.width() > 0.0 {
+            let stroke = dash_offset
+                .and_then(|offset| self.stroke.with_dash_offset(offset).ok())
+                .unwrap_or_else(|| self.stroke.clone());
+            gc.polyline_with_style(&self.painted_points_for(points), self.stroke_color, stroke);
+        }
+        true
+    }
+
+    fn capture_route_presentation(
+        &self,
+        points: &PointList,
+        bounds: Rectangle,
+    ) -> Option<FigurePresentation> {
+        FigurePresentation::new(
+            FigureMeasurement::new(bounds.width, bounds.height, None),
+            Dimension::new(bounds.width, bounds.height),
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            Arc::new(ConnectionRouteDrawing {
+                points: self.painted_points_for(points),
+                color: self.stroke_color,
+                stroke: self.stroke.clone(),
+            }),
+        )
+        .ok()
+    }
+}
+
+struct ConnectionRouteDrawing {
+    points: Vec<Point>,
+    color: Color,
+    stroke: StrokeStyle,
+}
+
+impl FigureDrawing for ConnectionRouteDrawing {
+    fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        context
+            .canvas
+            .polyline_with_style(&self.points, self.color, self.stroke.clone());
+        Ok(())
     }
 }
 

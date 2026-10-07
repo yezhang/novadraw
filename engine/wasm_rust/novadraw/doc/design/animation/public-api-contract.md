@@ -48,6 +48,31 @@ let outcome = animations.start(plan)?;
 
 Core 不提供第二套 `tick_animation` 或 backend timer。
 
+## 2.1 Behavior 与 Trigger
+
+隐式策略使用 Runtime-owned Behavior，不把 Trigger 塞入 `AnimationPlan`：
+
+```rust,ignore
+let behavior = AnimationBehavior::new(
+    AnimationTrigger::PropertyChanged("selected"),
+    move |context| Ok(build_selection_plan(context)?),
+)
+.scoped_to(figure)
+.with_reduced_motion(move |context| Ok(build_selection_fade(context)?));
+
+let behavior_id = runtime.animations().install_behavior(behavior)?;
+runtime.animations().remove_behavior(behavior_id)?;
+```
+
+- Behavior = Scope + Trigger + PlanFactory + optional reduced-motion factory；
+- factory 只读取同一 stable epoch 的 committed facts 与 `StableSceneQuery`；
+- source transaction 稳定后、presentation snapshot 冻结前执行 factory；
+- 显式 `start/transition/retarget` 不创建 `ExplicitTrigger`；
+- 未安装 Behavior 时普通 mutation 仍是纯静态行为。
+
+完整匹配、coalescing、cursor、dispose 与错误合同见
+[Animation Behavior / Trigger 合同](behavior-trigger-contract.md)。
+
 ## 3. 身份、状态与启动结果
 
 候选公开类型：
