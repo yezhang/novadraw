@@ -134,6 +134,7 @@ impl DemoApp {
                 runtime.pointer_exited();
             }
             self.sync_platform_effects();
+            self.clock_origin = Instant::now();
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
             let mut runtime = creator();
@@ -153,6 +154,11 @@ impl DemoApp {
                 host.request_redraw();
             }
         }
+    }
+
+    /// Rebuilds the current scene and resets its Runtime clock.
+    pub fn replay_current_scene(&mut self) {
+        self.switch_scene(self.current_scene_idx);
     }
 
     /// 获取当前场景名称
@@ -667,6 +673,11 @@ impl ApplicationHandler<()> for DemoApp {
                             error!("截图失败: {}", e);
                         }
                     }
+                    PhysicalKey::Code(KeyCode::KeyR) => {
+                        let scene_name = self.current_scene_name().unwrap_or("unknown");
+                        info!("重播场景: {}", scene_name);
+                        self.replay_current_scene();
+                    }
                     // 左右方向键 / PageUp/PageDown 循环切换场景
                     PhysicalKey::Code(KeyCode::ArrowLeft) | PhysicalKey::Code(KeyCode::PageUp) => {
                         // 切换到上一个场景（循环）
@@ -1083,6 +1094,7 @@ fn run_runtime_demo_app_with_options(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[test]
     fn initial_frame_remains_pending_until_presentation_succeeds() {
@@ -1319,5 +1331,36 @@ mod tests {
             gate.accept(second.session_id, &second.resources),
             BackendSessionDecision::Replace
         );
+    }
+
+    #[test]
+    fn replay_rebuilds_the_current_runtime_and_resets_its_clock() {
+        let rebuilds = Arc::new(AtomicUsize::new(0));
+        let factory_rebuilds = Arc::clone(&rebuilds);
+        let mut app = DemoApp::new(
+            "test",
+            vec![(
+                "animated",
+                Box::new(move || {
+                    factory_rebuilds.fetch_add(1, Ordering::SeqCst);
+                    Runtime::empty()
+                }),
+            )],
+            100.0,
+            100.0,
+            "test",
+            None,
+        );
+        app.switch_scene(0);
+        let first_root = app.runtime.as_ref().unwrap().tree().root_id();
+        app.clock_origin = Instant::now() - Duration::from_secs(10);
+
+        app.replay_current_scene();
+
+        let second_root = app.runtime.as_ref().unwrap().tree().root_id();
+        assert_eq!(rebuilds.load(Ordering::SeqCst), 2);
+        assert_ne!(first_root, second_root);
+        assert!(app.clock_origin.elapsed() < Duration::from_secs(1));
+        assert!(!app.initial_frame_presented);
     }
 }

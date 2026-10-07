@@ -496,7 +496,7 @@ program = "cargo"
 args = ["run", "-p", "advanced-figures-app"]
 
 [commands."verify.animation-example"]
-description = "Verify animation orthogonality, triggers, transactions, domain channels, and cleanup"
+description = "Verify animation orthogonality, motion families, composition grammar, Runtime consumers, and cleanup"
 program = "cargo"
 args = [
   "run",
@@ -1170,7 +1170,7 @@ artifacts = ["target/verification/reports/uml-demo.json"]
 
 [[suites]]
 id = "example.animation-orthogonality"
-title = "Animation orthogonality and complete Runtime mechanism integration"
+title = "Animation orthogonality, choreography, Runtime control, and domain integration"
 milestone = "P2-M01"
 kind = "application"
 api_semantics = [

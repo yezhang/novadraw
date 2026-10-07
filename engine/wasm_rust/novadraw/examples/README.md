@@ -34,7 +34,7 @@
 | Native | `update-app` | 更新生命周期与通知 | `cargo run -p update-app` |
 | Native | `connections-demo` | Anchor、Router 与 Connection | `cargo run -p connections-demo` |
 | Native | `advanced-figures-app` | 连接装饰与路由、可缩放多边形、TextFlow | `cargo run -p advanced-figures-app` |
-| Native | `animation-app` | 正交模型、Trigger、布局/视口/路由与持续效果 | `cargo run -p animation-app` |
+| Native | `animation-app` | 正交模型、Motion/Composition、Trigger、运行期控制与领域动画 | `cargo run -p animation-app` |
 | Native | `uml-demo` | 可拖拽复合 Figure、嵌套布局与 UML 关系自动重路由 | `cargo run -p uml-demo` |
 | Native | `node-editor-demo` | Editor 交互与命令历史 | `cargo run -p node-editor-demo` |
 | Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
@@ -51,6 +51,7 @@ crate。
 Native 示例通过 `novadraw-example-support` 获得统一操作：
 
 - 左右方向键、`PageUp`、`PageDown`、`Home`、`End` 或数字键切换场景；
+- `R` 重建并重播当前场景；
 - `S` 保存当前帧截图；
 - `U` 切换 UpdateManager 诊断开关；
 - `Esc` 退出。
@@ -78,7 +79,7 @@ cargo xtask verify example.uml-extension
 ```
 
 动画正交模型、Trigger、layout/viewport/route transition、continuous dash、pulse、
-source/presentation 分离和 temporary visual 生命周期可通过固定时间采样验证：
+source/presentation 分离、运行期 interruption/suspension 和 temporary visual 生命周期可通过固定时间采样验证：
 
 ```sh
 cargo xtask verify example.animation-orthogonality
