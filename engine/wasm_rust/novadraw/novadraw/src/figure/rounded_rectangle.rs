@@ -37,6 +37,29 @@ pub struct RoundedRectangleFigure {
 }
 
 impl RoundedRectangleFigure {
+    fn paint_geometry(&self) -> Option<(Rectangle, Dimension)> {
+        let line_inset = if self.outline_enabled() {
+            (1.0_f64).max(self.stroke_width) / 2.0
+        } else {
+            0.0
+        };
+        let bounds = Rectangle::new(
+            line_inset,
+            line_inset,
+            self.bounds.width - line_inset * 2.0,
+            self.bounds.height - line_inset * 2.0,
+        );
+        if bounds.width <= 0.0 || bounds.height <= 0.0 {
+            return None;
+        }
+
+        let corner_dimensions = Dimension::new(
+            (self.corner_dimensions.width - line_inset).max(0.0),
+            (self.corner_dimensions.height - line_inset).max(0.0),
+        );
+        Some((bounds, corner_dimensions))
+    }
+
     /// 创建圆角矩形
     ///
     /// `corner_radius` 为圆角半径，如果为 0 则退化为普通矩形
@@ -286,39 +309,27 @@ impl Shape for RoundedRectangleFigure {
     }
 
     fn fill_shape(&self, gc: &mut NdCanvas) {
+        let Some((bounds, corner_dimensions)) = self.paint_geometry() else {
+            return;
+        };
         let mut local = self.clone();
-        local.bounds.x = 0.0;
-        local.bounds.y = 0.0;
+        local.bounds = bounds;
+        local.corner_dimensions = corner_dimensions;
         local.draw_rounded_rect(gc, Some(self.fill_color), None);
     }
 
     fn outline_shape(&self, gc: &mut NdCanvas) {
         if let Some(color) = self.stroke_color {
-            // 参考 draw2d RectangleFigure.outlineShape:
-            // 描边向内缩，使描边完全在 bounds 内部
-            let line_inset = (1.0_f64).max(self.stroke_width) / 2.0;
-
-            // 向内缩 bounds
-            let x = line_inset;
-            let y = line_inset;
-            let width = self.bounds.width - line_inset * 2.0;
-            let height = self.bounds.height - line_inset * 2.0;
-            let corner_dimensions = Dimension::new(
-                (self.corner_dimensions.width - line_inset).max(0.0),
-                (self.corner_dimensions.height - line_inset).max(0.0),
-            );
-
-            if width <= 0.0 || height <= 0.0 {
+            let Some((bounds, corner_dimensions)) = self.paint_geometry() else {
                 return;
-            }
+            };
 
-            // 创建临时圆角矩形进行描边
             let temp_rect = RoundedRectangleFigure {
-                bounds: Rectangle::new(x, y, width, height),
+                bounds,
                 corner_dimensions,
                 fill_color: Color::TRANSPARENT,
                 stroke_color: Some(color),
-                stroke_width: self.stroke_width, // 使用原始描边宽度
+                stroke_width: self.stroke_width,
                 line_cap: self.line_cap,
                 line_join: self.line_join,
                 child_clipping_strategy: self.child_clipping_strategy,

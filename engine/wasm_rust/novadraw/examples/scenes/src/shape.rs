@@ -156,7 +156,13 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
 fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::RectangleFigure::new_with_color(
+        0.0,
+        0.0,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        novadraw::Color::from_hex("#202124").expect("valid color literal"),
+    );
     let container_id = scene.builder().set_contents(Box::new(container));
 
     // 不同圆角半径的矩形
@@ -193,7 +199,7 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
         100.0,
         80.0,
         30.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::Color::RED,
     )
     .with_stroke(novadraw::Color::WHITE, 2.0);
 

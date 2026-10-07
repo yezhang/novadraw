@@ -76,6 +76,76 @@ fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
 }
 
 #[test]
+fn rounded_rectangle_fill_and_outline_share_optimized_path() {
+    for stroke_width in [1.0_f64, 2.0, 4.0, 8.0] {
+        let rounded =
+            RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED)
+                .with_stroke(Color::WHITE, stroke_width);
+        let mut canvas = NdCanvas::new();
+        canvas.fill_style(Color::RED);
+        canvas.stroke_style(Color::WHITE);
+
+        rounded.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 100.0, 80.0));
+
+        let fill_path = canvas
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::FillPath { path, .. } => Some(path),
+                _ => None,
+            })
+            .expect("rounded rectangle fill path");
+        let (stroke_path, actual_stroke_width) = canvas
+            .commands()
+            .iter()
+            .find_map(|command| match &command.kind {
+                RenderCommandKind::StrokePath { path, stroke, .. } => Some((path, stroke.width())),
+                _ => None,
+            })
+            .expect("rounded rectangle stroke path");
+        let inset = stroke_width.max(1.0) / 2.0;
+
+        assert_eq!(fill_path, stroke_path);
+        assert_eq!(
+            fill_path.bounding_box(),
+            Some(Rectangle::new(
+                inset,
+                inset,
+                100.0 - inset * 2.0,
+                80.0 - inset * 2.0,
+            ))
+        );
+        assert_eq!(actual_stroke_width, stroke_width);
+    }
+}
+
+#[test]
+fn rounded_rectangle_fill_without_outline_uses_full_bounds() {
+    let rounded = RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED);
+    let mut canvas = NdCanvas::new();
+    canvas.fill_style(Color::RED);
+
+    rounded.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 100.0, 80.0));
+
+    let fill_bounds = canvas
+        .commands()
+        .iter()
+        .find_map(|command| match &command.kind {
+            RenderCommandKind::FillPath { path, .. } => path.bounding_box(),
+            _ => None,
+        })
+        .expect("rounded rectangle fill path");
+
+    assert_eq!(fill_bounds, Rectangle::new(0.0, 0.0, 100.0, 80.0));
+    assert!(
+        canvas
+            .commands()
+            .iter()
+            .all(|command| !matches!(command.kind, RenderCommandKind::StrokePath { .. }))
+    );
+}
+
+#[test]
 fn rounded_rectangle_precise_hit_rejects_clipped_corner() {
     let rounded = RoundedRectangleFigure::new(0.0, 0.0, 100.0, 60.0, 20.0);
     let bounds = Rectangle::new(0.0, 0.0, 100.0, 60.0);
