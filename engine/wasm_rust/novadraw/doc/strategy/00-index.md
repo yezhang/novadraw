@@ -14,6 +14,7 @@
 | [commercial-value-analysis.md](commercial-value-analysis.md) | Draw2D / GEF 与 Rust 生态的商业价值分析 |
 | [ai-era-relationship-editor-research.md](ai-era-relationship-editor-research.md) | AI 协作关系编辑器的外部调研、差异化与验证假设 |
 | [ai-graphical-editor-generator.md](ai-graphical-editor-generator.md) | AI 动态生成领域图形编辑器的产品设计、价值边界与验证方案 |
+| [brand-naming-research.md](brand-naming-research.md) | 品牌命名问题、Weft / Heddle 候选分析与后续筛选方法 |
 
 ## 使用原则
 
