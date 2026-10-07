@@ -200,6 +200,8 @@ args = [
   "--test",
   "p2_animation_contract",
   "--test",
+  "p2_animation_behavior_contract",
+  "--test",
   "p2_animation_transition_contract",
 ]
 
@@ -492,6 +494,30 @@ args = ["run", "-p", "node-editor-demo"]
 description = "Open the Native advanced Figure and routing example"
 program = "cargo"
 args = ["run", "-p", "advanced-figures-app"]
+
+[commands."verify.animation-example"]
+description = "Verify animation orthogonality, triggers, transactions, domain channels, and cleanup"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "animation-app",
+  "--",
+  "--verify",
+  "--report=target/verification/reports/animation-app.json",
+]
+
+[commands."verify.uml-example"]
+description = "Build the complex UML example and verify compound Figures, layout, routes, and rendering"
+program = "cargo"
+args = [
+  "run",
+  "-p",
+  "uml-demo",
+  "--",
+  "--verify",
+  "--report=target/verification/reports/uml-demo.json",
+]
 
 [commands."build.native-macos-release"]
 description = "Compile the representative Native release application for macOS"
@@ -1107,6 +1133,70 @@ documents = [
 ]
 
 [[suites]]
+id = "example.uml-extension"
+title = "Complex UML compound-Figure and connection extension probe"
+milestone = "Capability Probe"
+kind = "contract"
+api_semantics = [
+  "figure.tree",
+  "figure.properties",
+  "paint.protocol",
+  "layout.manager",
+  "event.dispatcher",
+  "damage.repaint",
+  "notification.figure",
+  "connection.figure",
+  "connection.anchor",
+  "connection.router",
+  "connection.locator",
+  "builtin.figures",
+]
+layers = ["contract", "headless", "visual", "platform"]
+platforms = ["host", "headless", "native-macos"]
+commands = ["verify.uml-example"]
+paths = [
+  "examples/scenes/src/uml.rs",
+  "examples/scenes/src/lib.rs",
+  "examples/native/uml-demo/**",
+  "novadraw/src/runtime/context.rs",
+  "novadraw/src/runtime/mutation/**",
+  "novadraw/src/runtime/runtime.rs",
+]
+documents = [
+  "examples/native/uml-demo/README.md",
+  "doc/verification/reviews/uml-extension-capability-2026-10-05.md",
+]
+artifacts = ["target/verification/reports/uml-demo.json"]
+
+[[suites]]
+id = "example.animation-orthogonality"
+title = "Animation orthogonality and complete Runtime mechanism integration"
+milestone = "P2-M01"
+kind = "application"
+api_semantics = [
+  "animation.timeline",
+  "animation.presentation",
+  "frame.preparation",
+  "damage.repaint",
+]
+layers = ["contract", "headless", "visual", "platform"]
+platforms = ["host", "headless", "native-macos"]
+commands = ["verify.animation-example"]
+paths = [
+  "examples/scenes/src/animation.rs",
+  "examples/scenes/src/lib.rs",
+  "examples/native/animation-app/**",
+  "novadraw/src/animation/**",
+  "novadraw/src/connection/figure.rs",
+]
+documents = [
+  "examples/native/animation-app/README.md",
+  "doc/adr/adr-026-animation-and-presentation-plane.md",
+  "doc/design/animation/animation-system.md",
+]
+artifacts = ["target/verification/reports/animation-app.json"]
+
+[[suites]]
 id = "core.p2-g01-graphics"
 title = "Graphics paint, stroke, path clipping and capability contracts"
 milestone = "P2-G01"
@@ -1175,6 +1265,7 @@ platforms = ["host", "headless"]
 commands = ["test.p2-m01-animation"]
 paths = [
   "novadraw/src/animation/**",
+  "novadraw/src/connection/figure.rs",
   "novadraw/src/graph/presentation.rs",
   "novadraw/src/graph/query.rs",
   "novadraw/src/graph/render_recursive.rs",
@@ -1183,12 +1274,14 @@ paths = [
   "novadraw/src/runtime/runtime/frame_submission.rs",
   "novadraw/src/runtime/update/deferred.rs",
   "novadraw/tests/p2_animation_contract.rs",
+  "novadraw/tests/p2_animation_behavior_contract.rs",
   "novadraw/tests/p2_animation_transition_contract.rs",
 ]
 documents = [
   "doc/adr/adr-026-animation-and-presentation-plane.md",
   "doc/design/animation/animation-system.md",
   "doc/design/animation/public-api-contract.md",
+  "doc/design/animation/behavior-trigger-contract.md",
   "doc/design/animation/capability-integration.md",
   "doc/roadmap/p2-delta-backlog.md",
   "doc/verification/reviews/p2-m01a-animation-evidence.md",

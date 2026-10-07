@@ -34,6 +34,8 @@
 | Native | `update-app` | 更新生命周期与通知 | `cargo run -p update-app` |
 | Native | `connections-demo` | Anchor、Router 与 Connection | `cargo run -p connections-demo` |
 | Native | `advanced-figures-app` | 连接装饰与路由、可缩放多边形、TextFlow | `cargo run -p advanced-figures-app` |
+| Native | `animation-app` | 正交模型、Trigger、布局/视口/路由与持续效果 | `cargo run -p animation-app` |
+| Native | `uml-demo` | 可拖拽复合 Figure、嵌套布局与 UML 关系自动重路由 | `cargo run -p uml-demo` |
 | Native | `node-editor-demo` | Editor 交互与命令历史 | `cargo run -p node-editor-demo` |
 | Native | `ndcanvas-app` | NdCanvas 绘图 API | `cargo run -p ndcanvas-app` |
 | Native | `vello-app` | Vello 原始 API | `cargo run -p vello-app` |
@@ -67,6 +69,19 @@ cargo xtask verify g5.2
 cargo xtask verify g5.3
 cargo xtask verify g5.4
 cargo xtask verify g5.5
+```
+
+UML 扩展样例的结构、路由和渲染投影可通过 Headless probe 验证：
+
+```sh
+cargo xtask verify example.uml-extension
+```
+
+动画正交模型、Trigger、layout/viewport/route transition、continuous dash、pulse、
+source/presentation 分离和 temporary visual 生命周期可通过固定时间采样验证：
+
+```sh
+cargo xtask verify example.animation-orthogonality
 ```
 
 完整工作区门禁：

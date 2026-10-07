@@ -28,6 +28,8 @@ members = [
   "examples/native/scroll-pane-demo",
   "examples/native/connections-demo",
   "examples/native/advanced-figures-app",
+  "examples/native/animation-app",
+  "examples/native/uml-demo",
   "examples/web/web-validation",
   "benchmarks/r8-perf",
   "benchmarks/native-vello-perf",

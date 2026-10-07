@@ -3,6 +3,7 @@
 use novadraw::{FigureTree, Runtime};
 
 pub mod advanced_figures;
+pub mod animation;
 pub mod border;
 pub mod clip;
 pub mod connection;
@@ -17,6 +18,7 @@ pub mod shape;
 pub mod style;
 pub mod text;
 pub mod transform;
+pub mod uml;
 pub mod update;
 pub mod viewport;
 pub mod widget;
@@ -137,6 +139,8 @@ pub fn catalog() -> Vec<DemoSuite> {
         text::suite(),
         widget::suite(),
         advanced_figures::suite(),
+        animation::suite(),
+        uml::suite(),
     ]
 }
 

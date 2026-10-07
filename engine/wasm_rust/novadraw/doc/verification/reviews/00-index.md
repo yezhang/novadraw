@@ -36,11 +36,13 @@
 | 2026-10-01 | [GA-4 模块与扩展表面](ga4-module-extension-completion-2026-10-01.md) |
 | 2026-10-01 | [GA-5 文档与门禁](ga5-documentation-gate-completion-2026-10-01.md) |
 | 2026-10-01 | [GA-6 目标矩阵审计](ga6-goal-matrix-audit-2026-10-01.md) |
+| 2026-10-05 | [UML 复杂样例扩展能力](uml-extension-capability-2026-10-05.md) |
 | 2026-10-05 | [P2-G02 统一文字与 Graphics](p2-g02-text-graphics-evidence.md) |
 | 2026-10-06 | [P2-M01 Animation 架构评审](p2-m01-animation-architecture-review.md) |
 | 2026-10-06 | [P2-M01A Clock / Timeline 实现](p2-m01a-animation-evidence.md) |
 | 2026-10-06 | [P2-M01B Presentation / Damage 实现](p2-m01b-animation-presentation-evidence.md) |
 | 2026-10-07 | [P2-M01C 领域消费者实现](p2-m01c-animation-consumer-evidence.md) |
+| 2026-10-07 | [框架公共 API 命名、语义与职责复审](framework-public-api-follow-up-audit-2026-10-07.md) |
 | 2026-10-06 | [公共 API 统一迁移](public-api-unification-completion-2026-10-06.md) |
 
 ## 平台与产品验收
