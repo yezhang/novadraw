@@ -517,7 +517,7 @@ fn connection_dash_flow_uses_continuous_procedural_phase() {
         .unwrap();
 
     runtime.advance_time(time(100)).unwrap();
-    assert!((runtime.animations().value(phase).unwrap() - 0.1).abs() < 1e-9);
+    assert!((runtime.animations().value(phase).unwrap() + 0.1).abs() < 1e-9);
     assert_eq!(
         runtime.animations().state(animation).unwrap(),
         AnimationState::Running

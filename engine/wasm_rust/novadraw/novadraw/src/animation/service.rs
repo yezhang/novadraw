@@ -1603,7 +1603,9 @@ impl AnimationMut<'_> {
         Ok(AnimationChannel::new(channel))
     }
 
-    /// Starts a continuous source-to-target dash flow in logical units per second.
+    /// Starts a continuous dash flow in logical units per second.
+    ///
+    /// Positive speed moves the visible pattern from source to target; negative speed reverses it.
     pub fn start_connection_dash_flow(
         &mut self,
         figure: FigureId,
@@ -1626,7 +1628,8 @@ impl AnimationMut<'_> {
         let start = self.value(channel)?;
         let duration = Duration::try_from_secs_f64(period / speed.abs())
             .map_err(|_| AnimationError::InvalidDuration)?;
-        let end = start + period.copysign(speed);
+        // Increasing a stroke dash offset moves the visible pattern against route order.
+        let end = start - period.copysign(speed);
         let plan = AnimationPlan::track(
             channel,
             Motion::Procedural(Procedural::continuous(start, end, duration)?),
