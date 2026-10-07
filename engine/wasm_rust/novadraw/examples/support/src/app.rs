@@ -295,6 +295,21 @@ impl DemoApp {
         }
     }
 
+    fn handle_window_focus(&mut self, focused: bool) {
+        if focused {
+            // Platforms may discard or coalesce redraw requests while a window is unfocused.
+            // Re-establish a complete frame so time-driven scenes resume without further input.
+            self.request_surface_redraw();
+            return;
+        }
+        self.gesture_adapter.cancel_all();
+        self.dispatch_input(|runtime| {
+            runtime.cancel_gestures();
+            runtime.pointer_exited();
+            runtime.release_focus();
+        });
+    }
+
     fn sync_logical_viewport(&mut self) {
         let Some(surface) = self.host.as_ref().map(PlatformHost::surface_info) else {
             return;
@@ -606,14 +621,7 @@ impl ApplicationHandler<()> for DemoApp {
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = adapt_modifiers(modifiers.state());
             }
-            WindowEvent::Focused(false) => {
-                self.gesture_adapter.cancel_all();
-                self.dispatch_input(|runtime| {
-                    runtime.cancel_gestures();
-                    runtime.pointer_exited();
-                    runtime.release_focus();
-                });
-            }
+            WindowEvent::Focused(focused) => self.handle_window_focus(focused),
             WindowEvent::KeyboardInput { event, .. } => {
                 let pressed = event.state == winit::event::ElementState::Pressed;
                 if adapt_physical_key(event.physical_key) == Some(Key::Tab) {
@@ -1177,6 +1185,44 @@ mod tests {
         assert!(!runtime.has_pending_update());
 
         app.request_surface_redraw();
+
+        assert!(app.runtime.as_ref().unwrap().has_pending_update());
+    }
+
+    #[test]
+    fn regained_window_focus_requests_a_full_runtime_frame() {
+        let mut app = DemoApp::new(
+            "test",
+            vec![("empty", Box::new(Runtime::empty))],
+            800.0,
+            600.0,
+            "test",
+            None,
+        );
+        app.switch_scene(0);
+
+        let runtime = app.runtime.as_mut().unwrap();
+        let submission = runtime
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: 800.0,
+                    logical_height: 600.0,
+                    pixel_width: 800,
+                    pixel_height: 600,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .into_ready()
+            .unwrap();
+        assert!(runtime.complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            RenderOutcome::Presented
+        ));
+        assert!(!runtime.has_pending_update());
+
+        app.handle_window_focus(true);
 
         assert!(app.runtime.as_ref().unwrap().has_pending_update());
     }

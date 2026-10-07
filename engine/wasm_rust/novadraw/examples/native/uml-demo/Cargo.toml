@@ -1,0 +1,10 @@
+[package]
+name = "uml-demo"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+novadraw = { path = "../../../novadraw" }
+novadraw-example-scenes = { path = "../../scenes" }
+novadraw-example-support = { path = "../../support" }

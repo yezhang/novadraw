@@ -139,6 +139,12 @@ OverflowVisible
 
 该模型保留 callback 因果顺序，同时避免 Figure callback 重入树 mutation。
 
+2026-10-05 补充：`EventContext::set_bounds_later` 将 parent-content-domain bounds
+排入同一 FIFO，提交时复用 `FigureMut::set_bounds` 的 attached/finite/non-negative
+校验、old/new damage、Figure moved 通知和 Connection dependency 失效语义。该入口用于
+pointer capture 下的轻量 Figure 直接操纵；需要 Command/undo、policy 或 selection 的
+编辑仍属于 Editor framework。
+
 ### 7. 清理误导性的 paint hook
 
 删除公开但不参与真实 traversal 的 `Figure::paint_children` no-op。child traversal

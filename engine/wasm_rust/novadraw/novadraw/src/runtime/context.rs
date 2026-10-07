@@ -285,6 +285,12 @@ impl<'a> EventContext<'a> {
         MutationContext::set_size_override_later(self, figure, SizeOverrideKind::Maximum, None);
     }
 
+    /// Enqueues a parent-content-domain bounds replacement after the callback releases its
+    /// immutable Figure borrow.
+    pub fn set_bounds_later(&mut self, figure: FigureId, bounds: Rectangle) {
+        MutationContext::set_bounds_later(self, figure, bounds);
+    }
+
     pub fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
         MutationContext::move_child_to_index_later(self, parent, child, index);
     }

@@ -350,6 +350,10 @@ pub(crate) enum PendingMutationKind {
         kind: SizeOverrideKind,
         size: Option<Dimension>,
     },
+    SetBounds {
+        figure: FigureId,
+        bounds: crate::Rectangle,
+    },
     MoveChildToIndex {
         parent: FigureId,
         child: FigureId,
@@ -441,6 +445,12 @@ impl PendingMutation {
     ) -> Self {
         Self {
             kind: PendingMutationKind::SetSizeOverride { figure, kind, size },
+        }
+    }
+
+    pub(crate) fn set_bounds(figure: FigureId, bounds: crate::Rectangle) -> Self {
+        Self {
+            kind: PendingMutationKind::SetBounds { figure, bounds },
         }
     }
 
@@ -605,6 +615,10 @@ pub(crate) trait MutationContext {
         size: Option<Dimension>,
     ) {
         self.enqueue_mutation(PendingMutation::set_size_override(figure, kind, size));
+    }
+
+    fn set_bounds_later(&mut self, figure: FigureId, bounds: crate::Rectangle) {
+        self.enqueue_mutation(PendingMutation::set_bounds(figure, bounds));
     }
 
     fn move_child_to_index_later(&mut self, parent: FigureId, child: FigureId, index: usize) {
