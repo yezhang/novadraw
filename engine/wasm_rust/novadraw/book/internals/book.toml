@@ -1,16 +1,16 @@
 [book]
-title = "Novadraw 应用开发与扩展指南"
+title = "深入理解 Novadraw"
 authors = ["Novadraw Contributors"]
 language = "zh-CN"
 src = "src"
 
 [build]
-build-dir = "../target/book/user"
+build-dir = "../../target/book/internals"
 create-missing = false
 
 [output.html]
-additional-css = ["theme/book.css"]
-additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["../theme/book.css"]
+additional-js = ["../mermaid.min.js", "../mermaid-init.js"]
 
 [output.html.print]
 enable = true
