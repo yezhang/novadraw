@@ -11,28 +11,6 @@ a port of eclipse draw2d
 由于 GEF 框架最新版 GEF5，主要目的平台是 JavaFX，无法方便应用于Web技术上。
 因此，本项目采用 [GEF-legacy](https://github.com/eclipse/gef-legacy) 项目的代码框架。
 
-技术点：第三方如何扩展该库？使用 JS 编写 Figure，扩展 C++ 编写的库？
-
-## 路线图（RoadMap）
-
-1. [x]梳理 draw2d 的 Java 类继承关系（直接使用 EA 生成类图即可）  
-   1.1 [x] 绘制 IFigure 类图  
-    1.1.1 [x] 绘制 Figure 类图（Implement）  
-   1.2 [x] 绘制 EventDispatcher 类图  
-    1.2.1 [x] SWTEventDispatcher 类图（Implement）  
-   1.3 [x] 绘制 UpdateManager 类图  
-    1.3.1 [x] DeferredUpdateManager 类图（Implement）  
-   1.4 [x] 绘制 LightweightSystem 类图  
-    1.4.1 [x] 绘制 EventHandler 类图，从画布（Canvas）中捕获所有事件，并派发到 EventDispatcher  
-   1.5 [x] 绘制 GraphicsSource 类图  
-    1.5.1 [x] 绘制 BufferedGraphicsSource 类图（Implement）  
-   1.6 [x] 绘制 Graphics 类图  
-    1.6.1 [x] 绘制 SWTGraphics 类图（Implement）
-2. [ ]选择核心类范围
-3. [ ]使用 C++ 实现核心类
-4. [ ]建立 C++ 与 `<canvas/>` 通信机制，
-5. [ ]验证核心类在 `<canvas/>` 标签的可用性。
-6. [x]HTML Canvas 中支持的 Events 清单
 
 ## 设计
 
