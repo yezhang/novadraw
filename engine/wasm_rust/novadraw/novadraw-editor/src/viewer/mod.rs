@@ -22,7 +22,7 @@ use novadraw::{
     LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy, RectangleFigure,
     RouterBinding, RouterId, Runtime, RuntimeMutationError, ScalableFreeformLayeredPane,
     SelectionQuad, StackLayout, TextFlowFigure, TextFlowViewport, TextMovement, TimeError,
-    ViewportHandle, XYAnchor, ZoomManager,
+    ViewportHandle, XYAnchor, ZoomError, ZoomManager, ZoomScrollPolicy,
 };
 
 use crate::{
@@ -314,6 +314,8 @@ pub enum ViewerError {
     PartTree(PartTreeError),
     /// Figure Runtime mutation failed.
     Runtime(RuntimeMutationError),
+    /// Zoom policy or level configuration failed.
+    Zoom(ZoomError),
     /// Runtime derived state could not converge for an Editor query.
     RuntimePreparation(FramePreparationError),
     /// Host-provided monotonic time violated Runtime timing constraints.
@@ -397,6 +399,7 @@ impl fmt::Display for ViewerError {
             Self::EditPart(error) => error.fmt(formatter),
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
+            Self::Zoom(error) => error.fmt(formatter),
             Self::RuntimePreparation(error) => error.fmt(formatter),
             Self::RuntimeTime(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
@@ -415,6 +418,7 @@ impl Error for ViewerError {
             Self::EditPart(error) => Some(error),
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
+            Self::Zoom(error) => Some(error),
             Self::RuntimePreparation(error) => Some(error),
             Self::RuntimeTime(error) => Some(error),
             Self::Connection(error) => Some(error),
@@ -441,6 +445,12 @@ impl From<PartTreeError> for ViewerError {
 impl From<RuntimeMutationError> for ViewerError {
     fn from(value: RuntimeMutationError) -> Self {
         Self::Runtime(value)
+    }
+}
+
+impl From<ZoomError> for ViewerError {
+    fn from(value: ZoomError) -> Self {
+        Self::Zoom(value)
     }
 }
 
@@ -757,6 +767,7 @@ where
     factory: F,
     runtime: Runtime,
     root_layers: RootLayers,
+    zoom_manager: ZoomManager,
     parts: PartTree<A::ModelId>,
     behaviors: BehaviorStore<A>,
     policies: PolicyStore<A>,
@@ -795,6 +806,16 @@ where
             });
         }
         let (mut runtime, root_layers) = create_root_layers(bounds)?;
+        let scalable = runtime
+            .tree()
+            .scale_handle(root_layers.scalable())
+            .ok_or(ViewerError::InconsistentState)?;
+        let viewport = runtime
+            .tree()
+            .viewport_handle(root_layers.viewport())
+            .ok_or(ViewerError::InconsistentState)?;
+        let mut zoom_manager = ZoomManager::new(scalable, viewport);
+        zoom_manager.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
         let mut connection_routers = HashMap::new();
         for registration in factory.connection_routers()? {
             let (key, router) = registration.into_parts();
@@ -812,6 +833,7 @@ where
             factory,
             runtime,
             root_layers,
+            zoom_manager,
             parts,
             behaviors: BehaviorStore::new(namespace),
             policies: PolicyStore::new(namespace),
@@ -876,6 +898,28 @@ where
     /// Returns the standard root layer identities.
     pub const fn root_layers(&self) -> RootLayers {
         self.root_layers
+    }
+
+    /// Returns the Viewer-owned zoom controller.
+    pub const fn zoom_manager(&self) -> &ZoomManager {
+        &self.zoom_manager
+    }
+
+    /// Replaces the discrete zoom levels retained by this Viewer.
+    pub fn set_zoom_levels(&mut self, levels: Vec<f64>) -> Result<(), ViewerError> {
+        self.ensure_ready()?;
+        self.zoom_manager.set_zoom_levels(levels)?;
+        Ok(())
+    }
+
+    /// Replaces the scroll compensation policy retained by this Viewer.
+    pub fn set_zoom_scroll_policy(
+        &mut self,
+        policy: Arc<dyn ZoomScrollPolicy>,
+    ) -> Result<(), ViewerError> {
+        self.ensure_ready()?;
+        self.zoom_manager.set_scroll_policy(policy);
+        Ok(())
     }
 
     /// Returns mutable Runtime access for rendering and platform integration.
@@ -1006,12 +1050,6 @@ where
         scale: f64,
         anchor: Option<Point>,
     ) -> Result<bool, ViewerError> {
-        let viewport = self.viewport_handle()?;
-        let scalable = self
-            .runtime
-            .tree()
-            .scale_handle(self.root_layers.scalable())
-            .ok_or(ViewerError::InconsistentState)?;
         let anchor = anchor
             .map(|point| {
                 self.runtime
@@ -1021,11 +1059,10 @@ where
                     .ok_or(ViewerError::InconsistentState)
             })
             .transpose()?;
-        let mut zoom = ZoomManager::new(scalable, viewport);
-        if anchor.is_some() {
-            zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
-        }
-        Ok(self.runtime.zoom(&zoom)?.set_zoom_at(scale, anchor)?)
+        Ok(self
+            .runtime
+            .zoom(&self.zoom_manager)?
+            .set_zoom_at(scale, anchor)?)
     }
 
     pub(crate) fn scroll_viewport_by_surface_delta(

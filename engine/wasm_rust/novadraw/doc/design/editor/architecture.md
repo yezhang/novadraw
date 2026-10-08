@@ -59,7 +59,8 @@ EditorDomain
     ├── model_registry: ModelId -> EditPartId
     ├── visual_registry: FigureId -> VisualOwner
     ├── SelectionModel<EditPartId>
-    └── Runtime<FigureId>
+    ├── Runtime<FigureId>
+    └── ZoomManager
 ```
 
 `VisualOwner` 至少区分：
@@ -178,6 +179,7 @@ Viewer 是一个编辑视图的组合根，负责：
 - selection 和 EditPart focus；
 - targeting；
 - Runtime 与 root layer 组合；
+- root scalable/viewport 对应的长期 ZoomManager；
 - 把归一化输入交给输入仲裁器。
 
 RootEditPart 不对应业务模型，默认建立：
@@ -197,6 +199,12 @@ root layered pane
 ```
 
 首版可以不实现 grid/guide，但 layer key 和缩放域必须从开始就明确。
+
+Viewer 构造 root layers 后创建并长期持有一个 `ZoomManager`，绑定同一组 root
+scalable pane 与 Viewport。zoom levels、scroll policy 和未来 listener 都属于该
+manager 的 Viewer 生命周期状态，不能在每次 zoom 操作中临时重建。Viewer 可以暴露
+只读 manager 查询及受控配置方法，但不得提供 `zoom_manager_mut()` 或绕过 Runtime
+mutation facade 直接修改 scale / view location。
 
 ## 7. Selection 与 Focus
 

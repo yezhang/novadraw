@@ -137,6 +137,12 @@ Novadraw 当前显式保存非 freeform scalable pane 的未缩放 preferred siz
 `viewport.validate()` 所承担的 contents bounds 和 RangeModel 更新，再设置新的
 view location。
 
+Editor 的 `GraphicalViewer` 长期持有一个绑定 root scalable pane 与 root viewport
+的 `ZoomManager`。默认安装 `MouseLocationZoomScrollPolicy`；无 anchor 时该策略退化为
+中心保持，因此同时覆盖普通缩放和指针锚点缩放。Viewer 只暴露只读 manager 查询以及
+受控的 zoom levels / scroll policy 配置，不提供 `zoom_manager_mut()`。这样配置、
+策略对象和未来 listener 生命周期都与 Viewer 一致，不会在每次缩放操作中重建。
+
 实现入口：
 
 - `novadraw-scene/src/container/scalable.rs`
@@ -149,6 +155,7 @@ view location。
 - scaled preferred size 永远从未缩放 preferred size 推导。
 - Viewport 是 scroll SSOT，Scalable pane 是 scale SSOT。
 - ZoomManager 是 scale、validation 和 view location 的唯一协调入口。
+- Editor Viewer 长期拥有 ZoomManager；单次缩放不得临时重建 manager。
 - Viewport 不提供 `zoom`、`zoom_at` 或 `zoom_to_fit`，避免第二个 zoom SSOT。
 - 普通 scalable 内容小于 viewport 时左上对齐，不添加隐式居中特例。
 - paint、hit-test、事件点、damage 和 scroll range 必须共享同一 ChildTransform。

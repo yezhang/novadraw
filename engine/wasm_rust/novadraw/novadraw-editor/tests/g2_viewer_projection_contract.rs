@@ -2,11 +2,16 @@ use std::{
     collections::HashMap,
     convert::Infallible,
     panic::{AssertUnwindSafe, catch_unwind},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+    },
 };
 
-use novadraw::geometry::Rectangle;
-use novadraw::{Figure, FigureId, RectangleFigure, RootFigure};
+use novadraw::geometry::{Point, Rectangle};
+use novadraw::{
+    Figure, FigureId, RectangleFigure, RootFigure, ZoomScrollPolicy, ZoomViewportState,
+};
 use novadraw_editor::{
     Command, EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy,
     EditorRequest, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
@@ -29,6 +34,22 @@ struct DiagramModel {
     bounds: HashMap<NodeId, Rectangle>,
     events: Vec<ModelEvent<NodeId, DiagramEvent>>,
     panic_during_refresh: bool,
+}
+
+struct CountingZoomPolicy {
+    calls: Arc<AtomicUsize>,
+}
+
+impl ZoomScrollPolicy for CountingZoomPolicy {
+    fn calc_new_view_location(
+        &self,
+        viewport: ZoomViewportState,
+        _old_zoom: f64,
+        _new_zoom: f64,
+    ) -> Point {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        viewport.view_location
+    }
 }
 
 impl DiagramModel {
@@ -338,6 +359,26 @@ fn viewer_projects_model_tree_and_registers_model_and_visual_identity() {
         lifecycle.lock().unwrap().as_slice(),
         ["activate:1", "activate:2", "activate:4", "activate:3"]
     );
+}
+
+#[test]
+fn viewer_retains_zoom_manager_policy_and_levels_across_zoom_operations() {
+    let (mut viewer, _) = viewer();
+    let policy_calls = Arc::new(AtomicUsize::new(0));
+    viewer
+        .set_zoom_scroll_policy(Arc::new(CountingZoomPolicy {
+            calls: Arc::clone(&policy_calls),
+        }))
+        .unwrap();
+    viewer.set_zoom_levels(vec![0.5, 1.0, 1.5]).unwrap();
+
+    assert!(viewer.set_viewport_scale_at(8.0, None).unwrap());
+    assert_eq!(viewer.zoom_manager().zoom(), 1.5);
+    assert_eq!(viewer.zoom_manager().zoom_levels(), &[0.5, 1.0, 1.5]);
+
+    assert!(viewer.set_viewport_scale_at(0.1, None).unwrap());
+    assert_eq!(viewer.zoom_manager().zoom(), 0.5);
+    assert_eq!(policy_calls.load(Ordering::SeqCst), 2);
 }
 
 #[test]
