@@ -15,9 +15,13 @@ use crate::render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
 use super::figure::{
-    AccessibleFigure, ChildClippingStrategy, ChildPolicy, ClickableSnapshot, ClickableVisualState,
-    Direction, FigureMeasurement, ImageFigure, LabelFigure, MeasureConstraints,
-    RoundedRectangleFigure, ShapeMutationError, TriangleFigure, WidgetError, normalize_points,
+    ACCESSIBILITY, AccessibleFigure, BORDER, ButtonFigure, CLICKABLE, CONNECTION,
+    CONNECTION_DECORATION, CONTAINER, CapabilityKey, CapabilityQueryError, ChildClippingStrategy,
+    ChildPolicy, ClickableSnapshot, ClickableVisualState, Direction, FREEFORM,
+    FigureCapabilityRegistrationError, FigureMeasurement, FigurePreparation, INPUT, ImageFigure,
+    LAYER, LIFECYCLE, LabelFigure, MeasureConstraints, PREPARATION, PolygonFigure, PolylineFigure,
+    RoundedRectangleFigure, SCALE, ScalablePolygonFigure, ShapeMutationError, TextFlowFigure,
+    ToggleFigure, TriangleFigure, WidgetError, normalize_points,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
@@ -25,14 +29,17 @@ use super::layout::{
 };
 use crate::Border;
 use crate::figure::border::BorderSnapshot;
+use crate::figure::capability::FigureCapabilitySet;
 pub use crate::identity::FigureId;
 use crate::identity::{RuntimeArena, RuntimeNamespace};
 #[cfg(test)]
 use crate::mutation::PendingMutation;
 use crate::mutation::PendingMutationKind;
+use crate::runtime::update::property::standard as property;
 use crate::runtime::update::{
     ActionEvent, AncestorEvent, AncestorEventKind, FigureEvent, LayoutEvent, LayoutEventKind,
-    NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyValue, UpdateManager,
+    NotificationEffect, NotificationQueue, PropertyChangeEvent, PropertyKey, PropertyValueType,
+    TypedPropertyChange, UpdateManager,
 };
 use crate::style::{FigureStyle, ResolvedStyle};
 
@@ -59,7 +66,7 @@ pub const DEFAULT_VALIDATION_BUDGET: usize = 10_000;
 const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
 const RECURSIVE_VALIDATION_STACK_RED_ZONE: usize = 128 * 1024;
 const RECURSIVE_VALIDATION_STACK_GROWTH: usize = 4 * 1024 * 1024;
-pub const FREEFORM_EXTENT_PROPERTY: &str = "freeform_extent";
+pub const FREEFORM_EXTENT_PROPERTY: PropertyKey<Rectangle> = property::FREEFORM_EXTENT;
 
 fn finite_rectangle(rectangle: Rectangle) -> bool {
     rectangle.x.is_finite()
@@ -108,6 +115,8 @@ fn transform_rectangle(transform: Affine2D, rectangle: Rectangle) -> Option<Rect
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GraphMutationError {
     FigureNotFound(FigureId),
+    InvalidInitialBounds,
+    CapabilityRegistration(FigureCapabilityRegistrationError),
     ParentNotFound,
     ChildNotFound,
     CycleDetected,
@@ -132,6 +141,10 @@ impl fmt::Display for GraphMutationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::FigureNotFound(figure) => write!(f, "Figure does not exist: {figure:?}"),
+            Self::InvalidInitialBounds => {
+                write!(f, "Figure initial bounds must be finite and non-negative")
+            }
+            Self::CapabilityRegistration(error) => error.fmt(f),
             Self::ParentNotFound => write!(f, "parent Figure does not exist"),
             Self::ChildNotFound => write!(f, "child Figure does not exist"),
             Self::CycleDetected => write!(f, "mutation would create a cycle"),
@@ -427,9 +440,13 @@ impl CachedMeasurement {
 }
 
 impl LayoutState {
-    fn for_figure(figure: &dyn super::Figure) -> Self {
+    fn for_capabilities(capabilities: &FigureCapabilitySet) -> Self {
         Self {
-            freeform: figure.freeform().is_some().then(FreeformState::default),
+            freeform: capabilities
+                .get(FREEFORM)
+                .expect("typed marker descriptors must match their key")
+                .is_some()
+                .then(FreeformState::default),
             ..Self::default()
         }
     }
@@ -499,11 +516,62 @@ pub struct FigureNode {
     pub(crate) figure: Box<dyn super::Figure>,
     /// Runtime 提交的私有组件状态版本。
     pub(crate) component_revision: u64,
+    /// Attach-time typed capability descriptors.
+    pub(crate) capabilities: FigureCapabilitySet,
     pub(crate) prepared: Option<crate::figure::preparation::PreparedFigure>,
     /// 容器布局策略、关系约束和后续布局缓存的唯一归属。
     pub(crate) layout: LayoutState,
     /// 所有 Figure 共享的节点状态。
     pub(crate) state: NodeState,
+}
+
+enum PointListFigureRef<'a> {
+    Polyline(&'a PolylineFigure),
+    Polygon(&'a PolygonFigure),
+}
+
+impl PointListFigureRef<'_> {
+    fn local_points(&self) -> &[Point] {
+        match self {
+            Self::Polyline(figure) => figure.local_points(),
+            Self::Polygon(figure) => figure.local_points(),
+        }
+    }
+
+    fn stroke_style(&self) -> &crate::render::StrokeStyle {
+        match self {
+            Self::Polyline(figure) => figure.stroke_style(),
+            Self::Polygon(figure) => figure.stroke_style(),
+        }
+    }
+
+    fn painted_minimum(&self) -> usize {
+        match self {
+            Self::Polyline(figure) => figure.painted_minimum(),
+            Self::Polygon(figure) => figure.painted_minimum(),
+        }
+    }
+}
+
+enum PointListFigureMut<'a> {
+    Polyline(&'a mut PolylineFigure),
+    Polygon(&'a mut PolygonFigure),
+}
+
+impl PointListFigureMut<'_> {
+    fn commit_stroke_style(&mut self, stroke: crate::render::StrokeStyle) {
+        match self {
+            Self::Polyline(figure) => figure.commit_stroke_style(stroke),
+            Self::Polygon(figure) => figure.commit_stroke_style(stroke),
+        }
+    }
+
+    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>) {
+        match self {
+            Self::Polyline(figure) => figure.commit_geometry(bounds, local_points),
+            Self::Polygon(figure) => figure.commit_geometry(bounds, local_points),
+        }
+    }
 }
 
 impl Deref for FigureNode {
@@ -584,7 +652,6 @@ impl FigureNode {
     pub(crate) fn child_transform(&self) -> super::ChildTransform {
         let insets = self.state.insets;
         let figure_transform = self
-            .figure
             .container()
             .map(|container| container.child_transform())
             .unwrap_or(super::ChildTransform::IDENTITY);
@@ -596,47 +663,214 @@ impl FigureNode {
 
     pub(crate) fn child_clipping_strategy(&self) -> ChildClippingStrategy {
         self.state.child_clipping_strategy.unwrap_or_else(|| {
-            self.figure
-                .container()
+            self.container()
                 .map(|container| container.child_clipping_strategy())
                 .unwrap_or(ChildClippingStrategy::ClipToChildBounds)
         })
     }
 
+    fn preparation(&self) -> Option<&dyn FigurePreparation> {
+        self.capabilities
+            .get(PREPARATION)
+            .expect("typed preparation descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
     pub(crate) fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        self.figure.accessible()
+        self.capabilities
+            .get(ACCESSIBILITY)
+            .expect("typed accessibility descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    pub(crate) fn input(&self) -> Option<&dyn super::FigureEventHandler> {
+        self.capabilities
+            .get(INPUT)
+            .expect("typed input descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    pub(crate) fn lifecycle(&mut self) -> Option<&mut dyn super::FigureLifecycle> {
+        let capability = self
+            .capabilities
+            .get(LIFECYCLE)
+            .expect("typed lifecycle descriptor must match its key")
+            .copied()?;
+        capability.resolve(self.figure.as_mut())
+    }
+
+    fn container(&self) -> Option<&dyn super::FigureContainer> {
+        self.capabilities
+            .get(CONTAINER)
+            .expect("typed container descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    fn bordered(&self) -> Option<&dyn super::BorderedFigure> {
+        self.capabilities
+            .get(BORDER)
+            .expect("typed Border descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    fn bordered_mut(&mut self) -> Option<&mut dyn super::BorderedFigure> {
+        let capability = self
+            .capabilities
+            .get(BORDER)
+            .expect("typed Border descriptor must match its key")
+            .copied()?;
+        capability.resolve_mut(self.figure.as_mut())
+    }
+
+    fn clickable(&self) -> Option<&dyn super::ClickableBehavior> {
+        self.capabilities
+            .get(CLICKABLE)
+            .expect("typed Clickable descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    fn clickable_mut(&mut self) -> Option<&mut dyn super::ClickableBehavior> {
+        let capability = self
+            .capabilities
+            .get(CLICKABLE)
+            .expect("typed Clickable descriptor must match its key")
+            .copied()?;
+        capability.resolve_mut(self.figure.as_mut())
+    }
+
+    pub(crate) fn connection(&self) -> Option<&dyn crate::ConnectionFigureBehavior> {
+        self.capabilities
+            .get(CONNECTION)
+            .expect("typed Connection descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    fn connection_mut(&mut self) -> Option<&mut dyn crate::ConnectionFigureBehavior> {
+        let capability = self
+            .capabilities
+            .get(CONNECTION)
+            .expect("typed Connection descriptor must match its key")
+            .copied()?;
+        capability.resolve_mut(self.figure.as_mut())
+    }
+
+    fn connection_decoration(&self) -> Option<&dyn crate::ConnectionDecorationBehavior> {
+        self.capabilities
+            .get(CONNECTION_DECORATION)
+            .expect("typed Connection decoration descriptor must match its key")
+            .copied()?
+            .resolve(self.figure.as_ref())
+    }
+
+    fn connection_decoration_mut(
+        &mut self,
+    ) -> Option<&mut dyn crate::ConnectionDecorationBehavior> {
+        let capability = self
+            .capabilities
+            .get(CONNECTION_DECORATION)
+            .expect("typed Connection decoration descriptor must match its key")
+            .copied()?;
+        capability.resolve_mut(self.figure.as_mut())
+    }
+
+    fn point_list(&self) -> Option<PointListFigureRef<'_>> {
+        let figure = self.figure.as_ref().as_any();
+        if let Some(polyline) = figure.downcast_ref::<PolylineFigure>() {
+            return Some(PointListFigureRef::Polyline(polyline));
+        }
+        figure
+            .downcast_ref::<PolygonFigure>()
+            .map(PointListFigureRef::Polygon)
+    }
+
+    fn point_list_mut(&mut self) -> Option<PointListFigureMut<'_>> {
+        let figure = self.figure.as_mut().as_any_mut();
+        if figure.is::<PolylineFigure>() {
+            return figure
+                .downcast_mut::<PolylineFigure>()
+                .map(PointListFigureMut::Polyline);
+        }
+        figure
+            .downcast_mut::<PolygonFigure>()
+            .map(PointListFigureMut::Polygon)
+    }
+
+    fn scalable_polygon(&self) -> Option<&ScalablePolygonFigure> {
+        self.figure.as_ref().as_any().downcast_ref()
+    }
+
+    fn scalable_polygon_mut(&mut self) -> Option<&mut ScalablePolygonFigure> {
+        self.figure.as_mut().as_any_mut().downcast_mut()
+    }
+
+    fn text_flow(&self) -> Option<&TextFlowFigure> {
+        self.figure.as_ref().as_any().downcast_ref()
+    }
+
+    fn text_flow_mut(&mut self) -> Option<&mut TextFlowFigure> {
+        self.figure.as_mut().as_any_mut().downcast_mut()
+    }
+
+    fn label(&self) -> Option<&LabelFigure> {
+        let figure = self.figure.as_ref().as_any();
+        if let Some(label) = figure.downcast_ref::<LabelFigure>() {
+            return Some(label);
+        }
+        if let Some(button) = figure.downcast_ref::<ButtonFigure>() {
+            return Some(button.label_component());
+        }
+        figure
+            .downcast_ref::<ToggleFigure>()
+            .map(ToggleFigure::label_component)
+    }
+
+    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
+        let figure = self.figure.as_mut().as_any_mut();
+        if figure.is::<LabelFigure>() {
+            return figure.downcast_mut::<LabelFigure>();
+        }
+        if figure.is::<ButtonFigure>() {
+            return figure
+                .downcast_mut::<ButtonFigure>()
+                .map(ButtonFigure::label_component_mut);
+        }
+        figure
+            .downcast_mut::<ToggleFigure>()
+            .map(ToggleFigure::label_component_mut)
     }
 
     pub(crate) fn clickable_snapshot(&self) -> Option<ClickableSnapshot> {
-        self.figure
-            .clickable()
+        self.clickable()
             .map(|clickable| clickable.clickable_model().snapshot())
     }
 
     fn child_policy(&self) -> ChildPolicy {
-        self.figure
-            .container()
+        self.container()
             .map(|container| container.child_policy())
             .unwrap_or(ChildPolicy::Multiple)
     }
 
     fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
-        self.figure
-            .container()
+        self.container()
             .map(|container| container.layout_constraints(constraints))
             .unwrap_or(constraints)
     }
 
     fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
-        self.figure
-            .container()
+        self.container()
             .map(|container| container.project_preferred_measurement(measurement))
             .unwrap_or(measurement)
     }
 
     fn project_minimum_size(&self, size: Dimension) -> Dimension {
-        self.figure
-            .container()
+        self.container()
             .map(|container| container.project_minimum_size(size))
             .unwrap_or(size)
     }
@@ -680,7 +914,7 @@ impl FigureNode {
 ///
 /// // 创建根内容块（类似 Draw2d 的 setContents）
 /// let contents = RectangleFigure::new(0.0, 0.0, 100.0, 50.0);
-/// let contents_id = scene.builder().set_contents(Box::new(contents));
+/// let contents_id = scene.builder().set_contents(Box::new(contents)).expect("valid FigureTree construction");
 ///
 /// // 添加子块到指定父块（类似 Draw2d 的 parent.addChild(child)）
 /// let child = RectangleFigure::new(10.0, 10.0, 80.0, 30.0);
@@ -715,13 +949,14 @@ pub(crate) struct RetiredSubtree {
 impl RetiredSubtree {
     pub(crate) fn complete(self) {
         for mut node in self.nodes {
+            let figure_id = node.id;
             if let Some(parent) = node.parent
-                && let Some(lifecycle) = node.figure.lifecycle()
+                && let Some(lifecycle) = node.lifecycle()
             {
                 lifecycle.on_detached(crate::FigureLifecycleContext {
-                    figure_id: node.id,
+                    figure_id,
                     parent_id: parent,
-                    runtime_namespace: node.id.namespace(),
+                    runtime_namespace: figure_id.namespace(),
                 });
             }
             drop(node);
@@ -731,7 +966,10 @@ impl RetiredSubtree {
 }
 
 impl<'a> FigureTreeBuilder<'a> {
-    pub fn set_contents(&mut self, figure: Box<dyn super::Figure>) -> FigureId {
+    pub fn set_contents(
+        &mut self,
+        figure: Box<dyn super::Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
         self.tree.set_contents(figure)
     }
 
@@ -985,6 +1223,10 @@ impl FigureTree {
         let mut blocks = RuntimeArena::new(RuntimeNamespace::new());
         let uuid = Uuid::new_v4();
         let root_bounds = Rectangle::ZERO;
+        let root_figure: Box<dyn super::Figure> =
+            Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0));
+        let root_capabilities = FigureCapabilitySet::build(root_figure.as_ref())
+            .expect("the built-in synthetic root must register valid capabilities");
 
         let root_id = blocks.insert_with_key(|key| FigureNode {
             id: key,
@@ -992,8 +1234,9 @@ impl FigureTree {
             children: Vec::new(),
             parent: None,
             depth: 0,
-            figure: Box::new(super::figure::RootFigure::new(0.0, 0.0, 0.0, 0.0)),
+            figure: root_figure,
             component_revision: 0,
+            capabilities: root_capabilities,
             prepared: None,
             layout: LayoutState::default(),
             state: NodeState {
@@ -1041,20 +1284,37 @@ impl FigureTree {
         self.notification_effects.emit_property(event);
     }
 
-    pub(crate) fn record_property_change(
+    fn emit_typed_property_event<V>(
         &mut self,
         figure_id: FigureId,
-        property: &'static str,
-        old_value: PropertyValue,
-        new_value: PropertyValue,
-    ) {
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+    ) where
+        V: PropertyValueType,
+    {
+        self.emit_property_event(
+            TypedPropertyChange::new(figure_id, property, old_value, new_value).erase(),
+        );
+    }
+
+    pub(crate) fn record_property_change<V>(
+        &mut self,
+        figure_id: FigureId,
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+    ) where
+        V: PropertyValueType,
+    {
         self.notify_block_changed(figure_id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id,
-            property,
-            old_value,
-            new_value,
-        });
+        self.emit_typed_property_event(figure_id, property, old_value, new_value);
+    }
+
+    pub(crate) fn record_property_event(&mut self, event: PropertyChangeEvent) {
+        let figure_id = event.figure_id();
+        self.notify_block_changed(figure_id);
+        self.emit_property_event(event);
     }
 
     pub(crate) fn record_coordinate_system_changed(&mut self, figure_id: FigureId) {
@@ -1236,7 +1496,6 @@ impl FigureTree {
     ) -> Option<crate::connection::PreparedConnectionGeometry> {
         self.blocks
             .get(id)?
-            .figure
             .connection()?
             .prepare_route_geometry(parent_points)
             .ok()
@@ -1250,7 +1509,6 @@ impl FigureTree {
         Some(
             self.blocks
                 .get(id)?
-                .figure
                 .connection_decoration()?
                 .prepare_decoration_geometry(placement),
         )
@@ -1266,7 +1524,7 @@ impl FigureTree {
             .blocks
             .get(id)
             .and_then(|block| {
-                block.figure.connection_decoration().map(|_| {
+                block.connection_decoration().map(|_| {
                     (
                         block.figure_bounds(),
                         block.visual_bounds(),
@@ -1287,7 +1545,6 @@ impl FigureTree {
             .expect("prepared decoration geometry references a live Figure");
         block.set_node_bounds(bounds);
         block
-            .figure
             .connection_decoration_mut()
             .expect("prepared decoration geometry references decoration behavior")
             .commit_decoration_geometry(geometry);
@@ -1317,7 +1574,7 @@ impl FigureTree {
             .blocks
             .get(id)
             .and_then(|block| {
-                block.figure.connection().map(|_| {
+                block.connection().map(|_| {
                     (
                         block.figure_bounds(),
                         block.visual_bounds(),
@@ -1338,7 +1595,6 @@ impl FigureTree {
             .expect("prepared Connection geometry references a live Figure");
         block.set_node_bounds(path_bounds);
         let connection = block
-            .figure
             .connection_mut()
             .expect("prepared Connection geometry references Connection behavior");
         connection.commit_route_points(local_points);
@@ -1363,7 +1619,7 @@ impl FigureTree {
     ) -> bool {
         let Some((old_bounds, old_visual_bounds, parent_id, visible)) =
             self.blocks.get(id).and_then(|block| {
-                block.figure.connection().map(|_| {
+                block.connection().map(|_| {
                     (
                         block.figure_bounds(),
                         block.visual_bounds(),
@@ -1382,7 +1638,7 @@ impl FigureTree {
             return false;
         };
         block.set_node_bounds(Rectangle::ZERO);
-        let Some(connection) = block.figure.connection_mut() else {
+        let Some(connection) = block.connection_mut() else {
             return false;
         };
         connection.commit_route_points(PointList::new());
@@ -1406,12 +1662,7 @@ impl FigureTree {
         }
         let old_value = block.is_focusable;
         block.is_focusable = focusable;
-        self.record_property_change(
-            id,
-            "focusable",
-            PropertyValue::Bool(old_value),
-            PropertyValue::Bool(focusable),
-        );
+        self.record_property_change(id, property::FOCUSABLE, old_value, focusable);
         true
     }
 
@@ -1424,12 +1675,7 @@ impl FigureTree {
         }
         let old_value = block.is_focus_traversable;
         block.is_focus_traversable = traversable;
-        self.record_property_change(
-            id,
-            "focus_traversable",
-            PropertyValue::Bool(old_value),
-            PropertyValue::Bool(traversable),
-        );
+        self.record_property_change(id, property::FOCUS_TRAVERSABLE, old_value, traversable);
         true
     }
 
@@ -1449,13 +1695,7 @@ impl FigureTree {
             block.is_visible = visible;
         }
 
-        self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "visible",
-            old_value: PropertyValue::Bool(old_value),
-            new_value: PropertyValue::Bool(visible),
-        });
+        self.record_property_change(id, property::VISIBLE, old_value, visible);
         true
     }
 
@@ -1506,13 +1746,7 @@ impl FigureTree {
             block.is_enabled = enabled;
         }
 
-        self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "enabled",
-            old_value: PropertyValue::Bool(old_value),
-            new_value: PropertyValue::Bool(enabled),
-        });
+        self.record_property_change(id, property::ENABLED, old_value, enabled);
         true
     }
 
@@ -1724,6 +1958,7 @@ mod tests {
     use crate::Color as NovadrawCoreColor;
     use crate::geometry::{Point, Translatable};
     use crate::render::{NdCanvas, command::RenderCommandKind};
+    use crate::runtime::update::property::standard as property;
     use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
     use crate::{
         EllipseFigure, Figure, FigureEvent, FigureEventHandler, FigureLifecycle, FigureTree,
@@ -1937,8 +2172,11 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::LIFECYCLE, crate::LifecycleCapability::of::<Self>())
         }
     }
 
@@ -2151,8 +2389,11 @@ mod tests {
             Shape::paint_figure(self, gc);
         }
 
-        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::INPUT, crate::InputCapability::of::<Self>())
         }
     }
 
@@ -2674,7 +2915,11 @@ mod tests {
         );
         let scalable_id = scene.add_child_to(
             viewport_id,
-            Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 240.0, 160.0).with_scale(2.0)),
+            Box::new(
+                ScalableLayeredPaneFigure::new(0.0, 0.0, 240.0, 160.0)
+                    .with_scale(2.0)
+                    .unwrap(),
+            ),
         );
         let child_id = scene.add_child_to(
             scalable_id,
@@ -3814,11 +4059,16 @@ mod tests {
         assert!(updates.has_pending_repaint());
         assert!(updates.has_pending_layout());
         let effects = scene.notification_effects();
-        for property in ["foreground", "font", "cursor", "tooltip"] {
+        for property in [
+            property::FOREGROUND.erase(),
+            property::FONT.erase(),
+            property::CURSOR.erase(),
+            property::TOOLTIP.erase(),
+        ] {
             assert!(effects.iter().any(|effect| matches!(
                 effect,
                 NotificationEffect::EmitProperty(event)
-                    if event.figure_id == parent && event.property == property
+                    if event.figure_id() == parent && event.property() == property
             )));
         }
         assert_eq!(

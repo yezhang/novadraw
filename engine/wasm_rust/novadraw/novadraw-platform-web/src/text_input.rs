@@ -371,34 +371,34 @@ impl WebTextInputBridge {
             }),
             "ArrowLeft" => TextInputEvent::Move {
                 movement: if alt || control {
-                    novadraw::TextMovement::PreviousWord
+                    novadraw::text::TextMovement::PreviousWord
                 } else {
-                    novadraw::TextMovement::PreviousVisual
+                    novadraw::text::TextMovement::PreviousVisual
                 },
                 extend,
             },
             "ArrowRight" => TextInputEvent::Move {
                 movement: if alt || control {
-                    novadraw::TextMovement::NextWord
+                    novadraw::text::TextMovement::NextWord
                 } else {
-                    novadraw::TextMovement::NextVisual
+                    novadraw::text::TextMovement::NextVisual
                 },
                 extend,
             },
             "ArrowUp" => TextInputEvent::Move {
-                movement: novadraw::TextMovement::PreviousLine,
+                movement: novadraw::text::TextMovement::PreviousLine,
                 extend,
             },
             "ArrowDown" => TextInputEvent::Move {
-                movement: novadraw::TextMovement::NextLine,
+                movement: novadraw::text::TextMovement::NextLine,
                 extend,
             },
             "Home" => TextInputEvent::Move {
-                movement: novadraw::TextMovement::LineStart,
+                movement: novadraw::text::TextMovement::LineStart,
                 extend,
             },
             "End" => TextInputEvent::Move {
-                movement: novadraw::TextMovement::LineEnd,
+                movement: novadraw::text::TextMovement::LineEnd,
                 extend,
             },
             "a" | "A" if control || meta => TextInputEvent::SelectAll,

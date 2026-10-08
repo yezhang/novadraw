@@ -136,7 +136,13 @@ impl FigureTree {
             ChildPolicy::Layered if !layer_admission => {
                 return Err(GraphMutationError::LayerKeyRequired);
             }
-            ChildPolicy::Layered if self.blocks[child_id].figure.layer().is_none() => {
+            ChildPolicy::Layered
+                if self.blocks[child_id]
+                    .capabilities
+                    .get(LAYER)
+                    .expect("typed marker descriptors must match their key")
+                    .is_none() =>
+            {
                 return Err(GraphMutationError::LayerChildRequired);
             }
             _ => {}
@@ -275,7 +281,7 @@ impl FigureTree {
 impl FigureTree {
     pub(crate) fn complete_attachment(&mut self, figure: FigureId, parent: FigureId) {
         let runtime_namespace = self.namespace();
-        if let Some(lifecycle) = self.blocks[figure].figure.lifecycle() {
+        if let Some(lifecycle) = self.blocks[figure].lifecycle() {
             lifecycle.on_attached(crate::FigureLifecycleContext {
                 figure_id: figure,
                 parent_id: parent,
@@ -286,7 +292,7 @@ impl FigureTree {
 
     pub(crate) fn complete_detachment(&mut self, figure: FigureId, parent: FigureId) {
         let runtime_namespace = self.namespace();
-        if let Some(lifecycle) = self.blocks[figure].figure.lifecycle() {
+        if let Some(lifecycle) = self.blocks[figure].lifecycle() {
             lifecycle.on_detached(crate::FigureLifecycleContext {
                 figure_id: figure,
                 parent_id: parent,
@@ -368,10 +374,18 @@ impl FigureTree {
     /// 设置场景的根容器，后续添加的子块将作为此容器的子元素。
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
-    pub(crate) fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
-        let contents_id = self
-            .new_block_with_parent(figure, self.root)
-            .expect("FigureTree root must exist");
+    pub(crate) fn set_contents(
+        &mut self,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, GraphMutationError> {
+        let contents_id =
+            self.new_block_with_parent(figure, self.root)
+                .map_err(|error| match error {
+                    GraphMutationError::ParentNotFound => {
+                        unreachable!("FigureTree synthetic root must exist")
+                    }
+                    other => other,
+                })?;
         if let Some(previous) = self.contents {
             let ids = self.disposal_ids(previous).expect("attached contents");
             let mut updates = UpdateManager::with_namespace(self.namespace());
@@ -379,7 +393,7 @@ impl FigureTree {
         }
         self.contents = Some(contents_id);
         self.invalidate();
-        contents_id
+        Ok(contents_id)
     }
 
     /// 获取内容块
@@ -508,7 +522,8 @@ impl FigureTree {
                 | PendingMutationKind::BringChildToFront { .. }
                 | PendingMutationKind::SendChildToBack { .. }
                 | PendingMutationKind::SetChildClippingStrategy { .. }
-                | PendingMutationKind::UpdateComponent(_) => false,
+                | PendingMutationKind::UpdateComponent(_)
+                | PendingMutationKind::UpdateCapability(_) => false,
             };
         }
 
@@ -585,11 +600,22 @@ impl FigureTree {
         prepare: impl FnOnce(&Self, FigureId) -> Result<Option<Box<dyn LayoutConstraint>>, E>,
     ) -> Result<FigureId, E> {
         let bounds = figure.initial_bounds();
+        if !bounds.x.is_finite()
+            || !bounds.y.is_finite()
+            || !bounds.width.is_finite()
+            || !bounds.height.is_finite()
+            || bounds.width < 0.0
+            || bounds.height < 0.0
+        {
+            return Err(GraphMutationError::InvalidInitialBounds.into());
+        }
         let insets = figure.initial_insets();
         let style = figure.initial_style();
         let is_focusable = figure.initial_focusable();
         let is_focus_traversable = figure.initial_focus_traversable();
-        let layout = LayoutState::for_figure(figure.as_ref());
+        let capabilities = FigureCapabilitySet::build(figure.as_ref())
+            .map_err(|error| E::from(GraphMutationError::CapabilityRegistration(error)))?;
+        let layout = LayoutState::for_capabilities(&capabilities);
         let parent_depth = self
             .blocks
             .get(parent_id)
@@ -603,7 +629,12 @@ impl FigureTree {
             ChildPolicy::Layered if !layer_admission => {
                 return Err(GraphMutationError::LayerKeyRequired.into());
             }
-            ChildPolicy::Layered if figure.layer().is_none() => {
+            ChildPolicy::Layered
+                if capabilities
+                    .get(LAYER)
+                    .expect("typed marker descriptors must match their key")
+                    .is_none() =>
+            {
                 return Err(GraphMutationError::LayerChildRequired.into());
             }
             _ => {}
@@ -633,6 +664,7 @@ impl FigureTree {
             depth,
             figure,
             component_revision: 0,
+            capabilities,
             prepared: None,
             layout,
             state: NodeState {

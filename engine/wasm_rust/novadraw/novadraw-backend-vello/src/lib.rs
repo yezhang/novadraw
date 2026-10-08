@@ -13,7 +13,6 @@ use std::sync::Arc;
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
 use novadraw::geometry::{Affine2D, Point, Rectangle};
-use tracing::debug;
 #[cfg(any(feature = "native", target_arch = "wasm32"))]
 use vello::RendererOptions;
 use vello::kurbo::{Cap, Join, Stroke};
@@ -880,12 +879,10 @@ impl VelloRenderer {
         match &cmd.kind {
             // ===== 状态管理命令 =====
             novadraw::render::command::RenderCommandKind::PushState => {
-                debug!("PushState, stack depth: {}", self.state_stack.len());
                 self.state_stack.push(self.current_state().clone());
             }
 
             novadraw::render::command::RenderCommandKind::RestoreState => {
-                debug!("RestoreState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() >= 2 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
                     self.restore_clip_layers(&saved.clips);
@@ -894,7 +891,6 @@ impl VelloRenderer {
             }
 
             novadraw::render::command::RenderCommandKind::PopState => {
-                debug!("PopState, stack depth: {}", self.state_stack.len());
                 if self.state_stack.len() > 1 {
                     let saved = self.state_stack[self.state_stack.len() - 2].clone();
                     self.restore_clip_layers(&saved.clips);
@@ -903,7 +899,6 @@ impl VelloRenderer {
             }
 
             novadraw::render::command::RenderCommandKind::ConcatTransform { matrix } => {
-                debug!("ConcatTransform: {:?}", matrix);
                 // 叠加变换
                 let new_transform = self.current_state().transform.post_concat(*matrix);
 
@@ -911,12 +906,10 @@ impl VelloRenderer {
             }
 
             novadraw::render::command::RenderCommandKind::SetTransform { matrix } => {
-                debug!("SetTransform: {:?}", matrix);
                 self.current_state_mut().transform = *matrix;
             }
 
             novadraw::render::command::RenderCommandKind::ResetTransform => {
-                debug!("ResetTransform");
                 self.current_state_mut().transform = Affine2D::IDENTITY;
             }
 
@@ -926,7 +919,6 @@ impl VelloRenderer {
             novadraw::render::command::RenderCommandKind::SetGlobalAlpha { .. } => {}
 
             novadraw::render::command::RenderCommandKind::Clip { rect } => {
-                debug!("Clip: {:?}", rect);
                 let clip = RenderClip {
                     transform: self.current_state().transform,
                     geometry: ClipGeometry::Rectangle(*rect),
@@ -945,7 +937,6 @@ impl VelloRenderer {
             }
 
             novadraw::render::command::RenderCommandKind::ResetClip => {
-                debug!("ResetClip");
                 let depth = self.current_state().clips.len();
                 self.pop_clip_layers(depth);
                 self.current_state_mut().clips.clear();
@@ -1290,12 +1281,6 @@ impl RenderBackend for VelloRenderer {
             return RenderOutcome::Skipped;
         }
         let commands = &submission.commands;
-        let damage = &submission.damage;
-        debug!(
-            "damage set: union={:?}, regions={}",
-            damage.union(),
-            damage.regions().len()
-        );
 
         let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
         else {
@@ -1323,8 +1308,6 @@ impl RenderBackend for VelloRenderer {
             self.render_command(cmd);
         }
         self.scene.pop_layer();
-
-        debug!("渲染命令执行完成");
 
         self.ensure_retained_texture();
         self.ensure_scratch_texture();

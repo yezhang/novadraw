@@ -522,6 +522,55 @@ fn replace_and_ignore_resolve_channel_ownership_without_partial_state() {
 }
 
 #[test]
+fn ignore_and_replace_remain_available_at_the_active_animation_budget() {
+    let mut runtime = Runtime::empty();
+    let mut first_channel = None;
+    let mut first_animation = None;
+    for index in 0..novadraw::animation::DEFAULT_MAX_ACTIVE_ANIMATIONS {
+        let channel = runtime.animations().create_channel(1.0).unwrap();
+        let plan = AnimationPlan::track(
+            channel,
+            Motion::Tween(Tween::between(0.0, 1.0, Duration::from_secs(1)).unwrap()),
+        )
+        .unwrap();
+        let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+            panic!("budget-filling animation must run");
+        };
+        if index == 0 {
+            first_channel = Some(channel);
+            first_animation = Some(animation);
+        }
+    }
+    let first_channel = first_channel.unwrap();
+    let first_animation = first_animation.unwrap();
+
+    let replacement = || {
+        AnimationPlan::track(
+            first_channel,
+            Motion::Tween(Tween::between(0.0, 1.0, Duration::from_secs(1)).unwrap()),
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        runtime
+            .animations()
+            .start(replacement().with_interruption(InterruptionPolicy::Ignore))
+            .unwrap(),
+        AnimationStart::Existing(first_animation)
+    );
+
+    let AnimationStart::Running(replaced) = runtime.animations().start(replacement()).unwrap()
+    else {
+        panic!("net-zero replacement must run at the active animation budget");
+    };
+    assert_ne!(replaced, first_animation);
+    assert_eq!(
+        runtime.animations().active_animation_count(),
+        novadraw::animation::DEFAULT_MAX_ACTIVE_ANIMATIONS
+    );
+}
+
+#[test]
 fn foreign_handles_and_overlapping_tracks_are_rejected() {
     let mut first_runtime = Runtime::empty();
     let mut second_runtime = Runtime::empty();
@@ -848,7 +897,8 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(

@@ -190,10 +190,7 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
 
     assert_eq!(viewer.runtime().tree().component_revision(badge), Some(2));
     let snapshot = viewer
-        .runtime_mut()
-        .figure(badge)
-        .unwrap()
-        .update_component(ProbeBadge)
+        .update_visual_component(badge, ProbeBadge)
         .unwrap_err();
     assert!(matches!(snapshot, ComponentUpdateError::Rejected(text) if text == "refreshed"));
 }
@@ -201,9 +198,12 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
 #[test]
 fn model_refresh_rejects_a_component_target_outside_the_part_visuals() {
     let mut foreign_tree = novadraw::FigureTree::new();
-    let foreign = foreign_tree.builder().set_contents(Box::new(BadgeFigure {
-        text: "foreign".to_owned(),
-    }));
+    let foreign = foreign_tree
+        .builder()
+        .set_contents(Box::new(BadgeFigure {
+            text: "foreign".to_owned(),
+        }))
+        .expect("valid FigureTree construction");
     let model = BadgeModel {
         revision: ModelRevision::initial(),
         text: "initial".to_owned(),

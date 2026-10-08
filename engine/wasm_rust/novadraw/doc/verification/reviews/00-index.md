@@ -44,6 +44,9 @@
 | 2026-10-07 | [P2-M01C 领域消费者实现](p2-m01c-animation-consumer-evidence.md) |
 | 2026-10-07 | [框架公共 API 命名、语义与职责复审](framework-public-api-follow-up-audit-2026-10-07.md) |
 | 2026-10-06 | [公共 API 统一迁移](public-api-unification-completion-2026-10-06.md) |
+| 2026-10-08 | [P2-F02 Figure Capability 实现](p2-f02-figure-capability-completion-2026-10-08.md) |
+| 2026-10-08 | [TC-13 / TC-14 公开表面与热路径日志收口](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) |
+| 2026-10-08 | [TC-04 类型化属性身份收口](tc04-typed-property-identity-completion-2026-10-08.md) |
 
 ## 平台与产品验收
 

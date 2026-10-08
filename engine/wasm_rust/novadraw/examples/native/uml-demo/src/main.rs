@@ -1,5 +1,6 @@
+use novadraw::event::MouseButton;
 use novadraw::render::{BackendCapabilities, RenderCommandKind, SurfaceInfo};
-use novadraw::{MouseButton, Point, Rectangle};
+use novadraw::{Point, Rectangle};
 use novadraw_example_support::{
     VerificationCase, VerificationCli, VerificationMetrics, run_runtime_demo_app,
     run_runtime_demo_app_with_scene_screenshot, run_runtime_demo_app_with_screenshot,

@@ -417,7 +417,9 @@ let stable = runtime.stable_query()?;
 
 ```rust,ignore
 let mut tree = FigureTree::new();
-let label_id = tree.builder().set_contents(Box::new(LabelFigure::new("标题")));
+let label_id = tree
+    .builder()
+    .set_contents(Box::new(LabelFigure::new("标题")))?;
 let mut runtime = Runtime::new(tree);
 runtime.label(label_id)?.set_text("新标题")?;
 ```

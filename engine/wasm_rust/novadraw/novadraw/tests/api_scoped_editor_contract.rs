@@ -8,7 +8,8 @@ fn runtime_with_child() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(root, Box::new(RectangleFigure::new(10.0, 12.0, 40.0, 30.0)))
@@ -24,7 +25,10 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
     let detached =
         RectangleFigure::from_bounds(root_bounds).with_border(LineBorder::default_border());
     let mut builder_tree = FigureTree::new();
-    let builder_root = builder_tree.builder().set_contents(Box::new(detached));
+    let builder_root = builder_tree
+        .builder()
+        .set_contents(Box::new(detached))
+        .expect("valid FigureTree construction");
     let builder_child = builder_tree
         .builder()
         .add_child(
@@ -44,7 +48,8 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
     let mut runtime_tree = FigureTree::new();
     let runtime_root = runtime_tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::from_bounds(root_bounds)));
+        .set_contents(Box::new(RectangleFigure::from_bounds(root_bounds)))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(runtime_tree);
     let runtime_child = runtime
         .container(runtime_root)
@@ -107,10 +112,12 @@ fn scoped_editor_acquisition_rejects_replaced_contents() {
     let mut tree = FigureTree::new();
     let replaced = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
     let attached = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     assert!(runtime.figure(attached).is_ok());

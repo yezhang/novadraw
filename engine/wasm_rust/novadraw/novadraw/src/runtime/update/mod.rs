@@ -30,6 +30,7 @@
 
 mod deferred;
 mod listener;
+pub mod property;
 mod repair;
 
 pub use deferred::UpdateManager;
@@ -37,7 +38,10 @@ pub use listener::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
     ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationQueue,
-    NotificationRecord, ObservationListener, PropertyChangeEvent, PropertyChangeListener,
-    PropertyValue, StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener,
-    ValidatingListener,
+    NotificationRecord, ObservationListener, PropertyChangeListener, StableQueryError,
+    StableSceneQuery, UpdateEvent, UpdateListener, ValidatingListener,
+};
+pub use property::{
+    DiscretePropertyValue, ErasedPropertyKey, PropertyChangeEvent, PropertyKey, PropertyValue,
+    PropertyValueType, TypedPropertyChange,
 };

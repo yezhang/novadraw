@@ -3,8 +3,8 @@ use std::{collections::VecDeque, error::Error, fmt};
 use crate::connection::ConnectionRuntimeError;
 use crate::geometry::{Dimension, Rectangle};
 use crate::{
-    ChildClippingStrategy, Figure, FigureId, GraphMutationError, LayerKey, LayerPlacement,
-    LayoutConstraint, LayoutError, LayoutManager,
+    CapabilityKey, CapabilityQueryError, ChildClippingStrategy, Figure, FigureId,
+    GraphMutationError, LayerKey, LayerPlacement, LayoutConstraint, LayoutError, LayoutManager,
 };
 
 use super::runtime::Runtime;
@@ -23,10 +23,35 @@ pub trait FigureComponentUpdate {
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure);
 }
 
+/// A typed update for one registered Figure capability.
+pub trait FigureCapabilityUpdate {
+    type Capability: 'static;
+    type Prepared;
+    type Error;
+
+    const KEY: CapabilityKey<Self::Capability>;
+
+    fn prepare(
+        self,
+        capability: &Self::Capability,
+        context: FigureCapabilityContext,
+    ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error>;
+
+    fn commit(capability: &Self::Capability, prepared: Self::Prepared, target: &mut dyn Figure);
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FigureComponentContext {
     pub figure_id: FigureId,
     pub component_revision: u64,
+    pub bounds: crate::geometry::Rectangle,
+}
+
+/// Stable context supplied while preparing a capability update.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FigureCapabilityContext {
+    pub figure_id: FigureId,
+    pub revision: u64,
     pub bounds: crate::geometry::Rectangle,
 }
 
@@ -35,6 +60,9 @@ pub struct PreparedFigureUpdate<T> {
     pub(crate) value: T,
     pub(crate) invalidation: ComponentInvalidation,
 }
+
+/// A prepared capability value and its required derived-state invalidation.
+pub type PreparedCapabilityUpdate<T> = PreparedFigureUpdate<T>;
 
 impl<T> PreparedFigureUpdate<T> {
     pub fn new(value: T) -> Self {
@@ -72,6 +100,15 @@ pub enum ComponentInvalidation {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ComponentUpdateReceipt {
+    pub figure: FigureId,
+    pub previous_revision: u64,
+    pub revision: u64,
+    pub invalidation: ComponentInvalidation,
+}
+
+/// Receipt for one committed capability update.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CapabilityUpdateReceipt {
     pub figure: FigureId,
     pub previous_revision: u64,
     pub revision: u64,
@@ -125,6 +162,58 @@ impl<E: Error + 'static> Error for ComponentUpdateError<E> {
             Self::Runtime(error) => Some(error),
             Self::Rejected(error) => Some(error),
             Self::WrongFigureType { .. } | Self::RevisionExhausted(_) => None,
+        }
+    }
+}
+
+/// Failure to prepare or commit a typed capability update.
+#[derive(Debug, PartialEq)]
+pub enum CapabilityUpdateError<E> {
+    Runtime(RuntimeMutationError),
+    Query(CapabilityQueryError),
+    Missing {
+        figure: FigureId,
+        capability: &'static str,
+    },
+    RevisionExhausted(FigureId),
+    Rejected(E),
+}
+
+impl<E> From<RuntimeMutationError> for CapabilityUpdateError<E> {
+    fn from(value: RuntimeMutationError) -> Self {
+        Self::Runtime(value)
+    }
+}
+
+impl<E: fmt::Display> fmt::Display for CapabilityUpdateError<E> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Runtime(error) => error.fmt(formatter),
+            Self::Query(error) => error.fmt(formatter),
+            Self::Missing { figure, capability } => {
+                write!(
+                    formatter,
+                    "Figure {figure:?} does not register capability {capability}"
+                )
+            }
+            Self::RevisionExhausted(figure) => {
+                write!(
+                    formatter,
+                    "capability revision is exhausted for Figure {figure:?}"
+                )
+            }
+            Self::Rejected(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Runtime(error) => Some(error),
+            Self::Query(error) => Some(error),
+            Self::Rejected(error) => Some(error),
+            Self::Missing { .. } | Self::RevisionExhausted(_) => None,
         }
     }
 }
@@ -288,6 +377,10 @@ pub(crate) trait DeferredComponentUpdate {
     fn apply(self: Box<Self>, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError>;
 }
 
+pub(crate) trait DeferredCapabilityUpdate {
+    fn apply(self: Box<Self>, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError>;
+}
+
 struct TypedDeferredComponentUpdate<U> {
     figure: FigureId,
     update: U,
@@ -315,6 +408,42 @@ where
                 Err(RuntimeMutationError::ComponentRevisionExhausted(figure))
             }
             Err(ComponentUpdateError::Rejected(_)) => {
+                Err(RuntimeMutationError::ComponentUpdateRejected(figure))
+            }
+        }
+    }
+}
+
+struct TypedDeferredCapabilityUpdate<U> {
+    figure: FigureId,
+    update: U,
+}
+
+impl<U> DeferredCapabilityUpdate for TypedDeferredCapabilityUpdate<U>
+where
+    U: FigureCapabilityUpdate + 'static,
+{
+    fn apply(self: Box<Self>, runtime: &mut Runtime) -> Result<bool, RuntimeMutationError> {
+        let Self { figure, update } = *self;
+        match runtime.update_capability(figure, update) {
+            Ok(_) => Ok(true),
+            Err(CapabilityUpdateError::Runtime(error)) => Err(error),
+            Err(CapabilityUpdateError::Query(CapabilityQueryError::ForeignRuntime(figure))) => {
+                Err(RuntimeMutationError::ForeignRuntime(figure))
+            }
+            Err(CapabilityUpdateError::Query(CapabilityQueryError::UnknownOrDisposedFigure(
+                figure,
+            ))) => Err(RuntimeMutationError::UnknownOrDisposedFigure(figure)),
+            Err(CapabilityUpdateError::Query(CapabilityQueryError::DescriptorTypeMismatch {
+                capability,
+            })) => Err(RuntimeMutationError::WrongCapability { figure, capability }),
+            Err(CapabilityUpdateError::Missing { figure, capability }) => {
+                Err(RuntimeMutationError::WrongCapability { figure, capability })
+            }
+            Err(CapabilityUpdateError::RevisionExhausted(figure)) => {
+                Err(RuntimeMutationError::ComponentRevisionExhausted(figure))
+            }
+            Err(CapabilityUpdateError::Rejected(_)) => {
                 Err(RuntimeMutationError::ComponentUpdateRejected(figure))
             }
         }
@@ -393,6 +522,7 @@ pub(crate) enum PendingMutationKind {
         placement: LayerPlacement,
     },
     UpdateComponent(Box<dyn DeferredComponentUpdate>),
+    UpdateCapability(Box<dyn DeferredCapabilityUpdate>),
 }
 
 impl PendingMutation {
@@ -539,6 +669,18 @@ impl PendingMutation {
     {
         Self {
             kind: PendingMutationKind::UpdateComponent(Box::new(TypedDeferredComponentUpdate {
+                figure,
+                update,
+            })),
+        }
+    }
+
+    pub(crate) fn update_capability<U>(figure: FigureId, update: U) -> Self
+    where
+        U: FigureCapabilityUpdate + 'static,
+    {
+        Self {
+            kind: PendingMutationKind::UpdateCapability(Box::new(TypedDeferredCapabilityUpdate {
                 figure,
                 update,
             })),

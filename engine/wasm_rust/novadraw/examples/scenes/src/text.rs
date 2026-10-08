@@ -1,9 +1,12 @@
-use novadraw::figure::{Alignment, TextPlacement, border::TitleBarBorder};
+use novadraw::figure::{
+    Alignment, FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment, TextPlacement,
+    border::TitleBarBorder,
+};
 use novadraw::render::command::ImageData;
 use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    Color, FigureId, FigureStyle, FlowPage, FlowParagraph, FlowWrapping, ImageFigure,
-    InlineTextFragment, LabelFigure, Rectangle, RectangleFigure, Runtime, TextFlowFigure,
+    Color, FigureId, FigureStyle, ImageFigure, LabelFigure, Rectangle, RectangleFigure, Runtime,
+    TextFlowFigure,
 };
 
 use crate::{DemoSuite, SceneSpec};

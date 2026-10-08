@@ -9,10 +9,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use novadraw::{
-    FigureId, FigureTree, ListenerDirective, ListenerId, NotificationEffect, NotificationRecord,
-    ObservationListener, Rectangle, Runtime, StableQueryError,
+use novadraw::event::{
+    ListenerDirective, ListenerId, NotificationEffect, NotificationRecord, ObservationListener,
 };
+use novadraw::runtime::{StableQueryError, StableSceneQuery};
+use novadraw::{FigureId, FigureTree, Rectangle, Runtime};
 
 /// A stable, UI-independent view of one attached Figure.
 #[derive(Clone, Debug)]
@@ -186,7 +187,7 @@ impl ObservationListener for InspectorObserver {
     fn observed(
         &self,
         record: &NotificationRecord,
-        _latest: novadraw::StableSceneQuery<'_>,
+        _latest: StableSceneQuery<'_>,
     ) -> ListenerDirective {
         if let Ok(mut state) = self.state.lock() {
             state.push(record);

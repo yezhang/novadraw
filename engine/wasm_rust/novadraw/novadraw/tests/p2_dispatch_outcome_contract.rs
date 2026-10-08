@@ -4,7 +4,8 @@ fn runtime_with_clickable() -> (Runtime, novadraw::FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid FigureTree construction");
     let clickable = tree
         .builder()
         .add_child(

@@ -233,13 +233,6 @@ struct FlowLayoutSnapshot {
     origin: Point,
 }
 
-pub trait TextFlowBehavior {
-    fn page(&self) -> &FlowPage;
-    fn wrapping(&self) -> FlowWrapping;
-    fn replace_page(&mut self, page: FlowPage);
-    fn replace_wrapping(&mut self, wrapping: FlowWrapping);
-}
-
 #[derive(Clone)]
 pub struct TextFlowFigure {
     bounds: Rectangle,
@@ -465,6 +458,25 @@ impl TextFlowFigure {
     pub fn set_viewport(&mut self, viewport: TextFlowViewport) {
         self.viewport = viewport;
     }
+
+    pub(crate) fn page(&self) -> &FlowPage {
+        &self.page
+    }
+
+    pub(crate) fn wrapping(&self) -> FlowWrapping {
+        self.wrapping
+    }
+
+    pub(crate) fn replace_page(&mut self, page: FlowPage) {
+        self.page = page;
+        self.revision = self.revision.wrapping_add(1);
+        self.layout = None;
+    }
+
+    pub(crate) fn replace_wrapping(&mut self, wrapping: FlowWrapping) {
+        self.wrapping = wrapping;
+        self.layout = None;
+    }
 }
 
 impl FlowLayoutSnapshot {
@@ -574,10 +586,6 @@ impl Figure for TextFlowFigure {
         }
     }
 
-    fn text_flow(&self) -> Option<&dyn TextFlowBehavior> {
-        Some(self)
-    }
-
     fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
         let base = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         if self.viewport.clips_to_bounds() {
@@ -597,31 +605,6 @@ impl Figure for TextFlowFigure {
                 })
             })
             .map_or(base, |ink| base.union(ink))
-    }
-
-    fn text_flow_mut(&mut self) -> Option<&mut dyn TextFlowBehavior> {
-        Some(self)
-    }
-}
-
-impl TextFlowBehavior for TextFlowFigure {
-    fn page(&self) -> &FlowPage {
-        &self.page
-    }
-
-    fn wrapping(&self) -> FlowWrapping {
-        self.wrapping
-    }
-
-    fn replace_page(&mut self, page: FlowPage) {
-        self.page = page;
-        self.revision = self.revision.wrapping_add(1);
-        self.layout = None;
-    }
-
-    fn replace_wrapping(&mut self, wrapping: FlowWrapping) {
-        self.wrapping = wrapping;
-        self.layout = None;
     }
 }
 

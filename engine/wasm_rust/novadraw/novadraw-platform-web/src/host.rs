@@ -1,7 +1,7 @@
-use novadraw::PlatformHost;
 use novadraw::event::{AccessibilityUpdate, MonotonicTime, TooltipUpdate};
 use novadraw::figure::CursorIcon;
 use novadraw::host::ImeState;
+use novadraw::host::PlatformHost;
 use novadraw::render::SurfaceInfo;
 
 /// Browser host adapter without a hard dependency on a specific DOM binding.

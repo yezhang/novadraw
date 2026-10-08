@@ -3,8 +3,6 @@
 //! 参考 draw2d: FlowLayout 或 FillLayout
 //! 第一个子元素填充容器，其他子元素保持原位。
 
-use tracing::debug;
-
 use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
 use crate::geometry::Dimension;
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
@@ -66,17 +64,10 @@ impl LayoutManager for FillLayout {
             return Ok(());
         }
 
-        debug!(
-            "FillLayout: container={:?}, children count: {}",
-            container,
-            children.len()
-        );
-
         // 获取第一个子元素
         if let Some((first_child_id, _)) = children.first() {
             // FillLayout：第一个子元素填充容器的 client area
             let bounds = snapshot.container_bounds(container);
-            debug!("FillLayout: first child bounds={:?}", bounds);
             out.set_child_bounds(*first_child_id, bounds);
         }
         Ok(())

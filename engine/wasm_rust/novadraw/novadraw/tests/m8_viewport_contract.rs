@@ -1,24 +1,66 @@
 use std::sync::{Arc, Mutex};
 
-use novadraw::Color;
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
+use novadraw::container::{
+    DefaultRangeModel, RangeChange, RangeListener, RangeModel, RangeModelError, RangeProperty,
+    ScaleModel, ScrollBarVisibility, ScrollPaneHandle, ViewportFigure, ZoomError, ZoomManager,
+    ZoomScrollPolicy, ZoomViewportState,
+};
+use novadraw::event::{
+    FigureEventHandler, GesturePhase, GestureSessionId, KeyModifiers, MouseButton, ScrollDeltaKind,
+    WheelEvent, ZoomEvent,
+};
+use novadraw::figure::{
+    Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
+    SCALE, ScaleCapability, border::LineBorder,
+};
 use novadraw::geometry::{Affine2D, Dimension, Point, Rectangle, Translatable};
 use novadraw::render::command::RenderCommandKind;
-use novadraw::{
-    Bounded, DefaultRangeModel, Figure, FigureEventHandler, FigureTree, GesturePhase,
-    GestureSessionId, KeyModifiers, LineBorder, MouseButton, RangeChange, RangeListener,
-    RangeModel, RangeModelError, RangeProperty, RectangleFigure, Runtime, SceneDispatchContext,
-    ScrollBarVisibility, ScrollDeltaKind, ViewportFigure, WheelEvent, ZoomError, ZoomEvent,
-    ZoomManager,
-};
+use novadraw::runtime::RuntimeMutationError;
+use novadraw::runtime::context::SceneDispatchContext;
+use novadraw::{Color, Figure, FigureTree, RectangleFigure, Runtime};
 
 struct RecordingRangeListener {
     changes: Arc<Mutex<Vec<RangeChange>>>,
 }
 
+struct ExternalScalableFigure {
+    scale: ScaleModel,
+}
+
+impl Figure for ExternalScalableFigure {
+    fn initial_bounds(&self) -> Rectangle {
+        Rectangle::new(0.0, 0.0, 100.0, 80.0)
+    }
+
+    fn name(&self) -> &'static str {
+        "ExternalScalableFigure"
+    }
+
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(SCALE, ScaleCapability::new(self.scale.clone()))
+    }
+}
+
 impl RangeListener for RecordingRangeListener {
     fn range_changed(&self, change: RangeChange) {
         self.changes.lock().unwrap().push(change);
+    }
+}
+
+struct NonFiniteZoomScrollPolicy;
+
+impl ZoomScrollPolicy for NonFiniteZoomScrollPolicy {
+    fn calc_new_view_location(
+        &self,
+        _viewport: ZoomViewportState,
+        _old_zoom: f64,
+        _new_zoom: f64,
+    ) -> Point {
+        Point::new(f64::NAN, 0.0)
     }
 }
 
@@ -100,7 +142,8 @@ fn viewport_handle_owns_contents_and_derives_ranges_from_layout() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -134,7 +177,8 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -166,7 +210,8 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -205,7 +250,8 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -239,7 +285,8 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -323,7 +370,8 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let scalable = graph
         .builder()
         .add_scalable_layered_pane_to(root, Rectangle::new(0.0, 0.0, 600.0, 400.0))
@@ -333,9 +381,34 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
             .scalable(scalable.figure_id())
             .unwrap()
             .set_scale(0.0),
-        Err(novadraw::RuntimeMutationError::Rejected)
+        Err(RuntimeMutationError::Rejected)
     );
     assert_eq!(scalable.scale(), 1.0);
+}
+
+#[test]
+fn external_figure_scale_capability_is_runtime_mutable_without_downcast() {
+    let model = ScaleModel::new();
+    let mut graph = FigureTree::new();
+    let figure = graph
+        .builder()
+        .set_contents(Box::new(ExternalScalableFigure {
+            scale: model.clone(),
+        }))
+        .expect("valid FigureTree construction");
+    let handle = graph
+        .scale_handle(figure)
+        .expect("Figure capability must produce a scale handle");
+    assert_eq!(handle.scale(), 1.0);
+
+    Runtime::new(graph)
+        .scalable(figure)
+        .unwrap()
+        .set_scale(2.0)
+        .unwrap();
+
+    assert_eq!(model.scale(), 2.0);
+    assert_eq!(handle.scale(), 2.0);
 }
 
 #[test]
@@ -343,7 +416,8 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -400,18 +474,22 @@ impl Figure for WheelIgnoringFigure {
         Bounded::name(self)
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
 impl FigureEventHandler for WheelIgnoringFigure {}
 
-fn large_scroll_pane_scene() -> (FigureTree, novadraw::ScrollPaneHandle, UpdateManager) {
+fn large_scroll_pane_scene() -> (FigureTree, ScrollPaneHandle, UpdateManager) {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let pane = graph
         .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -553,7 +631,8 @@ fn pinch_zoom_keeps_content_point_under_the_entry_anchor() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let pane = graph
         .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -614,7 +693,8 @@ fn zoomed_canvas_remains_reachable_at_every_scroll_range_edge() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let pane = graph
         .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -742,7 +822,8 @@ fn zoom_out_layout_does_not_corrupt_the_unscaled_preferred_extent() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let pane = graph
         .builder()
         .add_scroll_pane_to(root, Rectangle::new(100.0, 80.0, 320.0, 220.0))
@@ -899,7 +980,8 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -932,10 +1014,46 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
     for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
         assert_eq!(
             runtime.zoom(&manager).unwrap().set_zoom(invalid),
-            Err(novadraw::RuntimeMutationError::Rejected)
+            Err(RuntimeMutationError::Rejected)
         );
         assert_eq!(manager.zoom(), 0.5);
     }
+}
+
+#[test]
+fn zoom_rejects_non_finite_policy_output_before_mutating_scale_or_viewport() {
+    let mut graph = FigureTree::new();
+    let root = graph
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
+    let viewport = graph
+        .builder()
+        .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
+        .unwrap();
+    let scalable = graph
+        .builder()
+        .add_scalable_layered_pane_to(viewport.figure_id(), Rectangle::new(0.0, 0.0, 600.0, 400.0))
+        .unwrap();
+    graph
+        .builder()
+        .validate_subtree(viewport.figure_id())
+        .expect("valid FigureTree construction");
+    let mut manager = ZoomManager::new(scalable.clone(), viewport.clone());
+    manager.set_scroll_policy(Arc::new(NonFiniteZoomScrollPolicy));
+    let original_horizontal = viewport.horizontal_range();
+    let original_vertical = viewport.vertical_range();
+    let original_location = viewport.view_location();
+    let mut runtime = Runtime::new(graph);
+
+    assert_eq!(
+        runtime.zoom(&manager).unwrap().set_zoom(2.0),
+        Err(RuntimeMutationError::Rejected)
+    );
+    assert_eq!(scalable.scale(), 1.0);
+    assert_eq!(viewport.view_location(), original_location);
+    assert_eq!(viewport.horizontal_range(), original_horizontal);
+    assert_eq!(viewport.vertical_range(), original_vertical);
 }
 
 #[test]
@@ -943,7 +1061,8 @@ fn zoom_manager_uses_configured_levels_for_step_zoom() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -995,7 +1114,8 @@ fn viewport_rejects_a_second_contents_child_atomically() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_child(

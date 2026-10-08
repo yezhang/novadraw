@@ -115,6 +115,7 @@ parity 状态枚举；验证文档只记录 suite ID 和执行结果，不再复
 | 第三方类型与渲染依赖边界 | [doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md](doc/adr/adr-022-third-party-type-and-render-dependency-boundary.md) |
 | Crate 收口与扩展边界 | [doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md](doc/adr/adr-023-crate-consolidation-and-extension-boundaries.md) |
 | 统一 Graphics 与 glyph 预处理边界 | [ADR-025](doc/adr/adr-025-unified-graphics-and-glyph-preparation.md) |
+| 类型化属性身份与异构通知日志 | [ADR-028](doc/adr/adr-028-typed-property-identity.md) |
 | Core 公开 API 审计 | [doc/verification/reviews/core-public-api-audit-2026-09-22.md](doc/verification/reviews/core-public-api-audit-2026-09-22.md) |
 
 ### Milestone 与路线图

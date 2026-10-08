@@ -438,16 +438,12 @@ fn unchanged_connection_projection_does_not_reroute_each_connection() {
     let (mut viewer, _) = viewer_with(connections);
     let route_count = Arc::new(AtomicUsize::new(0));
     let router = viewer
-        .runtime_mut()
         .register_connection_router(Box::new(CountingRouter {
             route_count: Arc::clone(&route_count),
-        }));
-    let connection_layer = viewer.root_layers().connection();
-    viewer
-        .runtime_mut()
-        .set_connection_layer_router(connection_layer, router)
+        }))
         .unwrap();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.set_connection_layer_router(router).unwrap();
+    viewer.prepare_frame().unwrap();
     assert_eq!(
         route_count.load(Ordering::Relaxed),
         LINEAR_REFRESH_CONNECTION_COUNT as usize
@@ -456,7 +452,7 @@ fn unchanged_connection_projection_does_not_reroute_each_connection() {
 
     viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
-    let _ = viewer.runtime_mut().prepare_frame();
+    let _ = viewer.prepare_frame();
 
     assert_eq!(
         route_count.load(Ordering::Relaxed),
@@ -804,7 +800,7 @@ fn endpoint_geometry_change_is_rerouted_by_runtime() {
         .insert(FIRST, Rectangle::new(80.0, 180.0, 100.0, 80.0));
     viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
 
     assert_ne!(viewer.runtime().tree().figure_bounds(figure), Some(before));
     assert!(matches!(

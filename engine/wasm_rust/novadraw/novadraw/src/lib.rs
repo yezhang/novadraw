@@ -7,8 +7,6 @@ mod graph;
 #[allow(missing_docs)]
 mod identity;
 #[allow(missing_docs)]
-mod log;
-#[allow(missing_docs)]
 mod style;
 
 /// Low-level types for diagnostics and deep engine integration.
@@ -49,106 +47,105 @@ pub mod text;
 pub mod tree;
 
 pub use color::{Color, ColorError, ParseColorError};
-pub use connection::{
-    AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorGeometryKeyError, AnchorGroupKey,
-    AnchorId, AnchorSemanticKey, AnchorSemanticKeyError, AnchorSite, Bendpoint,
-    BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionAnchor,
-    ConnectionDecorationBehavior, ConnectionFigure, ConnectionFigureBehavior,
-    ConnectionGeometryError, ConnectionId, ConnectionLayerFigure, ConnectionLocator,
-    ConnectionLocatorStrategy, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
-    ConnectionStateSnapshot, CoordinateSpace, DecorationError, DirectRouter, EllipseAnchor,
-    EndpointLocator, FAN_DEFAULT_SEPARATION, FanRouter, FanRouterError, LabelAnchor, LocatorError,
-    LocatorPlacement, MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB,
-    ManhattanConnectionRouter, MidpointLocator, PathFractionLocator, PolygonDecorationFigure,
-    PolylineDecorationFigure, RoundedRectangleAnchor, RouteEnd, RouteEndpoint, RouteError,
-    RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope,
-    SHORTEST_PATH_DEFAULT_BEND_PENALTY, SHORTEST_PATH_DEFAULT_CLEARANCE,
-    SHORTEST_PATH_DEFAULT_MINIMUM_STUB, ShortestPathConnectionRouter, ShortestPathRouterError,
-    XYAnchor, rectangle_boundary_site,
-};
-pub use container::viewport;
-pub use container::{
-    DEFAULT_ZOOM_LEVELS, DefaultRangeModel, DefaultScrollPolicy, FreeformLayerFigure,
-    FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerKeyError, LayerPlacement,
-    LayeredPane, LayeredPaneMut, MouseLocationZoomScrollPolicy, RangeChange, RangeChangeSet,
-    RangeListener, RangeListenerId, RangeModel, RangeModelError, RangeModelSnapshot, RangeProperty,
-    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError,
-    ScaleHandle, ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError,
-    ScrollPaneFigure, ScrollPaneHandle, ScrollPaneLayout, ZoomError, ZoomManager, ZoomScrollPolicy,
-    ZoomViewportState,
-};
 pub use figure::{
-    AccessibleFigure, Alignment, AsAny, BorderedFigure, Bounded, ButtonFigure,
-    ChildClippingStrategy, ChildPolicy, ChildTransform, ClickableBehavior, ClickableFigure,
-    ClickableKind, ClickableModel, ClickableSnapshot, ClickableVisualState, Direction,
-    EllipseFigure, Figure, FigureContainer, FigureEventHandler, FigureLifecycle,
-    FigureLifecycleContext, FigureMeasurement, FlowPage, FlowParagraph, FlowTextPosition,
-    FlowTextRange, FlowWrapping, Freeform, HitParticipation, ImageDisplayState, ImageFigure,
-    InlineTextFragment, LabelFigure, Layer, MeasureConstraints, MeasureConstraintsError,
-    PointListFigureBehavior, PolygonFigure, PolygonScaleMode, PolylineFigure, RectangleFigure,
-    RootFigure, RoundedRectangleFigure, ScalablePolygonBehavior, ScalablePolygonError,
-    ScalablePolygonFigure, Shape, ShapeMutationError, TextFlowBehavior, TextFlowFigure,
-    TextFlowViewport, TextPlacement, ToggleFigure, TriangleFigure, WidgetError,
+    ButtonFigure, EllipseFigure, Figure, FigureMeasurement, ImageFigure, LabelFigure,
+    MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure, RoundedRectangleFigure,
+    TextFlowFigure, ToggleFigure, TriangleFigure,
 };
 pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub(crate) use graph::FigureNode;
-pub use graph::{
-    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FigureId, FigureTree,
-    FigureTreeBuilder, FreeformError, GraphMutationError, IdentitySearch, MAX_TREE_DEPTH,
-    TreeQueryError, TreeSearch, TreeSearchContext, ValidationError,
-};
-pub use host::{HeadlessHost, ImeState, PlatformHost};
+pub use graph::{FigureId, FigureTree, FigureTreeBuilder};
+pub use graphics::{Graphics, GraphicsError, PaintContext};
 pub(crate) use identity::RuntimeNamespace;
 pub use layout::{
-    BorderConstraint, BorderLayout, BorderRegion, FillLayout, FlowDirection, FlowLayout,
-    FreeformConstraint, FreeformConstraintError, FreeformLayout, GridAlignment, GridConstraint,
-    GridLayout, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
-    LayoutSnapshot, MinorAlignment, StackLayout, ToolbarLayout, ToolbarOrientation, XYConstraint,
-    XYLayout,
+    BorderLayout, FillLayout, FlowLayout, FreeformLayout, GridLayout, LayoutManager, StackLayout,
+    ToolbarLayout, XYLayout,
 };
-pub use render::{
+pub(crate) use runtime::InteractionState;
+pub(crate) use runtime::event::EventDispatcher;
+pub(crate) use runtime::mutation;
+pub(crate) use runtime::mutation::PendingMutations;
+pub(crate) use runtime::update::UpdateManager;
+pub use runtime::{FrameNotReady, FramePreparation, FramePreparationError, Runtime};
+pub use style::FigureStyle;
+
+// Internal modules still use the former root facade as a crate-local prelude.
+// These aliases are deliberately not public and do not extend the root API.
+#[allow(unused_imports)]
+pub(crate) use connection::*;
+#[allow(unused_imports)]
+pub(crate) use container::*;
+#[allow(unused_imports)]
+pub(crate) use figure::border::*;
+#[allow(unused_imports)]
+pub(crate) use figure::{
+    ACCESSIBILITY, AccessibilityCapability, AccessibleFigure, Alignment, AsAny, BORDER,
+    BorderCapability, BorderedFigure, Bounded, CLICKABLE, CONNECTION, CONNECTION_DECORATION,
+    CONTAINER, CapabilityKey, CapabilityQueryError, ChildClippingStrategy, ChildPolicy,
+    ChildTransform, ClickableBehavior, ClickableCapability, ClickableFigure, ClickableKind,
+    ClickableModel, ClickableSnapshot, ClickableVisualState, ConnectionCapability,
+    ConnectionDecorationCapability, ContainerCapability, Direction, FREEFORM,
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureContainer,
+    FigureEventHandler, FigureLifecycle, FigureLifecycleContext, FlowPage, FlowParagraph,
+    FlowTextPosition, FlowTextRange, FlowWrapping, FreeformCapability, HitParticipation, INPUT,
+    ImageDisplayState, InlineTextFragment, InputCapability, LAYER, LIFECYCLE, LayerCapability,
+    LifecycleCapability, MeasureConstraintsError, PREPARATION, PolygonScaleMode,
+    PreparationCapability, RootFigure, SCALE, ScalablePolygonError, ScalablePolygonFigure,
+    ScaleCapability, Shape, ShapeMutationError, TextFlowViewport, TextPlacement, WidgetError,
+};
+#[allow(unused_imports)]
+pub(crate) use graph::{
+    DEFAULT_VALIDATION_BUDGET, ExclusionSearch, FREEFORM_EXTENT_PROPERTY, FreeformError,
+    GraphMutationError, IdentitySearch, MAX_TREE_DEPTH, TreeQueryError, TreeSearch,
+    TreeSearchContext, ValidationError,
+};
+#[allow(unused_imports)]
+pub(crate) use host::*;
+#[allow(unused_imports)]
+pub(crate) use layout::{
+    BorderConstraint, BorderRegion, FlowDirection, FreeformConstraint, FreeformConstraintError,
+    GridAlignment, GridConstraint, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutOutput,
+    LayoutSnapshot, MinorAlignment, ToolbarOrientation, XYConstraint,
+};
+#[allow(unused_imports)]
+pub(crate) use render::{
     BackendCapabilities, CaretGeometry, DamageMode, NdCanvas, RenderBackend, RenderCapability,
     RenderOutcome, ResourceId, SelectionQuad, SurfaceInfo, TextAffinity, TextInteractionError,
     TextInteractionMap, TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition,
     TextRange, UnsupportedRenderCapability,
 };
-pub(crate) use runtime::InteractionState;
-pub use runtime::context::{EventContext, SceneDispatchContext};
-pub(crate) use runtime::event::EventDispatcher;
-pub use runtime::event::{
+#[allow(unused_imports)]
+pub(crate) use runtime::context::{EventContext, SceneDispatchContext};
+#[allow(unused_imports)]
+pub(crate) use runtime::event::{
     DispatchContext, DispatchOutcome, Event, FocusEvent, FocusEventKind, GesturePhase,
     GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
     MouseEventKind, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
-pub(crate) use runtime::mutation;
-pub(crate) use runtime::mutation::PendingMutations;
-pub(crate) use runtime::update::UpdateManager;
-pub use runtime::update::{
+#[allow(unused_imports)]
+pub(crate) use runtime::update::{
     ActionEvent, ActionListener, AncestorEvent, AncestorEventKind, AncestorListener,
     CoordinateListener, FigureEvent, FigureListener, LayoutEvent, LayoutEventKind, LayoutListener,
     ListenerDirective, ListenerId, ListenerScope, NotificationEffect, NotificationRecord,
-    ObservationListener, PropertyChangeEvent, PropertyChangeListener, PropertyValue,
-    StableQueryError, StableSceneQuery, UpdateEvent, UpdateListener, ValidatingListener,
+    ObservationListener, PropertyChangeEvent, PropertyChangeListener, PropertyKey, PropertyValue,
+    PropertyValueType, StableQueryError, StableSceneQuery, TypedPropertyChange, UpdateEvent,
+    UpdateListener, ValidatingListener,
 };
-pub use runtime::{
+#[allow(unused_imports)]
+pub(crate) use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
-    AccessibilityUpdate, BackendSessionError, BorderMut, ClickableMut, ComponentInvalidation,
-    ComponentUpdateError, ComponentUpdateReceipt, ContainerMut, FigureComponentContext,
-    FigureComponentUpdate, FigureMut, FocusChange, FocusError, FocusTraversalDirection,
-    FocusTraversalOutcome, FocusTraversalPolicy, FontId, FrameNotReady, FramePreparation,
-    FramePreparationError, ImageId, ImageMut, LabelMut, LogicalViewportResizeError, MonotonicTime,
-    PointListMut, PointerId, ResourceError, ResourceKind, ResourceStatus, RoundedRectangleMut,
-    Runtime, RuntimeMutationError, ScalablePolygonMut, ScaleMut, ScrollPaneMut, TextFlowMut,
+    AccessibilityUpdate, BackendSessionError, BorderMut, CapabilityUpdateError,
+    CapabilityUpdateReceipt, ClickableMut, ComponentInvalidation, ComponentUpdateError,
+    ComponentUpdateReceipt, ContainerMut, FigureCapabilityContext, FigureCapabilityUpdate,
+    FigureComponentContext, FigureComponentUpdate, FigureMut, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, ImageId,
+    ImageMut, LabelMut, LogicalViewportResizeError, MonotonicTime, PointListMut, PointerId,
+    PreparedCapabilityUpdate, ResourceError, ResourceKind, ResourceStatus, RoundedRectangleMut,
+    RuntimeMutationError, ScalablePolygonMut, ScaleMut, ScrollPaneMut, TextFlowMut,
     TextFlowQueryError, TextLayoutStats, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot,
     TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut,
     place_tooltip,
 };
-pub use style::{CursorIcon, FigureStyle, ResolvedStyle};
-pub use viewport::{ViewportError, ViewportFigure, ViewportHandle, ViewportLayout};
-
-pub use figure::border;
-pub use figure::border::{
-    BevelBorder, BevelStyle, Border, BorderStyle, CompoundBorder, EtchedBorder, LineBorder,
-    MarginBorder, RectangleBorder, TitleBarBorder,
-};
+#[allow(unused_imports)]
+pub(crate) use style::{CursorIcon, ResolvedStyle};

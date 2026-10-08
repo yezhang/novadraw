@@ -7,10 +7,13 @@ use crate::render::NdCanvas;
 
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
-    FigureMeasurement, Freeform, HitParticipation, Layer, MeasureConstraints, border::Border,
+    FigureMeasurement, HitParticipation, MeasureConstraints, border::Border,
 };
+use crate::runtime::update::property::standard as property;
 use crate::{
-    FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue, UpdateManager,
+    FREEFORM, FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureId, FigureTree,
+    FigureTreeBuilder, FreeformCapability, GraphMutationError, LAYER, LayerCapability, SCALE,
+    ScaleCapability, UpdateManager,
 };
 
 fn valid_scale(scale: f64) -> bool {
@@ -43,29 +46,16 @@ impl From<GraphMutationError> for ScaleError {
 }
 
 #[derive(Debug)]
-struct ScaleRuntime {
+struct ScaleState {
     scale: f64,
-    unscaled_preferred_width: f64,
-    unscaled_preferred_height: f64,
 }
 
-impl ScaleRuntime {
-    fn new(width: f64, height: f64) -> Self {
-        Self {
-            scale: 1.0,
-            unscaled_preferred_width: width,
-            unscaled_preferred_height: height,
-        }
+impl ScaleState {
+    const fn new() -> Self {
+        Self { scale: 1.0 }
     }
 
-    fn unscaled_preferred_size(&self) -> Dimension {
-        Dimension::new(
-            self.unscaled_preferred_width,
-            self.unscaled_preferred_height,
-        )
-    }
-
-    fn update_scale(&mut self, scale: f64) -> Result<Option<(f64, f64, f64)>, ScaleError> {
+    fn update_scale(&mut self, scale: f64) -> Result<Option<f64>, ScaleError> {
         if !valid_scale(scale) {
             return Err(ScaleError::InvalidScale);
         }
@@ -73,13 +63,8 @@ impl ScaleRuntime {
             return Ok(None);
         }
         let old_scale = self.scale;
-        let size = self.unscaled_preferred_size();
-        let (width, height) = (size.width * scale, size.height * scale);
-        if !width.is_finite() || !height.is_finite() || width < 0.0 || height < 0.0 {
-            return Err(ScaleError::InvalidScale);
-        }
         self.scale = scale;
-        Ok(Some((old_scale, width, height)))
+        Ok(Some(old_scale))
     }
 }
 
@@ -89,14 +74,44 @@ fn lock_unpoisoned<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-pub trait ScalableFigure: Figure {
-    fn scale(&self) -> f64;
+/// Shared scale capability owned by a Figure and cloned by runtime handles.
+#[derive(Clone, Debug)]
+pub struct ScaleModel {
+    state: Arc<Mutex<ScaleState>>,
+}
+
+impl ScaleModel {
+    pub fn new() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ScaleState::new())),
+        }
+    }
+
+    pub fn with_scale(scale: f64) -> Result<Self, ScaleError> {
+        let model = Self::new();
+        model.update_scale(scale)?;
+        Ok(model)
+    }
+
+    pub fn scale(&self) -> f64 {
+        lock_unpoisoned(&self.state).scale
+    }
+
+    fn update_scale(&self, scale: f64) -> Result<Option<f64>, ScaleError> {
+        lock_unpoisoned(&self.state).update_scale(scale)
+    }
+}
+
+impl Default for ScaleModel {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Clone)]
 pub struct ScaleHandle {
     figure_id: FigureId,
-    runtime: Arc<Mutex<ScaleRuntime>>,
+    model: ScaleModel,
 }
 
 impl ScaleHandle {
@@ -105,7 +120,7 @@ impl ScaleHandle {
     }
 
     pub fn scale(&self) -> f64 {
-        lock_unpoisoned(&self.runtime).scale
+        self.model.scale()
     }
 
     pub(crate) fn set_scale(
@@ -121,19 +136,13 @@ impl ScaleHandle {
             return Err(ScaleError::MissingFigure);
         }
         let old_scale = {
-            let mut runtime = lock_unpoisoned(&self.runtime);
-            let Some(update) = runtime.update_scale(scale)? else {
+            let Some(old_scale) = self.model.update_scale(scale)? else {
                 return Ok(false);
             };
-            update.0
+            old_scale
         };
 
-        graph.record_property_change(
-            self.figure_id,
-            "scale",
-            PropertyValue::Number(old_scale),
-            PropertyValue::Number(scale),
-        );
+        graph.record_property_change(self.figure_id, property::SCALE, old_scale, scale);
         graph.record_coordinate_system_changed(self.figure_id);
         graph.mark_invalid(update_manager, self.figure_id);
         graph.repaint(update_manager, self.figure_id, None);
@@ -144,31 +153,28 @@ impl ScaleHandle {
 #[derive(Clone)]
 pub struct ScalableLayeredPaneFigure {
     bounds: Rectangle,
-    runtime: Arc<Mutex<ScaleRuntime>>,
+    scale_model: ScaleModel,
     child_clipping_strategy: ChildClippingStrategy,
     border: Option<Arc<dyn Border>>,
 }
 
 impl ScalableLayeredPaneFigure {
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self::with_runtime(
-            Rectangle::new(x, y, width, height),
-            Arc::new(Mutex::new(ScaleRuntime::new(width, height))),
-        )
+        Self::with_scale_model(Rectangle::new(x, y, width, height), ScaleModel::new())
     }
 
-    fn with_runtime(bounds: Rectangle, runtime: Arc<Mutex<ScaleRuntime>>) -> Self {
+    fn with_scale_model(bounds: Rectangle, scale_model: ScaleModel) -> Self {
         Self {
             bounds,
-            runtime,
+            scale_model,
             child_clipping_strategy: ChildClippingStrategy::ClipToChildBounds,
             border: None,
         }
     }
 
-    pub fn with_scale(self, scale: f64) -> Self {
-        let _ = lock_unpoisoned(&self.runtime).update_scale(scale);
-        self
+    pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
+        self.scale_model = ScaleModel::with_scale(scale)?;
+        Ok(self)
     }
 
     pub fn with_child_clipping_strategy(mut self, strategy: ChildClippingStrategy) -> Self {
@@ -182,7 +188,7 @@ impl ScalableLayeredPaneFigure {
     }
 
     fn project_layout_size(&self, size: Dimension) -> Dimension {
-        let scale = self.scale();
+        let scale = self.scale_model.scale();
         let insets = self.insets();
         Dimension::new(
             (size.width - insets.width()).max(0.0) * scale + insets.width(),
@@ -205,12 +211,12 @@ impl Bounded for ScalableLayeredPaneFigure {
     }
 
     fn preferred_size(&self) -> Dimension {
-        let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
+        let size = Dimension::new(self.bounds.width, self.bounds.height);
         self.project_layout_size(size)
     }
 
     fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
-        let scale = self.scale();
+        let scale = self.scale_model.scale();
         MeasureConstraints::new(
             constraints.max_width().map(|width| width / scale),
             constraints.max_height().map(|height| height / scale),
@@ -226,7 +232,7 @@ impl Bounded for ScalableLayeredPaneFigure {
             size.height,
             measurement
                 .baseline
-                .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
+                .map(|baseline| (baseline - top).max(0.0) * self.scale_model.scale() + top),
         )
     }
 
@@ -235,7 +241,7 @@ impl Bounded for ScalableLayeredPaneFigure {
     }
 
     fn child_transform(&self) -> ChildTransform {
-        let scale = self.scale();
+        let scale = self.scale_model.scale();
         ChildTransform::uniform(scale, 0.0, 0.0)
     }
 
@@ -284,12 +290,12 @@ impl Figure for ScalableLayeredPaneFigure {
         self.border.as_deref()
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn content_scale(&self) -> Option<f64> {
-        Some(self.scale())
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(SCALE, ScaleCapability::new(self.scale_model.clone()))
     }
 }
 
@@ -315,38 +321,29 @@ impl FigureContainer for ScalableLayeredPaneFigure {
     }
 }
 
-impl ScalableFigure for ScalableLayeredPaneFigure {
-    fn scale(&self) -> f64 {
-        lock_unpoisoned(&self.runtime).scale
-    }
-}
-
 #[derive(Clone)]
 pub struct ScalableFreeformLayeredPane {
     bounds: Rectangle,
-    runtime: Arc<Mutex<ScaleRuntime>>,
+    scale_model: ScaleModel,
     border: Option<Arc<dyn Border>>,
 }
 
 impl ScalableFreeformLayeredPane {
     pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
-        Self::with_runtime(
-            Rectangle::new(x, y, width, height),
-            Arc::new(Mutex::new(ScaleRuntime::new(width, height))),
-        )
+        Self::with_scale_model(Rectangle::new(x, y, width, height), ScaleModel::new())
     }
 
-    fn with_runtime(bounds: Rectangle, runtime: Arc<Mutex<ScaleRuntime>>) -> Self {
+    fn with_scale_model(bounds: Rectangle, scale_model: ScaleModel) -> Self {
         Self {
             bounds,
-            runtime,
+            scale_model,
             border: None,
         }
     }
 
-    pub fn with_scale(self, scale: f64) -> Self {
-        let _ = lock_unpoisoned(&self.runtime).update_scale(scale);
-        self
+    pub fn with_scale(mut self, scale: f64) -> Result<Self, ScaleError> {
+        self.scale_model = ScaleModel::with_scale(scale)?;
+        Ok(self)
     }
 
     pub fn with_border(mut self, border: impl Border + 'static) -> Self {
@@ -355,7 +352,7 @@ impl ScalableFreeformLayeredPane {
     }
 
     fn project_layout_size(&self, size: Dimension) -> Dimension {
-        let scale = self.scale();
+        let scale = self.scale_model.scale();
         let insets = self.insets();
         Dimension::new(
             (size.width - insets.width()).max(0.0) * scale + insets.width(),
@@ -378,12 +375,12 @@ impl Bounded for ScalableFreeformLayeredPane {
     }
 
     fn preferred_size(&self) -> Dimension {
-        let size = lock_unpoisoned(&self.runtime).unscaled_preferred_size();
+        let size = Dimension::new(self.bounds.width, self.bounds.height);
         self.project_layout_size(size)
     }
 
     fn layout_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
-        let scale = self.scale();
+        let scale = self.scale_model.scale();
         MeasureConstraints::new(
             constraints.max_width().map(|width| width / scale),
             constraints.max_height().map(|height| height / scale),
@@ -399,7 +396,7 @@ impl Bounded for ScalableFreeformLayeredPane {
             size.height,
             measurement
                 .baseline
-                .map(|baseline| (baseline - top).max(0.0) * self.scale() + top),
+                .map(|baseline| (baseline - top).max(0.0) * self.scale_model.scale() + top),
         )
     }
 
@@ -408,7 +405,7 @@ impl Bounded for ScalableFreeformLayeredPane {
     }
 
     fn child_transform(&self) -> ChildTransform {
-        ChildTransform::uniform(self.scale(), 0.0, 0.0)
+        ChildTransform::uniform(self.scale_model.scale(), 0.0, 0.0)
     }
 
     fn child_clipping_strategy(&self) -> ChildClippingStrategy {
@@ -464,20 +461,14 @@ impl Figure for ScalableFreeformLayeredPane {
         HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
-    }
-
-    fn freeform(&self) -> Option<&dyn Freeform> {
-        Some(self)
-    }
-
-    fn content_scale(&self) -> Option<f64> {
-        Some(self.scale())
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(LAYER, LayerCapability)?;
+        out.register(FREEFORM, FreeformCapability)?;
+        out.register(SCALE, ScaleCapability::new(self.scale_model.clone()))
     }
 }
 
@@ -507,30 +498,10 @@ impl FigureContainer for ScalableFreeformLayeredPane {
     }
 }
 
-impl Layer for ScalableFreeformLayeredPane {}
-impl Freeform for ScalableFreeformLayeredPane {}
-
-impl ScalableFigure for ScalableFreeformLayeredPane {
-    fn scale(&self) -> f64 {
-        lock_unpoisoned(&self.runtime).scale
-    }
-}
-
 impl FigureTree {
     pub fn scale_handle(&self, figure_id: FigureId) -> Option<ScaleHandle> {
-        let figure = &self.node(figure_id)?.figure;
-        let runtime =
-            if let Some(scalable) = figure.as_any().downcast_ref::<ScalableLayeredPaneFigure>() {
-                Arc::clone(&scalable.runtime)
-            } else {
-                Arc::clone(
-                    &figure
-                        .as_any()
-                        .downcast_ref::<ScalableFreeformLayeredPane>()?
-                        .runtime,
-                )
-            };
-        Some(ScaleHandle { figure_id, runtime })
+        let model = self.capability(figure_id, SCALE).ok()??.model().clone();
+        Some(ScaleHandle { figure_id, model })
     }
 
     pub(crate) fn add_scalable_layered_pane_to(
@@ -538,10 +509,10 @@ impl FigureTree {
         parent: FigureId,
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
-        let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
-        let figure = ScalableLayeredPaneFigure::with_runtime(bounds, Arc::clone(&runtime));
+        let model = ScaleModel::new();
+        let figure = ScalableLayeredPaneFigure::with_scale_model(bounds, model.clone());
         let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
-        Ok(ScaleHandle { figure_id, runtime })
+        Ok(ScaleHandle { figure_id, model })
     }
 
     pub(crate) fn add_scalable_freeform_layered_pane_to(
@@ -549,10 +520,10 @@ impl FigureTree {
         parent: FigureId,
         bounds: Rectangle,
     ) -> Result<ScaleHandle, GraphMutationError> {
-        let runtime = Arc::new(Mutex::new(ScaleRuntime::new(bounds.width, bounds.height)));
-        let figure = ScalableFreeformLayeredPane::with_runtime(bounds, Arc::clone(&runtime));
+        let model = ScaleModel::new();
+        let figure = ScalableFreeformLayeredPane::with_scale_model(bounds, model.clone());
         let figure_id = self.try_add_child_to(parent, Box::new(figure))?;
-        Ok(ScaleHandle { figure_id, runtime })
+        Ok(ScaleHandle { figure_id, model })
     }
 }
 

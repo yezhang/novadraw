@@ -551,7 +551,7 @@ fn replay_g5_4(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
 
 fn replay_g5_5(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
     let mut harness = EditorHarness::new()?;
-    harness.runtime_mut().prepare_frame();
+    harness.prepare_frame();
     harness.zoom_by(2.0, Point::new(0.0, 0.0))?;
     let before = bounds(&harness, BLUE_NODE)?;
     let start = harness

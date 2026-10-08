@@ -1,13 +1,20 @@
+use novadraw::connection::{ConnectionId, ConnectionRuntimeError};
+use novadraw::event::{EventContext, FigureEventHandler, MouseButton, MouseEvent};
+use novadraw::figure::{
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureLifecycle, INPUT,
+    InputCapability, LIFECYCLE, LifecycleCapability, WidgetError,
+};
 use novadraw::render::{
     BackendCapabilities, DamageMode, FontDescriptor, NdCanvas, RenderOutcome, SurfaceInfo,
     TextConstraints, TextError,
 };
-use novadraw::runtime::PreparedFigureUpdate;
+use novadraw::runtime::{
+    ComponentInvalidation, ComponentUpdateError, FigureComponentContext, FigureComponentUpdate,
+    FocusError, PreparedFigureUpdate, ResourceError, RuntimeMutationError,
+};
 use novadraw::{
-    ComponentInvalidation, ComponentUpdateError, ConnectionId, ConnectionRuntimeError, Dimension,
-    Figure, FigureComponentContext, FigureComponentUpdate, FigureEventHandler, FigureLifecycle,
-    FigureTree, FocusError, FramePreparation, FramePreparationError, MouseButton, MouseEvent,
-    Rectangle, RectangleFigure, ResourceError, Runtime, RuntimeMutationError, WidgetError,
+    Dimension, Figure, FigureTree, FramePreparation, FramePreparationError, Rectangle,
+    RectangleFigure, Runtime,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -66,17 +73,16 @@ impl Figure for BadgeFigure {
         Dimension::new(self.measured_width, self.bounds.height)
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
 impl FigureEventHandler for BadgeFigure {
-    fn on_mouse_pressed(
-        &self,
-        _event: &MouseEvent,
-        context: &mut novadraw::EventContext<'_>,
-    ) -> bool {
+    fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         if self.reject_first_callback_update {
             context.update_component_later(SetBadgeText(String::new()));
         }
@@ -189,8 +195,11 @@ impl Figure for PanicInvalidateFigure {
         "PanicInvalidateFigure"
     }
 
-    fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(LIFECYCLE, LifecycleCapability::of::<Self>())
     }
 }
 
@@ -215,7 +224,8 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     let mut tree = FigureTree::new();
     let badge = tree
         .builder()
-        .set_contents(Box::new(BadgeFigure::new("old")));
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -300,7 +310,8 @@ fn external_figure_callback_can_defer_a_typed_self_update() {
     let mut tree = FigureTree::new();
     let badge = tree
         .builder()
-        .set_contents(Box::new(BadgeFigure::new("old")));
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
@@ -322,9 +333,12 @@ fn external_figure_callback_can_defer_a_typed_self_update() {
 #[test]
 fn deferred_component_rejection_is_reported_without_losing_fifo_suffix() {
     let mut tree = FigureTree::new();
-    let badge = tree.builder().set_contents(Box::new(
-        BadgeFigure::new("old").rejecting_first_callback_update(),
-    ));
+    let badge = tree
+        .builder()
+        .set_contents(Box::new(
+            BadgeFigure::new("old").rejecting_first_callback_update(),
+        ))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
@@ -341,7 +355,8 @@ fn component_update_rejects_wrong_foreign_and_disposed_targets() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let badge = tree
         .builder()
         .add_child(root, Box::new(BadgeFigure::new("old")))
@@ -383,7 +398,8 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     let mut tree = FigureTree::new();
     let badge = tree
         .builder()
-        .set_contents(Box::new(BadgeFigure::new("old")));
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -399,7 +415,8 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     let mut tree = FigureTree::new();
     let badge = tree
         .builder()
-        .set_contents(Box::new(BadgeFigure::new("old")));
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _ = runtime
@@ -417,7 +434,8 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let figure = tree
         .builder()
         .add_child(

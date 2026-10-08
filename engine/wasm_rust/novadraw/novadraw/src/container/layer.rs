@@ -4,8 +4,9 @@ use crate::geometry::Rectangle;
 use crate::render::NdCanvas;
 
 use crate::{
-    Bounded, ChildClippingStrategy, ChildPolicy, Figure, FigureContainer, FigureId, Freeform,
-    GraphMutationError, HitParticipation, Layer, Runtime,
+    Bounded, ChildClippingStrategy, ChildPolicy, FREEFORM, Figure, FigureCapabilityBuilder,
+    FigureCapabilityRegistrationError, FigureContainer, FigureId, FreeformCapability,
+    GraphMutationError, HitParticipation, LAYER, LayerCapability, Runtime,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -165,17 +166,16 @@ impl Figure for LayerFigure {
         HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(LAYER, LayerCapability)
     }
 }
 
 impl FigureContainer for LayerFigure {}
-impl Layer for LayerFigure {}
 
 #[derive(Clone)]
 pub struct FreeformLayerFigure {
@@ -219,16 +219,13 @@ impl Figure for FreeformLayerFigure {
         HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
-    }
-
-    fn freeform(&self) -> Option<&dyn Freeform> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(LAYER, LayerCapability)?;
+        out.register(FREEFORM, FreeformCapability)
     }
 }
 
@@ -237,8 +234,6 @@ impl FigureContainer for FreeformLayerFigure {
         ChildClippingStrategy::OverflowVisible
     }
 }
-impl Layer for FreeformLayerFigure {}
-impl Freeform for FreeformLayerFigure {}
 
 #[derive(Clone)]
 pub struct LayeredPane {
@@ -282,12 +277,12 @@ impl Figure for LayeredPane {
         HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(LAYER, LayerCapability)
     }
 }
 
@@ -296,8 +291,6 @@ impl FigureContainer for LayeredPane {
         ChildPolicy::Layered
     }
 }
-
-impl Layer for LayeredPane {}
 
 #[derive(Clone)]
 pub struct FreeformLayeredPane {
@@ -341,16 +334,13 @@ impl Figure for FreeformLayeredPane {
         HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
-    }
-
-    fn freeform(&self) -> Option<&dyn Freeform> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(LAYER, LayerCapability)?;
+        out.register(FREEFORM, FreeformCapability)
     }
 }
 
@@ -363,9 +353,6 @@ impl FigureContainer for FreeformLayeredPane {
         ChildPolicy::Layered
     }
 }
-
-impl Layer for FreeformLayeredPane {}
-impl Freeform for FreeformLayeredPane {}
 
 pub struct LayeredPaneMut<'a> {
     pane_id: FigureId,

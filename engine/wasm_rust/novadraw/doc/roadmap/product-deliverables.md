@@ -220,7 +220,7 @@ M2 只以 active surface 验证通用 Figure 机制。`EllipseFigure`、
 
 ### Scalable 能力
 
-- `ScalableFigure`
+- `Figure::scale_model` + 可克隆共享 `ScaleModel`
 - `ScalableLayeredPane`
 - Zoom transform 集成
 

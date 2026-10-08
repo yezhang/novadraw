@@ -2,10 +2,10 @@
 
 use std::{error::Error, fmt, time::Duration};
 
+use novadraw::event::{DispatchOutcome, KeyModifiers, MouseButton};
+use novadraw::figure::{FlowTextPosition, FlowTextRange};
 use novadraw::geometry::Point;
-use novadraw::{
-    DispatchOutcome, FlowTextPosition, FlowTextRange, KeyModifiers, MouseButton, TextMovement,
-};
+use novadraw::text::TextMovement;
 
 use crate::{
     AutoexposeTick, BendpointOperation, CommandStack, CommandStackError, ConnectionBendpointTool,
@@ -99,12 +99,17 @@ impl DomainPointerRelease {
 }
 
 /// Owns one active Tool and the command history shared by an editor session.
+enum ActiveTool<A: ModelAdapter> {
+    Selection(SelectionTool),
+    ConnectionCreation(ConnectionCreationTool<A>),
+    ConnectionEndpoint(ConnectionEndpointTool<A>),
+    ConnectionBendpoint(ConnectionBendpointTool),
+}
+
+/// Coordinates one active Tool, command history, and Viewer interaction state.
 pub struct EditorDomain<A: ModelAdapter> {
     command_stack: CommandStack<A>,
-    selection_tool: SelectionTool,
-    connection_tool: Option<ConnectionCreationTool<A>>,
-    endpoint_tool: Option<ConnectionEndpointTool<A>>,
-    bendpoint_tool: ConnectionBendpointTool,
+    active_tool: ActiveTool<A>,
     next_revision: InteractionRevision,
     pointer: Option<Point>,
     autoexpose_requested: bool,
@@ -121,10 +126,7 @@ impl<A: ModelAdapter> EditorDomain<A> {
     pub fn new() -> Self {
         Self {
             command_stack: CommandStack::new(),
-            selection_tool: SelectionTool::new(),
-            connection_tool: None,
-            endpoint_tool: None,
-            bendpoint_tool: ConnectionBendpointTool::new(),
+            active_tool: ActiveTool::Selection(SelectionTool::new()),
             next_revision: InteractionRevision::initial(),
             pointer: None,
             autoexpose_requested: false,
@@ -138,21 +140,17 @@ impl<A: ModelAdapter> EditorDomain<A> {
 
     /// Returns whether the active Tool owns a pointer gesture.
     pub const fn has_active_gesture(&self) -> bool {
-        self.selection_tool.is_active()
-            || match &self.connection_tool {
-                Some(tool) => tool.is_started(),
-                None => false,
-            }
-            || match &self.endpoint_tool {
-                Some(tool) => tool.is_active(),
-                None => false,
-            }
-            || self.bendpoint_tool.is_active()
+        match &self.active_tool {
+            ActiveTool::Selection(tool) => tool.is_active(),
+            ActiveTool::ConnectionCreation(tool) => tool.is_started(),
+            ActiveTool::ConnectionEndpoint(tool) => tool.is_active(),
+            ActiveTool::ConnectionBendpoint(tool) => tool.is_active(),
+        }
     }
 
     /// Returns whether the one-shot connection-creation Tool is armed.
     pub const fn is_connection_creation_active(&self) -> bool {
-        self.connection_tool.is_some()
+        matches!(self.active_tool, ActiveTool::ConnectionCreation(_))
     }
 
     /// Returns whether the host should schedule a viewport auto-expose step.
@@ -404,16 +402,9 @@ where
         F: EditPartFactory<A>,
     {
         viewer.cancel_direct_text_edit()?;
-        self.selection_tool.cancel(viewer)?;
-        if let Some(tool) = &mut self.connection_tool {
-            tool.cancel(viewer)?;
-        }
-        if let Some(tool) = &mut self.endpoint_tool {
-            tool.cancel(viewer)?;
-        }
-        self.endpoint_tool = None;
-        self.bendpoint_tool.cancel(viewer)?;
-        self.connection_tool = Some(ConnectionCreationTool::new(connection_type));
+        self.cancel_active_tools(viewer)?;
+        self.active_tool =
+            ActiveTool::ConnectionCreation(ConnectionCreationTool::new(connection_type));
         Ok(())
     }
 
@@ -498,14 +489,19 @@ where
                 ));
             }
         }
-        if let Some(tool) = &mut self.connection_tool {
+        if matches!(self.active_tool, ActiveTool::ConnectionCreation(_)) {
             let revision = self.next_revision;
             self.next_revision = revision.next()?;
-            let press = tool.pointer_pressed(viewer, location, button, modifiers, revision)?;
+            let press = match &mut self.active_tool {
+                ActiveTool::ConnectionCreation(tool) => {
+                    tool.pointer_pressed(viewer, location, button, modifiers, revision)?
+                }
+                _ => unreachable!("matched connection-creation Tool"),
+            };
             let completed = press.completed();
             let (outcome, command) = press.into_parts();
             if completed {
-                self.connection_tool = None;
+                self.active_tool = ActiveTool::Selection(SelectionTool::new());
                 self.pointer = None;
             }
             if let Some(command) = command {
@@ -513,6 +509,9 @@ where
                 viewer.refresh()?;
             }
             return Ok(outcome);
+        }
+        if self.has_active_gesture() {
+            self.cancel_active_tools(viewer)?;
         }
         if let ViewerTarget::Handle {
             owner,
@@ -525,7 +524,7 @@ where
             let mut tool = ConnectionEndpointTool::new(connection, endpoint);
             let outcome = tool.pointer_pressed(viewer, location, button, modifiers, revision)?;
             if tool.is_active() {
-                self.endpoint_tool = Some(tool);
+                self.active_tool = ActiveTool::ConnectionEndpoint(tool);
             }
             return Ok(outcome);
         }
@@ -539,18 +538,24 @@ where
                 HandleRole::Selection
                 | HandleRole::Resize(_)
                 | HandleRole::ConnectionEndpoint(_) => {
-                    return Ok(self
-                        .selection_tool
-                        .pointer_pressed(viewer, location, button, modifiers)?);
+                    let ActiveTool::Selection(tool) = &mut self.active_tool else {
+                        unreachable!("non-creation press must use SelectionTool")
+                    };
+                    return Ok(tool.pointer_pressed(viewer, location, button, modifiers)?);
                 }
             };
-            return Ok(self
-                .bendpoint_tool
-                .pointer_pressed(viewer, connection, operation, location, button, modifiers)?);
+            let mut tool = ConnectionBendpointTool::new();
+            let outcome =
+                tool.pointer_pressed(viewer, connection, operation, location, button, modifiers)?;
+            if tool.is_active() {
+                self.active_tool = ActiveTool::ConnectionBendpoint(tool);
+            }
+            return Ok(outcome);
         }
-        Ok(self
-            .selection_tool
-            .pointer_pressed(viewer, location, button, modifiers)?)
+        let ActiveTool::Selection(tool) = &mut self.active_tool else {
+            unreachable!("non-creation press must use SelectionTool")
+        };
+        Ok(tool.pointer_pressed(viewer, location, button, modifiers)?)
     }
 
     /// Updates the active gesture and Policy feedback.
@@ -568,16 +573,17 @@ where
             return Ok(viewer.dispatch_mouse_moved(location.x(), location.y()));
         }
         let revision = self.next_interaction_revision()?;
-        let dispatch = if self.bendpoint_tool.is_active() {
-            self.bendpoint_tool
-                .pointer_moved(viewer, location, revision)?
-        } else if let Some(tool) = &mut self.endpoint_tool {
-            tool.pointer_moved(viewer, location, revision)?
-        } else if let Some(tool) = &mut self.connection_tool {
-            tool.pointer_moved(viewer, location, revision)?
-        } else {
-            self.selection_tool
-                .pointer_moved(viewer, location, revision)?
+        let dispatch = match &mut self.active_tool {
+            ActiveTool::Selection(tool) => tool.pointer_moved(viewer, location, revision)?,
+            ActiveTool::ConnectionCreation(tool) => {
+                tool.pointer_moved(viewer, location, revision)?
+            }
+            ActiveTool::ConnectionEndpoint(tool) => {
+                tool.pointer_moved(viewer, location, revision)?
+            }
+            ActiveTool::ConnectionBendpoint(tool) => {
+                tool.pointer_moved(viewer, location, revision)?
+            }
         };
         self.pointer = self.has_active_gesture().then_some(location);
         if self.supports_autoexpose() {
@@ -676,30 +682,44 @@ where
                 command_executed: false,
             });
         }
-        if let Some(mut tool) = self.endpoint_tool.take() {
+        if matches!(self.active_tool, ActiveTool::ConnectionCreation(_)) {
+            let ActiveTool::ConnectionCreation(tool) = &mut self.active_tool else {
+                unreachable!("matched connection-creation Tool")
+            };
+            return Ok(DomainPointerRelease {
+                dispatch: tool.pointer_released(viewer, location, button),
+                command_executed: false,
+            });
+        }
+        if matches!(self.active_tool, ActiveTool::ConnectionEndpoint(_)) {
             let revision = self.next_interaction_revision()?;
-            let (dispatch, command) = tool
-                .pointer_released(viewer, location, button, revision)?
-                .into_parts();
+            let (dispatch, command) = match &mut self.active_tool {
+                ActiveTool::ConnectionEndpoint(tool) => tool
+                    .pointer_released(viewer, location, button, revision)?
+                    .into_parts(),
+                _ => unreachable!("matched connection-endpoint Tool"),
+            };
+            self.active_tool = ActiveTool::Selection(SelectionTool::new());
             let command_executed = command.is_some();
             if let Some(command) = command {
                 self.command_stack.execute(viewer.model_mut()?, command)?;
                 viewer.refresh()?;
             }
-            viewer
-                .runtime_mut()
-                .stabilize_for_query()
-                .map_err(ViewerError::from)?;
+            viewer.stabilize_for_query()?;
             return Ok(DomainPointerRelease {
                 dispatch,
                 command_executed,
             });
         }
-        if self.bendpoint_tool.is_active() {
+        if matches!(self.active_tool, ActiveTool::ConnectionBendpoint(_)) {
             let revision = self.next_interaction_revision()?;
-            let release = self
-                .bendpoint_tool
-                .pointer_released(viewer, location, button, revision)?;
+            let release = match &mut self.active_tool {
+                ActiveTool::ConnectionBendpoint(tool) => {
+                    tool.pointer_released(viewer, location, button, revision)?
+                }
+                _ => unreachable!("matched connection-bendpoint Tool"),
+            };
+            self.active_tool = ActiveTool::Selection(SelectionTool::new());
             let dispatch = release.dispatch();
             let request = release.into_request();
             let command_executed = if let Some(request) = request {
@@ -708,25 +728,19 @@ where
             } else {
                 false
             };
-            viewer
-                .runtime_mut()
-                .stabilize_for_query()
-                .map_err(ViewerError::from)?;
+            viewer.stabilize_for_query()?;
             return Ok(DomainPointerRelease {
                 dispatch,
                 command_executed,
             });
         }
-        if let Some(tool) = &mut self.connection_tool {
-            return Ok(DomainPointerRelease {
-                dispatch: tool.pointer_released(viewer, location, button),
-                command_executed: false,
-            });
-        }
         let revision = self.next_interaction_revision()?;
-        let release = self
-            .selection_tool
-            .pointer_released(viewer, location, button, revision)?;
+        let release = match &mut self.active_tool {
+            ActiveTool::Selection(tool) => {
+                tool.pointer_released(viewer, location, button, revision)?
+            }
+            _ => unreachable!("all non-selection Tools handled before selection release"),
+        };
         let dispatch = release.dispatch();
         let request = release.into_request();
         let command_executed = if let Some(request) = request {
@@ -735,10 +749,7 @@ where
         } else {
             false
         };
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
+        viewer.stabilize_for_query()?;
         Ok(DomainPointerRelease {
             dispatch,
             command_executed,
@@ -754,10 +765,7 @@ where
         F: EditPartFactory<A>,
     {
         self.cancel_active_tools(viewer)?;
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
+        viewer.stabilize_for_query()?;
         Ok(())
     }
 
@@ -770,30 +778,23 @@ where
     {
         self.pointer = None;
         self.autoexpose_requested = false;
-        self.selection_tool.cancel(viewer)?;
-        if let Some(tool) = &mut self.connection_tool {
-            tool.cancel(viewer)?;
+        match &mut self.active_tool {
+            ActiveTool::Selection(tool) => tool.cancel(viewer)?,
+            ActiveTool::ConnectionCreation(tool) => tool.cancel(viewer)?,
+            ActiveTool::ConnectionEndpoint(tool) => tool.cancel(viewer)?,
+            ActiveTool::ConnectionBendpoint(tool) => tool.cancel(viewer)?,
         }
-        self.connection_tool = None;
-        if let Some(tool) = &mut self.endpoint_tool {
-            tool.cancel(viewer)?;
-        }
-        self.endpoint_tool = None;
-        self.bendpoint_tool.cancel(viewer)?;
+        self.active_tool = ActiveTool::Selection(SelectionTool::new());
         Ok(())
     }
 
     fn supports_autoexpose(&self) -> bool {
-        self.selection_tool.is_dragging()
-            || self
-                .connection_tool
-                .as_ref()
-                .is_some_and(ConnectionCreationTool::is_started)
-            || self
-                .endpoint_tool
-                .as_ref()
-                .is_some_and(ConnectionEndpointTool::is_dragging)
-            || self.bendpoint_tool.is_dragging()
+        match &self.active_tool {
+            ActiveTool::Selection(tool) => tool.is_dragging(),
+            ActiveTool::ConnectionCreation(tool) => tool.is_started(),
+            ActiveTool::ConnectionEndpoint(tool) => tool.is_dragging(),
+            ActiveTool::ConnectionBendpoint(tool) => tool.is_dragging(),
+        }
     }
 
     /// Recomputes the active Tool after an externally driven viewport layout change.
@@ -804,10 +805,7 @@ where
     where
         F: EditPartFactory<A>,
     {
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
+        viewer.stabilize_for_query()?;
         viewer.synchronize_direct_text_input_area()?;
         let Some(pointer) = self.pointer else {
             return Ok(());
@@ -829,15 +827,11 @@ where
         F: EditPartFactory<A>,
     {
         let origin_before = viewer.viewport_origin()?;
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
-        if let Some(parts) = self
-            .selection_tool
-            .dragged_parts()
-            .map(|parts| parts.to_vec())
-        {
+        viewer.stabilize_for_query()?;
+        if let Some(parts) = match &self.active_tool {
+            ActiveTool::Selection(tool) => tool.dragged_parts().map(<[_]>::to_vec),
+            _ => None,
+        } {
             viewer.clamp_viewport_to_feedback_replacement(&parts)?;
         }
         let origin_after_feedback = viewer.viewport_origin()?;
@@ -846,17 +840,11 @@ where
         }
 
         self.clear_active_tool_feedback(viewer)?;
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
+        viewer.stabilize_for_query()?;
         let permanent_origin = viewer.viewport_origin()?;
         let revision = self.next_interaction_revision()?;
         self.refresh_active_tool(viewer, location, revision)?;
-        viewer
-            .runtime_mut()
-            .stabilize_for_query()
-            .map_err(ViewerError::from)?;
+        viewer.stabilize_for_query()?;
         let final_origin = viewer.viewport_origin()?;
         if final_origin != permanent_origin {
             return Err(ViewerError::InconsistentState.into());
@@ -873,14 +861,11 @@ where
     where
         F: EditPartFactory<A>,
     {
-        if self.bendpoint_tool.is_active() {
-            self.bendpoint_tool.refresh(viewer, location, revision)?;
-        } else if let Some(tool) = &mut self.endpoint_tool {
-            tool.refresh(viewer, location, revision)?;
-        } else if let Some(tool) = &mut self.connection_tool {
-            tool.refresh(viewer, location, revision)?;
-        } else {
-            self.selection_tool.refresh(viewer, location, revision)?;
+        match &mut self.active_tool {
+            ActiveTool::Selection(tool) => tool.refresh(viewer, location, revision)?,
+            ActiveTool::ConnectionCreation(tool) => tool.refresh(viewer, location, revision)?,
+            ActiveTool::ConnectionEndpoint(tool) => tool.refresh(viewer, location, revision)?,
+            ActiveTool::ConnectionBendpoint(tool) => tool.refresh(viewer, location, revision)?,
         }
         Ok(())
     }
@@ -892,14 +877,11 @@ where
     where
         F: EditPartFactory<A>,
     {
-        if self.bendpoint_tool.is_active() {
-            self.bendpoint_tool.clear_transient_feedback(viewer)?;
-        } else if let Some(tool) = &mut self.endpoint_tool {
-            tool.clear_transient_feedback(viewer)?;
-        } else if let Some(tool) = &mut self.connection_tool {
-            tool.clear_transient_feedback(viewer)?;
-        } else {
-            self.selection_tool.clear_transient_feedback(viewer)?;
+        match &mut self.active_tool {
+            ActiveTool::Selection(tool) => tool.clear_transient_feedback(viewer)?,
+            ActiveTool::ConnectionCreation(tool) => tool.clear_transient_feedback(viewer)?,
+            ActiveTool::ConnectionEndpoint(tool) => tool.clear_transient_feedback(viewer)?,
+            ActiveTool::ConnectionBendpoint(tool) => tool.clear_transient_feedback(viewer)?,
         }
         Ok(())
     }

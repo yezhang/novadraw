@@ -1,7 +1,10 @@
 //! External consumers of the unified text/graphics protocol.
 use novadraw::{
     Color, Dimension, Figure, FigureMeasurement, FigureTree, Point, Rectangle, Runtime,
-    figure::{FigureDrawing, FigurePreparation, FigurePresentation},
+    figure::{
+        FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureDrawing,
+        FigurePreparation, FigurePresentation, PREPARATION, PreparationCapability,
+    },
     graphics::{Graphics, GraphicsError, PaintContext, Path},
     render::{
         BackendCapabilities, CommandRecorder, FontData, ParleyTextEngine, RenderCommandKind,
@@ -495,17 +498,23 @@ impl Figure for PreparedCaption {
         Rectangle::new(0.0, 0.0, 160.0, 40.0)
     }
 
-    fn preparation(&self) -> Option<&dyn FigurePreparation> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(PREPARATION, PreparationCapability::of::<Self>())
     }
 }
 
 #[test]
 fn external_figure_prepares_and_paints_through_phase_limited_contexts() {
     let mut tree = FigureTree::new();
-    let figure = tree.builder().set_contents(Box::new(PreparedCaption {
-        text: "prepared figure".to_owned(),
-    }));
+    let figure = tree
+        .builder()
+        .set_contents(Box::new(PreparedCaption {
+            text: "prepared figure".to_owned(),
+        }))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     let submission = runtime

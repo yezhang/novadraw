@@ -31,6 +31,7 @@
 
 | 文档 | 职责 |
 |---|---|
+| [figure-capability-model.md](figure-capability-model.md) | Figure typed capability 注册、发现、mutation 与生命周期统一模型 |
 | [layer-and-freeform.md](layer-and-freeform.md) | Layer、Freeform 与范围传播 |
 | [connection-routing.md](connection-routing.md) | Connection、Anchor 与 Router |
 | [reusable-shape-border.md](reusable-shape-border.md) | Shape 与 Border 扩展 |

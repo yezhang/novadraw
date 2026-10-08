@@ -15,7 +15,61 @@ Draw2D/GEF 将缩放拆成三个独立协议：
 `setScale()` 不按比例改写当前 bounds。bounds 是 ViewportLayout 的布局结果，不能
 反向成为下一次缩放的尺寸基准。
 
-## 2. Scalable Pane
+## 2. `ScalableFigure` 的真实职责
+
+源码：
+
+- `org.eclipse.draw2d/ScalableFigure.java`
+- `org.eclipse.draw2d/IScalablePane.java`
+- `org.eclipse.gef/editparts/ScalableRootEditPart.java`
+- `org.eclipse.draw2d.zoom/AbstractZoomManager.java`
+
+`ScalableFigure` 本身只有两个方法：
+
+```text
+double getScale()
+void setScale(double scale)
+```
+
+它的作用是为缩放控制器提供一个不依赖具体 Pane 类型的**窄执行契约**。完整缩放系统
+实际分成四层：
+
+| 层次 | 职责 |
+|---|---|
+| `ZoomManager` | zoom levels、fit 策略、监听通知、缩放前后的 Viewport 位置协调 |
+| `ScalableFigure` | 暴露当前 scale，并接受新的 scale |
+| `IScalablePane` / 具体 Pane | 将 scale 同时投影到绘制、坐标转换、测量与失效 |
+| `Viewport` | clip、contents bounds、RangeModel 与 view location |
+
+因此 `ScalableFigure` 不是：
+
+- 完整的 zoom controller；
+- 遍历并改写所有子 Figure bounds 的 resize 协议；
+- Viewport 的替代品；
+- 要求每个 Figure 都独立保存 scale 的通用基类。
+
+它通常落在 `ScalableLayeredPane` 或 `ScalableFreeformLayeredPane` 这样的粗粒度
+**坐标根**上。子 Figure 继续使用未缩放逻辑坐标，跨越该坐标根时才应用 scale。
+
+GEF 还利用 Figure 树层次选择缩放范围。`ScalableRootEditPart` 将 Grid、Printable
+Layers 和 `SCALED_FEEDBACK_LAYER` 放入 `SCALABLE_LAYERS`；`HANDLE_LAYER`、
+普通 `FEEDBACK_LAYER` 与 `GUIDE_LAYER` 位于其外部。这样模型内容与需要跟随内容的
+反馈一起缩放，而部分交互装饰可以保持屏幕空间尺寸。
+
+依赖方向是：
+
+```text
+用户缩放操作
+    -> ZoomManager 计算策略和新 view location
+    -> ScalableFigure.setScale()
+    -> Scalable Pane 更新绘制/坐标/测量并失效
+    -> Viewport validate 后恢复目标 view location
+```
+
+这一区分很重要：`ScalableFigure` 是缩放的**执行点**，`ZoomManager` 才是缩放的
+**策略与协调者**。
+
+## 3. Scalable Pane
 
 源码：
 
@@ -44,7 +98,7 @@ repaint()
 
 因此 paint、layout、hit-test 和事件点转换使用同一个 scale，不允许只缩放渲染。
 
-## 3. Viewport 与 RangeModel
+## 4. Viewport 与 RangeModel
 
 源码：
 
@@ -76,7 +130,7 @@ Viewport clip。
 并把 extent 与 viewport client area 做 union。不能把 Freeform 的范围规则隐式
 塞进普通 ScalableLayeredPane。
 
-## 4. ZoomManager
+## 5. ZoomManager
 
 源码：
 
@@ -113,12 +167,13 @@ newLocation = oldLocation + center * (newZoom / oldZoom - 1)
     = (mouse + newLocation) / newZoom
 ```
 
-## 5. Novadraw 对应
+## 6. Novadraw 对应
 
 | Draw2D | Novadraw |
 |---|---|
-| `ScalableFigure.scale` | `ScaleRuntime::scale` |
-| 未缩放 super preferred size | `ScaleRuntime::unscaled_preferred_width/height` |
+| `ScalableFigure.scale` | `Figure::scale_model` + `ScaleModel::scale` |
+| 可写 scale 协调 | `FigureTree::scale_handle` 从 capability 克隆 `ScaleModel`，`Runtime::scalable` 提交 mutation |
+| 未缩放 super preferred size | Figure 的 intrinsic/preferred measurement |
 | scaled preferred size | `unscaled_preferred_size * scale` |
 | scaled layout hints | `Bounded::layout_size_hints` |
 | scaled layout result | `Bounded::project_preferred_size/project_minimum_size` |
@@ -143,13 +198,40 @@ Editor 的 `GraphicalViewer` 长期持有一个绑定 root scalable pane 与 roo
 受控的 zoom levels / scroll policy 配置，不提供 `zoom_manager_mut()`。这样配置、
 策略对象和未来 listener 生命周期都与 Viewer 一致，不会在每次缩放操作中重建。
 
+### 6.1 能力迁移与代码精简
+
+Draw2D 中值得迁移的是 `ScalableFigure` 提供的依赖倒置与坐标根语义，不是 Java
+接口继承形式。Novadraw 将该能力拆为：
+
+| 关注点 | Draw2D | Novadraw |
+|---|---|---|
+| scale 状态 | 具体 Scalable Pane 的字段 | 可克隆共享 `ScaleModel` |
+| 只读能力发现 | `instanceof ScalableFigure` / 接口调用 | `Figure::scale_model()` accessor |
+| 可写入口 | `ScalableFigure.setScale()` | `Runtime::scalable(id)` 返回受控 mutation facade |
+| 副作用 | Pane 内 `fireMoved/revalidate/repaint` | Runtime 统一校验、更新、失效、damage 与通知 |
+| zoom 策略 | `ZoomManager` | `ZoomManager` |
+| 子树投影 | `IScalablePane` 覆盖绘制、坐标与测量 | 共享 `ScaleModel` 驱动 child transform 与 measurement |
+
+这种迁移允许删除仅靠具体类型 downcast 才能工作的 `ScalableFigure` 伪扩展 trait，
+但不能删除其承载的语义边界。精简后的不变量是：
+
+1. scale 只有一份权威状态；
+2. 外部 Figure 类型可通过 accessor 提供相同 capability；
+3. 运行期 mutation 只能经过 Runtime facade；
+4. 绘制、坐标转换、测量、damage 和 scroll range 读取同一 scale；
+5. `ZoomManager` 不直接拥有第二份 Figure scale；
+6. Viewer 生命周期内只保留一个绑定 root scalable/viewport 的 `ZoomManager`。
+
+换言之，精简目标不是把缩放退化成一个绘制 transform，而是将“状态模型、能力发现、
+副作用入口、策略控制”从 Java 宽对象协议拆成可验证的 Rust 边界。
+
 实现入口：
 
-- `novadraw-scene/src/container/scalable.rs`
-- `novadraw-scene/src/container/viewport.rs`
-- `novadraw-scene/src/container/zoom.rs`
+- `novadraw/src/container/scalable.rs`
+- `novadraw/src/container/viewport.rs`
+- `novadraw/src/container/zoom.rs`
 
-## 6. 约束
+## 7. 约束
 
 - `set_scale` 只改变 scale、失效和重绘，不直接累计缩放旧 bounds。
 - scaled preferred size 永远从未缩放 preferred size 推导。

@@ -15,7 +15,8 @@ fn public_search_strategy_filters_hit_test_without_changing_geometry_order() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))
@@ -36,7 +37,8 @@ fn public_exclusion_search_prunes_by_figure_id() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 40.0, 40.0)))

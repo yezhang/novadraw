@@ -4,12 +4,16 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use novadraw::connection::{
+    ChopboxAnchor, ConnectionFigure, ConnectionId, CoordinateSpace, DirectRouter, FanRouter,
+    RouterBinding,
+};
 use novadraw::container::ZoomManager;
+use novadraw::figure::FlowPage;
 use novadraw::render::BuiltinFont;
 use novadraw::{
-    ChopboxAnchor, Color, ConnectionFigure, ConnectionId, CoordinateSpace, Dimension, DirectRouter,
-    FanRouter, FigureId, FigureStyle, FigureTree, FlowPage, LabelFigure, Rectangle,
-    RectangleFigure, RouterBinding, Runtime, TextFlowFigure,
+    Color, Dimension, FigureId, FigureStyle, FigureTree, LabelFigure, Rectangle, RectangleFigure,
+    Runtime, TextFlowFigure,
 };
 use serde::{Deserialize, Serialize};
 
@@ -928,7 +932,8 @@ fn root_tree() -> (FigureTree, FigureId) {
             ROOT_WIDTH,
             ROOT_HEIGHT,
             Color::WHITE,
-        )));
+        )))
+        .expect("valid FigureTree construction");
     (tree, root)
 }
 

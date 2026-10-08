@@ -7,11 +7,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(target_os = "macos")]
 use std::thread;
 
-use novadraw::runtime::PreparedFigureUpdate;
-use novadraw::{
-    Color, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree, FramePreparation,
-    RectangleFigure, RenderBackend, RenderOutcome, Runtime, SurfaceInfo,
-};
+use novadraw::render::{RenderBackend, RenderOutcome, SurfaceInfo};
+use novadraw::runtime::{FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate};
+use novadraw::{Color, FigureId, FigureTree, FramePreparation, RectangleFigure, Runtime};
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
 use winit::application::ApplicationHandler;
@@ -1101,7 +1099,8 @@ fn build_runtime(include_input_marker: bool) -> (Runtime, Option<FigureId>) {
             LOGICAL_WIDTH,
             LOGICAL_HEIGHT,
             Color::WHITE,
-        )));
+        )))
+        .expect("valid FigureTree construction");
     for index in 0..FIGURE_COUNT {
         let column = index % COLUMNS;
         let row = index / COLUMNS;

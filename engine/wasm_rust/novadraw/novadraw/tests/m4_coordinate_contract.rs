@@ -19,7 +19,8 @@ fn nested_coordinate_scene() -> (FigureTree, novadraw::FigureId) {
     let mut graph = FigureTree::new();
     let contents = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .expect("valid FigureTree construction");
     let outer = graph
         .builder()
         .add_child(
@@ -79,7 +80,8 @@ fn coordinate_transform_queries_reject_foreign_figures_without_mutating_geometry
     let mut foreign = FigureTree::new();
     let foreign_figure = foreign
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
 
     assert!(graph.local_to_parent_transform(foreign_figure).is_none());
     assert!(graph.parent_to_local_transform(foreign_figure).is_none());
@@ -171,8 +173,11 @@ impl Figure for RecordingFigure {
         Shape::paint_figure(self, gc);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
     }
 }
 
@@ -192,7 +197,8 @@ fn m4_hit_test_and_mouse_callback_share_the_same_target_coordinate_domain() {
     let mut graph = FigureTree::new();
     let contents = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 400.0)))
+        .expect("valid FigureTree construction");
     let outer = graph
         .builder()
         .add_child(
@@ -269,7 +275,8 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let mut graph = FigureTree::new();
     let contents = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 240.0)))
+        .expect("valid FigureTree construction");
     let coordinate_root = graph
         .builder()
         .add_child(

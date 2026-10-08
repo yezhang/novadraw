@@ -1,15 +1,21 @@
 use std::sync::Arc;
 
 use novadraw::Color;
+use novadraw::figure::{
+    Direction, ShapeMutationError,
+    border::{
+        BevelBorder, BevelStyle, Border, CompoundBorder, EtchedBorder, LineBorder, MarginBorder,
+    },
+};
 use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
 use novadraw::graphics::Paint;
 use novadraw::render::{
     DEFAULT_STROKE_MITER_LIMIT, LineJoin, NdCanvas, command::RenderCommandKind,
 };
+use novadraw::runtime::RuntimeMutationError;
 use novadraw::{
-    BevelBorder, BevelStyle, Border, CompoundBorder, Direction, EtchedBorder, Figure, FigureStyle,
-    LineBorder, MarginBorder, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
-    RoundedRectangleFigure, Runtime, RuntimeMutationError, ShapeMutationError, TriangleFigure,
+    Figure, FigureStyle, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
+    RoundedRectangleFigure, Runtime, TriangleFigure,
 };
 
 #[test]

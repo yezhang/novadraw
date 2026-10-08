@@ -6,6 +6,22 @@ impl FigureTree {
         self.blocks.get(id)
     }
 
+    /// Queries one attach-time capability descriptor without causing mutation.
+    pub fn capability<C: 'static>(
+        &self,
+        figure: FigureId,
+        key: CapabilityKey<C>,
+    ) -> Result<Option<&C>, CapabilityQueryError> {
+        if figure.namespace() != self.namespace() {
+            return Err(CapabilityQueryError::ForeignRuntime(figure));
+        }
+        let node = self
+            .blocks
+            .get(figure)
+            .ok_or(CapabilityQueryError::UnknownOrDisposedFigure(figure))?;
+        node.capabilities.get(key)
+    }
+
     pub(crate) fn is_layered_pane(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)
@@ -13,9 +29,8 @@ impl FigureTree {
     }
 
     pub(crate) fn is_layer_figure(&self, id: FigureId) -> bool {
-        self.blocks
-            .get(id)
-            .is_some_and(|node| node.figure.layer().is_some())
+        self.capability(id, LAYER)
+            .is_ok_and(|layer| layer.is_some())
     }
 
     /// 返回指定父节点的 child 顺序。
@@ -71,13 +86,12 @@ impl FigureTree {
     pub fn is_connection_figure(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)
-            .is_some_and(|block| block.figure.connection().is_some())
+            .is_some_and(|block| block.connection().is_some())
     }
 
     pub fn connection_route_points(&self, id: FigureId) -> Option<&PointList> {
         self.blocks
             .get(id)?
-            .figure
             .connection()
             .map(|connection| connection.route_points())
     }
@@ -85,7 +99,6 @@ impl FigureTree {
     pub fn connection_stroke_color(&self, id: FigureId) -> Option<crate::Color> {
         self.blocks
             .get(id)?
-            .figure
             .connection()
             .map(|connection| connection.connection_stroke_color())
     }
@@ -95,7 +108,6 @@ impl FigureTree {
         let bounds = block.figure_bounds();
         Some(
             block
-                .figure
                 .point_list()?
                 .local_points()
                 .iter()
@@ -105,7 +117,7 @@ impl FigureTree {
     }
 
     pub(crate) fn point_list_style(&self, id: FigureId) -> Option<crate::render::StrokeStyle> {
-        let point_list = self.blocks.get(id)?.figure.point_list()?;
+        let point_list = self.blocks.get(id)?.point_list()?;
         Some(point_list.stroke_style().clone())
     }
 
@@ -205,11 +217,11 @@ impl FigureTree {
     }
 
     pub(crate) fn label(&self, id: FigureId) -> Option<&LabelFigure> {
-        self.blocks.get(id)?.figure.label()
+        self.blocks.get(id)?.label()
     }
 
     pub(crate) fn text_flow(&self, id: FigureId) -> Option<&crate::TextFlowFigure> {
-        self.blocks.get(id)?.figure.as_ref().as_any().downcast_ref()
+        self.blocks.get(id)?.text_flow()
     }
 
     pub(crate) fn image_figure(&self, id: FigureId) -> Option<&ImageFigure> {
@@ -219,7 +231,6 @@ impl FigureTree {
     pub(crate) fn clickable_snapshot(&self, id: FigureId) -> Option<ClickableSnapshot> {
         self.blocks
             .get(id)?
-            .figure
             .clickable()
             .map(|clickable| clickable.clickable_model().snapshot())
     }
@@ -227,7 +238,7 @@ impl FigureTree {
     pub(crate) fn clickable_ids(&self) -> Vec<FigureId> {
         self.blocks
             .iter()
-            .filter_map(|(id, block)| block.figure.clickable().is_some().then_some(id))
+            .filter_map(|(id, block)| block.clickable().is_some().then_some(id))
             .collect()
     }
 

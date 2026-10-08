@@ -296,7 +296,8 @@ fn caret_geometry_follows_nested_viewport_and_scale_transforms() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
+        .expect("valid FigureTree construction");
     let viewport = graph
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 260.0, 180.0))
@@ -462,7 +463,8 @@ fn runtime_text_queries_distinguish_unknown_and_wrong_capability() {
         .unwrap();
     let foreign = novadraw::FigureTree::new()
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        .expect("valid FigureTree construction");
 
     assert!(matches!(
         runtime.text_flow_hit_test(rectangle, Point::ORIGIN),

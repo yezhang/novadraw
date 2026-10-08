@@ -94,7 +94,7 @@ impl WinitTextInputBridge {
         &mut self,
         key: PhysicalKey,
         text: Option<&str>,
-        modifiers: novadraw::KeyModifiers,
+        modifiers: novadraw::event::KeyModifiers,
     ) -> Option<SessionTextInputEvent> {
         let session = self.active?;
         if self.composing && key != PhysicalKey::Code(KeyCode::Escape) {
@@ -135,34 +135,34 @@ impl WinitTextInputBridge {
             }
             PhysicalKey::Code(KeyCode::ArrowLeft) => TextInputEvent::Move {
                 movement: if modifiers.alt || modifiers.control {
-                    novadraw::TextMovement::PreviousWord
+                    novadraw::text::TextMovement::PreviousWord
                 } else {
-                    novadraw::TextMovement::PreviousVisual
+                    novadraw::text::TextMovement::PreviousVisual
                 },
                 extend,
             },
             PhysicalKey::Code(KeyCode::ArrowRight) => TextInputEvent::Move {
                 movement: if modifiers.alt || modifiers.control {
-                    novadraw::TextMovement::NextWord
+                    novadraw::text::TextMovement::NextWord
                 } else {
-                    novadraw::TextMovement::NextVisual
+                    novadraw::text::TextMovement::NextVisual
                 },
                 extend,
             },
             PhysicalKey::Code(KeyCode::ArrowUp) => TextInputEvent::Move {
-                movement: novadraw::TextMovement::PreviousLine,
+                movement: novadraw::text::TextMovement::PreviousLine,
                 extend,
             },
             PhysicalKey::Code(KeyCode::ArrowDown) => TextInputEvent::Move {
-                movement: novadraw::TextMovement::NextLine,
+                movement: novadraw::text::TextMovement::NextLine,
                 extend,
             },
             PhysicalKey::Code(KeyCode::Home) => TextInputEvent::Move {
-                movement: novadraw::TextMovement::LineStart,
+                movement: novadraw::text::TextMovement::LineStart,
                 extend,
             },
             PhysicalKey::Code(KeyCode::End) => TextInputEvent::Move {
-                movement: novadraw::TextMovement::LineEnd,
+                movement: novadraw::text::TextMovement::LineEnd,
                 extend,
             },
             PhysicalKey::Code(KeyCode::KeyA) if modifiers.control || modifiers.meta => {

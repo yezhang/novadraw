@@ -1,5 +1,6 @@
+use novadraw::event::{MonotonicTime, MouseButton};
 use novadraw::{
-    Affine2D, MonotonicTime, MouseButton, Rectangle,
+    Affine2D, Rectangle,
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         ConnectionRouteTransition, InterruptionPolicy, Motion, Tween,

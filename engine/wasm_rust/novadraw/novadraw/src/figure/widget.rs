@@ -316,20 +316,13 @@ impl Figure for ClickableFigure {
         paint_focus(gc, bounds, self.model.visual.focused);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
-    }
-
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn clickable(&self) -> Option<&dyn ClickableBehavior> {
-        Some(self)
-    }
-
-    fn clickable_mut(&mut self) -> Option<&mut dyn ClickableBehavior> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())?;
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())
     }
 }
 
@@ -430,6 +423,14 @@ impl ButtonFigure {
     pub fn snapshot(&self) -> ClickableSnapshot {
         self.model.snapshot()
     }
+
+    pub(crate) fn label_component(&self) -> &LabelFigure {
+        &self.label
+    }
+
+    pub(crate) fn label_component_mut(&mut self) -> &mut LabelFigure {
+        &mut self.label
+    }
 }
 
 impl Figure for ButtonFigure {
@@ -479,28 +480,16 @@ impl Figure for ButtonFigure {
         Some(self.border.as_ref())
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
-    }
-
-    fn clickable(&self) -> Option<&dyn ClickableBehavior> {
-        Some(self)
-    }
-
-    fn clickable_mut(&mut self) -> Option<&mut dyn ClickableBehavior> {
-        Some(self)
-    }
-
-    fn label(&self) -> Option<&LabelFigure> {
-        Some(&self.label)
-    }
-
-    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
-        Some(&mut self.label)
-    }
-
-    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())?;
+        out.register(
+            crate::ACCESSIBILITY,
+            crate::AccessibilityCapability::of::<Self>(),
+        )?;
+        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())
     }
 }
 
@@ -580,6 +569,14 @@ impl ToggleFigure {
     pub fn snapshot(&self) -> ClickableSnapshot {
         self.model.snapshot()
     }
+
+    pub(crate) fn label_component(&self) -> &LabelFigure {
+        &self.label
+    }
+
+    pub(crate) fn label_component_mut(&mut self) -> &mut LabelFigure {
+        &mut self.label
+    }
 }
 
 impl Figure for ToggleFigure {
@@ -629,28 +626,16 @@ impl Figure for ToggleFigure {
         Some(self.border.as_ref())
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
-    }
-
-    fn clickable(&self) -> Option<&dyn ClickableBehavior> {
-        Some(self)
-    }
-
-    fn clickable_mut(&mut self) -> Option<&mut dyn ClickableBehavior> {
-        Some(self)
-    }
-
-    fn label(&self) -> Option<&LabelFigure> {
-        Some(&self.label)
-    }
-
-    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
-        Some(&mut self.label)
-    }
-
-    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())?;
+        out.register(
+            crate::ACCESSIBILITY,
+            crate::AccessibilityCapability::of::<Self>(),
+        )?;
+        out.register(crate::CLICKABLE, crate::ClickableCapability::of::<Self>())
     }
 }
 

@@ -9,13 +9,25 @@ use crate::render::{
 };
 
 use crate::{
-    Bounded, ChildClippingStrategy, Dimension, Figure, FigureContainer, FigureMeasurement, Layer,
+    Bounded, ChildClippingStrategy, Dimension, Figure, FigureContainer, FigureMeasurement,
     figure::{FigureDrawing, FigurePresentation},
 };
 
 const DEFAULT_CONNECTION_COLOR: Color = Color::rgba(44.0 / 255.0, 62.0 / 255.0, 80.0 / 255.0, 1.0);
 const DEFAULT_CONNECTION_WIDTH: f64 = 2.0;
 const DEFAULT_HIT_TOLERANCE: f64 = 3.0;
+
+struct ConnectionPresentationFamily;
+
+impl crate::animation::PresentationFamily<ConnectionFigure> for ConnectionPresentationFamily {
+    fn prepare(
+        figure: &ConnectionFigure,
+        values: crate::animation::PresentationValues<'_>,
+        bounds: Rectangle,
+    ) -> FigurePresentation {
+        figure.prepare_presentation(values, bounds)
+    }
+}
 
 /// Validated geometry prepared before a Connection route is committed.
 #[derive(Clone, Debug, PartialEq)]
@@ -110,32 +122,6 @@ pub trait ConnectionFigureBehavior {
     fn connection_dash_period(&self) -> f64 {
         0.0
     }
-
-    /// Returns whether this Figure can paint a presentation-only route override.
-    fn supports_route_presentation(&self) -> bool {
-        false
-    }
-
-    /// Paints a presentation-only route override.
-    ///
-    /// Custom Connection Figures return `false` until they implement this optional channel.
-    fn paint_route_presentation(
-        &self,
-        _gc: &mut NdCanvas,
-        _points: &PointList,
-        _dash_offset: Option<f64>,
-    ) -> bool {
-        false
-    }
-
-    /// Captures an immutable route visual for incompatible-topology crossfades.
-    fn capture_route_presentation(
-        &self,
-        _points: &PointList,
-        _bounds: Rectangle,
-    ) -> Option<FigurePresentation> {
-        None
-    }
 }
 
 /// Polyline-backed Figure whose geometry is committed only by Runtime.
@@ -218,6 +204,50 @@ impl ConnectionFigure {
             self.target_decoration_inset,
         )
     }
+
+    fn committed_route_presentation(&self) -> PointList {
+        self.points.clone()
+    }
+
+    fn committed_dash_presentation(&self) -> f64 {
+        self.stroke.dash_offset()
+    }
+
+    fn prepare_presentation(
+        &self,
+        values: crate::animation::PresentationValues<'_>,
+        bounds: Rectangle,
+    ) -> FigurePresentation {
+        let points = values.get::<PointList>().unwrap_or(&self.points);
+        let dash_offset = values
+            .get::<f64>()
+            .copied()
+            .unwrap_or_else(|| self.stroke.dash_offset());
+        self.route_presentation(points, dash_offset, bounds)
+    }
+
+    fn route_presentation(
+        &self,
+        points: &PointList,
+        dash_offset: f64,
+        bounds: Rectangle,
+    ) -> FigurePresentation {
+        let stroke = self
+            .stroke
+            .with_dash_offset(dash_offset)
+            .unwrap_or_else(|_| self.stroke.clone());
+        FigurePresentation::new(
+            FigureMeasurement::new(bounds.width, bounds.height, None),
+            Dimension::new(bounds.width, bounds.height),
+            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            Arc::new(ConnectionRouteDrawing {
+                points: self.painted_points_for(points),
+                color: self.stroke_color,
+                stroke,
+            }),
+        )
+        .expect("Connection presentation metrics are derived from validated bounds")
+    }
 }
 
 impl ConnectionFigureBehavior for ConnectionFigure {
@@ -250,43 +280,6 @@ impl ConnectionFigureBehavior for ConnectionFigure {
 
     fn connection_dash_period(&self) -> f64 {
         self.stroke.dash_lengths().iter().sum()
-    }
-
-    fn supports_route_presentation(&self) -> bool {
-        true
-    }
-
-    fn paint_route_presentation(
-        &self,
-        gc: &mut NdCanvas,
-        points: &PointList,
-        dash_offset: Option<f64>,
-    ) -> bool {
-        if points.len() >= 2 && self.stroke.width() > 0.0 {
-            let stroke = dash_offset
-                .and_then(|offset| self.stroke.with_dash_offset(offset).ok())
-                .unwrap_or_else(|| self.stroke.clone());
-            gc.polyline_with_style(&self.painted_points_for(points), self.stroke_color, stroke);
-        }
-        true
-    }
-
-    fn capture_route_presentation(
-        &self,
-        points: &PointList,
-        bounds: Rectangle,
-    ) -> Option<FigurePresentation> {
-        FigurePresentation::new(
-            FigureMeasurement::new(bounds.width, bounds.height, None),
-            Dimension::new(bounds.width, bounds.height),
-            Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-            Arc::new(ConnectionRouteDrawing {
-                points: self.painted_points_for(points),
-                color: self.stroke_color,
-                stroke: self.stroke.clone(),
-            }),
-        )
-        .ok()
     }
 }
 
@@ -336,16 +329,24 @@ impl Figure for ConnectionFigure {
         Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn connection(&self) -> Option<&dyn ConnectionFigureBehavior> {
-        Some(self)
-    }
-
-    fn connection_mut(&mut self) -> Option<&mut dyn ConnectionFigureBehavior> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::CONNECTION, crate::ConnectionCapability::of::<Self>())?;
+        out.register(
+            crate::animation::CONNECTION_ROUTE_PRESENTATION,
+            crate::animation::PresentationBinding::of::<Self, ConnectionPresentationFamily>(
+                Self::committed_route_presentation,
+            ),
+        )?;
+        out.register(
+            crate::animation::CONNECTION_DASH_PRESENTATION,
+            crate::animation::PresentationBinding::of::<Self, ConnectionPresentationFamily>(
+                Self::committed_dash_presentation,
+            ),
+        )
     }
 }
 
@@ -397,12 +398,12 @@ impl Figure for ConnectionLayerFigure {
         crate::HitParticipation::DescendantsOnly
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::LAYER, crate::LayerCapability)
     }
 }
 
@@ -411,8 +412,6 @@ impl FigureContainer for ConnectionLayerFigure {
         ChildClippingStrategy::OverflowVisible
     }
 }
-
-impl Layer for ConnectionLayerFigure {}
 
 fn point_segment_distance(point: Point, start: Point, end: Point) -> f64 {
     let segment = end - start;

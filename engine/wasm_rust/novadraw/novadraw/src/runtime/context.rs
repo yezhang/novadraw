@@ -3,11 +3,12 @@ use std::sync::Arc;
 use crate::geometry::{Dimension, Point};
 
 use crate::{
-    ChildClippingStrategy, DispatchContext, Event, Figure, FigureComponentUpdate, FigureEvent,
-    FigureId, FigureTree, GestureSessionId, InteractionState, LayerKey, LayerPlacement,
-    LayoutManager, MouseEventKind, MouseLocationZoomScrollPolicy, NotificationEffect,
-    PendingMutations, PropertyChangeEvent, PropertyValue, Rectangle, ScrollPaneFigure,
-    UpdateManager, ViewportFigure, WheelEvent, ZoomEvent, ZoomManager,
+    ChildClippingStrategy, DispatchContext, Event, Figure, FigureCapabilityUpdate,
+    FigureComponentUpdate, FigureEvent, FigureId, FigureTree, GestureSessionId, InteractionState,
+    LayerKey, LayerPlacement, LayoutManager, MouseEventKind, MouseLocationZoomScrollPolicy,
+    NotificationEffect, PendingMutations, PropertyKey, PropertyValueType, Rectangle,
+    ScrollPaneFigure, TypedPropertyChange, UpdateManager, ViewportFigure, WheelEvent, ZoomEvent,
+    ZoomManager,
     mutation::{MutationContext, PendingMutation, SizeOverrideKind},
 };
 
@@ -49,7 +50,7 @@ impl<'a> EventContext<'a> {
         updates: &mut UpdateManager,
         tree: &mut FigureTree,
     ) {
-        let Some(handler) = node.figure.event_handler() else {
+        let Some(handler) = node.input() else {
             return;
         };
         let bounds = node.figure_bounds();
@@ -161,20 +162,19 @@ impl<'a> EventContext<'a> {
             .push(RuntimeEffect::Repaint { figure_id, rect });
     }
 
-    pub fn emit_property_change(
+    pub fn emit_property_change<V>(
         &mut self,
         figure_id: FigureId,
-        property: &'static str,
-        old_value: PropertyValue,
-        new_value: PropertyValue,
-    ) {
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+    ) where
+        V: PropertyValueType,
+    {
         self.effects.push(RuntimeEffect::Notification(
-            NotificationEffect::EmitProperty(PropertyChangeEvent {
-                figure_id,
-                property,
-                old_value,
-                new_value,
-            }),
+            NotificationEffect::EmitProperty(
+                TypedPropertyChange::new(figure_id, property, old_value, new_value).erase(),
+            ),
         ));
     }
 
@@ -203,6 +203,18 @@ impl<'a> EventContext<'a> {
     {
         self.effects
             .push(RuntimeEffect::Mutation(PendingMutation::update_component(
+                self.target_id,
+                update,
+            )));
+    }
+
+    /// Enqueues a typed capability update for the current callback target.
+    pub fn update_capability_later<U>(&mut self, update: U)
+    where
+        U: FigureCapabilityUpdate + 'static,
+    {
+        self.effects
+            .push(RuntimeEffect::Mutation(PendingMutation::update_capability(
                 self.target_id,
                 update,
             )));
@@ -608,7 +620,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 keyboard_pressed,
                 &mut effects,
             );
-            let Some(handler) = block.figure.event_handler() else {
+            let Some(handler) = block.input() else {
                 return false;
             };
 
@@ -768,8 +780,11 @@ mod tests {
             Shape::paint_figure(self, gc);
         }
 
-        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::INPUT, crate::InputCapability::of::<Self>())
         }
     }
 
@@ -862,8 +877,11 @@ mod tests {
             Shape::paint_figure(self, gc);
         }
 
-        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::INPUT, crate::InputCapability::of::<Self>())
         }
     }
 

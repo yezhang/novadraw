@@ -4,16 +4,21 @@ use std::sync::Mutex;
 
 use novadraw::connection::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
-    ConnectionLocator, CoordinateSpace, PathFractionLocator, PolygonDecorationFigure,
-    PolylineDecorationFigure, RouterBinding,
+    ConnectionLayerFigure, ConnectionLocator, CoordinateSpace, PathFractionLocator,
+    PolygonDecorationFigure, PolylineDecorationFigure, RouterBinding, RoutingConstraint,
 };
+use novadraw::event::{EventContext, FigureEventHandler, MouseButton, MouseEvent};
+use novadraw::figure::CursorIcon;
+use novadraw::figure::{
+    Alignment, CONTAINER, ChildClippingStrategy, ContainerCapability, FigureCapabilityBuilder,
+    FigureCapabilityRegistrationError, FigureContainer, INPUT, InputCapability,
+};
+use novadraw::graphics::NdCanvas;
 use novadraw::render::{BuiltinFont, DashPattern, LineJoin, StrokeStyle};
 use novadraw::{
-    Alignment, ChildClippingStrategy, Color, Figure, FigureContainer, FigureId, FigureStyle,
-    Insets, LabelFigure, MouseButton, MouseEvent, NdCanvas, Point, PointList, Rectangle,
+    Color, Figure, FigureId, FigureStyle, Insets, LabelFigure, Point, PointList, Rectangle,
     RectangleFigure, Runtime, ToolbarLayout,
 };
-use novadraw::{CursorIcon, EventContext, FigureEventHandler};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -97,12 +102,12 @@ impl Figure for UmlClassFigure {
         canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(CONTAINER, ContainerCapability::of::<Self>())?;
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -213,8 +218,11 @@ impl Figure for UmlCompartmentFigure {
         );
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(CONTAINER, ContainerCapability::of::<Self>())
     }
 }
 
@@ -242,8 +250,11 @@ impl Figure for UmlHeaderFigure {
         "ExampleUmlHeaderFigure"
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(CONTAINER, ContainerCapability::of::<Self>())
     }
 }
 
@@ -337,7 +348,7 @@ pub fn build_example() -> UmlExample {
     let connection_layer = runtime
         .container(root)
         .expect("root is a container")
-        .add(Box::new(novadraw::ConnectionLayerFigure::new(
+        .add(Box::new(ConnectionLayerFigure::new(
             0.0, 0.0, WIDTH, HEIGHT,
         )))
         .expect("valid connection layer");
@@ -669,7 +680,7 @@ fn add_relation(
                 .iter()
                 .map(|(x, y)| Bendpoint::Absolute(Point::new(*x, *y)))
                 .collect::<Vec<_>>(),
-        )) as Box<dyn novadraw::RoutingConstraint>
+        )) as Box<dyn RoutingConstraint>
     });
     let relation = runtime
         .register_connection_state(

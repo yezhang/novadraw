@@ -66,11 +66,12 @@ runtime.animations().remove_behavior(id)?;
 
 ```text
 FigureBoundsChanged { figure, old_bounds, new_bounds }
-PropertyChanged     { figure, property, old_value, new_value }
+PropertyChanged     (PropertyChangeEvent)
 Lifecycle           { figure, parent, kind }
 ```
 
-`State` Trigger 复用 typed `PropertyChanged` fact，但只匹配离散状态值；
+`State` Trigger 复用 typed `PropertyChanged` fact，但只能由
+`PropertyKey<V>` 且 `V: DiscretePropertyValue` 构造；
 它不是第二套事件系统。`Transaction` Trigger 接收同一 stable epoch 内所有匹配
 scope 的 committed facts。
 
@@ -112,8 +113,8 @@ Trigger：
 | Trigger | 匹配 |
 |---|---|
 | `FigureBoundsChanged` | `FigureMoved` committed fact |
-| `PropertyChanged(name)` | 同名 typed property fact |
-| `StateChanged(name)` | 同名且 old/new 为离散状态的 property fact |
+| `property_changed(key)` | 相同 `ErasedPropertyKey` 的 typed property fact |
+| `state_changed(key)` | 相同 identity 的 typed discrete-state property fact |
 | `Transaction` | stable epoch 内 scope 匹配的全部 committed facts |
 | `Lifecycle(kind)` | attach、detach、show、hide |
 
@@ -126,7 +127,8 @@ Scope：
 默认 coalescing 在单个 stable epoch 内按事实 key 合并：
 
 - bounds：第一条 `old_bounds` + 最后一条 `new_bounds`；
-- property/state：第一条 `old_value` + 最后一条 `new_value`；
+- property/state：按 `(FigureId, ErasedPropertyKey)` 保留第一条 `old_value` +
+  最后一条 `new_value`；
 - attach/detach 保持拓扑顺序，不互相抵消；
 - transaction 保持第一条事实出现顺序；
 - 合并后 old == new 的 bounds/property fact 被删除。

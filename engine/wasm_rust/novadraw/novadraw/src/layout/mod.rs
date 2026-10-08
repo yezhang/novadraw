@@ -22,7 +22,10 @@ pub use xy_layout::{XYConstraint, XYLayout};
 
 use crate::container::viewport::ViewportLayoutEffect;
 use crate::geometry::{Dimension, Rectangle};
-use crate::{FigureMeasurement, MeasureConstraints, PropertyValue, graph::FigureId};
+use crate::{
+    FigureMeasurement, MeasureConstraints, PropertyChangeEvent, PropertyKey, PropertyValueType,
+    TypedPropertyChange, graph::FigureId,
+};
 use std::any::Any;
 use std::error::Error;
 use std::fmt;
@@ -230,12 +233,7 @@ pub(crate) enum LayoutChange {
     Bounds(FigureId, Rectangle),
     Visibility(FigureId, bool),
     Invalidate(FigureId),
-    Property {
-        figure: FigureId,
-        property: &'static str,
-        old_value: PropertyValue,
-        new_value: PropertyValue,
-    },
+    Property(PropertyChangeEvent),
     CoordinateSystemChanged(FigureId),
     Repaint(FigureId),
     RepaintParent(FigureId),
@@ -265,19 +263,18 @@ impl LayoutOutput {
         self.changes.push(LayoutChange::Invalidate(child));
     }
 
-    pub(crate) fn record_property_change(
+    pub(crate) fn record_property_change<V>(
         &mut self,
         figure: FigureId,
-        property: &'static str,
-        old_value: PropertyValue,
-        new_value: PropertyValue,
-    ) {
-        self.changes.push(LayoutChange::Property {
-            figure,
-            property,
-            old_value,
-            new_value,
-        });
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+    ) where
+        V: PropertyValueType,
+    {
+        self.changes.push(LayoutChange::Property(
+            TypedPropertyChange::new(figure, property, old_value, new_value).erase(),
+        ));
     }
 
     pub(crate) fn coordinate_system_changed(&mut self, figure: FigureId) {

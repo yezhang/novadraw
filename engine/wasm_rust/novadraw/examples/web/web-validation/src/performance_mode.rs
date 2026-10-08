@@ -588,7 +588,8 @@ fn build_runtime() -> Runtime {
             LOGICAL_WIDTH,
             LOGICAL_HEIGHT,
             Color::WHITE,
-        )));
+        )))
+        .expect("valid FigureTree construction");
     for index in 0..RECTANGLE_COUNT {
         let column = index % COLUMNS;
         let row = index / COLUMNS;

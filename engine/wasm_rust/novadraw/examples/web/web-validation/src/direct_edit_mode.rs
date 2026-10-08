@@ -414,11 +414,9 @@ impl DirectEditWebApp {
         )
         .map_err(js_error)?;
         viewer
-            .runtime_mut()
             .register_builtin_font(BuiltinFont::Inter)
             .map_err(js_error)?;
         viewer
-            .runtime_mut()
             .register_builtin_font(BuiltinFont::NotoSansSc)
             .map_err(js_error)?;
 
@@ -596,7 +594,6 @@ impl DirectEditWebApp {
         }
         if let Err(error) = self
             .viewer
-            .runtime_mut()
             .resize_logical_viewport(surface.logical_width, surface.logical_height)
         {
             self.last_error = Some(error.to_string());
@@ -606,7 +603,7 @@ impl DirectEditWebApp {
         {
             self.last_error = Some(error.to_string());
         }
-        self.viewer.runtime_mut().request_full_redraw();
+        self.viewer.request_full_redraw();
         self.sync_text_input_effects();
     }
 
@@ -811,7 +808,6 @@ impl DirectEditWebApp {
         }
         let preparation = self
             .viewer
-            .runtime_mut()
             .prepare_submission(self.host.surface_info(), self.backend.capabilities());
         let submission = match preparation {
             FramePreparation::Ready(submission) => submission,
@@ -831,11 +827,8 @@ impl DirectEditWebApp {
         };
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);
-        self.viewer.runtime_mut().complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            outcome,
-        );
+        self.viewer
+            .complete_submission(submission.session_id, submission.frame_id, outcome);
         self.frame_count += 1;
         self.schedule_next_wake();
         self.update_status(damage);

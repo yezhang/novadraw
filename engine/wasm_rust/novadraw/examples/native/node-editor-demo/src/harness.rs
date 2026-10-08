@@ -1,10 +1,13 @@
 use std::time::Duration;
 
-use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::event::{KeyModifiers, MonotonicTime, MouseButton};
 use novadraw::figure::border::{BorderStyle, LineBorder};
 use novadraw::render::text::BuiltinFont;
+use novadraw::render::{
+    BackendCapabilities, BackendSessionId, FrameId, NdCanvas, RenderOutcome, SurfaceInfo,
+};
 use novadraw::{
-    Color, FigureId, FigureStyle, MonotonicTime, Point, Rectangle, RectangleFigure, Runtime,
+    Color, FigureId, FigureStyle, FramePreparation, Point, Rectangle, RectangleFigure, Runtime,
 };
 use novadraw_editor::{
     AutoexposeTick, BendpointHandleSite, ConnectionEndpoint, ConnectionPartId, CreateRequest,
@@ -37,19 +40,13 @@ impl EditorHarness {
         )
         .map_err(|error| error.to_string())?;
         viewer
-            .runtime_mut()
             .register_builtin_font(BuiltinFont::Inter)
             .map_err(|error| error.to_string())?;
         viewer
-            .runtime_mut()
             .register_builtin_font(BuiltinFont::NotoSansSc)
             .map_err(|error| error.to_string())?;
-        let viewport = viewer.root_layers().viewport();
         let style_changed = viewer
-            .runtime_mut()
-            .figure(viewport)
-            .map_err(|error| error.to_string())?
-            .set_style(FigureStyle {
+            .set_root_viewport_style(FigureStyle {
                 background: Some(
                     Color::from_hex(VIEWPORT_BACKGROUND_COLOR).expect("valid color literal"),
                 ),
@@ -60,10 +57,7 @@ impl EditorHarness {
             return Err("failed to apply viewport background".to_string());
         }
         viewer
-            .runtime_mut()
-            .border(viewport)
-            .map_err(|error| error.to_string())?
-            .set(
+            .set_root_viewport_border(
                 LineBorder::new(
                     Color::from_hex(VIEWPORT_BORDER_COLOR).expect("valid color literal"),
                     VIEWPORT_BORDER_WIDTH,
@@ -83,8 +77,32 @@ impl EditorHarness {
         self.viewer.runtime()
     }
 
-    pub(crate) fn runtime_mut(&mut self) -> &mut Runtime {
-        self.viewer.runtime_mut()
+    pub(crate) fn prepare_frame(&mut self) -> Option<NdCanvas> {
+        self.viewer.prepare_frame()
+    }
+
+    pub(crate) fn prepare_submission(
+        &mut self,
+        surface: SurfaceInfo,
+        capabilities: BackendCapabilities,
+    ) -> FramePreparation {
+        self.viewer.prepare_submission(surface, capabilities)
+    }
+
+    pub(crate) fn complete_submission(
+        &mut self,
+        session_id: BackendSessionId,
+        frame_id: FrameId,
+        outcome: RenderOutcome,
+    ) -> bool {
+        self.viewer
+            .complete_submission(session_id, frame_id, outcome)
+    }
+
+    pub(crate) fn reset_backend_session(&mut self) -> HarnessResult<BackendSessionId> {
+        self.viewer
+            .reset_backend_session()
+            .map_err(|error| error.to_string())
     }
 
     pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> HarnessResult<bool> {
@@ -239,7 +257,6 @@ impl EditorHarness {
     ) -> HarnessResult<bool> {
         let changed = self
             .viewer
-            .runtime_mut()
             .resize_logical_viewport(width, height)
             .map_err(|error| error.to_string())?;
         if changed {
@@ -274,8 +291,8 @@ impl EditorHarness {
             self.cancel_tool()?;
         }
         self.viewer.pointer_exited();
-        self.viewer.runtime_mut().cancel_gestures();
-        self.viewer.runtime_mut().release_focus();
+        self.viewer.cancel_runtime_gestures();
+        self.viewer.release_runtime_focus();
         Ok(())
     }
 

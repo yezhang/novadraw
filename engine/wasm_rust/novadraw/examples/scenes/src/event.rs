@@ -4,8 +4,11 @@ use novadraw::event::{
     EventContext, FigureEventHandler, FocusEvent, FocusEventKind, Key, KeyEvent, KeyEventKind,
     KeyModifiers, MouseEvent, MouseEventKind, WheelEvent,
 };
-use novadraw::figure::Bounded;
-use novadraw::{Color, Figure, FigureTree, NdCanvas, Rectangle, RectangleFigure};
+use novadraw::figure::{
+    Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
+};
+use novadraw::graphics::NdCanvas;
+use novadraw::{Color, Figure, FigureTree, Rectangle, RectangleFigure};
 
 use crate::focus::{FocusProbeSpec, build_focus_traversal_scene};
 use crate::{DemoSuite, SceneSpec, ValidationKind};
@@ -111,8 +114,11 @@ impl Figure for EventProbeFigure {
         canvas.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, color);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -215,7 +221,8 @@ pub fn probe_scene(local_coordinates: bool) -> (FigureTree, Arc<Mutex<ProbeState
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
             Color::from_hex("#eeeeee").expect("valid color literal"),
-        )));
+        )))
+        .expect("valid FigureTree construction");
     let parent = if local_coordinates {
         graph
             .builder()

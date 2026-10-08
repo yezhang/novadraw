@@ -1,3 +1,4 @@
+use crate::runtime::PreparedFigureUpdate;
 use crate::{
     ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
     FigureComponentUpdate, FigureId,
@@ -5,7 +6,50 @@ use crate::{
 
 use super::Runtime;
 
+pub(super) struct FigureUpdateCommitContext {
+    pub(super) previous_revision: u64,
+    pub(super) revision: u64,
+    pub(super) old_visual_bounds: crate::Rectangle,
+    pub(super) visible: bool,
+}
+
 impl Runtime {
+    pub(super) fn commit_prepared_figure_update<T>(
+        &mut self,
+        figure: FigureId,
+        context: FigureUpdateCommitContext,
+        prepared: PreparedFigureUpdate<T>,
+        commit: impl FnOnce(T, &mut crate::FigureNode),
+    ) -> ComponentUpdateReceipt {
+        let invalidation = prepared.invalidation;
+        if context.visible {
+            self.updates
+                .freeze_figure_damage(&self.tree, figure, context.old_visual_bounds);
+        }
+
+        let node = self
+            .tree
+            .node_mut(figure)
+            .expect("validated Figure must remain attached during update");
+        commit(prepared.value, node);
+        node.component_revision = context.revision;
+
+        if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
+            self.tree.mark_invalid(&mut self.updates, figure);
+        }
+        if invalidation != ComponentInvalidation::Paint {
+            self.invalidate_connection_figure_change(figure, false);
+        }
+        self.tree.repaint(&mut self.updates, figure, None);
+
+        ComponentUpdateReceipt {
+            figure,
+            previous_revision: context.previous_revision,
+            revision: context.revision,
+            invalidation,
+        }
+    }
+
     pub(crate) fn update_component<U>(
         &mut self,
         figure: FigureId,
@@ -74,40 +118,25 @@ impl Runtime {
                     .map_err(ComponentUpdateError::Rejected)?
             };
 
-            let invalidation = prepared.invalidation;
-            if visible {
-                runtime
-                    .updates
-                    .freeze_figure_damage(&runtime.tree, figure, old_visual_bounds);
-            }
-
-            let node = runtime
-                .tree
-                .node_mut(figure)
-                .expect("validated Figure must remain attached during update");
-            let target = node
-                .figure
-                .as_mut()
-                .as_any_mut()
-                .downcast_mut::<U::Figure>()
-                .expect("Figure type cannot change during component update");
-            U::commit(prepared.value, target);
-            node.component_revision = revision;
-
-            if invalidation == ComponentInvalidation::LayoutGeometryAndPaint {
-                runtime.tree.mark_invalid(&mut runtime.updates, figure);
-            }
-            if invalidation != ComponentInvalidation::Paint {
-                runtime.invalidate_connection_figure_change(figure, false);
-            }
-            runtime.tree.repaint(&mut runtime.updates, figure, None);
-
-            Ok(ComponentUpdateReceipt {
+            Ok(runtime.commit_prepared_figure_update(
                 figure,
-                previous_revision,
-                revision,
-                invalidation,
-            })
+                FigureUpdateCommitContext {
+                    previous_revision,
+                    revision,
+                    old_visual_bounds,
+                    visible,
+                },
+                prepared,
+                |value, node| {
+                    let target = node
+                        .figure
+                        .as_mut()
+                        .as_any_mut()
+                        .downcast_mut::<U::Figure>()
+                        .expect("Figure type cannot change during component update");
+                    U::commit(value, target);
+                },
+            ))
         })
     }
 }

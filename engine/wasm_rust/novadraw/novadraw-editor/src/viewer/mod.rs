@@ -10,19 +10,36 @@ use std::{
     sync::Arc,
 };
 
-use novadraw::connection::UnresolvedConnection;
+use novadraw::connection::{
+    AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
+    ConnectionLayerFigure, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace,
+    RouterBinding, RouterId, UnresolvedConnection, XYAnchor,
+};
+use novadraw::container::{
+    FreeformLayerFigure, FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerPlacement,
+    LayeredPane, MouseLocationZoomScrollPolicy, RangeModelSnapshot, ScalableFreeformLayeredPane,
+    ViewportHandle, ZoomError, ZoomManager, ZoomScrollPolicy,
+};
+use novadraw::event::{
+    DispatchOutcome, FocusChange, KeyModifiers, MonotonicTime, MouseButton, TimeError,
+};
+use novadraw::figure::{
+    Border, FlowTextPosition, FlowTextRange, ShapeMutationError, TextFlowViewport,
+};
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
-use novadraw::runtime::PreparedFigureUpdate;
+use novadraw::render::{
+    BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, NdCanvas, RenderOutcome,
+    SelectionQuad, SurfaceInfo,
+};
+use novadraw::runtime::{
+    BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
+    FigureComponentUpdate, FontId, LogicalViewportResizeError, PreparedFigureUpdate, ResourceError,
+    RuntimeMutationError,
+};
+use novadraw::text::TextMovement;
 use novadraw::{
-    AnchorId, AnchorSemanticKey, CaretGeometry, ChopboxAnchor, Color, ComponentUpdateError,
-    ConnectionAnchor, ConnectionId, ConnectionLayerFigure, ConnectionRuntimeError, CoordinateSpace,
-    DispatchOutcome, Figure, FigureComponentContext, FigureComponentUpdate, FigureId, FigureTree,
-    FlowTextPosition, FlowTextRange, FramePreparationError, FreeformLayerFigure,
-    FreeformLayeredPane, KeyModifiers, LayerError, LayerFigure, LayerKey, LayerPlacement,
-    LayeredPane, MonotonicTime, MouseButton, MouseLocationZoomScrollPolicy, RectangleFigure,
-    RouterBinding, RouterId, Runtime, RuntimeMutationError, ScalableFreeformLayeredPane,
-    SelectionQuad, StackLayout, TextFlowFigure, TextFlowViewport, TextMovement, TimeError,
-    ViewportHandle, XYAnchor, ZoomError, ZoomManager, ZoomScrollPolicy,
+    Color, Figure, FigureId, FigureStyle, FigureTree, FramePreparation, FramePreparationError,
+    RectangleFigure, Runtime, StackLayout, TextFlowFigure,
 };
 
 use crate::{
@@ -44,6 +61,9 @@ use crate::{
 };
 
 const MAX_PART_TREE_DEPTH: usize = 10_000;
+const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
+const RECURSIVE_STACK_RED_ZONE: usize = 128 * 1024;
+const RECURSIVE_STACK_GROWTH: usize = 4 * 1024 * 1024;
 const VIEWPORT_LAYER: &str = "viewport";
 const GRID_LAYER: &str = "grid";
 const PRINTABLE_LAYERS: &str = "printable";
@@ -316,6 +336,8 @@ pub enum ViewerError {
     Runtime(RuntimeMutationError),
     /// Zoom policy or level configuration failed.
     Zoom(ZoomError),
+    /// Figure shape or border mutation failed.
+    Shape(ShapeMutationError),
     /// Runtime derived state could not converge for an Editor query.
     RuntimePreparation(FramePreparationError),
     /// Host-provided monotonic time violated Runtime timing constraints.
@@ -400,6 +422,7 @@ impl fmt::Display for ViewerError {
             Self::PartTree(error) => error.fmt(formatter),
             Self::Runtime(error) => error.fmt(formatter),
             Self::Zoom(error) => error.fmt(formatter),
+            Self::Shape(error) => error.fmt(formatter),
             Self::RuntimePreparation(error) => error.fmt(formatter),
             Self::RuntimeTime(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
@@ -419,6 +442,7 @@ impl Error for ViewerError {
             Self::PartTree(error) => Some(error),
             Self::Runtime(error) => Some(error),
             Self::Zoom(error) => Some(error),
+            Self::Shape(error) => Some(error),
             Self::RuntimePreparation(error) => Some(error),
             Self::RuntimeTime(error) => Some(error),
             Self::Connection(error) => Some(error),
@@ -451,6 +475,12 @@ impl From<RuntimeMutationError> for ViewerError {
 impl From<ZoomError> for ViewerError {
     fn from(value: ZoomError) -> Self {
         Self::Zoom(value)
+    }
+}
+
+impl From<ShapeMutationError> for ViewerError {
+    fn from(value: ShapeMutationError) -> Self {
+        Self::Shape(value)
     }
 }
 
@@ -563,6 +593,25 @@ where
     where
         A: ModelAdapter<ModelId = I>,
     {
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+                Self::capture_subtree_inner(model, model_id, depth, seen, children, parents)
+            });
+        }
+        Self::capture_subtree_inner(model, model_id, depth, seen, children, parents)
+    }
+
+    fn capture_subtree_inner<A>(
+        model: &A,
+        model_id: I,
+        depth: usize,
+        seen: &mut std::collections::HashSet<I>,
+        children: &mut HashMap<I, Vec<I>>,
+        parents: &mut HashMap<I, I>,
+    ) -> Result<(), ViewerError>
+    where
+        A: ModelAdapter<ModelId = I>,
+    {
         if depth > MAX_PART_TREE_DEPTH {
             return Err(ViewerError::DepthLimitExceeded);
         }
@@ -615,12 +664,15 @@ fn add_layer(
 
 fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), ViewerError> {
     let mut tree = FigureTree::new();
-    let root = tree.builder().set_contents(Box::new(LayeredPane::new(
-        bounds.x,
-        bounds.y,
-        bounds.width,
-        bounds.height,
-    )));
+    let root = tree
+        .builder()
+        .set_contents(Box::new(LayeredPane::new(
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+        )))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let viewport_layer = add_layer(
         &mut runtime,
@@ -922,9 +974,145 @@ where
         Ok(())
     }
 
-    /// Returns mutable Runtime access for rendering and platform integration.
-    pub fn runtime_mut(&mut self) -> &mut Runtime {
-        &mut self.runtime
+    /// Converges pending layout and derived state without exposing Runtime mutation.
+    pub fn stabilize_for_query(&mut self) -> Result<(), ViewerError> {
+        Ok(self.runtime.stabilize_for_query()?)
+    }
+
+    /// Prepares a compatibility frame for hosts that do not use submission sessions.
+    pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
+        self.runtime.prepare_frame()
+    }
+
+    /// Prepares one renderer submission through the Viewer-owned Runtime.
+    pub fn prepare_submission(
+        &mut self,
+        surface: SurfaceInfo,
+        capabilities: BackendCapabilities,
+    ) -> FramePreparation {
+        self.runtime.prepare_submission(surface, capabilities)
+    }
+
+    /// Completes the current renderer submission through the Viewer-owned Runtime.
+    pub fn complete_submission(
+        &mut self,
+        session_id: BackendSessionId,
+        frame_id: FrameId,
+        outcome: RenderOutcome,
+    ) -> bool {
+        self.runtime
+            .complete_submission(session_id, frame_id, outcome)
+    }
+
+    /// Starts a fresh backend submission session after renderer recreation.
+    pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
+        self.runtime.reset_backend_session()
+    }
+
+    /// Resizes the Viewer-owned logical viewport.
+    pub fn resize_logical_viewport(
+        &mut self,
+        width: f64,
+        height: f64,
+    ) -> Result<bool, LogicalViewportResizeError> {
+        self.runtime.resize_logical_viewport(width, height)
+    }
+
+    /// Requests a complete redraw from the Viewer-owned Runtime.
+    pub fn request_full_redraw(&mut self) {
+        self.runtime.request_full_redraw();
+    }
+
+    /// Cancels Figure-level pointer capture and gesture state.
+    pub fn cancel_runtime_gestures(&mut self) {
+        self.runtime.cancel_gestures();
+    }
+
+    /// Releases Figure-level focus.
+    pub fn release_runtime_focus(&mut self) -> FocusChange {
+        self.runtime.release_focus()
+    }
+
+    /// Applies style to the standard root Viewport.
+    pub fn set_root_viewport_style(
+        &mut self,
+        style: FigureStyle,
+    ) -> Result<bool, RuntimeMutationError> {
+        self.runtime
+            .figure(self.root_layers.viewport())?
+            .set_style(style)
+    }
+
+    /// Replaces the standard root Viewport border.
+    pub fn set_root_viewport_border(
+        &mut self,
+        border: impl Border + 'static,
+    ) -> Result<bool, ViewerError> {
+        Ok(self
+            .runtime
+            .border(self.root_layers.viewport())?
+            .set(border)?)
+    }
+
+    /// Registers a packaged font resource without exposing unrelated Runtime mutation.
+    pub fn register_builtin_font(
+        &mut self,
+        font: novadraw::render::BuiltinFont,
+    ) -> Result<FontId, ResourceError> {
+        self.runtime.register_builtin_font(font)
+    }
+
+    /// Registers a connection Router owned by this Viewer.
+    pub fn register_connection_router(
+        &mut self,
+        router: Box<dyn ConnectionRouter>,
+    ) -> Result<RouterId, ConnectionRuntimeError> {
+        self.runtime.try_register_connection_router(router)
+    }
+
+    /// Selects a Router for the standard connection layer.
+    pub fn set_connection_layer_router(
+        &mut self,
+        router: RouterId,
+    ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
+        self.runtime
+            .set_connection_layer_router(self.root_layers.connection(), router)
+    }
+
+    /// Applies a typed component update to a Viewer-owned visual.
+    pub fn update_visual_component<U>(
+        &mut self,
+        figure: FigureId,
+        update: U,
+    ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
+    where
+        U: FigureComponentUpdate,
+    {
+        if !matches!(
+            self.visual_registry.get(&figure),
+            Some(VisualOwner::Part(_))
+        ) {
+            return Err(ComponentUpdateError::Runtime(
+                RuntimeMutationError::UnknownOrDisposedFigure(figure),
+            ));
+        }
+        self.runtime.figure(figure)?.update_component(update)
+    }
+
+    /// Adds an implementation-detail visual below a Part's content pane.
+    ///
+    /// The visual is intentionally resolved through its registered Part ancestor.
+    pub fn add_internal_visual(
+        &mut self,
+        owner: EditPartId,
+        figure: Box<dyn Figure>,
+    ) -> Result<FigureId, ViewerError> {
+        let pane = self
+            .parts
+            .get(owner)
+            .ok_or(ViewerError::InvalidPart(owner))?
+            .content_pane();
+        Ok(self.runtime.container(pane)?.add(figure)?)
     }
 
     /// Advances Runtime timers and the active direct-edit caret blink from host time.
@@ -1086,7 +1274,7 @@ where
 
     pub(crate) fn viewport_ranges(
         &self,
-    ) -> Result<(novadraw::RangeModelSnapshot, novadraw::RangeModelSnapshot), ViewerError> {
+    ) -> Result<(RangeModelSnapshot, RangeModelSnapshot), ViewerError> {
         let viewport = self.viewport_handle()?;
         Ok((viewport.horizontal_range(), viewport.vertical_range()))
     }
@@ -1534,6 +1722,46 @@ where
         }
     }
 
+    /// Removes a complete overlay batch after validating ownership up front.
+    pub fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
+        for figure in figures.iter().copied() {
+            if !matches!(
+                self.visual_registry.get(&figure),
+                Some(VisualOwner::Handle { .. } | VisualOwner::Feedback { .. })
+            ) || !self.runtime.tree().is_attached(figure)
+            {
+                return Err(ViewerError::InconsistentState);
+            }
+        }
+        for figure in figures.iter().copied() {
+            if let Err(error) = self.runtime.dispose_subtree(figure) {
+                self.faulted = true;
+                return Err(error.into());
+            }
+            self.visual_registry.remove(&figure);
+        }
+        Ok(())
+    }
+
+    fn add_feedback_batch(
+        &mut self,
+        contributions: Vec<(Option<EditPartId>, FeedbackVisual)>,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        let mut figures = Vec::with_capacity(contributions.len());
+        for (owner, feedback) in contributions {
+            match self.add_feedback_contribution(owner, feedback) {
+                Ok((_, figure)) => figures.push(figure),
+                Err(error) => {
+                    if self.remove_overlay_visuals(&figures).is_err() {
+                        self.faulted = true;
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        Ok(figures)
+    }
+
     /// Returns a snapshot of the active direct text edit session.
     pub fn direct_text_edit(&self) -> Option<&DirectTextEditState> {
         self.direct_text_edit.as_ref().map(|active| &active.state)
@@ -1545,6 +1773,16 @@ where
     }
 
     pub(crate) fn start_direct_text_edit(
+        &mut self,
+        request: &DirectTextEditRequest,
+    ) -> Result<DirectTextEditSessionId, ViewerError>
+    where
+        A: 'static,
+    {
+        self.with_extension_fault_boundary(|viewer| viewer.start_direct_text_edit_inner(request))
+    }
+
+    fn start_direct_text_edit_inner(
         &mut self,
         request: &DirectTextEditRequest,
     ) -> Result<DirectTextEditSessionId, ViewerError>
@@ -1818,16 +2056,18 @@ where
 
     /// Rebuilds direct-edit feedback and emits its candidate area after a transform change.
     pub fn synchronize_direct_text_input_area(&mut self) -> Result<bool, ViewerError> {
-        let Some(mut active) = self.direct_text_edit.take() else {
+        self.with_extension_fault_boundary(Self::synchronize_direct_text_input_area_inner)
+    }
+
+    fn synchronize_direct_text_input_area_inner(&mut self) -> Result<bool, ViewerError> {
+        let Some(active) = self.direct_text_edit.as_mut() else {
             return Ok(false);
         };
-        let projection = match active.plan.feedback(&active.state, &self.model) {
-            Ok(projection) => projection,
-            Err(error) => {
-                self.direct_text_edit = Some(active);
-                return Err(error.into());
-            }
-        };
+        let projection = active.plan.feedback(&active.state, &self.model)?;
+        let mut active = self
+            .direct_text_edit
+            .take()
+            .expect("direct text edit must remain active after feedback");
         let attached = match self.attach_direct_text_feedback(
             active.state.source(),
             &active.state,
@@ -1947,11 +2187,16 @@ where
     }
 
     pub(crate) fn cancel_direct_text_edit(&mut self) -> Result<bool, ViewerError> {
-        let Some(active) = self.direct_text_edit.take() else {
+        let Some(active) = self.direct_text_edit.as_ref() else {
             return Ok(false);
         };
+        let feedback = active.feedback.clone();
+        self.remove_direct_text_feedback(&feedback)?;
+        let active = self
+            .direct_text_edit
+            .take()
+            .expect("direct text edit must remain active after feedback cleanup");
         self.direct_text_blink_deadline = None;
-        self.remove_direct_text_feedback(&active.feedback)?;
         self.text_input_effects.push(TextInputEffect::Release {
             session: active.state.session(),
         });
@@ -1961,46 +2206,47 @@ where
     pub(crate) fn prepare_direct_text_accept(
         &mut self,
     ) -> Result<PreparedDirectTextEdit<A>, ViewerError> {
-        let mut active = self
+        self.with_extension_fault_boundary(Self::prepare_direct_text_accept_inner)
+    }
+
+    fn prepare_direct_text_accept_inner(
+        &mut self,
+    ) -> Result<PreparedDirectTextEdit<A>, ViewerError> {
+        let active = self
             .direct_text_edit
-            .take()
+            .as_mut()
             .ok_or(DirectTextEditError::NoActiveSession)?;
         if self
             .parts
             .get(active.state.source())
             .is_none_or(|part| !part.is_active())
         {
+            let feedback = active.feedback.clone();
+            let _ = active;
             self.direct_text_blink_deadline = None;
-            self.remove_direct_text_feedback(&active.feedback)?;
+            self.remove_direct_text_feedback(&feedback)?;
+            self.direct_text_edit = None;
             return Err(DirectTextEditError::ForeignOrRetiredPart.into());
         }
         if active.state.source_revision() != self.model.revision() {
-            self.direct_text_edit = Some(active);
             return Err(DirectTextEditError::StaleSourceRevision.into());
         }
         if active.state.composition().is_some() {
-            self.direct_text_edit = Some(active);
             return Err(DirectTextEditError::ActiveComposition.into());
         }
-        if let Err(error) = active.plan.validate(&active.state, &self.model) {
-            self.direct_text_edit = Some(active);
-            return Err(error.into());
-        }
+        active.plan.validate(&active.state, &self.model)?;
         let command = if active.state.is_changed() {
-            match active.plan.command(&active.state, &self.model) {
-                Ok(command) => Some(command),
-                Err(error) => {
-                    self.direct_text_edit = Some(active);
-                    return Err(error.into());
-                }
-            }
+            Some(active.plan.command(&active.state, &self.model)?)
         } else {
             None
         };
-        if let Err(error) = self.remove_direct_text_feedback(&active.feedback) {
-            self.direct_text_edit = Some(active);
-            return Err(error);
-        }
+        let feedback = active.feedback.clone();
+        let _ = active;
+        self.remove_direct_text_feedback(&feedback)?;
+        let mut active = self
+            .direct_text_edit
+            .take()
+            .expect("direct text edit must remain active after feedback cleanup");
         active.feedback.clear();
         active.caret_feedback = None;
         active.caret_visible = false;
@@ -2012,6 +2258,15 @@ where
     }
 
     pub(crate) fn restore_direct_text_edit(
+        &mut self,
+        prepared: PreparedDirectTextEdit<A>,
+    ) -> Result<(), ViewerError> {
+        self.with_extension_fault_boundary(move |viewer| {
+            viewer.restore_direct_text_edit_inner(prepared)
+        })
+    }
+
+    fn restore_direct_text_edit_inner(
         &mut self,
         mut prepared: PreparedDirectTextEdit<A>,
     ) -> Result<(), ViewerError> {
@@ -2044,19 +2299,31 @@ where
     }
 
     fn replace_direct_text_state(&mut self, state: DirectTextEditState) -> Result<(), ViewerError> {
-        let mut active = self
+        self.with_extension_fault_boundary(move |viewer| {
+            viewer.replace_direct_text_state_inner(state)
+        })
+    }
+
+    fn replace_direct_text_state_inner(
+        &mut self,
+        state: DirectTextEditState,
+    ) -> Result<(), ViewerError> {
+        let active = self
             .direct_text_edit
-            .take()
+            .as_mut()
             .ok_or(DirectTextEditError::NoActiveSession)?;
         let previous_state = std::mem::replace(&mut active.state, state);
         let projection = match active.plan.feedback(&active.state, &self.model) {
             Ok(projection) => projection,
             Err(error) => {
                 active.state = previous_state;
-                self.direct_text_edit = Some(active);
                 return Err(error.into());
             }
         };
+        let mut active = self
+            .direct_text_edit
+            .take()
+            .expect("direct text edit must remain active after feedback");
         let attached = match self.attach_direct_text_feedback(
             active.state.source(),
             &active.state,
@@ -2098,16 +2365,12 @@ where
         previous_horizontal_scroll: f64,
     ) -> Result<AttachedDirectTextFeedback, ViewerError> {
         let (visuals, text_visual) = feedback.into_parts();
-        let mut figures = Vec::with_capacity(visuals.len());
-        for visual in visuals {
-            match self.add_feedback_contribution(Some(owner), visual) {
-                Ok((_, figure)) => figures.push(figure),
-                Err(error) => {
-                    let _ = self.remove_direct_text_feedback(&figures);
-                    return Err(error);
-                }
-            }
-        }
+        let mut figures = self.add_feedback_batch(
+            visuals
+                .into_iter()
+                .map(|visual| (Some(owner), visual))
+                .collect(),
+        )?;
         let text_feedback = figures
             .get(text_visual)
             .copied()
@@ -2349,12 +2612,7 @@ where
     }
 
     fn remove_direct_text_feedback(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
-        for figure in figures.iter().copied() {
-            if !self.remove_overlay_visual(figure)? {
-                return Err(ViewerError::InconsistentState);
-            }
-        }
-        Ok(())
+        self.remove_overlay_visuals(figures)
     }
 
     fn select_part(
@@ -2451,7 +2709,7 @@ where
     where
         A: 'static,
     {
-        self.with_policy_fault_boundary(|viewer| viewer.command_for_request_inner(request))
+        self.with_extension_fault_boundary(|viewer| viewer.command_for_request_inner(request))
     }
 
     fn command_for_request_inner(
@@ -2493,7 +2751,7 @@ where
         &mut self,
         request: &EditorRequest,
     ) -> Result<Vec<FigureId>, ViewerError> {
-        self.with_policy_fault_boundary(|viewer| viewer.show_feedback_for_request_inner(request))
+        self.with_extension_fault_boundary(|viewer| viewer.show_feedback_for_request_inner(request))
     }
 
     fn show_feedback_for_request_inner(
@@ -2517,15 +2775,15 @@ where
                 }
             }
         }
-        let mut figures = Vec::with_capacity(contributions.len());
-        for (owner, feedback) in contributions {
-            let (_, figure) = self.add_feedback_contribution(Some(owner), feedback)?;
-            figures.push(figure);
-        }
-        Ok(figures)
+        self.add_feedback_batch(
+            contributions
+                .into_iter()
+                .map(|(owner, feedback)| (Some(owner), feedback))
+                .collect(),
+        )
     }
 
-    fn with_policy_fault_boundary<T>(
+    fn with_extension_fault_boundary<T>(
         &mut self,
         operation: impl FnOnce(&mut Self) -> Result<T, ViewerError>,
     ) -> Result<T, ViewerError> {
@@ -2542,6 +2800,16 @@ where
 
     /// Resolves one unambiguous source policy into a connection-creation plan.
     pub fn start_connection_creation(
+        &mut self,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
+        self.with_extension_fault_boundary(|viewer| viewer.start_connection_creation_inner(request))
+    }
+
+    fn start_connection_creation_inner(
         &mut self,
         request: &CreateConnectionRequest,
     ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, ViewerError>
@@ -2577,6 +2845,16 @@ where
         plan: &mut dyn ConnectionCreation<A>,
         request: &CreateConnectionRequest,
     ) -> Result<Vec<FigureId>, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.show_connection_feedback_inner(plan, request)
+        })
+    }
+
+    fn show_connection_feedback_inner(
+        &mut self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
         let source = self.connection_endpoint_host(request.source())?;
         let target = self.valid_connection_target(plan, source, request)?;
         let route = self.preview_connection_feedback_route(
@@ -2590,23 +2868,24 @@ where
         )?;
         let contributions =
             plan.feedback_with_route(source, target, request, route, &self.model)?;
-        let mut figures = Vec::with_capacity(contributions.len());
-        for feedback in contributions {
-            match self.add_feedback_contribution(Some(request.source()), feedback) {
-                Ok((_, figure)) => figures.push(figure),
-                Err(error) => {
-                    for figure in figures {
-                        let _ = self.remove_overlay_visual(figure);
-                    }
-                    return Err(error);
-                }
-            }
-        }
-        Ok(figures)
+        self.add_feedback_batch(
+            contributions
+                .into_iter()
+                .map(|feedback| (Some(request.source()), feedback))
+                .collect(),
+        )
     }
 
     /// Builds the final connection Command when the current target is valid.
     pub fn connection_command(
+        &mut self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| viewer.connection_command_inner(plan, request))
+    }
+
+    fn connection_command_inner(
         &self,
         plan: &mut dyn ConnectionCreation<A>,
         request: &CreateConnectionRequest,
@@ -2620,6 +2899,18 @@ where
 
     /// Resolves one unambiguous connection policy into a reconnect plan.
     pub fn start_connection_reconnection(
+        &mut self,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, ViewerError>
+    where
+        A: 'static,
+    {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.start_connection_reconnection_inner(request)
+        })
+    }
+
+    fn start_connection_reconnection_inner(
         &mut self,
         request: &ReconnectConnectionRequest,
     ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, ViewerError>
@@ -2651,6 +2942,16 @@ where
 
     /// Replaces reconnect feedback for the latest endpoint candidate.
     pub fn show_reconnection_feedback(
+        &mut self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.show_reconnection_feedback_inner(plan, request)
+        })
+    }
+
+    fn show_reconnection_feedback_inner(
         &mut self,
         plan: &mut dyn ConnectionReconnection<A>,
         request: &ReconnectConnectionRequest,
@@ -2691,13 +2992,12 @@ where
         )?;
         let contributions =
             plan.feedback_with_route(connection, fixed, candidate, request, route, &self.model)?;
-        let mut figures = Vec::with_capacity(contributions.len());
-        for feedback in contributions {
-            let (_, figure) =
-                self.add_feedback_contribution(Some(request.connection().edit_part()), feedback)?;
-            figures.push(figure);
-        }
-        Ok(figures)
+        self.add_feedback_batch(
+            contributions
+                .into_iter()
+                .map(|feedback| (Some(request.connection().edit_part()), feedback))
+                .collect(),
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -2757,6 +3057,16 @@ where
 
     /// Builds the final reconnect Command when the current candidate is valid.
     pub fn reconnection_command(
+        &mut self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.reconnection_command_inner(plan, request)
+        })
+    }
+
+    fn reconnection_command_inner(
         &self,
         plan: &mut dyn ConnectionReconnection<A>,
         request: &ReconnectConnectionRequest,

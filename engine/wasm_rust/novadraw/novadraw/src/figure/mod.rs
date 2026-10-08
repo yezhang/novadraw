@@ -13,6 +13,7 @@
 //! AccessibleFigure       - 可选 accessibility 能力
 //! ```
 
+pub(crate) mod capability;
 mod ellipse;
 mod image;
 mod label;
@@ -32,6 +33,14 @@ pub mod border;
 
 pub use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
 pub use border::Border;
+pub use capability::{
+    ACCESSIBILITY, AccessibilityCapability, BORDER, BorderCapability, CLICKABLE, CONNECTION,
+    CONNECTION_DECORATION, CONTAINER, CapabilityKey, CapabilityQueryError, ClickableCapability,
+    ConnectionCapability, ConnectionDecorationCapability, ContainerCapability, FREEFORM,
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, FreeformCapability, INPUT,
+    InputCapability, LAYER, LIFECYCLE, LayerCapability, LifecycleCapability, PREPARATION,
+    PreparationCapability, SCALE, ScaleCapability,
+};
 pub use ellipse::EllipseFigure;
 pub use image::{ImageDisplayState, ImageFigure};
 pub use label::{Alignment, LabelFigure, TextPlacement};
@@ -41,12 +50,10 @@ pub(crate) use polyline::normalize_points;
 pub use rectangle::RectangleFigure;
 pub use root::RootFigure;
 pub use rounded_rectangle::RoundedRectangleFigure;
-pub use scalable_polygon::{
-    PolygonScaleMode, ScalablePolygonBehavior, ScalablePolygonError, ScalablePolygonFigure,
-};
+pub use scalable_polygon::{PolygonScaleMode, ScalablePolygonError, ScalablePolygonFigure};
 pub use text_flow::{
     FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, InlineTextFragment,
-    TextFlowBehavior, TextFlowFigure, TextFlowViewport,
+    TextFlowFigure, TextFlowViewport,
 };
 pub use triangle::{Direction, TriangleFigure};
 pub use widget::{
@@ -57,7 +64,7 @@ pub use widget::{
 use std::{any::Any, sync::Arc};
 
 use crate::Color;
-use crate::geometry::{Affine2D, Dimension, Insets, Point, Rectangle, Translatable};
+use crate::geometry::{Affine2D, Dimension, Insets, Rectangle, Translatable};
 use crate::render::NdCanvas;
 use crate::render::command::{LineCap, LineJoin};
 
@@ -459,9 +466,12 @@ pub trait Figure: AsAny {
         false
     }
 
-    /// Optional immutable measure/arrange/paint preparation capability.
-    fn preparation(&self) -> Option<&dyn FigurePreparation> {
-        None
+    /// Registers owned descriptors for capabilities discoverable after attach.
+    fn register_capabilities(
+        &self,
+        _out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        Ok(())
     }
 
     /// Drawing-only callback for Figures that do not need a prepared presentation.
@@ -599,124 +609,6 @@ pub trait Figure: AsAny {
             self.paint_border_in_bounds(gc, bounds);
         }
     }
-
-    /// 返回可选的输入能力。
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        None
-    }
-
-    /// 返回可选的生命周期能力。
-    fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
-        None
-    }
-
-    /// 返回可选的 accessibility 能力。
-    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        None
-    }
-
-    /// 返回可选的容器坐标与布局投影能力。
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        None
-    }
-
-    fn layer(&self) -> Option<&dyn Layer> {
-        None
-    }
-
-    fn freeform(&self) -> Option<&dyn Freeform> {
-        None
-    }
-
-    fn content_scale(&self) -> Option<f64> {
-        None
-    }
-
-    /// Returns optional Connection geometry behavior.
-    fn connection(&self) -> Option<&dyn crate::ConnectionFigureBehavior> {
-        None
-    }
-
-    /// Returns mutable Connection geometry behavior.
-    fn connection_mut(&mut self) -> Option<&mut dyn crate::ConnectionFigureBehavior> {
-        None
-    }
-
-    /// Returns optional route-oriented Connection decoration behavior.
-    fn connection_decoration(&self) -> Option<&dyn crate::ConnectionDecorationBehavior> {
-        None
-    }
-
-    /// Returns mutable route-oriented Connection decoration behavior.
-    fn connection_decoration_mut(
-        &mut self,
-    ) -> Option<&mut dyn crate::ConnectionDecorationBehavior> {
-        None
-    }
-
-    /// Returns optional point-list geometry behavior.
-    fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
-        None
-    }
-
-    /// Returns mutable point-list geometry behavior.
-    fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
-        None
-    }
-
-    /// Returns optional bounds-driven polygon template behavior.
-    fn scalable_polygon(&self) -> Option<&dyn ScalablePolygonBehavior> {
-        None
-    }
-
-    /// Returns mutable bounds-driven polygon template behavior.
-    fn scalable_polygon_mut(&mut self) -> Option<&mut dyn ScalablePolygonBehavior> {
-        None
-    }
-
-    /// Returns optional paragraph text-flow behavior.
-    fn text_flow(&self) -> Option<&dyn TextFlowBehavior> {
-        None
-    }
-
-    /// Returns mutable paragraph text-flow behavior.
-    fn text_flow_mut(&mut self) -> Option<&mut dyn TextFlowBehavior> {
-        None
-    }
-
-    /// Returns mutable Border ownership behavior.
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        None
-    }
-
-    /// Returns optional label content, including labels composed into widgets.
-    fn label(&self) -> Option<&LabelFigure> {
-        None
-    }
-
-    /// Returns mutable label content, including labels composed into widgets.
-    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
-        None
-    }
-
-    /// Returns optional button-like interaction behavior.
-    fn clickable(&self) -> Option<&dyn ClickableBehavior> {
-        None
-    }
-
-    /// Returns mutable button-like interaction behavior.
-    fn clickable_mut(&mut self) -> Option<&mut dyn ClickableBehavior> {
-        None
-    }
-}
-
-/// Runtime-controlled point-list geometry capability.
-pub trait PointListFigureBehavior {
-    fn local_points(&self) -> &[Point];
-    fn stroke_style(&self) -> &crate::render::StrokeStyle;
-    fn painted_minimum(&self) -> usize;
-    fn commit_stroke_style(&mut self, stroke: crate::render::StrokeStyle);
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>);
 }
 
 /// Runtime-controlled immutable Border replacement capability.
@@ -761,12 +653,6 @@ impl std::fmt::Display for ShapeMutationError {
 }
 
 impl std::error::Error for ShapeMutationError {}
-
-/// Marker capability for Figures accepted by a LayeredPane.
-pub trait Layer {}
-
-/// Marker capability for Figures whose content extent is derived from descendants.
-pub trait Freeform {}
 
 /// Figure 的可选容器能力。
 pub trait FigureContainer {
@@ -1106,10 +992,10 @@ mod tests {
 
     #[test]
     fn non_interactive_figure_needs_no_event_or_lifecycle_methods() {
-        let mut figure = MinimalFigure;
-        assert!(figure.event_handler().is_none());
-        assert!(figure.lifecycle().is_none());
-        assert!(figure.accessible().is_none());
+        let capabilities = super::capability::FigureCapabilitySet::build(&MinimalFigure).unwrap();
+        assert!(capabilities.get(super::INPUT).unwrap().is_none());
+        assert!(capabilities.get(super::LIFECYCLE).unwrap().is_none());
+        assert!(capabilities.get(super::ACCESSIBILITY).unwrap().is_none());
     }
 
     #[test]

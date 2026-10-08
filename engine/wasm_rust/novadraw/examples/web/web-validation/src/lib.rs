@@ -179,8 +179,11 @@ impl Figure for WebProbeFigure {
         Shape::paint_figure(self, canvas);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
     }
 }
 

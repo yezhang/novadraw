@@ -2,8 +2,9 @@
 
 use std::{error::Error, fmt};
 
+use novadraw::FigureId;
+use novadraw::event::{DispatchOutcome, KeyModifiers, MouseButton};
 use novadraw::geometry::{Dimension, Point, Vec2};
-use novadraw::{DispatchOutcome, FigureId, KeyModifiers, MouseButton};
 
 use crate::{
     BendpointOperation, BendpointRequest, ChangeBoundsRequest, Command, ConnectionCreation,
@@ -278,13 +279,17 @@ impl SelectionTool {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_released(location.x(), location.y(), button);
-        let Some(mut gesture) = self.gesture.take() else {
+        let Some(gesture) = self.gesture.as_mut() else {
             return Ok(ToolRelease {
                 dispatch,
                 request: None,
             });
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
+        let gesture = self
+            .gesture
+            .take()
+            .expect("validated SelectionTool gesture must remain active");
         let surface_delta = location - gesture.start_surface;
         let model_location = viewer.model_point_from_surface(location)?;
         let delta = model_location - gesture.start_model;
@@ -306,9 +311,10 @@ impl SelectionTool {
         A: ModelAdapter,
         F: EditPartFactory<A>,
     {
-        if let Some(mut gesture) = self.gesture.take() {
+        if let Some(gesture) = self.gesture.as_mut() {
             clear_feedback(viewer, &mut gesture.feedback)?;
         }
+        self.gesture = None;
         Ok(())
     }
 }
@@ -476,13 +482,17 @@ impl ConnectionBendpointTool {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_released(location.x(), location.y(), button);
-        let Some(mut gesture) = self.gesture.take() else {
+        let Some(gesture) = self.gesture.as_mut() else {
             return Ok(ToolRelease {
                 dispatch,
                 request: None,
             });
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
+        let gesture = self
+            .gesture
+            .take()
+            .expect("validated bendpoint gesture must remain active");
         let surface_delta = location - gesture.start_surface;
         let request = if button == MouseButton::Left
             && surface_delta.length() >= DRAG_START_DISTANCE
@@ -507,9 +517,10 @@ impl ConnectionBendpointTool {
         A: ModelAdapter,
         F: EditPartFactory<A>,
     {
-        if let Some(mut gesture) = self.gesture.take() {
+        if let Some(gesture) = self.gesture.as_mut() {
             clear_feedback(viewer, &mut gesture.feedback)?;
         }
+        self.gesture = None;
         Ok(())
     }
 }
@@ -652,13 +663,17 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
         F: EditPartFactory<A>,
     {
         let dispatch = viewer.dispatch_mouse_released(location.x(), location.y(), button);
-        let Some(mut gesture) = self.gesture.take() else {
+        let Some(gesture) = self.gesture.as_mut() else {
             return Ok(ConnectionEndpointRelease {
                 dispatch,
                 command: None,
             });
         };
         clear_feedback(viewer, &mut gesture.feedback)?;
+        let mut gesture = self
+            .gesture
+            .take()
+            .expect("validated reconnect gesture must remain active");
         if button != MouseButton::Left || (location - gesture.start).length() < DRAG_START_DISTANCE
         {
             return Ok(ConnectionEndpointRelease {
@@ -688,9 +703,10 @@ impl<A: ModelAdapter> ConnectionEndpointTool<A> {
     where
         F: EditPartFactory<A>,
     {
-        if let Some(mut gesture) = self.gesture.take() {
+        if let Some(gesture) = self.gesture.as_mut() {
             clear_feedback(viewer, &mut gesture.feedback)?;
         }
+        self.gesture = None;
         Ok(())
     }
 }
@@ -876,9 +892,10 @@ impl<A: ModelAdapter> ConnectionCreationTool<A> {
     where
         F: EditPartFactory<A>,
     {
-        if let Some(mut gesture) = self.gesture.take() {
+        if let Some(gesture) = self.gesture.as_mut() {
             clear_feedback(viewer, &mut gesture.feedback)?;
         }
+        self.gesture = None;
         Ok(())
     }
 }
@@ -944,8 +961,7 @@ where
     A: ModelAdapter,
     F: EditPartFactory<A>,
 {
-    for figure in feedback.drain(..) {
-        viewer.remove_overlay_visual(figure)?;
-    }
+    viewer.remove_overlay_visuals(feedback)?;
+    feedback.clear();
     Ok(())
 }

@@ -3,10 +3,7 @@ use std::{error::Error, fmt};
 use crate::figure::normalize_points;
 use crate::geometry::{Point, PointList, Rectangle};
 use crate::render::{LineJoin, NdCanvas, StrokeStyle};
-use crate::{
-    Color, Figure, FigureStyle, LocatorPlacement, PointListFigureBehavior, PolygonFigure,
-    PolylineFigure,
-};
+use crate::{Color, Figure, FigureStyle, LocatorPlacement, PolygonFigure, PolylineFigure};
 
 const DEFAULT_ARROW_LENGTH: f64 = 10.0;
 const DEFAULT_ARROW_HALF_WIDTH: f64 = 5.0;
@@ -155,14 +152,14 @@ impl ConnectionDecorationBehavior for PolygonDecorationFigure {
             self.scale_x,
             self.scale_y,
             placement,
-            PointListFigureBehavior::stroke_style(&self.polygon),
+            self.polygon.stroke_style(),
             3,
         )
     }
 
     fn commit_decoration_geometry(&mut self, geometry: PreparedDecorationGeometry) {
         let (bounds, points) = geometry.into_parts();
-        PointListFigureBehavior::commit_geometry(&mut self.polygon, bounds, points);
+        self.polygon.commit_geometry(bounds, points);
     }
 }
 
@@ -187,12 +184,14 @@ impl Figure for PolygonDecorationFigure {
         self.polygon.precise_hit(x, y, bounds)
     }
 
-    fn connection_decoration(&self) -> Option<&dyn ConnectionDecorationBehavior> {
-        Some(self)
-    }
-
-    fn connection_decoration_mut(&mut self) -> Option<&mut dyn ConnectionDecorationBehavior> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(
+            crate::CONNECTION_DECORATION,
+            crate::ConnectionDecorationCapability::of::<Self>(),
+        )
     }
 }
 
@@ -276,7 +275,7 @@ impl ConnectionDecorationBehavior for PolylineDecorationFigure {
 
     fn commit_decoration_geometry(&mut self, geometry: PreparedDecorationGeometry) {
         let (bounds, points) = geometry.into_parts();
-        PointListFigureBehavior::commit_geometry(&mut self.polyline, bounds, points);
+        self.polyline.commit_geometry(bounds, points);
     }
 }
 
@@ -301,12 +300,14 @@ impl Figure for PolylineDecorationFigure {
         self.polyline.precise_hit(x, y, bounds)
     }
 
-    fn connection_decoration(&self) -> Option<&dyn ConnectionDecorationBehavior> {
-        Some(self)
-    }
-
-    fn connection_decoration_mut(&mut self) -> Option<&mut dyn ConnectionDecorationBehavior> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(
+            crate::CONNECTION_DECORATION,
+            crate::ConnectionDecorationCapability::of::<Self>(),
+        )
     }
 }
 

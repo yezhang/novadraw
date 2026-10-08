@@ -218,6 +218,34 @@ where
         model_id: A::ModelId,
         snapshot: &ModelSnapshot<A::ModelId>,
     ) -> Result<EditPartId, ViewerError> {
+        self.create_subtree_at(parent, model_id, snapshot, 0)
+    }
+
+    fn create_subtree_at(
+        &mut self,
+        parent: EditPartId,
+        model_id: A::ModelId,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        depth: usize,
+    ) -> Result<EditPartId, ViewerError> {
+        if depth > MAX_PART_TREE_DEPTH {
+            return Err(ViewerError::DepthLimitExceeded);
+        }
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+                self.create_subtree_inner(parent, model_id, snapshot, depth)
+            });
+        }
+        self.create_subtree_inner(parent, model_id, snapshot, depth)
+    }
+
+    fn create_subtree_inner(
+        &mut self,
+        parent: EditPartId,
+        model_id: A::ModelId,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        depth: usize,
+    ) -> Result<EditPartId, ViewerError> {
         if self.model_registry.contains_key(&model_id) {
             return Err(ViewerError::DuplicateModel);
         }
@@ -264,7 +292,7 @@ where
         self.activate_part(part, model_id)?;
 
         for child in snapshot.children_of(model_id)?.iter().copied() {
-            self.create_subtree(part, child, snapshot)?;
+            self.create_subtree_at(part, child, snapshot, depth + 1)?;
         }
         Ok(part)
     }
@@ -652,7 +680,13 @@ where
     fn resolve_connection_routing(
         &self,
         descriptor: ConnectionRoutingDescriptor,
-    ) -> Result<(RouterBinding, Option<Box<dyn novadraw::RoutingConstraint>>), ViewerError> {
+    ) -> Result<
+        (
+            RouterBinding,
+            Option<Box<dyn novadraw::connection::RoutingConstraint>>,
+        ),
+        ViewerError,
+    > {
         let (selection, constraint) = descriptor.into_parts();
         let binding = match selection {
             ConnectionRouterSelection::Inherited => RouterBinding::Inherited {
@@ -690,7 +724,7 @@ where
         &mut self,
         connection: ConnectionId,
         router: RouterBinding,
-        constraint: Option<Box<dyn novadraw::RoutingConstraint>>,
+        constraint: Option<Box<dyn novadraw::connection::RoutingConstraint>>,
     ) -> Result<bool, ViewerError> {
         self.runtime
             .set_connection_route_configuration(connection, router, constraint)
@@ -855,6 +889,34 @@ where
         model_id: A::ModelId,
         snapshot: &ModelSnapshot<A::ModelId>,
     ) -> Result<(), ViewerError> {
+        self.synchronize_subtree_at(part, model_id, snapshot, 0)
+    }
+
+    fn synchronize_subtree_at(
+        &mut self,
+        part: EditPartId,
+        model_id: A::ModelId,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        depth: usize,
+    ) -> Result<(), ViewerError> {
+        if depth > MAX_PART_TREE_DEPTH {
+            return Err(ViewerError::DepthLimitExceeded);
+        }
+        if depth.is_multiple_of(RECURSIVE_STACK_CHECK_INTERVAL) {
+            return stacker::maybe_grow(RECURSIVE_STACK_RED_ZONE, RECURSIVE_STACK_GROWTH, || {
+                self.synchronize_subtree_inner(part, model_id, snapshot, depth)
+            });
+        }
+        self.synchronize_subtree_inner(part, model_id, snapshot, depth)
+    }
+
+    fn synchronize_subtree_inner(
+        &mut self,
+        part: EditPartId,
+        model_id: A::ModelId,
+        snapshot: &ModelSnapshot<A::ModelId>,
+        depth: usize,
+    ) -> Result<(), ViewerError> {
         self.refresh_part_visuals(part)?;
         let desired = snapshot.children_of(model_id)?.to_vec();
         let existing = self
@@ -878,7 +940,7 @@ where
             let child = match self.model_registry.get(&child_model).copied() {
                 Some(existing) if self.parts.parent(existing) == Some(part) => existing,
                 Some(_) => return Err(ViewerError::DuplicateModel),
-                None => self.create_subtree(part, child_model, snapshot)?,
+                None => self.create_subtree_at(part, child_model, snapshot, depth + 1)?,
             };
             let primary = self
                 .parts
@@ -894,7 +956,7 @@ where
                 .container(content_pane)?
                 .move_child_to_index(primary, index)?;
             self.parts.reorder_child(part, child, index)?;
-            self.synchronize_subtree(child, child_model, snapshot)?;
+            self.synchronize_subtree_at(child, child_model, snapshot, depth + 1)?;
         }
         Ok(())
     }

@@ -55,6 +55,9 @@
     属性、布局、路由、视口、生命周期、持续效果及后续能力接入
 32. [`animation/behavior-trigger-contract.md`](animation/behavior-trigger-contract.md)：
     Behavior/Trigger 的 scope、stable fact、coalescing、factory 与模式合同
+33. [`architecture/figure-capability-model.md`](architecture/figure-capability-model.md)：
+    Figure capability 的 typed descriptor registry、Runtime mutation 与迁移合同；
+    ADR-027 已接受，P2-F02 已实现并通过验证
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；

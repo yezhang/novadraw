@@ -254,13 +254,13 @@ impl Runtime {
                 .value(channel)
                 .map_err(AnimationTransactionError::Capture)?;
             let presentation = self
-                .tree
-                .node(figure)
-                .and_then(|node| node.figure.connection())
-                .and_then(|connection| connection.capture_route_presentation(&points, bounds))
-                .ok_or(AnimationTransactionError::Capture(
-                    crate::animation::AnimationError::UnsupportedRoutePresentation,
-                ))?;
+                .animations()
+                .prepare_presentation(
+                    figure,
+                    crate::animation::CONNECTION_ROUTE_PRESENTATION,
+                    &points,
+                )
+                .map_err(AnimationTransactionError::Capture)?;
             captured.push(CapturedConnectionRoute {
                 figure,
                 bounds,
@@ -669,7 +669,7 @@ impl Runtime {
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot();
+        let presentation = self.animations.snapshot(&self.tree);
         if let Err(error) =
             self.accessibility
                 .publish(&self.tree, &self.interaction, self.stable_epoch, surface)
@@ -821,7 +821,7 @@ impl Runtime {
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot();
+        let presentation = self.animations.snapshot(&self.tree);
         self.updates.set_publication_epoch(self.stable_epoch);
         let frame = if self.updates.is_update_queued() {
             let incremental = self
@@ -861,7 +861,7 @@ impl Runtime {
                 &mut self.faulted,
             )
             .reconcile_visibility();
-        let presentation = self.animations.snapshot();
+        let presentation = self.animations.snapshot(&self.tree);
         self.updates.set_publication_epoch(self.stable_epoch);
         let frame = self.tree.render_with_presentation(presentation.as_ref());
         self.updates

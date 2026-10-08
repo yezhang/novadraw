@@ -3,17 +3,15 @@
 pub use crate::event::FigureEventHandler;
 pub use crate::figure::{Border, FigureContainer, FigureLifecycle, Shape};
 pub use crate::geometry::{ApproxEq, Translatable};
+pub use crate::host::PlatformHost;
 pub use crate::layout::{
     BorderConstraint, FreeformConstraint, GridConstraint, LayoutConstraint, XYConstraint,
 };
 pub use crate::{
-    Affine2D, BorderLayout, ButtonFigure, Color, Dimension, EllipseFigure, EndpointLocator, Figure,
-    FigureId, FigureStyle, FigureTree, FigureTreeBuilder, FillLayout, FlowLayout, FlowPage,
-    FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping, FreeformLayout, GridLayout,
-    ImageFigure, InlineTextFragment, Insets, LabelFigure, LayoutManager, NdCanvas, PlatformHost,
-    Point, PointList, PolygonDecorationFigure, PolygonFigure, PolygonScaleMode,
-    PolylineDecorationFigure, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
-    RoundedRectangleFigure, Runtime, ScalablePolygonFigure, ShortestPathConnectionRouter,
-    StackLayout, TextAffinity, TextFlowFigure, TextMovement, ToggleFigure, ToolbarLayout,
-    TriangleFigure, Vec2, XYLayout,
+    Affine2D, BorderLayout, ButtonFigure, Color, Dimension, EllipseFigure, Figure, FigureId,
+    FigureMeasurement, FigureStyle, FigureTree, FigureTreeBuilder, FillLayout, FlowLayout,
+    FreeformLayout, Graphics, GridLayout, ImageFigure, Insets, LabelFigure, LayoutManager,
+    MeasureConstraints, PaintContext, Point, PointList, PolygonFigure, PolylineFigure, Rectangle,
+    RectangleFigure, RoundedRectangleFigure, Runtime, StackLayout, TextFlowFigure, ToggleFigure,
+    ToolbarLayout, TriangleFigure, Vec2, XYLayout,
 };

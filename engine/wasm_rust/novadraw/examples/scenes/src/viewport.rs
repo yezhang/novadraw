@@ -32,7 +32,10 @@ fn empty_scene() -> (novadraw::FigureTree, novadraw::FigureId) {
         WINDOW_HEIGHT,
         color(0.94, 0.94, 0.94),
     );
-    let root_id = scene.builder().set_contents(Box::new(root));
+    let root_id = scene
+        .builder()
+        .set_contents(Box::new(root))
+        .expect("valid FigureTree construction");
     (scene, root_id)
 }
 

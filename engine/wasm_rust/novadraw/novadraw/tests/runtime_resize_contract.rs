@@ -29,7 +29,8 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
     let mut tree = FigureTree::new();
     let contents = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(

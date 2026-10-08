@@ -67,6 +67,9 @@
   `doc/adr/adr-025-unified-graphics-and-glyph-preparation.md`；
   字体指标、文字测量与图文绘制统一 API，布局后曲线预处理与片段着色器数据归后端；
   已接受并完成 P2-G02 Core API 与默认/可替换轮廓链路；自研后端算法不属于当前交付
+- **类型化属性身份与异构通知日志**：
+  `doc/adr/adr-028-typed-property-identity.md`；属性行为身份使用
+  `PropertyKey<V>` / `ErasedPropertyKey`，字符串只用于诊断显示
 - **Core 公开 API 审计**：`doc/verification/reviews/core-public-api-audit-2026-09-22.md`
 - **语义审计整改状态**：`doc/verification/reviews/draw2d-gef-semantic-remediation-2026-09-16.md`
 - **可执行验证清单**：`verification/suites.toml`

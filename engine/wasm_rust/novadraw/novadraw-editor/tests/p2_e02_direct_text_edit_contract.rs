@@ -1,4 +1,7 @@
-use std::convert::Infallible;
+use std::{
+    convert::Infallible,
+    panic::{AssertUnwindSafe, catch_unwind},
+};
 
 use novadraw::render::{BuiltinFont, command::RenderCommandKind};
 use novadraw::{
@@ -33,6 +36,7 @@ struct TextModel {
     bounds: Rectangle,
     children: Vec<ModelId>,
     events: Vec<ModelEvent<ModelId, Event>>,
+    panic_feedback: bool,
 }
 
 impl TextModel {
@@ -43,6 +47,7 @@ impl TextModel {
             bounds: Rectangle::new(40.0, 40.0, 240.0, 120.0),
             children: vec![TEXT],
             events: Vec::new(),
+            panic_feedback: false,
         }
     }
 
@@ -133,6 +138,7 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
         state: &DirectTextEditState,
         model: &TextModel,
     ) -> Result<DirectTextFeedback, PolicyError> {
+        assert!(!model.panic_feedback, "direct-edit feedback panicked");
         DirectTextFeedback::new(
             vec![
                 FeedbackVisual::scaled(Box::new(
@@ -262,12 +268,8 @@ fn viewer(text: &str) -> GraphicalViewer<TextModel, TextFactory> {
         Rectangle::new(0.0, 0.0, 480.0, 320.0),
     )
     .unwrap();
+    viewer.register_builtin_font(BuiltinFont::Inter).unwrap();
     viewer
-        .runtime_mut()
-        .register_builtin_font(BuiltinFont::Inter)
-        .unwrap();
-    viewer
-        .runtime_mut()
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     viewer
@@ -330,7 +332,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     assert_eq!(caret_visual.height, caret.height);
     assert!(caret_visual.width >= 1.0);
     assert!(viewer.runtime().tree().is_visible(caret_figure));
-    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    let frame = viewer.prepare_frame().unwrap();
     assert!(frame.commands().iter().any(|command| matches!(
         command.kind,
         RenderCommandKind::FillRect { rect, paint: novadraw::graphics::Paint::Solid(color), .. }
@@ -410,7 +412,7 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
     assert!(end.x >= 0.0);
     assert!(end.x + end.width <= 240.0);
 
-    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    let frame = viewer.prepare_frame().unwrap();
     let clip = frame
         .commands()
         .iter()
@@ -462,7 +464,7 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         assert!(bounds.y >= 40.0);
         assert!(bounds.y + bounds.height <= 160.0);
     }
-    let frame = viewer.runtime_mut().prepare_frame().unwrap();
+    let frame = viewer.prepare_frame().unwrap();
     let damage = frame
         .damage()
         .union()
@@ -493,7 +495,7 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     domain
         .start_direct_text_edit(&mut viewer, source, feature())
         .unwrap();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let old_feedback = viewer
         .runtime()
         .tree()
@@ -522,13 +524,7 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     assert!(caret.y >= new_bounds.y);
     assert!(caret.y <= new_bounds.y + new_bounds.height);
 
-    let damage = viewer
-        .runtime_mut()
-        .prepare_frame()
-        .unwrap()
-        .damage()
-        .union()
-        .unwrap();
+    let damage = viewer.prepare_frame().unwrap().damage().union().unwrap();
     for bounds in [old_bounds, new_bounds] {
         assert!(damage.contains(bounds.top_left()));
         assert!(damage.contains(bounds.bottom_right()));
@@ -670,6 +666,33 @@ fn source_retirement_cancels_session_and_removes_owned_feedback() {
 
     assert!(viewer.direct_text_edit().is_none());
     assert!(viewer.part_for_model(TEXT).is_none());
+    assert!(
+        viewer
+            .runtime()
+            .tree()
+            .child_order(viewer.root_layers().scaled_feedback())
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn direct_edit_extension_panic_faults_viewer_and_cleans_feedback() {
+    let mut viewer = viewer("alpha");
+    let source = viewer.part_for_model(TEXT).unwrap();
+    let mut domain = EditorDomain::new();
+    domain
+        .start_direct_text_edit(&mut viewer, source, feature())
+        .unwrap();
+    viewer.model_mut().unwrap().panic_feedback = true;
+
+    let panic = catch_unwind(AssertUnwindSafe(|| {
+        domain.insert_direct_text(&mut viewer, "x")
+    }));
+
+    assert!(panic.is_err());
+    assert!(viewer.is_faulted());
+    assert!(viewer.direct_text_edit().is_none());
     assert!(
         viewer
             .runtime()

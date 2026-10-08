@@ -7,12 +7,11 @@
 //! - draw2d：保留 `figureMoved`、`coordinateSystemChanged`、UpdateListener 等语义分层
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
-use crate::Color;
-use crate::geometry::{Dimension, Point, Rectangle};
+use crate::geometry::Rectangle;
 use crate::render::{DamageMode, FrameId, RenderOutcome};
 
+use super::property::PropertyChangeEvent;
 use crate::graph::FigureId;
-use crate::style::CursorIcon;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ListenerId {
@@ -104,29 +103,6 @@ pub struct AncestorEvent {
     pub kind: AncestorEventKind,
     pub figure_id: FigureId,
     pub parent_id: FigureId,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum PropertyValue {
-    Bool(bool),
-    Number(f64),
-    Color(Color),
-    Cursor(CursorIcon),
-    Point(Point),
-    PointList(Vec<Point>),
-    Size(Dimension),
-    Rectangle(Rectangle),
-    Text(String),
-    Figure(Option<FigureId>),
-    None,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct PropertyChangeEvent {
-    pub figure_id: FigureId,
-    pub property: &'static str,
-    pub old_value: PropertyValue,
-    pub new_value: PropertyValue,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

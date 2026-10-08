@@ -9,13 +9,13 @@ pub use novadraw::event::{
     FigureEvent, Key, KeyModifiers, ListenerDirective, MonotonicTime, MouseButton,
     NotificationEffect, UpdateEvent, UpdateListener, place_tooltip,
 };
+pub use novadraw::host::PlatformHost;
 pub use novadraw::render::command::RenderCommand;
 pub use novadraw::render::text::{FontDescriptor, TextConstraints};
-pub use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
-pub use novadraw::{
-    Color, FigureId, FigureTree, FramePreparation, NdCanvas, PlatformHost, Rectangle,
-    RenderBackend, Runtime,
+pub use novadraw::render::{
+    BackendCapabilities, NdCanvas, RenderBackend, RenderOutcome, SurfaceInfo,
 };
+pub use novadraw::{Color, FigureId, FigureTree, FramePreparation, Rectangle, Runtime};
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
     AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,

@@ -39,22 +39,6 @@ impl fmt::Display for ScalablePolygonError {
 
 impl Error for ScalablePolygonError {}
 
-/// Runtime mutation capability for a bounds-driven polygon template.
-pub trait ScalablePolygonBehavior {
-    /// Returns the immutable template point sequence.
-    fn template(&self) -> &PointList;
-    /// Returns the active scale mode.
-    fn scale_mode(&self) -> PolygonScaleMode;
-    /// Returns horizontal and vertical alignment.
-    fn alignment(&self) -> (Alignment, Alignment);
-    /// Replaces the validated template.
-    fn replace_template(&mut self, template: PointList);
-    /// Replaces scale mode.
-    fn replace_scale_mode(&mut self, mode: PolygonScaleMode);
-    /// Replaces horizontal and vertical alignment.
-    fn replace_alignment(&mut self, horizontal: Alignment, vertical: Alignment);
-}
-
 /// Polygon whose canonical template is mapped into its current Figure bounds.
 #[derive(Clone)]
 pub struct ScalablePolygonFigure {
@@ -138,6 +122,31 @@ impl ScalablePolygonFigure {
             self.vertical_alignment,
             self.stroke.visual_outset(),
         ))
+    }
+
+    pub(crate) fn template(&self) -> &PointList {
+        &self.template
+    }
+
+    pub(crate) fn scale_mode(&self) -> PolygonScaleMode {
+        self.scale_mode
+    }
+
+    pub(crate) fn alignment(&self) -> (Alignment, Alignment) {
+        (self.horizontal_alignment, self.vertical_alignment)
+    }
+
+    pub(crate) fn replace_template(&mut self, template: PointList) {
+        self.template = template;
+    }
+
+    pub(crate) fn replace_scale_mode(&mut self, mode: PolygonScaleMode) {
+        self.scale_mode = mode;
+    }
+
+    pub(crate) fn replace_alignment(&mut self, horizontal: Alignment, vertical: Alignment) {
+        self.horizontal_alignment = horizontal;
+        self.vertical_alignment = vertical;
     }
 }
 
@@ -232,41 +241,6 @@ impl Figure for ScalablePolygonFigure {
             previous = current;
         }
         inside
-    }
-
-    fn scalable_polygon(&self) -> Option<&dyn ScalablePolygonBehavior> {
-        Some(self)
-    }
-
-    fn scalable_polygon_mut(&mut self) -> Option<&mut dyn ScalablePolygonBehavior> {
-        Some(self)
-    }
-}
-
-impl ScalablePolygonBehavior for ScalablePolygonFigure {
-    fn template(&self) -> &PointList {
-        &self.template
-    }
-
-    fn scale_mode(&self) -> PolygonScaleMode {
-        self.scale_mode
-    }
-
-    fn alignment(&self) -> (Alignment, Alignment) {
-        (self.horizontal_alignment, self.vertical_alignment)
-    }
-
-    fn replace_template(&mut self, template: PointList) {
-        self.template = template;
-    }
-
-    fn replace_scale_mode(&mut self, mode: PolygonScaleMode) {
-        self.scale_mode = mode;
-    }
-
-    fn replace_alignment(&mut self, horizontal: Alignment, vertical: Alignment) {
-        self.horizontal_alignment = horizontal;
-        self.vertical_alignment = vertical;
     }
 }
 

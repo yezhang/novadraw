@@ -8,10 +8,11 @@ use crate::render::NdCanvas;
 
 use crate::figure::{Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use crate::runtime::update::property::standard as property;
 use crate::{
     EventContext, FigureId, FigureMeasurement, FigureTree, FigureTreeBuilder, GraphMutationError,
-    MeasureConstraints, MouseEvent, PropertyValue, RangeModel, ScrollDeltaKind, UpdateManager,
-    ViewportError, ViewportHandle, WheelEvent,
+    MeasureConstraints, MouseEvent, RangeModel, ScrollDeltaKind, UpdateManager, ViewportError,
+    ViewportHandle, WheelEvent,
 };
 
 const DEFAULT_SCROLL_BAR_THICKNESS: f64 = 14.0;
@@ -217,9 +218,9 @@ impl ScrollPaneFigure {
         }
         ctx.emit_property_change(
             viewport_id,
-            "viewLocation",
-            PropertyValue::Point(old_location),
-            PropertyValue::Point(new_location),
+            property::VIEW_LOCATION,
+            old_location,
+            new_location,
         );
         ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
         ctx.repaint_figure(
@@ -272,8 +273,11 @@ impl Figure for ScrollPaneFigure {
         gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, PANE_BACKGROUND);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())
     }
 }
 
@@ -368,19 +372,14 @@ impl ScrollBarFigure {
             return;
         };
         let property = match self.orientation {
-            ScrollOrientation::Horizontal => "horizontalViewLocation",
-            ScrollOrientation::Vertical => "verticalViewLocation",
+            ScrollOrientation::Horizontal => property::HORIZONTAL_VIEW_LOCATION,
+            ScrollOrientation::Vertical => property::VERTICAL_VIEW_LOCATION,
         };
         let new_value = self.model.value();
         if old_value == new_value {
             return;
         }
-        ctx.emit_property_change(
-            viewport_id,
-            property,
-            PropertyValue::Number(old_value),
-            PropertyValue::Number(new_value),
-        );
+        ctx.emit_property_change(viewport_id, property, old_value, new_value);
         ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
         ctx.repaint_figure(
             viewport_id,
@@ -491,8 +490,11 @@ impl Figure for ScrollBarFigure {
         local.paint_figure(gc);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::INPUT, crate::InputCapability::of::<Self>())
     }
 }
 

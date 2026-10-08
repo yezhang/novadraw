@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use novadraw::container::RangeModelSnapshot;
 use novadraw::geometry::{Point, Rectangle, Vec2};
 use novadraw::{Figure, FigureId};
 
@@ -105,7 +106,7 @@ where
     let Some(direction) = edge_direction(viewer.viewport_bounds_in_surface()?, pointer) else {
         return Ok(AutoexposeTick::default());
     };
-    viewer.runtime_mut().stabilize_for_query()?;
+    viewer.stabilize_for_query()?;
     let (horizontal, vertical) = viewer.viewport_ranges()?;
     if !can_scroll(direction, horizontal, vertical) {
         return Ok(AutoexposeTick::default());
@@ -159,13 +160,13 @@ fn edge_direction(bounds: Rectangle, pointer: Point) -> Option<Vec2> {
 
 fn can_scroll(
     direction: Vec2,
-    horizontal: novadraw::RangeModelSnapshot,
-    vertical: novadraw::RangeModelSnapshot,
+    horizontal: RangeModelSnapshot,
+    vertical: RangeModelSnapshot,
 ) -> bool {
     axis_can_scroll(direction.x(), horizontal) || axis_can_scroll(direction.y(), vertical)
 }
 
-fn axis_can_scroll(direction: f64, range: novadraw::RangeModelSnapshot) -> bool {
+fn axis_can_scroll(direction: f64, range: RangeModelSnapshot) -> bool {
     let maximum = range.minimum.max(range.maximum - range.extent);
     (direction < 0.0 && range.value > range.minimum) || (direction > 0.0 && range.value < maximum)
 }

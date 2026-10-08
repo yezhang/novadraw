@@ -88,8 +88,14 @@ impl Figure for ExternalFigure {
         "ExternalFigure"
     }
 
-    fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::LIFECYCLE,
+            novadraw::LifecycleCapability::of::<Self>(),
+        )
     }
 }
 
@@ -127,7 +133,10 @@ fn rectangle() -> Box<dyn Figure> {
 
 fn tree_with_layout(trace: Trace) -> (FigureTree, FigureId) {
     let mut tree = FigureTree::new();
-    let parent = tree.builder().set_contents(rectangle());
+    let parent = tree
+        .builder()
+        .set_contents(rectangle())
+        .expect("valid FigureTree construction");
     tree.builder()
         .set_layout_manager(parent, Box::new(ExternalLayout(trace)))
         .unwrap();
@@ -330,7 +339,10 @@ fn index_boundaries_are_checked_before_constraint_validation() {
 #[test]
 fn constraint_without_manager_is_retained_and_checked_on_manager_installation() {
     let mut tree = FigureTree::new();
-    let parent = tree.builder().set_contents(rectangle());
+    let parent = tree
+        .builder()
+        .set_contents(rectangle())
+        .expect("valid FigureTree construction");
     let placement = Placement(Rectangle::new(1.0, 2.0, 3.0, 4.0));
     let child = tree
         .builder()
@@ -361,14 +373,61 @@ impl Figure for AdmissionFigure {
     fn initial_bounds(&self) -> Rectangle {
         Rectangle::new(0.0, 0.0, 100.0, 100.0)
     }
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::CONTAINER,
+            novadraw::ContainerCapability::of::<Self>(),
+        )
     }
 }
 
 impl FigureContainer for AdmissionFigure {
     fn child_policy(&self) -> ChildPolicy {
         self.0
+    }
+}
+
+struct InvalidInitialBoundsFigure(Rectangle);
+
+impl Figure for InvalidInitialBoundsFigure {
+    fn name(&self) -> &'static str {
+        "InvalidInitialBoundsFigure"
+    }
+
+    fn initial_bounds(&self) -> Rectangle {
+        self.0
+    }
+}
+
+#[test]
+fn initial_bounds_are_rejected_before_topology_publication() {
+    for bounds in [
+        Rectangle::new(f64::NAN, 0.0, 10.0, 10.0),
+        Rectangle::new(0.0, f64::INFINITY, 10.0, 10.0),
+        Rectangle::new(0.0, 0.0, -1.0, 10.0),
+        Rectangle::new(0.0, 0.0, 10.0, -1.0),
+    ] {
+        let mut tree = FigureTree::new();
+        assert_eq!(
+            tree.builder()
+                .set_contents(Box::new(InvalidInitialBoundsFigure(bounds))),
+            Err(GraphMutationError::InvalidInitialBounds)
+        );
+        assert_eq!(tree.contents(), None);
+
+        let parent = tree
+            .builder()
+            .set_contents(rectangle())
+            .expect("valid FigureTree construction");
+        assert_eq!(
+            tree.builder()
+                .add_child(parent, Box::new(InvalidInitialBoundsFigure(bounds))),
+            Err(GraphMutationError::InvalidInitialBounds)
+        );
+        assert_eq!(tree.child_order(parent), Some(vec![]));
     }
 }
 
@@ -379,7 +438,8 @@ fn admission_and_target_errors_do_not_reach_constraint_validator() {
         let mut tree = FigureTree::new();
         let parent = tree
             .builder()
-            .set_contents(Box::new(AdmissionFigure(policy)));
+            .set_contents(Box::new(AdmissionFigure(policy)))
+            .expect("valid FigureTree construction");
         tree.builder()
             .set_layout_manager(parent, Box::new(ExternalLayout(trace.clone())))
             .unwrap();
@@ -411,7 +471,10 @@ fn admission_and_target_errors_do_not_reach_constraint_validator() {
         assert!(trace.borrow().is_empty());
     }
     let mut foreign = FigureTree::new();
-    let foreign_parent = foreign.builder().set_contents(rectangle());
+    let foreign_parent = foreign
+        .builder()
+        .set_contents(rectangle())
+        .expect("valid FigureTree construction");
     let (mut tree, parent) = tree_with_layout(Trace::default());
     assert_eq!(
         tree.builder().insert_child(foreign_parent, 0, rectangle()),
@@ -437,7 +500,10 @@ fn admission_and_target_errors_do_not_reach_constraint_validator() {
 #[test]
 fn insertion_keeps_the_depth_limit() {
     let mut tree = FigureTree::new();
-    let mut parent = tree.builder().set_contents(rectangle());
+    let mut parent = tree
+        .builder()
+        .set_contents(rectangle())
+        .expect("valid FigureTree construction");
     for _ in 1..novadraw::tree::MAX_TREE_DEPTH {
         parent = tree.builder().insert_child(parent, 0, rectangle()).unwrap();
     }

@@ -185,7 +185,8 @@ fn m2_figure_tree_product_api_exposes_tree_box_and_z_order_roles() {
     let mut scene = FigureTree::new();
     let root_id = scene
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid FigureTree construction");
     let bottom_id = scene
         .builder()
         .add_child(
@@ -260,7 +261,8 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
             Rectangle::new(0.0, 0.0, 100.0, 100.0),
             ROOT_COLOR,
             ROOT_BORDER_COLOR,
-        )));
+        )))
+        .expect("valid FigureTree construction");
     scene
         .builder()
         .add_child(

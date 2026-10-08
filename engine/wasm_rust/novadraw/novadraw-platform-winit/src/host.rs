@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use novadraw::PlatformHost;
 use novadraw::event::{AccessibilityUpdate, MonotonicTime, TooltipUpdate};
 use novadraw::figure::CursorIcon;
 use novadraw::host::ImeState;
+use novadraw::host::PlatformHost;
 use novadraw::render::SurfaceInfo;
 use winit::dpi::{LogicalPosition, LogicalSize};
 use winit::window::{CursorIcon as WinitCursorIcon, Window};

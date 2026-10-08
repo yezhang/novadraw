@@ -5,7 +5,6 @@
 use crate::render::NdCanvas;
 
 use super::FigureId;
-use crate::debug_render;
 use crate::{ChildClippingStrategy, ResolvedStyle};
 
 const RECURSIVE_STACK_CHECK_INTERVAL: usize = 16;
@@ -44,8 +43,6 @@ impl<'a> Clone for FigureTreeRenderRef<'a> {
 pub(super) struct FigureRenderer<'a> {
     scene: FigureTreeRenderRef<'a>,
     gc: &'a mut NdCanvas,
-    /// 调试计数器
-    counter: usize,
 }
 
 impl<'a> FigureRenderer<'a> {
@@ -57,7 +54,6 @@ impl<'a> FigureRenderer<'a> {
                 presentation: scene.presentation,
             },
             gc,
-            counter: 0,
         }
     }
 
@@ -104,10 +100,7 @@ impl<'a> FigureRenderer<'a> {
             _ => return,
         };
 
-        self.counter += 1;
-        let id = self.counter;
         let bounds = block.figure_bounds();
-        debug_render!("[RECUR] #{:02} paint bounds={:?}", id, bounds);
 
         // 1. 保存 parent state，并设置当前节点的 local state。
         self.gc.push_state();
@@ -132,20 +125,16 @@ impl<'a> FigureRenderer<'a> {
 
         // 2. Figure paint 允许临时修改 graphics state，但不能泄漏到 children。
         self.gc.push_state();
-        let route_painted = presentation.as_ref().is_some_and(|effect| {
-            let Some(connection) = block.figure.connection() else {
-                return false;
-            };
-            if effect.route.is_none() && effect.dash_offset.is_none() {
-                return false;
+        if let Some(content) = presentation
+            .as_ref()
+            .and_then(|effect| effect.content.as_ref())
+        {
+            let mut context = crate::graphics::PaintContext::for_figure(self.gc);
+            if let Err(error) = content.paint(&mut context) {
+                context.canvas.reject_recording(error);
             }
-            let route = effect
-                .route
-                .as_ref()
-                .unwrap_or_else(|| connection.route_points());
-            connection.paint_route_presentation(self.gc, route, effect.dash_offset)
-        });
-        if !route_painted {
+            drop(context);
+        } else {
             if block.state().is_opaque() {
                 self.gc
                     .fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
@@ -181,7 +170,6 @@ impl<'a> FigureRenderer<'a> {
         );
 
         // 5. 恢复 parent state。
-        debug_render!("[RECUR] #{:02}   pop_state", id);
         self.gc.pop_state();
     }
 
@@ -204,21 +192,10 @@ impl<'a> FigureRenderer<'a> {
             _ => return,
         };
 
-        self.counter += 1;
-        let id = self.counter;
-
         let transform = block.child_transform();
         let client_area = block.client_area();
         let clipping_strategy = block.child_clipping_strategy();
         let [a, b, c, d, e, f] = transform.affine().coeffs();
-        debug_render!(
-            "[RECUR] #{:02} paintClientArea transform({a},{b},{c},{d},{e},{f}) clip({},{},{},{})",
-            id,
-            client_area.x,
-            client_area.y,
-            client_area.width,
-            client_area.height
-        );
         self.gc.push_state();
         if clipping_strategy != ChildClippingStrategy::OverflowVisible {
             self.gc.clip_rect(
@@ -268,11 +245,6 @@ impl<'a> FigureRenderer<'a> {
             .map(super::FigureNode::child_clipping_strategy)
             .unwrap_or(ChildClippingStrategy::ClipToChildBounds);
 
-        debug_render!(
-            "[RECUR]     paint_children, children count: {}",
-            children.len()
-        );
-
         // 正序遍历（与 draw2d 一致）
         for &child_id in &children {
             let child_block = match self.scene.get(child_id) {
@@ -291,7 +263,6 @@ impl<'a> FigureRenderer<'a> {
             match (clipping_strategy, child_overflow) {
                 (ChildClippingStrategy::ClipToChildBounds, false) => {
                     let child_bounds = child_block.figure_bounds();
-                    debug_render!("[RECUR]     -> clip to child bounds={:?}", child_bounds);
                     self.gc.clip_rect(
                         child_bounds.x,
                         child_bounds.y,
@@ -301,7 +272,6 @@ impl<'a> FigureRenderer<'a> {
                     self.paint(child_id, depth + 1);
                 }
                 _ => {
-                    debug_render!("[RECUR]     -> paint child without child bounds clip");
                     self.paint(child_id, depth + 1);
                 }
             }

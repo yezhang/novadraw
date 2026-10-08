@@ -3,8 +3,8 @@
 //! 直接调用 NdCanvas API 测试每个渲染命令
 
 use novadraw::figure::Bounded;
-use novadraw::graphics::{LineCap, LineJoin};
-use novadraw::{Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
+use novadraw::graphics::{LineCap, LineJoin, NdCanvas};
+use novadraw::{Color, Figure, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -62,14 +62,20 @@ impl Figure for TestFigure {
 fn create_scene_clear() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let _bg_id = scene.builder().set_contents(Box::new(bg));
+    let _bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
     scene
 }
 
 fn create_scene_fill_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 直接调用 fill_rect
     let test = TestFigure::new("fill_rect", |gc| {
@@ -95,7 +101,10 @@ fn stroke(width: f64, cap: LineCap, join: LineJoin) -> novadraw::graphics::Strok
 fn create_scene_stroke_rect() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 直接调用 stroke_rect
     let test = TestFigure::new("stroke_rect", |gc| {
@@ -134,7 +143,10 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
 fn create_scene_ellipse() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 直接调用 ellipse
     let test = TestFigure::new("ellipse", |gc| {
@@ -179,7 +191,10 @@ fn create_scene_ellipse() -> novadraw::FigureTree {
 fn create_scene_line() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 直接调用 line
     let test = TestFigure::new("line", |gc| {
@@ -240,7 +255,10 @@ fn create_scene_line() -> novadraw::FigureTree {
 fn create_scene_polyline() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 直接调用 polyline
     let test = TestFigure::new("polyline", |gc| {
@@ -324,7 +342,10 @@ fn create_scene_polyline() -> novadraw::FigureTree {
 fn create_scene_line_join() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 测试不同连接样式
     let test = TestFigure::new("line_join", |gc| {
@@ -374,7 +395,10 @@ fn create_scene_line_join() -> novadraw::FigureTree {
 fn create_scene_transform() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
-    let bg_id = scene.builder().set_contents(Box::new(bg));
+    let bg_id = scene
+        .builder()
+        .set_contents(Box::new(bg))
+        .expect("valid FigureTree construction");
 
     // 测试变换
     let test = TestFigure::new("transform", |gc| {

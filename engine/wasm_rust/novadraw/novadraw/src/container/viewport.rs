@@ -20,9 +20,10 @@ use crate::figure::{
     FigureContainer, FigureMeasurement, MeasureConstraints, border::Border,
 };
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use crate::runtime::update::property::standard as property;
 use crate::{
-    DefaultRangeModel, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, PropertyValue,
-    RangeModel, RangeModelError, RangeModelSnapshot, UpdateManager,
+    DefaultRangeModel, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, RangeModel,
+    RangeModelError, RangeModelSnapshot, UpdateManager,
 };
 
 const DEFAULT_RANGE_MAXIMUM: f64 = i32::MAX as f64;
@@ -150,9 +151,9 @@ fn record_range_changes(
     if old_horizontal.value != new_horizontal.value || old_vertical.value != new_vertical.value {
         out.record_property_change(
             viewport,
-            "viewLocation",
-            PropertyValue::Point(Point::new(old_horizontal.value, old_vertical.value)),
-            PropertyValue::Point(Point::new(new_horizontal.value, new_vertical.value)),
+            property::VIEW_LOCATION,
+            Point::new(old_horizontal.value, old_vertical.value),
+            Point::new(new_horizontal.value, new_vertical.value),
         );
         out.coordinate_system_changed(viewport);
     }
@@ -249,12 +250,7 @@ impl ViewportHandle {
             return Ok(false);
         }
 
-        graph.record_property_change(
-            self.figure_id,
-            "viewLocation",
-            PropertyValue::Point(old),
-            PropertyValue::Point(new),
-        );
+        graph.record_property_change(self.figure_id, property::VIEW_LOCATION, old, new);
         graph.record_coordinate_system_changed(self.figure_id);
         graph.repaint(update_manager, self.figure_id, None);
         Ok(true)
@@ -632,12 +628,12 @@ impl Figure for ViewportFigure {
         self.border.as_deref()
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 
@@ -829,7 +825,8 @@ mod tests {
             .builder()
             .set_contents(Box::new(crate::RectangleFigure::new(
                 0.0, 0.0, 800.0, 600.0,
-            )));
+            )))
+            .expect("valid FigureTree construction");
         let viewport = tree
             .builder()
             .add_viewport_to(root, Rectangle::new(0.0, 0.0, 300.0, 200.0))

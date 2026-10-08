@@ -153,7 +153,7 @@ fn root_layers_have_stable_scaled_and_unscaled_z_order() {
 #[test]
 fn viewport_scroll_changes_targeting_through_the_shared_transform_chain() {
     let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 120.0, 100.0));
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let first = viewer.part_for_model(NodeId(2)).unwrap();
     let second = viewer.part_for_model(NodeId(3)).unwrap();
 

@@ -97,9 +97,8 @@ struct MouseEventTargetSearch;
 
 impl TreeSearch for MouseEventTargetSearch {
     fn accept(&mut self, candidate: TreeSearchContext<'_>) -> bool {
-        candidate
-            .figure()
-            .event_handler()
+        candidate.tree.blocks[candidate.id]
+            .input()
             .is_some_and(|handler| handler.wants_mouse_events())
     }
 }

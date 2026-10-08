@@ -10,7 +10,8 @@ use novadraw::prelude::*;
 let mut tree = FigureTree::new();
 let root = tree
     .builder()
-    .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)));
+    .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 480.0)))
+    .expect("valid FigureTree construction");
 let runtime = Runtime::new(tree);
 
 assert_eq!(
@@ -103,13 +104,46 @@ use novadraw::ResourceRegistry;
 use novadraw::RenderSubmission;
 ```
 
+Specialist protocols are also excluded from the root and prelude:
+
+```compile_fail
+use novadraw::NdCanvas;
+```
+
+```compile_fail
+use novadraw::RenderBackend;
+```
+
+```compile_fail
+use novadraw::ConnectionRouter;
+```
+
+```compile_fail
+use novadraw::RangeModel;
+```
+
+Property keys type-check their old and new values:
+
+```compile_fail
+use novadraw::FigureId;
+use novadraw::event::{PropertyKey, TypedPropertyChange};
+
+const ENABLED: PropertyKey<bool> = PropertyKey::new("example.figure", "enabled");
+
+fn invalid_change(figure: FigureId) {
+    let _ = TypedPropertyChange::new(figure, ENABLED, false, 1.0_f64);
+}
+```
+
 Use their explicit modules when required:
 
 ```rust
 use novadraw::advanced::{FigureNode, UpdateManager};
-use novadraw::connection::RouteOutput;
+use novadraw::connection::{ConnectionRouter, RouteOutput};
+use novadraw::container::RangeModel;
+use novadraw::graphics::NdCanvas;
 use novadraw::render::command::RenderCommand;
-use novadraw::render::RenderSubmission;
+use novadraw::render::{RenderBackend, RenderSubmission};
 use novadraw::runtime::ResourceRegistry;
 
 fn accepts_low_level_types(
@@ -119,6 +153,10 @@ fn accepts_low_level_types(
     _route: Option<RouteOutput>,
     _submission: Option<RenderSubmission>,
     _resources: Option<ResourceRegistry>,
+    _canvas: Option<NdCanvas>,
+    _backend: Option<&dyn RenderBackend>,
+    _router: Option<&dyn ConnectionRouter>,
+    _range: Option<&dyn RangeModel>,
 ) {
 }
 ```

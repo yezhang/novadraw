@@ -47,14 +47,15 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 |---|---|---|---|---|---|
 | 1 | P2-S01 | 原子 indexed + constraint child add | `complete` | GA-1 mutation/API | Builder/Runtime 原子失败、顺序与通知 |
 | 2 | P2-G01 | path clip、gradient、custom dash/offset、miter 与 XOR 替代裁决 | `in_progress` | GA-1 root/Graphics API | Core IR、Vello lowering、失败语义、视觉验证 |
-| 3 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02 complete；M01-B 前闭合 P2-G01 visual surface | 确定时钟、双平面、跨域消费者、禁用零工作与视觉证据 |
-| 4 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
-| 5 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
-| 6 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
-| 7 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
-| 8 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
-| 9 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
-| 10 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
+| 3 | P2-F02 | 开放的 Figure capability registry 与 Runtime mutation | `complete` | ADR-014/019、GA-4 | 外部标准/自定义 capability、无 Core accessor 扩张或横切能力 concrete 分支 |
+| 4 | P2-M01 | Animation Timeline 与 Presentation Plane | `in_progress` | P2-G02 complete；M01-B 前闭合 P2-G01 visual surface；外部 binding 依赖 P2-F02 | 确定时钟、双平面、跨域消费者、禁用零工作与视觉证据 |
+| 5 | P2-L01 | Directed/Compound graph layout adapter | `not_started` | GA-4 扩展边界 | 独立图模型、确定性输出、外部算法集成 |
+| 6 | P2-C03 | 跨 viewport Connection 可见性与 clipping provider | `not_started` | M8、M9、P2-C02 | nearest-common viewport、damage、hit-test |
+| 7 | P2-T03 | fragment style 与剩余 inline/block flow | `deferred` | P2-T01/T02 | 测量、paint、interaction 使用同一快照 |
+| 8 | P2-W01 | repeat scheduler、ButtonGroup/radio/checkbox/slider | `deferred` | M6、M10.4 | 输入状态、时钟、action 与 accessibility |
+| 9 | P2-O01 | printing/export/ScaledGraphics 等价输出目标 | `deferred` | P2-G01、RenderBackend | 无 SWT 类型、scale/clip/text/image 等价 |
+| 10 | P2-A01 | Web action/focus 与 Native 原生 AT provider | `not_started` | GA-3 平台矩阵 | Core snapshot/action 到平台双向闭环 |
+| 11 | P2-LC01 | 同 Runtime live unmount/mount 所有权评估 | `deferred` | ADR-014 生命周期 | ADR、真实消费者、ID/资源/退出路径 |
 
 共同约束：
 
@@ -64,6 +65,72 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 4. P2-L01 只参考 `org.eclipse.draw2d.graph`，不得使用 Zest 定义目标；
 5. P2-LC01 不恢复自动跨 Runtime 活对象迁移，默认仍是模型/描述重建；
 6. 平台相关 delta 的支持声明以 `platform-support-matrix.md` 为准。
+
+## Figure capability
+
+### P2-F02: 开放的 Figure capability registry
+
+状态：`complete`（2026-10-08 registry、mutation、分层迁移与开放
+`PresentationBinding<V>` 已通过验证）。
+
+目标：`GOAL-EXT`、`GOAL-CAP`。关闭
+[临时概念设计审计 TC-02](../verification/reviews/temporary-concept-design-audit-2026-10-08.md#32-tc-02capability-仍由-core-列举)，
+并为 P2-M01 外部 presentation binding 提供发现基础。
+
+`api_semantics`：`paint.protocol`、`figure.lifecycle`、`figure.box.client_area`、
+`figure.properties`、`event.input_listeners`、`accessibility.bridge`、
+`viewport.scroll_zoom`、`connection.figure`、`text.flow`、`widgets.basic`。
+
+规范入口：
+
+- [ADR-027](../adr/adr-027-open-figure-capability-registry.md)；
+- [Figure Capability 统一扩展模型](../design/architecture/figure-capability-model.md)。
+
+实施切片：
+
+1. attach-time owned descriptor registry、typed key、query/mutation error 与外部 consumer；
+2. Scale、Layer、Freeform、Container、Input、Lifecycle、Accessibility；
+3. PointList、ScalablePolygon、TextFlow、Label、Viewport、Image 收口为 concrete
+   model/type、typed component update 与专用 facade；
+4. Border、Clickable、Connection、Decoration 等真实跨类型 capability；
+5. 删除 `Figure` 领域 accessor、伪 behavior trait、横切能力 concrete 分支和旧 root
+   导出；类型专用 facade 的受控闭合 adapter 保留；
+6. P2-M01 使用开放 `PresentationBinding<V>`。
+
+最低毕业证据：
+
+1. 外部 Figure 接入标准和自定义 capability 均不修改 Core 类型分支；
+2. 同步与 deferred capability update 共享 prepared commit、revision、invalidation、
+   damage 和 notification；
+3. duplicate、foreign、stale、absent、prepare rejection 和 panic/fault 有结构化语义；
+4. Core 中不再通过具体 Figure downcast 判断横切能力；PointList/TextFlow/Image/
+   Viewport 等具体类型不再伪装成 capability；
+5. render、layout、event、connection、Native/Web 编译及外部消费者门禁通过；
+6. 工作量基线无未解释回退，最终 quick/full 按项目分层门禁执行。
+
+实现与验证证据（2026-10-08）：
+
+- attach-time owned registry、typed query、同步/deferred capability update 与共享 prepared
+  commit 原语已落地；
+- Preparation、Input、Lifecycle、Accessibility、Container、Layer、Freeform、Scale、
+  Border、Clickable、Connection、Decoration 已使用标准 descriptor；
+- `PointListFigureBehavior`、`ScalablePolygonBehavior`、`TextFlowBehavior` 及对应
+  `Figure` accessor 已删除；PointList 使用 Polyline/Polygon crate-private 闭合 adapter，
+  ScalablePolygon/TextFlow/Image/Viewport 使用 concrete type、typed handle 或专用 facade；
+- Label/Button/Toggle 的共享 Label 内容使用闭合 concrete subcomponent adapter，不对外
+  声称开放 capability；
+- `PresentationBinding<V>` 已通过 attach-time registry 开放；外部 Figure 可提供
+  committed value 与 immutable content presentation，不修改 `ChannelBinding` 或 renderer；
+- Connection route/dash 已迁移到标准 binding，递归主循环删除领域特判；同 Figure
+  同 family channel 可组合，不同 family 的冲突、Replace、dispose 与 cancel 复用统一
+  Animation 语义；
+- capability/animation 基础设施未进入 prelude，旧伪 behavior 已退出 root；完整
+  root/prelude allowlist 归 TC-13；
+- `core.p2-f02-figure-capability` 覆盖 6 项专用外部契约及 120 项关联回归；
+  Core Clippy、docs、quick 与 diff check 均通过；full 的 fmt、Facade、Native/Web 和
+  workspace Clippy 通过，最终 workspace test 被并行中的 Builder `Result` 测试迁移阻断；
+- 完整记录见
+  [P2-F02 Figure Capability 实现记录](../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。
 
 ## Figure 树 API
 

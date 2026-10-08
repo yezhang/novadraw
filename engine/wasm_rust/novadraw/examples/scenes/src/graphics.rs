@@ -2,14 +2,14 @@
 
 use novadraw::container::LayerFigure;
 use novadraw::graphics::{
-    ClipPath, CustomDash, DashPattern, FillRule, GradientStop, LinearGradient, Paint, Path,
-    StrokeStyle,
+    ClipPath, CustomDash, DashPattern, FillRule, GradientStop, LinearGradient, NdCanvas, Paint,
+    Path, StrokeStyle,
 };
 use novadraw::render::{
     BuiltinFont, FontDescriptor, ImageData, ImageResourceRef, TextConstraints, TextLayout,
 };
 use novadraw::{
-    Color, Figure, FigureId, NdCanvas, Point, PolylineFigure, Rectangle, RectangleFigure, Runtime,
+    Color, Figure, FigureId, Point, PolylineFigure, Rectangle, RectangleFigure, Runtime,
 };
 
 pub const SIZE: (u32, u32) = (800, 600);

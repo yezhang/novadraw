@@ -228,7 +228,8 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid FigureTree construction");
     let bottom = tree
         .builder()
         .add_child(
@@ -308,7 +309,8 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     let mut expected = FigureTree::new();
     let expected_root = expected
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid FigureTree construction");
     let expected_bottom = expected
         .builder()
         .add_child(
@@ -393,7 +395,8 @@ fn ordinary_child_order_api_rejects_layered_panes() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let (pane, first) = {
         let mut handle = runtime
@@ -428,7 +431,8 @@ fn checked_topology_mutations_preserve_error_categories() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 200.0)))
+        .expect("valid FigureTree construction");
     let single = tree
         .builder()
         .add_child(root, Box::new(SingleChildFigure))
@@ -474,7 +478,8 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(root, Box::new(RectangleFigure::new(10.0, 10.0, 30.0, 40.0)))
@@ -521,7 +526,8 @@ fn runtime_with_child() -> (Runtime, FigureId, FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(root, Box::new(RectangleFigure::new(10.0, 20.0, 30.0, 40.0)))
@@ -552,8 +558,11 @@ impl Figure for DeferredMutationFigure {
         "DeferredMutationFigure"
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
     }
 }
 
@@ -578,8 +587,14 @@ impl Figure for SingleChildFigure {
         "SingleChildFigure"
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::CONTAINER,
+            novadraw::ContainerCapability::of::<Self>(),
+        )
     }
 }
 

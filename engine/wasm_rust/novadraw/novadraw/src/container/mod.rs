@@ -19,7 +19,7 @@ pub use range_model::{
     RangeModelError, RangeModelSnapshot, RangeProperty,
 };
 pub use scalable::{
-    ScalableFigure, ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError, ScaleHandle,
+    ScalableFreeformLayeredPane, ScalableLayeredPaneFigure, ScaleError, ScaleHandle, ScaleModel,
 };
 pub use scroll_pane::{
     ScrollBarFigure, ScrollBarVisibility, ScrollOrientation, ScrollPaneError, ScrollPaneFigure,

@@ -20,7 +20,10 @@ const WINDOW_HEIGHT: f64 = 600.0;
 fn create_scene_4_rectangle_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     let rect1 = novadraw::RectangleFigure::new_with_color(
         50.0,
@@ -76,7 +79,10 @@ fn create_scene_4_rectangle_border() -> novadraw::FigureTree {
 fn create_scene_5_border_with_insets() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 带 insets 的 RectangleBorder - insets 会影响子元素布局（需要布局系统支持）
     // 当前展示 insets 对边框位置的影响
@@ -134,7 +140,10 @@ fn create_scene_5_border_with_insets() -> novadraw::FigureTree {
 fn create_scene_6_line_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     let rect1 = novadraw::RectangleFigure::new_with_color(
         50.0,
@@ -190,7 +199,10 @@ fn create_scene_6_line_border() -> novadraw::FigureTree {
 fn create_scene_7_margin_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 子 Figure 故意大于 client area，由父 Figure 的 margin client clip 截断。
     // 因此露出的父背景宽度就是各方向的实际 margin。
@@ -289,7 +301,10 @@ fn create_scene_7_margin_border() -> novadraw::FigureTree {
 fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 第一行：with_stroke (Shape 级别描边)
     // 描边绘制在图形边界上
@@ -437,16 +452,16 @@ fn create_scene_8_stroke_vs_border() -> novadraw::FigureTree {
 
 fn create_m10_composed_borders() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let container_id =
-        scene
-            .builder()
-            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
-            )));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        )))
+        .expect("valid FigureTree construction");
     let highlight = novadraw::Color::from_hex("#ffffff").expect("valid color literal");
     let shadow = novadraw::Color::from_hex("#4b5563").expect("valid color literal");
     let fill = novadraw::Color::from_hex("#dbeafe").expect("valid color literal");

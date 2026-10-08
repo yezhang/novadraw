@@ -84,6 +84,7 @@ fn zoom_location_at(old_location: Point, anchor: Point, old_zoom: f64, new_zoom:
 pub enum ZoomError {
     InvalidZoom,
     InvalidZoomLevels,
+    InvalidScrollPolicyResult,
     MissingViewport,
     Layout(LayoutError),
     Freeform(FreeformError),
@@ -100,6 +101,9 @@ impl fmt::Display for ZoomError {
                     f,
                     "zoom levels must be finite, positive, and strictly increasing"
                 )
+            }
+            Self::InvalidScrollPolicyResult => {
+                write!(f, "zoom scroll policy must return a finite view location")
             }
             Self::MissingViewport => write!(f, "zoom manager viewport does not exist"),
             Self::Layout(error) => error.fmt(f),
@@ -240,6 +244,9 @@ impl ZoomManager {
             old_zoom,
             new_zoom,
         );
+        if !policy_location.x().is_finite() || !policy_location.y().is_finite() {
+            return Err(ZoomError::InvalidScrollPolicyResult);
+        }
         let new_location = if uses_content_domain {
             Point::new(
                 policy_location.x() / new_zoom,
@@ -248,6 +255,9 @@ impl ZoomManager {
         } else {
             policy_location
         };
+        if !new_location.x().is_finite() || !new_location.y().is_finite() {
+            return Err(ZoomError::InvalidScrollPolicyResult);
+        }
         let old_horizontal = self.viewport.horizontal_range();
         let old_vertical = self.viewport.vertical_range();
 
@@ -401,8 +411,8 @@ impl ZoomManager {
     fn uses_content_domain(&self, graph: &FigureTree) -> bool {
         self.viewport.contents(graph) == Some(self.scalable.figure_id())
             && graph
-                .node(self.scalable.figure_id())
-                .is_some_and(|block| block.figure.freeform().is_some())
+                .capability(self.scalable.figure_id(), crate::FREEFORM)
+                .is_ok_and(|freeform| freeform.is_some())
     }
 
     fn min_zoom(&self) -> f64 {

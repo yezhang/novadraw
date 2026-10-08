@@ -432,20 +432,15 @@ impl Figure for LabelFigure {
         self.border.as_deref()
     }
 
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
-    }
-
-    fn label(&self) -> Option<&LabelFigure> {
-        Some(self)
-    }
-
-    fn label_mut(&mut self) -> Option<&mut LabelFigure> {
-        Some(self)
-    }
-
-    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(
+            crate::ACCESSIBILITY,
+            crate::AccessibilityCapability::of::<Self>(),
+        )?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 

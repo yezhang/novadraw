@@ -7,8 +7,7 @@ use crate::geometry::{Insets, Rectangle};
 use crate::render::{NdCanvas, StrokeStyle};
 
 use super::{
-    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
-    PointListFigureBehavior, Shape,
+    Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
 };
 
 const DEFAULT_HIT_TOLERANCE: f64 = 2.0;
@@ -186,6 +185,18 @@ impl PolylineFigure {
         self.points = local_points;
     }
 
+    pub(crate) fn local_points(&self) -> &[crate::geometry::Point] {
+        &self.points
+    }
+
+    pub(crate) fn painted_minimum(&self) -> usize {
+        2
+    }
+
+    pub(crate) fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
+        self.stroke = stroke;
+    }
+
     pub(crate) fn renormalize_for_minimum(&mut self, painted_minimum: usize) {
         let points = self.parent_points();
         (self.bounds, self.points) = normalize_points(points, &self.stroke, painted_minimum);
@@ -280,42 +291,12 @@ impl Figure for PolylineFigure {
         Shape::get_border(self)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
-        Some(self)
-    }
-
-    fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
-        Some(self)
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
-    }
-}
-
-impl PointListFigureBehavior for PolylineFigure {
-    fn local_points(&self) -> &[crate::geometry::Point] {
-        &self.points
-    }
-
-    fn stroke_style(&self) -> &StrokeStyle {
-        &self.stroke
-    }
-
-    fn painted_minimum(&self) -> usize {
-        2
-    }
-
-    fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
-        self.stroke = stroke;
-    }
-
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<crate::geometry::Point>) {
-        PolylineFigure::commit_geometry(self, bounds, local_points);
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 

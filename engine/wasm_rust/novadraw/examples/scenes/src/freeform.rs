@@ -49,7 +49,8 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
             Color::from_hex("#eeeeee").expect("valid color literal"),
-        )));
+        )))
+        .expect("valid FigureTree construction");
     let pane = graph
         .builder()
         .add_scroll_pane_to(

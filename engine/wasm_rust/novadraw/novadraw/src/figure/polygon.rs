@@ -8,7 +8,7 @@ use crate::render::{NdCanvas, StrokeStyle, command::LineJoin};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
-    PointListFigureBehavior, PolylineFigure, Shape, polyline::point_segment_distance_squared,
+    PolylineFigure, Shape, polyline::point_segment_distance_squared,
 };
 
 /// 多边形图形
@@ -81,6 +81,30 @@ impl PolygonFigure {
     pub fn with_border(mut self, border: impl Border + 'static) -> Self {
         self.polyline = self.polyline.with_border(border);
         self
+    }
+
+    pub(crate) fn local_points(&self) -> &[crate::geometry::Point] {
+        self.polyline.local_points()
+    }
+
+    pub(crate) fn stroke_style(&self) -> &StrokeStyle {
+        self.polyline.stroke_style()
+    }
+
+    pub(crate) fn painted_minimum(&self) -> usize {
+        3
+    }
+
+    pub(crate) fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
+        self.polyline.commit_stroke_style(stroke);
+    }
+
+    pub(crate) fn commit_geometry(
+        &mut self,
+        bounds: Rectangle,
+        local_points: Vec<crate::geometry::Point>,
+    ) {
+        self.polyline.commit_geometry(bounds, local_points);
     }
 }
 
@@ -174,42 +198,12 @@ impl Figure for PolygonFigure {
         Shape::get_border(self)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn point_list(&self) -> Option<&dyn PointListFigureBehavior> {
-        Some(self)
-    }
-
-    fn point_list_mut(&mut self) -> Option<&mut dyn PointListFigureBehavior> {
-        Some(self)
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
-    }
-}
-
-impl PointListFigureBehavior for PolygonFigure {
-    fn local_points(&self) -> &[crate::geometry::Point] {
-        self.polyline.get_points()
-    }
-
-    fn stroke_style(&self) -> &StrokeStyle {
-        self.polyline.stroke_style()
-    }
-
-    fn painted_minimum(&self) -> usize {
-        3
-    }
-
-    fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
-        self.polyline.commit_stroke_style(stroke);
-    }
-
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<crate::geometry::Point>) {
-        self.polyline.commit_geometry(bounds, local_points);
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 

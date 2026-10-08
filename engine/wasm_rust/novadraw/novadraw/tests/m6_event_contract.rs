@@ -1,12 +1,16 @@
 use std::sync::{Arc, Mutex};
 
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
-use novadraw::{
-    Bounded, Figure, FigureEventHandler, FigureTree, FocusEvent, FocusEventKind, GesturePhase,
-    GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,
-    MouseEventKind, Rectangle, RectangleFigure, Runtime, SceneDispatchContext, ScrollDeltaKind,
-    WheelEvent,
+use novadraw::event::{
+    EventContext, FigureEventHandler, FocusEvent, FocusEventKind, GesturePhase, GestureSessionId,
+    Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
+    ScrollDeltaKind, WheelEvent,
 };
+use novadraw::figure::{
+    Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
+};
+use novadraw::runtime::context::SceneDispatchContext;
+use novadraw::{Figure, FigureTree, Rectangle, RectangleFigure, Runtime};
 
 #[derive(Clone, Debug, PartialEq)]
 enum RecordedInput {
@@ -44,8 +48,11 @@ impl Figure for InputProbeFigure {
         Bounded::name(self)
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -54,42 +61,42 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
-    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_pressed(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_released(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_released(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_dragged(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_dragged(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_moved(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_moved(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_hover(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_hover(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_entered(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_entered(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_exited(&self, event: &MouseEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_exited(&self, event: &MouseEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.record_mouse(event);
         true
     }
 
-    fn on_mouse_wheel(&self, event: &WheelEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_mouse_wheel(&self, event: &WheelEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.events.lock().unwrap().push(RecordedInput::Wheel(
             event.x,
             event.y,
@@ -99,7 +106,7 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
-    fn on_key_pressed(&self, event: &KeyEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_key_pressed(&self, event: &KeyEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.events
             .lock()
             .unwrap()
@@ -107,7 +114,7 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
-    fn on_focus_gained(&self, event: &FocusEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_focus_gained(&self, event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.events
             .lock()
             .unwrap()
@@ -115,7 +122,7 @@ impl FigureEventHandler for InputProbeFigure {
         true
     }
 
-    fn on_focus_lost(&self, event: &FocusEvent, _ctx: &mut novadraw::EventContext<'_>) -> bool {
+    fn on_focus_lost(&self, event: &FocusEvent, _ctx: &mut EventContext<'_>) -> bool {
         self.events
             .lock()
             .unwrap()
@@ -139,7 +146,8 @@ fn capture_hover_focus_key_and_wheel_share_the_engine_dispatch_contract() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .expect("valid FigureTree construction");
     let coordinate_root = graph
         .builder()
         .add_child(
@@ -226,7 +234,8 @@ fn continuous_scroll_keeps_its_target_and_does_not_follow_pointer_capture() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .expect("valid FigureTree construction");
     graph
         .builder()
         .add_child(
@@ -437,7 +446,8 @@ fn interactive_parent_remains_mouse_target_across_non_interactive_children() {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .expect("valid FigureTree construction");
     let parent = graph
         .builder()
         .add_child(

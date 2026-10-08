@@ -21,7 +21,10 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 设置 XYLayout
     let xy_layout = Box::new(novadraw::XYLayout::new());
@@ -90,7 +93,10 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 设置 FillLayout
     let fill_layout = Box::new(novadraw::FillLayout::new());
@@ -148,7 +154,10 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 设置 FlowLayout
     let flow_layout = Box::new(
@@ -207,7 +216,10 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 外层：XYLayout
     let outer_layout = Box::new(novadraw::XYLayout::new());
@@ -295,7 +307,10 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 设置 XYLayout
     let xy_layout = Box::new(novadraw::XYLayout::new());
@@ -355,7 +370,10 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     scene
         .builder()
@@ -403,16 +421,16 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
 
 fn create_scene_toolbar_layout() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let container_id =
-        scene
-            .builder()
-            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
-            )));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        )))
+        .expect("valid FigureTree construction");
     scene
         .builder()
         .set_layout_manager(
@@ -455,16 +473,16 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
 
 fn create_scene_stack_layout() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let container_id =
-        scene
-            .builder()
-            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-                80.0,
-                60.0,
-                640.0,
-                480.0,
-                novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
-            )));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            80.0,
+            60.0,
+            640.0,
+            480.0,
+            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        )))
+        .expect("valid FigureTree construction");
     scene
         .builder()
         .set_layout_manager(container_id, Box::new(novadraw::StackLayout::new()))
@@ -504,7 +522,10 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 不设置布局器，子元素保持原位
     let rect1 = novadraw::RectangleFigure::new_with_color(
@@ -558,7 +579,10 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 设置 BorderLayout
     let border_layout = Box::new(novadraw::BorderLayout::new());
@@ -681,16 +705,16 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
     const SIDEBAR_WIDTH: f64 = 120.0;
 
     let mut scene = novadraw::FigureTree::new();
-    let contents =
-        scene
-            .builder()
-            .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
-                0.0,
-                0.0,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                novadraw::Color::from_hex("#20252b").expect("valid color literal"),
-            )));
+    let contents = scene
+        .builder()
+        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+            0.0,
+            0.0,
+            WINDOW_WIDTH,
+            WINDOW_HEIGHT,
+            novadraw::Color::from_hex("#20252b").expect("valid color literal"),
+        )))
+        .expect("valid FigureTree construction");
     scene
         .builder()
         .set_layout_manager(

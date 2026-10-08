@@ -1,10 +1,12 @@
 use std::sync::{Arc, Mutex};
 
-use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
-use novadraw::{
-    FigureEvent, FigureId, FigureTree, ListenerDirective, NotificationEffect, NotificationRecord,
-    ObservationListener, Rectangle, RectangleFigure, Runtime, StableQueryError, StableSceneQuery,
+use novadraw::event::{
+    FigureEvent, ListenerDirective, NotificationEffect, NotificationRecord, ObservationListener,
+    property,
 };
+use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+use novadraw::runtime::{StableQueryError, StableSceneQuery};
+use novadraw::{FigureId, FigureTree, Rectangle, RectangleFigure, Runtime};
 
 #[derive(Clone, Debug)]
 struct ObservedMove {
@@ -74,7 +76,8 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     let mut tree = FigureTree::new();
     let figure = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -195,6 +198,6 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     assert!(notification_only.iter().any(|(record, _)| matches!(
         record.effect,
         NotificationEffect::EmitProperty(ref event)
-            if event.figure_id == figure && event.property == "focusable"
+            if event.figure_id() == figure && event.property().is(property::FOCUSABLE)
     )));
 }

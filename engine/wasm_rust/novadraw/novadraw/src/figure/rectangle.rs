@@ -173,12 +173,12 @@ impl Figure for RectangleFigure {
         Shape::get_border(self)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 

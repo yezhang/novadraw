@@ -129,8 +129,8 @@ impl FigureTree {
             self.record_property_change(
                 figure_id,
                 FREEFORM_EXTENT_PROPERTY,
-                PropertyValue::Rectangle(old_extent),
-                PropertyValue::Rectangle(new_extent),
+                old_extent,
+                new_extent,
             );
         }
         Ok(())
@@ -304,7 +304,7 @@ impl FigureTree {
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
-            if let Some(lifecycle) = block.figure.lifecycle() {
+            if let Some(lifecycle) = block.lifecycle() {
                 lifecycle.validate(bounds);
             }
             block.is_valid = true;
@@ -437,7 +437,7 @@ impl FigureTree {
         self.recompute_freeform_extent(container_id)?;
         if let Some(block) = self.blocks.get_mut(container_id) {
             let bounds = block.figure_bounds();
-            if let Some(lifecycle) = block.figure.lifecycle() {
+            if let Some(lifecycle) = block.lifecycle() {
                 lifecycle.validate(bounds);
             }
             block.is_valid = true;
@@ -462,8 +462,16 @@ impl FigureTree {
                 LayoutChange::Visibility(child_id, _) | LayoutChange::Invalidate(child_id) => {
                     Some(*child_id)
                 }
-                LayoutChange::Property { figure, .. }
-                | LayoutChange::CoordinateSystemChanged(figure)
+                LayoutChange::Property(event) => {
+                    if event.figure_id() != container_id {
+                        return Err(LayoutError::InvalidChild {
+                            container: container_id,
+                            child: event.figure_id(),
+                        });
+                    }
+                    None
+                }
+                LayoutChange::CoordinateSystemChanged(figure)
                 | LayoutChange::Repaint(figure)
                 | LayoutChange::RepaintParent(figure) => {
                     if *figure != container_id {
@@ -524,13 +532,8 @@ impl FigureTree {
                 LayoutChange::Invalidate(child_id) => {
                     self.mark_invalid(update_manager, child_id);
                 }
-                LayoutChange::Property {
-                    figure,
-                    property,
-                    old_value,
-                    new_value,
-                } => {
-                    self.record_property_change(figure, property, old_value, new_value);
+                LayoutChange::Property(event) => {
+                    self.record_property_event(event);
                 }
                 LayoutChange::CoordinateSystemChanged(figure) => {
                     self.record_coordinate_system_changed(figure);
@@ -573,13 +576,8 @@ impl FigureTree {
                 LayoutChange::Invalidate(child_id) => {
                     self.mark_validation_path_invalid(child_id);
                 }
-                LayoutChange::Property {
-                    figure,
-                    property,
-                    old_value,
-                    new_value,
-                } => {
-                    self.record_property_change(figure, property, old_value, new_value);
+                LayoutChange::Property(event) => {
+                    self.record_property_event(event);
                 }
                 LayoutChange::CoordinateSystemChanged(figure) => {
                     self.record_coordinate_system_changed(figure);
@@ -907,7 +905,7 @@ impl FigureTree {
                 let was_valid = block.is_valid;
                 block.is_valid = false;
                 block.layout.invalidate(reason);
-                if was_valid && let Some(lifecycle) = block.figure.lifecycle() {
+                if was_valid && let Some(lifecycle) = block.lifecycle() {
                     lifecycle.invalidate();
                 }
                 (block.parent, was_valid)
@@ -1012,8 +1010,8 @@ impl crate::layout::LayoutContext for FigureTree {
     }
 
     fn get_content_scale(&self, figure_id: FigureId) -> Option<f64> {
-        self.blocks
-            .get(figure_id)
-            .and_then(|block| block.figure.content_scale())
+        self.capability(figure_id, SCALE)
+            .ok()?
+            .map(|capability| capability.model().scale())
     }
 }

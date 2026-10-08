@@ -36,7 +36,8 @@ pub fn base_scene() -> (FigureTree, novadraw::FigureId) {
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
             color("#eeeeee"),
-        )));
+        )))
+        .expect("valid FigureTree construction");
     (graph, root)
 }
 

@@ -2,12 +2,16 @@
 
 use std::{sync::Arc, time::Duration};
 
+use novadraw::connection::{
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
+    CoordinateSpace, EndpointLocator, PolylineDecorationFigure, RouterBinding,
+};
+use novadraw::container::ViewportHandle;
+use novadraw::event::{MonotonicTime, property};
 use novadraw::{
-    Affine2D, Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, Color,
-    ConnectionFigure, CoordinateSpace, Dimension, EllipseFigure, EndpointLocator, FigureId,
-    FigureMeasurement, FigureStyle, LabelFigure, MonotonicTime, Point, PolylineDecorationFigure,
-    Rectangle, RectangleFigure, RoundedRectangleFigure, RouterBinding, Runtime, StackLayout,
-    ToggleFigure, ViewportHandle,
+    Affine2D, Color, Dimension, EllipseFigure, FigureId, FigureMeasurement, FigureStyle,
+    LabelFigure, Point, Rectangle, RectangleFigure, RoundedRectangleFigure, Runtime, StackLayout,
+    ToggleFigure,
     animation::{
         AnimationBehavior, AnimationBehaviorContext, AnimationBehaviorId, AnimationChannel,
         AnimationId, AnimationPlan, AnimationStart, AnimationTrigger, BoundsTransition,
@@ -1134,7 +1138,7 @@ fn install_ownership_behavior(
         .animations()
         .install_behavior(
             AnimationBehavior::new(
-                AnimationTrigger::StateChanged("selected"),
+                AnimationTrigger::state_changed(property::SELECTED),
                 move |_context: AnimationBehaviorContext<'_>| {
                     Ok(Some(ownership_plan(channels, offset_x, interruption)?))
                 },

@@ -64,7 +64,8 @@ fn deep_label_style_refresh_visits_each_tree_node_once() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
+        .expect("valid FigureTree construction");
     let mut parent = root;
     for index in 0..LABEL_COUNT {
         parent = tree

@@ -6,9 +6,9 @@ parity_ledgers = [
   "doc/parity/draw2d/api-coverage.md",
   "doc/parity/gef/api-coverage.md",
 ]
-markdown_roots = ["doc", "book/src"]
+markdown_roots = ["doc", "book"]
 typed_markdown_roots = ["doc"]
-command_reference_roots = ["doc", "book/src"]
+command_reference_roots = ["doc", "book"]
 public_api_command = "test.facade-doc"
 allowed_document_types = [
   "archive",
@@ -110,6 +110,14 @@ program = "./scripts/check_facade_dependencies.sh"
 description = "Reject Kurbo, Vello, and Winit types from public API signatures"
 program = "./scripts/check_public_api_dependencies.sh"
 
+[commands."api.surface"]
+description = "Compare root, prelude, domain module, and advanced symbols with the reviewed snapshot"
+program = "./scripts/check_public_api_surface.sh"
+
+[commands."quality.hot-path-logging"]
+description = "Reject tracing and print macros from protected render, layout, and backend hot paths"
+program = "./scripts/check_hot_path_logging.sh"
+
 [commands."dependencies.kurbo"]
 description = "Require one Kurbo version across all workspace feature graphs"
 program = "./scripts/check_kurbo_versions.sh"
@@ -203,6 +211,23 @@ args = [
   "p2_animation_behavior_contract",
   "--test",
   "p2_animation_transition_contract",
+]
+
+[commands."test.tc04-property"]
+description = "Exercise typed property identity, erased journals, coalescing, and animation triggers"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "tc04_typed_property_identity",
+  "--test",
+  "p2_animation_behavior_contract",
+  "--test",
+  "d2_freeform_contract",
+  "--test",
+  "d4_notification_epoch",
 ]
 
 [commands."test.vello-p2-graphics"]
@@ -466,6 +491,37 @@ description = "Verify atomic indexed child insertion with external layout constr
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_child_insertion"]
 
+[commands."test.p2-figure-capability"]
+description = "Verify Figure capability boundaries, external consumers, and concrete Figure facades"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "p2_figure_capability_contract",
+  "--test",
+  "d2_layer_contract",
+  "--test",
+  "d2_freeform_contract",
+  "--test",
+  "d4_component_update",
+  "--test",
+  "m6_event_contract",
+  "--test",
+  "m8_viewport_contract",
+  "--test",
+  "m9_connection_contract",
+  "--test",
+  "m10_reusable_shape_border_contract",
+  "--test",
+  "p2_t01_text_flow_contract",
+  "--test",
+  "p2_text_graphics_contract",
+  "--test",
+  "p2_animation_transition_contract",
+]
+
 [commands."test.ga4-editor-extension-consumer"]
 description = "Compile and run the external Editor compound-visual component consumer"
 program = "cargo"
@@ -650,6 +706,8 @@ commands = [
   "facade.core",
   "facade.dependencies",
   "api.third-party-types",
+  "api.surface",
+  "quality.hot-path-logging",
   "dependencies.kurbo",
   "backend.native-vello",
   "backend.web-vello",
@@ -662,6 +720,8 @@ commands = [
   "facade.core",
   "facade.dependencies",
   "api.third-party-types",
+  "api.surface",
+  "quality.hot-path-logging",
   "dependencies.kurbo",
   "backend.native-vello",
   "backend.web-vello",
@@ -1102,6 +1162,111 @@ documents = [
   "doc/design/architecture/component-update.md",
   "doc/design/architecture/runtime-ownership-and-module-boundaries.md",
   "doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md",
+]
+
+[[suites]]
+id = "core.api-surface-hot-path"
+title = "Curated public facade and logging-free hot paths"
+milestone = "TC-13/TC-14"
+kind = "quality"
+api_semantics = []
+layers = ["static", "contract"]
+platforms = ["host", "headless"]
+commands = ["test.facade-doc", "api.surface", "quality.hot-path-logging"]
+paths = [
+  "novadraw/src/lib.rs",
+  "novadraw/src/prelude.rs",
+  "novadraw/src/graph/render_recursive.rs",
+  "novadraw/src/layout/**",
+  "novadraw-backend-vello/src/**",
+  "novadraw/README.md",
+  "novadraw/tests/facade_contract.rs",
+  "scripts/check_public_api_surface.sh",
+  "scripts/check_hot_path_logging.sh",
+  "verification/public-api/novadraw-symbols.txt",
+]
+documents = [
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
+  "doc/verification/reviews/tc13-tc14-api-surface-hot-path-completion-2026-10-08.md",
+]
+
+[[suites]]
+id = "core.tc04-typed-property-identity"
+title = "Typed property identity and heterogeneous notification journal"
+milestone = "TC-04"
+kind = "contract"
+api_semantics = ["notification.property"]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.tc04-property"]
+paths = [
+  "novadraw/src/runtime/update/property.rs",
+  "novadraw/src/runtime/update/listener.rs",
+  "novadraw/src/runtime/context.rs",
+  "novadraw/src/graph/**",
+  "novadraw/src/animation/behavior.rs",
+  "novadraw/tests/tc04_typed_property_identity.rs",
+  "novadraw/tests/p2_animation_behavior_contract.rs",
+  "novadraw/tests/d2_freeform_contract.rs",
+  "novadraw/tests/d4_notification_epoch.rs",
+]
+documents = [
+  "doc/adr/adr-028-typed-property-identity.md",
+  "doc/design/animation/animation-system.md",
+  "doc/design/animation/behavior-trigger-contract.md",
+  "doc/design/animation/public-api-contract.md",
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
+  "doc/verification/reviews/tc04-typed-property-identity-completion-2026-10-08.md",
+]
+
+[[suites]]
+id = "core.p2-f02-figure-capability"
+title = "Open typed Figure capability registry and Runtime mutation"
+milestone = "P2-F02"
+kind = "contract"
+api_semantics = [
+  "paint.protocol",
+  "figure.lifecycle",
+  "figure.box.client_area",
+  "figure.properties",
+  "event.input_listeners",
+  "accessibility.bridge",
+  "viewport.scroll_zoom",
+  "connection.figure",
+  "text.flow",
+  "widgets.basic",
+]
+layers = ["contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.p2-figure-capability"]
+paths = [
+  "novadraw/src/connection/**",
+  "novadraw/src/container/**",
+  "novadraw/src/animation/**",
+  "novadraw/src/figure/capability.rs",
+  "novadraw/src/figure/label.rs",
+  "novadraw/src/figure/mod.rs",
+  "novadraw/src/figure/polygon.rs",
+  "novadraw/src/figure/polyline.rs",
+  "novadraw/src/figure/scalable_polygon.rs",
+  "novadraw/src/figure/text_flow.rs",
+  "novadraw/src/figure/widget.rs",
+  "novadraw/src/graph/**",
+  "novadraw/src/runtime/context.rs",
+  "novadraw/src/runtime/mutation/**",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/src/runtime/runtime/capability_update.rs",
+  "novadraw/src/runtime/runtime/component_update.rs",
+  "novadraw/src/runtime/runtime/frame_submission.rs",
+  "novadraw/tests/p2_figure_capability_contract.rs",
+  "novadraw/tests/p2_animation_transition_contract.rs",
+  "novadraw/tests/p2_text_graphics_contract.rs",
+]
+documents = [
+  "doc/adr/adr-027-open-figure-capability-registry.md",
+  "doc/design/architecture/figure-capability-model.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md",
 ]
 
 [[suites]]

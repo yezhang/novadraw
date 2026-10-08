@@ -1,12 +1,14 @@
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     collections::{HashMap, HashSet, VecDeque},
+    sync::Arc,
     time::Duration,
 };
 
 use crate::{
-    Affine2D, Color, Dimension, FigureId, FigureMeasurement, FigureTree, MonotonicTime,
-    NotificationEffect, PointList, Rectangle, StableSceneQuery, TimeError, UpdateManager,
+    Affine2D, CapabilityKey, Color, Dimension, Figure, FigureId, FigureMeasurement, FigureTree,
+    MonotonicTime, NotificationEffect, PointList, Rectangle, StableSceneQuery, TimeError,
+    UpdateManager,
     figure::{FigureDrawing, FigurePresentation},
     graphics::{GraphicsError, PaintContext},
     identity::{
@@ -18,30 +20,77 @@ use crate::{
 use super::{
     AnimationBehavior, AnimationBehaviorFailure, AnimationBehaviorScope, AnimationBudgetKind,
     AnimationChannel, AnimationError, AnimationMode, AnimationStart, AnimationState,
-    AnimationStats, AnimationSuppression, AnimationValue, BoundsTransition, ConnectionPulse,
+    AnimationStats, AnimationSuppression, AnimationValue, BoundsTransition,
+    CONNECTION_DASH_PRESENTATION, CONNECTION_ROUTE_PRESENTATION, ConnectionPulse,
     DEFAULT_ANIMATION_TERMINAL_HISTORY, DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS,
     DEFAULT_MAX_ACTIVE_ANIMATIONS, DEFAULT_MAX_ANIMATION_BEHAVIORS, DEFAULT_MAX_ANIMATION_CHANNELS,
     DEFAULT_MAX_TEMPORARY_VISUALS, FigurePresentationChannels, FigureTransitionCapture,
-    InteractionGeometryPolicy, InterruptionPolicy, Motion, Opacity, Procedural, SuspensionPolicy,
-    TemporaryVisual, Tween, facts_from_effects,
+    InteractionGeometryPolicy, InterruptionPolicy, Motion, Opacity, PresentationBinding,
+    PresentationValues, Procedural, SuspensionPolicy, TemporaryVisual, Tween, facts_from_effects,
     timeline::{AnimationPlan, PreparedPlanTrack},
 };
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ChannelBinding {
     Detached,
     FigureOpacity(FigureId),
     FigureTransform(FigureId),
-    FigureRoute(FigureId),
-    FigureDashOffset(FigureId),
+    FigurePresentation {
+        figure: FigureId,
+        binding: Arc<dyn ErasedPresentationBinding>,
+    },
     TemporaryOpacity(TemporaryVisualId),
     TemporaryTransform(TemporaryVisualId),
+}
+
+trait ErasedPresentationBinding: Send + Sync {
+    fn value_type_id(&self) -> TypeId;
+    fn family(&self) -> TypeId;
+
+    fn prepare(
+        &self,
+        figure: &dyn Figure,
+        bounds: Rectangle,
+        values: PresentationValues<'_>,
+    ) -> Option<FigurePresentation>;
+}
+
+struct TypedPresentationBinding<V> {
+    binding: PresentationBinding<V>,
+}
+
+impl<V> ErasedPresentationBinding for TypedPresentationBinding<V>
+where
+    V: AnimationValue,
+{
+    fn value_type_id(&self) -> TypeId {
+        TypeId::of::<V>()
+    }
+
+    fn family(&self) -> TypeId {
+        self.binding.family()
+    }
+
+    fn prepare(
+        &self,
+        figure: &dyn Figure,
+        bounds: Rectangle,
+        values: PresentationValues<'_>,
+    ) -> Option<FigurePresentation> {
+        self.binding.prepare(figure, values, bounds)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct FigurePresentationChannelKey {
+    figure: FigureId,
+    value_type: TypeId,
 }
 
 pub(crate) struct ChannelState {
     committed: Box<dyn Any + Send + Sync>,
     presentation: Option<Box<dyn Any + Send + Sync>>,
     binding: ChannelBinding,
+    presentation_revision: u64,
 }
 
 impl ChannelState {
@@ -54,6 +103,7 @@ impl ChannelState {
             committed: Box::new(value),
             presentation: None,
             binding,
+            presentation_revision: 0,
         }
     }
 
@@ -81,6 +131,9 @@ impl ChannelState {
         self.validate_value(&value)?;
         let changed = self.effective::<V>()? != &value;
         self.presentation = Some(Box::new(value));
+        if changed {
+            self.presentation_revision = self.presentation_revision.saturating_add(1);
+        }
         Ok(changed)
     }
 
@@ -105,11 +158,21 @@ impl ChannelState {
     }
 
     fn clear_override(&mut self) -> bool {
-        self.presentation.take().is_some()
+        let changed = self.presentation.take().is_some();
+        if changed {
+            self.presentation_revision = self.presentation_revision.saturating_add(1);
+        }
+        changed
     }
 
     fn has_override(&self) -> bool {
         self.presentation.is_some()
+    }
+
+    fn effective_any(&self) -> &dyn Any {
+        self.presentation
+            .as_deref()
+            .unwrap_or(self.committed.as_ref())
     }
 
     fn into_committed<V: AnimationValue>(self) -> Result<V, AnimationError> {
@@ -121,7 +184,7 @@ impl ChannelState {
 }
 
 impl ChannelBinding {
-    fn accepts<V: AnimationValue>(self, value: &V) -> bool {
+    fn accepts<V: AnimationValue>(&self, value: &V) -> bool {
         match self {
             Self::FigureOpacity(_) | Self::TemporaryOpacity(_) => (value as &dyn Any)
                 .downcast_ref::<Opacity>()
@@ -129,40 +192,46 @@ impl ChannelBinding {
             Self::FigureTransform(_) | Self::TemporaryTransform(_) => {
                 (value as &dyn Any).downcast_ref::<Affine2D>().is_some()
             }
-            Self::FigureRoute(_) => (value as &dyn Any)
-                .downcast_ref::<PointList>()
-                .is_some_and(AnimationValue::is_valid),
-            Self::FigureDashOffset(_) => (value as &dyn Any)
-                .downcast_ref::<f64>()
-                .is_some_and(AnimationValue::is_valid),
+            Self::FigurePresentation { binding, .. } => {
+                binding.value_type_id() == TypeId::of::<V>()
+            }
             Self::Detached => true,
         }
     }
 
-    fn figure(self) -> Option<FigureId> {
+    fn figure(&self) -> Option<FigureId> {
         match self {
             Self::FigureOpacity(figure)
             | Self::FigureTransform(figure)
-            | Self::FigureRoute(figure)
-            | Self::FigureDashOffset(figure) => Some(figure),
+            | Self::FigurePresentation { figure, .. } => Some(*figure),
             _ => None,
         }
     }
 
-    fn temporary(self) -> Option<TemporaryVisualId> {
+    fn temporary(&self) -> Option<TemporaryVisualId> {
         match self {
-            Self::TemporaryOpacity(visual) | Self::TemporaryTransform(visual) => Some(visual),
+            Self::TemporaryOpacity(visual) | Self::TemporaryTransform(visual) => Some(*visual),
+            _ => None,
+        }
+    }
+
+    fn is_detached(&self) -> bool {
+        matches!(self, Self::Detached)
+    }
+
+    fn figure_presentation(&self) -> Option<(FigureId, &Arc<dyn ErasedPresentationBinding>)> {
+        match self {
+            Self::FigurePresentation { figure, binding } => Some((*figure, binding)),
             _ => None,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub(crate) struct FigurePresentationEffect {
     pub(crate) opacity: Option<f64>,
     pub(crate) transform: Option<Affine2D>,
-    pub(crate) route: Option<PointList>,
-    pub(crate) dash_offset: Option<f64>,
+    pub(crate) content: Option<FigurePresentation>,
 }
 
 #[derive(Clone)]
@@ -243,8 +312,7 @@ enum DamageSubjectState {
     Figure {
         opacity: f64,
         transform: Affine2D,
-        route: Option<PointList>,
-        dash_offset: Option<f64>,
+        content_revision: Option<u64>,
         envelope: Option<Rectangle>,
     },
     Temporary {
@@ -283,8 +351,7 @@ pub(crate) struct AnimationService {
     behaviors: RuntimeArena<AnimationBehaviorId, AnimationBehavior>,
     behavior_failures: VecDeque<AnimationBehaviorFailure>,
     figure_channels: HashMap<FigureId, FigureChannels>,
-    route_channels: HashMap<FigureId, AnimationChannelId>,
-    dash_channels: HashMap<FigureId, AnimationChannelId>,
+    presentation_channels: HashMap<FigurePresentationChannelKey, AnimationChannelId>,
     temporary_visuals: RuntimeArena<TemporaryVisualId, TemporaryVisualState>,
     channel_owners: HashMap<AnimationChannelId, AnimationId>,
     terminal: VecDeque<(AnimationId, AnimationState)>,
@@ -305,8 +372,7 @@ impl AnimationService {
             behaviors: RuntimeArena::new(namespace),
             behavior_failures: VecDeque::new(),
             figure_channels: HashMap::new(),
-            route_channels: HashMap::new(),
-            dash_channels: HashMap::new(),
+            presentation_channels: HashMap::new(),
             temporary_visuals: RuntimeArena::new(namespace),
             channel_owners: HashMap::new(),
             terminal: VecDeque::new(),
@@ -393,11 +459,12 @@ impl AnimationService {
             .then_some(self.now)
     }
 
-    pub(crate) fn snapshot(&self) -> Option<PresentationSnapshot> {
+    pub(crate) fn snapshot(&self, tree: &FigureTree) -> Option<PresentationSnapshot> {
         if self.active.len() == 0 {
             return None;
         }
         let (active_figures, active_temporaries) = self.active_subjects();
+        let active_presentations = self.active_presentation_channels_by_figure();
         let mut figures = HashMap::new();
         for figure in active_figures {
             let opacity = self.figure_channels.get(&figure).and_then(|channels| {
@@ -417,31 +484,34 @@ impl AnimationService {
                         .flatten()
                 })
             });
-            let route = self.route_channels.get(&figure).and_then(|channel| {
-                self.channels.get(*channel).and_then(|channel| {
-                    channel
-                        .has_override()
-                        .then(|| channel.effective::<PointList>().ok().cloned())
-                        .flatten()
-                })
+            let figure_presentations = active_presentations
+                .get(&figure)
+                .map(Vec::as_slice)
+                .unwrap_or_default();
+            let content = figure_presentations.first().and_then(|channel| {
+                let (bound_figure, binding) = channel.binding.figure_presentation()?;
+                debug_assert_eq!(bound_figure, figure);
+                let node = tree.node(figure)?;
+                let values: Vec<_> = figure_presentations
+                    .iter()
+                    .filter_map(|channel| {
+                        let (_, binding) = channel.binding.figure_presentation()?;
+                        Some((binding.value_type_id(), channel.effective_any()))
+                    })
+                    .collect();
+                binding.prepare(
+                    node.figure.as_ref(),
+                    node.figure_bounds(),
+                    PresentationValues::new(&values),
+                )
             });
-            let dash_offset = self.dash_channels.get(&figure).and_then(|channel| {
-                self.channels.get(*channel).and_then(|channel| {
-                    channel
-                        .has_override()
-                        .then(|| channel.effective::<f64>().ok().copied())
-                        .flatten()
-                })
-            });
-            if opacity.is_some() || transform.is_some() || route.is_some() || dash_offset.is_some()
-            {
+            if opacity.is_some() || transform.is_some() || content.is_some() {
                 figures.insert(
                     figure,
                     FigurePresentationEffect {
                         opacity,
                         transform,
-                        route,
-                        dash_offset,
+                        content,
                     },
                 );
             }
@@ -477,8 +547,33 @@ impl AnimationService {
         })
     }
 
+    fn active_presentation_channels_by_figure(&self) -> HashMap<FigureId, Vec<&ChannelState>> {
+        let mut seen = HashSet::new();
+        let mut by_figure: HashMap<_, Vec<_>> = HashMap::new();
+        for track in self
+            .active
+            .iter()
+            .flat_map(|(_, animation)| animation.tracks.iter())
+        {
+            if !seen.insert(track.channel) {
+                continue;
+            }
+            let Some(channel) = self.channels.get(track.channel) else {
+                continue;
+            };
+            let Some((figure, _)) = channel.binding.figure_presentation() else {
+                continue;
+            };
+            if channel.has_override() {
+                by_figure.entry(figure).or_default().push(channel);
+            }
+        }
+        by_figure
+    }
+
     fn damage_state(&self, tree: &FigureTree) -> HashMap<DamageSubject, DamageSubjectState> {
         let (active_figures, active_temporaries) = self.active_subjects();
+        let active_presentations = self.active_presentation_channels_by_figure();
         let mut state = HashMap::new();
         for figure in active_figures {
             let Some(channels) = self.figure_channels.get(&figure) else {
@@ -501,25 +596,18 @@ impl AnimationService {
             else {
                 continue;
             };
-            let route = self.route_channels.get(&figure).and_then(|channel| {
-                self.channels
-                    .get(*channel)
-                    .and_then(|channel| channel.effective::<PointList>().ok())
-                    .cloned()
-            });
-            let dash_offset = self.dash_channels.get(&figure).and_then(|channel| {
-                self.channels
-                    .get(*channel)
-                    .and_then(|channel| channel.effective::<f64>().ok())
-                    .copied()
-            });
+            let content_revision = active_presentations
+                .get(&figure)
+                .into_iter()
+                .flatten()
+                .map(|channel| channel.presentation_revision)
+                .reduce(u64::wrapping_add);
             state.insert(
                 DamageSubject::Figure(figure),
                 DamageSubjectState::Figure {
                     opacity,
                     transform,
-                    route,
-                    dash_offset,
+                    content_revision,
                     envelope: tree.presentation_envelope(figure, transform),
                 },
             );
@@ -618,15 +706,9 @@ impl AnimationService {
             .filter_map(|channel| self.channel_owners.get(&channel).copied())
             .collect();
         owners.extend(
-            self.route_channels
+            self.presentation_channels
                 .iter()
-                .filter(|(figure, _)| figures.contains(figure))
-                .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
-        );
-        owners.extend(
-            self.dash_channels
-                .iter()
-                .filter(|(figure, _)| figures.contains(figure))
+                .filter(|(key, _)| figures.contains(&key.figure))
                 .filter_map(|(_, channel)| self.channel_owners.get(channel).copied()),
         );
         for owner in owners {
@@ -644,25 +726,14 @@ impl AnimationService {
                 self.channels.remove(channels.transform);
             }
         }
-        let retired_routes: Vec<_> = self
-            .route_channels
+        let retired_presentations: Vec<_> = self
+            .presentation_channels
             .keys()
             .copied()
-            .filter(|figure| figures.contains(figure))
+            .filter(|key| figures.contains(&key.figure))
             .collect();
-        for figure in retired_routes {
-            if let Some(channel) = self.route_channels.remove(&figure) {
-                self.channels.remove(channel);
-            }
-        }
-        let retired_dash: Vec<_> = self
-            .dash_channels
-            .keys()
-            .copied()
-            .filter(|figure| figures.contains(figure))
-            .collect();
-        for figure in retired_dash {
-            if let Some(channel) = self.dash_channels.remove(&figure) {
+        for key in retired_presentations {
+            if let Some(channel) = self.presentation_channels.remove(&key) {
                 self.channels.remove(channel);
             }
         }
@@ -796,6 +867,7 @@ impl AnimationService {
             return Err(AnimationError::EmptyPlan);
         }
         let mut final_tracks: HashMap<AnimationChannelId, (u64, usize)> = HashMap::new();
+        let mut presentation_families = HashMap::new();
         for (index, track) in plan.tracks.iter().enumerate() {
             let end = track
                 .start_micros
@@ -806,6 +878,18 @@ impl AnimationService {
                 .or_insert((end, index));
             if (end, index) > *entry {
                 *entry = (end, index);
+            }
+            if let Some((figure, binding)) = self
+                .channels
+                .get(track.spec.channel())
+                .and_then(|channel| channel.binding.figure_presentation())
+            {
+                let entry = presentation_families
+                    .entry(figure)
+                    .or_insert_with(|| binding.family());
+                if *entry != binding.family() {
+                    return Err(AnimationError::OverlappingTracks);
+                }
             }
         }
         for (channel_id, (_, index)) in &final_tracks {
@@ -880,8 +964,6 @@ impl AnimationService {
                 AnimationSuppression::NoVisualDelta,
             ));
         }
-        self.validate_active_budget(prepared.tracks.len(), 0)?;
-
         let mut existing: HashSet<_> = prepared
             .tracks
             .iter()
@@ -896,11 +978,18 @@ impl AnimationService {
                 existing.insert(owner);
             }
         }
+        existing.extend(self.conflicting_presentation_owners(&prepared.tracks, None));
         if let (InterruptionPolicy::Ignore, Some(owner)) =
             (prepared.interruption, existing.iter().next().copied())
         {
             return Ok(AnimationStart::Existing(owner));
         }
+        let replaced_tracks = existing
+            .iter()
+            .filter_map(|owner| self.active.get(*owner))
+            .map(|animation| animation.tracks.len())
+            .sum();
+        self.validate_active_budget(prepared.tracks.len(), existing.len(), replaced_tracks)?;
         let temporary_targets = self.temporary_targets(&prepared.tracks);
         for owner in existing {
             self.finish_preserving_temporaries(
@@ -964,7 +1053,7 @@ impl AnimationService {
             .get(id)
             .map(|animation| (animation.surface_suspended, animation.target_hidden))
             .expect("validated animation must exist");
-        self.validate_active_budget(prepared.tracks.len(), old_track_count)?;
+        self.validate_active_budget(prepared.tracks.len(), 1, old_track_count)?;
         if prepared.tracks.iter().any(|track| {
             self.channel_owners
                 .get(&track.channel)
@@ -981,6 +1070,12 @@ impl AnimationService {
                     .and_then(|visual| visual.owner)
                     .is_some_and(|owner| owner != id)
             })
+        {
+            return Err(AnimationError::ChannelConflict);
+        }
+        if !self
+            .conflicting_presentation_owners(&prepared.tracks, Some(id))
+            .is_empty()
         {
             return Err(AnimationError::ChannelConflict);
         }
@@ -1012,7 +1107,6 @@ impl AnimationService {
         for channel in &new_channels {
             self.channel_owners.insert(*channel, id);
         }
-
         self.active_track_count = self
             .active_track_count
             .saturating_sub(old_track_count)
@@ -1144,9 +1238,16 @@ impl AnimationService {
     fn validate_active_budget(
         &self,
         new_tracks: usize,
+        replaced_animations: usize,
         replaced_tracks: usize,
     ) -> Result<(), AnimationError> {
-        if replaced_tracks == 0 && self.active.len() >= DEFAULT_MAX_ACTIVE_ANIMATIONS {
+        if self
+            .active
+            .len()
+            .saturating_sub(replaced_animations)
+            .saturating_add(1)
+            > DEFAULT_MAX_ACTIVE_ANIMATIONS
+        {
             return Err(AnimationError::BudgetExceeded(
                 AnimationBudgetKind::ActiveAnimations,
             ));
@@ -1171,6 +1272,49 @@ impl AnimationService {
                 self.channels
                     .get(track.channel)
                     .and_then(|channel| channel.binding.temporary())
+            })
+            .collect()
+    }
+
+    fn presentation_families(&self, tracks: &[PreparedPlanTrack]) -> HashMap<FigureId, TypeId> {
+        tracks
+            .iter()
+            .filter_map(|track| {
+                self.channels
+                    .get(track.channel)
+                    .and_then(|channel| channel.binding.figure_presentation())
+                    .map(|(figure, binding)| (figure, binding.family()))
+            })
+            .collect()
+    }
+
+    fn conflicting_presentation_owners(
+        &self,
+        tracks: &[PreparedPlanTrack],
+        except: Option<AnimationId>,
+    ) -> HashSet<AnimationId> {
+        let requested = self.presentation_families(tracks);
+        if requested.is_empty() {
+            return HashSet::new();
+        }
+        self.active
+            .iter()
+            .filter(|(owner, _)| Some(*owner) != except)
+            .filter_map(|(owner, animation)| {
+                animation
+                    .tracks
+                    .iter()
+                    .any(|track| {
+                        self.channels
+                            .get(track.channel)
+                            .and_then(|channel| channel.binding.figure_presentation())
+                            .is_some_and(|(figure, binding)| {
+                                requested
+                                    .get(&figure)
+                                    .is_some_and(|family| *family != binding.family())
+                            })
+                    })
+                    .then_some(owner)
             })
             .collect()
     }
@@ -1201,6 +1345,16 @@ impl AnimationService {
             self.channels.remove(transform);
         }
         true
+    }
+}
+
+fn map_connection_presentation_error(error: AnimationError) -> AnimationError {
+    match error {
+        AnimationError::UnsupportedPresentationBinding { .. }
+        | AnimationError::InvalidPresentationBinding { .. } => {
+            AnimationError::UnsupportedRoutePresentation
+        }
+        error => error,
     }
 }
 
@@ -1431,7 +1585,7 @@ impl AnimationMut<'_> {
     ) -> Result<bool, AnimationError> {
         self.ensure_not_faulted()?;
         let state = self.channel_mut(channel)?;
-        if state.binding != ChannelBinding::Detached {
+        if !state.binding.is_detached() {
             return Err(AnimationError::ManagedChannel);
         }
         state.set_committed(committed)
@@ -1454,7 +1608,7 @@ impl AnimationMut<'_> {
             .service
             .channels
             .get(channel_id)
-            .is_some_and(|channel| channel.binding != ChannelBinding::Detached)
+            .is_some_and(|channel| !channel.binding.is_detached())
         {
             return Err(AnimationError::ManagedChannel);
         }
@@ -1522,22 +1676,47 @@ impl AnimationMut<'_> {
         ))
     }
 
-    /// Creates or returns the Runtime-managed route presentation channel for a Connection.
-    pub fn bind_connection_route(
+    /// Creates or returns a Runtime-managed typed content-presentation channel.
+    ///
+    /// The Figure must register the same key at attach time. Input and accessibility remain on
+    /// committed geometry; the sampled value only replaces immutable self-content for recording.
+    pub fn bind_presentation<V: AnimationValue>(
         &mut self,
         figure: FigureId,
-    ) -> Result<AnimationChannel<PointList>, AnimationError> {
+        key: CapabilityKey<PresentationBinding<V>>,
+        interaction: InteractionGeometryPolicy,
+    ) -> Result<AnimationChannel<V>, AnimationError> {
         self.ensure_not_faulted()?;
+        if interaction != InteractionGeometryPolicy::Committed {
+            return Err(AnimationError::UnsupportedInteractionGeometry);
+        }
         if figure.namespace() != self.service.namespace {
             return Err(AnimationError::ForeignTarget);
         }
-        let connection = self
+        let node = self
             .tree
             .node(figure)
-            .and_then(|node| node.figure.connection())
-            .filter(|connection| connection.supports_route_presentation())
-            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
-        if let Some(channel) = self.service.route_channels.get(&figure).copied() {
+            .ok_or(AnimationError::DisposedTarget)?;
+        let binding = self
+            .tree
+            .capability(figure, key)
+            .map_err(|_| AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            })?
+            .cloned()
+            .ok_or(AnimationError::UnsupportedPresentationBinding {
+                capability: key.name(),
+            })?;
+        let channel_key = FigurePresentationChannelKey {
+            figure,
+            value_type: TypeId::of::<V>(),
+        };
+        if let Some(channel) = self
+            .service
+            .presentation_channels
+            .get(&channel_key)
+            .copied()
+        {
             return Ok(AnimationChannel::new(channel));
         }
         let required = usize::from(!self.service.figure_channels.contains_key(&figure)) * 2 + 1;
@@ -1546,14 +1725,129 @@ impl AnimationMut<'_> {
                 AnimationBudgetKind::Channels,
             ));
         }
-        let committed = connection.route_points().clone();
-        self.bind_figure(figure, InteractionGeometryPolicy::Committed)?;
+        let committed = binding.committed(node.figure.as_ref()).ok_or(
+            AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            },
+        )?;
+        if !committed.is_valid() {
+            return Err(AnimationError::InvalidValue);
+        }
+        self.bind_figure(figure, interaction)?;
         let channel = self.service.channels.insert(ChannelState::new_bound(
             committed,
-            ChannelBinding::FigureRoute(figure),
+            ChannelBinding::FigurePresentation {
+                figure,
+                binding: Arc::new(TypedPresentationBinding { binding }),
+            },
         ));
-        self.service.route_channels.insert(figure, channel);
+        self.service
+            .presentation_channels
+            .insert(channel_key, channel);
         Ok(AnimationChannel::new(channel))
+    }
+
+    /// Refreshes a managed presentation channel from the Figure's committed source state.
+    pub fn refresh_presentation_binding<V: AnimationValue>(
+        &mut self,
+        figure: FigureId,
+        key: CapabilityKey<PresentationBinding<V>>,
+    ) -> Result<bool, AnimationError> {
+        self.ensure_not_faulted()?;
+        let node = self
+            .tree
+            .node(figure)
+            .ok_or(AnimationError::DisposedTarget)?;
+        let binding = self
+            .tree
+            .capability(figure, key)
+            .map_err(|_| AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            })?
+            .ok_or(AnimationError::UnsupportedPresentationBinding {
+                capability: key.name(),
+            })?;
+        let committed = binding.committed(node.figure.as_ref()).ok_or(
+            AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            },
+        )?;
+        let channel = self.bind_presentation(figure, key, InteractionGeometryPolicy::Committed)?;
+        self.set_presentation_committed(channel, committed)
+    }
+
+    pub(crate) fn prepare_presentation<V: AnimationValue>(
+        &self,
+        figure: FigureId,
+        key: CapabilityKey<PresentationBinding<V>>,
+        value: &V,
+    ) -> Result<FigurePresentation, AnimationError> {
+        let node = self
+            .tree
+            .node(figure)
+            .ok_or(AnimationError::DisposedTarget)?;
+        let binding = self
+            .tree
+            .capability(figure, key)
+            .map_err(|_| AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            })?
+            .ok_or(AnimationError::UnsupportedPresentationBinding {
+                capability: key.name(),
+            })?;
+        let supplied = value as &dyn Any;
+        let values: Vec<_> = self
+            .service
+            .presentation_channels
+            .iter()
+            .filter(|(channel_key, _)| channel_key.figure == figure)
+            .filter_map(|(_, channel)| {
+                let channel = self.service.channels.get(*channel)?;
+                let (_, channel_binding) = channel.binding.figure_presentation()?;
+                (channel_binding.family() == binding.family()).then(|| {
+                    let value = if channel_binding.value_type_id() == TypeId::of::<V>() {
+                        supplied
+                    } else {
+                        channel.effective_any()
+                    };
+                    (channel_binding.value_type_id(), value)
+                })
+            })
+            .collect();
+        binding
+            .prepare(
+                node.figure.as_ref(),
+                PresentationValues::new(&values),
+                node.figure_bounds(),
+            )
+            .ok_or(AnimationError::InvalidPresentationBinding {
+                capability: key.name(),
+            })
+    }
+
+    fn set_presentation_committed<V: AnimationValue>(
+        &mut self,
+        channel: AnimationChannel<V>,
+        committed: V,
+    ) -> Result<bool, AnimationError> {
+        let state = self.channel_mut(channel)?;
+        if state.binding.figure_presentation().is_none() {
+            return Err(AnimationError::ManagedChannel);
+        }
+        state.set_committed(committed)
+    }
+
+    /// Creates or returns the Runtime-managed route presentation channel for a Connection.
+    pub fn bind_connection_route(
+        &mut self,
+        figure: FigureId,
+    ) -> Result<AnimationChannel<PointList>, AnimationError> {
+        self.bind_presentation(
+            figure,
+            CONNECTION_ROUTE_PRESENTATION,
+            InteractionGeometryPolicy::Committed,
+        )
+        .map_err(map_connection_presentation_error)
     }
 
     pub(crate) fn set_connection_route_committed(
@@ -1562,11 +1856,7 @@ impl AnimationMut<'_> {
         committed: PointList,
     ) -> Result<bool, AnimationError> {
         self.ensure_not_faulted()?;
-        let state = self.channel_mut(channel)?;
-        if !matches!(state.binding, ChannelBinding::FigureRoute(_)) {
-            return Err(AnimationError::ManagedChannel);
-        }
-        state.set_committed(committed)
+        self.set_presentation_committed(channel, committed)
     }
 
     /// Creates or returns the Runtime-managed dash-offset channel for a Connection.
@@ -1574,33 +1864,12 @@ impl AnimationMut<'_> {
         &mut self,
         figure: FigureId,
     ) -> Result<AnimationChannel<f64>, AnimationError> {
-        self.ensure_not_faulted()?;
-        if figure.namespace() != self.service.namespace {
-            return Err(AnimationError::ForeignTarget);
-        }
-        let connection = self
-            .tree
-            .node(figure)
-            .and_then(|node| node.figure.connection())
-            .filter(|connection| connection.supports_route_presentation())
-            .ok_or(AnimationError::UnsupportedRoutePresentation)?;
-        if let Some(channel) = self.service.dash_channels.get(&figure).copied() {
-            return Ok(AnimationChannel::new(channel));
-        }
-        let required = usize::from(!self.service.figure_channels.contains_key(&figure)) * 2 + 1;
-        if self.service.channels.len().saturating_add(required) > DEFAULT_MAX_ANIMATION_CHANNELS {
-            return Err(AnimationError::BudgetExceeded(
-                AnimationBudgetKind::Channels,
-            ));
-        }
-        let committed = connection.connection_dash_offset();
-        self.bind_figure(figure, InteractionGeometryPolicy::Committed)?;
-        let channel = self.service.channels.insert(ChannelState::new_bound(
-            committed,
-            ChannelBinding::FigureDashOffset(figure),
-        ));
-        self.service.dash_channels.insert(figure, channel);
-        Ok(AnimationChannel::new(channel))
+        self.bind_presentation(
+            figure,
+            CONNECTION_DASH_PRESENTATION,
+            InteractionGeometryPolicy::Committed,
+        )
+        .map_err(map_connection_presentation_error)
     }
 
     /// Starts a continuous dash flow in logical units per second.
@@ -1618,7 +1887,7 @@ impl AnimationMut<'_> {
         let connection = self
             .tree
             .node(figure)
-            .and_then(|node| node.figure.connection())
+            .and_then(crate::FigureNode::connection)
             .ok_or(AnimationError::UnsupportedRoutePresentation)?;
         let period = connection.connection_dash_period();
         if !period.is_finite() || period <= 0.0 {
@@ -1877,7 +2146,7 @@ impl AnimationMut<'_> {
                 AnimationBudgetKind::Channels,
             ));
         }
-        self.service.validate_active_budget(targets.len(), 0)?;
+        self.service.validate_active_budget(targets.len(), 0, 0)?;
 
         let mut plans = Vec::with_capacity(targets.len());
         for (figure, start) in targets {
@@ -2116,8 +2385,8 @@ impl AnimationMut<'_> {
                 continue;
             }
             changed = true;
-            if old.is_some_and(DamageSubjectState::has_connection_presentation)
-                || new.is_some_and(DamageSubjectState::has_connection_presentation)
+            if old.is_some_and(DamageSubjectState::has_content_presentation)
+                || new.is_some_and(DamageSubjectState::has_content_presentation)
             {
                 *self.full_redraw_pending = true;
             }
@@ -2171,14 +2440,13 @@ impl DamageSubjectState {
         }
     }
 
-    fn has_connection_presentation(&self) -> bool {
+    fn has_content_presentation(&self) -> bool {
         matches!(
             self,
-            Self::Figure { route: Some(_), .. }
-                | Self::Figure {
-                    dash_offset: Some(_),
-                    ..
-                }
+            Self::Figure {
+                content_revision: Some(_),
+                ..
+            }
         )
     }
 }

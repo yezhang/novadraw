@@ -10,13 +10,13 @@ use novadraw::connection::{
     CoordinateSpace, XYAnchor, rectangle_boundary_site,
 };
 use novadraw::container::FreeformLayerFigure;
-use novadraw::event::KeyModifiers;
-use novadraw::figure::border::LineBorder;
-use novadraw::render::{RenderOutcome, SurfaceInfo};
+use novadraw::event::{KeyModifiers, MonotonicTime};
+use novadraw::figure::{Alignment, FlowPage, FlowWrapping, border::LineBorder};
+use novadraw::host::PlatformHost;
+use novadraw::render::{RenderBackend, RenderOutcome, SurfaceInfo};
 use novadraw::{
-    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FramePreparation, LabelFigure,
-    MonotonicTime, PlatformHost, Point, PolylineFigure, Rectangle, RectangleFigure, RenderBackend,
-    TextFlowFigure,
+    Color, Figure, FigureStyle, FramePreparation, LabelFigure, Point, PolylineFigure, Rectangle,
+    RectangleFigure, TextFlowFigure,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
@@ -1682,9 +1682,7 @@ impl DemoApp {
         else {
             return;
         };
-        let preparation = editor
-            .runtime_mut()
-            .prepare_submission(host.surface_info(), renderer.capabilities());
+        let preparation = editor.prepare_submission(host.surface_info(), renderer.capabilities());
         let submission = match preparation {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(error) => panic!("frame preparation failed: {error}"),
@@ -1693,11 +1691,7 @@ impl DemoApp {
             | FramePreparation::AwaitingCompletion => return,
         };
         let outcome = renderer.submit(&submission);
-        editor.runtime_mut().complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            outcome,
-        );
+        editor.complete_submission(submission.session_id, submission.frame_id, outcome);
         if outcome == RenderOutcome::Retry || editor.runtime().has_pending_update() {
             host.request_redraw();
         }
@@ -1798,7 +1792,6 @@ impl ApplicationHandler<()> for DemoApp {
 
         if let Some(editor) = &mut self.editor {
             editor
-                .runtime_mut()
                 .reset_backend_session()
                 .expect("backend session reset failed");
         } else {
@@ -2125,7 +2118,7 @@ mod tests {
             color
         });
         let mut harness = EditorHarness::new().unwrap();
-        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        let frame = harness.prepare_frame().unwrap();
 
         for color in colors {
             assert!(frame.commands().iter().any(|command| matches!(
@@ -2141,7 +2134,7 @@ mod tests {
     #[test]
     fn direct_text_edit_commits_one_rename_and_round_trips_history() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
         let center = harness.node_bounds_in_surface(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         assert!(harness.start_rename_selected().unwrap());
@@ -2183,7 +2176,7 @@ mod tests {
     #[test]
     fn long_direct_text_edit_clips_to_the_node_and_commits_the_complete_label() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
         let center = harness.node_bounds_in_surface(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         assert!(harness.start_rename_selected().unwrap());
@@ -2206,7 +2199,7 @@ mod tests {
                 TextInputEvent::InsertText(label.clone()),
             ))
             .unwrap();
-        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        let frame = harness.prepare_frame().unwrap();
         assert!(frame.commands().iter().any(|command| matches!(
             command.kind,
             RenderCommandKind::Clip { rect }
@@ -2230,7 +2223,7 @@ mod tests {
     #[test]
     fn viewport_guide_uses_light_background_and_dashed_outline() {
         let mut harness = EditorHarness::new().unwrap();
-        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        let frame = harness.prepare_frame().unwrap();
 
         assert!(frame.commands().iter().any(|command| matches!(
             command.kind,
@@ -2259,7 +2252,7 @@ mod tests {
             .expect("viewport outline must be rendered");
 
         assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
-        let resized = harness.runtime_mut().prepare_frame().unwrap();
+        let resized = harness.prepare_frame().unwrap();
         let resized_outline = resized
             .commands()
             .iter()
@@ -2287,7 +2280,7 @@ mod tests {
     #[test]
     fn resized_viewport_does_not_retain_the_initial_canvas_clip() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
         assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
 
         let start = harness.node_bounds_in_surface(3).unwrap().center();
@@ -2299,7 +2292,7 @@ mod tests {
         assert!(moved.x + moved.width < 1_200.0);
         assert!(moved.y + moved.height < 800.0);
 
-        let frame = harness.runtime_mut().prepare_frame().unwrap();
+        let frame = harness.prepare_frame().unwrap();
         assert!(
             frame.commands().iter().all(|command| {
                 !matches!(
@@ -2449,13 +2442,13 @@ mod tests {
     #[test]
     fn zoom_keeps_unscaled_selection_handles_aligned_after_frame_stabilization() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let center = harness.node_bounds(3).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
 
         for _ in 0..6 {
             assert!(harness.zoom_by(1.1, center).unwrap());
-            harness.runtime_mut().prepare_frame();
+            harness.prepare_frame();
             assert_selection_handles_align_with_node(&harness, 3);
         }
     }
@@ -2463,7 +2456,7 @@ mod tests {
     #[test]
     fn autoexpose_and_pointer_return_keep_selection_handles_aligned() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let center = harness.node_bounds(3).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         let start = harness.node_bounds_in_surface(3).unwrap().center();
@@ -2475,7 +2468,7 @@ mod tests {
         for _ in 0..32 {
             let tick = harness.autoexpose_tick(Duration::from_millis(30)).unwrap();
             scrolled |= tick.scrolled();
-            harness.runtime_mut().prepare_frame();
+            harness.prepare_frame();
             assert_selection_handles_align_with_node(&harness, 3);
             if !tick.continue_requested() {
                 break;
@@ -2488,7 +2481,7 @@ mod tests {
         harness
             .pointer_moved(Point::new(732.640625, 399.12890625))
             .unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
 
         assert_selection_handles_align_with_node(&harness, 3);
         let returned_origin = harness.viewport_origin().unwrap();
@@ -2499,14 +2492,14 @@ mod tests {
     #[test]
     fn viewport_resize_reprojects_unscaled_selection_handles_after_origin_clamp() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let model_bounds = harness.node_bounds(3).unwrap();
         harness
             .click(model_bounds.center(), KeyModifiers::default())
             .unwrap();
         harness.zoom_by(2.0, Point::new(0.0, 0.0)).unwrap();
         harness.scroll_by(10_000.0, 10_000.0).unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
 
         assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
 
@@ -2516,7 +2509,7 @@ mod tests {
     #[test]
     fn pointer_leave_cancels_autoexpose_and_clears_the_active_gesture() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let center = harness.node_bounds(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         let start = harness.node_bounds_in_surface(2).unwrap().center();
@@ -2538,7 +2531,7 @@ mod tests {
         let edge_origin = harness.viewport_origin().unwrap();
 
         harness.pointer_exited().unwrap();
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
 
         assert!(!harness.has_active_gesture());
         assert!(!harness.autoexpose_requested());
@@ -2552,7 +2545,7 @@ mod tests {
     #[test]
     fn autoexpose_release_keeps_viewport_on_the_committed_target() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let center = harness.node_bounds(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         let start = harness.node_bounds_in_surface(2).unwrap().center();
@@ -2572,7 +2565,7 @@ mod tests {
         assert!(edge_origin.y() > 0.0);
 
         assert!(harness.pointer_released(edge, MouseButton::Left).unwrap());
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
 
         let committed_origin = harness.viewport_origin().unwrap();
         assert!(committed_origin.x() > 0.0);
@@ -2583,7 +2576,7 @@ mod tests {
     #[test]
     fn dragging_committed_target_back_preserves_the_feedback_surface_position() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame();
+        harness.prepare_frame();
         let center = harness.node_bounds(2).unwrap().center();
         harness.click(center, KeyModifiers::default()).unwrap();
         let start = harness.node_bounds_in_surface(2).unwrap().center();
@@ -2599,7 +2592,7 @@ mod tests {
             }
         }
         assert!(harness.pointer_released(edge, MouseButton::Left).unwrap());
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
         assert!(harness.viewport_origin().unwrap().x() > 0.0);
 
         let start = harness.node_bounds_in_surface(2).unwrap().center();
@@ -2609,7 +2602,7 @@ mod tests {
             .unwrap();
         harness.pointer_moved(target).unwrap();
         assert!(harness.pointer_released(target, MouseButton::Left).unwrap());
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
 
         let committed = harness.node_bounds_in_surface(2).unwrap().center();
         assert!(
@@ -2623,7 +2616,7 @@ mod tests {
     #[test]
     fn reconnect_release_reprojects_handles_after_temporary_range_clamps() {
         let mut harness = EditorHarness::new().unwrap();
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
         harness.activate_connection_creation().unwrap();
         let source = harness.node_bounds_in_surface(2).unwrap().center();
         let target = harness.node_bounds_in_surface(3).unwrap().center();
@@ -2665,7 +2658,7 @@ mod tests {
         assert!(scrolled_origin.y() > 0.0);
 
         assert!(!harness.pointer_released(edge, MouseButton::Left).unwrap());
-        harness.runtime_mut().prepare_frame().unwrap();
+        harness.prepare_frame().unwrap();
 
         assert!(harness.viewport_origin().unwrap().x() < scrolled_origin.x());
         assert!(harness.viewport_origin().unwrap().y() < scrolled_origin.y());

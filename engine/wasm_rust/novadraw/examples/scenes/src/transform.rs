@@ -6,10 +6,13 @@ use std::sync::{
 };
 
 use novadraw::event::{EventContext, FigureEventHandler, MouseEvent};
-use novadraw::figure::{Bounded, Shape, border::LineBorder};
+use novadraw::figure::{
+    Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
+    Shape, border::LineBorder,
+};
 use novadraw::geometry::Translatable;
-use novadraw::graphics::{LineCap, LineJoin};
-use novadraw::{Color, Figure, NdCanvas, Point, Rectangle, RectangleFigure};
+use novadraw::graphics::{LineCap, LineJoin, NdCanvas};
+use novadraw::{Color, Figure, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -56,7 +59,10 @@ fn add_nested_roots(
 
 fn create_nested_coordinate_roots() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.builder().set_contents(Box::new(background()));
+    let contents = scene
+        .builder()
+        .set_contents(Box::new(background()))
+        .expect("valid FigureTree construction");
     let (_, inner) = add_nested_roots(&mut scene, contents);
     scene
         .builder()
@@ -76,7 +82,10 @@ fn create_nested_coordinate_roots() -> novadraw::FigureTree {
 
 fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.builder().set_contents(Box::new(background()));
+    let contents = scene
+        .builder()
+        .set_contents(Box::new(background()))
+        .expect("valid FigureTree construction");
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let local_bounds = Rectangle::new(45.0, 40.0, 150.0, 100.0);
     let child = scene
@@ -119,7 +128,10 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
 
 fn create_coordinate_root_move() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.builder().set_contents(Box::new(background()));
+    let contents = scene
+        .builder()
+        .set_contents(Box::new(background()))
+        .expect("valid FigureTree construction");
     scene
         .builder()
         .add_child(
@@ -197,8 +209,11 @@ impl Figure for TargetDomainFigure {
         Shape::paint_figure(self, gc);
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -270,7 +285,10 @@ fn create_event_point_reduction() -> novadraw::FigureTree {
 fn create_event_point_reduction_with_state()
 -> (novadraw::FigureTree, Arc<AtomicBool>, novadraw::FigureId) {
     let mut scene = novadraw::FigureTree::new();
-    let contents = scene.builder().set_contents(Box::new(background()));
+    let contents = scene
+        .builder()
+        .set_contents(Box::new(background()))
+        .expect("valid FigureTree construction");
     let (_, inner) = add_nested_roots(&mut scene, contents);
     let selected = Arc::new(AtomicBool::new(false));
     let target = scene

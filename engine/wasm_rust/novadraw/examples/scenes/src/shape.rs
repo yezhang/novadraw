@@ -20,7 +20,10 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 不同尺寸的填充矩形
     let rect_1 = novadraw::RectangleFigure::new_with_color(
@@ -89,7 +92,10 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 不同尺寸的椭圆
     let ellipse_1 = novadraw::EllipseFigure::new_with_color(
@@ -163,7 +169,10 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#202124").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 不同圆角半径的矩形
     let rect_0 = novadraw::RoundedRectangleFigure::new_with_color(
@@ -328,7 +337,10 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::rgba(0.15, 0.15, 0.15, 1.0),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // ============================================================
     // 测试1: 不同点数的折线
@@ -649,7 +661,10 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 组合1: 矩形 + 椭圆
     let rect_combo = novadraw::RectangleFigure::new_with_color(
@@ -885,7 +900,10 @@ fn create_scene_9_zorder() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 底层图形（先添加）
     let bottom_rect = novadraw::RectangleFigure::new_with_color(
@@ -1001,7 +1019,10 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         WINDOW_HEIGHT,
         novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 不同线宽的三角形测试
     let tri_w1 = novadraw::TriangleFigure::new_with_direction(
@@ -1159,7 +1180,10 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
     let mut scene = novadraw::FigureTree::new();
 
     let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
 
     // 父矩形
     let parent_rect = novadraw::RectangleFigure::new_with_color(
@@ -1352,7 +1376,8 @@ fn create_p2_scalable_polygon() -> novadraw::FigureTree {
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
             novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
-        )));
+        )))
+        .expect("valid FigureTree construction");
     let template = novadraw::PointList::from_points(vec![
         novadraw::Point::new(0.0, 12.0),
         novadraw::Point::new(18.0, 0.0),
@@ -1360,7 +1385,7 @@ fn create_p2_scalable_polygon() -> novadraw::FigureTree {
         novadraw::Point::new(27.0, 32.0),
         novadraw::Point::new(9.0, 32.0),
     ]);
-    let stretch = novadraw::ScalablePolygonFigure::new(
+    let stretch = novadraw::figure::ScalablePolygonFigure::new(
         novadraw::Rectangle::new(80.0, 90.0, 260.0, 140.0),
         template.clone(),
     )
@@ -1371,12 +1396,12 @@ fn create_p2_scalable_polygon() -> novadraw::FigureTree {
         4.0,
         novadraw::render::LineJoin::Miter,
     );
-    let preserved = novadraw::ScalablePolygonFigure::new(
+    let preserved = novadraw::figure::ScalablePolygonFigure::new(
         novadraw::Rectangle::new(430.0, 90.0, 260.0, 140.0),
         template,
     )
     .expect("valid scalable polygon")
-    .with_scale_mode(novadraw::PolygonScaleMode::PreserveAspect)
+    .with_scale_mode(novadraw::figure::PolygonScaleMode::PreserveAspect)
     .with_fill_color(novadraw::Color::from_hex("#22c55e").expect("valid color literal"))
     .with_stroke(
         novadraw::Color::from_hex("#14532d").expect("valid color literal"),

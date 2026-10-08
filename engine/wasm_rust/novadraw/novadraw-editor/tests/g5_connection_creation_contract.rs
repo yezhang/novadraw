@@ -765,13 +765,11 @@ fn viewer_with_bounds(
         bounds,
     )
     .unwrap();
-    let connection_layer = viewer.root_layers().connection();
     let self_loop_router = viewer
-        .runtime_mut()
-        .register_connection_router(Box::new(TestSelfLoopRouter::new(Box::new(DirectRouter))));
+        .register_connection_router(Box::new(TestSelfLoopRouter::new(Box::new(DirectRouter))))
+        .unwrap();
     viewer
-        .runtime_mut()
-        .set_connection_layer_router(connection_layer, self_loop_router)
+        .set_connection_layer_router(self_loop_router)
         .unwrap();
     viewer
 }
@@ -874,7 +872,7 @@ fn two_stage_tool_locks_source_preserves_selection_and_commits_after_feedback_cl
 #[test]
 fn connection_creation_autoexpose_keeps_source_locked_and_rebuilds_feedback() {
     let mut viewer = viewer_with_bounds(false, Rectangle::new(0.0, 0.0, 320.0, 240.0));
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     arm(&mut domain, &mut viewer);
     click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
@@ -922,7 +920,7 @@ fn connection_creation_autoexpose_keeps_source_locked_and_rebuilds_feedback() {
 #[test]
 fn connection_creation_autoexpose_scrolls_both_corner_axes() {
     let mut viewer = viewer(false);
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     arm(&mut domain, &mut viewer);
     click(&mut domain, &mut viewer, Point::new(80.0, 90.0));
@@ -1232,7 +1230,7 @@ fn endpoint_reconnect_autoexpose_scrolls_both_corner_axes() {
             Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
         )
         .unwrap();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
 
     domain
         .pointer_pressed(
@@ -1394,7 +1392,7 @@ fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
         .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
     viewer.model_mut().unwrap().publish(FIRST_EDGE);
     viewer.refresh().unwrap();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
 
     let mut domain = EditorDomain::new();
     assert!(

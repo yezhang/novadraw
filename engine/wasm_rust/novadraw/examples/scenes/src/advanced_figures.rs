@@ -4,11 +4,14 @@ use novadraw::connection::{
     ChopboxAnchor, ConnectionFigure, ConnectionLocator, CoordinateSpace, EndpointLocator,
     PolygonDecorationFigure, PolylineDecorationFigure, RouterBinding, ShortestPathConnectionRouter,
 };
+use novadraw::figure::{
+    Alignment, FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment, PolygonScaleMode,
+    ScalablePolygonFigure,
+};
 use novadraw::render::{BuiltinFont, LineJoin};
 use novadraw::{
-    Alignment, Color, FigureId, FigureStyle, FlowPage, FlowParagraph, FlowWrapping,
-    InlineTextFragment, LabelFigure, Point, PointList, PolygonScaleMode, Rectangle,
-    RectangleFigure, RoundedRectangleFigure, Runtime, ScalablePolygonFigure, TextFlowFigure,
+    Color, FigureId, FigureStyle, LabelFigure, Point, PointList, Rectangle, RectangleFigure,
+    RoundedRectangleFigure, Runtime, TextFlowFigure,
 };
 
 use crate::{DemoSuite, SceneSpec};

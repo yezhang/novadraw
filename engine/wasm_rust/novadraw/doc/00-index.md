@@ -22,6 +22,11 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   该计划不替代 P2 backlog 的状态真源。
 - 统一 Graphics API 与 glyph 预处理：ADR-025 已接受，P2-G02 已实现并通过验证门禁；
   字体指标、文字测量与图文绘制使用同一 API 集合，自研后端预处理格式保持独立。
+- Figure capability：ADR-027 已接受并验证，开放的 attach-time typed descriptor registry
+  已登记为 [`P2-F02`](roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry)
+  并完成；它关闭
+  [临时概念设计审计 TC-02 与 TC-05](verification/reviews/temporary-concept-design-audit-2026-10-08.md)，
+  后续 TC-13/TC-14 与 TC-04 亦已关闭。
 - 动画正交模型已登记为
   [`P2-M01`](roadmap/p2-delta-backlog.md)，当前为 `in_progress`；
   [Animation / Presentation Plane 设计](design/animation/animation-system.md)、
@@ -68,10 +73,18 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-022-third-party-type-and-render-dependency-boundary.md`](adr/adr-022-third-party-type-and-render-dependency-boundary.md)
 - 统一 Graphics API 与 glyph 预处理边界：
   [`adr/adr-025-unified-graphics-and-glyph-preparation.md`](adr/adr-025-unified-graphics-and-glyph-preparation.md)
+- 开放的 Figure Capability Registry：
+  [`adr/adr-027-open-figure-capability-registry.md`](adr/adr-027-open-figure-capability-registry.md)
+- 类型化属性身份与异构通知日志：
+  [`adr/adr-028-typed-property-identity.md`](adr/adr-028-typed-property-identity.md)
+- Figure Capability 统一扩展模型：
+  [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：
   [`verification/reviews/core-public-api-audit-2026-09-22.md`](verification/reviews/core-public-api-audit-2026-09-22.md)
 - 框架公共 API 命名、语义与职责复审：
   [`verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md`](verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md)
+- 临时概念设计与长期演进审计：
+  [`verification/reviews/temporary-concept-design-audit-2026-10-08.md`](verification/reviews/temporary-concept-design-audit-2026-10-08.md)
 - ADR-001 至 ADR-013 审计与替代关系：
   [`verification/reviews/adr-audit-2026-09-10.md`](verification/reviews/adr-audit-2026-09-10.md)
 - Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)

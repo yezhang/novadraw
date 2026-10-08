@@ -1,17 +1,8 @@
 use std::{cell::Cell, collections::HashMap};
 
-use novadraw::connection::{
-    DependencySubject, RouteMetadata, RouteOutput, RouteRequest, SceneQueryError, SceneRead,
-    TrackedSceneQuery,
-};
+use novadraw::FigureId;
+use novadraw::connection::*;
 use novadraw::geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vec2};
-use novadraw::{
-    AnchorError, AnchorGeometry, AnchorGeometryKey, AnchorSite, ChopboxAnchor, ConnectionAnchor,
-    ConnectionId, ConnectionLocator, ConnectionLocatorStrategy, ConnectionRouter, CoordinateSpace,
-    DirectRouter, EllipseAnchor, EndpointLocator, FigureId, LabelAnchor, MidpointLocator,
-    PathFractionLocator, RoundedRectangleAnchor, RouteEndpoint, RouteError,
-    rectangle_boundary_site,
-};
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
 
@@ -143,7 +134,8 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
         .builder()
         .set_contents(Box::new(novadraw::RectangleFigure::new(
             0.0, 0.0, 100.0, 100.0,
-        )));
+        )))
+        .expect("valid FigureTree construction");
     (0..count)
         .map(|_| {
             tree.builder()
@@ -165,8 +157,8 @@ fn named_anchor_geometry_key_rejects_empty_values() {
     );
     assert!(AnchorGeometryKey::border_box().is_border_box());
     assert_eq!(AnchorGeometryKey::icon().name(), Some("icon"));
-    assert!(novadraw::AnchorSemanticKey::new(None, "", Vec::new()).is_err());
-    assert!(novadraw::AnchorSemanticKey::new(None, "custom", Vec::new()).is_ok());
+    assert!(AnchorSemanticKey::new(None, "", Vec::new()).is_err());
+    assert!(AnchorSemanticKey::new(None, "custom", Vec::new()).is_ok());
 }
 
 #[test]
@@ -325,8 +317,8 @@ fn label_anchor_reads_named_icon_geometry() {
 fn direct_router_uses_opposite_reference_points() {
     let ids = figure_ids(3);
     let connection = ConnectionId::from_figure(ids[0]);
-    let source = novadraw::XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
-    let target = novadraw::XYAnchor::new(Point::new(80.0, 60.0), CoordinateSpace::LogicalSurface);
+    let source = XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
+    let target = XYAnchor::new(Point::new(80.0, 60.0), CoordinateSpace::LogicalSurface);
     let query = QueryFixture::default();
     let mut tracked = query.tracked();
 
@@ -356,7 +348,7 @@ fn direct_router_rejects_constraints_without_partial_output() {
     struct UnexpectedConstraint;
 
     let ids = figure_ids(1);
-    let anchor = novadraw::XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
+    let anchor = XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
     let constraint = UnexpectedConstraint;
     let query = QueryFixture::default();
     let mut tracked = query.tracked();
@@ -380,7 +372,7 @@ fn direct_router_rejects_constraints_without_partial_output() {
 #[test]
 fn route_rejects_dependency_generation_drift() {
     let ids = figure_ids(1);
-    let anchor = novadraw::XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
+    let anchor = XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
     let query = QueryFixture {
         flapping_generation: true,
         ..QueryFixture::default()
@@ -411,7 +403,7 @@ fn anchor_semantic_keys_group_equivalent_owner_geometry() {
     let first = ChopboxAnchor::new(owner);
     let second = ChopboxAnchor::new(owner);
     let ellipse = EllipseAnchor::new(owner);
-    let xy = novadraw::XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
+    let xy = XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
 
     assert_eq!(first.semantic_group_key(), second.semantic_group_key());
     assert_ne!(first.semantic_group_key(), ellipse.semantic_group_key());
@@ -423,7 +415,7 @@ fn xy_anchor_maps_from_its_declared_space() {
     let owner = figure_ids(1)[0];
     let mut query = QueryFixture::default();
     query.origins.insert(owner, Point::new(30.0, 40.0));
-    let anchor = novadraw::XYAnchor::new(Point::new(5.0, 7.0), CoordinateSpace::FigureLocal(owner));
+    let anchor = XYAnchor::new(Point::new(5.0, 7.0), CoordinateSpace::FigureLocal(owner));
 
     let mut tracked = query.tracked();
     assert_eq!(
@@ -455,7 +447,7 @@ fn missing_named_geometry_is_a_structured_anchor_error() {
 #[test]
 fn route_output_rejects_short_and_non_finite_point_lists() {
     let ids = figure_ids(1);
-    let anchor = novadraw::XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
+    let anchor = XYAnchor::new(Point::new(10.0, 20.0), CoordinateSpace::LogicalSurface);
     let query = QueryFixture::default();
     let mut tracked = query.tracked();
     let valid = DirectRouter
@@ -491,7 +483,7 @@ fn route_output_rejects_short_and_non_finite_point_lists() {
             invalid_metadata,
         ),
         Err(RouteError::NonFiniteEndpointMetadata {
-            endpoint: novadraw::RouteEnd::Source,
+            endpoint: RouteEnd::Source,
         })
     );
     assert_eq!(
@@ -500,7 +492,7 @@ fn route_output_rejects_short_and_non_finite_point_lists() {
             metadata,
         ),
         Err(RouteError::EndpointMismatch {
-            endpoint: novadraw::RouteEnd::Source,
+            endpoint: RouteEnd::Source,
         })
     );
 }
@@ -603,10 +595,10 @@ fn endpoint_locator_uses_anchor_normal_only_for_fully_degenerate_route() {
     );
     assert_eq!(
         ConnectionLocator::Target.locate(&points),
-        Err(novadraw::LocatorError::DegenerateRoute)
+        Err(LocatorError::DegenerateRoute)
     );
     assert_eq!(
         EndpointLocator::source(f64::NAN, 0.0),
-        Err(novadraw::LocatorError::InvalidOffset)
+        Err(LocatorError::InvalidOffset)
     );
 }

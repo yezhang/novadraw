@@ -54,7 +54,7 @@ Core 不提供第二套 `tick_animation` 或 backend timer。
 
 ```rust,ignore
 let behavior = AnimationBehavior::new(
-    AnimationTrigger::PropertyChanged("selected"),
+    AnimationTrigger::property_changed(novadraw::event::property::SELECTED),
     move |context| Ok(build_selection_plan(context)?),
 )
 .scoped_to(figure)

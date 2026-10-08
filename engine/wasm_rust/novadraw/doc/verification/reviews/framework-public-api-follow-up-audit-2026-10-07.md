@@ -43,7 +43,8 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P0
 
-状态：待整改
+状态：已整改（2026-10-08，见
+[TC-13 / TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md)）
 
 证据：
 
@@ -71,13 +72,13 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P0
 
-状态：待整改
+状态：部分整改（Runtime 逃逸已关闭，model_mut 待独立事务收口）
 
 证据：
 
 - `novadraw-editor/src/viewer/mod.rs` 公开
   `model_mut() -> Result<&mut A, ViewerError>`；
-- 同文件公开 `runtime_mut() -> &mut Runtime`；
+- 原实现公开 `runtime_mut() -> &mut Runtime`；
 - Viewer 同时承担模型投影、选择、输入仲裁和视觉状态同步。
 
 影响：
@@ -92,6 +93,14 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - 渲染驱动只暴露窄化 `ViewerDrive` / `RenderDrive` 能力；
 - 不从 Viewer 返回完整 `&mut Runtime`；
 - 测试辅助入口不得成为稳定应用 API。
+
+整改证据：
+
+- `GraphicalViewer::runtime_mut` 已删除；渲染、资源、viewport resize、backend session、
+  Runtime gesture/focus 通过具名 forwarding API 驱动；
+- router、字体、组件更新与 Part 内部 visual 均通过 Viewer 所有权边界进入；
+- Native node editor 与 Web direct-edit host 已迁移，不再取得完整 mutable Runtime。
+- `model_mut` 仍供现有 CommandStack/adapter 流程使用，不在本批伪装为已关闭。
 
 ### API-F03：`Figure` trait 同时承担基础协议与能力注册表
 
@@ -124,7 +133,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P0
 
-状态：待整改
+状态：部分整改（树接纳已统一，detached 构造器收口待后续批次）
 
 证据：
 
@@ -150,19 +159,26 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - Builder/Runtime admission 执行统一的最后防线校验；
 - clamp 仅用于合同明确允许的归一化，不用于隐藏非法输入。
 
+整改证据：
+
+- `FigureTree` 在分配 ID 和发布 topology 前统一拒绝非有限或负尺寸 initial bounds；
+- `FigureTreeBuilder::set_contents` 改为 `Result<FigureId, GraphMutationError>`，与
+  `add_child`/`insert_child` 使用相同接纳失败模型；
+- detached Figure 的公开字段和标量构造器尚未统一，本发现项因此保持部分整改。
+
 ### API-F05：Animation Trigger 使用字符串标识属性
 
 优先级：P0，提交前阻断
 
-状态：未提交 API 待修订
+状态：已整改（2026-10-08，见
+[TC-04 完成记录](tc04-typed-property-identity-completion-2026-10-08.md)）
 
 证据：
 
-- `novadraw/src/animation/behavior.rs` 的
-  `AnimationFact::PropertyChanged` 保存 `property: &'static str`；
-- `AnimationTrigger::{PropertyChanged, StateChanged}` 接受 `&'static str`；
-- lifecycle 到 property fact 的映射已出现 `"visible"` 等硬编码值；
-- Animation 设计合同要求 typed channel，不使用字符串 property path。
+- `PropertyKey<V>` 关联 namespace/name/value type；
+- `TypedPropertyChange<V>` 是唯一公开构造入口；
+- `AnimationTrigger::{property_changed,state_changed}` 只接受 typed key；
+- fact、coalescing 与 lifecycle 映射使用 `ErasedPropertyKey`。
 
 影响：
 
@@ -209,10 +225,9 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 证据：
 
-- `novadraw/src/lib.rs` 在 root 平铺大量 connection、container、layout、render 和
-  runtime 专业协议；
-- `NdCanvas`、路由细节、资源与若干扩展类型仍可从 root 直接取得；
-- 当前缺少可审查的 root/prelude 导出快照或 allowlist。
+- root/prelude 已只保留 Runtime、树、基础 geometry、常用 Figure/Layout 与 Graphics；
+- `NdCanvas`、backend、路由、资源与扩展协议已迁移到命名模块；
+- rustdoc 分层符号快照已覆盖 root、prelude、领域模块与 `advanced`。
 
 影响：
 
@@ -312,9 +327,9 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 |---|---|
 | API-F01 | Graphics 目标已设计，但 `NdCanvas` 公共旧入口尚未退出 |
 | API-F03 | 完成记录已明确 Figure capability 全面改造不在当轮范围 |
-| API-F07 | root 曾做缩减，但当前精选边界仍过宽，且缺少防回归快照 |
+| API-F07 | 2026-10-08 已由 TC-13 收窄 root/prelude，并建立分层 rustdoc snapshot |
 | API-F02、F04、F06、F08-F10 | 属于此前切片未覆盖或未完全统一的职责/失败语义 |
-| API-F05 | 来自 2026-10-07 未提交 Animation Behavior 新增公开面 |
+| API-F05 | 2026-10-08 已由 ADR-028 / TC-04 完成 typed property identity 整改 |
 
 因此不得修改旧完成记录为“未完成”；应以本报告作为后续增量审计入口。
 

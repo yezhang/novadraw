@@ -11,7 +11,6 @@ use crate::render::{
     UnsupportedRenderCapability,
 };
 
-use crate::PropertyValue;
 use crate::animation::{AnimationMut, AnimationService};
 use crate::connection::{
     ConnectionRoutingStats, ConnectionRuntime, DependencySubject, FigureTreeSceneRead,
@@ -27,27 +26,30 @@ use crate::mutation::{
 use crate::runtime::accessibility::AccessibilityManager;
 use crate::runtime::resource::ResourceRegistry;
 use crate::runtime::tooltip::TooltipController;
+use crate::runtime::update::property::standard as property;
 use crate::{
     AccessibilityAction, AccessibilityError, AccessibilityNodeId, AccessibilitySnapshot,
     AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
-    AnchorGeometryKey, AnchorId, Border, ChildClippingStrategy, ClickableSnapshot,
-    ClickableVisualState, ConnectionAnchor, ConnectionId, ConnectionLocatorStrategy,
-    ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot, CoordinateListener,
-    CoordinateSpace, CursorIcon, DirectRouter, Direction, EventDispatcher, Figure, FigureId,
-    FigureListener, FigureStyle, FigureTree, FlowPage, FlowTextPosition, FlowTextRange,
-    FlowWrapping, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
-    FocusTraversalPolicy, FontId, FreeformError, ImageDisplayState, ImageFigure, ImageId,
-    InteractionState, Key, KeyModifiers, LabelFigure, LayerError, LayerKey, LayerPlacement,
-    LayeredPane, LayeredPaneMut, LayoutConstraint, LayoutListener, LayoutManager, ListenerId,
-    ListenerScope, MonotonicTime, MouseButton, ObservationListener, PendingMutations,
-    PolygonScaleMode, PropertyChangeListener, Rectangle, ResourceError, RouteError, RouterBinding,
-    RouterId, RoutingConstraint, RoutingGroupScope, ScaleHandle, SceneDispatchContext,
-    ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError, StableQueryError, StableSceneQuery,
-    StackLayout, TextPlacement, TimeError, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager, ValidationError,
-    ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
+    AnchorGeometryKey, AnchorId, Border, CapabilityUpdateError, CapabilityUpdateReceipt,
+    ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId,
+    ConnectionLocatorStrategy, ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot,
+    CoordinateListener, CoordinateSpace, CursorIcon, DirectRouter, Direction, EventDispatcher,
+    Figure, FigureCapabilityUpdate, FigureId, FigureListener, FigureStyle, FigureTree, FlowPage,
+    FlowTextPosition, FlowTextRange, FlowWrapping, FocusChange, FocusError,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
+    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneMut, LayoutConstraint,
+    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
+    ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
+    ResourceError, RouteError, RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope,
+    ScaleHandle, SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
+    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
+    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener,
+    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
+    ZoomManager,
 };
 
+mod capability_update;
 mod component_update;
 mod connection_service;
 mod frame_resource;
@@ -465,6 +467,16 @@ impl FigureMut<'_> {
         U: FigureComponentUpdate,
     {
         self.runtime.update_component(self.figure, update)
+    }
+
+    pub fn update_capability<U>(
+        &mut self,
+        update: U,
+    ) -> Result<CapabilityUpdateReceipt, CapabilityUpdateError<U::Error>>
+    where
+        U: FigureCapabilityUpdate,
+    {
+        self.runtime.update_capability(self.figure, update)
     }
 }
 
@@ -1072,7 +1084,7 @@ impl Runtime {
         polygon: FigureId,
     ) -> Result<ScalablePolygonMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(polygon)?;
-        if !self.tree.has_scalable_polygon_capability(polygon) {
+        if !self.tree.is_scalable_polygon(polygon) {
             return Err(RuntimeMutationError::WrongCapability {
                 figure: polygon,
                 capability: "scalable-polygon mutation",
@@ -1120,10 +1132,7 @@ impl Runtime {
         rounded_rectangle: FigureId,
     ) -> Result<RoundedRectangleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(rounded_rectangle)?;
-        if !self
-            .tree
-            .has_rounded_rectangle_capability(rounded_rectangle)
-        {
+        if !self.tree.is_rounded_rectangle(rounded_rectangle) {
             return Err(RuntimeMutationError::WrongCapability {
                 figure: rounded_rectangle,
                 capability: "rounded-rectangle mutation",
@@ -1140,7 +1149,7 @@ impl Runtime {
         triangle: FigureId,
     ) -> Result<TriangleMut<'_>, RuntimeMutationError> {
         self.validate_attached_figure(triangle)?;
-        if !self.tree.has_triangle_capability(triangle) {
+        if !self.tree.is_triangle(triangle) {
             return Err(RuntimeMutationError::WrongCapability {
                 figure: triangle,
                 capability: "triangle mutation",
@@ -1737,12 +1746,6 @@ impl Runtime {
         placement: LayerPlacement,
     ) -> Result<FigureId, LayerError> {
         self.ensure_layered_pane(pane_id)?;
-        if figure.layer().is_none() {
-            return Err(LayerError::NotLayer);
-        }
-        let child_is_layered_pane = figure
-            .container()
-            .is_some_and(|container| container.child_policy() == crate::ChildPolicy::Layered);
         let state = self
             .layered_panes
             .get(&pane_id)
@@ -1753,7 +1756,15 @@ impl Runtime {
         let target_index = self.resolve_layer_index(pane_id, state, &placement, None)?;
         let child = self
             .tree
-            .add_layer_child(&mut self.updates, pane_id, figure)?;
+            .add_layer_child(&mut self.updates, pane_id, figure)
+            .map_err(|error| {
+                if error == crate::GraphMutationError::LayerChildRequired {
+                    LayerError::NotLayer
+                } else {
+                    LayerError::Graph(error)
+                }
+            })?;
+        let child_is_layered_pane = self.tree.is_layered_pane(child);
         let last_index = self
             .tree
             .child_order(pane_id)
@@ -2672,9 +2683,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "text",
-            PropertyValue::Text(old),
-            PropertyValue::Text(text.clone()),
+            property::TEXT,
+            old,
+            text.clone(),
             |label| label.set_text(text),
             true,
         )
@@ -2811,13 +2822,9 @@ impl Runtime {
         let changed = self.tree.mutate_label(
             &mut self.updates,
             id,
-            "icon",
-            old.map_or(PropertyValue::None, |value| {
-                PropertyValue::Text(format!("{value:?}"))
-            }),
-            icon.map_or(PropertyValue::None, |value| {
-                PropertyValue::Text(format!("{value:?}"))
-            }),
+            property::ICON,
+            old,
+            icon,
             |label| label.set_icon(icon),
             true,
         )?;
@@ -2850,9 +2857,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "text_placement",
-            PropertyValue::Text(format!("{old:?}")),
-            PropertyValue::Text(format!("{placement:?}")),
+            property::TEXT_PLACEMENT,
+            old,
+            placement,
             |label| label.set_text_placement(placement),
             true,
         )
@@ -2875,9 +2882,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "label_alignment",
-            PropertyValue::Text(format!("{old:?}")),
-            PropertyValue::Text(format!("{alignment:?}")),
+            property::LABEL_ALIGNMENT,
+            old,
+            alignment,
             |label| label.set_label_alignment(alignment),
             false,
         )
@@ -2900,9 +2907,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "text_alignment",
-            PropertyValue::Text(format!("{old:?}")),
-            PropertyValue::Text(format!("{alignment:?}")),
+            property::TEXT_ALIGNMENT,
+            old,
+            alignment,
             |label| label.set_text_alignment(alignment),
             false,
         )
@@ -2925,9 +2932,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "icon_alignment",
-            PropertyValue::Text(format!("{old:?}")),
-            PropertyValue::Text(format!("{alignment:?}")),
+            property::ICON_ALIGNMENT,
+            old,
+            alignment,
             |label| label.set_icon_alignment(alignment),
             false,
         )
@@ -2956,9 +2963,9 @@ impl Runtime {
         self.tree.mutate_label(
             &mut self.updates,
             id,
-            "icon_text_gap",
-            PropertyValue::Number(old),
-            PropertyValue::Number(gap),
+            property::ICON_TEXT_GAP,
+            old,
+            gap,
             |label| label.set_icon_text_gap(gap),
             true,
         )
@@ -3973,6 +3980,7 @@ impl Runtime {
                 self.add_figure(parent, figure).map(|_| true)
             }
             PendingMutationKind::UpdateComponent(update) => update.apply(self),
+            PendingMutationKind::UpdateCapability(update) => update.apply(self),
         }
     }
 
@@ -4244,8 +4252,11 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::INPUT, crate::InputCapability::of::<Self>())
         }
     }
 
@@ -4296,7 +4307,8 @@ mod tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid FigureTree construction");
         let child = tree
             .builder()
             .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
@@ -4320,9 +4332,12 @@ mod tests {
     fn first_full_submission_paints_each_figure_once() {
         let paints = Arc::new(AtomicUsize::new(0));
         let mut tree = FigureTree::new();
-        let root = tree.builder().set_contents(Box::new(PaintCounterFigure {
-            paints: Arc::clone(&paints),
-        }));
+        let root = tree
+            .builder()
+            .set_contents(Box::new(PaintCounterFigure {
+                paints: Arc::clone(&paints),
+            }))
+            .expect("valid FigureTree construction");
         tree.builder().validate_subtree(root).unwrap();
         let mut runtime = Runtime::new(tree);
 
@@ -5587,7 +5602,8 @@ mod adr014_tests {
         let mut tree = FigureTree::new();
         let root = tree
             .builder()
-            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+            .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+            .expect("valid FigureTree construction");
         let child = tree
             .builder()
             .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 20.0)))
@@ -5783,8 +5799,11 @@ mod adr014_tests {
         fn name(&self) -> &'static str {
             "PanicOnDetach"
         }
-        fn lifecycle(&mut self) -> Option<&mut dyn crate::FigureLifecycle> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::LIFECYCLE, crate::LifecycleCapability::of::<Self>())
         }
     }
 
@@ -5803,12 +5822,12 @@ mod adr014_tests {
             "PanicOnAttachLayer"
         }
 
-        fn lifecycle(&mut self) -> Option<&mut dyn crate::FigureLifecycle> {
-            Some(self)
-        }
-
-        fn layer(&self) -> Option<&dyn crate::Layer> {
-            Some(self)
+        fn register_capabilities(
+            &self,
+            out: &mut crate::FigureCapabilityBuilder,
+        ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+            out.register(crate::LIFECYCLE, crate::LifecycleCapability::of::<Self>())?;
+            out.register(crate::LAYER, crate::LayerCapability)
         }
     }
 
@@ -5817,8 +5836,6 @@ mod adr014_tests {
             panic!("layer lifecycle fault probe");
         }
     }
-
-    impl crate::Layer for PanicOnAttachLayer {}
 
     #[test]
     fn lifecycle_panic_happens_after_extraction_and_blocks_recording() {

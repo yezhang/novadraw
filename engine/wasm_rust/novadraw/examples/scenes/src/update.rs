@@ -19,7 +19,10 @@ fn gray_background() -> RectangleFigure {
 
 pub fn baseline_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.builder().set_contents(Box::new(gray_background()));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(gray_background()))
+        .expect("valid FigureTree construction");
     for (x, color) in [(100.0, "#e74c3c"), (325.0, "#2ecc71"), (550.0, "#3498db")] {
         graph
             .builder()
@@ -60,7 +63,10 @@ fn partial_damage_scene() -> FigureTree {
 
 pub fn validation_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.builder().set_contents(Box::new(gray_background()));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(gray_background()))
+        .expect("valid FigureTree construction");
     graph
         .builder()
         .set_layout_manager(root, Box::new(XYLayout::new()))
@@ -96,7 +102,10 @@ pub fn validation_scene() -> FigureTree {
 
 pub fn stress_scene() -> FigureTree {
     let mut graph = FigureTree::new();
-    let root = graph.builder().set_contents(Box::new(gray_background()));
+    let root = graph
+        .builder()
+        .set_contents(Box::new(gray_background()))
+        .expect("valid FigureTree construction");
     graph
         .builder()
         .set_layout_manager(

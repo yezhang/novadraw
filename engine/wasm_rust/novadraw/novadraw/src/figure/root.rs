@@ -108,8 +108,11 @@ impl Figure for RootFigure {
         Shape::get_border(self)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())
     }
 }
 

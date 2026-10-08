@@ -401,16 +401,13 @@ impl Figure for TriangleFigure {
         Shape::get_border(self)
     }
 
-    fn container(&self) -> Option<&dyn FigureContainer> {
-        Some(self)
-    }
-
-    fn lifecycle(&mut self) -> Option<&mut dyn super::FigureLifecycle> {
-        Some(self)
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn BorderedFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut crate::FigureCapabilityBuilder,
+    ) -> Result<(), crate::FigureCapabilityRegistrationError> {
+        out.register(crate::CONTAINER, crate::ContainerCapability::of::<Self>())?;
+        out.register(crate::LIFECYCLE, crate::LifecycleCapability::of::<Self>())?;
+        out.register(crate::BORDER, crate::BorderCapability::of::<Self>())
     }
 }
 

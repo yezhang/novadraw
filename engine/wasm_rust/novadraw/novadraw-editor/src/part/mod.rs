@@ -5,11 +5,12 @@
 use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 
 use novadraw::advanced::RuntimeNamespace;
-use novadraw::geometry::Rectangle;
-use novadraw::{
-    AnchorSemanticKey, ComponentUpdateReceipt, ConnectionAnchor, ConnectionRouter, Figure,
-    FigureComponentUpdate, FigureId, FigureStyle, RoutingConstraint, Runtime, RuntimeMutationError,
+use novadraw::connection::{
+    AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, RoutingConstraint,
 };
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::{ComponentUpdateReceipt, FigureComponentUpdate, RuntimeMutationError};
+use novadraw::{Figure, FigureId, FigureStyle, Runtime};
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;
 

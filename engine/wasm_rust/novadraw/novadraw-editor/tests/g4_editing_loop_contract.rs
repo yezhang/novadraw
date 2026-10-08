@@ -10,11 +10,12 @@ use std::{
 use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
 use novadraw::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
 use novadraw_editor::{
-    ChangeBoundsRequest, Command, CommandError, CreateRequest, CreationType, DeleteRequest,
-    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorDomainError,
-    EditorRequest, FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
-    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
-    PolicyRole, RequestModifiers, ResizeDirection, ViewerError, VisualUpdateContext,
+    ChangeBoundsRequest, Command, CommandError, ConnectionCreation, CreateConnectionRequest,
+    CreateRequest, CreationType, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory,
+    EditPolicy, EditorDomain, EditorDomainError, EditorRequest, FeedbackVisual, GraphicalViewer,
+    HandleRole, InteractionRevision, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers, ResizeDirection,
+    ViewerError, VisualUpdateContext,
 };
 
 const ROOT: NodeId = NodeId(1);
@@ -352,6 +353,7 @@ struct PolicyRoutingState {
     feedback_hosts: Vec<NodeId>,
     panic_command: bool,
     panic_feedback: bool,
+    panic_connection_start: bool,
 }
 
 struct RoutingPolicy {
@@ -360,7 +362,10 @@ struct RoutingPolicy {
 
 impl EditPolicy<DiagramModel> for RoutingPolicy {
     fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Delete(_))
+        matches!(
+            request,
+            EditorRequest::Delete(_) | EditorRequest::CreateConnection(_)
+        )
     }
 
     fn target(
@@ -400,6 +405,19 @@ impl EditPolicy<DiagramModel> for RoutingPolicy {
         Ok(vec![FeedbackVisual::scaled(Box::new(
             RectangleFigure::from_bounds(model.nodes[&host.model()].bounds),
         ))])
+    }
+
+    fn start_connection(
+        &mut self,
+        _host: PolicyHost<NodeId>,
+        _request: &CreateConnectionRequest,
+        _model: &DiagramModel,
+    ) -> Result<Option<Box<dyn ConnectionCreation<DiagramModel>>>, PolicyError> {
+        assert!(
+            !self.state.borrow().panic_connection_start,
+            "connection-start extension panicked"
+        );
+        Ok(None)
     }
 }
 
@@ -595,7 +613,7 @@ fn selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup() {
 #[test]
 fn autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta() {
     let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let edge = Point::new(315.0, 100.0);
@@ -641,7 +659,7 @@ fn autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta() {
 #[test]
 fn autoexpose_corner_scrolls_both_available_viewport_axes() {
     let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let corner = Point::new(315.0, 235.0);
@@ -669,7 +687,7 @@ fn autoexpose_corner_scrolls_both_available_viewport_axes() {
 #[test]
 fn transient_feedback_expands_freeform_range_before_edge_scroll() {
     let mut viewer = viewer();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let corner = Point::new(635.0, 475.0);
@@ -709,7 +727,7 @@ fn transient_feedback_expands_freeform_range_before_edge_scroll() {
 #[test]
 fn zoom_during_drag_preserves_the_content_point_under_the_pointer() {
     let mut viewer = viewer();
-    viewer.runtime_mut().prepare_frame().unwrap();
+    viewer.prepare_frame().unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let current = Point::new(110.0, 115.0);
@@ -929,6 +947,33 @@ fn policy_feedback_panic_faults_viewer_before_attaching_feedback() {
     assert!(viewer.is_faulted());
     assert!(matches!(
         viewer.show_feedback_for_request(&request),
+        Err(ViewerError::Faulted)
+    ));
+}
+
+#[test]
+fn connection_extension_panic_faults_viewer() {
+    let state = Rc::new(RefCell::new(PolicyRoutingState {
+        panic_connection_start: true,
+        ..PolicyRoutingState::default()
+    }));
+    let mut viewer = routing_viewer(state);
+    let source = viewer.part_for_model(FIRST).unwrap();
+    let request = CreateConnectionRequest::new(
+        CreationType::new("edge").unwrap(),
+        source,
+        Point::new(10.0, 10.0),
+        RequestModifiers::default(),
+        InteractionRevision::initial(),
+    );
+
+    let panic = catch_unwind(AssertUnwindSafe(|| {
+        viewer.start_connection_creation(&request)
+    }));
+    assert!(panic.is_err());
+    assert!(viewer.is_faulted());
+    assert!(matches!(
+        viewer.start_connection_creation(&request),
         Err(ViewerError::Faulted)
     ));
 }

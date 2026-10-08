@@ -99,6 +99,7 @@ impl FocusTraversalPolicy for TreeOrderFocusTraversal {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::update::property::standard as property;
     use crate::{NotificationEffect, PropertyValue, RectangleFigure};
 
     #[test]
@@ -116,9 +117,11 @@ mod tests {
             .drain_notification_effects()
             .into_iter()
             .filter_map(|effect| match effect {
-                NotificationEffect::EmitProperty(event) => {
-                    Some((event.property, event.old_value, event.new_value))
-                }
+                NotificationEffect::EmitProperty(event) => Some((
+                    event.property(),
+                    event.old_value().clone(),
+                    event.new_value().clone(),
+                )),
                 _ => None,
             })
             .collect();
@@ -126,12 +129,12 @@ mod tests {
             properties,
             vec![
                 (
-                    "focusable",
+                    property::FOCUSABLE.erase(),
                     PropertyValue::Bool(false),
                     PropertyValue::Bool(true),
                 ),
                 (
-                    "focus_traversable",
+                    property::FOCUS_TRAVERSABLE.erase(),
                     PropertyValue::Bool(false),
                     PropertyValue::Bool(true),
                 ),

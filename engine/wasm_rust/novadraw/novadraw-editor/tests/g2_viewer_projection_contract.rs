@@ -36,6 +36,59 @@ struct DiagramModel {
     panic_during_refresh: bool,
 }
 
+struct DeepModel {
+    last: NodeId,
+}
+
+impl ModelAdapter for DeepModel {
+    type Error = Infallible;
+    type Event = ();
+    type ModelId = NodeId;
+
+    fn root(&self) -> Self::ModelId {
+        NodeId(0)
+    }
+
+    fn revision(&self) -> ModelRevision {
+        ModelRevision::initial()
+    }
+
+    fn children(&self, model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error> {
+        Ok((model != self.last)
+            .then(|| NodeId(model.0 + 1))
+            .into_iter()
+            .collect())
+    }
+
+    fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>> {
+        Vec::new()
+    }
+}
+
+struct DeepPart;
+
+impl EditPartBehavior<DeepModel> for DeepPart {
+    fn create_figure(
+        &mut self,
+        _model: &DeepModel,
+        _model_id: NodeId,
+    ) -> Result<Box<dyn Figure>, EditPartError> {
+        Ok(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+    }
+}
+
+struct DeepFactory;
+
+impl EditPartFactory<DeepModel> for DeepFactory {
+    fn create(
+        &mut self,
+        _context: PartFactoryContext<NodeId>,
+        _model: &DeepModel,
+    ) -> Result<Box<dyn EditPartBehavior<DeepModel>>, EditPartError> {
+        Ok(Box::new(DeepPart))
+    }
+}
+
 struct CountingZoomPolicy {
     calls: Arc<AtomicUsize>,
 }
@@ -379,6 +432,18 @@ fn viewer_retains_zoom_manager_policy_and_levels_across_zoom_operations() {
     assert!(viewer.set_viewport_scale_at(0.1, None).unwrap());
     assert_eq!(viewer.zoom_manager().zoom(), 0.5);
     assert_eq!(policy_calls.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn model_snapshot_rejects_depth_above_ten_thousand_without_stack_overflow() {
+    let result = GraphicalViewer::new(
+        DeepModel {
+            last: NodeId(10_001),
+        },
+        DeepFactory,
+        Rectangle::new(0.0, 0.0, 100.0, 100.0),
+    );
+    assert!(matches!(result, Err(ViewerError::DepthLimitExceeded)));
 }
 
 #[test]
@@ -733,12 +798,8 @@ fn unknown_and_foreign_visuals_do_not_resolve_to_parts() {
 fn unregistered_internal_visual_resolves_through_its_registered_ancestor() {
     let (mut viewer, _) = viewer();
     let node_two = viewer.part_for_model(NodeId(2)).unwrap();
-    let pane = viewer.parts().get(node_two).unwrap().content_pane();
     let internal = viewer
-        .runtime_mut()
-        .container(pane)
-        .unwrap()
-        .add(Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0)))
+        .add_internal_visual(node_two, Box::new(RectangleFigure::new(1.0, 1.0, 5.0, 5.0)))
         .unwrap();
 
     assert_eq!(viewer.part_for_visual(internal), None);

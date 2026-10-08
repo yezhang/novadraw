@@ -521,7 +521,11 @@ fn test_viewport_figure_render_uses_content_clip_and_transform() {
     );
     let scalable_id = scene.add_child_to(
         viewport_id,
-        Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 200.0).with_scale(2.0)),
+        Box::new(
+            ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 200.0)
+                .with_scale(2.0)
+                .unwrap(),
+        ),
     );
     scene.add_child_to(
         scalable_id,

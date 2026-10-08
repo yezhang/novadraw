@@ -16,8 +16,14 @@ impl Figure for AccessibleGroup {
         "AccessibleGroup"
     }
 
-    fn accessible(&self) -> Option<&dyn AccessibleFigure> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut novadraw::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::ACCESSIBILITY,
+            novadraw::AccessibilityCapability::of::<Self>(),
+        )
     }
 }
 

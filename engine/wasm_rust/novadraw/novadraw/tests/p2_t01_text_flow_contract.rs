@@ -1,8 +1,6 @@
+use novadraw::figure::{FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment};
 use novadraw::render::{BuiltinFont, RenderCommandKind};
-use novadraw::{
-    FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment, Rectangle, RectangleFigure, Runtime,
-    TextFlowFigure,
-};
+use novadraw::{Rectangle, RectangleFigure, Runtime, TextFlowFigure};
 
 fn page() -> FlowPage {
     FlowPage::new(vec![

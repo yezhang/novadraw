@@ -1,5 +1,9 @@
 use std::collections::HashMap;
 
+use crate::runtime::update::{
+    DiscretePropertyValue, ErasedPropertyKey, PropertyChangeEvent, PropertyKey,
+    property::standard as property,
+};
 use crate::{
     AncestorEventKind, FigureEvent, FigureId, NotificationEffect, PropertyValue, Rectangle,
     StableSceneQuery,
@@ -21,16 +25,7 @@ pub enum AnimationFact {
         new_bounds: Rectangle,
     },
     /// A typed committed property changed.
-    PropertyChanged {
-        /// Changed Figure.
-        figure: FigureId,
-        /// Stable property name emitted by the Figure capability.
-        property: &'static str,
-        /// Value before the first change in this stable transaction.
-        old_value: PropertyValue,
-        /// Value after the last change in this stable transaction.
-        new_value: PropertyValue,
-    },
+    PropertyChanged(PropertyChangeEvent),
     /// A Figure was attached to or detached from a parent.
     Lifecycle {
         /// Changed Figure.
@@ -45,27 +40,9 @@ pub enum AnimationFact {
 impl AnimationFact {
     pub(crate) fn figure(&self) -> FigureId {
         match self {
-            Self::FigureBoundsChanged { figure, .. }
-            | Self::PropertyChanged { figure, .. }
-            | Self::Lifecycle { figure, .. } => *figure,
+            Self::FigureBoundsChanged { figure, .. } | Self::Lifecycle { figure, .. } => *figure,
+            Self::PropertyChanged(event) => event.figure_id(),
         }
-    }
-
-    fn is_discrete_state(&self) -> bool {
-        matches!(
-            self,
-            Self::PropertyChanged {
-                old_value: PropertyValue::Bool(_)
-                    | PropertyValue::Cursor(_)
-                    | PropertyValue::Figure(_)
-                    | PropertyValue::None,
-                new_value: PropertyValue::Bool(_)
-                    | PropertyValue::Cursor(_)
-                    | PropertyValue::Figure(_)
-                    | PropertyValue::None,
-                ..
-            }
-        )
     }
 }
 
@@ -89,27 +66,61 @@ pub enum AnimationLifecycle {
 pub enum AnimationTrigger {
     /// Match committed Figure bounds changes.
     FigureBoundsChanged,
-    /// Match a property name regardless of value kind.
-    PropertyChanged(&'static str),
-    /// Match a property name only when both values are discrete states.
-    StateChanged(&'static str),
+    /// Match one typed property regardless of value kind.
+    PropertyChanged(PropertySelector),
+    /// Match one typed discrete-state property.
+    StateChanged(StatePropertySelector),
     /// Match every committed fact in one stable transaction.
     Transaction,
     /// Match one lifecycle operation.
     Lifecycle(AnimationLifecycle),
 }
 
+/// Type-erased selector created from a typed property key.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PropertySelector(ErasedPropertyKey);
+
+impl PropertySelector {
+    /// Returns the selected property identity.
+    pub const fn property(self) -> ErasedPropertyKey {
+        self.0
+    }
+}
+
+/// Type-erased selector restricted to discrete property value types.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StatePropertySelector(ErasedPropertyKey);
+
+impl StatePropertySelector {
+    /// Returns the selected property identity.
+    pub const fn property(self) -> ErasedPropertyKey {
+        self.0
+    }
+}
+
 impl AnimationTrigger {
+    /// Matches changes emitted with the supplied typed property key.
+    pub fn property_changed<V: 'static>(property: PropertyKey<V>) -> Self {
+        Self::PropertyChanged(PropertySelector(property.erase()))
+    }
+
+    /// Matches changes to a typed discrete-state property.
+    pub fn state_changed<V>(property: PropertyKey<V>) -> Self
+    where
+        V: DiscretePropertyValue,
+    {
+        Self::StateChanged(StatePropertySelector(property.erase()))
+    }
+
     pub(crate) fn matches(self, fact: &AnimationFact) -> bool {
         match (self, fact) {
             (Self::FigureBoundsChanged, AnimationFact::FigureBoundsChanged { .. }) => true,
-            (Self::PropertyChanged(expected), AnimationFact::PropertyChanged { property, .. }) => {
-                expected == *property
+            (Self::PropertyChanged(expected), AnimationFact::PropertyChanged(event)) => {
+                expected.property() == event.property()
             }
-            (
-                Self::StateChanged(expected),
-                fact @ AnimationFact::PropertyChanged { property, .. },
-            ) => expected == *property && fact.is_discrete_state(),
+            (Self::StateChanged(expected), AnimationFact::PropertyChanged(event)) => {
+                expected.property() == event.property()
+            }
             (Self::Transaction, _) => true,
             (
                 Self::Lifecycle(AnimationLifecycle::Attached),
@@ -129,12 +140,13 @@ impl AnimationTrigger {
                 Self::Lifecycle(
                     expected @ (AnimationLifecycle::Shown | AnimationLifecycle::Hidden),
                 ),
-                AnimationFact::PropertyChanged {
-                    property: "visible",
-                    new_value: PropertyValue::Bool(visible),
-                    ..
-                },
-            ) => {
+                AnimationFact::PropertyChanged(event),
+            ) if event.property().is(property::VISIBLE)
+                && matches!(event.new_value(), PropertyValue::Bool(_)) =>
+            {
+                let PropertyValue::Bool(visible) = event.new_value() else {
+                    unreachable!("guard checked bool property value");
+                };
                 (*visible && expected == AnimationLifecycle::Shown)
                     || (!*visible && expected == AnimationLifecycle::Hidden)
             }
@@ -320,7 +332,7 @@ impl AnimationBehaviorFailure {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 enum FactKey {
     Bounds(FigureId),
-    Property(FigureId, &'static str),
+    Property(FigureId, ErasedPropertyKey),
 }
 
 fn coalesce_facts(facts: Vec<AnimationFact>) -> Vec<AnimationFact> {
@@ -329,9 +341,9 @@ fn coalesce_facts(facts: Vec<AnimationFact>) -> Vec<AnimationFact> {
     for fact in facts {
         let key = match &fact {
             AnimationFact::FigureBoundsChanged { figure, .. } => Some(FactKey::Bounds(*figure)),
-            AnimationFact::PropertyChanged {
-                figure, property, ..
-            } => Some(FactKey::Property(*figure, property)),
+            AnimationFact::PropertyChanged(event) => {
+                Some(FactKey::Property(event.figure_id(), event.property()))
+            }
             AnimationFact::Lifecycle { .. } => None,
         };
         let Some(key) = key else {
@@ -351,11 +363,7 @@ fn coalesce_facts(facts: Vec<AnimationFact>) -> Vec<AnimationFact> {
             new_bounds,
             ..
         } => old_bounds != new_bounds,
-        AnimationFact::PropertyChanged {
-            old_value,
-            new_value,
-            ..
-        } => old_value != new_value,
+        AnimationFact::PropertyChanged(event) => !event.is_noop(),
         AnimationFact::Lifecycle { .. } => true,
     });
     result
@@ -369,12 +377,9 @@ fn merge_fact(existing: &mut AnimationFact, latest: AnimationFact) {
                 new_bounds: latest, ..
             },
         ) => *new_bounds = latest,
-        (
-            AnimationFact::PropertyChanged { new_value, .. },
-            AnimationFact::PropertyChanged {
-                new_value: latest, ..
-            },
-        ) => *new_value = latest,
+        (AnimationFact::PropertyChanged(existing), AnimationFact::PropertyChanged(latest)) => {
+            existing.merge_latest(latest);
+        }
         _ => unreachable!("facts with different keys are never merged"),
     }
 }
@@ -392,12 +397,9 @@ pub(crate) fn facts_from_effects(effects: &[NotificationEffect]) -> Vec<Animatio
                 old_bounds: *old_bounds,
                 new_bounds: *new_bounds,
             }),
-            NotificationEffect::EmitProperty(event) => Some(AnimationFact::PropertyChanged {
-                figure: event.figure_id,
-                property: event.property,
-                old_value: event.old_value.clone(),
-                new_value: event.new_value.clone(),
-            }),
+            NotificationEffect::EmitProperty(event) => {
+                Some(AnimationFact::PropertyChanged(event.clone()))
+            }
             NotificationEffect::EmitAncestor(event) => match event.kind {
                 AncestorEventKind::Added => Some(AnimationFact::Lifecycle {
                     figure: event.figure_id,

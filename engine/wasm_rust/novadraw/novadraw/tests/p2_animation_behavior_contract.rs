@@ -9,12 +9,12 @@ use std::{
 };
 
 use novadraw::{
-    Affine2D, FigureEvent, FigureListener, FigureTree, ListenerDirective, MonotonicTime, Rectangle,
-    RectangleFigure, Runtime,
+    Affine2D, FigureTree, Rectangle, RectangleFigure, Runtime,
     animation::{
         AnimationBehavior, AnimationBehaviorContext, AnimationError, AnimationFact, AnimationMode,
         AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Opacity, Tween,
     },
+    event::{FigureEvent, FigureListener, ListenerDirective, MonotonicTime, property},
     render::{BackendCapabilities, RenderOutcome, SurfaceInfo},
 };
 
@@ -156,7 +156,7 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
         .animations()
         .install_behavior(
             AnimationBehavior::new(
-                AnimationTrigger::PropertyChanged("enabled"),
+                AnimationTrigger::property_changed(property::ENABLED),
                 move |_: AnimationBehaviorContext<'_>| {
                     calls.fetch_add(1, Ordering::SeqCst);
                     Ok(None)
@@ -170,7 +170,7 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
         .animations()
         .install_behavior(
             AnimationBehavior::new(
-                AnimationTrigger::StateChanged("enabled"),
+                AnimationTrigger::state_changed(property::ENABLED),
                 move |_: AnimationBehaviorContext<'_>| {
                     calls.fetch_add(1, Ordering::SeqCst);
                     Ok(None)
@@ -276,7 +276,7 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
         .animations()
         .install_behavior(
             AnimationBehavior::new(
-                AnimationTrigger::StateChanged("enabled"),
+                AnimationTrigger::state_changed(property::ENABLED),
                 move |_: AnimationBehaviorContext<'_>| {
                     primary_calls.fetch_add(1, Ordering::SeqCst);
                     Ok(None)
@@ -323,7 +323,8 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))

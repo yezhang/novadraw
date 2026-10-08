@@ -1,7 +1,10 @@
-use novadraw::{
-    EventContext, Figure, FigureEventHandler, FigureTree, LayerError, LayerFigure, LayerKey,
-    LayerPlacement, LayeredPane, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,
+use novadraw::container::{LayerError, LayerFigure, LayerKey, LayerPlacement, LayeredPane};
+use novadraw::event::{EventContext, FigureEventHandler, MouseButton, MouseEvent};
+use novadraw::figure::{
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
 };
+use novadraw::runtime::RuntimeMutationError;
+use novadraw::{Figure, FigureTree, Rectangle, RectangleFigure, Runtime};
 
 fn key(value: &str) -> LayerKey {
     LayerKey::new(value).expect("test layer key must be valid")
@@ -21,8 +24,11 @@ impl Figure for EnqueueLayersFigure {
         "EnqueueLayersFigure"
     }
 
-    fn event_handler(&self) -> Option<&dyn FigureEventHandler> {
-        Some(self)
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -52,7 +58,8 @@ fn transparent_layer_returns_descendant_but_never_itself() {
     let mut tree = FigureTree::new();
     let layer = tree
         .builder()
-        .set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(LayerFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
 
     assert_eq!(tree.hit_test_simple((50.0, 50.0)), None);
 
@@ -111,11 +118,11 @@ fn layered_pane_rejects_duplicate_keys_and_generic_add() {
             .container(pane)
             .unwrap()
             .add(Box::new(LayerFigure::new(0.0, 0.0, 200.0, 120.0)),),
-        Err(novadraw::RuntimeMutationError::LayeredParent(pane))
+        Err(RuntimeMutationError::LayeredParent(pane))
     );
     assert_eq!(
         runtime.container(pane).unwrap().remove(layer),
-        Err(novadraw::RuntimeMutationError::LayeredParent(pane))
+        Err(RuntimeMutationError::LayeredParent(pane))
     );
     assert_eq!(
         runtime
@@ -251,7 +258,7 @@ fn reparent_and_remove_update_both_membership_indexes() {
 
     assert_eq!(
         runtime.figure(layer).unwrap().reparent(right),
-        Err(novadraw::RuntimeMutationError::LayeredParent(left))
+        Err(RuntimeMutationError::LayeredParent(left))
     );
     assert_eq!(runtime.tree().parent_id(layer), Some(left));
 

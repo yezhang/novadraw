@@ -33,7 +33,7 @@ Novadraw 已由 ADR-003 确立 parent-local bounds、Runtime 事务入口、Figu
 7. RangeModel 的 minimum、maximum、extent 和 value 统一使用 content domain；
    ScalablePane 是 scale 的唯一真源。
 8. ScalableFreeformLayeredPane 在同一节点组合 LayeredPane、Freeform 和
-   ScalableFigure capability，并复用现有 scale state。
+   `Figure::scale_model` capability，并复用共享 `ScaleModel`。
 9. pre-Runtime 批量构建使用显式 FigureTreeBuilder，运行期 topology 写入统一经过
    Runtime；FigureTree 仅公开只读查询，底层 mutation primitive 限于 crate 内实现。
 

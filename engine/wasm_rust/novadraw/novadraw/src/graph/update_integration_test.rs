@@ -393,7 +393,11 @@ fn test_add_child_under_viewport_repair_uses_content_transform() {
     );
     let scalable_id = scene.add_child_to(
         viewport_id,
-        Box::new(ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 300.0).with_scale(2.0)),
+        Box::new(
+            ScalableLayeredPaneFigure::new(0.0, 0.0, 400.0, 300.0)
+                .with_scale(2.0)
+                .unwrap(),
+        ),
     );
 
     scene.add_child(

@@ -2,14 +2,17 @@
 
 use std::time::Duration;
 
+use novadraw::connection::{
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
+    ConnectionId, CoordinateSpace, RouterBinding,
+};
+use novadraw::event::MonotonicTime;
 use novadraw::{
-    Affine2D, Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, Color,
-    ConnectionFigure, CoordinateSpace, FigureTree, MonotonicTime, Point, Rectangle,
-    RectangleFigure, RouterBinding, Runtime, StackLayout,
+    Affine2D, Color, FigureTree, Point, Rectangle, RectangleFigure, Runtime, StackLayout,
     animation::{
-        AnimationError, AnimationStart, AnimationState, AnimationSuppression,
+        AnimationError, AnimationPlan, AnimationStart, AnimationState, AnimationSuppression,
         AnimationTransactionError, BoundsTransition, ConnectionPulse, ConnectionRouteTransition,
-        Easing, InteractionGeometryPolicy, ViewportTransition,
+        Easing, InteractionGeometryPolicy, Motion, Tween, ViewportTransition,
     },
     graphics::{DashPattern, StrokeStyle},
     render::RenderCommandKind,
@@ -150,7 +153,8 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .expect("valid FigureTree construction");
     let first = tree
         .builder()
         .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
@@ -246,7 +250,8 @@ fn runtime_transaction_stabilizes_layout_before_installing_presentation() {
     let mut tree = FigureTree::new();
     let parent = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(parent, Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
@@ -323,7 +328,8 @@ fn viewport_transaction_animates_pan_without_changing_committed_origin() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = tree
         .builder()
         .add_viewport_to(root, Rectangle::new(100.0, 80.0, 300.0, 200.0))
@@ -375,7 +381,7 @@ fn connection_fixture() -> (
     novadraw::FigureId,
     novadraw::FigureId,
     novadraw::FigureId,
-    novadraw::ConnectionId,
+    ConnectionId,
 ) {
     let mut runtime = Runtime::empty();
     let root = runtime
@@ -524,6 +530,58 @@ fn connection_dash_flow_uses_continuous_procedural_phase() {
     );
     assert!(runtime.animations().cancel(animation).unwrap());
     assert_eq!(runtime.animations().value(phase).unwrap(), 0.0);
+}
+
+#[test]
+fn connection_route_and_dash_share_one_composable_presentation_family() {
+    let (mut runtime, _root, _target, figure, _connection) = connection_fixture();
+    runtime.advance_time(time(0)).unwrap();
+    let route = runtime.animations().bind_connection_route(figure).unwrap();
+    let committed = runtime.animations().value(route).unwrap();
+    let shifted = committed
+        .iter()
+        .map(|point| Point::new(point.x() - 10.0, point.y()))
+        .collect();
+    let route_plan = AnimationPlan::track(
+        route,
+        Motion::Tween(
+            Tween::between(shifted, committed.clone(), Duration::from_millis(200)).unwrap(),
+        ),
+    )
+    .unwrap();
+    let AnimationStart::Running(route_animation) = runtime.animations().start(route_plan).unwrap()
+    else {
+        panic!("route transition must run");
+    };
+    let AnimationStart::Running(dash_animation) = runtime
+        .animations()
+        .start_connection_dash_flow(figure, 1.0)
+        .unwrap()
+    else {
+        panic!("dash flow must run beside route transition");
+    };
+
+    assert_eq!(runtime.animations().active_animation_count(), 2);
+    runtime.advance_time(time(100)).unwrap();
+    assert_eq!(
+        runtime.animations().state(route_animation).unwrap(),
+        AnimationState::Running
+    );
+    assert_eq!(
+        runtime.animations().state(dash_animation).unwrap(),
+        AnimationState::Running
+    );
+    let frame = runtime.record_full_frame();
+    let (painted_route, painted_stroke) = frame
+        .commands()
+        .iter()
+        .find_map(|command| match &command.kind {
+            RenderCommandKind::Polyline { points, stroke, .. } => Some((points, stroke)),
+            _ => None,
+        })
+        .expect("combined Connection presentation must paint one polyline");
+    assert!((painted_route.as_slice()[0].x() - (committed.as_slice()[0].x() - 5.0)).abs() < 1e-9);
+    assert!((painted_stroke.dash_offset() + 0.1).abs() < 1e-9);
 }
 
 #[test]

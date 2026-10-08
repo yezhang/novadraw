@@ -1,10 +1,16 @@
+use novadraw::container::{
+    FreeformLayerFigure, LayerKey, LayerPlacement, MouseLocationZoomScrollPolicy, ScaleHandle,
+    ViewportHandle, ZoomManager,
+};
+use novadraw::event::{
+    ListenerDirective, PropertyChangeEvent, PropertyChangeListener, PropertyValue,
+};
+use novadraw::layout::{FreeformConstraint, FreeformConstraintError, LayoutError, XYConstraint};
 use novadraw::render::RenderCommandKind;
+use novadraw::tree::{FREEFORM_EXTENT_PROPERTY, FreeformError};
 use novadraw::{
-    Dimension, FREEFORM_EXTENT_PROPERTY, FigureTree, FreeformConstraint, FreeformConstraintError,
-    FreeformError, FreeformLayerFigure, FreeformLayout, LayerKey, LayerPlacement, LayoutError,
-    ListenerDirective, MeasureConstraints, MouseLocationZoomScrollPolicy, Point,
-    PropertyChangeEvent, PropertyChangeListener, PropertyValue, Rectangle, RectangleFigure,
-    Runtime, ScaleHandle, ViewportHandle, XYConstraint, ZoomManager,
+    Dimension, FigureTree, FreeformLayout, MeasureConstraints, Point, Rectangle, RectangleFigure,
+    Runtime,
 };
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +29,8 @@ fn scalable_freeform_viewport(
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 800.0, 600.0)))
+        .expect("valid FigureTree construction");
     let viewport = tree
         .builder()
         .add_viewport_to(root, Rectangle::new(0.0, 0.0, 300.0, 200.0))
@@ -64,7 +71,8 @@ fn freeform_query_distinguishes_unknown_non_freeform_and_unvalidated() {
     let mut tree = FigureTree::new();
     let ordinary = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
     assert_eq!(
         tree.freeform_extent(ordinary),
         Err(FreeformError::NotFreeform(ordinary))
@@ -76,7 +84,8 @@ fn freeform_query_distinguishes_unknown_non_freeform_and_unvalidated() {
 
     let freeform = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 10.0, 10.0)))
+        .expect("valid FigureTree construction");
     assert_eq!(
         tree.freeform_extent(freeform),
         Err(FreeformError::Unvalidated(freeform))
@@ -88,7 +97,8 @@ fn empty_freeform_extent_is_zero() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
 
     tree.builder()
         .validate_subtree(host)
@@ -102,7 +112,8 @@ fn freeform_extent_unions_positive_and_negative_child_bounds() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     tree.builder()
         .add_child(
             host,
@@ -128,7 +139,8 @@ fn nested_freeform_uses_derived_extent_not_presentation_bounds() {
     let mut tree = FigureTree::new();
     let outer = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let inner = tree
         .builder()
         .add_child(
@@ -162,7 +174,8 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
@@ -208,17 +221,17 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
         .lock()
         .unwrap()
         .iter()
-        .filter(|event| event.property == FREEFORM_EXTENT_PROPERTY)
+        .filter(|event| event.property().is(FREEFORM_EXTENT_PROPERTY))
         .cloned()
         .collect();
     assert_eq!(extent_events.len(), 1);
     assert_eq!(
-        extent_events[0].old_value,
-        PropertyValue::Rectangle(Rectangle::new(-10.0, -5.0, 20.0, 10.0))
+        extent_events[0].old_value(),
+        &PropertyValue::Rectangle(Rectangle::new(-10.0, -5.0, 20.0, 10.0))
     );
     assert_eq!(
-        extent_events[0].new_value,
-        PropertyValue::Rectangle(Rectangle::new(30.0, 40.0, 20.0, 10.0))
+        extent_events[0].new_value(),
+        &PropertyValue::Rectangle(Rectangle::new(30.0, 40.0, 20.0, 10.0))
     );
 }
 
@@ -227,7 +240,8 @@ fn visibility_does_not_change_freeform_extent() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
@@ -254,7 +268,8 @@ fn overflow_visible_allows_hits_outside_freeform_border_box() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
@@ -271,7 +286,8 @@ fn normal_ancestor_still_clips_freeform_overflow() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let freeform = tree
         .builder()
         .add_child(
@@ -294,7 +310,8 @@ fn overflow_visible_skips_host_clip_during_rendering() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     tree.builder()
         .add_child(
             host,
@@ -322,7 +339,8 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 160.0)))
+        .expect("valid FigureTree construction");
     let viewport = tree
         .builder()
         .add_viewport_to(root, Rectangle::new(0.0, 0.0, 100.0, 80.0))
@@ -374,7 +392,8 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 20.0, 20.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(
@@ -401,7 +420,8 @@ fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 150.0)));
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 150.0)))
+        .expect("valid FigureTree construction");
     let host = tree
         .builder()
         .add_child(
@@ -460,7 +480,8 @@ fn freeform_layout_preserves_negative_origin_and_uses_intrinsic_fallback() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let child = tree
         .builder()
         .add_child(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)))
@@ -507,7 +528,8 @@ fn builder_rejects_invalid_constraint_type_before_layout() {
     let mut tree = FigureTree::new();
     let host = tree
         .builder()
-        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)));
+        .set_contents(Box::new(FreeformLayerFigure::new(0.0, 0.0, 100.0, 80.0)))
+        .expect("valid FigureTree construction");
     let first = tree
         .builder()
         .add_child(host, Box::new(RectangleFigure::new(1.0, 2.0, 3.0, 4.0)))

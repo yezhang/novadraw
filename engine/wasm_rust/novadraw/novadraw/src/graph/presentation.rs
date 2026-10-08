@@ -1,5 +1,6 @@
 use super::*;
 use crate::runtime::ResourceRegistry;
+use crate::runtime::update::property::standard as property;
 
 impl FigureTree {
     pub(crate) fn refresh_prepared_figures(
@@ -8,11 +9,11 @@ impl FigureTree {
         updates: &mut UpdateManager,
     ) -> Result<bool, TextError> {
         use crate::figure::preparation::{PreparationKey, PreparedFigure};
-        let (figures, _) = self.resolved_styles_for(|node| node.figure.preparation().is_some());
+        let (figures, _) = self.resolved_styles_for(|node| node.preparation().is_some());
         let mut candidates = Vec::new();
         for (id, style) in figures {
             let node = &self.blocks[id];
-            let preparation = node.figure.preparation().expect("capability selected");
+            let preparation = node.preparation().expect("capability selected");
             let bounds = node.client_area();
             let key = PreparationKey {
                 component: node.component_revision,
@@ -131,7 +132,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(point_list) = block.figure.point_list() else {
+        let Some(point_list) = block.point_list() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         let old_points = self
@@ -162,7 +163,6 @@ impl FigureTree {
             .ok_or(ShapeMutationError::UnknownFigure(id))?;
         block.set_node_bounds(new_bounds);
         block
-            .figure
             .point_list_mut()
             .ok_or(ShapeMutationError::WrongCapability(id))?
             .commit_geometry(new_bounds, local_points);
@@ -173,12 +173,7 @@ impl FigureTree {
             old_bounds,
             new_bounds,
         });
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "points",
-            old_value: PropertyValue::PointList(old_points),
-            new_value: PropertyValue::PointList(parent_points),
-        });
+        self.emit_typed_property_event(id, property::POINTS, old_points, parent_points);
         self.mark_invalid(update_manager, id);
         self.mark_freeform_ancestor_extents_dirty(id);
         if visible {
@@ -196,7 +191,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(point_list) = block.figure.point_list() else {
+        let Some(point_list) = block.point_list() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         let old_stroke = point_list.stroke_style().clone();
@@ -229,8 +224,7 @@ impl FigureTree {
             .get_mut(id)
             .ok_or(ShapeMutationError::UnknownFigure(id))?;
         block.set_node_bounds(new_bounds);
-        let point_list = block
-            .figure
+        let mut point_list = block
             .point_list_mut()
             .ok_or(ShapeMutationError::WrongCapability(id))?;
         point_list.commit_stroke_style(stroke.clone());
@@ -246,27 +240,17 @@ impl FigureTree {
             self.mark_freeform_ancestor_extents_dirty(id);
         }
         if old_stroke_width != stroke_width {
-            self.emit_property_event(PropertyChangeEvent {
-                figure_id: id,
-                property: "stroke_width",
-                old_value: PropertyValue::Number(old_stroke_width),
-                new_value: PropertyValue::Number(stroke_width),
-            });
+            self.emit_typed_property_event(
+                id,
+                property::STROKE_WIDTH,
+                old_stroke_width,
+                stroke_width,
+            );
         }
         if old_line_join != line_join {
-            self.emit_property_event(PropertyChangeEvent {
-                figure_id: id,
-                property: "line_join",
-                old_value: PropertyValue::Text(format!("{old_line_join:?}")),
-                new_value: PropertyValue::Text(format!("{line_join:?}")),
-            });
+            self.emit_typed_property_event(id, property::LINE_JOIN, old_line_join, line_join);
         }
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "stroke_style",
-            old_value: PropertyValue::Text(format!("{old_stroke:?}")),
-            new_value: PropertyValue::Text(format!("{stroke:?}")),
-        });
+        self.emit_typed_property_event(id, property::STROKE_STYLE, old_stroke, stroke);
         self.mark_invalid(update_manager, id);
         if visible {
             self.repaint(update_manager, id, None);
@@ -274,10 +258,10 @@ impl FigureTree {
         Ok(true)
     }
 
-    pub(crate) fn has_scalable_polygon_capability(&self, id: FigureId) -> bool {
+    pub(crate) fn is_scalable_polygon(&self, id: FigureId) -> bool {
         self.blocks
             .get(id)
-            .is_some_and(|block| block.figure.scalable_polygon().is_some())
+            .is_some_and(|block| block.scalable_polygon().is_some())
     }
 
     pub(crate) fn replace_scalable_polygon_template(
@@ -295,7 +279,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(scalable) = block.figure.scalable_polygon() else {
+        let Some(scalable) = block.scalable_polygon() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         if scalable.template() == &template {
@@ -304,16 +288,16 @@ impl FigureTree {
         let old_template = scalable.template().as_slice().to_vec();
         self.blocks
             .get_mut(id)
-            .and_then(|block| block.figure.scalable_polygon_mut())
+            .and_then(FigureNode::scalable_polygon_mut)
             .expect("validated scalable polygon capability")
             .replace_template(template.clone());
         self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "polygon_template",
-            old_value: PropertyValue::PointList(old_template),
-            new_value: PropertyValue::PointList(template.as_slice().to_vec()),
-        });
+        self.emit_typed_property_event(
+            id,
+            property::POLYGON_TEMPLATE,
+            old_template,
+            template.as_slice().to_vec(),
+        );
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -328,7 +312,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(scalable) = block.figure.scalable_polygon() else {
+        let Some(scalable) = block.scalable_polygon() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         let old = scalable.scale_mode();
@@ -337,16 +321,11 @@ impl FigureTree {
         }
         self.blocks
             .get_mut(id)
-            .and_then(|block| block.figure.scalable_polygon_mut())
+            .and_then(FigureNode::scalable_polygon_mut)
             .expect("validated scalable polygon capability")
             .replace_scale_mode(mode);
         self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "polygon_scale_mode",
-            old_value: PropertyValue::Text(format!("{old:?}")),
-            new_value: PropertyValue::Text(format!("{mode:?}")),
-        });
+        self.emit_typed_property_event(id, property::POLYGON_SCALE_MODE, old, mode);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -362,7 +341,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(scalable) = block.figure.scalable_polygon() else {
+        let Some(scalable) = block.scalable_polygon() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         let old = scalable.alignment();
@@ -371,16 +350,16 @@ impl FigureTree {
         }
         self.blocks
             .get_mut(id)
-            .and_then(|block| block.figure.scalable_polygon_mut())
+            .and_then(FigureNode::scalable_polygon_mut)
             .expect("validated scalable polygon capability")
             .replace_alignment(horizontal, vertical);
         self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "polygon_alignment",
-            old_value: PropertyValue::Text(format!("{old:?}")),
-            new_value: PropertyValue::Text(format!("{:?}", (horizontal, vertical))),
-        });
+        self.emit_typed_property_event(
+            id,
+            property::POLYGON_ALIGNMENT,
+            old,
+            (horizontal, vertical),
+        );
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -395,25 +374,20 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(flow) = block.figure.text_flow() else {
+        let Some(flow) = block.text_flow() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         if flow.page() == &page {
             return Ok(false);
         }
-        let old = format!("{:?}", flow.page());
+        let old = flow.page().clone();
         self.blocks
             .get_mut(id)
-            .and_then(|block| block.figure.text_flow_mut())
+            .and_then(FigureNode::text_flow_mut)
             .expect("validated TextFlow capability")
             .replace_page(page.clone());
         self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "flow_page",
-            old_value: PropertyValue::Text(old),
-            new_value: PropertyValue::Text(format!("{page:?}")),
-        });
+        self.emit_typed_property_event(id, property::FLOW_PAGE, old, page);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -428,7 +402,7 @@ impl FigureTree {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        let Some(flow) = block.figure.text_flow() else {
+        let Some(flow) = block.text_flow() else {
             return Err(ShapeMutationError::WrongCapability(id));
         };
         let old = flow.wrapping();
@@ -437,16 +411,11 @@ impl FigureTree {
         }
         self.blocks
             .get_mut(id)
-            .and_then(|block| block.figure.text_flow_mut())
+            .and_then(FigureNode::text_flow_mut)
             .expect("validated TextFlow capability")
             .replace_wrapping(wrapping);
         self.notify_block_changed(id);
-        self.emit_property_event(PropertyChangeEvent {
-            figure_id: id,
-            property: "flow_wrapping",
-            old_value: PropertyValue::Text(format!("{old:?}")),
-            new_value: PropertyValue::Text(format!("{wrapping:?}")),
-        });
+        self.emit_typed_property_event(id, property::FLOW_WRAPPING, old, wrapping);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -455,10 +424,10 @@ impl FigureTree {
     pub(crate) fn has_border_capability(&mut self, id: FigureId) -> bool {
         self.blocks
             .get_mut(id)
-            .is_some_and(|block| block.figure.bordered_mut().is_some())
+            .is_some_and(|block| block.bordered_mut().is_some())
     }
 
-    pub(crate) fn has_rounded_rectangle_capability(&self, id: FigureId) -> bool {
+    pub(crate) fn is_rounded_rectangle(&self, id: FigureId) -> bool {
         self.blocks.get(id).is_some_and(|block| {
             block
                 .figure
@@ -469,7 +438,7 @@ impl FigureTree {
         })
     }
 
-    pub(crate) fn has_triangle_capability(&self, id: FigureId) -> bool {
+    pub(crate) fn is_triangle(&self, id: FigureId) -> bool {
         self.blocks.get(id).is_some_and(|block| {
             block
                 .figure
@@ -506,8 +475,9 @@ impl FigureTree {
             return Err(ShapeMutationError::NegativeMetric);
         }
         let (supports_border, same_border) =
-            self.blocks.get_mut(id).map_or((false, false), |block| {
-                match block.figure.bordered_mut() {
+            self.blocks
+                .get_mut(id)
+                .map_or((false, false), |block| match block.bordered() {
                     Some(bordered) => {
                         let same = match (bordered.border(), border.as_ref()) {
                             (Some(old), Some(new)) => Arc::ptr_eq(old, new),
@@ -517,8 +487,7 @@ impl FigureTree {
                         (true, same)
                     }
                     None => (false, false),
-                }
-            });
+                });
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
@@ -542,7 +511,6 @@ impl FigureTree {
                 .get_mut(id)
                 .ok_or(ShapeMutationError::UnknownFigure(id))?;
             block
-                .figure
                 .bordered_mut()
                 .ok_or(ShapeMutationError::WrongCapability(id))?
                 .replace_border(border);
@@ -555,12 +523,7 @@ impl FigureTree {
             block.figure.get_border().is_some()
         };
 
-        self.record_property_change(
-            id,
-            "border",
-            PropertyValue::Bool(had_border),
-            PropertyValue::Bool(has_border),
-        );
+        self.record_property_change(id, property::BORDER, had_border, has_border);
         self.mark_invalid(update_manager, id);
         if visible {
             self.repaint(update_manager, id, None);
@@ -602,12 +565,7 @@ impl FigureTree {
             .downcast_mut::<RoundedRectangleFigure>()
             .expect("validated rounded rectangle capability")
             .set_corner_dimensions(dimensions);
-        self.record_property_change(
-            id,
-            "corner_dimensions",
-            PropertyValue::Size(old),
-            PropertyValue::Size(dimensions),
-        );
+        self.record_property_change(id, property::CORNER_DIMENSIONS, old, dimensions);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -641,12 +599,7 @@ impl FigureTree {
             .downcast_mut::<TriangleFigure>()
             .expect("validated triangle capability")
             .set_direction(direction);
-        self.record_property_change(
-            id,
-            "direction",
-            PropertyValue::Text(format!("{old:?}")),
-            PropertyValue::Text(format!("{direction:?}")),
-        );
+        self.record_property_change(id, property::DIRECTION, old, direction);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -660,7 +613,7 @@ impl FigureTree {
         let label_ids = self
             .blocks
             .iter()
-            .filter_map(|(id, node)| node.figure.label().is_some().then_some(id))
+            .filter_map(|(id, node)| node.label().is_some().then_some(id))
             .collect::<Vec<_>>();
         if label_ids.is_empty() {
             return Ok(TextLayoutRefreshResult {
@@ -669,14 +622,12 @@ impl FigureTree {
                 figures_refreshed: 0,
             });
         }
-        let (labels, style_nodes_visited) =
-            self.resolved_styles_for(|node| node.figure.label().is_some());
+        let (labels, style_nodes_visited) = self.resolved_styles_for(|node| node.label().is_some());
         let figures_refreshed = u64::try_from(label_ids.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
         for (id, style) in labels {
             let font = crate::render::FontDescriptor::parse(&style.font)?;
             let label = self.blocks[id]
-                .figure
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
             let icon = label.icon().and_then(|id| resources.image_ref(id));
@@ -699,7 +650,7 @@ impl FigureTree {
         let labels = self
             .blocks
             .iter()
-            .filter_map(|(id, block)| block.figure.label().is_some().then_some(id))
+            .filter_map(|(id, block)| block.label().is_some().then_some(id))
             .collect::<Vec<_>>();
         let mut changed = Vec::new();
         for id in labels {
@@ -707,7 +658,6 @@ impl FigureTree {
             let old_visual = self.blocks[id].visual_bounds();
             let parent = self.blocks[id].parent;
             let label = self.blocks[id]
-                .figure
                 .label_mut()
                 .expect("label capability checked before mutable borrow");
             if label.refresh_presentation(text, bounds)? {
@@ -729,7 +679,7 @@ impl FigureTree {
         let flow_ids = self
             .blocks
             .iter()
-            .filter_map(|(id, node)| node.figure.text_flow().is_some().then_some(id))
+            .filter_map(|(id, node)| node.text_flow().is_some().then_some(id))
             .collect::<Vec<_>>();
         if flow_ids.is_empty() {
             return Ok(TextLayoutRefreshResult {
@@ -739,7 +689,7 @@ impl FigureTree {
             });
         }
         let (flows, style_nodes_visited) =
-            self.resolved_styles_for(|node| node.figure.text_flow().is_some());
+            self.resolved_styles_for(|node| node.text_flow().is_some());
         let figures_refreshed = u64::try_from(flow_ids.len()).unwrap_or(u64::MAX);
         let mut changed = Vec::new();
         for (id, style) in flows {
@@ -748,10 +698,8 @@ impl FigureTree {
             let old_visual = self.blocks[id].visual_bounds();
             let parent = self.blocks[id].parent;
             let flow = self.blocks[id]
-                .figure
-                .as_any_mut()
-                .downcast_mut::<crate::TextFlowFigure>()
-                .expect("TextFlow capability belongs to TextFlowFigure");
+                .text_flow_mut()
+                .expect("TextFlow type checked before refresh");
             if flow.refresh_layout(text, &font, bounds)? {
                 if self.is_effectively_visible(id) {
                     self.erase(updates, id, old_visual, parent);
@@ -827,12 +775,7 @@ impl FigureTree {
             .downcast_mut::<ImageFigure>()
             .expect("image type checked before mutation")
             .set_image(image);
-        self.record_property_change(
-            id,
-            "image",
-            PropertyValue::Text(format!("{previous_image:?}")),
-            PropertyValue::Text(format!("{image:?}")),
-        );
+        self.record_property_change(id, property::IMAGE, previous_image, image);
         self.mark_invalid(update_manager, id);
         self.repaint(update_manager, id, None);
         Ok(true)
@@ -861,38 +804,35 @@ impl FigureTree {
             .downcast_mut::<ImageFigure>()
             .expect("image type checked before mutation")
             .set_alignment(alignment);
-        self.record_property_change(
-            id,
-            "image_alignment",
-            PropertyValue::Text(format!("{previous:?}")),
-            PropertyValue::Text(format!("{alignment:?}")),
-        );
+        self.record_property_change(id, property::IMAGE_ALIGNMENT, previous, alignment);
         self.repaint(update_manager, id, None);
         Ok(true)
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn mutate_label(
+    pub(crate) fn mutate_label<V>(
         &mut self,
         update_manager: &mut UpdateManager,
         id: FigureId,
-        property: &'static str,
-        old_value: PropertyValue,
-        new_value: PropertyValue,
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
         mutate: impl FnOnce(&mut LabelFigure),
         revalidate: bool,
-    ) -> Result<bool, ShapeMutationError> {
+    ) -> Result<bool, ShapeMutationError>
+    where
+        V: PropertyValueType,
+    {
         let Some(block) = self.blocks.get(id) else {
             return Err(ShapeMutationError::UnknownFigure(id));
         };
-        if block.figure.label().is_none() {
+        if block.label().is_none() {
             return Err(ShapeMutationError::WrongCapability(id));
         }
         if old_value == new_value {
             return Ok(false);
         }
         let label = self.blocks[id]
-            .figure
             .label_mut()
             .expect("label capability checked before mutation");
         mutate(label);
@@ -912,23 +852,14 @@ impl FigureTree {
         if !self.is_effectively_enabled(id) {
             return false;
         }
-        let Some(clickable) = self
-            .blocks
-            .get_mut(id)
-            .and_then(|block| block.figure.clickable_mut())
-        else {
+        let Some(clickable) = self.blocks.get_mut(id).and_then(FigureNode::clickable_mut) else {
             return false;
         };
         let (selection_change, revision) =
             crate::figure::widget::activate(clickable.clickable_model_mut());
         self.notify_block_changed(id);
         if let Some((old, new)) = selection_change {
-            self.emit_property_event(PropertyChangeEvent {
-                figure_id: id,
-                property: "selected",
-                old_value: PropertyValue::Bool(old),
-                new_value: PropertyValue::Bool(new),
-            });
+            self.emit_typed_property_event(id, property::SELECTED, old, new);
         }
         self.notification_effects.emit_action(ActionEvent {
             figure_id: id,
@@ -947,19 +878,14 @@ impl FigureTree {
         let Some(block) = self.blocks.get_mut(id) else {
             return Err(WidgetError::UnknownFigure(id));
         };
-        let Some(clickable) = block.figure.clickable_mut() else {
+        let Some(clickable) = block.clickable_mut() else {
             return Err(WidgetError::WrongCapability(id));
         };
         let old = clickable.clickable_model().is_selected();
         if !crate::figure::widget::set_selected(clickable.clickable_model_mut(), selected) {
             return Ok(false);
         }
-        self.record_property_change(
-            id,
-            "selected",
-            PropertyValue::Bool(old),
-            PropertyValue::Bool(selected),
-        );
+        self.record_property_change(id, property::SELECTED, old, selected);
         self.repaint(update_manager, id, None);
         Ok(true)
     }
@@ -973,19 +899,14 @@ impl FigureTree {
         let Some(block) = self.blocks.get_mut(id) else {
             return Err(WidgetError::UnknownFigure(id));
         };
-        let Some(clickable) = block.figure.clickable_mut() else {
+        let Some(clickable) = block.clickable_mut() else {
             return Err(WidgetError::WrongCapability(id));
         };
         let old = clickable.clickable_model().rollover_enabled();
         if !crate::figure::widget::set_rollover_enabled(clickable.clickable_model_mut(), enabled) {
             return Ok(false);
         }
-        self.record_property_change(
-            id,
-            "rollover_enabled",
-            PropertyValue::Bool(old),
-            PropertyValue::Bool(enabled),
-        );
+        self.record_property_change(id, property::ROLLOVER_ENABLED, old, enabled);
         self.repaint(update_manager, id, None);
         Ok(true)
     }
@@ -996,11 +917,7 @@ impl FigureTree {
         id: FigureId,
         visual: ClickableVisualState,
     ) -> bool {
-        let Some(clickable) = self
-            .blocks
-            .get_mut(id)
-            .and_then(|block| block.figure.clickable_mut())
-        else {
+        let Some(clickable) = self.blocks.get_mut(id).and_then(FigureNode::clickable_mut) else {
             return false;
         };
         if !crate::figure::widget::sync_visual(clickable.clickable_model_mut(), visual) {
@@ -1078,67 +995,26 @@ impl FigureTree {
 
     fn emit_style_property_changes(&mut self, id: FigureId, old: &FigureStyle, new: &FigureStyle) {
         if old.foreground != new.foreground {
-            self.record_property_change(
-                id,
-                "foreground",
-                old.foreground
-                    .map_or(PropertyValue::None, PropertyValue::Color),
-                new.foreground
-                    .map_or(PropertyValue::None, PropertyValue::Color),
-            );
+            self.record_property_change(id, property::FOREGROUND, old.foreground, new.foreground);
         }
         if old.background != new.background {
-            self.record_property_change(
-                id,
-                "background",
-                old.background
-                    .map_or(PropertyValue::None, PropertyValue::Color),
-                new.background
-                    .map_or(PropertyValue::None, PropertyValue::Color),
-            );
+            self.record_property_change(id, property::BACKGROUND, old.background, new.background);
         }
         if old.alpha != new.alpha {
-            self.record_property_change(
-                id,
-                "alpha",
-                old.alpha.map_or(PropertyValue::None, PropertyValue::Number),
-                new.alpha.map_or(PropertyValue::None, PropertyValue::Number),
-            );
+            self.record_property_change(id, property::ALPHA, old.alpha, new.alpha);
         }
         if old.font != new.font {
-            self.record_property_change(
-                id,
-                "font",
-                old.font
-                    .clone()
-                    .map_or(PropertyValue::None, PropertyValue::Text),
-                new.font
-                    .clone()
-                    .map_or(PropertyValue::None, PropertyValue::Text),
-            );
+            self.record_property_change(id, property::FONT, old.font.clone(), new.font.clone());
         }
         if old.cursor != new.cursor {
-            self.record_property_change(
-                id,
-                "cursor",
-                old.cursor
-                    .map_or(PropertyValue::None, PropertyValue::Cursor),
-                new.cursor
-                    .map_or(PropertyValue::None, PropertyValue::Cursor),
-            );
+            self.record_property_change(id, property::CURSOR, old.cursor, new.cursor);
         }
         if old.tooltip != new.tooltip {
             self.record_property_change(
                 id,
-                "tooltip",
-                old.tooltip
-                    .clone()
-                    .flatten()
-                    .map_or(PropertyValue::None, PropertyValue::Text),
-                new.tooltip
-                    .clone()
-                    .flatten()
-                    .map_or(PropertyValue::None, PropertyValue::Text),
+                property::TOOLTIP,
+                old.tooltip.clone().flatten(),
+                new.tooltip.clone().flatten(),
             );
         }
     }

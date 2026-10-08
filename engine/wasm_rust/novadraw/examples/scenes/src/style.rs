@@ -1,5 +1,6 @@
 use novadraw::figure::{CursorIcon, FigureStyle, border::RectangleBorder};
-use novadraw::{Figure, NdCanvas, Rectangle};
+use novadraw::graphics::NdCanvas;
+use novadraw::{Figure, Rectangle};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -40,7 +41,10 @@ fn gray_container() -> (novadraw::FigureTree, novadraw::FigureId) {
     let mut scene = novadraw::FigureTree::new();
     let container =
         novadraw::RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, bg_gray());
-    let container_id = scene.builder().set_contents(Box::new(container));
+    let container_id = scene
+        .builder()
+        .set_contents(Box::new(container))
+        .expect("valid FigureTree construction");
     (scene, container_id)
 }
 

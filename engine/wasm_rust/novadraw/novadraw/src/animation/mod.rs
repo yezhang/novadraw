@@ -5,15 +5,24 @@ mod service;
 mod timeline;
 mod value;
 
-use std::{fmt, marker::PhantomData, time::Duration};
+use std::{
+    any::{Any, TypeId},
+    fmt,
+    marker::PhantomData,
+    sync::Arc,
+    time::Duration,
+};
 
 pub use crate::identity::{AnimationBehaviorId, AnimationId, TemporaryVisualId};
-use crate::{Affine2D, FigureId, Rectangle, identity::AnimationChannelId};
+use crate::{
+    Affine2D, CapabilityKey, Figure, FigureId, PointList, Rectangle, figure::FigurePresentation,
+    identity::AnimationChannelId,
+};
 pub(crate) use behavior::facts_from_effects;
 pub use behavior::{
     AnimationBehavior, AnimationBehaviorContext, AnimationBehaviorFailure, AnimationBehaviorScope,
     AnimationFact, AnimationFactCoalescing, AnimationLifecycle, AnimationPlanFactory,
-    AnimationTrigger,
+    AnimationTrigger, PropertySelector, StatePropertySelector,
 };
 pub use service::AnimationMut;
 pub(crate) use service::{AnimationService, FigurePresentationEffect, PresentationSnapshot};
@@ -34,6 +43,112 @@ pub const DEFAULT_MAX_ACTIVE_ANIMATION_TRACKS: usize = 4_096;
 pub const DEFAULT_MAX_TEMPORARY_VISUALS: usize = 1_024;
 /// Number of terminal animation states retained for diagnostics and queries.
 pub const DEFAULT_ANIMATION_TERMINAL_HISTORY: usize = 256;
+
+type CommittedPresentationValue<V> = dyn Fn(&dyn Figure) -> Option<V> + Send + Sync;
+type PreparePresentationValue = dyn for<'a> Fn(&dyn Figure, PresentationValues<'a>, Rectangle) -> Option<FigurePresentation>
+    + Send
+    + Sync;
+
+/// Read-only sampled values for one Figure presentation family.
+pub struct PresentationValues<'a> {
+    values: &'a [(TypeId, &'a dyn Any)],
+}
+
+impl<'a> PresentationValues<'a> {
+    pub(crate) const fn new(values: &'a [(TypeId, &'a dyn Any)]) -> Self {
+        Self { values }
+    }
+
+    /// Returns the sampled or committed value for one channel type in the family.
+    pub fn get<V: AnimationValue>(&self) -> Option<&'a V> {
+        self.values
+            .iter()
+            .find_map(|(value_type, value)| (*value_type == TypeId::of::<V>()).then_some(*value))
+            .and_then(|value| value.downcast_ref())
+    }
+}
+
+/// Combines all typed channels in one Figure presentation family.
+///
+/// Every [`PresentationBinding`] using the same family type shares this implementation, so the
+/// resulting content does not depend on channel registration or animation order.
+pub trait PresentationFamily<T: Figure> {
+    /// Prepares one immutable self-content presentation from the family's effective values.
+    fn prepare(figure: &T, values: PresentationValues<'_>, bounds: Rectangle)
+    -> FigurePresentation;
+}
+
+/// Attach-time adapter from one typed animation value to immutable Figure content.
+///
+/// The descriptor reads committed truth from its concrete Figure and prepares a complete
+/// presentation for a sampled value. Runtime owns channel sampling and publication; the binding
+/// never writes the Figure or overrides render traversal.
+pub struct PresentationBinding<V> {
+    committed: Arc<CommittedPresentationValue<V>>,
+    prepare: Arc<PreparePresentationValue>,
+    family: TypeId,
+}
+
+impl<V> PresentationBinding<V>
+where
+    V: AnimationValue,
+{
+    /// Creates a binding backed by one concrete Figure type.
+    ///
+    /// The concrete downcast remains inside the owned descriptor. Capability consumers never
+    /// receive `Any` or need to know `T`.
+    pub fn of<T, F>(committed: fn(&T) -> V) -> Self
+    where
+        T: Figure + 'static,
+        F: PresentationFamily<T> + 'static,
+    {
+        Self {
+            committed: Arc::new(move |figure| figure.as_any().downcast_ref::<T>().map(committed)),
+            prepare: Arc::new(move |figure, values, bounds| {
+                figure
+                    .as_any()
+                    .downcast_ref::<T>()
+                    .map(|figure| F::prepare(figure, values, bounds))
+            }),
+            family: TypeId::of::<F>(),
+        }
+    }
+
+    pub(crate) fn committed(&self, figure: &dyn Figure) -> Option<V> {
+        (self.committed)(figure)
+    }
+
+    pub(crate) fn prepare(
+        &self,
+        figure: &dyn Figure,
+        values: PresentationValues<'_>,
+        bounds: Rectangle,
+    ) -> Option<FigurePresentation> {
+        (self.prepare)(figure, values, bounds)
+    }
+
+    pub(crate) fn family(&self) -> TypeId {
+        self.family
+    }
+}
+
+impl<V> Clone for PresentationBinding<V> {
+    fn clone(&self) -> Self {
+        Self {
+            committed: Arc::clone(&self.committed),
+            prepare: Arc::clone(&self.prepare),
+            family: self.family,
+        }
+    }
+}
+
+/// Standard presentation binding for Connection route geometry.
+pub const CONNECTION_ROUTE_PRESENTATION: CapabilityKey<PresentationBinding<PointList>> =
+    CapabilityKey::new("novadraw.animation.connection-route");
+
+/// Standard presentation binding for Connection dash phase.
+pub const CONNECTION_DASH_PRESENTATION: CapabilityKey<PresentationBinding<f64>> =
+    CapabilityKey::new("novadraw.animation.connection-dash");
 
 /// Geometry used by hit-testing while a presentation override is active.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -196,6 +311,16 @@ pub enum AnimationError {
     DisposedTarget,
     /// The requested interaction geometry policy is not implemented for this target.
     UnsupportedInteractionGeometry,
+    /// The Figure did not register the requested typed presentation binding.
+    UnsupportedPresentationBinding {
+        /// Stable capability name used for diagnostics.
+        capability: &'static str,
+    },
+    /// The registered presentation binding could not resolve its concrete Figure/value contract.
+    InvalidPresentationBinding {
+        /// Stable capability name used for diagnostics.
+        capability: &'static str,
+    },
     /// Old and new bounds cannot form a finite presentation transform.
     IncompatibleBoundsTransition,
     /// A Viewport has no stable contents Figure to animate.
@@ -270,6 +395,18 @@ impl fmt::Display for AnimationError {
             Self::DisposedTarget => formatter.write_str("animation target is disposed"),
             Self::UnsupportedInteractionGeometry => {
                 formatter.write_str("animation interaction geometry policy is unsupported")
+            }
+            Self::UnsupportedPresentationBinding { capability } => {
+                write!(
+                    formatter,
+                    "Figure does not support presentation binding {capability}"
+                )
+            }
+            Self::InvalidPresentationBinding { capability } => {
+                write!(
+                    formatter,
+                    "Figure presentation binding {capability} is invalid"
+                )
             }
             Self::IncompatibleBoundsTransition => {
                 formatter.write_str("Figure bounds cannot form a finite presentation transition")

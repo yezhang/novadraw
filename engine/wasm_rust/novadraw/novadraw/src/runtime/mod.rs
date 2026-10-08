@@ -27,8 +27,10 @@ pub use focus::{
 };
 pub use interaction::{InteractionState, PointerId};
 pub use mutation::{
-    ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
-    FigureComponentUpdate, PreparedFigureUpdate, RuntimeMutationError,
+    CapabilityUpdateError, CapabilityUpdateReceipt, ComponentInvalidation, ComponentUpdateError,
+    ComponentUpdateReceipt, FigureCapabilityContext, FigureCapabilityUpdate,
+    FigureComponentContext, FigureComponentUpdate, PreparedCapabilityUpdate, PreparedFigureUpdate,
+    RuntimeMutationError,
 };
 pub use resource::{
     FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,

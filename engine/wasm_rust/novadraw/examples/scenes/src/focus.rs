@@ -32,7 +32,8 @@ pub fn build_focus_traversal_scene(
             800.0,
             500.0,
             Color::from_hex("#eef1f4").expect("valid color literal"),
-        )));
+        )))
+        .expect("valid FigureTree construction");
     let a = tree
         .builder()
         .add_child(
