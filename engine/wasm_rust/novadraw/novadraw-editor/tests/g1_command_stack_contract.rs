@@ -23,6 +23,8 @@ struct AddCommand {
     fail_redo: bool,
     panic_execute: bool,
     panic_can_execute: bool,
+    panic_can_undo: bool,
+    panic_can_redo: bool,
     state_unknown: bool,
     dropped: Option<Arc<AtomicUsize>>,
 }
@@ -40,6 +42,8 @@ impl AddCommand {
             fail_redo: false,
             panic_execute: false,
             panic_can_execute: false,
+            panic_can_undo: false,
+            panic_can_redo: false,
             state_unknown: false,
             dropped: None,
         }
@@ -82,6 +86,16 @@ impl AddCommand {
 
     fn panicking_can_execute(mut self) -> Self {
         self.panic_can_execute = true;
+        self
+    }
+
+    fn panicking_can_undo(mut self) -> Self {
+        self.panic_can_undo = true;
+        self
+    }
+
+    fn panicking_can_redo(mut self) -> Self {
+        self.panic_can_redo = true;
         self
     }
 
@@ -136,6 +150,7 @@ impl Command<Counter> for AddCommand {
     }
 
     fn can_undo(&self) -> bool {
+        assert!(!self.panic_can_undo, "can_undo panic");
         self.undoable
     }
 
@@ -147,6 +162,7 @@ impl Command<Counter> for AddCommand {
     }
 
     fn can_redo(&self) -> bool {
+        assert!(!self.panic_can_redo, "can_redo panic");
         self.redoable
     }
 }
@@ -160,13 +176,15 @@ fn command_stack_executes_undoes_redoes_and_reports_stable_events() {
         .execute(&mut model, Box::new(AddCommand::new("add two", 2)))
         .unwrap();
     assert_eq!(model.value, 2);
-    assert!(stack.can_undo());
-    assert!(!stack.can_redo());
+    assert!(stack.has_undo());
+    assert!(stack.check_undo().unwrap());
+    assert!(!stack.has_redo());
     assert!(stack.is_dirty());
 
     stack.undo(&mut model).unwrap();
     assert_eq!(model.value, 0);
-    assert!(stack.can_redo());
+    assert!(stack.has_redo());
+    assert!(stack.check_redo().unwrap());
 
     stack.redo(&mut model).unwrap();
     assert_eq!(model.value, 2);
@@ -203,7 +221,7 @@ fn rejected_or_failed_execute_does_not_change_history_or_clear_redo() {
         ),
         Err(CommandStackError::Rejected { .. })
     ));
-    assert!(stack.can_redo());
+    assert!(stack.has_redo());
 
     assert!(matches!(
         stack.execute(
@@ -213,7 +231,7 @@ fn rejected_or_failed_execute_does_not_change_history_or_clear_redo() {
         Err(CommandStackError::Command(_))
     ));
     assert_eq!(model.value, 0);
-    assert!(stack.can_redo());
+    assert!(stack.has_redo());
 }
 
 #[test]
@@ -238,7 +256,7 @@ fn dirty_state_tracks_history_identity_across_branching() {
         .execute(&mut model, Box::new(AddCommand::new("branch", 3)))
         .unwrap();
     assert!(stack.is_dirty());
-    assert!(!stack.can_redo());
+    assert!(!stack.has_redo());
 }
 
 #[test]
@@ -257,8 +275,8 @@ fn failed_undo_preserves_the_undo_entry_and_model_state() {
         Err(CommandStackError::Command(_))
     ));
     assert_eq!(model.value, 4);
-    assert!(stack.can_undo());
-    assert!(!stack.can_redo());
+    assert!(stack.has_undo());
+    assert!(!stack.has_redo());
 }
 
 #[test]
@@ -278,8 +296,8 @@ fn failed_redo_preserves_the_redo_entry_and_model_state() {
         Err(CommandStackError::Command(_))
     ));
     assert_eq!(model.value, 0);
-    assert!(!stack.can_undo());
-    assert!(stack.can_redo());
+    assert!(!stack.has_undo());
+    assert!(stack.has_redo());
 }
 
 #[test]
@@ -292,7 +310,8 @@ fn command_capabilities_reject_undo_and_redo_without_moving_history() {
             Box::new(AddCommand::new("fixed", 4).not_undoable()),
         )
         .unwrap();
-    assert!(!undo_stack.can_undo());
+    assert!(undo_stack.has_undo());
+    assert!(!undo_stack.check_undo().unwrap());
     assert!(matches!(
         undo_stack.undo(&mut model),
         Err(CommandStackError::Rejected {
@@ -311,7 +330,8 @@ fn command_capabilities_reject_undo_and_redo_without_moving_history() {
         )
         .unwrap();
     redo_stack.undo(&mut model).unwrap();
-    assert!(!redo_stack.can_redo());
+    assert!(redo_stack.has_redo());
+    assert!(!redo_stack.check_redo().unwrap());
     assert!(matches!(
         redo_stack.redo(&mut model),
         Err(CommandStackError::Rejected {
@@ -320,6 +340,49 @@ fn command_capabilities_reject_undo_and_redo_without_moving_history() {
         })
     ));
     assert_eq!(redo_stack.redo_len(), 1);
+}
+
+#[test]
+fn history_queries_are_pure_and_extension_checks_report_panics() {
+    let mut model = Counter::default();
+    let mut undo_stack = CommandStack::new();
+    undo_stack
+        .execute(
+            &mut model,
+            Box::new(AddCommand::new("panic undo check", 1).panicking_can_undo()),
+        )
+        .unwrap();
+
+    assert!(undo_stack.has_undo());
+    assert!(!undo_stack.is_faulted());
+    assert!(matches!(
+        undo_stack.check_undo(),
+        Err(CommandStackError::Panicked {
+            operation: CommandOperation::Undo,
+            ..
+        })
+    ));
+    assert!(undo_stack.is_faulted());
+
+    let mut redo_stack = CommandStack::new();
+    redo_stack
+        .execute(
+            &mut model,
+            Box::new(AddCommand::new("panic redo check", 1).panicking_can_redo()),
+        )
+        .unwrap();
+    redo_stack.undo(&mut model).unwrap();
+
+    assert!(redo_stack.has_redo());
+    assert!(!redo_stack.is_faulted());
+    assert!(matches!(
+        redo_stack.check_redo(),
+        Err(CommandStackError::Panicked {
+            operation: CommandOperation::Redo,
+            ..
+        })
+    ));
+    assert!(redo_stack.is_faulted());
 }
 
 #[test]
@@ -335,7 +398,7 @@ fn compound_command_rolls_back_executed_prefix_and_undoes_in_reverse_order() {
         Err(CommandStackError::Command(_))
     ));
     assert_eq!(model.value, 0);
-    assert!(!stack.can_undo());
+    assert!(!stack.has_undo());
 
     let mut successful = CompoundCommand::new("successful compound");
     successful.push(Box::new(AddCommand::new("first", 1)));
@@ -360,7 +423,7 @@ fn compound_undo_failure_restores_the_executed_prefix() {
         Err(CommandStackError::Command(_))
     ));
     assert_eq!(model.value, 3);
-    assert!(stack.can_undo());
+    assert!(stack.has_undo());
     assert!(!stack.is_faulted());
 }
 
@@ -417,8 +480,8 @@ fn flush_drops_history_and_marks_the_current_document_clean() {
     stack.flush().unwrap();
     assert_eq!(model.value, 1);
     assert_eq!(dropped.load(Ordering::SeqCst), 1);
-    assert!(!stack.can_undo());
-    assert!(!stack.can_redo());
+    assert!(!stack.has_undo());
+    assert!(!stack.has_redo());
     assert!(!stack.is_dirty());
 }
 

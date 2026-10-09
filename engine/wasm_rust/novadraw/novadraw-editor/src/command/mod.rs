@@ -573,37 +573,39 @@ impl<M> CommandStack<M> {
         Ok(())
     }
 
-    /// Returns whether an undo command is available.
-    pub fn can_undo(&mut self) -> bool {
-        if self.faulted {
-            return false;
-        }
-        let Some(entry) = self.undoable.last() else {
-            return false;
-        };
+    /// Returns whether the ready stack has undo history without invoking extension code.
+    pub fn has_undo(&self) -> bool {
+        !self.faulted && !self.undoable.is_empty()
+    }
+
+    /// Returns whether the ready stack has redo history without invoking extension code.
+    pub fn has_redo(&self) -> bool {
+        !self.faulted && !self.redoable.is_empty()
+    }
+
+    /// Checks whether the top command currently permits undo.
+    pub fn check_undo(&mut self) -> Result<bool, CommandStackError> {
+        self.ensure_ready()?;
+        let entry = self
+            .undoable
+            .last()
+            .ok_or(CommandStackError::NothingToUndo)?;
         match catch_unwind(AssertUnwindSafe(|| entry.command.can_undo())) {
-            Ok(allowed) => allowed,
-            Err(_) => {
-                self.faulted = true;
-                false
-            }
+            Ok(allowed) => Ok(allowed),
+            Err(_) => self.fault_from_query(CommandOperation::Undo, "<unavailable>"),
         }
     }
 
-    /// Returns whether a redo command is available.
-    pub fn can_redo(&mut self) -> bool {
-        if self.faulted {
-            return false;
-        }
-        let Some(entry) = self.redoable.last() else {
-            return false;
-        };
+    /// Checks whether the top command currently permits redo.
+    pub fn check_redo(&mut self) -> Result<bool, CommandStackError> {
+        self.ensure_ready()?;
+        let entry = self
+            .redoable
+            .last()
+            .ok_or(CommandStackError::NothingToRedo)?;
         match catch_unwind(AssertUnwindSafe(|| entry.command.can_redo())) {
-            Ok(allowed) => allowed,
-            Err(_) => {
-                self.faulted = true;
-                false
-            }
+            Ok(allowed) => Ok(allowed),
+            Err(_) => self.fault_from_query(CommandOperation::Redo, "<unavailable>"),
         }
     }
 
