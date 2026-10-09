@@ -743,7 +743,11 @@ mod tests {
             "PanicPaintFigure"
         }
 
-        fn paint_figure(&self, _gc: &mut NdCanvas) {
+        fn paint(
+            &self,
+            _context: &mut crate::PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), crate::GraphicsError> {
             panic!("intentional paint panic");
         }
     }

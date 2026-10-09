@@ -2,7 +2,8 @@ use std::{error::Error, fmt};
 
 use crate::figure::normalize_points;
 use crate::geometry::{Point, PointList, Rectangle};
-use crate::render::{LineJoin, NdCanvas, StrokeStyle};
+use crate::graphics::{GraphicsError, PaintContext};
+use crate::render::{LineJoin, StrokeStyle};
 use crate::{Color, Figure, FigureStyle, LocatorPlacement, PolygonFigure, PolylineFigure};
 
 const DEFAULT_ARROW_LENGTH: f64 = 10.0;
@@ -176,8 +177,12 @@ impl Figure for PolygonDecorationFigure {
         self.polygon.initial_style()
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        self.polygon.paint_figure_in_bounds(gc, bounds);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        self.polygon.paint(context, bounds)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
@@ -292,8 +297,12 @@ impl Figure for PolylineDecorationFigure {
         self.polyline.initial_style()
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        self.polyline.paint_figure_in_bounds(gc, bounds);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        self.polyline.paint(context, bounds)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {

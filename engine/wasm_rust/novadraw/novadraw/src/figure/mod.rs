@@ -65,7 +65,7 @@ use std::{any::Any, sync::Arc};
 
 use crate::Color;
 use crate::geometry::{Affine2D, Dimension, Insets, Rectangle, Translatable};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::command::{LineCap, LineJoin};
 
 use crate::{EventContext, FigureId, FocusEvent, KeyEvent, MouseEvent, WheelEvent};
@@ -474,26 +474,16 @@ pub trait Figure: AsAny {
         Ok(())
     }
 
-    /// Drawing-only callback for Figures that do not need a prepared presentation.
+    /// Draws this Figure in the current NodeState border box.
     ///
-    /// The default preserves the legacy Shape/Border adapters during migration.
-    fn paint(&self, gc: &mut crate::graphics::PaintContext<'_>, bounds: Rectangle) {
-        self.paint_figure_in_bounds(gc.canvas, bounds);
-    }
-
-    /// ===== PaintSelf 阶段方法 =====
-    /// 绘制自身（背景）
-    ///
-    /// 对应 draw2d: paintFigure(Graphics)
-    /// 默认空实现，由 Shape trait 覆盖
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
-
-    /// 使用 NodeState 提供的当前 border-box 绘制。
-    ///
-    /// 旧 Figure 可继续实现 `paint_figure`；支持 resize 的 Figure 应覆盖此方法，
-    /// 避免读取构造期 bounds。
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
-        self.paint_figure(gc);
+    /// The context can only append checked drawing commands. Figure code cannot
+    /// mutate damage or construct a frame submission.
+    fn paint(
+        &self,
+        _context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        Ok(())
     }
 
     /// 返回 Figure 的内在尺寸，供无 LayoutManager 时测量。
@@ -573,40 +563,35 @@ pub trait Figure: AsAny {
         None
     }
 
-    /// 绘制边框
-    ///
-    /// 对应 draw2d: paintBorder(Graphics)
-    /// 默认实现调用 Border::paint()
-    fn paint_border(&self, gc: &mut NdCanvas) {
+    /// Draws the border in the current NodeState border box.
+    fn paint_border(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         if let Some(border) = self.get_border() {
-            let bounds = self.initial_bounds();
-            border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
+            border.paint(
+                Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+                context,
+            )?;
         }
-    }
-
-    /// 使用 NodeState 提供的当前 border-box 绘制边框。
-    fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        if let Some(border) = self.get_border() {
-            border.paint(Rectangle::new(0.0, 0.0, bounds.width, bounds.height), gc);
-        } else {
-            self.paint_border(gc);
-        }
+        Ok(())
     }
 
     fn paint_border_snapshot_in_bounds(
         &self,
-        gc: &mut NdCanvas,
+        context: &mut PaintContext<'_>,
         bounds: Rectangle,
         snapshot: Option<&BorderSnapshot>,
-    ) {
+    ) -> Result<(), GraphicsError> {
         if let (Some(border), Some(snapshot)) = (self.get_border(), snapshot) {
             border.paint_snapshot(
                 Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
                 snapshot,
-                gc,
-            );
+                context,
+            )
         } else {
-            self.paint_border_in_bounds(gc, bounds);
+            self.paint_border(context, bounds)
         }
     }
 }
@@ -807,7 +792,7 @@ pub trait AccessibleFigure {
 /// # 渲染流程
 ///
 /// ```text
-/// paint_figure()            [覆盖 Figure trait]
+/// paint_shape()             [由 Figure::paint 调用]
 ///   +-> paint_fill()       [内部方法]
 ///   |     +-> fill_shape()    [抽象方法]
 ///   +-> paint_outline()    [内部方法]
@@ -853,46 +838,48 @@ pub trait Shape {
     }
 
     /// ===== 渲染方法 =====
-    /// 绘制自身（覆盖 Figure trait 的实现）
+    /// 绘制 Shape 自身。
     ///
     /// 参考 draw2d: Shape.paintFigure()
     /// 调用 paint_fill() 和 paint_outline()
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        self.paint_fill(gc);
-        self.paint_outline(gc);
+    fn paint_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        self.paint_fill(context)?;
+        self.paint_outline(context)
     }
 
     /// 绘制填充
     ///
     /// 参考 draw2d: paintFill()
     /// 如果 fill_enabled() 为 true，调用 fill_shape()
-    fn paint_fill(&self, gc: &mut NdCanvas) {
+    fn paint_fill(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if self.fill_enabled() {
-            self.fill_shape(gc);
+            self.fill_shape(context)?;
         }
+        Ok(())
     }
 
     /// 绘制描边
     ///
     /// 参考 draw2d: paintOutline()
     /// 如果 outline_enabled() 为 true，调用 outline_shape()
-    fn paint_outline(&self, gc: &mut NdCanvas) {
+    fn paint_outline(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if self.outline_enabled() {
-            self.outline_shape(gc);
+            self.outline_shape(context)?;
         }
+        Ok(())
     }
 
     /// 填充形状（抽象方法）
     ///
     /// 对应 draw2d: fillShape(Graphics)
     /// 具体图形必须实现此方法
-    fn fill_shape(&self, gc: &mut NdCanvas);
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError>;
 
     /// 描边形状（抽象方法）
     ///
     /// 对应 draw2d: outlineShape(Graphics)
     /// 具体图形必须实现此方法
-    fn outline_shape(&self, gc: &mut NdCanvas);
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError>;
 }
 
 #[cfg(test)]
@@ -900,12 +887,9 @@ mod tests {
     use std::cell::Cell;
 
     use super::{ChildTransform, Figure, MeasureConstraints, MeasureConstraintsError, Shape};
-    use crate::Color;
     use crate::geometry::{Affine2D, Point, Rectangle};
-    use crate::render::{
-        NdCanvas,
-        command::{LineCap, LineJoin},
-    };
+    use crate::render::command::{LineCap, LineJoin};
+    use crate::{Color, GraphicsError, PaintContext};
 
     struct MinimalFigure;
 
@@ -944,9 +928,13 @@ mod tests {
             LineJoin::default()
         }
 
-        fn fill_shape(&self, _gc: &mut NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     impl Figure for CustomShapeFigure {
@@ -958,8 +946,13 @@ mod tests {
             "CustomShapeFigure"
         }
 
-        fn paint_figure(&self, _gc: &mut NdCanvas) {
+        fn paint(
+            &self,
+            _context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
             self.custom_paint_called.set(true);
+            Ok(())
         }
     }
 
@@ -1003,7 +996,13 @@ mod tests {
         let figure = CustomShapeFigure {
             custom_paint_called: Cell::new(false),
         };
-        Figure::paint_figure(&figure, &mut NdCanvas::new());
+        let mut recorder = crate::render::CommandRecorder::new();
+        Figure::paint(
+            &figure,
+            &mut recorder.paint(),
+            Rectangle::new(0.0, 0.0, 10.0, 10.0),
+        )
+        .unwrap();
         assert!(figure.custom_paint_called.get());
     }
 }

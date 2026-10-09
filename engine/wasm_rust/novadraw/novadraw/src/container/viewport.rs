@@ -12,7 +12,7 @@ use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::geometry::{Dimension, Insets, Point, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::range_model::normalize_range;
 use crate::figure::{
@@ -616,12 +616,12 @@ impl Figure for ViewportFigure {
         Bounded::insets(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rectangle(0.0, 0.0, self.bounds.width, self.bounds.height);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        gc.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
     fn get_border(&self) -> Option<&dyn Border> {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -200,14 +200,14 @@ impl Figure for EllipseFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
@@ -284,22 +284,23 @@ impl Shape for EllipseFigure {
         self.stroke_color.map(|c| c.alpha() > 0.0).unwrap_or(false)
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let bounds = self.optimized_bounds();
-        gc.fill_oval(bounds.x, bounds.y, bounds.width, bounds.height);
+        context.fill_ellipse(bounds)
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
-        if let Some(color) = self.stroke_color {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        if self.stroke_color.is_some() {
             let bounds = self.optimized_bounds();
-            let _ = color;
-            if gc.line_width(self.stroke_width).is_err() {
-                return;
-            }
-            gc.line_cap(self.line_cap);
-            gc.line_join(self.line_join);
-            gc.draw_oval(bounds.x, bounds.y, bounds.width, bounds.height);
+            context.set_stroke_style(
+                crate::graphics::StrokeStyle::default()
+                    .with_width(self.stroke_width)?
+                    .with_cap(self.line_cap)
+                    .with_join(self.line_join),
+            );
+            context.stroke_ellipse(bounds)?;
         }
+        Ok(())
     }
 }
 

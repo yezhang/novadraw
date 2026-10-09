@@ -7,7 +7,7 @@
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH};
 
@@ -119,9 +119,14 @@ impl Border for MarginBorder {
     ///
     /// 参考 draw2d: MarginBorder.paint() 为空实现，不绘制任何可见内容。
     /// 主要用于提供内边距（insets），影响子元素布局。
-    fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {
+    fn paint(
+        &self,
+        _figure_bounds: Rectangle,
+        _context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         // 空实现：MarginBorder 不绘制可见内容
         // insets 由 get_insets() 提供，用于布局
+        Ok(())
     }
 
     fn get_color(&self) -> Color {

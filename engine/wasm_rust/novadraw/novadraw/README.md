@@ -111,6 +111,18 @@ use novadraw::NdCanvas;
 ```
 
 ```compile_fail
+use novadraw::graphics::NdCanvas;
+```
+
+```compile_fail
+use novadraw::render::NdCanvas;
+```
+
+```compile_fail
+use novadraw::prelude::NdCanvas;
+```
+
+```compile_fail
 use novadraw::RenderBackend;
 ```
 
@@ -141,7 +153,6 @@ Use their explicit modules when required:
 use novadraw::advanced::{FigureNode, UpdateManager};
 use novadraw::connection::{ConnectionRouter, RouteOutput};
 use novadraw::container::RangeModel;
-use novadraw::graphics::NdCanvas;
 use novadraw::render::command::RenderCommand;
 use novadraw::render::{RenderBackend, RenderSubmission};
 use novadraw::runtime::ResourceRegistry;
@@ -153,7 +164,6 @@ fn accepts_low_level_types(
     _route: Option<RouteOutput>,
     _submission: Option<RenderSubmission>,
     _resources: Option<ResourceRegistry>,
-    _canvas: Option<NdCanvas>,
     _backend: Option<&dyn RenderBackend>,
     _router: Option<&dyn ConnectionRouter>,
     _range: Option<&dyn RangeModel>,

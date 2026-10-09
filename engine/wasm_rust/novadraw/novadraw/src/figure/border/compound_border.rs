@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::{FontDescriptor, NdCanvas, TextError, TextLayoutEngine};
+use crate::graphics::{GraphicsError, PaintContext};
+use crate::render::{FontDescriptor, TextError, TextLayoutEngine};
 
 use super::{Border, BorderSnapshot, add_insets};
 
@@ -91,15 +92,26 @@ impl Border for CompoundBorder {
             && self.inner.as_deref().is_some_and(Border::is_opaque)
     }
 
-    fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
+    fn paint(
+        &self,
+        figure_bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint_with_insets(figure_bounds, Insets::ZERO, context)
     }
 
-    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: Insets,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         if let Some(outer) = self.outer.as_deref() {
-            gc.push_state();
-            outer.paint_with_insets(figure_bounds, incoming, gc);
-            gc.pop_state();
+            context.push_state();
+            let paint = outer.paint_with_insets(figure_bounds, incoming, context);
+            let pop = context.pop_state();
+            paint?;
+            pop?;
         }
         if let Some(inner) = self.inner.as_deref() {
             let outer_insets = self
@@ -107,8 +119,9 @@ impl Border for CompoundBorder {
                 .as_deref()
                 .map(Border::get_insets)
                 .unwrap_or_default();
-            inner.paint_with_insets(figure_bounds, add_insets(incoming, outer_insets), gc);
+            inner.paint_with_insets(figure_bounds, add_insets(incoming, outer_insets), context)?;
         }
+        Ok(())
     }
 
     fn paint_snapshot_with_insets(
@@ -116,30 +129,32 @@ impl Border for CompoundBorder {
         figure_bounds: Rectangle,
         incoming: Insets,
         snapshot: &BorderSnapshot,
-        gc: &mut NdCanvas,
-    ) {
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         let Some((outer_snapshot, inner_snapshot)) = snapshot.compound_parts() else {
-            self.paint_with_insets(figure_bounds, incoming, gc);
-            return;
+            return self.paint_with_insets(figure_bounds, incoming, context);
         };
         if let Some(outer) = self.outer.as_deref() {
-            gc.push_state();
-            if let Some(snapshot) = outer_snapshot {
-                outer.paint_snapshot_with_insets(figure_bounds, incoming, snapshot, gc);
+            context.push_state();
+            let paint = if let Some(snapshot) = outer_snapshot {
+                outer.paint_snapshot_with_insets(figure_bounds, incoming, snapshot, context)
             } else {
-                outer.paint_with_insets(figure_bounds, incoming, gc);
-            }
-            gc.pop_state();
+                outer.paint_with_insets(figure_bounds, incoming, context)
+            };
+            let pop = context.pop_state();
+            paint?;
+            pop?;
         }
         if let Some(inner) = self.inner.as_deref() {
             let outer_insets = Self::resolved_insets(self.outer.as_deref(), outer_snapshot);
             let incoming = add_insets(incoming, outer_insets);
             if let Some(snapshot) = inner_snapshot {
-                inner.paint_snapshot_with_insets(figure_bounds, incoming, snapshot, gc);
+                inner.paint_snapshot_with_insets(figure_bounds, incoming, snapshot, context)?;
             } else {
-                inner.paint_with_insets(figure_bounds, incoming, gc);
+                inner.paint_with_insets(figure_bounds, incoming, context)?;
             }
         }
+        Ok(())
     }
 
     fn resolve_owner_snapshot(

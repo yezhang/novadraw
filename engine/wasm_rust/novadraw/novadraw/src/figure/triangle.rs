@@ -28,7 +28,8 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::{GraphicsInputError, NdCanvas, StrokeStyle};
+use crate::graphics::{GraphicsError, PaintContext, Path};
+use crate::render::{GraphicsInputError, StrokeStyle};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -379,15 +380,15 @@ impl Figure for TriangleFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
         local.invalidate();
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
@@ -496,31 +497,29 @@ impl Shape for TriangleFigure {
         self.stroke_color.alpha() > 0.0 && self.stroke.width() > 0.0
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 
-        gc.begin_path();
-        gc.move_to(points[0].0, points[0].1);
-        gc.line_to(points[1].0, points[1].1);
-        gc.line_to(points[2].0, points[2].1);
-        gc.close_path();
-
-        gc.fill();
+        let mut path = Path::new();
+        path.move_to(points[0].0, points[0].1);
+        path.line_to(points[1].0, points[1].1);
+        path.line_to(points[2].0, points[2].1);
+        path.close();
+        context.fill_path(&path)
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
-        gc.set_stroke(self.stroke.clone());
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        context.set_stroke_style(self.stroke.clone());
         // 使用缓存的顶点，如果没有缓存则计算
         let points = self.cached_points.unwrap_or_else(|| self.compute_points());
 
-        gc.begin_path();
-        gc.move_to(points[0].0, points[0].1);
-        gc.line_to(points[1].0, points[1].1);
-        gc.line_to(points[2].0, points[2].1);
-        gc.close_path();
-
-        gc.stroke();
+        let mut path = Path::new();
+        path.move_to(points[0].0, points[0].1);
+        path.line_to(points[1].0, points[1].1);
+        path.line_to(points[2].0, points[2].1);
+        path.close();
+        context.stroke_path(&path)
     }
 }
 

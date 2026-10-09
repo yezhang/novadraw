@@ -1,6 +1,7 @@
 use crate::Color;
 use crate::geometry::{Dimension, Rectangle};
-use crate::render::{ImageResourceRef, NdCanvas};
+use crate::graphics::{GraphicsError, PaintContext};
+use crate::render::ImageResourceRef;
 
 use crate::{Alignment, ImageId, ResourceStatus};
 
@@ -121,35 +122,30 @@ impl Figure for ImageFigure {
         self.size().into()
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         match (self.state, self.resource) {
             (ImageDisplayState::Ready, Some(image)) => {
                 let (image_width, image_height) = image.logical_size();
                 let x = aligned(bounds.width, image_width, self.alignment);
                 let y = aligned(bounds.height, image_height, self.alignment);
-                gc.draw_image(image, x, y);
+                context.draw_image(image, Rectangle::new(x, y, image_width, image_height))?;
             }
             (ImageDisplayState::Pending, _) => {
-                gc.fill_rect_with_color(
-                    0.0,
-                    0.0,
-                    bounds.width,
-                    bounds.height,
-                    Color::rgba(0.72, 0.76, 0.82, 1.0),
-                );
+                context.set_fill_paint(Color::rgba(0.72, 0.76, 0.82, 1.0));
+                context.fill_rect(bounds)?;
             }
             (ImageDisplayState::Failed, _) => {
-                gc.fill_rect_with_color(
-                    0.0,
-                    0.0,
-                    bounds.width,
-                    bounds.height,
-                    Color::rgba(0.8, 0.1, 0.1, 1.0),
-                );
+                context.set_fill_paint(Color::rgba(0.8, 0.1, 0.1, 1.0));
+                context.fill_rect(bounds)?;
             }
             (ImageDisplayState::Unavailable, _) => {}
             _ => {}
         }
+        Ok(())
     }
 }
 

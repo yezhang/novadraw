@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::Color;
 use crate::geometry::{Dimension, Point, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use crate::figure::{Bounded, Figure, FigureEventHandler};
 use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
@@ -259,18 +259,13 @@ impl Figure for ScrollPaneFigure {
         "ScrollPaneFigure"
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rect_with_color(
-            0.0,
-            0.0,
-            self.bounds.width,
-            self.bounds.height,
-            PANE_BACKGROUND,
-        );
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, PANE_BACKGROUND);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_fill_paint(PANE_BACKGROUND);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
     fn register_capabilities(
@@ -427,67 +422,64 @@ impl Figure for ScrollBarFigure {
         Bounded::preferred_size(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        gc.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, TRACK_COLOR);
-        let geometry = self.geometry(self.bounds);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_fill_paint(TRACK_COLOR);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
+        let geometry = self.geometry(bounds);
         let thickness = match self.orientation {
-            ScrollOrientation::Horizontal => self.bounds.height,
-            ScrollOrientation::Vertical => self.bounds.width,
+            ScrollOrientation::Horizontal => bounds.height,
+            ScrollOrientation::Vertical => bounds.width,
         };
+        context.set_fill_paint(BUTTON_COLOR);
         match self.orientation {
             ScrollOrientation::Horizontal => {
-                gc.fill_rect_with_color(
+                context.fill_rect(Rectangle::new(
                     geometry.axis_start,
                     0.0,
                     geometry.button_length,
                     thickness,
-                    BUTTON_COLOR,
-                );
-                gc.fill_rect_with_color(
+                ))?;
+                context.fill_rect(Rectangle::new(
                     geometry.axis_end - geometry.button_length,
                     0.0,
                     geometry.button_length,
                     thickness,
-                    BUTTON_COLOR,
-                );
-                gc.fill_rect_with_color(
+                ))?;
+                context.set_fill_paint(THUMB_COLOR);
+                context.fill_rect(Rectangle::new(
                     geometry.thumb_start,
                     0.0,
                     geometry.thumb_length,
                     thickness,
-                    THUMB_COLOR,
-                );
+                ))?;
             }
             ScrollOrientation::Vertical => {
-                gc.fill_rect_with_color(
+                context.fill_rect(Rectangle::new(
                     0.0,
                     geometry.axis_start,
                     thickness,
                     geometry.button_length,
-                    BUTTON_COLOR,
-                );
-                gc.fill_rect_with_color(
+                ))?;
+                context.fill_rect(Rectangle::new(
                     0.0,
                     geometry.axis_end - geometry.button_length,
                     thickness,
                     geometry.button_length,
-                    BUTTON_COLOR,
-                );
-                gc.fill_rect_with_color(
+                ))?;
+                context.set_fill_paint(THUMB_COLOR);
+                context.fill_rect(Rectangle::new(
                     0.0,
                     geometry.thumb_start,
                     thickness,
                     geometry.thumb_length,
-                    THUMB_COLOR,
-                );
+                ))?;
             }
         }
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        let mut local = self.clone();
-        local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        local.paint_figure(gc);
+        Ok(())
     }
 
     fn register_capabilities(

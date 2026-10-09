@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::geometry::{Dimension, Insets, Rectangle};
+use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
-    FontDescriptor, ImageResourceRef, NdCanvas, TextConstraints, TextError, TextLayout,
-    TextLayoutEngine,
+    FontDescriptor, ImageResourceRef, TextConstraints, TextError, TextLayout, TextLayoutEngine,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -328,23 +328,29 @@ impl LabelFigure {
         self.intrinsic.as_ref().map(|intrinsic| intrinsic.minimum)
     }
 
-    pub(crate) fn paint_with_icon(&self, gc: &mut NdCanvas, icon: Option<ImageResourceRef>) {
+    pub(crate) fn paint_with_icon(
+        &self,
+        context: &mut PaintContext<'_>,
+        icon: Option<ImageResourceRef>,
+    ) -> Result<(), GraphicsError> {
         let Some(presentation) = &self.presentation else {
-            return;
+            return Ok(());
         };
         if let (Some(origin), Some(image)) = (presentation.icon_origin, icon) {
-            gc.draw_image(image, origin.0, origin.1);
+            let (width, height) = image.logical_size();
+            context.draw_image(image, Rectangle::new(origin.0, origin.1, width, height))?;
         }
-        if let Some(foreground) = gc.stroke_paint().cloned() {
-            let mut paint = crate::graphics::PaintContext::for_figure(gc);
-            paint.push_state();
-            paint.set_fill_paint(foreground);
-            let _ = paint.fill_text(
+        if let Some(foreground) = context.stroke_paint().cloned() {
+            context.push_state();
+            context.set_fill_paint(foreground);
+            let paint_result = context.fill_text(
                 &presentation.text,
                 crate::Point::new(presentation.text_origin.0, presentation.text_origin.1),
             );
-            paint.pop_state();
+            let pop_result = context.pop_state();
+            paint_result.and(pop_result)?;
         }
+        Ok(())
     }
 }
 
@@ -397,11 +403,12 @@ impl Figure for LabelFigure {
     fn intrinsic_content_minimum_size(&self) -> Dimension {
         self.minimum_size().unwrap_or_default().into()
     }
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        self.paint_with_icon(gc, self.icon_ref);
-    }
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
-        self.paint_with_icon(gc, self.icon_ref);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        self.paint_with_icon(context, self.icon_ref)
     }
 
     fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {

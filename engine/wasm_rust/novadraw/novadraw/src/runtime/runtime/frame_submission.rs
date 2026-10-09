@@ -844,13 +844,15 @@ impl Runtime {
     }
 
     /// Prepares an incremental frame when the runtime has pending work.
-    pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
+    #[cfg(test)]
+    pub(crate) fn prepare_frame(&mut self) -> Option<NdCanvas> {
         if self.faulted {
             return None;
         }
         self.guarded(Self::prepare_frame_inner)
     }
 
+    #[cfg(test)]
     fn prepare_frame_inner(&mut self) -> Option<NdCanvas> {
         self.apply_pending_mutations_for_frame();
         if self.try_stabilize().is_err() {
@@ -887,11 +889,13 @@ impl Runtime {
     }
 
     /// Records the complete visible tree, independent of pending update state.
-    pub fn record_full_frame(&mut self) -> NdCanvas {
+    #[cfg(test)]
+    pub(crate) fn record_full_frame(&mut self) -> NdCanvas {
         assert!(!self.faulted, "cannot record a faulted Runtime");
         self.guarded(Self::record_full_frame_inner)
     }
 
+    #[cfg(test)]
     fn record_full_frame_inner(&mut self) -> NdCanvas {
         self.apply_pending_mutations_for_frame();
         self.stabilize()

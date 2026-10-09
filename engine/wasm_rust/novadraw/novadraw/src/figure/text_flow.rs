@@ -3,10 +3,11 @@ use unicode_segmentation::UnicodeSegmentation;
 use std::ops::Range;
 
 use crate::geometry::{Point, Rectangle};
+use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
-    CaretGeometry, FontDescriptor, NdCanvas, SelectionQuad, TextAffinity, TextConstraints,
-    TextError, TextInteractionError, TextLayout, TextLayoutEngine, TextLayoutRevision,
-    TextMovement, TextPosition, TextRange,
+    CaretGeometry, FontDescriptor, SelectionQuad, TextAffinity, TextConstraints, TextError,
+    TextInteractionError, TextLayout, TextLayoutEngine, TextLayoutRevision, TextMovement,
+    TextPosition, TextRange,
 };
 use crate::{Alignment, Figure, FigureMeasurement, MeasureConstraints};
 
@@ -570,20 +571,25 @@ impl Figure for TextFlowFigure {
             })
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         if let Some(snapshot) = &self.layout {
             if self.viewport.clips_to_bounds() {
-                gc.clip_rect(0.0, 0.0, bounds.width, bounds.height);
+                context.clip_rect(bounds)?;
             }
             let origin = self.visual_origin(snapshot);
-            if let Some(foreground) = gc.stroke_paint().cloned() {
-                let mut paint = crate::graphics::PaintContext::for_figure(gc);
-                paint.push_state();
-                paint.set_fill_paint(foreground);
-                let _ = paint.fill_text(&snapshot.layout, origin);
-                paint.pop_state();
+            if let Some(foreground) = context.stroke_paint().cloned() {
+                context.push_state();
+                context.set_fill_paint(foreground);
+                let paint_result = context.fill_text(&snapshot.layout, origin);
+                let pop_result = context.pop_state();
+                paint_result.and(pop_result)?;
             }
         }
+        Ok(())
     }
 
     fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::{BevelBorder, BevelStyle, Border, CompoundBorder};
 
@@ -41,11 +41,21 @@ impl Border for EtchedBorder {
         self.opaque
     }
 
-    fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.compound.paint(figure_bounds, gc);
+    fn paint(
+        &self,
+        figure_bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.compound.paint(figure_bounds, context)
     }
 
-    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
-        self.compound.paint_with_insets(figure_bounds, incoming, gc);
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: Insets,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.compound
+            .paint_with_insets(figure_bounds, incoming, context)
     }
 }

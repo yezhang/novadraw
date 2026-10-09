@@ -714,8 +714,8 @@ impl DispatchContext for SceneDispatchContext<'_> {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use crate::Color;
     use crate::render::command::{LineCap, LineJoin};
+    use crate::{Color, GraphicsError, PaintContext};
 
     use super::*;
     use crate::{
@@ -762,9 +762,13 @@ mod tests {
             LineJoin::default()
         }
 
-        fn fill_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     impl Figure for EnqueueChildFigure {
@@ -776,8 +780,12 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn paint_figure(&self, gc: &mut crate::render::NdCanvas) {
-            Shape::paint_figure(self, gc);
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
+            Shape::paint_shape(self, context)
         }
 
         fn register_capabilities(
@@ -859,9 +867,13 @@ mod tests {
             LineJoin::default()
         }
 
-        fn fill_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut crate::render::NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     impl Figure for RecordingFigure {
@@ -873,8 +885,12 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn paint_figure(&self, gc: &mut crate::render::NdCanvas) {
-            Shape::paint_figure(self, gc);
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
+            Shape::paint_shape(self, context)
         }
 
         fn register_capabilities(

@@ -4281,8 +4281,13 @@ mod tests {
             Rectangle::new(0.0, 0.0, 100.0, 100.0)
         }
 
-        fn paint_figure(&self, _canvas: &mut NdCanvas) {
+        fn paint(
+            &self,
+            _context: &mut crate::PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), crate::GraphicsError> {
             self.paints.fetch_add(1, Ordering::SeqCst);
+            Ok(())
         }
     }
 

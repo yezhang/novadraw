@@ -3,7 +3,6 @@ use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::NdCanvas;
 
 use crate::figure::{
     Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure, FigureContainer,
@@ -284,8 +283,6 @@ impl Figure for ScalableLayeredPaneFigure {
         Bounded::preferred_size(self)
     }
 
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
-
     fn get_border(&self) -> Option<&dyn Border> {
         self.border.as_deref()
     }
@@ -450,8 +447,6 @@ impl Figure for ScalableFreeformLayeredPane {
     fn intrinsic_size(&self) -> Dimension {
         Bounded::preferred_size(self)
     }
-
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
     fn get_border(&self) -> Option<&dyn Border> {
         self.border.as_deref()

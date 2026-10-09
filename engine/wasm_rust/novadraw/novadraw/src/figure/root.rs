@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::{Border, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape};
 
@@ -94,14 +94,14 @@ impl Figure for RootFigure {
         Bounded::insets(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -156,7 +156,11 @@ impl Shape for RootFigure {
         false
     }
 
-    fn fill_shape(&self, _gc: &mut NdCanvas) {}
+    fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
-    fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 }

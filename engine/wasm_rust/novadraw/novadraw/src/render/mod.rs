@@ -14,8 +14,7 @@
 mod clip;
 /// 渲染命令模块
 pub mod command;
-/// 渲染上下文模块
-pub mod context;
+mod context;
 pub use clip::{ClipPath, FillRule};
 mod paint;
 mod path_geometry;
@@ -44,7 +43,7 @@ pub use command::{
     DEFAULT_STROKE_MITER_LIMIT, ImageData, ImageDecodeError, ImageDrawError, ImageRegion,
     ImageResourceRef, LineCap, LineJoin, LineStyle, RenderCommand, RenderCommandKind,
 };
-pub use context::NdCanvas;
+pub(crate) use context::NdCanvas;
 pub use submission::{
     BackendSessionDecision, BackendSessionGate, BackendSessionId, DamageMode, DamageSet, FontData,
     FrameId, RenderSubmission, ResourceDelta, ResourceId, ResourceOp, ResourcePayload,

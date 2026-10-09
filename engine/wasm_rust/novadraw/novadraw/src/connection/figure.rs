@@ -4,7 +4,7 @@ use crate::Color;
 use crate::geometry::{Point, PointList, Rectangle, Translatable};
 use crate::graphics::{GraphicsError, PaintContext};
 use crate::render::{
-    NdCanvas, StrokeStyle,
+    StrokeStyle,
     command::{LineCap, LineJoin},
 };
 
@@ -291,10 +291,9 @@ struct ConnectionRouteDrawing {
 
 impl FigureDrawing for ConnectionRouteDrawing {
     fn paint(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
-        context
-            .canvas
-            .polyline_with_style(&self.points, self.color, self.stroke.clone());
-        Ok(())
+        context.set_stroke_paint(self.color);
+        context.set_stroke_style(self.stroke.clone());
+        context.stroke_polyline(&self.points)
     }
 }
 
@@ -307,12 +306,18 @@ impl Figure for ConnectionFigure {
         "ConnectionFigure"
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, _bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         if self.points.len() < 2 || self.stroke.width() <= 0.0 {
-            return;
+            return Ok(());
         }
         let points = self.painted_points();
-        gc.polyline_with_style(&points, self.stroke_color, self.stroke.clone());
+        context.set_stroke_paint(self.stroke_color);
+        context.set_stroke_style(self.stroke.clone());
+        context.stroke_polyline(&points)
     }
 
     fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {

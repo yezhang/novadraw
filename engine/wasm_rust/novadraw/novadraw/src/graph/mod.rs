@@ -1957,6 +1957,7 @@ mod tests {
     use super::super::figure::{Bounded, ChildClippingStrategy, RectangleFigure, Shape};
     use crate::Color as NovadrawCoreColor;
     use crate::geometry::{Point, Translatable};
+    use crate::graphics::{GraphicsError, PaintContext};
     use crate::render::{NdCanvas, command::RenderCommandKind};
     use crate::runtime::update::property::standard as property;
     use crate::style::{CursorIcon, FigureStyle, ResolvedStyle};
@@ -2060,9 +2061,13 @@ mod tests {
             false
         }
 
-        fn fill_shape(&self, _gc: &mut NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -2116,17 +2121,16 @@ mod tests {
             crate::render::command::LineJoin::default()
         }
 
-        fn fill_shape(&self, gc: &mut NdCanvas) {
-            gc.fill_rect_with_color(
-                self.paint_rect.x,
-                self.paint_rect.y,
-                self.paint_rect.width,
-                self.paint_rect.height,
+        fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            context.set_fill_paint(
                 NovadrawCoreColor::from_hex("#44aa44").expect("valid color literal"),
             );
+            context.fill_rect(self.paint_rect)
         }
 
-        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     struct LifecycleRecordingFigure {
@@ -2259,9 +2263,13 @@ mod tests {
             false
         }
 
-        fn fill_shape(&self, _gc: &mut NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     #[derive(Clone, Copy)]
@@ -2320,9 +2328,13 @@ mod tests {
             false
         }
 
-        fn fill_shape(&self, _gc: &mut NdCanvas) {}
+        fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
 
-        fn outline_shape(&self, _gc: &mut NdCanvas) {}
+        fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+            Ok(())
+        }
     }
 
     impl FigureEventHandler for TestInteractiveFigure {}
@@ -2343,8 +2355,12 @@ mod tests {
                         Bounded::insets(self)
                     }
 
-                    fn paint_figure(&self, gc: &mut NdCanvas) {
-                        Shape::paint_figure(self, gc);
+                    fn paint(
+                        &self,
+                        context: &mut PaintContext<'_>,
+                        _bounds: Rectangle,
+                    ) -> Result<(), GraphicsError> {
+                        Shape::paint_shape(self, context)
                     }
                 }
             )+
@@ -2362,8 +2378,12 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn paint_figure(&self, gc: &mut NdCanvas) {
-            Shape::paint_figure(self, gc);
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
+            Shape::paint_shape(self, context)
         }
 
         fn visual_bounds_in(&self, bounds: Rectangle) -> Rectangle {
@@ -2385,8 +2405,12 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn paint_figure(&self, gc: &mut NdCanvas) {
-            Shape::paint_figure(self, gc);
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
+            Shape::paint_shape(self, context)
         }
 
         fn register_capabilities(
@@ -2438,15 +2462,14 @@ mod tests {
             Bounded::name(self)
         }
 
-        fn paint_figure(&self, gc: &mut NdCanvas) {
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
             let bounds = self.bounds;
-            gc.fill_rect_with_color(
-                bounds.x,
-                bounds.y,
-                bounds.width,
-                bounds.height,
-                NovadrawCoreColor::WHITE,
-            );
+            context.set_fill_paint(NovadrawCoreColor::WHITE);
+            context.fill_rect(bounds)
         }
     }
 

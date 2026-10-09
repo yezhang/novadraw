@@ -1,5 +1,5 @@
 use super::*;
-use crate::render::ResourceUpdate;
+use crate::render::{NdCanvas, ResourceUpdate};
 use crate::runtime::ResourceRegistry;
 use crate::text::{
     FontDescriptor, FontMetrics, MeasureContext, TextConstraints, TextError, TextLayout,
@@ -48,11 +48,19 @@ pub struct PaintContext<'a> {
 
 impl<'a> PaintContext<'a> {
     pub(crate) fn for_figure(canvas: &'a mut NdCanvas) -> Self {
+        Self::for_recorder(canvas, None, None)
+    }
+
+    pub(crate) fn for_recorder(
+        canvas: &'a mut NdCanvas,
+        resources: Option<&'a ResourceRegistry>,
+        leases: Option<&'a mut Vec<ResourceUpdate>>,
+    ) -> Self {
         let state_floor = canvas.state_depth();
         Self {
             canvas,
-            resources: None,
-            leases: None,
+            resources,
+            leases,
             state_floor,
             figure_scope: true,
         }
@@ -68,6 +76,9 @@ impl<'a> PaintContext<'a> {
     }
     pub fn set_stroke_paint(&mut self, paint: impl Into<Paint>) {
         self.canvas.set_stroke_paint(paint.into());
+    }
+    pub fn stroke_paint(&self) -> Option<&Paint> {
+        self.canvas.stroke_paint()
     }
     pub fn set_stroke_style(&mut self, stroke: StrokeStyle) {
         self.canvas.set_stroke(stroke);
@@ -119,6 +130,36 @@ impl<'a> PaintContext<'a> {
         self.validate_rect(rect)?;
         self.canvas
             .record_checked(|c| c.draw_rectangle(rect.x, rect.y, rect.width, rect.height))
+    }
+    pub fn fill_ellipse(&mut self, bounds: Rectangle) -> Result<(), GraphicsError> {
+        self.validate_rect(bounds)?;
+        self.canvas.record_checked(|canvas| {
+            canvas.fill_oval(bounds.x, bounds.y, bounds.width, bounds.height);
+        })
+    }
+    pub fn stroke_ellipse(&mut self, bounds: Rectangle) -> Result<(), GraphicsError> {
+        self.validate_rect(bounds)?;
+        self.canvas.record_checked(|canvas| {
+            canvas.draw_oval(bounds.x, bounds.y, bounds.width, bounds.height);
+        })
+    }
+    pub fn stroke_line(&mut self, start: Point, end: Point) -> Result<(), GraphicsError> {
+        let paint = self.canvas.stroke_paint().cloned();
+        let stroke = self.canvas.current_stroke_style().clone();
+        self.canvas.record_checked(move |canvas| {
+            if let Some(paint) = paint {
+                canvas.line_with_style(start, end, paint, stroke);
+            }
+        })
+    }
+    pub fn stroke_polyline(&mut self, points: &[Point]) -> Result<(), GraphicsError> {
+        let paint = self.canvas.stroke_paint().cloned();
+        let stroke = self.canvas.current_stroke_style().clone();
+        self.canvas.record_checked(|canvas| {
+            if let Some(paint) = paint {
+                canvas.polyline_with_style(points, paint, stroke);
+            }
+        })
     }
     pub fn fill_path(&mut self, path: &Path) -> Result<(), GraphicsError> {
         self.path(path, false)
@@ -197,19 +238,19 @@ impl<'a> PaintContext<'a> {
     pub fn push_state(&mut self) {
         self.canvas.push_state();
     }
-    pub fn restore_state(&mut self) {
+    pub fn restore_state(&mut self) -> Result<(), GraphicsError> {
         if self.canvas.state_depth() <= self.state_floor {
-            self.canvas.reject_recording(GraphicsError::UnbalancedState);
-            return;
+            return self.reject(GraphicsError::UnbalancedState);
         }
         self.canvas.restore_state();
+        Ok(())
     }
-    pub fn pop_state(&mut self) {
+    pub fn pop_state(&mut self) -> Result<(), GraphicsError> {
         if self.canvas.state_depth() <= self.state_floor {
-            self.canvas.reject_recording(GraphicsError::UnbalancedState);
-            return;
+            return self.reject(GraphicsError::UnbalancedState);
         }
         self.canvas.pop_state();
+        Ok(())
     }
     pub fn concat_transform(&mut self, matrix: crate::Affine2D) -> Result<(), GraphicsError> {
         let [a, b, c, d, e, f] = matrix.coeffs();
@@ -304,6 +345,9 @@ impl Drop for PaintContext<'_> {
     fn drop(&mut self) {
         if self.figure_scope && self.canvas.state_depth() != self.state_floor {
             self.canvas.reject_recording(GraphicsError::UnbalancedState);
+            while self.canvas.state_depth() > self.state_floor {
+                self.canvas.pop_state();
+            }
         }
     }
 }
@@ -355,14 +399,11 @@ impl<'a> Graphics<'a> {
         self.measure.layout_text(text, constraints)
     }
     pub fn paint(&mut self) -> PaintContext<'_> {
-        let state_floor = self.paint.canvas.state_depth();
-        PaintContext {
-            canvas: self.paint.canvas,
-            resources: self.paint.resources,
-            leases: self.paint.leases.as_deref_mut(),
-            state_floor,
-            figure_scope: true,
-        }
+        PaintContext::for_recorder(
+            self.paint.canvas,
+            self.paint.resources,
+            self.paint.leases.as_deref_mut(),
+        )
     }
     pub fn set_fill_paint(&mut self, paint: impl Into<Paint>) {
         self.paint.set_fill_paint(paint);
@@ -394,11 +435,11 @@ impl<'a> Graphics<'a> {
     pub fn push_state(&mut self) {
         self.paint.push_state();
     }
-    pub fn restore_state(&mut self) {
-        self.paint.restore_state();
+    pub fn restore_state(&mut self) -> Result<(), GraphicsError> {
+        self.paint.restore_state()
     }
-    pub fn pop_state(&mut self) {
-        self.paint.pop_state();
+    pub fn pop_state(&mut self) -> Result<(), GraphicsError> {
+        self.paint.pop_state()
     }
     pub fn set_stroke_width(&mut self, width: f64) -> Result<(), GraphicsError> {
         self.paint.set_stroke_width(width)

@@ -1,7 +1,8 @@
 use std::{error::Error, fmt};
 
 use crate::geometry::{Point, PointList, Rectangle};
-use crate::render::{LineJoin, NdCanvas, StrokeStyle};
+use crate::graphics::{GraphicsError, PaintContext, Path};
+use crate::render::{LineJoin, StrokeStyle};
 use crate::{Alignment, Color, Figure, FigureStyle};
 
 const DEFAULT_STROKE_WIDTH: f64 = 2.0;
@@ -181,28 +182,35 @@ impl Figure for ScalablePolygonFigure {
         }
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let points = self.scaled_points(Rectangle::new(0.0, 0.0, bounds.width, bounds.height));
         if points.len() < 3 {
-            return;
+            return Ok(());
         }
-        gc.begin_path();
+        let mut path = Path::new();
         let first = points.get(0).expect("validated polygon point count");
-        gc.move_to(first.x(), first.y());
+        path.move_to(first.x(), first.y());
         for point in points.iter().skip(1) {
-            gc.line_to(point.x(), point.y());
+            path.line_to(point.x(), point.y());
         }
-        gc.close_path();
+        path.close();
         let fill = self.fill_color.alpha() > 0.0;
         let stroke = self.stroke_color.alpha() > 0.0 && self.stroke.width() > 0.0;
         if stroke {
-            gc.set_stroke(self.stroke.clone());
+            context.set_stroke_style(self.stroke.clone());
         }
         match (fill, stroke) {
-            (true, true) => gc.fill_and_stroke(),
-            (true, false) => gc.fill(),
-            (false, true) => gc.stroke(),
-            (false, false) => {}
+            (true, true) => {
+                context.fill_path(&path)?;
+                context.stroke_path(&path)
+            }
+            (true, false) => context.fill_path(&path),
+            (false, true) => context.stroke_path(&path),
+            (false, false) => Ok(()),
         }
     }
 

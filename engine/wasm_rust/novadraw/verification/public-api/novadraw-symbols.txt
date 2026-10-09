@@ -383,7 +383,6 @@ module.graphics struct GradientStop
 module.graphics struct Graphics
 module.graphics struct ImageRegion
 module.graphics struct LinearGradient
-module.graphics struct NdCanvas
 module.graphics struct PaintContext
 module.graphics struct Path
 module.graphics struct StrokeStyle
@@ -443,7 +442,6 @@ module.render enum TextInteractionError
 module.render enum TextMovement
 module.render fn validate_graphics_input
 module.render mod command
-module.render mod context
 module.render mod submission
 module.render mod text
 module.render mod traits
@@ -466,7 +464,6 @@ module.render struct ImageRegion
 module.render struct ImageResourceRef
 module.render struct InvalidGraphicsInput
 module.render struct LinearGradient
-module.render struct NdCanvas
 module.render struct ParleyTextEngine
 module.render struct PositionedGlyph
 module.render struct RecordedDrawing

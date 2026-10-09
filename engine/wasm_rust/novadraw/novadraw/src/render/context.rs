@@ -5,7 +5,9 @@
 use crate::Color;
 use crate::geometry::{Affine2D, Point, PointList, Rectangle};
 
-use super::stroke::{DashPattern, GraphicsInputError, StrokeStyle};
+#[cfg(test)]
+use super::stroke::DashPattern;
+use super::stroke::{GraphicsInputError, StrokeStyle};
 use super::{ClipPath, FillRule, Paint};
 use crate::render::command::{
     ImageDrawDisposition, ImageDrawError, ImageRegion, Path, RenderCommand, RenderCommandKind,
@@ -82,6 +84,10 @@ impl NdCanvas {
 
     pub(crate) fn stroke_paint(&self) -> Option<&Paint> {
         self.state.stroke_paint.as_ref()
+    }
+
+    pub(crate) fn current_stroke_style(&self) -> &StrokeStyle {
+        &self.state.stroke
     }
 
     pub(crate) fn validate_recording(
@@ -213,6 +219,7 @@ impl NdCanvas {
         self.commands.push(command);
     }
 
+    #[cfg(test)]
     fn color_with_global_alpha(&self, color: Color) -> Color {
         color.with_alpha((color.alpha() * self.state.global_alpha).clamp(0.0, 1.0))
     }
@@ -261,6 +268,7 @@ impl NdCanvas {
     ///
     /// 与 Draw2D `Graphics::rotate` 一致，参数单位为度。
     /// 生成 ConcatTransform 命令
+    #[cfg(test)]
     pub fn rotate_degrees(&mut self, degrees: f64) {
         let t = Affine2D::from_rotation_radians(degrees.to_radians());
         self.state.transform = self.state.transform.post_concat(t);
@@ -270,6 +278,7 @@ impl NdCanvas {
     /// 缩放
     ///
     /// 生成 ConcatTransform 命令
+    #[cfg(test)]
     pub fn scale(&mut self, x: f64, y: f64) {
         let t = Affine2D::from_scale(x, y);
         self.state.transform = self.state.transform.post_concat(t);
@@ -288,17 +297,20 @@ impl NdCanvas {
         self.create_command(RenderCommandKind::SetTransform { matrix: t });
     }
 
+    #[cfg(test)]
     pub fn reset_transform(&mut self) {
         self.state.transform = Affine2D::IDENTITY;
         self.create_command(RenderCommandKind::ResetTransform);
     }
 
+    #[cfg(test)]
     pub fn clear_rect(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
         let rect = Rectangle::new(x, y, width, height);
         let color = self.color_with_global_alpha(color);
         self.create_command(RenderCommandKind::ClearRect { rect, color });
     }
 
+    #[cfg(test)]
     pub fn fill_rect_with_color(&mut self, x: f64, y: f64, width: f64, height: f64, color: Color) {
         self.fill_rect_with_paint(x, y, width, height, color.into(), FillRule::NonZero);
     }
@@ -467,6 +479,7 @@ impl NdCanvas {
         });
     }
 
+    #[cfg(test)]
     pub fn draw_polygon(&mut self, points: &[Point]) {
         if points.len() < 2 {
             return;
@@ -481,6 +494,7 @@ impl NdCanvas {
         self.polyline_with_style(&closed, paint, self.state.stroke.clone());
     }
 
+    #[cfg(test)]
     pub fn fill_polygon(&mut self, points: &[Point]) {
         if points.len() < 3 {
             return;
@@ -495,11 +509,13 @@ impl NdCanvas {
     }
 
     /// 开始构建路径
+    #[cfg(test)]
     pub fn begin_path(&mut self) {
         self.current_path = Some(Path::new());
     }
 
     /// 闭合路径
+    #[cfg(test)]
     pub fn close_path(&mut self) {
         if let Some(ref mut path) = self.current_path {
             path.close();
@@ -507,6 +523,7 @@ impl NdCanvas {
     }
 
     /// 移动到指定点（路径起点）
+    #[cfg(test)]
     pub fn move_to(&mut self, x: f64, y: f64) {
         if let Some(ref mut path) = self.current_path {
             path.move_to(x, y);
@@ -514,6 +531,7 @@ impl NdCanvas {
     }
 
     /// 直线连接到指定点
+    #[cfg(test)]
     pub fn line_to(&mut self, x: f64, y: f64) {
         if let Some(ref mut path) = self.current_path {
             path.line_to(x, y);
@@ -521,6 +539,7 @@ impl NdCanvas {
     }
 
     /// 添加矩形路径
+    #[cfg(test)]
     pub fn rect_path(&mut self, x: f64, y: f64, width: f64, height: f64) {
         if let Some(ref mut path) = self.current_path {
             path.rect(x, y, width, height);
@@ -528,6 +547,7 @@ impl NdCanvas {
     }
 
     /// Adds a circular arc using Draw2D-compatible degree angles.
+    #[cfg(test)]
     pub fn arc_degrees(
         &mut self,
         x: f64,
@@ -543,6 +563,7 @@ impl NdCanvas {
     }
 
     /// 二次贝塞尔曲线
+    #[cfg(test)]
     pub fn quadratic_curve_to(&mut self, cpx: f64, cpy: f64, x: f64, y: f64) {
         if let Some(ref mut path) = self.current_path {
             path.quad_to(cpx, cpy, x, y);
@@ -550,6 +571,7 @@ impl NdCanvas {
     }
 
     /// 三次贝塞尔曲线
+    #[cfg(test)]
     pub fn bezier_curve_to(&mut self, cp1x: f64, cp1y: f64, cp2x: f64, cp2y: f64, x: f64, y: f64) {
         if let Some(ref mut path) = self.current_path {
             path.cubic_to(cp1x, cp1y, cp2x, cp2y, x, y);
@@ -557,6 +579,7 @@ impl NdCanvas {
     }
 
     /// 填充当前路径
+    #[cfg(test)]
     #[allow(clippy::collapsible_if)]
     pub fn fill(&mut self) {
         if let Some(path) = self.current_path.take() {
@@ -575,6 +598,7 @@ impl NdCanvas {
     }
 
     /// 描边当前路径
+    #[cfg(test)]
     #[allow(clippy::collapsible_if)]
     pub fn stroke(&mut self) {
         if let Some(path) = self.current_path.take() {
@@ -590,6 +614,7 @@ impl NdCanvas {
     }
 
     /// 填充并描边当前路径
+    #[cfg(test)]
     pub fn fill_and_stroke(&mut self) {
         if let Some(path) = self.current_path.take() {
             if let Some(paint) = &self.state.fill_paint {
@@ -626,16 +651,19 @@ impl NdCanvas {
         self.create_command(RenderCommandKind::Clip { rect });
     }
 
+    #[cfg(test)]
     pub fn set_clip(&mut self, x: f64, y: f64, width: f64, height: f64) {
         self.reset_clip();
         self.clip_rect(x, y, width, height);
     }
 
+    #[cfg(test)]
     pub fn reset_clip(&mut self) {
         self.state.clip_depth = 0;
         self.create_command(RenderCommandKind::ResetClip);
     }
 
+    #[cfg(test)]
     pub fn clear_commands(&mut self) {
         self.commands.clear();
     }
@@ -652,10 +680,12 @@ impl NdCanvas {
         &self.commands
     }
 
+    #[cfg(test)]
     pub fn to_submission(&self) -> RenderSubmission {
         self.to_submission_for_surface(Default::default())
     }
 
+    #[cfg(test)]
     pub fn to_submission_for_surface(
         &self,
         surface: crate::render::submission::SurfaceInfo,
@@ -667,6 +697,7 @@ impl NdCanvas {
         )
     }
 
+    #[cfg(test)]
     pub fn to_submission_for_frame(
         &self,
         surface: crate::render::submission::SurfaceInfo,
@@ -731,40 +762,49 @@ impl NdCanvas {
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn set_line_width(&mut self, width: f64) -> Result<(), GraphicsInputError> {
         self.line_width(width)
     }
 
+    #[cfg(test)]
     pub fn set_miter_limit(&mut self, limit: f64) -> Result<(), GraphicsInputError> {
         self.state.stroke = self.state.stroke.with_miter_limit(limit)?;
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn set_dash_offset(&mut self, offset: f64) -> Result<(), GraphicsInputError> {
         self.state.stroke = self.state.stroke.with_dash_offset(offset)?;
         Ok(())
     }
 
+    #[cfg(test)]
     pub fn set_dash_pattern(&mut self, pattern: DashPattern) {
         self.state.stroke = self.state.stroke.clone().with_dash_pattern(pattern);
     }
 
+    #[cfg(test)]
     pub fn line_cap(&mut self, cap: crate::render::command::LineCap) {
         self.state.stroke = self.state.stroke.clone().with_cap(cap);
     }
 
+    #[cfg(test)]
     pub fn line_join(&mut self, join: crate::render::command::LineJoin) {
         self.state.stroke = self.state.stroke.clone().with_join(join);
     }
 
+    #[cfg(test)]
     pub fn line_style(&mut self, style: crate::render::command::LineStyle) {
         self.set_dash_pattern(style.into());
     }
 
+    #[cfg(test)]
     pub fn set_line_style(&mut self, style: crate::render::command::LineStyle) {
         self.line_style(style);
     }
 
+    #[cfg(test)]
     #[deprecated(
         since = "0.1.0",
         note = "use fill_text_layout with fill paint, or Graphics::fill_text"
@@ -858,11 +898,13 @@ impl NdCanvas {
         }
     }
 
+    #[cfg(test)]
     pub fn draw_image(&mut self, image: crate::render::command::ImageResourceRef, x: f64, y: f64) {
         let (width, height) = image.logical_size();
         self.draw_image_with_size(image, x, y, width, height);
     }
 
+    #[cfg(test)]
     pub fn draw_image_with_size(
         &mut self,
         image: crate::render::command::ImageResourceRef,
@@ -932,6 +974,7 @@ impl NdCanvas {
         self.global_alpha(alpha);
     }
 
+    #[cfg(test)]
     pub fn clip_depth(&self) -> usize {
         self.state.clip_depth
     }

@@ -1,9 +1,7 @@
 use crate::Color;
 use crate::geometry::{Insets, Point, Rectangle};
-use crate::render::{
-    NdCanvas,
-    command::{LineCap, LineJoin},
-};
+use crate::graphics::{GraphicsError, PaintContext, StrokeStyle};
+use crate::render::command::{LineCap, LineJoin};
 
 use super::{Border, inset_rectangle};
 
@@ -51,13 +49,27 @@ impl Border for BevelBorder {
         self.highlight.is_opaque() && self.shadow.is_opaque()
     }
 
-    fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
+    fn paint(
+        &self,
+        figure_bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint_with_insets(figure_bounds, Insets::ZERO, context)
     }
 
-    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: Insets,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         let bounds = inset_rectangle(figure_bounds, incoming);
         let (top_left, bottom_right) = self.colors();
+        context.set_stroke_style(
+            StrokeStyle::default()
+                .with_cap(LineCap::Butt)
+                .with_join(LineJoin::Miter),
+        );
         for layer in 0..self.width {
             let offset = f64::from(layer) + 0.5;
             let left = bounds.x + offset;
@@ -67,38 +79,13 @@ impl Border for BevelBorder {
             if right < left || bottom < top {
                 break;
             }
-            gc.line_with_style(
-                Point::new(left, bottom),
-                Point::new(left, top),
-                top_left,
-                crate::graphics::StrokeStyle::default()
-                    .with_cap(LineCap::Butt)
-                    .with_join(LineJoin::Miter),
-            );
-            gc.line_with_style(
-                Point::new(left, top),
-                Point::new(right, top),
-                top_left,
-                crate::graphics::StrokeStyle::default()
-                    .with_cap(LineCap::Butt)
-                    .with_join(LineJoin::Miter),
-            );
-            gc.line_with_style(
-                Point::new(right, top),
-                Point::new(right, bottom),
-                bottom_right,
-                crate::graphics::StrokeStyle::default()
-                    .with_cap(LineCap::Butt)
-                    .with_join(LineJoin::Miter),
-            );
-            gc.line_with_style(
-                Point::new(right, bottom),
-                Point::new(left, bottom),
-                bottom_right,
-                crate::graphics::StrokeStyle::default()
-                    .with_cap(LineCap::Butt)
-                    .with_join(LineJoin::Miter),
-            );
+            context.set_stroke_paint(top_left);
+            context.stroke_line(Point::new(left, bottom), Point::new(left, top))?;
+            context.stroke_line(Point::new(left, top), Point::new(right, top))?;
+            context.set_stroke_paint(bottom_right);
+            context.stroke_line(Point::new(right, top), Point::new(right, bottom))?;
+            context.stroke_line(Point::new(right, bottom), Point::new(left, bottom))?;
         }
+        Ok(())
     }
 }

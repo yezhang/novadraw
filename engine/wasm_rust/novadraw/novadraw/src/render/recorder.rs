@@ -13,6 +13,11 @@ impl CommandRecorder {
         Self::default()
     }
 
+    /// Borrows the recorder as a drawing-only context.
+    pub fn paint(&mut self) -> crate::graphics::PaintContext<'_> {
+        crate::graphics::PaintContext::for_recorder(&mut self.canvas, None, None)
+    }
+
     pub fn commands(&self) -> &[RenderCommand] {
         self.canvas.commands()
     }

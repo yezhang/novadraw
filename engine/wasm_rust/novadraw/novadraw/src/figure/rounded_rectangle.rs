@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext, Path, StrokeStyle};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -206,14 +206,14 @@ impl Figure for RoundedRectangleFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, bounds: Rectangle) -> bool {
@@ -308,20 +308,20 @@ impl Shape for RoundedRectangleFigure {
         self.stroke_color.map(|c| c.alpha() > 0.0).unwrap_or(false)
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let Some((bounds, corner_dimensions)) = self.paint_geometry() else {
-            return;
+            return Ok(());
         };
         let mut local = self.clone();
         local.bounds = bounds;
         local.corner_dimensions = corner_dimensions;
-        local.draw_rounded_rect(gc, Some(self.fill_color), None);
+        local.draw_rounded_rect(context, Some(self.fill_color), None)
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if let Some(color) = self.stroke_color {
             let Some((bounds, corner_dimensions)) = self.paint_geometry() else {
-                return;
+                return Ok(());
             };
 
             let temp_rect = RoundedRectangleFigure {
@@ -335,8 +335,9 @@ impl Shape for RoundedRectangleFigure {
                 child_clipping_strategy: self.child_clipping_strategy,
                 border: None,
             };
-            temp_rect.draw_rounded_rect(gc, None, Some(color));
+            temp_rect.draw_rounded_rect(context, None, Some(color))?;
         }
+        Ok(())
     }
 }
 
@@ -344,10 +345,10 @@ impl RoundedRectangleFigure {
     /// 绘制圆角矩形（填充和/或描边）
     fn draw_rounded_rect(
         &self,
-        gc: &mut NdCanvas,
+        context: &mut PaintContext<'_>,
         fill_color: Option<Color>,
         stroke_color: Option<Color>,
-    ) {
+    ) -> Result<(), GraphicsError> {
         let x = self.bounds.x;
         let y = self.bounds.y;
         let width = self.bounds.width;
@@ -357,79 +358,57 @@ impl RoundedRectangleFigure {
 
         // 边界检查
         if width <= 0.0 || height <= 0.0 {
-            return;
+            return Ok(());
         }
 
         // 如果没有圆角，退化为普通矩形
         if radius_x <= 0.0 || radius_y <= 0.0 {
             if let Some(color) = fill_color {
-                gc.fill_rect_with_color(x, y, width, height, color);
+                context.set_fill_paint(color);
+                context.fill_rect(self.bounds)?;
             }
             if let Some(color) = stroke_color {
-                let Ok(stroke) =
-                    crate::graphics::StrokeStyle::default().with_width(self.stroke_width)
-                else {
-                    return;
-                };
-                gc.stroke_rect_with_style(
-                    x,
-                    y,
-                    width,
-                    height,
-                    color,
-                    stroke.with_cap(self.line_cap).with_join(self.line_join),
+                context.set_stroke_paint(color);
+                context.set_stroke_style(
+                    StrokeStyle::default()
+                        .with_width(self.stroke_width)?
+                        .with_cap(self.line_cap)
+                        .with_join(self.line_join),
                 );
+                context.stroke_rect(self.bounds)?;
             }
-            return;
+            return Ok(());
         }
 
-        // 使用 Path API 构建圆角矩形
-        gc.begin_path();
-
-        // 从左上角开始
-        gc.move_to(x + radius_x, y);
-
-        // 上边
-        gc.line_to(x + width - radius_x, y);
-
-        // 右上角圆弧
-        gc.quadratic_curve_to(x + width, y, x + width, y + radius_y);
-
-        // 右边
-        gc.line_to(x + width, y + height - radius_y);
-
-        // 右下角圆弧
-        gc.quadratic_curve_to(x + width, y + height, x + width - radius_x, y + height);
-
-        // 下边
-        gc.line_to(x + radius_x, y + height);
-
-        // 左下角圆弧
-        gc.quadratic_curve_to(x, y + height, x, y + height - radius_y);
-
-        // 左边
-        gc.line_to(x, y + radius_y);
-
-        // 左上角圆弧
-        gc.quadratic_curve_to(x, y, x + radius_x, y);
-
-        gc.close_path();
+        let mut path = Path::new();
+        path.move_to(x + radius_x, y);
+        path.line_to(x + width - radius_x, y);
+        path.quad_to(x + width, y, x + width, y + radius_y);
+        path.line_to(x + width, y + height - radius_y);
+        path.quad_to(x + width, y + height, x + width - radius_x, y + height);
+        path.line_to(x + radius_x, y + height);
+        path.quad_to(x, y + height, x, y + height - radius_y);
+        path.line_to(x, y + radius_y);
+        path.quad_to(x, y, x + radius_x, y);
+        path.close();
 
         // 填充
         if let Some(color) = fill_color {
-            let _ = color;
-            gc.fill();
+            context.set_fill_paint(color);
+            context.fill_path(&path)?;
         }
 
         // 描边
         if let Some(color) = stroke_color {
-            let _ = color;
-            if gc.line_width(self.stroke_width).is_err() {
-                return;
-            }
-            gc.line_cap(self.line_cap);
-            gc.line_join(self.line_join);
-            gc.stroke();
+            context.set_stroke_paint(color);
+            context.set_stroke_style(
+                StrokeStyle::default()
+                    .with_width(self.stroke_width)?
+                    .with_cap(self.line_cap)
+                    .with_join(self.line_join),
+            );
+            context.stroke_path(&path)?;
         }
+        Ok(())
     }
 }

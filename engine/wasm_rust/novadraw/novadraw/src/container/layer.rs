@@ -1,7 +1,6 @@
 use std::{collections::HashMap, error::Error, fmt, sync::Arc};
 
 use crate::geometry::Rectangle;
-use crate::render::NdCanvas;
 
 use crate::{
     Bounded, ChildClippingStrategy, ChildPolicy, FREEFORM, Figure, FigureCapabilityBuilder,
@@ -160,8 +159,6 @@ impl Figure for LayerFigure {
         "LayerFigure"
     }
 
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
-
     fn hit_participation(&self) -> HitParticipation {
         HitParticipation::DescendantsOnly
     }
@@ -212,8 +209,6 @@ impl Figure for FreeformLayerFigure {
     fn name(&self) -> &'static str {
         "FreeformLayerFigure"
     }
-
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
     fn hit_participation(&self) -> HitParticipation {
         HitParticipation::DescendantsOnly
@@ -271,8 +266,6 @@ impl Figure for LayeredPane {
         "LayeredPane"
     }
 
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
-
     fn hit_participation(&self) -> HitParticipation {
         HitParticipation::DescendantsOnly
     }
@@ -327,8 +320,6 @@ impl Figure for FreeformLayeredPane {
     fn name(&self) -> &'static str {
         "FreeformLayeredPane"
     }
-
-    fn paint_figure(&self, _gc: &mut NdCanvas) {}
 
     fn hit_participation(&self) -> HitParticipation {
         HitParticipation::DescendantsOnly

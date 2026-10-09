@@ -1,8 +1,7 @@
 use crate::Color;
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::{
-    FontDescriptor, NdCanvas, TextConstraints, TextError, TextLayout, TextLayoutEngine,
-};
+use crate::graphics::{GraphicsError, PaintContext};
+use crate::render::{FontDescriptor, TextConstraints, TextError, TextLayout, TextLayoutEngine};
 
 use crate::Alignment;
 
@@ -74,19 +73,20 @@ impl TitleBarBorder {
         &self,
         figure_bounds: Rectangle,
         metrics: &TitleBarMetrics,
-        gc: &mut NdCanvas,
-    ) {
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         let layout = &metrics.layout;
         let height = metrics.insets.top.min(figure_bounds.height);
-        gc.push_state();
-        gc.set_background_color(self.background);
-        gc.fill_rectangle(
+        context.push_state();
+        context.set_fill_paint(self.background);
+        let paint_result = context.fill_rect(Rectangle::new(
             figure_bounds.x,
             figure_bounds.y,
             figure_bounds.width,
             height,
-        );
-        gc.pop_state();
+        ));
+        let pop_result = context.pop_state();
+        paint_result.and(pop_result)?;
 
         let available = (figure_bounds.width - self.horizontal_padding * 2.0).max(0.0);
         let x = match self.alignment {
@@ -102,16 +102,17 @@ impl TitleBarBorder {
                     - layout.width() as f64
             }
         };
-        if let Some(foreground) = gc.stroke_paint().cloned() {
-            let mut paint = crate::graphics::PaintContext::for_figure(gc);
-            paint.push_state();
-            paint.set_fill_paint(foreground);
-            let _ = paint.fill_text(
+        if let Some(foreground) = context.stroke_paint().cloned() {
+            context.push_state();
+            context.set_fill_paint(foreground);
+            let paint_result = context.fill_text(
                 layout,
                 crate::Point::new(x, figure_bounds.y + self.vertical_padding),
             );
-            paint.pop_state();
+            let pop_result = context.pop_state();
+            paint_result.and(pop_result)?;
         }
+        Ok(())
     }
 }
 
@@ -120,18 +121,25 @@ impl Border for TitleBarBorder {
         Insets::ZERO
     }
 
-    fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {}
+    fn paint(
+        &self,
+        _figure_bounds: Rectangle,
+        _context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
     fn paint_snapshot_with_insets(
         &self,
         figure_bounds: Rectangle,
         incoming: Insets,
         snapshot: &BorderSnapshot,
-        gc: &mut NdCanvas,
-    ) {
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         if let Some(metrics) = snapshot.title_bar_metrics() {
-            self.paint_metrics(inset_rectangle(figure_bounds, incoming), metrics, gc);
+            self.paint_metrics(inset_rectangle(figure_bounds, incoming), metrics, context)?;
         }
+        Ok(())
     }
 
     fn resolve_owner_snapshot(

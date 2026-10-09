@@ -4,7 +4,7 @@
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext, StrokeStyle};
 
 use super::{Border, BorderStyle, DEFAULT_BORDER_WIDTH, inset_rectangle, render_line_style};
 
@@ -67,11 +67,20 @@ impl Border for RectangleBorder {
         self.insets
     }
 
-    fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas) {
-        self.paint_with_insets(figure_bounds, Insets::ZERO, gc);
+    fn paint(
+        &self,
+        figure_bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint_with_insets(figure_bounds, Insets::ZERO, context)
     }
 
-    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: Insets,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
         let figure_bounds = inset_rectangle(figure_bounds, incoming);
         let half_width = self.width / 2.0;
         let x = figure_bounds.x + half_width;
@@ -80,26 +89,21 @@ impl Border for RectangleBorder {
         let height = figure_bounds.height - self.width;
 
         if width <= 0.0 || height <= 0.0 {
-            return;
+            return Ok(());
         }
 
         let cap = crate::render::command::LineCap::Butt;
         let join = crate::render::command::LineJoin::Miter;
 
-        let Ok(stroke) = crate::graphics::StrokeStyle::default().with_width(self.width) else {
-            return;
-        };
-        gc.stroke_rect_with_style(
-            x,
-            y,
-            width,
-            height,
-            self.color,
-            stroke
+        context.set_stroke_paint(self.color);
+        context.set_stroke_style(
+            StrokeStyle::default()
+                .with_width(self.width)?
                 .with_cap(cap)
                 .with_join(join)
                 .with_dash_pattern(render_line_style(self.style).into()),
         );
+        context.stroke_rect(Rectangle::new(x, y, width, height))
     }
 
     fn is_opaque(&self) -> bool {

@@ -21,7 +21,8 @@ pub use title_bar_border::TitleBarBorder;
 
 use crate::Color;
 use crate::geometry::{Dimension, Insets, Rectangle};
-use crate::render::{FontDescriptor, NdCanvas, TextError, TextLayoutEngine};
+use crate::graphics::{GraphicsError, PaintContext};
+use crate::render::{FontDescriptor, TextError, TextLayoutEngine};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BorderSnapshot {
@@ -116,20 +117,29 @@ pub trait Border: Send + Sync {
     ///
     /// 对应 draw2d: paint(Figure, Graphics)
     /// 在给定的图形边界内绘制边框
-    fn paint(&self, figure_bounds: Rectangle, gc: &mut NdCanvas);
+    fn paint(
+        &self,
+        figure_bounds: Rectangle,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError>;
 
     /// 在调用方已经累计的 inset 内绘制。
-    fn paint_with_insets(&self, figure_bounds: Rectangle, incoming: Insets, gc: &mut NdCanvas) {
-        self.paint(inset_rectangle(figure_bounds, incoming), gc);
+    fn paint_with_insets(
+        &self,
+        figure_bounds: Rectangle,
+        incoming: Insets,
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint(inset_rectangle(figure_bounds, incoming), context)
     }
 
     fn paint_snapshot(
         &self,
         figure_bounds: Rectangle,
         snapshot: &BorderSnapshot,
-        gc: &mut NdCanvas,
-    ) {
-        self.paint_snapshot_with_insets(figure_bounds, Insets::ZERO, snapshot, gc);
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint_snapshot_with_insets(figure_bounds, Insets::ZERO, snapshot, context)
     }
 
     /// Paints an owner-scoped snapshot inside the caller's accumulated insets.
@@ -139,9 +149,9 @@ pub trait Border: Send + Sync {
         figure_bounds: Rectangle,
         incoming: Insets,
         _snapshot: &BorderSnapshot,
-        gc: &mut NdCanvas,
-    ) {
-        self.paint_with_insets(figure_bounds, incoming, gc);
+        context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        self.paint_with_insets(figure_bounds, incoming, context)
     }
 
     /// Resolves owner-dependent metrics without storing owner state in the Border.

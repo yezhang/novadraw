@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -159,14 +159,14 @@ impl Figure for RectangleFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         local.bounds = Rectangle::new(0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -232,12 +232,17 @@ impl Shape for RectangleFigure {
         self.stroke_color.map(|c| c.alpha() > 0.0).unwrap_or(false)
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
-        gc.fill_rectangle(0.0, 0.0, self.bounds.width, self.bounds.height);
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        context.fill_rect(Rectangle::new(
+            0.0,
+            0.0,
+            self.bounds.width,
+            self.bounds.height,
+        ))
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
-        if let Some(color) = self.stroke_color {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        if self.stroke_color.is_some() {
             // 参考 draw2d RectangleFigure.outlineShape:
             // 描边向内缩（inset），使描边完全在 bounds 内部
             // lineInset = max(1.0, strokeWidth) / 2.0
@@ -256,13 +261,15 @@ impl Shape for RectangleFigure {
             // - 内边缘：x + sw/2 - sw/2 = x（原始左边界）
             // - 外边缘：x + w - sw/2 + sw/2 = x + w（原始右边界）
             // 这样描边正好填满原始 bounds
-            let _ = color;
-            if gc.line_width(self.stroke_width).is_err() {
-                return;
-            }
-            gc.line_cap(self.line_cap);
-            gc.line_join(self.line_join);
-            gc.draw_rectangle(x, y, width.max(0.0), height.max(0.0));
+            context.set_stroke_width(self.stroke_width)?;
+            context.set_stroke_style(
+                crate::graphics::StrokeStyle::default()
+                    .with_width(self.stroke_width)?
+                    .with_cap(self.line_cap)
+                    .with_join(self.line_join),
+            );
+            context.stroke_rect(Rectangle::new(x, y, width.max(0.0), height.max(0.0)))?;
         }
+        Ok(())
     }
 }

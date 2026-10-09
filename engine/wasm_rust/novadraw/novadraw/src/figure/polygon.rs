@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::{NdCanvas, StrokeStyle, command::LineJoin};
+use crate::graphics::{GraphicsError, PaintContext, Path};
+use crate::render::{StrokeStyle, command::LineJoin};
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer,
@@ -152,14 +153,14 @@ impl Figure for PolygonFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {
@@ -257,42 +258,38 @@ impl Shape for PolygonFigure {
         self.polyline.stroke_color.alpha() > 0.0
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let points = self.polyline.get_points();
         if points.len() < 3 {
-            return;
+            return Ok(());
         }
 
-        // 使用 path API 构建闭合路径
-        gc.begin_path();
+        let mut path = Path::new();
         if let Some(first) = points.first() {
-            gc.move_to(first.x(), first.y());
+            path.move_to(first.x(), first.y());
         }
         for point in points.iter().skip(1) {
-            gc.line_to(point.x(), point.y());
+            path.line_to(point.x(), point.y());
         }
-        gc.close_path();
-
-        gc.fill();
+        path.close();
+        context.fill_path(&path)
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let points = self.polyline.get_points();
         if points.len() < 3 {
-            return;
+            return Ok(());
         }
 
-        gc.set_stroke(self.polyline.stroke_style().clone());
-        // 使用 path API 构建闭合路径（与 fill_shape 统一）
-        gc.begin_path();
+        context.set_stroke_style(self.polyline.stroke_style().clone());
+        let mut path = Path::new();
         if let Some(first) = points.first() {
-            gc.move_to(first.x(), first.y());
+            path.move_to(first.x(), first.y());
         }
         for point in points.iter().skip(1) {
-            gc.line_to(point.x(), point.y());
+            path.line_to(point.x(), point.y());
         }
-        gc.close_path();
-
-        gc.stroke();
+        path.close();
+        context.stroke_path(&path)
     }
 }

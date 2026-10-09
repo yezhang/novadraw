@@ -1,11 +1,9 @@
 use std::sync::Arc;
 
 use crate::Color;
-use crate::geometry::{Dimension, Insets, Point, Rectangle};
-use crate::render::{
-    NdCanvas,
-    command::{LineCap, LineJoin},
-};
+use crate::geometry::{Affine2D, Dimension, Insets, Point, Rectangle};
+use crate::graphics::{GraphicsError, PaintContext, StrokeStyle};
+use crate::render::command::{LineCap, LineJoin};
 
 use super::border::{BevelBorder, BevelStyle, Border};
 use super::{
@@ -206,24 +204,24 @@ fn handle_focus_lost(ctx: &mut EventContext<'_>) -> bool {
     true
 }
 
-fn paint_focus(gc: &mut NdCanvas, bounds: Rectangle, focused: bool) {
+fn paint_focus(
+    context: &mut PaintContext<'_>,
+    bounds: Rectangle,
+    focused: bool,
+) -> Result<(), GraphicsError> {
     if !focused {
-        return;
+        return Ok(());
     }
     let width = (bounds.width - FOCUS_INSET * 2.0).max(0.0);
     let height = (bounds.height - FOCUS_INSET * 2.0).max(0.0);
-    gc.stroke_rect_with_style(
-        FOCUS_INSET,
-        FOCUS_INSET,
-        width,
-        height,
-        FOCUS_COLOR,
-        crate::graphics::StrokeStyle::default()
-            .with_width(FOCUS_STROKE_WIDTH)
-            .expect("valid focus stroke")
+    context.set_stroke_paint(FOCUS_COLOR);
+    context.set_stroke_style(
+        StrokeStyle::default()
+            .with_width(FOCUS_STROKE_WIDTH)?
             .with_cap(LineCap::Butt)
             .with_join(LineJoin::Miter),
     );
+    context.stroke_rect(Rectangle::new(FOCUS_INSET, FOCUS_INSET, width, height))
 }
 
 fn default_button_border(style: BevelStyle) -> BevelBorder {
@@ -231,12 +229,12 @@ fn default_button_border(style: BevelStyle) -> BevelBorder {
 }
 
 fn paint_widget(
-    gc: &mut NdCanvas,
+    context: &mut PaintContext<'_>,
     bounds: Rectangle,
     model: &ClickableModel,
     label: Option<&LabelFigure>,
     toggle: bool,
-) {
+) -> Result<(), GraphicsError> {
     let snapshot = model.snapshot();
     let push_selected = !toggle && snapshot.selected;
     let background = if !snapshot.visual.enabled {
@@ -250,21 +248,30 @@ fn paint_widget(
     } else {
         BUTTON_BACKGROUND
     };
-    gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, background);
+    context.set_fill_paint(background);
+    context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
     if let Some(label) = label {
         let offset = if snapshot.visual.pressed || push_selected {
             PRESSED_CONTENT_OFFSET
         } else {
             0.0
         };
-        gc.push_state();
-        gc.translate(offset, offset);
-        label.paint_figure_in_bounds(gc, bounds);
-        gc.pop_state();
+        context.push_state();
+        let paint = context
+            .concat_transform(Affine2D::from_translation(offset, offset))
+            .and_then(|()| label.paint(context, bounds));
+        let pop = context.pop_state();
+        paint?;
+        pop?;
     }
+    Ok(())
 }
 
-fn paint_widget_border(gc: &mut NdCanvas, bounds: Rectangle, model: &ClickableModel) {
+fn paint_widget_border(
+    context: &mut PaintContext<'_>,
+    bounds: Rectangle,
+    model: &ClickableModel,
+) -> Result<(), GraphicsError> {
     let snapshot = model.snapshot();
     let lowered = snapshot.visual.pressed || snapshot.selected;
     default_button_border(if lowered {
@@ -272,8 +279,8 @@ fn paint_widget_border(gc: &mut NdCanvas, bounds: Rectangle, model: &ClickableMo
     } else {
         BevelStyle::Raised
     })
-    .paint(bounds, gc);
-    paint_focus(gc, bounds, snapshot.visual.focused);
+    .paint(bounds, context)?;
+    paint_focus(context, bounds, snapshot.visual.focused)
 }
 
 #[derive(Clone)]
@@ -312,8 +319,12 @@ impl Figure for ClickableFigure {
         true
     }
 
-    fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        paint_focus(gc, bounds, self.model.visual.focused);
+    fn paint_border(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        paint_focus(context, bounds, self.model.visual.focused)
     }
 
     fn register_capabilities(
@@ -468,12 +479,20 @@ impl Figure for ButtonFigure {
         Dimension::new(width + inset, height + inset)
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        paint_widget(gc, bounds, &self.model, Some(&self.label), false);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        paint_widget(context, bounds, &self.model, Some(&self.label), false)
     }
 
-    fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        paint_widget_border(gc, bounds, &self.model);
+    fn paint_border(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        paint_widget_border(context, bounds, &self.model)
     }
 
     fn get_border(&self) -> Option<&dyn Border> {
@@ -614,12 +633,20 @@ impl Figure for ToggleFigure {
         Dimension::new(width + inset, height + inset)
     }
 
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        paint_widget(gc, bounds, &self.model, Some(&self.label), true);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        paint_widget(context, bounds, &self.model, Some(&self.label), true)
     }
 
-    fn paint_border_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
-        paint_widget_border(gc, bounds, &self.model);
+    fn paint_border(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        paint_widget_border(context, bounds, &self.model)
     }
 
     fn get_border(&self) -> Option<&dyn Border> {

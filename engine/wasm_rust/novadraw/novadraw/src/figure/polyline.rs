@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::{NdCanvas, StrokeStyle};
+use crate::graphics::{GraphicsError, PaintContext, Path};
+use crate::render::StrokeStyle;
 
 use super::{
     Border, BorderedFigure, Bounded, ChildClippingStrategy, Figure, FigureContainer, Shape,
@@ -263,14 +264,14 @@ impl Figure for PolylineFigure {
         }
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
-    }
-
-    fn paint_figure_in_bounds(&self, gc: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let mut local = self.clone();
         Bounded::set_bounds(&mut local, 0.0, 0.0, bounds.width, bounds.height);
-        Shape::paint_figure(&local, gc);
+        Shape::paint_shape(&local, context)
     }
 
     fn precise_hit(&self, x: f64, y: f64, _bounds: Rectangle) -> bool {
@@ -370,22 +371,23 @@ impl Shape for PolylineFigure {
         true
     }
 
-    fn fill_shape(&self, _gc: &mut NdCanvas) {
+    fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         // Polyline 不支持填充
+        Ok(())
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if self.points.len() < 2 {
-            return;
+            return Ok(());
         }
-        gc.set_stroke(self.stroke.clone());
+        context.set_stroke_style(self.stroke.clone());
 
-        gc.begin_path();
-        gc.move_to(self.points[0].x(), self.points[0].y());
+        let mut path = Path::new();
+        path.move_to(self.points[0].x(), self.points[0].y());
         for point in &self.points[1..] {
-            gc.line_to(point.x(), point.y());
+            path.line_to(point.x(), point.y());
         }
-        gc.stroke();
+        context.stroke_path(&path)
     }
 }
 

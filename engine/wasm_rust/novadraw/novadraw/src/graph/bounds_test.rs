@@ -4,7 +4,7 @@
 
 use crate::Color;
 use crate::geometry::{Insets, Rectangle};
-use crate::render::NdCanvas;
+use crate::graphics::{GraphicsError, PaintContext};
 
 use crate::container::{scalable::ScalableLayeredPaneFigure, viewport::ViewportFigure};
 use crate::figure::{Bounded, Figure, RectangleFigure, Shape};
@@ -116,9 +116,13 @@ impl Shape for TestInsetFigure {
         false
     }
 
-    fn fill_shape(&self, _gc: &mut NdCanvas) {}
+    fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
-    fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 }
 
 impl Shape for TestCoordRootFigure {
@@ -150,9 +154,13 @@ impl Shape for TestCoordRootFigure {
         false
     }
 
-    fn fill_shape(&self, _gc: &mut NdCanvas) {}
+    fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
-    fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 }
 
 macro_rules! impl_test_shape_figure {
@@ -171,8 +179,12 @@ macro_rules! impl_test_shape_figure {
                     Bounded::insets(self)
                 }
 
-                fn paint_figure(&self, gc: &mut NdCanvas) {
-                    Shape::paint_figure(self, gc);
+                fn paint(
+                    &self,
+                    context: &mut PaintContext<'_>,
+                    _bounds: Rectangle,
+                ) -> Result<(), GraphicsError> {
+                    Shape::paint_shape(self, context)
                 }
             }
         )+

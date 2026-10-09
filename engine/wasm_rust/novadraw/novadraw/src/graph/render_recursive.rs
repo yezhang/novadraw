@@ -144,11 +144,11 @@ impl<'a> FigureRenderer<'a> {
                 if let Err(error) = prepared.presentation.paint(&mut context) {
                     context.canvas.reject_recording(error);
                 }
-            } else {
-                block.figure.paint(
-                    &mut context,
-                    crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
-                );
+            } else if let Err(error) = block.figure.paint(
+                &mut context,
+                crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
+            ) {
+                context.canvas.reject_recording(error);
             }
             drop(context);
         }
@@ -163,11 +163,15 @@ impl<'a> FigureRenderer<'a> {
             Some(b) if b.is_visible => b,
             _ => return,
         };
-        block.figure.paint_border_snapshot_in_bounds(
-            self.gc,
+        let mut context = crate::graphics::PaintContext::for_figure(self.gc);
+        if let Err(error) = block.figure.paint_border_snapshot_in_bounds(
+            &mut context,
             crate::geometry::Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
             block.border_snapshot.as_ref(),
-        );
+        ) {
+            context.canvas.reject_recording(error);
+        }
+        drop(context);
 
         // 5. 恢复 parent state。
         self.gc.pop_state();
