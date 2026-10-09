@@ -14,17 +14,18 @@
 - [5. 几何、坐标域与变换](05-geometry-and-coordinates.md)
 - [6. 测量、布局与稳定化](06-layout-and-stabilization.md)
 - [7. Damage、绘制与帧提交](07-rendering-and-frame.md)
-- [8. 命中、输入与交互状态](08-input-and-interaction.md)
-- [9. 图层、视口与连接](09-layers-viewport-connections.md)
+- [8. 动画与表现平面](08-animation-and-presentation.md)
+- [9. 命中、输入与交互状态](09-input-and-interaction.md)
+- [10. 图层、视口与连接](10-layers-viewport-connections.md)
 
 # 第三部分：编辑框架
 
-- [10. 模型、EditPart 与确定性投影](10-model-projection.md)
-- [11. Tool、Request、Policy 与 Command](11-editing-protocol.md)
+- [11. 模型、EditPart 与确定性投影](11-model-projection.md)
+- [12. Tool、Request、Policy 与 Command](12-editing-protocol.md)
 
 # 第四部分：扩展与演进
 
-- [12. 类型化 Capability 与组件更新](12-capability-model.md)
-- [13. 原子性、故障与可验证演进](13-correctness-and-evolution.md)
+- [13. 类型化 Capability 与组件更新](13-capability-model.md)
+- [14. 原子性、故障与可验证演进](14-correctness-and-evolution.md)
 
 - [附录：核心概念关系图](appendix-concept-map.md)

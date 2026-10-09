@@ -150,12 +150,15 @@ flowchart TD
         Ready --> SessionGate[BackendSessionGate]
         SessionGate --> Backend[RenderBackend / Vello]
         Backend -->|Presented| Pixels[平台绘制表面]
-        Backend --> Outcome[RenderOutcome]
+        Backend --> Outcome[RenderResult]
         Outcome --> Complete[Runtime.complete_submission]
         Complete --> SubmittedNotify[发布 Submitted 通知]
         SubmittedNotify -->|Presented| Done[完成当前帧]
-        SubmittedNotify -->|Retry / Skipped / Unsupported| Retry[恢复资源并请求全量重绘]
+        SubmittedNotify -->|Retry / Skipped / SurfaceLost| Retry[恢复资源并请求全量重绘]
+        SubmittedNotify -->|DeviceLost| Recreate[递增 session 并重建 backend]
+        SubmittedNotify -->|Rejected / Terminated| Stop[停止自动提交]
         Retry --> Redraw
+        Recreate --> Redraw
     end
 
     Prepare -->|Idle| IdleNotify[发布稳定场景通知]
@@ -222,13 +225,18 @@ sequenceDiagram
         Runtime->>Runtime: 合入 ResourceSync、SurfaceInfo 和帧身份
         Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
         Host->>Backend: submit(RenderSubmission)
-        Backend-->>Host: RenderOutcome
-        Host->>Runtime: complete_submission(session_id, frame_id, outcome)
+        Backend-->>Host: RenderResult
+        Host->>Runtime: complete_submission(session_id, frame_id, result)
         alt Presented
-            Runtime-->>Host: 完成当前帧
-        else Retry / Skipped / Unsupported
+            Runtime-->>Host: SubmissionAcknowledgement::Presented
+        else Retry / Skipped / SurfaceLost
             Runtime->>Runtime: 恢复资源状态并标记全量重绘
             Runtime-->>Host: 请求下一次重绘
+        else DeviceLost
+            Runtime->>Runtime: 递增 backend session
+            Runtime-->>Host: 重建 backend，下一帧 Snapshot + Full
+        else Unsupported / InvalidInput / OOM / Fatal
+            Runtime-->>Host: 停止自动提交并暴露失败
         end
     end
 ```
@@ -263,8 +271,9 @@ sequenceDiagram
   `RenderCommand`。
 
 两者与资源同步、绘制表面及会话/帧身份一起组成 `RenderSubmission`。后端提交完成后
-必须把 `RenderOutcome` 交还 `Runtime::complete_submission`：成功时结束当前帧；重试
-或失败时恢复资源同步状态，并把下一帧提升为全量重绘。稳定场景通知在提交包准备好
+必须把完整 `RenderResult` 交还 `Runtime::complete_submission`：成功时结束当前帧；
+瞬时失败恢复资源同步状态，device lost 递增 session 并要求重建 backend，确定性拒绝
+和终止类失败停止自动提交。稳定场景通知在提交包准备好
 或确认本轮无帧可提交后发布；后端提交结果则在完成回调后发布，二者不是同一类通知。
 如果绘制表面暂停、前一帧尚未完成或稳定化失败，`FramePreparation` 会返回
 `Suspended`、`AwaitingCompletion` 或 `Error`，本轮不会产生不完整的提交包。
@@ -280,7 +289,7 @@ sequenceDiagram
 | 图层、视口与滚动 | `LayeredPaneState`、`FreeformState`、`ViewportLayout`、`RangeModel`、`ZoomManager` | [第 6 章](06-layers-and-viewport.md) |
 | 连接派生几何 | `ConnectionRuntime`、`SceneQuery`、`Anchor`、`Router`、`RouteOutput` | [第 7 章](07-connections.md) |
 | 模型编辑闭环 | `ModelAdapter`、`EditPart`、`GraphicalViewer`、`Tool`、`Request`、`EditPolicy`、`CommandStack` | [第 8 章](08-editor-framework.md) |
-| 失败恢复与验证 | `FramePreparation`、`RenderOutcome`、故障锁定状态与验证套件 | [第 9 章](09-verification-and-extension.md) |
+| 失败恢复与验证 | `FramePreparation`、`RenderResult`、`SubmissionAcknowledgement`、故障锁定状态与验证套件 | [第 9 章](09-verification-and-extension.md) |
 
 总管线的主要代码入口：
 

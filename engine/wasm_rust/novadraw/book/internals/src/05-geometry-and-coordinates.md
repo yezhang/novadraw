@@ -291,7 +291,7 @@ projected shape ⊆ projected AABB
 ## 5.18 与后续章节的关系
 
 本章定义了几何事实和坐标链。下一章的布局只在父内容域内产生候选 bounds；第 7 章
-利用旧新 visual projection 形成 damage；第 8 章通过逆链执行命中；第 9 章的视口与
+利用旧新 visual projection 形成 damage；第 9 章通过逆链执行命中；第 10 章的视口与
 连接则复用同一坐标查询。
 
 ## 5.19 思考题

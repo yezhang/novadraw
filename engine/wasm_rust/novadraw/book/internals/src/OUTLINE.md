@@ -40,6 +40,7 @@
 -> Runtime 事务
 -> 布局与派生状态收敛
 -> 稳定场景
+-> 可选 presentation snapshot
 -> damage 与绘制命令
 -> 后端提交和完成反馈
 ```
@@ -158,12 +159,28 @@
 - 旧视觉边界和新视觉边界的 union；
 - 裁剪、绘图状态和递归绘制；
 - Graphics、命令录制与 RenderSubmission；
-- stable scene 与 backend completion；
+- RenderResult 与 Runtime acknowledgement；
 - 资源增量和 session/frame identity。
 
 关键图：从 mutation 到完成反馈的完整帧生命周期。
 
-### 第 8 章：命中、输入与交互状态
+### 第 8 章：动画与表现平面
+
+主问题：如何产生连续视觉过渡，同时保证模型、布局、命中、通知和历史只认最终事实？
+
+覆盖：
+
+- committed、presentation 与 backend 三个状态平面；
+- Target、Motion、Trigger 与 Composition；
+- Runtime-owned clock、timeline 与 presentation snapshot；
+- before/after capture、channel ownership 与 retarget；
+- old/new visual envelope 与 animation damage；
+- Disabled、ReducedMotion、suspension 和 interaction geometry；
+- layout、route、viewport 与 temporary visual 消费者。
+
+关键图：committed state 经 Presentation Plane 形成帧，而不反向污染源状态。
+
+### 第 9 章：命中、输入与交互状态
 
 主问题：离散平台事件如何组成稳定、可取消的交互会话？
 
@@ -178,7 +195,7 @@
 
 关键图：pointer down、move、up/cancel 的交互状态机。
 
-### 第 9 章：图层、视口与连接
+### 第 10 章：图层、视口与连接
 
 主问题：跨节点派生几何如何在滚动、缩放和结构变化后保持一致？
 
@@ -193,7 +210,7 @@
 
 关键图：节点变化经依赖追踪触发连接重算和视口重投影。
 
-### 第 10 章：模型、EditPart 与确定性投影
+### 第 11 章：模型、EditPart 与确定性投影
 
 主问题：为什么业务模型不能直接等同于 Figure 树？
 
@@ -208,7 +225,7 @@
 
 关键图：模型、Part、Figure 三个身份域及投影事务。
 
-### 第 11 章：Tool、Request、Policy 与 Command
+### 第 12 章：Tool、Request、Policy 与 Command
 
 主问题：如何把连续输入转化为可撤销、可测试的业务修改？
 
@@ -223,7 +240,7 @@
 
 关键图：输入到模型再到 Viewer 刷新的完整编辑闭环。
 
-### 第 12 章：类型化 Capability 与组件更新
+### 第 13 章：类型化 Capability 与组件更新
 
 主问题：如何避免宽接口、中心枚举和伪行为 trait？
 
@@ -231,14 +248,15 @@
 
 - 基础协议、横切 Capability、共享模型和具体组件；
 - capability 成立的消费者判据；
-- typed key、owned descriptor 和冻结 registry；
+- descriptor-typed key、owned descriptor 和冻结 registry；
 - 私有组件的 typed update；
+- namespace/name/type 组成的 PropertyKey；
 - Runtime 统一提交副作用；
 - 外部能力发现与类型安全。
 
 关键图：四类扩展对象的决策树。
 
-### 第 13 章：原子性、故障与可验证演进
+### 第 14 章：原子性、故障与可验证演进
 
 主问题：如何判断一个框架修改在失败、扩展和优化后仍然正确？
 

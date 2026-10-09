@@ -56,7 +56,8 @@
    - 渲染提交包与后端；
    - 编辑框架的“工具 -> 请求 -> 策略 -> 命令 -> 模型 -> 查看器刷新”。
    第 1 章必须维护一张总体渲染管线图，把上述阶段及后续章节的核心数据结构串联起来，
-   并覆盖后端 `RenderOutcome` 返回 `Runtime::complete_submission` 的完成反馈。
+   并覆盖后端 `RenderResult` 返回 `Runtime::complete_submission`、再形成
+   `SubmissionAcknowledgement` 的完成与恢复反馈。
 3. 保持以下核心主题完整：
    - 系统公理、模块职责、所有权和身份域；
    - 边界矩形、内边距、客户区、视觉边界与投影边界；

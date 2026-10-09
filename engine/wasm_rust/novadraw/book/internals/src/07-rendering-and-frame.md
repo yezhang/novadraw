@@ -120,32 +120,34 @@ Graphics 不是场景查询接口。绘制回调不应通过它修改 Figure 树
 
 ## 7.8 RenderSubmission
 
-一次提交至少包含：
+一次提交携带后端完成当前帧所需的全部拥有数据：
 
 ```text
 RenderSubmission {
     session_id,
     frame_id,
-    stable_epoch,
+    surface,
     damage,
     commands,
-    resource_delta,
+    resources,
 }
 ```
 
-- `session_id` 区分表面重建前后的资源宇宙；
+- `session_id` 区分 backend 重建前后的资源宇宙；
 - `frame_id` 在 session 内单调标识提交；
-- `stable_epoch` 关联场景稳定状态；
+- `surface` 描述本次提交使用的逻辑和物理表面信息；
 - `damage` 指示需要修复的表面区域；
 - `commands` 是后端中立绘制记录；
-- `resource_delta` 声明本帧新增、更新或释放的资源。
+- `resources` 是当前 session 的完整快照或相对已确认基线的增量。
 
-后端只消费提交，不获得 Runtime 所有权。
+`stable_epoch` 属于 Runtime 内部因果边界：Runtime 只允许从一个稳定 epoch 生成上述
+提交，但后端不需要据此查询场景。后端只消费提交，不获得 Runtime 所有权。
 
 ## 7.9 Session 与 Frame
 
-窗口表面重建、设备丢失或后端切换可能开启新 session。旧 session 的迟到完成不能被
-当成新 session 当前帧的结果。
+设备丢失、后端切换或其他需要重建 backend resource universe 的故障会开启新 session。
+单纯的 surface lost 通常只要求在同一 backend session 中重新配置表面，不应自动递增
+session。旧 session 的迟到完成不能被当成新 session 当前帧的结果。
 
 ```text
 (session 4, frame 120) != (session 5, frame 120)
@@ -175,21 +177,47 @@ Figure 销毁不意味着 GPU 资源可以立即释放。资源生命周期通�
 ## 7.11 提交状态机
 
 ```mermaid
-stateDiagram-v2
-    [*] --> StableScene
-    StableScene --> Prepared: 录制成功
-    Prepared --> Submitted: 后端接受
-    Submitted --> Completed: 完成反馈
-    Prepared --> StableScene: 提交前拒绝
-    Submitted --> Retryable: 暂时失败
-    Submitted --> SessionLost: 设备或表面失效
-    Retryable --> Submitted: 重试
-    SessionLost --> StableScene: 新 session 重建
-    Completed --> [*]
+flowchart TD
+    Stable[稳定场景] --> Prepare[Runtime 准备 RenderSubmission]
+    Prepare --> Backend[RenderBackend::submit]
+    Backend --> Result{RenderResult}
+
+    Result -->|Presented| Presented[已呈现]
+    Result -->|Skipped / Retry| Deferred[未呈现，可继续调度]
+    Result -->|SurfaceLost| Surface[表面失效]
+    Result -->|DeviceLost| Device[设备失效]
+    Result -->|Unsupported / InvalidInput| Rejected[确定性拒绝]
+    Result -->|OutOfMemory / Fatal| Terminated[终止自动提交]
+
+    Presented --> Complete[Runtime::complete_submission]
+    Deferred --> Complete
+    Surface --> Complete
+    Device --> Complete
+    Rejected --> Complete
+    Terminated --> Complete
+
+    Complete --> Ack{SubmissionAcknowledgement}
+    Ack --> Baseline[提交资源基线]
+    Ack --> Preserve[恢复资源并保留 Full]
+    Ack --> Reconfigure[同 session 重配 surface]
+    Ack --> Rebuild[递增 session 并重建 backend]
+    Ack --> Stop[停止自动提交并暴露失败]
 ```
 
-场景稳定和后端完成是两个不同事实。后端失败通常不应回滚业务模型或 Figure 树，而应
-重建呈现 session 或重新提交。
+`RenderResult` 把正常处置与运行失败分开：
+
+```text
+RenderDisposition = Presented | Skipped | Retry
+
+RenderFailure =
+    Unsupported | InvalidInput
+  | SurfaceLost | DeviceLost
+  | OutOfMemory | Fatal
+```
+
+Backend 负责分类提交结果；Runtime 负责确认资源和 session 状态；Host 只按照
+acknowledgement 执行重新调度、surface reconfigure、backend rebuild 或停止提交。
+三者不能互相越权。
 
 ## 7.12 完整案例：移动带边框节点
 
@@ -204,8 +232,10 @@ stateDiagram-v2
 7. 背景或下层内容先修复 A；
 8. 节点及其边框在 B 录制；
 9. 命令、资源和 damage 封装为新 frame；
-10. 后端接受提交；
-11. 完成反馈到达后，frame 资源引用才可释放。
+10. 后端返回完整 `RenderResult`；
+11. Host 把结果交回 Runtime；
+12. Runtime 确认资源基线、完整重绘需求和 session 状态；
+13. Host 根据 acknowledgement 决定是否继续调度。
 
 如果 B 被其他节点遮挡，damage 仍需覆盖 A；如果节点移动到表面外，旧 A 仍必须修复。
 
@@ -216,7 +246,8 @@ stateDiagram-v2
 - 校验或降低 Render IR；
 - 管理设备资源；
 - 执行局部或全量呈现；
-- 返回完成、可重试失败或 session 丢失。
+- 返回 Presented、Skipped、Retry 或结构化 RenderFailure；
+- 保存后端本地原始错误用于诊断。
 
 后端不能：
 
@@ -225,6 +256,9 @@ stateDiagram-v2
 - 改写 damage 的场景语义；
 - 因为优化方便而重排有可见语义的命令；
 - 把后端专有类型暴露回 Core 公共协议。
+
+失败诊断必须保持 backend-neutral。Core 可以接收稳定摘要和 source chain 文本，但不能
+把 Vello、WGPU 或平台错误类型放进公共签名，也不能通过字符串匹配决定失败分类。
 
 ## 7.14 部分重绘与完整场景
 
@@ -240,18 +274,35 @@ damage 可以限制需要修复的区域，但命令生成仍应保持完整场�
 
 尚未提交后端。场景仍稳定，但本帧未生成。错误应携带失败节点或资源上下文。
 
-### 后端拒绝
+### Skipped 与 Retry
 
-若提交未被接受，可以保留 damage 并重试或扩大为全量重绘。
+二者都表示当前帧未发布。Runtime 恢复 in-flight 资源并保留完整重绘需求。Host 可以
+根据可见性和 wakeup 规则再次请求 redraw，但动画时间和场景状态不回退。
 
-### 完成未知
+### SurfaceLost
 
-不能假设帧未执行。资源不得提前复用或释放，通常需要重建 session 边界。
+表面获取或配置失效时，Runtime 保持当前 backend session，恢复资源并保留完整重绘。
+Host 让现有 backend 重新配置 surface，成功后再请求帧。
 
-### 设备丢失
+### DeviceLost
 
-场景事实保持，后端资源失效。新 session 从稳定场景和源资源重建，而不是让后端恢复
-Figure 树。
+场景事实保持，但 backend 资源宇宙失效。Runtime 是唯一递增 session 的权威，并要求
+下一帧发送资源快照和完整重绘。Host 重建 backend，但不能再次擅自重置 session。
+
+### Unsupported 与 InvalidInput
+
+这是确定性拒绝，不能自动循环重试。Runtime 恢复资源和完整重绘需求，Host 停止自动
+提交并把失败暴露给应用。
+
+### OutOfMemory 与 Fatal
+
+Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失败循环；应用可以选择释放
+资源、重建更高层宿主或结束会话。
+
+### Completion 身份不匹配
+
+无 in-flight frame、session/frame 不匹配、Runtime faulted 或 session ID 耗尽都属于
+结构化 completion error。它们不能折叠为一个布尔值，也不能提交错误资源基线。
 
 ## 7.16 必须保持的不变量
 
@@ -261,7 +312,9 @@ Figure 树。
 4. Graphics 状态栈在任何路径都平衡；
 5. 资源与 session/frame identity 绑定；
 6. 后端结果不反向成为场景事实；
-7. 完成未知时不提前回收相关资源。
+7. 只有 Runtime 可以确认资源基线和递增 backend session；
+8. 未呈现或失败的提交保留完整重绘需求；
+9. 确定性拒绝和终止失败不得自动循环重试。
 
 ## 7.17 常见错误设计
 
@@ -281,19 +334,31 @@ Figure 树。
 
 把呈现故障错误地升级为业务事务失败。
 
+### Host 根据 RenderFailure 自行修改 session
+
+Runtime 与 Host 对资源宇宙产生两个权威，迟到 completion 无法正确拒绝。
+
+### 把所有失败都当作 Retry
+
+Unsupported、InvalidInput、OOM 和 Fatal 会形成无界提交循环，并掩盖确定性错误。
+
 ### 以“变化节点列表”代替 damage
 
 透明和叠放要求重建区域内容，不等于重画变化对象。
 
 ## 7.18 与后续章节的关系
 
-本章从稳定场景走到像素提交。下一章从平台事件反向进入场景，通过同一树顺序和坐标链
-决定目标。第 9 章会展示视口和连接变化如何同时产生派生几何与 damage。
+本章从稳定场景走到像素提交。下一章在 committed scene 与 RenderSubmission 之间加入
+可丢弃的 Presentation Plane，解释动画如何复用同一 damage、资源和帧合同而不污染源
+状态。第 9 章再从平台事件反向进入场景，第 10 章展示视口和连接如何同时产生派生几何
+与 presentation 变化。
 
 ## 7.19 思考题
 
 1. 为什么 dirty 集合不能直接作为后端的 damage？
 2. 节点完全移出视口后，为什么仍可能需要一帧提交？
-3. 后端已经接受但没有返回完成时，资源可以释放吗？
-4. 局部重绘为什么不能只录制发生变化的 Figure？
-5. stable epoch、frame ID 和 session ID 分别解决什么问题？
+3. Skipped、Retry 和 SurfaceLost 为什么都要保留完整重绘，但恢复动作不同？
+4. DeviceLost 后为什么只有 Runtime 可以递增 session？
+5. Unsupported 为什么不能自动当作 Retry？
+6. 局部重绘为什么不能只录制发生变化的 Figure？
+7. stable epoch、frame ID 和 session ID 分别解决什么问题？

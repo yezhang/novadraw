@@ -1,4 +1,4 @@
-# 10. 模型、EditPart 与确定性投影
+# 11. 模型、EditPart 与确定性投影
 
 > **本章解决的问题**：业务对象如何被稳定地映射成 Figure 树，而不让视图成为第二份
 > 模型？
@@ -10,7 +10,7 @@ Runtime。若业务事实保存在 Figure 中，这些操作都会改变语义�
 
 > Viewer 可以被销毁和重建，而业务事实、命令语义和最终投影结果必须保持不变。
 
-## 10.1 模型与 Figure 的不同生命周期
+## 11.1 模型与 Figure 的不同生命周期
 
 业务模型需要：
 
@@ -29,7 +29,7 @@ Figure 需要：
 
 因此，Figure 是模型在某个 Viewer 中的可交互投影，不是模型本身。
 
-## 10.2 ModelAdapter
+## 11.2 ModelAdapter
 
 Editor 不应假设所有业务模型都使用同一种对象系统。`ModelAdapter` 提供最小稳定读取：
 
@@ -49,7 +49,7 @@ apply(command) -> new revision
 
 Adapter 是业务系统与 Editor 的边界，不应把 Figure 或 Runtime 类型写回模型。
 
-## 10.3 EditPart 的职责
+## 11.3 EditPart 的职责
 
 EditPart 是控制器，负责：
 
@@ -62,7 +62,7 @@ EditPart 是控制器，负责：
 EditPart 不应复制整份业务模型。它可以缓存最近应用 revision 或派生展示值，但模型
 变化后应从稳定快照刷新。
 
-## 10.4 三个身份域
+## 11.4 三个身份域
 
 Viewer 显式维护映射：
 
@@ -80,7 +80,7 @@ flowchart LR
 
 视觉事件从 FigureId 找到 Part，再由 Part 找到 ModelId；命令只保存业务身份和值。
 
-## 10.5 Visual ownership
+## 11.5 Visual ownership
 
 一个 EditPart 可以拥有主 Figure、标签、手柄或连接视觉。Visual ownership 回答：
 
@@ -92,7 +92,7 @@ flowchart LR
 树父级不一定等于视觉所有者。例如连接 Figure 可以挂在连接层，却由 ConnectionPart
 拥有。所有权和拓扑必须分别记录。
 
-## 10.6 Containment projection
+## 11.6 Containment projection
 
 业务 containment 决定 Part 树的主要结构。投影过程：
 
@@ -107,7 +107,7 @@ flowchart LR
 
 Part 树与 Figure 树通常相关，但不要求完全同构。图层、装饰和连接会引入额外 Figure。
 
-## 10.7 Connection projection
+## 11.7 Connection projection
 
 业务连接通常引用 source/target ModelId。Viewer 只有在端点 Part 可解析后，才能建立
 连接投影。
@@ -125,7 +125,7 @@ Part 树与 Figure 树通常相关，但不要求完全同构。图层、装饰�
 端点暂时缺失时，投影应进入显式 pending/unresolved，而不是把任意现有 Figure 当作
 端点。
 
-## 10.8 稳定快照
+## 11.8 稳定快照
 
 投影必须基于单一 model revision。若读取 children 后模型又变化，再读取连接会得到
 混合快照。
@@ -138,7 +138,7 @@ ModelAdapter 应提供：
 
 Viewer 不能把“每次查询都成功”误认为整体一致。
 
-## 10.9 Plan、Validate、Commit、Publish
+## 11.9 Plan、Validate、Commit、Publish
 
 投影同样采用四阶段事务。
 
@@ -184,7 +184,7 @@ Plan 不修改现有 Viewer。
 
 投影和 Core 场景稳定后，Viewer 发布新 revision、选择变化和可观察事件。
 
-## 10.10 为什么投影要确定
+## 11.10 为什么投影要确定
 
 给定同一模型快照、Viewer 配置和主题，投影应得到语义等价结果：
 
@@ -202,7 +202,7 @@ project(snapshot, config) -> equivalent view
 
 这使重建、测试和回放具有可比较结果。
 
-## 10.11 节点重排
+## 11.11 节点重排
 
 模型只改变同一父级 children 顺序时，Viewer 应：
 
@@ -216,7 +216,7 @@ project(snapshot, config) -> equivalent view
 
 不应销毁并重建所有节点，否则选择、工具目标和缓存会无谓失效。
 
-## 10.12 删除
+## 11.12 删除
 
 删除模型节点时，计划必须同时处理：
 
@@ -231,7 +231,7 @@ project(snapshot, config) -> equivalent view
 模型通知只描述业务事实，Viewer 负责把影响扩展到当前投影。删除不能依赖各 Part 收到
 无序回调后自行清理。
 
-## 10.13 撤销和重建
+## 11.13 撤销和重建
 
 撤销恢复模型 revision 后，Viewer 从模型事实重新投影。旧 FigureId 不需要恢复；需要
 恢复的是业务语义：
@@ -243,7 +243,7 @@ project(snapshot, config) -> equivalent view
 
 因此，Command 绝不能保存 FigureId 作为业务目标。
 
-## 10.14 Revision 连续性
+## 11.14 Revision 连续性
 
 增量通知应声明前后 revision：
 
@@ -256,14 +256,14 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 
 “尽量应用剩余事件”会让 Viewer 永久偏离模型。
 
-## 10.15 重复身份
+## 11.15 重复身份
 
 同一快照中若两个对象声明相同 ModelId，Viewer 无法建立双射。正确结果是拒绝该投影，
 保留上一稳定 Viewer 或进入明确故障状态。
 
 自动给其中一个对象换 ID 会篡改业务语义，不能由视图层完成。
 
-## 10.16 读取期间漂移
+## 11.16 读取期间漂移
 
 若 Adapter 不能提供不可变快照，Viewer 应：
 
@@ -275,7 +275,7 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 
 不能把不同 revision 的 containment 和 connection 拼在一起。
 
-## 10.17 多 Viewer
+## 11.17 多 Viewer
 
 多个 Viewer 可以共享同一模型，但各自拥有：
 
@@ -288,7 +288,7 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 一个 Viewer 的销毁不影响模型，也不使另一个 Viewer 的 Part/Figure ID 失效。模型
 Command 完成后，各 Viewer 独立消费同一业务 revision。
 
-## 10.18 必须保持的不变量
+## 11.18 必须保持的不变量
 
 1. 模型是业务事实的唯一权威；
 2. Viewer 投影基于单一稳定 revision；
@@ -298,7 +298,7 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 6. 投影只发布完整新 revision；
 7. revision 断裂时重建，不猜测。
 
-## 10.19 常见错误设计
+## 11.19 常见错误设计
 
 ### Figure 直接保存并修改业务对象
 
@@ -320,13 +320,13 @@ Viewer 重建后命令历史失效。
 
 Viewer 无法证明自己对应任何真实模型快照。
 
-## 10.20 与后续章节的关系
+## 11.20 与后续章节的关系
 
 本章解释模型如何形成稳定视图。下一章从反方向说明输入如何经 Tool、Request 和 Policy
-形成只修改模型的 Command，再由本章的投影闭环返回 Figure。第 12 章则处理 Figure 和
+形成只修改模型的 Command，再由本章的投影闭环返回 Figure。第 13 章则处理 Figure 和
 Part 如何通过类型化扩展保持开放。
 
-## 10.21 思考题
+## 11.21 思考题
 
 1. 为什么 Part 树与 Figure 树不必完全同构？
 2. 节点重排时保留 Part/Figure 身份有什么价值？
