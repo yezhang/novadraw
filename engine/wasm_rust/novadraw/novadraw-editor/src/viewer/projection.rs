@@ -8,19 +8,22 @@ where
     F: EditPartFactory<A>,
 {
     /// Applies one validated notification batch to the EditPart and Figure projections.
-    pub fn refresh(&mut self) -> Result<bool, ViewerError> {
+    pub fn synchronize(&mut self) -> Result<bool, ViewerError> {
         self.ensure_ready()?;
-        match catch_unwind(AssertUnwindSafe(|| self.refresh_projection())) {
-            Ok(result) => result,
+        match catch_unwind(AssertUnwindSafe(|| self.synchronize_projection())) {
+            Ok(Ok(changed)) => Ok(changed),
+            Ok(Err(error)) => {
+                self.mark_faulted();
+                Err(error)
+            }
             Err(payload) => {
-                self.force_drop_direct_text_edit();
-                self.faulted = true;
+                self.mark_faulted();
                 resume_unwind(payload)
             }
         }
     }
 
-    fn refresh_projection(&mut self) -> Result<bool, ViewerError> {
+    fn synchronize_projection(&mut self) -> Result<bool, ViewerError> {
         let events = self.model.drain_events();
         if events.is_empty() {
             if self.model.revision() == self.applied_revision {

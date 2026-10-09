@@ -416,9 +416,11 @@ impl DirectEditWebApp {
         )
         .map_err(js_error)?;
         viewer
+            .drive()
             .register_builtin_font(BuiltinFont::Inter)
             .map_err(js_error)?;
         viewer
+            .drive()
             .register_builtin_font(BuiltinFont::NotoSansSc)
             .map_err(js_error)?;
 
@@ -596,6 +598,7 @@ impl DirectEditWebApp {
         }
         if let Err(error) = self
             .viewer
+            .drive()
             .resize_logical_viewport(surface.logical_width, surface.logical_height)
         {
             self.last_error = Some(error.to_string());
@@ -605,7 +608,7 @@ impl DirectEditWebApp {
         {
             self.last_error = Some(error.to_string());
         }
-        self.viewer.request_full_redraw();
+        self.viewer.drive().request_full_redraw();
         self.sync_text_input_effects();
     }
 
@@ -786,13 +789,14 @@ impl DirectEditWebApp {
 
     fn advance_time(&mut self) {
         let now = web_monotonic_time(&self.window, self.clock_origin_millis);
-        if let Err(error) = self.viewer.advance_time(now) {
+        if let Err(error) = self.viewer.drive().advance_time(now) {
             self.last_error = Some(error.to_string());
         }
     }
 
-    fn schedule_next_wake(&self) {
-        self.host.schedule_wake(self.viewer.next_wake_deadline());
+    fn schedule_next_wake(&mut self) {
+        self.host
+            .schedule_wake(self.viewer.drive().next_wake_deadline());
     }
 
     fn on_runtime_wake(&mut self) {
@@ -810,6 +814,7 @@ impl DirectEditWebApp {
         }
         let preparation = self
             .viewer
+            .drive()
             .prepare_submission(self.host.surface_info(), self.backend.capabilities());
         let submission = match preparation {
             FramePreparation::Ready(submission) => submission,
@@ -831,6 +836,7 @@ impl DirectEditWebApp {
         let outcome = self.backend.submit(&submission);
         let acknowledgement = self
             .viewer
+            .drive()
             .complete_submission(submission.session_id, submission.frame_id, outcome)
             .expect("prepared direct-edit frame must match its completion");
         match acknowledgement {
@@ -855,7 +861,7 @@ impl DirectEditWebApp {
         self.update_status(damage);
     }
 
-    fn update_status(&self, damage: DamageMode) {
+    fn update_status(&mut self, damage: DamageMode) {
         let editing = self.viewer.direct_text_edit();
         let visible_text = editing
             .map(DirectTextEditState::draft)
@@ -922,6 +928,7 @@ impl DirectEditWebApp {
                 "data-next-wake",
                 &self
                     .viewer
+                    .drive()
                     .next_wake_deadline()
                     .map(|deadline| deadline.as_micros().to_string())
                     .unwrap_or_default(),

@@ -11,15 +11,17 @@ use std::{
     time::Duration,
 };
 
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::RootFigure;
 use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
-use novadraw::{Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
+use novadraw::{Figure, RectangleFigure};
 use novadraw_editor::{
-    ChangeBoundsRequest, Command, CommandError, ConnectionCreation, CreateConnectionRequest,
-    CreateRequest, CreationType, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory,
-    EditPolicy, EditorDomain, EditorDomainError, EditorRequest, FeedbackVisual, GraphicalViewer,
-    HandleRole, InteractionRevision, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
-    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, RequestModifiers, ResizeDirection,
-    ViewerError, VisualUpdateContext,
+    ChangeBoundsRequest, Command, CommandError, CommandStackError, ConnectionCreation,
+    CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest, EditPartBehavior,
+    EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorDomainError, EditorRequest,
+    FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter, ModelEvent,
+    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    RequestModifiers, ResizeDirection, ViewerError, VisualUpdateContext,
 };
 
 const ROOT: NodeId = NodeId(1);
@@ -169,6 +171,44 @@ struct CreateNodeCommand {
     index: usize,
 }
 
+struct RecoverableMutationCommand;
+
+impl Command<DiagramModel> for RecoverableMutationCommand {
+    fn label(&self) -> &str {
+        "Invalid recoverable mutation"
+    }
+
+    fn execute(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.set_bounds(FIRST, Rectangle::new(70.0, 80.0, 100.0, 80.0));
+        Err(CommandError::operation(
+            "command violated the recoverable error contract",
+        ))
+    }
+
+    fn undo(&mut self, _model: &mut DiagramModel) -> Result<(), CommandError> {
+        Ok(())
+    }
+}
+
+struct UnknownMutationCommand;
+
+impl Command<DiagramModel> for UnknownMutationCommand {
+    fn label(&self) -> &str {
+        "Unknown model mutation"
+    }
+
+    fn execute(&mut self, model: &mut DiagramModel) -> Result<(), CommandError> {
+        model.set_bounds(FIRST, Rectangle::new(80.0, 90.0, 100.0, 80.0));
+        Err(CommandError::state_unknown(
+            "command cannot prove the resulting model state",
+        ))
+    }
+
+    fn undo(&mut self, _model: &mut DiagramModel) -> Result<(), CommandError> {
+        Ok(())
+    }
+}
+
 impl Command<DiagramModel> for CreateNodeCommand {
     fn label(&self) -> &str {
         "Create node"
@@ -286,6 +326,12 @@ impl EditPolicy<DiagramModel> for CanvasPolicy {
         let EditorRequest::Create(request) = request else {
             return Ok(None);
         };
+        if host.model() == ROOT && request.creation_type().as_str() == "invalid-recoverable" {
+            return Ok(Some(Box::new(RecoverableMutationCommand)));
+        }
+        if host.model() == ROOT && request.creation_type().as_str() == "unknown-state" {
+            return Ok(Some(Box::new(UnknownMutationCommand)));
+        }
         if host.model() != ROOT || request.creation_type().as_str() != "node" {
             return Err(PolicyError::operation(
                 "unsupported creation target or type",
@@ -881,6 +927,53 @@ fn policy_rejection_is_distinct_from_no_command_contribution() {
 }
 
 #[test]
+fn recoverable_command_error_that_changes_model_faults_viewer() {
+    let mut viewer = viewer();
+    let mut domain = EditorDomain::new();
+    let request = EditorRequest::Create(CreateRequest::new(
+        viewer.contents(),
+        CreationType::new("invalid-recoverable").unwrap(),
+        Rectangle::new(10.0, 10.0, 50.0, 50.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    ));
+
+    assert!(matches!(
+        domain.execute_request(&mut viewer, &request),
+        Err(EditorDomainError::Viewer(
+            ViewerError::RejectedEditChangedModel
+        ))
+    ));
+    assert!(viewer.is_faulted());
+    assert!(!domain.command_stack().is_faulted());
+    assert_eq!(domain.command_stack().undo_len(), 0);
+}
+
+#[test]
+fn unknown_command_state_faults_stack_and_viewer_without_projection() {
+    let mut viewer = viewer();
+    let mut domain = EditorDomain::new();
+    let applied = viewer.applied_revision();
+    let request = EditorRequest::Create(CreateRequest::new(
+        viewer.contents(),
+        CreationType::new("unknown-state").unwrap(),
+        Rectangle::new(10.0, 10.0, 50.0, 50.0),
+        RequestModifiers::default(),
+        domain.next_interaction_revision().unwrap(),
+    ));
+
+    assert!(matches!(
+        domain.execute_request(&mut viewer, &request),
+        Err(EditorDomainError::Command(CommandStackError::Command(
+            ref error
+        ))) if !error.is_recoverable()
+    ));
+    assert!(viewer.is_faulted());
+    assert!(domain.command_stack().is_faulted());
+    assert_eq!(viewer.applied_revision(), applied);
+}
+
+#[test]
 fn policy_target_routes_command_and_feedback_to_the_resolved_part_once() {
     let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
     let mut viewer = routing_viewer(Rc::clone(&state));
@@ -920,7 +1013,10 @@ fn policy_command_panic_faults_viewer_and_rejects_follow_up_operations() {
     let panic = catch_unwind(AssertUnwindSafe(|| viewer.command_for_request(&request)));
     assert!(panic.is_err());
     assert!(viewer.is_faulted());
-    assert!(matches!(viewer.model_mut(), Err(ViewerError::Faulted)));
+    assert!(matches!(
+        viewer.synchronize_model(|_| {}),
+        Err(ViewerError::Faulted)
+    ));
     assert!(matches!(
         viewer.command_for_request(&request),
         Err(ViewerError::Faulted)
@@ -1002,8 +1098,11 @@ fn policy_target_rejects_foreign_and_stale_parts() {
     ));
 
     let stale = viewer.part_for_model(SECOND).unwrap();
-    viewer.model_mut().unwrap().remove(SECOND);
-    viewer.refresh().unwrap();
+    viewer
+        .synchronize_model(|model| {
+            model.remove(SECOND);
+        })
+        .unwrap();
     state.borrow_mut().target = Some(stale);
     assert!(matches!(
         viewer.show_feedback_for_request(&request),

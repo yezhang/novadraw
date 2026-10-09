@@ -7,11 +7,12 @@ use std::{
     panic::{AssertUnwindSafe, catch_unwind},
 };
 
-use novadraw::render::{BuiltinFont, command::RenderCommandKind};
-use novadraw::{
-    Alignment, Color, Figure, FigureStyle, FlowPage, FlowTextPosition, FlowTextRange, FlowWrapping,
-    Rectangle, RectangleFigure, RootFigure, TextAffinity, TextFlowFigure, TextMovement,
+use novadraw::figure::{
+    Alignment, FlowPage, FlowTextPosition, FlowTextRange, FlowWrapping, RootFigure, TextFlowFigure,
 };
+use novadraw::render::{BuiltinFont, TextAffinity, command::RenderCommandKind};
+use novadraw::text::TextMovement;
+use novadraw::{Color, Figure, FigureStyle, Rectangle, RectangleFigure};
 use novadraw_editor::{
     Command, CommandError, CommandStackError, DirectTextEdit, DirectTextEditDescriptor,
     DirectTextEditError, DirectTextEditRequest, DirectTextEditState, DirectTextFeature,
@@ -272,8 +273,12 @@ fn viewer(text: &str) -> GraphicalViewer<TextModel, TextFactory> {
         Rectangle::new(0.0, 0.0, 480.0, 320.0),
     )
     .unwrap();
-    viewer.register_builtin_font(BuiltinFont::Inter).unwrap();
     viewer
+        .drive()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    viewer
+        .drive()
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     viewer
@@ -344,11 +349,11 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
                 && rect.width >= 1.0
                 && rect.height == caret.height
     )));
-    let blink_off_at = viewer.next_wake_deadline().unwrap();
-    assert!(viewer.advance_time(blink_off_at).unwrap());
+    let blink_off_at = viewer.drive().next_wake_deadline().unwrap();
+    assert!(viewer.drive().advance_time(blink_off_at).unwrap());
     assert!(!viewer.runtime().tree().is_visible(caret_figure));
-    let blink_on_at = viewer.next_wake_deadline().unwrap();
-    assert!(viewer.advance_time(blink_on_at).unwrap());
+    let blink_on_at = viewer.drive().next_wake_deadline().unwrap();
+    assert!(viewer.drive().advance_time(blink_on_at).unwrap());
     assert!(viewer.runtime().tree().is_visible(caret_figure));
     domain.insert_direct_text(&mut viewer, " beta").unwrap();
 
@@ -373,7 +378,7 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
             .is_empty()
     );
     assert_eq!(direct_text_decoration_count(&viewer), 0);
-    assert_eq!(viewer.next_wake_deadline(), None);
+    assert_eq!(viewer.drive().next_wake_deadline(), None);
 
     domain.undo(&mut viewer).unwrap();
     assert_eq!(viewer.model().text, "alpha");
@@ -508,8 +513,11 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     let old_bounds = viewer.runtime().tree().figure_bounds(old_feedback).unwrap();
     let new_bounds = Rectangle::new(150.0, 95.0, 180.0, 90.0);
 
-    viewer.model_mut().unwrap().set_bounds(new_bounds);
-    assert!(viewer.refresh().unwrap());
+    assert!(
+        viewer
+            .synchronize_model(|model| model.set_bounds(new_bounds))
+            .unwrap()
+    );
 
     let new_feedback = viewer
         .runtime()
@@ -649,7 +657,9 @@ fn stale_revision_and_recoverable_command_rejection_preserve_the_draft() {
     ));
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "reject");
 
-    viewer.model_mut().unwrap().set_text("external".to_owned());
+    viewer
+        .synchronize_model(|model| model.set_text("external".to_owned()))
+        .unwrap();
     assert!(matches!(
         domain.accept_direct_text_edit(&mut viewer),
         Err(EditorDomainError::Viewer(ViewerError::DirectTextEdit(
@@ -669,8 +679,7 @@ fn source_retirement_cancels_session_and_removes_owned_feedback() {
         .start_direct_text_edit(&mut viewer, source, feature())
         .unwrap();
 
-    viewer.model_mut().unwrap().remove_text();
-    viewer.refresh().unwrap();
+    viewer.synchronize_model(TextModel::remove_text).unwrap();
 
     assert!(viewer.direct_text_edit().is_none());
     assert!(viewer.part_for_model(TEXT).is_none());
@@ -692,7 +701,9 @@ fn direct_edit_extension_panic_faults_viewer_and_cleans_feedback() {
     domain
         .start_direct_text_edit(&mut viewer, source, feature())
         .unwrap();
-    viewer.model_mut().unwrap().panic_feedback = true;
+    viewer
+        .synchronize_model(|model| model.panic_feedback = true)
+        .unwrap();
 
     let panic = catch_unwind(AssertUnwindSafe(|| {
         domain.insert_direct_text(&mut viewer, "x")
@@ -776,11 +787,11 @@ fn preedit_updates_are_transient_and_cancel_restores_the_composition_base() {
             .is_none()
     );
     assert_eq!(direct_text_decoration_count(&viewer), 1);
-    assert_eq!(viewer.next_wake_deadline(), None);
+    assert_eq!(viewer.drive().next_wake_deadline(), None);
     assert!(domain.cancel_direct_text_preedit(&mut viewer).unwrap());
     assert_eq!(viewer.direct_text_edit().unwrap().draft(), "alpha");
     assert_eq!(direct_text_decoration_count(&viewer), 2);
-    assert!(viewer.next_wake_deadline().is_some());
+    assert!(viewer.drive().next_wake_deadline().is_some());
 
     assert!(matches!(
         domain.set_direct_text_preedit(&mut viewer, "你", Some(1..2)),

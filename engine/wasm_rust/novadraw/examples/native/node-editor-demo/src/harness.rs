@@ -42,9 +42,11 @@ impl EditorHarness {
         )
         .map_err(|error| error.to_string())?;
         viewer
+            .drive()
             .register_builtin_font(BuiltinFont::Inter)
             .map_err(|error| error.to_string())?;
         viewer
+            .drive()
             .register_builtin_font(BuiltinFont::NotoSansSc)
             .map_err(|error| error.to_string())?;
         let style_changed = viewer
@@ -82,6 +84,7 @@ impl EditorHarness {
     pub(crate) fn prepare_frame(&mut self) -> Option<RenderSubmission> {
         let submission = self
             .viewer
+            .drive()
             .prepare_submission(
                 SurfaceInfo {
                     logical_width: WIDTH,
@@ -96,6 +99,7 @@ impl EditorHarness {
             .ok()?;
         let _ = self
             .viewer
+            .drive()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -110,7 +114,9 @@ impl EditorHarness {
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
     ) -> FramePreparation {
-        self.viewer.prepare_submission(surface, capabilities)
+        self.viewer
+            .drive()
+            .prepare_submission(surface, capabilities)
     }
 
     pub(crate) fn complete_submission(
@@ -120,23 +126,26 @@ impl EditorHarness {
         result: RenderResult,
     ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
         self.viewer
+            .drive()
             .complete_submission(session_id, frame_id, result)
     }
 
     pub(crate) fn reset_backend_session(&mut self) -> HarnessResult<BackendSessionId> {
         self.viewer
+            .drive()
             .reset_backend_session()
             .map_err(|error| error.to_string())
     }
 
     pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> HarnessResult<bool> {
         self.viewer
+            .drive()
             .advance_time(now)
             .map_err(|error| error.to_string())
     }
 
-    pub(crate) fn next_wake_deadline(&self) -> Option<MonotonicTime> {
-        self.viewer.next_wake_deadline()
+    pub(crate) fn next_wake_deadline(&mut self) -> Option<MonotonicTime> {
+        self.viewer.drive().next_wake_deadline()
     }
 
     pub(crate) fn title_status(&self) -> String {
@@ -281,6 +290,7 @@ impl EditorHarness {
     ) -> HarnessResult<bool> {
         let changed = self
             .viewer
+            .drive()
             .resize_logical_viewport(width, height)
             .map_err(|error| error.to_string())?;
         if changed {
@@ -315,8 +325,8 @@ impl EditorHarness {
             self.cancel_tool()?;
         }
         self.viewer.pointer_exited();
-        self.viewer.cancel_runtime_gestures();
-        self.viewer.release_runtime_focus();
+        self.viewer.drive().cancel_gestures();
+        self.viewer.drive().release_focus();
         Ok(())
     }
 

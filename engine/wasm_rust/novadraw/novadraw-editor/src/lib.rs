@@ -64,5 +64,6 @@ pub use tool::{
     ConnectionEndpointTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,
 };
 pub use viewer::{
-    GraphicalViewer, RootLayers, SelectionMode, ViewerError, ViewerInputOutcome, ViewerTarget,
+    GraphicalViewer, RootLayers, SelectionMode, ViewerDrive, ViewerError, ViewerInputOutcome,
+    ViewerTarget,
 };

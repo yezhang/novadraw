@@ -1,10 +1,9 @@
 use std::convert::Infallible;
 
-use novadraw::runtime::PreparedFigureUpdate;
-use novadraw::{
-    ComponentUpdateError, Figure, FigureComponentContext, FigureComponentUpdate, Rectangle,
-    RectangleFigure,
+use novadraw::runtime::{
+    ComponentUpdateError, FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate,
 };
+use novadraw::{Figure, Rectangle, RectangleFigure};
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,
     ModelRevision, PartFactoryContext, VisualBuildContext, VisualUpdateContext,
@@ -183,8 +182,11 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
     let badge = viewer.parts().get(part).unwrap().visuals()[1];
     assert_eq!(viewer.runtime().tree().component_revision(badge), Some(1));
 
-    viewer.model_mut().unwrap().set_text("refreshed");
-    assert!(viewer.refresh().unwrap());
+    assert!(
+        viewer
+            .synchronize_model(|model| model.set_text("refreshed"))
+            .unwrap()
+    );
 
     assert_eq!(viewer.runtime().tree().component_revision(badge), Some(2));
     let snapshot = viewer

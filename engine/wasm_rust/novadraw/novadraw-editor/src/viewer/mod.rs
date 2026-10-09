@@ -324,6 +324,8 @@ pub enum ViewerError {
         /// Revision observed in the notification stream or adapter snapshot.
         actual: ModelRevision,
     },
+    /// A rejected or recoverable command changed the model despite its rollback contract.
+    RejectedEditChangedModel,
     /// Model containment exceeded the supported recursion depth.
     DepthLimitExceeded,
     /// An application model query failed.
@@ -411,6 +413,9 @@ impl fmt::Display for ViewerError {
                 expected.value(),
                 actual.value()
             ),
+            Self::RejectedEditChangedModel => {
+                formatter.write_str("a rejected Editor command changed the model")
+            }
             Self::DepthLimitExceeded => {
                 write!(
                     formatter,
@@ -810,6 +815,32 @@ struct ConnectionProjection<I> {
 }
 
 /// Owns one application model projection, its EditPart tree, and its Figure Runtime.
+///
+/// Model mutation and host driving use scoped entry points rather than complete mutable access:
+///
+/// ```compile_fail
+/// use novadraw_editor::{EditPartFactory, GraphicalViewer, ModelAdapter};
+///
+/// fn bypass_model_transaction<A, F>(viewer: &mut GraphicalViewer<A, F>)
+/// where
+///     A: ModelAdapter,
+///     F: EditPartFactory<A>,
+/// {
+///     let _model = viewer.model_mut();
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use novadraw_editor::{EditPartFactory, GraphicalViewer, ModelAdapter};
+///
+/// fn bypass_drive<A, F>(viewer: &mut GraphicalViewer<A, F>)
+/// where
+///     A: ModelAdapter,
+///     F: EditPartFactory<A>,
+/// {
+///     let _submission = viewer.prepare_submission;
+/// }
+/// ```
 pub struct GraphicalViewer<A, F>
 where
     A: ModelAdapter,
@@ -836,6 +867,141 @@ where
     applied_revision: ModelRevision,
     model_root: A::ModelId,
     faulted: bool,
+}
+
+pub(crate) struct ViewerEditSession<'a, A, F>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    viewer: &'a mut GraphicalViewer<A, F>,
+    closed: bool,
+}
+
+impl<A, F> ViewerEditSession<'_, A, F>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    pub(crate) fn model(&mut self) -> &mut A {
+        &mut self.viewer.model
+    }
+
+    pub(crate) fn commit(mut self) -> Result<bool, ViewerError> {
+        self.closed = true;
+        self.viewer.synchronize()
+    }
+
+    pub(crate) fn reject(mut self) -> Result<(), ViewerError> {
+        self.closed = true;
+        if self.viewer.synchronize()? {
+            self.viewer.mark_faulted();
+            return Err(ViewerError::RejectedEditChangedModel);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn fault(mut self) {
+        self.closed = true;
+        self.viewer.mark_faulted();
+    }
+}
+
+impl<A, F> Drop for ViewerEditSession<'_, A, F>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    fn drop(&mut self) {
+        if !self.closed {
+            self.viewer.mark_faulted();
+        }
+    }
+}
+
+/// Narrow host-facing access to the Viewer-owned Runtime drive operations.
+pub struct ViewerDrive<'a, A, F>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    viewer: &'a mut GraphicalViewer<A, F>,
+}
+
+impl<A, F> ViewerDrive<'_, A, F>
+where
+    A: ModelAdapter,
+    F: EditPartFactory<A>,
+{
+    /// Prepares one renderer submission through the Viewer-owned Runtime.
+    pub fn prepare_submission(
+        &mut self,
+        surface: SurfaceInfo,
+        capabilities: BackendCapabilities,
+    ) -> FramePreparation {
+        self.viewer
+            .runtime
+            .prepare_submission(surface, capabilities)
+    }
+
+    /// Completes the current renderer submission through the Viewer-owned Runtime.
+    pub fn complete_submission(
+        &mut self,
+        session_id: BackendSessionId,
+        frame_id: FrameId,
+        result: RenderResult,
+    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
+        self.viewer
+            .runtime
+            .complete_submission(session_id, frame_id, result)
+    }
+
+    /// Starts a fresh backend submission session after renderer recreation.
+    pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
+        self.viewer.runtime.reset_backend_session()
+    }
+
+    /// Resizes the Viewer-owned logical viewport.
+    pub fn resize_logical_viewport(
+        &mut self,
+        width: f64,
+        height: f64,
+    ) -> Result<bool, LogicalViewportResizeError> {
+        self.viewer.runtime.resize_logical_viewport(width, height)
+    }
+
+    /// Requests a complete redraw from the Viewer-owned Runtime.
+    pub fn request_full_redraw(&mut self) {
+        self.viewer.runtime.request_full_redraw();
+    }
+
+    /// Cancels Figure-level pointer capture and gesture state.
+    pub fn cancel_gestures(&mut self) {
+        self.viewer.runtime.cancel_gestures();
+    }
+
+    /// Releases Figure-level focus.
+    pub fn release_focus(&mut self) -> FocusChange {
+        self.viewer.runtime.release_focus()
+    }
+
+    /// Registers a packaged font resource.
+    pub fn register_builtin_font(
+        &mut self,
+        font: novadraw::render::BuiltinFont,
+    ) -> Result<FontId, ResourceError> {
+        self.viewer.runtime.register_builtin_font(font)
+    }
+
+    /// Advances Runtime timers and the active direct-edit caret blink from host time.
+    pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
+        self.viewer.advance_time_inner(now)
+    }
+
+    /// Returns the earliest Runtime or direct-edit deadline requiring a host wakeup.
+    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+        self.viewer.next_wake_deadline_inner()
+    }
 }
 
 impl<A, F> GraphicalViewer<A, F>
@@ -936,10 +1102,31 @@ where
         &self.model
     }
 
-    /// Returns mutable application model access while the Viewer can still accept edits.
-    pub fn model_mut(&mut self) -> Result<&mut A, ViewerError> {
-        self.ensure_ready()?;
-        Ok(&mut self.model)
+    /// Returns narrow host-facing Runtime drive access.
+    pub fn drive(&mut self) -> ViewerDrive<'_, A, F> {
+        ViewerDrive { viewer: self }
+    }
+
+    /// Applies one non-history model update and immediately synchronizes its notifications.
+    pub fn synchronize_model(&mut self, update: impl FnOnce(&mut A)) -> Result<bool, ViewerError> {
+        let changed_before_update = self.synchronize()?;
+        match catch_unwind(AssertUnwindSafe(|| update(&mut self.model))) {
+            Ok(()) => Ok(self.synchronize()? || changed_before_update),
+            Err(payload) => {
+                self.mark_faulted();
+                resume_unwind(payload)
+            }
+        }
+    }
+
+    pub(crate) fn begin_edit_session(
+        &mut self,
+    ) -> Result<ViewerEditSession<'_, A, F>, ViewerError> {
+        self.synchronize()?;
+        Ok(ViewerEditSession {
+            viewer: self,
+            closed: false,
+        })
     }
 
     /// Returns the Figure Runtime.
@@ -979,55 +1166,6 @@ where
         Ok(self.runtime.stabilize_for_query()?)
     }
 
-    /// Prepares one renderer submission through the Viewer-owned Runtime.
-    pub fn prepare_submission(
-        &mut self,
-        surface: SurfaceInfo,
-        capabilities: BackendCapabilities,
-    ) -> FramePreparation {
-        self.runtime.prepare_submission(surface, capabilities)
-    }
-
-    /// Completes the current renderer submission through the Viewer-owned Runtime.
-    pub fn complete_submission(
-        &mut self,
-        session_id: BackendSessionId,
-        frame_id: FrameId,
-        result: RenderResult,
-    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
-        self.runtime
-            .complete_submission(session_id, frame_id, result)
-    }
-
-    /// Starts a fresh backend submission session after renderer recreation.
-    pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
-        self.runtime.reset_backend_session()
-    }
-
-    /// Resizes the Viewer-owned logical viewport.
-    pub fn resize_logical_viewport(
-        &mut self,
-        width: f64,
-        height: f64,
-    ) -> Result<bool, LogicalViewportResizeError> {
-        self.runtime.resize_logical_viewport(width, height)
-    }
-
-    /// Requests a complete redraw from the Viewer-owned Runtime.
-    pub fn request_full_redraw(&mut self) {
-        self.runtime.request_full_redraw();
-    }
-
-    /// Cancels Figure-level pointer capture and gesture state.
-    pub fn cancel_runtime_gestures(&mut self) {
-        self.runtime.cancel_gestures();
-    }
-
-    /// Releases Figure-level focus.
-    pub fn release_runtime_focus(&mut self) -> FocusChange {
-        self.runtime.release_focus()
-    }
-
     /// Applies style to the standard root Viewport.
     pub fn set_root_viewport_style(
         &mut self,
@@ -1047,14 +1185,6 @@ where
             .runtime
             .border(self.root_layers.viewport())?
             .set(border)?)
-    }
-
-    /// Registers a packaged font resource without exposing unrelated Runtime mutation.
-    pub fn register_builtin_font(
-        &mut self,
-        font: novadraw::render::BuiltinFont,
-    ) -> Result<FontId, ResourceError> {
-        self.runtime.register_builtin_font(font)
     }
 
     /// Registers a connection Router owned by this Viewer.
@@ -1110,8 +1240,7 @@ where
         Ok(self.runtime.container(pane)?.add(figure)?)
     }
 
-    /// Advances Runtime timers and the active direct-edit caret blink from host time.
-    pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
+    fn advance_time_inner(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
         let runtime_changed = self.runtime.advance_time(now)?;
         self.current_time = now;
         let Some(deadline) = self.direct_text_blink_deadline else {
@@ -1147,8 +1276,7 @@ where
         Ok(runtime_changed || caret_changed)
     }
 
-    /// Returns the earliest Runtime or direct-edit deadline requiring a host wakeup.
-    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+    fn next_wake_deadline_inner(&self) -> Option<MonotonicTime> {
         match (
             self.runtime.next_wake_deadline(),
             self.direct_text_blink_deadline,
@@ -2791,6 +2919,11 @@ where
                 resume_unwind(payload)
             }
         }
+    }
+
+    fn mark_faulted(&mut self) {
+        self.force_drop_direct_text_edit();
+        self.faulted = true;
     }
 
     /// Resolves one unambiguous source policy into a connection-creation plan.

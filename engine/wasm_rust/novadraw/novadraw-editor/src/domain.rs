@@ -79,6 +79,17 @@ impl From<InteractionRevisionError> for EditorDomainError {
     }
 }
 
+fn command_error_preserves_model(error: &CommandStackError) -> bool {
+    match error {
+        CommandStackError::Rejected { .. }
+        | CommandStackError::NothingToUndo
+        | CommandStackError::NothingToRedo
+        | CommandStackError::HistoryExhausted => true,
+        CommandStackError::Command(error) => error.is_recoverable(),
+        CommandStackError::Panicked { .. } | CommandStackError::Faulted => false,
+    }
+}
+
 /// Pointer release result after optional command execution.
 #[derive(Clone, Copy, Debug)]
 pub struct DomainPointerRelease {
@@ -138,6 +149,26 @@ impl<A: ModelAdapter> EditorDomain<A> {
         &self.command_stack
     }
 
+    /// Returns whether the ready command stack has undo history without invoking extension code.
+    pub fn has_undo(&self) -> bool {
+        self.command_stack.has_undo()
+    }
+
+    /// Returns whether the ready command stack has redo history without invoking extension code.
+    pub fn has_redo(&self) -> bool {
+        self.command_stack.has_redo()
+    }
+
+    /// Checks whether the top command currently permits undo.
+    pub fn check_undo(&mut self) -> Result<bool, EditorDomainError> {
+        Ok(self.command_stack.check_undo()?)
+    }
+
+    /// Checks whether the top command currently permits redo.
+    pub fn check_redo(&mut self) -> Result<bool, EditorDomainError> {
+        Ok(self.command_stack.check_redo()?)
+    }
+
     /// Returns whether the active Tool owns a pointer gesture.
     pub const fn has_active_gesture(&self) -> bool {
         match &self.active_tool {
@@ -178,6 +209,32 @@ impl<A> EditorDomain<A>
 where
     A: ModelAdapter + 'static,
 {
+    fn apply_command_operation<F, T>(
+        &mut self,
+        viewer: &mut GraphicalViewer<A, F>,
+        operation: impl FnOnce(&mut CommandStack<A>, &mut A) -> Result<T, CommandStackError>,
+    ) -> Result<T, EditorDomainError>
+    where
+        F: EditPartFactory<A>,
+    {
+        let mut session = viewer.begin_edit_session()?;
+        let result = operation(&mut self.command_stack, session.model());
+        match result {
+            Ok(value) => {
+                session.commit()?;
+                Ok(value)
+            }
+            Err(error) if command_error_preserves_model(&error) => {
+                session.reject()?;
+                Err(error.into())
+            }
+            Err(error) => {
+                session.fault();
+                Err(error.into())
+            }
+        }
+    }
+
     /// Starts direct editing for one stable application text feature.
     pub fn start_direct_text_edit<F>(
         &mut self,
@@ -290,21 +347,17 @@ where
         let Some(command) = prepared.command.take() else {
             return Ok(false);
         };
-        match self.command_stack.execute(viewer.model_mut()?, command) {
-            Ok(()) => {
-                viewer.refresh()?;
-                Ok(true)
-            }
+        match self.apply_command_operation(viewer, |stack, model| stack.execute(model, command)) {
+            Ok(()) => Ok(true),
             Err(error) => {
-                let recoverable = match &error {
-                    CommandStackError::Rejected { .. } => true,
-                    CommandStackError::Command(command) => command.is_recoverable(),
-                    _ => false,
-                };
-                if recoverable {
+                if matches!(
+                    &error,
+                    EditorDomainError::Command(command)
+                        if command_error_preserves_model(command)
+                ) {
                     viewer.restore_direct_text_edit(prepared)?;
                 }
-                Err(error.into())
+                Err(error)
             }
         }
     }
@@ -422,8 +475,7 @@ where
         let command = viewer
             .command_for_request(request)?
             .ok_or(EditorDomainError::NoCommand)?;
-        self.command_stack.execute(viewer.model_mut()?, command)?;
-        viewer.refresh()?;
+        self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))?;
         Ok(())
     }
 
@@ -434,8 +486,7 @@ where
     {
         viewer.cancel_direct_text_edit()?;
         self.cancel_active_tools(viewer)?;
-        self.command_stack.undo(viewer.model_mut()?)?;
-        viewer.refresh()?;
+        self.apply_command_operation(viewer, CommandStack::undo)?;
         Ok(())
     }
 
@@ -446,8 +497,7 @@ where
     {
         viewer.cancel_direct_text_edit()?;
         self.cancel_active_tools(viewer)?;
-        self.command_stack.redo(viewer.model_mut()?)?;
-        viewer.refresh()?;
+        self.apply_command_operation(viewer, CommandStack::redo)?;
         Ok(())
     }
 
@@ -505,8 +555,7 @@ where
                 self.pointer = None;
             }
             if let Some(command) = command {
-                self.command_stack.execute(viewer.model_mut()?, command)?;
-                viewer.refresh()?;
+                self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))?;
             }
             return Ok(outcome);
         }
@@ -702,8 +751,7 @@ where
             self.active_tool = ActiveTool::Selection(SelectionTool::new());
             let command_executed = command.is_some();
             if let Some(command) = command {
-                self.command_stack.execute(viewer.model_mut()?, command)?;
-                viewer.refresh()?;
+                self.apply_command_operation(viewer, |stack, model| stack.execute(model, command))?;
             }
             viewer.stabilize_for_query()?;
             return Ok(DomainPointerRelease {

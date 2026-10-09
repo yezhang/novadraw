@@ -4,8 +4,10 @@ use support::prepare_next_submission;
 
 use std::{collections::HashMap, convert::Infallible};
 
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::{ClickableFigure, RootFigure};
 use novadraw::geometry::Rectangle;
-use novadraw::{ClickableFigure, Figure, KeyModifiers, MouseButton, RectangleFigure, RootFigure};
+use novadraw::{Figure, RectangleFigure};
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, HandleRole, ModelAdapter,
     ModelEvent, ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
@@ -295,12 +297,11 @@ fn removing_parts_reconciles_selection_focus_and_owned_overlays() {
         .unwrap();
 
     viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(3), NodeId(4)]);
-    viewer.model_mut().unwrap().publish(NodeId(1));
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(3), NodeId(4)]);
+            model.publish(NodeId(1));
+        })
+        .unwrap();
 
     assert!(viewer.selection().is_empty());
     assert_eq!(viewer.selection().focus(), None);

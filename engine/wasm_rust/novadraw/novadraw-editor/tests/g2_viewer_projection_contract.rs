@@ -8,10 +8,10 @@ use std::{
     },
 };
 
+use novadraw::container::{ZoomScrollPolicy, ZoomViewportState};
+use novadraw::figure::RootFigure;
 use novadraw::geometry::{Point, Rectangle};
-use novadraw::{
-    Figure, FigureId, RectangleFigure, RootFigure, ZoomScrollPolicy, ZoomViewportState,
-};
+use novadraw::{Figure, FigureId, RectangleFigure};
 use novadraw_editor::{
     Command, EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy,
     EditorRequest, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
@@ -465,17 +465,14 @@ fn refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup() {
     let removed_visual = viewer.parts().get(old_two).unwrap().primary_figure();
 
     viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(3), NodeId(5)]);
-    viewer
-        .model_mut()
-        .unwrap()
-        .bounds
-        .insert(NodeId(5), Rectangle::new(20.0, 140.0, 80.0, 60.0));
-    viewer.model_mut().unwrap().publish(NodeId(1));
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(3), NodeId(5)]);
+            model
+                .bounds
+                .insert(NodeId(5), Rectangle::new(20.0, 140.0, 80.0, 60.0));
+            model.publish(NodeId(1));
+        })
+        .unwrap();
 
     let new_three = viewer.part_for_model(NodeId(3)).unwrap();
     let new_five = viewer.part_for_model(NodeId(5)).unwrap();
@@ -505,15 +502,15 @@ fn refresh_reuses_reorders_adds_and_removes_parts_with_lifecycle_cleanup() {
 fn revision_gap_faults_viewer_before_projection_changes() {
     let (mut viewer, _) = viewer();
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
-    viewer.model_mut().unwrap().revision = ModelRevision::new(3).unwrap();
-    viewer.model_mut().unwrap().events.push(ModelEvent::new(
-        ModelRevision::new(3).unwrap(),
-        NodeId(1),
-        DiagramEvent::Changed,
-    ));
-
     assert!(matches!(
-        viewer.refresh(),
+        viewer.synchronize_model(|model| {
+            model.revision = ModelRevision::new(3).unwrap();
+            model.events.push(ModelEvent::new(
+                ModelRevision::new(3).unwrap(),
+                NodeId(1),
+                DiagramEvent::Changed,
+            ));
+        }),
         Err(ViewerError::RevisionGap { .. })
     ));
     assert!(viewer.is_faulted());
@@ -528,18 +525,18 @@ fn one_revision_may_carry_multiple_ordered_events() {
     let (mut viewer, _) = viewer();
     let revision = viewer.model().revision.next().unwrap();
     let updated = Rectangle::new(160.0, 40.0, 120.0, 90.0);
-    viewer.model_mut().unwrap().revision = revision;
-    viewer
-        .model_mut()
-        .unwrap()
-        .bounds
-        .insert(NodeId(3), updated);
-    viewer.model_mut().unwrap().events.extend([
-        ModelEvent::new(revision, NodeId(1), DiagramEvent::Changed),
-        ModelEvent::new(revision, NodeId(3), DiagramEvent::Changed),
-    ]);
-
-    assert!(viewer.refresh().unwrap());
+    assert!(
+        viewer
+            .synchronize_model(|model| {
+                model.revision = revision;
+                model.bounds.insert(NodeId(3), updated);
+                model.events.extend([
+                    ModelEvent::new(revision, NodeId(1), DiagramEvent::Changed),
+                    ModelEvent::new(revision, NodeId(3), DiagramEvent::Changed),
+                ]);
+            })
+            .unwrap()
+    );
     assert_eq!(viewer.applied_revision(), revision);
     let figure = viewer
         .parts()
@@ -565,7 +562,7 @@ fn initial_projection_absorbs_events_already_represented_by_the_snapshot() {
     )
     .unwrap();
 
-    assert!(!viewer.refresh().unwrap());
+    assert!(!viewer.synchronize().unwrap());
     assert_eq!(viewer.applied_revision(), ModelRevision::initial());
 }
 
@@ -573,14 +570,14 @@ fn initial_projection_absorbs_events_already_represented_by_the_snapshot() {
 fn stale_notification_faults_viewer_without_changing_projection() {
     let (mut viewer, _) = viewer();
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
-    viewer.model_mut().unwrap().events.push(ModelEvent::new(
-        ModelRevision::initial(),
-        NodeId(1),
-        DiagramEvent::Changed,
-    ));
-
     assert!(matches!(
-        viewer.refresh(),
+        viewer.synchronize_model(|model| {
+            model.events.push(ModelEvent::new(
+                ModelRevision::initial(),
+                NodeId(1),
+                DiagramEvent::Changed,
+            ));
+        }),
         Err(ViewerError::StaleRevision { .. })
     ));
     assert!(viewer.is_faulted());
@@ -597,15 +594,13 @@ fn refresh_panic_faults_viewer_after_partial_visual_mutation() {
     let primary = viewer.parts().get(part).unwrap().primary_figure();
     let applied_revision = viewer.applied_revision();
     let updated = Rectangle::new(30.0, 40.0, 120.0, 90.0);
-    viewer
-        .model_mut()
-        .unwrap()
-        .bounds
-        .insert(NodeId(2), updated);
-    viewer.model_mut().unwrap().panic_during_refresh = true;
-    viewer.model_mut().unwrap().publish(NodeId(2));
-
-    let panic = catch_unwind(AssertUnwindSafe(|| viewer.refresh()));
+    let panic = catch_unwind(AssertUnwindSafe(|| {
+        viewer.synchronize_model(|model| {
+            model.bounds.insert(NodeId(2), updated);
+            model.panic_during_refresh = true;
+            model.publish(NodeId(2));
+        })
+    }));
 
     assert!(panic.is_err());
     assert!(viewer.is_faulted());
@@ -614,8 +609,11 @@ fn refresh_panic_faults_viewer_after_partial_visual_mutation() {
         viewer.runtime().tree().figure_bounds(primary),
         Some(updated)
     );
-    assert!(matches!(viewer.refresh(), Err(ViewerError::Faulted)));
-    assert!(matches!(viewer.model_mut(), Err(ViewerError::Faulted)));
+    assert!(matches!(viewer.synchronize(), Err(ViewerError::Faulted)));
+    assert!(matches!(
+        viewer.synchronize_model(|_| {}),
+        Err(ViewerError::Faulted)
+    ));
 }
 
 #[test]
@@ -625,19 +623,17 @@ fn removing_and_readding_a_model_rebuilds_runtime_identity() {
     let old_figure = viewer.parts().get(old_part).unwrap().primary_figure();
 
     viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(3)]);
-    viewer.model_mut().unwrap().publish(NodeId(1));
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(3)]);
+            model.publish(NodeId(1));
+        })
+        .unwrap();
     viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
-    viewer.model_mut().unwrap().publish(NodeId(1));
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
+            model.publish(NodeId(1));
+        })
+        .unwrap();
 
     let new_part = viewer.part_for_model(NodeId(2)).unwrap();
     let new_figure = viewer.parts().get(new_part).unwrap().primary_figure();
@@ -652,23 +648,13 @@ fn reparenting_is_order_independent_and_rebuilds_the_moved_part() {
     let (mut viewer, _) = viewer();
     let old_part = viewer.part_for_model(NodeId(4)).unwrap();
     viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
-    viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(2), Vec::new());
-    viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(3), vec![NodeId(4)]);
-    viewer.model_mut().unwrap().publish(NodeId(1));
-
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(3), NodeId(2)]);
+            model.children.insert(NodeId(2), Vec::new());
+            model.children.insert(NodeId(3), vec![NodeId(4)]);
+            model.publish(NodeId(1));
+        })
+        .unwrap();
 
     let new_part = viewer.part_for_model(NodeId(4)).unwrap();
     assert_ne!(new_part, old_part);
@@ -765,14 +751,13 @@ fn policy_activation_failure_rolls_back_only_the_active_prefix_once() {
 fn duplicate_model_identity_faults_refresh_before_projection_changes() {
     let (mut viewer, _) = viewer();
     let children_before = viewer.parts().children(viewer.contents()).unwrap().to_vec();
-    viewer
-        .model_mut()
-        .unwrap()
-        .children
-        .insert(NodeId(1), vec![NodeId(2), NodeId(2)]);
-    viewer.model_mut().unwrap().publish(NodeId(1));
-
-    assert!(matches!(viewer.refresh(), Err(ViewerError::DuplicateModel)));
+    assert!(matches!(
+        viewer.synchronize_model(|model| {
+            model.children.insert(NodeId(1), vec![NodeId(2), NodeId(2)]);
+            model.publish(NodeId(1));
+        }),
+        Err(ViewerError::DuplicateModel)
+    ));
     assert!(viewer.is_faulted());
     assert_eq!(
         viewer.parts().children(viewer.contents()).unwrap(),

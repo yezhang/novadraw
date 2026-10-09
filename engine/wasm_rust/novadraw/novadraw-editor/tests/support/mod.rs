@@ -7,7 +7,7 @@ where
     A: ModelAdapter,
     F: EditPartFactory<A>,
 {
-    let FramePreparation::Ready(submission) = viewer.prepare_submission(
+    let FramePreparation::Ready(submission) = viewer.drive().prepare_submission(
         SurfaceInfo {
             logical_width: 2_048.0,
             logical_height: 2_048.0,
@@ -23,6 +23,7 @@ where
         return None;
     };
     let _ = viewer
+        .drive()
         .complete_submission(
             submission.session_id,
             submission.frame_id,

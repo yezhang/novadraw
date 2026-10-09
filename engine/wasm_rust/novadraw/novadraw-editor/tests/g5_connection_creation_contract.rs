@@ -4,13 +4,15 @@ use support::prepare_next_submission;
 
 use std::{any::TypeId, collections::HashMap, convert::Infallible, time::Duration};
 
-use novadraw::connection::{RouteMetadata, RouteOutput, RouteRequest};
-use novadraw::geometry::{Point, PointList, Rectangle, Vec2};
-use novadraw::{
-    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ClickableFigure, ConnectionFigure,
-    ConnectionRouter, DirectRouter, Figure, KeyModifiers, MouseButton, PolylineFigure,
-    RectangleFigure, RootFigure, RouteEndpoint, RouteError, RoutingGroupScope,
+use novadraw::connection::{
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionFigure, ConnectionRouter,
+    DirectRouter, RouteEndpoint, RouteError, RouteMetadata, RouteOutput, RouteRequest,
+    RoutingGroupScope,
 };
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::{ClickableFigure, PolylineFigure, RootFigure};
+use novadraw::geometry::{Point, PointList, Rectangle, Vec2};
+use novadraw::{Figure, RectangleFigure};
 use novadraw_editor::{
     BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
     ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
@@ -1385,17 +1387,16 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
 fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
     let mut viewer = viewer(false);
     viewer
-        .model_mut()
-        .unwrap()
-        .connections
-        .push(ModelConnection::new(FIRST_EDGE, FIRST, SECOND));
-    viewer
-        .model_mut()
-        .unwrap()
-        .bendpoints
-        .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
-    viewer.model_mut().unwrap().publish(FIRST_EDGE);
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model
+                .connections
+                .push(ModelConnection::new(FIRST_EDGE, FIRST, SECOND));
+            model
+                .bendpoints
+                .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
+            model.publish(FIRST_EDGE);
+        })
+        .unwrap();
     prepare_next_submission(&mut viewer).unwrap();
 
     let mut domain = EditorDomain::new();
@@ -1439,17 +1440,16 @@ fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
 fn application_router_keeps_self_loop_endpoints_distinct_with_one_bendpoint() {
     let mut viewer = viewer(false);
     viewer
-        .model_mut()
-        .unwrap()
-        .connections
-        .push(ModelConnection::new(FIRST_EDGE, FIRST, FIRST));
-    viewer
-        .model_mut()
-        .unwrap()
-        .bendpoints
-        .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
-    viewer.model_mut().unwrap().publish(FIRST_EDGE);
-    viewer.refresh().unwrap();
+        .synchronize_model(|model| {
+            model
+                .connections
+                .push(ModelConnection::new(FIRST_EDGE, FIRST, FIRST));
+            model
+                .bendpoints
+                .insert(FIRST_EDGE, vec![Point::new(180.0, 180.0)]);
+            model.publish(FIRST_EDGE);
+        })
+        .unwrap();
 
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     let route = viewer
