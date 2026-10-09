@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use novadraw::connection::{ConnectionRoutingStats, UnresolvedConnection};
 use novadraw::geometry::{Point, Rectangle};
 use novadraw::{
@@ -114,7 +118,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .set_bounds(Rectangle::new(300.0, 80.0, 100.0, 180.0))
         .unwrap();
     assert_eq!(runtime.dirty_connections(), vec![connection]);
-    runtime.prepare_frame().expect("obstacle movement reroutes");
+    prepare_next_submission(&mut runtime).expect("obstacle movement reroutes");
     let moved = parent_route(&runtime, connection_figure);
     assert_ne!(moved, first.points().as_slice());
 
@@ -123,17 +127,17 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .unwrap()
         .set_visible(false)
         .unwrap();
-    runtime.prepare_frame().expect("visibility change reroutes");
+    prepare_next_submission(&mut runtime).expect("visibility change reroutes");
     assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
     runtime.figure(obstacle).unwrap().set_visible(true).unwrap();
-    runtime.prepare_frame().expect("restored obstacle reroutes");
+    prepare_next_submission(&mut runtime).expect("restored obstacle reroutes");
     assert!(parent_route(&runtime, connection_figure).len() >= 4);
     runtime
         .container(root)
         .unwrap()
         .remove(obstacle)
         .expect("obstacle removal is a valid topology mutation");
-    runtime.prepare_frame().expect("obstacle removal reroutes");
+    prepare_next_submission(&mut runtime).expect("obstacle removal reroutes");
     assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
     assert_eq!(
         runtime.connection_routing_stats(),
@@ -215,9 +219,7 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
     }
 
     runtime.figure(blocker).unwrap().set_visible(false).unwrap();
-    runtime
-        .prepare_frame()
-        .expect("hidden blocker recovers batch");
+    prepare_next_submission(&mut runtime).expect("hidden blocker recovers batch");
     assert!(connections.iter().all(|(connection, figure)| {
         matches!(
             runtime.connection_state(*connection).unwrap().resolution,

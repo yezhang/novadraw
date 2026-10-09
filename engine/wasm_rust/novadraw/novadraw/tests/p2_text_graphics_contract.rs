@@ -190,9 +190,9 @@ fn font_state_restores_and_does_not_reinterpret_prepared_text() {
             .width
             > size.width
     );
-    gc.restore_state();
+    gc.restore_state().unwrap();
     assert_eq!(gc.font(), &original);
-    gc.pop_state();
+    gc.pop_state().unwrap();
     gc.set_fill_paint(Color::BLACK);
     gc.fill_text(&layout, Point::new(0.0, 0.0)).unwrap();
     assert_eq!(layout.size(), size);
@@ -227,9 +227,9 @@ fn scoped_paint_helpers_cannot_consume_the_callers_state() {
     graphics.push_state();
     {
         let mut paint = graphics.paint();
-        paint.pop_state();
+        assert_eq!(paint.pop_state(), Err(GraphicsError::UnbalancedState));
     }
-    graphics.pop_state();
+    graphics.pop_state().unwrap();
     drop(graphics);
     assert!(matches!(
         recorder.finish(),

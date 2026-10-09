@@ -2,6 +2,37 @@
 
 use novadraw::{FigureTree, Runtime};
 
+#[cfg(test)]
+pub(crate) fn record_full_submission(runtime: &mut Runtime) -> novadraw::render::RenderSubmission {
+    use novadraw::FramePreparation;
+    use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
+
+    runtime.request_full_redraw();
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: 2_048.0,
+            logical_height: 2_048.0,
+            pixel_width: 2_048,
+            pixel_height: 2_048,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL
+            .with_custom_strokes()
+            .with_path_clips()
+            .with_linear_gradients(),
+    ) else {
+        panic!("full redraw must produce a submission");
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("test submission completion");
+    submission
+}
+
 pub mod advanced_figures;
 pub mod animation;
 pub mod border;

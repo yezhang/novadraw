@@ -1,9 +1,13 @@
-use novadraw::geometry::{Point, PointList, Rectangle};
-use novadraw::render::{LineJoin, NdCanvas, command::RenderCommandKind};
-use novadraw::{
-    Alignment, Figure, PolygonScaleMode, RectangleFigure, Runtime, ScalablePolygonError,
-    ScalablePolygonFigure, ShapeMutationError,
+mod support;
+
+use support::record_full_submission;
+
+use novadraw::figure::{
+    Alignment, PolygonScaleMode, ScalablePolygonError, ScalablePolygonFigure, ShapeMutationError,
 };
+use novadraw::geometry::{Point, PointList, Rectangle};
+use novadraw::render::{CommandRecorder, LineJoin, command::RenderCommandKind};
+use novadraw::{Figure, RectangleFigure, Runtime};
 
 fn wide_template() -> PointList {
     PointList::from_points(vec![
@@ -107,18 +111,21 @@ fn scalable_polygon_reserves_miter_outset_and_uses_precise_hit() {
     assert!(figure.precise_hit(50.0, 30.0, figure.initial_bounds()));
     assert!(!figure.precise_hit(5.0, 5.0, figure.initial_bounds()));
 
-    let mut canvas = NdCanvas::new();
-    canvas.fill_style(novadraw::Color::WHITE);
-    canvas.stroke_style(novadraw::Color::BLACK);
-    figure.paint_figure_in_bounds(&mut canvas, figure.initial_bounds());
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(novadraw::Color::WHITE);
+        context.set_stroke_paint(novadraw::Color::BLACK);
+        figure.paint(&mut context, figure.initial_bounds()).unwrap();
+    }
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::FillPath { .. }))
     );
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::StrokePath { .. }))
@@ -169,10 +176,10 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
         Some(Rectangle::new(20.0, 20.0, 200.0, 100.0))
     );
 
-    let stable_frame = runtime.record_full_frame();
+    let stable_frame = record_full_submission(&mut runtime);
     assert!(
         stable_frame
-            .commands()
+            .commands
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::FillPath { .. }))
     );
@@ -192,10 +199,10 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
             .replace_template(PointList::new())
             .unwrap()
     );
-    let frame = runtime.record_full_frame();
+    let frame = record_full_submission(&mut runtime);
     assert!(
         !frame
-            .commands()
+            .commands
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::FillPath { .. }))
     );

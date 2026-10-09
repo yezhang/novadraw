@@ -1,3 +1,7 @@
+mod support;
+
+use support::{prepare_next_submission, record_full_submission};
+
 use std::{any::TypeId, marker::PhantomData};
 
 use novadraw::connection::{RouteOutput, RouteRequest, UnresolvedConnection};
@@ -249,7 +253,7 @@ fn runtime_relocates_bound_connection_children_after_route_commit() {
             ),)
             .expect("valid Runtime mutation")
     );
-    runtime.prepare_frame().expect("reroute and Locator layout");
+    prepare_next_submission(&mut runtime).expect("reroute and Locator layout");
     assert_ne!(runtime.tree().figure_bounds(label), Some(old_label_bounds));
 }
 
@@ -330,9 +334,8 @@ fn runtime_orients_endpoint_decorations_and_offsets_labels_in_terminal_frames() 
     assert!((actual_label_center - expected_label_center).length() < 1.0e-9);
 
     assert!(
-        runtime
-            .record_full_frame()
-            .commands()
+        record_full_submission(&mut runtime)
+            .commands
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::FillPath { .. }) })
     );
@@ -433,9 +436,7 @@ fn first_locator_preflight_failure_recovers_when_an_observed_owner_moves() {
             .expect("valid Runtime mutation")
     );
     assert_eq!(runtime.dirty_connections(), vec![connection]);
-    runtime
-        .prepare_frame()
-        .expect("owner movement must reroute");
+    prepare_next_submission(&mut runtime).expect("owner movement must reroute");
     assert!(matches!(
         runtime.connection_state(connection).unwrap().resolution,
         ConnectionResolution::Resolved { generation: 1 }
@@ -490,8 +491,7 @@ fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
             },
         )) if child == label
     ));
-    runtime
-        .prepare_frame()
+    prepare_next_submission(&mut runtime)
         .expect("a rejected preflight with current observations must converge");
     assert!(matches!(
         runtime.connection_state(connection).unwrap().resolution,
@@ -511,9 +511,7 @@ fn locator_preflight_failure_after_success_refreshes_recovery_dependencies() {
             .expect("valid Runtime mutation")
     );
     assert_eq!(runtime.dirty_connections(), vec![connection]);
-    runtime
-        .prepare_frame()
-        .expect("updated dependency must reroute");
+    prepare_next_submission(&mut runtime).expect("updated dependency must reroute");
     assert!(matches!(
         runtime.connection_state(connection).unwrap().resolution,
         ConnectionResolution::Resolved { generation: 2 }
@@ -599,9 +597,8 @@ fn resolved_route_replaces_dependencies_and_targeted_invalidation_marks_dirty() 
         Some(connection_figure)
     );
     assert!(
-        runtime
-            .record_full_frame()
-            .commands()
+        record_full_submission(&mut runtime)
+            .commands
             .iter()
             .any(|command| matches!(&command.kind, RenderCommandKind::Polyline { .. }))
     );
@@ -755,7 +752,7 @@ fn layout_output_geometry_automatically_invalidates_and_reroutes() {
         )
         .unwrap();
 
-    runtime.prepare_frame().expect("initial stable frame");
+    prepare_next_submission(&mut runtime).expect("initial stable frame");
     let initial_bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
 
     runtime
@@ -763,9 +760,7 @@ fn layout_output_geometry_automatically_invalidates_and_reroutes() {
         .unwrap()
         .set_layout_constraint(XYConstraint::at_size(90.0, 70.0, 80.0, 40.0))
         .unwrap();
-    runtime
-        .prepare_frame()
-        .expect("layout commit must schedule route work");
+    prepare_next_submission(&mut runtime).expect("layout commit must schedule route work");
 
     assert_ne!(
         runtime.tree().figure_bounds(connection_figure),

@@ -13,7 +13,7 @@ use novadraw::figure::{
     Alignment, CONTAINER, ChildClippingStrategy, ContainerCapability, FigureCapabilityBuilder,
     FigureCapabilityRegistrationError, FigureContainer, INPUT, InputCapability,
 };
-use novadraw::graphics::NdCanvas;
+use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::render::{BuiltinFont, DashPattern, LineJoin, StrokeStyle};
 use novadraw::{
     Color, Figure, FigureId, FigureStyle, Insets, LabelFigure, Point, PointList, Rectangle,
@@ -87,19 +87,21 @@ impl Figure for UmlClassFigure {
         }
     }
 
-    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
-        canvas.set_background_color(self.fill);
-        canvas.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_fill_paint(self.fill);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
         let stroke = if self.drag.lock().expect("drag state").is_some() {
             DEPENDENCY
         } else {
             INK
         };
-        canvas.set_foreground_color(stroke);
-        canvas
-            .set_line_width(CLASS_LINE_WIDTH)
-            .expect("class stroke is valid");
-        canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
+        context.set_stroke_paint(stroke);
+        context.set_stroke_width(CLASS_LINE_WIDTH)?;
+        context.stroke_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
     fn register_capabilities(
@@ -207,15 +209,17 @@ impl Figure for UmlCompartmentFigure {
         Insets::uniform(COMPARTMENT_PADDING)
     }
 
-    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
-        canvas.line_with_style(
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_stroke_paint(INK);
+        context.set_stroke_style(StrokeStyle::default().with_width(CLASS_LINE_WIDTH)?);
+        context.stroke_line(
             Point::new(0.0, CLASS_LINE_WIDTH / 2.0),
             Point::new(bounds.width, CLASS_LINE_WIDTH / 2.0),
-            INK,
-            StrokeStyle::default()
-                .with_width(CLASS_LINE_WIDTH)
-                .expect("compartment stroke is valid"),
-        );
+        )
     }
 
     fn register_capabilities(

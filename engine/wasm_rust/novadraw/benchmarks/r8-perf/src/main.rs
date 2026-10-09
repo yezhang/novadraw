@@ -10,10 +10,12 @@ use novadraw::connection::{
 };
 use novadraw::container::ZoomManager;
 use novadraw::figure::FlowPage;
-use novadraw::render::BuiltinFont;
+use novadraw::render::{
+    BackendCapabilities, BuiltinFont, RenderDisposition, RenderSubmission, SurfaceInfo,
+};
 use novadraw::{
-    Color, Dimension, FigureId, FigureStyle, FigureTree, LabelFigure, Rectangle, RectangleFigure,
-    Runtime, TextFlowFigure,
+    Color, Dimension, FigureId, FigureStyle, FigureTree, FramePreparation, LabelFigure, Rectangle,
+    RectangleFigure, Runtime, TextFlowFigure,
 };
 use serde::{Deserialize, Serialize};
 
@@ -394,6 +396,37 @@ fn push_if_selected(
     }
 }
 
+fn benchmark_surface() -> SurfaceInfo {
+    SurfaceInfo {
+        logical_width: ROOT_WIDTH,
+        logical_height: ROOT_HEIGHT,
+        pixel_width: ROOT_WIDTH as u32,
+        pixel_height: ROOT_HEIGHT as u32,
+        scale_factor: 1.0,
+    }
+}
+
+fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
+    let FramePreparation::Ready(submission) =
+        runtime.prepare_submission(benchmark_surface(), BackendCapabilities::RETAINED_PARTIAL)
+    else {
+        return None;
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("benchmark submission completion");
+    Some(submission)
+}
+
+fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
+    runtime.request_full_redraw();
+    prepare_next_submission(runtime).expect("full redraw must produce a submission")
+}
+
 fn benchmark_large_tree_render(cli: &Cli) -> ScenarioReport {
     benchmark_prepared(
         "wide_tree_full_record_4096",
@@ -403,7 +436,7 @@ fn benchmark_large_tree_render(cli: &Cli) -> ScenarioReport {
         |runtime| {
             ScenarioOutput::one(
                 "render_commands",
-                runtime.record_full_frame().commands().len(),
+                record_full_submission(runtime).commands.len(),
             )
         },
         "CPU stabilization and full command recording only.",
@@ -423,7 +456,7 @@ fn benchmark_deep_tree_render(cli: &Cli, depth: usize) -> ScenarioReport {
         |runtime| {
             ScenarioOutput::one(
                 "render_commands",
-                runtime.record_full_frame().commands().len(),
+                record_full_submission(runtime).commands.len(),
             )
         },
         "CPU stabilization and the supported recursive recording path.",
@@ -522,7 +555,7 @@ fn benchmark_text_flow(cli: &Cli, deep: bool) -> ScenarioReport {
         || build_text_flow_runtime(deep),
         |runtime| {
             let before = runtime.text_layout_stats();
-            let commands = runtime.record_full_frame().commands().len();
+            let commands = record_full_submission(runtime).commands.len();
             let after = runtime.text_layout_stats();
             ScenarioOutput::from_pairs([
                 ("render_commands", usize_to_u64(commands)),
@@ -643,7 +676,7 @@ fn benchmark_tree_update(cli: &Cli, changed: usize) -> ScenarioReport {
         || {
             let (tree, figures) = build_large_tree();
             let mut runtime = Runtime::new(tree);
-            runtime.prepare_frame();
+            let _ = prepare_next_submission(&mut runtime);
             UpdateWorkload {
                 runtime,
                 figures,
@@ -675,11 +708,9 @@ fn benchmark_tree_update(cli: &Cli, changed: usize) -> ScenarioReport {
                     ))
                     .expect("valid bounds update");
             }
-            let commands = workload
-                .runtime
-                .prepare_frame()
+            let commands = prepare_next_submission(&mut workload.runtime)
                 .expect("mutation queues an incremental frame")
-                .commands()
+                .commands
                 .len();
             ScenarioOutput::from_pairs([
                 ("mutated_figures", usize_to_u64(workload.changed)),
@@ -706,7 +737,7 @@ fn benchmark_viewport_render(cli: &Cli) -> ScenarioReport {
         |runtime| {
             ScenarioOutput::one(
                 "render_commands",
-                runtime.record_full_frame().commands().len(),
+                record_full_submission(runtime).commands.len(),
             )
         },
         "CPU recording includes viewport clip, translation and scale; no GPU or present timing.",
@@ -1041,7 +1072,7 @@ fn build_text_flow_runtime(deep: bool) -> Runtime {
     runtime
         .register_builtin_font(BuiltinFont::Inter)
         .expect("register benchmark font");
-    runtime.record_full_frame();
+    let _ = record_full_submission(&mut runtime);
     runtime
 }
 

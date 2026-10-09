@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use novadraw::render::{
     BackendCapabilities, BuiltinFont, FontDescriptor, ImageData, RenderCommandKind, ResourceId,
     SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
@@ -100,7 +104,7 @@ fn non_text_tree_skips_style_propagation_work() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 180.0)))
         .unwrap();
 
-    runtime.prepare_frame().expect("first frame");
+    prepare_next_submission(&mut runtime).expect("first frame");
 
     assert_eq!(runtime.text_layout_stats(), Default::default());
 }

@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -613,7 +617,7 @@ fn selection_tool_moves_selected_parts_and_commits_after_feedback_cleanup() {
 #[test]
 fn autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta() {
     let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let edge = Point::new(315.0, 100.0);
@@ -659,7 +663,7 @@ fn autoexpose_scrolls_without_pointer_motion_and_preserves_model_delta() {
 #[test]
 fn autoexpose_corner_scrolls_both_available_viewport_axes() {
     let mut viewer = viewer_with_bounds(Rectangle::new(0.0, 0.0, 320.0, 240.0));
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let corner = Point::new(315.0, 235.0);
@@ -687,7 +691,7 @@ fn autoexpose_corner_scrolls_both_available_viewport_axes() {
 #[test]
 fn transient_feedback_expands_freeform_range_before_edge_scroll() {
     let mut viewer = viewer();
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let corner = Point::new(635.0, 475.0);
@@ -727,7 +731,7 @@ fn transient_feedback_expands_freeform_range_before_edge_scroll() {
 #[test]
 fn zoom_during_drag_preserves_the_content_point_under_the_pointer() {
     let mut viewer = viewer();
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     let mut domain = EditorDomain::new();
     let start = Point::new(70.0, 80.0);
     let current = Point::new(110.0, 115.0);

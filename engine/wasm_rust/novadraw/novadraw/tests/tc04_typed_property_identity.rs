@@ -1,3 +1,7 @@
+mod support;
+
+use support::record_full_submission;
+
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicUsize, Ordering},
@@ -89,7 +93,7 @@ fn lifecycle_visibility_mapping_uses_the_standard_typed_key() {
             mode: Mutex::new(Mode::Idle),
         }))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     let shown = Arc::new(AtomicUsize::new(0));
     let hidden = Arc::new(AtomicUsize::new(0));
@@ -123,9 +127,9 @@ fn lifecycle_visibility_mapping_uses_the_standard_typed_key() {
         .unwrap();
 
     runtime.figure(figure).unwrap().set_visible(false).unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     runtime.figure(figure).unwrap().set_visible(true).unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     assert_eq!(hidden.load(Ordering::SeqCst), 1);
     assert_eq!(shown.load(Ordering::SeqCst), 1);
@@ -151,7 +155,7 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
             mode: Mutex::new(Mode::Idle),
         }))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     let property_calls = Arc::new(AtomicUsize::new(0));
     let state_calls = Arc::new(AtomicUsize::new(0));
@@ -208,7 +212,7 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
     runtime.dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
     runtime.dispatch_mouse_released(10.0, 10.0, MouseButton::Left);
     runtime.dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     assert_eq!(property_calls.load(Ordering::SeqCst), 1);
     assert_eq!(state_calls.load(Ordering::SeqCst), 1);

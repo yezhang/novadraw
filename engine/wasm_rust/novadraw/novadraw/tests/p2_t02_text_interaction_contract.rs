@@ -1,3 +1,7 @@
+mod support;
+
+use support::{prepare_next_submission, record_full_submission};
+
 use std::sync::Arc;
 
 use novadraw::geometry::Translatable;
@@ -23,7 +27,7 @@ fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::F
         .unwrap()
         .add(Box::new(TextFlowFigure::new(bounds, page)))
         .unwrap();
-    runtime.prepare_frame().expect("initial TextFlow frame");
+    prepare_next_submission(&mut runtime).expect("initial TextFlow frame");
     (runtime, flow)
 }
 
@@ -69,7 +73,7 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
                 .with_alignment(Alignment::Center, Alignment::Center),
         ))
         .unwrap();
-    runtime.prepare_frame().expect("centered TextFlow frame");
+    prepare_next_submission(&mut runtime).expect("centered TextFlow frame");
 
     let layout = runtime.text_flow_layout(flow).unwrap();
     let expected_x = bounds.x + (bounds.width - f64::from(layout.width())) / 2.0;
@@ -114,12 +118,12 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
                 .with_viewport(TextFlowViewport::clipped(Point::new(-80.0, 0.0))),
         ))
         .unwrap();
-    let frame = runtime.prepare_frame().expect("clipped TextFlow frame");
+    let frame = prepare_next_submission(&mut runtime).expect("clipped TextFlow frame");
     let layout = runtime.text_flow_layout(flow).unwrap();
 
     assert!(!layout.is_truncated());
     assert_eq!(layout.visible_range(), 0..text.len());
-    assert!(frame.commands().iter().any(|command| matches!(
+    assert!(frame.commands.iter().any(|command| matches!(
         command.kind,
         RenderCommandKind::Clip { rect }
             if rect == Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
@@ -241,7 +245,7 @@ fn invalid_utf8_and_truncated_positions_are_rejected() {
         .unwrap()
         .set_wrapping(novadraw::FlowWrapping::Truncate { max_lines: 1 })
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     let invalid_utf8 = runtime
         .text_flow_caret_geometry(flow, FlowTextPosition::new(0, 1, TextAffinity::Downstream));
@@ -281,7 +285,7 @@ fn positions_from_an_old_layout_revision_are_rejected() {
         .unwrap()
         .set_bounds(Rectangle::new(0.0, 0.0, 72.0, 100.0))
         .unwrap();
-    runtime.prepare_frame().expect("width change relayout");
+    prepare_next_submission(&mut runtime).expect("width change relayout");
 
     assert!(matches!(
         runtime.text_flow_caret_geometry(flow, position),
@@ -323,7 +327,7 @@ fn caret_geometry_follows_nested_viewport_and_scale_transforms() {
         .unwrap()
         .set_scale(2.0)
         .unwrap();
-    runtime.prepare_frame().expect("scaled TextFlow frame");
+    prepare_next_submission(&mut runtime).expect("scaled TextFlow frame");
 
     let local = runtime
         .text_flow_layout(flow)
@@ -346,7 +350,7 @@ fn text_queries_are_read_only_for_runtime_updates() {
         Rectangle::new(20.0, 20.0, 180.0, 100.0),
         FlowPage::from_text("read only interaction"),
     );
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
     let position = runtime
         .text_flow_hit_test(flow, novadraw::Point::new(30.0, 30.0))
         .unwrap();
@@ -354,7 +358,7 @@ fn text_queries_are_read_only_for_runtime_updates() {
     runtime
         .text_flow_move_position(flow, position, TextMovement::NextWord)
         .unwrap();
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
 }
 
 #[derive(Debug)]

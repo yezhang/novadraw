@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::{
     cell::Cell,
     collections::HashMap,
@@ -443,7 +447,7 @@ fn unchanged_connection_projection_does_not_reroute_each_connection() {
         }))
         .unwrap();
     viewer.set_connection_layer_router(router).unwrap();
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     assert_eq!(
         route_count.load(Ordering::Relaxed),
         LINEAR_REFRESH_CONNECTION_COUNT as usize
@@ -452,7 +456,7 @@ fn unchanged_connection_projection_does_not_reroute_each_connection() {
 
     viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
-    let _ = viewer.prepare_frame();
+    let _ = prepare_next_submission(&mut viewer);
 
     assert_eq!(
         route_count.load(Ordering::Relaxed),
@@ -800,7 +804,7 @@ fn endpoint_geometry_change_is_rerouted_by_runtime() {
         .insert(FIRST, Rectangle::new(80.0, 180.0, 100.0, 80.0));
     viewer.model_mut().unwrap().publish();
     viewer.refresh().unwrap();
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
 
     assert_ne!(viewer.runtime().tree().figure_bounds(figure), Some(before));
     assert!(matches!(

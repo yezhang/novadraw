@@ -11,7 +11,7 @@ use novadraw::figure::{
     Shape, border::LineBorder,
 };
 use novadraw::geometry::Translatable;
-use novadraw::graphics::{LineCap, LineJoin, NdCanvas};
+use novadraw::graphics::{GraphicsError, LineCap, LineJoin, PaintContext, StrokeStyle};
 use novadraw::{Color, Figure, Point, Rectangle, RectangleFigure};
 
 use crate::{DemoSuite, SceneSpec};
@@ -205,8 +205,12 @@ impl Figure for TargetDomainFigure {
         Bounded::name(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        Shape::paint_shape(self, context)
     }
 
     fn register_capabilities(
@@ -238,30 +242,27 @@ impl Shape for TargetDomainFigure {
         LineJoin::default()
     }
 
-    fn fill_shape(&self, gc: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let bounds = self.bounds;
-        gc.fill_rect_with_color(0.0, 0.0, bounds.width, bounds.height, TARGET_COLOR);
+        context.set_fill_paint(TARGET_COLOR);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
-    fn outline_shape(&self, gc: &mut NdCanvas) {
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         let bounds = self.bounds;
         let color = if self.selected.load(Ordering::Acquire) {
             SELECTED_BORDER_COLOR
         } else {
             Color::WHITE
         };
-        gc.stroke_rect_with_style(
-            0.0,
-            0.0,
-            bounds.width,
-            bounds.height,
-            color,
-            novadraw::graphics::StrokeStyle::default()
-                .with_width(BORDER_WIDTH)
-                .expect("valid demo border")
+        context.set_stroke_paint(color);
+        context.set_stroke_style(
+            StrokeStyle::default()
+                .with_width(BORDER_WIDTH)?
                 .with_cap(LineCap::default())
                 .with_join(LineJoin::default()),
         );
+        context.stroke_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 }
 

@@ -1,3 +1,7 @@
+mod support;
+
+use support::record_full_submission;
+
 use std::sync::Arc;
 
 use novadraw::Color;
@@ -8,9 +12,9 @@ use novadraw::figure::{
     },
 };
 use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
-use novadraw::graphics::Paint;
+use novadraw::graphics::{GraphicsError, Paint, PaintContext};
 use novadraw::render::{
-    DEFAULT_STROKE_MITER_LIMIT, LineJoin, NdCanvas, command::RenderCommandKind,
+    CommandRecorder, DEFAULT_STROKE_MITER_LIMIT, LineJoin, command::RenderCommandKind,
 };
 use novadraw::runtime::RuntimeMutationError;
 use novadraw::{
@@ -22,13 +26,17 @@ use novadraw::{
 fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
     let ellipse = novadraw::EllipseFigure::new_with_color(0.0, 0.0, 100.0, 60.0, Color::WHITE)
         .with_stroke(Color::BLACK, 4.0);
-    let mut canvas = NdCanvas::new();
-    canvas.fill_style(Color::WHITE);
-    canvas.stroke_style(Color::BLACK);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::WHITE);
+        context.set_stroke_paint(Color::BLACK);
+        ellipse
+            .paint(&mut context, Rectangle::new(0.0, 0.0, 100.0, 60.0))
+            .unwrap();
+    }
 
-    ellipse.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 100.0, 60.0));
-
-    let ellipses = canvas
+    let ellipses = recorder
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
@@ -87,13 +95,17 @@ fn rounded_rectangle_fill_and_outline_share_optimized_path() {
         let rounded =
             RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED)
                 .with_stroke(Color::WHITE, stroke_width);
-        let mut canvas = NdCanvas::new();
-        canvas.fill_style(Color::RED);
-        canvas.stroke_style(Color::WHITE);
+        let mut recorder = CommandRecorder::new();
+        {
+            let mut context = recorder.paint();
+            context.set_fill_paint(Color::RED);
+            context.set_stroke_paint(Color::WHITE);
+            rounded
+                .paint(&mut context, Rectangle::new(0.0, 0.0, 100.0, 80.0))
+                .unwrap();
+        }
 
-        rounded.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 100.0, 80.0));
-
-        let fill_path = canvas
+        let fill_path = recorder
             .commands()
             .iter()
             .find_map(|command| match &command.kind {
@@ -101,7 +113,7 @@ fn rounded_rectangle_fill_and_outline_share_optimized_path() {
                 _ => None,
             })
             .expect("rounded rectangle fill path");
-        let (stroke_path, actual_stroke_width) = canvas
+        let (stroke_path, actual_stroke_width) = recorder
             .commands()
             .iter()
             .find_map(|command| match &command.kind {
@@ -128,12 +140,16 @@ fn rounded_rectangle_fill_and_outline_share_optimized_path() {
 #[test]
 fn rounded_rectangle_fill_without_outline_uses_full_bounds() {
     let rounded = RoundedRectangleFigure::new_with_color(0.0, 0.0, 100.0, 80.0, 30.0, Color::RED);
-    let mut canvas = NdCanvas::new();
-    canvas.fill_style(Color::RED);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::RED);
+        rounded
+            .paint(&mut context, Rectangle::new(0.0, 0.0, 100.0, 80.0))
+            .unwrap();
+    }
 
-    rounded.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 100.0, 80.0));
-
-    let fill_bounds = canvas
+    let fill_bounds = recorder
         .commands()
         .iter()
         .find_map(|command| match &command.kind {
@@ -144,7 +160,7 @@ fn rounded_rectangle_fill_without_outline_uses_full_bounds() {
 
     assert_eq!(fill_bounds, Rectangle::new(0.0, 0.0, 100.0, 80.0));
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .all(|command| !matches!(command.kind, RenderCommandKind::StrokePath { .. }))
@@ -223,13 +239,17 @@ fn polygon_precise_hit_uses_closed_interior() {
 #[test]
 fn triangle_uses_draw2d_resize_and_centering_geometry() {
     let triangle = TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 20.0));
-    let mut canvas = NdCanvas::new();
-    canvas.fill_style(Color::from_hex("#e74c3c").expect("valid color literal"));
-    canvas.stroke_style(Color::from_hex("#c0392b").expect("valid color literal"));
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::from_hex("#e74c3c").expect("valid color literal"));
+        context.set_stroke_paint(Color::from_hex("#c0392b").expect("valid color literal"));
+        triangle
+            .paint(&mut context, Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .unwrap();
+    }
 
-    triangle.paint_figure_in_bounds(&mut canvas, Rectangle::new(0.0, 0.0, 20.0, 20.0));
-
-    let bounds = canvas
+    let bounds = recorder
         .commands()
         .iter()
         .find_map(|command| match &command.kind {
@@ -380,7 +400,13 @@ impl Border for MetricBorder {
         self.insets
     }
 
-    fn paint(&self, _figure_bounds: Rectangle, _gc: &mut NdCanvas) {}
+    fn paint(
+        &self,
+        _figure_bounds: Rectangle,
+        _context: &mut PaintContext<'_>,
+    ) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
     fn preferred_size(&self) -> Dimension {
         self.preferred
@@ -416,11 +442,12 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
         LineBorder::new(Color::RED, 2.0),
         LineBorder::new(Color::BLUE, 2.0),
     );
-    let mut canvas = NdCanvas::new();
+    let mut recorder = CommandRecorder::new();
+    compound
+        .paint(Rectangle::new(0.0, 0.0, 40.0, 30.0), &mut recorder.paint())
+        .unwrap();
 
-    compound.paint(Rectangle::new(0.0, 0.0, 40.0, 30.0), &mut canvas);
-
-    let strokes = canvas
+    let strokes = recorder
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
@@ -436,13 +463,13 @@ fn compound_border_isolates_outer_state_and_offsets_inner_paint() {
     assert_eq!(strokes[0].0.top_left(), Point::new(1.0, 1.0));
     assert_eq!(strokes[1].0.top_left(), Point::new(3.0, 3.0));
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::PushState) })
     );
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|command| { matches!(command.kind, RenderCommandKind::PopState) })
@@ -546,14 +573,14 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
             .expect("valid Runtime mutation")
     );
 
-    let canvas = runtime.record_full_frame();
-    assert!(canvas.commands().iter().any(|command| {
+    let canvas = record_full_submission(&mut runtime);
+    assert!(canvas.commands.iter().any(|command| {
         matches!(
             command.kind,
             RenderCommandKind::FillRect { paint: Paint::Solid(color), .. } if color == fill
         )
     }));
-    assert!(canvas.commands().iter().any(|command| {
+    assert!(canvas.commands.iter().any(|command| {
         matches!(
             command.kind,
             RenderCommandKind::StrokeRect { paint: Paint::Solid(color), stroke: ref style, .. }
@@ -620,10 +647,12 @@ fn etched_and_bevel_borders_expose_product_metrics_and_commands() {
     assert!(raised.is_opaque());
     assert!(lowered.is_opaque());
 
-    let mut canvas = NdCanvas::new();
-    etched.paint(Rectangle::new(0.0, 0.0, 40.0, 30.0), &mut canvas);
+    let mut recorder = CommandRecorder::new();
+    etched
+        .paint(Rectangle::new(0.0, 0.0, 40.0, 30.0), &mut recorder.paint())
+        .unwrap();
     assert_eq!(
-        canvas
+        recorder
             .commands()
             .iter()
             .filter(|command| matches!(command.kind, RenderCommandKind::Line { .. }))

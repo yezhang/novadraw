@@ -628,7 +628,9 @@ mod tests {
                 scene.id
             );
             assert!(
-                !runtime.record_full_frame().commands().is_empty(),
+                !crate::record_full_submission(&mut runtime)
+                    .commands
+                    .is_empty(),
                 "empty frame: {}",
                 scene.id
             );

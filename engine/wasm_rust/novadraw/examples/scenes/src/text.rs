@@ -557,7 +557,7 @@ mod tests {
     #[test]
     fn text_flow_renders_mixed_scripts_without_missing_glyphs() {
         let mut runtime = text_flow_scene();
-        runtime.record_full_frame();
+        crate::record_full_submission(&mut runtime);
         let root = runtime.tree().contents().unwrap();
         let children = runtime.tree().child_order(root).unwrap();
         let layout = runtime.text_flow_layout(children[0]).unwrap();

@@ -1,11 +1,12 @@
+use novadraw::graphics::{GraphicsError, PaintContext};
+use novadraw::layout::{LayoutError, LayoutOutput, LayoutSnapshot, XYConstraint};
 use novadraw::render::{
-    BackendCapabilities, BuiltinFont, FontDescriptor, NdCanvas, RenderCommandKind, SurfaceInfo,
+    BackendCapabilities, BuiltinFont, FontDescriptor, RenderCommandKind, SurfaceInfo,
     TextConstraints, TextLayout,
 };
 use novadraw::{
-    Dimension, Figure, FigureId, FigureMeasurement, LayoutError, LayoutManager, LayoutOutput,
-    LayoutSnapshot, MeasureConstraints, Rectangle, RectangleFigure, Runtime, XYConstraint,
-    XYLayout,
+    Dimension, Figure, FigureId, FigureMeasurement, LayoutManager, MeasureConstraints, Rectangle,
+    RectangleFigure, Runtime, XYLayout,
 };
 
 struct WrappedTextFigure {
@@ -48,9 +49,13 @@ impl Figure for WrappedTextFigure {
         )
     }
 
-    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let layout = self.selected_layout(MeasureConstraints::width(bounds.width).unwrap());
-        canvas.fill_text_layout(layout, 0.0, 0.0);
+        context.fill_text(layout, novadraw::Point::new(0.0, 0.0))
     }
 }
 

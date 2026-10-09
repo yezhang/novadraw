@@ -5,7 +5,7 @@ use novadraw::figure::{
     InputCapability, LIFECYCLE, LifecycleCapability, WidgetError,
 };
 use novadraw::render::{
-    BackendCapabilities, DamageMode, FontDescriptor, NdCanvas, RenderDisposition, SurfaceInfo,
+    BackendCapabilities, DamageMode, FontDescriptor, RenderDisposition, SurfaceInfo,
     TextConstraints, TextError,
 };
 use novadraw::runtime::{
@@ -67,8 +67,6 @@ impl Figure for BadgeFigure {
     fn name(&self) -> &'static str {
         "BadgeFigure"
     }
-
-    fn paint_figure(&self, _canvas: &mut NdCanvas) {}
 
     fn intrinsic_size(&self) -> Dimension {
         Dimension::new(self.measured_width, self.bounds.height)

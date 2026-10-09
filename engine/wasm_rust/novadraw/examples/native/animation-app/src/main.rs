@@ -1,11 +1,14 @@
 use novadraw::event::{MonotonicTime, MouseButton};
 use novadraw::{
-    Affine2D, Rectangle,
+    Affine2D, FramePreparation, Rectangle, Runtime,
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         ConnectionRouteTransition, InterruptionPolicy, Motion, Tween,
     },
-    render::{Paint, RenderCommandKind},
+    render::{
+        BackendCapabilities, Paint, RenderCommandKind, RenderDisposition, RenderSubmission,
+        SurfaceInfo,
+    },
 };
 use novadraw_example_scenes::animation::{
     BOUNDS_DURATION, MECHANISM_DURATION, REPEAT_CYCLES, TEMPORARY_DURATION,
@@ -33,6 +36,33 @@ const CONTROL_SUSPEND_SAMPLE_MILLIS: u64 = 400;
 const CONTROL_SUSPEND_HOLD_MILLIS: u64 = 1_200;
 const CONTROL_SUSPEND_RESUME_MILLIS: u64 = 1_500;
 const EPSILON: f64 = 1.0e-6;
+
+fn record_full_submission(runtime: &mut Runtime) -> Result<RenderSubmission, String> {
+    runtime.request_full_redraw();
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: 800.0,
+            logical_height: 600.0,
+            pixel_width: 800,
+            pixel_height: 600,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL
+            .with_custom_strokes()
+            .with_path_clips()
+            .with_linear_gradients(),
+    ) else {
+        return Err("full redraw did not produce a submission".to_string());
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(submission)
+}
 
 fn main() {
     let cli = VerificationCli::parse().unwrap_or_else(|error| {
@@ -641,10 +671,8 @@ fn verify_dashed_arrow_flow() -> Result<VerificationMetrics, String> {
             "arrow decoration was not placed on the animated connection: {arrow_bounds:?}"
         ));
     }
-    let arrow_recording = example
-        .runtime
-        .record_full_frame()
-        .commands()
+    let arrow_recording = record_full_submission(&mut example.runtime)?
+        .commands
         .iter()
         .find_map(|command| match &command.kind {
             RenderCommandKind::StrokePath {

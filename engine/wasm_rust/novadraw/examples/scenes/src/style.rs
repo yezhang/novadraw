@@ -1,5 +1,5 @@
 use novadraw::figure::{CursorIcon, FigureStyle, border::RectangleBorder};
-use novadraw::graphics::NdCanvas;
+use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::{Figure, Rectangle};
 
 use crate::{DemoSuite, SceneSpec};
@@ -26,10 +26,14 @@ impl Figure for StyleProbeFigure {
         "StyleProbeFigure"
     }
 
-    fn paint_figure_in_bounds(&self, canvas: &mut NdCanvas, bounds: Rectangle) {
-        canvas.fill_rectangle(0.0, 0.0, bounds.width, bounds.height);
-        canvas.set_line_width(3.0).expect("valid demo stroke");
-        canvas.draw_rectangle(0.0, 0.0, bounds.width, bounds.height);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))?;
+        context.set_stroke_width(3.0)?;
+        context.stroke_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 }
 

@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use novadraw::Color;
 use novadraw::geometry::{Dimension, Rectangle, Translatable};
 use novadraw::{
@@ -402,7 +406,7 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     runtime.figure(root).unwrap().revalidate().unwrap();
-    let canvas = runtime.prepare_frame().expect("queued update");
+    let canvas = prepare_next_submission(&mut runtime).expect("queued update");
 
     assert!(runtime.tree().is_valid(root));
     assert!(
@@ -410,9 +414,9 @@ fn update_manager_completes_a_1024_figure_layout_transaction() {
             .into_iter()
             .all(|child| runtime.tree().is_valid(child))
     );
-    assert!(runtime.prepare_frame().is_none());
-    assert!(!canvas.damage().is_empty());
-    assert!(!canvas.commands().is_empty());
+    assert!(prepare_next_submission(&mut runtime).is_none());
+    assert!(!canvas.damage.is_empty());
+    assert!(!canvas.commands.is_empty());
 }
 
 struct InvalidOutputLayout {

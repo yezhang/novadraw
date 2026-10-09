@@ -1,3 +1,7 @@
+mod support;
+
+use support::{prepare_next_submission, record_full_submission};
+
 use novadraw::container::{
     FreeformLayerFigure, LayerKey, LayerPlacement, MouseLocationZoomScrollPolicy, ScaleHandle,
     ViewportHandle, ZoomManager,
@@ -62,7 +66,7 @@ fn scalable_freeform_viewport(
             layer_bounds.height,
         )))
         .expect("valid Runtime mutation");
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     (runtime, viewport, scalable, content)
 }
 
@@ -187,7 +191,7 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
         .validate_subtree(host)
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
-    runtime.prepare_frame().expect("initial full frame");
+    prepare_next_submission(&mut runtime).expect("initial full frame");
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
     runtime
@@ -211,7 +215,7 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
             .is_dirty()
     );
 
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
 
     assert_eq!(
         runtime.freeform_extent(host),
@@ -319,8 +323,9 @@ fn overflow_visible_skips_host_clip_during_rendering() {
         )
         .expect("valid FigureTree construction");
 
-    let canvas = Runtime::new(tree).record_full_frame();
-    let has_host_clip = canvas.commands().iter().any(|command| {
+    let mut runtime = Runtime::new(tree);
+    let canvas = prepare_next_submission(&mut runtime).expect("initial full submission");
+    let has_host_clip = canvas.commands.iter().any(|command| {
         matches!(
             command.kind,
             RenderCommandKind::Clip { rect }
@@ -368,9 +373,8 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
         .set_view_location(-20.0, -10.0)
         .unwrap();
 
-    let viewport_sized_clips = runtime
-        .record_full_frame()
-        .commands()
+    let viewport_sized_clips = record_full_submission(&mut runtime)
+        .commands
         .iter()
         .filter(|command| {
             matches!(
@@ -405,12 +409,12 @@ fn overflow_visible_damage_is_not_clipped_to_host_bounds() {
         .validate_subtree(host)
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
-    runtime.prepare_frame().expect("initial full frame");
+    prepare_next_submission(&mut runtime).expect("initial full frame");
     runtime.figure(child).unwrap().repaint(None).unwrap();
-    let canvas = runtime.prepare_frame().expect("queued repaint");
+    let canvas = prepare_next_submission(&mut runtime).expect("queued repaint");
 
     assert_eq!(
-        canvas.damage().union(),
+        canvas.damage.union(),
         Some(Rectangle::new(-40.0, -30.0, 15.0, 10.0))
     );
 }
@@ -434,7 +438,7 @@ fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
         .add_child(host, Box::new(RectangleFigure::new(60.0, 0.0, 10.0, 10.0)))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     assert!(
         runtime
             .figure(child)
@@ -442,10 +446,10 @@ fn moving_overflow_visible_child_damages_old_and_new_surface_regions() {
             .set_bounds(Rectangle::new(80.0, 0.0, 10.0, 10.0))
             .unwrap()
     );
-    let canvas = runtime.prepare_frame().unwrap();
+    let canvas = prepare_next_submission(&mut runtime).unwrap();
 
     assert_eq!(
-        canvas.damage().regions(),
+        canvas.damage.regions(),
         &[
             Rectangle::new(80.0, 20.0, 10.0, 10.0),
             Rectangle::new(100.0, 20.0, 10.0, 10.0),
@@ -638,7 +642,7 @@ fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
         .unwrap()
         .set_view_location(600.0, 350.0)
         .unwrap();
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
 
     assert!(
         runtime
@@ -647,8 +651,8 @@ fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
             .set_bounds(Rectangle::new(-20.0, -10.0, 100.0, 80.0))
             .expect("valid Runtime mutation")
     );
-    let canvas = runtime.prepare_frame().unwrap();
+    let canvas = prepare_next_submission(&mut runtime).unwrap();
 
     assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));
-    assert!(canvas.damage().union().is_some());
+    assert!(canvas.damage.union().is_some());
 }

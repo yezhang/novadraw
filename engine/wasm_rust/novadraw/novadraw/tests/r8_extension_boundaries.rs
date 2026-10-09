@@ -1,6 +1,10 @@
 use novadraw::render::{
-    BackendCapabilities, ImageResourceRef, NdCanvas, RenderCapability, RenderCommandKind,
+    BackendCapabilities, CommandRecorder, ImageResourceRef, RenderCapability, RenderCommandKind,
     ResourceId, UnsupportedRenderCapability,
+};
+use novadraw::{
+    Rectangle,
+    graphics::{GraphicsError, PaintContext},
 };
 use uuid::Uuid;
 
@@ -43,14 +47,14 @@ struct Scene3DFrame {
 }
 
 fn compose_scene3d_frame(
-    canvas: &mut NdCanvas,
+    context: &mut PaintContext<'_>,
     frame: &Scene3DFrame,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
-) {
-    canvas.draw_image_with_size(frame.color_target, x, y, width, height);
+) -> Result<(), GraphicsError> {
+    context.draw_image(frame.color_target, Rectangle::new(x, y, width, height))
 }
 
 #[test]
@@ -58,20 +62,16 @@ fn scene3d_frame_embeds_through_the_existing_2d_image_boundary() {
     let frame = Scene3DFrame {
         color_target: ImageResourceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 2, 2, 1.0),
     };
-    let mut canvas = NdCanvas::new();
-
-    compose_scene3d_frame(&mut canvas, &frame, 10.0, 20.0, 300.0, 200.0);
+    let mut recorder = CommandRecorder::new();
+    compose_scene3d_frame(&mut recorder.paint(), &frame, 10.0, 20.0, 300.0, 200.0).unwrap();
 
     let RenderCommandKind::Image {
         image, dest_rect, ..
-    } = &canvas.commands()[0].kind
+    } = &recorder.commands()[0].kind
     else {
         panic!("Scene3D embedding must remain an ordinary 2D image command");
     };
 
     assert_eq!((image.width(), image.height()), (2, 2));
-    assert_eq!(
-        *dest_rect,
-        novadraw::geometry::Rectangle::new(10.0, 20.0, 300.0, 200.0)
-    );
+    assert_eq!(*dest_rect, Rectangle::new(10.0, 20.0, 300.0, 200.0));
 }

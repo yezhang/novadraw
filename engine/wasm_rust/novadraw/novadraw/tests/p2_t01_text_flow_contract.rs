@@ -1,3 +1,7 @@
+mod support;
+
+use support::record_full_submission;
+
 use novadraw::figure::{FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment};
 use novadraw::render::{BuiltinFont, RenderCommandKind};
 use novadraw::{Rectangle, RectangleFigure, Runtime, TextFlowFigure};
@@ -34,7 +38,7 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
         )))
         .unwrap();
 
-    let frame = runtime.record_full_frame();
+    let frame = record_full_submission(&mut runtime);
     let layout = runtime.text_flow_layout(flow).unwrap();
     assert_eq!(
         layout.key().text(),
@@ -44,7 +48,7 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
     assert!(!layout.glyph_runs().is_empty());
     assert!(
         frame
-            .commands()
+            .commands
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
     );
@@ -72,7 +76,7 @@ fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
         ))
         .unwrap();
 
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     let layout = runtime.text_flow_layout(flow).unwrap();
     assert!(layout.is_truncated());
     assert!(layout.line_metrics().len() <= 2);
@@ -99,7 +103,7 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
             FlowPage::from_text("alpha beta gamma delta epsilon"),
         )))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     let wide_lines = runtime.text_flow_layout(flow).unwrap().line_metrics().len();
 
     runtime
@@ -107,7 +111,7 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
         .unwrap()
         .set_bounds(Rectangle::new(20.0, 20.0, 70.0, 180.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     let narrow_lines = runtime.text_flow_layout(flow).unwrap().line_metrics().len();
     assert!(narrow_lines > wide_lines);
 
@@ -125,7 +129,7 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
             .set_wrapping(FlowWrapping::NoWrap)
             .unwrap()
     );
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     let layout = runtime.text_flow_layout(flow).unwrap();
     assert_eq!(layout.key().text(), "replacement paragraph");
     assert_eq!(layout.line_metrics().len(), 1);

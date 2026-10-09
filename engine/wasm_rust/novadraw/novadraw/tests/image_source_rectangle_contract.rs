@@ -1,6 +1,7 @@
 use novadraw::geometry::Rectangle;
+use novadraw::graphics::GraphicsError;
 use novadraw::render::{
-    ImageDrawError, ImageRegion, ImageResourceRef, NdCanvas, RenderCommandKind, ResourceId,
+    CommandRecorder, ImageDrawError, ImageRegion, ImageResourceRef, RenderCommandKind, ResourceId,
 };
 use uuid::Uuid;
 
@@ -10,16 +11,22 @@ fn image() -> ImageResourceRef {
 
 #[test]
 fn full_image_commands_record_the_physical_source_bounds() {
-    let mut canvas = NdCanvas::new();
-
-    canvas.draw_image(image(), 4.0, 5.0);
-    canvas.draw_image_with_size(image(), 10.0, 20.0, 30.0, 40.0);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context
+            .draw_image(image(), Rectangle::new(4.0, 5.0, 40.0, 20.0))
+            .unwrap();
+        context
+            .draw_image(image(), Rectangle::new(10.0, 20.0, 30.0, 40.0))
+            .unwrap();
+    }
 
     let RenderCommandKind::Image {
         source_rect,
         dest_rect,
         ..
-    } = canvas.commands()[0].kind
+    } = recorder.commands()[0].kind
     else {
         panic!("expected Image");
     };
@@ -30,7 +37,7 @@ fn full_image_commands_record_the_physical_source_bounds() {
         source_rect,
         dest_rect,
         ..
-    } = canvas.commands()[1].kind
+    } = recorder.commands()[1].kind
     else {
         panic!("expected second Image");
     };
@@ -40,24 +47,26 @@ fn full_image_commands_record_the_physical_source_bounds() {
 
 #[test]
 fn image_region_records_source_pixels_destination_and_alpha() {
-    let mut canvas = NdCanvas::new();
-    canvas.global_alpha(0.5);
-
-    assert_eq!(
-        canvas.draw_image_region(
-            ImageRegion::new(image(), Rectangle::new(10.0, 5.0, 20.0, 10.0))
-                .expect("valid source region"),
-            Rectangle::new(100.0, 200.0, 60.0, 80.0),
-        ),
-        Ok(())
-    );
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_opacity(0.5).unwrap();
+        assert_eq!(
+            context.draw_image_region(
+                ImageRegion::new(image(), Rectangle::new(10.0, 5.0, 20.0, 10.0))
+                    .expect("valid source region"),
+                Rectangle::new(100.0, 200.0, 60.0, 80.0),
+            ),
+            Ok(())
+        );
+    }
 
     let RenderCommandKind::Image {
         image,
         source_rect,
         dest_rect,
         alpha,
-    } = canvas.commands()[1].kind
+    } = recorder.commands()[1].kind
     else {
         panic!("expected Image");
     };
@@ -103,14 +112,19 @@ fn image_region_rejects_invalid_geometry_without_recording_work() {
     ];
 
     for (source_rect, dest_rect, expected) in invalid_cases {
-        let mut canvas = NdCanvas::new();
-        assert_eq!(
-            ImageRegion::new(image(), source_rect)
-                .and_then(|region| canvas.draw_image_region(region, dest_rect)),
-            Err(expected)
-        );
-        assert!(canvas.commands().is_empty());
-        assert!(canvas.damage().is_empty());
+        let mut recorder = CommandRecorder::new();
+        let result = match ImageRegion::new(image(), source_rect) {
+            Ok(region) => recorder
+                .paint()
+                .draw_image_region(region, dest_rect)
+                .map_err(|error| match error {
+                    GraphicsError::Image(error) => error,
+                    other => panic!("unexpected graphics error: {other}"),
+                }),
+            Err(error) => Err(error),
+        };
+        assert_eq!(result, Err(expected));
+        assert!(recorder.commands().is_empty());
     }
 }
 
@@ -118,10 +132,10 @@ fn image_region_rejects_invalid_geometry_without_recording_work() {
 fn image_region_zero_extent_and_zero_alpha_are_noops() {
     let source = Rectangle::new(0.0, 0.0, 10.0, 10.0);
     let destination = Rectangle::new(20.0, 30.0, 40.0, 50.0);
-    let mut canvas = NdCanvas::new();
-
+    let mut recorder = CommandRecorder::new();
+    let mut context = recorder.paint();
     assert_eq!(
-        canvas.draw_image_region(
+        context.draw_image_region(
             ImageRegion::new(
                 image(),
                 Rectangle::new(source.x, source.y, 0.0, source.height),
@@ -132,25 +146,26 @@ fn image_region_zero_extent_and_zero_alpha_are_noops() {
         Ok(())
     );
     assert_eq!(
-        canvas.draw_image_region(
+        context.draw_image_region(
             ImageRegion::new(image(), source).expect("valid source region"),
             Rectangle::new(destination.x, destination.y, destination.width, 0.0),
         ),
         Ok(())
     );
-    canvas.global_alpha(0.0);
-    let command_count = canvas.commands().len();
+    context.set_opacity(0.0).unwrap();
+    let command_count = 1;
     assert_eq!(
-        canvas.draw_image_region(
+        context.draw_image_region(
             ImageRegion::new(image(), source).expect("valid source region"),
             destination,
         ),
         Ok(())
     );
-    assert_eq!(canvas.commands().len(), command_count);
+    drop(context);
+    assert_eq!(recorder.commands().len(), command_count);
     assert_eq!(
         ImageRegion::new(image(), Rectangle::new(79.0, 0.0, 2.0, 1.0)),
         Err(ImageDrawError::SourceOutOfBounds)
     );
-    assert_eq!(canvas.commands().len(), command_count);
+    assert_eq!(recorder.commands().len(), command_count);
 }

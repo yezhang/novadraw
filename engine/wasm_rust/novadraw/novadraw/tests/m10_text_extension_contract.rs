@@ -1,10 +1,10 @@
 use novadraw::Color;
 use novadraw::render::{
-    BuiltinFont, FontData, FontDescriptor, FontFaceRef, FrameId, GlyphPaint, GlyphRun, NdCanvas,
-    PositionedGlyph, RenderBackend, RenderCommandKind, RenderDisposition, RenderResult,
-    RenderSubmission, ResourceDelta, ResourceId, ResourceOp, ResourcePayload, ResourceSync,
-    ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout,
-    TextLayoutEngine, TextLayoutParts, TextLineMetrics,
+    BackendSessionId, BuiltinFont, CommandRecorder, DamageSet, FontData, FontDescriptor,
+    FontFaceRef, FrameId, GlyphPaint, GlyphRun, PositionedGlyph, RenderBackend, RenderCommandKind,
+    RenderDisposition, RenderResult, RenderSubmission, ResourceDelta, ResourceId, ResourceOp,
+    ResourcePayload, ResourceSync, ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine,
+    TextError, TextLayout, TextLayoutEngine, TextLayoutParts, TextLineMetrics,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -118,11 +118,16 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     assert_eq!(layout.key().text(), "backend neutral");
     assert_eq!(layout.key().engine_revision(), engine.revision());
     assert!(layout.baseline() > 0.0);
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::BLACK);
-    canvas.fill_text_layout(&layout, 12.0, 24.0);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::BLACK);
+        context
+            .fill_text(&layout, novadraw::Point::new(12.0, 24.0))
+            .unwrap();
+    }
 
-    let command = canvas
+    let command = recorder
         .commands()
         .iter()
         .find_map(|command| match &command.kind {
@@ -135,15 +140,20 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
         matches!(command.1, GlyphPaint::Fill(novadraw::graphics::Paint::Solid(color)) if *color == Color::BLACK)
     );
 
-    let submission = canvas.to_submission_for_frame(
-        SurfaceInfo {
+    let drawing = recorder.finish().unwrap();
+    let mut damage = DamageSet::default();
+    damage.set_full();
+    let submission = RenderSubmission {
+        commands: drawing.commands().to_vec(),
+        damage,
+        surface: SurfaceInfo {
             logical_width: 200.0,
             logical_height: 80.0,
             pixel_width: 200,
             pixel_height: 80,
             scale_factor: 1.0,
         },
-        ResourceDelta {
+        resources: ResourceSync::Delta(ResourceDelta {
             ops: vec![ResourceOp::Upsert(ResourceUpdate {
                 id: font_id,
                 revision: 1,
@@ -151,9 +161,10 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
                     BuiltinFont::Inter.bytes().to_vec(),
                 ))),
             })],
-        },
-        FrameId::INITIAL,
-    );
+        }),
+        session_id: BackendSessionId::default(),
+        frame_id: FrameId::INITIAL,
+    };
 
     let mut backend = RecordingBackend::default();
     let outcome = backend.submit(&submission);
@@ -185,11 +196,16 @@ fn external_text_engine_constructs_non_empty_backend_neutral_layout() {
     assert_eq!(layout.key().engine_revision(), engine.revision());
     assert_eq!(layout.glyph_runs()[0].font.resource_id(), font_id);
 
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::BLACK);
-    canvas.fill_text_layout(&layout, 4.0, 12.0);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::BLACK);
+        context
+            .fill_text(&layout, novadraw::Point::new(4.0, 12.0))
+            .unwrap();
+    }
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))

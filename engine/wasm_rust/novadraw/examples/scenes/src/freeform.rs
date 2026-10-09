@@ -214,7 +214,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         .expect("valid Runtime mutation");
 
     runtime
-        .prepare_frame()
+        .stabilize_for_query()
         .expect("stabilize freeform demo before viewport configuration");
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     if scale != 1.0 {
@@ -229,7 +229,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         .expect("scroll pane viewport must remain attached")
         .set_view_location(view_location.0, view_location.1)
         .expect("set freeform demo view location");
-    let _ = runtime.prepare_frame();
+    let _ = runtime.stabilize_for_query();
 
     FreeformDemo {
         runtime,

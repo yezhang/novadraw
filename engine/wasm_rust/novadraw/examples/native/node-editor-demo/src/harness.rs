@@ -4,7 +4,8 @@ use novadraw::event::{KeyModifiers, MonotonicTime, MouseButton};
 use novadraw::figure::border::{BorderStyle, LineBorder};
 use novadraw::render::text::BuiltinFont;
 use novadraw::render::{
-    BackendCapabilities, BackendSessionId, FrameId, NdCanvas, RenderResult, SurfaceInfo,
+    BackendCapabilities, BackendSessionId, FrameId, RenderDisposition, RenderResult,
+    RenderSubmission, SurfaceInfo,
 };
 use novadraw::runtime::{SubmissionAcknowledgement, SubmissionCompletionError};
 use novadraw::{
@@ -78,8 +79,30 @@ impl EditorHarness {
         self.viewer.runtime()
     }
 
-    pub(crate) fn prepare_frame(&mut self) -> Option<NdCanvas> {
-        self.viewer.prepare_frame()
+    pub(crate) fn prepare_frame(&mut self) -> Option<RenderSubmission> {
+        let submission = self
+            .viewer
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: WIDTH,
+                    logical_height: HEIGHT,
+                    pixel_width: WIDTH as u32,
+                    pixel_height: HEIGHT as u32,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .into_ready()
+            .ok()?;
+        let _ = self
+            .viewer
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .ok()?;
+        Some(submission)
     }
 
     pub(crate) fn prepare_submission(

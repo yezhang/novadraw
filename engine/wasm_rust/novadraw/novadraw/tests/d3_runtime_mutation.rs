@@ -1,11 +1,38 @@
 use novadraw::geometry::Dimension;
-use novadraw::render::command::RenderCommandKind;
+use novadraw::render::{
+    BackendCapabilities, RenderDisposition, RenderSubmission, SurfaceInfo,
+    command::RenderCommandKind,
+};
 use novadraw::{
     BorderConstraint, BorderRegion, ChildClippingStrategy, ChildPolicy, EventContext, Figure,
-    FigureContainer, FigureEventHandler, FigureId, FigureTree, GraphMutationError, GridLayout,
-    LayerFigure, LayerKey, LayerPlacement, LayoutError, MeasureConstraints, MouseButton,
-    MouseEvent, Rectangle, RectangleFigure, Runtime, RuntimeMutationError, XYConstraint, XYLayout,
+    FigureContainer, FigureEventHandler, FigureId, FigureTree, FramePreparation,
+    GraphMutationError, GridLayout, LayerFigure, LayerKey, LayerPlacement, LayoutError,
+    MeasureConstraints, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,
+    RuntimeMutationError, XYConstraint, XYLayout,
 };
+
+fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: 640.0,
+            logical_height: 480.0,
+            pixel_width: 640,
+            pixel_height: 480,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    ) else {
+        return None;
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("test submission completion");
+    Some(submission)
+}
 
 #[test]
 fn runtime_replaces_layout_and_constraints_only_after_validation() {
@@ -220,7 +247,7 @@ fn runtime_update_requests_validate_target_and_damage_geometry() {
     ));
     assert!(runtime.figure(root).unwrap().revalidate().is_ok());
     assert!(runtime.figure(child).unwrap().repaint(None).is_ok());
-    assert!(runtime.prepare_frame().is_some());
+    assert!(prepare_next_submission(&mut runtime).is_some());
 }
 
 #[test]
@@ -355,7 +382,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
 #[test]
 fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage() {
     let (mut runtime, root, child) = runtime_with_child();
-    let initial = runtime.prepare_frame().expect("initial frame");
+    let initial = prepare_next_submission(&mut runtime).expect("initial frame");
     let initial_clips = clip_count(&initial);
 
     assert!(
@@ -385,8 +412,8 @@ fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage()
             .child_clipping_strategy_override(),
         Some(ChildClippingStrategy::OverflowVisible)
     );
-    let changed = runtime.prepare_frame().expect("clipping replacement frame");
-    assert!(changed.damage().is_full());
+    let changed = prepare_next_submission(&mut runtime).expect("clipping replacement frame");
+    assert!(changed.damage.is_full());
     assert!(clip_count(&changed) < initial_clips);
 }
 
@@ -535,9 +562,9 @@ fn runtime_with_child() -> (Runtime, FigureId, FigureId) {
     (Runtime::new(tree), root, child)
 }
 
-fn clip_count(canvas: &novadraw::render::NdCanvas) -> usize {
-    canvas
-        .commands()
+fn clip_count(submission: &RenderSubmission) -> usize {
+    submission
+        .commands
         .iter()
         .filter(|command| matches!(command.kind, RenderCommandKind::Clip { .. }))
         .count()

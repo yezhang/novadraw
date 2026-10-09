@@ -1,5 +1,9 @@
 //! External contracts for P2-M01 animation behaviors and committed-fact triggers.
 
+mod support;
+
+use support::record_full_submission;
+
 use std::{
     sync::{
         Arc, Mutex,
@@ -33,7 +37,7 @@ fn surface() -> SurfaceInfo {
 }
 
 fn flush_initial_state(runtime: &mut Runtime) {
-    runtime.record_full_frame();
+    record_full_submission(runtime);
 }
 
 #[derive(Clone)]
@@ -59,7 +63,7 @@ fn ordinary_mutation_stays_static_without_an_installed_behavior() {
         .unwrap()
         .set_bounds(Rectangle::new(40.0, 0.0, 10.0, 10.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     assert_eq!(runtime.animations().behavior_count(), 0);
     assert_eq!(runtime.animations().active_animation_count(), 0);
@@ -122,7 +126,7 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
         .unwrap()
         .set_bounds(Rectangle::new(40.0, 0.0, 10.0, 10.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert_eq!(
@@ -197,7 +201,7 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
         .unwrap()
         .set_bounds(Rectangle::new(20.0, 0.0, 10.0, 10.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
 
     assert_eq!(property_calls.load(Ordering::SeqCst), 1);
     assert_eq!(state_calls.load(Ordering::SeqCst), 1);
@@ -310,13 +314,13 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
 
     runtime.animations().set_mode(AnimationMode::Disabled);
     runtime.figure(figure).unwrap().set_enabled(false).unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);
     assert_eq!(reduced_calls.load(Ordering::SeqCst), 0);
 
     runtime.animations().set_mode(AnimationMode::ReducedMotion);
     runtime.figure(figure).unwrap().set_enabled(true).unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);
     assert_eq!(reduced_calls.load(Ordering::SeqCst), 1);
     assert_eq!(
@@ -360,7 +364,7 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
         .unwrap()
         .set_bounds(Rectangle::new(10.0, 0.0, 100.0, 100.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 
     runtime
@@ -368,7 +372,7 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
         .unwrap()
         .set_bounds(Rectangle::new(20.0, 0.0, 10.0, 10.0))
         .unwrap();
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let failures = runtime.animations().take_behavior_failures();
     assert_eq!(failures.len(), 1);
@@ -409,7 +413,7 @@ fn behavior_factory_panic_faults_runtime_and_clears_presentation() {
         .unwrap();
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        runtime.record_full_frame();
+        record_full_submission(&mut runtime);
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());

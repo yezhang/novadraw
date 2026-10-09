@@ -1,4 +1,8 @@
-//! External contracts for the P2-M01 animation clock and timeline core.
+mod support;
+
+use support::record_full_submission;
+
+// External contracts for the P2-M01 animation clock and timeline core.
 
 use std::{sync::Arc, time::Duration};
 
@@ -844,9 +848,9 @@ fn figure_opacity_and_transform_are_presentation_only() {
     assert_eq!(runtime.tree().resolved_style(figure).unwrap().alpha, 1.0);
 
     runtime.advance_time(time(50)).unwrap();
-    let frame = runtime.record_full_frame();
-    assert_eq!(first_solid_alpha(frame.commands()), 0.5);
-    assert!(frame.commands().iter().any(|command| {
+    let frame = record_full_submission(&mut runtime);
+    assert_eq!(first_solid_alpha(&frame.commands), 0.5);
+    assert!(frame.commands.iter().any(|command| {
         matches!(
             command.kind,
             RenderCommandKind::ConcatTransform { matrix }
@@ -931,8 +935,8 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
     .unwrap();
     runtime.animations().start(plan).unwrap();
 
-    let frame = runtime.record_full_frame();
-    assert!(!frame.commands().iter().any(|command| {
+    let frame = record_full_submission(&mut runtime);
+    assert!(!frame.commands.iter().any(|command| {
         matches!(
             command.kind,
             RenderCommandKind::Clip { rect }
@@ -980,12 +984,12 @@ fn temporary_visual_is_non_source_and_removed_with_its_owner() {
     let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
         panic!("temporary visual must activate with its plan");
     };
-    let frame = runtime.record_full_frame();
-    assert_eq!(first_solid_alpha(frame.commands()), 1.0);
+    let frame = record_full_submission(&mut runtime);
+    assert_eq!(first_solid_alpha(&frame.commands), 1.0);
 
     runtime.advance_time(time(50)).unwrap();
-    let frame = runtime.record_full_frame();
-    assert_eq!(first_solid_alpha(frame.commands()), 0.5);
+    let frame = record_full_submission(&mut runtime);
+    assert_eq!(first_solid_alpha(&frame.commands), 0.5);
     assert!(runtime.animations().cancel(animation).unwrap());
     assert_eq!(runtime.animations().temporary_visual_count(), 0);
     assert_eq!(
@@ -993,9 +997,8 @@ fn temporary_visual_is_non_source_and_removed_with_its_owner() {
         Err(AnimationError::UnknownChannel)
     );
     assert!(
-        runtime
-            .record_full_frame()
-            .commands()
+        record_full_submission(&mut runtime)
+            .commands
             .iter()
             .all(|command| !matches!(command.kind, RenderCommandKind::FillRect { .. }))
     );
@@ -1071,7 +1074,7 @@ fn pause_policy_excludes_surface_suspension_from_local_time() {
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime
+    let _ = runtime
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -1298,7 +1301,7 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
         panic!("animation must run");
     };
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        fault_runtime.record_full_frame();
+        record_full_submission(&mut fault_runtime);
     }));
     assert!(panic.is_err());
     assert!(fault_runtime.is_faulted());

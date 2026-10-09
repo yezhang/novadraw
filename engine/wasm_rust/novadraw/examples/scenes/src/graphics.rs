@@ -2,8 +2,8 @@
 
 use novadraw::container::LayerFigure;
 use novadraw::graphics::{
-    ClipPath, CustomDash, DashPattern, FillRule, GradientStop, LinearGradient, NdCanvas, Paint,
-    Path, StrokeStyle,
+    ClipPath, CustomDash, DashPattern, FillRule, GradientStop, GraphicsError, LinearGradient,
+    Paint, PaintContext, Path, StrokeStyle,
 };
 use novadraw::render::{
     BuiltinFont, FontDescriptor, ImageData, ImageResourceRef, TextConstraints, TextLayout,
@@ -64,32 +64,32 @@ impl Figure for GraphicsFigure {
         Rectangle::new(0.0, 0.0, SIZE.0 as f64, SIZE.1 as f64)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
+    fn paint(&self, gc: &mut PaintContext<'_>, _bounds: Rectangle) -> Result<(), GraphicsError> {
         // Three analytically predictable interpolation probes.
         gc.set_fill_paint(red_blue(40.0, 200.0));
-        gc.fill_rectangle(40.0, 30.0, 200.0, 50.0);
+        gc.fill_rect(Rectangle::new(40.0, 30.0, 200.0, 50.0))?;
         gc.set_fill_paint(gradient(
             Point::new(280.0, 0.0),
             Point::new(480.0, 0.0),
             &[(0.0, RED), (1.0, BLUE.with_alpha(0.0))],
         ));
-        gc.set_alpha(0.5);
-        gc.fill_rectangle(280.0, 30.0, 200.0, 50.0);
-        gc.set_alpha(1.0);
+        gc.set_opacity(0.5)?;
+        gc.fill_rect(Rectangle::new(280.0, 30.0, 200.0, 50.0))?;
+        gc.set_opacity(1.0)?;
         gc.set_fill_paint(gradient(
             Point::new(520.0, 0.0),
             Point::new(720.0, 0.0),
             &[(0.0, RED), (0.5, RED), (0.5, BLUE), (1.0, BLUE)],
         ));
-        gc.fill_rectangle(520.0, 30.0, 200.0, 50.0);
+        gc.fill_rect(Rectangle::new(520.0, 30.0, 200.0, 50.0))?;
 
         // Identical brush coordinates in shape, fill glyph and dashed glyph.
         gc.set_fill_paint(red_blue(40.0, 240.0));
-        gc.fill_rectangle(40.0, 110.0, 240.0, 8.0);
-        gc.fill_text_layout(&self.layout, 40.0, 125.0);
+        gc.fill_rect(Rectangle::new(40.0, 110.0, 240.0, 8.0))?;
+        gc.fill_text(&self.layout, Point::new(40.0, 125.0))?;
         gc.set_stroke_paint(red_blue(40.0, 240.0));
-        gc.set_stroke(dash());
-        gc.stroke_text_layout(&self.layout, 40.0, 195.0);
+        gc.set_stroke_style(dash());
+        gc.stroke_text(&self.layout, Point::new(40.0, 195.0))?;
 
         // EvenOdd hole, image intersection and an empty clip restored in place.
         let mut path = Path::new();
@@ -105,57 +105,55 @@ impl Figure for GraphicsFigure {
         path.close();
         path.rect(400.0, 150.0, 60.0, 60.0);
         gc.push_state();
-        gc.clip_rect(350.0, 100.0, 160.0, 170.0);
-        gc.clip_path(&ClipPath::try_new(&path, FillRule::EvenOdd).unwrap());
+        gc.clip_rect(Rectangle::new(350.0, 100.0, 160.0, 170.0))?;
+        gc.clip_path(&ClipPath::try_new(&path, FillRule::EvenOdd).unwrap())?;
         gc.set_fill_paint(red_blue(340.0, 180.0));
-        gc.fill_rectangle(320.0, 100.0, 220.0, 170.0);
-        gc.set_fill_paint(Color::WHITE.into());
-        gc.fill_text_layout(&self.layout, 340.0, 125.0);
-        gc.draw_image_with_size(self.image, 340.0, 220.0, 180.0, 50.0);
+        gc.fill_rect(Rectangle::new(320.0, 100.0, 220.0, 170.0))?;
+        gc.set_fill_paint(Color::WHITE);
+        gc.fill_text(&self.layout, Point::new(340.0, 125.0))?;
+        gc.draw_image(self.image, Rectangle::new(340.0, 220.0, 180.0, 50.0))?;
         gc.push_state();
-        gc.clip_path(&ClipPath::try_new(&Path::new(), FillRule::NonZero).unwrap());
-        gc.fill_rect_with_color(0.0, 0.0, 800.0, 600.0, Color::BLACK);
-        gc.reset_clip();
-        gc.fill_rect_with_color(700.0, 250.0, 20.0, 20.0, RED);
-        gc.restore_state();
-        gc.fill_rect_with_color(700.0, 250.0, 20.0, 20.0, GREEN);
-        gc.fill_rect_with_color(350.0, 110.0, 20.0, 20.0, GREEN);
-        gc.pop_state();
-        gc.pop_state();
+        gc.clip_path(&ClipPath::try_new(&Path::new(), FillRule::NonZero).unwrap())?;
+        gc.set_fill_paint(Color::BLACK);
+        gc.fill_rect(Rectangle::new(0.0, 0.0, 800.0, 600.0))?;
+        gc.restore_state()?;
+        gc.set_fill_paint(RED);
+        gc.fill_rect(Rectangle::new(700.0, 250.0, 20.0, 20.0))?;
+        gc.pop_state()?;
+        gc.set_fill_paint(GREEN);
+        gc.fill_rect(Rectangle::new(350.0, 110.0, 20.0, 20.0))?;
+        gc.pop_state()?;
 
         // A clip retains the transform at its call, while the brush follows draw.
         gc.push_state();
-        gc.clip_rect(560.0, 120.0, 140.0, 120.0);
-        gc.translate(620.0, 140.0);
-        gc.rotate_degrees(90.0);
-        gc.scale(1.5, 0.75);
+        gc.clip_rect(Rectangle::new(560.0, 120.0, 140.0, 120.0))?;
+        gc.concat_transform(novadraw::Affine2D::from_translation(620.0, 140.0))?;
+        gc.rotate_degrees(90.0)?;
+        gc.concat_transform(novadraw::Affine2D::from_scale(1.5, 0.75))?;
         gc.set_fill_paint(red_blue(0.0, 60.0));
-        gc.fill_rectangle(0.0, -40.0, 60.0, 80.0);
-        gc.pop_state();
+        gc.fill_rect(Rectangle::new(0.0, -40.0, 60.0, 80.0))?;
+        gc.pop_state()?;
 
         // Same logical dash lengths after a nonuniform scale.
-        gc.set_stroke_paint(Color::BLACK.into());
-        gc.set_stroke(dash());
-        gc.begin_path();
-        gc.move_to(40.0, 300.0);
-        gc.line_to(280.0, 300.0);
-        gc.stroke();
+        gc.set_stroke_paint(Color::BLACK);
+        gc.set_stroke_style(dash());
+        gc.stroke_line(Point::new(40.0, 300.0), Point::new(280.0, 300.0))?;
         gc.push_state();
-        gc.translate(340.0, 300.0);
-        gc.scale(1.5, 2.0);
-        gc.begin_path();
-        gc.move_to(0.0, 0.0);
-        gc.line_to(160.0, 0.0);
-        gc.stroke();
-        gc.pop_state();
+        gc.concat_transform(novadraw::Affine2D::from_translation(340.0, 300.0))?;
+        gc.concat_transform(novadraw::Affine2D::from_scale(1.5, 2.0))?;
+        gc.stroke_line(Point::new(0.0, 0.0), Point::new(160.0, 0.0))?;
+        gc.pop_state()?;
 
         // Overlapping light/dark content underneath the retained feedback.
-        gc.fill_rect_with_color(40.0, 380.0, 320.0, 160.0, Color::BLACK);
-        gc.fill_rect_with_color(200.0, 420.0, 320.0, 120.0, Color::WHITE);
+        gc.set_fill_paint(Color::BLACK);
+        gc.fill_rect(Rectangle::new(40.0, 380.0, 320.0, 160.0))?;
+        gc.set_fill_paint(Color::WHITE);
+        gc.fill_rect(Rectangle::new(200.0, 420.0, 320.0, 120.0))?;
         gc.set_fill_paint(red_blue(80.0, 400.0));
-        gc.fill_rectangle(80.0, 460.0, 400.0, 40.0);
+        gc.fill_rect(Rectangle::new(80.0, 460.0, 400.0, 40.0))?;
         // Deliberately leave a changed clip/paint for traversal to restore.
-        gc.clip_path(&ClipPath::try_new(&Path::new(), FillRule::NonZero).unwrap());
+        gc.clip_path(&ClipPath::try_new(&Path::new(), FillRule::NonZero).unwrap())?;
+        Ok(())
     }
 }
 

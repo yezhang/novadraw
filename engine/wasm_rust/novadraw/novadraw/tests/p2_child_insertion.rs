@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::{cell::RefCell, rc::Rc};
 
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
@@ -180,7 +184,7 @@ fn builder_and_runtime_insert_preserve_order_and_external_constraints() {
             runtime.tree().layout_constraint::<Placement>(inserted),
             Some(&placement)
         );
-        runtime.prepare_frame().unwrap();
+        prepare_next_submission(&mut runtime).unwrap();
         assert_eq!(runtime.tree().figure_bounds(inserted), Some(placement.0));
         assert_eq!(
             &*trace.borrow(),
@@ -268,7 +272,7 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
         generation
     );
     assert!(!runtime.has_pending_update());
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
     assert_eq!(&*trace.borrow(), &[("validate", child)]);
 }
 
@@ -277,7 +281,7 @@ fn runtime_publishes_one_added_and_one_constraint_event() {
     let trace = Trace::default();
     let (tree, parent) = tree_with_layout(trace.clone());
     let mut runtime = Runtime::new(tree);
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     runtime.add_ancestor_listener(Box::new(Events(trace.clone())));
     runtime.add_layout_listener(Box::new(Events(trace.clone())));
     let child = runtime
@@ -294,7 +298,7 @@ fn runtime_publishes_one_added_and_one_constraint_event() {
         &*trace.borrow(),
         &[("validate", child), ("attached", child)]
     );
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     assert_eq!(
         &*trace.borrow(),
         &[
@@ -364,7 +368,7 @@ fn constraint_without_manager_is_retained_and_checked_on_manager_installation() 
         .unwrap()
         .set_layout_manager(Box::new(ExternalLayout(Trace::default())))
         .unwrap();
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     assert_eq!(runtime.tree().figure_bounds(child), Some(placement.0));
 }
 

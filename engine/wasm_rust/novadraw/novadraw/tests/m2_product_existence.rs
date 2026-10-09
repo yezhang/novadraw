@@ -1,11 +1,15 @@
 use novadraw::Color;
 use novadraw::advanced::{FigureNode, InteractionState, LayoutState, NodeState};
+use novadraw::container::ViewportFigure;
+use novadraw::figure::{
+    Bounded, ChildClippingStrategy, Direction, FigureContainer, RootFigure, border::LineBorder,
+};
 use novadraw::geometry::{Insets, Point, Rectangle};
-use novadraw::render::{NdCanvas, command::RenderCommandKind};
+use novadraw::graphics::{GraphicsError, PaintContext};
+use novadraw::render::{BackendCapabilities, SurfaceInfo, command::RenderCommandKind};
 use novadraw::{
-    Bounded, ChildClippingStrategy, Direction, EllipseFigure, Figure, FigureId, FigureTree,
-    LineBorder, PolygonFigure, PolylineFigure, RectangleFigure, RootFigure, RoundedRectangleFigure,
-    Runtime, TriangleFigure, ViewportFigure,
+    EllipseFigure, Figure, FigureId, FigureTree, FramePreparation, PolygonFigure, PolylineFigure,
+    RectangleFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
 };
 
 const ROOT_COLOR: Color = Color::rgba(0.10, 0.20, 0.30, 1.0);
@@ -69,14 +73,22 @@ impl Figure for PaintMarkerFigure {
         Bounded::name(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        let b = self.bounds;
-        gc.fill_rect_with_color(0.0, 0.0, b.width, b.height, self.figure_color);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_fill_paint(self.figure_color);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
-    fn paint_border(&self, gc: &mut NdCanvas) {
-        let b = self.bounds;
-        gc.fill_rect_with_color(0.0, 0.0, b.width, b.height, self.border_color);
+    fn paint_border(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        context.set_fill_paint(self.border_color);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 }
 
@@ -119,35 +131,41 @@ fn deferred_builtin_figures_remain_importable_without_entering_the_m2_gate() {
 fn existing_product_figures_expose_child_clipping_strategy_api() {
     let strategy = ChildClippingStrategy::DoNotClipChildBounds;
 
-    let figures: Vec<Box<dyn Figure>> = vec![
-        Box::new(RectangleFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
-        Box::new(EllipseFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
-        Box::new(PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
-        Box::new(
-            PolygonFigure::from_points(vec![
+    let strategies = [
+        FigureContainer::child_clipping_strategy(
+            &RectangleFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+        ),
+        FigureContainer::child_clipping_strategy(
+            &EllipseFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+        ),
+        FigureContainer::child_clipping_strategy(
+            &PolylineFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+        ),
+        FigureContainer::child_clipping_strategy(
+            &PolygonFigure::from_points(vec![
                 Point::new(0.0, 0.0),
                 Point::new(20.0, 0.0),
                 Point::new(10.0, 10.0),
             ])
             .with_child_clipping_strategy(strategy),
         ),
-        Box::new(
-            RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)
+        FigureContainer::child_clipping_strategy(
+            &RoundedRectangleFigure::new(0.0, 0.0, 20.0, 10.0, 4.0)
                 .with_child_clipping_strategy(strategy),
         ),
-        Box::new(
-            TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0))
+        FigureContainer::child_clipping_strategy(
+            &TriangleFigure::new(Rectangle::new(0.0, 0.0, 20.0, 10.0))
                 .with_child_clipping_strategy(strategy),
         ),
-        Box::new(RootFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
-        Box::new(ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy)),
+        FigureContainer::child_clipping_strategy(
+            &RootFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+        ),
+        FigureContainer::child_clipping_strategy(
+            &ViewportFigure::new(0.0, 0.0, 20.0, 10.0).with_child_clipping_strategy(strategy),
+        ),
     ];
 
-    assert!(figures.iter().all(|figure| {
-        figure
-            .container()
-            .is_some_and(|container| container.child_clipping_strategy() == strategy)
-    }));
+    assert!(strategies.into_iter().all(|actual| actual == strategy));
 }
 
 #[test]
@@ -275,9 +293,21 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
         )
         .expect("valid FigureTree construction");
 
-    let gc = Runtime::new(scene).record_full_frame();
-    let fill_colors: Vec<_> = gc
-        .commands()
+    let mut runtime = Runtime::new(scene);
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: 100.0,
+            logical_height: 100.0,
+            pixel_width: 100,
+            pixel_height: 100,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    ) else {
+        panic!("initial scene must produce a submission");
+    };
+    let fill_colors: Vec<_> = submission
+        .commands
         .iter()
         .filter_map(|command| match &command.kind {
             RenderCommandKind::FillRect {

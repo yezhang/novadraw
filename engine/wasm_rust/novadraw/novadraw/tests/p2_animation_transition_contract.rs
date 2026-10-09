@@ -1,4 +1,8 @@
-//! External contracts for P2-M01 Figure bounds capture and transition.
+mod support;
+
+use support::record_full_submission;
+
+// External contracts for P2-M01 Figure bounds capture and transition.
 
 use std::time::Duration;
 
@@ -23,9 +27,8 @@ fn time(milliseconds: u64) -> MonotonicTime {
 }
 
 fn contains_transform(runtime: &mut Runtime, expected: Affine2D) -> bool {
-    runtime
-        .record_full_frame()
-        .commands()
+    record_full_submission(runtime)
+        .commands
         .iter()
         .any(|command| {
             matches!(
@@ -571,9 +574,9 @@ fn connection_route_and_dash_share_one_composable_presentation_family() {
         runtime.animations().state(dash_animation).unwrap(),
         AnimationState::Running
     );
-    let frame = runtime.record_full_frame();
+    let frame = record_full_submission(&mut runtime);
     let (painted_route, painted_stroke) = frame
-        .commands()
+        .commands
         .iter()
         .find_map(|command| match &command.kind {
             RenderCommandKind::Polyline { points, stroke, .. } => Some((points, stroke)),

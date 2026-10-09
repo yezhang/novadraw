@@ -1,14 +1,18 @@
 //! P2-G01 contracts exercised exclusively through the public graphics API.
 
 use novadraw::graphics::{
-    ClipPath, CustomDash, DashPattern, FillRule, GraphicsInputError, LineCap, LineJoin, Path,
-    StrokeStyle,
+    ClipPath, CustomDash, DashPattern, FillRule, GraphicsError, GraphicsInputError, LineCap,
+    LineJoin, PaintContext, Path, StrokeStyle,
 };
+use novadraw::render::{
+    BackendCapabilities, CommandRecorder, RenderDisposition, RenderSubmission, SurfaceInfo,
+};
+use novadraw::{FramePreparation, Runtime};
 
 #[test]
 fn clip_paths_validate_structure_and_own_curves_without_consuming_current_path() {
+    use novadraw::Color;
     use novadraw::render::RenderCommandKind;
-    use novadraw::{Color, NdCanvas};
     let mut source = Path::new();
     source.move_to(0.0, 0.0);
     source.cubic_to(0.0, 10.0, 10.0, 10.0, 10.0, 0.0);
@@ -17,16 +21,18 @@ fn clip_paths_validate_structure_and_own_curves_without_consuming_current_path()
     assert_eq!(clip.path().operations().len(), 2);
     assert_eq!(clip.rule(), FillRule::EvenOdd);
 
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::BLACK);
-    canvas.begin_path();
-    canvas.rect_path(1.0, 2.0, 3.0, 4.0);
-    canvas.clip_path(&clip);
-    canvas.fill();
-    assert_eq!(canvas.clip_depth(), 1);
-    assert!(matches!(&canvas.commands()[0].kind,
+    let mut path = Path::new();
+    path.rect(1.0, 2.0, 3.0, 4.0);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::BLACK);
+        context.clip_path(&clip).unwrap();
+        context.fill_path(&path).unwrap();
+    }
+    assert!(matches!(&recorder.commands()[0].kind,
         RenderCommandKind::ClipPath { clip: recorded } if recorded == &clip));
-    assert!(matches!(&canvas.commands()[1].kind,
+    assert!(matches!(&recorder.commands()[1].kind,
         RenderCommandKind::FillPath { path, .. }
         if path.bounding_box() == Some(novadraw::Rectangle::new(1.0, 2.0, 3.0, 4.0))));
 
@@ -49,41 +55,57 @@ fn clip_paths_validate_structure_and_own_curves_without_consuming_current_path()
 }
 
 #[test]
-fn mixed_clip_depth_and_fill_rule_restore_after_reset_and_pop() {
+fn mixed_clip_and_fill_rule_restore_after_pop() {
     use novadraw::render::{BackendCapabilities, RenderCapability, RenderCommandKind};
-    use novadraw::{Color, NdCanvas};
+    use novadraw::{Color, Rectangle};
     let empty = ClipPath::try_new(&Path::new(), FillRule::EvenOdd).unwrap();
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::BLACK);
-    canvas.clip_rect(0.0, 0.0, 100.0, 100.0);
-    canvas.clip_path(&empty);
-    canvas.set_fill_rule(FillRule::EvenOdd);
-    canvas.push_state();
-    canvas.reset_clip();
-    canvas.set_fill_rule(FillRule::NonZero);
-    canvas.restore_state();
-    assert_eq!(canvas.clip_depth(), 2);
-    canvas.begin_path();
-    canvas.rect_path(0.0, 0.0, 10.0, 10.0);
-    canvas.fill();
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::BLACK);
+        context
+            .clip_rect(Rectangle::new(0.0, 0.0, 100.0, 100.0))
+            .unwrap();
+        context.clip_path(&empty).unwrap();
+        context.set_fill_rule(FillRule::EvenOdd);
+        context.push_state();
+        context.set_fill_rule(FillRule::NonZero);
+        context.restore_state().unwrap();
+        let mut path = Path::new();
+        path.rect(0.0, 0.0, 10.0, 10.0);
+        context.fill_path(&path).unwrap();
+        context.pop_state().unwrap();
+    }
     assert!(matches!(
-        canvas.commands().last().unwrap().kind,
+        recorder
+            .commands()
+            .iter()
+            .find_map(|command| match command.kind {
+                RenderCommandKind::FillPath { rule, .. } => Some(rule),
+                _ => None,
+            }),
+        Some(FillRule::EvenOdd)
+    ));
+    assert!(matches!(
+        recorder
+            .commands()
+            .iter()
+            .find(|command| matches!(command.kind, RenderCommandKind::FillPath { .. }))
+            .unwrap()
+            .kind,
         RenderCommandKind::FillPath {
             rule: FillRule::EvenOdd,
             ..
         }
     ));
-    canvas.reset_clip();
-    canvas.pop_state();
-    assert_eq!(canvas.clip_depth(), 2);
     let missing = BackendCapabilities::FULL_FRAME_ONLY
-        .validate_capabilities(canvas.commands())
+        .validate_capabilities(recorder.commands())
         .unwrap_err();
     assert_eq!(missing.capability, RenderCapability::PathClips);
     assert!(
         BackendCapabilities::FULL_FRAME_ONLY
             .with_path_clips()
-            .validate_capabilities(canvas.commands())
+            .validate_capabilities(recorder.commands())
             .is_ok()
     );
 }
@@ -163,28 +185,64 @@ fn gradient_paint() -> novadraw::graphics::Paint {
     .into()
 }
 
+fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: 300.0,
+            logical_height: 200.0,
+            pixel_width: 300,
+            pixel_height: 200,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL
+            .with_custom_strokes()
+            .with_path_clips()
+            .with_linear_gradients(),
+    ) else {
+        return None;
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("test submission completion");
+    Some(submission)
+}
+
 #[test]
 fn paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients() {
     use novadraw::graphics::Paint;
     use novadraw::render::RenderCommandKind;
-    use novadraw::{Color, NdCanvas};
+    use novadraw::{Color, Rectangle};
     let paint = gradient_paint();
-    let mut canvas = NdCanvas::new();
-    canvas.set_fill_paint(paint.clone());
-    canvas.set_stroke_paint(paint.clone());
-    canvas.set_alpha(0.5);
-    canvas.push_state();
-    canvas.set_background_color(Color::BLACK);
-    canvas.fill_rectangle(0.0, 0.0, 10.0, 10.0);
-    canvas.restore_state();
-    canvas.fill_oval(0.0, 0.0, 10.0, 10.0);
-    canvas.set_foreground_color(Color::WHITE);
-    canvas.draw_rectangle(0.0, 0.0, 10.0, 10.0);
-    canvas.pop_state();
-    canvas.begin_path();
-    canvas.rect_path(0.0, 0.0, 10.0, 10.0);
-    canvas.fill_and_stroke();
-    let paints: Vec<_> = canvas
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(paint.clone());
+        context.set_stroke_paint(paint.clone());
+        context.set_opacity(0.5).unwrap();
+        context.push_state();
+        context.set_fill_paint(Color::BLACK);
+        context
+            .fill_rect(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+            .unwrap();
+        context.restore_state().unwrap();
+        context
+            .fill_ellipse(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+            .unwrap();
+        context.set_stroke_paint(Color::WHITE);
+        context
+            .stroke_rect(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+            .unwrap();
+        context.pop_state().unwrap();
+        let mut path = Path::new();
+        path.rect(0.0, 0.0, 10.0, 10.0);
+        context.fill_path(&path).unwrap();
+        context.stroke_path(&path).unwrap();
+    }
+    let paints: Vec<_> = recorder
         .commands()
         .iter()
         .flat_map(|c| c.kind.paints())
@@ -204,7 +262,7 @@ fn paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients() {
     };
     assert_eq!(original.stops()[0].color().alpha(), 1.0);
     assert!(
-        canvas
+        recorder
             .commands()
             .iter()
             .any(|c| matches!(c.kind, RenderCommandKind::StrokePath { .. }))
@@ -215,7 +273,7 @@ fn paint_snapshots_apply_alpha_once_and_color_setters_replace_gradients() {
 fn gradient_glyph_stroke_requires_each_capability_and_preserves_full_style() {
     use novadraw::render::text::{FontDescriptor, GlyphPaint, TextConstraints};
     use novadraw::render::{BackendCapabilities, RenderCapability};
-    use novadraw::{NdCanvas, Runtime};
+    use novadraw::{Point, Runtime};
     let mut runtime = Runtime::empty();
     runtime
         .register_builtin_font(novadraw::render::BuiltinFont::Inter)
@@ -232,11 +290,16 @@ fn gradient_glyph_stroke_requires_each_capability_and_preserves_full_style() {
         2.0,
         8.0,
     );
-    let mut canvas = NdCanvas::new();
-    canvas.set_stroke_paint(gradient_paint());
-    canvas.set_stroke(style.clone());
-    canvas.stroke_text_layout(&layout, 12.0, 24.0);
-    let commands = canvas.commands();
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_stroke_paint(gradient_paint());
+        context.set_stroke_style(style.clone());
+        context
+            .stroke_text(&layout, Point::new(12.0, 24.0))
+            .unwrap();
+    }
+    let commands = recorder.commands();
     assert!(!commands.is_empty());
     for command in commands {
         assert!(matches!(&command.kind,
@@ -279,28 +342,31 @@ fn gradient_glyph_stroke_requires_each_capability_and_preserves_full_style() {
 #[test]
 fn ellipse_checks_both_paints_and_its_stroke() {
     use novadraw::render::{BackendCapabilities, RenderCapability};
-    use novadraw::{Color, NdCanvas};
+    use novadraw::{Color, Rectangle};
     for fill_gradient in [true, false] {
         let (fill, outline) = if fill_gradient {
             (gradient_paint(), Color::BLACK.into())
         } else {
             (Color::WHITE.into(), gradient_paint())
         };
-        let mut canvas = NdCanvas::new();
-        canvas.ellipse_with_paints(
-            10.0,
-            10.0,
-            8.0,
-            4.0,
-            Some(fill),
-            Some(outline),
-            stroke(DashPattern::Dash, 2.0, 8.0),
-            FillRule::EvenOdd,
-        );
+        let mut recorder = CommandRecorder::new();
+        {
+            let mut context = recorder.paint();
+            context.set_fill_rule(FillRule::EvenOdd);
+            context.set_fill_paint(fill);
+            context
+                .fill_ellipse(Rectangle::new(2.0, 6.0, 16.0, 8.0))
+                .unwrap();
+            context.set_stroke_paint(outline);
+            context.set_stroke_style(stroke(DashPattern::Dash, 2.0, 8.0));
+            context
+                .stroke_ellipse(Rectangle::new(2.0, 6.0, 16.0, 8.0))
+                .unwrap();
+        }
         assert_eq!(
             BackendCapabilities::FULL_FRAME_ONLY
                 .with_custom_strokes()
-                .validate_capabilities(canvas.commands())
+                .validate_capabilities(recorder.commands())
                 .unwrap_err()
                 .capability,
             RenderCapability::LinearGradients
@@ -308,7 +374,7 @@ fn ellipse_checks_both_paints_and_its_stroke() {
         assert_eq!(
             BackendCapabilities::FULL_FRAME_ONLY
                 .with_linear_gradients()
-                .validate_capabilities(canvas.commands())
+                .validate_capabilities(recorder.commands())
                 .unwrap_err()
                 .capability,
             RenderCapability::CustomStrokes
@@ -317,65 +383,88 @@ fn ellipse_checks_both_paints_and_its_stroke() {
 }
 
 #[test]
-fn device_preflight_rejects_overflow_and_gradient_collapse_with_command_index() {
-    use novadraw::render::validate_graphics_input;
-    use novadraw::{Color, NdCanvas};
-    let mut canvas = NdCanvas::new();
-    canvas.set_fill_paint(gradient_paint());
-    canvas.translate(1e20, 0.0);
-    canvas.fill_rectangle(0.0, 0.0, 100.0, 10.0);
-    let error = validate_graphics_input(canvas.commands(), 1.0).unwrap_err();
-    assert_eq!(error.command_index, 1);
-    assert_eq!(error.reason, GraphicsInputError::DegenerateDeviceGradient);
-
-    let mut canvas = NdCanvas::new();
-    canvas.stroke_rect_with_style(
-        0.0,
-        0.0,
-        10.0,
-        10.0,
-        Color::BLACK,
-        StrokeStyle::default().with_width(1e38).unwrap(),
-    );
+fn paint_context_rejects_device_overflow_without_partial_commands() {
+    use novadraw::{Color, Rectangle};
+    let mut recorder = CommandRecorder::new();
+    let error = {
+        let mut context = recorder.paint();
+        context.set_fill_paint(gradient_paint());
+        context
+            .concat_transform(novadraw::Affine2D::from_translation(1e20, 0.0))
+            .unwrap();
+        context
+            .fill_rect(Rectangle::new(0.0, 0.0, 100.0, 10.0))
+            .unwrap_err()
+    };
     assert!(matches!(
-        validate_graphics_input(canvas.commands(), 10.0)
+        error,
+        GraphicsError::Input(GraphicsInputError::DegenerateDeviceGradient)
+    ));
+    assert_eq!(recorder.commands().len(), 1);
+
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_stroke_paint(Color::BLACK);
+        context.set_stroke_style(StrokeStyle::default().with_width(1e38).unwrap());
+        context
+            .stroke_rect(Rectangle::new(0.0, 0.0, 10.0, 10.0))
+            .unwrap();
+    }
+    assert!(matches!(
+        novadraw::render::validate_graphics_input(recorder.commands(), 10.0)
             .unwrap_err()
             .reason,
         GraphicsInputError::DeviceValueOverflow {
             field: "stroke width"
         }
     ));
+    assert_eq!(recorder.commands().len(), 1);
+
     let mut path = Path::new();
     path.move_to(0.0, 0.0);
     path.cubic_to(1e38, 0.0, 1e38, 10.0, 0.0, 10.0);
-    let mut canvas = NdCanvas::new();
-    canvas.clip_path(&ClipPath::try_new(&path, FillRule::NonZero).unwrap());
-    assert!(validate_graphics_input(canvas.commands(), 10.0).is_err());
+    let mut recorder = CommandRecorder::new();
+    recorder
+        .paint()
+        .clip_path(&ClipPath::try_new(&path, FillRule::NonZero).unwrap())
+        .unwrap();
+    assert!(novadraw::render::validate_graphics_input(recorder.commands(), 10.0).is_err());
 }
 
 #[test]
 fn device_preflight_replays_transform_restore_for_paints_and_clips() {
-    use novadraw::NdCanvas;
     use novadraw::render::validate_graphics_input;
-    let mut canvas = NdCanvas::new();
-    canvas.set_fill_paint(gradient_paint());
-    canvas.rotate_degrees(30.0);
-    canvas.scale(2.0, 0.5);
-    canvas.push_state();
-    canvas.scale(0.0, 0.0);
-    canvas.restore_state();
-    canvas.fill_rectangle(0.0, 0.0, 100.0, 10.0);
-    canvas.pop_state();
-    canvas.fill_rectangle(0.0, 0.0, 100.0, 10.0);
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(gradient_paint());
+        context.rotate_degrees(30.0).unwrap();
+        context
+            .concat_transform(novadraw::Affine2D::from_scale(2.0, 0.5))
+            .unwrap();
+        context.push_state();
+        context
+            .concat_transform(novadraw::Affine2D::from_scale(0.0, 0.0))
+            .unwrap();
+        context.restore_state().unwrap();
+        context
+            .fill_rect(novadraw::Rectangle::new(0.0, 0.0, 100.0, 10.0))
+            .unwrap();
+        context.pop_state().unwrap();
+        context
+            .fill_rect(novadraw::Rectangle::new(0.0, 0.0, 100.0, 10.0))
+            .unwrap();
+    }
     for dpi in [1.0, 2.0] {
-        assert_eq!(validate_graphics_input(canvas.commands(), dpi), Ok(()));
+        assert_eq!(validate_graphics_input(recorder.commands(), dpi), Ok(()));
     }
 }
 
 #[test]
 fn rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_retry() {
     use novadraw::render::{BackendCapabilities, BuiltinFont, FrameId, ResourceSync, SurfaceInfo};
-    use novadraw::{Figure, FramePreparation, FramePreparationError, NdCanvas, Rectangle, Runtime};
+    use novadraw::{Figure, FramePreparationError, Rectangle};
     use std::sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -388,12 +477,16 @@ fn rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_ret
         fn initial_bounds(&self) -> Rectangle {
             Rectangle::new(0.0, 0.0, 100.0, 100.0)
         }
-        fn paint_figure(&self, canvas: &mut NdCanvas) {
-            canvas.set_fill_paint(gradient_paint());
+        fn paint(
+            &self,
+            context: &mut PaintContext<'_>,
+            _bounds: Rectangle,
+        ) -> Result<(), GraphicsError> {
+            context.set_fill_paint(gradient_paint());
             if self.0.load(Ordering::Relaxed) {
-                canvas.translate(1e20, 0.0);
+                context.concat_transform(novadraw::Affine2D::from_translation(1e20, 0.0))?;
             }
-            canvas.fill_rectangle(0.0, 0.0, 100.0, 10.0);
+            context.fill_rect(Rectangle::new(0.0, 0.0, 100.0, 10.0))
         }
     }
     let invalid = Arc::new(AtomicBool::new(true));
@@ -412,12 +505,12 @@ fn rejected_runtime_graphics_preserve_frame_number_and_resource_snapshot_for_ret
     let capabilities = BackendCapabilities::FULL_FRAME_ONLY.with_linear_gradients();
     assert!(matches!(
         runtime.prepare_submission(surface, BackendCapabilities::FULL_FRAME_ONLY),
-        FramePreparation::Error(FramePreparationError::UnsupportedRenderCapability(_))
+        FramePreparation::Error(FramePreparationError::Graphics(_))
     ));
     for _ in 0..2 {
         assert!(matches!(
             runtime.prepare_submission(surface, capabilities),
-            FramePreparation::Error(FramePreparationError::InvalidGraphicsInput(_))
+            FramePreparation::Error(FramePreparationError::Graphics(_))
         ));
     }
     invalid.store(false, Ordering::Relaxed);
@@ -527,32 +620,36 @@ fn solid_offset_is_preserved_until_a_dash_pattern_is_selected() {
 }
 
 #[test]
-fn canvas_snapshots_complete_strokes_and_restores_them() {
+fn paint_context_snapshots_complete_strokes_and_restores_them() {
     use novadraw::render::command::RenderCommandKind;
-    use novadraw::{Color, NdCanvas};
-    let mut canvas = NdCanvas::new();
+    use novadraw::{Color, Point, Rectangle};
+    let mut recorder = CommandRecorder::new();
     let custom = stroke(
         DashPattern::Custom(CustomDash::try_new(&[6.0, 2.0]).unwrap()),
         -2.0,
         8.0,
     );
-    canvas.set_foreground_color(Color::BLACK);
-    canvas.set_stroke(custom.clone());
-    canvas.push_state();
-    canvas.set_stroke(StrokeStyle::default());
-    canvas.restore_state();
-    canvas.draw_rectangle(0.0, 0.0, 20.0, 20.0);
-    canvas.pop_state();
-    canvas.begin_path();
-    canvas.move_to(0.0, 0.0);
-    canvas.line_to(20.0, 20.0);
-    canvas.stroke();
-    let styles: Vec<_> = canvas
+    {
+        let mut context = recorder.paint();
+        context.set_stroke_paint(Color::BLACK);
+        context.set_stroke_style(custom.clone());
+        context.push_state();
+        context.set_stroke_style(StrokeStyle::default());
+        context.restore_state().unwrap();
+        context
+            .stroke_rect(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .unwrap();
+        context.pop_state().unwrap();
+        context
+            .stroke_line(Point::ORIGIN, Point::new(20.0, 20.0))
+            .unwrap();
+    }
+    let styles: Vec<_> = recorder
         .commands()
         .iter()
         .filter_map(|command| match &command.kind {
             RenderCommandKind::StrokeRect { stroke, .. }
-            | RenderCommandKind::StrokePath { stroke, .. } => Some(stroke),
+            | RenderCommandKind::Line { stroke, .. } => Some(stroke),
             _ => None,
         })
         .collect();
@@ -560,62 +657,47 @@ fn canvas_snapshots_complete_strokes_and_restores_them() {
 }
 
 #[test]
-fn rejected_canvas_stroke_setters_preserve_path_commands_and_damage() {
-    use novadraw::render::command::RenderCommandKind;
-    use novadraw::{Color, NdCanvas};
-    let mut canvas = NdCanvas::new();
-    canvas.set_foreground_color(Color::BLACK);
-    let original = stroke(DashPattern::Dash, 2.0, 6.0);
-    canvas.set_stroke(original.clone());
-    canvas.begin_path();
-    canvas.move_to(1.0, 2.0);
-    canvas.line_to(3.0, 4.0);
-    assert!(canvas.set_line_width(f64::NAN).is_err());
-    assert!(canvas.set_miter_limit(0.5).is_err());
-    assert!(canvas.set_dash_offset(f64::INFINITY).is_err());
-    assert!(canvas.commands().is_empty());
-    assert!(canvas.damage().is_empty());
-    canvas.stroke();
-    let RenderCommandKind::StrokePath { stroke, path, .. } = &canvas.commands()[0].kind else {
-        panic!("expected preserved path");
-    };
-    assert_eq!(stroke, &original);
-    assert_eq!(path.operations().len(), 2);
+fn rejected_paint_setter_is_atomic_and_fails_recording() {
+    let mut recorder = CommandRecorder::new();
+    assert!(recorder.paint().set_stroke_width(f64::NAN).is_err());
+    assert!(recorder.commands().is_empty());
+    assert!(matches!(
+        recorder.finish(),
+        Err(GraphicsError::Input(GraphicsInputError::NonFinite {
+            field: "stroke width",
+            index: None
+        }))
+    ));
 }
 
 #[test]
-fn explicit_recorders_share_one_style_without_reading_canvas_dash() {
+fn paint_context_primitives_share_one_stroke_style() {
     use novadraw::render::{BackendCapabilities, RenderCapability, RenderCommandKind};
-    use novadraw::{Color, NdCanvas, Point};
-    let mut canvas = NdCanvas::new();
-    canvas.set_dash_pattern(DashPattern::Dot);
+    use novadraw::{Color, Point, Rectangle};
+    let mut recorder = CommandRecorder::new();
     let style = stroke(
         DashPattern::Custom(CustomDash::try_new(&[6.0, 2.0]).unwrap()),
         2.0,
         8.0,
     );
-    canvas.stroke_rect_with_style(0.0, 0.0, 20.0, 20.0, Color::BLACK, style.clone());
-    canvas.ellipse_with_style(
-        10.0,
-        10.0,
-        10.0,
-        5.0,
-        None,
-        Some(Color::BLACK),
-        style.clone(),
-    );
-    canvas.line_with_style(
-        Point::ORIGIN,
-        Point::new(20.0, 0.0),
-        Color::BLACK,
-        style.clone(),
-    );
-    canvas.polyline_with_style(
-        &[Point::ORIGIN, Point::new(20.0, 20.0)],
-        Color::BLACK,
-        style.clone(),
-    );
-    for command in canvas.commands() {
+    {
+        let mut context = recorder.paint();
+        context.set_stroke_paint(Color::BLACK);
+        context.set_stroke_style(style.clone());
+        context
+            .stroke_rect(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .unwrap();
+        context
+            .stroke_ellipse(Rectangle::new(0.0, 5.0, 20.0, 10.0))
+            .unwrap();
+        context
+            .stroke_line(Point::ORIGIN, Point::new(20.0, 0.0))
+            .unwrap();
+        context
+            .stroke_polyline(&[Point::ORIGIN, Point::new(20.0, 20.0)])
+            .unwrap();
+    }
+    for command in recorder.commands() {
         let recorded = match &command.kind {
             RenderCommandKind::StrokeRect { stroke, .. }
             | RenderCommandKind::Ellipse { stroke, .. }
@@ -632,7 +714,7 @@ fn explicit_recorders_share_one_style_without_reading_canvas_dash() {
     let baseline = BackendCapabilities::FULL_FRAME_ONLY;
     assert_eq!(
         baseline
-            .validate_capabilities(canvas.commands())
+            .validate_capabilities(recorder.commands())
             .unwrap_err()
             .capability,
         RenderCapability::CustomStrokes
@@ -640,19 +722,28 @@ fn explicit_recorders_share_one_style_without_reading_canvas_dash() {
     assert_eq!(
         baseline
             .with_custom_strokes()
-            .validate_capabilities(canvas.commands()),
+            .validate_capabilities(recorder.commands()),
         Ok(())
     );
-    canvas.clear_commands();
-    canvas.stroke_rect_with_style(0.0, 0.0, 20.0, 20.0, Color::BLACK, StrokeStyle::default());
-    assert_eq!(baseline.validate_capabilities(canvas.commands()), Ok(()));
+    let mut baseline_recorder = CommandRecorder::new();
+    {
+        let mut context = baseline_recorder.paint();
+        context.set_stroke_paint(Color::BLACK);
+        context.set_stroke_style(StrokeStyle::default());
+        context
+            .stroke_rect(Rectangle::new(0.0, 0.0, 20.0, 20.0))
+            .unwrap();
+    }
+    assert_eq!(
+        baseline.validate_capabilities(baseline_recorder.commands()),
+        Ok(())
+    );
 }
 
 #[test]
 fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
-    use novadraw::{
-        Point, PolylineFigure, Rectangle, RectangleFigure, Runtime, ShapeMutationError,
-    };
+    use novadraw::figure::ShapeMutationError;
+    use novadraw::{Point, PolylineFigure, Rectangle, RectangleFigure};
     let points = vec![
         Point::new(40.0, 60.0),
         Point::new(160.0, 62.0),
@@ -673,7 +764,7 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
             )),
         ))
         .unwrap();
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     let small = Rectangle::new(38.0, 58.0, 124.0, 6.0);
     let large = Rectangle::new(28.0, 48.0, 144.0, 26.0);
     assert_eq!(runtime.tree().figure_bounds(line), Some(small));
@@ -688,10 +779,10 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
         );
         assert_eq!(runtime.tree().figure_bounds(line), Some(expected));
         assert_eq!(runtime.point_list_points(line).unwrap(), points);
-        let canvas = runtime.prepare_frame().unwrap();
-        assert_eq!(canvas.damage().union(), Some(large));
+        let submission = prepare_next_submission(&mut runtime).unwrap();
+        assert_eq!(submission.damage.union(), Some(large));
     }
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
     let original = runtime.point_list(line).unwrap().stroke_style().unwrap();
     assert_eq!(
         runtime.point_list(line).unwrap().set_miter_limit(0.5),
@@ -704,7 +795,7 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
         original
     );
     assert_eq!(runtime.tree().figure_bounds(line), Some(small));
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
     assert!(
         !runtime
             .point_list(line)
@@ -712,7 +803,7 @@ fn runtime_miter_growth_and_shrink_preserve_points_and_damage_both_envelopes() {
             .set_stroke_style(original)
             .unwrap()
     );
-    assert!(runtime.prepare_frame().is_none());
+    assert!(prepare_next_submission(&mut runtime).is_none());
 }
 
 #[test]
@@ -728,7 +819,7 @@ fn runtime_dash_changes_repaint_without_moving_geometry() {
         .unwrap()
         .add(Box::new(PolylineFigure::new(40.0, 60.0, 160.0, 62.0)))
         .unwrap();
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     let bounds = runtime.tree().figure_bounds(line);
     let style = stroke(
         DashPattern::Custom(CustomDash::try_new(&[6.0, 2.0]).unwrap()),
@@ -747,19 +838,20 @@ fn runtime_dash_changes_repaint_without_moving_geometry() {
         runtime.point_list_points(line).unwrap(),
         vec![Point::new(40.0, 60.0), Point::new(160.0, 62.0)]
     );
-    let canvas = runtime.prepare_frame().unwrap();
-    assert_eq!(canvas.damage().union(), bounds);
-    assert!(canvas.commands().iter().any(|command|
+    let submission = prepare_next_submission(&mut runtime).unwrap();
+    assert_eq!(submission.damage.union(), bounds);
+    assert!(submission.commands.iter().any(|command|
         matches!(&command.kind, RenderCommandKind::StrokePath { stroke, .. } if stroke == &style)));
 }
 
 #[test]
 fn connection_and_decorations_use_actual_stroke_for_geometry_and_recording() {
-    use novadraw::render::RenderCommandKind;
-    use novadraw::{
-        ConnectionFigure, ConnectionFigureBehavior, Figure, LocatorPlacement, NdCanvas, Point,
-        PointList, PolygonDecorationFigure, PolylineDecorationFigure, Rectangle,
+    use novadraw::connection::{
+        ConnectionDecorationBehavior, ConnectionFigure, ConnectionFigureBehavior, LocatorPlacement,
+        PolygonDecorationFigure, PolylineDecorationFigure,
     };
+    use novadraw::render::RenderCommandKind;
+    use novadraw::{Figure, Point, PointList, Rectangle};
     let style = stroke(
         DashPattern::Custom(CustomDash::try_new(&[6.0, 2.0]).unwrap()),
         2.0,
@@ -773,9 +865,15 @@ fn connection_and_decorations_use_actual_stroke_for_geometry_and_recording() {
         Rectangle::new(28.0, 48.0, 144.0, 24.0)
     );
     connection.commit_route_points(geometry.local_points().clone());
-    let mut canvas = NdCanvas::new();
-    connection.paint_figure_in_bounds(&mut canvas, geometry.path_bounds());
-    assert!(matches!(&canvas.commands()[0].kind,
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut context = recorder.paint();
+        context.set_stroke_paint(novadraw::Color::BLACK);
+        connection
+            .paint(&mut context, geometry.path_bounds())
+            .unwrap();
+    }
+    assert!(matches!(&recorder.commands()[0].kind,
         RenderCommandKind::Polyline { stroke, .. } if stroke == &style));
 
     let template = PointList::from_points(vec![
@@ -793,33 +891,40 @@ fn connection_and_decorations_use_actual_stroke_for_geometry_and_recording() {
         point: Point::new(100.0, 100.0),
         reference: Point::new(90.0, 100.0),
     };
-    for decoration in [&mut closed as &mut dyn Figure, &mut open as &mut dyn Figure] {
-        let geometry = decoration
-            .connection_decoration()
-            .unwrap()
-            .prepare_decoration_geometry(placement)
-            .unwrap();
+    fn verify_decoration<T>(decoration: &mut T, placement: LocatorPlacement, style: &StrokeStyle)
+    where
+        T: Figure + ConnectionDecorationBehavior,
+    {
+        let geometry = decoration.prepare_decoration_geometry(placement).unwrap();
         assert_eq!(geometry.bounds(), Rectangle::new(78.0, 83.0, 34.0, 34.0));
         let bounds = geometry.bounds();
-        decoration
-            .connection_decoration_mut()
-            .unwrap()
-            .commit_decoration_geometry(geometry);
-        canvas.clear_commands();
-        canvas.set_foreground_color(novadraw::Color::BLACK);
-        canvas.set_background_color(novadraw::Color::WHITE);
-        decoration.paint_figure_in_bounds(&mut canvas, bounds);
-        assert!(canvas.commands().iter().any(|command|
-            matches!(&command.kind, RenderCommandKind::StrokePath { stroke, .. } if stroke == &style)));
+        decoration.commit_decoration_geometry(geometry);
+        let mut recorder = CommandRecorder::new();
+        {
+            let mut context = recorder.paint();
+            context.set_stroke_paint(novadraw::Color::BLACK);
+            context.set_fill_paint(novadraw::Color::WHITE);
+            decoration.paint(&mut context, bounds).unwrap();
+        }
+        assert!(
+            recorder
+                .commands()
+                .iter()
+                .any(|command| matches!(&command.kind,
+                RenderCommandKind::StrokePath { stroke, .. }
+                | RenderCommandKind::Polyline { stroke, .. }
+                    if stroke == style))
+        );
     }
+    verify_decoration(&mut closed, placement, &style);
+    verify_decoration(&mut open, placement, &style);
 }
 
 #[test]
 fn polygon_and_scalable_polygon_record_complete_strokes() {
+    use novadraw::figure::ScalablePolygonFigure;
     use novadraw::render::RenderCommandKind;
-    use novadraw::{
-        Figure, NdCanvas, Point, PointList, PolygonFigure, Rectangle, ScalablePolygonFigure,
-    };
+    use novadraw::{Figure, Point, PointList, PolygonFigure, Rectangle};
     let style = stroke(DashPattern::Dash, 2.0, 12.0);
     let points = vec![
         Point::new(0.0, 0.0),
@@ -842,21 +947,23 @@ fn polygon_and_scalable_polygon_record_complete_strokes() {
         Some(Rectangle::new(12.0, 12.0, 76.0, 76.0))
     );
     for figure in [&polygon as &dyn Figure, &scalable as &dyn Figure] {
-        let mut canvas = NdCanvas::new();
-        canvas.set_foreground_color(novadraw::Color::BLACK);
-        canvas.set_background_color(novadraw::Color::WHITE);
-        figure.paint_figure_in_bounds(&mut canvas, figure.initial_bounds());
-        assert!(canvas.commands().iter().any(|command|
+        let mut recorder = CommandRecorder::new();
+        {
+            let mut context = recorder.paint();
+            context.set_stroke_paint(novadraw::Color::BLACK);
+            context.set_fill_paint(novadraw::Color::WHITE);
+            figure.paint(&mut context, figure.initial_bounds()).unwrap();
+        }
+        assert!(recorder.commands().iter().any(|command|
             matches!(&command.kind, RenderCommandKind::StrokePath { stroke, .. } if stroke == &style)));
     }
 }
 
 #[test]
 fn miter_transaction_updates_freeform_extent_with_one_move_notification() {
-    use novadraw::{
-        FigureEvent, FigureListener, FreeformLayerFigure, ListenerDirective, PolylineFigure,
-        Rectangle, Runtime,
-    };
+    use novadraw::container::FreeformLayerFigure;
+    use novadraw::event::{FigureEvent, FigureListener, ListenerDirective};
+    use novadraw::{PolylineFigure, Rectangle, Runtime};
     use std::sync::{Arc, Mutex};
     struct Moves(Arc<Mutex<Vec<FigureEvent>>>);
     impl FigureListener for Moves {
@@ -880,7 +987,7 @@ fn miter_transaction_updates_freeform_extent_with_one_move_notification() {
             )),
         ))
         .unwrap();
-    runtime.prepare_frame().unwrap();
+    prepare_next_submission(&mut runtime).unwrap();
     let events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_figure_listener(Box::new(Moves(Arc::clone(&events))));
     for miter in [12.0, 2.0] {
@@ -890,7 +997,7 @@ fn miter_transaction_updates_freeform_extent_with_one_move_notification() {
             .unwrap()
             .set_miter_limit(miter)
             .unwrap();
-        runtime.prepare_frame().unwrap();
+        prepare_next_submission(&mut runtime).unwrap();
         let after = Rectangle::new(
             40.0 - miter,
             60.0 - miter,

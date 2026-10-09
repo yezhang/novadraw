@@ -28,8 +28,8 @@ use novadraw::figure::{
 };
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::render::{
-    BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, NdCanvas, RenderResult,
-    SelectionQuad, SurfaceInfo,
+    BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, RenderResult, SelectionQuad,
+    SurfaceInfo,
 };
 use novadraw::runtime::{
     BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
@@ -977,11 +977,6 @@ where
     /// Converges pending layout and derived state without exposing Runtime mutation.
     pub fn stabilize_for_query(&mut self) -> Result<(), ViewerError> {
         Ok(self.runtime.stabilize_for_query()?)
-    }
-
-    /// Prepares a compatibility frame for hosts that do not use submission sessions.
-    pub fn prepare_frame(&mut self) -> Option<NdCanvas> {
-        self.runtime.prepare_frame()
     }
 
     /// Prepares one renderer submission through the Viewer-owned Runtime.

@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::sync::{Arc, Mutex};
 
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
@@ -228,7 +232,7 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
         .validate_subtree(viewport.figure_id())
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     assert!(
         runtime
@@ -273,7 +277,7 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
         .unwrap()
         .set_tracks_width(true)
         .unwrap();
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(runtime.tree().figure_bounds(contents).unwrap().width, 300.0);
     assert_eq!(viewport.horizontal_range().maximum, 300.0);
@@ -325,11 +329,12 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
         Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
     );
     assert!(runtime.has_pending_update());
-    let canvas = runtime.record_full_frame();
+    runtime.request_full_redraw();
+    let canvas = prepare_next_submission(&mut runtime).expect("full submission");
     let mut transform = Affine2D::IDENTITY;
     let mut stack = Vec::new();
     let mut projected_child = None;
-    for command in canvas.commands() {
+    for command in canvas.commands {
         match command.kind {
             RenderCommandKind::PushState => stack.push(transform),
             RenderCommandKind::RestoreState => {
@@ -438,7 +443,7 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
         .unwrap()
         .set_scale(2.0)
         .unwrap();
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(
         runtime.tree().figure_bounds(scalable.figure_id()),
@@ -561,13 +566,13 @@ fn scroll_pane_visibility_policy_controls_layout() {
 fn scroll_pane_resize_recomputes_automatic_visibility_and_range_extent() {
     let (graph, pane, _) = large_scroll_pane_scene();
     let mut runtime = Runtime::new(graph);
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     runtime
         .figure(pane.pane_id())
         .unwrap()
         .set_bounds(Rectangle::new(100.0, 80.0, 900.0, 700.0))
         .unwrap();
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
 
     assert!(!runtime.tree().is_visible(pane.horizontal_scroll_bar()));
     assert!(!runtime.tree().is_visible(pane.vertical_scroll_bar()));

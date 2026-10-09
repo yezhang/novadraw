@@ -9,8 +9,10 @@ use novadraw::event::{
 use novadraw::layout::XYConstraint;
 use novadraw::render::command::ImageData;
 use novadraw::render::submission::ResourceSync;
-use novadraw::render::{BackendCapabilities, DamageMode, RenderDisposition, SurfaceInfo};
-use novadraw::{FigureId, Rectangle, Runtime};
+use novadraw::render::{
+    BackendCapabilities, DamageMode, RenderDisposition, RenderSubmission, SurfaceInfo,
+};
+use novadraw::{FigureId, FramePreparation, Rectangle, Runtime};
 use novadraw_example_scenes::update::{
     STRESS_FIGURE_COUNT, WINDOW_HEIGHT, WINDOW_WIDTH, baseline_scene, stress_scene,
     validation_scene,
@@ -50,6 +52,29 @@ impl UpdateListener for CaptureListener {
     }
 }
 
+fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
+    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+        SurfaceInfo {
+            logical_width: WINDOW_WIDTH,
+            logical_height: WINDOW_HEIGHT,
+            pixel_width: WINDOW_WIDTH as u32,
+            pixel_height: WINDOW_HEIGHT as u32,
+            scale_factor: 1.0,
+        },
+        BackendCapabilities::RETAINED_PARTIAL,
+    ) else {
+        return None;
+    };
+    let _ = runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("verification submission completion");
+    Some(submission)
+}
+
 fn verify_damage_modes() -> Result<VerificationMetrics, String> {
     let mut runtime = Runtime::new(baseline_scene());
     let root = runtime.tree().contents().ok_or("missing root")?;
@@ -58,13 +83,11 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
         .child_order(root)
         .ok_or("missing root children")?[0];
 
-    let full = runtime
-        .prepare_frame()
-        .ok_or("initial frame was not prepared")?;
-    if !full.damage().is_full() {
+    let full = prepare_next_submission(&mut runtime).ok_or("initial frame was not prepared")?;
+    if !full.damage.is_full() {
         return Err("initial Runtime frame is not full damage".to_string());
     }
-    if runtime.prepare_frame().is_some() {
+    if prepare_next_submission(&mut runtime).is_some() {
         return Err("no-op update produced render work".to_string());
     }
     runtime
@@ -72,10 +95,8 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
         .unwrap()
         .repaint(None)
         .map_err(|error| error.to_string())?;
-    let partial = runtime
-        .prepare_frame()
-        .ok_or("repaint frame was not prepared")?;
-    if partial.damage().is_empty() || partial.damage().is_full() {
+    let partial = prepare_next_submission(&mut runtime).ok_or("repaint frame was not prepared")?;
+    if partial.damage.is_empty() || partial.damage.is_full() {
         return Err("repaint did not produce partial damage".to_string());
     }
 
@@ -83,7 +104,7 @@ fn verify_damage_modes() -> Result<VerificationMetrics, String> {
         ("noop_commands", "0".to_string()),
         (
             "partial_regions",
-            partial.damage().regions().len().to_string(),
+            partial.damage.regions().len().to_string(),
         ),
     ]))
 }
@@ -95,7 +116,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
         .tree()
         .child_order(root)
         .ok_or("missing root children")?[0];
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     let effects = Arc::new(Mutex::new(Vec::new()));
     runtime.add_update_listener(Box::new(CaptureListener {
         effects: effects.clone(),
@@ -105,9 +126,7 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
         .unwrap()
         .set_layout_constraint(XYConstraint::at_size(180.0, 260.0, 140.0, 90.0))
         .map_err(|error| error.to_string())?;
-    runtime
-        .prepare_frame()
-        .ok_or("layout frame was not prepared")?;
+    prepare_next_submission(&mut runtime).ok_or("layout frame was not prepared")?;
     let effects = effects.lock().unwrap();
     let validating = position(&effects, |effect| {
         matches!(
@@ -181,7 +200,7 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
         .tree()
         .child_order(root)
         .ok_or("missing root children")?[0];
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     runtime.add_update_listener(Box::new(PanicOnceListener {
         did_panic: AtomicBool::new(false),
     }));
@@ -193,13 +212,13 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
     let previous_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     let first = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _ = runtime.prepare_frame();
+        let _ = prepare_next_submission(&mut runtime);
     }));
     std::panic::set_hook(previous_hook);
     if first.is_ok() || !runtime.is_faulted() {
         return Err("Runtime did not enter the fault boundary after a listener panic".to_string());
     }
-    if runtime.prepare_frame().is_some() {
+    if prepare_next_submission(&mut runtime).is_some() {
         return Err("faulted Runtime prepared another frame".to_string());
     }
     Ok(metrics([("faulted", "true".to_string())]))
@@ -219,17 +238,16 @@ fn verify_stress_1024() -> Result<VerificationMetrics, String> {
         .repaint(None)
         .map_err(|error| error.to_string())?;
     let start = Instant::now();
-    let canvas = runtime
-        .prepare_frame()
-        .ok_or("stress frame was not prepared")?;
+    let submission =
+        prepare_next_submission(&mut runtime).ok_or("stress frame was not prepared")?;
     let elapsed = start.elapsed();
-    if runtime.prepare_frame().is_some() || canvas.commands().is_empty() {
+    if prepare_next_submission(&mut runtime).is_some() || submission.commands.is_empty() {
         return Err("stress transaction did not converge".to_string());
     }
     Ok(metrics([
         ("figures", STRESS_FIGURE_COUNT.to_string()),
         ("elapsed_us", elapsed.as_micros().to_string()),
-        ("commands", canvas.commands().len().to_string()),
+        ("commands", submission.commands.len().to_string()),
     ]))
 }
 

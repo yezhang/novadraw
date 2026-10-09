@@ -2,8 +2,8 @@ use std::convert::Infallible;
 
 use novadraw::runtime::PreparedFigureUpdate;
 use novadraw::{
-    ComponentUpdateError, Figure, FigureComponentContext, FigureComponentUpdate, NdCanvas,
-    Rectangle, RectangleFigure,
+    ComponentUpdateError, Figure, FigureComponentContext, FigureComponentUpdate, Rectangle,
+    RectangleFigure,
 };
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,
@@ -66,8 +66,6 @@ impl Figure for BadgeFigure {
     fn name(&self) -> &'static str {
         "ExternalBadgeFigure"
     }
-
-    fn paint_figure(&self, _canvas: &mut NdCanvas) {}
 }
 
 struct SetBadgeText(String);

@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::{
     convert::Infallible,
     panic::{AssertUnwindSafe, catch_unwind},
@@ -332,8 +336,8 @@ fn draft_is_transient_and_accept_creates_one_undoable_command() {
     assert_eq!(caret_visual.height, caret.height);
     assert!(caret_visual.width >= 1.0);
     assert!(viewer.runtime().tree().is_visible(caret_figure));
-    let frame = viewer.prepare_frame().unwrap();
-    assert!(frame.commands().iter().any(|command| matches!(
+    let frame = prepare_next_submission(&mut viewer).unwrap();
+    assert!(frame.commands.iter().any(|command| matches!(
         command.kind,
         RenderCommandKind::FillRect { rect, paint: novadraw::graphics::Paint::Solid(color), .. }
             if color == Color::rgba(0.07, 0.09, 0.12, 1.0)
@@ -412,9 +416,9 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
     assert!(end.x >= 0.0);
     assert!(end.x + end.width <= 240.0);
 
-    let frame = viewer.prepare_frame().unwrap();
+    let frame = prepare_next_submission(&mut viewer).unwrap();
     let clip = frame
-        .commands()
+        .commands
         .iter()
         .position(|command| {
             matches!(
@@ -425,7 +429,7 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         })
         .expect("direct-edit TextFlow must clip to its fixed viewport");
     let glyph = frame
-        .commands()
+        .commands
         .iter()
         .position(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
         .expect("long draft must remain a full glyph layout");
@@ -464,9 +468,9 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         assert!(bounds.y >= 40.0);
         assert!(bounds.y + bounds.height <= 160.0);
     }
-    let frame = viewer.prepare_frame().unwrap();
+    let frame = prepare_next_submission(&mut viewer).unwrap();
     let damage = frame
-        .damage()
+        .damage
         .union()
         .expect("selection replacement must damage the edit viewport");
     assert!(damage.x >= 40.0);
@@ -495,7 +499,7 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     domain
         .start_direct_text_edit(&mut viewer, source, feature())
         .unwrap();
-    viewer.prepare_frame().unwrap();
+    prepare_next_submission(&mut viewer).unwrap();
     let old_feedback = viewer
         .runtime()
         .tree()
@@ -524,7 +528,11 @@ fn target_move_replaces_the_complete_edit_projection_and_damages_old_and_new_bou
     assert!(caret.y >= new_bounds.y);
     assert!(caret.y <= new_bounds.y + new_bounds.height);
 
-    let damage = viewer.prepare_frame().unwrap().damage().union().unwrap();
+    let damage = prepare_next_submission(&mut viewer)
+        .unwrap()
+        .damage
+        .union()
+        .unwrap();
     for bounds in [old_bounds, new_bounds] {
         assert!(damage.contains(bounds.top_left()));
         assert!(damage.contains(bounds.bottom_right()));

@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
@@ -249,7 +253,7 @@ fn action_listener_flushes_at_the_update_transaction_boundary() {
 
     assert!(runtime.do_click(clickable).unwrap());
     assert!(events.lock().unwrap().is_empty());
-    assert!(runtime.prepare_frame().is_some());
+    assert!(prepare_next_submission(&mut runtime).is_some());
     assert_eq!(
         *events.lock().unwrap(),
         vec![ActionEvent {

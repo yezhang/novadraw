@@ -2150,7 +2150,7 @@ mod tests {
         let frame = harness.prepare_frame().unwrap();
 
         for color in colors {
-            assert!(frame.commands().iter().any(|command| matches!(
+            assert!(frame.commands.iter().any(|command| matches!(
                 command.kind,
                 RenderCommandKind::FillRect {
                     paint: novadraw::graphics::Paint::Solid(actual),
@@ -2229,7 +2229,7 @@ mod tests {
             ))
             .unwrap();
         let frame = harness.prepare_frame().unwrap();
-        assert!(frame.commands().iter().any(|command| matches!(
+        assert!(frame.commands.iter().any(|command| matches!(
             command.kind,
             RenderCommandKind::Clip { rect }
                 if rect
@@ -2254,13 +2254,13 @@ mod tests {
         let mut harness = EditorHarness::new().unwrap();
         let frame = harness.prepare_frame().unwrap();
 
-        assert!(frame.commands().iter().any(|command| matches!(
+        assert!(frame.commands.iter().any(|command| matches!(
             command.kind,
             RenderCommandKind::FillRect { paint: novadraw::graphics::Paint::Solid(color), .. }
                 if color == Color::from_hex(VIEWPORT_BACKGROUND_COLOR).expect("valid color literal")
         )));
         let initial_outline = frame
-            .commands()
+            .commands
             .iter()
             .find_map(|command| match command.kind {
                 RenderCommandKind::StrokeRect {
@@ -2283,7 +2283,7 @@ mod tests {
         assert!(harness.resize_logical_viewport(1_200.0, 800.0).unwrap());
         let resized = harness.prepare_frame().unwrap();
         let resized_outline = resized
-            .commands()
+            .commands
             .iter()
             .find_map(|command| match command.kind {
                 RenderCommandKind::StrokeRect {
@@ -2323,7 +2323,7 @@ mod tests {
 
         let frame = harness.prepare_frame().unwrap();
         assert!(
-            frame.commands().iter().all(|command| {
+            frame.commands.iter().all(|command| {
                 !matches!(
                     command.kind,
                     RenderCommandKind::Clip { rect }

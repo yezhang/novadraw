@@ -7,7 +7,7 @@ use novadraw::event::{
 use novadraw::figure::{
     Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
 };
-use novadraw::graphics::NdCanvas;
+use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::{Color, Figure, FigureTree, Rectangle, RectangleFigure};
 
 use crate::focus::{FocusProbeSpec, build_focus_traversal_scene};
@@ -98,7 +98,11 @@ impl Figure for EventProbeFigure {
         Bounded::name(self)
     }
 
-    fn paint_figure(&self, canvas: &mut NdCanvas) {
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
         let state = self.state.lock().unwrap();
         let color = if self.disabled_visual {
             Color::from_hex("#95a5a6").expect("valid color literal")
@@ -111,7 +115,8 @@ impl Figure for EventProbeFigure {
         } else {
             Color::from_hex("#3498db").expect("valid color literal")
         };
-        canvas.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, color);
+        context.set_fill_paint(color);
+        context.fill_rect(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
 
     fn register_capabilities(

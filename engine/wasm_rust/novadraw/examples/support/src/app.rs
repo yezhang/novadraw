@@ -13,8 +13,8 @@ pub use novadraw::host::PlatformHost;
 pub use novadraw::render::command::RenderCommand;
 pub use novadraw::render::text::{FontDescriptor, TextConstraints};
 pub use novadraw::render::{
-    BackendCapabilities, NdCanvas, RenderBackend, RenderDisposition, RenderFailure, RenderResult,
-    SurfaceInfo,
+    BackendCapabilities, CommandRecorder, RenderBackend, RenderDisposition, RenderFailure,
+    RenderResult, SurfaceInfo,
 };
 use novadraw::runtime::SubmissionAcknowledgement;
 pub use novadraw::{Color, FigureId, FigureTree, FramePreparation, Rectangle, Runtime};
@@ -863,32 +863,42 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         return Vec::new();
     };
 
-    let mut canvas = NdCanvas::new();
-    canvas.push_state();
-    canvas.reset_transform();
-    canvas.set_alpha(1.0);
-    canvas.fill_rect_with_color(
-        bounds.x,
-        bounds.y,
-        bounds.width,
-        bounds.height,
-        TOOLTIP_BORDER,
-    );
-    canvas.fill_rect_with_color(
-        bounds.x + TOOLTIP_BORDER_WIDTH,
-        bounds.y + TOOLTIP_BORDER_WIDTH,
-        (bounds.width - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),
-        (bounds.height - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),
-        TOOLTIP_BACKGROUND,
-    );
-    canvas.set_background_color(TOOLTIP_FOREGROUND);
-    canvas.fill_text_layout(
-        &layout,
-        bounds.x + TOOLTIP_HORIZONTAL_PADDING,
-        bounds.y + TOOLTIP_VERTICAL_PADDING,
-    );
-    canvas.pop_state();
-    canvas.commands().to_vec()
+    let mut recorder = CommandRecorder::new();
+    {
+        let mut paint = recorder.paint();
+        paint.push_state();
+        paint
+            .set_transform(novadraw::Affine2D::IDENTITY)
+            .expect("identity transform is valid");
+        paint.set_opacity(1.0).expect("opaque alpha is valid");
+        paint.set_fill_paint(TOOLTIP_BORDER);
+        paint.fill_rect(bounds).expect("tooltip bounds are valid");
+        paint.set_fill_paint(TOOLTIP_BACKGROUND);
+        paint
+            .fill_rect(Rectangle::new(
+                bounds.x + TOOLTIP_BORDER_WIDTH,
+                bounds.y + TOOLTIP_BORDER_WIDTH,
+                (bounds.width - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),
+                (bounds.height - TOOLTIP_BORDER_WIDTH * 2.0).max(0.0),
+            ))
+            .expect("tooltip content bounds are valid");
+        paint.set_fill_paint(TOOLTIP_FOREGROUND);
+        paint
+            .fill_text(
+                &layout,
+                novadraw::Point::new(
+                    bounds.x + TOOLTIP_HORIZONTAL_PADDING,
+                    bounds.y + TOOLTIP_VERTICAL_PADDING,
+                ),
+            )
+            .expect("tooltip text geometry is valid");
+        paint.pop_state().expect("tooltip state is balanced");
+    }
+    recorder
+        .finish()
+        .expect("tooltip recording is balanced")
+        .commands()
+        .to_vec()
 }
 
 /// 从按键获取数字索引（0-9）

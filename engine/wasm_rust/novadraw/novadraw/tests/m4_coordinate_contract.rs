@@ -1,14 +1,21 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::sync::{Arc, Mutex};
 
 use novadraw::Color;
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
-use novadraw::geometry::{Point, Rectangle, Translatable};
-use novadraw::render::{NdCanvas, command::LineCap, command::LineJoin};
-use novadraw::{
-    Bounded, CoordinateListener, EventContext, Figure, FigureEvent, FigureEventHandler,
-    FigureListener, FigureTree, LineBorder, ListenerDirective, MouseButton, MouseEvent,
-    RectangleFigure, Runtime, SceneDispatchContext, Shape,
+use novadraw::event::{
+    CoordinateListener, EventContext, FigureEvent, FigureEventHandler, FigureListener,
+    ListenerDirective, MouseButton, MouseEvent,
 };
+use novadraw::figure::{Bounded, Shape, border::LineBorder};
+use novadraw::geometry::{Point, Rectangle, Translatable};
+use novadraw::graphics::{GraphicsError, PaintContext};
+use novadraw::render::command::{LineCap, LineJoin};
+use novadraw::runtime::context::SceneDispatchContext;
+use novadraw::{Figure, FigureTree, RectangleFigure, Runtime};
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
     RectangleFigure::new(x, y, width, height)
@@ -155,9 +162,13 @@ impl Shape for RecordingFigure {
         LineJoin::default()
     }
 
-    fn fill_shape(&self, _gc: &mut NdCanvas) {}
+    fn fill_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 
-    fn outline_shape(&self, _gc: &mut NdCanvas) {}
+    fn outline_shape(&self, _context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        Ok(())
+    }
 }
 
 impl Figure for RecordingFigure {
@@ -169,15 +180,22 @@ impl Figure for RecordingFigure {
         Bounded::name(self)
     }
 
-    fn paint_figure(&self, gc: &mut NdCanvas) {
-        Shape::paint_figure(self, gc);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        Shape::paint_shape(self, context)
     }
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
+        out: &mut novadraw::figure::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::figure::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::INPUT,
+            novadraw::figure::InputCapability::of::<Self>(),
+        )
     }
 }
 
@@ -292,7 +310,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         )
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    runtime.prepare_frame();
+    prepare_next_submission(&mut runtime);
     let figure_events = Arc::new(Mutex::new(Vec::new()));
     runtime.add_figure_listener(Box::new(CoordinateEventRecorder(Arc::clone(
         &figure_events,
@@ -312,7 +330,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
         runtime.tree().figure_bounds(child),
         Some(Rectangle::new(10.0, 15.0, 20.0, 10.0))
     );
-    let canvas = runtime.prepare_frame().unwrap();
+    let canvas = prepare_next_submission(&mut runtime).unwrap();
     assert_eq!(
         *figure_events.lock().unwrap(),
         vec![
@@ -330,7 +348,7 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     );
 
     assert_eq!(
-        canvas.damage().union(),
+        canvas.damage.union(),
         Some(Rectangle::new(50.0, 40.0, 120.0, 85.0))
     );
 }

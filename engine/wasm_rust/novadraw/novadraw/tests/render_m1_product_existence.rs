@@ -1,32 +1,51 @@
 use novadraw::Color;
-use novadraw::geometry::Point;
-use novadraw::render::{ImageResourceRef, LineStyle, NdCanvas, RenderCommandKind, ResourceId};
+use novadraw::geometry::{Point, Rectangle};
+use novadraw::graphics::{DashPattern, Path, StrokeStyle};
+use novadraw::render::{CommandRecorder, ImageResourceRef, RenderCommandKind, ResourceId};
 use uuid::Uuid;
 
 #[test]
 fn m1_graphics_shape_and_style_entries_emit_commands() {
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::rgba(1.0, 0.0, 0.0, 1.0));
-    canvas.set_foreground_color(Color::rgba(0.0, 0.0, 1.0, 1.0));
-    canvas.set_line_width(3.0).unwrap();
-    canvas.set_line_style(LineStyle::Dash);
+    let mut recorder = CommandRecorder::new();
+    let mut polygon = Path::new();
+    polygon.move_to(0.0, 0.0);
+    polygon.line_to(10.0, 0.0);
+    polygon.line_to(5.0, 10.0);
+    polygon.close();
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::RED);
+        context.set_stroke_paint(Color::BLUE);
+        context.set_stroke_style(
+            StrokeStyle::default()
+                .with_width(3.0)
+                .unwrap()
+                .with_dash_pattern(DashPattern::Dash),
+        );
+        context
+            .fill_rect(Rectangle::new(0.0, 0.0, 10.0, 20.0))
+            .unwrap();
+        context
+            .stroke_rect(Rectangle::new(1.0, 2.0, 30.0, 40.0))
+            .unwrap();
+        context
+            .fill_ellipse(Rectangle::new(2.0, 4.0, 20.0, 10.0))
+            .unwrap();
+        context
+            .stroke_ellipse(Rectangle::new(4.0, 8.0, 10.0, 6.0))
+            .unwrap();
+        context.fill_path(&polygon).unwrap();
+        context
+            .stroke_polyline(&[
+                Point::new(0.0, 0.0),
+                Point::new(10.0, 0.0),
+                Point::new(5.0, 10.0),
+                Point::new(0.0, 0.0),
+            ])
+            .unwrap();
+    }
 
-    canvas.fill_rectangle(0.0, 0.0, 10.0, 20.0);
-    canvas.draw_rectangle(1.0, 2.0, 30.0, 40.0);
-    canvas.fill_oval(2.0, 4.0, 20.0, 10.0);
-    canvas.draw_oval(4.0, 8.0, 10.0, 6.0);
-    canvas.fill_polygon(&[
-        Point::new(0.0, 0.0),
-        Point::new(10.0, 0.0),
-        Point::new(5.0, 10.0),
-    ]);
-    canvas.draw_polygon(&[
-        Point::new(0.0, 0.0),
-        Point::new(10.0, 0.0),
-        Point::new(5.0, 10.0),
-    ]);
-
-    let commands = canvas.commands();
+    let commands = recorder.commands();
     assert!(matches!(
         commands[0].kind,
         RenderCommandKind::FillRect { .. }
@@ -73,23 +92,28 @@ fn m1_graphics_shape_and_style_entries_emit_commands() {
 
 #[test]
 fn m1_graphics_image_clip_and_alpha_entries_emit_commands() {
-    let mut canvas = NdCanvas::new();
-    canvas.set_background_color(Color::rgba(0.0, 1.0, 0.0, 0.8));
-
-    canvas.set_alpha(0.5);
-    canvas.set_clip(1.0, 2.0, 30.0, 40.0);
+    let mut recorder = CommandRecorder::new();
     let image = ImageResourceRef::new(ResourceId::new(Uuid::nil(), 1), 1, 2, 2, 1.0);
-    canvas.draw_image(image, 7.0, 8.0);
+    {
+        let mut context = recorder.paint();
+        context.set_fill_paint(Color::rgba(0.0, 1.0, 0.0, 0.8));
+        context.set_opacity(0.5).unwrap();
+        context
+            .clip_rect(Rectangle::new(1.0, 2.0, 30.0, 40.0))
+            .unwrap();
+        context
+            .draw_image(image, Rectangle::new(7.0, 8.0, 2.0, 2.0))
+            .unwrap();
+    }
 
-    let commands = canvas.commands();
+    let commands = recorder.commands();
     assert!(matches!(
         commands[0].kind,
         RenderCommandKind::SetGlobalAlpha { alpha } if alpha == 0.5
     ));
-    assert!(matches!(commands[1].kind, RenderCommandKind::ResetClip));
-    assert!(matches!(commands[2].kind, RenderCommandKind::Clip { .. }));
+    assert!(matches!(commands[1].kind, RenderCommandKind::Clip { .. }));
     assert!(matches!(
-        commands[3].kind,
+        commands[2].kind,
         RenderCommandKind::Image { alpha, .. } if alpha == 0.5
     ));
 }

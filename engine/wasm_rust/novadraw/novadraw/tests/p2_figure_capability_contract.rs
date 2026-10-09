@@ -1,3 +1,7 @@
+mod support;
+
+use support::record_full_submission;
+
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -434,7 +438,7 @@ fn external_presentation_binding_drives_immutable_content_without_core_dispatch(
         panic!("external presentation binding must start");
     };
 
-    runtime.record_full_frame();
+    record_full_submission(&mut runtime);
     assert!(paints.load(Ordering::SeqCst) > 0);
     runtime
         .advance_time(MonotonicTime::from_micros(50_000))

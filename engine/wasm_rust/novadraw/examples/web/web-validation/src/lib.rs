@@ -14,12 +14,12 @@ use novadraw::event::{
     place_tooltip,
 };
 use novadraw::figure::{Bounded, CursorIcon, Shape};
-use novadraw::graphics::{LineCap, LineJoin};
+use novadraw::graphics::{GraphicsError, LineCap, LineJoin, PaintContext, StrokeStyle};
 use novadraw::host::PlatformHost;
 use novadraw::render::command::RenderCommandKind;
 use novadraw::render::submission::{BackendSessionDecision, BackendSessionGate};
 use novadraw::render::{
-    BackendCapabilities, DamageMode, NdCanvas, RenderBackend, RenderDisposition, RenderFailure,
+    BackendCapabilities, DamageMode, RenderBackend, RenderDisposition, RenderFailure,
     RenderFailureDiagnostic, RenderResult, RenderSubmission, SurfaceInfo,
 };
 use novadraw::runtime::SubmissionAcknowledgement;
@@ -143,27 +143,36 @@ impl Shape for WebProbeFigure {
         LineJoin::default()
     }
 
-    fn fill_shape(&self, canvas: &mut NdCanvas) {
+    fn fill_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
         if let Some(color) = self.fill_color() {
-            canvas.fill_rect_with_color(0.0, 0.0, self.bounds.width, self.bounds.height, color);
-        }
-    }
-
-    fn outline_shape(&self, canvas: &mut NdCanvas) {
-        if let Some(color) = self.stroke_color() {
-            canvas.stroke_rect_with_style(
+            context.set_fill_paint(color);
+            context.fill_rect(Rectangle::new(
                 0.0,
                 0.0,
                 self.bounds.width,
                 self.bounds.height,
-                color,
-                novadraw::graphics::StrokeStyle::default()
-                    .with_width(self.stroke_width())
-                    .expect("valid probe stroke")
+            ))?;
+        }
+        Ok(())
+    }
+
+    fn outline_shape(&self, context: &mut PaintContext<'_>) -> Result<(), GraphicsError> {
+        if let Some(color) = self.stroke_color() {
+            context.set_stroke_paint(color);
+            context.set_stroke_style(
+                StrokeStyle::default()
+                    .with_width(self.stroke_width())?
                     .with_cap(self.line_cap())
                     .with_join(self.line_join()),
             );
+            context.stroke_rect(Rectangle::new(
+                0.0,
+                0.0,
+                self.bounds.width,
+                self.bounds.height,
+            ))?;
         }
+        Ok(())
     }
 }
 
@@ -176,8 +185,12 @@ impl Figure for WebProbeFigure {
         Bounded::name(self)
     }
 
-    fn paint_figure(&self, canvas: &mut NdCanvas) {
-        Shape::paint_figure(self, canvas);
+    fn paint(
+        &self,
+        context: &mut PaintContext<'_>,
+        _bounds: Rectangle,
+    ) -> Result<(), GraphicsError> {
+        Shape::paint_shape(self, context)
     }
 
     fn register_capabilities(

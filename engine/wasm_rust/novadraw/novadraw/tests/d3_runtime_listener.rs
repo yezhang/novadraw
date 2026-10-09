@@ -1,3 +1,7 @@
+mod support;
+
+use support::prepare_next_submission;
+
 use std::sync::{Arc, Mutex};
 
 use novadraw::{
@@ -85,7 +89,7 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     let counts = Arc::new(Mutex::new(ListenerCounts::default()));
     let update = runtime.add_update_listener(Box::new(TypedRecorder {
@@ -146,7 +150,7 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
             .unwrap()
     );
     assert!(runtime.do_click(clickable).unwrap());
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     let observed = counts.lock().unwrap().clone();
     assert!(observed.update > 0);
@@ -171,7 +175,7 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
             .set_visible(false)
             .expect("valid Runtime mutation")
     );
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
     assert_eq!(*counts.lock().unwrap(), observed);
 }
 
@@ -199,7 +203,7 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)))
         .expect("valid Runtime mutation");
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     let calls = Arc::new(Mutex::new(Vec::new()));
     let removing = runtime.add_property_listener(Box::new(RemoveAfterFirstProperty {
@@ -227,7 +231,7 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
             .set_visible(true)
             .expect("valid Runtime mutation")
     );
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(*calls.lock().unwrap(), vec!["remove", "keep", "keep"]);
     assert!(!runtime.remove_listener(removing));
@@ -257,13 +261,13 @@ fn action_listener_can_remove_itself_after_the_current_action() {
             20.0, 20.0, 100.0, 40.0,
         ))))
         .expect("valid Runtime mutation");
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     let calls = Arc::new(Mutex::new(0));
     runtime.add_action_listener(Box::new(OnceAction(Arc::clone(&calls))));
     assert!(runtime.do_click(clickable).unwrap());
     assert!(runtime.do_click(clickable).unwrap());
-    let _ = runtime.prepare_frame();
+    let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(*calls.lock().unwrap(), 1);
 }
