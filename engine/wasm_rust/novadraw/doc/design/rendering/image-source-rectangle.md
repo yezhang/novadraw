@@ -19,7 +19,7 @@ ImageResourceRef + source rectangle + destination rectangle
 
 - source rectangle 位于图像资源的物理像素域，边界为
   `[0, image.width] × [0, image.height]`；
-- destination rectangle 位于当前 `NdCanvas` 逻辑坐标域，继续参与 Graphics transform、
+- destination rectangle 位于当前 `PaintContext` 逻辑坐标域，继续参与 Graphics transform、
   clip、global alpha 与 surface scale；
 - 图像资源的 `scale` 只决定完整图像的自然逻辑尺寸，不改变 source rectangle 的像素域；
 - source 使用 `f64`，允许后端执行亚像素采样，这是相对 Draw2D 整数 source 坐标的合理
@@ -42,7 +42,7 @@ Image
 
 ## 4. 输入与失败
 
-`NdCanvas::draw_image_region` 返回 `Result`：
+`PaintContext::draw_image_region` 返回 `Result`：
 
 - source 或 destination 含非有限值：返回对应的 non-finite 错误；
 - source 或 destination 宽高为负：返回对应的 negative-extent 错误；
@@ -54,8 +54,8 @@ Image
 因此混合负值与零值的输入仍返回 negative-extent 错误，透明度为零也不会掩盖越界
 source。
 
-失败和 no-op 都不得改变 command stream 或 damage。普通 `draw_image` 与
-`draw_image_with_size` 继续是完整 source 的 convenience API。
+失败和 no-op 都不得改变 command stream 或 damage。`draw_image` 是完整 source 的
+convenience API。
 
 ## 5. Backend lowering
 

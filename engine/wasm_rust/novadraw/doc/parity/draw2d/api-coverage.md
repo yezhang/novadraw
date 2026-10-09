@@ -64,8 +64,8 @@ Novadraw 覆盖状态随本仓库演进单独更新。
 | P0 | Figure 生命周期 | `addNotify/removeNotify` | 节点挂载/卸载 hook | 子树 attach/detach、资源初始化、事件解绑 |
 | P0 | Bounds 几何 | `getBounds/setBounds/getLocation/setLocation/getSize/setSize/translate` | `Bounded` / `FigureTree` bounds API | bounds 改变后的 repaint、layout invalidation、子坐标影响 |
 | P0 | ClientArea / Insets | `getClientArea/getInsets` | border-inset 后的内容区 | paint clip、layout area、hit-test descent 共用同一 inset 逻辑 |
-| P0 | Paint 主协议 | `paint(Graphics)` | `Runtime::record_full_frame` / 内部递归 traversal + `Figure::paint_figure` | 背景、border、client area、children paint 顺序 |
-| P0 | Graphics 绘制上下文 | `Graphics.draw*/fill*/clip*/translate/pushState/popState` | `NdCanvas` / Vello backend | 状态栈、clip、坐标平移、线宽、颜色、文本、路径 |
+| P0 | Paint 主协议 | `paint(Graphics)` | `Runtime::prepare_submission` / 内部递归 traversal + `Figure::paint(PaintContext, bounds)` | 背景、border、client area、children paint 顺序与绘制失败传播 |
+| P0 | Graphics 绘制上下文 | `Graphics.draw*/fill*/clip*/translate/pushState/popState` | `Graphics` / `PaintContext` / Vello backend | 状态栈、clip、坐标平移、线宽、颜色、文本、路径 |
 | P0 | 坐标转换 | `translateToAbsolute/Relative/Parent/FromParent` | graph 坐标域转换 API | parent/local/root 坐标互转、嵌套偏移、clip 下命中 |
 | P0 | Hit-test | `containsPoint/findFigureAt/findMouseEventTargetAt` | hit-test traversal | 可见性、启用状态、逆 child 顺序、client area、event target |
 | P0 | 可见性 / 启用 | `isVisible/setVisible/isShowing/isEnabled/setEnabled` | Figure 状态位 | hidden 不绘制、不命中；disabled 事件策略 |
@@ -203,8 +203,8 @@ P2-G02 不改变以下已验证基线行的完成记录。新 Graphics facade �
 | `CAP-LAYOUT` | LayoutManager 与具体布局 | GOAL-CAP/EXT | `adopted` | `LayoutManager`、`LayoutSnapshot`、`LayoutOutput` | M5 contracts | 输出先预检再发布，不允许 manager 持有树 |
 | `CAP-COORDINATES` | absolute/relative/parent 坐标转换 | GOAL-CAP | `adapted` | `FigureTree::*_transform` | M4 contracts | 返回纯变换，失败不静默修改输入 |
 | `CAP-EVENTS` | dispatcher、capture、focus、listeners | GOAL-CAP/PORT | `adapted` | `Runtime::dispatch_*`、平台 input adapter | M6/M7 suites、GA-3 | 平台只规范化输入；状态机位于 Core |
-| `CAP-GRAPHICS-CORE` | state、transform、rect/path/text/image | GOAL-CAP | `adopted` | `NdCanvas` stateful API | M1、M10、P2-R02 | Render IR 必须被启用 backend 完整消费或拒绝 |
-| `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | `NdCanvas` + Paint/StrokeStyle/ClipPath + backend-neutral Render IR 已实现 | [P2-G01 证据](../../verification/reviews/p2-g01-graphics-evidence.md) | Core/Vello 与 Native/Web 像素已验证；surface 局部修复验证仍需闭合 |
+| `CAP-GRAPHICS-CORE` | state、transform、rect/path/text/image | GOAL-CAP | `adopted` | `Graphics` / `PaintContext` + `CommandRecorder` | M1、M10、P2-R02、TC-01 | Render IR 必须被启用 backend 完整消费或拒绝；内部 recorder 不公开 |
+| `CAP-GRAPHICS-ADVANCED` | path clip、gradient、custom dash/miter | GOAL-CAP | `pending` | `PaintContext` + Paint/StrokeStyle/ClipPath + backend-neutral Render IR 已实现 | [P2-G01 证据](../../verification/reviews/p2-g01-graphics-evidence.md) | Core/Vello 与 Native/Web 像素已验证；surface 局部修复验证仍需闭合 |
 | `CAP-GRAPHICS-XOR` | XOR graphics | GOAL-CAP | `rejected` | 交互用途替代：retained feedback layer | [P2-G01 契约](../../design/rendering/p2-g01-graphics-extension.md) | 不承诺设备 XOR 像素语义；反馈用途替代需独立验证，不以 Difference blend 冒充等价 |
 | `CAP-TREE-ATOMIC-ADD` | `add(child,constraint,index)` | GOAL-CAP/EXT | `adapted` | `FigureTreeBuilder::insert_child_with_constraint`、`ContainerMut::insert_with_constraint` | `core.p2-s01-child-insertion` / P2-S01 | 新 owned Figure 一次预检 admission、constraint、order 与 publication；Result 失败不发布节点，已有 Figure 移动仍用 reparent |
 | `CAP-ANIMATION` | Animation、Animator、LayoutAnimator、RoutingAnimator | GOAL-CAP/EXT/PERF | `pending` | 目标：Runtime-owned Timeline/Track + Presentation Plane | P2-M01；目标 suite `core.p2-m01-animation` | 不复制静态全局状态、阻塞 run loop 或逐帧 source mutation；默认无隐式动画 |
@@ -246,15 +246,15 @@ architecture delta、contract test 和产品入口检查。它不是要求逐方
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `graphics.context` | `Graphics.pushState/popState/restoreState` | `novadraw::graphics::NdCanvas::{push_state,pop_state,restore_state}` | verified | 保持 M1 state stack probe |
-| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `NdCanvas::{clip_rect,clip_path,set_clip,reset_clip,clip_depth}`，ClipPath/FillRule 覆盖可恢复的矩形/路径交集 | partial | P2-G01 曲线、空 clip、洞与恢复已验证；getClip 查询 convenience 继续延后 |
-| `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `NdCanvas::{translate,scale,rotate,transform,set_transform,reset_transform}`；任意 affine 可表达 shear，未提供 `getAbsoluteScale` convenience | partial | transform 语义已验证；状态查询 convenience 明确延后 |
-| `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `NdCanvas::{line,draw_rectangle,draw_oval,draw_polygon,polyline}`；路径使用 `begin_path/move_to/line_to/.../stroke/fill` | verified | M1 状态栈与 M10.1 reusable Figure 已覆盖实际消费路径 |
-| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | stateful `NdCanvas::{fill_rectangle,fill_oval,fill_polygon,fill}` + `set_fill_paint(Paint)`；`fillPath` 对应 path + `fill()` | verified | P2-G01 统一 solid/linear gradient，Native/Web DPI 1/2 像素和 alpha/状态恢复验证 |
+| `graphics.context` | `Graphics.pushState/popState/restoreState` | `PaintContext::{push_state,pop_state,restore_state}` | verified | state floor 防止 Figure 弹出调用方状态；TC-01 外部 consumer 已验证 |
+| `graphics.context` | `Graphics.clipRect/setClip/getClip`; `clipPath` | `PaintContext::{clip_rect,clip_path}`，ClipPath/FillRule 覆盖可恢复的矩形/路径交集 | partial | Figure 只能收窄 clip，不能 reset ancestor clip；getClip 查询 convenience 继续延后 |
+| `graphics.context` | `Graphics.translate/scale/rotate/shear`; `getAbsoluteScale` | `PaintContext::{concat_transform,rotate_degrees,set_transform}`；`Affine2D` 表达平移、缩放与 shear | partial | transform 语义已验证；状态查询 convenience 明确延后 |
+| `graphics.context` | `drawLine/drawRectangle/drawOval/drawPolygon/drawPolyline/drawPath` | `PaintContext::{stroke_line,stroke_rect,stroke_ellipse,stroke_polyline,stroke_path}` + 独立 `Path` | verified | M1 状态栈与 M10.1 reusable Figure 已覆盖实际消费路径 |
+| `graphics.context` | `fillRectangle/fillOval/fillPolygon/fillPath/fillGradient` | `PaintContext::{fill_rect,fill_ellipse,fill_path}` + `set_fill_paint(Paint)` | verified | P2-G01 统一 solid/linear gradient，Native/Web DPI 1/2 像素和 alpha/状态恢复验证 |
 | `graphics.context` | `drawRoundRectangle/fillRoundRectangle` | `RoundedRectangleFigure` 通过通用 path + stroke/fill 等价表达，不增加 convenience primitive | verified | 除非出现新的跨 Figure 复用证据，否则不机械增加同名 API |
-| `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`NdCanvas::{draw_text_layout,fill_text_layout,stroke_text_layout}` 只消费 Runtime shaping 后的 `TextLayout` / `DrawGlyphRun` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
-| `graphics.context` | `drawImage(...)` | `NdCanvas::{draw_image,draw_image_with_size,draw_image_region}` 消费 `ImageResourceRef`；source 使用图像物理像素域，destination 使用 Canvas 逻辑坐标域 | verified | `core.image-source-rectangle` 覆盖完整/局部 source、结构化失败、Vello 仿射映射与 destination clip |
-| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `NdCanvas::set_stroke(StrokeStyle)` 统一 width/cap/join/dash/offset/miter，保留单属性 setter 与 set_alpha | partial | custom dash/offset/miter 已贯通 IR 与实际 bounds；XOR 拒绝，反馈替代证据见 P2-G01；antialias 开关继续延后 |
+| `graphics.context` | `drawString/drawText/drawTextLayout/fillText/getFont/getFontMetrics/setFont` | raw-string API 已删除；`Graphics` 负责字体/测量，`PaintContext::{fill_text,stroke_text}` 只消费已准备 `TextLayout` | verified | M10.2 backend-neutral layout metadata、字体 revision 与 Vello glyph adapter 已覆盖 |
+| `graphics.context` | `drawImage(...)` | `PaintContext::{draw_image,draw_image_region}` 消费 `ImageResourceRef`；source 使用图像物理像素域，destination 使用逻辑坐标域 | verified | `core.image-source-rectangle` 覆盖完整/局部 source、结构化失败、Vello 仿射映射与 destination clip |
+| `graphics.context` | `setAlpha/setAntialias/setLineDash/setLineCap/setLineJoin/setLineMiterLimit/setXORMode` | `PaintContext::set_stroke_style(StrokeStyle)` 统一 width/cap/join/dash/offset/miter，opacity 使用受检 setter | partial | custom dash/offset/miter 已贯通 IR 与实际 bounds；XOR 拒绝，反馈替代证据见 P2-G01；antialias 开关继续延后 |
 | `geometry.primitives` | `Point/Dimension/Rectangle/Insets/PointList/Precision*` | `novadraw::geometry::{Point,Vec2,Dimension,Rectangle,Insets,PointList,Affine2D,Precision}`；位置与向量类型分离，统一使用 f64 精度 | verified | M1/M4/M9/M10 已覆盖点向量运算、变换与 point-list 消费路径 |
 
 Draw2D 证据入口：`Graphics.java`、`SWTGraphics.java`、`ScaledGraphics.java`、`PrinterGraphics.java`。
@@ -282,10 +282,10 @@ Draw2D 证据入口：`IFigure.java`、`Figure.java`。
 
 | Family ID | Draw2D 方法级 API | Novadraw 实际 / 目标 API | 状态 | 后续跟踪 |
 |---|---|---|---|---|
-| `paint.protocol` | `IFigure.paint(Graphics)` | `Runtime::{prepare_frame,record_full_frame}` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)，1k/10k 命令等价与深度门禁通过 |
-| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint_figure,paint_border}`；client-area 与 child traversal 只由递归 renderer 固定执行，误导性的 `Figure::paint_children` no-op 已删除 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
+| `paint.protocol` | `IFigure.paint(Graphics)` | `Runtime::prepare_submission` 驱动 crate 内部递归 traversal；local style 通过 Graphics state 栈继承，self/children/border 与兄弟隔离保持固定 | verified | D4.5 关闭 ancestor style O(N²)；TC-01 移除未出版帧旁路 |
+| `paint.protocol` | `Figure.paintFigure/paintClientArea/paintBorder` 扩展点 | `Figure::{paint,paint_border}` 接收受限 `PaintContext` 并返回 `GraphicsError`；client-area 与 child traversal 只由递归 renderer固定执行 | verified | 不开放绕过树遍历、坐标和 clip 协议的 child paint |
 | `clipping.strategy` | `getClippingStrategy/setClippingStrategy` | Figure capability 提供默认值；`NodeState` 保存 Runtime override；`ContainerMut::set_child_clipping_strategy` 受控替换三种核心策略 | partial | Core 1.0 replacement 已验证；任意多矩形 provider 延后到真实需求 |
-| `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `NdCanvas` | verified | Rust trait 不复制 Draw2D owner object 参数 |
+| `border.protocol` | `Border.getInsets/paint` | `Border::{get_insets,paint,get_color,get_width}`；`paint` 显式接收 owner bounds 与 `PaintContext` | verified | Rust trait 不复制 Draw2D owner object 参数；绘制失败进入帧错误通道 |
 | `border.protocol` | `Border.getPreferredSize/isOpaque` | `Border::{preferred_size,is_opaque}`，FigureTree 将 owner-scoped metrics 合并进盒模型与 opaque 判断 | verified | Compound 递归快照与共享 TitleBar 多 owner 契约已覆盖 |
 | `border.protocol` | concrete border implementations | `LineBorder`、`MarginBorder`、`RectangleBorder`、`CompoundBorder`、`EtchedBorder`、`BevelBorder`、`TitleBarBorder` | verified | `border-app` 与 M10 border/text 契约测试；动态子 Border 可位于任意组合深度 |
 | `damage.repaint` | `erase()`, `repaint()`, `repaint(Rectangle)` | `FigureMut::repaint`、`Runtime::request_full_redraw`、old/new visual erase 与内部 `UpdateManager` damage 聚合 | verified | `erase` 与树级 repaint primitive 保持 crate 内部；dirty merge、parent-chain 投影和 partial repair 已验证 |
@@ -566,7 +566,7 @@ Novadraw 对照：
 
 Novadraw 对照：
 
-- `NdCanvas` 承载 draw2d Graphics 语义。
+- `Graphics` / `PaintContext` 承载 Draw2D Graphics 语义，内部 recorder 只负责 lowering。
 - Vello 后端只做渲染实现，不承载 Figure 树语义。
 - 当前主线保护 `render_recursive.rs`，问题应优先定位 Figure 协议、坐标转换、canvas 命令或后端。
 

@@ -4,7 +4,8 @@
 
 ## 状态
 
-已接受
+已接受；第 1 节中的公开帧入口已由
+[ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 收紧
 
 ## 背景
 
@@ -31,7 +32,8 @@ crate 内部：
 - 直接执行 update；
 - 直接录制 Figure tree。
 
-生产宿主通过 `Runtime::{prepare_submission,prepare_frame,record_full_frame}` 驱动帧。
+生产宿主通过 `Runtime::prepare_submission` 驱动帧。旧
+`prepare_frame` / `record_full_frame` 返回内部录制状态的入口已由 ADR-031 删除。
 需要显式请求局部更新时，通过
 `Runtime::figure(figure)?.{revalidate,repaint}` 提交，unknown、foreign 或 disposed
 Figure 在 scoped mutable facade 获取阶段返回 `RuntimeMutationError`。

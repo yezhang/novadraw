@@ -596,7 +596,7 @@ IME composition；这些 mutable 状态只由 P2-E02 Editor session 持有。
 2026-09-29 已完成 Draw2D `Graphics.drawImage(Image, source, destination)` 对等切片：
 
 1. Image Render IR 始终携带图像物理像素域的显式 source rectangle；
-2. `NdCanvas::draw_image_region` 使用结构化错误拒绝非有限、负尺寸和越界 source；
+2. `PaintContext::draw_image_region` 使用结构化错误拒绝非有限、负尺寸和越界 source；
 3. Vello adapter 使用 source-to-destination affine 与 destination clip，完整消费该命令；
 4. 完整图像 convenience API 进入同一 IR，不保留 `Option` 或 backend 特判协议；
 5. `core.image-source-rectangle` 覆盖 backend-neutral、Vello 与 Web feature 门禁。

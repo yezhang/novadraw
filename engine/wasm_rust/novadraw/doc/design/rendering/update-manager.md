@@ -245,7 +245,7 @@ pub struct RenderSubmission {
 pending work: empty → non-empty
 → Runtime calls PlatformHost.request_redraw()
 → host coalesces requests
-→ redraw callback calls Runtime.prepare_frame()
+→ redraw callback calls Runtime.prepare_submission()
 → RenderBackend.submit()
 ```
 

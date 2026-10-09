@@ -34,10 +34,11 @@
 
 ## 2. 总体结论
 
-当前 package 分层、Runtime 单一提交权威、代际身份、第三方类型隔离和递归深度合同
-不需要推倒重来。主要概念债集中在四条主线上：
+审计时 package 分层、Runtime 单一提交权威、代际身份、第三方类型隔离和递归深度合同
+不需要推倒重来。发现的概念债集中在四条主线上：
 
-1. **旧协议未退出**：`NdCanvas`、旧 Figure paint 和 panic convenience 仍与新 API 并存；
+1. **旧协议未退出**：审计时 `NdCanvas`、旧 Figure paint 和 panic convenience 与新 API
+   并存；TC-01 已关闭绘制双方言；
 2. **扩展表面闭合**：Figure capability、Animation target、Editor Tool/Request 仍由
    Core 已知类型集合定义；
 3. **事务边界不完整**：Viewer 模型写入、Part/Connection projection 和 overlay
@@ -51,13 +52,14 @@
 
 | 发现 | 状态 | 当前入口 |
 |---|---|---|
+| TC-01 Graphics 双方言 | `complete` | ADR-031、`PaintContext`/`CommandRecorder` 单入口与 Runtime 唯一出版边界已完成 |
 | TC-02 Figure capability 闭集 | `complete` | ADR-027、P2-F02 与 `figure-capability-model.md` 已实现并通过门禁 |
 | TC-04 属性身份和值未类型关联 | `complete` | ADR-028、typed `PropertyKey<V>`、erased journal 与 Behavior key matching 已完成 |
 | TC-05 Animation target 闭集 | `complete` | 开放 `PresentationBinding<V>`、外部 Figure consumer 与 Connection route/dash 迁移已完成 |
 | TC-11 Core Runtime 文件读取 | `complete` | ADR-030、request token 与 Native/Web provider 已完成 |
 | TC-12 backend 无运行失败通道 | `complete` | ADR-029、`RenderResult`、Runtime acknowledgement 与 Vello fault channel 已完成 |
 | TC-13/TC-14 | `complete` | root/prelude 已收窄，分层 rustdoc snapshot 与 hot-path source gate 已进入 quick/full |
-| 其余 TC-01、TC-03、TC-06—TC-10 | `not_started` | 按第 5、6 节依赖顺序继续 |
+| 其余 TC-03、TC-06—TC-10 | `not_started` | 按第 5、6 节依赖顺序继续 |
 
 P2-F02 已完成本报告长期演进 Phase 2 的 Core 切片，并同时关闭 TC-02 与 TC-05：
 Figure capability discovery/mutation 和 Animation content target 都使用 attach-time
@@ -65,13 +67,15 @@ typed descriptor；外部 consumer 不修改 `Figure` trait、`ChannelBinding` �
 TC-13/TC-14 随后完成 Phase 0 的 API 防扩散与热路径清理；TC-04 已按 ADR-028
 完成 typed property identity；TC-12 已按 ADR-029 完成结构化 backend failure、
 Runtime session invalidation 与 Native/Web host 恢复分支；TC-11 已按 ADR-030 完成
-ResourceProvider、request token 与错误分层。下一原子批次为 TC-01 Graphics cutover。
+ResourceProvider、request token 与错误分层；TC-01 已按 ADR-031 完成公开 Graphics
+单入口、失败传播和 Runtime 帧出版收口。当前完成 8/14 项，下一原子批次为
+TC-07/TC-10 的 Viewer 模型与 drive 边界。
 
 ## 3. 发现项
 
 | ID | 优先级 | 临时概念 | 主要证据 | 长期方向 |
 |---|---|---|---|---|
-| TC-01 | P0 | `Graphics` 与公开 `NdCanvas` 双方言 | `figure/mod.rs:467-486`、`render/context.rs:639-699`、`prelude.rs:13` | Figure 只接收 `PaintContext`；owned 录制只经 `CommandRecorder`；`NdCanvas` 退出 root/prelude 和普通 Figure API |
+| TC-01 | P0，已关闭 | `Graphics` 与公开 `NdCanvas` 双方言 | [ADR-031](../../adr/adr-031-graphics-recording-and-publication-boundary.md) + [完成记录](tc01-graphics-cutover-completion-2026-10-09.md) | Figure 只接收 `PaintContext`；owned 录制只经 `CommandRecorder`；Runtime 只公开 `prepare_submission` |
 | TC-02 | P0，已关闭 | `Figure` 是封闭 capability 注册表 | `figure/mod.rs:603-710`、`graph/presentation.rs:461-480`、`container/viewport.rs:668-678` | [ADR-027](../../adr/adr-027-open-figure-capability-registry.md) + [P2-F02](../../roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry) |
 | TC-03 | P0 | detached 值是未受检公开数据袋 | `figure/rectangle.rs:18-34,80-112`、`figure/border/line_border.rs:17-57`、`style.rs:20-69` | 私有字段、受检领域值和统一 `Result` 构造；admission 只做最后防线 |
 | TC-04 | P0，已关闭 | 属性身份和值未类型关联 | [ADR-028](../../adr/adr-028-typed-property-identity.md) + [完成记录](tc04-typed-property-identity-completion-2026-10-08.md) | typed key、erased journal、Behavior/coalescing identity 已实现 |
@@ -86,11 +90,11 @@ ResourceProvider、request token 与错误分层。下一原子批次为 TC-01 G
 | TC-13 | P1，已关闭 | root/prelude 仍是专业 API 平铺面 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 分层 rustdoc symbol snapshot 已进入 quick/full |
 | TC-14 | P1，已关闭 | 渲染与布局热路径仍保留日志 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 受保护热路径日志已删除并由 source gate 防回归 |
 
-### 3.1 TC-01：绘制协议仍在迁移态
+### 3.1 TC-01：绘制协议单入口
 
-`PaintContext` 已明确禁止清空命令、修改 damage 和提交帧，但 `Figure::paint` 默认仍回落到
-接受 `NdCanvas` 的旧回调。与此同时 `NdCanvas` 仍公开 `clear_commands`、`damage_mut`
-和多种 submission 构造函数；TC-13 已将其移出 root/prelude，但旧 Figure 回调尚未退出。
+本项已关闭：`Figure`、`Shape` 和 `Border` 只接收 `PaintContext` 并返回
+`Result<(), GraphicsError>`；`CommandRecorder` 是唯一公开 owned 录制入口；
+`NdCanvas` 已退出 root、prelude、`graphics`、`render` 和外部 Figure API。
 
 长期模型应只有三层：
 
@@ -101,8 +105,9 @@ Figure / reusable painter
     -> Runtime-owned RenderSubmission
 ```
 
-`NdCanvas` 可以保留为 recorder 内部实现类型，但不应再作为 Figure、应用绘图和帧提交的
-共同公共对象。0.1 阶段应直接迁移，不保留长期 deprecated 双入口。
+`Runtime::prepare_submission` 是唯一公开帧出版入口，负责稳定化、资源同步和
+session/frame 身份。旧 `prepare_frame` / `record_full_frame` 已退出公开 API，
+未保留 deprecated 双入口。
 
 ### 3.2 TC-02：Capability 仍由 Core 列举
 
@@ -313,9 +318,9 @@ session，对 device lost 递增 session 并要求 Snapshot + Full，对确定�
 
 ### 3.13 TC-13：Facade 没有可执行边界
 
-root/prelude 仍平铺专业 Router、Decoration、RangeModel、RenderBackend 和 `NdCanvas`。
-现有 facade probe 验证若干导入能否编译，但没有冻结完整公开符号集合，因此新增 `pub use`
-可以无审查扩大稳定面。
+审计时 root/prelude 仍平铺专业 Router、Decoration、RangeModel、RenderBackend 和
+`NdCanvas`，且 facade probe 没有冻结完整公开符号集合。TC-13 已建立分层 rustdoc
+snapshot；TC-01 随后将 `NdCanvas` 完全移出公共表面。
 
 长期使用 machine-readable allowlist 或 `cargo public-api` 快照，分别冻结：
 
@@ -408,7 +413,7 @@ flowchart LR
 
 目标：每项核心职责只有一个提交和失败出口。
 
-1. 完成 Graphics/PaintContext/CommandRecorder 切换；
+1. 完成 Graphics/PaintContext/CommandRecorder 切换（已完成，ADR-031）；
 2. 引入 backend-neutral `RenderFailure`，移除 submit 路径 panic；
 3. 移出文件读取，建立 ResourceProvider 边界；
 4. 用 `ViewerEditSession` 关闭 `model_mut`，提供窄 `ViewerDrive`；

@@ -315,7 +315,8 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 - 同一 generation 的重复 work item 被合并；
 - route-only dirty work 使 `has_pending_update` 为 true；
 - 收敛失败时 render/listener 仍停留在上一 stable epoch；
-- prepare_submission、prepare_frame 与 record_full_frame 共用 stabilization 内核。
+- 唯一公开出版入口 prepare_submission 复用同一 stabilization 内核；测试级完整录制
+  不形成第二套公开帧协议。
 
 ## 14. 非目标
 

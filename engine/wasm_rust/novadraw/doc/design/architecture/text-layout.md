@@ -9,8 +9,8 @@
 P2-G02 的统一字体指标/文字测量/绘制 API、glyph 轮廓与后端预处理边界以
 [ADR-025](../../adr/adr-025-unified-graphics-and-glyph-preparation.md) 和
 [文字与图形整合设计](../rendering/text-graphics-integration.md) 为准。
-本页保留已交付切片的布局语义；其中 Runtime/NdCanvas 的调用形式不限制 P2-G02
-的统一 facade。设计接受不代表新 API 已实现。
+本页保留已交付切片的布局语义。P2-G02 与 ADR-031 已将公开调用形式收口为
+Graphics/PaintContext、CommandRecorder 和 Runtime::prepare_submission。
 
 Draw2D 源码事实见
 [`../../reference/draw2d/figure/text-label.md`](../../reference/draw2d/figure/text-label.md)。
@@ -141,7 +141,7 @@ command 中重复保存。
 构造器统一校验 FontDescriptor、TextConstraints、总体与逐行指标、glyph run 数值以及
 UTF-8 visible range；外部实现不能直接写入 `TextLayout` 私有字段绕过不变量。
 `with_visibility` 使用同一校验路径。独立非 Parley 引擎必须产生非空 GlyphRun 并通过
-Runtime/NdCanvas 消费，返回 `TextLayout::default()` 不构成替换能力验证。
+Runtime/PaintContext 消费，返回 `TextLayout::default()` 不构成替换能力验证。
 
 ## 6. Command IR
 
@@ -169,9 +169,9 @@ pub enum RenderCommandKind {
 现有名称按以下方式收口：
 
 - `Text` 底层 variant 删除；背景文字展开为 `FillRect + DrawGlyphRun`；
-- `fill_text_layout` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 fill glyph runs；
-- `stroke_text_layout` 是 NdCanvas 高层 API，接收 `TextLayout` 并降低为 stroke glyph runs；
-- raw-string `Text` / `FillText` / `StrokeText` command 与 NdCanvas API 已删除。
+- `PaintContext::fill_text` 接收 `TextLayout` 并降低为 fill glyph runs；
+- `PaintContext::stroke_text` 接收 `TextLayout` 并降低为 stroke glyph runs；
+- raw-string `Text` / `FillText` / `StrokeText` command 与旧 canvas API 已删除。
 
 不支持 glyph primitive 的 backend 可以在自身内部把 glyph outline 转成 path，但不能
 要求上层把所有文本永久降级为 path。
@@ -184,7 +184,7 @@ pub enum RenderCommandKind {
 - ellipsis 决策；
 - Label 中的文本位置；
 - TitleBarBorder 的 insets/preferred size；
-- `NdCanvas::draw_text_layout`；
+- `PaintContext::{fill_text,stroke_text}`；
 - backend-neutral `DrawGlyphRun`。
 
 自然尺寸与受宽度约束的测量可以产生不同快照。换行高度/baseline 在 Layout 阶段
@@ -194,7 +194,7 @@ pub enum RenderCommandKind {
 parent layout、arrange 与同约束 Glyph IR 的端到端契约也已通过外部 Figure/Layout
 集成测试。
 
-`NdCanvas::measure_text` 的字符平均宽度实现以及旧 `draw_text`/`fill_text` API
+旧 canvas 的字符平均宽度测量以及 raw-string `draw_text`/`fill_text` API
 已删除；测量必须通过 Runtime-owned `TextLayoutEngine`。
 
 ## 8. LabelFigure

@@ -327,7 +327,7 @@ Border 接收只读 paint input：
 - local border-box bounds；
 - 调用方累计 insets；
 - 当前已解析的 Figure style；
-- NdCanvas。
+- PaintContext。
 
 Border 不查询或修改 FigureTree。M10.2 若需要文字测量，在同一只读上下文边界扩展
 measurement capability，不向 Border 暴露 Runtime。
@@ -445,7 +445,7 @@ backend 添加 Shape/Border 类型识别。
 | 语义 | Draw2D | Novadraw |
 |---|---|---|
 | Shape paint | fill 后 outline | 相同 |
-| 通用颜色 | Graphics foreground/background | ResolvedStyle 写入 NdCanvas，语义相同 |
+| 通用颜色 | Graphics foreground/background | ResolvedStyle 写入 PaintContext，语义相同 |
 | PointList mutation | 暴露可变列表并手工通知 | FigureMut typed mutation，经 Runtime 原子提交 |
 | Polyline bounds | points + stroke 派生 cache | points + stroke 派生 NodeState bounds |
 | ScalablePolygon | template 按 Figure bounds 缩放并缓存点 | template 与派生 geometry 分离，由 Runtime 原子重建 |

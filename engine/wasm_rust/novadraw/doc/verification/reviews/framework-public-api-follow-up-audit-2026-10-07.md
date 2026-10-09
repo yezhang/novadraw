@@ -25,9 +25,9 @@
 ## 2. 总体结论
 
 此前对基础值、Runtime 可变借用命名、帧准备、第三方类型和 crate 分层的整改方向仍然
-成立，但当前公开面尚不能视为完全收口。主要风险集中在：
+成立，但审计时公开面尚不能视为完全收口。主要风险集中在：
 
-1. `Graphics` 与 `NdCanvas` 同时承担公共绘制入口；
+1. `Graphics` 与 `NdCanvas` 同时承担公共绘制入口（已由 TC-01 关闭）；
 2. Editor Viewer 暴露过宽的可变状态逃逸口；
 3. `Figure` 基础 trait 内置具体领域 capability，形成扩展闭集；
 4. Figure 构造、树接纳和查询没有统一合法性与失败语义；
@@ -43,16 +43,16 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P0
 
-状态：已整改（2026-10-08，见
-[TC-13 / TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md)）
+状态：已整改（2026-10-09，见
+[TC-01 完成记录](tc01-graphics-cutover-completion-2026-10-09.md)）
 
 证据：
 
-- `novadraw/src/lib.rs` 与 `novadraw/src/prelude.rs` 仍导出 `NdCanvas`；
-- `novadraw/src/graphics/context.rs` 已提供 `Graphics` 和受限的 `PaintContext`；
-- `novadraw/src/render/context.rs` 的 `NdCanvas` 仍公开 `clear_commands`、
-  `damage_mut`、`commands` 和多组 `to_submission_*`；
-- 同一类型还保留旧式绘制命名，与 `Graphics` 的结构化绘制方法并存。
+- `Graphics` / `PaintContext` 是唯一公开绘制语言；
+- `CommandRecorder` 是唯一公开 owned 录制入口；
+- `NdCanvas` 已退出 root、prelude、`graphics` 与 `render` 公共表面；
+- Figure、Shape 和 Border 只接收 `PaintContext` 并返回 `GraphicsError`；
+- Runtime 只通过 `prepare_submission` 出版帧。
 
 影响：
 
@@ -334,7 +334,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 | 本次发现 | 与既有记录的关系 |
 |---|---|
-| API-F01 | Graphics 目标已设计，但 `NdCanvas` 公共旧入口尚未退出 |
+| API-F01 | 2026-10-09 已由 ADR-031 / TC-01 完成 Graphics 单入口与帧出版收口 |
 | API-F03 | 完成记录已明确 Figure capability 全面改造不在当轮范围 |
 | API-F07 | 2026-10-08 已由 TC-13 收窄 root/prelude，并建立分层 rustdoc snapshot |
 | API-F02、F04、F06、F08-F10 | 属于此前切片未覆盖或未完全统一的职责/失败语义 |
@@ -354,7 +354,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 ### Phase B：收口权威入口
 
-1. 完成 `Graphics` / `PaintContext` / `CommandRecorder` 职责分离；
+1. 完成 `Graphics` / `PaintContext` / `CommandRecorder` 职责分离（已完成，TC-01）；
 2. 移除 Viewer 的完整 Runtime 和模型可变逃逸；
 3. 用窄化 drive/synchronization facade 迁移真实消费者。
 

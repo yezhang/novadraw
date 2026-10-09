@@ -24,7 +24,7 @@ Graphics 入口。prelude 面向常规 Figure / Runtime 开发。以下协议改
 - `container`：range、viewport、scroll、zoom 和 layer；
 - `event`：输入、listener、focus、tooltip 与 accessibility；
 - `figure`：capability、具体 Figure 状态和 border；
-- `render`：backend、submission、resource、text 和 `NdCanvas`；
+- `render`：backend、submission、resource 和 text；TC-01 随后将 `NdCanvas` 降为内部实现；
 - `runtime`：scoped mutation、resource 与 frame service。
 
 `verification/public-api/novadraw-symbols.txt` 保存 root、prelude、全部一级领域模块和

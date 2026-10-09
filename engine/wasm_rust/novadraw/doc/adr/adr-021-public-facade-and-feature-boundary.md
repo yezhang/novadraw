@@ -4,7 +4,8 @@
 
 ## 状态
 
-已接受；package 聚合与 backend feature 部分已由 ADR-023 替代
+已接受；package 聚合与 backend feature 部分已由 ADR-023 替代，绘图入口已由
+[ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 替代
 
 ## 背景
 
@@ -35,7 +36,7 @@ crate root 只保留高频且无歧义的稳定入口：
   `PointList`、`Affine2D`；
 - 生命周期入口：`Runtime`、`FigureTree`、`FigureTreeBuilder`、`FigureId`；
 - 核心扩展 trait：`Figure`、`LayoutManager`、`PlatformHost`、`RenderBackend`；
-- 绘图入口：`NdCanvas`；
+- 绘图入口：`Graphics` / `PaintContext`，owned 录制使用 `CommandRecorder`；
 - 常用 Figure 与 Layout。
 
 错误、配置、专业扩展协议和低层状态不因使用频率偶然升到 root。

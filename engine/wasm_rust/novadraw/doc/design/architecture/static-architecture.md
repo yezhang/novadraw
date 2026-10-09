@@ -308,7 +308,7 @@ Runtime 对外保留组合根操作，例如：
 set_contents
 dispatch_input
 resize_logical_viewport
-prepare_frame
+prepare_submission
 complete_submission
 ```
 

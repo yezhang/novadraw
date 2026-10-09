@@ -354,7 +354,7 @@ paint 回调传播错误后整帧不发布；先前成功的局部命令不意�
 | Core container | ViewportHandle/ScaleHandle 与 editor；LayeredPaneMut 借用 Runtime | 借用可变 facade 统一 `LayeredPaneMut`，identity/read handle 保留 Handle；不改变 state 归属 |
 | Core connection | Anchor、Router、Locator、RouteRequest/Output、RoutingConstraint | 保留角色分离，避免改成泛称 ConnectionStyle；专业路由查询从 root 移至 connection |
 | Core runtime | `prepare_submission` 将 Idle/Suspended/AwaitingCompletion/Error 全折叠为 None | 规范 `prepare_submission(...) -> FramePreparation`，吸收 `_state` 版本，完整状态必须到调用者 |
-| Core frame capture | `prepare_frame` / `record_full_frame` 返回 owned NdCanvas | 与 recorder 拆分一起明确离线记录结果和错误；不把它们改名后当作真实 submission 成功证据 |
+| Core frame publication | `prepare_submission` 是唯一公开入口 | Runtime 负责稳定化、资源同步、session/frame 身份与 in-flight 状态；独立录制只生成 `RecordedDrawing` |
 | Core event | `*_later`、NotificationEffect、StableSceneQuery | 保留延后与稳定阶段可见性；去掉 later 会误导已提交状态，事件点继续由引擎适配 |
 | Core resource | FontId/ImageId、ResourceId、ResourceRegistry | 应用使用领域 ID；raw registry 同步归 host/render 专业层；不新增全局资源管理器 |
 | Editor 入口 | `lib.rs` 集中重导出，内部 module 私有 | 开放经筛选的 model/command/viewer/tool/policy/text_input 领域入口，root 保留高频类型 |

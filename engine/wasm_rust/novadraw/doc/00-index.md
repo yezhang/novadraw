@@ -81,6 +81,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-029-structured-render-backend-failure.md`](adr/adr-029-structured-render-backend-failure.md)
 - ResourceProvider 与资源请求 Token 边界：
   [`adr/adr-030-resource-provider-and-request-token-boundary.md`](adr/adr-030-resource-provider-and-request-token-boundary.md)
+- Graphics 录制与帧出版边界：
+  [`adr/adr-031-graphics-recording-and-publication-boundary.md`](adr/adr-031-graphics-recording-and-publication-boundary.md)
 - Figure Capability 统一扩展模型：
   [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：

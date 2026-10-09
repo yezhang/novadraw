@@ -74,11 +74,11 @@ StrokeStyle::try_new(width: f64, cap: LineCap, join: LineJoin,
     -> Result<StrokeStyle, GraphicsInputError>;
 ClipPath::try_new(path: &Path, rule: FillRule) -> Result<ClipPath, GraphicsInputError>;
 
-NdCanvas::set_fill_paint(paint: Paint);
-NdCanvas::set_stroke_paint(paint: Paint);
-NdCanvas::set_stroke(stroke: StrokeStyle);
-NdCanvas::set_fill_rule(rule: FillRule);
-NdCanvas::clip_path(clip: &ClipPath);
+PaintContext::set_fill_paint(paint: Paint);
+PaintContext::set_stroke_paint(paint: Paint);
+PaintContext::set_stroke_style(stroke: StrokeStyle);
+PaintContext::set_fill_rule(rule: FillRule);
+PaintContext::clip_path(clip: &ClipPath) -> Result<(), GraphicsError>;
 ```
 
 `GradientStop` 的 offset 同样通过构造校验；Color 复用 ADR-020 的不变量。
@@ -141,7 +141,7 @@ NdCanvas::clip_path(clip: &ClipPath);
 
 ```mermaid
 sequenceDiagram
-    participant C as NdCanvas
+    participant C as PaintContext
     participant I as CommandStream
     participant B as Backend
     C->>I: push_state
@@ -156,8 +156,8 @@ sequenceDiagram
 ```
 
 - 矩形和路径 clip 共享有序交集链；backend 每个 clip 保存调用时的 transform。
-- `reset_clip` 清空当前 Canvas clip 链；`set_clip` 保持 reset 后设矩形的既有含义。
-  reset 不销毁已保存的状态，restore/pop 可以重放原矩形和路径 clip。
+- 公开绘制协议不暴露任意清空 clip 的入口；调用方通过 push/restore/pop 管理局部
+  clip，不能越过当前 `PaintContext` 的 state floor。
 - `clip_depth` 同时统计两种 clip；restore 的公共前缀比较包含几何、rule 和 transform，
   不能只比较 bounds。实现应避免每次 push 都深拷贝路径。
 - 路径 clip 只约束 paint；本项不把它注册成 Figure hit-test 或 child clipping

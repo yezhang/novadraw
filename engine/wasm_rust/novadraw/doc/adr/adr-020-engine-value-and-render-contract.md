@@ -4,7 +4,8 @@
 
 ## 状态
 
-已接受，已验证
+已接受，已验证；第 4 节已由
+[ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 替代
 
 ## 背景
 
@@ -52,11 +53,9 @@ serializer、业务模型和产品 UI 由下游产品包定义。
 
 ### 4. Graphics 只保留一套规范命名
 
-公开 `NdCanvas` 以 stateful Graphics API 为规范入口。显式携带 paint 参数的 recorder
-primitive 必须使用清晰的 `*_with_*` 命名，或仅作为内部 lowering API；不再让
-`fill_rect/fill_rectangle` 等近义名称表达不同状态模型。
-
-该命名迁移独立成后续小批次，避免与 Arc 正确性修复混合。
+本节的原决定已由 ADR-031 替代。公开绘制语言现为 `Graphics` / `PaintContext`，
+owned 命令录制由 `CommandRecorder` 承担；`NdCanvas` 只保留为 crate 内部 lowering
+状态，不再定义公共命名或权限边界。
 
 ### 5. Color 兑现值不变量
 

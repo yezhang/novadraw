@@ -4,7 +4,7 @@
 
 ## 状态
 
-已通过
+已通过；公开 Graphics 调用形式已由 ADR-025 与 ADR-031 替代
 
 ## 背景
 
@@ -50,9 +50,9 @@ breaking。测量和绘制若在不同层分别实现，会使 preferred size、
    ResourceRegistry/RenderSubmission 传给 backend，不嵌入每条命令。
 8. Command 中的坐标和字号保持逻辑单位，DPI 转换由 backend 执行。
 9. `Text` 不作为规范底层 command；背景绘制规范化为 `FillRect + DrawGlyphRun`。
-10. `fill_text` / `stroke_text` 可保留为 NdCanvas 高层 API，但必须接收已完成布局的
-    `TextLayout`，并分别降低为 `DrawGlyphRun { paint: Fill | Stroke }`。不得把原始
-    字符串和 `max_width` 直接提交给 backend。
+10. `PaintContext::fill_text` / `stroke_text` 接收已完成布局的 `TextLayout`，并分别
+    降低为 `DrawGlyphRun { paint: Fill | Stroke }`。不得把原始字符串和 `max_width`
+    直接提交给 backend。
 11. M10.2 分为 Text Core、Label、TitleBarBorder 三个原子增量。
 12. 现有 CSS-like font 字符串仅作为迁移输入，文本核心使用结构化字体描述。
 13. 自定义字体继续通过 FontId/ResourceRegistry 管理生命周期。

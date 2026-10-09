@@ -193,6 +193,11 @@ description = "Exercise checked Graphics values and external Canvas consumers"
 program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_graphics_contract"]
 
+[commands."test.tc01-graphics"]
+description = "Exercise the PaintContext, CommandRecorder, and Runtime publication boundary"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "tc01_graphics_boundary"]
+
 [commands."test.p2-g02-text-graphics"]
 description = "Exercise unified text measurement, resource-closed recording and glyph outlines"
 program = "cargo"
@@ -1228,6 +1233,33 @@ documents = [
   "doc/design/architecture/component-update.md",
   "doc/design/architecture/runtime-ownership-and-module-boundaries.md",
   "doc/roadmap/goal-alignment-adjustment-plan-2026-09-30.md",
+]
+
+[[suites]]
+id = "core.tc01-graphics-cutover"
+title = "Single public Graphics language and Runtime-owned frame publication"
+milestone = "TC-01"
+kind = "contract"
+api_semantics = ["graphics.context", "paint.protocol", "border.protocol", "render.backend_session"]
+layers = ["static", "contract", "headless"]
+platforms = ["host", "headless"]
+commands = ["test.tc01-graphics", "test.facade-doc", "api.surface"]
+paths = [
+  "novadraw/src/graphics/**",
+  "novadraw/src/render/context.rs",
+  "novadraw/src/render/recorder.rs",
+  "novadraw/src/figure/**",
+  "novadraw/src/graph/render_recursive.rs",
+  "novadraw/src/runtime/runtime/frame_submission.rs",
+  "novadraw/tests/tc01_graphics_boundary.rs",
+  "novadraw/README.md",
+  "verification/public-api/novadraw-symbols.txt",
+]
+documents = [
+  "doc/adr/adr-031-graphics-recording-and-publication-boundary.md",
+  "doc/parity/draw2d/api-coverage.md",
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
+  "doc/verification/reviews/tc01-graphics-cutover-completion-2026-10-09.md",
 ]
 
 [[suites]]
