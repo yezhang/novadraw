@@ -374,7 +374,13 @@ impl FigureTree {
     /// 设置场景的根容器，后续添加的子块将作为此容器的子元素。
     /// 注意：此方法不触发 revalidate()，用于批量构建场景。
     /// 交互式修改使用 SceneManager.set_contents() 方法。
-    pub(crate) fn set_contents(
+    #[cfg(test)]
+    pub(crate) fn set_contents(&mut self, figure: Box<dyn Figure>) -> FigureId {
+        self.try_set_contents(figure)
+            .expect("validated construction must preserve FigureTree invariants")
+    }
+
+    pub(crate) fn try_set_contents(
         &mut self,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, GraphMutationError> {

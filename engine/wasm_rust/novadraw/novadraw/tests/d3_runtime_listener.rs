@@ -4,12 +4,14 @@ use support::prepare_next_submission;
 
 use std::sync::{Arc, Mutex};
 
-use novadraw::{
-    ActionEvent, ActionListener, AncestorEvent, AncestorListener, ClickableFigure,
-    CoordinateListener, FigureEvent, FigureId, FigureListener, LayoutEvent, LayoutListener,
-    ListenerDirective, MouseButton, PropertyChangeEvent, PropertyChangeListener, Rectangle,
-    RectangleFigure, Runtime, UpdateEvent, UpdateListener, XYLayout,
+use novadraw::event::{
+    ActionEvent, ActionListener, AncestorEvent, AncestorListener, CoordinateListener, FigureEvent,
+    FigureListener, LayoutEvent, LayoutListener, ListenerDirective, MouseButton,
+    PropertyChangeEvent, PropertyChangeListener, UpdateEvent, UpdateListener,
 };
+use novadraw::figure::ClickableFigure;
+use novadraw::layout::XYLayout;
+use novadraw::{FigureId, Rectangle, RectangleFigure, Runtime};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct ListenerCounts {

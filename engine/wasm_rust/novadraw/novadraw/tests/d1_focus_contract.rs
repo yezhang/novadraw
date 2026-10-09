@@ -1,7 +1,5 @@
-use novadraw::{
-    FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome, RectangleFigure,
-    Runtime,
-};
+use novadraw::event::{FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome};
+use novadraw::{RectangleFigure, Runtime};
 
 #[test]
 fn public_runtime_focus_api_separates_direct_and_traversal_eligibility() {

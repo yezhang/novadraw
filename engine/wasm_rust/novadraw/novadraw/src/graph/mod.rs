@@ -970,7 +970,7 @@ impl<'a> FigureTreeBuilder<'a> {
         &mut self,
         figure: Box<dyn super::Figure>,
     ) -> Result<FigureId, GraphMutationError> {
-        self.tree.set_contents(figure)
+        self.tree.try_set_contents(figure)
     }
 
     pub fn add_child(

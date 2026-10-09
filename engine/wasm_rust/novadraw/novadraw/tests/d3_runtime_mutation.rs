@@ -1,14 +1,22 @@
+use novadraw::container::{LayerFigure, LayerKey, LayerPlacement};
+use novadraw::event::{EventContext, MouseButton, MouseEvent};
+use novadraw::figure::{
+    CONTAINER, ChildClippingStrategy, ChildPolicy, ContainerCapability, FigureCapabilityBuilder,
+    FigureCapabilityRegistrationError, FigureContainer, FigureEventHandler, INPUT, InputCapability,
+    MeasureConstraints,
+};
 use novadraw::geometry::Dimension;
+use novadraw::layout::{
+    BorderConstraint, BorderRegion, GridLayout, LayoutError, XYConstraint, XYLayout,
+};
 use novadraw::render::{
     BackendCapabilities, RenderDisposition, RenderSubmission, SurfaceInfo,
     command::RenderCommandKind,
 };
+use novadraw::runtime::RuntimeMutationError;
+use novadraw::tree::GraphMutationError;
 use novadraw::{
-    BorderConstraint, BorderRegion, ChildClippingStrategy, ChildPolicy, EventContext, Figure,
-    FigureContainer, FigureEventHandler, FigureId, FigureTree, FramePreparation,
-    GraphMutationError, GridLayout, LayerFigure, LayerKey, LayerPlacement, LayoutError,
-    MeasureConstraints, MouseButton, MouseEvent, Rectangle, RectangleFigure, Runtime,
-    RuntimeMutationError, XYConstraint, XYLayout,
+    Figure, FigureId, FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime,
 };
 
 fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
@@ -587,9 +595,9 @@ impl Figure for DeferredMutationFigure {
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
     }
 }
 
@@ -616,12 +624,9 @@ impl Figure for SingleChildFigure {
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(
-            novadraw::CONTAINER,
-            novadraw::ContainerCapability::of::<Self>(),
-        )
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(CONTAINER, ContainerCapability::of::<Self>())
     }
 }
 

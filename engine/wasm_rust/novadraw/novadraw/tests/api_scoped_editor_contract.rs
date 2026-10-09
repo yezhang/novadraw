@@ -1,8 +1,9 @@
+use novadraw::figure::border::LineBorder;
+use novadraw::figure::{FlowPage, TextFlowFigure};
 use novadraw::geometry::Rectangle;
-use novadraw::{
-    FigureTree, FlowPage, LineBorder, RectangleFigure, Runtime, RuntimeMutationError, StackLayout,
-    TextFlowFigure,
-};
+use novadraw::layout::StackLayout;
+use novadraw::runtime::RuntimeMutationError;
+use novadraw::{FigureTree, RectangleFigure, Runtime};
 
 fn runtime_with_child() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
     let mut tree = FigureTree::new();

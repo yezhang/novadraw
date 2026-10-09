@@ -1,4 +1,5 @@
-use novadraw::{ExclusionSearch, FigureTree, RectangleFigure, TreeSearch, TreeSearchContext};
+use novadraw::tree::{ExclusionSearch, TreeSearch, TreeSearchContext};
+use novadraw::{FigureTree, RectangleFigure};
 
 struct NamedFigureSearch {
     name: &'static str,

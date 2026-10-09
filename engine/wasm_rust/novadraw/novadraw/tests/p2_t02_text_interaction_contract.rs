@@ -4,14 +4,18 @@ use support::{prepare_next_submission, record_full_submission};
 
 use std::sync::Arc;
 
-use novadraw::geometry::Translatable;
-use novadraw::render::{BuiltinFont, command::RenderCommandKind};
-use novadraw::{
-    Alignment, CaretGeometry, FigureTree, FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange,
-    FlowWrapping, Point, Rectangle, RectangleFigure, Runtime, SelectionQuad, TextAffinity,
-    TextFlowFigure, TextFlowQueryError, TextFlowViewport, TextInteractionError, TextInteractionMap,
-    TextInteractionProvider, TextMovement, TextPosition, TextRange,
+use novadraw::figure::{
+    Alignment, FlowPage, FlowParagraph, FlowTextPosition, FlowTextRange, FlowWrapping,
+    TextFlowFigure, TextFlowViewport,
 };
+use novadraw::geometry::{Point, Rectangle, Translatable};
+use novadraw::render::{
+    BuiltinFont, CaretGeometry, SelectionQuad, TextAffinity, TextInteractionError,
+    TextInteractionMap, TextInteractionProvider, TextMovement, TextPosition, TextRange,
+    command::RenderCommandKind,
+};
+use novadraw::runtime::TextFlowQueryError;
+use novadraw::{FigureTree, RectangleFigure, Runtime};
 
 fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::FigureId) {
     let mut runtime = Runtime::empty();
@@ -243,7 +247,7 @@ fn invalid_utf8_and_truncated_positions_are_rejected() {
     runtime
         .text_flow(flow)
         .unwrap()
-        .set_wrapping(novadraw::FlowWrapping::Truncate { max_lines: 1 })
+        .set_wrapping(FlowWrapping::Truncate { max_lines: 1 })
         .unwrap();
     record_full_submission(&mut runtime);
 
@@ -352,7 +356,7 @@ fn text_queries_are_read_only_for_runtime_updates() {
     );
     assert!(prepare_next_submission(&mut runtime).is_none());
     let position = runtime
-        .text_flow_hit_test(flow, novadraw::Point::new(30.0, 30.0))
+        .text_flow_hit_test(flow, Point::new(30.0, 30.0))
         .unwrap();
     runtime.text_flow_caret_geometry(flow, position).unwrap();
     runtime

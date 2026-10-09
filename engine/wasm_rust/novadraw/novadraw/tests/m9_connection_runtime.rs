@@ -4,21 +4,23 @@ use support::{prepare_next_submission, record_full_submission};
 
 use std::{any::TypeId, marker::PhantomData};
 
-use novadraw::connection::{RouteOutput, RouteRequest, UnresolvedConnection};
+use novadraw::connection::{
+    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
+    ConnectionLocator, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
+    CoordinateSpace, DecorationError, DirectRouter, EndpointLocator, FanRouter, LocatorError,
+    MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
+    PathFractionLocator, PolygonDecorationFigure, PolylineDecorationFigure, RouteError,
+    RouteOutput, RouteRequest, RouterBinding, UnresolvedConnection, XYAnchor,
+};
+use novadraw::container::ViewportFigure;
 use novadraw::geometry::{Point, PointList, Vec2};
+use novadraw::layout::{XYConstraint, XYLayout};
 use novadraw::render::{
     BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderDisposition, SurfaceInfo,
     command::RenderCommandKind,
 };
-use novadraw::{
-    Bendpoint, BendpointConnectionRouter, BendpointConstraint, ChopboxAnchor, ConnectionFigure,
-    ConnectionLocator, ConnectionResolution, ConnectionRouter, ConnectionRuntimeError,
-    CoordinateSpace, DirectRouter, EndpointLocator, FanRouter, FigureId, LocatorError,
-    MANHATTAN_DEFAULT_LANE_SPACING, MANHATTAN_DEFAULT_MINIMUM_STUB, ManhattanConnectionRouter,
-    PathFractionLocator, PolygonDecorationFigure, PolylineDecorationFigure, RectangleFigure,
-    RouteError, RouterBinding, Runtime, RuntimeMutationError, ViewportFigure, XYAnchor,
-    XYConstraint, XYLayout,
-};
+use novadraw::runtime::RuntimeMutationError;
+use novadraw::{FigureId, RectangleFigure, Runtime};
 
 struct ConstraintA;
 struct ConstraintB;
@@ -348,7 +350,7 @@ fn invalid_decoration_template_is_rejected_before_attachment() {
             Point::ZERO,
             Point::new(1.0, 0.0),
         ])),
-        Err(novadraw::DecorationError::TooFewTemplatePoints {
+        Err(DecorationError::TooFewTemplatePoints {
             minimum: 3,
             actual: 2,
         })
@@ -358,7 +360,7 @@ fn invalid_decoration_template_is_rejected_before_attachment() {
             Point::ZERO,
             Point::new(f64::NAN, 0.0),
         ])),
-        Err(novadraw::DecorationError::NonFiniteGeometry)
+        Err(DecorationError::NonFiniteGeometry)
     ));
 }
 
@@ -1413,7 +1415,9 @@ fn manhattan_reservations_are_isolated_by_router_id() {
 fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
     let mut tree = novadraw::FigureTree::new();
     let mut builder = tree.builder();
-    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
+    let root = builder
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+        .expect("valid FigureTree construction");
     let viewport = builder
         .add_child(
             root,
@@ -1484,7 +1488,9 @@ fn divergent_viewport_topology_is_rejected_and_reparent_recovers() {
 fn matching_viewport_topology_routes_normally() {
     let mut tree = novadraw::FigureTree::new();
     let mut builder = tree.builder();
-    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)));
+    let root = builder
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 600.0, 400.0)))
+        .expect("valid FigureTree construction");
     let viewport = builder
         .add_child(
             root,
@@ -1537,7 +1543,9 @@ fn matching_viewport_topology_routes_normally() {
 fn manhattan_scope_failure_clears_the_complete_batch_and_recovers_atomically() {
     let mut tree = novadraw::FigureTree::new();
     let mut builder = tree.builder();
-    let root = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 700.0, 420.0)));
+    let root = builder
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 700.0, 420.0)))
+        .expect("valid FigureTree construction");
     let valid_source = builder
         .add_child(root, Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
         .expect("valid FigureTree construction");

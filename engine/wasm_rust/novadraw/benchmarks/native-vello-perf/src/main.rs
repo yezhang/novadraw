@@ -1263,7 +1263,10 @@ mod tests {
             .expect("update marker");
 
         assert_eq!(receipt.figure, marker);
-        assert_eq!(receipt.invalidation, novadraw::ComponentInvalidation::Paint);
+        assert_eq!(
+            receipt.invalidation,
+            novadraw::runtime::ComponentInvalidation::Paint
+        );
     }
 }
 

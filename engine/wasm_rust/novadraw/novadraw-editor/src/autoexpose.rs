@@ -198,13 +198,13 @@ mod tests {
 
     #[test]
     fn blocked_axis_does_not_hide_a_scrollable_corner_axis() {
-        let blocked = novadraw::RangeModelSnapshot {
+        let blocked = RangeModelSnapshot {
             minimum: 0.0,
             maximum: 100.0,
             extent: 100.0,
             value: 0.0,
         };
-        let scrollable = novadraw::RangeModelSnapshot {
+        let scrollable = RangeModelSnapshot {
             minimum: 0.0,
             maximum: 300.0,
             extent: 100.0,

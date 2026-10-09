@@ -1,4 +1,6 @@
-use novadraw::{ClickableFigure, FigureTree, MouseButton, Rectangle, RectangleFigure, Runtime};
+use novadraw::event::MouseButton;
+use novadraw::figure::ClickableFigure;
+use novadraw::{FigureTree, Rectangle, RectangleFigure, Runtime};
 
 fn runtime_with_clickable() -> (Runtime, novadraw::FigureId) {
     let mut tree = FigureTree::new();

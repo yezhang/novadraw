@@ -1,8 +1,14 @@
+use novadraw::figure::{
+    ACCESSIBILITY, AccessibilityCapability, AccessibleFigure, ButtonFigure,
+    FigureCapabilityBuilder, FigureCapabilityRegistrationError, ToggleFigure,
+};
 use novadraw::render::{BackendCapabilities, BuiltinFont, RenderDisposition, SurfaceInfo};
-use novadraw::{
+use novadraw::runtime::{
     AccessibilityAction, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate,
-    AccessibleFigure, ButtonFigure, Figure, FigureId, FigureTree, FramePreparation, MAX_TREE_DEPTH,
-    Rectangle, RectangleFigure, Runtime, ToggleFigure,
+};
+use novadraw::tree::MAX_TREE_DEPTH;
+use novadraw::{
+    Figure, FigureId, FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime,
 };
 
 struct AccessibleGroup;
@@ -18,12 +24,9 @@ impl Figure for AccessibleGroup {
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(
-            novadraw::ACCESSIBILITY,
-            novadraw::AccessibilityCapability::of::<Self>(),
-        )
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(ACCESSIBILITY, AccessibilityCapability::of::<Self>())
     }
 }
 
@@ -186,7 +189,9 @@ fn accessibility_projection_supports_the_maximum_tree_depth() {
     let mut tree = FigureTree::new();
     let parent = {
         let mut builder = tree.builder();
-        let mut parent = builder.set_contents(Box::new(AccessibleGroup));
+        let mut parent = builder
+            .set_contents(Box::new(AccessibleGroup))
+            .expect("valid FigureTree construction");
         for _ in 1..MAX_TREE_DEPTH {
             parent = builder
                 .add_child(parent, Box::new(AccessibleGroup))

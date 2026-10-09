@@ -3,14 +3,17 @@ mod support;
 use support::prepare_next_submission;
 
 use novadraw::Color;
+use novadraw::figure::border::LineBorder;
+use novadraw::figure::{FigureMeasurement, MeasureConstraints};
 use novadraw::geometry::{Dimension, Rectangle, Translatable};
-use novadraw::{
-    BorderConstraint, BorderLayout, BorderRegion, DEFAULT_VALIDATION_BUDGET, FigureId,
-    FigureMeasurement, FigureTree, FramePreparationError, GridAlignment, GridConstraint,
-    GridLayout, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, LineBorder,
-    MeasureConstraints, RectangleFigure, Runtime, StackLayout, ToolbarLayout, ValidationError,
+use novadraw::layout::{
+    BorderConstraint, BorderLayout, BorderRegion, GridAlignment, GridConstraint, GridLayout,
+    LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, StackLayout, ToolbarLayout,
     XYConstraint, XYLayout,
 };
+use novadraw::runtime::FramePreparationError;
+use novadraw::tree::{DEFAULT_VALIDATION_BUDGET, ValidationError};
+use novadraw::{FigureId, FigureTree, RectangleFigure, Runtime};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

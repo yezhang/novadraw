@@ -86,17 +86,10 @@ host loop
 - `cargo xtask check --quick`；
 - `git diff --check`。
 
-`cargo xtask check --full` 的 fmt、facade、第三方类型、API snapshot、hot-path、
-Core I/O、Kurbo、Native/Web Vello 与 workspace Clippy 阶段全部通过；最终仅在
-`workspace.test` 被既有迁移问题阻断：
-
-- `novadraw-inspector/tests/figure_inspector_contract.rs` 有 3 个 TC-13 收窄前的 root
-  导入和 2 个 Builder `Result` 未解包错误；
-- `benchmarks/native-vello-perf/src/main.rs` 有 1 个 TC-13 收窄前的
-  `ComponentInvalidation` root 导入。
-
-这些目标不依赖 Editor Viewer/Domain/CommandStack，本批定向 suite 与 workspace
-生产编译不受影响。
+首次 `cargo xtask check --full` 在既有 Builder `Result` 与 TC-13 facade 测试迁移
+遗漏处阻断。2026-10-09 后续批次已关闭这些编译问题并修正 child insertion 的同 surface
+Idle 断言；full gate 现已全部通过，包括 workspace Clippy、全部单元/集成测试和
+doctest。
 
 ## TC-10 剩余边界
 

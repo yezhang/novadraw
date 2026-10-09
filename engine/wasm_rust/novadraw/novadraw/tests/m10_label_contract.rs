@@ -2,16 +2,20 @@ mod support;
 
 use support::prepare_next_submission;
 
+use novadraw::connection::{AnchorGeometry, AnchorGeometryKey};
+use novadraw::figure::border::{Border, CompoundBorder, LineBorder, MarginBorder, TitleBarBorder};
+use novadraw::figure::{
+    Alignment, ImageDisplayState, ImageFigure, LabelFigure, MeasureConstraints, ShapeMutationError,
+    TextPlacement,
+};
+use novadraw::geometry::{Insets, Rectangle};
+use novadraw::layout::StackLayout;
 use novadraw::render::{
     BackendCapabilities, BuiltinFont, FontDescriptor, ImageData, RenderCommandKind, ResourceId,
     SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
 };
-use novadraw::{
-    Alignment, AnchorGeometry, AnchorGeometryKey, Border, CompoundBorder, FigureStyle, FigureTree,
-    ImageDisplayState, ImageFigure, Insets, LabelFigure, LineBorder, MarginBorder,
-    MeasureConstraints, Rectangle, RectangleFigure, Runtime, StackLayout, TextPlacement,
-    TitleBarBorder,
-};
+use novadraw::runtime::ResourceStatus;
+use novadraw::{FigureStyle, FigureTree, RectangleFigure, Runtime};
 use std::sync::{
     Arc,
     atomic::{AtomicUsize, Ordering},
@@ -307,7 +311,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
     );
     assert_eq!(
         runtime.label(label).unwrap().set_icon_text_gap(-1.0),
-        Err(novadraw::ShapeMutationError::NegativeMetric)
+        Err(ShapeMutationError::NegativeMetric)
     );
     let submission = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
@@ -814,7 +818,7 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
     );
     assert_eq!(
         runtime.resource_status(image.resource_id()).unwrap(),
-        &novadraw::ResourceStatus::Failed {
+        &ResourceStatus::Failed {
             reason: "load failed".to_string()
         }
     );

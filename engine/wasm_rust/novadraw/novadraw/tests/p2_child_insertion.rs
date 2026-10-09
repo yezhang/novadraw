@@ -4,15 +4,23 @@ use support::prepare_next_submission;
 
 use std::{cell::RefCell, rc::Rc};
 
-use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
-use novadraw::tree::ChildInsertionError;
-use novadraw::{
-    AncestorEvent, AncestorEventKind, AncestorListener, ChildPolicy, Dimension, Figure,
-    FigureContainer, FigureId, FigureLifecycle, FigureLifecycleContext, FigureMeasurement,
-    FigureTree, GraphMutationError, LayoutConstraint, LayoutError, LayoutEvent, LayoutEventKind,
-    LayoutListener, LayoutManager, LayoutOutput, LayoutSnapshot, ListenerDirective,
-    MeasureConstraints, Rectangle, RectangleFigure, Runtime, RuntimeMutationError, XYLayout,
+use novadraw::event::{
+    AncestorEvent, AncestorEventKind, AncestorListener, LayoutEvent, LayoutEventKind,
+    LayoutListener, ListenerDirective,
 };
+use novadraw::figure::{
+    CONTAINER, ChildPolicy, ContainerCapability, FigureCapabilityBuilder,
+    FigureCapabilityRegistrationError, FigureContainer, FigureLifecycle, FigureLifecycleContext,
+    FigureMeasurement, LIFECYCLE, LifecycleCapability, MeasureConstraints,
+};
+use novadraw::geometry::{Dimension, Rectangle};
+use novadraw::layout::{
+    LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, XYLayout,
+};
+use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
+use novadraw::runtime::{FramePreparation, RuntimeMutationError};
+use novadraw::tree::{ChildInsertionError, GraphMutationError};
+use novadraw::{Figure, FigureId, FigureTree, RectangleFigure, Runtime};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Placement(Rectangle);
@@ -94,12 +102,9 @@ impl Figure for ExternalFigure {
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(
-            novadraw::LIFECYCLE,
-            novadraw::LifecycleCapability::of::<Self>(),
-        )
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(LIFECYCLE, LifecycleCapability::of::<Self>())
     }
 }
 
@@ -218,17 +223,15 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
     assert_eq!(&*trace.borrow(), &[("validate", failed)]);
 
     let mut runtime = Runtime::new(tree);
+    let surface = SurfaceInfo {
+        logical_width: 100.0,
+        logical_height: 100.0,
+        pixel_width: 100,
+        pixel_height: 100,
+        scale_factor: 1.0,
+    };
     let baseline = runtime
-        .prepare_submission(
-            SurfaceInfo {
-                logical_width: 100.0,
-                logical_height: 100.0,
-                pixel_width: 100,
-                pixel_height: 100,
-                scale_factor: 1.0,
-            },
-            BackendCapabilities::RETAINED_PARTIAL,
-        )
+        .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert!(
@@ -272,7 +275,10 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
         generation
     );
     assert!(!runtime.has_pending_update());
-    assert!(prepare_next_submission(&mut runtime).is_none());
+    assert!(matches!(
+        runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
+        FramePreparation::Idle
+    ));
     assert_eq!(&*trace.borrow(), &[("validate", child)]);
 }
 
@@ -383,12 +389,9 @@ impl Figure for AdmissionFigure {
     }
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(
-            novadraw::CONTAINER,
-            novadraw::ContainerCapability::of::<Self>(),
-        )
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(CONTAINER, ContainerCapability::of::<Self>())
     }
 }
 

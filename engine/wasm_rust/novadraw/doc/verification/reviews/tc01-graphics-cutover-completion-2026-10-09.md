@@ -68,16 +68,10 @@ Runtime -> prepare_submission -> RenderSubmission
 - public API snapshot 已更新并确认 `NdCanvas` 从 `module.graphics` 和
   `module.render` 消失。
 
-`cargo xtask check --full` 的 fmt、facade、第三方类型、API snapshot、hot-path、
-Core I/O、Kurbo、Native/Web Vello 与 workspace Clippy 阶段全部通过；最终仅在
-`workspace.test` 被下述既有问题阻断。
-
-## 已知独立阻断
-
-- workspace `cfg(test)` 仍受此前 Builder `Result` 迁移未完成影响，共 405 个编译错误；
-- 部分 integration test 与 Editor test 仍使用 TC-13 收窄前的 root facade 导入。
-
-这些问题不属于 TC-01；TC-01 定向合同和生产 workspace 编译不依赖旧调用面。
+首次 `cargo xtask check --full` 在 workspace `cfg(test)` 的 Builder `Result` 与
+TC-13 facade 迁移遗漏处阻断。2026-10-09 后续批次已完成 test-only fallible
+construction helper 与领域模块导入迁移；`cargo xtask check --full` 现已全部通过，
+包括 workspace Clippy、全部单元/集成测试和 doctest。
 
 ## 关系
 

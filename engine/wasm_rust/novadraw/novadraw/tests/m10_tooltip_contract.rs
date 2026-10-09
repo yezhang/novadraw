@@ -1,9 +1,7 @@
 use std::time::Duration;
 
-use novadraw::{
-    FigureId, FigureStyle, MonotonicTime, MouseButton, RectangleFigure, Runtime, TooltipTiming,
-    TooltipUpdate,
-};
+use novadraw::event::{MonotonicTime, MouseButton, TooltipTiming, TooltipUpdate};
+use novadraw::{FigureId, FigureStyle, RectangleFigure, Runtime};
 
 fn tooltip_runtime() -> (Runtime, FigureId, FigureId, FigureId) {
     let mut runtime = Runtime::empty();

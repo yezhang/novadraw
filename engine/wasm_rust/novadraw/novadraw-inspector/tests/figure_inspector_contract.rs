@@ -1,10 +1,9 @@
 use std::num::NonZeroUsize;
 
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
-use novadraw::{
-    FigureEvent, FigureTree, FramePreparation, NotificationEffect, Rectangle, RectangleFigure,
-    Runtime, StableQueryError,
-};
+use novadraw::runtime::StableQueryError;
+use novadraw::runtime::update::{FigureEvent, NotificationEffect};
+use novadraw::{FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime};
 use novadraw_inspector::FigureInspector;
 
 const EVENT_CAPACITY: usize = 32;
@@ -40,7 +39,9 @@ fn stabilize(runtime: &mut Runtime) {
 fn runtime_with_contents() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
     let mut tree = FigureTree::new();
     let mut builder = tree.builder();
-    let contents = builder.set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 80.0)));
+    let contents = builder
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 120.0, 80.0)))
+        .expect("valid contents Figure");
     let child = builder
         .add_child(
             contents,

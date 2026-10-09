@@ -4,11 +4,11 @@ use support::prepare_next_submission;
 
 use std::sync::{Arc, Mutex};
 
-use novadraw::{
-    ActionEvent, ActionListener, ButtonFigure, ClickableFigure, ClickableKind, FigureId, Key,
-    KeyModifiers, ListenerDirective, MouseButton, Rectangle, RectangleFigure, Runtime,
-    ToggleFigure,
+use novadraw::event::{
+    ActionEvent, ActionListener, Key, KeyModifiers, ListenerDirective, MouseButton,
 };
+use novadraw::figure::{ButtonFigure, ClickableFigure, ClickableKind, ToggleFigure};
+use novadraw::{FigureId, Rectangle, RectangleFigure, Runtime};
 
 struct ActionRecorder(Arc<Mutex<Vec<ActionEvent>>>);
 

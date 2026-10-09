@@ -1,5 +1,6 @@
 use novadraw::render::{BackendCapabilities, DamageMode, RenderDisposition, SurfaceInfo};
-use novadraw::{FigureTree, LogicalViewportResizeError, Rectangle, RectangleFigure, Runtime};
+use novadraw::runtime::LogicalViewportResizeError;
+use novadraw::{FigureTree, Rectangle, RectangleFigure, Runtime};
 
 fn surface(width: u32, height: u32) -> SurfaceInfo {
     SurfaceInfo {

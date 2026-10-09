@@ -2,12 +2,13 @@ mod support;
 
 use support::prepare_next_submission;
 
-use novadraw::connection::{ConnectionRoutingStats, UnresolvedConnection};
-use novadraw::geometry::{Point, Rectangle};
-use novadraw::{
-    ChopboxAnchor, ConnectionFigure, ConnectionResolution, CoordinateSpace, RectangleFigure,
-    RouteError, RouterBinding, Runtime, ShortestPathConnectionRouter,
+use novadraw::connection::{
+    ChopboxAnchor, ConnectionFigure, ConnectionResolution, ConnectionRoutingStats,
+    ConnectionRuntimeError, CoordinateSpace, RouteError, RouterBinding,
+    ShortestPathConnectionRouter, UnresolvedConnection,
 };
+use novadraw::geometry::{Point, Rectangle};
+use novadraw::{RectangleFigure, Runtime};
 
 const CLEARANCE: f64 = 10.0;
 
@@ -198,7 +199,7 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
 
     assert!(matches!(
         runtime.resolve_connection_route(connections[0].0, CoordinateSpace::ChildContent(root)),
-        Err(novadraw::ConnectionRuntimeError::Unresolved(
+        Err(ConnectionRuntimeError::Unresolved(
             UnresolvedConnection::RouteFailed(RouteError::NoObstacleFreePath)
         ))
     ));
