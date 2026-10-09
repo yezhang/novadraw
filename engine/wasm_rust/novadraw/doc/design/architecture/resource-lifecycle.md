@@ -291,21 +291,29 @@ ResourceId -> dependent FigureId set
 
 依赖 Figure 删除后，Runtime 在稳定事务边界清理失效引用。
 
-## 11. 异步加载 token
+## 11. ResourceProvider 与异步加载 token
 
-未来平台 loader 使用：
+平台或应用 provider 使用：
 
 ```text
-begin_load(ResourceId) -> ResourceRequestToken
-complete(token, payload)
-fail(token, reason)
+begin_resource_request(ResourceId) -> ResourceRequestToken
+provider.load(Path / URL) -> bytes
+decode(bytes) -> payload
+complete(token, payload) / fail(token, diagnostic)
 ```
 
-每个 ResourceId 只有最新 token 可提交结果。旧 token 返回 `StaleResourceCompletion`，
+每个 ResourceId 只有最新 token 可提交结果。旧 token 返回 `ResourceError::StaleRequest`，
 不得改变 Registry revision、pending op log 或依赖 Figure。
 
-D4.2 不实现线程池、Web Worker、网络 loader、解码尺寸或内存预算；这些在真实异步产品
-路径出现前保持契约。
+该合同已由 ADR-030 实现。Core 不持有 provider，也不访问文件系统或 URL：
+
+- `FileResourceProvider` 位于 Native platform package；
+- `FetchResourceProvider` 位于 Web platform package；
+- Core 只接收 bytes 或 decoded payload；
+- provider error、decode error 与 Runtime mutation error 保持不同类型；
+- direct completion 会使 active request token 失效。
+
+线程池、Web Worker、provider cache、解码尺寸和内存预算仍由具体应用决定。
 
 ## 12. 扩展点
 

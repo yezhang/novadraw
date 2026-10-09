@@ -231,7 +231,7 @@ Native surface 局部修复验收尚未闭合）。
 3. Paint/linear gradient 贯通形状、路径和 glyph，以及多能力与非法输入拒绝；
 4. 反馈 layer 替代 XOR 交互用途，完成外部消费者及 Native/Web 视觉验收。
 
-公共 IR、RenderOutcome 错误边界与 XOR 处置已获批准；
+公共 IR、现由 ADR-029 统一的 `RenderResult` 错误边界与 XOR 处置已获批准；
 `core.p2-g01-graphics` 已登记，随切片加入对应验证。毕业仍要求 Core IR、
 Vello lowering、失败原子性和视觉证据全部闭合。
 本项不推进后置的 WindowServer/Chrome 性能采证或原生 runner 建设。

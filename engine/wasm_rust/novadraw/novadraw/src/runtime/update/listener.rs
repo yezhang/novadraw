@@ -8,7 +8,7 @@
 //! - Zed：状态变化和 typed event 分离，通知先进入 effect 队列，等待事务边界 flush
 
 use crate::geometry::Rectangle;
-use crate::render::{DamageMode, FrameId, RenderOutcome};
+use crate::render::{DamageMode, FrameId, RenderResult};
 
 use super::property::PropertyChangeEvent;
 use crate::graph::FigureId;
@@ -64,7 +64,7 @@ pub enum UpdateEvent {
     /// 后端已返回该提交的处理结果。
     Submitted {
         frame_id: FrameId,
-        outcome: RenderOutcome,
+        result: RenderResult,
     },
 }
 

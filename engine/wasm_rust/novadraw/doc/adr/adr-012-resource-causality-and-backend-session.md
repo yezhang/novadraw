@@ -107,13 +107,13 @@ session reset 原子执行：
 旧 in-flight delta 不需要恢复到新 session；新的 Ready snapshot 从 Registry 真值重建
 完整基线。
 
-### 6. 异步请求 token 只定义契约
+### 6. 异步请求 token
 
-未来异步 loader 的每次请求必须携带 resource-local request token。只有仍匹配当前请求
-的完成消息才能进入 Registry，过期完成不得覆盖更新请求。
+异步 loader 的每次请求必须携带 resource-local request token。只有仍匹配当前请求的
+完成消息才能进入 Registry，过期完成不得覆盖更新请求。
 
-D4.2 仅固定 token 契约；在 worker/network loader 成为产品路径前，不引入线程池、
-解码队列或资源预算实现。
+该合同已由 ADR-030 实现；Native/Web provider 只返回 bytes，Core request token 负责
+发布仲裁。线程池、解码队列、provider cache 和资源预算仍不进入 Core。
 
 ## 后果
 

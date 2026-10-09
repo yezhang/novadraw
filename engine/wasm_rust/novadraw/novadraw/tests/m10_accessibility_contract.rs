@@ -1,4 +1,4 @@
-use novadraw::render::{BackendCapabilities, BuiltinFont, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, BuiltinFont, RenderDisposition, SurfaceInfo};
 use novadraw::{
     AccessibilityAction, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate,
     AccessibleFigure, ButtonFigure, Figure, FigureId, FigureTree, FramePreparation, MAX_TREE_DEPTH,
@@ -51,11 +51,13 @@ fn publish(runtime: &mut Runtime) {
     if let FramePreparation::Ready(submission) =
         runtime.prepare_submission(surface(), BackendCapabilities::FULL_FRAME_ONLY)
     {
-        runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
     }
 }
 

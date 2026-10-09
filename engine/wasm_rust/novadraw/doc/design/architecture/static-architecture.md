@@ -438,7 +438,7 @@ pub struct RenderSubmission {
 
 pub trait RenderBackend {
     fn capabilities(&self) -> BackendCapabilities;
-    fn submit(&mut self, frame: &RenderSubmission) -> RenderOutcome;
+    fn submit(&mut self, frame: &RenderSubmission) -> RenderResult;
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64);
 }
 ```

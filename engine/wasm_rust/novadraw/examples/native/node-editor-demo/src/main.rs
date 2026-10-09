@@ -13,7 +13,8 @@ use novadraw::container::FreeformLayerFigure;
 use novadraw::event::{KeyModifiers, MonotonicTime};
 use novadraw::figure::{Alignment, FlowPage, FlowWrapping, border::LineBorder};
 use novadraw::host::PlatformHost;
-use novadraw::render::{RenderBackend, RenderOutcome, SurfaceInfo};
+use novadraw::render::{RenderBackend, SurfaceInfo};
+use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw::{
     Color, Figure, FigureStyle, FramePreparation, LabelFigure, Point, PolylineFigure, Rectangle,
     RectangleFigure, TextFlowFigure,
@@ -1607,6 +1608,7 @@ struct DemoApp {
     modifiers: KeyModifiers,
     last_autoexpose_step: Option<Instant>,
     clock_origin: Instant,
+    session_invalidated_by_runtime: bool,
 }
 
 impl DemoApp {
@@ -1621,6 +1623,7 @@ impl DemoApp {
             modifiers: KeyModifiers::default(),
             last_autoexpose_step: None,
             clock_origin: Instant::now(),
+            session_invalidated_by_runtime: false,
         }
     }
 
@@ -1676,11 +1679,11 @@ impl DemoApp {
         self.request_redraw();
     }
 
-    fn render(&mut self) {
+    fn render(&mut self) -> bool {
         let (Some(editor), Some(renderer), Some(host)) =
             (&mut self.editor, &mut self.renderer, &self.host)
         else {
-            return;
+            return false;
         };
         let preparation = editor.prepare_submission(host.surface_info(), renderer.capabilities());
         let submission = match preparation {
@@ -1688,13 +1691,32 @@ impl DemoApp {
             FramePreparation::Error(error) => panic!("frame preparation failed: {error}"),
             FramePreparation::Idle
             | FramePreparation::Suspended
-            | FramePreparation::AwaitingCompletion => return,
+            | FramePreparation::AwaitingCompletion => return false,
         };
-        let outcome = renderer.submit(&submission);
-        editor.complete_submission(submission.session_id, submission.frame_id, outcome);
-        if outcome == RenderOutcome::Retry || editor.runtime().has_pending_update() {
-            host.request_redraw();
+        let result = renderer.submit(&submission);
+        let acknowledgement = editor
+            .complete_submission(submission.session_id, submission.frame_id, result)
+            .expect("prepared editor frame must match its completion");
+        match acknowledgement {
+            SubmissionAcknowledgement::Presented => {
+                if editor.runtime().has_pending_update() {
+                    host.request_redraw();
+                }
+            }
+            SubmissionAcknowledgement::Skipped
+            | SubmissionAcknowledgement::Retry
+            | SubmissionAcknowledgement::SurfaceInvalidated { .. } => host.request_redraw(),
+            SubmissionAcknowledgement::BackendSessionInvalidated { .. } => {
+                self.session_invalidated_by_runtime = true;
+                self.renderer = None;
+                return true;
+            }
+            SubmissionAcknowledgement::Rejected(failure)
+            | SubmissionAcknowledgement::Terminated(failure) => {
+                panic!("render backend stopped: {failure}");
+            }
         }
+        false
     }
 
     fn update_title(&self) {
@@ -1790,13 +1812,16 @@ impl ApplicationHandler<()> for DemoApp {
         self.host = Some(WinitPlatformHost::new(Arc::clone(&window)));
         self.window = Some(window);
 
-        if let Some(editor) = &mut self.editor {
+        if let Some(editor) = &mut self.editor
+            && !self.session_invalidated_by_runtime
+        {
             editor
                 .reset_backend_session()
                 .expect("backend session reset failed");
-        } else {
+        } else if self.editor.is_none() {
             self.editor = Some(EditorHarness::new().expect("demo editor construction failed"));
         }
+        self.session_invalidated_by_runtime = false;
         self.update_title();
         self.request_redraw();
     }
@@ -1810,7 +1835,11 @@ impl ApplicationHandler<()> for DemoApp {
         self.advance_editor_time(Instant::now());
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::RedrawRequested => {
+                if self.render() {
+                    self.resumed(event_loop);
+                }
+            }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                 self.sync_surface();
             }

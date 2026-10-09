@@ -6,9 +6,9 @@ use std::{
 
 use crate::render::{
     BackendCapabilities, BackendSessionId, BuiltinFont, CaretGeometry, DamageMode, FontDescriptor,
-    FrameId, NdCanvas, RenderOutcome, RenderSubmission, ResourceSync, SelectionQuad, SurfaceInfo,
-    TextConstraints, TextError, TextInteractionError, TextLayout, TextLayoutEngine, TextMovement,
-    UnsupportedRenderCapability,
+    FrameId, NdCanvas, RenderDisposition, RenderFailure, RenderFailureDiagnostic, RenderResult,
+    RenderSubmission, ResourceSync, SelectionQuad, SurfaceInfo, TextConstraints, TextError,
+    TextInteractionError, TextLayout, TextLayoutEngine, TextMovement, UnsupportedRenderCapability,
 };
 
 use crate::animation::{AnimationMut, AnimationService};
@@ -160,6 +160,46 @@ pub enum BackendSessionError {
     Exhausted,
 }
 
+/// Runtime recovery decision after one backend submission result.
+#[must_use = "the host must apply the Runtime's render recovery decision"]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SubmissionAcknowledgement {
+    /// The frame and its resource cursor were committed.
+    Presented,
+    /// The frame was intentionally not published and remains pending.
+    Skipped,
+    /// The frame remains pending on the current backend session.
+    Retry,
+    /// The current surface must be recovered before retrying the frame.
+    SurfaceInvalidated { diagnostic: RenderFailureDiagnostic },
+    /// The old backend session is invalid and the replacement must consume a new snapshot.
+    BackendSessionInvalidated {
+        previous_session: BackendSessionId,
+        next_session: BackendSessionId,
+        diagnostic: RenderFailureDiagnostic,
+    },
+    /// The backend deterministically rejected this submission.
+    Rejected(RenderFailure),
+    /// Automatic submission must stop until the application replaces or repairs the backend.
+    Terminated(RenderFailure),
+}
+
+/// Failure to match a backend result to the Runtime's in-flight frame.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SubmissionCompletionError {
+    Faulted,
+    NoInFlightFrame,
+    MismatchedSession {
+        expected: BackendSessionId,
+        actual: BackendSessionId,
+    },
+    MismatchedFrame {
+        expected: FrameId,
+        actual: FrameId,
+    },
+    BackendSessionExhausted,
+}
+
 /// Cumulative work counters for Runtime-owned text layout refreshes.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TextLayoutStats {
@@ -183,6 +223,28 @@ impl fmt::Display for BackendSessionError {
 }
 
 impl std::error::Error for BackendSessionError {}
+
+impl fmt::Display for SubmissionCompletionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Faulted => formatter.write_str("Runtime is faulted"),
+            Self::NoInFlightFrame => formatter.write_str("no render submission is in flight"),
+            Self::MismatchedSession { expected, actual } => write!(
+                formatter,
+                "submission session mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::MismatchedFrame { expected, actual } => write!(
+                formatter,
+                "submission frame mismatch: expected {expected:?}, got {actual:?}"
+            ),
+            Self::BackendSessionExhausted => {
+                formatter.write_str("backend session id space is exhausted")
+            }
+        }
+    }
+}
+
+impl std::error::Error for SubmissionCompletionError {}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LogicalViewportResizeError {
@@ -4834,7 +4896,7 @@ mod tests {
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![255, 0, 0, 255], 1.0))
             .unwrap();
@@ -4852,11 +4914,15 @@ mod tests {
                     && snapshot.ready[0].id == image.resource_id()
         ));
         assert_eq!(first.damage.mode(), DamageMode::Full);
-        assert!(runtime.complete_submission(
-            first.session_id,
-            first.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    first.session_id,
+                    first.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
 
         runtime.request_full_redraw();
         let second = runtime
@@ -4864,11 +4930,15 @@ mod tests {
             .into_ready()
             .unwrap();
         assert_eq!(second.frame_id, first.frame_id.next());
-        assert!(runtime.complete_submission(
-            second.session_id,
-            second.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    second.session_id,
+                    second.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
         assert!(matches!(
             runtime.prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::Idle
@@ -4885,13 +4955,15 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![0, 0, 0, 0], 1.0))
             .unwrap();
@@ -4926,13 +4998,15 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .add_resource_dependency(image.resource_id(), child)
             .unwrap();
@@ -4967,7 +5041,7 @@ mod tests {
         let old_contents = runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .add_resource_dependency(image.resource_id(), old_contents)
             .unwrap();
@@ -4975,11 +5049,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
@@ -4988,11 +5064,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            replacement.session_id,
-            replacement.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                replacement.session_id,
+                replacement.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![255; 4], 1.0))
             .unwrap();
@@ -5017,11 +5095,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         runtime
             .set_bounds(
@@ -5034,11 +5114,13 @@ mod tests {
             .into_ready()
             .unwrap();
         assert_eq!(partial.damage.mode(), DamageMode::Partial);
-        runtime.complete_submission(
-            partial.session_id,
-            partial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                partial.session_id,
+                partial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         runtime
             .set_bounds(
@@ -5063,11 +5145,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         assert!(
             runtime
@@ -5088,7 +5172,7 @@ mod tests {
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(
                 image,
@@ -5099,11 +5183,15 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        assert!(runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Retry
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    initial.session_id,
+                    initial.frame_id,
+                    Ok(RenderDisposition::Retry)
+                )
+                .is_ok()
+        );
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5116,7 +5204,13 @@ mod tests {
                 if snapshot.ready.len() == 1
                     && snapshot.ready[0].id == image.resource_id()
         ));
-        runtime.complete_submission(retry.session_id, retry.frame_id, RenderOutcome::Presented);
+        runtime
+            .complete_submission(
+                retry.session_id,
+                retry.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         let resized = runtime
             .prepare_submission(surface(120, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5139,13 +5233,15 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
             .unwrap();
@@ -5156,11 +5252,13 @@ mod tests {
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
             .unwrap();
-        runtime.complete_submission(
-            first_update.session_id,
-            first_update.frame_id,
-            RenderOutcome::Retry,
-        );
+        runtime
+            .complete_submission(
+                first_update.session_id,
+                first_update.frame_id,
+                Ok(RenderDisposition::Retry),
+            )
+            .expect("frame completion");
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5191,13 +5289,15 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
             .unwrap();
@@ -5237,7 +5337,7 @@ mod tests {
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
             .unwrap();
@@ -5248,11 +5348,15 @@ mod tests {
 
         let new_session = runtime.reset_backend_session().unwrap();
         assert_ne!(new_session, old.session_id);
-        assert!(!runtime.complete_submission(
-            old.session_id,
-            old.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    old.session_id,
+                    old.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_err()
+        );
 
         let replacement = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5266,11 +5370,15 @@ mod tests {
                 if snapshot.ready.len() == 1
                     && snapshot.ready[0].id == image.resource_id()
         ));
-        assert!(runtime.complete_submission(
-            replacement.session_id,
-            replacement.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    replacement.session_id,
+                    replacement.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
 
         runtime.request_full_redraw();
         let redraw = runtime
@@ -5300,7 +5408,7 @@ mod tests {
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
             .unwrap();
@@ -5315,11 +5423,15 @@ mod tests {
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
             .unwrap();
-        assert!(runtime.complete_submission(
-            snapshot.session_id,
-            snapshot.frame_id,
-            RenderOutcome::Retry
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    snapshot.session_id,
+                    snapshot.frame_id,
+                    Ok(RenderDisposition::Retry)
+                )
+                .is_ok()
+        );
 
         let retry = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5344,7 +5456,7 @@ mod tests {
         runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
             .expect("valid Runtime mutation");
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![1; 4], 1.0))
             .unwrap();
@@ -5356,11 +5468,15 @@ mod tests {
         runtime
             .complete_image(image, ImageData::from_rgba(1, 1, vec![2; 4], 1.0))
             .unwrap();
-        assert!(runtime.complete_submission(
-            snapshot.session_id,
-            snapshot.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    snapshot.session_id,
+                    snapshot.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
 
         let delta = runtime
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
@@ -5388,11 +5504,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            initial.session_id,
-            initial.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                initial.session_id,
+                initial.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         let hidpi_surface = SurfaceInfo {
             logical_width: 100.0,
@@ -5443,11 +5561,15 @@ mod tests {
             runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::AwaitingCompletion
         ));
-        assert!(runtime.complete_submission(
-            first.session_id,
-            first.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    first.session_id,
+                    first.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
         assert!(matches!(
             runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
             FramePreparation::Idle
@@ -5522,11 +5644,13 @@ mod tests {
             .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Presented,
-        );
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("frame completion");
 
         let events = events.lock().unwrap();
         let validated = events
@@ -5775,7 +5899,7 @@ mod adr014_tests {
             .unwrap();
         let global = runtime.add_update_listener(Box::new(()));
         let router = runtime.register_connection_router(Box::new(DirectRouter));
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .add_resource_dependency(image.resource_id(), owner)
             .unwrap();
@@ -5947,7 +6071,7 @@ mod adr014_tests {
     #[test]
     fn moving_runtime_preserves_registry_identity_and_state() {
         let (mut runtime, _) = scene();
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         let listener = runtime.add_update_listener(Box::new(()));
         let router = runtime.register_connection_router(Box::new(DirectRouter));
         let session = runtime.backend_session_id();

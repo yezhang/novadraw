@@ -6,6 +6,8 @@ mod dom_text_input;
 mod edit_context;
 mod host;
 mod input;
+#[cfg(all(feature = "resource", target_arch = "wasm32"))]
+mod resource;
 #[cfg(feature = "editor")]
 mod text_input;
 
@@ -18,6 +20,8 @@ pub use input::{
     AdaptedGesture, AdaptedKeyInput, WebInputAdapter, WebPointerInput, WebWheelDeltaMode,
     adapt_key_input, adapt_pointer_button,
 };
+#[cfg(all(feature = "resource", target_arch = "wasm32"))]
+pub use resource::{FetchResourceProvider, WebResourceError};
 #[cfg(feature = "editor")]
 pub use text_input::{
     WebEditContextBridge, WebTextInputAction, WebTextInputBridge, WebTextOffsetError,

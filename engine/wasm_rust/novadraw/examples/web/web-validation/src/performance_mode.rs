@@ -4,10 +4,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use novadraw::render::submission::{BackendSessionId, FrameId};
-use novadraw::{
-    Color, FigureTree, FramePreparation, RectangleFigure, RenderBackend, RenderOutcome, Runtime,
-    SurfaceInfo,
-};
+use novadraw::render::{RenderBackend, RenderDisposition, SurfaceInfo};
+use novadraw::runtime::SubmissionAcknowledgement;
+use novadraw::{Color, FigureTree, FramePreparation, RectangleFigure, Runtime};
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
 use wasm_bindgen::JsCast;
@@ -236,11 +235,13 @@ impl PerformanceBenchmark {
         let outcome = self.backend.submit(&submission);
         let submit_returned_at_ms = browser_now(&self.window)?;
         let backend_submit_cpu_ns = duration_ns(submit_started_at_ms, submit_returned_at_ms)?;
-        if outcome != RenderOutcome::Presented {
-            self.runtime
-                .complete_submission(session_id, frame_id, outcome);
+        if outcome != Ok(RenderDisposition::Presented) {
+            let acknowledgement = self
+                .runtime
+                .complete_submission(session_id, frame_id, outcome.clone())
+                .expect("failed performance frame completion");
             return Err(JsValue::from_str(&format!(
-                "performance Vello submission returned {outcome:?}"
+                "performance Vello submission returned {outcome:?} ({acknowledgement:?})"
             )));
         }
 
@@ -277,11 +278,19 @@ impl PerformanceBenchmark {
                 "GPU completion callback did not provide a browser timestamp",
             ));
         }
-        self.runtime.complete_submission(
-            pending.session_id,
-            pending.frame_id,
-            RenderOutcome::Presented,
-        );
+        let acknowledgement = self
+            .runtime
+            .complete_submission(
+                pending.session_id,
+                pending.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .expect("completed performance frame acknowledgement");
+        if acknowledgement != SubmissionAcknowledgement::Presented {
+            return Err(JsValue::from_str(&format!(
+                "presented performance frame produced {acknowledgement:?}"
+            )));
+        }
         let sample = FrameSample {
             prepare_submission_ns: pending.prepare_submission_ns,
             backend_submit_cpu_ns: pending.backend_submit_cpu_ns,

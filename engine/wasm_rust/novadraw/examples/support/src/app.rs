@@ -13,8 +13,10 @@ pub use novadraw::host::PlatformHost;
 pub use novadraw::render::command::RenderCommand;
 pub use novadraw::render::text::{FontDescriptor, TextConstraints};
 pub use novadraw::render::{
-    BackendCapabilities, NdCanvas, RenderBackend, RenderOutcome, SurfaceInfo,
+    BackendCapabilities, NdCanvas, RenderBackend, RenderDisposition, RenderFailure, RenderResult,
+    SurfaceInfo,
 };
+use novadraw::runtime::SubmissionAcknowledgement;
 pub use novadraw::{Color, FigureId, FigureTree, FramePreparation, Rectangle, Runtime};
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
@@ -89,6 +91,7 @@ pub struct DemoApp {
     clock_origin: Instant,
     initial_frame_presented: bool,
     initial_frame_attempts: usize,
+    session_invalidated_by_runtime: bool,
 }
 
 impl DemoApp {
@@ -124,6 +127,7 @@ impl DemoApp {
             clock_origin: Instant::now(),
             initial_frame_presented: false,
             initial_frame_attempts: 0,
+            session_invalidated_by_runtime: false,
         }
     }
 
@@ -174,15 +178,15 @@ impl DemoApp {
     }
 
     /// 渲染当前场景
-    pub fn render(&mut self) -> RenderOutcome {
+    pub fn render(&mut self) -> RenderResult {
         let Some(host) = &self.host else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         let Some(renderer) = &mut self.renderer else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         let Some(runtime) = &mut self.runtime else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
 
         let surface = host.surface_info();
@@ -197,35 +201,48 @@ impl DemoApp {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(_) => {
                 self.sync_platform_effects();
-                return RenderOutcome::Retry;
+                return Ok(RenderDisposition::Retry);
             }
             FramePreparation::Idle
             | FramePreparation::Suspended
             | FramePreparation::AwaitingCompletion => {
                 self.sync_platform_effects();
-                return RenderOutcome::Skipped;
+                return Ok(RenderDisposition::Skipped);
             }
         };
         submission.commands.extend(tooltip_commands);
-        let outcome = renderer.submit(&submission);
-        runtime.complete_submission(submission.session_id, submission.frame_id, outcome);
-        if outcome == RenderOutcome::Retry {
-            host.request_redraw();
+        let result = renderer.submit(&submission);
+        let acknowledgement = runtime
+            .complete_submission(submission.session_id, submission.frame_id, result.clone())
+            .expect("prepared native frame must match its completion");
+        match acknowledgement {
+            SubmissionAcknowledgement::Presented => {}
+            SubmissionAcknowledgement::Skipped
+            | SubmissionAcknowledgement::Retry
+            | SubmissionAcknowledgement::SurfaceInvalidated { .. } => host.request_redraw(),
+            SubmissionAcknowledgement::BackendSessionInvalidated { .. } => {
+                self.session_invalidated_by_runtime = true;
+                self.renderer = None;
+            }
+            SubmissionAcknowledgement::Rejected(failure)
+            | SubmissionAcknowledgement::Terminated(failure) => {
+                eprintln!("render backend stopped: {failure}");
+            }
         }
-        self.record_interactive_frame_outcome(outcome);
+        self.record_interactive_frame_outcome(&result);
         self.sync_platform_effects();
-        outcome
+        result
     }
 
-    fn render_screenshot_frame(&mut self) -> RenderOutcome {
+    fn render_screenshot_frame(&mut self) -> RenderResult {
         let Some(host) = &self.host else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         let Some(renderer) = &mut self.renderer else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         let Some(runtime) = &mut self.runtime else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         runtime.request_full_redraw();
         let surface = host.surface_info();
@@ -238,20 +255,29 @@ impl DemoApp {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(_) => {
                 self.sync_platform_effects();
-                return RenderOutcome::Retry;
+                return Ok(RenderDisposition::Retry);
             }
             FramePreparation::Idle
             | FramePreparation::Suspended
             | FramePreparation::AwaitingCompletion => {
                 self.sync_platform_effects();
-                return RenderOutcome::Skipped;
+                return Ok(RenderDisposition::Skipped);
             }
         };
         submission.commands.extend(tooltip_commands);
-        let outcome = renderer.render_for_screenshot(&submission);
-        runtime.complete_submission(submission.session_id, submission.frame_id, outcome);
+        let result = renderer.render_for_screenshot(&submission);
+        let acknowledgement = runtime
+            .complete_submission(submission.session_id, submission.frame_id, result.clone())
+            .expect("prepared screenshot frame must match its completion");
+        if matches!(
+            acknowledgement,
+            SubmissionAcknowledgement::BackendSessionInvalidated { .. }
+        ) {
+            self.session_invalidated_by_runtime = true;
+            self.renderer = None;
+        }
         self.sync_platform_effects();
-        outcome
+        result
     }
 
     fn dispatch_input(&mut self, action: impl FnOnce(&mut Runtime)) {
@@ -377,7 +403,12 @@ impl DemoApp {
         }
 
         info!("截图场景 {}...", idx);
-        let presented = self.render_screenshot_frame() == RenderOutcome::Presented;
+        let result = self.render_screenshot_frame();
+        if matches!(result, Err(RenderFailure::DeviceLost(_))) {
+            self.resumed(event_loop);
+            return;
+        }
+        let presented = result == Ok(RenderDisposition::Presented);
         if !presented {
             self.screenshot_attempts += 1;
             if self.screenshot_attempts >= SCREENSHOT_RENDER_RETRY_LIMIT {
@@ -468,11 +499,15 @@ impl ApplicationHandler<()> for DemoApp {
         self.renderer = Some(renderer);
         self.initial_frame_presented = false;
         self.initial_frame_attempts = 0;
-        if is_backend_replacement && let Some(runtime) = &mut self.runtime {
+        if is_backend_replacement
+            && !self.session_invalidated_by_runtime
+            && let Some(runtime) = &mut self.runtime
+        {
             runtime
                 .reset_backend_session()
                 .expect("backend session id space exhausted");
         }
+        self.session_invalidated_by_runtime = false;
 
         // 创建初始场景（通过 switch_scene 以更新窗口标题）
         if self.runtime.is_none() && !self.scenes.is_empty() {
@@ -514,7 +549,16 @@ impl ApplicationHandler<()> for DemoApp {
                 if self.screenshot_mode.is_some() {
                     return;
                 }
-                let _ = self.render();
+                match self.render() {
+                    Err(RenderFailure::DeviceLost(_)) => self.resumed(event_loop),
+                    Err(
+                        RenderFailure::Unsupported(_)
+                        | RenderFailure::InvalidInput(_)
+                        | RenderFailure::OutOfMemory(_)
+                        | RenderFailure::Fatal(_),
+                    ) => event_loop.exit(),
+                    Ok(_) | Err(RenderFailure::SurfaceLost(_)) => {}
+                }
             }
             WindowEvent::Resized(_) => {
                 self.request_surface_redraw();
@@ -780,11 +824,11 @@ impl ApplicationHandler<()> for DemoApp {
 }
 
 impl DemoApp {
-    fn record_interactive_frame_outcome(&mut self, outcome: RenderOutcome) {
+    fn record_interactive_frame_outcome(&mut self, result: &RenderResult) {
         if self.initial_frame_presented {
             return;
         }
-        if outcome == RenderOutcome::Presented {
+        if result == &Ok(RenderDisposition::Presented) {
             self.initial_frame_presented = true;
             self.initial_frame_attempts = 0;
         } else {
@@ -1100,15 +1144,15 @@ mod tests {
     fn initial_frame_remains_pending_until_presentation_succeeds() {
         let mut app = DemoApp::new("test", Vec::new(), 100.0, 100.0, "test", None);
 
-        app.record_interactive_frame_outcome(RenderOutcome::Skipped);
+        app.record_interactive_frame_outcome(&Ok(RenderDisposition::Skipped));
         assert!(!app.initial_frame_presented);
         assert_eq!(app.initial_frame_attempts, 1);
 
-        app.record_interactive_frame_outcome(RenderOutcome::Retry);
+        app.record_interactive_frame_outcome(&Ok(RenderDisposition::Retry));
         assert!(!app.initial_frame_presented);
         assert_eq!(app.initial_frame_attempts, 2);
 
-        app.record_interactive_frame_outcome(RenderOutcome::Presented);
+        app.record_interactive_frame_outcome(&Ok(RenderDisposition::Presented));
         assert!(app.initial_frame_presented);
         assert_eq!(app.initial_frame_attempts, 0);
     }
@@ -1189,11 +1233,15 @@ mod tests {
             )
             .into_ready()
             .unwrap();
-        assert!(runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    submission.session_id,
+                    submission.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
         assert!(!runtime.has_pending_update());
 
         app.request_surface_redraw();
@@ -1227,11 +1275,15 @@ mod tests {
             )
             .into_ready()
             .unwrap();
-        assert!(runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    submission.session_id,
+                    submission.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
         assert!(!runtime.has_pending_update());
 
         app.handle_window_focus(true);
@@ -1255,22 +1307,30 @@ mod tests {
             .unwrap();
         assert!(!runtime.has_pending_update());
 
-        assert!(runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Skipped
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    submission.session_id,
+                    submission.frame_id,
+                    Ok(RenderDisposition::Skipped)
+                )
+                .is_ok()
+        );
         assert!(runtime.has_pending_update());
 
         let submission = runtime
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        assert!(runtime.complete_submission(
-            submission.session_id,
-            submission.frame_id,
-            RenderOutcome::Presented
-        ));
+        assert!(
+            runtime
+                .complete_submission(
+                    submission.session_id,
+                    submission.frame_id,
+                    Ok(RenderDisposition::Presented)
+                )
+                .is_ok()
+        );
         assert!(!runtime.has_pending_update());
     }
 

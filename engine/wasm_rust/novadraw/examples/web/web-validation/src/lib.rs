@@ -6,7 +6,7 @@ mod performance_mode;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::f64::consts::TAU;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 use novadraw::event::{
     AccessibilityNode, AccessibilityNodeId, AccessibilityRole, AccessibilityUpdate, EventContext,
@@ -15,14 +15,15 @@ use novadraw::event::{
 };
 use novadraw::figure::{Bounded, CursorIcon, Shape};
 use novadraw::graphics::{LineCap, LineJoin};
+use novadraw::host::PlatformHost;
 use novadraw::render::command::RenderCommandKind;
 use novadraw::render::submission::{BackendSessionDecision, BackendSessionGate};
 use novadraw::render::{
-    BackendCapabilities, DamageMode, RenderOutcome, RenderSubmission, SurfaceInfo,
+    BackendCapabilities, DamageMode, NdCanvas, RenderBackend, RenderDisposition, RenderFailure,
+    RenderFailureDiagnostic, RenderResult, RenderSubmission, SurfaceInfo,
 };
-use novadraw::{
-    Color, Figure, FramePreparation, NdCanvas, PlatformHost, Rectangle, RenderBackend, Runtime,
-};
+use novadraw::runtime::SubmissionAcknowledgement;
+use novadraw::{Color, Figure, FramePreparation, Rectangle, Runtime};
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_example_scenes::{
     DemoSuite, SceneSpec, ValidationKind, catalog,
@@ -181,9 +182,12 @@ impl Figure for WebProbeFigure {
 
     fn register_capabilities(
         &self,
-        out: &mut novadraw::FigureCapabilityBuilder,
-    ) -> Result<(), novadraw::FigureCapabilityRegistrationError> {
-        out.register(novadraw::INPUT, novadraw::InputCapability::of::<Self>())
+        out: &mut novadraw::figure::FigureCapabilityBuilder,
+    ) -> Result<(), novadraw::figure::FigureCapabilityRegistrationError> {
+        out.register(
+            novadraw::figure::INPUT,
+            novadraw::figure::InputCapability::of::<Self>(),
+        )
     }
 }
 
@@ -360,25 +364,27 @@ impl RenderBackend for Canvas2dBackend {
         BackendCapabilities::FULL_FRAME_ONLY
     }
 
-    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
         if let Err(error) = self
             .capabilities()
             .validate_capabilities(&submission.commands)
         {
-            return RenderOutcome::Unsupported(error);
+            return Err(RenderFailure::Unsupported(error));
         }
         if let Err(error) = novadraw::render::validate_graphics_input(
             &submission.commands,
             submission.surface.scale_factor,
         ) {
-            return RenderOutcome::InvalidGraphicsInput(error);
+            return Err(RenderFailure::InvalidInput(error));
         }
         match self
             .session_gate
             .accept(submission.session_id, &submission.resources)
         {
             BackendSessionDecision::RejectStale | BackendSessionDecision::RejectMissingSnapshot => {
-                return RenderOutcome::Skipped;
+                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "Canvas2D backend rejected the submission session",
+                )));
             }
             BackendSessionDecision::Initialize
             | BackendSessionDecision::Continue
@@ -480,7 +486,7 @@ impl RenderBackend for Canvas2dBackend {
                 _ => {}
             }
         }
-        RenderOutcome::Presented
+        Ok(RenderDisposition::Presented)
     }
 
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
@@ -523,7 +529,7 @@ impl RenderBackend for ValidationBackend {
         }
     }
 
-    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
         match self {
             Self::Vello(backend) => backend.submit(submission),
             Self::Canvas2d(backend) => backend.submit(submission),
@@ -603,6 +609,8 @@ struct WebValidationApp {
     scale_override: Option<f64>,
     capture_png: bool,
     clock_origin_millis: f64,
+    self_ref: Weak<RefCell<Self>>,
+    backend_recreation_pending: bool,
 }
 
 impl WebValidationApp {
@@ -724,6 +732,8 @@ impl WebValidationApp {
                 scale_override: None,
                 capture_png,
                 clock_origin_millis,
+                self_ref: weak.clone(),
+                backend_recreation_pending: false,
             })
         })
     }
@@ -832,6 +842,10 @@ impl WebValidationApp {
     }
 
     fn request_and_render(&mut self) {
+        if self.backend_recreation_pending {
+            self.sync_platform_effects();
+            return;
+        }
         self.host.set_cursor(self.runtime.cursor_icon());
         self.host.request_redraw();
         if !self.redraw_pending.replace(false) {
@@ -861,10 +875,10 @@ impl WebValidationApp {
             }
         };
         let damage = submission.damage.mode();
-        let outcome = self.backend.submit(&submission);
+        let result = self.backend.submit(&submission);
         // Capture before the browser discards a presented WebGPU canvas texture.
         // Explicitly opt in: normal validation and performance runs do no PNG encoding.
-        if self.capture_png && outcome == RenderOutcome::Presented {
+        if self.capture_png && result == Ok(RenderDisposition::Presented) {
             match self.canvas.to_data_url() {
                 Ok(png) => {
                     let _ = self.canvas.set_attribute("data-frame-png", &png);
@@ -878,11 +892,71 @@ impl WebValidationApp {
                 }
             }
         }
-        self.runtime
-            .complete_submission(submission.session_id, submission.frame_id, outcome);
+        let acknowledgement = self
+            .runtime
+            .complete_submission(submission.session_id, submission.frame_id, result)
+            .expect("prepared web frame must match its completion");
+        match acknowledgement {
+            SubmissionAcknowledgement::Presented => {}
+            SubmissionAcknowledgement::Skipped
+            | SubmissionAcknowledgement::Retry
+            | SubmissionAcknowledgement::SurfaceInvalidated { .. } => {
+                self.host.request_redraw();
+            }
+            SubmissionAcknowledgement::BackendSessionInvalidated { diagnostic, .. } => {
+                self.schedule_backend_recreation(diagnostic);
+            }
+            SubmissionAcknowledgement::Rejected(failure)
+            | SubmissionAcknowledgement::Terminated(failure) => {
+                set_text(
+                    &self.document,
+                    "runtime-status",
+                    &format!("Render backend stopped: {failure}"),
+                );
+            }
+        }
         self.sync_platform_effects();
         self.frame_count += 1;
         self.update_status(damage);
+    }
+
+    fn schedule_backend_recreation(&mut self, diagnostic: RenderFailureDiagnostic) {
+        if self.backend_recreation_pending {
+            return;
+        }
+        self.backend_recreation_pending = true;
+        set_text(
+            &self.document,
+            "runtime-status",
+            &format!("WebGPU device lost, recreating backend: {diagnostic}"),
+        );
+
+        let weak = self.self_ref.clone();
+        let window = self.window.clone();
+        let canvas = self.canvas.clone();
+        let surface = self.host.surface_info();
+        spawn_local(async move {
+            let result = create_backend(&window, &canvas, surface).await;
+            let Some(app) = weak.upgrade() else {
+                return;
+            };
+            let mut app = app.borrow_mut();
+            match result {
+                Ok(backend) => {
+                    app.backend = backend;
+                    app.backend_recreation_pending = false;
+                    app.request_and_render();
+                }
+                Err(error) => {
+                    app.backend_recreation_pending = false;
+                    set_text(
+                        &app.document,
+                        "runtime-status",
+                        &format!("WebGPU backend recreation failed: {error:?}"),
+                    );
+                }
+            }
+        });
     }
 
     fn advance_runtime_time(&mut self) {

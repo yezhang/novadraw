@@ -5,12 +5,14 @@ use std::{
     rc::{Rc, Weak},
 };
 
-use novadraw::figure::border::LineBorder;
-use novadraw::render::{BuiltinFont, DamageMode, SurfaceInfo};
+use novadraw::container::FreeformLayerFigure;
+use novadraw::event::{KeyModifiers, MouseButton};
+use novadraw::figure::{Alignment, FlowPage, FlowWrapping, TextFlowFigure, border::LineBorder};
+use novadraw::host::PlatformHost;
+use novadraw::render::{BuiltinFont, DamageMode, RenderBackend, SurfaceInfo};
+use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw::{
-    Alignment, Color, Figure, FigureStyle, FlowPage, FlowWrapping, FramePreparation,
-    FreeformLayerFigure, LabelFigure, MouseButton, PlatformHost, Point, Rectangle, RectangleFigure,
-    RenderBackend, TextFlowFigure,
+    Color, Figure, FigureStyle, FramePreparation, LabelFigure, Point, Rectangle, RectangleFigure,
 };
 use novadraw_editor::{
     Command, CommandError, DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest,
@@ -827,8 +829,27 @@ impl DirectEditWebApp {
         };
         let damage = submission.damage.mode();
         let outcome = self.backend.submit(&submission);
-        self.viewer
-            .complete_submission(submission.session_id, submission.frame_id, outcome);
+        let acknowledgement = self
+            .viewer
+            .complete_submission(submission.session_id, submission.frame_id, outcome)
+            .expect("prepared direct-edit frame must match its completion");
+        match acknowledgement {
+            SubmissionAcknowledgement::Presented => {}
+            SubmissionAcknowledgement::Skipped
+            | SubmissionAcknowledgement::Retry
+            | SubmissionAcknowledgement::SurfaceInvalidated { .. } => {
+                self.host.request_redraw();
+            }
+            SubmissionAcknowledgement::BackendSessionInvalidated { diagnostic, .. } => {
+                self.last_error = Some(format!(
+                    "WebGPU device lost during direct-edit validation: {diagnostic}"
+                ));
+            }
+            SubmissionAcknowledgement::Rejected(failure)
+            | SubmissionAcknowledgement::Terminated(failure) => {
+                self.last_error = Some(format!("render backend stopped: {failure}"));
+            }
+        }
         self.frame_count += 1;
         self.schedule_next_wake();
         self.update_status(damage);
@@ -995,8 +1016,8 @@ fn register_event(
     Ok(())
 }
 
-fn pointer_modifiers(event: &PointerEvent) -> novadraw::KeyModifiers {
-    novadraw::KeyModifiers {
+fn pointer_modifiers(event: &PointerEvent) -> KeyModifiers {
+    KeyModifiers {
         shift: event.shift_key(),
         control: event.ctrl_key(),
         alt: event.alt_key(),

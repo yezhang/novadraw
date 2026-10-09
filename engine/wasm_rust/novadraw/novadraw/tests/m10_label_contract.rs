@@ -231,7 +231,7 @@ fn label_cache_reshapes_only_when_measurement_inputs_change() {
 fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
     let mut runtime = Runtime::empty();
     runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
     runtime
         .complete_image(
             image,
@@ -251,7 +251,7 @@ fn label_icon_gap_placement_and_typed_mutations_are_transactional() {
                 .with_bounds(Rectangle::new(20.0, 20.0, 160.0, 40.0)),
         ))
         .expect("valid Runtime mutation");
-    let replacement = runtime.register_image();
+    let replacement = runtime.register_image().expect("image registration");
     runtime
         .complete_image(
             replacement,
@@ -343,7 +343,7 @@ fn text_placement_positions_text_relative_to_icon_in_all_four_directions() {
     ] {
         let mut runtime = Runtime::empty();
         runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
         runtime
             .complete_image(
                 image,
@@ -616,11 +616,13 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        initial.session_id,
-        initial.frame_id,
-        novadraw::render::RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            Ok(novadraw::render::RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     let initial_label_revision = runtime
         .label_text_layout(label)
         .unwrap()
@@ -639,11 +641,13 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        failed.session_id,
-        failed.frame_id,
-        novadraw::render::RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            failed.session_id,
+            failed.frame_id,
+            Ok(novadraw::render::RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     assert!(
         runtime
             .label_text_layout(label)
@@ -671,11 +675,13 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        recovered.session_id,
-        recovered.frame_id,
-        novadraw::render::RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            recovered.session_id,
+            recovered.frame_id,
+            Ok(novadraw::render::RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     let recovered_revision = runtime
         .label_text_layout(label)
         .unwrap()
@@ -688,11 +694,13 @@ fn font_failure_recovery_and_removal_refresh_label_and_title_snapshots() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        removed.session_id,
-        removed.frame_id,
-        novadraw::render::RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            removed.session_id,
+            removed.frame_id,
+            Ok(novadraw::render::RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     assert!(
         runtime
             .label_text_layout(label)
@@ -709,7 +717,7 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
         .expect("valid Runtime mutation");
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
     let figure = runtime
         .container(root)
         .unwrap()
@@ -746,11 +754,15 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::FillRect { .. }))
     );
-    assert!(runtime.complete_submission(
-        pending.session_id,
-        pending.frame_id,
-        novadraw::render::RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                pending.session_id,
+                pending.frame_id,
+                Ok(novadraw::render::RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 
     runtime
         .complete_image(image, ImageData::from_rgba(2, 1, vec![255; 8], 1.0))
@@ -769,11 +781,15 @@ fn image_figure_tracks_pending_ready_and_failed_resource_states() {
             .iter()
             .any(|command| matches!(command.kind, RenderCommandKind::Image { .. }))
     );
-    assert!(runtime.complete_submission(
-        ready.session_id,
-        ready.frame_id,
-        novadraw::render::RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                ready.session_id,
+                ready.frame_id,
+                Ok(novadraw::render::RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 
     runtime
         .fail_resource(image.resource_id(), "load failed")
@@ -806,7 +822,7 @@ fn removing_ready_image_clears_all_shared_figure_references() {
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
         .expect("valid Runtime mutation");
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
     runtime
         .complete_image(image, ImageData::from_rgba(2, 1, vec![255; 8], 1.0))
         .unwrap();
@@ -837,11 +853,15 @@ fn removing_ready_image_clears_all_shared_figure_references() {
             .count(),
         2
     );
-    assert!(runtime.complete_submission(
-        ready.session_id,
-        ready.frame_id,
-        novadraw::render::RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                ready.session_id,
+                ready.frame_id,
+                Ok(novadraw::render::RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 
     runtime.remove_resource(image.resource_id()).unwrap();
     let removed = runtime
@@ -871,11 +891,15 @@ fn removing_ready_image_clears_all_shared_figure_references() {
                 [novadraw::render::ResourceOp::Remove(id)] if *id == image.resource_id()
             )
     ));
-    assert!(runtime.complete_submission(
-        removed.session_id,
-        removed.frame_id,
-        novadraw::render::RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                removed.session_id,
+                removed.frame_id,
+                Ok(novadraw::render::RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
     assert!(matches!(
         runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
         novadraw::FramePreparation::Idle

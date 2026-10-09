@@ -58,6 +58,6 @@ pub use text::{
     TextMovement, TextPosition, TextRange,
 };
 pub use traits::{
-    BackendCapabilities, RenderBackend, RenderCapability, RenderOutcome,
-    UnsupportedRenderCapability,
+    BackendCapabilities, RenderBackend, RenderCapability, RenderDisposition, RenderFailure,
+    RenderFailureDiagnostic, RenderFailureKind, RenderResult, UnsupportedRenderCapability,
 };

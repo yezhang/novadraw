@@ -46,6 +46,8 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [026](adr-026-animation-and-presentation-plane.md) | 动画正交模型与 Presentation Plane | 已接受，实施中 | 2026-10-06 |
 | [027](adr-027-open-figure-capability-registry.md) | 开放的 Figure Capability Registry | 已接受，已验证 | 2026-10-08 |
 | [028](adr-028-typed-property-identity.md) | 类型化属性身份与异构通知日志 | 已接受，已验证 | 2026-10-08 |
+| [029](adr-029-structured-render-backend-failure.md) | 结构化 RenderBackend 失败与恢复确认 | 已接受，已验证 | 2026-10-08 |
+| [030](adr-030-resource-provider-and-request-token-boundary.md) | ResourceProvider 与资源请求 Token 边界 | 已接受，已验证 | 2026-10-09 |
 
 ## 现行与历史隔离
 

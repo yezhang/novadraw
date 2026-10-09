@@ -33,13 +33,15 @@ pub use mutation::{
     RuntimeMutationError,
 };
 pub use resource::{
-    FontId, ImageId, ResourceError, ResourceKind, ResourceRegistry, ResourceStatus,
+    FontId, ImageCompletionError, ImageId, ResourceError, ResourceKind, ResourceRegistry,
+    ResourceRequestToken, ResourceStatus,
 };
 pub use runtime::{
     BackendSessionError, BorderMut, ClickableMut, ContainerMut, FigureMut, FrameNotReady,
     FramePreparation, FramePreparationError, ImageMut, LabelMut, LogicalViewportResizeError,
     PointListMut, RoundedRectangleMut, Runtime, ScalablePolygonMut, ScaleMut, ScrollPaneMut,
-    TextFlowMut, TextFlowQueryError, TextLayoutStats, TriangleMut, ViewportMut, ZoomMut,
+    SubmissionAcknowledgement, SubmissionCompletionError, TextFlowMut, TextFlowQueryError,
+    TextLayoutStats, TriangleMut, ViewportMut, ZoomMut,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

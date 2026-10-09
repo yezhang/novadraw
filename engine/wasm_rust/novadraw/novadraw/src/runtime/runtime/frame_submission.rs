@@ -4,8 +4,9 @@ use super::{
     BackendCapabilities, BackendSessionId, ConnectionRuntimeError, ConnectionStateSnapshot,
     CoordinateSpace, DERIVED_STATE_FEEDBACK_LIMIT, DERIVED_WORK_KIND_COUNT, DamageMode,
     DerivedWorkKind, DerivedWorkSet, FigureTreeSceneRead, FrameId, FramePreparation,
-    FramePreparationError, InFlightFrame, NdCanvas, RenderOutcome, ResourceSync, Runtime,
-    SurfaceInfo, UpdateEvent,
+    FramePreparationError, InFlightFrame, NdCanvas, RenderDisposition, RenderFailure, RenderResult,
+    ResourceSync, Runtime, SubmissionAcknowledgement, SubmissionCompletionError, SurfaceInfo,
+    UpdateEvent,
 };
 use crate::FigureId;
 use crate::animation::{
@@ -756,47 +757,90 @@ impl Runtime {
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,
-        outcome: RenderOutcome,
-    ) -> bool {
+        result: RenderResult,
+    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
         if self.faulted {
-            return false;
+            return Err(SubmissionCompletionError::Faulted);
         }
-        self.guarded(|runtime| runtime.complete_submission_inner(session_id, frame_id, outcome))
+        self.guarded(|runtime| runtime.complete_submission_inner(session_id, frame_id, result))
     }
 
     fn complete_submission_inner(
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,
-        outcome: RenderOutcome,
-    ) -> bool {
-        let Some(in_flight) = self.in_flight.take() else {
-            return false;
+        result: RenderResult,
+    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
+        let Some(in_flight) = self.in_flight.as_ref() else {
+            return Err(SubmissionCompletionError::NoInFlightFrame);
         };
-        if in_flight.session_id != session_id || in_flight.id != frame_id {
-            self.in_flight = Some(in_flight);
-            return false;
+        if in_flight.session_id != session_id {
+            return Err(SubmissionCompletionError::MismatchedSession {
+                expected: in_flight.session_id,
+                actual: session_id,
+            });
         }
+        if in_flight.id != frame_id {
+            return Err(SubmissionCompletionError::MismatchedFrame {
+                expected: in_flight.id,
+                actual: frame_id,
+            });
+        }
+        let in_flight = self
+            .in_flight
+            .take()
+            .expect("validated in-flight submission must remain present");
 
-        match (outcome, in_flight.resources) {
-            (RenderOutcome::Presented, ResourceSync::Snapshot(_)) => {
+        let presented = result == Ok(RenderDisposition::Presented);
+        match (presented, in_flight.resources) {
+            (true, ResourceSync::Snapshot(_)) => {
                 self.session_sync_pending = false;
             }
-            (RenderOutcome::Presented, ResourceSync::Delta(_)) => {}
-            (_, ResourceSync::Delta(delta)) => {
+            (true, ResourceSync::Delta(_)) => {}
+            (false, ResourceSync::Delta(delta)) => {
                 self.full_redraw_pending = true;
                 self.resources.restore_delta(delta);
             }
-            (_, ResourceSync::Snapshot(_)) => {
+            (false, ResourceSync::Snapshot(_)) => {
                 self.full_redraw_pending = true;
                 self.session_sync_pending = true;
             }
         }
+
+        let acknowledgement = match result.clone() {
+            Ok(RenderDisposition::Presented) => SubmissionAcknowledgement::Presented,
+            Ok(RenderDisposition::Skipped) => SubmissionAcknowledgement::Skipped,
+            Ok(RenderDisposition::Retry) => SubmissionAcknowledgement::Retry,
+            Err(RenderFailure::SurfaceLost(diagnostic)) => {
+                SubmissionAcknowledgement::SurfaceInvalidated { diagnostic }
+            }
+            Err(RenderFailure::DeviceLost(diagnostic)) => {
+                let previous_session = self.backend_session_id;
+                let Some(next_session) = previous_session.next() else {
+                    self.faulted = true;
+                    return Err(SubmissionCompletionError::BackendSessionExhausted);
+                };
+                self.backend_session_id = next_session;
+                self.session_sync_pending = true;
+                self.full_redraw_pending = true;
+                SubmissionAcknowledgement::BackendSessionInvalidated {
+                    previous_session,
+                    next_session,
+                    diagnostic,
+                }
+            }
+            Err(failure @ (RenderFailure::Unsupported(_) | RenderFailure::InvalidInput(_))) => {
+                SubmissionAcknowledgement::Rejected(failure)
+            }
+            Err(failure @ (RenderFailure::OutOfMemory(_) | RenderFailure::Fatal(_))) => {
+                SubmissionAcknowledgement::Terminated(failure)
+            }
+        };
         self.updates
-            .emit_update_event(UpdateEvent::Submitted { frame_id, outcome });
+            .emit_update_event(UpdateEvent::Submitted { frame_id, result });
         self.updates
             .flush_notifications_at(&mut self.tree, self.stable_epoch);
-        true
+        Ok(acknowledgement)
     }
 
     /// Prepares an incremental frame when the runtime has pending work.

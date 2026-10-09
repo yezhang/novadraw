@@ -4,8 +4,9 @@ use novadraw::event::{KeyModifiers, MonotonicTime, MouseButton};
 use novadraw::figure::border::{BorderStyle, LineBorder};
 use novadraw::render::text::BuiltinFont;
 use novadraw::render::{
-    BackendCapabilities, BackendSessionId, FrameId, NdCanvas, RenderOutcome, SurfaceInfo,
+    BackendCapabilities, BackendSessionId, FrameId, NdCanvas, RenderResult, SurfaceInfo,
 };
+use novadraw::runtime::{SubmissionAcknowledgement, SubmissionCompletionError};
 use novadraw::{
     Color, FigureId, FigureStyle, FramePreparation, Point, Rectangle, RectangleFigure, Runtime,
 };
@@ -93,10 +94,10 @@ impl EditorHarness {
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,
-        outcome: RenderOutcome,
-    ) -> bool {
+        result: RenderResult,
+    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
         self.viewer
-            .complete_submission(session_id, frame_id, outcome)
+            .complete_submission(session_id, frame_id, result)
     }
 
     pub(crate) fn reset_backend_session(&mut self) -> HarnessResult<BackendSessionId> {

@@ -707,8 +707,6 @@ pub enum ImageDecodeError {
     InvalidSvg,
     InvalidScale,
     RasterizationFailed,
-    ResourceUpdateFailed,
-    Io(String),
 }
 
 impl fmt::Display for ImageDecodeError {
@@ -720,8 +718,6 @@ impl fmt::Display for ImageDecodeError {
             Self::InvalidSvg => formatter.write_str("SVG data is invalid"),
             Self::InvalidScale => formatter.write_str("image scale must be finite and positive"),
             Self::RasterizationFailed => formatter.write_str("SVG rasterization failed"),
-            Self::ResourceUpdateFailed => formatter.write_str("image resource update failed"),
-            Self::Io(message) => write!(formatter, "image file could not be read: {message}"),
         }
     }
 }
@@ -755,15 +751,6 @@ impl ImageData {
             return Self::decode_svg(bytes, scale);
         }
         Err(ImageDecodeError::UnsupportedFormat)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn decode_file(
-        path: impl AsRef<std::path::Path>,
-        scale: f64,
-    ) -> Result<Self, ImageDecodeError> {
-        let bytes = std::fs::read(path).map_err(|error| ImageDecodeError::Io(error.to_string()))?;
-        Self::decode(&bytes, scale)
     }
 
     pub fn decode_png(bytes: &[u8], scale: f64) -> Result<Self, ImageDecodeError> {

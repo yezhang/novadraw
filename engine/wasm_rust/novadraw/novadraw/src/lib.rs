@@ -110,9 +110,9 @@ pub(crate) use layout::{
 #[allow(unused_imports)]
 pub(crate) use render::{
     BackendCapabilities, CaretGeometry, DamageMode, NdCanvas, RenderBackend, RenderCapability,
-    RenderOutcome, ResourceId, SelectionQuad, SurfaceInfo, TextAffinity, TextInteractionError,
-    TextInteractionMap, TextInteractionProvider, TextLayoutRevision, TextMovement, TextPosition,
-    TextRange, UnsupportedRenderCapability,
+    RenderDisposition, RenderFailure, RenderFailureKind, RenderResult, ResourceId, SelectionQuad,
+    SurfaceInfo, TextAffinity, TextInteractionError, TextInteractionMap, TextInteractionProvider,
+    TextLayoutRevision, TextMovement, TextPosition, TextRange, UnsupportedRenderCapability,
 };
 #[allow(unused_imports)]
 pub(crate) use runtime::context::{EventContext, SceneDispatchContext};
@@ -139,13 +139,14 @@ pub(crate) use runtime::{
     CapabilityUpdateReceipt, ClickableMut, ComponentInvalidation, ComponentUpdateError,
     ComponentUpdateReceipt, ContainerMut, FigureCapabilityContext, FigureCapabilityUpdate,
     FigureComponentContext, FigureComponentUpdate, FigureMut, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, ImageId,
-    ImageMut, LabelMut, LogicalViewportResizeError, MonotonicTime, PointListMut, PointerId,
-    PreparedCapabilityUpdate, ResourceError, ResourceKind, ResourceStatus, RoundedRectangleMut,
-    RuntimeMutationError, ScalablePolygonMut, ScaleMut, ScrollPaneMut, TextFlowMut,
-    TextFlowQueryError, TextLayoutStats, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut,
-    place_tooltip,
+    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
+    ImageCompletionError, ImageId, LabelMut, LogicalViewportResizeError, MonotonicTime,
+    PointListMut, PointerId, PreparedCapabilityUpdate, ResourceError, ResourceKind,
+    ResourceRequestToken, ResourceStatus, RoundedRectangleMut, RuntimeMutationError,
+    ScalablePolygonMut, ScaleMut, ScrollPaneMut, SubmissionAcknowledgement,
+    SubmissionCompletionError, TextFlowMut, TextFlowQueryError, TextLayoutStats, TimeError,
+    TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
+    TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut, place_tooltip,
 };
 #[allow(unused_imports)]
 pub(crate) use style::{CursorIcon, ResolvedStyle};

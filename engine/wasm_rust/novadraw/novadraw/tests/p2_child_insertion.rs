@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::tree::ChildInsertionError;
 use novadraw::{
     AncestorEvent, AncestorEventKind, AncestorListener, ChildPolicy, Dimension, Figure,
@@ -227,11 +227,15 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
         )
         .into_ready()
         .unwrap();
-    assert!(runtime.complete_submission(
-        baseline.session_id,
-        baseline.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                baseline.session_id,
+                baseline.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
     assert!(!runtime.has_pending_update());
     let generation = runtime
         .tree()

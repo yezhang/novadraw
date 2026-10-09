@@ -3,7 +3,7 @@ use std::{any::TypeId, marker::PhantomData};
 use novadraw::connection::{RouteOutput, RouteRequest, UnresolvedConnection};
 use novadraw::geometry::{Point, PointList, Vec2};
 use novadraw::render::{
-    BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderOutcome, SurfaceInfo,
+    BackendCapabilities, DEFAULT_STROKE_MITER_LIMIT, RenderDisposition, SurfaceInfo,
     command::RenderCommandKind,
 };
 use novadraw::{
@@ -679,11 +679,13 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("dirty route must schedule a frame");
-    runtime.complete_submission(
-        initial.session_id,
-        initial.frame_id,
-        RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            initial.session_id,
+            initial.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     let initial_bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
     assert!(matches!(
         runtime.connection_state(connection).unwrap().resolution,
@@ -703,7 +705,13 @@ fn normal_frame_automatically_resolves_dirty_connection_routes() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("owner geometry change must reroute in the same frame");
-    runtime.complete_submission(moved.session_id, moved.frame_id, RenderOutcome::Presented);
+    runtime
+        .complete_submission(
+            moved.session_id,
+            moved.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     assert_ne!(
         runtime.tree().figure_bounds(connection_figure),
         Some(initial_bounds)

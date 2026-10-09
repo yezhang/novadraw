@@ -137,14 +137,130 @@ impl Default for BackendCapabilities {
     }
 }
 
+/// Successful backend handling of one submitted frame.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RenderOutcome {
+pub enum RenderDisposition {
+    /// The frame was published to its target.
     Presented,
+    /// The target was intentionally not updated, for example while occluded.
     Skipped,
+    /// A transient condition prevented publication on the current backend session.
     Retry,
-    Unsupported(UnsupportedRenderCapability),
-    InvalidGraphicsInput(super::InvalidGraphicsInput),
 }
+
+/// Stable backend-neutral diagnostics for an operational render failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RenderFailureDiagnostic {
+    summary: String,
+    source_chain: Vec<String>,
+}
+
+impl RenderFailureDiagnostic {
+    /// Creates a diagnostic without a nested source.
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            summary: summary.into(),
+            source_chain: Vec::new(),
+        }
+    }
+
+    /// Captures an error and its source chain without exposing backend-specific types.
+    pub fn from_error(error: &(dyn Error + 'static)) -> Self {
+        let mut source_chain = Vec::new();
+        let mut source = error.source();
+        while let Some(error) = source {
+            source_chain.push(error.to_string());
+            source = error.source();
+        }
+        Self {
+            summary: error.to_string(),
+            source_chain,
+        }
+    }
+
+    /// Returns the top-level backend diagnostic.
+    pub fn summary(&self) -> &str {
+        &self.summary
+    }
+
+    /// Returns nested source messages in causal order.
+    pub fn source_chain(&self) -> &[String] {
+        &self.source_chain
+    }
+}
+
+impl fmt::Display for RenderFailureDiagnostic {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.summary)
+    }
+}
+
+impl Error for RenderFailureDiagnostic {}
+
+/// Stable class used by Runtime and hosts to choose a recovery action.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RenderFailureKind {
+    Unsupported,
+    InvalidInput,
+    SurfaceLost,
+    DeviceLost,
+    OutOfMemory,
+    Fatal,
+}
+
+/// Failure to accept or publish a render submission.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RenderFailure {
+    Unsupported(UnsupportedRenderCapability),
+    InvalidInput(super::InvalidGraphicsInput),
+    SurfaceLost(RenderFailureDiagnostic),
+    DeviceLost(RenderFailureDiagnostic),
+    OutOfMemory(RenderFailureDiagnostic),
+    Fatal(RenderFailureDiagnostic),
+}
+
+impl RenderFailure {
+    /// Returns the recovery-relevant failure class.
+    pub const fn kind(&self) -> RenderFailureKind {
+        match self {
+            Self::Unsupported(_) => RenderFailureKind::Unsupported,
+            Self::InvalidInput(_) => RenderFailureKind::InvalidInput,
+            Self::SurfaceLost(_) => RenderFailureKind::SurfaceLost,
+            Self::DeviceLost(_) => RenderFailureKind::DeviceLost,
+            Self::OutOfMemory(_) => RenderFailureKind::OutOfMemory,
+            Self::Fatal(_) => RenderFailureKind::Fatal,
+        }
+    }
+}
+
+impl fmt::Display for RenderFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Unsupported(error) => error.fmt(formatter),
+            Self::InvalidInput(error) => error.fmt(formatter),
+            Self::SurfaceLost(error) => write!(formatter, "render surface lost: {error}"),
+            Self::DeviceLost(error) => write!(formatter, "render device lost: {error}"),
+            Self::OutOfMemory(error) => write!(formatter, "render backend out of memory: {error}"),
+            Self::Fatal(error) => write!(formatter, "fatal render backend failure: {error}"),
+        }
+    }
+}
+
+impl Error for RenderFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Unsupported(error) => Some(error),
+            Self::InvalidInput(error) => Some(error),
+            Self::SurfaceLost(error)
+            | Self::DeviceLost(error)
+            | Self::OutOfMemory(error)
+            | Self::Fatal(error) => Some(error),
+        }
+    }
+}
+
+/// Complete result of one backend submission attempt.
+pub type RenderResult = Result<RenderDisposition, RenderFailure>;
 
 /// 渲染后端 trait
 ///
@@ -155,7 +271,7 @@ pub trait RenderBackend {
     }
 
     /// Submits one runtime-prepared frame.
-    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome;
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderResult;
 
     /// 处理窗口大小变化
     ///

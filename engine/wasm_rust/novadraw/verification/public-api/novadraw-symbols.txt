@@ -431,7 +431,9 @@ module.render enum LineStyle
 module.render enum Paint
 module.render enum RenderCapability
 module.render enum RenderCommandKind
-module.render enum RenderOutcome
+module.render enum RenderDisposition
+module.render enum RenderFailure
+module.render enum RenderFailureKind
 module.render enum ResourceOp
 module.render enum ResourcePayload
 module.render enum ResourceSync
@@ -469,6 +471,7 @@ module.render struct ParleyTextEngine
 module.render struct PositionedGlyph
 module.render struct RecordedDrawing
 module.render struct RenderCommand
+module.render struct RenderFailureDiagnostic
 module.render struct RenderSubmission
 module.render struct ResourceDelta
 module.render struct ResourceId
@@ -490,6 +493,7 @@ module.render struct UnsupportedRenderCapability
 module.render trait RenderBackend
 module.render trait TextInteractionProvider
 module.render trait TextLayoutEngine
+module.render type RenderResult
 module.render type TextEngine
 module.runtime constant DEFAULT_TOOLTIP_GAP
 module.runtime constant DEFAULT_TOOLTIP_HIDE_DELAY
@@ -510,12 +514,15 @@ module.runtime enum FocusTraversalOutcome
 module.runtime enum FrameNotReady
 module.runtime enum FramePreparation
 module.runtime enum FramePreparationError
+module.runtime enum ImageCompletionError
 module.runtime enum LogicalViewportResizeError
 module.runtime enum ResourceError
 module.runtime enum ResourceKind
 module.runtime enum ResourceStatus
 module.runtime enum RuntimeMutationError
 module.runtime enum StableQueryError
+module.runtime enum SubmissionAcknowledgement
+module.runtime enum SubmissionCompletionError
 module.runtime enum TextFlowQueryError
 module.runtime enum TimeError
 module.runtime enum TooltipSide
@@ -553,6 +560,7 @@ module.runtime struct PointListMut
 module.runtime struct PointerId
 module.runtime struct PreparedFigureUpdate
 module.runtime struct ResourceRegistry
+module.runtime struct ResourceRequestToken
 module.runtime struct RoundedRectangleMut
 module.runtime struct Runtime
 module.runtime struct ScalablePolygonMut

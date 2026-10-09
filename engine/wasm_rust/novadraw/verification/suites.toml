@@ -230,6 +230,70 @@ args = [
   "d4_notification_epoch",
 ]
 
+[commands."test.tc12-render-failure"]
+description = "Exercise structured backend failures, Runtime recovery acknowledgements, and session invalidation"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "tc12_render_failure_contract"]
+
+[commands."test.vello-render-failure"]
+description = "Exercise Vello surface recovery and injected GPU failure classification"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-backend-vello",
+  "--lib",
+]
+
+[commands."check.tc12-native-host"]
+description = "Compile the Native host recovery consumer through the Editor demo"
+program = "cargo"
+args = ["check", "-p", "node-editor-demo", "--bin", "node-editor-demo"]
+
+[commands."check.tc12-web-host"]
+description = "Compile the Web host recovery consumer for wasm32"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "web-validation",
+  "--target",
+  "wasm32-unknown-unknown",
+]
+
+[commands."test.tc11-resource-provider"]
+description = "Exercise Core request tokens and separated image completion failures"
+program = "cargo"
+args = ["test", "-p", "novadraw", "--test", "tc11_resource_provider_contract"]
+
+[commands."test.tc11-native-provider"]
+description = "Load a real resource through the Native file provider"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw-platform-winit",
+  "--test",
+  "resource_provider_contract",
+]
+
+[commands."check.tc11-web-provider"]
+description = "Compile the browser fetch provider for wasm32"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "novadraw-platform-web",
+  "--target",
+  "wasm32-unknown-unknown",
+  "--features",
+  "resource",
+]
+
+[commands."quality.core-resource-io"]
+description = "Reject platform resource I/O from Core render and runtime"
+program = "./scripts/check_core_resource_io.sh"
+
 [commands."test.vello-p2-graphics"]
 description = "Exercise Vello Graphics lowering, clipping and resource acceptance"
 program = "cargo"
@@ -708,6 +772,7 @@ commands = [
   "api.third-party-types",
   "api.surface",
   "quality.hot-path-logging",
+  "quality.core-resource-io",
   "dependencies.kurbo",
   "backend.native-vello",
   "backend.web-vello",
@@ -722,6 +787,7 @@ commands = [
   "api.third-party-types",
   "api.surface",
   "quality.hot-path-logging",
+  "quality.core-resource-io",
   "dependencies.kurbo",
   "backend.native-vello",
   "backend.web-vello",
@@ -1217,6 +1283,72 @@ documents = [
   "doc/design/animation/public-api-contract.md",
   "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
   "doc/verification/reviews/tc04-typed-property-identity-completion-2026-10-08.md",
+]
+
+[[suites]]
+id = "core.tc12-render-failure"
+title = "Structured render backend failure and recovery acknowledgement"
+milestone = "TC-12"
+kind = "contract"
+api_semantics = ["frame.preparation", "resource.lifecycle", "render.backend_session"]
+layers = ["contract", "headless"]
+platforms = ["host", "native-macos", "web"]
+commands = [
+  "test.tc12-render-failure",
+  "test.vello-render-failure",
+  "backend.native-vello",
+  "backend.web-vello",
+  "check.tc12-native-host",
+  "check.tc12-web-host",
+]
+paths = [
+  "novadraw/src/render/traits.rs",
+  "novadraw/src/runtime/runtime.rs",
+  "novadraw/src/runtime/runtime/frame_submission.rs",
+  "novadraw/src/runtime/update/listener.rs",
+  "novadraw/tests/tc12_render_failure_contract.rs",
+  "novadraw-backend-vello/src/lib.rs",
+  "examples/support/src/app.rs",
+  "examples/native/node-editor-demo/**",
+  "examples/web/web-validation/**",
+]
+documents = [
+  "doc/adr/adr-029-structured-render-backend-failure.md",
+  "doc/design/rendering/update-manager.md",
+  "doc/design/architecture/dynamic-architecture.md",
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
+  "doc/verification/reviews/tc12-render-backend-failure-completion-2026-10-08.md",
+]
+
+[[suites]]
+id = "core.tc11-resource-provider"
+title = "Platform ResourceProvider and Core request token boundary"
+milestone = "TC-11"
+kind = "contract"
+api_semantics = ["resource.lifecycle"]
+layers = ["contract", "platform"]
+platforms = ["host", "native-macos", "web"]
+commands = [
+  "test.tc11-resource-provider",
+  "test.tc11-native-provider",
+  "check.tc11-web-provider",
+  "quality.core-resource-io",
+]
+paths = [
+  "novadraw/src/render/command.rs",
+  "novadraw/src/runtime/resource.rs",
+  "novadraw/src/runtime/runtime/frame_resource.rs",
+  "novadraw/tests/tc11_resource_provider_contract.rs",
+  "novadraw-platform-winit/src/resource.rs",
+  "novadraw-platform-winit/tests/resource_provider_contract.rs",
+  "novadraw-platform-web/src/resource.rs",
+  "scripts/check_core_resource_io.sh",
+]
+documents = [
+  "doc/adr/adr-030-resource-provider-and-request-token-boundary.md",
+  "doc/design/architecture/resource-lifecycle.md",
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
+  "doc/verification/reviews/tc11-resource-provider-completion-2026-10-09.md",
 ]
 
 [[suites]]

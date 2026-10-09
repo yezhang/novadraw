@@ -327,7 +327,7 @@ Result 本身已经表达失败。公开字段只用于简单值或不可变结�
 | attached mutation | `Result<bool, MutationError>` | false 仅表示合法幂等；错误不提交源操作 |
 | 只读可选查询 | `Option<T>` 或具名查询错误 | 无目标是合法缺失，非法 namespace 不伪装合法结果 |
 | 延后操作 | 入队；提交错误从既有 deferred 结果出口观察 | 不承诺调用时已经完成 |
-| Runtime/backend 驱动 | 完整 FramePreparation/RenderOutcome | 保留 Idle/Suspended/等待/错误，不能折叠成 None |
+| Runtime/backend 驱动 | 完整 `FramePreparation` / `RenderResult` / `SubmissionAcknowledgement` | 保留 Idle/Suspended/等待、失败分类和恢复动作，不能折叠成 None |
 
 GraphicsError 是绘图领域内的结构化错误入口，应保留几何/文字/资源原因，
 不吞掉下层错误或变成全系统通用 String。绘制时可检查的有限值、资源身份与版本

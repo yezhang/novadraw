@@ -207,7 +207,7 @@ pub fn fixture() -> GraphicsScene {
             TextConstraints::UNBOUNDED,
         )
         .unwrap();
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
     runtime
         .complete_image(image, ImageData::from_rgba(1, 1, vec![0, 255, 0, 255], 1.0))
         .unwrap();

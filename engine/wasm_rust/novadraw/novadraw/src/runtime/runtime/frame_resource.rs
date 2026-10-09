@@ -1,7 +1,8 @@
-use crate::render::{
-    BackendSessionId, BuiltinFont, FontData, ImageData, ImageDecodeError, ResourceId,
+use crate::render::{BackendSessionId, BuiltinFont, FontData, ImageData, ResourceId};
+use crate::{
+    FigureId, FontId, ImageCompletionError, ImageId, Rectangle, ResourceError, ResourceKind,
+    ResourceRequestToken, ResourceStatus,
 };
-use crate::{FigureId, FontId, ImageId, Rectangle, ResourceError, ResourceStatus};
 
 use super::{BackendSessionError, LogicalViewportResizeError, Runtime};
 
@@ -50,21 +51,11 @@ impl Runtime {
         Ok(next)
     }
 
-    pub fn register_image(&mut self) -> ImageId {
-        self.try_register_image()
-            .expect("cannot register an image in a faulted Runtime")
-    }
-
-    pub fn try_register_image(&mut self) -> Result<ImageId, ResourceError> {
+    pub fn register_image(&mut self) -> Result<ImageId, ResourceError> {
         self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_image()))
     }
 
-    pub fn register_font(&mut self) -> FontId {
-        self.try_register_font()
-            .expect("cannot register a font in a faulted Runtime")
-    }
-
-    pub fn try_register_font(&mut self) -> Result<FontId, ResourceError> {
+    pub fn register_font(&mut self) -> Result<FontId, ResourceError> {
         self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_font()))
     }
 
@@ -75,7 +66,7 @@ impl Runtime {
         if let Some(id) = self.builtin_fonts.get(&builtin) {
             return Ok(*id);
         }
-        let id = self.try_register_font()?;
+        let id = self.register_font()?;
         self.complete_font(id, FontData::new(builtin.bytes().to_vec()))?;
         self.builtin_fonts.insert(builtin, id);
         Ok(id)
@@ -122,37 +113,43 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn complete_image_bytes(
+    pub fn begin_resource_request(
         &mut self,
-        id: ImageId,
-        bytes: &[u8],
-        scale: f64,
-    ) -> Result<(), ImageDecodeError> {
-        match ImageData::decode(bytes, scale) {
-            Ok(image) => self
-                .complete_image(id, image)
-                .map_err(|_| ImageDecodeError::ResourceUpdateFailed),
-            Err(error) => {
-                let _ = self.fail_resource(id.resource_id(), error.to_string());
-                Err(error)
-            }
-        }
+        id: ResourceId,
+    ) -> Result<ResourceRequestToken, ResourceError> {
+        self.guarded_resource_mutation(|runtime| runtime.resources.begin_request(id))
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub fn complete_image_file(
+    pub fn complete_image_request(
         &mut self,
-        id: ImageId,
-        path: impl AsRef<std::path::Path>,
+        token: ResourceRequestToken,
+        image: ImageData,
+    ) -> Result<(), ResourceError> {
+        self.guarded_resource_mutation(move |runtime| {
+            let dependents = runtime.resources.complete_image_request(token, image)?;
+            runtime.invalidate_resource_dependents(dependents);
+            Ok(())
+        })
+    }
+
+    pub fn complete_image_request_bytes(
+        &mut self,
+        token: ResourceRequestToken,
+        bytes: &[u8],
         scale: f64,
-    ) -> Result<(), ImageDecodeError> {
-        match ImageData::decode_file(path, scale) {
+    ) -> Result<(), ImageCompletionError> {
+        if self.faulted {
+            return Err(ResourceError::Faulted.into());
+        }
+        self.resources
+            .validate_request(token, ResourceKind::Image)?;
+        match ImageData::decode(bytes, scale) {
             Ok(image) => self
-                .complete_image(id, image)
-                .map_err(|_| ImageDecodeError::ResourceUpdateFailed),
+                .complete_image_request(token, image)
+                .map_err(Into::into),
             Err(error) => {
-                let _ = self.fail_resource(id.resource_id(), error.to_string());
-                Err(error)
+                self.fail_resource_request(token, error.to_string())?;
+                Err(ImageCompletionError::Decode(error))
             }
         }
     }
@@ -173,6 +170,28 @@ impl Runtime {
         Ok(())
     }
 
+    pub fn complete_font_request(
+        &mut self,
+        token: ResourceRequestToken,
+        font: FontData,
+    ) -> Result<(), ResourceError> {
+        self.guarded_resource_mutation(move |runtime| {
+            runtime
+                .resources
+                .validate_request(token, ResourceKind::Font)?;
+            let revision = runtime
+                .resources
+                .next_revision(token.resource_id(), ResourceKind::Font)?;
+            runtime
+                .text
+                .register_font(token.resource_id(), revision, font.bytes())
+                .map_err(|_| ResourceError::InvalidFontData)?;
+            let dependents = runtime.resources.complete_font_request(token, font)?;
+            runtime.invalidate_resource_dependents(dependents);
+            Ok(())
+        })
+    }
+
     pub fn fail_resource(
         &mut self,
         id: ResourceId,
@@ -189,6 +208,24 @@ impl Runtime {
         let dependents = self.resources.fail(id, reason)?;
         self.invalidate_resource_dependents(dependents);
         Ok(())
+    }
+
+    pub fn fail_resource_request(
+        &mut self,
+        token: ResourceRequestToken,
+        reason: impl Into<String>,
+    ) -> Result<(), ResourceError> {
+        let reason = reason.into();
+        self.guarded_resource_mutation(move |runtime| {
+            let kind = runtime.resources.kind(token.resource_id())?;
+            runtime.resources.validate_request(token, kind)?;
+            if kind == ResourceKind::Font {
+                runtime.text.remove_font(token.resource_id());
+            }
+            let dependents = runtime.resources.fail_request(token, reason)?;
+            runtime.invalidate_resource_dependents(dependents);
+            Ok(())
+        })
     }
 
     pub fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {

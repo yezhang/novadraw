@@ -4,7 +4,7 @@ use novadraw::event::{
     FigureEvent, ListenerDirective, NotificationEffect, NotificationRecord, ObservationListener,
     property,
 };
-use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::{StableQueryError, StableSceneQuery};
 use novadraw::{FigureId, FigureTree, Rectangle, RectangleFigure, Runtime};
 
@@ -83,11 +83,13 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        baseline.session_id,
-        baseline.frame_id,
-        RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            baseline.session_id,
+            baseline.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     let baseline_epoch = runtime.stable_query().unwrap().epoch();
 
     let records = Arc::new(Mutex::new(Vec::new()));
@@ -154,11 +156,13 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     ));
     drop(records);
 
-    runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
 
     let notification_only = Arc::new(Mutex::new(Vec::new()));
     runtime.add_observation_listener(Box::new(CaptureAll {

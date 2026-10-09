@@ -2,6 +2,7 @@
 
 mod host;
 mod input;
+mod resource;
 #[cfg(feature = "editor")]
 mod text_input;
 
@@ -10,5 +11,6 @@ pub use input::{
     AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, adapt_key_input, adapt_modifiers,
     adapt_mouse_button, adapt_physical_key,
 };
+pub use resource::FileResourceProvider;
 #[cfg(feature = "editor")]
 pub use text_input::WinitTextInputBridge;

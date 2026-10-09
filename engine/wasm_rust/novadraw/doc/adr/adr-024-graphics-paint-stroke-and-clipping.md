@@ -28,7 +28,7 @@
 ## 取舍与迁移
 
 统一值替代各图元重复的 stroke 字段，不新增只有单一图元可用的渐变 opcode。
-公共 Render IR 构造、Result setter 与 RenderOutcome 穷尽匹配同步迁移；
+公共 Render IR 构造、Result setter 与 backend `RenderResult` 穷尽匹配同步迁移；
 不保留行为不同的双入口。顺序为 stroke → clip → gradient → 组合及视觉验收。
 
 每个切片必须同时交付 producer、backend consumer、失败契约和外部消费者。

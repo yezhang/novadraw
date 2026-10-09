@@ -9,7 +9,7 @@ use novadraw::event::{
 use novadraw::layout::XYConstraint;
 use novadraw::render::command::ImageData;
 use novadraw::render::submission::ResourceSync;
-use novadraw::render::{BackendCapabilities, DamageMode, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, DamageMode, RenderDisposition, SurfaceInfo};
 use novadraw::{FigureId, Rectangle, Runtime};
 use novadraw_example_scenes::update::{
     STRESS_FIGURE_COUNT, WINDOW_HEIGHT, WINDOW_WIDTH, baseline_scene, stress_scene,
@@ -242,7 +242,7 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         scale_factor: 1.0,
     };
     let mut runtime = Runtime::new(baseline_scene());
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
     runtime
         .complete_image(
             image,
@@ -264,7 +264,14 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
     {
         return Err("initial submission did not carry full damage and resources".to_string());
     }
-    if !runtime.complete_submission(first.session_id, first.frame_id, RenderOutcome::Retry) {
+    if runtime
+        .complete_submission(
+            first.session_id,
+            first.frame_id,
+            Ok(RenderDisposition::Retry),
+        )
+        .is_err()
+    {
         return Err("retry result was not accepted".to_string());
     }
 
@@ -282,7 +289,14 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
     {
         return Err("retry did not restore full damage and resources".to_string());
     }
-    if !runtime.complete_submission(retry.session_id, retry.frame_id, RenderOutcome::Presented) {
+    if runtime
+        .complete_submission(
+            retry.session_id,
+            retry.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .is_err()
+    {
         return Err("presented result was not accepted".to_string());
     }
 

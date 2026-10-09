@@ -3,17 +3,17 @@
 use std::{sync::Arc, time::Duration};
 
 use novadraw::{
-    Affine2D, Color, Dimension, FigureMeasurement, FigureTree, MonotonicTime, Rectangle,
-    RectangleFigure, Runtime,
+    Affine2D, Color, Dimension, FigureMeasurement, FigureTree, Rectangle, RectangleFigure, Runtime,
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         AnimationSuppression, AnimationValue, Decay, Easing, InteractionGeometryPolicy,
         InterruptionPolicy, Keyframe, Keyframes, Motion, Opacity, Procedural, RepeatBehavior,
         Spring, SuspensionPolicy, Tween,
     },
+    event::MonotonicTime,
     figure::{FigureDrawing, FigurePresentation},
     graphics::{GraphicsError, PaintContext},
-    render::{BackendCapabilities, Paint, RenderCommandKind, RenderOutcome, SurfaceInfo},
+    render::{BackendCapabilities, Paint, RenderCommandKind, RenderDisposition, SurfaceInfo},
 };
 
 fn time(milliseconds: u64) -> MonotonicTime {
@@ -38,11 +38,15 @@ fn complete_frame(runtime: &mut Runtime, width: u32, height: u32) {
         )
         .into_ready()
         .unwrap();
-    assert!(runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 }
 
 fn first_solid_alpha(commands: &[novadraw::render::RenderCommand]) -> f64 {
@@ -1067,11 +1071,13 @@ fn pause_policy_excludes_surface_suspension_from_local_time() {
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Presented,
-    );
+    runtime
+        .complete_submission(
+            submission.session_id,
+            submission.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
     runtime.advance_time(time(150)).unwrap();
     assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
 }
@@ -1248,11 +1254,15 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
         .into_ready()
         .unwrap();
     assert_eq!(first_solid_alpha(&first.commands), 0.5);
-    assert!(retry_runtime.complete_submission(
-        first.session_id,
-        first.frame_id,
-        RenderOutcome::Retry
-    ));
+    assert!(
+        retry_runtime
+            .complete_submission(
+                first.session_id,
+                first.frame_id,
+                Ok(RenderDisposition::Retry)
+            )
+            .is_ok()
+    );
     let retried = retry_runtime
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()

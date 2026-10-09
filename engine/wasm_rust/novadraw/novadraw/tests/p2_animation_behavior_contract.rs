@@ -15,7 +15,7 @@ use novadraw::{
         AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Opacity, Tween,
     },
     event::{FigureEvent, FigureListener, ListenerDirective, MonotonicTime, property},
-    render::{BackendCapabilities, RenderOutcome, SurfaceInfo},
+    render::{BackendCapabilities, RenderDisposition, SurfaceInfo},
 };
 
 fn time(milliseconds: u64) -> MonotonicTime {
@@ -237,21 +237,29 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
         .into_ready()
         .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    assert!(runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Retry
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Retry)
+            )
+            .is_ok()
+    );
     let retried = runtime
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    assert!(runtime.complete_submission(
-        retried.session_id,
-        retried.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                retried.session_id,
+                retried.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
     let _ = runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }

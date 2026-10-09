@@ -7,8 +7,10 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 #[cfg(target_os = "macos")]
 use std::thread;
 
-use novadraw::render::{RenderBackend, RenderOutcome, SurfaceInfo};
-use novadraw::runtime::{FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate};
+use novadraw::render::{RenderBackend, RenderDisposition, SurfaceInfo};
+use novadraw::runtime::{
+    FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate, SubmissionAcknowledgement,
+};
 use novadraw::{Color, FigureId, FigureTree, FramePreparation, RectangleFigure, Runtime};
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
@@ -271,13 +273,16 @@ impl NativeVelloBenchmark {
         let backend_submit_cpu_ns = duration_ns(submit_start.elapsed());
 
         if self.render_mode == RenderMode::SurfaceProbe {
-            match outcome {
-                RenderOutcome::Presented => {
+            match &outcome {
+                Ok(RenderDisposition::Presented) => {
                     self.render_mode = RenderMode::Surface;
                     self.surface_probe_outcome = Some("presented");
                 }
-                RenderOutcome::Skipped => {
-                    runtime.complete_submission(session_id, frame_id, outcome);
+                Ok(RenderDisposition::Skipped) => {
+                    let acknowledgement = runtime
+                        .complete_submission(session_id, frame_id, outcome.clone())
+                        .expect("surface probe frame completion");
+                    assert_eq!(acknowledgement, SubmissionAcknowledgement::Skipped);
                     let deadline = self
                         .surface_probe_deadline
                         .expect("surface probe deadline initialized");
@@ -293,8 +298,11 @@ impl NativeVelloBenchmark {
                     }
                     return;
                 }
-                RenderOutcome::Retry => {
-                    runtime.complete_submission(session_id, frame_id, outcome);
+                Ok(RenderDisposition::Retry) => {
+                    let acknowledgement = runtime
+                        .complete_submission(session_id, frame_id, outcome.clone())
+                        .expect("surface probe frame completion");
+                    assert_eq!(acknowledgement, SubmissionAcknowledgement::Retry);
                     let deadline = self
                         .surface_probe_deadline
                         .expect("surface probe deadline initialized");
@@ -304,20 +312,22 @@ impl NativeVelloBenchmark {
                     );
                     return;
                 }
-                RenderOutcome::Unsupported(capability) => {
-                    panic!("native Vello surface probe lacks capability {capability:?}");
-                }
-                RenderOutcome::InvalidGraphicsInput(error) => {
-                    panic!("native Vello surface probe received invalid graphics: {error}");
+                Err(failure) => {
+                    let acknowledgement = runtime
+                        .complete_submission(session_id, frame_id, outcome.clone())
+                        .expect("surface probe failure completion");
+                    panic!("native Vello surface probe failed: {failure} ({acknowledgement:?})");
                 }
             }
         }
 
-        if outcome != RenderOutcome::Presented {
-            runtime.complete_submission(session_id, frame_id, outcome);
+        if outcome != Ok(RenderDisposition::Presented) {
+            let acknowledgement = runtime
+                .complete_submission(session_id, frame_id, outcome.clone())
+                .expect("failed benchmark frame completion");
             panic!(
-                "native Vello {:?} submission returned {outcome:?}",
-                self.render_mode
+                "native Vello {:?} submission returned {outcome:?} ({acknowledgement:?})",
+                self.render_mode,
             );
         }
 
@@ -328,7 +338,10 @@ impl NativeVelloBenchmark {
         let gpu_completion_wait_ns = duration_ns(wait_start.elapsed());
         let submit_to_gpu_complete_ns = duration_ns(submit_start.elapsed());
         let frame_to_gpu_complete_ns = duration_ns(frame_start.elapsed());
-        runtime.complete_submission(session_id, frame_id, outcome);
+        let acknowledgement = runtime
+            .complete_submission(session_id, frame_id, outcome)
+            .expect("benchmark frame completion");
+        assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
 
         let sample = FrameSample {
             prepare_submission_ns,
@@ -488,7 +501,7 @@ impl NativeVelloBenchmark {
         let submit_returned_at = Instant::now();
         assert_eq!(
             outcome,
-            RenderOutcome::Presented,
+            Ok(RenderDisposition::Presented),
             "input marker surface submission must present"
         );
 
@@ -516,7 +529,10 @@ impl NativeVelloBenchmark {
         renderer
             .wait_for_gpu_idle(GPU_WAIT_TIMEOUT)
             .unwrap_or_else(|error| panic!("wait for input frame GPU completion: {error}"));
-        runtime.complete_submission(session_id, frame_id, outcome);
+        let acknowledgement = runtime
+            .complete_submission(session_id, frame_id, outcome)
+            .expect("input frame completion");
+        assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
 
         let sample = InputPresentationSample {
             input_post_to_event_ns: duration_ns(event_received_at.duration_since(posted_at)),

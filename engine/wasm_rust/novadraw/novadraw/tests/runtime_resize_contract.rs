@@ -1,4 +1,4 @@
-use novadraw::render::{BackendCapabilities, DamageMode, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, DamageMode, RenderDisposition, SurfaceInfo};
 use novadraw::{FigureTree, LogicalViewportResizeError, Rectangle, RectangleFigure, Runtime};
 
 fn surface(width: u32, height: u32) -> SurfaceInfo {
@@ -17,11 +17,15 @@ fn complete_frame(runtime: &mut Runtime, surface: SurfaceInfo) {
         .into_ready()
         .expect("resize must produce a frame");
     assert_eq!(submission.damage.mode(), DamageMode::Full);
-    assert!(runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 }
 
 #[test]

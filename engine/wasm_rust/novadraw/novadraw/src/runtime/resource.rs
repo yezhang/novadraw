@@ -3,8 +3,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::render::{
-    FontData, ImageData, ImageResourceRef, ResourceDelta, ResourceId, ResourcePayload,
-    ResourceSnapshot, ResourceUpdate,
+    FontData, ImageData, ImageDecodeError, ImageResourceRef, ResourceDelta, ResourceId,
+    ResourcePayload, ResourceSnapshot, ResourceUpdate,
 };
 use slotmap::{Key, KeyData, SlotMap, new_key_type};
 use uuid::Uuid;
@@ -30,6 +30,22 @@ pub struct FontId(ResourceId);
 impl FontId {
     pub const fn resource_id(self) -> ResourceId {
         self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ResourceRequestToken {
+    resource_id: ResourceId,
+    generation: u64,
+}
+
+impl ResourceRequestToken {
+    pub const fn resource_id(self) -> ResourceId {
+        self.resource_id
+    }
+
+    pub const fn generation(self) -> u64 {
+        self.generation
     }
 }
 
@@ -59,6 +75,8 @@ pub enum ResourceError {
     UnknownFigure,
     InvalidFontData,
     RevisionExhausted,
+    RequestGenerationExhausted,
+    StaleRequest,
 }
 
 impl fmt::Display for ResourceError {
@@ -77,16 +95,60 @@ impl fmt::Display for ResourceError {
             Self::UnknownFigure => formatter.write_str("dependent figure is not attached"),
             Self::InvalidFontData => formatter.write_str("font data is empty or invalid"),
             Self::RevisionExhausted => formatter.write_str("resource revision is exhausted"),
+            Self::RequestGenerationExhausted => {
+                formatter.write_str("resource request generation is exhausted")
+            }
+            Self::StaleRequest => {
+                formatter.write_str("resource request is stale or already completed")
+            }
         }
     }
 }
 
 impl Error for ResourceError {}
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ImageCompletionError {
+    Decode(ImageDecodeError),
+    Resource(ResourceError),
+}
+
+impl fmt::Display for ImageCompletionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Decode(error) => write!(formatter, "image decode failed: {error}"),
+            Self::Resource(error) => write!(formatter, "image resource completion failed: {error}"),
+        }
+    }
+}
+
+impl Error for ImageCompletionError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Decode(error) => Some(error),
+            Self::Resource(error) => Some(error),
+        }
+    }
+}
+
+impl From<ImageDecodeError> for ImageCompletionError {
+    fn from(error: ImageDecodeError) -> Self {
+        Self::Decode(error)
+    }
+}
+
+impl From<ResourceError> for ImageCompletionError {
+    fn from(error: ResourceError) -> Self {
+        Self::Resource(error)
+    }
+}
+
 struct ResourceEntry {
     kind: ResourceKind,
     status: ResourceStatus,
     revision: u64,
+    request_generation: u64,
+    active_request: Option<u64>,
     payload: Option<ResourcePayload>,
     dependents: Vec<FigureId>,
 }
@@ -134,6 +196,63 @@ impl ResourceRegistry {
             .get(key)
             .map(|entry| &entry.status)
             .ok_or(ResourceError::UnknownResource)
+    }
+
+    pub fn begin_request(&mut self, id: ResourceId) -> Result<ResourceRequestToken, ResourceError> {
+        let key = self.key(id)?;
+        let entry = self
+            .entries
+            .get_mut(key)
+            .ok_or(ResourceError::UnknownResource)?;
+        let generation = entry
+            .request_generation
+            .checked_add(1)
+            .ok_or(ResourceError::RequestGenerationExhausted)?;
+        entry.request_generation = generation;
+        entry.active_request = Some(generation);
+        if matches!(entry.status, ResourceStatus::Failed { .. }) {
+            entry.status = ResourceStatus::Pending;
+        }
+        Ok(ResourceRequestToken {
+            resource_id: id,
+            generation,
+        })
+    }
+
+    pub fn complete_image_request(
+        &mut self,
+        token: ResourceRequestToken,
+        image: ImageData,
+    ) -> Result<Vec<FigureId>, ResourceError> {
+        self.validate_request(token, ResourceKind::Image)?;
+        self.complete(
+            token.resource_id,
+            ResourceKind::Image,
+            ResourcePayload::Image(Arc::new(image)),
+        )
+    }
+
+    pub fn complete_font_request(
+        &mut self,
+        token: ResourceRequestToken,
+        font: FontData,
+    ) -> Result<Vec<FigureId>, ResourceError> {
+        self.validate_request(token, ResourceKind::Font)?;
+        self.complete(
+            token.resource_id,
+            ResourceKind::Font,
+            ResourcePayload::Font(Arc::new(font)),
+        )
+    }
+
+    pub fn fail_request(
+        &mut self,
+        token: ResourceRequestToken,
+        reason: impl Into<String>,
+    ) -> Result<Vec<FigureId>, ResourceError> {
+        let kind = self.kind(token.resource_id)?;
+        self.validate_request(token, kind)?;
+        self.fail(token.resource_id, reason)
     }
 
     /// Retains an immutable ready resource without consuming pending synchronization.
@@ -272,6 +391,7 @@ impl ResourceRegistry {
         if matches!(entry.status, ResourceStatus::Ready { .. }) {
             self.pending_delta.remove(id);
         }
+        entry.active_request = None;
         entry.status = ResourceStatus::Failed {
             reason: reason.into(),
         };
@@ -338,6 +458,8 @@ impl ResourceRegistry {
             kind,
             status: ResourceStatus::Pending,
             revision: 0,
+            request_generation: 0,
+            active_request: None,
             payload: None,
             dependents: Vec::new(),
         });
@@ -366,6 +488,7 @@ impl ResourceRegistry {
             .checked_add(1)
             .ok_or(ResourceError::RevisionExhausted)?;
         entry.revision = revision;
+        entry.active_request = None;
         entry.status = ResourceStatus::Ready { revision };
         entry.payload = Some(payload.clone());
         self.pending_delta.upsert(ResourceUpdate {
@@ -374,6 +497,28 @@ impl ResourceRegistry {
             payload,
         });
         Ok(entry.dependents.clone())
+    }
+
+    pub(crate) fn validate_request(
+        &self,
+        token: ResourceRequestToken,
+        expected: ResourceKind,
+    ) -> Result<(), ResourceError> {
+        let key = self.key(token.resource_id)?;
+        let entry = self
+            .entries
+            .get(key)
+            .ok_or(ResourceError::UnknownResource)?;
+        if entry.kind != expected {
+            return Err(ResourceError::KindMismatch {
+                expected,
+                actual: entry.kind,
+            });
+        }
+        if entry.active_request != Some(token.generation) {
+            return Err(ResourceError::StaleRequest);
+        }
+        Ok(())
     }
 
     fn key(&self, id: ResourceId) -> Result<ResourceKey, ResourceError> {

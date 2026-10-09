@@ -287,7 +287,7 @@ fn ellipsis_scene() -> Runtime {
 
 fn icon_placement_scene() -> Runtime {
     let mut runtime = runtime();
-    let icon = runtime.register_image();
+    let icon = runtime.register_image().expect("image registration");
     runtime
         .complete_image(icon, document_check_icon())
         .expect("icon resource");
@@ -486,17 +486,20 @@ fn image_resources_scene() -> Runtime {
             "16px Inter Variable",
             HEADING,
         );
-        let image = runtime.register_image();
+        let image = runtime.register_image().expect("image registration");
+        let request = runtime
+            .begin_resource_request(image.resource_id())
+            .expect("image request");
         match index {
             0 => runtime
-                .complete_image_bytes(image, PNG, 12.5)
+                .complete_image_request_bytes(request, PNG, 12.5)
                 .expect("PNG fixture"),
             1 => runtime
-                .complete_image_bytes(image, SVG, 1.25)
+                .complete_image_request_bytes(request, SVG, 1.25)
                 .expect("SVG fixture"),
             2 => {}
             3 => {
-                let _ = runtime.complete_image_bytes(image, b"not an image", 1.0);
+                let _ = runtime.complete_image_request_bytes(request, b"not an image", 1.0);
             }
             _ => unreachable!(),
         }

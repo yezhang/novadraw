@@ -1,6 +1,6 @@
 use std::num::NonZeroUsize;
 
-use novadraw::render::{BackendCapabilities, RenderOutcome, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::{
     FigureEvent, FigureTree, FramePreparation, NotificationEffect, Rectangle, RectangleFigure,
     Runtime, StableQueryError,
@@ -25,11 +25,15 @@ fn stabilize(runtime: &mut Runtime) {
     let FramePreparation::Ready(submission) = preparation else {
         panic!("fixture preparation: {preparation:?}");
     };
-    assert!(runtime.complete_submission(
-        submission.session_id,
-        submission.frame_id,
-        RenderOutcome::Presented,
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            )
+            .is_ok()
+    );
     assert!(runtime.stable_query().is_ok());
 }
 

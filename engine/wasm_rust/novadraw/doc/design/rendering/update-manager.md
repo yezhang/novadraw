@@ -271,6 +271,10 @@ Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_ca
 永久缺失 GlyphRuns、ImageResources 或其他声明能力时返回
 `FramePreparation::Error(UnsupportedRenderCapability)`，不创建 in-flight frame；
 `Retry` 只表示资源暂缺、surface 恢复等同一 backend 上可能成功的瞬时条件。
+backend 返回 `RenderResult = Result<RenderDisposition, RenderFailure>`；Host 必须把完整
+结果交回 `Runtime::complete_submission`，并按 acknowledgement 执行重绘、surface
+恢复、backend 重建或终止。恢复权威和分类见
+[ADR-029](../../adr/adr-029-structured-render-backend-failure.md)。
 
 ## 11. Mutation 协作
 
@@ -321,8 +325,11 @@ old/new payload，但查询始终指向 flush 时最新 stable epoch；存在未
 |---|---|
 | validation 不收敛 | 返回诊断错误，保留 invalid work |
 | Figure paint 失败 | 放弃不完整 submission，下轮 Full |
-| backend submit 失败 | 标记 surface state unknown，下轮 Full |
-| surface lost | 暂停提交，恢复后 Full |
+| `Skipped` / `Retry` | 恢复 in-flight 资源，同一 session 下轮 Full |
+| `SurfaceLost` | 保留 backend session，surface 恢复后 Full |
+| `DeviceLost` | Runtime 递增 session；新 backend 接收 Snapshot + Full |
+| `Unsupported` / `InvalidInput` | 确定性拒绝，停止自动重试 |
+| `OutOfMemory` / `Fatal` | 终止自动提交，由应用决定退出或替换 backend |
 | invalid FigureId | 丢弃该 source 并记录其来源；不得访问复用节点 |
 | callback panic | 恢复 phase guard 并默认 faulted，拒绝新提交，不承诺副作用回滚 |
 

@@ -26,7 +26,7 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   已登记为 [`P2-F02`](roadmap/p2-delta-backlog.md#p2-f02-开放的-figure-capability-registry)
   并完成；它关闭
   [临时概念设计审计 TC-02 与 TC-05](verification/reviews/temporary-concept-design-audit-2026-10-08.md)，
-  后续 TC-13/TC-14 与 TC-04 亦已关闭。
+  后续 TC-13/TC-14、TC-04、TC-12 与 TC-11 亦已关闭。
 - 动画正交模型已登记为
   [`P2-M01`](roadmap/p2-delta-backlog.md)，当前为 `in_progress`；
   [Animation / Presentation Plane 设计](design/animation/animation-system.md)、
@@ -77,6 +77,10 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-027-open-figure-capability-registry.md`](adr/adr-027-open-figure-capability-registry.md)
 - 类型化属性身份与异构通知日志：
   [`adr/adr-028-typed-property-identity.md`](adr/adr-028-typed-property-identity.md)
+- 结构化 RenderBackend 失败与恢复确认：
+  [`adr/adr-029-structured-render-backend-failure.md`](adr/adr-029-structured-render-backend-failure.md)
+- ResourceProvider 与资源请求 Token 边界：
+  [`adr/adr-030-resource-provider-and-request-token-boundary.md`](adr/adr-030-resource-provider-and-request-token-boundary.md)
 - Figure Capability 统一扩展模型：
   [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：

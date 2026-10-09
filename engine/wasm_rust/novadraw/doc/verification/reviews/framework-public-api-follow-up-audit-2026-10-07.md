@@ -273,7 +273,8 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P1
 
-状态：待整改
+状态：已整改（2026-10-09，见
+[TC-11 完成记录](tc11-resource-provider-completion-2026-10-09.md)）
 
 证据：
 
@@ -293,6 +294,14 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - 文件系统和 URL 加载归 platform/application resource provider；
 - 公共注册统一返回结构化错误，删除无必要的 panic alias；
 - 资源失败保持读取、解码、revision 与提交阶段信息。
+
+整改证据：
+
+- Core 删除 `decode_file` / `complete_image_file` 和资源文件 I/O；
+- Runtime 资源注册只保留 fallible `register_image/register_font`；
+- Native/Web provider 分别保留文件与 fetch 错误；
+- `ResourceRequestToken` 拒绝迟到完成；
+- `ImageCompletionError` 分离解码和 Runtime 更新失败。
 
 ### API-F10：Inspector 静默吞掉同步故障
 

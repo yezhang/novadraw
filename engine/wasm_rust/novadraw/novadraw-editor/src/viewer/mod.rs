@@ -28,13 +28,13 @@ use novadraw::figure::{
 };
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
 use novadraw::render::{
-    BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, NdCanvas, RenderOutcome,
+    BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, NdCanvas, RenderResult,
     SelectionQuad, SurfaceInfo,
 };
 use novadraw::runtime::{
     BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
     FigureComponentUpdate, FontId, LogicalViewportResizeError, PreparedFigureUpdate, ResourceError,
-    RuntimeMutationError,
+    RuntimeMutationError, SubmissionAcknowledgement, SubmissionCompletionError,
 };
 use novadraw::text::TextMovement;
 use novadraw::{
@@ -998,10 +998,10 @@ where
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,
-        outcome: RenderOutcome,
-    ) -> bool {
+        result: RenderResult,
+    ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
         self.runtime
-            .complete_submission(session_id, frame_id, outcome)
+            .complete_submission(session_id, frame_id, result)
     }
 
     /// Starts a fresh backend submission session after renderer recreation.

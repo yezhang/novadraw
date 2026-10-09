@@ -54,14 +54,18 @@
 | TC-02 Figure capability 闭集 | `complete` | ADR-027、P2-F02 与 `figure-capability-model.md` 已实现并通过门禁 |
 | TC-04 属性身份和值未类型关联 | `complete` | ADR-028、typed `PropertyKey<V>`、erased journal 与 Behavior key matching 已完成 |
 | TC-05 Animation target 闭集 | `complete` | 开放 `PresentationBinding<V>`、外部 Figure consumer 与 Connection route/dash 迁移已完成 |
+| TC-11 Core Runtime 文件读取 | `complete` | ADR-030、request token 与 Native/Web provider 已完成 |
+| TC-12 backend 无运行失败通道 | `complete` | ADR-029、`RenderResult`、Runtime acknowledgement 与 Vello fault channel 已完成 |
 | TC-13/TC-14 | `complete` | root/prelude 已收窄，分层 rustdoc snapshot 与 hot-path source gate 已进入 quick/full |
-| 其余 TC-01、TC-03、TC-06—TC-12 | `not_started` | 按第 5、6 节依赖顺序继续 |
+| 其余 TC-01、TC-03、TC-06—TC-10 | `not_started` | 按第 5、6 节依赖顺序继续 |
 
 P2-F02 已完成本报告长期演进 Phase 2 的 Core 切片，并同时关闭 TC-02 与 TC-05：
 Figure capability discovery/mutation 和 Animation content target 都使用 attach-time
 typed descriptor；外部 consumer 不修改 `Figure` trait、`ChannelBinding` 或 renderer。
 TC-13/TC-14 随后完成 Phase 0 的 API 防扩散与热路径清理；TC-04 已按 ADR-028
-完成 typed property identity。下一原子批次为 TC-12 backend failure contract。
+完成 typed property identity；TC-12 已按 ADR-029 完成结构化 backend failure、
+Runtime session invalidation 与 Native/Web host 恢复分支；TC-11 已按 ADR-030 完成
+ResourceProvider、request token 与错误分层。下一原子批次为 TC-01 Graphics cutover。
 
 ## 3. 发现项
 
@@ -77,8 +81,8 @@ TC-13/TC-14 随后完成 Phase 0 的 API 防扩散与热路径清理；TC-04 已
 | TC-08 | P0 | Editor 结构发布依赖手工补偿 | `viewer/projection.rs:447-475`、`viewer/mod.rs:1681-1749` | `PartProjectionPlan` / `ConnectionProjectionPlan` prepared commit；`OverlayBatch`/lease 管理清理 |
 | TC-09 | P1 | 查询用默认值吞掉无效身份 | `layout/mod.rs:102-153`、`graph/layout_measurement.rs:983-1007`、`graph/query.rs:31-36,118-135` | 结构查询统一 `Result<Option<T>, QueryError>`；布局 snapshot 不再返回伪造零值 |
 | TC-10 | P1 | fault、幂等和缺失的返回语义碎片化 | `command/mod.rs:576-607`、`animation/service.rs:1344-1367`、`inspector/lib.rs:165-177` | 纯查询无副作用；可能 fault 的探测返回 `Result`；保留错误 source；锁故障显式化 |
-| TC-11 | P1 | Core Runtime 承担文件读取 | `runtime/runtime/frame_resource.rs:125-157`、`render/command.rs:760-767` | platform/application provider 读取文件或 URL；Core 只接收 bytes / decoded resource |
-| TC-12 | P0 | Render backend 无运行失败通道 | `render/traits.rs:140-159`、`backend-vello/lib.rs:1363-1382` | `submit -> Result<RenderDisposition, RenderFailure>`，区分 retry、surface lost、device lost、fatal |
+| TC-11 | P1，已关闭 | Core Runtime 承担文件读取 | [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md) + [完成记录](tc11-resource-provider-completion-2026-10-09.md) | Native/Web provider、Core request token 与独立错误分类已实现 |
+| TC-12 | P0，已关闭 | Render backend 无运行失败通道 | [ADR-029](../../adr/adr-029-structured-render-backend-failure.md) + [完成记录](tc12-render-backend-failure-completion-2026-10-08.md) | `RenderResult`、结构化 acknowledgement 与 Vello fault channel 已实现 |
 | TC-13 | P1，已关闭 | root/prelude 仍是专业 API 平铺面 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 分层 rustdoc symbol snapshot 已进入 quick/full |
 | TC-14 | P1，已关闭 | 渲染与布局热路径仍保留日志 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 受保护热路径日志已删除并由 source gate 防回归 |
 
@@ -279,6 +283,11 @@ application/platform ResourceProvider
 读取、URL、权限和缓存失败由 provider 保留；解码失败与 Runtime revision/提交失败不再
 压缩成同一个 `ImageDecodeError`。
 
+本项已关闭：Core 已删除文件 API 和平台 `cfg` 表面；Native `FileResourceProvider` 与
+Web `FetchResourceProvider` 只返回 bytes。`ResourceRequestToken` 拒绝 replacement 后的
+迟到完成，`ImageCompletionError` 分离 decode 与 Runtime mutation，资源注册只保留
+fallible Runtime 入口。
+
 ### 3.12 TC-12：Backend operational failure 只能 panic
 
 `RenderBackend::submit` 只能返回 Presented/Skipped/Retry/Unsupported/InvalidInput，
@@ -296,6 +305,11 @@ RenderFailure      = Unsupported | InvalidInput | SurfaceLost | DeviceLost | Out
 
 Core 只依赖 backend-neutral class 和 recovery contract；backend 自己保留详细 source。
 Runtime acknowledgement 必须区分“本帧未呈现但可重试”和“当前 session 已失效”。
+
+本项已关闭：`RenderBackend::submit` 返回 `RenderResult`；Runtime 对 surface lost 保留
+session，对 device lost 递增 session 并要求 Snapshot + Full，对确定性拒绝和终止失败
+停止自动重试。Vello 的同步编码错误、device-lost 与 uncaptured OOM/fatal callback
+均进入结构化失败通道，Native/Web host 调用点按 acknowledgement 分支恢复。
 
 ### 3.13 TC-13：Facade 没有可执行边界
 

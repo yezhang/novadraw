@@ -5,12 +5,13 @@ use novadraw::figure::{
     InputCapability, LIFECYCLE, LifecycleCapability, WidgetError,
 };
 use novadraw::render::{
-    BackendCapabilities, DamageMode, FontDescriptor, NdCanvas, RenderOutcome, SurfaceInfo,
+    BackendCapabilities, DamageMode, FontDescriptor, NdCanvas, RenderDisposition, SurfaceInfo,
     TextConstraints, TextError,
 };
 use novadraw::runtime::{
     ComponentInvalidation, ComponentUpdateError, FigureComponentContext, FigureComponentUpdate,
     FocusError, PreparedFigureUpdate, ResourceError, RuntimeMutationError,
+    SubmissionAcknowledgement,
 };
 use novadraw::{
     Dimension, Figure, FigureTree, FramePreparation, FramePreparationError, Rectangle,
@@ -231,11 +232,15 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    assert!(runtime.complete_submission(
-        baseline.session_id,
-        baseline.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                baseline.session_id,
+                baseline.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
     assert!(!runtime.has_pending_update());
     let layout_generation = runtime
         .tree()
@@ -270,11 +275,15 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         .into_ready()
         .unwrap();
     assert_ne!(updated.damage.mode(), DamageMode::None);
-    assert!(runtime.complete_submission(
-        updated.session_id,
-        updated.frame_id,
-        RenderOutcome::Presented
-    ));
+    assert!(
+        runtime
+            .complete_submission(
+                updated.session_id,
+                updated.frame_id,
+                Ok(RenderDisposition::Presented)
+            )
+            .is_ok()
+    );
 
     let observed = runtime
         .figure(badge)
@@ -455,13 +464,16 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    runtime.complete_submission(
-        baseline.session_id,
-        baseline.frame_id,
-        RenderOutcome::Presented,
-    );
+    let acknowledgement = runtime
+        .complete_submission(
+            baseline.session_id,
+            baseline.frame_id,
+            Ok(RenderDisposition::Presented),
+        )
+        .expect("frame completion");
+    assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
     assert!(runtime.tree().node(figure).unwrap().state().is_valid());
-    let image = runtime.register_image();
+    let image = runtime.register_image().expect("image registration");
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         runtime

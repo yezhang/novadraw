@@ -1,10 +1,10 @@
 use novadraw::Color;
 use novadraw::render::{
     BuiltinFont, FontData, FontDescriptor, FontFaceRef, FrameId, GlyphPaint, GlyphRun, NdCanvas,
-    PositionedGlyph, RenderBackend, RenderCommandKind, RenderOutcome, RenderSubmission,
-    ResourceDelta, ResourceId, ResourceOp, ResourcePayload, ResourceSync, ResourceUpdate,
-    SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout, TextLayoutEngine,
-    TextLayoutParts, TextLineMetrics,
+    PositionedGlyph, RenderBackend, RenderCommandKind, RenderDisposition, RenderResult,
+    RenderSubmission, ResourceDelta, ResourceId, ResourceOp, ResourcePayload, ResourceSync,
+    ResourceUpdate, SurfaceInfo, TextConstraints, TextEngine, TextError, TextLayout,
+    TextLayoutEngine, TextLayoutParts, TextLineMetrics,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -87,13 +87,13 @@ impl TextLayoutEngine for ExternalTextEngine {
 }
 
 impl RenderBackend for RecordingBackend {
-    fn submit(&mut self, submission: &RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &RenderSubmission) -> RenderResult {
         self.glyph_runs += submission
             .commands
             .iter()
             .filter(|command| matches!(command.kind, RenderCommandKind::DrawGlyphRun { .. }))
             .count();
-        RenderOutcome::Presented
+        Ok(RenderDisposition::Presented)
     }
 
     fn resize(&mut self, _pixel_width: u32, _pixel_height: u32, _scale_factor: f64) {}
@@ -158,7 +158,7 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
     let mut backend = RecordingBackend::default();
     let outcome = backend.submit(&submission);
 
-    assert_eq!(outcome, RenderOutcome::Presented);
+    assert_eq!(outcome, Ok(RenderDisposition::Presented));
     assert_eq!(backend.glyph_runs, layout.glyph_runs().len());
     assert!(matches!(
         submission.resources,

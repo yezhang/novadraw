@@ -197,8 +197,8 @@ Ellipse 等包含 fill/stroke 的命令收集两部分全部能力，不能只�
 
 backend 还需预检新增 payload 在实际 transform/DPI 下的派生数值：
 有限 f64 转为 Vello f32 后溢出或渐变端点坍缩不能静默绘制。
-为 `RenderOutcome` 增加结构化 `InvalidGraphicsInput`，携带 command index
-和原因；该跨 crate 公共错误边界已获批准。此错误不得接受 session/frame、
+以 `RenderFailure::InvalidInput` 返回结构化 `InvalidGraphicsInput`，携带 command
+index 和原因；结果信封已由 ADR-029 统一为 `RenderResult`。此错误不得接受 session/frame、
 取走资源或破坏上一张 retained surface；修正输入后可重试。
 不把资源缺失、临时 surface 丢失和非法 Graphics 输入混成同一个错误。
 
@@ -281,7 +281,7 @@ GPU 场景不提供对目标设备像素进行读改写的 XOR 契约。Differen
 - **共享受检值、按功能切片贯通**：一次承担公共 IR 与错误分支迁移成本，
   获得统一校验、清晰能力声明和外部消费者覆盖；推荐。
 
-已接受的迁移成本包括公开 IR 构造与 `RenderOutcome` 穷尽匹配迁移，以及实际 miter
+已接受的迁移成本包括公开 IR 构造与 `RenderResult` 穷尽匹配迁移，以及实际 miter
 进入内置 Figure 几何更新路径。
 
 ## 12. 关联规范

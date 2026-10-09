@@ -7,8 +7,7 @@ mod glyph_outline;
 
 use std::collections::HashMap;
 use std::fmt;
-#[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use image::ImageBuffer;
@@ -29,7 +28,10 @@ use novadraw::render::submission::{
     BackendSessionDecision, BackendSessionGate, DamageMode, ResourcePayload,
 };
 use novadraw::render::text::{GlyphPaint, GlyphRun};
-use novadraw::render::traits::{BackendCapabilities, RenderBackend, RenderOutcome};
+use novadraw::render::traits::{
+    BackendCapabilities, RenderBackend, RenderDisposition, RenderFailure, RenderFailureDiagnostic,
+    RenderResult,
+};
 
 const DEFAULT_BACKGROUND_COMPONENT: f64 = 238.0 / 255.0;
 const DEFAULT_BACKGROUND_COLOR: vello::wgpu::Color = vello::wgpu::Color {
@@ -120,6 +122,68 @@ enum SurfaceRecovery {
     Reconfigure,
     Retry,
     Skip,
+    Fatal,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    not(any(feature = "native", target_arch = "wasm32", test)),
+    allow(dead_code)
+)]
+enum PendingGpuFailure {
+    DeviceLost(String),
+    OutOfMemory(String),
+    Fatal(String),
+}
+
+#[cfg_attr(
+    not(any(feature = "native", target_arch = "wasm32", test)),
+    allow(dead_code)
+)]
+fn record_gpu_failure(slot: &Mutex<Option<PendingGpuFailure>>, failure: PendingGpuFailure) {
+    let mut pending = slot.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let replace = matches!(
+        (&*pending, &failure),
+        (None, _)
+            | (Some(PendingGpuFailure::Fatal(_)), _)
+            | (
+                Some(PendingGpuFailure::OutOfMemory(_)),
+                PendingGpuFailure::DeviceLost(_)
+            )
+    );
+    if replace {
+        *pending = Some(failure);
+    }
+}
+
+fn take_gpu_failure(slot: &Mutex<Option<PendingGpuFailure>>) -> Option<RenderFailure> {
+    let failure = slot
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()?;
+    Some(match failure {
+        PendingGpuFailure::DeviceLost(message) => {
+            RenderFailure::DeviceLost(RenderFailureDiagnostic::new(message))
+        }
+        PendingGpuFailure::OutOfMemory(message) => {
+            RenderFailure::OutOfMemory(RenderFailureDiagnostic::new(message))
+        }
+        PendingGpuFailure::Fatal(message) => {
+            RenderFailure::Fatal(RenderFailureDiagnostic::new(message))
+        }
+    })
+}
+
+fn render_failure_from_vello(error: vello::Error) -> RenderFailure {
+    let diagnostic = RenderFailureDiagnostic::from_error(&error);
+    if matches!(
+        &error,
+        vello::Error::WgpuErrorFromScope(vello::wgpu::Error::OutOfMemory { .. })
+    ) {
+        RenderFailure::OutOfMemory(diagnostic)
+    } else {
+        RenderFailure::Fatal(diagnostic)
+    }
 }
 
 fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<SurfaceRecovery> {
@@ -129,9 +193,9 @@ fn surface_recovery(status: &vello::wgpu::CurrentSurfaceTexture) -> Option<Surfa
         vello::wgpu::CurrentSurfaceTexture::Lost | vello::wgpu::CurrentSurfaceTexture::Outdated => {
             Some(SurfaceRecovery::Reconfigure)
         }
-        vello::wgpu::CurrentSurfaceTexture::Timeout
-        | vello::wgpu::CurrentSurfaceTexture::Validation => Some(SurfaceRecovery::Retry),
+        vello::wgpu::CurrentSurfaceTexture::Timeout => Some(SurfaceRecovery::Retry),
         vello::wgpu::CurrentSurfaceTexture::Occluded => Some(SurfaceRecovery::Skip),
+        vello::wgpu::CurrentSurfaceTexture::Validation => Some(SurfaceRecovery::Fatal),
     }
 }
 
@@ -491,6 +555,7 @@ pub struct VelloRenderer {
     /// 状态栈
     state_stack: Vec<RenderState>,
     session_gate: BackendSessionGate,
+    gpu_failure: Arc<Mutex<Option<PendingGpuFailure>>>,
     font_faces: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::Blob<u8>>,
     images: HashMap<(novadraw::render::ResourceId, u64), vello::peniko::ImageData>,
     /// 保留上一帧完整结果的纹理（也作为截图源）
@@ -519,9 +584,31 @@ impl VelloRenderer {
         #[cfg(all(target_os = "macos", feature = "native"))]
         configure_macos_presentation_layer(&surface.surface);
 
+        let gpu_failure = Arc::new(Mutex::new(None));
+        let device = &render_context.devices[surface.dev_id].device;
+        let device_lost = Arc::clone(&gpu_failure);
+        device.set_device_lost_callback(move |reason, message| {
+            record_gpu_failure(
+                &device_lost,
+                PendingGpuFailure::DeviceLost(format!("{reason:?}: {message}")),
+            );
+        });
+        let uncaptured = Arc::clone(&gpu_failure);
+        device.on_uncaptured_error(Arc::new(move |error| {
+            let failure = match error {
+                vello::wgpu::Error::OutOfMemory { .. } => {
+                    PendingGpuFailure::OutOfMemory(error.to_string())
+                }
+                vello::wgpu::Error::Validation { .. } | vello::wgpu::Error::Internal { .. } => {
+                    PendingGpuFailure::Fatal(error.to_string())
+                }
+            };
+            record_gpu_failure(&uncaptured, failure);
+        }));
+
         let mut renderers = vec![];
         renderers.resize_with(render_context.devices.len(), || None);
-        renderers[surface.dev_id].get_or_insert_with(|| create_renderer(&render_context, &surface));
+        renderers[surface.dev_id] = Some(create_renderer(&render_context, &surface)?);
 
         Ok(Self {
             render_context,
@@ -533,6 +620,7 @@ impl VelloRenderer {
             pending_resize: None,
             state_stack: vec![RenderState::default()],
             session_gate: BackendSessionGate::default(),
+            gpu_failure,
             font_faces: HashMap::new(),
             images: HashMap::new(),
             retained_texture: None,
@@ -547,13 +635,20 @@ impl VelloRenderer {
     fn sync_submission_resources(
         &mut self,
         submission: &novadraw::render::RenderSubmission,
-    ) -> bool {
+    ) -> Result<(), RenderFailure> {
         match self
             .session_gate
             .accept(submission.session_id, &submission.resources)
         {
-            BackendSessionDecision::RejectStale | BackendSessionDecision::RejectMissingSnapshot => {
-                return false;
+            BackendSessionDecision::RejectStale => {
+                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "backend rejected a stale submission session",
+                )));
+            }
+            BackendSessionDecision::RejectMissingSnapshot => {
+                return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                    "backend session replacement requires a resource snapshot",
+                )));
             }
             BackendSessionDecision::Continue => {}
             BackendSessionDecision::Initialize | BackendSessionDecision::Replace => {
@@ -565,7 +660,7 @@ impl VelloRenderer {
         }
         sync_font_face_cache(&mut self.font_faces, &submission.resources);
         sync_image_cache(&mut self.images, &submission.resources);
-        true
+        Ok(())
     }
 
     fn has_required_resources(&self, commands: &[RenderCommand]) -> bool {
@@ -734,7 +829,7 @@ impl VelloRenderer {
         &mut self,
         recovery: SurfaceRecovery,
         surface: novadraw::render::SurfaceInfo,
-    ) -> RenderOutcome {
+    ) -> RenderResult {
         match recovery {
             SurfaceRecovery::Reconfigure => {
                 self.queue_resize(
@@ -744,13 +839,18 @@ impl VelloRenderer {
                     true,
                 );
                 if self.surface_suspended {
-                    RenderOutcome::Skipped
+                    Ok(RenderDisposition::Skipped)
                 } else {
-                    RenderOutcome::Retry
+                    Err(RenderFailure::SurfaceLost(RenderFailureDiagnostic::new(
+                        "surface acquisition requires reconfiguration",
+                    )))
                 }
             }
-            SurfaceRecovery::Retry => RenderOutcome::Retry,
-            SurfaceRecovery::Skip => RenderOutcome::Skipped,
+            SurfaceRecovery::Retry => Ok(RenderDisposition::Retry),
+            SurfaceRecovery::Skip => Ok(RenderDisposition::Skipped),
+            SurfaceRecovery::Fatal => Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "surface acquisition failed validation",
+            ))),
         }
     }
 
@@ -1250,24 +1350,25 @@ impl RenderBackend for VelloRenderer {
             .with_linear_gradients()
     }
 
-    fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderOutcome {
+    fn submit(&mut self, submission: &novadraw::render::RenderSubmission) -> RenderResult {
+        if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
+            return Err(failure);
+        }
         if let Err(error) = self
             .capabilities()
             .validate_capabilities(&submission.commands)
         {
-            return RenderOutcome::Unsupported(error);
+            return Err(RenderFailure::Unsupported(error));
         }
         if let Err(error) = novadraw::render::validate_graphics_input(
             &submission.commands,
             submission.surface.scale_factor,
         ) {
-            return RenderOutcome::InvalidGraphicsInput(error);
+            return Err(RenderFailure::InvalidInput(error));
         }
-        if !self.sync_submission_resources(submission) {
-            return RenderOutcome::Skipped;
-        }
+        self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
-            return RenderOutcome::Retry;
+            return Ok(RenderDisposition::Retry);
         }
         self.resize(
             submission.surface.pixel_width,
@@ -1278,19 +1379,19 @@ impl RenderBackend for VelloRenderer {
         let is_resize_frame = self.pending_resize.is_some();
         self.apply_pending_resize();
         if self.surface_suspended {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         }
         let commands = &submission.commands;
 
         let Some((effective_damage, effective_regions)) = self.effective_damage_regions(submission)
         else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
         let (width, height) = self.current_surface_size();
         let Some(clip_rect) =
             damage_rect_to_aligned_clip(effective_damage, width, height, self.scale_factor)
         else {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         };
 
         // self.scene.reset();
@@ -1323,56 +1424,71 @@ impl RenderBackend for VelloRenderer {
             status => {
                 #[cfg(all(target_os = "macos", feature = "native"))]
                 set_macos_transactional_present(&self.surface.surface, false);
-                let recovery =
-                    surface_recovery(&status).expect("unavailable surface must define recovery");
+                let Some(recovery) = surface_recovery(&status) else {
+                    return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                        "unavailable surface did not define a recovery action",
+                    )));
+                };
                 return self.recover_surface(recovery, submission.surface);
             }
         };
-        let scratch_view = {
-            let (_, view, _, _) = self
-                .scratch_texture
-                .as_ref()
-                .expect("Scratch texture not created");
-            view.clone()
+        let Some((_, scratch_view, _, _)) = self.scratch_texture.as_ref() else {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "scratch texture was not created",
+            )));
         };
-        let retained_view = {
-            let (_, view, _, _) = self
-                .retained_texture
-                .as_ref()
-                .expect("Retained texture not created");
-            view.clone()
+        let scratch_view = scratch_view.clone();
+        let Some((_, retained_view, _, _)) = self.retained_texture.as_ref() else {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "retained texture was not created",
+            )));
         };
+        let retained_view = retained_view.clone();
 
         let device_handle = &self.render_context.devices[self.surface.dev_id];
         let base_color = VelloColor::new(scratch_base_rgba());
 
         // 使用 surface 背景重建临时纹理；后续只把 damage regions 复制到 retained texture。
-        self.renderers[self.surface.dev_id]
-            .as_mut()
-            .unwrap()
-            .render_to_texture(
-                &device_handle.device,
-                &device_handle.queue,
-                &self.scene,
-                &scratch_view,
-                &vello::RenderParams {
-                    base_color,
-                    width,
-                    height,
-                    antialiasing_method: AaConfig::Msaa16,
-                },
-            )
-            .expect("Failed to render to scratch texture");
+        let Some(renderer) = self.renderers[self.surface.dev_id].as_mut() else {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "Vello renderer is unavailable",
+            )));
+        };
+        if let Err(error) = renderer.render_to_texture(
+            &device_handle.device,
+            &device_handle.queue,
+            &self.scene,
+            &scratch_view,
+            &vello::RenderParams {
+                base_color,
+                width,
+                height,
+                antialiasing_method: AaConfig::Msaa16,
+            },
+        ) {
+            #[cfg(all(target_os = "macos", feature = "native"))]
+            if is_resize_frame {
+                set_macos_transactional_present(&self.surface.surface, false);
+            }
+            return Err(render_failure_from_vello(error));
+        }
+        if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
+            #[cfg(all(target_os = "macos", feature = "native"))]
+            if is_resize_frame {
+                set_macos_transactional_present(&self.surface.surface, false);
+            }
+            return Err(failure);
+        }
 
         let scratch_texture = &self
             .scratch_texture
             .as_ref()
-            .expect("Scratch texture not created")
+            .expect("scratch texture presence was validated")
             .0;
         let retained_texture = &self
             .retained_texture
             .as_ref()
-            .expect("Retained texture not created")
+            .expect("retained texture presence was validated")
             .0;
 
         let mut encoder =
@@ -1434,7 +1550,7 @@ impl RenderBackend for VelloRenderer {
         if reconfigure_after_present {
             self.render_context.configure_surface(&self.surface);
         }
-        RenderOutcome::Presented
+        Ok(RenderDisposition::Presented)
     }
 
     fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64) {
@@ -1449,24 +1565,25 @@ impl VelloRenderer {
     pub fn render_for_screenshot(
         &mut self,
         submission: &novadraw::render::RenderSubmission,
-    ) -> RenderOutcome {
+    ) -> RenderResult {
+        if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
+            return Err(failure);
+        }
         if let Err(error) = self
             .capabilities()
             .validate_capabilities(&submission.commands)
         {
-            return RenderOutcome::Unsupported(error);
+            return Err(RenderFailure::Unsupported(error));
         }
         if let Err(error) = novadraw::render::validate_graphics_input(
             &submission.commands,
             submission.surface.scale_factor,
         ) {
-            return RenderOutcome::InvalidGraphicsInput(error);
+            return Err(RenderFailure::InvalidInput(error));
         }
-        if !self.sync_submission_resources(submission) {
-            return RenderOutcome::Skipped;
-        }
+        self.sync_submission_resources(submission)?;
         if !self.has_required_resources(&submission.commands) {
-            return RenderOutcome::Retry;
+            return Ok(RenderDisposition::Retry);
         }
         self.resize(
             submission.surface.pixel_width,
@@ -1475,7 +1592,7 @@ impl VelloRenderer {
         );
         self.apply_pending_resize();
         if self.surface_suspended {
-            return RenderOutcome::Skipped;
+            return Ok(RenderDisposition::Skipped);
         }
 
         let (width, height) = self.current_surface_size();
@@ -1498,30 +1615,36 @@ impl VelloRenderer {
         self.scene.pop_layer();
 
         self.ensure_retained_texture();
-        let retained_view = self
-            .retained_texture
-            .as_ref()
-            .expect("Retained texture not created")
-            .1
-            .clone();
+        let Some((_, retained_view, _, _)) = self.retained_texture.as_ref() else {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "retained texture was not created",
+            )));
+        };
+        let retained_view = retained_view.clone();
         let device_handle = &self.render_context.devices[self.surface.dev_id];
-        self.renderers[self.surface.dev_id]
-            .as_mut()
-            .expect("Vello renderer not created")
-            .render_to_texture(
-                &device_handle.device,
-                &device_handle.queue,
-                &self.scene,
-                &retained_view,
-                &vello::RenderParams {
-                    base_color: VelloColor::new(scratch_base_rgba()),
-                    width,
-                    height,
-                    antialiasing_method: AaConfig::Msaa16,
-                },
-            )
-            .expect("Failed to render screenshot texture");
-        RenderOutcome::Presented
+        let Some(renderer) = self.renderers[self.surface.dev_id].as_mut() else {
+            return Err(RenderFailure::Fatal(RenderFailureDiagnostic::new(
+                "Vello renderer is unavailable",
+            )));
+        };
+        if let Err(error) = renderer.render_to_texture(
+            &device_handle.device,
+            &device_handle.queue,
+            &self.scene,
+            &retained_view,
+            &vello::RenderParams {
+                base_color: VelloColor::new(scratch_base_rgba()),
+                width,
+                height,
+                antialiasing_method: AaConfig::Msaa16,
+            },
+        ) {
+            return Err(render_failure_from_vello(error));
+        }
+        if let Some(failure) = take_gpu_failure(&self.gpu_failure) {
+            return Err(failure);
+        }
+        Ok(RenderDisposition::Presented)
     }
 
     /// 截图并保存为 PNG 文件
@@ -1699,12 +1822,14 @@ fn sync_image_cache(
 }
 
 #[cfg(any(feature = "native", target_arch = "wasm32"))]
-fn create_renderer(render_cx: &RenderContext, surface: &RenderSurface<'_>) -> Renderer {
+fn create_renderer(
+    render_cx: &RenderContext,
+    surface: &RenderSurface<'_>,
+) -> Result<Renderer, vello::Error> {
     Renderer::new(
         &render_cx.devices[surface.dev_id].device,
         RendererOptions::default(),
     )
-    .expect("Couldn't create renderer")
 }
 
 #[cfg(test)]
@@ -1932,11 +2057,58 @@ mod tests {
         );
         assert_eq!(
             surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Validation),
-            Some(SurfaceRecovery::Retry)
+            Some(SurfaceRecovery::Fatal)
         );
         assert_eq!(
             surface_recovery(&vello::wgpu::CurrentSurfaceTexture::Occluded),
             Some(SurfaceRecovery::Skip)
+        );
+    }
+
+    #[test]
+    fn injected_gpu_faults_publish_backend_neutral_failures() {
+        for (injected, expected) in [
+            (
+                PendingGpuFailure::DeviceLost("device reset".to_string()),
+                novadraw::render::RenderFailureKind::DeviceLost,
+            ),
+            (
+                PendingGpuFailure::OutOfMemory("allocation failed".to_string()),
+                novadraw::render::RenderFailureKind::OutOfMemory,
+            ),
+            (
+                PendingGpuFailure::Fatal("encoder validation failed".to_string()),
+                novadraw::render::RenderFailureKind::Fatal,
+            ),
+        ] {
+            let slot = Mutex::new(None);
+            record_gpu_failure(&slot, injected);
+            let failure = take_gpu_failure(&slot).expect("injected fault must be published");
+            assert_eq!(failure.kind(), expected);
+            assert!(take_gpu_failure(&slot).is_none());
+        }
+    }
+
+    #[test]
+    fn device_loss_has_priority_over_pending_uncaptured_errors() {
+        let slot = Mutex::new(None);
+        record_gpu_failure(
+            &slot,
+            PendingGpuFailure::Fatal("validation failed".to_string()),
+        );
+        record_gpu_failure(
+            &slot,
+            PendingGpuFailure::OutOfMemory("allocation failed".to_string()),
+        );
+        record_gpu_failure(
+            &slot,
+            PendingGpuFailure::DeviceLost("device reset".to_string()),
+        );
+
+        let failure = take_gpu_failure(&slot).expect("highest-priority fault");
+        assert_eq!(
+            failure.kind(),
+            novadraw::render::RenderFailureKind::DeviceLost
         );
     }
 

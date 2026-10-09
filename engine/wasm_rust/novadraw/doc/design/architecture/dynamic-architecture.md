@@ -401,8 +401,11 @@ worker 不直接修改 FigureTree。资源完成消息与输入一样，经顶�
 | constraint 类型错误 | 返回布局错误，保留旧 constraint |
 | 不可逆 transform | 跳过相关命中并记录诊断 |
 | validation 不收敛 | 返回诊断错误并保留工作 |
-| backend submit 失败 | 保留 full repaint 需求以便恢复 |
-| surface lost | 暂停提交，恢复后 full repaint |
+| `Skipped` / `Retry` | 保留 full repaint，同一 backend session 重试 |
+| `SurfaceLost` | 恢复 surface 后 full repaint，不重建资源 session |
+| `DeviceLost` | Runtime 递增 session，Host 重建 backend，Snapshot + Full 恢复 |
+| `Unsupported` / `InvalidInput` | 确定性拒绝，停止自动重试 |
+| `OutOfMemory` / `Fatal` | 终止自动提交并向应用暴露失败 |
 | callback panic | 恢复事务标志并默认 faulted；拒绝新提交，不声称回滚外部副作用 |
 
 ## 17. 因果可观测性

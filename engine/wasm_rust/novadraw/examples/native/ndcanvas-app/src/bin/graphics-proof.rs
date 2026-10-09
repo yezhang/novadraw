@@ -9,7 +9,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use novadraw::render::{RenderBackend, RenderCommandKind, RenderOutcome, SurfaceInfo};
+use novadraw::render::{
+    RenderBackend, RenderCommandKind, RenderDisposition, RenderFailure, SurfaceInfo,
+};
+use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_example_scenes::graphics::{SIZE, fixture};
 use winit::{
@@ -115,11 +118,11 @@ impl Proof {
                     }
                     assert!(matches!(
                         renderer.submit(&invalid),
-                        RenderOutcome::InvalidGraphicsInput(_)
+                        Err(RenderFailure::InvalidInput(_))
                     ));
                     assert!(matches!(
                         renderer.render_for_screenshot(&invalid),
-                        RenderOutcome::InvalidGraphicsInput(_)
+                        Err(RenderFailure::InvalidInput(_))
                     ));
                     let mut invalid_glyph = submission.clone();
                     let command = invalid_glyph
@@ -132,11 +135,11 @@ impl Proof {
                     }
                     assert!(matches!(
                         renderer.submit(&invalid_glyph),
-                        RenderOutcome::InvalidGraphicsInput(_)
+                        Err(RenderFailure::InvalidInput(_))
                     ));
                     assert!(matches!(
                         renderer.render_for_screenshot(&invalid_glyph),
-                        RenderOutcome::InvalidGraphicsInput(_)
+                        Err(RenderFailure::InvalidInput(_))
                     ));
                     renderer
                         .screenshot(&output.join(format!("native-{dpi}-rejected.png")))
@@ -148,25 +151,32 @@ impl Proof {
                 } else {
                     renderer.render_for_screenshot(&submission)
                 };
-                if self.present && matches!(outcome, RenderOutcome::Skipped | RenderOutcome::Retry)
-                {
-                    scene.runtime.complete_submission(
-                        submission.session_id,
-                        submission.frame_id,
+                if self.present
+                    && matches!(
                         outcome,
-                    );
+                        Ok(RenderDisposition::Skipped) | Ok(RenderDisposition::Retry)
+                    )
+                {
+                    let acknowledgement = scene
+                        .runtime
+                        .complete_submission(submission.session_id, submission.frame_id, outcome)
+                        .expect("retry frame completion");
+                    assert!(matches!(
+                        acknowledgement,
+                        SubmissionAcknowledgement::Skipped | SubmissionAcknowledgement::Retry
+                    ));
                     return false;
                 }
                 assert_eq!(
                     outcome,
-                    RenderOutcome::Presented,
+                    Ok(RenderDisposition::Presented),
                     "dpi={dpi}, phase={phase}"
                 );
-                scene.runtime.complete_submission(
-                    submission.session_id,
-                    submission.frame_id,
-                    outcome,
-                );
+                let acknowledgement = scene
+                    .runtime
+                    .complete_submission(submission.session_id, submission.frame_id, outcome)
+                    .expect("graphics proof frame completion");
+                assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
                 renderer
                     .screenshot(&output.join(format!("native-{dpi}-{phase}.png")))
                     .unwrap();
@@ -180,7 +190,7 @@ impl Proof {
                 .unwrap();
             assert_eq!(
                 renderer.render_for_screenshot(&submission),
-                RenderOutcome::Presented
+                Ok(RenderDisposition::Presented)
             );
             renderer
                 .screenshot(&output.join(format!("native-{dpi}-full.png")))
