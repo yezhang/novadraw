@@ -19,11 +19,15 @@ normalized input
 -> role-keyed EditPolicy
 -> Command / CompoundCommand
 -> application model notification
--> GraphicalViewer refresh
+-> ViewerEditSession commit
+-> GraphicalViewer synchronize
 ```
 
 Tool 不直接修改应用模型或 Part 主视觉。Feedback 是显式 layer 中的临时 Figure，
 并在 command 执行前清理。
+
+2026-10-09 ADR-032 补充：上述 CommandStack 与投影同步已成为同一内部 edit session，
+调用方不再取得 `model_mut` 或手工调用 refresh。
 
 ## 2. 公开契约
 

@@ -49,6 +49,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [029](adr-029-structured-render-backend-failure.md) | 结构化 RenderBackend 失败与恢复确认 | 已接受，已验证 | 2026-10-08 |
 | [030](adr-030-resource-provider-and-request-token-boundary.md) | ResourceProvider 与资源请求 Token 边界 | 已接受，已验证 | 2026-10-09 |
 | [031](adr-031-graphics-recording-and-publication-boundary.md) | Graphics 录制与帧出版边界 | 已接受，已验证 | 2026-10-09 |
+| [032](adr-032-viewer-edit-session-and-drive-boundary.md) | Viewer 编辑会话与宿主驱动边界 | 已接受，已验证 | 2026-10-09 |
 
 ## 现行与历史隔离
 

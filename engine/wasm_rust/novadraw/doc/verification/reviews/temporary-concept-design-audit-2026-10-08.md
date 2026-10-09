@@ -56,10 +56,12 @@
 | TC-02 Figure capability 闭集 | `complete` | ADR-027、P2-F02 与 `figure-capability-model.md` 已实现并通过门禁 |
 | TC-04 属性身份和值未类型关联 | `complete` | ADR-028、typed `PropertyKey<V>`、erased journal 与 Behavior key matching 已完成 |
 | TC-05 Animation target 闭集 | `complete` | 开放 `PresentationBinding<V>`、外部 Figure consumer 与 Connection route/dash 迁移已完成 |
+| TC-07 Viewer 模型可变逃逸 | `complete` | ADR-032、`ViewerEditSession`、`ViewerDrive` 与同步边界已完成 |
+| TC-10 失败语义碎片化 | `partial` | CommandStack `has_*`/`check_*` 已完成；Animation、Inspector 与其余错误分类保留 |
 | TC-11 Core Runtime 文件读取 | `complete` | ADR-030、request token 与 Native/Web provider 已完成 |
 | TC-12 backend 无运行失败通道 | `complete` | ADR-029、`RenderResult`、Runtime acknowledgement 与 Vello fault channel 已完成 |
 | TC-13/TC-14 | `complete` | root/prelude 已收窄，分层 rustdoc snapshot 与 hot-path source gate 已进入 quick/full |
-| 其余 TC-03、TC-06—TC-10 | `not_started` | 按第 5、6 节依赖顺序继续 |
+| 其余 TC-03、TC-06、TC-08、TC-09 | `not_started` | 按第 5、6 节依赖顺序继续 |
 
 P2-F02 已完成本报告长期演进 Phase 2 的 Core 切片，并同时关闭 TC-02 与 TC-05：
 Figure capability discovery/mutation 和 Animation content target 都使用 attach-time
@@ -68,8 +70,9 @@ TC-13/TC-14 随后完成 Phase 0 的 API 防扩散与热路径清理；TC-04 已
 完成 typed property identity；TC-12 已按 ADR-029 完成结构化 backend failure、
 Runtime session invalidation 与 Native/Web host 恢复分支；TC-11 已按 ADR-030 完成
 ResourceProvider、request token 与错误分层；TC-01 已按 ADR-031 完成公开 Graphics
-单入口、失败传播和 Runtime 帧出版收口。当前完成 8/14 项，下一原子批次为
-TC-07/TC-10 的 Viewer 模型与 drive 边界。
+单入口、失败传播和 Runtime 帧出版收口；TC-07 已按 ADR-032 完成 Viewer 模型、
+CommandStack 与 host drive 边界，并关闭 TC-10 的 CommandStack 部分。当前完成
+9/14 项，下一原子批次为 TC-06 Editor Tool/Request/Handle 开放协议。
 
 ## 3. 发现项
 
@@ -81,10 +84,10 @@ TC-07/TC-10 的 Viewer 模型与 drive 边界。
 | TC-04 | P0，已关闭 | 属性身份和值未类型关联 | [ADR-028](../../adr/adr-028-typed-property-identity.md) + [完成记录](tc04-typed-property-identity-completion-2026-10-08.md) | typed key、erased journal、Behavior/coalescing identity 已实现 |
 | TC-05 | P0，已关闭 | Animation 值开放、可见 target 封闭 | `animation/service.rs:30-45,123-166` | typed `PresentationBinding<V>` / provider；领域模块和外部 Figure 自行提供 target |
 | TC-06 | P1 | Editor Tool/Request/Handle 是闭集 | `editor/domain.rs:101-116`、`request/mod.rs:546-603`、`feedback/mod.rs:39-52` | object-safe Tool 插槽、typed request envelope、可扩展 handle action |
-| TC-07 | P0，中等置信 | Viewer 仍暴露模型可变逃逸 | `viewer/mod.rs:921-930`、`domain.rs:411-450` | `ViewerEditSession` 统一 CommandStack、模型 mutation、通知与 refresh；host 只取得窄 `ViewerDrive` |
+| TC-07 | P0，已关闭 | Viewer 仍暴露模型可变逃逸 | [ADR-032](../../adr/adr-032-viewer-edit-session-and-drive-boundary.md) + [完成记录](tc07-viewer-edit-boundary-completion-2026-10-09.md) | `ViewerEditSession`、`synchronize_model` 与窄 `ViewerDrive` 已实现 |
 | TC-08 | P0 | Editor 结构发布依赖手工补偿 | `viewer/projection.rs:447-475`、`viewer/mod.rs:1681-1749` | `PartProjectionPlan` / `ConnectionProjectionPlan` prepared commit；`OverlayBatch`/lease 管理清理 |
 | TC-09 | P1 | 查询用默认值吞掉无效身份 | `layout/mod.rs:102-153`、`graph/layout_measurement.rs:983-1007`、`graph/query.rs:31-36,118-135` | 结构查询统一 `Result<Option<T>, QueryError>`；布局 snapshot 不再返回伪造零值 |
-| TC-10 | P1 | fault、幂等和缺失的返回语义碎片化 | `command/mod.rs:576-607`、`animation/service.rs:1344-1367`、`inspector/lib.rs:165-177` | 纯查询无副作用；可能 fault 的探测返回 `Result`；保留错误 source；锁故障显式化 |
+| TC-10 | P1，部分关闭 | fault、幂等和缺失的返回语义碎片化 | CommandStack 已按 ADR-032 完成；`animation/service.rs:1344-1367`、`inspector/lib.rs:165-177` 保留 | 继续收口 Animation、Inspector、错误 source 与查询语义 |
 | TC-11 | P1，已关闭 | Core Runtime 承担文件读取 | [ADR-030](../../adr/adr-030-resource-provider-and-request-token-boundary.md) + [完成记录](tc11-resource-provider-completion-2026-10-09.md) | Native/Web provider、Core request token 与独立错误分类已实现 |
 | TC-12 | P0，已关闭 | Render backend 无运行失败通道 | [ADR-029](../../adr/adr-029-structured-render-backend-failure.md) + [完成记录](tc12-render-backend-failure-completion-2026-10-08.md) | `RenderResult`、结构化 acknowledgement 与 Vello fault channel 已实现 |
 | TC-13 | P1，已关闭 | root/prelude 仍是专业 API 平铺面 | [TC-13/TC-14 完成记录](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) | 分层 rustdoc symbol snapshot 已进入 quick/full |
@@ -206,19 +209,16 @@ Connection route/dash 已删除中心化分支，外部 Figure headless consumer
 - EditorDomain 只管理一个 `Box<dyn Tool<A>>` 的 activate/deactivate/cancel 生命周期；
 - built-in Selection/Connection/Bendpoint tools 与至少一个外部 Tool consumer 共用协议。
 
-### 3.7 TC-07：Viewer 模型事务边界尚未闭合
+### 3.7 TC-07：Viewer 模型事务边界已闭合
 
-删除 `runtime_mut` 是正确收口，但公开 `model_mut` 仍允许调用者绕过 CommandStack、
-revision 和 refresh。当前 Domain 自己也通过该入口执行命令，说明缺失的是正式的内部
-模型编辑会话，而不是简单改可见性。
+本项已关闭。公开 `model_mut` 与手工 `refresh` 已删除；EditorDomain 的 execute、undo、
+redo、Tool release 和 direct-edit accept 统一通过 crate-private `ViewerEditSession`
+关闭模型写入、revision 校验、通知 drain 与投影同步。
 
-长期目标：
-
-- `ViewerEditSession` 持有短生命周期模型写权限，只由 EditorDomain/CommandStack 创建；
-- session 完成后统一校验 revision、drain notification 并 refresh；
-- 外部模型变化通过显式 `synchronize` / adapter notification 边界进入；
-- host 驱动使用 `ViewerDrive`，只暴露 time、input、frame、surface 和必要资源操作；
-- 测试故障注入使用 test-only harness，不保留生产 `model_mut`。
+外部非 history 变化使用 `synchronize_model` 或共享 adapter notification 后的
+`synchronize`。Native/Web host 只经 `ViewerDrive` 访问 frame、backend session、
+surface、time、focus 和资源驱动。compile-fail doctest 防止完整模型写引用和 Viewer
+直接 frame drive 入口回归。
 
 ### 3.8 TC-08：Editor 结构资源缺少 prepared publication
 
@@ -255,7 +255,6 @@ Overlay 已增加预检查，但 ownership 仍是 `Vec<FigureId>`；Part 和 Con
 
 当前同时存在：
 
-- `can_undo/can_redo(&mut self) -> bool` 执行扩展代码，panic 后改变 fault 状态；
 - `AnimationMut::set_mode() -> bool` 把 faulted 与幂等未变化折叠；
 - `register_*` 与 `try_register_*` 双入口，前者在 Runtime fault 时 panic；
 - Model/EditPart/Policy 错误转为 String，丢失 source 和程序化分类；
@@ -269,6 +268,10 @@ Overlay 已增加预检查，但 ownership 仍是 `Vec<FigureId>`；Part 和 Con
 - 公共注册只保留 fallible 入口；
 - extension error 使用 `Box<dyn Error + Send + Sync>` 或由泛型 facade 保留 source；
 - Inspector 提供结构化 fault，并用 subscription token 明确 detach 生命周期。
+
+CommandStack 部分已完成：`has_undo/has_redo` 是纯查询，`check_undo/check_redo` 显式
+返回 `Result<bool, CommandStackError>`，扩展 panic 不再折叠成 `false`。其余条目保持
+打开。
 
 ### 3.11 TC-11：资源便利 API 穿透平台边界
 
@@ -416,7 +419,7 @@ flowchart LR
 1. 完成 Graphics/PaintContext/CommandRecorder 切换（已完成，ADR-031）；
 2. 引入 backend-neutral `RenderFailure`，移除 submit 路径 panic；
 3. 移出文件读取，建立 ResourceProvider 边界；
-4. 用 `ViewerEditSession` 关闭 `model_mut`，提供窄 `ViewerDrive`；
+4. 用 `ViewerEditSession` 关闭 `model_mut`，提供窄 `ViewerDrive`（已完成）；
 5. 拆分状态查询、扩展检查和 mutation 的返回语义。
 
 毕业条件：不存在完整可变对象逃逸；失败不会被 `None`、`false` 或 panic alias 隐藏。
@@ -500,10 +503,8 @@ match 即可增加能力。
 ## 8. 审计置信度与限制
 
 两个独立复核均确认 TC-01、TC-02、TC-03、TC-05、TC-06、TC-08 至 TC-14。
-TC-04 与 TC-07 各有一位复核者认为当前局部合同可以解释现状；本报告保留它们，是因为：
-
-- TC-04 与 Animation 总体规范明确禁止字符串 property path 的条款冲突；
-- TC-07 允许普通调用者绕过 CommandStack，违反 Editor 的模型修改不变量。
+TC-04 与 TC-07 各有一位复核者曾认为审计时的局部合同可以解释现状；两项现均已通过
+typed property identity 与 Viewer edit session 的可执行门禁关闭。
 
 本次执行了静态代码/文档交叉检查、`git diff --check` 和
 `cargo check -p novadraw --lib`。未运行 GPU、窗口、Web、性能或 full workspace 门禁；

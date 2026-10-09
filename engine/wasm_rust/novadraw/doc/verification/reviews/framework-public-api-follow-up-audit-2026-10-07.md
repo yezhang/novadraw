@@ -72,7 +72,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P0
 
-状态：部分整改（Runtime 逃逸已关闭，model_mut 待独立事务收口）
+状态：已关闭（ADR-032）
 
 证据：
 
@@ -97,10 +97,12 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 整改证据：
 
 - `GraphicalViewer::runtime_mut` 已删除；渲染、资源、viewport resize、backend session、
-  Runtime gesture/focus 通过具名 forwarding API 驱动；
+  Runtime gesture/focus 通过 `ViewerDrive` 驱动；
 - router、字体、组件更新与 Part 内部 visual 均通过 Viewer 所有权边界进入；
 - Native node editor 与 Web direct-edit host 已迁移，不再取得完整 mutable Runtime。
-- `model_mut` 仍供现有 CommandStack/adapter 流程使用，不在本批伪装为已关闭。
+- `model_mut` 已删除；CommandStack 只在 crate-private `ViewerEditSession` 中取得短借用；
+- 外部变化使用 `synchronize_model` 或 adapter notification 后的 `synchronize`；
+- compile-fail doctest 禁止完整模型写引用和 Viewer 直接 frame drive 回归。
 
 ### API-F03：`Figure` trait 同时承担基础协议与能力注册表
 
@@ -197,7 +199,7 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 
 优先级：P1
 
-状态：待整改
+状态：部分整改
 
 证据：
 
@@ -268,6 +270,13 @@ Vello backend 与 Winit/Web adapter 未发现同等级的 backend-specific 类�
 - 可能触发 fault 处理的能力检查使用显式 `check_* -> Result<_, _>`；
 - `Ok(false)` 仅表示成功执行但状态未变化；
 - fault、panic 隔离和非法身份必须保留结构化错误。
+
+整改证据：
+
+- CommandStack `has_undo/has_redo` 已改为 `&self` 纯 history 查询；
+- `check_undo/check_redo` 显式执行扩展 capability 并返回
+  `Result<bool, CommandStackError>`；
+- Animation、Inspector 与其余 `Result<bool>` 分类仍保持打开。
 
 ### API-F09：Core Runtime 承担平台文件读取与过宽资源便利入口
 

@@ -113,6 +113,15 @@ G2 只投影 containment。Connection 的 source/target 双向发现必须与 co
 Connection Runtime binding 和单 connection part 去重一起在 G5 引入，不能提前挂到
 临时父 Figure。
 
+Viewer 只公开 adapter 的只读视图。应用模型变化分为两个入口：
+
+- Editor 命令由 crate 内部 `ViewerEditSession` 取得短期模型写权限；
+- 非 history 变化通过 `synchronize_model` 的非逃逸 callback 提交，或由共享 adapter
+  在外部发布后调用 `synchronize`。
+
+两个入口最终都必须校验 revision、drain 通知并刷新投影。不得重新公开 `model_mut`
+或要求调用者手工拼接“修改模型后 refresh”。
+
 ## 5. EditPart
 
 ### 5.1 PartNode 与行为分离
@@ -206,6 +215,11 @@ manager 的 Viewer 生命周期状态，不能在每次 zoom 操作中临时重�
 只读 manager 查询及受控配置方法，但不得提供 `zoom_manager_mut()` 或绕过 Runtime
 mutation facade 直接修改 scale / view location。
 
+平台宿主通过短生命周期 `ViewerDrive` 驱动 frame submission、backend session、
+surface resize、time、Figure gesture/focus 和必要资源注册。`ViewerDrive` 不暴露
+Runtime、FigureTree、模型、registry 或 Editor 事务状态；对应方法不得同时保留在
+`GraphicalViewer` 上形成双入口。
+
 ## 7. Selection 与 Focus
 
 SelectionModel 保存有序 EditPartId 列表：
@@ -286,6 +300,20 @@ Command 返回普通 operation error 时，必须保证模型和 Command 保持�
 stack 保持 dirty 并拒绝继续编辑、flush 或标记保存点，由 Host 重建模型与 Editor。
 Command 析构不得 panic；history trim/flush 不承诺恢复任意析构副作用。
 
+EditorDomain 的 execute、undo 和 redo 必须在 `ViewerEditSession` 中完成：
+
+```text
+synchronize pending external notifications
+-> CommandStack operation with a short model borrow
+-> success: validate notifications and synchronize projection
+-> recoverable rejection: prove no observable revision change
+-> unknown state or panic: fault CommandStack and Viewer
+```
+
+CommandStack 的 `has_undo/has_redo` 是不执行扩展代码的纯 history 查询。
+`check_undo/check_redo` 才调用 Command capability，并以 `Result<bool, _>` 区分明确拒绝
+与扩展 panic。实际 undo/redo 仍在操作点重新检查，不能依赖较早的 UI 探测结果。
+
 ## 10. Tool 与输入仲裁
 
 Tool 是 EditorDomain 级状态机，同一 domain 同时只有一个 active Tool。Viewer 提供
@@ -345,6 +373,7 @@ Viewer selection 与 session 内 text selection 不共享状态。完整契约�
 - inconsistent PartTree/FigureTree relation；
 - unsupported request；
 - command rejected/failed；
+- rejected command changed the observable model revision；
 - model notification gap or stale revision；
 - feedback cleanup failure；
 - input capture conflict；

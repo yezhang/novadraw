@@ -78,6 +78,11 @@ description = "Verify positive and negative facade import examples independently
 program = "cargo"
 args = ["test", "-p", "novadraw", "--doc"]
 
+[commands."test.editor-doc"]
+description = "Verify Editor public API examples and negative escape checks"
+program = "cargo"
+args = ["test", "-p", "novadraw-editor", "--doc"]
+
 [commands."backend.native-vello"]
 description = "Compile the native Vello backend"
 program = "cargo"
@@ -262,6 +267,23 @@ args = [
   "check",
   "-p",
   "web-validation",
+  "--target",
+  "wasm32-unknown-unknown",
+]
+
+[commands."check.tc07-native-host"]
+description = "Compile the Native ViewerDrive consumer"
+program = "cargo"
+args = ["check", "-p", "node-editor-demo", "--bin", "node-editor-demo"]
+
+[commands."check.tc07-web-host"]
+description = "Compile the Web ViewerDrive consumer for wasm32"
+program = "cargo"
+args = [
+  "check",
+  "-p",
+  "web-validation",
+  "--lib",
   "--target",
   "wasm32-unknown-unknown",
 ]
@@ -1286,6 +1308,43 @@ paths = [
 documents = [
   "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
   "doc/verification/reviews/tc13-tc14-api-surface-hot-path-completion-2026-10-08.md",
+]
+
+[[suites]]
+id = "editor.tc07-viewer-boundary"
+title = "Viewer edit session, external synchronization, and host drive boundary"
+milestone = "TC-07"
+kind = "contract"
+api_semantics = ["model.notification", "command.stack", "part.refresh"]
+layers = ["static", "contract", "headless", "platform"]
+platforms = ["host", "headless", "native-macos", "web"]
+commands = [
+  "test.editor-doc",
+  "test.editor-g1-command",
+  "test.editor-g2",
+  "test.editor-g3-interaction",
+  "test.editor-g4",
+  "test.editor-g5-projection",
+  "test.editor-g5-editing",
+  "test.editor-p2-e02",
+  "test.ga4-editor-extension-consumer",
+  "check.tc07-native-host",
+  "check.tc07-web-host",
+]
+paths = [
+  "novadraw-editor/src/command/**",
+  "novadraw-editor/src/domain.rs",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/g1_command_stack_contract.rs",
+  "novadraw-editor/tests/g2_viewer_projection_contract.rs",
+  "novadraw-editor/tests/g4_editing_loop_contract.rs",
+  "examples/native/node-editor-demo/**",
+  "examples/web/web-validation/src/direct_edit_mode.rs",
+]
+documents = [
+  "doc/adr/adr-032-viewer-edit-session-and-drive-boundary.md",
+  "doc/design/editor/architecture.md",
+  "doc/verification/reviews/temporary-concept-design-audit-2026-10-08.md",
 ]
 
 [[suites]]

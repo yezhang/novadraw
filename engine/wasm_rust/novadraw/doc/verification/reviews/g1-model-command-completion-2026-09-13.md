@@ -56,6 +56,10 @@ G1 不消费通知，因此 revision gap、批次稳定发布和重放错误留�
 stack 视为 dirty，并拒绝 execute、undo、redo、flush 和 save marking；Host 必须重建
 模型/editor，而不是继续使用未知状态。
 
+2026-10-09 ADR-032 补充：`has_undo/has_redo` 只查询 history，不执行扩展代码；
+`check_undo/check_redo` 执行 capability 探测并显式返回 `Result`。EditorDomain 的
+CommandStack operation 统一在 `ViewerEditSession` 中关闭模型 revision 与投影同步。
+
 ## 5. 自动验证
 
 ```text

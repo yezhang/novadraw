@@ -359,7 +359,7 @@ paint 回调传播错误后整帧不发布；先前成功的局部命令不意�
 | Core resource | FontId/ImageId、ResourceId、ResourceRegistry | 应用使用领域 ID；raw registry 同步归 host/render 专业层；不新增全局资源管理器 |
 | Editor 入口 | `lib.rs` 集中重导出，内部 module 私有 | 开放经筛选的 model/command/viewer/tool/policy/text_input 领域入口，root 保留高频类型 |
 | Editor 模型/命令 | ModelAdapter、CommandStack、CompoundCommand | 保留 model-only command 与组合契约；不把 Runtime 多操作称作可撤销 transaction |
-| Editor 命令探测 | `can_undo/can_redo(&mut self)` 捕获扩展 command panic 后可置 fault | 不机械变 `&self`；候选 `check_undo/check_redo -> Result<bool, CommandStackError>`，显式执行外部代码/故障语义 |
+| Editor 命令探测 | 原 `can_undo/can_redo(&mut self)` 捕获扩展 command panic 后可置 fault | 已由 ADR-032 拆分为纯 `has_*` 与显式 `check_* -> Result<bool, CommandStackError>` |
 | Editor 输入 | EditorDomain、Viewer、Tool 和 `*_without_selection` | 入门路径只经 Domain 仲裁；自定义 Tool 保留必要协议入口，后续按真实消费者收口，避免双 dispatch |
 | Editor direct edit | `start/accept/cancel_direct_text_edit` 等 | 保留 session 与模型提交边界；是否专用借用 session facade 后续定向，不制造第二份编辑状态 |
 | Inspector | FigureInspector::attach/capture/events、稳定 epoch | 保留只读 snapshot，文档明确返回 ListenerId 的解除责任；`capture` 可精确为 `capture_tree`，events 空结果与锁失败区分后续定向 |
