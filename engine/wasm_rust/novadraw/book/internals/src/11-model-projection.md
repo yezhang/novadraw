@@ -256,14 +256,67 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 
 “尽量应用剩余事件”会让 Viewer 永久偏离模型。
 
-## 11.15 重复身份
+## 11.15 模型变化只有两个入口
+
+Viewer 可以长期提供只读模型访问，但不能把完整模型可变引用交给普通调用者。否则调用者
+可以绕过命令历史、revision 通知和投影同步，模型与视图将停在不同因果前缀。
+
+模型变化只从两个入口进入：
+
+```mermaid
+flowchart TD
+    Intent[本地编辑意图] --> Domain[EditorDomain]
+    Domain --> Session[ViewerEditSession]
+    Session --> Stack[CommandStack operation]
+    Stack --> Model[模型 revision / 通知]
+    Model --> Sync[校验通知并同步投影]
+
+    External[加载 / 远端同步 / 测试输入] --> Callback[synchronize_model callback]
+    Callback --> Model
+
+    Shared[共享存储已在外部改变] --> Drain[synchronize]
+    Drain --> Sync
+```
+
+本地可撤销编辑必须经过 EditorDomain 和 Command。`ViewerEditSession` 是 crate 内短生命
+周期对象，它把 CommandStack 操作与通知校验、投影同步关闭在同一会话中。
+
+不进入本地 undo history 的加载、远端同步或测试输入，可以通过
+`synchronize_model(callback)` 获得不逃逸的短可变借用。共享存储已经在外部提交变化时，
+调用方只调用 `synchronize()` 消费通知并刷新投影。
+
+同步成功但没有新投影 revision 是合法空操作。revision gap、stale event、root 变化或
+部分投影失败则使 Viewer 进入故障锁定状态；Viewer 不能猜测缺失变化。
+
+## 11.16 宿主驱动与领域编辑分离
+
+窗口循环需要驱动 frame、surface、时间、焦点和启动资源，但不应因此取得 Viewer 内部
+编辑状态的任意修改权。
+
+查看器驱动 facade（`ViewerDrive`）提供短借用，只允许宿主执行：
+
+- 准备和完成渲染提交；
+- 重置 backend session；
+- 调整逻辑视口和请求完整重绘；
+- 推进时间和查询下一唤醒时刻；
+- 取消手势和释放焦点；
+- 注册宿主初始化所需的 packaged resources。
+
+它不暴露 Runtime、图形对象树、模型可变引用、CommandStack、EditorDomain、Part registry、
+Router、EditPolicy 或 selection。输入仍由 EditorDomain 仲裁，不在 `ViewerDrive` 中
+建立第二套工具和选择协议。
+
+这个边界把“宿主必须驱动 Viewer”与“宿主可以编辑 Viewer 内部事实”分开。facade 调用
+结束后，所有内部借用同时结束，宿主只能保存 Viewer 自身和平台对象。
+
+## 11.17 重复身份
 
 同一快照中若两个对象声明相同 ModelId，Viewer 无法建立双射。正确结果是拒绝该投影，
 保留上一稳定 Viewer 或进入明确故障状态。
 
 自动给其中一个对象换 ID 会篡改业务语义，不能由视图层完成。
 
-## 11.16 读取期间漂移
+## 11.18 读取期间漂移
 
 若 Adapter 不能提供不可变快照，Viewer 应：
 
@@ -275,7 +328,7 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 
 不能把不同 revision 的 containment 和 connection 拼在一起。
 
-## 11.17 多 Viewer
+## 11.19 多 Viewer
 
 多个 Viewer 可以共享同一模型，但各自拥有：
 
@@ -288,7 +341,7 @@ Viewer 只有在 `from_revision` 等于当前已应用 revision 时才能增量�
 一个 Viewer 的销毁不影响模型，也不使另一个 Viewer 的 Part/Figure ID 失效。模型
 Command 完成后，各 Viewer 独立消费同一业务 revision。
 
-## 11.18 必须保持的不变量
+## 11.20 必须保持的不变量
 
 1. 模型是业务事实的唯一权威；
 2. Viewer 投影基于单一稳定 revision；
@@ -296,9 +349,12 @@ Command 完成后，各 Viewer 独立消费同一业务 revision。
 4. Command 不保存 PartId 或 FigureId；
 5. visual ownership 与 Figure 拓扑分别明确；
 6. 投影只发布完整新 revision；
-7. revision 断裂时重建，不猜测。
+7. revision 断裂时重建，不猜测；
+8. Viewer 不暴露长期模型可变引用；
+9. 每次模型变化都以通知校验和投影同步关闭；
+10. 宿主只通过 `ViewerDrive` 驱动平台职责，不取得编辑内部所有权。
 
-## 11.19 常见错误设计
+## 11.21 常见错误设计
 
 ### Figure 直接保存并修改业务对象
 
@@ -320,16 +376,27 @@ Viewer 重建后命令历史失效。
 
 Viewer 无法证明自己对应任何真实模型快照。
 
-## 11.20 与后续章节的关系
+### 公开 `model_mut` 后要求调用者手工刷新
+
+命令历史、模型 revision 和 Viewer 投影的关闭动作依赖调用者记忆，遗漏一步就会形成
+不同状态前缀。
+
+### 宿主循环长期持有 Viewer 内部可变入口
+
+平台驱动和领域编辑没有类型边界，frame、输入、选择和模型修改可以绕过各自协议。
+
+## 11.22 与后续章节的关系
 
 本章解释模型如何形成稳定视图。下一章从反方向说明输入如何经 Tool、Request 和 Policy
 形成只修改模型的 Command，再由本章的投影闭环返回 Figure。第 13 章则处理 Figure 和
 Part 如何通过类型化扩展保持开放。
 
-## 11.21 思考题
+## 11.23 思考题
 
 1. 为什么 Part 树与 Figure 树不必完全同构？
 2. 节点重排时保留 Part/Figure 身份有什么价值？
 3. connection 端点缺失时，为什么不能选择“最近的 Figure”代替？
 4. 多 Viewer 共享模型时，哪些状态绝不能共享？
 5. revision 断裂后全量重建为何比补猜事件更可靠？
+6. 为什么 `synchronize_model` 不能替代普通编辑命令？
+7. `ViewerDrive` 为什么不能暴露 selection 或 CommandStack？

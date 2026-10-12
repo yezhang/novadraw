@@ -268,7 +268,7 @@ bottom = max(all y)
 Figure 的本地域时，查询完整变换：
 
 ```rust
-use novadraw::Point;
+use novadraw::geometry::Point;
 
 let transform = runtime
     .tree()

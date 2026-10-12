@@ -1,35 +1,258 @@
 # 附录：核心概念关系图
 
-本图用于回顾全书概念，不替代各章中的因果解释。
+本附录用于回顾全书的因果、所有权和身份关系，不替代各章中的推导。
+
+遇到一个新问题时，先判断它属于哪个状态平面，再判断由谁提交、使用什么身份，以及失败
+后哪些事实必须保持不变。
+
+## 一致性总图
 
 ```mermaid
 flowchart TD
     Model[业务模型<br/>持久事实] --> Projection[Viewer 投影]
     Input[平台输入] --> Interaction[命中与交互状态]
     Interaction --> Editing[Tool / Request / Policy]
-    Editing --> Command[CommandStack]
-    Command --> Model
+    Editing --> Command[候选 Command]
+    Command --> EditSession[ViewerEditSession]
+    EditSession --> Stack[CommandStack]
+    Stack --> Model
 
-    Projection --> Runtime[Runtime<br/>事务权威]
-    App[应用修改] --> Runtime
+    External[外部模型变化] --> Synchronize[synchronize / synchronize_model]
+    Synchronize --> Projection
+
+    Projection --> Runtime[Runtime<br/>场景事务权威]
+    App[应用场景修改] --> Runtime
     Interaction --> Runtime
 
     Runtime --> Tree[FigureTree<br/>结构与身份]
     Runtime --> Stabilize[布局与派生状态收敛]
     Tree --> Stabilize
-    Stabilize --> Stable[稳定场景]
+    Stabilize --> Stable[稳定 committed scene]
 
-    Stable --> Damage[Damage]
-    Stable --> Record[绘制命令]
-    Damage --> Submission[RenderSubmission]
-    Record --> Submission
-    Submission --> Backend[渲染后端]
-    Backend --> Completion[完成反馈]
-    Completion --> Runtime
+    Stable --> Presentation[Presentation Plane<br/>可丢弃表现]
+    Presentation --> Record[PaintContext / CommandRecorder]
+    Stable --> Damage[重绘区域]
+    Damage --> Publish[Runtime 帧出版]
+    Record --> Publish
+    Publish --> Submission[RenderSubmission]
+    Submission --> Host[Host]
+    Host --> Backend[RenderBackend]
+    Backend --> Result[RenderResult]
+    Result --> Complete[Runtime::complete_submission]
+    Complete --> Ack[SubmissionAcknowledgement]
 
-    Capability[类型化 Capability] -.扩展.-> Runtime
-    Component[组件更新] -.提交意图.-> Runtime
+    Provider[Native / Web provider] --> Bytes[bytes]
+    Bytes --> Decode[Core 纯解码]
+    Decode --> Token[ResourceRequestToken 完成]
+    Token --> Runtime
+
+    Capability[类型化 Capability] -.扩展计算.-> Runtime
+    Component[类型化组件更新] -.提交意图.-> Runtime
+    Drive[ViewerDrive] -.宿主驱动.-> Runtime
 ```
+
+箭头表示允许的因果方向，不表示所有对象互相拥有。最重要的禁止方向是：
+
+- 后端结果不能改写业务模型或场景事实；
+- 表现状态不能回写已提交状态；
+- Tool、Policy 和 Capability 不能绕过权威提交者；
+- 平台 provider 不能直接修改 Runtime 内部资源表；
+- Host 不能通过 ViewerDrive 取得模型、选择或编辑策略所有权。
+
+## 六类状态与所有者
+
+| 状态类别 | 典型内容 | 长期所有者 | 合法变化入口 | 可否重建 |
+|---|---|---|---|---|
+| 业务源状态 | 节点、连接、领域属性 | 应用模型 | Command 或明确外部同步 | 不能从视图反推 |
+| 场景源状态 | Figure 拓扑、bounds、样式 | Runtime | 场景事务或 Viewer 投影 | 可从模型部分重建 |
+| 派生状态 | 布局、路径、文本排版、内容范围 | Runtime | 稳定化工作列表 | 必须可从依赖重建 |
+| 交互临时状态 | hover、capture、手势、preedit | 输入状态机或 Editor | 事件会话 | 会话结束即丢弃 |
+| 表现状态 | opacity、transform、动画路径、临时视觉 | Runtime 的 Presentation Plane | Animation plan/track | 可随时丢弃 |
+| 后端状态 | GPU 资源、surface、已呈现像素 | RenderBackend | RenderSubmission | 从稳定场景和源资源恢复 |
+
+判断一个字段属于哪类状态时，应问：
+
+1. 它是用户最终编辑的事实，还是由其他事实计算得到？
+2. 它是否只在一次交互或若干表现帧中存在？
+3. 丢失后能否从稳定输入重建？
+4. 后端是否只消费它，而不能定义它？
+
+## 三种身份域
+
+```mermaid
+flowchart LR
+    ModelId[ModelId<br/>业务身份] -->|Viewer registry| PartId[EditPartId<br/>控制器身份]
+    PartId -->|visual ownership| FigureId[FigureId<br/>场景身份]
+
+    ViewerId[Viewer namespace] -.限定.-> PartId
+    RuntimeId[Runtime namespace] -.限定.-> FigureId
+```
+
+| 身份 | 有效范围 | 跨重建稳定性 | 主要消费者 |
+|---|---|---|---|
+| `ModelId` | 业务模型 | 应保持语义稳定 | Command、ModelAdapter、持久化 |
+| `EditPartId` | 单个 Viewer | Viewer 重建后可变化 | 选择、Policy、投影 registry |
+| `FigureId` | 单个 Runtime | Runtime 重建后可变化 | 树、布局、输入、连接、渲染查询 |
+
+Command 保存业务身份，不保存 Part 或 Figure 身份。输入捕获可以保存当前 Figure 身份，
+但目标删除时必须取消会话，不能让旧代际身份“复活”。
+
+## 四种版本域
+
+| 版本身份 | 证明什么 | 不证明什么 |
+|---|---|---|
+| 模型 revision | 业务变化的连续前缀 | 场景已经稳定 |
+| 稳定 epoch | 派生状态对应同一稳定输入 | 后端已经呈现 |
+| backend session | 资源基线属于同一后端资源宇宙 | 某一帧已经完成 |
+| frame ID | session 内一次出版提交 | 业务模型发生了新变化 |
+
+这些版本不能合并为一个全局计数器。一次模型 revision 可以引发多个表现帧；一次 backend
+session 可以跨越多个模型 revision；稳定 epoch 完成后，后端仍可能拒绝或延迟提交。
+
+## 四个坐标域
+
+```mermaid
+flowchart LR
+    Parent[父内容域] -->|bounds + 节点变换| Local[节点本地域]
+    Local -->|边框 / 内边距 / 内容变换| Child[子内容域]
+    Child -->|后代父子边| Descendant[后代本地域]
+    Local -->|祖先链| Surface[逻辑表面域]
+```
+
+| 坐标域 | 典型数据 | 主要使用者 |
+|---|---|---|
+| 父内容域 | child bounds、布局输出 | LayoutManager、FigureTree |
+| 节点本地域 | 自绘、局部命中、visual bounds | Figure、PaintContext |
+| 子内容域 | 后代布局和内容变换 | 容器、Viewport、ScalablePane |
+| 逻辑表面域 | 平台输入、最终重绘区域 | Host、输入系统、帧准备 |
+
+绘制沿正向链下降，命中沿逆链降域，重绘区域沿正向链投影。三者必须读取同一父链事实。
+
+## 固定事务管线
+
+```text
+输入意图
+-> 建立稳定快照
+-> prepare 候选结果
+-> validate 身份、版本和值
+-> commit 权威状态
+-> stabilize 派生状态
+-> sample 可选表现状态
+-> record 受检绘制命令
+-> publish RenderSubmission
+-> complete 后端结果
+-> acknowledge 资源与恢复状态
+```
+
+扩展可以替换 prepare、测量、布局、路由、绘制和 Policy 等差异算法，但不能改变阶段
+顺序，也不能自行提交全局副作用。
+
+## 编辑闭环
+
+```mermaid
+sequenceDiagram
+    participant Input as 归一化输入
+    participant Tool
+    participant Policy
+    participant Domain as EditorDomain
+    participant Session as ViewerEditSession
+    participant Stack as CommandStack
+    participant Model
+    participant Viewer
+    participant Runtime
+
+    Input->>Tool: 事件序列
+    Tool->>Policy: Request
+    Policy-->>Tool: Feedback / Command
+    Tool->>Domain: 执行最终 Command
+    Domain->>Session: 开始稳定 revision 前缀
+    Session->>Stack: execute / undo / redo
+    Stack->>Model: 修改业务事实
+    Model-->>Session: revision 与通知
+    Session->>Viewer: 校验并同步投影
+    Viewer->>Runtime: 提交场景变化
+```
+
+会话只允许三种结论：
+
+- `commit`：命令成功，通知有效，投影同步；
+- `reject`：可恢复拒绝，并证明模型没有变化；
+- `fault`：模型状态未知或协议破坏，Stack 与 Viewer 故障锁定。
+
+## 帧出版与恢复闭环
+
+```mermaid
+sequenceDiagram
+    participant Runtime
+    participant Host
+    participant Backend
+
+    Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
+    Host->>Backend: submit
+    Backend-->>Host: RenderResult
+    Host->>Runtime: complete_submission
+    Runtime-->>Host: SubmissionAcknowledgement
+    Host->>Host: redraw / reconfigure / rebuild / stop
+```
+
+| 后端结果 | Runtime 语义 | Host 动作 |
+|---|---|---|
+| Presented | 提交资源基线 | 仅在仍有工作时继续 |
+| Skipped / Retry | 恢复资源并保留完整重绘 | 按可见性或唤醒规则重调度 |
+| SurfaceLost | 保留 session，表面失效 | 重配 surface |
+| DeviceLost | 递增 session，旧资源宇宙失效 | 重建 backend |
+| Unsupported / InvalidInput | 确定性拒绝，不自动重试 | 暴露失败并停止自动提交 |
+| OutOfMemory / Fatal | 终止当前自动提交链路 | 释放资源、诊断或退出 |
+
+Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backend session。
+
+## 资源加载闭环
+
+```text
+应用选择 provider
+-> Native file 或 Web fetch 取得 bytes
+-> Core 解码为 ImageData/FontData
+-> 使用 ResourceRequestToken 完成 Runtime 请求
+-> Runtime 更新资源 revision 和 ResourceDelta
+-> 依赖 Figure 失效
+-> 下一 RenderSubmission 同步资源
+```
+
+新请求、同步资源修改、资源失败或移除都会使旧 token 失效。迟到完成只能返回 stale，
+不得改变资源状态或触发图形失效。
+
+## 14 章的因果位置
+
+| 章节 | 主要输入 | 稳定输出 | 核心不变量 |
+|---|---|---|---|
+| 1. 图形编辑框架 | 业务变化和平台输入 | 双闭环总模型 | 所有子系统对同一变化得出一致结果 |
+| 2. 状态、身份与所有权 | 对象和关系 | 单一权威与命名空间身份 | ID 不跨域解释 |
+| 3. 固定管线与扩展 | 扩展差异 | 受控候选结果 | 调度权属于框架 |
+| 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
+| 5. 几何与坐标 | 带域几何 | 可逆或保守的投影 | 绘制、命中和重绘共享变换链 |
+| 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
+| 7. 绘制与帧 | 稳定场景和表现快照 | RenderSubmission 与 acknowledgement | 录制不等于出版 |
+| 8. 动画与表现 | committed facts 和时间 | 可丢弃表现快照 | 表现不反向污染事实 |
+| 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
+| 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
+| 11. 模型投影 | 单一模型 revision | 完整 Viewer 投影 | 模型变化必须受控同步 |
+| 12. 编辑协议 | 连续输入和 Request | 可撤销 Command 结果 | 会话关闭模型与投影事务 |
+| 13. Capability | 新扩展概念 | 正确分类的扩展对象 | Capability 必须有独立消费者 |
+| 14. 正确性与演进 | 变化和故障 | 可重复证据 | 失败前后状态必须可描述 |
+
+## 全书失败分类
+
+| 分类 | 权威状态 | 会话或调度 | 典型处理 |
+|---|---|---|---|
+| 合法缺失 | 未改变 | 可继续 | 返回空结果或取消局部操作 |
+| 明确拒绝 | 未改变 | 当前操作结束 | 修正输入或保持旧状态 |
+| 会话取消 | 稳定事实未提交 | 清理临时状态 | 释放 capture、feedback、preedit |
+| 可重试失败 | 已知且一致 | 保留必要工作 | 等待条件变化后重试 |
+| 确定性失败 | 已知且一致 | 停止自动循环 | 向应用暴露错误 |
+| 状态未知 | 无法证明 | 故障锁定 | 重建模型、Viewer、Runtime 或 backend |
+
+“返回错误”本身不说明属于哪一类。每个错误合同都应说明状态是否变化、能否重试、需要
+清理什么身份，以及由谁执行恢复。
 
 ## 三本书的概念边界
 

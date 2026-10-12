@@ -331,18 +331,21 @@ stateDiagram-v2
 
 一次节点移动的完整证明是：
 
-1. Command 只修改模型权威；
-2. 模型发布连续 revision；
-3. Viewer 从单一快照规划投影；
-4. Runtime 原子更新 Figure 状态；
-5. 布局和连接在稳定 epoch 内收敛；
-6. 坐标链统一投影旧新 visual bounds；
-7. Renderer 读取稳定树生成命令；
-8. Animation 只生成可丢弃 presentation，不修改 committed truth；
-9. RenderSubmission 绑定 session/frame；
-10. Backend 返回结构化 RenderResult；
-11. Runtime acknowledgement 决定资源基线和 session 恢复；
-12. 任一失败点都有明确不变状态或故障边界。
+1. Tool 和 Policy 只产生编辑意图与候选 Command；
+2. EditorDomain 在 ViewerEditSession 中执行 CommandStack 操作；
+3. Command 只修改模型权威；
+4. 成功会话校验并消费连续 revision，拒绝会话证明模型未变；
+5. Viewer 从单一快照规划投影；
+6. Runtime 原子更新 Figure 状态；
+7. 布局和连接在稳定 epoch 内收敛；
+8. 坐标链统一投影旧新 visual bounds；
+9. Animation 只生成可丢弃 presentation，不修改 committed truth；
+10. PaintContext 和 CommandRecorder 使用稳定场景与表现快照生成受检绘制记录；
+11. Runtime 是唯一帧出版权威，并为 RenderSubmission 分配 session/frame；
+12. Backend 返回结构化 RenderResult；
+13. Runtime acknowledgement 决定资源基线和 session 恢复；
+14. 异步资源完成只接受当前 ResourceRequestToken；
+15. 任一失败点都有明确不变状态或故障边界。
 
 任何一步无法说明，端到端一致性就只是偶然。
 

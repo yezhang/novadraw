@@ -72,15 +72,19 @@ novadraw-backend-vello = { path = "../novadraw-backend-vello", features = ["nati
 novadraw-platform-winit = { path = "../novadraw-platform-winit" }
 ```
 
-网页应用将 backend feature 改为 `web`，并使用 `novadraw-platform-web`。常规场景代码
-从 prelude 开始：
+网页应用将 backend feature 改为 `web`，并使用 `novadraw-platform-web`。场景代码从
+所需领域模块显式导入：
 
 ```rust
-use novadraw::prelude::*;
+use novadraw::figure::RectangleFigure;
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::Runtime;
+use novadraw::tree::{FigureId, FigureTree};
 ```
 
-只有使用视口、连接或事件时才引入对应 Core 领域模块。Editor 通过
-`novadraw-editor` 单独安装。不要从 `novadraw::advanced` 开始构建普通应用。
+使用布局、视口、连接或事件时继续引入对应 Core 领域模块。Editor 通过
+`novadraw-editor` 单独安装。不要从 `novadraw::advanced` 开始构建普通应用，也不要
+依赖 crate root 的类型重导出。
 
 ```toml
 novadraw-editor = { path = "../novadraw-editor" }
@@ -94,8 +98,12 @@ novadraw-editor = { path = "../novadraw-editor" }
 ```rust
 use std::error::Error;
 
-use novadraw::layout::XYConstraint;
-use novadraw::prelude::*;
+use novadraw::figure::RectangleFigure;
+use novadraw::geometry::Rectangle;
+use novadraw::graphics::Color;
+use novadraw::layout::{XYConstraint, XYLayout};
+use novadraw::runtime::Runtime;
+use novadraw::tree::{FigureId, FigureTree};
 
 struct AppScene {
     runtime: Runtime,

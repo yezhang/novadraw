@@ -304,7 +304,9 @@ flowchart LR
 构造期使用 Builder：
 
 ```rust
-use novadraw::prelude::*;
+use novadraw::figure::{EllipseFigure, RectangleFigure};
+use novadraw::runtime::Runtime;
+use novadraw::tree::FigureTree;
 
 let mut tree = FigureTree::new();
 let root = tree

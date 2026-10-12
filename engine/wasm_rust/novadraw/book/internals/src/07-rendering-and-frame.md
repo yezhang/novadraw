@@ -103,6 +103,26 @@ Figure 调用 Graphics 录制命令，不直接访问 GPU 对象。这样 Figure
 
 Graphics 不是场景查询接口。绘制回调不应通过它修改 Figure 树。
 
+### 录制不等于帧出版
+
+独立调用者可以通过命令录制器（`CommandRecorder`）和绘制上下文（`PaintContext`）
+生成 `RecordedDrawing`。它只表示一段已经通过绘制语法校验的命令记录，不携带 surface、
+backend session 或 frame identity，也不等于可以交给后端的帧。
+
+图形对象、形状和边框使用同一套 `PaintContext` 语言。绘制回调返回结构化
+`GraphicsError`；Renderer 可以恢复内部状态栈，但只要任一回调失败，本帧就不能出版。
+
+只有 Runtime 能把录制结果提升为 `RenderSubmission`。出版前，它还必须：
+
+- 确认派生状态已经稳定；
+- 冻结重绘区域和资源同步；
+- 校验 backend capability 和设备输入；
+- 分配 session/frame identity；
+- 建立 in-flight 状态。
+
+因此，公开录制器负责“命令是否有效”，Runtime 负责“这一帧能否成为当前会话中的事实”。
+把两个边界合并，会允许 Figure 或应用绕过稳定化、资源基线和完成确认。
+
 ## 7.7 状态栈
 
 每个节点进入时保存状态，退出时恢复。否则一个 child 的 transform、clip 或 opacity
@@ -174,12 +194,36 @@ frame identity 也用于：
 Figure 销毁不意味着 GPU 资源可以立即释放。资源生命周期通常要等待所有引用帧完成。
 反过来，后端缓存也不能成为文字或图像语义的权威来源。
 
+### 资源来源不属于场景运行时
+
+文件路径、URL、同步文件 I/O 和 Web fetch 属于不同平台语义。Runtime 不保存统一
+ResourceProvider，也不主动读取文件或轮询异步任务。
+
+资源进入场景的规范顺序是：
+
+```text
+应用选择 Native/Web provider
+-> provider 取得 bytes
+-> Core 纯解码
+-> Runtime 完成资源请求
+-> 依赖该资源的图形对象失效
+```
+
+每次异步加载都绑定资源请求令牌（`ResourceRequestToken`）。同一资源开始新请求后，
+旧令牌的迟到完成必须返回 stale，且不能改变资源状态、revision、待提交资源增量或依赖
+图形对象的失效状态。
+
+同步资源修改同样会使活动令牌失效。令牌保护的是 Runtime 内的发布顺序，不承诺取消
+平台 I/O。provider 读取错误、字节解码错误和 Runtime 资源 mutation 错误也属于不同
+失败域，不能压缩成一个字符串。
+
 ## 7.11 提交状态机
 
 ```mermaid
 flowchart TD
     Stable[稳定场景] --> Prepare[Runtime 准备 RenderSubmission]
-    Prepare --> Backend[RenderBackend::submit]
+    Prepare --> Host[Host 取得提交]
+    Host --> Backend[RenderBackend::submit]
     Backend --> Result{RenderResult}
 
     Result -->|Presented| Presented[已呈现]
@@ -189,12 +233,13 @@ flowchart TD
     Result -->|Unsupported / InvalidInput| Rejected[确定性拒绝]
     Result -->|OutOfMemory / Fatal| Terminated[终止自动提交]
 
-    Presented --> Complete[Runtime::complete_submission]
-    Deferred --> Complete
-    Surface --> Complete
-    Device --> Complete
-    Rejected --> Complete
-    Terminated --> Complete
+    Presented --> Return[Host 回传结果]
+    Deferred --> Return
+    Surface --> Return
+    Device --> Return
+    Rejected --> Return
+    Terminated --> Return
+    Return --> Complete[Runtime::complete_submission]
 
     Complete --> Ack{SubmissionAcknowledgement}
     Ack --> Baseline[提交资源基线]
@@ -314,7 +359,9 @@ Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失�
 6. 后端结果不反向成为场景事实；
 7. 只有 Runtime 可以确认资源基线和递增 backend session；
 8. 未呈现或失败的提交保留完整重绘需求；
-9. 确定性拒绝和终止失败不得自动循环重试。
+9. 确定性拒绝和终止失败不得自动循环重试；
+10. 录制结果不携带帧身份，只有 Runtime 可以出版提交；
+11. 平台 provider 不进入 Runtime，异步资源完成必须验证请求令牌。
 
 ## 7.17 常见错误设计
 
@@ -325,6 +372,11 @@ Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失�
 ### Figure 直接调用后端
 
 后端类型穿透 Core，命令无法统一验证或回放。
+
+### 应用把录制结果直接包装成提交
+
+应用绕过场景稳定化、重绘区域、资源基线和 session/frame identity，形成第二个帧出版
+权威。
 
 ### 绘制中修改 Figure
 
@@ -341,6 +393,11 @@ Runtime 与 Host 对资源宇宙产生两个权威，迟到 completion 无法正
 ### 把所有失败都当作 Retry
 
 Unsupported、InvalidInput、OOM 和 Fatal 会形成无界提交循环，并掩盖确定性错误。
+
+### Runtime 直接读取文件或 URL
+
+平台 I/O 穿透 Core，Native/Web 形成不同公共表面；迟到完成也无法判断是否仍属于当前
+资源请求。
 
 ### 以“变化节点列表”代替 damage
 
@@ -362,3 +419,5 @@ Unsupported、InvalidInput、OOM 和 Fatal 会形成无界提交循环，并掩�
 5. Unsupported 为什么不能自动当作 Retry？
 6. 局部重绘为什么不能只录制发生变化的 Figure？
 7. stable epoch、frame ID 和 session ID 分别解决什么问题？
+8. 为什么 `RecordedDrawing` 不能直接视为 `RenderSubmission`？
+9. 资源请求令牌过期时，哪些状态必须保持不变？

@@ -87,8 +87,9 @@ LayoutState(container)
 构建期配置：
 
 ```rust
-use novadraw::layout::XYConstraint;
-use novadraw::prelude::*;
+use novadraw::figure::RectangleFigure;
+use novadraw::layout::{XYConstraint, XYLayout};
+use novadraw::tree::FigureTree;
 
 let mut tree = FigureTree::new();
 let root = tree

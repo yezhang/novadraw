@@ -647,7 +647,7 @@ feedback 并重新获取输入租约。取消则只删除 feedback、停止闪�
 
 ```rust
 use novadraw_editor::{EditorDomain, GraphicalViewer};
-use novadraw::Rectangle;
+use novadraw::geometry::Rectangle;
 
 let viewer = GraphicalViewer::new(
     model_adapter,

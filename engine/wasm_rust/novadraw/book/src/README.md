@@ -69,14 +69,16 @@
 普通绘图应用依赖 Core crate `novadraw`。
 
 ```rust
-use novadraw::prelude::*;
+use novadraw::figure::{Figure, RectangleFigure};
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::Runtime;
+use novadraw::tree::FigureTree;
 ```
 
-公开表面分为三层：
+公开表面分为两层：
 
-1. crate root：`Runtime`、`FigureTree`、常用 Figure、布局和基础值；
-2. `novadraw::prelude::*`：常规 Figure/Runtime 开发所需的常用导入；
-3. 领域模块：`container`、`connection`、`event`、`render` 等专业能力。
+1. crate root：只列出 `figure`、`geometry`、`layout`、`runtime` 等领域模块；
+2. 领域模块：公开该领域的值、trait、内置实现和错误。
 
 `novadraw::advanced` 面向诊断和深度集成，不是普通应用的默认入口。Vello 后端也不是
 默认依赖；Editor、Inspector、Vello backend 和 Winit/Web platform adapter 均由独立

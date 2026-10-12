@@ -73,12 +73,11 @@
 
 ## B. 公开 API 地图
 
-普通应用从 `novadraw` facade 开始：
+普通应用从 `novadraw` 的领域模块开始：
 
 | 入口 | 用途 |
 |---|---|
-| crate root | `Runtime`、`FigureTree`、常用 Figure、布局和基础值 |
-| `novadraw::prelude` | 常规 Figure/Runtime 应用的一组便利导入 |
+| crate root | 只公开领域模块，不平铺具体类型 |
 | `novadraw::geometry` | 点、向量、矩形、尺寸、内边距和仿射变换 |
 | `novadraw::graphics` | `NdCanvas`、路径、线型和颜色 |
 | `novadraw::figure` | Figure 扩展能力、内置 Figure、边框和样式 |

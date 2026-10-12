@@ -10,6 +10,20 @@
 
 > 图形编辑框架首先是一套一致性协议，其次才是绘制 API 和交互组件集合。
 
+读完本章，读者应能够：
+
+- 区分绘图库、图形核心和图形编辑框架的职责；
+- 沿时间顺序解释一次编辑如何从输入回到模型，再形成后端提交；
+- 判断业务事实、已提交场景、表现状态和后端状态分别由谁拥有；
+- 用全书不变量检查一个看似局部的功能设计。
+
+本章先约定四个高频名称：
+
+- **图形对象或图形行为（Figure）**：场景中的可组合节点，或节点上的具体行为协议；
+- **场景运行时（Runtime）**：提交场景事务、收敛派生状态并出版帧的权威；
+- **查看器（Viewer）**：把业务模型投影为编辑部件和图形对象的当前视图；
+- **重绘区域（damage）**：逻辑表面上可能需要修复的保守像素范围。
+
 ## 1.1 从一次节点移动开始
 
 设想一个流程编辑器：画布中有两个节点，一条连接线从节点 A 指向节点 B。用户按下
@@ -22,7 +36,7 @@
 | 手势目标是谁 | 按下时命中的节点 A 被锁定为本次拖拽来源 |
 | 拖拽中的位置 | 临时反馈跟随指针，但业务模型尚未改变 |
 | 最终模型位置 | 释放时通过一个可撤销命令提交 |
-| Figure 位置 | Viewer 根据新模型刷新投影 |
+| 图形对象位置 | Viewer 根据新模型刷新投影 |
 | 子节点坐标 | 沿父级坐标链重新映射 |
 | 连接路径 | 端点依赖变化后重新路由 |
 | 选中框与手柄 | 根据节点的新表面几何重新投影 |
@@ -63,13 +77,13 @@
 
 它负责：
 
-- Figure 树；
+- 图形对象树；
 - 节点身份与生命周期；
 - 几何和坐标传播；
 - 测量与布局；
 - 绘制与命中；
 - 输入分发；
-- damage 和帧准备。
+- 重绘区域和帧准备。
 
 图形核心知道“这是一个可布局、可绘制、可命中的节点”，但不知道它是否代表流程、
 类图、组织结构或电路元件。
@@ -80,7 +94,7 @@
 
 它负责：
 
-- 模型到 Figure 的投影；
+- 模型到图形对象的投影；
 - 选择和编辑焦点；
 - 把输入序列解释为编辑意图；
 - 生成可撤销命令；
@@ -142,7 +156,7 @@ Editor 才成为必要层。
 保留式并不意味着“每个 Figure 自己管理一切”。恰恰相反，长期状态越多，越需要统一
 所有权和更新协议。
 
-## 1.4 五类状态
+## 1.4 六类状态
 
 理解图形框架的第一步，是区分状态的性质。
 
@@ -174,26 +188,38 @@ Editor 才成为必要层。
 交互状态只在一段会话内存在，例如 hover、capture、拖拽来源、连接预览、文本
 preedit 和插入光标闪烁阶段。它不能被误认为持久业务事实。
 
-### 呈现输出
+### 表现状态
 
-绘制命令、damage、资源增量和后端提交包是稳定场景的输出。它们可以被后端消费，
-但不能反向成为场景状态的权威来源。
+表现状态（presentation state）是场景运行时拥有的可丢弃视觉覆盖，例如动画中的透明度、
+变换、路径和临时视觉。它可以在多帧中变化，但不能反向写入模型、图形对象边界矩形、
+布局结果、连接路由或命令历史。
 
-这五类状态之间只能沿明确方向传播：
+没有活动表现覆盖时，表现状态等价于直接读取已经稳定的场景事实。
+
+### 后端状态
+
+后端状态保存 GPU 或软件资源、surface 和已经呈现的像素。绘制命令、重绘区域、资源
+增量和渲染提交包只是从稳定场景与只读表现快照送往后端的输出，不是新的场景事实。
+后端状态不能反向成为场景状态的权威来源。
+
+这六类状态之间只能沿明确方向传播：
 
 ```mermaid
-flowchart LR
+flowchart TD
     Business[业务源状态] --> Projection[场景投影]
     Scene[场景源状态] --> Derived[派生状态]
     Projection --> Scene
     Session[交互临时状态] --> Intent[编辑意图]
     Intent --> Business
-    Derived --> Presentation[呈现输出]
     Scene --> Derived
+    Derived --> Stable[稳定场景]
+    Stable --> Presentation[表现状态]
+    Presentation --> Output[渲染输出]
+    Output --> Backend[后端状态]
 ```
 
 最危险的错误通常是反向写入：从像素推断模型、从反馈写业务事实，或者让后端修改
-Figure 树。
+图形对象树。表现状态反向写入已提交场景，同样会形成第二个事实权威。
 
 ## 1.5 图形闭环
 
@@ -204,26 +230,37 @@ sequenceDiagram
     participant Source as 应用或 Viewer
     participant Runtime
     participant Derived as 派生计算
+    participant Presentation as 表现平面
     participant Recorder as 命令录制
+    participant Host as 平台宿主
     participant Backend as 渲染后端
 
     Source->>Runtime: 提交状态变化
     Runtime->>Runtime: 校验并更新场景事实
     Runtime->>Derived: 收敛布局、连接和容器状态
     Derived-->>Runtime: 稳定场景
-    Runtime->>Runtime: 计算 damage
-    Runtime->>Recorder: 遍历稳定 Figure 树
+    Runtime->>Presentation: 采样可选表现状态
+    Presentation-->>Runtime: 只读表现快照
+    Runtime->>Runtime: 计算重绘区域
+    Runtime->>Recorder: 稳定场景 + 表现快照
     Recorder-->>Runtime: 绘制命令
-    Runtime->>Backend: RenderSubmission
-    Backend-->>Runtime: 完成或失败结果
+    Runtime-->>Host: RenderSubmission
+    Host->>Backend: submit
+    Backend-->>Host: RenderResult
+    Host->>Runtime: complete_submission
+    Runtime-->>Host: SubmissionAcknowledgement
 ```
 
-这条链包含两个容易混淆的边界：
+这条链包含四个容易混淆的边界：
 
 1. **场景稳定**：所有必须的派生状态已经闭合，可以生成一致提交；
-2. **提交完成**：后端已经处理该 session 和 frame 的提交结果。
+2. **表现采样**：只读表现快照已经形成，但没有改变已提交场景；
+3. **帧已出版**：Runtime 已分配 session/frame，并建立 in-flight 状态；
+4. **完成已确认**：Runtime 已根据后端结果确认资源基线和恢复动作。
 
-场景稳定不等于像素已经呈现。反过来，后端也不能因为提交失败就私自改变场景事实。
+场景稳定不等于像素已经呈现。后端返回结果也不等于完成协议已经关闭；平台宿主必须把
+完整结果交回 Runtime。反过来，后端和宿主都不能因为提交失败就私自改变场景事实或
+backend session。
 
 ## 1.6 编辑闭环
 
@@ -235,6 +272,8 @@ sequenceDiagram
     participant Core as 图形核心
     participant Tool
     participant Policy
+    participant Domain as EditorDomain
+    participant Session as ViewerEditSession
     participant Stack as 命令历史
     participant Model as 业务模型
     participant Viewer
@@ -243,9 +282,12 @@ sequenceDiagram
     Core-->>Tool: 未被 Figure 消费的输入
     Tool->>Policy: 类型化 Request
     Policy-->>Tool: Feedback 或 Command
-    Tool->>Stack: 执行最终命令
+    Tool->>Domain: 执行最终命令
+    Domain->>Session: 开始稳定 revision 前缀
+    Session->>Stack: execute / undo / redo
     Stack->>Model: 修改业务事实
-    Model-->>Viewer: 有序变化通知
+    Model-->>Session: revision 与有序通知
+    Session->>Viewer: 校验并同步投影
     Viewer->>Core: 刷新场景投影
 ```
 
@@ -276,7 +318,7 @@ Figure 树不是为了少写一份数据结构，而是为了让多个算法读�
 这不意味着所有信息都塞进树节点。业务模型、选择、命令历史、后端资源和平台对象仍由
 各自层拥有。Figure 树只是图形运行时语义的共同骨架。
 
-## 1.8 七条全书不变量
+## 1.8 八条全书不变量
 
 后续章节会逐步推导以下不变量。
 
@@ -294,7 +336,7 @@ Figure 树不是为了少写一份数据结构，而是为了让多个算法读�
 
 ### 4. 派生状态先稳定，才能绘制和发布
 
-布局、连接和容器范围尚未闭合时，不能计算最终 damage，也不能发布稳定通知。
+布局、连接和容器范围尚未闭合时，不能计算最终重绘区域，也不能发布稳定通知。
 
 ### 5. 输入由统一状态机仲裁
 
@@ -303,12 +345,17 @@ Figure 树不是为了少写一份数据结构，而是为了让多个算法读�
 ### 6. 扩展不能绕过提交权威
 
 Figure、布局器、路由器和编辑策略可以计算候选结果，但副作用必须由所属 Runtime、
-Viewer 或 CommandStack 提交。
+Viewer 或 ViewerEditSession/CommandStack 提交。
 
 ### 7. 失败不能伪装成成功
 
 合法缺失、可恢复拒绝、可重试提交和状态未知必须区分。无法证明一致性时，系统进入
 明确的故障边界。
+
+### 8. 表现不能反向污染事实
+
+动画、反馈图形和其他表现覆盖可以改变当前帧，但不能修改模型、已提交图形状态、布局、
+路由、通知或撤销历史。清除表现覆盖后，系统应直接显示已经存在的最终事实。
 
 ## 1.9 完整案例：移动一个已连接节点
 
@@ -335,8 +382,10 @@ Viewer 或 CommandStack 提交。
 1. 指针释放结束手势；
 2. Policy 根据最终请求生成移动命令；
 3. 临时反馈被清理；
-4. CommandStack 执行命令；
-5. 模型提交新位置并产生有序通知。
+4. EditorDomain 创建 ViewerEditSession；
+5. 会话通过 CommandStack 执行命令；
+6. 模型提交新位置并产生有序通知；
+7. 会话校验通知并同步 Viewer 投影。
 
 ### 阶段四：刷新场景
 
@@ -350,11 +399,13 @@ Viewer 或 CommandStack 提交。
 ### 阶段五：形成新帧
 
 1. Runtime 收敛布局和连接；
-2. 新旧视觉范围合并为 damage；
-3. Renderer 遍历稳定 Figure 树；
-4. 绘制命令、damage 和资源增量组成提交包；
-5. 后端提交并返回结果；
-6. Runtime 完成本帧并发布稳定观察结果。
+2. 表现平面从稳定事实生成可选只读快照；
+3. 新旧视觉范围合并为重绘区域；
+4. Renderer 使用稳定图形对象树和表现快照录制命令；
+5. 绘制命令、重绘区域和资源数据组成渲染提交包；
+6. Host 把提交包交给后端，并取得结构化结果；
+7. Host 把结果交回 Runtime；
+8. Runtime 确认资源基线、重绘需求和 backend session 的恢复动作。
 
 撤销不会反向执行一组像素操作。它恢复模型旧位置，然后重新走阶段四和阶段五。这正是
 模型事实与视图投影分离的价值。
@@ -394,15 +445,16 @@ Viewer 或 CommandStack 提交。
 1. 谁拥有状态和身份；
 2. 固定管线如何容纳扩展；
 3. Figure 树如何成为共同骨架；
-4. 坐标如何贯穿绘制、命中和 damage；
+4. 坐标如何贯穿绘制、命中和重绘区域；
 5. 布局与派生状态如何收敛；
 6. 稳定场景如何形成提交；
-7. 输入如何形成交互会话；
-8. 视口和连接如何处理跨节点依赖；
-9. 业务模型如何投影为视图；
-10. 编辑意图如何形成可撤销命令；
-11. Capability 如何保持开放且类型安全；
-12. 整个系统如何在失败和演进中维持一致。
+7. 动画如何只改变表现而不污染最终事实；
+8. 输入如何形成交互会话；
+9. 视口和连接如何处理跨节点依赖；
+10. 业务模型如何投影为视图；
+11. 编辑意图如何形成可撤销命令；
+12. Capability 如何保持开放且类型安全；
+13. 整个系统如何在失败和演进中维持一致。
 
 ## 1.12 思考题
 

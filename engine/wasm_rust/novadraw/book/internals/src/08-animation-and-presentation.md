@@ -203,8 +203,10 @@ sequenceDiagram
     Runtime->>Runtime: 合并 old/new presentation damage
     Runtime->>Recorder: stable scene + presentation snapshot
     Recorder-->>Runtime: RenderSubmission
-    Runtime->>Backend: submit
-    Backend-->>Runtime: RenderResult
+    Runtime-->>Host: FramePreparation::Ready
+    Host->>Backend: submit(RenderSubmission)
+    Backend-->>Host: RenderResult
+    Host->>Runtime: complete_submission(result)
 ```
 
 Committed state 的通知只依赖源事务已经稳定，不依赖动画是否完成，也不依赖当前帧是否
@@ -450,8 +452,8 @@ Timeline 已结束但表现状态仍存在，形成没有 owner 的第二权威�
 
 ## 8.22 与前后章节的关系
 
-第 7 章定义稳定场景、damage、RenderSubmission 和 backend completion。本章在不改变
-committed scene 的前提下，为帧录制增加只读 presentation snapshot。
+第 7 章定义稳定场景、damage、RenderSubmission 和 Runtime acknowledgement。本章在不
+改变 committed scene 的前提下，为帧录制增加只读 presentation snapshot。
 
 下一章从平台输入进入场景。输入命中默认读取 committed geometry；只有 Track 明确选择
 Presentation 策略时，命中才读取与当前帧一致的表现几何。第 10 章的 Viewport 和

@@ -259,7 +259,9 @@ sequenceDiagram
 
 ```rust
 use novadraw::container::ZoomManager;
-use novadraw::prelude::*;
+use novadraw::figure::RectangleFigure;
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::Runtime;
 
 let pane = tree.builder().add_scroll_pane_to(
     root,

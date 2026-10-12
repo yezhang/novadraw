@@ -114,13 +114,16 @@ AnchorDescriptor { provider, roles }
 
 descriptor 在 detached/build 阶段构造，Runtime attach 时验证：
 
-- key 不重复；
-- descriptor 类型匹配；
-- 必需依赖存在；
-- 生命周期与线程约束合法；
-- 能力集合可以冻结。
+- 同一 descriptor 类型不重复；
+- registration 在 topology 发布前成功；
+- descriptor-specific admission 条件成立；
+- 能力集合能够与 FigureNode 一起冻结。
 
 运行时调用通过 ID 和短借用访问，descriptor 不暴露 Runtime 内部引用。
+
+类型匹配由 `CapabilityKey<C>` 与 `TypeId::of::<C>()` 建立。若内部存储无法恢复 `C`，
+这是 registry 一致性故障，不应降级为“能力不存在”。必需依赖、生命周期或线程约束
+若存在，应由具体 descriptor 的 admission 合同声明，而不是由通用 registry 猜测。
 
 descriptor 可以保存函数指针或无捕获 typed adapter。执行时由引擎把短生命周期的
 Figure 借用交给 adapter，由 adapter 在私有边界完成受检 concrete type 适配。调用方

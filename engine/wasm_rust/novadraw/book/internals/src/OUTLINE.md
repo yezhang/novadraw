@@ -69,7 +69,7 @@
 - immediate mode 与 retained mode；
 - Figure 树作为共享场景事实；
 - 图形应用与图形编辑器的差异；
-- 源状态、派生状态、临时状态和最终像素；
+- 业务源状态、场景源状态、派生状态、交互状态、表现状态和后端状态；
 - 两条端到端闭环。
 
 关键图：从业务模型到像素、再从输入回到模型的双向因果图。
@@ -159,8 +159,9 @@
 - 旧视觉边界和新视觉边界的 union；
 - 裁剪、绘图状态和递归绘制；
 - Graphics、命令录制与 RenderSubmission；
+- PaintContext、CommandRecorder 与帧出版的分离；
 - RenderResult 与 Runtime acknowledgement；
-- 资源增量和 session/frame identity。
+- 资源增量、ResourceRequestToken 和 session/frame identity。
 
 关键图：从 mutation 到完成反馈的完整帧生命周期。
 
@@ -221,7 +222,9 @@
 - EditPart 作为控制器；
 - containment 与 connection projection；
 - registry 和 visual ownership；
-- plan、validate、commit 与 revision publication。
+- plan、validate、commit 与 revision publication；
+- synchronize/synchronize_model 的受控模型入口；
+- ViewerDrive 的宿主驱动边界。
 
 关键图：模型、Part、Figure 三个身份域及投影事务。
 
@@ -235,6 +238,8 @@
 - Request 作为类型化编辑意图；
 - Policy 负责目标解释和命令贡献；
 - Command 的执行、撤销、重做和补偿；
+- ViewerEditSession 的 commit/reject/fault 关闭动作；
+- CommandStack 的 has/check 查询分层；
 - Feedback 不提前写入模型；
 - 创建、移动、连接和直接编辑的共同结构。
 
