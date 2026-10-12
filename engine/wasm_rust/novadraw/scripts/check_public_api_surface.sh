@@ -10,9 +10,9 @@ trap 'rm -f "$actual"' EXIT
 cargo doc -p novadraw --no-deps --target-dir "$target_dir"
 
 doc_root="$target_dir/doc/novadraw"
+runtime_html="$doc_root/runtime/runtime/struct.Runtime.html"
 scopes=(
   "root:index.html"
-  "prelude:prelude/index.html"
   "advanced:advanced/index.html"
   "module.animation:animation/index.html"
   "module.connection:connection/index.html"
@@ -68,6 +68,63 @@ done
 
 LC_ALL=C sort -u -o "$actual" "$actual"
 
+if [[ ! -f "$runtime_html" ]]; then
+  echo "missing Runtime rustdoc page: $runtime_html" >&2
+  exit 1
+fi
+
+runtime_method_count="$(
+  perl -0777 - "$runtime_html" <<'PERL'
+use strict;
+use warnings;
+
+my ($path) = @ARGV;
+open my $handle, '<', $path or die "cannot read $path: $!\n";
+local $/;
+my $html = <$handle>;
+$html =~ m{<div id="implementations-list">(.*?)<h2 id="trait-implementations"}s
+    or die "cannot locate inherent Runtime implementations in $path\n";
+my $implementations = $1;
+my %methods;
+while ($implementations =~ /id="method\.([^"]+)"/g) {
+    $methods{$1} = 1;
+}
+print scalar keys %methods;
+PERL
+)"
+
+runtime_method_budget=25
+if (( runtime_method_count > runtime_method_budget )); then
+  echo "Runtime exposes $runtime_method_count inherent methods; budget is $runtime_method_budget" >&2
+  exit 1
+fi
+
+unexpected_root="$(awk '$1 == "root" && $2 != "mod" { print }' "$actual")"
+if [[ -n "$unexpected_root" ]]; then
+  echo "crate root must expose modules only; found:" >&2
+  echo "$unexpected_root" >&2
+  exit 1
+fi
+
+if rg -n 'novadraw::prelude' \
+  "$root/novadraw" \
+  "$root/novadraw-editor" \
+  "$root/novadraw-inspector" \
+  "$root/novadraw-backend-vello" \
+  "$root/novadraw-platform-winit" \
+  "$root/novadraw-platform-web" \
+  "$root/examples" \
+  "$root/benchmarks" \
+  --glob '*.rs'; then
+  echo "library-level novadraw prelude references are forbidden" >&2
+  exit 1
+fi
+
+if rg -n '^pub mod prelude;' "$root/novadraw/src/lib.rs"; then
+  echo "novadraw must not publish a library-level prelude module" >&2
+  exit 1
+fi
+
 if [[ "${1:-}" == "--update" ]]; then
   mkdir -p "$(dirname "$expected")"
   cp "$actual" "$expected"
@@ -87,4 +144,4 @@ if ! cmp -s "$expected" "$actual"; then
   exit 1
 fi
 
-echo "PASS root, prelude, domain module, and advanced API symbols match the snapshot"
+echo "PASS module-only root, domain module, advanced API symbols, and Runtime method budget ($runtime_method_count/$runtime_method_budget)"

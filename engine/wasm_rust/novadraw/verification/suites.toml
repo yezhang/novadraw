@@ -116,7 +116,7 @@ description = "Reject Kurbo, Vello, and Winit types from public API signatures"
 program = "./scripts/check_public_api_dependencies.sh"
 
 [commands."api.surface"]
-description = "Compare root, prelude, domain module, and advanced symbols with the reviewed snapshot"
+description = "Compare the module-only root, domain modules, and advanced symbols with the reviewed snapshot"
 program = "./scripts/check_public_api_surface.sh"
 
 [commands."quality.hot-path-logging"]
@@ -583,7 +583,7 @@ program = "cargo"
 args = ["test", "-p", "novadraw", "--test", "p2_child_insertion"]
 
 [commands."test.p2-figure-capability"]
-description = "Verify Figure capability boundaries, external consumers, and concrete Figure facades"
+description = "Verify Figure capability boundaries, external consumers, and typed Figure updates"
 program = "cargo"
 args = [
   "test",
@@ -612,6 +612,30 @@ args = [
   "--test",
   "p2_animation_transition_contract",
 ]
+
+[commands."test.p2-s03-runtime-facades"]
+description = "Verify Runtime subsystem facades and unified Figure mutation"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "facade_contract",
+  "--test",
+  "d2_layer_contract",
+  "--test",
+  "d4_component_update",
+  "--test",
+  "m8_viewport_contract",
+  "--test",
+  "tc11_resource_provider_contract",
+]
+
+[commands."check.p2-s04-editor-open-protocol"]
+description = "Reject closed Editor protocols and run the independent open-protocol consumer"
+program = "./scripts/check_editor_open_protocol.sh"
+args = []
 
 [commands."test.ga4-editor-extension-consumer"]
 description = "Compile and run the external Editor compound-visual component consumer"
@@ -1518,6 +1542,101 @@ documents = [
   "doc/design/architecture/dynamic-architecture.md",
   "doc/roadmap/p2-delta-backlog.md",
   "doc/parity/draw2d/api-coverage.md",
+]
+
+[[suites]]
+id = "core.p2-s03-runtime-facades"
+title = "Runtime subsystem facades and unified Figure mutation"
+milestone = "P2-S03"
+kind = "contract"
+api_semantics = [
+  "runtime.identity",
+  "figure.lifecycle",
+  "figure.properties",
+  "frame.preparation",
+  "viewport.scroll_zoom",
+  "layer.freeform",
+]
+layers = ["static", "contract", "headless"]
+platforms = ["host", "headless"]
+commands = [
+  "workspace.check",
+  "test.p2-s03-runtime-facades",
+  "test.facade-doc",
+  "api.surface",
+]
+paths = [
+  "novadraw/src/runtime/**",
+  "novadraw/src/graph/**",
+  "novadraw/tests/facade_contract.rs",
+  "novadraw/tests/d2_layer_contract.rs",
+  "novadraw/tests/d4_component_update.rs",
+  "novadraw/tests/m8_viewport_contract.rs",
+  "novadraw/tests/tc11_resource_provider_contract.rs",
+  "novadraw-editor/**",
+  "novadraw-inspector/**",
+  "novadraw-platform-winit/**",
+  "novadraw-platform-web/**",
+  "examples/**",
+  "benchmarks/**",
+  "scripts/check_public_api_surface.sh",
+  "verification/public-api/novadraw-symbols.txt",
+]
+documents = [
+  "doc/adr/adr-033-runtime-subsystem-facade.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md",
+]
+
+[[suites]]
+id = "editor.p2-s04-open-protocol"
+title = "Open typed Tool, Request, Policy, and Handle protocols"
+milestone = "P2-S04"
+kind = "contract"
+api_semantics = [
+  "request.protocol",
+  "policy.protocol",
+  "tool.lifecycle",
+  "tool.tracker",
+  "feedback.protocol",
+]
+layers = ["static", "contract", "headless"]
+platforms = ["host", "headless", "native-macos"]
+commands = [
+  "workspace.check",
+  "test.editor-doc",
+  "test.editor-g1-model",
+  "test.editor-g1-command",
+  "test.editor-g2",
+  "test.editor-g3-selection",
+  "test.editor-g3-interaction",
+  "test.editor-g4",
+  "test.editor-g5-projection",
+  "test.editor-g5-editing",
+  "test.editor-p2-e02",
+  "check.tc07-native-host",
+  "check.p2-s04-editor-open-protocol",
+]
+paths = [
+  "novadraw-editor/src/domain.rs",
+  "novadraw-editor/src/feedback/**",
+  "novadraw-editor/src/policy/**",
+  "novadraw-editor/src/request/**",
+  "novadraw-editor/src/tool/**",
+  "novadraw-editor/src/viewer/**",
+  "novadraw-editor/tests/g2_viewer_projection_contract.rs",
+  "novadraw-editor/tests/g3_viewer_interaction_contract.rs",
+  "novadraw-editor/tests/g4_editing_loop_contract.rs",
+  "novadraw-editor/tests/g5_connection_creation_contract.rs",
+  "novadraw-editor/tests/p2_e02_direct_text_edit_contract.rs",
+  "examples/native/node-editor-demo/**",
+  "verification/consumers/editor-open-protocol/**",
+  "scripts/check_editor_open_protocol.sh",
+]
+documents = [
+  "doc/adr/adr-034-editor-tool-request-handle-protocol.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/reviews/p2-s04-editor-open-protocol-completion-2026-10-10.md",
 ]
 
 [[suites]]

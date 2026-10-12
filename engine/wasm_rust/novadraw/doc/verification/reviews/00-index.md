@@ -47,6 +47,10 @@
 | 2026-10-08 | [P2-F02 Figure Capability 实现](p2-f02-figure-capability-completion-2026-10-08.md) |
 | 2026-10-08 | [TC-13 / TC-14 公开表面与热路径日志收口](tc13-tc14-api-surface-hot-path-completion-2026-10-08.md) |
 | 2026-10-08 | [TC-04 类型化属性身份收口](tc04-typed-property-identity-completion-2026-10-08.md) |
+| 2026-10-09 | [API 与架构 Review](api-architecture-review-2026-10-09.md) |
+| 2026-10-09 | [P2-S02 显式领域导入与 Crate Root 收口](p2-s02-explicit-domain-imports-completion-2026-10-09.md) |
+| 2026-10-10 | [P2-S03 Runtime 子系统 Facade 与统一 Figure Mutation](p2-s03-runtime-facade-completion-2026-10-10.md) |
+| 2026-10-12 | [P2-S04 Editor Tool / Request / Policy / Handle 开放协议](p2-s04-editor-open-protocol-completion-2026-10-10.md) |
 
 ## 平台与产品验收
 
