@@ -632,6 +632,17 @@ args = [
   "tc11_resource_provider_contract",
 ]
 
+[commands."test.p2-s05-deep-layout-presentation"]
+description = "Verify deep layout box measurement and same-frame text presentation"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "p2_deep_layout_presentation_contract",
+]
+
 [commands."check.p2-s04-editor-open-protocol"]
 description = "Reject closed Editor protocols and run the independent open-protocol consumer"
 program = "./scripts/check_editor_open_protocol.sh"
@@ -1638,6 +1649,43 @@ documents = [
   "doc/roadmap/p2-delta-backlog.md",
   "doc/verification/reviews/p2-s04-editor-open-protocol-completion-2026-10-10.md",
 ]
+
+[[suites]]
+id = "core.p2-s05-deep-layout-presentation"
+title = "Deep layout box measurement and same-frame text presentation"
+milestone = "P2-S05"
+kind = "contract"
+api_semantics = [
+  "figure.box.client_area",
+  "layout.manager",
+  "validation.protocol",
+  "frame.preparation",
+  "paint.protocol",
+  "damage.repaint",
+  "text.flow",
+]
+layers = ["contract", "headless", "visual", "platform"]
+platforms = ["host", "headless", "native-macos"]
+commands = [
+  "test.p2-s05-deep-layout-presentation",
+  "verify.uml-example",
+]
+paths = [
+  "novadraw/src/graph/mod.rs",
+  "novadraw/src/graph/layout_measurement.rs",
+  "novadraw/src/layout/toolbar_layout.rs",
+  "novadraw/tests/p2_deep_layout_presentation_contract.rs",
+  "examples/scenes/src/uml.rs",
+  "examples/native/uml-demo/**",
+]
+documents = [
+  "doc/design/architecture/deep-layout-presentation-convergence.md",
+  "doc/roadmap/p2-delta-backlog.md",
+  "doc/verification/checklists/audit-remediation-execution.md",
+  "doc/verification/reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md",
+  "doc/verification/reviews/uml-extension-capability-2026-10-05.md",
+]
+artifacts = ["target/verification/reports/uml-demo.json"]
 
 [[suites]]
 id = "example.uml-extension"

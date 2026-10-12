@@ -127,6 +127,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`design/architecture/tooltip-accessibility.md`](design/architecture/tooltip-accessibility.md)
 - Runtime 派生状态收敛事务：
   [`design/architecture/derived-state-convergence.md`](design/architecture/derived-state-convergence.md)
+- 深层布局盒模型与文字 Presentation 收敛：
+  [`design/architecture/deep-layout-presentation-convergence.md`](design/architecture/deep-layout-presentation-convergence.md)
 - 资源因果与 Backend Session：
   [`design/architecture/resource-lifecycle.md`](design/architecture/resource-lifecycle.md)
 - Figure 生命周期与 Runtime 身份域：

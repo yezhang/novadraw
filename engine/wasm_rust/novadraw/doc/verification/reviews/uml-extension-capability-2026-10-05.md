@@ -52,18 +52,18 @@ bounds，release 清除 capture；相关 Connection 在下一稳定帧使用新�
 |---|---|---|
 | 外部自定义 Figure / Container | PASS | examples crate 定义 `UmlClassFigure`、`UmlCompartmentFigure`，Core 无分支修改 |
 | 复合 Figure 与样式继承 | PASS | class/header/compartment/Label 多层树和统一字体、前景色 |
-| Layout 扩展组合 | PARTIAL | class/header 的 `ToolbarLayout` 可用；更深层组合存在收敛问题，见 F-01 |
+| Layout 扩展组合 | PASS | P2-S05 已验证 class/header/compartment 两层以上 `ToolbarLayout`、insets 与 Label 同帧收敛 |
 | Connection 扩展 | PASS | Layer、Anchor、Direct/Bendpoint Router、typed constraint、Locator |
 | Decoration 扩展 | PASS | examples 自定义 diamond/triangle template，无需新增 Core Figure |
 | Figure 直接拖拽 | PASS | EventContext deferred bounds mutation、capture 生命周期与 Connection 自动重路由 |
 | Headless 到 Native/Vello | PASS | 同一共享 scene 同时通过结构探针和真实截图 |
 
-结论：当前公开 API 足以承载中等规模、可直接拖拽的单坐标根 UML 图。扩展点总体成立，但
-“任意深度复合布局”和“自动图布局”尚不能视为完成。
+结论：当前公开 API 足以承载中等规模、可直接拖拽的单坐标根 UML 图。P2-S05 已关闭
+深层复合布局的盒模型缺口；自动图布局仍未完成。
 
 ## 4. 缺失能力
 
-### F-01：深层复合布局与文字 presentation 未稳定收敛
+### F-01：深层复合布局与文字 presentation 未稳定收敛（已关闭）
 
 优先级：P0。
 
@@ -75,6 +75,13 @@ bounds 已分离，RenderSubmission 也包含全部 41 个 glyph run，但 Nativ
 不能仅凭 layout bounds 或命令数量判定正确。应新增最小契约，要求两层及以上由父布局
 改变 bounds 的 Label 容器在同一稳定帧使用最终几何；修复应落在 Runtime 派生状态收敛，
 不能在应用层增加重复刷新。
+
+P2-S05 定位到 `FigureNode` 将 LayoutManager 的 content measurement 直接暴露给父布局，
+遗漏 `NodeState.insets`。修复统一了 parent outer constraint、unprojected content、
+unprojected outer 与 container projection 的顺序，没有修改 presentation 或递归渲染。
+独立契约、41 glyph run 的 Headless UML probe、partial damage 与 Native/Vello 截图像素
+均通过；详见
+[P2-S05 completion record](p2-s05-deep-layout-presentation-completion-2026-10-12.md)。
 
 ### F-02：缺少 Directed / Compound graph layout adapter
 

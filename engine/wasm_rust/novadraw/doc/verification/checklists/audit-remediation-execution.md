@@ -41,7 +41,7 @@
 | 1 | P2-S02 显式领域导入与 Root 收口 | P0 | `complete` | R02、API-F07、API-08、A04、B05、TC-13 follow-up | [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) |
 | 2 | P2-S03 Runtime 子系统 Facade | P0 | `complete` | R01、API-F03/A06 的 concrete facade 后续 | [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) |
 | 3 | P2-S04 Editor 开放协议 | P0 | `complete` | R05、TC-06、R08 暴露面 | [ADR-034](../../adr/adr-034-editor-tool-request-handle-protocol.md) |
-| 4 | P2-S05 深层布局/presentation 收敛 | P0 | `not_started` | UML F-01 | 待补 normative design 或缺陷契约 |
+| 4 | P2-S05 深层布局/presentation 收敛 | P0 | `complete` | UML F-01 | [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
 | 5 | P2-S06 Editor prepared publication | P0 | `not_started` | R06、TC-08 | 待补 ADR |
 | 6 | P2-S07 查询身份与失败语义 | P1 | `not_started` | R04、TC-09、API-F06、API-07 | 待补 ADR |
 | 7 | P2-S08 Detached 受检值 | P0 | `not_started` | R03、TC-03、API-F04、API-10 | 待补 ADR |
@@ -147,13 +147,18 @@
 来源：
 [UML 扩展能力验证 F-01](../reviews/uml-extension-capability-2026-10-05.md#f-01深层复合布局与文字-presentation-未稳定收敛)。
 
-- [ ] 提取两层以上嵌套 Toolbar/Layout + Label 的最小复现。
-- [ ] 证明问题位于 layout、presentation snapshot、clip/transform 或稳定化重启中的哪一层。
-- [ ] 定义“同一稳定帧使用最终 geometry”的契约。
-- [ ] 修复 Runtime 派生状态收敛，不在应用层重复 refresh。
-- [ ] Headless command、Native/Vello 像素和 damage 回归通过。
-- [ ] 记录工作量，确认没有无依据扩大稳定化扫描。
-- [ ] completion record 关闭 UML F-01。
+- [x] 提取两层以上嵌套 Toolbar/Layout + Label 的最小复现。
+- [x] 证明问题位于 FigureNode layout content/outer measurement 投影遗漏
+  `NodeState.insets`，而非 presentation snapshot、clip/transform 或稳定化重启。
+- [x] 通过
+  [normative design](../../design/architecture/deep-layout-presentation-convergence.md)
+  定义“同一稳定帧使用最终 geometry”的契约。
+- [x] 修复 FigureNode content/outer measurement 投影，不在应用层重复 refresh。
+- [x] Headless command、Native/Vello 像素和 damage 回归通过。
+- [x] 实现只修改 FigureNode measurement 组合与查询调用点，没有扩大稳定化扫描，
+  没有修改递归渲染主循环。
+- [x] [Completion record](../reviews/p2-s05-deep-layout-presentation-completion-2026-10-12.md)
+  关闭 UML F-01。
 
 ## 7. P2-S06：Editor Prepared Publication
 
