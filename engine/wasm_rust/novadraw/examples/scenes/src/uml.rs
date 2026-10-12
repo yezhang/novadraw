@@ -548,6 +548,11 @@ fn add_compartment(
         .expect("class is a container")
         .add(Box::new(UmlCompartmentFigure::new(width, members.len())))
         .expect("valid UML compartment");
+    runtime
+        .figure(compartment)
+        .expect("compartment is a container")
+        .set_layout_manager(Box::new(ToolbarLayout::new().with_stretch_minor_axis(true)))
+        .expect("valid compartment layout");
     for (index, member) in members.iter().enumerate() {
         add_label(
             runtime,

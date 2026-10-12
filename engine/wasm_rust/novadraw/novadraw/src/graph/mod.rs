@@ -809,16 +809,49 @@ impl FigureNode {
             .unwrap_or(constraints)
     }
 
+    fn layout_content_constraints(&self, constraints: MeasureConstraints) -> MeasureConstraints {
+        let insets = self.state.insets;
+        let content_constraints = MeasureConstraints::new(
+            constraints
+                .max_width()
+                .map(|width| (width - insets.width()).max(0.0)),
+            constraints
+                .max_height()
+                .map(|height| (height - insets.height()).max(0.0)),
+        )
+        .expect("inset reduction preserves valid measurement constraints");
+        self.layout_constraints(content_constraints)
+    }
+
     fn project_preferred_measurement(&self, measurement: FigureMeasurement) -> FigureMeasurement {
         self.container()
             .map(|container| container.project_preferred_measurement(measurement))
             .unwrap_or(measurement)
     }
 
+    fn project_layout_preferred_measurement(
+        &self,
+        mut measurement: FigureMeasurement,
+    ) -> FigureMeasurement {
+        let insets = self.state.insets;
+        measurement.width += insets.width();
+        measurement.height += insets.height();
+        measurement.baseline = measurement.baseline.map(|baseline| baseline + insets.top);
+        self.project_preferred_measurement(measurement)
+    }
+
     fn project_minimum_size(&self, size: Dimension) -> Dimension {
         self.container()
             .map(|container| container.project_minimum_size(size))
             .unwrap_or(size)
+    }
+
+    fn project_layout_minimum_size(&self, size: Dimension) -> Dimension {
+        let insets = self.state.insets;
+        self.project_minimum_size(Dimension::new(
+            size.width + insets.width(),
+            size.height + insets.height(),
+        ))
     }
 
     /// 获取首选尺寸

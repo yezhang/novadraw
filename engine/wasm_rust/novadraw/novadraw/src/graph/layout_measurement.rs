@@ -608,7 +608,6 @@ impl FigureTree {
         constraints: MeasureConstraints,
     ) -> Option<FigureMeasurement> {
         let block = self.blocks.get(figure_id)?;
-        let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.preferred_size {
             return Some(block.project_preferred_measurement(FigureMeasurement::new(
                 size.width,
@@ -617,6 +616,7 @@ impl FigureTree {
             )));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
+            let constraints = block.layout_content_constraints(constraints);
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().preferred
                 && cached.matches(generation, constraints)
@@ -624,11 +624,9 @@ impl FigureTree {
                 return Some(cached.measurement);
             }
             let snapshot = LayoutSnapshot::new(self);
-            let measurement = block.project_preferred_measurement(layout.preferred_measurement(
-                figure_id,
-                constraints,
-                &snapshot,
-            ));
+            let measurement = block.project_layout_preferred_measurement(
+                layout.preferred_measurement(figure_id, constraints, &snapshot),
+            );
             block.layout.cache.borrow_mut().preferred = Some(CachedMeasurement {
                 generation,
                 constraints,
@@ -636,6 +634,7 @@ impl FigureTree {
             });
             return Some(measurement);
         }
+        let constraints = block.layout_constraints(constraints);
         let measurement = if let Some(prepared) = &block.prepared {
             prepared.presentation.measurement()
         } else if block.border_snapshot.is_some() {
@@ -655,11 +654,11 @@ impl FigureTree {
         constraints: MeasureConstraints,
     ) -> Option<Dimension> {
         let block = self.blocks.get(figure_id)?;
-        let constraints = block.layout_constraints(constraints);
         if let Some(size) = block.minimum_size {
             return Some(block.project_minimum_size(size));
         }
         if let Some(layout) = block.layout.manager.as_deref() {
+            let constraints = block.layout_content_constraints(constraints);
             let generation = block.layout.generation();
             if let Some(cached) = block.layout.cache.borrow().minimum
                 && cached.matches(generation, constraints)
@@ -667,8 +666,11 @@ impl FigureTree {
                 return Some(cached.measurement.size());
             }
             let snapshot = LayoutSnapshot::new(self);
-            let size =
-                block.project_minimum_size(layout.minimum_size(figure_id, constraints, &snapshot));
+            let size = block.project_layout_minimum_size(layout.minimum_size(
+                figure_id,
+                constraints,
+                &snapshot,
+            ));
             block.layout.cache.borrow_mut().minimum = Some(CachedMeasurement {
                 generation,
                 constraints,
@@ -676,6 +678,7 @@ impl FigureTree {
             });
             return Some(size);
         }
+        let constraints = block.layout_constraints(constraints);
         let content = if let Some(prepared) = &block.prepared {
             prepared.presentation.minimum_size()
         } else if block.border_snapshot.is_some() {
