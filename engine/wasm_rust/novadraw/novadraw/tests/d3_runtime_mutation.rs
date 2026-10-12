@@ -16,11 +16,12 @@ use novadraw::render::{
 use novadraw::runtime::RuntimeMutationError;
 use novadraw::tree::GraphMutationError;
 use novadraw::{
-    Figure, FigureId, FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime,
+    figure::Figure, figure::RectangleFigure, geometry::Rectangle, runtime::FramePreparation,
+    runtime::Runtime, tree::FigureId, tree::FigureTree,
 };
 
 fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: 640.0,
             logical_height: 480.0,
@@ -33,6 +34,7 @@ fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
         return None;
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -48,7 +50,7 @@ fn runtime_replaces_layout_and_constraints_only_after_validation() {
 
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_layout_manager(Box::new(XYLayout::new()))
             .unwrap()
@@ -76,7 +78,7 @@ fn runtime_replaces_layout_and_constraints_only_after_validation() {
     );
 
     let incompatible_manager = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .set_layout_manager(Box::new(GridLayout::new(2)))
         .unwrap_err();
@@ -101,21 +103,21 @@ fn runtime_replaces_layout_and_constraints_only_after_validation() {
     );
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_layout_manager(Box::new(GridLayout::new(2)))
             .unwrap()
     );
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .clear_layout_manager()
             .unwrap()
     );
     assert!(
         !runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .clear_layout_manager()
             .unwrap()
@@ -284,7 +286,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(top));
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .bring_child_to_front(bottom)
             .unwrap()
@@ -293,7 +295,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert_eq!(runtime.tree().hit_test_simple((30.0, 30.0)), Some(bottom));
     assert!(
         !runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_child_order(&[top, bottom])
             .unwrap()
@@ -301,7 +303,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
 
     let before = runtime.tree().child_order(root);
     let duplicate = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .set_child_order(&[top, top])
         .unwrap_err();
@@ -312,7 +314,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert_eq!(runtime.tree().child_order(root), before);
 
     let invalid = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .move_child_to_index(bottom, 2)
         .unwrap_err();
@@ -327,7 +329,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert_eq!(runtime.tree().child_order(root), before);
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_child_order(&[bottom, top])
             .unwrap()
@@ -335,7 +337,7 @@ fn runtime_child_order_controls_paint_and_reverse_hit_order_atomically() {
     assert_eq!(runtime.tree().child_order(root), Some(vec![bottom, top]));
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .bring_child_to_front(bottom)
             .unwrap()
@@ -402,7 +404,7 @@ fn runtime_clipping_replacement_changes_render_protocol_and_forces_full_damage()
     );
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_child_clipping_strategy(ChildClippingStrategy::OverflowVisible)
             .unwrap()
@@ -434,19 +436,23 @@ fn ordinary_child_order_api_rejects_layered_panes() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let (pane, first) = {
-        let mut handle = runtime
-            .add_layered_pane(root, Rectangle::new(0.0, 0.0, 200.0, 200.0))
+        let pane = runtime
+            .layers()
+            .add_pane(root, Rectangle::new(0.0, 0.0, 200.0, 200.0))
             .unwrap();
-        let pane = handle.pane_id();
-        let first = handle
-            .add_layer(
+        let first = runtime
+            .layers()
+            .add(
+                pane,
                 Box::new(LayerFigure::new(0.0, 0.0, 200.0, 200.0)),
                 LayerKey::new("first").unwrap(),
                 LayerPlacement::Last,
             )
             .unwrap();
-        handle
-            .add_layer(
+        runtime
+            .layers()
+            .add(
+                pane,
                 Box::new(LayerFigure::new(0.0, 0.0, 200.0, 200.0)),
                 LayerKey::new("second").unwrap(),
                 LayerPlacement::Last,
@@ -456,7 +462,7 @@ fn ordinary_child_order_api_rejects_layered_panes() {
     };
 
     assert_eq!(
-        runtime.container(pane).unwrap().bring_child_to_front(first),
+        runtime.figure(pane).unwrap().bring_child_to_front(first),
         Err(RuntimeMutationError::LayeredParent(pane))
     );
 }
@@ -474,14 +480,14 @@ fn checked_topology_mutations_preserve_error_categories() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime
-        .container(single)
+        .figure(single)
         .unwrap()
         .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
 
     assert_eq!(
         runtime
-            .container(single)
+            .figure(single)
             .unwrap()
             .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),),
         Err(RuntimeMutationError::Graph(
@@ -497,13 +503,13 @@ fn checked_topology_mutations_preserve_error_categories() {
     drop(foreign_runtime);
 
     let child = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     runtime.dispose_subtree(child).unwrap();
     assert_eq!(
-        runtime.container(root).unwrap().remove(child),
+        runtime.figure(root).unwrap().remove(child),
         Err(RuntimeMutationError::UnknownOrDisposedFigure(child))
     );
 }
@@ -531,7 +537,9 @@ fn callback_mutations_preserve_fifo_and_report_failure_without_losing_suffix() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
-    runtime.dispatch_mouse_pressed(210.0, 30.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(210.0, 30.0, MouseButton::Left);
 
     assert_eq!(
         runtime

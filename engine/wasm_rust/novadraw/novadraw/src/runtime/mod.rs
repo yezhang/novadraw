@@ -27,21 +27,30 @@ pub use focus::{
 };
 pub use interaction::{InteractionState, PointerId};
 pub use mutation::{
-    CapabilityUpdateError, CapabilityUpdateReceipt, ComponentInvalidation, ComponentUpdateError,
-    ComponentUpdateReceipt, FigureCapabilityContext, FigureCapabilityUpdate,
-    FigureComponentContext, FigureComponentUpdate, PreparedCapabilityUpdate, PreparedFigureUpdate,
-    RuntimeMutationError,
+    CapabilityUpdateError, CapabilityUpdateReceipt, ClearPolylinePoints, ComponentInvalidation,
+    ComponentUpdateError, ComponentUpdateReceipt, FigureCapabilityContext, FigureCapabilityUpdate,
+    FigureComponentContext, FigureComponentUpdate, FigureUpdateCommitContext, FigureUpdateEffect,
+    FigureUpdateEffectContext, InsertPolylinePoint, PreparedCapabilityUpdate, PreparedFigureUpdate,
+    RemovePolylinePoint, ReplaceFigureBorder, ReplacePolylinePoints,
+    ReplaceScalablePolygonTemplate, ReplaceTextFlowPage, RuntimeMutationError,
+    SetClickableRolloverEnabled, SetClickableSelected, SetImageAlignment, SetImageSource,
+    SetLabelAlignment, SetLabelIcon, SetLabelIconAlignment, SetLabelIconTextGap, SetLabelText,
+    SetLabelTextAlignment, SetLabelTextPlacement, SetPolylineDashOffset, SetPolylineDashPattern,
+    SetPolylineLineCap, SetPolylineLineJoin, SetPolylineMiterLimit, SetPolylinePoint,
+    SetPolylineStrokeStyle, SetPolylineStrokeWidth, SetRoundedRectangleCorners,
+    SetScalablePolygonAlignment, SetScalablePolygonScaleMode, SetTextFlowWrapping,
+    SetTriangleDirection,
 };
 pub use resource::{
     FontId, ImageCompletionError, ImageId, ResourceError, ResourceKind, ResourceRegistry,
     ResourceRequestToken, ResourceStatus,
 };
 pub use runtime::{
-    BackendSessionError, BorderMut, ClickableMut, ContainerMut, FigureMut, FrameNotReady,
-    FramePreparation, FramePreparationError, ImageMut, LabelMut, LogicalViewportResizeError,
-    PointListMut, RoundedRectangleMut, Runtime, ScalablePolygonMut, ScaleMut, ScrollPaneMut,
-    SubmissionAcknowledgement, SubmissionCompletionError, TextFlowMut, TextFlowQueryError,
-    TextLayoutStats, TriangleMut, ViewportMut, ZoomMut,
+    BackendSessionError, FigureMut, FrameNotReady, FramePreparation, FramePreparationError,
+    LogicalViewportResizeError, Runtime, RuntimeAccessibility, RuntimeAnimation,
+    RuntimeConnections, RuntimeFocus, RuntimeFrames, RuntimeInput, RuntimeLayers,
+    RuntimeObservations, RuntimeResources, RuntimeText, RuntimeTooltip, RuntimeViewports,
+    SubmissionAcknowledgement, SubmissionCompletionError, TextFlowQueryError, TextLayoutStats,
 };
 pub use tooltip::{
     DEFAULT_TOOLTIP_GAP, DEFAULT_TOOLTIP_HIDE_DELAY, DEFAULT_TOOLTIP_SHOW_DELAY, MonotonicTime,

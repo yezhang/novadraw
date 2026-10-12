@@ -1,5 +1,5 @@
-use novadraw::FramePreparation;
 use novadraw::render::{BackendCapabilities, RenderDisposition, RenderSubmission, SurfaceInfo};
+use novadraw::runtime::FramePreparation;
 use novadraw_editor::{EditPartFactory, GraphicalViewer, ModelAdapter};
 
 pub fn prepare_next_submission<A, F>(viewer: &mut GraphicalViewer<A, F>) -> Option<RenderSubmission>

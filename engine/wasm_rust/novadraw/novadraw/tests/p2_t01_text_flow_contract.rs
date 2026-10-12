@@ -4,7 +4,12 @@ use support::record_full_submission;
 
 use novadraw::figure::{FlowPage, FlowParagraph, FlowWrapping, InlineTextFragment};
 use novadraw::render::{BuiltinFont, RenderCommandKind};
-use novadraw::{Rectangle, RectangleFigure, Runtime, TextFlowFigure};
+use novadraw::{
+    figure::RectangleFigure,
+    figure::TextFlowFigure,
+    geometry::Rectangle,
+    runtime::{ReplaceTextFlowPage, Runtime, SetTextFlowWrapping},
+};
 
 fn page() -> FlowPage {
     FlowPage::new(vec![
@@ -22,15 +27,19 @@ fn page() -> FlowPage {
 #[test]
 fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    runtime
+        .resources()
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(TextFlowFigure::new(
             Rectangle::new(20.0, 20.0, 120.0, 180.0),
@@ -39,7 +48,7 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
         .unwrap();
 
     let frame = record_full_submission(&mut runtime);
-    let layout = runtime.text_flow_layout(flow).unwrap();
+    let layout = runtime.text().flow_layout(flow).unwrap().clone();
     assert_eq!(
         layout.key().text(),
         "English العربية\n中文段落 wraps across several words"
@@ -57,15 +66,19 @@ fn text_flow_shapes_fragments_paragraphs_bidi_and_soft_wrap_as_one_layout() {
 #[test]
 fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    runtime
+        .resources()
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 220.0, 160.0)))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(
@@ -77,7 +90,7 @@ fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
         .unwrap();
 
     record_full_submission(&mut runtime);
-    let layout = runtime.text_flow_layout(flow).unwrap();
+    let layout = runtime.text().flow_layout(flow).unwrap().clone();
     assert!(layout.is_truncated());
     assert!(layout.line_metrics().len() <= 2);
     assert!(
@@ -91,12 +104,15 @@ fn text_flow_truncation_is_utf8_safe_and_respects_the_line_limit() {
 #[test]
 fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 240.0)))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(TextFlowFigure::new(
             Rectangle::new(20.0, 20.0, 180.0, 180.0),
@@ -104,7 +120,13 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
         )))
         .unwrap();
     record_full_submission(&mut runtime);
-    let wide_lines = runtime.text_flow_layout(flow).unwrap().line_metrics().len();
+    let wide_lines = runtime
+        .text()
+        .flow_layout(flow)
+        .unwrap()
+        .clone()
+        .line_metrics()
+        .len();
 
     runtime
         .figure(flow)
@@ -112,25 +134,35 @@ fn text_flow_runtime_mutation_and_width_change_refresh_the_cached_layout() {
         .set_bounds(Rectangle::new(20.0, 20.0, 70.0, 180.0))
         .unwrap();
     record_full_submission(&mut runtime);
-    let narrow_lines = runtime.text_flow_layout(flow).unwrap().line_metrics().len();
+    let narrow_lines = runtime
+        .text()
+        .flow_layout(flow)
+        .unwrap()
+        .clone()
+        .line_metrics()
+        .len();
     assert!(narrow_lines > wide_lines);
 
     assert!(
         runtime
-            .text_flow(flow)
+            .figure(flow)
             .unwrap()
-            .replace_page(FlowPage::from_text("replacement paragraph"))
+            .update_component(ReplaceTextFlowPage::new(FlowPage::from_text(
+                "replacement paragraph",
+            )))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert!(
         runtime
-            .text_flow(flow)
+            .figure(flow)
             .unwrap()
-            .set_wrapping(FlowWrapping::NoWrap)
+            .update_component(SetTextFlowWrapping::new(FlowWrapping::NoWrap))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     record_full_submission(&mut runtime);
-    let layout = runtime.text_flow_layout(flow).unwrap();
+    let layout = runtime.text().flow_layout(flow).unwrap().clone();
     assert_eq!(layout.key().text(), "replacement paragraph");
     assert_eq!(layout.line_metrics().len(), 1);
 }

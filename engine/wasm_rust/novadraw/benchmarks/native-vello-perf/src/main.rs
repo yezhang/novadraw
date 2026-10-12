@@ -11,7 +11,10 @@ use novadraw::render::{RenderBackend, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::{
     FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate, SubmissionAcknowledgement,
 };
-use novadraw::{Color, FigureId, FigureTree, FramePreparation, RectangleFigure, Runtime};
+use novadraw::{
+    figure::RectangleFigure, graphics::Color, runtime::FramePreparation, runtime::Runtime,
+    tree::FigureId, tree::FigureTree,
+};
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
 use winit::application::ApplicationHandler;
@@ -244,10 +247,13 @@ impl NativeVelloBenchmark {
             return;
         };
         let surface = surface_info(window);
-        runtime.request_full_redraw();
+        runtime.frames().request_full_redraw();
         let frame_start = Instant::now();
         let prepare_start = Instant::now();
-        let submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+        let submission = match runtime
+            .frames()
+            .prepare_submission(surface, renderer.capabilities())
+        {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(error) => panic!("benchmark frame preparation failed: {error}"),
             FramePreparation::Idle
@@ -280,6 +286,7 @@ impl NativeVelloBenchmark {
                 }
                 Ok(RenderDisposition::Skipped) => {
                     let acknowledgement = runtime
+                        .frames()
                         .complete_submission(session_id, frame_id, outcome.clone())
                         .expect("surface probe frame completion");
                     assert_eq!(acknowledgement, SubmissionAcknowledgement::Skipped);
@@ -300,6 +307,7 @@ impl NativeVelloBenchmark {
                 }
                 Ok(RenderDisposition::Retry) => {
                     let acknowledgement = runtime
+                        .frames()
                         .complete_submission(session_id, frame_id, outcome.clone())
                         .expect("surface probe frame completion");
                     assert_eq!(acknowledgement, SubmissionAcknowledgement::Retry);
@@ -314,6 +322,7 @@ impl NativeVelloBenchmark {
                 }
                 Err(failure) => {
                     let acknowledgement = runtime
+                        .frames()
                         .complete_submission(session_id, frame_id, outcome.clone())
                         .expect("surface probe failure completion");
                     panic!("native Vello surface probe failed: {failure} ({acknowledgement:?})");
@@ -323,6 +332,7 @@ impl NativeVelloBenchmark {
 
         if outcome != Ok(RenderDisposition::Presented) {
             let acknowledgement = runtime
+                .frames()
                 .complete_submission(session_id, frame_id, outcome.clone())
                 .expect("failed benchmark frame completion");
             panic!(
@@ -339,6 +349,7 @@ impl NativeVelloBenchmark {
         let submit_to_gpu_complete_ns = duration_ns(submit_start.elapsed());
         let frame_to_gpu_complete_ns = duration_ns(frame_start.elapsed());
         let acknowledgement = runtime
+            .frames()
             .complete_submission(session_id, frame_id, outcome)
             .expect("benchmark frame completion");
         assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
@@ -492,6 +503,7 @@ impl NativeVelloBenchmark {
         let runtime = self.runtime.as_mut().expect("initialized Runtime");
         let surface = surface_info(window);
         let submission = runtime
+            .frames()
             .prepare_submission(surface, renderer.capabilities())
             .into_ready()
             .expect("input marker update must prepare a submission");
@@ -530,6 +542,7 @@ impl NativeVelloBenchmark {
             .wait_for_gpu_idle(GPU_WAIT_TIMEOUT)
             .unwrap_or_else(|error| panic!("wait for input frame GPU completion: {error}"));
         let acknowledgement = runtime
+            .frames()
             .complete_submission(session_id, frame_id, outcome)
             .expect("input frame completion");
         assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);

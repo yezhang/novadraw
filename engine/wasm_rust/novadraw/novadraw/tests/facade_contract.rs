@@ -1,12 +1,16 @@
-use novadraw::prelude::*;
-use novadraw::{FrameNotReady, FramePreparation, FramePreparationError};
+use novadraw::figure::{Figure, RectangleFigure};
+use novadraw::geometry::Rectangle;
+use novadraw::host::PlatformHost;
+use novadraw::layout::{FillLayout, LayoutManager};
+use novadraw::runtime::{FrameNotReady, FramePreparation, FramePreparationError, Runtime};
+use novadraw::tree::FigureTree;
 
 fn accepts_figure(_: &dyn Figure) {}
 fn accepts_layout(_: &dyn LayoutManager) {}
 fn accepts_host<T: PlatformHost>() {}
 
 #[test]
-fn prelude_supports_a_backend_neutral_scene() {
+fn explicit_domain_imports_support_a_backend_neutral_scene() {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -42,7 +46,8 @@ fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::runtime::ResourceRegistry> = None;
     let _: Option<novadraw::render::RenderSubmission> = None;
     let _: Option<&dyn novadraw::render::RenderBackend> = None;
-    let _: Option<novadraw::container::LayeredPaneMut<'static>> = None;
+    let _: Option<novadraw::runtime::RuntimeLayers<'static>> = None;
+    let _: Option<novadraw::runtime::RuntimeViewports<'static>> = None;
     let _: Option<novadraw::advanced::NodeState> = None;
 }
 

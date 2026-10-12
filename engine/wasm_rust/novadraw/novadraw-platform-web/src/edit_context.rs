@@ -7,7 +7,7 @@ use std::{
 };
 
 use js_sys::{Array, Reflect};
-use novadraw::{Point, Rectangle};
+use novadraw::{geometry::Point, geometry::Rectangle};
 use novadraw_editor::{
     DirectTextEditSessionId, SessionTextInputEvent, TextInputEffect, TextInputSnapshot,
 };

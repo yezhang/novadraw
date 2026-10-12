@@ -4,7 +4,7 @@ use novadraw::container::{MouseLocationZoomScrollPolicy, ZoomManager};
 use novadraw::event::{
     GesturePhase, GestureSessionId, KeyModifiers, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
-use novadraw::{Point, Rectangle, RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, geometry::Point, geometry::Rectangle, runtime::Runtime};
 use novadraw_example_scenes::freeform::{
     CONTENT_MAX_X, CONTENT_MAX_Y, CONTENT_MIN_X, CONTENT_MIN_Y, build_demo as build_freeform_demo,
 };
@@ -86,7 +86,9 @@ fn verify_wheel_scroll() -> Result<VerificationMetrics, String> {
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_scroll(WheelEvent::new(PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0));
+    runtime
+        .input()
+        .dispatch_scroll(WheelEvent::new(PANE_X + 20.0, PANE_Y + 20.0, 0.0, -1.0));
     let location = pane.viewport().view_location();
     if location.y() <= 0.0 {
         return Err("wheel did not change vertical view location".to_string());
@@ -124,23 +126,21 @@ fn verify_scale_chain() -> Result<VerificationMetrics, String> {
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     let mut runtime = Runtime::new(graph);
     runtime
-        .zoom(&zoom)
-        .map_err(|error| error.to_string())?
-        .set_zoom_at(DEMO_SCALE, None)
+        .viewports()
+        .set_zoom_at(&zoom, DEMO_SCALE, None)
         .map_err(|error| error.to_string())?;
     runtime
-        .viewport(pane.viewport().figure_id())
-        .map_err(|error| error.to_string())?
-        .set_view_location(0.0, 0.0)
+        .viewports()
+        .set_view_location(pane.viewport().figure_id(), 0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let point = runtime
         .tree()
         .local_to_surface_transform(child)
         .ok_or("missing child transform")?
-        .transform_point(novadraw::Point::new(0.0, 0.0));
+        .transform_point(novadraw::geometry::Point::new(0.0, 0.0));
     let expected_x = PANE_X + 20.0 * DEMO_SCALE;
     let expected_y = PANE_Y + 30.0 * DEMO_SCALE;
-    if point != novadraw::Point::new(expected_x, expected_y) {
+    if point != novadraw::geometry::Point::new(expected_x, expected_y) {
         return Err(format!("unexpected scaled point: {point:?}"));
     }
     Ok(metrics([
@@ -182,8 +182,8 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         .validate_subtree(pane.pane_id())
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
-    let anchor = novadraw::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
-    runtime.dispatch_zoom(ZoomEvent::new(
+    let anchor = novadraw::geometry::Point::new(PANE_X + 50.0, PANE_Y + 40.0);
+    runtime.input().dispatch_zoom(ZoomEvent::new(
         anchor.x(),
         anchor.y(),
         DEMO_SCALE,
@@ -195,7 +195,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         .tree()
         .local_to_surface_transform(child)
         .ok_or("missing child transform")?
-        .transform_point(novadraw::Point::new(50.0, 40.0));
+        .transform_point(novadraw::geometry::Point::new(50.0, 40.0));
     if content_point != anchor {
         return Err(format!(
             "pinch anchor moved from {anchor:?} to {content_point:?}"
@@ -208,7 +208,7 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
     {
         return Err("pinch did not synchronize the scaled scroll range".to_string());
     }
-    runtime.dispatch_scroll(WheelEvent::with_details(
+    runtime.input().dispatch_scroll(WheelEvent::with_details(
         anchor.x(),
         anchor.y(),
         10_000.0,
@@ -218,13 +218,13 @@ fn verify_pinch_anchor() -> Result<VerificationMetrics, String> {
         KeyModifiers::default(),
         GestureSessionId::IMPULSE,
     ));
-    if pane.viewport().view_location() != novadraw::Point::new(0.0, 0.0) {
+    if pane.viewport().view_location() != novadraw::geometry::Point::new(0.0, 0.0) {
         return Err("touchpad pan could not reach the scaled canvas origin".to_string());
     }
     let shrunk_scale = 0.5;
     let expanded_scale = 2.0;
     for target_scale in [shrunk_scale, expanded_scale] {
-        runtime.dispatch_zoom(ZoomEvent::new(
+        runtime.input().dispatch_zoom(ZoomEvent::new(
             anchor.x(),
             anchor.y(),
             target_scale / scalable.scale(),
@@ -311,17 +311,15 @@ fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
     let mut demo = build_freeform_demo(1.0, (0.0, 0.0));
     let viewport = demo.pane.viewport().clone();
     demo.runtime
-        .viewport(viewport.figure_id())
-        .map_err(|error| error.to_string())?
-        .set_view_location(CONTENT_MIN_X, CONTENT_MIN_Y)
+        .viewports()
+        .set_view_location(viewport.figure_id(), CONTENT_MIN_X, CONTENT_MIN_Y)
         .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(CONTENT_MIN_X, CONTENT_MIN_Y) {
         return Err("freeform viewport could not reach negative range edge".to_string());
     }
     demo.runtime
-        .viewport(viewport.figure_id())
-        .map_err(|error| error.to_string())?
-        .set_view_location(f64::MAX, f64::MAX)
+        .viewports()
+        .set_view_location(viewport.figure_id(), f64::MAX, f64::MAX)
         .map_err(|error| error.to_string())?;
     let horizontal = viewport.horizontal_range();
     let vertical = viewport.vertical_range();
@@ -333,16 +331,14 @@ fn verify_freeform_scroll_and_zoom() -> Result<VerificationMetrics, String> {
         return Err("freeform viewport did not clamp at positive range edge".to_string());
     }
     demo.runtime
-        .viewport(viewport.figure_id())
-        .map_err(|error| error.to_string())?
-        .set_view_location(0.0, 0.0)
+        .viewports()
+        .set_view_location(viewport.figure_id(), 0.0, 0.0)
         .map_err(|error| error.to_string())?;
     let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
     zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
     demo.runtime
-        .zoom(&zoom)
-        .map_err(|error| error.to_string())?
-        .set_zoom_at(2.0, Some(Point::new(60.0, 40.0)))
+        .viewports()
+        .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
         .map_err(|error| error.to_string())?;
     if viewport.view_location() != Point::new(30.0, 20.0) {
         return Err("freeform anchor zoom changed the anchored content point".to_string());

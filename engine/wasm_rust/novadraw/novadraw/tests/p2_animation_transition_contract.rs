@@ -12,14 +12,21 @@ use novadraw::connection::{
 };
 use novadraw::event::MonotonicTime;
 use novadraw::{
-    Affine2D, Color, FigureTree, Point, Rectangle, RectangleFigure, Runtime, StackLayout,
     animation::{
         AnimationError, AnimationPlan, AnimationStart, AnimationState, AnimationSuppression,
         AnimationTransactionError, BoundsTransition, ConnectionPulse, ConnectionRouteTransition,
         Easing, InteractionGeometryPolicy, Motion, Tween, ViewportTransition,
     },
+    figure::RectangleFigure,
+    geometry::Affine2D,
+    geometry::Point,
+    geometry::Rectangle,
+    graphics::Color,
     graphics::{DashPattern, StrokeStyle},
+    layout::StackLayout,
     render::RenderCommandKind,
+    runtime::Runtime,
+    tree::FigureTree,
 };
 
 fn time(milliseconds: u64) -> MonotonicTime {
@@ -44,8 +51,12 @@ fn captured_bounds_transition_keeps_committed_geometry_final() {
     let figure = runtime
         .set_contents(Box::new(RectangleFigure::new(10.0, 20.0, 20.0, 10.0)))
         .unwrap();
-    runtime.advance_time(time(0)).unwrap();
-    let capture = runtime.animations().capture_figures([figure]).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
+    let capture = runtime
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
 
     runtime
         .figure(figure)
@@ -53,7 +64,8 @@ fn captured_bounds_transition_keeps_committed_geometry_final() {
         .set_bounds(Rectangle::new(50.0, 60.0, 40.0, 20.0))
         .unwrap();
     let AnimationStart::Running(animation) = runtime
-        .animations()
+        .animation()
+        .timeline()
         .transition_bounds(
             capture,
             BoundsTransition::new(Duration::from_millis(100)).with_easing(Easing::Linear),
@@ -72,14 +84,14 @@ fn captured_bounds_transition_keeps_committed_geometry_final() {
         Affine2D::from_translation(-40.0, -40.0) * Affine2D::from_scale(0.5, 0.5)
     ));
 
-    runtime.advance_time(time(50)).unwrap();
+    runtime.animation().advance_time(time(50)).unwrap();
     assert!(contains_transform(
         &mut runtime,
         Affine2D::from_translation(-20.0, -20.0) * Affine2D::from_scale(0.75, 0.75)
     ));
-    runtime.advance_time(time(100)).unwrap();
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Completed
     );
 }
@@ -90,16 +102,25 @@ fn unchanged_and_zero_duration_transitions_are_suppressed() {
     let figure = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
-    let unchanged = runtime.animations().capture_figures([figure]).unwrap();
+    let unchanged = runtime
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .transition_bounds(unchanged, BoundsTransition::new(Duration::from_millis(100)))
             .unwrap(),
         AnimationStart::Suppressed(AnimationSuppression::NoVisualDelta)
     );
 
-    let zero_duration = runtime.animations().capture_figures([figure]).unwrap();
+    let zero_duration = runtime
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
     runtime
         .figure(figure)
         .unwrap()
@@ -107,12 +128,13 @@ fn unchanged_and_zero_duration_transitions_are_suppressed() {
         .unwrap();
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .transition_bounds(zero_duration, BoundsTransition::new(Duration::ZERO))
             .unwrap(),
         AnimationStart::Suppressed(AnimationSuppression::NoVisualDelta)
     );
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }
 
 #[test]
@@ -122,28 +144,39 @@ fn capture_rejects_empty_duplicate_foreign_and_disposed_targets() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     assert!(matches!(
-        first.animations().capture_figures([]),
+        first.animation().timeline().capture_figures([]),
         Err(AnimationError::EmptyCapture)
     ));
     assert!(matches!(
-        first.animations().capture_figures([figure, figure]),
+        first
+            .animation()
+            .timeline()
+            .capture_figures([figure, figure]),
         Err(AnimationError::DuplicateTarget)
     ));
 
-    let foreign_capture = first.animations().capture_figures([figure]).unwrap();
+    let foreign_capture = first
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
     let mut second = Runtime::empty();
     assert!(matches!(
-        second.animations().transition_bounds(
+        second.animation().timeline().transition_bounds(
             foreign_capture,
             BoundsTransition::new(Duration::from_millis(100))
         ),
         Err(AnimationError::ForeignCapture)
     ));
 
-    let disposed_capture = first.animations().capture_figures([figure]).unwrap();
+    let disposed_capture = first
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
     first.dispose_subtree(figure).unwrap();
     assert!(matches!(
-        first.animations().transition_bounds(
+        first.animation().timeline().transition_bounds(
             disposed_capture,
             BoundsTransition::new(Duration::from_millis(100))
         ),
@@ -170,19 +203,22 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let first_transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(first, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
     let second_transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(second, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
     let capture = runtime
-        .animations()
+        .animation()
+        .timeline()
         .capture_figures([first, second])
         .unwrap();
     runtime
@@ -196,7 +232,8 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
         .set_bounds(Rectangle::new(60.0, 0.0, 10.0, 10.0))
         .unwrap();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .transition_bounds(
             capture,
             BoundsTransition::new(Duration::from_millis(100))
@@ -204,13 +241,21 @@ fn stagger_uses_capture_order_without_mutating_source_bounds() {
         )
         .unwrap();
 
-    runtime.advance_time(time(25)).unwrap();
+    runtime.animation().advance_time(time(25)).unwrap();
     assert_eq!(
-        runtime.animations().value(first_transform).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .value(first_transform)
+            .unwrap(),
         Affine2D::from_translation(-30.0, 0.0)
     );
     assert_eq!(
-        runtime.animations().value(second_transform).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .value(second_transform)
+            .unwrap(),
         Affine2D::from_translation(-40.0, 0.0)
     );
     assert_eq!(
@@ -229,7 +274,11 @@ fn nonzero_to_zero_bounds_transition_is_rejected_without_active_work() {
     let figure = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
-    let capture = runtime.animations().capture_figures([figure]).unwrap();
+    let capture = runtime
+        .animation()
+        .timeline()
+        .capture_figures([figure])
+        .unwrap();
     runtime
         .figure(figure)
         .unwrap()
@@ -237,11 +286,12 @@ fn nonzero_to_zero_bounds_transition_is_rejected_without_active_work() {
         .unwrap();
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .transition_bounds(capture, BoundsTransition::new(Duration::from_millis(100))),
         Err(AnimationError::IncompatibleBoundsTransition)
     );
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
     assert_eq!(
         runtime.tree().figure_bounds(figure),
         Some(Rectangle::new(20.0, 0.0, 0.0, 10.0))
@@ -263,10 +313,11 @@ fn runtime_transaction_stabilizes_layout_before_installing_presentation() {
         .set_layout_manager(parent, Box::new(StackLayout::new()))
         .unwrap();
     let mut runtime = Runtime::new(tree);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
 
     let (changed, start) = runtime
-        .transition_bounds_transaction(
+        .animation()
+        .transition_bounds(
             [child],
             BoundsTransition::new(Duration::from_millis(100)),
             |runtime| {
@@ -296,7 +347,7 @@ fn runtime_transaction_reports_capture_and_mutation_phases() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
 
-    let empty = runtime.transition_bounds_transaction(
+    let empty = runtime.animation().transition_bounds(
         [],
         BoundsTransition::new(Duration::from_millis(100)),
         |_runtime| Ok::<_, &'static str>(()),
@@ -308,7 +359,7 @@ fn runtime_transaction_reports_capture_and_mutation_phases() {
         ))
     );
 
-    let mutation = runtime.transition_bounds_transaction(
+    let mutation = runtime.animation().transition_bounds(
         [figure],
         BoundsTransition::new(Duration::from_millis(100)),
         |_runtime| Err::<(), _>("rejected source transaction"),
@@ -323,7 +374,7 @@ fn runtime_transaction_reports_capture_and_mutation_phases() {
         runtime.tree().figure_bounds(figure),
         Some(Rectangle::new(0.0, 0.0, 10.0, 10.0))
     );
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }
 
 #[test]
@@ -345,45 +396,53 @@ fn viewport_transaction_animates_pan_without_changing_committed_origin() {
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
 
     let (changed, start) = runtime
-        .transition_viewport_transaction(
+        .animation()
+        .transition_viewport(
             &viewport,
             ViewportTransition::new(Duration::from_millis(100)),
             |runtime| {
                 runtime
-                    .viewport(viewport.figure_id())?
-                    .set_view_location(40.0, 20.0)
+                    .viewports()
+                    .set_view_location(viewport.figure_id(), 40.0, 20.0)
             },
         )
         .unwrap();
     assert!(changed);
     assert!(matches!(start, AnimationStart::Running(_)));
-    assert_eq!(viewport.view_location(), novadraw::Point::new(40.0, 20.0));
+    assert_eq!(
+        viewport.view_location(),
+        novadraw::geometry::Point::new(40.0, 20.0)
+    );
 
     let transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(contents, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
     assert_eq!(
-        runtime.animations().value(transform).unwrap(),
+        runtime.animation().timeline().value(transform).unwrap(),
         Affine2D::from_translation(40.0, 20.0)
     );
-    runtime.advance_time(time(50)).unwrap();
+    runtime.animation().advance_time(time(50)).unwrap();
     assert_eq!(
-        runtime.animations().value(transform).unwrap(),
+        runtime.animation().timeline().value(transform).unwrap(),
         Affine2D::from_translation(20.0, 10.0)
     );
-    assert_eq!(viewport.view_location(), novadraw::Point::new(40.0, 20.0));
+    assert_eq!(
+        viewport.view_location(),
+        novadraw::geometry::Point::new(40.0, 20.0)
+    );
 }
 
 fn connection_fixture() -> (
     Runtime,
-    novadraw::FigureId,
-    novadraw::FigureId,
-    novadraw::FigureId,
+    novadraw::tree::FigureId,
+    novadraw::tree::FigureId,
+    novadraw::tree::FigureId,
     ConnectionId,
 ) {
     let mut runtime = Runtime::empty();
@@ -391,37 +450,44 @@ fn connection_fixture() -> (
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
         .unwrap();
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 30.0, 80.0, 40.0)))
         .unwrap();
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(300.0, 170.0, 100.0, 60.0)))
         .unwrap();
     let figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ConnectionFigure::new().with_stroke_style(
             StrokeStyle::default().with_dash_pattern(DashPattern::Dash),
         )))
         .unwrap();
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let direct_router = runtime.connections().direct_router();
     let connection = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             figure,
             Some(source_anchor),
             Some(target_anchor),
             RouterBinding::Explicit {
-                router: runtime.direct_connection_router(),
+                router: direct_router,
             },
             None,
         )
         .unwrap();
     runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
     (runtime, root, target, figure, connection)
 }
@@ -429,7 +495,7 @@ fn connection_fixture() -> (
 #[test]
 fn compatible_connection_route_interpolates_without_mutating_final_route() {
     let (mut runtime, _root, target, figure, _connection) = connection_fixture();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let before = runtime
         .tree()
         .connection_route_points(figure)
@@ -437,7 +503,8 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
         .clone();
 
     let (_, start) = runtime
-        .transition_connection_routes_transaction(
+        .animation()
+        .transition_connection_routes(
             [figure],
             ConnectionRouteTransition::new(Duration::from_millis(100)),
             |runtime| {
@@ -455,10 +522,20 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
         .clone();
     assert_ne!(before, committed);
 
-    let route = runtime.animations().bind_connection_route(figure).unwrap();
-    assert_ne!(runtime.animations().value(route).unwrap(), committed);
-    runtime.advance_time(time(100)).unwrap();
-    assert_eq!(runtime.animations().value(route).unwrap(), committed);
+    let route = runtime
+        .animation()
+        .timeline()
+        .bind_connection_route(figure)
+        .unwrap();
+    assert_ne!(
+        runtime.animation().timeline().value(route).unwrap(),
+        committed
+    );
+    runtime.animation().advance_time(time(100)).unwrap();
+    assert_eq!(
+        runtime.animation().timeline().value(route).unwrap(),
+        committed
+    );
     assert_eq!(
         runtime.tree().connection_route_points(figure),
         Some(&committed)
@@ -468,15 +545,18 @@ fn compatible_connection_route_interpolates_without_mutating_final_route() {
 #[test]
 fn incompatible_connection_route_crossfades_and_retires_old_visual() {
     let (mut runtime, _root, _target, figure, connection) = connection_fixture();
-    runtime.advance_time(time(0)).unwrap();
-    let router = runtime.register_connection_router(Box::new(BendpointConnectionRouter));
+    runtime.animation().advance_time(time(0)).unwrap();
+    let router = runtime
+        .connections()
+        .register_router(Box::new(BendpointConnectionRouter));
 
     let (_, start) = runtime
-        .transition_connection_routes_transaction(
+        .animation()
+        .transition_connection_routes(
             [figure],
             ConnectionRouteTransition::new(Duration::from_millis(100)),
             |runtime| {
-                runtime.set_connection_route_configuration(
+                runtime.connections().set_route_configuration(
                     connection,
                     RouterBinding::Explicit { router },
                     Some(Box::new(BendpointConstraint::new(vec![
@@ -495,10 +575,10 @@ fn incompatible_connection_route_crossfades_and_retires_old_visual() {
             .len(),
         3
     );
-    assert_eq!(runtime.animations().temporary_visual_count(), 1);
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 1);
 
-    runtime.advance_time(time(100)).unwrap();
-    assert_eq!(runtime.animations().temporary_visual_count(), 0);
+    runtime.animation().advance_time(time(100)).unwrap();
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 0);
     assert_eq!(
         runtime
             .tree()
@@ -512,35 +592,41 @@ fn incompatible_connection_route_crossfades_and_retires_old_visual() {
 #[test]
 fn connection_dash_flow_uses_continuous_procedural_phase() {
     let (mut runtime, _root, _target, figure, _connection) = connection_fixture();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let AnimationStart::Running(animation) = runtime
-        .animations()
+        .animation()
+        .timeline()
         .start_connection_dash_flow(figure, 1.0)
         .unwrap()
     else {
         panic!("dashed connection must start continuous flow");
     };
     let phase = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_connection_dash_offset(figure)
         .unwrap();
 
-    runtime.advance_time(time(100)).unwrap();
-    assert!((runtime.animations().value(phase).unwrap() + 0.1).abs() < 1e-9);
+    runtime.animation().advance_time(time(100)).unwrap();
+    assert!((runtime.animation().timeline().value(phase).unwrap() + 0.1).abs() < 1e-9);
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Running
     );
-    assert!(runtime.animations().cancel(animation).unwrap());
-    assert_eq!(runtime.animations().value(phase).unwrap(), 0.0);
+    assert!(runtime.animation().timeline().cancel(animation).unwrap());
+    assert_eq!(runtime.animation().timeline().value(phase).unwrap(), 0.0);
 }
 
 #[test]
 fn connection_route_and_dash_share_one_composable_presentation_family() {
     let (mut runtime, _root, _target, figure, _connection) = connection_fixture();
-    runtime.advance_time(time(0)).unwrap();
-    let route = runtime.animations().bind_connection_route(figure).unwrap();
-    let committed = runtime.animations().value(route).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
+    let route = runtime
+        .animation()
+        .timeline()
+        .bind_connection_route(figure)
+        .unwrap();
+    let committed = runtime.animation().timeline().value(route).unwrap();
     let shifted = committed
         .iter()
         .map(|point| Point::new(point.x() - 10.0, point.y()))
@@ -552,26 +638,36 @@ fn connection_route_and_dash_share_one_composable_presentation_family() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(route_animation) = runtime.animations().start(route_plan).unwrap()
+    let AnimationStart::Running(route_animation) =
+        runtime.animation().timeline().start(route_plan).unwrap()
     else {
         panic!("route transition must run");
     };
     let AnimationStart::Running(dash_animation) = runtime
-        .animations()
+        .animation()
+        .timeline()
         .start_connection_dash_flow(figure, 1.0)
         .unwrap()
     else {
         panic!("dash flow must run beside route transition");
     };
 
-    assert_eq!(runtime.animations().active_animation_count(), 2);
-    runtime.advance_time(time(100)).unwrap();
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 2);
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().state(route_animation).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .state(route_animation)
+            .unwrap(),
         AnimationState::Running
     );
     assert_eq!(
-        runtime.animations().state(dash_animation).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .state(dash_animation)
+            .unwrap(),
         AnimationState::Running
     );
     let frame = record_full_submission(&mut runtime);
@@ -591,19 +687,21 @@ fn connection_route_and_dash_share_one_composable_presentation_family() {
 fn connection_pulse_uses_arc_length_and_hands_off_to_decoration() {
     let (mut runtime, _root, _target, figure, _connection) = connection_fixture();
     let decoration = runtime
-        .container(figure)
+        .figure(figure)
         .unwrap()
         .add(Box::new(RectangleFigure::new(-3.0, -3.0, 6.0, 6.0)))
         .unwrap();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let decoration_transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(decoration, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
 
     let AnimationStart::Running(animation) = runtime
-        .animations()
+        .animation()
+        .timeline()
         .start_connection_pulse(
             figure,
             ConnectionPulse::new(Duration::from_millis(100), 4.0, Color::RED)
@@ -613,23 +711,31 @@ fn connection_pulse_uses_arc_length_and_hands_off_to_decoration() {
     else {
         panic!("connection pulse must run");
     };
-    assert_eq!(runtime.animations().temporary_visual_count(), 1);
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 1);
 
-    runtime.advance_time(time(100)).unwrap();
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().value(decoration_transform).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .value(decoration_transform)
+            .unwrap(),
         Affine2D::from_uniform_scale(1.35)
     );
-    assert_eq!(runtime.animations().temporary_visual_count(), 1);
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 1);
 
-    runtime.advance_time(time(150)).unwrap();
+    runtime.animation().advance_time(time(150)).unwrap();
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Completed
     );
-    assert_eq!(runtime.animations().temporary_visual_count(), 0);
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 0);
     assert_eq!(
-        runtime.animations().value(decoration_transform).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .value(decoration_transform)
+            .unwrap(),
         Affine2D::IDENTITY
     );
 }

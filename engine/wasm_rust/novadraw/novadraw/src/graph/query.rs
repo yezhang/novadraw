@@ -116,7 +116,22 @@ impl FigureTree {
         )
     }
 
-    pub(crate) fn point_list_style(&self, id: FigureId) -> Option<crate::render::StrokeStyle> {
+    pub fn image_display_state(
+        &self,
+        id: FigureId,
+    ) -> Result<crate::figure::ImageDisplayState, crate::figure::ShapeMutationError> {
+        self.image_figure(id)
+            .map(crate::figure::ImageFigure::display_state)
+            .ok_or_else(|| {
+                if self.figure_bounds(id).is_some() {
+                    crate::figure::ShapeMutationError::WrongCapability(id)
+                } else {
+                    crate::figure::ShapeMutationError::UnknownFigure(id)
+                }
+            })
+    }
+
+    pub fn point_list_stroke_style(&self, id: FigureId) -> Option<crate::render::StrokeStyle> {
         let point_list = self.blocks.get(id)?.point_list()?;
         Some(point_list.stroke_style().clone())
     }

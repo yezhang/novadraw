@@ -2,10 +2,13 @@
 
 `novadraw` is the platform-independent Core crate for the 2D Figure runtime.
 
-## Start With The Prelude
+## Start With Domain Imports
 
 ```rust
-use novadraw::prelude::*;
+use novadraw::figure::RectangleFigure;
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::Runtime;
+use novadraw::tree::FigureTree;
 
 let mut tree = FigureTree::new();
 let root = tree
@@ -20,8 +23,7 @@ assert_eq!(
 );
 ```
 
-The crate root and `prelude` contain only common, stable entry points. Specialized APIs live in
-named modules:
+The crate root contains only named modules. Import public APIs from their owning domain:
 
 - `geometry`: geometry values, precision, and transforms;
 - `graphics`: `NdCanvas`, path construction, and stroke styles;
@@ -104,7 +106,7 @@ use novadraw::ResourceRegistry;
 use novadraw::RenderSubmission;
 ```
 
-Specialist protocols are also excluded from the root and prelude:
+Specialist protocols are also excluded from the root:
 
 ```compile_fail
 use novadraw::NdCanvas;
@@ -119,15 +121,33 @@ use novadraw::render::NdCanvas;
 ```
 
 ```compile_fail
-use novadraw::prelude::NdCanvas;
-```
-
-```compile_fail
 use novadraw::RenderBackend;
 ```
 
 ```compile_fail
 use novadraw::ConnectionRouter;
+```
+
+Runtime operations are available only through their owning subsystem facade:
+
+```compile_fail
+use novadraw::runtime::Runtime;
+let _ = Runtime::prepare_submission;
+```
+
+```compile_fail
+use novadraw::runtime::Runtime;
+let _ = Runtime::label;
+```
+
+```compile_fail
+use novadraw::runtime::Runtime;
+let _ = Runtime::viewport;
+```
+
+```compile_fail
+use novadraw::runtime::Runtime;
+let _ = Runtime::add_viewport;
 ```
 
 ```compile_fail
@@ -137,8 +157,8 @@ use novadraw::RangeModel;
 Property keys type-check their old and new values:
 
 ```compile_fail
-use novadraw::FigureId;
 use novadraw::event::{PropertyKey, TypedPropertyChange};
+use novadraw::tree::FigureId;
 
 const ENABLED: PropertyKey<bool> = PropertyKey::new("example.figure", "enabled");
 

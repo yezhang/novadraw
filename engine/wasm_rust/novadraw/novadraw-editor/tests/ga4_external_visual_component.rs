@@ -3,7 +3,7 @@ use std::convert::Infallible;
 use novadraw::runtime::{
     ComponentUpdateError, FigureComponentContext, FigureComponentUpdate, PreparedFigureUpdate,
 };
-use novadraw::{Figure, Rectangle, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure, geometry::Rectangle};
 use novadraw_editor::{
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,
     ModelRevision, PartFactoryContext, VisualBuildContext, VisualUpdateContext,
@@ -19,7 +19,7 @@ struct BadgeModel {
     revision: ModelRevision,
     text: String,
     events: Vec<ModelEvent<ModelId, Changed>>,
-    foreign_update_target: Option<novadraw::FigureId>,
+    foreign_update_target: Option<novadraw::tree::FigureId>,
 }
 
 impl BadgeModel {
@@ -112,7 +112,7 @@ impl FigureComponentUpdate for ProbeBadge {
 }
 
 struct BadgePart {
-    badge: Option<novadraw::FigureId>,
+    badge: Option<novadraw::tree::FigureId>,
 }
 
 impl EditPartBehavior<BadgeModel> for BadgePart {
@@ -197,7 +197,7 @@ fn external_compound_visual_updates_private_component_during_model_refresh() {
 
 #[test]
 fn model_refresh_rejects_a_component_target_outside_the_part_visuals() {
-    let mut foreign_tree = novadraw::FigureTree::new();
+    let mut foreign_tree = novadraw::tree::FigureTree::new();
     let foreign = foreign_tree
         .builder()
         .set_contents(Box::new(BadgeFigure {

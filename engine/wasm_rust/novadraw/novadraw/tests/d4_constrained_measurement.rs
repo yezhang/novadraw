@@ -5,8 +5,9 @@ use novadraw::render::{
     TextConstraints, TextLayout,
 };
 use novadraw::{
-    Dimension, Figure, FigureId, FigureMeasurement, LayoutManager, MeasureConstraints, Rectangle,
-    RectangleFigure, Runtime, XYLayout,
+    figure::Figure, figure::FigureMeasurement, figure::MeasureConstraints, figure::RectangleFigure,
+    geometry::Dimension, geometry::Rectangle, layout::LayoutManager, layout::XYLayout,
+    runtime::Runtime, tree::FigureId,
 };
 
 struct WrappedTextFigure {
@@ -55,7 +56,7 @@ impl Figure for WrappedTextFigure {
         bounds: Rectangle,
     ) -> Result<(), GraphicsError> {
         let layout = self.selected_layout(MeasureConstraints::width(bounds.width).unwrap());
-        context.fill_text(layout, novadraw::Point::new(0.0, 0.0))
+        context.fill_text(layout, novadraw::geometry::Point::new(0.0, 0.0))
     }
 }
 
@@ -119,14 +120,19 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
     const WIDTH: f32 = 72.0;
 
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let font = FontDescriptor::default();
     let text = "alpha beta gamma delta";
     let natural = runtime
-        .layout_text(text, &font, TextConstraints::UNBOUNDED)
+        .text()
+        .layout(text, &font, TextConstraints::UNBOUNDED)
         .unwrap();
     let constrained = runtime
-        .layout_text(text, &font, TextConstraints::new(Some(WIDTH)).unwrap())
+        .text()
+        .layout(text, &font, TextConstraints::new(Some(WIDTH)).unwrap())
         .unwrap();
     assert!(constrained.line_metrics().len() > 1);
     assert!(constrained.height() > natural.height());
@@ -143,7 +149,7 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
         )))
         .expect("valid Runtime mutation");
     let text_figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(WrappedTextFigure {
             natural,
@@ -151,12 +157,13 @@ fn constrained_measurement_drives_arrange_and_reuses_the_same_glyph_ir() {
         }))
         .expect("valid Runtime mutation");
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .set_layout_manager(Box::new(ConstrainedColumnLayout))
         .unwrap();
 
     let submission = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
@@ -197,14 +204,19 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
     const WIDTH: f32 = 72.0;
 
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let font = FontDescriptor::default();
     let text = "alpha beta gamma delta";
     let natural = runtime
-        .layout_text(text, &font, TextConstraints::UNBOUNDED)
+        .text()
+        .layout(text, &font, TextConstraints::UNBOUNDED)
         .unwrap();
     let constrained = runtime
-        .layout_text(text, &font, TextConstraints::new(Some(WIDTH)).unwrap())
+        .text()
+        .layout(text, &font, TextConstraints::new(Some(WIDTH)).unwrap())
         .unwrap();
     assert!(constrained.height() > natural.height());
 
@@ -213,7 +225,7 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 160.0, 120.0)))
         .expect("valid Runtime mutation");
     let text_figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(WrappedTextFigure {
             natural,
@@ -226,12 +238,13 @@ fn xy_layout_passes_fixed_width_hint_when_height_is_automatic() {
         .set_layout_constraint(XYConstraint::at_size(10.0, 12.0, f64::from(WIDTH), -1.0))
         .unwrap();
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .set_layout_manager(Box::new(XYLayout::new()))
         .unwrap();
 
     runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();

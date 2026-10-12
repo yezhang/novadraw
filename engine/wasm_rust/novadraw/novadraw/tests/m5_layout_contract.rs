@@ -2,10 +2,10 @@ mod support;
 
 use support::prepare_next_submission;
 
-use novadraw::Color;
 use novadraw::figure::border::LineBorder;
 use novadraw::figure::{FigureMeasurement, MeasureConstraints};
 use novadraw::geometry::{Dimension, Rectangle, Translatable};
+use novadraw::graphics::Color;
 use novadraw::layout::{
     BorderConstraint, BorderLayout, BorderRegion, GridAlignment, GridConstraint, GridLayout,
     LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, StackLayout, ToolbarLayout,
@@ -13,7 +13,7 @@ use novadraw::layout::{
 };
 use novadraw::runtime::FramePreparationError;
 use novadraw::tree::{DEFAULT_VALIDATION_BUDGET, ValidationError};
-use novadraw::{FigureId, FigureTree, RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, runtime::Runtime, tree::FigureId, tree::FigureTree};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -597,7 +597,7 @@ fn runtime_rejects_non_finite_layout_geometry_before_any_change_is_committed() {
     graph.builder().validate_subtree(root).unwrap();
     let mut runtime = Runtime::new(graph);
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .set_layout_manager(Box::new(InvalidGeometryLayout {
             first_child: first,
@@ -607,7 +607,7 @@ fn runtime_rejects_non_finite_layout_geometry_before_any_change_is_committed() {
         .unwrap();
 
     assert!(matches!(
-        runtime.stabilize_for_query(),
+        runtime.frames().stabilize_for_query(),
         Err(FramePreparationError::Validation(ValidationError::Layout(
             LayoutError::NonFiniteGeometry { figure }
         ))) if figure == invalid
@@ -892,6 +892,7 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
     let mut runtime = Runtime::new(graph);
     runtime.figure(root).unwrap().revalidate().unwrap();
     let error = runtime
+        .frames()
         .stabilize_for_query()
         .expect_err("validation must not converge");
 
@@ -902,5 +903,5 @@ fn non_converging_validation_returns_diagnostic_and_keeps_work_queued() {
             ref invalidation_chain,
         }) if invalidation_chain.len() == DEFAULT_VALIDATION_BUDGET
     ));
-    assert!(runtime.has_pending_update());
+    assert!(runtime.frames().has_pending_update());
 }

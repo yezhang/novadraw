@@ -3,7 +3,7 @@ use novadraw::render::{
     ResourceId, UnsupportedRenderCapability,
 };
 use novadraw::{
-    Rectangle,
+    geometry::Rectangle,
     graphics::{GraphicsError, PaintContext},
 };
 use uuid::Uuid;

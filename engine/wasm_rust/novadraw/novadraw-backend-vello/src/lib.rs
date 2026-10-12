@@ -1835,7 +1835,7 @@ fn create_renderer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::Color;
+    use novadraw::graphics::Color;
     use novadraw::render::{
         BuiltinFont, FontData, FontDescriptor, ResourceDelta, ResourceId, ResourceOp,
         ResourcePayload, ResourceSnapshot, ResourceSync, ResourceUpdate, TextConstraints,

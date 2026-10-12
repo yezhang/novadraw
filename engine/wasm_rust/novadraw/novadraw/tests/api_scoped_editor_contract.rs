@@ -2,10 +2,20 @@ use novadraw::figure::border::LineBorder;
 use novadraw::figure::{FlowPage, TextFlowFigure};
 use novadraw::geometry::Rectangle;
 use novadraw::layout::StackLayout;
-use novadraw::runtime::RuntimeMutationError;
-use novadraw::{FigureTree, RectangleFigure, Runtime};
+use novadraw::runtime::{
+    CapabilityUpdateError, ComponentUpdateError, ReplaceFigureBorder, ReplacePolylinePoints,
+    RuntimeMutationError, SetClickableSelected, SetImageAlignment, SetLabelText,
+    SetRoundedRectangleCorners, SetScalablePolygonScaleMode, SetTextFlowWrapping,
+    SetTriangleDirection,
+};
+use novadraw::{
+    figure::{Alignment, Direction, PolygonScaleMode, RectangleFigure},
+    geometry::{Dimension, Point},
+    runtime::Runtime,
+    tree::FigureTree,
+};
 
-fn runtime_with_child() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
+fn runtime_with_child() -> (Runtime, novadraw::tree::FigureId, novadraw::tree::FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -53,12 +63,12 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(runtime_tree);
     let runtime_child = runtime
-        .container(runtime_root)
+        .figure(runtime_root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(1.0, 2.0, 10.0, 12.0)))
         .unwrap();
     runtime
-        .container(runtime_root)
+        .figure(runtime_root)
         .unwrap()
         .set_layout_manager(Box::new(StackLayout::new()))
         .unwrap();
@@ -87,7 +97,7 @@ fn builder_and_scoped_editors_cover_distinct_lifecycle_phases() {
         builder_tree.layout_manager(builder_root).is_some(),
         runtime.tree().layout_manager(runtime_root).is_some()
     );
-    assert!(runtime.has_pending_update());
+    assert!(runtime.frames().has_pending_update());
 }
 
 #[test]
@@ -101,7 +111,7 @@ fn scoped_editor_acquisition_rejects_foreign_and_disposed_figures() {
     ));
     drop(foreign_runtime);
 
-    assert!(runtime.container(root).unwrap().remove(child).unwrap());
+    assert!(runtime.figure(root).unwrap().remove(child).unwrap());
     assert!(matches!(
         runtime.figure(child),
         Err(RuntimeMutationError::UnknownOrDisposedFigure(id)) if id == child
@@ -132,93 +142,95 @@ fn scoped_editor_acquisition_rejects_replaced_contents() {
 fn specialized_editor_rejects_a_figure_without_the_capability() {
     let (mut runtime, root, child) = runtime_with_child();
     let text_flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(TextFlowFigure::new(
             Rectangle::new(0.0, 0.0, 20.0, 20.0),
             FlowPage::from_text("text"),
         )))
         .unwrap();
-    let pending_before = runtime.has_pending_update();
+    let pending_before = runtime.frames().has_pending_update();
     let bounds_before = runtime.tree().figure_bounds(child);
 
     assert!(matches!(
-        runtime.viewport(child),
+        runtime.viewports().handle(child),
         Err(RuntimeMutationError::WrongCapability {
             figure,
             capability: "viewport mutation",
         }) if figure == child
     ));
     assert!(matches!(
-        runtime.scalable(child),
+        runtime.viewports().scale_handle(child),
         Err(RuntimeMutationError::WrongCapability {
             figure,
             capability: "scale mutation",
         }) if figure == child
     ));
     assert!(matches!(
-        runtime.label(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "label mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetLabelText::new("wrong")),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.clickable(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "clickable mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_capability(SetClickableSelected::new(true)),
+        Err(CapabilityUpdateError::Missing { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.image(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "image mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetImageAlignment::new(Alignment::End)),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.point_list(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "point-list mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(ReplacePolylinePoints::new(vec![Point::new(0.0, 0.0)])),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.scalable_polygon(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "scalable-polygon mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetScalablePolygonScaleMode::new(PolygonScaleMode::PreserveAspect)),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.text_flow(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "text-flow mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetTextFlowWrapping::new(
+                novadraw::figure::FlowWrapping::NoWrap,
+            )),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.border(text_flow),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "border mutation",
-        }) if figure == text_flow
+        runtime
+            .figure(text_flow)
+            .unwrap()
+            .update_capability(ReplaceFigureBorder::clear()),
+        Err(CapabilityUpdateError::Missing { figure, .. }) if figure == text_flow
     ));
     assert!(matches!(
-        runtime.rounded_rectangle(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "rounded-rectangle mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetRoundedRectangleCorners::new(Dimension::new(1.0, 1.0))),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
     assert!(matches!(
-        runtime.triangle(child),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "triangle mutation",
-        }) if figure == child
+        runtime
+            .figure(child)
+            .unwrap()
+            .update_component(SetTriangleDirection::new(Direction::West)),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == child
     ));
-    assert_eq!(runtime.has_pending_update(), pending_before);
+    assert_eq!(runtime.frames().has_pending_update(), pending_before);
     assert_eq!(runtime.tree().figure_bounds(child), bounds_before);
 }

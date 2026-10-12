@@ -92,14 +92,6 @@ impl PolygonFigure {
         self.polyline.stroke_style()
     }
 
-    pub(crate) fn painted_minimum(&self) -> usize {
-        3
-    }
-
-    pub(crate) fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
-        self.polyline.commit_stroke_style(stroke);
-    }
-
     pub(crate) fn commit_geometry(
         &mut self,
         bounds: Rectangle,

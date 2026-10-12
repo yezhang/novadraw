@@ -8,7 +8,9 @@ use novadraw::figure::{
     Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
 };
 use novadraw::graphics::{GraphicsError, PaintContext};
-use novadraw::{Color, Figure, FigureTree, Rectangle, RectangleFigure};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, geometry::Rectangle, graphics::Color, tree::FigureTree,
+};
 
 use crate::focus::{FocusProbeSpec, build_focus_traversal_scene};
 use crate::{DemoSuite, SceneSpec, ValidationKind};

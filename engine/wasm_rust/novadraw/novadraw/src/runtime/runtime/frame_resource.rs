@@ -7,11 +7,11 @@ use crate::{
 use super::{BackendSessionError, LogicalViewportResizeError, Runtime};
 
 impl Runtime {
-    pub fn logical_viewport(&self) -> Option<Rectangle> {
+    pub(crate) fn logical_viewport(&self) -> Option<Rectangle> {
         self.logical_viewport
     }
 
-    pub fn resize_logical_viewport(
+    pub(crate) fn resize_logical_viewport(
         &mut self,
         width: f64,
         height: f64,
@@ -32,11 +32,13 @@ impl Runtime {
         Ok(true)
     }
 
-    pub fn backend_session_id(&self) -> BackendSessionId {
+    pub(crate) fn backend_session_id(&self) -> BackendSessionId {
         self.backend_session_id
     }
 
-    pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
+    pub(crate) fn reset_backend_session(
+        &mut self,
+    ) -> Result<BackendSessionId, BackendSessionError> {
         if self.faulted {
             return Err(BackendSessionError::Faulted);
         }
@@ -51,15 +53,18 @@ impl Runtime {
         Ok(next)
     }
 
-    pub fn register_image(&mut self) -> Result<ImageId, ResourceError> {
+    pub(crate) fn register_image(&mut self) -> Result<ImageId, ResourceError> {
         self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_image()))
     }
 
-    pub fn register_font(&mut self) -> Result<FontId, ResourceError> {
+    pub(crate) fn register_font(&mut self) -> Result<FontId, ResourceError> {
         self.guarded_resource_mutation(|runtime| Ok(runtime.resources.register_font()))
     }
 
-    pub fn register_builtin_font(&mut self, builtin: BuiltinFont) -> Result<FontId, ResourceError> {
+    pub(crate) fn register_builtin_font(
+        &mut self,
+        builtin: BuiltinFont,
+    ) -> Result<FontId, ResourceError> {
         if self.faulted {
             return Err(ResourceError::Faulted);
         }
@@ -72,14 +77,14 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn resource_status(
+    pub(crate) fn resource_status(
         &self,
         resource_id: ResourceId,
     ) -> Result<&ResourceStatus, ResourceError> {
         self.resources.status(resource_id)
     }
 
-    pub fn add_resource_dependency(
+    pub(crate) fn add_resource_dependency(
         &mut self,
         resource_id: ResourceId,
         figure: FigureId,
@@ -93,7 +98,7 @@ impl Runtime {
         self.resources.add_dependency(resource_id, figure)
     }
 
-    pub fn remove_resource_dependency(
+    pub(crate) fn remove_resource_dependency(
         &mut self,
         resource_id: ResourceId,
         figure: FigureId,
@@ -103,7 +108,11 @@ impl Runtime {
         })
     }
 
-    pub fn complete_image(&mut self, id: ImageId, image: ImageData) -> Result<(), ResourceError> {
+    pub(crate) fn complete_image(
+        &mut self,
+        id: ImageId,
+        image: ImageData,
+    ) -> Result<(), ResourceError> {
         self.guarded_resource_mutation(move |runtime| runtime.complete_image_inner(id, image))
     }
 
@@ -113,14 +122,14 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn begin_resource_request(
+    pub(crate) fn begin_resource_request(
         &mut self,
         id: ResourceId,
     ) -> Result<ResourceRequestToken, ResourceError> {
         self.guarded_resource_mutation(|runtime| runtime.resources.begin_request(id))
     }
 
-    pub fn complete_image_request(
+    pub(crate) fn complete_image_request(
         &mut self,
         token: ResourceRequestToken,
         image: ImageData,
@@ -132,7 +141,7 @@ impl Runtime {
         })
     }
 
-    pub fn complete_image_request_bytes(
+    pub(crate) fn complete_image_request_bytes(
         &mut self,
         token: ResourceRequestToken,
         bytes: &[u8],
@@ -154,7 +163,11 @@ impl Runtime {
         }
     }
 
-    pub fn complete_font(&mut self, id: FontId, font: FontData) -> Result<(), ResourceError> {
+    pub(crate) fn complete_font(
+        &mut self,
+        id: FontId,
+        font: FontData,
+    ) -> Result<(), ResourceError> {
         self.guarded_resource_mutation(move |runtime| runtime.complete_font_inner(id, font))
     }
 
@@ -170,7 +183,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn complete_font_request(
+    pub(crate) fn complete_font_request(
         &mut self,
         token: ResourceRequestToken,
         font: FontData,
@@ -192,7 +205,7 @@ impl Runtime {
         })
     }
 
-    pub fn fail_resource(
+    pub(crate) fn fail_resource(
         &mut self,
         id: ResourceId,
         reason: impl Into<String>,
@@ -210,7 +223,7 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn fail_resource_request(
+    pub(crate) fn fail_resource_request(
         &mut self,
         token: ResourceRequestToken,
         reason: impl Into<String>,
@@ -228,7 +241,7 @@ impl Runtime {
         })
     }
 
-    pub fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {
+    pub(crate) fn remove_resource(&mut self, id: ResourceId) -> Result<(), ResourceError> {
         self.guarded_resource_mutation(|runtime| runtime.remove_resource_inner(id))
     }
 

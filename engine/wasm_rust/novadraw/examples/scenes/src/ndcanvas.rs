@@ -4,7 +4,9 @@
 
 use novadraw::figure::Bounded;
 use novadraw::graphics::{GraphicsError, LineCap, LineJoin, PaintContext};
-use novadraw::{Color, Figure, Point, Rectangle, RectangleFigure};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, geometry::Point, geometry::Rectangle, graphics::Color,
+};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -66,8 +68,8 @@ impl Figure for TestFigure {
 // 测试场景创建
 // ============================================================
 
-fn create_scene_clear() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_clear() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let _bg_id = scene
         .builder()
@@ -76,8 +78,8 @@ fn create_scene_clear() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_fill_rect() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_fill_rect() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -148,8 +150,8 @@ fn stroke_polyline(
     context.stroke_polyline(points)
 }
 
-fn create_scene_stroke_rect() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_stroke_rect() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -184,8 +186,8 @@ fn create_scene_stroke_rect() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_ellipse() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_ellipse() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -216,8 +218,8 @@ fn create_scene_ellipse() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_line() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_line() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -287,8 +289,8 @@ fn create_scene_line() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_polyline() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_polyline() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -382,8 +384,8 @@ fn create_scene_polyline() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_line_join() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_line_join() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -438,8 +440,8 @@ fn create_scene_line_join() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_transform() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_transform() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let bg = RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, Color::WHITE);
     let bg_id = scene
         .builder()
@@ -457,7 +459,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
         )?;
 
         // 平移
-        gc.concat_transform(novadraw::Affine2D::from_translation(50.0, 50.0))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_translation(50.0, 50.0))?;
         stroke_rect(
             gc,
             Rectangle::new(50.0, 50.0, 100.0, 60.0),
@@ -466,7 +468,7 @@ fn create_scene_transform() -> novadraw::FigureTree {
         )?;
 
         // 旋转
-        gc.concat_transform(novadraw::Affine2D::from_translation(100.0, 50.0))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_translation(100.0, 50.0))?;
         gc.rotate_degrees(45.0)?;
         stroke_rect(
             gc,

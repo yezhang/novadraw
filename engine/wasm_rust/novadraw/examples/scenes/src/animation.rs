@@ -9,9 +9,6 @@ use novadraw::connection::{
 use novadraw::container::ViewportHandle;
 use novadraw::event::{MonotonicTime, property};
 use novadraw::{
-    Affine2D, Color, Dimension, EllipseFigure, FigureId, FigureMeasurement, FigureStyle,
-    LabelFigure, Point, Rectangle, RectangleFigure, RoundedRectangleFigure, Runtime, StackLayout,
-    ToggleFigure,
     animation::{
         AnimationBehavior, AnimationBehaviorContext, AnimationBehaviorId, AnimationChannel,
         AnimationId, AnimationPlan, AnimationStart, AnimationTrigger, BoundsTransition,
@@ -20,9 +17,24 @@ use novadraw::{
         Procedural, RepeatBehavior, Spring, SuspensionPolicy, TemporaryVisual, Tween,
         ViewportTransition,
     },
+    figure::EllipseFigure,
+    figure::FigureMeasurement,
+    figure::FigureStyle,
+    figure::LabelFigure,
+    figure::RectangleFigure,
+    figure::RoundedRectangleFigure,
+    figure::ToggleFigure,
     figure::{FigureDrawing, FigurePresentation},
+    geometry::Affine2D,
+    geometry::Dimension,
+    geometry::Point,
+    geometry::Rectangle,
+    graphics::Color,
     graphics::{DashPattern, GraphicsError, LineJoin, PaintContext, StrokeStyle},
+    layout::StackLayout,
     render::BuiltinFont,
+    runtime::{Runtime, SetClickableSelected},
+    tree::FigureId,
 };
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
@@ -108,7 +120,7 @@ pub struct AnimationMechanismsExample {
     pub arrow_connection_figure: FigureId,
     pub arrow_target: FigureId,
     pub arrow_decoration: FigureId,
-    pub route_channel: AnimationChannel<novadraw::PointList>,
+    pub route_channel: AnimationChannel<novadraw::geometry::PointList>,
     pub dash_channel: AnimationChannel<f64>,
     pub route_animation: AnimationId,
     pub dash_animation: AnimationId,
@@ -199,6 +211,7 @@ pub fn suite() -> DemoSuite {
 pub fn build_example() -> AnimationExample {
     let mut runtime = Runtime::empty();
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
@@ -271,12 +284,14 @@ pub fn build_example() -> AnimationExample {
     let (bounds_figure, old_bounds, final_bounds) = add_presentation_row(&mut runtime, root);
 
     runtime
+        .animation()
         .advance_time(MonotonicTime::ZERO)
         .expect("animation clock starts at zero");
 
     let target_channels = target_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("target Figure channels")
     });
@@ -287,7 +302,8 @@ pub fn build_example() -> AnimationExample {
 
     let motion_channels = motion_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("motion Figure channels")
             .transform()
@@ -298,12 +314,14 @@ pub fn build_example() -> AnimationExample {
     );
 
     let bounds_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(bounds_figure, InteractionGeometryPolicy::Committed)
         .expect("bounds Figure channels")
         .transform();
     let capture = runtime
-        .animations()
+        .animation()
+        .timeline()
         .capture_figures([bounds_figure])
         .expect("bounds capture");
     runtime
@@ -312,7 +330,8 @@ pub fn build_example() -> AnimationExample {
         .set_bounds(final_bounds)
         .expect("commit final bounds");
     let bounds_animation = match runtime
-        .animations()
+        .animation()
+        .timeline()
         .transition_bounds(
             capture,
             BoundsTransition::new(BOUNDS_DURATION).with_easing(Easing::EaseInOut),
@@ -325,7 +344,8 @@ pub fn build_example() -> AnimationExample {
     debug_assert_ne!(old_bounds, final_bounds);
 
     let temporary = runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_temporary_visual(
             temporary_presentation(),
             temporary_end_transform(),
@@ -357,6 +377,7 @@ pub fn build_example() -> AnimationExample {
 pub fn build_mechanisms_example() -> AnimationMechanismsExample {
     let mut runtime = Runtime::empty();
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
@@ -395,6 +416,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         MUTED_TEXT,
     );
     runtime
+        .animation()
         .advance_time(MonotonicTime::ZERO)
         .expect("animation clock starts at zero");
 
@@ -406,7 +428,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         "bounds fact -> plan",
     );
     let trigger_figure = runtime
-        .container(trigger_panel)
+        .figure(trigger_panel)
         .expect("trigger panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(28.0, 82.0, 94.0, 54.0, 10.0, BLUE)
@@ -414,13 +436,15 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("trigger Figure");
     let trigger_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(trigger_figure, InteractionGeometryPolicy::Committed)
         .expect("trigger channel")
         .transform();
     let behavior_channel = trigger_channel;
     let trigger_behavior = runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::FigureBoundsChanged,
@@ -447,6 +471,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         .set_bounds(Rectangle::new(38.0, 76.0, 114.0, 66.0))
         .expect("trigger source mutation");
     runtime
+        .frames()
         .stabilize_for_query()
         .expect("trigger stable transaction");
 
@@ -458,7 +483,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         "stable before -> final",
     );
     let layout_container = runtime
-        .container(layout_panel)
+        .figure(layout_panel)
         .expect("layout panel")
         .add(Box::new(
             RectangleFigure::new_with_color(18.0, 72.0, 112.0, 72.0, Color::TRANSPARENT)
@@ -466,7 +491,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("layout container");
     let layout_child = runtime
-        .container(layout_container)
+        .figure(layout_container)
         .expect("layout container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(0.0, 0.0, 20.0, 20.0, 8.0, GREEN)
@@ -474,17 +499,19 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("layout child");
     runtime
-        .container(layout_container)
+        .figure(layout_container)
         .expect("layout container")
         .set_layout_manager(Box::new(StackLayout::new()))
         .expect("stack layout");
     let layout_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(layout_child, InteractionGeometryPolicy::Committed)
         .expect("layout channel")
         .transform();
     let (_, layout_start) = runtime
-        .transition_bounds_transaction(
+        .animation()
+        .transition_bounds(
             [layout_child],
             BoundsTransition::new(MECHANISM_DURATION).with_easing(Easing::EaseInOut),
             |runtime| {
@@ -504,19 +531,22 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         "pan committed first",
     );
     let viewport = runtime
-        .add_viewport(viewport_panel, Rectangle::new(14.0, 72.0, 148.0, 84.0))
+        .viewports()
+        .add(viewport_panel, Rectangle::new(14.0, 72.0, 148.0, 84.0))
         .expect("viewport");
     let viewport_contents = runtime
-        .viewport(viewport.figure_id())
-        .expect("viewport")
-        .set_contents(Box::new(
-            RectangleFigure::new_with_color(0.0, 0.0, 320.0, 84.0, VIOLET)
-                .with_stroke(Color::WHITE, 2.0),
-        ))
+        .viewports()
+        .set_contents(
+            viewport.figure_id(),
+            Box::new(
+                RectangleFigure::new_with_color(0.0, 0.0, 320.0, 84.0, VIOLET)
+                    .with_stroke(Color::WHITE, 2.0),
+            ),
+        )
         .expect("viewport contents");
     for (x, color) in [(18.0, BLUE), (124.0, GOLD), (230.0, GREEN)] {
         runtime
-            .container(viewport_contents)
+            .figure(viewport_contents)
             .expect("viewport contents")
             .add(Box::new(
                 RoundedRectangleFigure::new_with_color(x, 18.0, 72.0, 48.0, 8.0, color)
@@ -525,18 +555,20 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
             .expect("viewport marker");
     }
     let viewport_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(viewport_contents, InteractionGeometryPolicy::Committed)
         .expect("viewport channel")
         .transform();
     let (_, viewport_start) = runtime
-        .transition_viewport_transaction(
+        .animation()
+        .transition_viewport(
             &viewport,
             ViewportTransition::new(MECHANISM_DURATION).with_easing(Easing::EaseInOut),
             |runtime| {
                 runtime
-                    .viewport(viewport.figure_id())?
-                    .set_view_location(118.0, 0.0)
+                    .viewports()
+                    .set_view_location(viewport.figure_id(), 118.0, 0.0)
             },
         )
         .expect("viewport transition");
@@ -550,7 +582,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         "route crossfade + dashed arrow flow + pulse",
     );
     let source = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(34.0, 76.0, 88.0, 54.0, 8.0, BLUE)
@@ -558,7 +590,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("source");
     let target = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(420.0, 76.0, 88.0, 54.0, 8.0, CORAL)
@@ -566,7 +598,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("target");
     let connection_figure = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(ConnectionFigure::new().with_stroke(BLUE, 3.0)))
         .expect("connection Figure");
@@ -580,7 +612,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         MUTED_TEXT,
     );
     let arrow_source = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(70.0, 194.0, 58.0, 34.0, 8.0, VIOLET)
@@ -588,7 +620,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("arrow source");
     let arrow_target = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(430.0, 194.0, 58.0, 34.0, 8.0, GREEN)
@@ -596,7 +628,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("arrow target");
     let arrow_connection_figure = runtime
-        .container(connection_panel)
+        .figure(connection_panel)
         .expect("connection panel")
         .add(Box::new(
             ConnectionFigure::new()
@@ -610,7 +642,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
         ))
         .expect("arrow connection Figure");
     let arrow_decoration = runtime
-        .container(arrow_connection_figure)
+        .figure(arrow_connection_figure)
         .expect("connection container")
         .add(Box::new(
             PolylineDecorationFigure::arrow()
@@ -621,63 +653,80 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
                 .with_join(LineJoin::Miter),
         ))
         .expect("target arrow decoration");
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let direct_router = runtime.connections().direct_router();
     let connection = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),
             RouterBinding::Explicit {
-                router: runtime.direct_connection_router(),
+                router: direct_router,
             },
             None,
         )
         .expect("connection state");
     runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(connection_panel))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(connection_panel))
         .expect("initial direct route");
 
-    let arrow_source_anchor =
-        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(arrow_source)));
-    let arrow_target_anchor =
-        runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(arrow_target)));
+    let arrow_source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(arrow_source)));
+    let arrow_target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(arrow_target)));
+    let direct_router = runtime.connections().direct_router();
     let arrow_connection = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             arrow_connection_figure,
             Some(arrow_source_anchor),
             Some(arrow_target_anchor),
             RouterBinding::Explicit {
-                router: runtime.direct_connection_router(),
+                router: direct_router,
             },
             None,
         )
         .expect("arrow connection state");
     runtime
-        .set_connection_locator(
+        .connections()
+        .set_locator(
             arrow_connection,
             arrow_decoration,
             Box::new(EndpointLocator::target(-8.0, 0.0).expect("valid arrow offset")),
         )
         .expect("target arrow locator");
     runtime
-        .resolve_connection_route(
+        .connections()
+        .resolve_route(
             arrow_connection,
             CoordinateSpace::ChildContent(connection_panel),
         )
         .expect("initial arrow route");
 
     let route_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_connection_route(connection_figure)
         .expect("route channel");
-    let router = runtime.register_connection_router(Box::new(BendpointConnectionRouter));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(BendpointConnectionRouter));
     let (_, route_start) = runtime
-        .transition_connection_routes_transaction(
+        .animation()
+        .transition_connection_routes(
             [connection_figure],
             ConnectionRouteTransition::new(MECHANISM_DURATION).with_easing(Easing::EaseInOut),
             |runtime| {
-                runtime.set_connection_route_configuration(
+                runtime.connections().set_route_configuration(
                     connection,
                     RouterBinding::Explicit { router },
                     Some(Box::new(BendpointConstraint::new(vec![
@@ -691,18 +740,21 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
     let route_animation = expect_running(route_start, "route transition");
     let dash_animation = expect_running(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .start_connection_dash_flow(arrow_connection_figure, 28.0)
             .expect("dash flow"),
         "dash flow",
     );
     let dash_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_connection_dash_offset(arrow_connection_figure)
         .expect("dash channel");
     let pulse_animation = expect_running(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .start_connection_pulse(
                 connection_figure,
                 ConnectionPulse::new(PULSE_DURATION, 6.0, GOLD)
@@ -741,6 +793,7 @@ pub fn build_mechanisms_example() -> AnimationMechanismsExample {
 pub fn build_choreography_example() -> AnimationChoreographyExample {
     let mut runtime = Runtime::empty();
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
@@ -814,12 +867,14 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
     let (choreography_figure, loop_figures) = add_channel_gallery(&mut runtime, root);
 
     runtime
+        .animation()
         .advance_time(MonotonicTime::ZERO)
         .expect("animation clock starts at zero");
 
     let sampler_channels = sampler_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("sampler Figure channels")
             .transform()
@@ -831,20 +886,23 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
 
     let sequence_channels = sequence_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("sequence Figure channels")
             .transform()
     });
     let stagger_channels = stagger_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("stagger Figure channels")
             .transform()
     });
     let delayed_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(delayed_figure, InteractionGeometryPolicy::Committed)
         .expect("delayed Figure channels")
         .transform();
@@ -855,7 +913,8 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
     );
 
     let choreography_channels = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(choreography_figure, InteractionGeometryPolicy::Committed)
         .expect("choreography Figure channels");
     let choreography_animation = start_running(
@@ -865,7 +924,8 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
 
     let loop_channels = loop_figures.map(|figure| {
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Committed)
             .expect("loop Figure channels")
             .transform()
@@ -917,6 +977,7 @@ pub fn build_choreography_example() -> AnimationChoreographyExample {
 pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     let mut runtime = Runtime::empty();
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
@@ -989,7 +1050,7 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     );
     let hit_bounds = Rectangle::new(320.0, SECOND_ROW_Y + 58.0, 160.0, 52.0);
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(
@@ -1036,15 +1097,18 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     );
 
     runtime
+        .animation()
         .advance_time(MonotonicTime::ZERO)
         .expect("animation clock starts at zero");
 
     let replace_channels = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(replace_toggle, InteractionGeometryPolicy::Committed)
         .expect("replace channels");
     let ignore_channels = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(ignore_toggle, InteractionGeometryPolicy::Committed)
         .expect("ignore channels");
     let replace_behavior = install_ownership_behavior(
@@ -1063,7 +1127,8 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     );
 
     let moving_hit_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(moving_hit_toggle, InteractionGeometryPolicy::Committed)
         .expect("moving hit channels")
         .transform();
@@ -1073,12 +1138,14 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     );
 
     let pause_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(pause_figure, InteractionGeometryPolicy::Committed)
         .expect("pause channels")
         .transform();
     let finish_channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(finish_figure, InteractionGeometryPolicy::Committed)
         .expect("finish channels")
         .transform();
@@ -1095,16 +1162,17 @@ pub fn build_runtime_control_example() -> AnimationRuntimeControlExample {
     ];
 
     runtime
-        .clickable(replace_toggle)
+        .figure(replace_toggle)
         .expect("replace toggle")
-        .set_selected(true)
+        .update_capability(SetClickableSelected::new(true))
         .expect("replace selection");
     runtime
-        .clickable(ignore_toggle)
+        .figure(ignore_toggle)
         .expect("ignore toggle")
-        .set_selected(true)
+        .update_capability(SetClickableSelected::new(true))
         .expect("ignore selection");
     runtime
+        .frames()
         .stabilize_for_query()
         .expect("initial control behaviors");
 
@@ -1135,7 +1203,8 @@ fn install_ownership_behavior(
     interruption: InterruptionPolicy,
 ) -> AnimationBehaviorId {
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::state_changed(property::SELECTED),
@@ -1235,7 +1304,7 @@ fn add_sampler_gallery(runtime: &mut Runtime, root: FigureId) -> [FigureId; 5] {
             MUTED_TEXT,
         );
         runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(RectangleFigure::new_with_color(
                 x - 62.0,
@@ -1247,7 +1316,7 @@ fn add_sampler_gallery(runtime: &mut Runtime, root: FigureId) -> [FigureId; 5] {
             .expect("sampler guide");
         figures.push(
             runtime
-                .container(root)
+                .figure(root)
                 .expect("root container")
                 .add(Box::new(
                     EllipseFigure::new_with_color(x, y, 40.0, 40.0, color)
@@ -1292,7 +1361,7 @@ fn add_composition_gallery(
         [CORAL, GOLD, BLUE],
     );
     let delayed = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -1321,7 +1390,7 @@ fn add_small_figure_group(
         .zip(colors)
         .map(|(x, color)| {
             runtime
-                .container(root)
+                .figure(root)
                 .expect("root container")
                 .add(Box::new(
                     RoundedRectangleFigure::new_with_color(x, y, 44.0, 34.0, 8.0, color)
@@ -1351,7 +1420,7 @@ fn add_channel_gallery(runtime: &mut Runtime, root: FigureId) -> (FigureId, [Fig
         );
     }
     let choreography = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -1367,7 +1436,7 @@ fn add_channel_gallery(runtime: &mut Runtime, root: FigureId) -> (FigureId, [Fig
         .expect("choreography Figure");
     let loop_figures = [(430.0, BLUE), (554.0, CORAL), (676.0, GOLD)].map(|(x, color)| {
         runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(
                 EllipseFigure::new_with_color(x, THIRD_ROW_Y + 74.0, 42.0, 42.0, color)
@@ -1548,7 +1617,7 @@ fn add_mechanism_panel(
     subtitle: &str,
 ) -> FigureId {
     let panel = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(bounds.x, bounds.y, bounds.width, bounds.height, PANEL)
@@ -1583,7 +1652,7 @@ fn expect_running(start: AnimationStart, label: &str) -> AnimationId {
 
 fn add_panel(runtime: &mut Runtime, root: FigureId, y: f64) {
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(PANEL_X, y, PANEL_WIDTH, PANEL_HEIGHT, PANEL)
@@ -1599,7 +1668,7 @@ fn add_control_toggle(
     bounds: Rectangle,
 ) -> FigureId {
     let toggle = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(ToggleFigure::new(text).with_bounds(bounds)))
         .expect("control toggle");
@@ -1623,7 +1692,7 @@ fn add_control_target(
     color: Color,
 ) -> FigureId {
     let target = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -1657,7 +1726,7 @@ fn add_label(
     color: Color,
 ) -> FigureId {
     let label = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
         .expect("label");
@@ -1689,7 +1758,7 @@ fn add_target_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
     }
     [
         runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(
                 RectangleFigure::new_with_color(positions[0], y, SHAPE_WIDTH, SHAPE_HEIGHT, BLUE)
@@ -1697,7 +1766,7 @@ fn add_target_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
             ))
             .expect("target rectangle"),
         runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(
                 EllipseFigure::new_with_color(positions[1], y, SHAPE_WIDTH, SHAPE_HEIGHT, GREEN)
@@ -1705,7 +1774,7 @@ fn add_target_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
             ))
             .expect("target ellipse"),
         runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(RoundedRectangleFigure::new_with_color(
                 positions[2],
@@ -1736,7 +1805,7 @@ fn add_motion_row(runtime: &mut Runtime, root: FigureId) -> [FigureId; 3] {
         );
         figures.push(
             runtime
-                .container(root)
+                .figure(root)
                 .expect("root container")
                 .add(Box::new(
                     EllipseFigure::new_with_color(x, y, SHAPE_WIDTH, SHAPE_HEIGHT, color)
@@ -1752,7 +1821,7 @@ fn add_presentation_row(runtime: &mut Runtime, root: FigureId) -> (FigureId, Rec
     let old_bounds = Rectangle::new(124.0, THIRD_ROW_Y + 69.0, 64.0, 44.0);
     let final_bounds = Rectangle::new(302.0, THIRD_ROW_Y + 59.0, 92.0, 64.0);
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RectangleFigure::new_with_color(
@@ -1766,7 +1835,7 @@ fn add_presentation_row(runtime: &mut Runtime, root: FigureId) -> (FigureId, Rec
         ))
         .expect("old bounds guide");
     let figure = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -1926,7 +1995,8 @@ fn repeated_temporary_plan(
 
 fn start_running(runtime: &mut Runtime, plan: AnimationPlan) -> AnimationId {
     match runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(plan)
         .expect("animation admission")
     {

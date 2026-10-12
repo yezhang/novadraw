@@ -1,5 +1,12 @@
+mod support;
+
+use support::record_full_submission;
+
 use novadraw::connection::{ConnectionId, ConnectionRuntimeError};
-use novadraw::event::{EventContext, FigureEventHandler, MouseButton, MouseEvent};
+use novadraw::event::{
+    EventContext, FigureEventHandler, ListenerDirective, MouseButton, MouseEvent,
+    PropertyChangeEvent, PropertyChangeListener, PropertyKey,
+};
 use novadraw::figure::{
     FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureLifecycle, INPUT,
     InputCapability, LIFECYCLE, LifecycleCapability, WidgetError,
@@ -14,9 +21,12 @@ use novadraw::runtime::{
     SubmissionAcknowledgement,
 };
 use novadraw::{
-    Dimension, Figure, FigureTree, FramePreparation, FramePreparationError, Rectangle,
-    RectangleFigure, Runtime,
+    figure::Figure, figure::RectangleFigure, geometry::Dimension, geometry::Rectangle,
+    runtime::FramePreparation, runtime::FramePreparationError, runtime::Runtime, tree::FigureTree,
 };
+use std::sync::{Arc, Mutex};
+
+const BADGE_TEXT: PropertyKey<String> = PropertyKey::new("example.badge", "text");
 
 #[derive(Clone, Debug, PartialEq)]
 struct BadgeSnapshot {
@@ -99,24 +109,39 @@ impl FigureComponentUpdate for SetBadgeText {
 
     fn prepare(
         self,
-        _current: &Self::Figure,
+        current: &Self::Figure,
         _context: FigureComponentContext,
     ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error> {
         if self.0.is_empty() {
             return Err("badge text cannot be empty");
         }
+        let old_text = current.text.clone();
         let snapshot = BadgeSnapshot {
             measured_width: self.0.len() as f64 * 8.0,
             paint_snapshot: format!("badge:{}", self.0),
             text: self.0,
         };
-        Ok(PreparedFigureUpdate::new(snapshot))
+        let new_text = snapshot.text.clone();
+        Ok(
+            PreparedFigureUpdate::new(snapshot)
+                .with_property_change(BADGE_TEXT, old_text, new_text),
+        )
     }
 
     fn commit(prepared: Self::Prepared, target: &mut Self::Figure) {
         target.text = prepared.text;
         target.measured_width = prepared.measured_width;
         target.paint_snapshot = prepared.paint_snapshot;
+    }
+}
+
+#[derive(Clone)]
+struct PropertyRecorder(Arc<Mutex<Vec<PropertyChangeEvent>>>);
+
+impl PropertyChangeListener for PropertyRecorder {
+    fn property_changed(&self, event: &PropertyChangeEvent) -> ListenerDirective {
+        self.0.lock().unwrap().push(event.clone());
+        ListenerDirective::Keep
     }
 }
 
@@ -227,11 +252,13 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 baseline.session_id,
                 baseline.frame_id,
@@ -239,7 +266,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
             )
             .is_ok()
     );
-    assert!(!runtime.has_pending_update());
+    assert!(!runtime.frames().has_pending_update());
     let layout_generation = runtime
         .tree()
         .node(badge)
@@ -269,12 +296,14 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
             > layout_generation
     );
     let updated = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_ne!(updated.damage.mode(), DamageMode::None);
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 updated.session_id,
                 updated.frame_id,
@@ -298,7 +327,7 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
     );
     assert_eq!(runtime.tree().component_revision(badge), Some(1));
 
-    let pending_before = runtime.has_pending_update();
+    let pending_before = runtime.frames().has_pending_update();
     let rejected = runtime
         .figure(badge)
         .unwrap()
@@ -309,7 +338,48 @@ fn external_component_update_is_typed_atomic_and_conservatively_invalidated() {
         ComponentUpdateError::Rejected("badge text cannot be empty")
     );
     assert_eq!(runtime.tree().component_revision(badge), Some(1));
-    assert_eq!(runtime.has_pending_update(), pending_before);
+    assert_eq!(runtime.frames().has_pending_update(), pending_before);
+}
+
+#[test]
+fn external_component_update_commits_typed_property_effect_once() {
+    let mut tree = FigureTree::new();
+    let badge = tree
+        .builder()
+        .set_contents(Box::new(BadgeFigure::new("old")))
+        .expect("valid FigureTree construction");
+    let mut runtime = Runtime::new(tree);
+    record_full_submission(&mut runtime);
+
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    runtime
+        .observations()
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))));
+
+    runtime
+        .figure(badge)
+        .unwrap()
+        .update_component(SetBadgeText("updated".to_owned()))
+        .unwrap();
+    record_full_submission(&mut runtime);
+
+    let events = observed.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].figure_id(), badge);
+    assert!(events[0].property().is(BADGE_TEXT));
+    drop(events);
+
+    let rejected = runtime
+        .figure(badge)
+        .unwrap()
+        .update_component(SetBadgeText(String::new()))
+        .unwrap_err();
+    assert_eq!(
+        rejected,
+        ComponentUpdateError::Rejected("badge text cannot be empty")
+    );
+    record_full_submission(&mut runtime);
+    assert_eq!(observed.lock().unwrap().len(), 1);
 }
 
 #[test]
@@ -321,7 +391,9 @@ fn external_figure_callback_can_defer_a_typed_self_update() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
-    runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
 
     assert_eq!(runtime.tree().component_revision(badge), Some(1));
     let snapshot = runtime
@@ -348,7 +420,9 @@ fn deferred_component_rejection_is_reported_without_losing_fifo_suffix() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
-    runtime.dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(20.0, 25.0, MouseButton::Left);
 
     assert_eq!(runtime.tree().component_revision(badge), Some(1));
     assert_eq!(
@@ -415,7 +489,9 @@ fn component_prepare_or_commit_panic_faults_runtime() {
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
     assert!(matches!(
-        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL,),
+        runtime
+            .frames()
+            .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL,),
         FramePreparation::Error(FramePreparationError::Faulted)
     ));
 
@@ -459,10 +535,12 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         .set_preferred_size(Dimension::new(20.0, 20.0))
         .unwrap();
     let baseline = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     let acknowledgement = runtime
+        .frames()
         .complete_submission(
             baseline.session_id,
             baseline.frame_id,
@@ -471,7 +549,10 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         .expect("frame completion");
     assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
     assert!(runtime.tree().node(figure).unwrap().state().is_valid());
-    let image = runtime.register_image().expect("image registration");
+    let image = runtime
+        .resources()
+        .register_image()
+        .expect("image registration");
 
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         runtime
@@ -487,22 +568,24 @@ fn lifecycle_invalidation_panic_faults_all_public_mutation_domains() {
         runtime.figure(figure),
         Err(RuntimeMutationError::Faulted)
     ));
-    assert_eq!(runtime.do_click(figure), Err(WidgetError::Faulted));
+    assert_eq!(runtime.input().do_click(figure), Err(WidgetError::Faulted));
     assert_eq!(
-        runtime.remove_connection_state(ConnectionId::from_figure(figure)),
+        runtime
+            .connections()
+            .remove_state(ConnectionId::from_figure(figure)),
         Err(ConnectionRuntimeError::Faulted)
     );
     assert_eq!(
-        runtime.remove_resource(image.resource_id()),
+        runtime.resources().remove(image.resource_id()),
         Err(ResourceError::Faulted)
     );
     assert_eq!(
-        runtime.layout_text(
+        runtime.text().layout(
             "rejected",
             &FontDescriptor::default(),
             TextConstraints::UNBOUNDED,
         ),
         Err(TextError::RuntimeFaulted)
     );
-    assert_eq!(runtime.request_focus(figure), Err(FocusError::Faulted));
+    assert_eq!(runtime.focus().request(figure), Err(FocusError::Faulted));
 }

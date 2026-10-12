@@ -1,12 +1,17 @@
+use novadraw::{
+    figure::Figure,
+    geometry::Rectangle,
+    graphics::Color,
+    graphics::GraphicsError,
+    graphics::PaintContext,
+    render::{BackendCapabilities, CommandRecorder, FrameId, RenderCommandKind, SurfaceInfo},
+    runtime::FramePreparation,
+    runtime::FramePreparationError,
+    runtime::Runtime,
+};
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
-};
-
-use novadraw::{
-    Color, Figure, FramePreparation, FramePreparationError, GraphicsError, PaintContext, Rectangle,
-    Runtime,
-    render::{BackendCapabilities, CommandRecorder, FrameId, RenderCommandKind, SurfaceInfo},
 };
 
 fn surface() -> SurfaceInfo {
@@ -71,7 +76,9 @@ fn figure_paint_failure_blocks_publication_and_preserves_retry_identity() {
         .unwrap();
 
     assert!(matches!(
-        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
+        runtime
+            .frames()
+            .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
         FramePreparation::Error(FramePreparationError::Graphics(
             GraphicsError::InvalidOpacity
         ))
@@ -79,6 +86,7 @@ fn figure_paint_failure_blocks_publication_and_preserves_retry_identity() {
 
     fail.store(false, Ordering::Relaxed);
     let submission = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("corrected Figure paint must remain retriable");

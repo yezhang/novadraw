@@ -8,8 +8,8 @@ use novadraw::connection::{
 use novadraw::container::ViewportFigure;
 use novadraw::geometry::{Dimension, Point, Vec2};
 use novadraw::{
-    Color, EllipseFigure, PolygonFigure, Rectangle, RectangleFigure, RoundedRectangleFigure,
-    Runtime,
+    figure::EllipseFigure, figure::PolygonFigure, figure::RectangleFigure,
+    figure::RoundedRectangleFigure, geometry::Rectangle, graphics::Color, runtime::Runtime,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -37,11 +37,12 @@ fn connection(color: Color) -> ConnectionFigure {
 fn resolve_with_arrow(
     runtime: &mut Runtime,
     connection: ConnectionId,
-    connection_figure: novadraw::FigureId,
-    root: novadraw::FigureId,
+    connection_figure: novadraw::tree::FigureId,
+    root: novadraw::tree::FigureId,
 ) {
     runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
     let points = runtime
         .tree()
@@ -69,7 +70,7 @@ fn resolve_with_arrow(
     .with_fill_color(arrow_color)
     .with_stroke(arrow_color, 1.0);
     runtime
-        .container(connection_figure)
+        .figure(connection_figure)
         .unwrap()
         .add(Box::new(arrow))
         .expect("valid Runtime mutation");
@@ -83,7 +84,7 @@ fn anchor_matrix() -> Runtime {
     let connection_ids: Vec<_> = (0..5)
         .map(|index| {
             runtime
-                .container(root)
+                .figure(root)
                 .unwrap()
                 .add(Box::new(connection(Color::rgba(
                     0.10 + index as f64 * 0.08,
@@ -100,7 +101,7 @@ fn anchor_matrix() -> Runtime {
         let (source, target) = match index {
             1 => (
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(EllipseFigure::new_with_color(
                         SOURCE_X,
@@ -111,7 +112,7 @@ fn anchor_matrix() -> Runtime {
                     )))
                     .expect("valid Runtime mutation"),
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(EllipseFigure::new_with_color(
                         TARGET_X,
@@ -124,7 +125,7 @@ fn anchor_matrix() -> Runtime {
             ),
             2 => (
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(RoundedRectangleFigure::new_with_color(
                         SOURCE_X,
@@ -136,7 +137,7 @@ fn anchor_matrix() -> Runtime {
                     )))
                     .expect("valid Runtime mutation"),
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(RoundedRectangleFigure::new_with_color(
                         TARGET_X,
@@ -150,7 +151,7 @@ fn anchor_matrix() -> Runtime {
             ),
             _ => (
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(RectangleFigure::new_with_color(
                         SOURCE_X,
@@ -161,7 +162,7 @@ fn anchor_matrix() -> Runtime {
                     )))
                     .expect("valid Runtime mutation"),
                 runtime
-                    .container(root)
+                    .figure(root)
                     .unwrap()
                     .add(Box::new(RectangleFigure::new_with_color(
                         TARGET_X,
@@ -176,21 +177,29 @@ fn anchor_matrix() -> Runtime {
 
         let (source_anchor, target_anchor) = match index {
             0 => (
-                runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source))),
-                runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(ChopboxAnchor::new(source))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(ChopboxAnchor::new(target))),
             ),
             1 => (
-                runtime.register_connection_anchor(Box::new(EllipseAnchor::new(source))),
-                runtime.register_connection_anchor(Box::new(EllipseAnchor::new(target))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(EllipseAnchor::new(source))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(EllipseAnchor::new(target))),
             ),
             2 => (
-                runtime.register_connection_anchor(Box::new(
+                runtime.connections().register_anchor(Box::new(
                     RoundedRectangleAnchor::with_corner_dimensions(
                         source,
                         Dimension::new(48.0, 48.0),
                     ),
                 )),
-                runtime.register_connection_anchor(Box::new(
+                runtime.connections().register_anchor(Box::new(
                     RoundedRectangleAnchor::with_corner_dimensions(
                         target,
                         Dimension::new(48.0, 48.0),
@@ -200,6 +209,7 @@ fn anchor_matrix() -> Runtime {
             3 => {
                 let icon = AnchorGeometryKey::icon();
                 runtime
+                    .connections()
                     .set_anchor_geometry(
                         source,
                         icon.clone(),
@@ -207,6 +217,7 @@ fn anchor_matrix() -> Runtime {
                     )
                     .unwrap();
                 runtime
+                    .connections()
                     .set_anchor_geometry(
                         target,
                         icon,
@@ -214,7 +225,7 @@ fn anchor_matrix() -> Runtime {
                     )
                     .unwrap();
                 runtime
-                    .container(source)
+                    .figure(source)
                     .unwrap()
                     .add(Box::new(EllipseFigure::new_with_color(
                         10.0,
@@ -225,7 +236,7 @@ fn anchor_matrix() -> Runtime {
                     )))
                     .expect("valid Runtime mutation");
                 runtime
-                    .container(target)
+                    .figure(target)
                     .unwrap()
                     .add(Box::new(EllipseFigure::new_with_color(
                         62.0,
@@ -236,28 +247,38 @@ fn anchor_matrix() -> Runtime {
                     )))
                     .expect("valid Runtime mutation");
                 (
-                    runtime.register_connection_anchor(Box::new(LabelAnchor::new(source))),
-                    runtime.register_connection_anchor(Box::new(LabelAnchor::new(target))),
+                    runtime
+                        .connections()
+                        .register_anchor(Box::new(LabelAnchor::new(source))),
+                    runtime
+                        .connections()
+                        .register_anchor(Box::new(LabelAnchor::new(target))),
                 )
             }
             _ => (
-                runtime.register_connection_anchor(Box::new(XYAnchor::new(
-                    Point::new(SOURCE_X + NODE_WIDTH, y + NODE_HEIGHT / 2.0),
-                    CoordinateSpace::ChildContent(root),
-                ))),
-                runtime.register_connection_anchor(Box::new(XYAnchor::new(
-                    Point::new(TARGET_X, y + NODE_HEIGHT / 2.0),
-                    CoordinateSpace::ChildContent(root),
-                ))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(XYAnchor::new(
+                        Point::new(SOURCE_X + NODE_WIDTH, y + NODE_HEIGHT / 2.0),
+                        CoordinateSpace::ChildContent(root),
+                    ))),
+                runtime
+                    .connections()
+                    .register_anchor(Box::new(XYAnchor::new(
+                        Point::new(TARGET_X, y + NODE_HEIGHT / 2.0),
+                        CoordinateSpace::ChildContent(root),
+                    ))),
             ),
         };
+        let direct_router = runtime.connections().direct_router();
         let connection_id = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 connection_figure,
                 Some(source_anchor),
                 Some(target_anchor),
                 RouterBinding::Explicit {
-                    router: runtime.direct_connection_router(),
+                    router: direct_router,
                 },
                 None,
             )
@@ -273,12 +294,12 @@ fn bendpoint_scene() -> Runtime {
         .set_contents(Box::new(background()))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(connection(Color::rgba(0.28, 0.35, 0.75, 1.0))))
         .expect("valid Runtime mutation");
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             70.0,
@@ -289,7 +310,7 @@ fn bendpoint_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             630.0,
@@ -299,9 +320,15 @@ fn bendpoint_scene() -> Runtime {
             Color::rgba(0.88, 0.40, 0.38, 1.0),
         )))
         .expect("valid Runtime mutation");
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
-    let router = runtime.register_connection_router(Box::new(BendpointConnectionRouter));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(BendpointConnectionRouter));
     let constraint = BendpointConstraint::new(vec![
         Bendpoint::Absolute(Point::new(250.0, 130.0)),
         Bendpoint::Relative {
@@ -312,7 +339,8 @@ fn bendpoint_scene() -> Runtime {
         Bendpoint::Absolute(Point::new(540.0, 410.0)),
     ]);
     let id = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),
@@ -333,10 +361,12 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
     let root = runtime
         .set_contents(Box::new(background()))
         .expect("valid Runtime mutation");
-    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(ManhattanConnectionRouter));
     for index in 0..3 {
         let connection_figure = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(connection(Color::rgba(
                 0.20,
@@ -349,7 +379,7 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
         let source_x = 80.0 + if moved && index == 1 { 75.0 } else { 0.0 };
         let target_y_offset = if moved && index != 1 { 55.0 } else { 0.0 };
         let source = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(RectangleFigure::new_with_color(
                 source_x,
@@ -360,7 +390,7 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
             )))
             .expect("valid Runtime mutation");
         let target = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(RectangleFigure::new_with_color(
                 590.0,
@@ -370,12 +400,15 @@ fn manhattan_scene_with_moved_nodes(moved: bool) -> Runtime {
                 Color::rgba(0.88, 0.40, 0.38, 1.0),
             )))
             .expect("valid Runtime mutation");
-        let source_anchor =
-            runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-        let target_anchor =
-            runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+        let source_anchor = runtime
+            .connections()
+            .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        let target_anchor = runtime
+            .connections()
+            .register_anchor(Box::new(ChopboxAnchor::new(target)));
         let id = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 connection_figure,
                 Some(source_anchor),
                 Some(target_anchor),
@@ -393,9 +426,11 @@ fn shared_manhattan_scene() -> Runtime {
     let root = runtime
         .set_contents(Box::new(background()))
         .expect("valid Runtime mutation");
-    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
+    let router = runtime
+        .connections()
+        .register_router(Box::new(ManhattanConnectionRouter));
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             80.0,
@@ -406,7 +441,7 @@ fn shared_manhattan_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             600.0,
@@ -416,12 +451,16 @@ fn shared_manhattan_scene() -> Runtime {
             Color::rgba(0.88, 0.40, 0.38, 1.0),
         )))
         .expect("valid Runtime mutation");
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let mut entries = Vec::new();
     for index in 0..4 {
         let connection_figure = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(connection(Color::rgba(
                 0.16 + index as f64 * 0.10,
@@ -431,7 +470,8 @@ fn shared_manhattan_scene() -> Runtime {
             ))))
             .expect("valid Runtime mutation");
         let connection_id = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 connection_figure,
                 Some(source_anchor),
                 Some(target_anchor),
@@ -453,12 +493,12 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         .set_contents(Box::new(background()))
         .expect("valid Runtime mutation");
     let viewport = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ViewportFigure::new(45.0, 90.0, 300.0, 360.0)))
         .expect("valid Runtime mutation");
     let contents = runtime
-        .container(viewport)
+        .figure(viewport)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -469,7 +509,7 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let source = runtime
-        .container(contents)
+        .figure(contents)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             60.0,
@@ -480,7 +520,7 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             610.0,
@@ -491,25 +531,33 @@ fn unsupported_viewport_topology_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(connection(Color::rgba(0.72, 0.18, 0.22, 1.0))))
         .expect("valid Runtime mutation");
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let direct_router = runtime.connections().direct_router();
     let connection_id = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),
             RouterBinding::Explicit {
-                router: runtime.direct_connection_router(),
+                router: direct_router,
             },
             None,
         )
         .unwrap();
     assert!(matches!(
-        runtime.resolve_connection_route(connection_id, CoordinateSpace::ChildContent(root)),
+        runtime
+            .connections()
+            .resolve_route(connection_id, CoordinateSpace::ChildContent(root)),
         Err(novadraw::connection::ConnectionRuntimeError::Unresolved(
             novadraw::connection::UnresolvedConnection::RouteFailed(
                 novadraw::connection::RouteError::UnsupportedViewportTopology
@@ -527,7 +575,7 @@ fn fan_scene() -> Runtime {
     let connection_figures: Vec<_> = (0..5)
         .map(|index| {
             runtime
-                .container(root)
+                .figure(root)
                 .unwrap()
                 .add(Box::new(connection(Color::rgba(
                     0.12 + index as f64 * 0.08,
@@ -539,7 +587,7 @@ fn fan_scene() -> Runtime {
         })
         .collect();
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(EllipseFigure::new_with_color(
             80.0,
@@ -550,7 +598,7 @@ fn fan_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(EllipseFigure::new_with_color(
             600.0,
@@ -560,16 +608,21 @@ fn fan_scene() -> Runtime {
             Color::rgba(0.88, 0.40, 0.38, 1.0),
         )))
         .expect("valid Runtime mutation");
-    let source_anchor = runtime.register_connection_anchor(Box::new(EllipseAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(EllipseAnchor::new(target)));
-    let router = runtime.register_connection_router(Box::new(
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(EllipseAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(EllipseAnchor::new(target)));
+    let router = runtime.connections().register_router(Box::new(
         FanRouter::new(Box::new(DirectRouter), FAN_DEFAULT_SEPARATION).unwrap(),
     ));
     let ids: Vec<_> = connection_figures
         .into_iter()
         .map(|figure| {
             runtime
-                .register_connection_state(
+                .connections()
+                .register_state(
                     figure,
                     Some(source_anchor),
                     Some(target_anchor),
@@ -602,19 +655,19 @@ fn connection_layer_scene() -> Runtime {
         .set_contents(Box::new(background()))
         .expect("valid Runtime mutation");
     let layer = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ConnectionLayerFigure::new(
             0.0, 0.0, WIDTH, HEIGHT,
         )))
         .expect("valid Runtime mutation");
     let connection_figure = runtime
-        .container(layer)
+        .figure(layer)
         .unwrap()
         .add(Box::new(connection(Color::rgba(0.24, 0.40, 0.76, 1.0))))
         .expect("valid Runtime mutation");
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RoundedRectangleFigure::new_with_color(
             110.0,
@@ -626,7 +679,7 @@ fn connection_layer_scene() -> Runtime {
         )))
         .expect("valid Runtime mutation");
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RoundedRectangleFigure::new_with_color(
             580.0,
@@ -637,16 +690,22 @@ fn connection_layer_scene() -> Runtime {
             Color::rgba(0.88, 0.40, 0.38, 1.0),
         )))
         .expect("valid Runtime mutation");
-    let source_anchor = runtime.register_connection_anchor(Box::new(
+    let source_anchor = runtime.connections().register_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(source, Dimension::new(40.0, 40.0)),
     ));
-    let target_anchor = runtime.register_connection_anchor(Box::new(
+    let target_anchor = runtime.connections().register_anchor(Box::new(
         RoundedRectangleAnchor::with_corner_dimensions(target, Dimension::new(40.0, 40.0)),
     ));
-    let router = runtime.register_connection_router(Box::new(ManhattanConnectionRouter));
-    runtime.set_connection_layer_router(layer, router).unwrap();
+    let router = runtime
+        .connections()
+        .register_router(Box::new(ManhattanConnectionRouter));
+    runtime
+        .connections()
+        .set_layer_router(layer, router)
+        .unwrap();
     let id = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),

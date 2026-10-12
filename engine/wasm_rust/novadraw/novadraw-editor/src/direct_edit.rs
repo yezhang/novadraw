@@ -2,9 +2,9 @@
 
 use std::{error::Error, fmt, ops::Range, sync::Arc};
 
-use novadraw::FigureId;
 use novadraw::figure::{FlowTextPosition, FlowTextRange};
 use novadraw::text::{TextAffinity, TextMovement};
+use novadraw::tree::FigureId;
 
 use crate::{
     Command, EditPartId, EditorNamespace, FeedbackVisual, ModelAdapter, ModelRevision, PolicyError,

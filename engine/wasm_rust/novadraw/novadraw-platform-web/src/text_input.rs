@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use novadraw::Rectangle;
+use novadraw::geometry::Rectangle;
 use novadraw_editor::{
     DirectTextEditSessionId, SessionTextInputEvent, TextDelete, TextInputEffect, TextInputEvent,
     TextInputPurpose, TextInputSnapshot,

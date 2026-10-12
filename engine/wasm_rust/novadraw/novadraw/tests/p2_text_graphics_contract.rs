@@ -1,15 +1,21 @@
 //! External consumers of the unified text/graphics protocol.
 use novadraw::{
-    Color, Dimension, Figure, FigureMeasurement, FigureTree, Point, Rectangle, Runtime,
+    figure::Figure,
+    figure::FigureMeasurement,
     figure::{
         FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureDrawing,
         FigurePreparation, FigurePresentation, PREPARATION, PreparationCapability,
     },
+    geometry::Dimension,
+    geometry::Point,
+    geometry::Rectangle,
+    graphics::Color,
     graphics::{Graphics, GraphicsError, PaintContext, Path},
     render::{
         BackendCapabilities, CommandRecorder, FontData, ParleyTextEngine, RenderCommandKind,
         SurfaceInfo, TextLayoutEngine,
     },
+    runtime::Runtime,
     text::{
         BuiltinFont, FontDescriptor, MeasureContext, TextConstraints, TextError, TextLayout,
         TextSystem,
@@ -18,6 +24,7 @@ use novadraw::{
             OutlineTextEngine, SkrifaOutlineProvider,
         },
     },
+    tree::FigureTree,
 };
 use std::{
     collections::HashMap,
@@ -516,8 +523,12 @@ fn external_figure_prepares_and_paints_through_phase_limited_contexts() {
         }))
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let submission = runtime
+        .frames()
         .prepare_submission(
             SurfaceInfo {
                 logical_width: 200.0,
@@ -533,7 +544,7 @@ fn external_figure_prepares_and_paints_through_phase_limited_contexts() {
     assert!(
         runtime
             .tree()
-            .preferred_measurement(figure, novadraw::MeasureConstraints::UNBOUNDED)
+            .preferred_measurement(figure, novadraw::figure::MeasureConstraints::UNBOUNDED)
             .unwrap()
             .baseline
             .is_some()

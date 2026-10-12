@@ -12,14 +12,18 @@ use novadraw::figure::{
 };
 use novadraw::render::{BuiltinFont, TextAffinity, command::RenderCommandKind};
 use novadraw::text::TextMovement;
-use novadraw::{Color, Figure, FigureStyle, Rectangle, RectangleFigure};
+use novadraw::{
+    figure::Figure, figure::FigureStyle, figure::RectangleFigure, geometry::Rectangle,
+    graphics::Color,
+};
 use novadraw_editor::{
     Command, CommandError, CommandStackError, DirectTextEdit, DirectTextEditDescriptor,
-    DirectTextEditError, DirectTextEditRequest, DirectTextEditState, DirectTextFeature,
-    DirectTextFeedback, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain,
-    EditorDomainError, ExtendTextSelection, FeedbackVisual, FocusLossPolicy, GraphicalViewer,
-    ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
-    PolicyInstallation, PolicyRole, SessionTextInputEvent, TextDelete, TextEditMode,
+    DirectTextEditError, DirectTextEditRequest, DirectTextEditSlot, DirectTextEditState,
+    DirectTextFeature, DirectTextFeedback, EditPartBehavior, EditPartError, EditPartFactory,
+    EditPolicy, EditorDomain, EditorDomainError, ExtendTextSelection, FeedbackVisual,
+    FocusLossPolicy, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHandlerBuilder, PolicyHost, PolicyInstallation, RequestMetadata,
+    RequestProtocol, SessionTextInputEvent, StartDirectTextEdit, TextDelete, TextEditMode,
     TextInputEffect, TextInputEvent, TextInputPurpose, TextInputSnapshot, ViewerError,
     VisualUpdateContext,
 };
@@ -176,25 +180,22 @@ impl DirectTextEdit<TextModel> for TextEditPlan {
 struct TextPolicy;
 
 impl EditPolicy<TextModel> for TextPolicy {
-    fn understands(&self, _request: &novadraw_editor::EditorRequest) -> bool {
-        false
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, TextModel, Self>) {
+        builder.handle::<StartDirectTextEdit>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<ModelId>,
-        _request: &novadraw_editor::EditorRequest,
-        _model: &TextModel,
-    ) -> Result<Option<Box<dyn Command<TextModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_direct_text_edit(
+impl TextPolicy {
+    fn start(
         &mut self,
         host: PolicyHost<ModelId>,
+        _metadata: &RequestMetadata,
         request: &DirectTextEditRequest,
         model: &TextModel,
-    ) -> Result<Option<Box<dyn DirectTextEdit<TextModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<StartDirectTextEdit as RequestProtocol<TextModel>>::Contribution>,
+        PolicyError,
+    > {
         if host.model() != TEXT || request.feature().as_str() != "label" {
             return Ok(None);
         }
@@ -243,7 +244,10 @@ impl EditPartBehavior<TextModel> for TextPart {
         model_id: ModelId,
     ) -> Result<Vec<PolicyInstallation<TextModel>>, EditPartError> {
         Ok(if model_id == TEXT {
-            vec![(PolicyRole::DirectTextEdit, Box::new(TextPolicy))]
+            vec![
+                PolicyInstallation::new(DirectTextEditSlot::key(), TextPolicy)
+                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+            ]
         } else {
             Vec::new()
         })
@@ -400,7 +404,7 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         .tree()
         .child_order(viewer.root_layers().scaled_feedback())
         .unwrap()[0];
-    let layout = viewer.runtime().text_flow_layout(text_feedback).unwrap();
+    let layout = viewer.text_flow_layout(text_feedback).unwrap();
 
     assert!(!layout.is_truncated());
     assert_eq!(layout.visible_range(), 0..text.len());
@@ -411,7 +415,6 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
     assert!(last_character_bounds.x >= 40.0);
     assert!(last_character_bounds.x + last_character_bounds.width <= 280.0);
     let end = viewer
-        .runtime()
         .text_flow_local_caret_geometry(
             text_feedback,
             FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
@@ -450,7 +453,6 @@ fn long_single_line_draft_is_clipped_and_scrolls_to_reveal_the_caret() {
         .child_order(viewer.root_layers().scaled_feedback())
         .unwrap()[0];
     let start = viewer
-        .runtime()
         .text_flow_local_caret_geometry(text_feedback, start)
         .unwrap()
         .bounds();

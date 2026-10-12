@@ -4,7 +4,6 @@ use support::prepare_next_submission;
 
 use std::sync::{Arc, Mutex};
 
-use novadraw::Color;
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
 use novadraw::event::{
     CoordinateListener, EventContext, FigureEvent, FigureEventHandler, FigureListener,
@@ -12,17 +11,18 @@ use novadraw::event::{
 };
 use novadraw::figure::{Bounded, Shape, border::LineBorder};
 use novadraw::geometry::{Point, Rectangle, Translatable};
+use novadraw::graphics::Color;
 use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::render::command::{LineCap, LineJoin};
 use novadraw::runtime::context::SceneDispatchContext;
-use novadraw::{Figure, FigureTree, RectangleFigure, Runtime};
+use novadraw::{figure::Figure, figure::RectangleFigure, runtime::Runtime, tree::FigureTree};
 
 fn coordinate_root(x: f64, y: f64, width: f64, height: f64) -> RectangleFigure {
     RectangleFigure::new(x, y, width, height)
         .with_border(LineBorder::new(Color::BLACK, 1.0).with_insets(3.0, 5.0, 0.0, 0.0))
 }
 
-fn nested_coordinate_scene() -> (FigureTree, novadraw::FigureId) {
+fn nested_coordinate_scene() -> (FigureTree, novadraw::tree::FigureId) {
     let mut graph = FigureTree::new();
     let contents = graph
         .builder()
@@ -312,12 +312,16 @@ fn m4_coordinate_root_move_and_resize_is_one_atomic_bounds_change() {
     let mut runtime = Runtime::new(graph);
     prepare_next_submission(&mut runtime);
     let figure_events = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_figure_listener(Box::new(CoordinateEventRecorder(Arc::clone(
-        &figure_events,
-    ))));
-    runtime.add_coordinate_listener(Box::new(CoordinateEventRecorder(Arc::clone(
-        &figure_events,
-    ))));
+    runtime
+        .observations()
+        .add_figure_listener(Box::new(CoordinateEventRecorder(Arc::clone(
+            &figure_events,
+        ))));
+    runtime
+        .observations()
+        .add_coordinate_listener(Box::new(CoordinateEventRecorder(Arc::clone(
+            &figure_events,
+        ))));
     assert!(
         runtime
             .figure(coordinate_root)

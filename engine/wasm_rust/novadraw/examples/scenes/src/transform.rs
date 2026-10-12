@@ -12,7 +12,9 @@ use novadraw::figure::{
 };
 use novadraw::geometry::Translatable;
 use novadraw::graphics::{GraphicsError, LineCap, LineJoin, PaintContext, StrokeStyle};
-use novadraw::{Color, Figure, Point, Rectangle, RectangleFigure};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, geometry::Point, geometry::Rectangle, graphics::Color,
+};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -37,9 +39,9 @@ fn coordinate_root(x: f64, y: f64, width: f64, height: f64, color: Color) -> Rec
 }
 
 fn add_nested_roots(
-    scene: &mut novadraw::FigureTree,
-    contents: novadraw::FigureId,
-) -> (novadraw::FigureId, novadraw::FigureId) {
+    scene: &mut novadraw::tree::FigureTree,
+    contents: novadraw::tree::FigureId,
+) -> (novadraw::tree::FigureId, novadraw::tree::FigureId) {
     let outer = scene
         .builder()
         .add_child(
@@ -57,8 +59,8 @@ fn add_nested_roots(
     (outer, inner)
 }
 
-fn create_nested_coordinate_roots() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_nested_coordinate_roots() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
         .set_contents(Box::new(background()))
@@ -80,8 +82,8 @@ fn create_nested_coordinate_roots() -> novadraw::FigureTree {
     scene
 }
 
-fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_coordinate_roundtrip_overlay() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
         .set_contents(Box::new(background()))
@@ -126,8 +128,8 @@ fn create_coordinate_roundtrip_overlay() -> novadraw::FigureTree {
     scene
 }
 
-fn create_coordinate_root_move() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_coordinate_root_move() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
         .set_contents(Box::new(background()))
@@ -279,13 +281,16 @@ impl FigureEventHandler for TargetDomainFigure {
     }
 }
 
-fn create_event_point_reduction() -> novadraw::FigureTree {
+fn create_event_point_reduction() -> novadraw::tree::FigureTree {
     create_event_point_reduction_with_state().0
 }
 
-fn create_event_point_reduction_with_state()
--> (novadraw::FigureTree, Arc<AtomicBool>, novadraw::FigureId) {
-    let mut scene = novadraw::FigureTree::new();
+fn create_event_point_reduction_with_state() -> (
+    novadraw::tree::FigureTree,
+    Arc<AtomicBool>,
+    novadraw::tree::FigureId,
+) {
+    let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
         .set_contents(Box::new(background()))
@@ -341,8 +346,8 @@ pub fn suite() -> DemoSuite {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::Runtime;
     use novadraw::event::MouseButton;
+    use novadraw::runtime::Runtime;
 
     use super::*;
 
@@ -355,7 +360,9 @@ mod tests {
             .transform_point(Point::new(20.0, 20.0));
         let mut runtime = Runtime::new(tree);
 
-        runtime.dispatch_mouse_pressed(entry.x(), entry.y(), MouseButton::Left);
+        runtime
+            .input()
+            .dispatch_mouse_pressed(entry.x(), entry.y(), MouseButton::Left);
 
         assert!(selected.load(Ordering::Acquire));
     }

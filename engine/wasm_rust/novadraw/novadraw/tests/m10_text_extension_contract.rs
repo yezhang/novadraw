@@ -1,4 +1,4 @@
-use novadraw::Color;
+use novadraw::graphics::Color;
 use novadraw::render::{
     BackendSessionId, BuiltinFont, CommandRecorder, DamageSet, FontData, FontDescriptor,
     FontFaceRef, FrameId, GlyphPaint, GlyphRun, PositionedGlyph, RenderBackend, RenderCommandKind,
@@ -123,7 +123,7 @@ fn backend_neutral_layout_can_be_consumed_without_vello_types() {
         let mut context = recorder.paint();
         context.set_fill_paint(Color::BLACK);
         context
-            .fill_text(&layout, novadraw::Point::new(12.0, 24.0))
+            .fill_text(&layout, novadraw::geometry::Point::new(12.0, 24.0))
             .unwrap();
     }
 
@@ -201,7 +201,7 @@ fn external_text_engine_constructs_non_empty_backend_neutral_layout() {
         let mut context = recorder.paint();
         context.set_fill_paint(Color::BLACK);
         context
-            .fill_text(&layout, novadraw::Point::new(4.0, 12.0))
+            .fill_text(&layout, novadraw::geometry::Point::new(4.0, 12.0))
             .unwrap();
     }
     assert!(

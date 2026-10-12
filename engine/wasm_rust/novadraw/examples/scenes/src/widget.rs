@@ -3,8 +3,8 @@ use std::time::Duration;
 use novadraw::event::{MonotonicTime, MouseButton, TooltipTiming};
 use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    ButtonFigure, Color, FigureId, FigureStyle, LabelFigure, Rectangle, RectangleFigure, Runtime,
-    ToggleFigure,
+    figure::ButtonFigure, figure::FigureStyle, figure::LabelFigure, figure::RectangleFigure,
+    figure::ToggleFigure, geometry::Rectangle, graphics::Color, runtime::Runtime, tree::FigureId,
 };
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
@@ -82,7 +82,10 @@ pub fn suite() -> DemoSuite {
 fn runtime() -> Runtime {
     let mut runtime = Runtime::empty();
     for font in BuiltinFont::ALL {
-        runtime.register_builtin_font(font).expect("built-in font");
+        runtime
+            .resources()
+            .register_builtin_font(font)
+            .expect("built-in font");
     }
     runtime
 }
@@ -98,7 +101,7 @@ fn root(runtime: &mut Runtime, title: &str) -> FigureId {
         )))
         .expect("valid Runtime mutation");
     let heading = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             LabelFigure::new(title).with_bounds(Rectangle::new(40.0, 28.0, 720.0, 42.0)),
@@ -118,7 +121,7 @@ fn root(runtime: &mut Runtime, title: &str) -> FigureId {
 
 fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, y: f64) {
     let caption = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             LabelFigure::new(text).with_bounds(Rectangle::new(60.0, y, 180.0, 32.0)),
@@ -137,7 +140,7 @@ fn add_caption(runtime: &mut Runtime, root: FigureId, text: &str, y: f64) {
 
 fn add_button(runtime: &mut Runtime, root: FigureId, text: &str, bounds: Rectangle) -> FigureId {
     let button = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ButtonFigure::new(text).with_bounds(bounds)))
         .expect("valid Runtime mutation");
@@ -182,7 +185,9 @@ fn button_states() -> Runtime {
         }
     }
 
-    runtime.dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
     runtime
 }
 
@@ -192,7 +197,7 @@ fn toggle_states() -> Runtime {
 
     add_caption(&mut runtime, root, "Not selected", 140.0);
     let first = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Snap to grid")
@@ -201,7 +206,7 @@ fn toggle_states() -> Runtime {
         .expect("valid Runtime mutation");
     add_caption(&mut runtime, root, "Selected", 225.0);
     let second = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Show guides")
@@ -220,7 +225,7 @@ fn toggle_states() -> Runtime {
             })
             .expect("valid Runtime mutation");
     }
-    runtime.request_focus(second).expect("focusable toggle");
+    runtime.focus().request(second).expect("focusable toggle");
     runtime
 }
 
@@ -235,7 +240,7 @@ fn interactive_widgets() -> Runtime {
         Rectangle::new(210.0, 150.0, 230.0, 52.0),
     );
     let toggle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Persistent toggle")
@@ -268,7 +273,7 @@ fn tooltip_accessibility() -> Runtime {
         .expect("valid Runtime mutation");
 
     let inherited_panel = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             70.0,
@@ -288,7 +293,7 @@ fn tooltip_accessibility() -> Runtime {
         })
         .expect("valid Runtime mutation");
     let inherited_label = runtime
-        .container(inherited_panel)
+        .figure(inherited_panel)
         .unwrap()
         .add(Box::new(
             LabelFigure::new("Inherited tooltip")
@@ -351,10 +356,16 @@ fn tooltip_accessibility() -> Runtime {
 fn tooltip_boundary_visual() -> Runtime {
     let mut runtime = tooltip_accessibility();
     runtime
-        .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, TOOLTIP_VISUAL_HIDE_DELAY).unwrap())
+        .tooltip()
+        .set_timing(TooltipTiming::new(Duration::ZERO, TOOLTIP_VISUAL_HIDE_DELAY).unwrap())
         .unwrap();
-    runtime.dispatch_mouse_moved(TOOLTIP_POINTER_X, TOOLTIP_POINTER_Y);
-    runtime.advance_time(MonotonicTime::ZERO).unwrap();
+    runtime
+        .input()
+        .dispatch_mouse_moved(TOOLTIP_POINTER_X, TOOLTIP_POINTER_Y);
+    runtime
+        .animation()
+        .advance_time(MonotonicTime::ZERO)
+        .unwrap();
     runtime
 }
 
@@ -364,15 +375,16 @@ mod tests {
 
     #[test]
     fn tooltip_scene_starts_with_the_boundary_tooltip_visible() {
-        let runtime = tooltip_boundary_visual();
-        let tooltip = runtime.visible_tooltip().expect("visible tooltip");
+        let mut runtime = tooltip_boundary_visual();
+        let tooltip_service = runtime.tooltip();
+        let tooltip = tooltip_service.visible().expect("visible tooltip");
 
         assert_eq!(tooltip.text, "Flips above and clamps inside the surface");
         assert_eq!(tooltip.anchor.x(), TOOLTIP_POINTER_X);
         assert_eq!(tooltip.anchor.y(), TOOLTIP_POINTER_Y);
         assert!(TOOLTIP_BOUNDARY_Y + TOOLTIP_BOUNDARY_HEIGHT <= WEB_MINIMUM_CONTENT_HEIGHT);
         assert_eq!(
-            runtime.next_wake_deadline(),
+            runtime.animation().next_wake_deadline(),
             Some(MonotonicTime::from_micros(
                 TOOLTIP_VISUAL_HIDE_DELAY.as_micros() as u64
             ))
@@ -382,13 +394,13 @@ mod tests {
     #[test]
     fn interactive_tooltip_scene_uses_the_default_hover_delay() {
         let mut runtime = tooltip_accessibility();
-        runtime.dispatch_mouse_moved(400.0, 300.0);
+        runtime.input().dispatch_mouse_moved(400.0, 300.0);
 
         assert_eq!(
-            runtime.next_wake_deadline(),
+            runtime.animation().next_wake_deadline(),
             Some(MonotonicTime::from_micros(500_000))
         );
-        assert!(runtime.visible_tooltip().is_none());
+        assert!(runtime.tooltip().visible().is_none());
     }
 
     #[test]

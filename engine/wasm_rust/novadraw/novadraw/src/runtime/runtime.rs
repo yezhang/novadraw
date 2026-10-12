@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt,
-    sync::Arc,
 };
 
 use crate::render::{
@@ -18,7 +17,7 @@ use crate::connection::{
 };
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
-use crate::geometry::{Dimension, Point, PointList, Translatable};
+use crate::geometry::{Dimension, Point, Translatable};
 use crate::mutation::{
     ComponentUpdateError, ComponentUpdateReceipt, FigureComponentUpdate, PendingMutation,
     PendingMutationKind, RuntimeMutationError, SizeOverrideKind,
@@ -26,27 +25,23 @@ use crate::mutation::{
 use crate::runtime::accessibility::AccessibilityManager;
 use crate::runtime::resource::ResourceRegistry;
 use crate::runtime::tooltip::TooltipController;
-use crate::runtime::update::property::standard as property;
 use crate::{
     AccessibilityAction, AccessibilityError, AccessibilityNodeId, AccessibilitySnapshot,
-    AccessibilityUpdate, ActionListener, Alignment, AncestorListener, AnchorGeometry,
-    AnchorGeometryKey, AnchorId, Border, CapabilityUpdateError, CapabilityUpdateReceipt,
-    ChildClippingStrategy, ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId,
+    AccessibilityUpdate, ActionListener, AncestorListener, AnchorGeometry, AnchorGeometryKey,
+    AnchorId, Border, CapabilityUpdateError, CapabilityUpdateReceipt, ChildClippingStrategy,
+    ClickableSnapshot, ClickableVisualState, ConnectionAnchor, ConnectionId,
     ConnectionLocatorStrategy, ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot,
-    CoordinateListener, CoordinateSpace, CursorIcon, DirectRouter, Direction, EventDispatcher,
-    Figure, FigureCapabilityUpdate, FigureId, FigureListener, FigureStyle, FigureTree, FlowPage,
-    FlowTextPosition, FlowTextRange, FlowWrapping, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId, FreeformError,
-    ImageDisplayState, ImageFigure, ImageId, InteractionState, Key, KeyModifiers, LabelFigure,
-    LayerError, LayerKey, LayerPlacement, LayeredPane, LayeredPaneMut, LayoutConstraint,
-    LayoutListener, LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton,
-    ObservationListener, PendingMutations, PolygonScaleMode, PropertyChangeListener, Rectangle,
-    ResourceError, RouteError, RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope,
-    ScaleHandle, SceneDispatchContext, ScrollBarVisibility, ScrollPaneHandle, ShapeMutationError,
-    StableQueryError, StableSceneQuery, StackLayout, TextPlacement, TimeError, TooltipSnapshot,
-    TooltipTiming, TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener,
-    UpdateManager, ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent,
-    ZoomManager,
+    CoordinateListener, CoordinateSpace, CursorIcon, DirectRouter, EventDispatcher, Figure,
+    FigureCapabilityUpdate, FigureId, FigureListener, FigureStyle, FigureTree, FlowTextPosition,
+    FlowTextRange, FocusChange, FocusError, FocusTraversalDirection, FocusTraversalOutcome,
+    FocusTraversalPolicy, FontId, ImageFigure, InteractionState, Key, KeyModifiers, LabelFigure,
+    LayerError, LayerKey, LayerPlacement, LayeredPane, LayoutConstraint, LayoutListener,
+    LayoutManager, ListenerId, ListenerScope, MonotonicTime, MouseButton, ObservationListener,
+    PendingMutations, PropertyChangeListener, Rectangle, ResourceError, RouteError, RouterBinding,
+    RouterId, RoutingConstraint, RoutingGroupScope, SceneDispatchContext, ShapeMutationError,
+    StableQueryError, StableSceneQuery, StackLayout, TimeError, TooltipSnapshot, TooltipTiming,
+    TooltipUpdate, TreeOrderFocusTraversal, UpdateEvent, UpdateListener, UpdateManager,
+    ValidationError, ViewportHandle, WheelEvent, WidgetError, ZoomEvent, ZoomManager,
 };
 
 mod capability_update;
@@ -54,6 +49,14 @@ mod component_update;
 mod connection_service;
 mod frame_resource;
 mod frame_submission;
+mod service_facades;
+mod viewport_facades;
+
+pub use service_facades::{
+    RuntimeAccessibility, RuntimeAnimation, RuntimeConnections, RuntimeFocus, RuntimeFrames,
+    RuntimeInput, RuntimeObservations, RuntimeResources, RuntimeText, RuntimeTooltip,
+};
+pub use viewport_facades::{RuntimeLayers, RuntimeViewports};
 
 const DERIVED_STATE_FEEDBACK_LIMIT: usize = 16;
 const DERIVED_WORK_KIND_COUNT: usize = 6;
@@ -344,90 +347,6 @@ pub struct FigureMut<'a> {
     runtime: &'a mut Runtime,
 }
 
-/// Short-lived, Runtime-backed mutation facade for one attached Label.
-pub struct LabelMut<'a> {
-    label: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached clickable Figure.
-pub struct ClickableMut<'a> {
-    clickable: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached ImageFigure.
-pub struct ImageMut<'a> {
-    image: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached point-list Figure.
-pub struct PointListMut<'a> {
-    point_list: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached scalable polygon.
-pub struct ScalablePolygonMut<'a> {
-    polygon: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached TextFlow.
-pub struct TextFlowMut<'a> {
-    text_flow: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached bordered Figure.
-pub struct BorderMut<'a> {
-    bordered: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached RoundedRectangleFigure.
-pub struct RoundedRectangleMut<'a> {
-    rounded_rectangle: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached TriangleFigure.
-pub struct TriangleMut<'a> {
-    triangle: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived, Runtime-backed mutation facade for one attached container Figure.
-pub struct ContainerMut<'a> {
-    container: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived mutation facade for one attached Viewport.
-pub struct ViewportMut<'a> {
-    viewport: ViewportHandle,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived mutation facade for one attached scalable Figure.
-pub struct ScaleMut<'a> {
-    scalable: ScaleHandle,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived mutation facade for one attached ScrollPane.
-pub struct ScrollPaneMut<'a> {
-    pane: ScrollPaneHandle,
-    runtime: &'a mut Runtime,
-}
-
-/// Short-lived mutation facade for one attached Viewport/Scale pair.
-pub struct ZoomMut<'a> {
-    zoom: &'a ZoomManager,
-    runtime: &'a mut Runtime,
-}
-
 struct InFlightFrame {
     session_id: BackendSessionId,
     id: FrameId,
@@ -542,242 +461,10 @@ impl FigureMut<'_> {
     }
 }
 
-impl LabelMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.label
-    }
-
-    pub fn set_text(&mut self, text: impl Into<String>) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_text(self.label, text)
-    }
-
-    pub fn set_icon(&mut self, icon: Option<ImageId>) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_icon(self.label, icon)
-    }
-
-    pub fn set_text_placement(
-        &mut self,
-        placement: TextPlacement,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_text_placement(self.label, placement)
-    }
-
-    pub fn set_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_alignment(self.label, alignment)
-    }
-
-    pub fn set_text_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_text_alignment(self.label, alignment)
-    }
-
-    pub fn set_icon_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_icon_alignment(self.label, alignment)
-    }
-
-    pub fn set_icon_text_gap(&mut self, gap: f64) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_label_icon_text_gap(self.label, gap)
-    }
-}
-
-impl ClickableMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.clickable
-    }
-
-    pub fn set_selected(&mut self, selected: bool) -> Result<bool, WidgetError> {
-        self.runtime
-            .set_clickable_selected(self.clickable, selected)
-    }
-
-    pub fn set_rollover_enabled(&mut self, enabled: bool) -> Result<bool, WidgetError> {
-        self.runtime.set_rollover_enabled(self.clickable, enabled)
-    }
-}
-
-impl ImageMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.image
-    }
-
-    pub fn set_image(&mut self, image: ImageId) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_image_figure(self.image, image)
-    }
-
-    pub fn set_alignment(&mut self, alignment: Alignment) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_image_alignment(self.image, alignment)
-    }
-}
-
-impl PointListMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.point_list
-    }
-
-    pub fn replace_points(&mut self, points: Vec<Point>) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_points(self.point_list, points)
-    }
-
-    pub fn insert_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
-        self.runtime.insert_point(self.point_list, index, point)
-    }
-
-    pub fn set_point(&mut self, index: usize, point: Point) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_point(self.point_list, index, point)
-    }
-
-    pub fn remove_point(&mut self, index: usize) -> Result<bool, ShapeMutationError> {
-        self.runtime.remove_point(self.point_list, index)
-    }
-
-    pub fn clear_points(&mut self) -> Result<bool, ShapeMutationError> {
-        self.runtime.clear_points(self.point_list)
-    }
-
-    pub fn set_stroke_width(&mut self, stroke_width: f64) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_point_list_stroke_width(self.point_list, stroke_width)
-    }
-
-    /// Replaces all stroke attributes in one bounds/damage transaction.
-    pub fn set_stroke_style(
-        &mut self,
-        stroke: crate::render::StrokeStyle,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_point_list_stroke_style(self.point_list, stroke)
-    }
-
-    pub fn stroke_style(&self) -> Result<crate::render::StrokeStyle, ShapeMutationError> {
-        self.runtime.point_list_stroke_style(self.point_list)
-    }
-
-    pub fn set_miter_limit(&mut self, limit: f64) -> Result<bool, ShapeMutationError> {
-        let stroke = self
-            .stroke_style()?
-            .with_miter_limit(limit)
-            .map_err(ShapeMutationError::InvalidStroke)?;
-        self.set_stroke_style(stroke)
-    }
-
-    pub fn set_line_cap(
-        &mut self,
-        cap: crate::render::LineCap,
-    ) -> Result<bool, ShapeMutationError> {
-        let stroke = self.stroke_style()?.with_cap(cap);
-        self.set_stroke_style(stroke)
-    }
-
-    pub fn set_dash_pattern(
-        &mut self,
-        dash: crate::render::DashPattern,
-    ) -> Result<bool, ShapeMutationError> {
-        let stroke = self.stroke_style()?.with_dash_pattern(dash);
-        self.set_stroke_style(stroke)
-    }
-
-    pub fn set_dash_offset(&mut self, offset: f64) -> Result<bool, ShapeMutationError> {
-        let stroke = self
-            .stroke_style()?
-            .with_dash_offset(offset)
-            .map_err(ShapeMutationError::InvalidStroke)?;
-        self.set_stroke_style(stroke)
-    }
-
-    pub fn set_line_join(
-        &mut self,
-        line_join: crate::render::LineJoin,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_point_list_line_join(self.point_list, line_join)
-    }
-}
-
-impl ScalablePolygonMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.polygon
-    }
-
-    pub fn replace_template(&mut self, template: PointList) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .replace_scalable_polygon_template(self.polygon, template)
-    }
-
-    pub fn set_scale_mode(&mut self, mode: PolygonScaleMode) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_scalable_polygon_scale_mode(self.polygon, mode)
-    }
-
-    pub fn set_alignment(
-        &mut self,
-        horizontal: Alignment,
-        vertical: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_scalable_polygon_alignment(self.polygon, horizontal, vertical)
-    }
-}
-
-impl TextFlowMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.text_flow
-    }
-
-    pub fn replace_page(&mut self, page: FlowPage) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_text_flow_page(self.text_flow, page)
-    }
-
-    pub fn set_wrapping(&mut self, wrapping: FlowWrapping) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_text_flow_wrapping(self.text_flow, wrapping)
-    }
-}
-
-impl BorderMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.bordered
-    }
-
-    pub fn set(&mut self, border: impl Border + 'static) -> Result<bool, ShapeMutationError> {
-        self.runtime.set_border(self.bordered, border)
-    }
-
-    pub fn replace(&mut self, border: Option<Arc<dyn Border>>) -> Result<bool, ShapeMutationError> {
-        self.runtime.replace_border(self.bordered, border)
-    }
-}
-
-impl RoundedRectangleMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.rounded_rectangle
-    }
-
-    pub fn set_corner_dimensions(
-        &mut self,
-        dimensions: Dimension,
-    ) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_corner_dimensions(self.rounded_rectangle, dimensions)
-    }
-}
-
-impl TriangleMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.triangle
-    }
-
-    pub fn set_direction(&mut self, direction: Direction) -> Result<bool, ShapeMutationError> {
-        self.runtime
-            .set_triangle_direction(self.triangle, direction)
-    }
-}
-
-impl ContainerMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.container
-    }
-
+impl FigureMut<'_> {
     pub fn add(&mut self, figure: Box<dyn Figure>) -> Result<FigureId, RuntimeMutationError> {
-        self.runtime.add_figure(self.container, figure)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.add_figure(self.figure, figure)
     }
 
     /// Inserts a new child at `0..=children.len()` as one Runtime operation.
@@ -786,8 +473,8 @@ impl ContainerMut<'_> {
         index: usize,
         figure: Box<dyn Figure>,
     ) -> Result<FigureId, RuntimeMutationError> {
-        self.runtime
-            .insert_figure(self.container, index, figure, None)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.insert_figure(self.figure, index, figure, None)
     }
 
     /// Atomically inserts a child and its parent-owned layout constraint.
@@ -799,23 +486,27 @@ impl ContainerMut<'_> {
         figure: Box<dyn Figure>,
         constraint: C,
     ) -> Result<FigureId, RuntimeMutationError> {
+        self.runtime.validate_container_figure(self.figure)?;
         self.runtime
-            .insert_figure(self.container, index, figure, Some(Box::new(constraint)))
+            .insert_figure(self.figure, index, figure, Some(Box::new(constraint)))
     }
 
     pub fn remove(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
-        self.runtime.remove_figure(self.container, child)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.remove_figure(self.figure, child)
     }
 
     pub fn set_layout_manager(
         &mut self,
         manager: Box<dyn LayoutManager>,
     ) -> Result<bool, RuntimeMutationError> {
-        self.runtime.set_layout_manager(self.container, manager)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.set_layout_manager(self.figure, manager)
     }
 
     pub fn clear_layout_manager(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.runtime.clear_layout_manager(self.container)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.clear_layout_manager(self.figure)
     }
 
     pub fn move_child_to_index(
@@ -823,194 +514,32 @@ impl ContainerMut<'_> {
         child: FigureId,
         index: usize,
     ) -> Result<bool, RuntimeMutationError> {
-        self.runtime
-            .move_child_to_index(self.container, child, index)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.move_child_to_index(self.figure, child, index)
     }
 
     pub fn set_child_order(&mut self, order: &[FigureId]) -> Result<bool, RuntimeMutationError> {
-        self.runtime.set_child_order(self.container, order)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.set_child_order(self.figure, order)
     }
 
     pub fn bring_child_to_front(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
-        self.runtime.bring_child_to_front(self.container, child)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.bring_child_to_front(self.figure, child)
     }
 
     pub fn send_child_to_back(&mut self, child: FigureId) -> Result<bool, RuntimeMutationError> {
-        self.runtime.send_child_to_back(self.container, child)
+        self.runtime.validate_container_figure(self.figure)?;
+        self.runtime.send_child_to_back(self.figure, child)
     }
 
     pub fn set_child_clipping_strategy(
         &mut self,
         strategy: ChildClippingStrategy,
     ) -> Result<bool, RuntimeMutationError> {
+        self.runtime.validate_container_figure(self.figure)?;
         self.runtime
-            .set_child_clipping_strategy(self.container, strategy)
-    }
-}
-
-impl ViewportMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.viewport.figure_id()
-    }
-
-    pub fn set_view_location(&mut self, x: f64, y: f64) -> Result<bool, RuntimeMutationError> {
-        self.runtime.set_view_location(&self.viewport, x, y)
-    }
-
-    pub fn set_horizontal_location(&mut self, x: f64) -> Result<bool, RuntimeMutationError> {
-        let current = self.viewport.view_location();
-        self.set_view_location(x, current.y())
-    }
-
-    pub fn set_vertical_location(&mut self, y: f64) -> Result<bool, RuntimeMutationError> {
-        let current = self.viewport.view_location();
-        self.set_view_location(current.x(), y)
-    }
-
-    pub fn scroll_by(&mut self, dx: f64, dy: f64) -> Result<bool, RuntimeMutationError> {
-        let current = self.viewport.view_location();
-        self.set_view_location(current.x() + dx, current.y() + dy)
-    }
-
-    pub fn set_contents(
-        &mut self,
-        figure: Box<dyn Figure>,
-    ) -> Result<FigureId, RuntimeMutationError> {
-        let viewport = self.viewport.clone();
-        self.runtime.guarded_runtime_mutation(move |runtime| {
-            runtime.validate_attached_figure(viewport.figure_id())?;
-            if let Some(previous) = viewport.contents(&runtime.tree) {
-                runtime.dispose_subtree(previous)?;
-            }
-            runtime.add_figure_inner(viewport.figure_id(), figure)
-        })
-    }
-
-    pub fn set_tracks_width(&mut self, tracks: bool) -> Result<bool, RuntimeMutationError> {
-        let viewport = self.viewport.clone();
-        self.runtime.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(viewport.figure_id())?;
-            viewport
-                .set_tracks_width(&mut runtime.tree, &mut runtime.updates, tracks)
-                .map_err(|_| RuntimeMutationError::Rejected)
-        })
-    }
-
-    pub fn set_tracks_height(&mut self, tracks: bool) -> Result<bool, RuntimeMutationError> {
-        let viewport = self.viewport.clone();
-        self.runtime.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(viewport.figure_id())?;
-            viewport
-                .set_tracks_height(&mut runtime.tree, &mut runtime.updates, tracks)
-                .map_err(|_| RuntimeMutationError::Rejected)
-        })
-    }
-}
-
-impl ScaleMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.scalable.figure_id()
-    }
-
-    pub fn set_scale(&mut self, scale: f64) -> Result<bool, RuntimeMutationError> {
-        let scalable = self.scalable.clone();
-        self.runtime.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(scalable.figure_id())?;
-            scalable
-                .set_scale(&mut runtime.tree, &mut runtime.updates, scale)
-                .map_err(|_| RuntimeMutationError::Rejected)
-        })
-    }
-}
-
-impl ScrollPaneMut<'_> {
-    pub fn figure_id(&self) -> FigureId {
-        self.pane.pane_id()
-    }
-
-    pub fn set_scroll_bar_visibility(
-        &mut self,
-        horizontal: ScrollBarVisibility,
-        vertical: ScrollBarVisibility,
-    ) -> Result<bool, RuntimeMutationError> {
-        let pane = self.pane.clone();
-        self.runtime.guarded_runtime_mutation(|runtime| {
-            pane.set_scroll_bar_visibility(
-                &mut runtime.tree,
-                &mut runtime.updates,
-                horizontal,
-                vertical,
-            )
-            .map_err(|_| RuntimeMutationError::Rejected)
-        })
-    }
-
-    pub fn scroll_to(&mut self, x: f64, y: f64) -> Result<bool, RuntimeMutationError> {
-        let viewport = self.pane.viewport().clone();
-        self.runtime.set_view_location(&viewport, x, y)
-    }
-
-    pub fn set_contents(
-        &mut self,
-        figure: Box<dyn Figure>,
-    ) -> Result<FigureId, RuntimeMutationError> {
-        let viewport = self.pane.viewport().clone();
-        ViewportMut {
-            viewport,
-            runtime: self.runtime,
-        }
-        .set_contents(figure)
-    }
-}
-
-impl ZoomMut<'_> {
-    pub fn set_zoom(&mut self, scale: f64) -> Result<bool, RuntimeMutationError> {
-        self.runtime.set_zoom_at(self.zoom, scale, None)
-    }
-
-    pub fn set_zoom_at(
-        &mut self,
-        scale: f64,
-        anchor: Option<Point>,
-    ) -> Result<bool, RuntimeMutationError> {
-        self.runtime.set_zoom_at(self.zoom, scale, anchor)
-    }
-
-    pub fn zoom_in(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.mutate(|zoom, tree, updates| zoom.zoom_in(tree, updates))
-    }
-
-    pub fn zoom_out(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.mutate(|zoom, tree, updates| zoom.zoom_out(tree, updates))
-    }
-
-    pub fn fit_all(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.runtime.fit_zoom_to_contents(self.zoom)
-    }
-
-    pub fn fit_width(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.mutate(|zoom, tree, updates| zoom.fit_width(tree, updates))
-    }
-
-    pub fn fit_height(&mut self) -> Result<bool, RuntimeMutationError> {
-        self.mutate(|zoom, tree, updates| zoom.fit_height(tree, updates))
-    }
-
-    fn mutate(
-        &mut self,
-        operation: impl FnOnce(
-            &ZoomManager,
-            &mut FigureTree,
-            &mut UpdateManager,
-        ) -> Result<bool, crate::ZoomError>,
-    ) -> Result<bool, RuntimeMutationError> {
-        let zoom = self.zoom;
-        self.runtime.guarded_runtime_mutation(|runtime| {
-            runtime.validate_attached_figure(zoom.viewport().figure_id())?;
-            runtime.validate_attached_figure(zoom.scalable().figure_id())?;
-            operation(zoom, &mut runtime.tree, &mut runtime.updates)
-                .map_err(|_| RuntimeMutationError::Rejected)
-        })
+            .set_child_clipping_strategy(self.figure, strategy)
     }
 }
 
@@ -1079,245 +608,77 @@ impl Runtime {
         })
     }
 
-    pub fn label(&mut self, label: FigureId) -> Result<LabelMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(label)?;
-        if self.tree.label(label).is_none() {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: label,
-                capability: "label mutation",
-            });
-        }
-        Ok(LabelMut {
-            label,
-            runtime: self,
-        })
+    pub fn frames(&mut self) -> RuntimeFrames<'_> {
+        RuntimeFrames::new(self)
     }
 
-    pub fn clickable(
-        &mut self,
-        clickable: FigureId,
-    ) -> Result<ClickableMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(clickable)?;
-        if self.tree.clickable_snapshot(clickable).is_none() {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: clickable,
-                capability: "clickable mutation",
-            });
-        }
-        Ok(ClickableMut {
-            clickable,
-            runtime: self,
-        })
+    pub fn resources(&mut self) -> RuntimeResources<'_> {
+        RuntimeResources::new(self)
     }
 
-    pub fn image(&mut self, image: FigureId) -> Result<ImageMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(image)?;
-        if self.tree.image_figure(image).is_none() {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: image,
-                capability: "image mutation",
-            });
-        }
-        Ok(ImageMut {
-            image,
-            runtime: self,
-        })
+    pub fn connections(&mut self) -> RuntimeConnections<'_> {
+        RuntimeConnections::new(self)
     }
 
-    pub fn point_list(
-        &mut self,
-        point_list: FigureId,
-    ) -> Result<PointListMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(point_list)?;
-        if self.tree.point_list_style(point_list).is_none() {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: point_list,
-                capability: "point-list mutation",
-            });
-        }
-        Ok(PointListMut {
-            point_list,
-            runtime: self,
-        })
+    pub fn input(&mut self) -> RuntimeInput<'_> {
+        RuntimeInput::new(self)
     }
 
-    pub fn scalable_polygon(
-        &mut self,
-        polygon: FigureId,
-    ) -> Result<ScalablePolygonMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(polygon)?;
-        if !self.tree.is_scalable_polygon(polygon) {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: polygon,
-                capability: "scalable-polygon mutation",
-            });
-        }
-        Ok(ScalablePolygonMut {
-            polygon,
-            runtime: self,
-        })
+    pub fn focus(&mut self) -> RuntimeFocus<'_> {
+        RuntimeFocus::new(self)
     }
 
-    pub fn text_flow(
-        &mut self,
-        text_flow: FigureId,
-    ) -> Result<TextFlowMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(text_flow)?;
-        if self.tree.text_flow(text_flow).is_none() {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: text_flow,
-                capability: "text-flow mutation",
-            });
-        }
-        Ok(TextFlowMut {
-            text_flow,
-            runtime: self,
-        })
+    pub fn tooltip(&mut self) -> RuntimeTooltip<'_> {
+        RuntimeTooltip::new(self)
     }
 
-    pub fn border(&mut self, bordered: FigureId) -> Result<BorderMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(bordered)?;
-        if !self.tree.has_border_capability(bordered) {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: bordered,
-                capability: "border mutation",
-            });
-        }
-        Ok(BorderMut {
-            bordered,
-            runtime: self,
-        })
+    pub fn accessibility(&mut self) -> RuntimeAccessibility<'_> {
+        RuntimeAccessibility::new(self)
     }
 
-    pub fn rounded_rectangle(
-        &mut self,
-        rounded_rectangle: FigureId,
-    ) -> Result<RoundedRectangleMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(rounded_rectangle)?;
-        if !self.tree.is_rounded_rectangle(rounded_rectangle) {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: rounded_rectangle,
-                capability: "rounded-rectangle mutation",
-            });
-        }
-        Ok(RoundedRectangleMut {
-            rounded_rectangle,
-            runtime: self,
-        })
+    pub fn animation(&mut self) -> RuntimeAnimation<'_> {
+        RuntimeAnimation::new(self)
     }
 
-    pub fn triangle(
-        &mut self,
-        triangle: FigureId,
-    ) -> Result<TriangleMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(triangle)?;
-        if !self.tree.is_triangle(triangle) {
-            return Err(RuntimeMutationError::WrongCapability {
-                figure: triangle,
-                capability: "triangle mutation",
-            });
-        }
-        Ok(TriangleMut {
-            triangle,
-            runtime: self,
-        })
+    pub fn observations(&mut self) -> RuntimeObservations<'_> {
+        RuntimeObservations::new(self)
     }
 
-    pub fn container(
-        &mut self,
-        container: FigureId,
-    ) -> Result<ContainerMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(container)?;
-        Ok(ContainerMut {
-            container,
-            runtime: self,
-        })
+    pub fn text(&mut self) -> RuntimeText<'_> {
+        RuntimeText::new(self)
     }
 
-    pub fn viewport(
-        &mut self,
-        viewport: FigureId,
-    ) -> Result<ViewportMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(viewport)?;
-        let viewport =
-            self.tree
-                .viewport_handle(viewport)
-                .ok_or(RuntimeMutationError::WrongCapability {
-                    figure: viewport,
-                    capability: "viewport mutation",
-                })?;
-        Ok(ViewportMut {
-            viewport,
-            runtime: self,
-        })
+    pub fn viewports(&mut self) -> RuntimeViewports<'_> {
+        RuntimeViewports::new(self)
     }
 
-    pub fn scalable(&mut self, scalable: FigureId) -> Result<ScaleMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(scalable)?;
-        let scalable =
-            self.tree
-                .scale_handle(scalable)
-                .ok_or(RuntimeMutationError::WrongCapability {
-                    figure: scalable,
-                    capability: "scale mutation",
-                })?;
-        Ok(ScaleMut {
-            scalable,
-            runtime: self,
-        })
+    pub fn layers(&mut self) -> RuntimeLayers<'_> {
+        RuntimeLayers::new(self)
     }
 
-    pub fn scroll_pane(
-        &mut self,
-        pane: &ScrollPaneHandle,
-    ) -> Result<ScrollPaneMut<'_>, RuntimeMutationError> {
-        self.validate_attached_figure(pane.pane_id())?;
-        self.validate_attached_figure(pane.viewport().figure_id())?;
-        Ok(ScrollPaneMut {
-            pane: pane.clone(),
-            runtime: self,
-        })
-    }
-
-    pub fn zoom<'a>(
-        &'a mut self,
-        zoom: &'a ZoomManager,
-    ) -> Result<ZoomMut<'a>, RuntimeMutationError> {
-        self.validate_attached_figure(zoom.viewport().figure_id())?;
-        self.validate_attached_figure(zoom.scalable().figure_id())?;
-        Ok(ZoomMut {
-            zoom,
-            runtime: self,
-        })
-    }
-
-    pub fn freeform_extent(&self, figure: FigureId) -> Result<Rectangle, FreeformError> {
-        self.tree.freeform_extent(figure)
-    }
-
-    pub fn interaction(&self) -> &InteractionState {
+    pub(crate) fn interaction(&self) -> &InteractionState {
         &self.interaction
     }
 
-    pub fn cursor_icon(&self) -> CursorIcon {
+    pub(crate) fn cursor_icon(&self) -> CursorIcon {
         self.interaction
             .cursor_target()
             .and_then(|id| self.tree.resolved_style(id))
             .map_or(CursorIcon::Default, |style| style.cursor)
     }
 
-    pub fn tooltip(&self) -> Option<String> {
+    pub(crate) fn tooltip_text(&self) -> Option<String> {
         self.interaction
             .hover_source()
             .and_then(|id| self.tree.resolved_style(id))
             .and_then(|style| style.tooltip)
     }
 
-    pub fn set_tooltip_timing(&mut self, timing: TooltipTiming) -> Result<bool, TimeError> {
+    pub(crate) fn set_tooltip_timing(&mut self, timing: TooltipTiming) -> Result<bool, TimeError> {
         self.tooltip_controller.set_timing(timing)
     }
 
-    pub fn animations(&mut self) -> AnimationMut<'_> {
+    pub(crate) fn animations(&mut self) -> AnimationMut<'_> {
         self.animations.access_mut(
             &self.tree,
             &mut self.updates,
@@ -1326,7 +687,7 @@ impl Runtime {
         )
     }
 
-    pub fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
+    pub(crate) fn advance_time(&mut self, now: MonotonicTime) -> Result<bool, TimeError> {
         if self.faulted {
             return Ok(false);
         }
@@ -1343,7 +704,7 @@ impl Runtime {
         Ok(tooltip_changed || animation_changed)
     }
 
-    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+    pub(crate) fn next_wake_deadline(&self) -> Option<MonotonicTime> {
         match (
             self.tooltip_controller.next_wake_deadline(),
             self.animations.next_wake_deadline(),
@@ -1354,27 +715,27 @@ impl Runtime {
         }
     }
 
-    pub fn visible_tooltip(&self) -> Option<&TooltipSnapshot> {
+    pub(crate) fn visible_tooltip(&self) -> Option<&TooltipSnapshot> {
         self.tooltip_controller.visible_snapshot()
     }
 
-    pub fn take_tooltip_updates(&mut self) -> Vec<TooltipUpdate> {
+    pub(crate) fn take_tooltip_updates(&mut self) -> Vec<TooltipUpdate> {
         self.tooltip_controller.take_updates()
     }
 
-    pub fn accessibility_snapshot(&self) -> Option<&AccessibilitySnapshot> {
+    pub(crate) fn accessibility_snapshot(&self) -> Option<&AccessibilitySnapshot> {
         self.accessibility.snapshot()
     }
 
-    pub fn take_accessibility_updates(&mut self) -> Vec<AccessibilityUpdate> {
+    pub(crate) fn take_accessibility_updates(&mut self) -> Vec<AccessibilityUpdate> {
         self.accessibility.take_updates()
     }
 
-    pub fn request_accessibility_snapshot(&mut self) {
+    pub(crate) fn request_accessibility_snapshot(&mut self) {
         self.accessibility.reset();
     }
 
-    pub fn perform_accessibility_action(
+    pub(crate) fn perform_accessibility_action(
         &mut self,
         node: AccessibilityNodeId,
         action: AccessibilityAction,
@@ -1422,19 +783,19 @@ impl Runtime {
         }
     }
 
-    pub fn resources(&self) -> &ResourceRegistry {
+    pub(crate) fn resource_registry(&self) -> &ResourceRegistry {
         &self.resources
     }
 
-    pub fn builtin_font(&self, font: BuiltinFont) -> Option<FontId> {
+    pub(crate) fn builtin_font(&self, font: BuiltinFont) -> Option<FontId> {
         self.builtin_fonts.get(&font).copied()
     }
 
-    pub fn text_revision(&self) -> u64 {
+    pub(crate) fn text_revision(&self) -> u64 {
         self.text.revision()
     }
 
-    pub fn layout_text(
+    pub(crate) fn layout_text(
         &mut self,
         text: &str,
         font: &FontDescriptor,
@@ -1447,7 +808,7 @@ impl Runtime {
     }
 
     /// Refreshes immutable Label text snapshots from the current Runtime-owned text engine.
-    pub fn refresh_label_layouts(&mut self) -> Result<(), TextError> {
+    pub(crate) fn refresh_label_layouts(&mut self) -> Result<(), TextError> {
         if self.faulted {
             return Err(TextError::RuntimeFaulted);
         }
@@ -1592,7 +953,7 @@ impl Runtime {
     }
 
     /// Returns cumulative text layout refresh work counters.
-    pub fn text_layout_stats(&self) -> TextLayoutStats {
+    pub(crate) fn text_layout_stats(&self) -> TextLayoutStats {
         self.text_layout_stats
     }
 
@@ -1683,7 +1044,7 @@ impl Runtime {
     }
 
     /// Adds a Viewport Figure and returns its transactional handle.
-    pub fn add_viewport(
+    pub(crate) fn add_viewport(
         &mut self,
         parent: FigureId,
         bounds: Rectangle,
@@ -1737,18 +1098,6 @@ impl Runtime {
         self.tree.complete_attachment(id, parent);
     }
 
-    pub fn add_layered_pane(
-        &mut self,
-        parent: FigureId,
-        bounds: Rectangle,
-    ) -> Result<LayeredPaneMut<'_>, LayerError> {
-        if self.faulted {
-            return Err(LayerError::Faulted);
-        }
-        let pane_id = self.guarded(|runtime| runtime.add_layered_pane_inner(parent, bounds))?;
-        Ok(LayeredPaneMut::new(pane_id, self))
-    }
-
     fn add_layered_pane_inner(
         &mut self,
         parent: FigureId,
@@ -1769,14 +1118,6 @@ impl Runtime {
         self.tree.repaint(&mut self.updates, pane_id, None);
         self.tree.complete_attachment(pane_id, parent);
         Ok(pane_id)
-    }
-
-    pub fn layered_pane(&mut self, pane_id: FigureId) -> Result<LayeredPaneMut<'_>, LayerError> {
-        if self.faulted {
-            return Err(LayerError::Faulted);
-        }
-        self.guarded(|runtime| runtime.validate_layered_pane_handle(pane_id))?;
-        Ok(LayeredPaneMut::new(pane_id, self))
     }
 
     fn validate_layered_pane_handle(&mut self, pane_id: FigureId) -> Result<(), LayerError> {
@@ -2121,16 +1462,6 @@ impl Runtime {
     ) -> Result<T, RuntimeMutationError> {
         if self.faulted {
             return Err(RuntimeMutationError::Faulted);
-        }
-        self.guarded(operation)
-    }
-
-    fn guarded_shape_mutation<T>(
-        &mut self,
-        operation: impl FnOnce(&mut Self) -> Result<T, ShapeMutationError>,
-    ) -> Result<T, ShapeMutationError> {
-        if self.faulted {
-            return Err(ShapeMutationError::Faulted);
         }
         self.guarded(operation)
     }
@@ -2550,6 +1881,25 @@ impl Runtime {
         Ok(())
     }
 
+    fn validate_container_figure(&self, figure: FigureId) -> Result<(), RuntimeMutationError> {
+        self.validate_attached_figure(figure)?;
+        if self
+            .tree
+            .capability(figure, crate::figure::CONTAINER)
+            .map_err(|_| RuntimeMutationError::WrongCapability {
+                figure,
+                capability: crate::figure::CONTAINER.name(),
+            })?
+            .is_none()
+        {
+            return Err(RuntimeMutationError::WrongCapability {
+                figure,
+                capability: crate::figure::CONTAINER.name(),
+            });
+        }
+        Ok(())
+    }
+
     fn validate_child_order_mutation(
         &self,
         parent: FigureId,
@@ -2727,39 +2077,16 @@ impl Runtime {
         changed
     }
 
-    pub(crate) fn set_label_text(
-        &mut self,
+    pub(crate) fn label_text_layout(
+        &self,
         id: FigureId,
-        text: impl Into<String>,
-    ) -> Result<bool, ShapeMutationError> {
-        let text = text.into();
-        self.guarded_shape_mutation(move |runtime| runtime.set_label_text_inner(id, text))
-    }
-
-    fn set_label_text_inner(
-        &mut self,
-        id: FigureId,
-        text: String,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.text().to_string();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::TEXT,
-            old,
-            text.clone(),
-            |label| label.set_text(text),
-            true,
-        )
-    }
-
-    pub fn label_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+    ) -> Result<&TextLayout, ShapeMutationError> {
         self.label_figure(id)?
             .text_layout()
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
 
-    pub fn text_flow_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+    pub(crate) fn text_flow_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
@@ -2769,7 +2096,7 @@ impl Runtime {
             .ok_or(ShapeMutationError::WrongCapability(id))
     }
 
-    pub fn text_flow_hit_test(
+    pub(crate) fn text_flow_hit_test(
         &self,
         id: FigureId,
         surface_point: Point,
@@ -2783,7 +2110,7 @@ impl Runtime {
             .map_err(Into::into)
     }
 
-    pub fn text_flow_caret_geometry(
+    pub(crate) fn text_flow_caret_geometry(
         &self,
         id: FigureId,
         position: FlowTextPosition,
@@ -2800,7 +2127,7 @@ impl Runtime {
     }
 
     /// Returns caret geometry in the TextFlow Figure's node-local coordinates.
-    pub fn text_flow_local_caret_geometry(
+    pub(crate) fn text_flow_local_caret_geometry(
         &self,
         id: FigureId,
         position: FlowTextPosition,
@@ -2810,7 +2137,7 @@ impl Runtime {
             .map_err(Into::into)
     }
 
-    pub fn text_flow_selection_geometry(
+    pub(crate) fn text_flow_selection_geometry(
         &self,
         id: FigureId,
         range: FlowTextRange,
@@ -2830,7 +2157,7 @@ impl Runtime {
             .collect()
     }
 
-    pub fn text_flow_move_position(
+    pub(crate) fn text_flow_move_position(
         &self,
         id: FigureId,
         position: FlowTextPosition,
@@ -2853,11 +2180,14 @@ impl Runtime {
             .ok_or(TextFlowQueryError::WrongCapability(id))
     }
 
-    pub fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {
+    pub(crate) fn label_text(&self, id: FigureId) -> Result<&str, ShapeMutationError> {
         Ok(self.label_figure(id)?.text())
     }
 
-    pub fn title_bar_text_layout(&self, id: FigureId) -> Result<&TextLayout, ShapeMutationError> {
+    pub(crate) fn title_bar_text_layout(
+        &self,
+        id: FigureId,
+    ) -> Result<&TextLayout, ShapeMutationError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(ShapeMutationError::UnknownFigure(id));
         }
@@ -2865,233 +2195,6 @@ impl Runtime {
             .border_snapshot(id)
             .map(BorderSnapshot::text_layout)
             .ok_or(ShapeMutationError::WrongCapability(id))
-    }
-
-    pub(crate) fn set_label_icon(
-        &mut self,
-        id: FigureId,
-        icon: Option<ImageId>,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_inner(id, icon))
-    }
-
-    fn set_label_icon_inner(
-        &mut self,
-        id: FigureId,
-        icon: Option<ImageId>,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.icon();
-        let changed = self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::ICON,
-            old,
-            icon,
-            |label| label.set_icon(icon),
-            true,
-        )?;
-        if changed {
-            if let Some(old) = old {
-                let _ = self.resources.remove_dependency(old.resource_id(), id);
-            }
-            if let Some(icon) = icon {
-                self.add_resource_dependency(icon.resource_id(), id)
-                    .map_err(|_| ShapeMutationError::WrongCapability(id))?;
-            }
-        }
-        Ok(changed)
-    }
-
-    pub(crate) fn set_label_text_placement(
-        &mut self,
-        id: FigureId,
-        placement: TextPlacement,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_text_placement_inner(id, placement))
-    }
-
-    fn set_label_text_placement_inner(
-        &mut self,
-        id: FigureId,
-        placement: TextPlacement,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.text_placement();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::TEXT_PLACEMENT,
-            old,
-            placement,
-            |label| label.set_text_placement(placement),
-            true,
-        )
-    }
-
-    pub(crate) fn set_label_alignment(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_alignment_inner(id, alignment))
-    }
-
-    fn set_label_alignment_inner(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.label_alignment();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::LABEL_ALIGNMENT,
-            old,
-            alignment,
-            |label| label.set_label_alignment(alignment),
-            false,
-        )
-    }
-
-    pub(crate) fn set_label_text_alignment(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_text_alignment_inner(id, alignment))
-    }
-
-    fn set_label_text_alignment_inner(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.text_alignment();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::TEXT_ALIGNMENT,
-            old,
-            alignment,
-            |label| label.set_text_alignment(alignment),
-            false,
-        )
-    }
-
-    pub(crate) fn set_label_icon_alignment(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_alignment_inner(id, alignment))
-    }
-
-    fn set_label_icon_alignment_inner(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        let old = self.label_figure(id)?.icon_alignment();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::ICON_ALIGNMENT,
-            old,
-            alignment,
-            |label| label.set_icon_alignment(alignment),
-            false,
-        )
-    }
-
-    pub(crate) fn set_label_icon_text_gap(
-        &mut self,
-        id: FigureId,
-        gap: f64,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_label_icon_text_gap_inner(id, gap))
-    }
-
-    fn set_label_icon_text_gap_inner(
-        &mut self,
-        id: FigureId,
-        gap: f64,
-    ) -> Result<bool, ShapeMutationError> {
-        if !gap.is_finite() {
-            return Err(ShapeMutationError::NonFiniteGeometry);
-        }
-        if gap < 0.0 {
-            return Err(ShapeMutationError::NegativeMetric);
-        }
-        let old = self.label_figure(id)?.icon_text_gap();
-        self.tree.mutate_label(
-            &mut self.updates,
-            id,
-            property::ICON_TEXT_GAP,
-            old,
-            gap,
-            |label| label.set_icon_text_gap(gap),
-            true,
-        )
-    }
-
-    pub(crate) fn set_image_figure(
-        &mut self,
-        id: FigureId,
-        image: ImageId,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| runtime.set_image_figure_inner(id, image))
-    }
-
-    fn set_image_figure_inner(
-        &mut self,
-        id: FigureId,
-        image: ImageId,
-    ) -> Result<bool, ShapeMutationError> {
-        let previous = self
-            .tree
-            .image_figure(id)
-            .map(ImageFigure::image)
-            .ok_or_else(|| {
-                if self.tree.figure_bounds(id).is_some() {
-                    ShapeMutationError::WrongCapability(id)
-                } else {
-                    ShapeMutationError::UnknownFigure(id)
-                }
-            })?;
-        let changed = self.tree.set_image_figure(&mut self.updates, id, image)?;
-        if changed {
-            let _ = self.resources.remove_dependency(previous.resource_id(), id);
-            self.add_resource_dependency(image.resource_id(), id)
-                .map_err(|_| ShapeMutationError::WrongCapability(id))?;
-        }
-        Ok(changed)
-    }
-
-    pub(crate) fn set_image_alignment(
-        &mut self,
-        id: FigureId,
-        alignment: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| {
-            runtime
-                .tree
-                .set_image_alignment(&mut runtime.updates, id, alignment)
-        })
-    }
-
-    pub fn image_display_state(
-        &self,
-        id: FigureId,
-    ) -> Result<ImageDisplayState, ShapeMutationError> {
-        self.tree
-            .image_figure(id)
-            .map(ImageFigure::display_state)
-            .ok_or_else(|| {
-                if self.tree.figure_bounds(id).is_some() {
-                    ShapeMutationError::WrongCapability(id)
-                } else {
-                    ShapeMutationError::UnknownFigure(id)
-                }
-            })
     }
 
     fn label_figure(&self, id: FigureId) -> Result<&LabelFigure, ShapeMutationError> {
@@ -3113,242 +2216,6 @@ impl Runtime {
         if let Some(image) = self.tree.image_figure(id).map(ImageFigure::image) {
             let _ = self.resources.add_dependency(image.resource_id(), id);
         }
-    }
-
-    pub fn point_list_points(&self, id: FigureId) -> Result<Vec<Point>, ShapeMutationError> {
-        if self.tree.figure_bounds(id).is_none() {
-            return Err(ShapeMutationError::UnknownFigure(id));
-        }
-        self.tree
-            .point_list_points(id)
-            .ok_or(ShapeMutationError::WrongCapability(id))
-    }
-
-    pub(crate) fn replace_points(
-        &mut self,
-        id: FigureId,
-        points: Vec<Point>,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .commit_point_list(&mut runtime.updates, id, points)
-        })
-    }
-
-    pub(crate) fn insert_point(
-        &mut self,
-        id: FigureId,
-        index: usize,
-        point: Point,
-    ) -> Result<bool, ShapeMutationError> {
-        let mut points = self.point_list_points(id)?;
-        if index > points.len() {
-            return Err(ShapeMutationError::PointIndexOutOfRange {
-                index,
-                len: points.len(),
-            });
-        }
-        points.insert(index, point);
-        self.replace_points(id, points)
-    }
-
-    pub(crate) fn set_point(
-        &mut self,
-        id: FigureId,
-        index: usize,
-        point: Point,
-    ) -> Result<bool, ShapeMutationError> {
-        let mut points = self.point_list_points(id)?;
-        let len = points.len();
-        let Some(existing) = points.get_mut(index) else {
-            return Err(ShapeMutationError::PointIndexOutOfRange { index, len });
-        };
-        *existing = point;
-        self.replace_points(id, points)
-    }
-
-    pub(crate) fn remove_point(
-        &mut self,
-        id: FigureId,
-        index: usize,
-    ) -> Result<bool, ShapeMutationError> {
-        let mut points = self.point_list_points(id)?;
-        if index >= points.len() {
-            return Err(ShapeMutationError::PointIndexOutOfRange {
-                index,
-                len: points.len(),
-            });
-        }
-        points.remove(index);
-        self.replace_points(id, points)
-    }
-
-    pub(crate) fn clear_points(&mut self, id: FigureId) -> Result<bool, ShapeMutationError> {
-        self.replace_points(id, Vec::new())
-    }
-
-    pub(crate) fn set_point_list_stroke_width(
-        &mut self,
-        id: FigureId,
-        stroke_width: f64,
-    ) -> Result<bool, ShapeMutationError> {
-        if !stroke_width.is_finite() {
-            return Err(ShapeMutationError::NonFiniteGeometry);
-        }
-        if stroke_width < 0.0 {
-            return Err(ShapeMutationError::NegativeMetric);
-        }
-        let stroke = self
-            .point_list_stroke_style(id)?
-            .with_width(stroke_width)
-            .map_err(ShapeMutationError::InvalidStroke)?;
-        self.set_point_list_stroke_style(id, stroke)
-    }
-
-    fn point_list_stroke_style(
-        &self,
-        id: FigureId,
-    ) -> Result<crate::render::StrokeStyle, ShapeMutationError> {
-        if self.is_faulted() {
-            return Err(ShapeMutationError::Faulted);
-        }
-        self.tree.point_list_style(id).ok_or_else(|| {
-            if self.tree.figure_bounds(id).is_some() {
-                ShapeMutationError::WrongCapability(id)
-            } else {
-                ShapeMutationError::UnknownFigure(id)
-            }
-        })
-    }
-
-    fn set_point_list_stroke_style(
-        &mut self,
-        id: FigureId,
-        stroke: crate::render::StrokeStyle,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .set_point_list_stroke_style(&mut runtime.updates, id, stroke)
-        })
-    }
-
-    pub(crate) fn set_point_list_line_join(
-        &mut self,
-        id: FigureId,
-        line_join: crate::render::LineJoin,
-    ) -> Result<bool, ShapeMutationError> {
-        let stroke = self.point_list_stroke_style(id)?.with_join(line_join);
-        self.set_point_list_stroke_style(id, stroke)
-    }
-
-    pub(crate) fn replace_scalable_polygon_template(
-        &mut self,
-        id: FigureId,
-        template: PointList,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .replace_scalable_polygon_template(&mut runtime.updates, id, template)
-        })
-    }
-
-    pub(crate) fn set_scalable_polygon_scale_mode(
-        &mut self,
-        id: FigureId,
-        mode: PolygonScaleMode,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .set_scalable_polygon_scale_mode(&mut runtime.updates, id, mode)
-        })
-    }
-
-    pub(crate) fn set_scalable_polygon_alignment(
-        &mut self,
-        id: FigureId,
-        horizontal: Alignment,
-        vertical: Alignment,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime.tree.set_scalable_polygon_alignment(
-                &mut runtime.updates,
-                id,
-                horizontal,
-                vertical,
-            )
-        })
-    }
-
-    pub(crate) fn replace_text_flow_page(
-        &mut self,
-        id: FigureId,
-        page: FlowPage,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .replace_text_flow_page(&mut runtime.updates, id, page)
-        })
-    }
-
-    pub(crate) fn set_text_flow_wrapping(
-        &mut self,
-        id: FigureId,
-        wrapping: FlowWrapping,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .set_text_flow_wrapping(&mut runtime.updates, id, wrapping)
-        })
-    }
-
-    pub(crate) fn set_border(
-        &mut self,
-        id: FigureId,
-        border: impl Border + 'static,
-    ) -> Result<bool, ShapeMutationError> {
-        self.replace_border(id, Some(Arc::new(border)))
-    }
-
-    pub(crate) fn replace_border(
-        &mut self,
-        id: FigureId,
-        border: Option<Arc<dyn Border>>,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(move |runtime| {
-            runtime
-                .tree
-                .replace_border(&mut runtime.updates, id, border)
-        })
-    }
-
-    pub(crate) fn set_corner_dimensions(
-        &mut self,
-        id: FigureId,
-        dimensions: Dimension,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| {
-            runtime
-                .tree
-                .set_corner_dimensions_with_update(&mut runtime.updates, id, dimensions)
-        })
-    }
-
-    pub(crate) fn set_triangle_direction(
-        &mut self,
-        id: FigureId,
-        direction: Direction,
-    ) -> Result<bool, ShapeMutationError> {
-        self.guarded_shape_mutation(|runtime| {
-            runtime
-                .tree
-                .set_triangle_direction_with_update(&mut runtime.updates, id, direction)
-        })
     }
 
     pub(crate) fn set_opaque(
@@ -3392,12 +2259,12 @@ impl Runtime {
         )
     }
 
-    pub fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
+    pub(crate) fn add_update_listener(&mut self, listener: Box<dyn UpdateListener>) -> ListenerId {
         self.add_update_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_update_listener_scoped(
+    pub(crate) fn add_update_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn UpdateListener>,
@@ -3409,12 +2276,12 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
+    pub(crate) fn add_figure_listener(&mut self, listener: Box<dyn FigureListener>) -> ListenerId {
         self.add_figure_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_figure_listener_scoped(
+    pub(crate) fn add_figure_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn FigureListener>,
@@ -3426,12 +2293,15 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_coordinate_listener(&mut self, listener: Box<dyn CoordinateListener>) -> ListenerId {
+    pub(crate) fn add_coordinate_listener(
+        &mut self,
+        listener: Box<dyn CoordinateListener>,
+    ) -> ListenerId {
         self.add_coordinate_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_coordinate_listener_scoped(
+    pub(crate) fn add_coordinate_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn CoordinateListener>,
@@ -3443,12 +2313,15 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_ancestor_listener(&mut self, listener: Box<dyn AncestorListener>) -> ListenerId {
+    pub(crate) fn add_ancestor_listener(
+        &mut self,
+        listener: Box<dyn AncestorListener>,
+    ) -> ListenerId {
         self.add_ancestor_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_ancestor_listener_scoped(
+    pub(crate) fn add_ancestor_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn AncestorListener>,
@@ -3460,7 +2333,7 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_property_listener(
+    pub(crate) fn add_property_listener(
         &mut self,
         listener: Box<dyn PropertyChangeListener>,
     ) -> ListenerId {
@@ -3468,7 +2341,7 @@ impl Runtime {
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_property_listener_scoped(
+    pub(crate) fn add_property_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn PropertyChangeListener>,
@@ -3480,12 +2353,12 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
+    pub(crate) fn add_action_listener(&mut self, listener: Box<dyn ActionListener>) -> ListenerId {
         self.add_action_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_action_listener_scoped(
+    pub(crate) fn add_action_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn ActionListener>,
@@ -3497,12 +2370,12 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
+    pub(crate) fn add_layout_listener(&mut self, listener: Box<dyn LayoutListener>) -> ListenerId {
         self.add_layout_listener_scoped(ListenerScope::Runtime, listener)
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_layout_listener_scoped(
+    pub(crate) fn add_layout_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn LayoutListener>,
@@ -3514,7 +2387,7 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn add_observation_listener(
+    pub(crate) fn add_observation_listener(
         &mut self,
         listener: Box<dyn ObservationListener>,
     ) -> ListenerId {
@@ -3522,7 +2395,7 @@ impl Runtime {
             .expect("Runtime listener scope is always valid")
     }
 
-    pub fn add_observation_listener_scoped(
+    pub(crate) fn add_observation_listener_scoped(
         &mut self,
         scope: ListenerScope,
         listener: Box<dyn ObservationListener>,
@@ -3534,7 +2407,7 @@ impl Runtime {
         Ok(id)
     }
 
-    pub fn remove_listener(&mut self, id: ListenerId) -> bool {
+    pub(crate) fn remove_listener(&mut self, id: ListenerId) -> bool {
         if self.faulted {
             return false;
         }
@@ -3554,7 +2427,10 @@ impl Runtime {
         }
     }
 
-    pub fn clickable_snapshot(&self, id: FigureId) -> Result<ClickableSnapshot, WidgetError> {
+    pub(crate) fn clickable_snapshot(
+        &self,
+        id: FigureId,
+    ) -> Result<ClickableSnapshot, WidgetError> {
         if self.tree.figure_bounds(id).is_none() {
             return Err(WidgetError::UnknownFigure(id));
         }
@@ -3563,7 +2439,7 @@ impl Runtime {
             .ok_or(WidgetError::WrongCapability(id))
     }
 
-    pub fn do_click(&mut self, id: FigureId) -> Result<bool, WidgetError> {
+    pub(crate) fn do_click(&mut self, id: FigureId) -> Result<bool, WidgetError> {
         self.guarded_widget_mutation(|runtime| runtime.do_click_inner(id))
     }
 
@@ -3579,39 +2455,7 @@ impl Runtime {
         Ok(changed)
     }
 
-    pub(crate) fn set_clickable_selected(
-        &mut self,
-        id: FigureId,
-        selected: bool,
-    ) -> Result<bool, WidgetError> {
-        self.guarded_widget_mutation(|runtime| runtime.set_clickable_selected_inner(id, selected))
-    }
-
-    fn set_clickable_selected_inner(
-        &mut self,
-        id: FigureId,
-        selected: bool,
-    ) -> Result<bool, WidgetError> {
-        let changed = self
-            .tree
-            .set_clickable_selected(&mut self.updates, id, selected)?;
-        self.sync_clickable_visuals();
-        Ok(changed)
-    }
-
-    pub(crate) fn set_rollover_enabled(
-        &mut self,
-        id: FigureId,
-        enabled: bool,
-    ) -> Result<bool, WidgetError> {
-        self.guarded_widget_mutation(|runtime| {
-            runtime
-                .tree
-                .set_clickable_rollover_enabled(&mut runtime.updates, id, enabled)
-        })
-    }
-
-    pub fn has_pending_update(&self) -> bool {
+    pub(crate) fn has_pending_update(&self) -> bool {
         self.full_redraw_pending
             || (self.session_sync_pending && self.in_flight.is_none())
             || self.updates.is_update_queued()
@@ -3623,7 +2467,7 @@ impl Runtime {
             || self.derivation_epoch != self.stable_epoch
     }
 
-    pub fn stable_query(&self) -> Result<StableSceneQuery<'_>, StableQueryError> {
+    pub(crate) fn stable_query(&self) -> Result<StableSceneQuery<'_>, StableQueryError> {
         if self.faulted {
             return Err(StableQueryError::Faulted);
         }
@@ -3635,7 +2479,7 @@ impl Runtime {
         Ok(StableSceneQuery::new(self.stable_epoch, &self.tree))
     }
 
-    pub fn last_validation_error(&self) -> Option<&ValidationError> {
+    pub(crate) fn last_validation_error(&self) -> Option<&ValidationError> {
         self.updates.last_validation_error()
     }
 
@@ -3643,7 +2487,7 @@ impl Runtime {
         self.updates.take_validation_error()
     }
 
-    pub fn request_full_redraw(&mut self) {
+    pub(crate) fn request_full_redraw(&mut self) {
         if !self.faulted {
             self.full_redraw_pending = true;
         }
@@ -3681,7 +2525,7 @@ impl Runtime {
         })
     }
 
-    pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
+    pub(crate) fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
@@ -3692,7 +2536,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_mouse_pressed(
+    pub(crate) fn dispatch_mouse_pressed(
         &mut self,
         x: f64,
         y: f64,
@@ -3709,7 +2553,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_mouse_released(
+    pub(crate) fn dispatch_mouse_released(
         &mut self,
         x: f64,
         y: f64,
@@ -3726,7 +2570,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_mouse_double_clicked(
+    pub(crate) fn dispatch_mouse_double_clicked(
         &mut self,
         x: f64,
         y: f64,
@@ -3744,7 +2588,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_mouse_hover(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
+    pub(crate) fn dispatch_mouse_hover(&mut self, x: f64, y: f64) -> crate::DispatchOutcome {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
@@ -3755,7 +2599,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_scroll(&mut self, event: WheelEvent) -> crate::DispatchOutcome {
+    pub(crate) fn dispatch_scroll(&mut self, event: WheelEvent) -> crate::DispatchOutcome {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
@@ -3804,14 +2648,14 @@ impl Runtime {
         })
     }
 
-    pub fn dispatch_zoom(&mut self, event: ZoomEvent) -> crate::DispatchOutcome {
+    pub(crate) fn dispatch_zoom(&mut self, event: ZoomEvent) -> crate::DispatchOutcome {
         if self.faulted {
             return crate::DispatchOutcome::default();
         }
         self.dispatch(|dispatcher, ctx| dispatcher.dispatch_zoom(ctx, event))
     }
 
-    pub fn dispatch_key_pressed(
+    pub(crate) fn dispatch_key_pressed(
         &mut self,
         key: Key,
         modifiers: KeyModifiers,
@@ -3825,7 +2669,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn dispatch_key_released(
+    pub(crate) fn dispatch_key_released(
         &mut self,
         key: Key,
         modifiers: KeyModifiers,
@@ -3839,7 +2683,7 @@ impl Runtime {
         outcome
     }
 
-    pub fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {
+    pub(crate) fn request_focus(&mut self, target: FigureId) -> Result<FocusChange, FocusError> {
         if self.faulted {
             return Err(FocusError::Faulted);
         }
@@ -3851,7 +2695,7 @@ impl Runtime {
         Ok(change)
     }
 
-    pub fn clear_focus(&mut self) -> FocusChange {
+    pub(crate) fn clear_focus(&mut self) -> FocusChange {
         if self.faulted {
             return FocusChange::Unchanged;
         }
@@ -3862,11 +2706,14 @@ impl Runtime {
         change
     }
 
-    pub fn release_focus(&mut self) -> FocusChange {
+    pub(crate) fn release_focus(&mut self) -> FocusChange {
         self.clear_focus()
     }
 
-    pub fn traverse_focus(&mut self, direction: FocusTraversalDirection) -> FocusTraversalOutcome {
+    pub(crate) fn traverse_focus(
+        &mut self,
+        direction: FocusTraversalDirection,
+    ) -> FocusTraversalOutcome {
         if self.faulted {
             return FocusTraversalOutcome::Boundary;
         }
@@ -3903,20 +2750,20 @@ impl Runtime {
         }
     }
 
-    pub fn set_focus_traversal_policy(&mut self, policy: Box<dyn FocusTraversalPolicy>) {
+    pub(crate) fn set_focus_traversal_policy(&mut self, policy: Box<dyn FocusTraversalPolicy>) {
         if !self.faulted {
             self.focus_traversal_policy = policy;
         }
     }
 
-    pub fn cancel_gestures(&mut self) {
+    pub(crate) fn cancel_gestures(&mut self) {
         if self.faulted {
             return;
         }
         self.dispatch(|dispatcher, ctx| dispatcher.cancel_gestures(ctx));
     }
 
-    pub fn pointer_exited(&mut self) {
+    pub(crate) fn pointer_exited(&mut self) {
         if self.faulted {
             return;
         }
@@ -4888,11 +3735,11 @@ mod tests {
         runtime.dispatch_mouse_moved(50.0, 50.0);
 
         assert_eq!(runtime.cursor_icon(), CursorIcon::Crosshair);
-        assert_eq!(runtime.tooltip().as_deref(), Some("root tip"));
+        assert_eq!(runtime.tooltip().text().as_deref(), Some("root tip"));
 
         runtime.dispatch_mouse_moved(150.0, 150.0);
         assert_eq!(runtime.cursor_icon(), CursorIcon::Default);
-        assert_eq!(runtime.tooltip(), None);
+        assert_eq!(runtime.tooltip().text(), None);
     }
 
     #[test]
@@ -5886,7 +4733,10 @@ mod adr014_tests {
         assert!(runtime.tree().node(root).is_none());
         assert_ne!(root, replacement);
         assert_eq!(replacement.namespace(), root.namespace());
-        assert_eq!(runtime.resources().namespace(), root.namespace().as_uuid());
+        assert_eq!(
+            runtime.resources().registry().namespace(),
+            root.namespace().as_uuid()
+        );
         assert_eq!(
             runtime.backend_session_id().runtime_namespace(),
             root.namespace().as_uuid()
@@ -5998,15 +4848,19 @@ mod adr014_tests {
     fn layered_lifecycle_panic_faults_runtime_after_structural_commit() {
         let (mut runtime, root) = scene();
         let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let mut pane = runtime
-                .add_layered_pane(root, Rectangle::new(0.0, 0.0, 100.0, 100.0))
+            let pane = runtime
+                .layers()
+                .add_pane(root, Rectangle::new(0.0, 0.0, 100.0, 100.0))
                 .unwrap();
-            pane.add_layer(
-                Box::new(PanicOnAttachLayer),
-                LayerKey::new("fault-probe").unwrap(),
-                LayerPlacement::Last,
-            )
-            .unwrap();
+            runtime
+                .layers()
+                .add(
+                    pane,
+                    Box::new(PanicOnAttachLayer),
+                    LayerKey::new("fault-probe").unwrap(),
+                    LayerPlacement::Last,
+                )
+                .unwrap();
         }));
         assert!(failure.is_err());
         assert!(runtime.is_faulted());

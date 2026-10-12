@@ -1,12 +1,11 @@
 //! Browser-owned hidden textarea used by direct text editing.
 
+use novadraw::{geometry::Point, geometry::Rectangle};
+use novadraw_editor::{SessionTextInputEvent, TextInputEffect, TextInputPurpose};
 use std::{
     cell::{Cell, RefCell},
     rc::Rc,
 };
-
-use novadraw::{Point, Rectangle};
-use novadraw_editor::{SessionTextInputEvent, TextInputEffect, TextInputPurpose};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};
 use web_sys::{CompositionEvent, Document, Event, HtmlTextAreaElement, InputEvent, KeyboardEvent};
 

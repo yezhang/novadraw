@@ -1,5 +1,5 @@
 use novadraw::container::{ScrollBarVisibility, ZoomManager};
-use novadraw::{Color, FigureTree, Rectangle, RectangleFigure};
+use novadraw::{figure::RectangleFigure, geometry::Rectangle, graphics::Color, tree::FigureTree};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -26,7 +26,7 @@ fn color(hex: &str) -> Color {
     Color::from_hex(hex).expect("valid color literal")
 }
 
-pub fn base_scene() -> (FigureTree, novadraw::FigureId) {
+pub fn base_scene() -> (FigureTree, novadraw::tree::FigureId) {
     let mut graph = FigureTree::new();
     let root = graph
         .builder()
@@ -41,7 +41,7 @@ pub fn base_scene() -> (FigureTree, novadraw::FigureId) {
     (graph, root)
 }
 
-fn add_grid(graph: &mut FigureTree, parent: novadraw::FigureId) {
+fn add_grid(graph: &mut FigureTree, parent: novadraw::tree::FigureId) {
     for row in 0..GRID_ROWS {
         for column in 0..GRID_COLUMNS {
             let fill = match (row + column) % 4 {

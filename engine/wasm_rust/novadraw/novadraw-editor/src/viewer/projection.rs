@@ -151,9 +151,9 @@ where
                 return Err(error);
             }
         };
-        let policy_error = self.policies.roles_mut(part).and_then(|roles| {
+        let policy_error = self.policies.entries_mut(part).and_then(|entries| {
             let mut activated = 0;
-            let error = roles.values_mut().find_map(|policy| {
+            let error = entries.values_mut().find_map(|policy| {
                 policy
                     .activate(host, &self.model)
                     .map(|()| {
@@ -162,7 +162,7 @@ where
                     .err()
             });
             if error.is_some() {
-                for policy in roles.values_mut().take(activated).rev() {
+                for policy in entries.values_mut().take(activated).rev() {
                     policy.deactivate(host, &self.model);
                 }
             }
@@ -176,8 +176,8 @@ where
             return Err(error.into());
         }
         if let Err(error) = self.parts.set_active(part, true) {
-            if let Some(roles) = self.policies.roles_mut(part) {
-                for policy in roles.values_mut().rev() {
+            if let Some(entries) = self.policies.entries_mut(part) {
+                for policy in entries.values_mut().rev() {
                     policy.deactivate(host, &self.model);
                 }
             }
@@ -203,8 +203,8 @@ where
             .and_then(|parent| parent.model_id());
         let host = PolicyHost::new(part, model_id, parent_model);
         self.parts.set_active(part, false)?;
-        if let Some(roles) = self.policies.roles_mut(part) {
-            for policy in roles.values_mut() {
+        if let Some(entries) = self.policies.entries_mut(part) {
+            for policy in entries.values_mut() {
                 policy.deactivate(host, &self.model);
             }
         }
@@ -263,7 +263,7 @@ where
         let policies = behavior.create_policies(&self.model, model_id)?;
         let primary = self
             .runtime
-            .container(parent_figure)?
+            .figure(parent_figure)?
             .add(behavior.create_figure(&self.model, model_id)?)?;
         let mut build = VisualBuildContext::new(&mut self.runtime, primary);
         if let Err(error) = behavior.configure_visual(&self.model, model_id, &mut build) {
@@ -285,12 +285,10 @@ where
             .insert(parent, model_id, primary, content_pane, visuals.clone())?;
         self.model_registry.insert(model_id, part);
         for visual in visuals {
-            self.visual_registry.insert(visual, VisualOwner::Part(part));
+            self.visual_registry.insert(visual, VisualOwner::part(part));
         }
         self.behaviors.insert(part, behavior)?;
-        for (role, policy) in policies {
-            self.policies.install(part, role, policy)?;
-        }
+        self.policies.install_batch(part, policies)?;
         self.refresh_part_visuals(part)?;
         self.activate_part(part, model_id)?;
 
@@ -402,7 +400,7 @@ where
         let (router, constraint) = self.resolve_connection_routing(routing)?;
         let primary = self
             .runtime
-            .container(self.root_layers.connection())?
+            .figure(self.root_layers.connection())?
             .add(behavior.create_figure(&self.model, descriptor.id())?)?;
         if !self.runtime.tree().is_connection_figure(primary) {
             self.runtime.dispose_subtree(primary)?;
@@ -449,19 +447,21 @@ where
         };
         let source_anchor = self
             .runtime
-            .try_register_connection_anchor(source_anchor_strategy)?;
+            .connections()
+            .try_register_anchor(source_anchor_strategy)?;
         let target_anchor = match self
             .runtime
-            .try_register_connection_anchor(target_anchor_strategy)
+            .connections()
+            .try_register_anchor(target_anchor_strategy)
         {
             Ok(anchor) => anchor,
             Err(error) => {
-                let _ = self.runtime.remove_connection_anchor(source_anchor);
+                let _ = self.runtime.connections().remove_anchor(source_anchor);
                 let _ = self.runtime.dispose_subtree(primary);
                 return Err(error.into());
             }
         };
-        let connection = match self.runtime.register_connection_state(
+        let connection = match self.runtime.connections().register_state(
             primary,
             Some(source_anchor),
             Some(target_anchor),
@@ -470,8 +470,8 @@ where
         ) {
             Ok(connection) => connection,
             Err(error) => {
-                let _ = self.runtime.remove_connection_anchor(source_anchor);
-                let _ = self.runtime.remove_connection_anchor(target_anchor);
+                let _ = self.runtime.connections().remove_anchor(source_anchor);
+                let _ = self.runtime.connections().remove_anchor(target_anchor);
                 let _ = self.runtime.dispose_subtree(primary);
                 return Err(error.into());
             }
@@ -489,7 +489,7 @@ where
             .insert(descriptor.id(), part.edit_part());
         for visual in visuals {
             self.visual_registry
-                .insert(visual, VisualOwner::Part(part.edit_part()));
+                .insert(visual, VisualOwner::part(part.edit_part()));
         }
         self.behaviors.insert(part.edit_part(), behavior)?;
         self.connection_projections.insert(
@@ -507,9 +507,7 @@ where
             },
         );
         let initialization = (|| {
-            for (role, policy) in policies {
-                self.policies.install(part.edit_part(), role, policy)?;
-            }
+            self.policies.install_batch(part.edit_part(), policies)?;
             self.refresh_part_visuals(part.edit_part())?;
             self.activate_part(part.edit_part(), descriptor.id())?;
             self.resolve_connection(connection)
@@ -522,7 +520,7 @@ where
     }
 
     fn resolve_connection(&mut self, connection: ConnectionId) -> Result<(), ViewerError> {
-        match self.runtime.resolve_connection_route(
+        match self.runtime.connections().resolve_route(
             connection,
             CoordinateSpace::ChildContent(self.root_layers.connection()),
         ) {
@@ -559,7 +557,7 @@ where
             figure_order.push(figure);
         }
         self.runtime
-            .container(self.root_layers.connection())?
+            .figure(self.root_layers.connection())?
             .set_child_order(&figure_order)?;
         self.parts.set_connection_order(order)?;
         Ok(())
@@ -644,7 +642,8 @@ where
         .map(Ok)
         .unwrap_or_else(|| {
             self.runtime
-                .try_register_connection_anchor(source_anchor_strategy)
+                .connections()
+                .try_register_anchor(source_anchor_strategy)
         })?;
         let target_anchor = if target_reusable {
             current.target_anchor
@@ -654,11 +653,12 @@ where
         .map(Ok)
         .unwrap_or_else(|| {
             self.runtime
-                .try_register_connection_anchor(target_anchor_strategy)
+                .connections()
+                .try_register_anchor(target_anchor_strategy)
         })?;
         self.parts
             .bind_connection(current.part, source_part, target_part)?;
-        self.runtime.register_connection_state(
+        self.runtime.connections().register_state(
             current.connection.figure(),
             Some(source_anchor),
             Some(target_anchor),
@@ -730,7 +730,8 @@ where
         constraint: Option<Box<dyn novadraw::connection::RoutingConstraint>>,
     ) -> Result<bool, ViewerError> {
         self.runtime
-            .set_connection_route_configuration(connection, router, constraint)
+            .connections()
+            .set_route_configuration(connection, router, constraint)
             .map_err(Into::into)
     }
 
@@ -808,15 +809,16 @@ where
             .ok_or(ViewerError::InconsistentState)?;
         if projection.registered {
             self.runtime
-                .remove_connection_state(projection.connection)?;
+                .connections()
+                .remove_state(projection.connection)?;
         }
         let source_anchor = remove_source.then_some(projection.source_anchor).flatten();
         let target_anchor = remove_target.then_some(projection.target_anchor).flatten();
         if let Some(anchor) = source_anchor {
-            self.runtime.remove_connection_anchor(anchor)?;
+            self.runtime.connections().remove_anchor(anchor)?;
         }
         if let Some(anchor) = target_anchor {
-            self.runtime.remove_connection_anchor(anchor)?;
+            self.runtime.connections().remove_anchor(anchor)?;
         }
         self.parts.unbind_connection(connection)?;
         let projection = self
@@ -845,12 +847,8 @@ where
         let overlays: Vec<_> = self
             .visual_registry
             .iter()
-            .filter_map(|(figure, owner)| match owner {
-                VisualOwner::Handle { owner, .. } if *owner == part => Some(*figure),
-                VisualOwner::Feedback {
-                    owner: Some(owner), ..
-                } if *owner == part => Some(*figure),
-                _ => None,
+            .filter_map(|(figure, owner)| {
+                (owner.is_overlay() && owner.owner_part() == Some(part)).then_some(*figure)
             })
             .collect();
         for overlay in overlays {
@@ -866,13 +864,14 @@ where
             .ok_or(ViewerError::InconsistentState)?;
         if projection.registered {
             self.runtime
-                .remove_connection_state(projection.connection)?;
+                .connections()
+                .remove_state(projection.connection)?;
         }
         if let Some(anchor) = projection.source_anchor {
-            self.runtime.remove_connection_anchor(anchor)?;
+            self.runtime.connections().remove_anchor(anchor)?;
         }
         if let Some(anchor) = projection.target_anchor {
-            self.runtime.remove_connection_anchor(anchor)?;
+            self.runtime.connections().remove_anchor(anchor)?;
         }
         self.parts.unbind_connection(connection)?;
         self.model_registry.remove(&model_id);
@@ -956,7 +955,7 @@ where
                 .ok_or(ViewerError::InconsistentState)?
                 .content_pane();
             self.runtime
-                .container(content_pane)?
+                .figure(content_pane)?
                 .move_child_to_index(primary, index)?;
             self.parts.reorder_child(part, child, index)?;
             self.synchronize_subtree_at(child, child_model, snapshot, depth + 1)?;
@@ -1021,12 +1020,9 @@ where
         let overlays: Vec<_> = self
             .visual_registry
             .iter()
-            .filter_map(|(figure, owner)| match owner {
-                VisualOwner::Handle { owner, .. } if ids.contains(owner) => Some(*figure),
-                VisualOwner::Feedback {
-                    owner: Some(owner), ..
-                } if ids.contains(owner) => Some(*figure),
-                _ => None,
+            .filter_map(|(figure, owner)| {
+                (owner.is_overlay() && owner.owner_part().is_some_and(|part| ids.contains(&part)))
+                    .then_some(*figure)
             })
             .collect();
         for overlay in overlays {
@@ -1075,8 +1071,8 @@ where
                 continue;
             };
             let host = PolicyHost::new(part, model_id, None);
-            if let Some(roles) = self.policies.roles_mut(part) {
-                for policy in roles.values_mut() {
+            if let Some(entries) = self.policies.entries_mut(part) {
+                for policy in entries.values_mut() {
                     policy.deactivate(host, &self.model);
                 }
             }
@@ -1104,8 +1100,8 @@ where
                 .and_then(|parent| self.parts.get(parent))
                 .and_then(|parent| parent.model_id());
             let host = PolicyHost::new(id, model_id, parent_model);
-            if let Some(roles) = self.policies.roles_mut(id) {
-                for policy in roles.values_mut() {
+            if let Some(entries) = self.policies.entries_mut(id) {
+                for policy in entries.values_mut() {
                     policy.deactivate(host, &self.model);
                 }
             }

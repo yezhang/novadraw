@@ -6,8 +6,8 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use novadraw::event::{KeyModifiers, MouseButton};
-use novadraw::{Point, Rectangle};
-use novadraw_editor::HandleRole;
+use novadraw::{geometry::Point, geometry::Rectangle};
+use novadraw_editor::overlay::{BendpointCreateAction, BendpointMoveAction};
 use serde::Serialize;
 
 use super::FIRST_CONNECTION_ID;
@@ -481,7 +481,11 @@ fn replay_g5_4(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
     let create_site = harness
         .bendpoint_handle_sites(FIRST_CONNECTION_ID)?
         .into_iter()
-        .find(|site| site.role() == HandleRole::BendpointCreate(0))
+        .find(|site| {
+            site.action()
+                .get::<BendpointCreateAction>()
+                .is_some_and(|index| *index == 0)
+        })
         .ok_or_else(|| ReplayError("connection has no first create handle".to_string()))?;
     let created = Point::new(
         create_site.location().x(),
@@ -510,7 +514,11 @@ fn replay_g5_4(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
     let move_site = harness
         .bendpoint_handle_sites(FIRST_CONNECTION_ID)?
         .into_iter()
-        .find(|site| site.role() == HandleRole::BendpointMove(0))
+        .find(|site| {
+            site.action()
+                .get::<BendpointMoveAction>()
+                .is_some_and(|index| *index == 0)
+        })
         .ok_or_else(|| ReplayError("connection has no first move handle".to_string()))?;
     let moved = Point::new(
         move_site.location().x() + 24.0,
@@ -526,7 +534,11 @@ fn replay_g5_4(evidence: &mut ReplayEvidence) -> Result<(), ReplayError> {
     let move_site = harness
         .bendpoint_handle_sites(FIRST_CONNECTION_ID)?
         .into_iter()
-        .find(|site| site.role() == HandleRole::BendpointMove(0))
+        .find(|site| {
+            site.action()
+                .get::<BendpointMoveAction>()
+                .is_some_and(|index| *index == 0)
+        })
         .ok_or_else(|| ReplayError("moved bendpoint has no move handle".to_string()))?;
     let collapse = midpoint(center(&harness, BLUE_NODE)?, center(&harness, GREEN_NODE)?);
     evidence.checkpoint(

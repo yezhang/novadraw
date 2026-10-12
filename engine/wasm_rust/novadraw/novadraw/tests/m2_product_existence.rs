@@ -1,15 +1,16 @@
-use novadraw::Color;
 use novadraw::advanced::{FigureNode, InteractionState, LayoutState, NodeState};
 use novadraw::container::ViewportFigure;
 use novadraw::figure::{
     Bounded, ChildClippingStrategy, Direction, FigureContainer, RootFigure, border::LineBorder,
 };
 use novadraw::geometry::{Insets, Point, Rectangle};
+use novadraw::graphics::Color;
 use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::render::{BackendCapabilities, SurfaceInfo, command::RenderCommandKind};
 use novadraw::{
-    EllipseFigure, Figure, FigureId, FigureTree, FramePreparation, PolygonFigure, PolylineFigure,
-    RectangleFigure, RoundedRectangleFigure, Runtime, TriangleFigure,
+    figure::EllipseFigure, figure::Figure, figure::PolygonFigure, figure::PolylineFigure,
+    figure::RectangleFigure, figure::RoundedRectangleFigure, figure::TriangleFigure,
+    runtime::FramePreparation, runtime::Runtime, tree::FigureId, tree::FigureTree,
 };
 
 const ROOT_COLOR: Color = Color::rgba(0.10, 0.20, 0.30, 1.0);
@@ -28,9 +29,9 @@ fn architecture_level_runtime_types_are_available_through_advanced() {
     assert_type::<LayoutState>();
     assert_type::<InteractionState>();
 
-    let runtime = Runtime::default();
+    let mut runtime = Runtime::default();
     assert!(runtime.tree().contents().is_none());
-    assert!(runtime.interaction().mouse_target().is_none());
+    assert!(runtime.input().state().mouse_target().is_none());
 }
 
 #[derive(Clone, Debug)]
@@ -294,7 +295,7 @@ fn m2_three_phase_paint_order_is_observable_from_product_api() {
         .expect("valid FigureTree construction");
 
     let mut runtime = Runtime::new(scene);
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: 100.0,
             logical_height: 100.0,

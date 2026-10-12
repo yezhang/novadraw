@@ -10,8 +10,17 @@ use novadraw::figure::{
 };
 use novadraw::render::{BuiltinFont, LineJoin};
 use novadraw::{
-    Color, FigureId, FigureStyle, LabelFigure, Point, PointList, Rectangle, RectangleFigure,
-    RoundedRectangleFigure, Runtime, TextFlowFigure,
+    figure::FigureStyle,
+    figure::LabelFigure,
+    figure::RectangleFigure,
+    figure::RoundedRectangleFigure,
+    figure::TextFlowFigure,
+    geometry::Point,
+    geometry::PointList,
+    geometry::Rectangle,
+    graphics::Color,
+    runtime::{Runtime, SetScalablePolygonAlignment, SetScalablePolygonScaleMode},
+    tree::FigureId,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -70,7 +79,10 @@ pub fn suite() -> DemoSuite {
 fn scene_runtime(title: &str, subtitle: &str) -> (Runtime, FigureId) {
     let mut runtime = Runtime::empty();
     for font in BuiltinFont::ALL {
-        runtime.register_builtin_font(font).expect("built-in font");
+        runtime
+            .resources()
+            .register_builtin_font(font)
+            .expect("built-in font");
     }
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new_with_color(
@@ -107,7 +119,7 @@ fn scene_runtime(title: &str, subtitle: &str) -> (Runtime, FigureId) {
 
 fn add_panel(runtime: &mut Runtime, root: FigureId, bounds: Rectangle) -> FigureId {
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -132,7 +144,7 @@ fn add_label(
     color: Color,
 ) -> FigureId {
     let label = runtime
-        .container(parent)
+        .figure(parent)
         .expect("label parent")
         .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
         .expect("valid label");
@@ -156,7 +168,7 @@ fn add_node(
     fill: Color,
 ) -> FigureId {
     let node = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -193,7 +205,7 @@ fn connection_decoration_scene() -> Runtime {
     );
 
     let connection_figure = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             ConnectionFigure::new()
@@ -216,7 +228,7 @@ fn connection_decoration_scene() -> Runtime {
         Color::rgba(0.75, 0.94, 0.85, 1.0),
     );
     let source_decoration = runtime
-        .container(connection_figure)
+        .figure(connection_figure)
         .expect("connection container")
         .add(Box::new(
             PolylineDecorationFigure::arrow()
@@ -228,7 +240,7 @@ fn connection_decoration_scene() -> Runtime {
         ))
         .expect("valid source decoration");
     let target_decoration = runtime
-        .container(connection_figure)
+        .figure(connection_figure)
         .expect("connection container")
         .add(Box::new(
             PolygonDecorationFigure::triangle()
@@ -247,42 +259,52 @@ fn connection_decoration_scene() -> Runtime {
         "13px Inter Variable",
         RED,
     );
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
+    let direct_router = runtime.connections().direct_router();
     let connection = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),
             RouterBinding::Explicit {
-                router: runtime.direct_connection_router(),
+                router: direct_router,
             },
             None,
         )
         .expect("valid connection state");
     runtime
-        .set_connection_locator(
+        .connections()
+        .set_locator(
             connection,
             source_decoration,
             Box::new(ConnectionLocator::Source),
         )
         .expect("valid source locator");
     runtime
-        .set_connection_locator(
+        .connections()
+        .set_locator(
             connection,
             target_decoration,
             Box::new(ConnectionLocator::Target),
         )
         .expect("valid target locator");
     runtime
-        .set_connection_locator(
+        .connections()
+        .set_locator(
             connection,
             badge,
             Box::new(EndpointLocator::target(25.0, 65.0).expect("valid endpoint offset")),
         )
         .expect("valid badge locator");
     runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
         .expect("decoration route");
     runtime
 }
@@ -298,7 +320,7 @@ fn shortest_path_scene() -> Runtime {
         Rectangle::new(40.0, 105.0, 720.0, 430.0),
     );
     let obstacle = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             RoundedRectangleFigure::new_with_color(
@@ -335,7 +357,7 @@ fn shortest_path_scene() -> Runtime {
             "B",
         ),
     ];
-    let router = runtime.register_connection_router(Box::new(
+    let router = runtime.connections().register_router(Box::new(
         ShortestPathConnectionRouter::new([obstacle])
             .with_clearance(16.0)
             .expect("valid clearance")
@@ -361,18 +383,21 @@ fn shortest_path_scene() -> Runtime {
             Color::rgba(0.78, 0.94, 0.86, 1.0),
         );
         let figure = runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(
                 ConnectionFigure::new().with_stroke(color, CONNECTION_WIDTH),
             ))
             .expect("valid connection");
-        let source_anchor =
-            runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-        let target_anchor =
-            runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+        let source_anchor = runtime
+            .connections()
+            .register_anchor(Box::new(ChopboxAnchor::new(source)));
+        let target_anchor = runtime
+            .connections()
+            .register_anchor(Box::new(ChopboxAnchor::new(target)));
         let connection = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 figure,
                 Some(source_anchor),
                 Some(target_anchor),
@@ -383,9 +408,10 @@ fn shortest_path_scene() -> Runtime {
         connections.push(connection);
     }
     runtime
-        .resolve_connection_route(connections[0], CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connections[0], CoordinateSpace::ChildContent(root))
         .expect("shortest path batch");
-    let stats = runtime.connection_routing_stats();
+    let stats = runtime.connections().routing_stats();
     add_label(
         &mut runtime,
         root,
@@ -460,7 +486,7 @@ fn scalable_polygon_scene() -> Runtime {
             INK,
         );
         let polygon = runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(
                 ScalablePolygonFigure::new(polygon_bounds, template.clone())
@@ -477,14 +503,19 @@ fn scalable_polygon_scene() -> Runtime {
     }
     let runtime_mutated = runtime_mutated.expect("runtime mutation target");
     runtime
-        .scalable_polygon(runtime_mutated)
+        .figure(runtime_mutated)
         .expect("attached scalable polygon")
-        .set_scale_mode(PolygonScaleMode::PreserveAspect)
+        .update_component(SetScalablePolygonScaleMode::new(
+            PolygonScaleMode::PreserveAspect,
+        ))
         .expect("valid mode mutation");
     runtime
-        .scalable_polygon(runtime_mutated)
+        .figure(runtime_mutated)
         .expect("attached scalable polygon")
-        .set_alignment(Alignment::End, Alignment::Start)
+        .update_component(SetScalablePolygonAlignment::new(
+            Alignment::End,
+            Alignment::Start,
+        ))
         .expect("valid alignment mutation");
 
     add_panel(
@@ -501,7 +532,7 @@ fn scalable_polygon_scene() -> Runtime {
         INK,
     );
     let resized = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             ScalablePolygonFigure::new(Rectangle::new(135.0, 380.0, 530.0, 105.0), template)
@@ -549,7 +580,7 @@ fn text_flow_scene() -> Runtime {
         ]),
     ]);
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(TextFlowFigure::new(
             Rectangle::new(65.0, 165.0, 405.0, 330.0),
@@ -571,7 +602,7 @@ fn text_flow_scene() -> Runtime {
         RED,
     );
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             TextFlowFigure::new(
@@ -598,7 +629,7 @@ fn text_flow_scene() -> Runtime {
         GREEN,
     );
     runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(
             TextFlowFigure::new(

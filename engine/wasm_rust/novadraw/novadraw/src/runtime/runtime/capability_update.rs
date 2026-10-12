@@ -1,10 +1,11 @@
+use crate::runtime::FigureUpdateEffectContext;
 use crate::{
     CapabilityUpdateError, CapabilityUpdateReceipt, FigureCapabilityContext,
     FigureCapabilityUpdate, FigureId,
 };
 
 use super::Runtime;
-use super::component_update::FigureUpdateCommitContext;
+use super::component_update::FigureUpdateRevisionContext;
 
 impl Runtime {
     /// Applies a typed update through an attached Figure capability descriptor.
@@ -17,7 +18,7 @@ impl Runtime {
         U: FigureCapabilityUpdate,
     {
         self.validate_attached_figure(figure)?;
-        let (previous_revision, revision, bounds, old_visual_bounds, visible) = {
+        let (previous_revision, bounds, old_visual_bounds, visible) = {
             let node = self
                 .tree
                 .node(figure)
@@ -29,13 +30,8 @@ impl Runtime {
                     figure,
                     capability: U::KEY.name(),
                 })?;
-            let revision = node
-                .component_revision
-                .checked_add(1)
-                .ok_or(CapabilityUpdateError::RevisionExhausted(figure))?;
             (
                 node.component_revision,
-                revision,
                 node.figure_bounds(),
                 node.visual_bounds(),
                 self.tree.is_effectively_visible(figure),
@@ -59,13 +55,26 @@ impl Runtime {
                     .map_err(CapabilityUpdateError::Query)?
                     .expect("Figure capability registry cannot change after attach");
                 update
-                    .prepare(capability, context)
+                    .prepare(capability, node.figure.as_ref(), context)
                     .map_err(CapabilityUpdateError::Rejected)?
+            };
+            prepared
+                .validate_effects(FigureUpdateEffectContext {
+                    runtime,
+                    figure_id: figure,
+                })
+                .map_err(CapabilityUpdateError::Effect)?;
+            let revision = if prepared.changed() {
+                previous_revision
+                    .checked_add(1)
+                    .ok_or(CapabilityUpdateError::RevisionExhausted(figure))?
+            } else {
+                previous_revision
             };
 
             let receipt = runtime.commit_prepared_figure_update(
                 figure,
-                FigureUpdateCommitContext {
+                FigureUpdateRevisionContext {
                     previous_revision,
                     revision,
                     old_visual_bounds,
@@ -86,6 +95,7 @@ impl Runtime {
                 previous_revision: receipt.previous_revision,
                 revision: receipt.revision,
                 invalidation: receipt.invalidation,
+                changed: receipt.changed,
             })
         })
     }

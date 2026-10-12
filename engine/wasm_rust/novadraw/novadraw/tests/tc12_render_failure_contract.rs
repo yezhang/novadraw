@@ -3,7 +3,7 @@ use novadraw::render::{
     ResourceSync, SurfaceInfo,
 };
 use novadraw::runtime::{FramePreparation, SubmissionAcknowledgement, SubmissionCompletionError};
-use novadraw::{RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, runtime::Runtime};
 
 fn surface() -> SurfaceInfo {
     SurfaceInfo {
@@ -20,8 +20,9 @@ fn runtime_with_frame() -> (Runtime, novadraw::render::RenderSubmission) {
     runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 80.0, 60.0)))
         .expect("valid fixture");
-    let FramePreparation::Ready(submission) =
-        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
+    let FramePreparation::Ready(submission) = runtime
+        .frames()
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
     else {
         panic!("fixture must prepare a frame");
     };
@@ -43,7 +44,7 @@ fn dispositions_preserve_their_distinct_acknowledgements() {
     ] {
         let (mut runtime, submission) = runtime_with_frame();
         assert_eq!(
-            runtime.complete_submission(
+            runtime.frames().complete_submission(
                 submission.session_id,
                 submission.frame_id,
                 Ok(disposition),
@@ -53,6 +54,7 @@ fn dispositions_preserve_their_distinct_acknowledgements() {
 
         if disposition != RenderDisposition::Presented {
             let retry = runtime
+                .frames()
                 .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
                 .into_ready()
                 .expect("non-presented frame must remain pending");
@@ -68,7 +70,7 @@ fn surface_loss_retries_full_frame_without_invalidating_backend_session() {
     let diagnostic = RenderFailureDiagnostic::new("surface drawable was lost");
 
     assert_eq!(
-        runtime.complete_submission(
+        runtime.frames().complete_submission(
             submission.session_id,
             submission.frame_id,
             Err(RenderFailure::SurfaceLost(diagnostic)),
@@ -79,6 +81,7 @@ fn surface_loss_retries_full_frame_without_invalidating_backend_session() {
     );
 
     let retry = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("surface recovery must retry");
@@ -92,6 +95,7 @@ fn device_loss_invalidates_session_and_refreezes_snapshot() {
     let previous = submission.session_id;
 
     let acknowledgement = runtime
+        .frames()
         .complete_submission(
             previous,
             submission.frame_id,
@@ -113,6 +117,7 @@ fn device_loss_invalidates_session_and_refreezes_snapshot() {
     assert_eq!(diagnostic.summary(), "adapter reset");
 
     let replacement = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("replacement backend must receive a recovery frame");
@@ -151,7 +156,11 @@ fn deterministic_and_terminal_failures_do_not_collapse_into_retry() {
     ] {
         let (mut runtime, submission) = runtime_with_frame();
         assert_eq!(
-            runtime.complete_submission(submission.session_id, submission.frame_id, Err(failure),),
+            runtime.frames().complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Err(failure),
+            ),
             Ok(expected)
         );
     }
@@ -161,7 +170,7 @@ fn deterministic_and_terminal_failures_do_not_collapse_into_retry() {
 fn stale_or_duplicate_completion_is_structurally_rejected() {
     let (mut runtime, submission) = runtime_with_frame();
     assert_eq!(
-        runtime.complete_submission(
+        runtime.frames().complete_submission(
             submission.session_id,
             submission.frame_id.next(),
             Ok(RenderDisposition::Presented),
@@ -172,7 +181,7 @@ fn stale_or_duplicate_completion_is_structurally_rejected() {
         })
     );
     assert_eq!(
-        runtime.complete_submission(
+        runtime.frames().complete_submission(
             submission.session_id,
             submission.frame_id,
             Ok(RenderDisposition::Presented),
@@ -180,7 +189,7 @@ fn stale_or_duplicate_completion_is_structurally_rejected() {
         Ok(SubmissionAcknowledgement::Presented)
     );
     assert_eq!(
-        runtime.complete_submission(
+        runtime.frames().complete_submission(
             submission.session_id,
             submission.frame_id,
             Ok(RenderDisposition::Presented),

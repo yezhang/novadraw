@@ -3,7 +3,7 @@
 //! G1 provides application model identity/notification boundaries and model-only command history.
 //! G2 adds EditPart topology and model-to-Figure projection without moving application state into
 //! the Figure runtime. G3 adds Viewer selection, targeting, root layers, and input arbitration.
-//! G4 adds typed editing requests, role-keyed policies, active Tools, and model Command execution.
+//! G4 adds open typed requests, policy registries, active Tools, and model Command execution.
 //! G5.1 adds ordered connection-model projection and Runtime routing bindings. G5.2 adds
 //! source-locked, two-stage connection creation through model Commands.
 
@@ -13,8 +13,9 @@ mod autoexpose;
 pub mod command;
 mod direct_edit;
 mod domain;
-mod feedback;
 pub mod model;
+#[path = "feedback/mod.rs"]
+pub mod overlay;
 mod part;
 pub mod policy;
 mod request;
@@ -35,8 +36,12 @@ pub use direct_edit::{
     TextEditMode,
 };
 pub use domain::{DomainPointerRelease, EditorDomain, EditorDomainError};
-pub use feedback::{BendpointHandleSite, FeedbackId, HandleId, HandleRole, VisualOwner};
 pub use model::{ModelAdapter, ModelConnection, ModelEvent, ModelRevision, ModelRevisionError};
+pub(crate) use overlay::{
+    BendpointCreateAction, BendpointHandleSite, BendpointMoveAction, ConnectionEndpointAction,
+    FeedbackId, HandleAction, HandleActionProtocol, HandleId, ResizeAction, SelectionAction,
+    VisualOwner,
+};
 pub use part::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionEndpoints,
     ConnectionPartFactoryContext, ConnectionPartId, ConnectionRouterKey,
@@ -46,22 +51,27 @@ pub use part::{
     VisualUpdateContext,
 };
 pub use policy::{
-    ConnectionCreation, ConnectionFeedbackRoute, ConnectionReconnection, EditPolicy,
-    FeedbackVisual, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    ComponentSlot, ConnectionCreation, ConnectionCreationSlot, ConnectionFeedbackRoute,
+    ConnectionReconnectSlot, ConnectionReconnection, DirectTextEditSlot, EditPolicy,
+    EditingContribution, FeedbackVisual, LayoutSlot, PolicyError, PolicyHandler,
+    PolicyHandlerBuilder, PolicyHost, PolicyInstallation, PolicyKey, PolicySlot, PolicyTarget,
+    PrimaryDragSlot, SelectionFeedbackSlot,
 };
 pub use request::{
-    BendpointOperation, BendpointRequest, ChangeBoundsKind, ChangeBoundsRequest,
-    ConnectionEndpoint, CreateConnectionRequest, CreateRequest, CreationType, CreationTypeError,
-    DeleteRequest, EditorRequest, InteractionRevision, InteractionRevisionError,
-    ReconnectConnectionRequest, RequestModifiers, ResizeDirection,
+    BendpointOperation, BendpointRequest, ChangeBounds, ChangeBoundsKind, ChangeBoundsRequest,
+    ConnectionEndpoint, CreateChild, CreateConnection, CreateConnectionRequest, CreateRequest,
+    CreationType, CreationTypeError, DeleteParts, DeleteRequest, EditBendpoint,
+    InteractionRevision, InteractionRevisionError, ReconnectConnection, ReconnectConnectionRequest,
+    RequestKey, RequestMetadata, RequestModifiers, RequestPayload, RequestProtocol,
+    RequestResolution, ResizeDirection, StartDirectTextEdit,
 };
 pub use selection::{SelectionDelta, SelectionModel};
 pub use text_input::{
     SessionTextInputEvent, TextInputEffect, TextInputEvent, TextInputPurpose, TextInputSnapshot,
 };
 pub use tool::{
-    ConnectionBendpointTool, ConnectionCreationTool, ConnectionEndpointRelease,
-    ConnectionEndpointTool, ConnectionToolPress, SelectionTool, ToolError, ToolRelease,
+    ConnectionBendpointTool, ConnectionCreationTool, ConnectionEndpointTool, ErasedToolKey,
+    SelectionTool, Tool, ToolContext, ToolDirective, ToolError, ToolKey, ToolMouseEvent,
 };
 pub use viewer::{
     GraphicalViewer, RootLayers, SelectionMode, ViewerDrive, ViewerError, ViewerInputOutcome,

@@ -211,7 +211,7 @@ fn normalize_ime(event: Ime, composing: &mut bool) -> Option<TextInputEvent> {
     })
 }
 
-fn set_cursor_area(window: &Window, area: novadraw::Rectangle) {
+fn set_cursor_area(window: &Window, area: novadraw::geometry::Rectangle) {
     window.set_ime_cursor_area(
         LogicalPosition::new(area.x, area.y),
         LogicalSize::new(area.width, area.height),

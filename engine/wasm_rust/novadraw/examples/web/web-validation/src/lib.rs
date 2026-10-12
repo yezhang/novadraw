@@ -23,7 +23,10 @@ use novadraw::render::{
     RenderFailureDiagnostic, RenderResult, RenderSubmission, SurfaceInfo,
 };
 use novadraw::runtime::SubmissionAcknowledgement;
-use novadraw::{Color, Figure, FramePreparation, Rectangle, Runtime};
+use novadraw::{
+    figure::Figure, geometry::Rectangle, graphics::Color, runtime::FramePreparation,
+    runtime::Runtime,
+};
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_example_scenes::{
     DemoSuite, SceneSpec, ValidationKind, catalog,
@@ -755,9 +758,10 @@ impl WebValidationApp {
         let surface = measure_surface(&self.window, &self.canvas, self.scale_override);
         self.host.set_surface_info(surface);
         self.runtime
+            .frames()
             .resize_logical_viewport(surface.logical_width, surface.logical_height)
             .expect("browser surface must provide a valid logical viewport");
-        self.runtime.request_full_redraw();
+        self.runtime.frames().request_full_redraw();
     }
 
     fn apply_scene_size(&self) {
@@ -867,6 +871,7 @@ impl WebValidationApp {
         }
         let preparation = self
             .runtime
+            .frames()
             .prepare_submission(self.host.surface_info(), self.backend.capabilities());
         let submission = match preparation {
             FramePreparation::Ready(submission) => submission,
@@ -907,6 +912,7 @@ impl WebValidationApp {
         }
         let acknowledgement = self
             .runtime
+            .frames()
             .complete_submission(submission.session_id, submission.frame_id, result)
             .expect("prepared web frame must match its completion");
         match acknowledgement {

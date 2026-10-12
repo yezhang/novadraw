@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use novadraw::Runtime;
 use novadraw::render::ImageData;
 use novadraw::runtime::ResourceStatus;
+use novadraw::runtime::Runtime;
 use novadraw_platform_winit::FileResourceProvider;
 
 #[test]
@@ -14,16 +14,21 @@ fn file_provider_keeps_io_decode_and_runtime_completion_separate() {
     let image_data = ImageData::decode(&bytes, 1.0).expect("fixture decode");
 
     let mut runtime = Runtime::empty();
-    let image = runtime.register_image().expect("image registration");
+    let image = runtime
+        .resources()
+        .register_image()
+        .expect("image registration");
     let request = runtime
-        .begin_resource_request(image.resource_id())
+        .resources()
+        .begin_request(image.resource_id())
         .expect("image request");
     runtime
+        .resources()
         .complete_image_request(request, image_data)
         .expect("resource completion");
 
     assert_eq!(
-        runtime.resource_status(image.resource_id()),
+        runtime.resources().status(image.resource_id()),
         Ok(&ResourceStatus::Ready { revision: 1 })
     );
 }

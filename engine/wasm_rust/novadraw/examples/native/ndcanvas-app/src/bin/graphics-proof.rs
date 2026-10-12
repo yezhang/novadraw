@@ -84,23 +84,24 @@ impl Proof {
                     "miter-large" => {
                         scene
                             .runtime
-                            .point_list(scene.miter)
+                            .figure(scene.miter)
                             .unwrap()
-                            .set_miter_limit(8.0)
+                            .update_component(novadraw::runtime::SetPolylineMiterLimit::new(8.0))
                             .unwrap();
                     }
                     "miter-restored" => {
                         scene
                             .runtime
-                            .point_list(scene.miter)
+                            .figure(scene.miter)
                             .unwrap()
-                            .set_miter_limit(1.0)
+                            .update_component(novadraw::runtime::SetPolylineMiterLimit::new(1.0))
                             .unwrap();
                     }
                     _ => {}
                 }
                 let submission = scene
                     .runtime
+                    .frames()
                     .prepare_submission(surface, renderer.capabilities())
                     .into_ready()
                     .expect("changed scene produces a frame");
@@ -159,6 +160,7 @@ impl Proof {
                 {
                     let acknowledgement = scene
                         .runtime
+                        .frames()
                         .complete_submission(submission.session_id, submission.frame_id, outcome)
                         .expect("retry frame completion");
                     assert!(matches!(
@@ -174,6 +176,7 @@ impl Proof {
                 );
                 let acknowledgement = scene
                     .runtime
+                    .frames()
                     .complete_submission(submission.session_id, submission.frame_id, outcome)
                     .expect("graphics proof frame completion");
                 assert_eq!(acknowledgement, SubmissionAcknowledgement::Presented);
@@ -182,9 +185,10 @@ impl Proof {
                     .unwrap();
             }
             // Fresh full repaint must match cancellation through partial damage.
-            scene.runtime.request_full_redraw();
+            scene.runtime.frames().request_full_redraw();
             let submission = scene
                 .runtime
+                .frames()
                 .prepare_submission(surface, renderer.capabilities())
                 .into_ready()
                 .unwrap();

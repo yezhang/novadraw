@@ -20,7 +20,9 @@ use novadraw::layout::{
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::{FramePreparation, RuntimeMutationError};
 use novadraw::tree::{ChildInsertionError, GraphMutationError};
-use novadraw::{Figure, FigureId, FigureTree, RectangleFigure, Runtime};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, runtime::Runtime, tree::FigureId, tree::FigureTree,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Placement(Rectangle);
@@ -176,7 +178,7 @@ fn builder_and_runtime_insert_preserve_order_and_external_constraints() {
         } else {
             runtime = Runtime::new(tree);
             inserted = runtime
-                .container(parent)
+                .figure(parent)
                 .unwrap()
                 .insert_with_constraint(1, Box::new(ExternalFigure(trace.clone())), placement)
                 .unwrap();
@@ -231,11 +233,13 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
         scale_factor: 1.0,
     };
     let baseline = runtime
+        .frames()
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 baseline.session_id,
                 baseline.frame_id,
@@ -243,17 +247,21 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
             )
             .is_ok()
     );
-    assert!(!runtime.has_pending_update());
+    assert!(!runtime.frames().has_pending_update());
     let generation = runtime
         .tree()
         .node(parent)
         .unwrap()
         .layout_state()
         .generation();
-    runtime.add_ancestor_listener(Box::new(Events(trace.clone())));
-    runtime.add_layout_listener(Box::new(Events(trace.clone())));
+    runtime
+        .observations()
+        .add_ancestor_listener(Box::new(Events(trace.clone())));
+    runtime
+        .observations()
+        .add_layout_listener(Box::new(Events(trace.clone())));
     trace.borrow_mut().clear();
-    let result = runtime.container(parent).unwrap().insert_with_constraint(
+    let result = runtime.figure(parent).unwrap().insert_with_constraint(
         0,
         Box::new(ExternalFigure(trace.clone())),
         "unsupported",
@@ -274,9 +282,11 @@ fn rejected_constraint_never_publishes_node_or_reuses_failed_identity() {
             .generation(),
         generation
     );
-    assert!(!runtime.has_pending_update());
+    assert!(!runtime.frames().has_pending_update());
     assert!(matches!(
-        runtime.prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
+        runtime
+            .frames()
+            .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL),
         FramePreparation::Idle
     ));
     assert_eq!(&*trace.borrow(), &[("validate", child)]);
@@ -288,10 +298,14 @@ fn runtime_publishes_one_added_and_one_constraint_event() {
     let (tree, parent) = tree_with_layout(trace.clone());
     let mut runtime = Runtime::new(tree);
     prepare_next_submission(&mut runtime).unwrap();
-    runtime.add_ancestor_listener(Box::new(Events(trace.clone())));
-    runtime.add_layout_listener(Box::new(Events(trace.clone())));
+    runtime
+        .observations()
+        .add_ancestor_listener(Box::new(Events(trace.clone())));
+    runtime
+        .observations()
+        .add_layout_listener(Box::new(Events(trace.clone())));
     let child = runtime
-        .container(parent)
+        .figure(parent)
         .unwrap()
         .insert_with_constraint(
             0,
@@ -299,7 +313,7 @@ fn runtime_publishes_one_added_and_one_constraint_event() {
             Placement(Rectangle::new(10.0, 10.0, 20.0, 20.0)),
         )
         .unwrap();
-    assert!(runtime.has_pending_update());
+    assert!(runtime.frames().has_pending_update());
     assert_eq!(
         &*trace.borrow(),
         &[("validate", child), ("attached", child)]
@@ -332,13 +346,13 @@ fn index_boundaries_are_checked_before_constraint_validation() {
     let first = tree.builder().insert_child(parent, 0, rectangle()).unwrap();
     let mut runtime = Runtime::new(tree);
     let appended = runtime
-        .container(parent)
+        .figure(parent)
         .unwrap()
         .insert(2, rectangle())
         .unwrap();
     assert!(
         runtime
-            .container(parent)
+            .figure(parent)
             .unwrap()
             .insert(4, rectangle())
             .is_err()
@@ -370,7 +384,7 @@ fn constraint_without_manager_is_retained_and_checked_on_manager_installation() 
     assert_eq!(tree.layout_constraint::<Placement>(child), Some(&placement));
     let mut runtime = Runtime::new(tree);
     runtime
-        .container(parent)
+        .figure(parent)
         .unwrap()
         .set_layout_manager(Box::new(ExternalLayout(Trace::default())))
         .unwrap();
@@ -470,7 +484,7 @@ fn admission_and_target_errors_do_not_reach_constraint_validator() {
         let mut runtime = Runtime::new(tree);
         assert!(matches!(
             runtime
-                .container(parent)
+                .figure(parent)
                 .unwrap()
                 .insert_with_constraint(0, rectangle(), "unused"),
             Err(
@@ -494,16 +508,16 @@ fn admission_and_target_errors_do_not_reach_constraint_validator() {
     let child = tree.builder().insert_child(parent, 0, rectangle()).unwrap();
     let mut runtime = Runtime::new(tree);
     assert!(matches!(
-        runtime.container(foreign_parent),
+        runtime.figure(foreign_parent),
         Err(RuntimeMutationError::ForeignRuntime(_))
     ));
     assert!(matches!(
-        runtime.container(runtime.tree().root_id()),
+        runtime.figure(runtime.tree().root_id()),
         Err(RuntimeMutationError::SyntheticRootOperation(_))
     ));
-    runtime.container(parent).unwrap().remove(child).unwrap();
+    runtime.figure(parent).unwrap().remove(child).unwrap();
     assert!(matches!(
-        runtime.container(child),
+        runtime.figure(child),
         Err(RuntimeMutationError::UnknownOrDisposedFigure(_))
     ));
 }
@@ -533,7 +547,7 @@ fn validator_panic_retires_unpublished_identity_and_faults_runtime() {
     let (tree, parent) = tree_with_layout(trace.clone());
     let mut runtime = Runtime::new(tree);
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        runtime.container(parent).unwrap().insert_with_constraint(
+        runtime.figure(parent).unwrap().insert_with_constraint(
             0,
             Box::new(ExternalFigure(trace.clone())),
             PanicConstraint,
@@ -544,7 +558,7 @@ fn validator_panic_retires_unpublished_identity_and_faults_runtime() {
     assert!(runtime.tree().node(failed).is_none());
     assert_eq!(runtime.tree().child_order(parent), Some(vec![]));
     assert!(matches!(
-        runtime.container(parent),
+        runtime.figure(parent),
         Err(RuntimeMutationError::Faulted)
     ));
     assert_eq!(&*trace.borrow(), &[("validate", failed)]);

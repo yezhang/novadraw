@@ -6,7 +6,10 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use novadraw::render::submission::{BackendSessionId, FrameId};
 use novadraw::render::{RenderBackend, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::SubmissionAcknowledgement;
-use novadraw::{Color, FigureTree, FramePreparation, RectangleFigure, Runtime};
+use novadraw::{
+    figure::RectangleFigure, graphics::Color, runtime::FramePreparation, runtime::Runtime,
+    tree::FigureTree,
+};
 use novadraw_backend_vello::{VelloAdapterInfo, VelloRenderer};
 use serde::Serialize;
 use wasm_bindgen::JsCast;
@@ -200,11 +203,12 @@ struct PerformanceBenchmark {
 
 impl PerformanceBenchmark {
     fn begin_frame(&mut self) -> Result<(), JsValue> {
-        self.runtime.request_full_redraw();
+        self.runtime.frames().request_full_redraw();
         let frame_started_at_ms = browser_now(&self.window)?;
         let prepare_started_at_ms = browser_now(&self.window)?;
         let preparation = self
             .runtime
+            .frames()
             .prepare_submission(surface_info(), self.backend.capabilities());
         let submission = match preparation {
             FramePreparation::Ready(submission) => submission,
@@ -238,6 +242,7 @@ impl PerformanceBenchmark {
         if outcome != Ok(RenderDisposition::Presented) {
             let acknowledgement = self
                 .runtime
+                .frames()
                 .complete_submission(session_id, frame_id, outcome.clone())
                 .expect("failed performance frame completion");
             return Err(JsValue::from_str(&format!(
@@ -280,6 +285,7 @@ impl PerformanceBenchmark {
         }
         let acknowledgement = self
             .runtime
+            .frames()
             .complete_submission(
                 pending.session_id,
                 pending.frame_id,

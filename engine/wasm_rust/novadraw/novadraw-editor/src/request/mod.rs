@@ -1,10 +1,184 @@
 //! Typed, model-independent editing intent.
 
-use std::{error::Error, fmt, sync::Arc};
+use std::{any::TypeId, error::Error, fmt, marker::PhantomData, sync::Arc};
 
 use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
 
-use crate::{ConnectionPartId, EditPartId};
+use crate::{ConnectionPartId, EditPartId, ModelAdapter, PolicyError};
+
+/// Payload accepted by one typed request protocol.
+pub trait RequestPayload: 'static {}
+
+impl<T: 'static> RequestPayload for T {}
+
+/// Typed identity and diagnostic label of one request protocol.
+pub struct RequestKey<R: ?Sized> {
+    name: &'static str,
+    marker: PhantomData<fn() -> R>,
+}
+
+impl<R: ?Sized> RequestKey<R> {
+    /// Creates a typed request identity for one protocol marker.
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            marker: PhantomData,
+        }
+    }
+
+    /// Returns the stable diagnostic name.
+    pub const fn name(self) -> &'static str {
+        self.name
+    }
+}
+
+impl<R: ?Sized> Clone for RequestKey<R> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<R: ?Sized> Copy for RequestKey<R> {}
+
+impl<R: ?Sized> fmt::Debug for RequestKey<R> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("RequestKey")
+            .field(&self.name)
+            .finish()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct ErasedRequestKey {
+    type_id: TypeId,
+    name: &'static str,
+}
+
+impl ErasedRequestKey {
+    pub(crate) fn of<R: 'static>(key: RequestKey<R>) -> Self {
+        Self {
+            type_id: TypeId::of::<R>(),
+            name: key.name(),
+        }
+    }
+
+    pub(crate) const fn name(self) -> &'static str {
+        self.name
+    }
+}
+
+/// Common causal identity carried by every request envelope.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RequestMetadata {
+    revision: InteractionRevision,
+    source_parts: Arc<[EditPartId]>,
+}
+
+impl RequestMetadata {
+    /// Creates metadata for an ordered set of source parts.
+    pub fn new(revision: InteractionRevision, source_parts: impl Into<Arc<[EditPartId]>>) -> Self {
+        Self {
+            revision,
+            source_parts: source_parts.into(),
+        }
+    }
+
+    /// Returns the interaction revision.
+    pub const fn revision(&self) -> InteractionRevision {
+        self.revision
+    }
+
+    /// Returns source parts in deterministic contribution order.
+    pub fn source_parts(&self) -> &[EditPartId] {
+        &self.source_parts
+    }
+}
+
+/// Reduced result of one typed request dispatch.
+pub struct RequestResolution<C> {
+    contributions: Vec<C>,
+}
+
+impl<C> RequestResolution<C> {
+    /// Preserves all contributions in deterministic policy order.
+    pub fn all(contributions: Vec<C>) -> Self {
+        Self { contributions }
+    }
+
+    /// Returns the number of accepted contributions.
+    pub fn len(&self) -> usize {
+        self.contributions.len()
+    }
+
+    /// Returns whether no policy contributed.
+    pub fn is_empty(&self) -> bool {
+        self.contributions.is_empty()
+    }
+
+    /// Returns the reduced contributions.
+    pub fn contributions(&self) -> &[C] {
+        &self.contributions
+    }
+
+    /// Consumes the resolution.
+    pub fn into_contributions(self) -> Vec<C> {
+        self.contributions
+    }
+}
+
+impl<C> RequestResolution<C> {
+    pub(crate) fn at_most_one(
+        contributions: Vec<C>,
+        request_name: &'static str,
+    ) -> Result<Self, PolicyError> {
+        if contributions.len() > 1 {
+            return Err(PolicyError::operation(format!(
+                "multiple policies accepted {request_name}"
+            )));
+        }
+        Ok(Self::all(contributions))
+    }
+}
+
+/// Open typed request family implemented equally by built-in and external markers.
+pub trait RequestProtocol<A: ModelAdapter>: 'static {
+    /// Request-specific immutable payload.
+    type Payload: RequestPayload;
+    /// One policy's typed contribution.
+    type Contribution: 'static;
+
+    /// Returns the typed protocol identity.
+    fn key() -> RequestKey<Self>;
+
+    /// Reduces deterministic policy contributions.
+    fn reduce(
+        contributions: Vec<Self::Contribution>,
+    ) -> Result<RequestResolution<Self::Contribution>, PolicyError> {
+        Ok(RequestResolution::all(contributions))
+    }
+}
+
+/// Built-in move and resize request family.
+pub struct ChangeBounds;
+
+/// Built-in child creation request family.
+pub struct CreateChild;
+
+/// Built-in deletion request family.
+pub struct DeleteParts;
+
+/// Built-in connection creation request family.
+pub struct CreateConnection;
+
+/// Built-in connection reconnection request family.
+pub struct ReconnectConnection;
+
+/// Built-in bendpoint editing request family.
+pub struct EditBendpoint;
+
+/// Built-in direct text editing request family.
+pub struct StartDirectTextEdit;
 
 /// Monotonic identity of one interaction update.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -540,65 +714,5 @@ impl CreateConnectionRequest {
     /// Returns the interaction revision.
     pub const fn revision(&self) -> InteractionRevision {
         self.revision
-    }
-}
-
-/// Closed set of editing requests implemented by the first editor vertical slice.
-#[derive(Clone, Debug, PartialEq)]
-pub enum EditorRequest {
-    /// Move or resize existing parts.
-    ChangeBounds(ChangeBoundsRequest),
-    /// Create one child.
-    Create(CreateRequest),
-    /// Delete existing parts.
-    Delete(DeleteRequest),
-    /// Create one model connection through a source-locked two-stage gesture.
-    CreateConnection(CreateConnectionRequest),
-    /// Move one endpoint of an existing connection.
-    ReconnectConnection(ReconnectConnectionRequest),
-    /// Create, move, or delete one connection bendpoint.
-    Bendpoint(BendpointRequest),
-}
-
-impl EditorRequest {
-    /// Returns a stable command label for this request kind.
-    pub const fn label(&self) -> &'static str {
-        match self {
-            Self::ChangeBounds(request) => match request.kind() {
-                ChangeBoundsKind::Move => "Move",
-                ChangeBoundsKind::Resize(_) => "Resize",
-            },
-            Self::Create(_) => "Create",
-            Self::Delete(_) => "Delete",
-            Self::CreateConnection(_) => "Create connection",
-            Self::ReconnectConnection(_) => "Reconnect connection",
-            Self::Bendpoint(_) => "Edit bendpoint",
-        }
-    }
-
-    /// Returns the interaction revision shared by every request kind.
-    pub const fn revision(&self) -> InteractionRevision {
-        match self {
-            Self::ChangeBounds(request) => request.revision(),
-            Self::Create(request) => request.revision(),
-            Self::Delete(request) => request.revision(),
-            Self::CreateConnection(request) => request.revision(),
-            Self::ReconnectConnection(request) => request.revision(),
-            Self::Bendpoint(request) => request.revision(),
-        }
-    }
-
-    /// Returns source parts that contribute commands.
-    pub fn source_parts(&self) -> &[EditPartId] {
-        match self {
-            Self::ChangeBounds(request) => request.parts(),
-            Self::Create(request) => std::slice::from_ref(&request.parent),
-            Self::Delete(request) => request.parts(),
-            Self::CreateConnection(request) => std::slice::from_ref(&request.source),
-            Self::ReconnectConnection(request) => {
-                std::slice::from_ref(request.connection.edit_part_ref())
-            }
-            Self::Bendpoint(request) => std::slice::from_ref(request.connection.edit_part_ref()),
-        }
     }
 }

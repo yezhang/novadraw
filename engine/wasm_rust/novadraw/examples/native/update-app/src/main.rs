@@ -12,7 +12,7 @@ use novadraw::render::submission::ResourceSync;
 use novadraw::render::{
     BackendCapabilities, DamageMode, RenderDisposition, RenderSubmission, SurfaceInfo,
 };
-use novadraw::{FigureId, FramePreparation, Rectangle, Runtime};
+use novadraw::{geometry::Rectangle, runtime::FramePreparation, runtime::Runtime, tree::FigureId};
 use novadraw_example_scenes::update::{
     STRESS_FIGURE_COUNT, WINDOW_HEIGHT, WINDOW_WIDTH, baseline_scene, stress_scene,
     validation_scene,
@@ -53,7 +53,7 @@ impl UpdateListener for CaptureListener {
 }
 
 fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: WINDOW_WIDTH,
             logical_height: WINDOW_HEIGHT,
@@ -66,6 +66,7 @@ fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
         return None;
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -118,9 +119,11 @@ fn verify_notification_order() -> Result<VerificationMetrics, String> {
         .ok_or("missing root children")?[0];
     prepare_next_submission(&mut runtime);
     let effects = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_update_listener(Box::new(CaptureListener {
-        effects: effects.clone(),
-    }));
+    runtime
+        .observations()
+        .add_update_listener(Box::new(CaptureListener {
+            effects: effects.clone(),
+        }));
     runtime
         .figure(child)
         .unwrap()
@@ -201,9 +204,11 @@ fn verify_runtime_fault_boundary() -> Result<VerificationMetrics, String> {
         .child_order(root)
         .ok_or("missing root children")?[0];
     prepare_next_submission(&mut runtime);
-    runtime.add_update_listener(Box::new(PanicOnceListener {
-        did_panic: AtomicBool::new(false),
-    }));
+    runtime
+        .observations()
+        .add_update_listener(Box::new(PanicOnceListener {
+            did_panic: AtomicBool::new(false),
+        }));
     runtime
         .figure(child)
         .unwrap()
@@ -260,8 +265,12 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         scale_factor: 1.0,
     };
     let mut runtime = Runtime::new(baseline_scene());
-    let image = runtime.register_image().expect("image registration");
+    let image = runtime
+        .resources()
+        .register_image()
+        .expect("image registration");
     runtime
+        .resources()
         .complete_image(
             image,
             ImageData::from_rgba(1, 1, vec![255, 255, 255, 255], 1.0),
@@ -269,6 +278,7 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         .map_err(|error| error.to_string())?;
 
     let first = runtime
+        .frames()
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .map_err(|state| format!("initial submission was not ready: {state:?}"))?;
@@ -283,6 +293,7 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         return Err("initial submission did not carry full damage and resources".to_string());
     }
     if runtime
+        .frames()
         .complete_submission(
             first.session_id,
             first.frame_id,
@@ -294,6 +305,7 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
     }
 
     let retry = runtime
+        .frames()
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .map_err(|state| format!("retry submission was not ready: {state:?}"))?;
@@ -308,6 +320,7 @@ fn verify_submission_lifecycle() -> Result<VerificationMetrics, String> {
         return Err("retry did not restore full damage and resources".to_string());
     }
     if runtime
+        .frames()
         .complete_submission(
             retry.session_id,
             retry.frame_id,

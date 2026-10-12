@@ -6,7 +6,10 @@ use novadraw::event::{
 };
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::{StableQueryError, StableSceneQuery};
-use novadraw::{FigureId, FigureTree, Rectangle, RectangleFigure, Runtime};
+use novadraw::{
+    figure::RectangleFigure, geometry::Rectangle, runtime::Runtime, tree::FigureId,
+    tree::FigureTree,
+};
 
 #[derive(Clone, Debug)]
 struct ObservedMove {
@@ -80,23 +83,27 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     let baseline = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     runtime
+        .frames()
         .complete_submission(
             baseline.session_id,
             baseline.frame_id,
             Ok(RenderDisposition::Presented),
         )
         .expect("frame completion");
-    let baseline_epoch = runtime.stable_query().unwrap().epoch();
+    let baseline_epoch = runtime.observations().stable_query().unwrap().epoch();
 
     let records = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_observation_listener(Box::new(CaptureMoves {
-        figure,
-        records: Arc::clone(&records),
-    }));
+    runtime
+        .observations()
+        .add_observation_listener(Box::new(CaptureMoves {
+            figure,
+            records: Arc::clone(&records),
+        }));
 
     let first = Rectangle::new(5.0, 6.0, 30.0, 20.0);
     let second = Rectangle::new(9.0, 10.0, 40.0, 24.0);
@@ -115,27 +122,32 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
             .expect("valid Runtime mutation")
     );
     assert!(matches!(
-        runtime.stable_query(),
+        runtime.observations().stable_query(),
         Err(StableQueryError::NotStable {
             latest_stable_epoch
         }) if latest_stable_epoch == baseline_epoch
     ));
 
     let submission = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
-    let stable = runtime.stable_query().unwrap();
-    assert!(stable.epoch() > baseline_epoch);
-    assert_eq!(stable.bounds(figure), Some(second));
+    let (stable_epoch, stable_bounds) = {
+        let observations = runtime.observations();
+        let stable = observations.stable_query().unwrap();
+        (stable.epoch(), stable.bounds(figure))
+    };
+    assert!(stable_epoch > baseline_epoch);
+    assert_eq!(stable_bounds, Some(second));
 
     let records = records.lock().unwrap();
     assert_eq!(records.len(), 2);
     assert!(records[0].sequence < records[1].sequence);
-    assert_eq!(records[0].source_epoch, stable.epoch());
-    assert_eq!(records[1].source_epoch, stable.epoch());
-    assert_eq!(records[0].query_epoch, stable.epoch());
-    assert_eq!(records[1].query_epoch, stable.epoch());
+    assert_eq!(records[0].source_epoch, stable_epoch);
+    assert_eq!(records[1].source_epoch, stable_epoch);
+    assert_eq!(records[0].query_epoch, stable_epoch);
+    assert_eq!(records[1].query_epoch, stable_epoch);
     assert_eq!(records[0].latest_bounds, Some(second));
     assert_eq!(records[1].latest_bounds, Some(second));
     assert!(matches!(
@@ -157,6 +169,7 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
     drop(records);
 
     runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -165,10 +178,12 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
         .expect("frame completion");
 
     let notification_only = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_observation_listener(Box::new(CaptureAll {
-        records: Arc::clone(&notification_only),
-    }));
-    let previous_epoch = runtime.stable_query().unwrap().epoch();
+    runtime
+        .observations()
+        .add_observation_listener(Box::new(CaptureAll {
+            records: Arc::clone(&notification_only),
+        }));
+    let previous_epoch = runtime.observations().stable_query().unwrap().epoch();
     assert!(
         runtime
             .figure(figure)
@@ -177,16 +192,18 @@ fn historical_records_keep_event_order_while_queries_read_latest_stable_scene() 
             .expect("valid Runtime mutation")
     );
     assert!(matches!(
-        runtime.stable_query(),
+        runtime.observations().stable_query(),
         Err(StableQueryError::NotStable {
             latest_stable_epoch
         }) if latest_stable_epoch == previous_epoch
     ));
     assert!(matches!(
-        runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
-        novadraw::FramePreparation::Idle
+        runtime
+            .frames()
+            .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL),
+        novadraw::runtime::FramePreparation::Idle
     ));
-    let stable_epoch = runtime.stable_query().unwrap().epoch();
+    let stable_epoch = runtime.observations().stable_query().unwrap().epoch();
     let notification_only = notification_only.lock().unwrap();
     assert!(
         notification_only

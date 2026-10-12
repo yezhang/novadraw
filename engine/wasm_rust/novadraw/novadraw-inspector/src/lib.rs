@@ -12,8 +12,9 @@ use std::{
 use novadraw::event::{
     ListenerDirective, ListenerId, NotificationEffect, NotificationRecord, ObservationListener,
 };
-use novadraw::runtime::{StableQueryError, StableSceneQuery};
-use novadraw::{FigureId, FigureTree, Rectangle, Runtime};
+use novadraw::geometry::Rectangle;
+use novadraw::runtime::{Runtime, StableQueryError, StableSceneQuery};
+use novadraw::tree::{FigureId, FigureTree};
 
 /// A stable, UI-independent view of one attached Figure.
 #[derive(Clone, Debug)]
@@ -149,18 +150,23 @@ impl FigureInspector {
 
     /// Registers this inspector as a Runtime-scoped committed-effect observer.
     pub fn attach(&self, runtime: &mut Runtime) -> ListenerId {
-        runtime.add_observation_listener(Box::new(InspectorObserver {
-            state: Arc::clone(&self.state),
-        }))
+        runtime
+            .observations()
+            .add_observation_listener(Box::new(InspectorObserver {
+                state: Arc::clone(&self.state),
+            }))
     }
 
     /// Captures a tree snapshot only after Runtime reports a stable scene.
-    pub fn capture_tree(&self, runtime: &Runtime) -> Result<FigureTreeSnapshot, StableQueryError> {
-        let stable = runtime.stable_query()?;
-        Ok(FigureTreeSnapshot::from_tree(
-            stable.epoch(),
-            runtime.tree(),
-        ))
+    pub fn capture_tree(
+        &self,
+        runtime: &mut Runtime,
+    ) -> Result<FigureTreeSnapshot, StableQueryError> {
+        let epoch = {
+            let observations = runtime.observations();
+            observations.stable_query()?.epoch()
+        };
+        Ok(FigureTreeSnapshot::from_tree(epoch, runtime.tree()))
     }
 
     /// Returns retained events in FIFO commit order.

@@ -5,8 +5,15 @@ use novadraw::figure::{
 use novadraw::render::command::ImageData;
 use novadraw::render::text::BuiltinFont;
 use novadraw::{
-    Color, FigureId, FigureStyle, ImageFigure, LabelFigure, Rectangle, RectangleFigure, Runtime,
-    TextFlowFigure,
+    figure::FigureStyle,
+    figure::ImageFigure,
+    figure::LabelFigure,
+    figure::RectangleFigure,
+    figure::TextFlowFigure,
+    geometry::Rectangle,
+    graphics::Color,
+    runtime::{Runtime, SetLabelAlignment, SetLabelTextPlacement},
+    tree::FigureId,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -75,7 +82,10 @@ pub fn suite() -> DemoSuite {
 fn runtime() -> Runtime {
     let mut runtime = Runtime::empty();
     for font in BuiltinFont::ALL {
-        runtime.register_builtin_font(font).expect("built-in font");
+        runtime
+            .resources()
+            .register_builtin_font(font)
+            .expect("built-in font");
     }
     runtime
 }
@@ -104,7 +114,7 @@ fn root(runtime: &mut Runtime) -> FigureId {
 
 fn panel(runtime: &mut Runtime, parent: FigureId, bounds: Rectangle) -> FigureId {
     runtime
-        .container(parent)
+        .figure(parent)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new_with_color(
@@ -128,7 +138,7 @@ fn add_label(
     color: Color,
 ) -> FigureId {
     let id = runtime
-        .container(parent)
+        .figure(parent)
         .unwrap()
         .add(Box::new(LabelFigure::new(text).with_bounds(bounds)))
         .expect("valid Runtime mutation");
@@ -287,8 +297,12 @@ fn ellipsis_scene() -> Runtime {
 
 fn icon_placement_scene() -> Runtime {
     let mut runtime = runtime();
-    let icon = runtime.register_image().expect("image registration");
+    let icon = runtime
+        .resources()
+        .register_image()
+        .expect("image registration");
     runtime
+        .resources()
         .complete_image(icon, document_check_icon())
         .expect("icon resource");
     let root = root(&mut runtime);
@@ -322,7 +336,7 @@ fn icon_placement_scene() -> Runtime {
             ),
         );
         let label = runtime
-            .container(card)
+            .figure(card)
             .unwrap()
             .add(Box::new(
                 LabelFigure::new(format!("{placement:?}"))
@@ -331,14 +345,14 @@ fn icon_placement_scene() -> Runtime {
             ))
             .expect("valid Runtime mutation");
         runtime
-            .label(label)
+            .figure(label)
             .unwrap()
-            .set_text_placement(placement)
+            .update_component(SetLabelTextPlacement::new(placement))
             .expect("label placement");
         runtime
-            .label(label)
+            .figure(label)
             .unwrap()
-            .set_alignment(Alignment::Center)
+            .update_component(SetLabelAlignment::new(Alignment::Center))
             .expect("label alignment");
         runtime
             .figure(label)
@@ -379,7 +393,7 @@ fn style_inheritance_scene() -> Runtime {
         })
         .expect("valid Runtime mutation");
     runtime
-        .container(inherited)
+        .figure(inherited)
         .unwrap()
         .add(Box::new(
             LabelFigure::new("继承颜色和字体，不在 Label 中复制通用样式。")
@@ -402,7 +416,7 @@ fn style_inheritance_scene() -> Runtime {
         })
         .expect("valid Runtime mutation");
     runtime
-        .container(overridden)
+        .figure(overridden)
         .unwrap()
         .add(Box::new(
             LabelFigure::new("inherited: FontDescriptor -> GlyphRun")
@@ -422,7 +436,7 @@ fn title_bar_border_scene() -> Runtime {
     .with_alignment(Alignment::Start)
     .with_padding(18.0, 8.0);
     let panel = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new_with_color(80.0, 100.0, 640.0, 300.0, PANEL_FILL)
@@ -439,7 +453,7 @@ fn title_bar_border_scene() -> Runtime {
         })
         .expect("valid Runtime mutation");
     runtime
-        .container(panel)
+        .figure(panel)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             0.0,
@@ -486,25 +500,34 @@ fn image_resources_scene() -> Runtime {
             "16px Inter Variable",
             HEADING,
         );
-        let image = runtime.register_image().expect("image registration");
+        let image = runtime
+            .resources()
+            .register_image()
+            .expect("image registration");
         let request = runtime
-            .begin_resource_request(image.resource_id())
+            .resources()
+            .begin_request(image.resource_id())
             .expect("image request");
         match index {
             0 => runtime
+                .resources()
                 .complete_image_request_bytes(request, PNG, 12.5)
                 .expect("PNG fixture"),
             1 => runtime
+                .resources()
                 .complete_image_request_bytes(request, SVG, 1.25)
                 .expect("SVG fixture"),
             2 => {}
             3 => {
-                let _ = runtime.complete_image_request_bytes(request, b"not an image", 1.0);
+                let _ =
+                    runtime
+                        .resources()
+                        .complete_image_request_bytes(request, b"not an image", 1.0);
             }
             _ => unreachable!(),
         }
         runtime
-            .container(card)
+            .figure(card)
             .unwrap()
             .add(Box::new(
                 ImageFigure::new(image).with_bounds(Rectangle::new(18.0, 68.0, 129.0, 190.0)),
@@ -536,12 +559,12 @@ fn text_flow_scene() -> Runtime {
     )
     .with_wrapping(FlowWrapping::Truncate { max_lines: 2 });
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(flow))
         .expect("valid Runtime mutation");
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(truncated))
         .expect("valid Runtime mutation");
@@ -560,7 +583,8 @@ mod tests {
         crate::record_full_submission(&mut runtime);
         let root = runtime.tree().contents().unwrap();
         let children = runtime.tree().child_order(root).unwrap();
-        let layout = runtime.text_flow_layout(children[0]).unwrap();
+        let text = runtime.text();
+        let layout = text.flow_layout(children[0]).unwrap();
         assert!(layout.key().text().contains("English 与 العربية share the"));
         assert!(!layout.glyph_runs().is_empty());
         for run in layout.glyph_runs() {
@@ -578,6 +602,7 @@ mod tests {
         for scene in &mut suite.scenes {
             let mut runtime = scene.build();
             let submission = runtime
+                .frames()
                 .prepare_submission(
                     SurfaceInfo {
                         logical_width: WINDOW_WIDTH,

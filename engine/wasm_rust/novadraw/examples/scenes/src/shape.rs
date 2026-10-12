@@ -16,50 +16,50 @@ const WINDOW_HEIGHT: f64 = 600.0;
 
 /// Scene 0: 矩形图形 - 验证 RectangleFigure
 /// MECE: 单独验证矩形填充
-fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_0_rectangle_fill() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
         .expect("valid FigureTree construction");
 
     // 不同尺寸的填充矩形
-    let rect_1 = novadraw::RectangleFigure::new_with_color(
+    let rect_1 = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         50.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.8, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0),
     );
-    let rect_2 = novadraw::RectangleFigure::new_with_color(
+    let rect_2 = novadraw::figure::RectangleFigure::new_with_color(
         250.0,
         50.0,
         100.0,
         100.0,
-        novadraw::Color::rgba(0.2, 0.8, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
     );
-    let rect_3 = novadraw::RectangleFigure::new_with_color(
+    let rect_3 = novadraw::figure::RectangleFigure::new_with_color(
         400.0,
         50.0,
         200.0,
         80.0,
-        novadraw::Color::rgba(0.2, 0.2, 0.8, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.2, 0.8, 1.0),
     );
-    let rect_4 = novadraw::RectangleFigure::new_with_color(
+    let rect_4 = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         200.0,
         120.0,
         150.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     );
-    let rect_5 = novadraw::RectangleFigure::new_with_color(
+    let rect_5 = novadraw::figure::RectangleFigure::new_with_color(
         200.0,
         200.0,
         100.0,
         100.0,
-        novadraw::Color::rgba(0.5, 0.1, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.5, 0.1, 0.9, 1.0),
     );
 
     scene
@@ -88,50 +88,50 @@ fn create_scene_0_rectangle_fill() -> novadraw::FigureTree {
 
 /// Scene 1: 椭圆图形 - 验证 EllipseFigure
 /// MECE: 单独验证椭圆填充
-fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_1_ellipse_fill() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
         .expect("valid FigureTree construction");
 
     // 不同尺寸的椭圆
-    let ellipse_1 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_1 = novadraw::figure::EllipseFigure::new_with_color(
         150.0,
         100.0,
         200.0,
         120.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     );
-    let ellipse_2 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_2 = novadraw::figure::EllipseFigure::new_with_color(
         450.0,
         100.0,
         150.0,
         150.0,
-        novadraw::Color::rgba(0.1, 0.5, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
     );
-    let ellipse_3 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_3 = novadraw::figure::EllipseFigure::new_with_color(
         150.0,
         300.0,
         100.0,
         100.0,
-        novadraw::Color::rgba(0.5, 0.9, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.5, 0.9, 0.2, 1.0),
     );
-    let ellipse_4 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_4 = novadraw::figure::EllipseFigure::new_with_color(
         350.0,
         300.0,
         180.0,
         80.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.5, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.5, 1.0),
     );
-    let ellipse_5 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_5 = novadraw::figure::EllipseFigure::new_with_color(
         600.0,
         300.0,
         120.0,
         120.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
     );
 
     scene
@@ -159,15 +159,15 @@ fn create_scene_1_ellipse_fill() -> novadraw::FigureTree {
 }
 
 /// Scene 2: 圆角矩形
-fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_2_rounded_rect() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#202124").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#202124").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -175,107 +175,108 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 不同圆角半径的矩形
-    let rect_0 = novadraw::RoundedRectangleFigure::new_with_color(
+    let rect_0 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         50.0,
         50.0,
         150.0,
         80.0,
         0.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 2.0);
-    let rect_5 = novadraw::RoundedRectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    let rect_5 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         250.0,
         50.0,
         150.0,
         80.0,
         5.0,
-        novadraw::Color::rgba(0.1, 0.5, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 2.0);
-    let rect_15 = novadraw::RoundedRectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    let rect_15 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         450.0,
         50.0,
         150.0,
         80.0,
         15.0,
-        novadraw::Color::rgba(0.2, 0.8, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.8, 0.3, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 2.0);
-    let rect_30 = novadraw::RoundedRectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
+    let rect_30 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         650.0,
         50.0,
         100.0,
         80.0,
         30.0,
-        novadraw::Color::RED,
+        novadraw::graphics::Color::RED,
     )
-    .with_stroke(novadraw::Color::WHITE, 2.0);
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
 
     // 纯填充（无描边）
-    let rect_fill = novadraw::RoundedRectangleFigure::new_with_color(
+    let rect_fill = novadraw::figure::RoundedRectangleFigure::new_with_color(
         50.0,
         180.0,
         150.0,
         80.0,
         20.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     );
 
     // 纯描边（无填充）
-    let rect_stroke = novadraw::RoundedRectangleFigure::new(250.0, 180.0, 150.0, 80.0, 20.0)
-        .with_stroke(novadraw::Color::RED, 3.0);
+    let rect_stroke =
+        novadraw::figure::RoundedRectangleFigure::new(250.0, 180.0, 150.0, 80.0, 20.0)
+            .with_stroke(novadraw::graphics::Color::RED, 3.0);
 
     // 填充 + 描边
-    let rect_both = novadraw::RoundedRectangleFigure::new_with_color(
+    let rect_both = novadraw::figure::RoundedRectangleFigure::new_with_color(
         450.0,
         180.0,
         150.0,
         80.0,
         20.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
-    .with_stroke(novadraw::Color::GREEN, 3.0);
+    .with_stroke(novadraw::graphics::Color::GREEN, 3.0);
 
     // 不同描边宽度
-    let rect_sw_1 = novadraw::RoundedRectangleFigure::new_with_color(
+    let rect_sw_1 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         50.0,
         300.0,
         150.0,
         80.0,
         15.0,
-        novadraw::Color::rgba(0.6, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 1.0);
-    let rect_sw_4 = novadraw::RoundedRectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 1.0);
+    let rect_sw_4 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         250.0,
         300.0,
         150.0,
         80.0,
         15.0,
-        novadraw::Color::rgba(0.6, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 4.0);
-    let rect_sw_8 = novadraw::RoundedRectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 4.0);
+    let rect_sw_8 = novadraw::figure::RoundedRectangleFigure::new_with_color(
         450.0,
         300.0,
         150.0,
         80.0,
         15.0,
-        novadraw::Color::rgba(0.6, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.6, 0.3, 0.9, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 8.0);
+    .with_stroke(novadraw::graphics::Color::WHITE, 8.0);
 
     // 大圆角（接近圆形）
-    let rect_circle = novadraw::RoundedRectangleFigure::new_with_color(
+    let rect_circle = novadraw::figure::RoundedRectangleFigure::new_with_color(
         650.0,
         300.0,
         100.0,
         80.0,
         40.0,
-        novadraw::Color::rgba(0.9, 0.6, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.6, 0.1, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 2.0);
+    .with_stroke(novadraw::graphics::Color::WHITE, 2.0);
 
     scene
         .builder()
@@ -327,15 +328,15 @@ fn create_scene_2_rounded_rect() -> novadraw::FigureTree {
 
 /// Scene 3: 折线图形 - 验证 PolylineFigure
 /// MECE: 按折线属性分类（点数、线宽、线帽、连接样式、闭合）
-fn create_scene_3_polyline() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_3_polyline() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::rgba(0.15, 0.15, 0.15, 1.0),
+        novadraw::graphics::Color::rgba(0.15, 0.15, 0.15, 1.0),
     );
     let container_id = scene
         .builder()
@@ -346,19 +347,24 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // 测试1: 不同点数的折线
     // ============================================================
     // 2点折线（直线）
-    let line_2pt =
-        novadraw::PolylineFigure::new_with_color(50.0, 40.0, 200.0, 40.0, novadraw::Color::WHITE)
-            .with_width(3.0);
+    let line_2pt = novadraw::figure::PolylineFigure::new_with_color(
+        50.0,
+        40.0,
+        200.0,
+        40.0,
+        novadraw::graphics::Color::WHITE,
+    )
+    .with_width(3.0);
     scene
         .builder()
         .add_child(container_id, Box::new(line_2pt))
         .expect("valid FigureTree construction");
 
     // 3点折线（折线）
-    let line_3pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(50.0, 80.0),
-        novadraw::Point::new(125.0, 40.0),
-        novadraw::Point::new(200.0, 80.0),
+    let line_3pt = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(50.0, 80.0),
+        novadraw::geometry::Point::new(125.0, 40.0),
+        novadraw::geometry::Point::new(200.0, 80.0),
     ])
     .with_width(3.0);
     scene
@@ -367,12 +373,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 5点折线（多段折线）
-    let line_5pt = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(50.0, 120.0),
-        novadraw::Point::new(100.0, 80.0),
-        novadraw::Point::new(150.0, 160.0),
-        novadraw::Point::new(200.0, 120.0),
-        novadraw::Point::new(250.0, 160.0),
+    let line_5pt = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(50.0, 120.0),
+        novadraw::geometry::Point::new(100.0, 80.0),
+        novadraw::geometry::Point::new(150.0, 160.0),
+        novadraw::geometry::Point::new(200.0, 120.0),
+        novadraw::geometry::Point::new(250.0, 160.0),
     ])
     .with_width(3.0);
     scene
@@ -385,12 +391,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     let widths = [1.0, 2.0, 4.0, 6.0, 8.0];
     for (i, &w) in widths.iter().enumerate() {
-        let line = novadraw::PolylineFigure::new_with_color(
+        let line = novadraw::figure::PolylineFigure::new_with_color(
             300.0 + i as f64 * 80.0,
             40.0,
             350.0 + i as f64 * 80.0,
             80.0,
-            novadraw::Color::WHITE,
+            novadraw::graphics::Color::WHITE,
         )
         .with_width(w);
         scene
@@ -402,12 +408,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 测试3: 不同线帽样式 (LineCap)
     // ============================================================
-    let cap_butt = novadraw::PolylineFigure::new_with_color(
+    let cap_butt = novadraw::figure::PolylineFigure::new_with_color(
         50.0,
         200.0,
         150.0,
         200.0,
-        novadraw::Color::rgba(1.0, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(1.0, 0.3, 0.3, 1.0),
     )
     .with_width(8.0)
     .with_cap(novadraw::graphics::LineCap::Butt);
@@ -416,12 +422,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(cap_butt))
         .expect("valid FigureTree construction");
 
-    let cap_round = novadraw::PolylineFigure::new_with_color(
+    let cap_round = novadraw::figure::PolylineFigure::new_with_color(
         200.0,
         200.0,
         300.0,
         200.0,
-        novadraw::Color::rgba(0.3, 1.0, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 1.0, 0.3, 1.0),
     )
     .with_width(8.0)
     .with_cap(novadraw::graphics::LineCap::Round);
@@ -430,12 +436,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(cap_round))
         .expect("valid FigureTree construction");
 
-    let cap_square = novadraw::PolylineFigure::new_with_color(
+    let cap_square = novadraw::figure::PolylineFigure::new_with_color(
         350.0,
         200.0,
         450.0,
         200.0,
-        novadraw::Color::rgba(0.3, 0.3, 1.0, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 1.0, 1.0),
     )
     .with_width(8.0)
     .with_cap(novadraw::graphics::LineCap::Square);
@@ -448,42 +454,42 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // 测试4: 不同连接样式 (LineJoin)
     // ============================================================
     // 尖角连接
-    let join_miter = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(50.0, 260.0),
-        novadraw::Point::new(100.0, 220.0),
-        novadraw::Point::new(150.0, 300.0),
+    let join_miter = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(50.0, 260.0),
+        novadraw::geometry::Point::new(100.0, 220.0),
+        novadraw::geometry::Point::new(150.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::graphics::LineJoin::Miter)
-    .with_color(novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0));
+    .with_color(novadraw::graphics::Color::rgba(1.0, 0.5, 0.0, 1.0));
     scene
         .builder()
         .add_child(container_id, Box::new(join_miter))
         .expect("valid FigureTree construction");
 
     // 圆角连接
-    let join_round = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(200.0, 260.0),
-        novadraw::Point::new(250.0, 220.0),
-        novadraw::Point::new(300.0, 300.0),
+    let join_round = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(200.0, 260.0),
+        novadraw::geometry::Point::new(250.0, 220.0),
+        novadraw::geometry::Point::new(300.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::graphics::LineJoin::Round)
-    .with_color(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0));
+    .with_color(novadraw::graphics::Color::rgba(0.0, 1.0, 1.0, 1.0));
     scene
         .builder()
         .add_child(container_id, Box::new(join_round))
         .expect("valid FigureTree construction");
 
     // 斜切连接
-    let join_bevel = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(350.0, 260.0),
-        novadraw::Point::new(400.0, 220.0),
-        novadraw::Point::new(450.0, 300.0),
+    let join_bevel = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(350.0, 260.0),
+        novadraw::geometry::Point::new(400.0, 220.0),
+        novadraw::geometry::Point::new(450.0, 300.0),
     ])
     .with_width(8.0)
     .with_join(novadraw::graphics::LineJoin::Bevel)
-    .with_color(novadraw::Color::rgba(1.0, 0.0, 1.0, 1.0));
+    .with_color(novadraw::graphics::Color::rgba(1.0, 0.0, 1.0, 1.0));
     scene
         .builder()
         .add_child(container_id, Box::new(join_bevel))
@@ -492,12 +498,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 测试5: 水平/垂直/对角线
     // ============================================================
-    let h_line = novadraw::PolylineFigure::new_with_color(
+    let h_line = novadraw::figure::PolylineFigure::new_with_color(
         500.0,
         40.0,
         750.0,
         40.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
     )
     .with_width(3.0);
     scene
@@ -505,12 +511,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(h_line))
         .expect("valid FigureTree construction");
 
-    let v_line = novadraw::PolylineFigure::new_with_color(
+    let v_line = novadraw::figure::PolylineFigure::new_with_color(
         700.0,
         50.0,
         700.0,
         150.0,
-        novadraw::Color::rgba(0.2, 0.2, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.2, 0.9, 1.0),
     )
     .with_width(3.0);
     scene
@@ -518,12 +524,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(v_line))
         .expect("valid FigureTree construction");
 
-    let diag_45 = novadraw::PolylineFigure::new_with_color(
+    let diag_45 = novadraw::figure::PolylineFigure::new_with_color(
         500.0,
         200.0,
         650.0,
         350.0,
-        novadraw::Color::rgba(0.2, 0.9, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.9, 0.2, 1.0),
     )
     .with_width(3.0);
     scene
@@ -531,12 +537,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(diag_45))
         .expect("valid FigureTree construction");
 
-    let diag_135 = novadraw::PolylineFigure::new_with_color(
+    let diag_135 = novadraw::figure::PolylineFigure::new_with_color(
         650.0,
         200.0,
         500.0,
         350.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
     .with_width(3.0);
     scene
@@ -547,14 +553,14 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 测试6: 自相交折线
     // ============================================================
-    let self_intersect = novadraw::PolylineFigure::from_points(vec![
-        novadraw::Point::new(50.0, 380.0),
-        novadraw::Point::new(150.0, 480.0),
-        novadraw::Point::new(150.0, 380.0),
-        novadraw::Point::new(50.0, 480.0),
+    let self_intersect = novadraw::figure::PolylineFigure::from_points(vec![
+        novadraw::geometry::Point::new(50.0, 380.0),
+        novadraw::geometry::Point::new(150.0, 480.0),
+        novadraw::geometry::Point::new(150.0, 380.0),
+        novadraw::geometry::Point::new(50.0, 480.0),
     ])
     .with_width(2.0)
-    .with_color(novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0));
+    .with_color(novadraw::graphics::Color::rgba(1.0, 1.0, 0.0, 1.0));
     scene
         .builder()
         .add_child(container_id, Box::new(self_intersect))
@@ -567,11 +573,11 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     for i in 0..20 {
         let x = 250.0 + i as f64 * 25.0;
         let y = 400.0 + (i as f64 * 25.0).sin() * 50.0;
-        points.push(novadraw::Point::new(x, y));
+        points.push(novadraw::geometry::Point::new(x, y));
     }
-    let wave = novadraw::PolylineFigure::from_points(points)
+    let wave = novadraw::figure::PolylineFigure::from_points(points)
         .with_width(2.0)
-        .with_color(novadraw::Color::rgba(0.0, 0.8, 1.0, 1.0));
+        .with_color(novadraw::graphics::Color::rgba(0.0, 0.8, 1.0, 1.0));
     scene
         .builder()
         .add_child(container_id, Box::new(wave))
@@ -580,12 +586,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 测试8: 短折线（端点测试）
     // ============================================================
-    let short_1 = novadraw::PolylineFigure::new_with_color(
+    let short_1 = novadraw::figure::PolylineFigure::new_with_color(
         600.0,
         380.0,
         610.0,
         390.0,
-        novadraw::Color::WHITE,
+        novadraw::graphics::Color::WHITE,
     )
     .with_width(3.0);
     scene
@@ -593,12 +599,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(short_1))
         .expect("valid FigureTree construction");
 
-    let short_2 = novadraw::PolylineFigure::new_with_color(
+    let short_2 = novadraw::figure::PolylineFigure::new_with_color(
         640.0,
         380.0,
         650.0,
         380.0,
-        novadraw::Color::WHITE,
+        novadraw::graphics::Color::WHITE,
     )
     .with_width(3.0);
     scene
@@ -606,12 +612,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(short_2))
         .expect("valid FigureTree construction");
 
-    let short_3 = novadraw::PolylineFigure::new_with_color(
+    let short_3 = novadraw::figure::PolylineFigure::new_with_color(
         680.0,
         380.0,
         680.0,
         390.0,
-        novadraw::Color::WHITE,
+        novadraw::graphics::Color::WHITE,
     )
     .with_width(3.0);
     scene
@@ -622,12 +628,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
     // ============================================================
     // 测试9: 坐标边界（靠近边界）
     // ============================================================
-    let edge_1 = novadraw::PolylineFigure::new_with_color(
+    let edge_1 = novadraw::figure::PolylineFigure::new_with_color(
         0.0,
         500.0,
         100.0,
         500.0,
-        novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
+        novadraw::graphics::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
     scene
@@ -635,12 +641,12 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
         .add_child(container_id, Box::new(edge_1))
         .expect("valid FigureTree construction");
 
-    let edge_2 = novadraw::PolylineFigure::new_with_color(
+    let edge_2 = novadraw::figure::PolylineFigure::new_with_color(
         700.0,
         500.0,
         800.0,
         500.0,
-        novadraw::Color::rgba(1.0, 0.3, 0.7, 1.0),
+        novadraw::graphics::Color::rgba(1.0, 0.3, 0.7, 1.0),
     )
     .with_width(4.0);
     scene
@@ -657,166 +663,166 @@ fn create_scene_3_polyline() -> novadraw::FigureTree {
 
 /// Scene 7: 混合图形组合
 /// MECE: 验证多种图形在同一场景中正确渲染
-fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_8_mixed_shapes() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
         .expect("valid FigureTree construction");
 
     // 组合1: 矩形 + 椭圆
-    let rect_combo = novadraw::RectangleFigure::new_with_color(
+    let rect_combo = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         50.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     )
-    .with_stroke(novadraw::Color::BLACK, 2.0);
-    let ellipse_combo = novadraw::EllipseFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::BLACK, 2.0);
+    let ellipse_combo = novadraw::figure::EllipseFigure::new_with_color(
         125.0,
         100.0,
         80.0,
         50.0,
-        novadraw::Color::rgba(0.1, 0.5, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.1, 0.5, 0.9, 1.0),
     );
 
     // 组合2: 椭圆 + 直线
-    let ellipse_combo2 = novadraw::EllipseFigure::new_with_color(
+    let ellipse_combo2 = novadraw::figure::EllipseFigure::new_with_color(
         300.0,
         80.0,
         100.0,
         60.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
     );
-    let line_through = novadraw::PolylineFigure::new_with_color(
+    let line_through = novadraw::figure::PolylineFigure::new_with_color(
         250.0,
         110.0,
         400.0,
         110.0,
-        novadraw::Color::BLACK,
+        novadraw::graphics::Color::BLACK,
     )
     .with_width(2.0);
 
     // 组合3: 矩形框住多个图形
-    let container_rect = novadraw::RectangleFigure::new_with_color(
+    let container_rect = novadraw::figure::RectangleFigure::new_with_color(
         450.0,
         50.0,
         200.0,
         150.0,
-        novadraw::Color::rgba(0.95, 0.95, 0.95, 1.0),
+        novadraw::graphics::Color::rgba(0.95, 0.95, 0.95, 1.0),
     )
-    .with_stroke(novadraw::Color::rgba(0.2, 0.2, 0.2, 1.0), 1.0);
-    let inner_rect = novadraw::RectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::rgba(0.2, 0.2, 0.2, 1.0), 1.0);
+    let inner_rect = novadraw::figure::RectangleFigure::new_with_color(
         470.0,
         70.0,
         60.0,
         40.0,
-        novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
     );
-    let inner_ellipse = novadraw::EllipseFigure::new_with_color(
+    let inner_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         560.0,
         90.0,
         50.0,
         30.0,
-        novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
     );
-    let inner_line = novadraw::PolylineFigure::new_with_color(
+    let inner_line = novadraw::figure::PolylineFigure::new_with_color(
         480.0,
         150.0,
         620.0,
         150.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
     )
     .with_width(2.0);
 
     // 组合4: 复杂图形组合
-    let complex_rect = novadraw::RectangleFigure::new_with_color(
+    let complex_rect = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         250.0,
         120.0,
         80.0,
-        novadraw::Color::rgba(0.8, 0.2, 0.5, 1.0),
+        novadraw::graphics::Color::rgba(0.8, 0.2, 0.5, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 3.0);
-    let complex_ellipse = novadraw::EllipseFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 3.0);
+    let complex_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         50.0,
         350.0,
         120.0,
         80.0,
-        novadraw::Color::rgba(0.2, 0.5, 0.8, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.5, 0.8, 1.0),
     )
-    .with_stroke(novadraw::Color::WHITE, 3.0);
-    let complex_line1 = novadraw::PolylineFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::WHITE, 3.0);
+    let complex_line1 = novadraw::figure::PolylineFigure::new_with_color(
         200.0,
         250.0,
         300.0,
         280.0,
-        novadraw::Color::rgba(0.9, 0.6, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.6, 0.1, 1.0),
     )
     .with_width(3.0);
-    let complex_line2 = novadraw::PolylineFigure::new_with_color(
+    let complex_line2 = novadraw::figure::PolylineFigure::new_with_color(
         200.0,
         280.0,
         300.0,
         250.0,
-        novadraw::Color::rgba(0.1, 0.6, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.1, 0.6, 0.9, 1.0),
     )
     .with_width(3.0);
-    let complex_line3 = novadraw::PolylineFigure::new_with_color(
+    let complex_line3 = novadraw::figure::PolylineFigure::new_with_color(
         250.0,
         350.0,
         250.0,
         420.0,
-        novadraw::Color::rgba(0.3, 0.8, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.8, 0.3, 1.0),
     )
     .with_width(4.0);
 
     // 组合5: 细线装饰
-    let decor_line1 = novadraw::PolylineFigure::new_with_color(
+    let decor_line1 = novadraw::figure::PolylineFigure::new_with_color(
         400.0,
         260.0,
         550.0,
         260.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
     .with_width(1.0);
-    let decor_line2 = novadraw::PolylineFigure::new_with_color(
+    let decor_line2 = novadraw::figure::PolylineFigure::new_with_color(
         400.0,
         300.0,
         550.0,
         300.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
     .with_width(2.0);
-    let decor_line3 = novadraw::PolylineFigure::new_with_color(
+    let decor_line3 = novadraw::figure::PolylineFigure::new_with_color(
         400.0,
         350.0,
         550.0,
         350.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.3, 1.0),
     )
     .with_width(4.0);
 
     // 边框装饰
-    let border_outer = novadraw::RectangleFigure::new_with_color(
+    let border_outer = novadraw::figure::RectangleFigure::new_with_color(
         600.0,
         250.0,
         150.0,
         150.0,
-        novadraw::Color::rgba(0.9, 0.9, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
     )
-    .with_stroke(novadraw::Color::BLACK, 1.0);
-    let border_inner = novadraw::RectangleFigure::new_with_color(
+    .with_stroke(novadraw::graphics::Color::BLACK, 1.0);
+    let border_inner = novadraw::figure::RectangleFigure::new_with_color(
         610.0,
         260.0,
         130.0,
         130.0,
-        novadraw::Color::WHITE,
+        novadraw::graphics::Color::WHITE,
     )
-    .with_stroke(novadraw::Color::rgba(0.5, 0.5, 0.5, 1.0), 1.0);
+    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.5, 0.5, 1.0), 1.0);
 
     scene
         .builder()
@@ -896,75 +902,85 @@ fn create_scene_8_mixed_shapes() -> novadraw::FigureTree {
 
 /// Scene 8: Z-order 遮挡关系
 /// MECE: 验证后添加的图形遮挡先添加的图形
-fn create_scene_9_zorder() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_9_zorder() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
         .expect("valid FigureTree construction");
 
     // 底层图形（先添加）
-    let bottom_rect = novadraw::RectangleFigure::new_with_color(
+    let bottom_rect = novadraw::figure::RectangleFigure::new_with_color(
         100.0,
         100.0,
         300.0,
         200.0,
-        novadraw::Color::BLUE,
+        novadraw::graphics::Color::BLUE,
     );
-    let bottom_ellipse =
-        novadraw::EllipseFigure::new_with_color(250.0, 150.0, 200.0, 100.0, novadraw::Color::GREEN);
-    let bottom_line = novadraw::PolylineFigure::new_with_color(
+    let bottom_ellipse = novadraw::figure::EllipseFigure::new_with_color(
+        250.0,
+        150.0,
+        200.0,
+        100.0,
+        novadraw::graphics::Color::GREEN,
+    );
+    let bottom_line = novadraw::figure::PolylineFigure::new_with_color(
         150.0,
         200.0,
         400.0,
         250.0,
-        novadraw::Color::rgba(1.0, 1.0, 0.0, 1.0),
+        novadraw::graphics::Color::rgba(1.0, 1.0, 0.0, 1.0),
     )
     .with_width(8.0);
 
     // 中间层（遮挡部分底层）
-    let mid_rect =
-        novadraw::RectangleFigure::new_with_color(200.0, 150.0, 200.0, 120.0, novadraw::Color::RED);
-    let mid_ellipse = novadraw::EllipseFigure::new_with_color(
+    let mid_rect = novadraw::figure::RectangleFigure::new_with_color(
+        200.0,
+        150.0,
+        200.0,
+        120.0,
+        novadraw::graphics::Color::RED,
+    );
+    let mid_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         350.0,
         200.0,
         120.0,
         80.0,
-        novadraw::Color::rgba(1.0, 0.65, 0.0, 1.0),
+        novadraw::graphics::Color::rgba(1.0, 0.65, 0.0, 1.0),
     );
 
     // 顶层（最后添加，遮挡所有底层）
-    let top_rect = novadraw::RectangleFigure::new_with_color(
+    let top_rect = novadraw::figure::RectangleFigure::new_with_color(
         300.0,
         180.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.5, 0.0, 0.5, 1.0),
+        novadraw::graphics::Color::rgba(0.5, 0.0, 0.5, 1.0),
     );
 
     // 验证 Z-order 的辅助标记
-    let marker_1 = novadraw::RectangleFigure::new_with_color(
+    let marker_1 = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         50.0,
         30.0,
         30.0,
-        novadraw::Color::rgba(0.2, 0.2, 0.8, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.2, 0.8, 1.0),
     );
-    let marker_2 = novadraw::RectangleFigure::new_with_color(
+    let marker_2 = novadraw::figure::RectangleFigure::new_with_color(
         80.0,
         50.0,
         30.0,
         30.0,
-        novadraw::Color::rgba(0.2, 0.8, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
     );
-    let marker_3 = novadraw::RectangleFigure::new_with_color(
+    let marker_3 = novadraw::figure::RectangleFigure::new_with_color(
         110.0,
         50.0,
         30.0,
         30.0,
-        novadraw::Color::rgba(0.8, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0),
     );
 
     scene
@@ -1009,15 +1025,15 @@ fn create_scene_9_zorder() -> novadraw::FigureTree {
 
 /// Scene 10: 三角形图形 - 验证 TriangleFigure
 /// MECE: 验证等边三角形、直角三角形、描边宽度、纯填充/纯描边
-fn create_scene_10_triangle() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_10_triangle() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -1025,104 +1041,104 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 不同线宽的三角形测试
-    let tri_w1 = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(50.0, 30.0, 60.0, 60.0),
+    let tri_w1 = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(50.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(1.0)
     .expect("valid triangle stroke");
 
-    let tri_w3 = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(150.0, 30.0, 60.0, 60.0),
+    let tri_w3 = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(150.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
-    let tri_w5 = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(250.0, 30.0, 60.0, 60.0),
+    let tri_w5 = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(250.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(5.0)
     .expect("valid triangle stroke");
 
-    let tri_w10 = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(350.0, 30.0, 60.0, 60.0),
+    let tri_w10 = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(350.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(10.0)
     .expect("valid triangle stroke");
 
-    let tri_w20 = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(450.0, 30.0, 60.0, 60.0),
+    let tri_w20 = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(450.0, 30.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#f39c12").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#f39c12").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(20.0)
     .expect("valid triangle stroke");
 
     // 不同方向的三角形
-    let tri_north = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(50.0, 150.0, 60.0, 60.0),
+    let tri_north = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(50.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#e74c3c").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
-    let tri_south = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(150.0, 150.0, 60.0, 60.0),
+    let tri_south = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(150.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::South,
     )
-    .with_fill_color(novadraw::Color::from_hex("#2ecc71").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
-    let tri_east = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(250.0, 150.0, 60.0, 60.0),
+    let tri_east = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(250.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::East,
     )
-    .with_fill_color(novadraw::Color::from_hex("#3498db").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
-    let tri_west = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(350.0, 150.0, 60.0, 60.0),
+    let tri_west = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(350.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::West,
     )
-    .with_fill_color(novadraw::Color::from_hex("#9b59b6").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::BLACK)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::BLACK)
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
     // 纯填充和纯描边
-    let tri_fill = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(450.0, 150.0, 60.0, 60.0),
+    let tri_fill = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(450.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
-    .with_stroke_color(novadraw::Color::TRANSPARENT)
+    .with_fill_color(novadraw::graphics::Color::from_hex("#e91e63").expect("valid color literal"))
+    .with_stroke_color(novadraw::graphics::Color::TRANSPARENT)
     .with_stroke_width(0.0)
     .expect("valid triangle stroke");
 
-    let tri_stroke = novadraw::TriangleFigure::new_with_direction(
-        novadraw::Rectangle::new(550.0, 150.0, 60.0, 60.0),
+    let tri_stroke = novadraw::figure::TriangleFigure::new_with_direction(
+        novadraw::geometry::Rectangle::new(550.0, 150.0, 60.0, 60.0),
         novadraw::figure::Direction::North,
     )
-    .with_fill_color(novadraw::Color::TRANSPARENT)
-    .with_stroke_color(novadraw::Color::from_hex("#e91e63").expect("valid color literal"))
+    .with_fill_color(novadraw::graphics::Color::TRANSPARENT)
+    .with_stroke_color(novadraw::graphics::Color::from_hex("#e91e63").expect("valid color literal"))
     .with_stroke_width(3.0)
     .expect("valid triangle stroke");
 
@@ -1176,50 +1192,50 @@ fn create_scene_10_triangle() -> novadraw::FigureTree {
 
 /// Scene 9: 父子嵌套结构
 /// MECE: 验证 Figure 嵌套渲染
-fn create_scene_11_parent_child() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_11_parent_child() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
-    let container = novadraw::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    let container = novadraw::figure::RectangleFigure::new(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT);
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
         .expect("valid FigureTree construction");
 
     // 父矩形
-    let parent_rect = novadraw::RectangleFigure::new_with_color(
+    let parent_rect = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         50.0,
         350.0,
         250.0,
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 0.3),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 0.3),
     )
-    .with_stroke(novadraw::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0);
+    .with_stroke(novadraw::graphics::Color::rgba(1.0, 0.65, 0.0, 1.0), 2.0);
     let parent_id = scene
         .builder()
         .add_child(container_id, Box::new(parent_rect))
         .expect("valid FigureTree construction");
 
     // 子图形 - 直接添加到父矩形中
-    let child_rect = novadraw::RectangleFigure::new_with_color(
+    let child_rect = novadraw::figure::RectangleFigure::new_with_color(
         80.0,
         80.0,
         100.0,
         60.0,
-        novadraw::Color::rgba(0.2, 0.5, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.5, 0.9, 1.0),
     );
-    let child_ellipse = novadraw::EllipseFigure::new_with_color(
+    let child_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         200.0,
         100.0,
         80.0,
         50.0,
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
     );
-    let child_line = novadraw::PolylineFigure::new_with_color(
+    let child_line = novadraw::figure::PolylineFigure::new_with_color(
         100.0,
         200.0,
         300.0,
         200.0,
-        novadraw::Color::rgba(0.2, 0.8, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
     )
     .with_width(3.0);
 
@@ -1237,33 +1253,33 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 另一个父容器
-    let parent_rect2 = novadraw::RectangleFigure::new_with_color(
+    let parent_rect2 = novadraw::figure::RectangleFigure::new_with_color(
         450.0,
         50.0,
         300.0,
         200.0,
-        novadraw::Color::rgba(0.5, 0.2, 0.8, 0.3),
+        novadraw::graphics::Color::rgba(0.5, 0.2, 0.8, 0.3),
     )
-    .with_stroke(novadraw::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0);
+    .with_stroke(novadraw::graphics::Color::rgba(0.5, 0.0, 0.5, 1.0), 2.0);
     let parent_id2 = scene
         .builder()
         .add_child(container_id, Box::new(parent_rect2))
         .expect("valid FigureTree construction");
 
     // 子图形 - 更深层次
-    let grandchild_rect = novadraw::RectangleFigure::new_with_color(
+    let grandchild_rect = novadraw::figure::RectangleFigure::new_with_color(
         480.0,
         80.0,
         80.0,
         60.0,
-        novadraw::Color::rgba(0.3, 0.8, 0.5, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.8, 0.5, 1.0),
     );
-    let grandchild_ellipse = novadraw::EllipseFigure::new_with_color(
+    let grandchild_ellipse = novadraw::figure::EllipseFigure::new_with_color(
         580.0,
         100.0,
         60.0,
         40.0,
-        novadraw::Color::rgba(0.8, 0.5, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.8, 0.5, 0.2, 1.0),
     );
 
     scene
@@ -1276,14 +1292,14 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 独立图形（不嵌套）
-    let standalone = novadraw::RectangleFigure::new_with_color(
+    let standalone = novadraw::figure::RectangleFigure::new_with_color(
         50.0,
         350.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.1, 0.7, 0.7, 1.0),
+        novadraw::graphics::Color::rgba(0.1, 0.7, 0.7, 1.0),
     )
-    .with_stroke(novadraw::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0);
+    .with_stroke(novadraw::graphics::Color::rgba(0.0, 1.0, 1.0, 1.0), 2.0);
     scene
         .builder()
         .add_child(container_id, Box::new(standalone))
@@ -1296,115 +1312,126 @@ fn create_scene_11_parent_child() -> novadraw::FigureTree {
 // 场景映射
 // ============================================================================
 
-fn create_m10_runtime_mutations() -> novadraw::Runtime {
-    let mut runtime = novadraw::Runtime::empty();
+fn create_m10_runtime_mutations() -> novadraw::runtime::Runtime {
+    let mut runtime = novadraw::runtime::Runtime::empty();
     let root = runtime
-        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
         )))
         .expect("valid Runtime mutation");
     let polyline = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
-            novadraw::PolylineFigure::from_points(vec![
-                novadraw::Point::new(70.0, 100.0),
-                novadraw::Point::new(210.0, 100.0),
+            novadraw::figure::PolylineFigure::from_points(vec![
+                novadraw::geometry::Point::new(70.0, 100.0),
+                novadraw::geometry::Point::new(210.0, 100.0),
             ])
-            .with_color(novadraw::Color::from_hex("#2563eb").expect("valid color literal"))
+            .with_color(
+                novadraw::graphics::Color::from_hex("#2563eb").expect("valid color literal"),
+            )
             .with_width(5.0),
         ))
         .expect("valid Runtime mutation");
     let rounded = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
-            novadraw::RoundedRectangleFigure::new_with_color(
+            novadraw::figure::RoundedRectangleFigure::new_with_color(
                 300.0,
                 70.0,
                 180.0,
                 110.0,
                 12.0,
-                novadraw::Color::from_hex("#16a34a").expect("valid color literal"),
+                novadraw::graphics::Color::from_hex("#16a34a").expect("valid color literal"),
             )
             .with_stroke(
-                novadraw::Color::from_hex("#14532d").expect("valid color literal"),
+                novadraw::graphics::Color::from_hex("#14532d").expect("valid color literal"),
                 3.0,
             ),
         ))
         .expect("valid Runtime mutation");
     let triangle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
-            novadraw::TriangleFigure::new(novadraw::Rectangle::new(570.0, 70.0, 120.0, 120.0))
-                .with_fill_color(
-                    novadraw::Color::from_hex("#f59e0b").expect("valid color literal"),
-                ),
+            novadraw::figure::TriangleFigure::new(novadraw::geometry::Rectangle::new(
+                570.0, 70.0, 120.0, 120.0,
+            ))
+            .with_fill_color(
+                novadraw::graphics::Color::from_hex("#f59e0b").expect("valid color literal"),
+            ),
         ))
         .expect("valid Runtime mutation");
 
     runtime
-        .point_list(polyline)
+        .figure(polyline)
         .unwrap()
-        .insert_point(1, novadraw::Point::new(140.0, 180.0))
+        .update_component(novadraw::runtime::InsertPolylinePoint::new(
+            1,
+            novadraw::geometry::Point::new(140.0, 180.0),
+        ))
         .expect("valid polyline mutation");
     runtime
-        .rounded_rectangle(rounded)
+        .figure(rounded)
         .unwrap()
-        .set_corner_dimensions(novadraw::Dimension::new(64.0, 28.0))
+        .update_component(novadraw::runtime::SetRoundedRectangleCorners::new(
+            novadraw::geometry::Dimension::new(64.0, 28.0),
+        ))
         .expect("valid corner mutation");
     runtime
-        .triangle(triangle)
+        .figure(triangle)
         .unwrap()
-        .set_direction(novadraw::figure::Direction::West)
+        .update_component(novadraw::runtime::SetTriangleDirection::new(
+            novadraw::figure::Direction::West,
+        ))
         .expect("valid direction mutation");
     runtime
 }
 
-fn create_p2_scalable_polygon() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_p2_scalable_polygon() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let root = scene
         .builder()
-        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
         )))
         .expect("valid FigureTree construction");
-    let template = novadraw::PointList::from_points(vec![
-        novadraw::Point::new(0.0, 12.0),
-        novadraw::Point::new(18.0, 0.0),
-        novadraw::Point::new(36.0, 12.0),
-        novadraw::Point::new(27.0, 32.0),
-        novadraw::Point::new(9.0, 32.0),
+    let template = novadraw::geometry::PointList::from_points(vec![
+        novadraw::geometry::Point::new(0.0, 12.0),
+        novadraw::geometry::Point::new(18.0, 0.0),
+        novadraw::geometry::Point::new(36.0, 12.0),
+        novadraw::geometry::Point::new(27.0, 32.0),
+        novadraw::geometry::Point::new(9.0, 32.0),
     ]);
     let stretch = novadraw::figure::ScalablePolygonFigure::new(
-        novadraw::Rectangle::new(80.0, 90.0, 260.0, 140.0),
+        novadraw::geometry::Rectangle::new(80.0, 90.0, 260.0, 140.0),
         template.clone(),
     )
     .expect("valid scalable polygon")
-    .with_fill_color(novadraw::Color::from_hex("#0ea5e9").expect("valid color literal"))
+    .with_fill_color(novadraw::graphics::Color::from_hex("#0ea5e9").expect("valid color literal"))
     .with_stroke(
-        novadraw::Color::from_hex("#0c4a6e").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#0c4a6e").expect("valid color literal"),
         4.0,
         novadraw::render::LineJoin::Miter,
     );
     let preserved = novadraw::figure::ScalablePolygonFigure::new(
-        novadraw::Rectangle::new(430.0, 90.0, 260.0, 140.0),
+        novadraw::geometry::Rectangle::new(430.0, 90.0, 260.0, 140.0),
         template,
     )
     .expect("valid scalable polygon")
     .with_scale_mode(novadraw::figure::PolygonScaleMode::PreserveAspect)
-    .with_fill_color(novadraw::Color::from_hex("#22c55e").expect("valid color literal"))
+    .with_fill_color(novadraw::graphics::Color::from_hex("#22c55e").expect("valid color literal"))
     .with_stroke(
-        novadraw::Color::from_hex("#14532d").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#14532d").expect("valid color literal"),
         4.0,
         novadraw::render::LineJoin::Round,
     );

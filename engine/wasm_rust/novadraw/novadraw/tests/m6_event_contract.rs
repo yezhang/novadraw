@@ -10,7 +10,10 @@ use novadraw::figure::{
     Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
 };
 use novadraw::runtime::context::SceneDispatchContext;
-use novadraw::{Figure, FigureTree, Rectangle, RectangleFigure, Runtime};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, geometry::Rectangle, runtime::Runtime,
+    tree::FigureTree,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 enum RecordedInput {
@@ -326,13 +329,15 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 160.0)))
         .expect("valid Runtime mutation");
     let first_viewport = runtime
-        .add_viewport(root, Rectangle::new(0.0, 0.0, 120.0, 120.0))
+        .viewports()
+        .add(root, Rectangle::new(0.0, 0.0, 120.0, 120.0))
         .unwrap();
     let second_viewport = runtime
-        .add_viewport(root, Rectangle::new(200.0, 0.0, 120.0, 120.0))
+        .viewports()
+        .add(root, Rectangle::new(200.0, 0.0, 120.0, 120.0))
         .unwrap();
     let first_target = runtime
-        .container(first_viewport.figure_id())
+        .figure(first_viewport.figure_id())
         .unwrap()
         .add(Box::new(InputProbeFigure {
             bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
@@ -340,7 +345,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
         }))
         .expect("valid Runtime mutation");
     let second_target = runtime
-        .container(second_viewport.figure_id())
+        .figure(second_viewport.figure_id())
         .unwrap()
         .add(Box::new(InputProbeFigure {
             bounds: Rectangle::new(0.0, 0.0, 120.0, 120.0),
@@ -349,7 +354,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
         .expect("valid Runtime mutation");
     let session = GestureSessionId::new(17);
 
-    let begin = runtime.dispatch_scroll(WheelEvent::with_details(
+    let begin = runtime.input().dispatch_scroll(WheelEvent::with_details(
         20.0,
         20.0,
         0.0,
@@ -364,7 +369,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     if remove_target {
         assert!(
             runtime
-                .container(root)
+                .figure(root)
                 .unwrap()
                 .remove(first_viewport.figure_id())
                 .expect("valid Runtime mutation")
@@ -378,7 +383,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
                 .expect("valid Runtime mutation")
         );
     }
-    let update = runtime.dispatch_scroll(WheelEvent::with_details(
+    let update = runtime.input().dispatch_scroll(WheelEvent::with_details(
         220.0,
         20.0,
         0.0,
@@ -388,7 +393,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
         KeyModifiers::default(),
         session,
     ));
-    let end = runtime.dispatch_scroll(WheelEvent::with_details(
+    let end = runtime.input().dispatch_scroll(WheelEvent::with_details(
         220.0,
         20.0,
         0.0,
@@ -421,7 +426,7 @@ fn assert_retired_gesture_target_does_not_retarget(remove_target: bool) {
     );
 
     let next_session = GestureSessionId::new(18);
-    let next = runtime.dispatch_scroll(WheelEvent::with_details(
+    let next = runtime.input().dispatch_scroll(WheelEvent::with_details(
         220.0,
         20.0,
         0.0,

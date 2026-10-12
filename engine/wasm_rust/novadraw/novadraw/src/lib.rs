@@ -34,8 +34,6 @@ pub mod host;
 /// Layout extension protocols and built-in layouts.
 #[allow(missing_docs)]
 pub mod layout;
-/// Common imports for Figure and Runtime application code.
-pub mod prelude;
 /// Backend-neutral rendering, text, resource, and submission protocols.
 pub mod render;
 /// Runtime lifecycle, mutation, resource, and frame APIs.
@@ -46,18 +44,24 @@ pub mod text;
 /// Figure tree construction and query APIs.
 pub mod tree;
 
-pub use color::{Color, ColorError, ParseColorError};
-pub use figure::{
+// Internal modules use these aliases as a crate-local prelude. They are not public API.
+#[allow(unused_imports)]
+pub(crate) use color::{Color, ColorError, ParseColorError};
+#[allow(unused_imports)]
+pub(crate) use figure::{
     ButtonFigure, EllipseFigure, Figure, FigureMeasurement, ImageFigure, LabelFigure,
     MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure, RoundedRectangleFigure,
     TextFlowFigure, ToggleFigure, TriangleFigure,
 };
-pub use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
+#[allow(unused_imports)]
+pub(crate) use geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle, Vec2};
 pub(crate) use graph::FigureNode;
-pub use graph::{FigureId, FigureTree, FigureTreeBuilder};
-pub use graphics::{Graphics, GraphicsError, PaintContext};
+pub(crate) use graph::{FigureId, FigureTree, FigureTreeBuilder};
+#[allow(unused_imports)]
+pub(crate) use graphics::{Graphics, GraphicsError, PaintContext};
 pub(crate) use identity::RuntimeNamespace;
-pub use layout::{
+#[allow(unused_imports)]
+pub(crate) use layout::{
     BorderLayout, FillLayout, FlowLayout, FreeformLayout, GridLayout, LayoutManager, StackLayout,
     ToolbarLayout, XYLayout,
 };
@@ -66,11 +70,10 @@ pub(crate) use runtime::event::EventDispatcher;
 pub(crate) use runtime::mutation;
 pub(crate) use runtime::mutation::PendingMutations;
 pub(crate) use runtime::update::UpdateManager;
-pub use runtime::{FrameNotReady, FramePreparation, FramePreparationError, Runtime};
-pub use style::FigureStyle;
+#[allow(unused_imports)]
+pub(crate) use runtime::{FrameNotReady, FramePreparation, FramePreparationError, Runtime};
+pub(crate) use style::FigureStyle;
 
-// Internal modules still use the former root facade as a crate-local prelude.
-// These aliases are deliberately not public and do not extend the root API.
 #[allow(unused_imports)]
 pub(crate) use connection::*;
 #[allow(unused_imports)]
@@ -135,18 +138,15 @@ pub(crate) use runtime::update::{
 pub(crate) use runtime::{
     AccessibilityAction, AccessibilityDelta, AccessibilityError, AccessibilityNode,
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
-    AccessibilityUpdate, BackendSessionError, BorderMut, CapabilityUpdateError,
-    CapabilityUpdateReceipt, ClickableMut, ComponentInvalidation, ComponentUpdateError,
-    ComponentUpdateReceipt, ContainerMut, FigureCapabilityContext, FigureCapabilityUpdate,
-    FigureComponentContext, FigureComponentUpdate, FigureMut, FocusChange, FocusError,
-    FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
-    ImageCompletionError, ImageId, LabelMut, LogicalViewportResizeError, MonotonicTime,
-    PointListMut, PointerId, PreparedCapabilityUpdate, ResourceError, ResourceKind,
-    ResourceRequestToken, ResourceStatus, RoundedRectangleMut, RuntimeMutationError,
-    ScalablePolygonMut, ScaleMut, ScrollPaneMut, SubmissionAcknowledgement,
-    SubmissionCompletionError, TextFlowMut, TextFlowQueryError, TextLayoutStats, TimeError,
-    TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming, TooltipUpdate,
-    TreeOrderFocusTraversal, TriangleMut, ViewportMut, ZoomMut, place_tooltip,
+    AccessibilityUpdate, BackendSessionError, CapabilityUpdateError, CapabilityUpdateReceipt,
+    ComponentInvalidation, ComponentUpdateError, ComponentUpdateReceipt, FigureCapabilityContext,
+    FigureCapabilityUpdate, FigureComponentContext, FigureComponentUpdate, FigureMut, FocusChange,
+    FocusError, FocusTraversalDirection, FocusTraversalOutcome, FocusTraversalPolicy, FontId,
+    ImageCompletionError, ImageId, LogicalViewportResizeError, MonotonicTime, PointerId,
+    PreparedCapabilityUpdate, ResourceError, ResourceKind, ResourceRequestToken, ResourceStatus,
+    RuntimeMutationError, SubmissionAcknowledgement, SubmissionCompletionError, TextFlowQueryError,
+    TextLayoutStats, TimeError, TooltipPlacement, TooltipSide, TooltipSnapshot, TooltipTiming,
+    TooltipUpdate, TreeOrderFocusTraversal, place_tooltip,
 };
 #[allow(unused_imports)]
 pub(crate) use style::{CursorIcon, ResolvedStyle};

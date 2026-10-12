@@ -6,7 +6,7 @@
 //!
 //! ```rust,ignore
 //! use novadraw_example_support::run_demo_app;
-//! use novadraw::Runtime;
+//! use novadraw::runtime::Runtime;
 //!
 //! fn create_scene() -> Runtime {
 //!     let mut runtime = Runtime::empty();

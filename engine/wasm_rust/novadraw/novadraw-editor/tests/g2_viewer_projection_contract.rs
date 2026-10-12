@@ -11,11 +11,11 @@ use std::{
 use novadraw::container::{ZoomScrollPolicy, ZoomViewportState};
 use novadraw::figure::RootFigure;
 use novadraw::geometry::{Point, Rectangle};
-use novadraw::{Figure, FigureId, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure, tree::FigureId};
 use novadraw_editor::{
-    Command, EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy,
-    EditorRequest, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
-    PolicyError, PolicyHost, PolicyInstallation, PolicyRole, ViewerError, VisualBuildContext,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPartId, EditPolicy, GraphicalViewer,
+    ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHandlerBuilder,
+    PolicyHost, PolicyInstallation, PolicyKey, PolicySlot, ViewerError, VisualBuildContext,
     VisualUpdateContext,
 };
 
@@ -248,18 +248,7 @@ struct ActivationPolicy {
 }
 
 impl EditPolicy<DiagramModel> for ActivationPolicy {
-    fn understands(&self, _request: &EditorRequest) -> bool {
-        false
-    }
-
-    fn command(
-        &mut self,
-        _host: PolicyHost<NodeId>,
-        _request: &EditorRequest,
-        _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        Ok(None)
-    }
+    fn register_handlers(_builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {}
 
     fn activate(
         &mut self,
@@ -285,6 +274,12 @@ impl EditPolicy<DiagramModel> for ActivationPolicy {
     }
 }
 
+struct ActivationSlot<const INDEX: u8>;
+
+impl<const INDEX: u8> PolicySlot for ActivationSlot<INDEX> {
+    const NAME: &'static str = "activation";
+}
+
 struct PolicyActivationPart {
     lifecycle: Arc<Mutex<Vec<String>>>,
 }
@@ -307,15 +302,18 @@ impl EditPartBehavior<DiagramModel> for PolicyActivationPart {
     ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
         ["a", "b", "c"]
             .into_iter()
-            .map(|name| {
-                Ok((
-                    PolicyRole::custom(name)?,
-                    Box::new(ActivationPolicy {
-                        name,
-                        fail: name == "b",
-                        lifecycle: Arc::clone(&self.lifecycle),
-                    }) as Box<dyn EditPolicy<DiagramModel>>,
-                ))
+            .enumerate()
+            .map(|(index, name)| {
+                let policy = ActivationPolicy {
+                    name,
+                    fail: name == "b",
+                    lifecycle: Arc::clone(&self.lifecycle),
+                };
+                match index {
+                    0 => PolicyInstallation::new(PolicyKey::<ActivationSlot<0>>::new("a"), policy),
+                    1 => PolicyInstallation::new(PolicyKey::<ActivationSlot<1>>::new("b"), policy),
+                    _ => PolicyInstallation::new(PolicyKey::<ActivationSlot<2>>::new("c"), policy),
+                }
             })
             .collect::<Result<Vec<_>, PolicyError>>()
             .map_err(|error| EditPartError::operation(error.to_string()))

@@ -16,20 +16,25 @@ use novadraw::host::PlatformHost;
 use novadraw::render::{RenderBackend, SurfaceInfo};
 use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw::{
-    Color, Figure, FigureStyle, FramePreparation, LabelFigure, Point, PolylineFigure, Rectangle,
-    RectangleFigure, TextFlowFigure,
+    figure::Figure, figure::FigureStyle, figure::LabelFigure, figure::PolylineFigure,
+    figure::RectangleFigure, figure::TextFlowFigure, geometry::Point, geometry::Rectangle,
+    graphics::Color, runtime::FramePreparation,
 };
 use novadraw_backend_vello::VelloRenderer;
 use novadraw_editor::{
-    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionAnchorContext,
-    ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
-    ConnectionPartFactoryContext, ConnectionReconnection, ConnectionRouterKey,
-    ConnectionRouterRegistration, ConnectionRoutingDescriptor, CreateConnectionRequest,
-    DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest, DirectTextEditState,
-    DirectTextFeedback, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy,
-    EditorRequest, FeedbackVisual, FocusLossPolicy, GraphicalViewer, ModelAdapter, ModelConnection,
-    ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation,
-    PolicyRole, ReconnectConnectionRequest, TextEditMode, VisualUpdateContext,
+    BendpointOperation, BendpointRequest, ChangeBounds, ChangeBoundsRequest, Command, CommandError,
+    ComponentSlot, ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionCreation,
+    ConnectionCreationSlot, ConnectionEndpoint, ConnectionFeedbackRoute,
+    ConnectionPartFactoryContext, ConnectionReconnectSlot, ConnectionReconnection,
+    ConnectionRouterKey, ConnectionRouterRegistration, ConnectionRoutingDescriptor, CreateChild,
+    CreateConnection, CreateConnectionRequest, CreateRequest, DeleteParts, DeleteRequest,
+    DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest, DirectTextEditSlot,
+    DirectTextEditState, DirectTextFeedback, EditBendpoint, EditPartBehavior, EditPartError,
+    EditPartFactory, EditPolicy, EditingContribution, FeedbackVisual, FocusLossPolicy,
+    GraphicalViewer, LayoutSlot, ModelAdapter, ModelConnection, ModelEvent, ModelRevision,
+    PartFactoryContext, PolicyError, PolicyHandlerBuilder, PolicyHost, PolicyInstallation,
+    PolicyKey, PolicySlot, ReconnectConnection, ReconnectConnectionRequest, RequestMetadata,
+    RequestProtocol, StartDirectTextEdit, TextEditMode, VisualUpdateContext,
 };
 use novadraw_platform_winit::{
     WinitPlatformHost, WinitTextInputBridge, adapt_modifiers, adapt_mouse_button,
@@ -849,66 +854,30 @@ impl DirectTextEdit<DemoModel> for NodeDirectTextEdit {
 }
 
 impl EditPolicy<DemoModel> for NodePolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(
-            request,
-            EditorRequest::ChangeBounds(_) | EditorRequest::Delete(_)
-        )
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<ChangeBounds>(Self::change_bounds);
+        builder.handle::<DeleteParts>(Self::delete);
     }
+}
 
-    fn command(
+impl NodePolicy {
+    fn change_bounds(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &ChangeBoundsRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        match request {
-            EditorRequest::ChangeBounds(request) => {
-                let node = model
-                    .nodes
-                    .get(&host.model())
-                    .ok_or_else(|| PolicyError::operation("bounds target no longer exists"))?;
-                if matches!(node.kind, NodeKind::Canvas | NodeKind::Widget) {
-                    return Err(PolicyError::operation(
-                        "node does not support bounds editing",
-                    ));
-                }
-                Ok(Some(Box::new(SetBoundsCommand {
-                    id: host.model(),
-                    before: node.bounds,
-                    after: request.transformed_bounds(node.bounds),
-                })))
-            }
-            EditorRequest::Delete(_) => {
-                let node = model
-                    .nodes
-                    .get(&host.model())
-                    .ok_or_else(|| PolicyError::operation("delete target no longer exists"))?;
-                if matches!(node.kind, NodeKind::Canvas | NodeKind::Widget) {
-                    return Err(PolicyError::operation("node is not deletable"));
-                }
-                Ok(Some(Box::new(DeleteNodeCommand {
-                    id: host.model(),
-                    removed: None,
-                })))
-            }
-            EditorRequest::Create(_)
-            | EditorRequest::CreateConnection(_)
-            | EditorRequest::ReconnectConnection(_)
-            | EditorRequest::Bendpoint(_) => Ok(None),
+    ) -> Result<Option<EditingContribution<DemoModel>>, PolicyError> {
+        let node = model
+            .nodes
+            .get(&host.model())
+            .ok_or_else(|| PolicyError::operation("bounds target no longer exists"))?;
+        if matches!(node.kind, NodeKind::Canvas | NodeKind::Widget) {
+            return Err(PolicyError::operation(
+                "node does not support bounds editing",
+            ));
         }
-    }
-
-    fn feedback(
-        &mut self,
-        host: PolicyHost<NodeId>,
-        request: &EditorRequest,
-        model: &DemoModel,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
-        let EditorRequest::ChangeBounds(request) = request else {
-            return Ok(Vec::new());
-        };
-        let bounds = request.transformed_bounds(model.nodes[&host.model()].bounds);
+        let bounds = request.transformed_bounds(node.bounds);
         let feedback = RectangleFigure::new_with_color(
             bounds.x,
             bounds.y,
@@ -917,15 +886,58 @@ impl EditPolicy<DemoModel> for NodePolicy {
             Color::TRANSPARENT,
         )
         .with_stroke(FEEDBACK_COLOR, 2.0);
-        Ok(vec![FeedbackVisual::scaled(Box::new(feedback))])
+        Ok(Some(EditingContribution::new(
+            Some(Box::new(SetBoundsCommand {
+                id: host.model(),
+                before: node.bounds,
+                after: bounds,
+            })),
+            vec![FeedbackVisual::scaled(Box::new(feedback))],
+        )))
     }
 
-    fn start_direct_text_edit(
+    fn delete(
         &mut self,
         host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
+        model: &DemoModel,
+    ) -> Result<Option<EditingContribution<DemoModel>>, PolicyError> {
+        let node = model
+            .nodes
+            .get(&host.model())
+            .ok_or_else(|| PolicyError::operation("delete target no longer exists"))?;
+        if matches!(node.kind, NodeKind::Canvas | NodeKind::Widget) {
+            return Err(PolicyError::operation("node is not deletable"));
+        }
+        Ok(Some(EditingContribution::command(Box::new(
+            DeleteNodeCommand {
+                id: host.model(),
+                removed: None,
+            },
+        ))))
+    }
+}
+
+struct NodeDirectTextPolicy;
+
+impl EditPolicy<DemoModel> for NodeDirectTextPolicy {
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<StartDirectTextEdit>(Self::start_direct_text);
+    }
+}
+
+impl NodeDirectTextPolicy {
+    fn start_direct_text(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
         request: &DirectTextEditRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn DirectTextEdit<DemoModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<StartDirectTextEdit as RequestProtocol<DemoModel>>::Contribution>,
+        PolicyError,
+    > {
         let Some(node) = model.nodes.get(&host.model()).copied() else {
             return Ok(None);
         };
@@ -956,25 +968,20 @@ impl EditPolicy<DemoModel> for NodePolicy {
 struct ConnectionPolicy;
 
 impl EditPolicy<DemoModel> for ConnectionPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::CreateConnection(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<CreateConnection>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<NodeId>,
-        _request: &EditorRequest,
-        _model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_connection(
+impl ConnectionPolicy {
+    fn start(
         &mut self,
         host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
         request: &CreateConnectionRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn ConnectionCreation<DemoModel>>>, PolicyError> {
+    ) -> Result<Option<<CreateConnection as RequestProtocol<DemoModel>>::Contribution>, PolicyError>
+    {
         let is_shape = model
             .nodes
             .get(&host.model())
@@ -992,32 +999,34 @@ impl EditPolicy<DemoModel> for ConnectionPolicy {
 struct CanvasPolicy;
 
 impl EditPolicy<DemoModel> for CanvasPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Create(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<CreateChild>(Self::create);
     }
+}
 
-    fn command(
+impl CanvasPolicy {
+    fn create(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &CreateRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        let EditorRequest::Create(request) = request else {
-            return Ok(None);
-        };
+    ) -> Result<Option<EditingContribution<DemoModel>>, PolicyError> {
         if host.model() != NodeId(1) || request.creation_type().as_str() != "shape" {
             return Err(PolicyError::operation(
                 "unsupported creation target or type",
             ));
         }
-        Ok(Some(Box::new(CreateNodeCommand {
-            id: NodeId(model.next_id),
-            node: Node {
-                bounds: request.bounds(),
-                kind: NodeKind::Shape(Color::from_hex("#805AD5").expect("valid color literal")),
+        Ok(Some(EditingContribution::command(Box::new(
+            CreateNodeCommand {
+                id: NodeId(model.next_id),
+                node: Node {
+                    bounds: request.bounds(),
+                    kind: NodeKind::Shape(Color::from_hex("#805AD5").expect("valid color literal")),
+                },
+                index: model.children.get(&NodeId(1)).map_or(0, Vec::len),
             },
-            index: model.children.get(&NodeId(1)).map_or(0, Vec::len),
-        })))
+        ))))
     }
 }
 
@@ -1052,7 +1061,7 @@ impl EditPartBehavior<DemoModel> for DemoPart {
                 )),
             ),
             NodeKind::Widget => {
-                Box::new(novadraw::ButtonFigure::new("Widget").with_bounds(node.bounds))
+                Box::new(novadraw::figure::ButtonFigure::new("Widget").with_bounds(node.bounds))
             }
         })
     }
@@ -1084,15 +1093,19 @@ impl EditPartBehavior<DemoModel> for DemoPart {
         model: &DemoModel,
         model_id: NodeId,
     ) -> Result<Vec<PolicyInstallation<DemoModel>>, EditPartError> {
-        Ok(match model.nodes[&model_id].kind {
-            NodeKind::Canvas => vec![(PolicyRole::Layout, Box::new(CanvasPolicy))],
+        let installations = match model.nodes[&model_id].kind {
+            NodeKind::Canvas => vec![PolicyInstallation::new(LayoutSlot::key(), CanvasPolicy)],
             NodeKind::Shape(_) => vec![
-                (PolicyRole::Component, Box::new(NodePolicy)),
-                (PolicyRole::ConnectionCreation, Box::new(ConnectionPolicy)),
-                (PolicyRole::DirectTextEdit, Box::new(NodePolicy)),
+                PolicyInstallation::new(ComponentSlot::key(), NodePolicy),
+                PolicyInstallation::new(ConnectionCreationSlot::key(), ConnectionPolicy),
+                PolicyInstallation::new(DirectTextEditSlot::key(), NodeDirectTextPolicy),
             ],
-            NodeKind::Widget => vec![(PolicyRole::Component, Box::new(NodePolicy))],
-        })
+            NodeKind::Widget => vec![PolicyInstallation::new(ComponentSlot::key(), NodePolicy)],
+        };
+        installations
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| EditPartError::operation(error.to_string()))
     }
 
     fn source_connection_anchor(
@@ -1277,19 +1290,19 @@ impl ConnectionReconnection<DemoModel> for DemoReconnection {
 }
 
 impl EditPolicy<DemoModel> for ConnectionDeletePolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Delete(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<DeleteParts>(Self::delete);
     }
+}
 
-    fn command(
+impl ConnectionDeletePolicy {
+    fn delete(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        if !matches!(request, EditorRequest::Delete(_)) {
-            return Ok(None);
-        }
+    ) -> Result<Option<EditingContribution<DemoModel>>, PolicyError> {
         if !model
             .connections
             .iter()
@@ -1299,35 +1312,34 @@ impl EditPolicy<DemoModel> for ConnectionDeletePolicy {
                 "connection delete target no longer exists",
             ));
         }
-        Ok(Some(Box::new(DeleteConnectionCommand {
-            id: host.model(),
-            removed: None,
-        })))
+        Ok(Some(EditingContribution::command(Box::new(
+            DeleteConnectionCommand {
+                id: host.model(),
+                removed: None,
+            },
+        ))))
     }
 }
 
 struct ConnectionReconnectPolicy;
 
 impl EditPolicy<DemoModel> for ConnectionReconnectPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::ReconnectConnection(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<ReconnectConnection>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<NodeId>,
-        _request: &EditorRequest,
-        _model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_reconnection(
+impl ConnectionReconnectPolicy {
+    fn start(
         &mut self,
         host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
         _request: &ReconnectConnectionRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn ConnectionReconnection<DemoModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<ReconnectConnection as RequestProtocol<DemoModel>>::Contribution>,
+        PolicyError,
+    > {
         Ok(model
             .connections
             .iter()
@@ -1342,49 +1354,33 @@ impl EditPolicy<DemoModel> for ConnectionReconnectPolicy {
 struct ConnectionBendpointPolicy;
 
 impl EditPolicy<DemoModel> for ConnectionBendpointPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Bendpoint(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DemoModel, Self>) {
+        builder.handle::<EditBendpoint>(Self::edit);
     }
+}
 
-    fn command(
+impl ConnectionBendpointPolicy {
+    fn edit(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &BendpointRequest,
         model: &DemoModel,
-    ) -> Result<Option<Box<dyn Command<DemoModel>>>, PolicyError> {
-        let EditorRequest::Bendpoint(request) = request else {
-            return Ok(None);
-        };
+    ) -> Result<Option<EditingContribution<DemoModel>>, PolicyError> {
         let before = model
             .bendpoints
             .get(&host.model())
             .cloned()
             .unwrap_or_default();
         let after = apply_bendpoint_request(model, host.model(), request, &before)?;
-        Ok((after != before).then(|| {
+        let command = (after != before).then(|| {
             Box::new(SetBendpointsCommand {
                 connection: host.model(),
-                before,
-                after,
+                before: before.clone(),
+                after: after.clone(),
             }) as Box<dyn Command<DemoModel>>
-        }))
-    }
-
-    fn feedback(
-        &mut self,
-        host: PolicyHost<NodeId>,
-        request: &EditorRequest,
-        model: &DemoModel,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
-        let EditorRequest::Bendpoint(request) = request else {
-            return Ok(Vec::new());
-        };
-        let before = model
-            .bendpoints
-            .get(&host.model())
-            .cloned()
-            .unwrap_or_default();
-        let bendpoints = apply_bendpoint_request(model, host.model(), request, &before)?;
+        });
+        let bendpoints = after;
         let connection = model
             .connections
             .iter()
@@ -1404,12 +1400,21 @@ impl EditPolicy<DemoModel> for ConnectionBendpointPolicy {
         points.push(rectangle_boundary_site(source_bounds, source_reference).point);
         points.extend(bendpoints);
         points.push(rectangle_boundary_site(target_bounds, target_reference).point);
-        Ok(vec![FeedbackVisual::scaled(Box::new(
-            PolylineFigure::from_points(points)
-                .with_color(FEEDBACK_COLOR)
-                .with_width(3.0),
-        ))])
+        Ok(Some(EditingContribution::new(
+            command,
+            vec![FeedbackVisual::scaled(Box::new(
+                PolylineFigure::from_points(points)
+                    .with_color(FEEDBACK_COLOR)
+                    .with_width(3.0),
+            ))],
+        )))
     }
+}
+
+struct ConnectionBendpointSlot;
+
+impl PolicySlot for ConnectionBendpointSlot {
+    const NAME: &'static str = "connection-bendpoint";
 }
 
 fn apply_bendpoint_request(
@@ -1515,18 +1520,17 @@ impl EditPartBehavior<DemoModel> for DemoConnectionPart {
         _model: &DemoModel,
         _model_id: NodeId,
     ) -> Result<Vec<PolicyInstallation<DemoModel>>, EditPartError> {
-        Ok(vec![
-            (PolicyRole::Component, Box::new(ConnectionDeletePolicy)),
-            (
-                PolicyRole::ConnectionReconnect,
-                Box::new(ConnectionReconnectPolicy),
+        [
+            PolicyInstallation::new(ComponentSlot::key(), ConnectionDeletePolicy),
+            PolicyInstallation::new(ConnectionReconnectSlot::key(), ConnectionReconnectPolicy),
+            PolicyInstallation::new(
+                PolicyKey::<ConnectionBendpointSlot>::new("connection-bendpoint"),
+                ConnectionBendpointPolicy,
             ),
-            (
-                PolicyRole::custom("connection-bendpoint")
-                    .expect("static bendpoint policy role is valid"),
-                Box::new(ConnectionBendpointPolicy),
-            ),
-        ])
+        ]
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| EditPartError::operation(error.to_string()))
     }
 
     fn connection_routing(
@@ -1699,7 +1703,7 @@ impl DemoApp {
             .expect("prepared editor frame must match its completion");
         match acknowledgement {
             SubmissionAcknowledgement::Presented => {
-                if editor.runtime().has_pending_update() {
+                if editor.has_pending_update() {
                     host.request_redraw();
                 }
             }
@@ -2135,7 +2139,8 @@ mod tests {
     use novadraw::event::MouseButton;
     use novadraw::graphics::LineStyle;
     use novadraw::render::command::RenderCommandKind;
-    use novadraw_editor::{HandleRole, SessionTextInputEvent, TextInputEffect, TextInputEvent};
+    use novadraw_editor::overlay::BendpointMoveAction;
+    use novadraw_editor::{SessionTextInputEvent, TextInputEffect, TextInputEvent};
 
     #[test]
     fn node_labels_render_model_colors_before_interaction() {
@@ -2389,10 +2394,7 @@ mod tests {
             .connection_bendpoint_handle_sites(part)
             .unwrap()
             .into_iter()
-            .filter_map(|site| match site.role() {
-                HandleRole::BendpointMove(index) => Some(index),
-                _ => None,
-            })
+            .filter_map(|site| site.action().get::<BendpointMoveAction>().copied())
             .collect::<Vec<_>>();
         assert_eq!(move_roles, vec![0, 1]);
     }

@@ -8,16 +8,19 @@ use super::{
 };
 
 impl Runtime {
-    pub fn direct_connection_router(&self) -> RouterId {
+    pub(crate) fn direct_connection_router(&self) -> RouterId {
         self.connections.direct_router()
     }
 
-    pub fn register_connection_anchor(&mut self, anchor: Box<dyn ConnectionAnchor>) -> AnchorId {
+    pub(crate) fn register_connection_anchor(
+        &mut self,
+        anchor: Box<dyn ConnectionAnchor>,
+    ) -> AnchorId {
         self.try_register_connection_anchor(anchor)
             .expect("cannot register an Anchor in a faulted Runtime")
     }
 
-    pub fn try_register_connection_anchor(
+    pub(crate) fn try_register_connection_anchor(
         &mut self,
         anchor: Box<dyn ConnectionAnchor>,
     ) -> Result<AnchorId, ConnectionRuntimeError> {
@@ -26,14 +29,14 @@ impl Runtime {
         })
     }
 
-    pub fn remove_connection_anchor(
+    pub(crate) fn remove_connection_anchor(
         &mut self,
         anchor: AnchorId,
     ) -> Result<Box<dyn ConnectionAnchor>, ConnectionRuntimeError> {
         self.guarded_connection_mutation(|runtime| runtime.connections.remove_anchor(anchor))
     }
 
-    pub fn set_anchor_geometry(
+    pub(crate) fn set_anchor_geometry(
         &mut self,
         figure: FigureId,
         key: AnchorGeometryKey,
@@ -70,7 +73,7 @@ impl Runtime {
             .invalidate_dependency(&DependencySubject::NamedAnchorRegion(figure, key))
     }
 
-    pub fn anchor_geometry(
+    pub(crate) fn anchor_geometry(
         &self,
         figure: FigureId,
         key: &AnchorGeometryKey,
@@ -78,12 +81,15 @@ impl Runtime {
         self.anchor_geometries.get(&(figure, key.clone()))
     }
 
-    pub fn register_connection_router(&mut self, router: Box<dyn ConnectionRouter>) -> RouterId {
+    pub(crate) fn register_connection_router(
+        &mut self,
+        router: Box<dyn ConnectionRouter>,
+    ) -> RouterId {
         self.try_register_connection_router(router)
             .expect("cannot register a Router in a faulted Runtime")
     }
 
-    pub fn try_register_connection_router(
+    pub(crate) fn try_register_connection_router(
         &mut self,
         router: Box<dyn ConnectionRouter>,
     ) -> Result<RouterId, ConnectionRuntimeError> {
@@ -92,14 +98,14 @@ impl Runtime {
         })
     }
 
-    pub fn remove_connection_router(
+    pub(crate) fn remove_connection_router(
         &mut self,
         router: RouterId,
     ) -> Result<Box<dyn ConnectionRouter>, ConnectionRuntimeError> {
         self.guarded_connection_mutation(|runtime| runtime.connections.remove_router(router))
     }
 
-    pub fn set_connection_layer_router(
+    pub(crate) fn set_connection_layer_router(
         &mut self,
         layer: FigureId,
         router: RouterId,
@@ -120,7 +126,7 @@ impl Runtime {
         self.connections.set_layer_router(layer, router)
     }
 
-    pub fn register_connection_state(
+    pub(crate) fn register_connection_state(
         &mut self,
         figure: FigureId,
         source: Option<AnchorId>,
@@ -153,7 +159,7 @@ impl Runtime {
         Ok(connection)
     }
 
-    pub fn remove_connection_state(
+    pub(crate) fn remove_connection_state(
         &mut self,
         connection: ConnectionId,
     ) -> Result<(), ConnectionRuntimeError> {
@@ -162,7 +168,7 @@ impl Runtime {
         })
     }
 
-    pub fn connection_state(
+    pub(crate) fn connection_state(
         &self,
         connection: ConnectionId,
     ) -> Result<ConnectionStateSnapshot, ConnectionRuntimeError> {
@@ -170,11 +176,11 @@ impl Runtime {
     }
 
     /// Returns cumulative route and obstacle-snapshot work counters.
-    pub fn connection_routing_stats(&self) -> ConnectionRoutingStats {
+    pub(crate) fn connection_routing_stats(&self) -> ConnectionRoutingStats {
         self.connections.routing_stats()
     }
 
-    pub fn set_connection_source(
+    pub(crate) fn set_connection_source(
         &mut self,
         connection: ConnectionId,
         source: Option<AnchorId>,
@@ -184,7 +190,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_connection_target(
+    pub(crate) fn set_connection_target(
         &mut self,
         connection: ConnectionId,
         target: Option<AnchorId>,
@@ -194,7 +200,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_connection_router_binding(
+    pub(crate) fn set_connection_router_binding(
         &mut self,
         connection: ConnectionId,
         router: RouterBinding,
@@ -204,7 +210,7 @@ impl Runtime {
         })
     }
 
-    pub fn set_connection_constraint(
+    pub(crate) fn set_connection_constraint(
         &mut self,
         connection: ConnectionId,
         constraint: Option<Box<dyn RoutingConstraint>>,
@@ -215,7 +221,7 @@ impl Runtime {
     }
 
     /// Atomically replaces one Connection's Router binding and typed constraint.
-    pub fn set_connection_route_configuration(
+    pub(crate) fn set_connection_route_configuration(
         &mut self,
         connection: ConnectionId,
         router: RouterBinding,
@@ -229,7 +235,7 @@ impl Runtime {
     }
 
     /// Binds a direct Connection child to a route-derived Locator.
-    pub fn set_connection_locator(
+    pub(crate) fn set_connection_locator(
         &mut self,
         connection: ConnectionId,
         child: FigureId,
@@ -248,7 +254,7 @@ impl Runtime {
     }
 
     /// Removes the Locator bound to a Connection child.
-    pub fn remove_connection_locator(
+    pub(crate) fn remove_connection_locator(
         &mut self,
         child: FigureId,
     ) -> Result<bool, ConnectionRuntimeError> {
@@ -261,7 +267,7 @@ impl Runtime {
     }
 
     /// Resolves a source/target Anchor pair without registering or mutating a Connection.
-    pub fn preview_connection_endpoints(
+    pub(crate) fn preview_connection_endpoints(
         &self,
         source: &dyn ConnectionAnchor,
         target: &dyn ConnectionAnchor,
@@ -282,7 +288,7 @@ impl Runtime {
             .map(|output| *output.metadata())
     }
 
-    pub fn resolve_connection_route(
+    pub(crate) fn resolve_connection_route(
         &mut self,
         connection: ConnectionId,
         routing_space: CoordinateSpace,
@@ -467,7 +473,7 @@ impl Runtime {
         }
     }
 
-    pub fn invalidate_connection_dependency(
+    pub(crate) fn invalidate_connection_dependency(
         &mut self,
         subject: &DependencySubject,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
@@ -476,15 +482,15 @@ impl Runtime {
         })
     }
 
-    pub fn dirty_connections(&self) -> Vec<ConnectionId> {
+    pub(crate) fn dirty_connections(&self) -> Vec<ConnectionId> {
         self.connections.dirty_connections()
     }
 
-    pub fn last_connection_error(&self) -> Option<&ConnectionRuntimeError> {
+    pub(crate) fn last_connection_error(&self) -> Option<&ConnectionRuntimeError> {
         self.connection_error.as_ref()
     }
 
-    pub fn take_connection_error(&mut self) -> Option<ConnectionRuntimeError> {
+    pub(crate) fn take_connection_error(&mut self) -> Option<ConnectionRuntimeError> {
         self.connection_error.take()
     }
 }

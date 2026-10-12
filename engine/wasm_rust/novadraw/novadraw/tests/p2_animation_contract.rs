@@ -4,10 +4,7 @@ use support::record_full_submission;
 
 // External contracts for the P2-M01 animation clock and timeline core.
 
-use std::{sync::Arc, time::Duration};
-
 use novadraw::{
-    Affine2D, Color, Dimension, FigureMeasurement, FigureTree, Rectangle, RectangleFigure, Runtime,
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         AnimationSuppression, AnimationValue, Decay, Easing, InteractionGeometryPolicy,
@@ -15,10 +12,19 @@ use novadraw::{
         Spring, SuspensionPolicy, Tween,
     },
     event::MonotonicTime,
+    figure::FigureMeasurement,
+    figure::RectangleFigure,
     figure::{FigureDrawing, FigurePresentation},
+    geometry::Affine2D,
+    geometry::Dimension,
+    geometry::Rectangle,
+    graphics::Color,
     graphics::{GraphicsError, PaintContext},
     render::{BackendCapabilities, Paint, RenderCommandKind, RenderDisposition, SurfaceInfo},
+    runtime::Runtime,
+    tree::FigureTree,
 };
+use std::{sync::Arc, time::Duration};
 
 fn time(milliseconds: u64) -> MonotonicTime {
     MonotonicTime::from_micros(milliseconds * 1_000)
@@ -36,6 +42,7 @@ fn surface(width: u32, height: u32) -> SurfaceInfo {
 
 fn complete_frame(runtime: &mut Runtime, width: u32, height: u32) {
     let submission = runtime
+        .frames()
         .prepare_submission(
             surface(width, height),
             BackendCapabilities::RETAINED_PARTIAL,
@@ -44,6 +51,7 @@ fn complete_frame(runtime: &mut Runtime, width: u32, height: u32) {
         .unwrap();
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -86,8 +94,13 @@ impl FigureDrawing for PanickingDrawing {
 #[test]
 fn disabled_mode_suppresses_without_work_or_override() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
-    assert!(runtime.animations().set_mode(AnimationMode::Disabled));
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .set_mode(AnimationMode::Disabled)
+    );
 
     let plan = AnimationPlan::track(
         channel,
@@ -100,50 +113,84 @@ fn disabled_mode_suppresses_without_work_or_override() {
     .unwrap();
 
     assert_eq!(
-        runtime.animations().start(plan).unwrap(),
+        runtime.animation().timeline().start(plan).unwrap(),
         AnimationStart::Suppressed(AnimationSuppression::Disabled)
     );
-    assert_eq!(runtime.animations().value(channel).unwrap(), 10.0);
-    assert!(!runtime.animations().has_override(channel).unwrap());
-    assert_eq!(runtime.animations().active_animation_count(), 0);
-    assert_eq!(runtime.animations().next_wake_deadline(), None);
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 10.0);
+    assert!(
+        !runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().next_wake_deadline(), None);
 
-    let before = runtime.animations().stats();
-    assert!(!runtime.advance_time(time(50)).unwrap());
-    let after = runtime.animations().stats();
+    let before = runtime.animation().timeline().stats();
+    assert!(!runtime.animation().advance_time(time(50)).unwrap());
+    let after = runtime.animation().timeline().stats();
     assert_eq!(after.tracks_sampled, before.tracks_sampled);
 }
 
 #[test]
 fn reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
-    assert!(runtime.animations().set_mode(AnimationMode::ReducedMotion));
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .set_mode(AnimationMode::ReducedMotion)
+    );
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
     assert_eq!(
-        runtime.animations().start(plan).unwrap(),
+        runtime.animation().timeline().start(plan).unwrap(),
         AnimationStart::Suppressed(AnimationSuppression::ReducedMotionStaticFallback)
     );
-    assert_eq!(runtime.animations().value(channel).unwrap(), 10.0);
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 10.0);
 
-    assert!(runtime.animations().set_mode(AnimationMode::Enabled));
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .set_mode(AnimationMode::Enabled)
+    );
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("enabled animation must run");
     };
-    assert!(runtime.animations().has_override(channel).unwrap());
-    assert!(runtime.animations().set_mode(AnimationMode::Disabled));
-    assert!(!runtime.animations().has_override(channel).unwrap());
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .set_mode(AnimationMode::Disabled)
+    );
+    assert!(
+        !runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Cancelled
     );
 }
@@ -151,57 +198,67 @@ fn reduced_motion_uses_static_fallback_and_mode_change_cancels_active_work() {
 #[test]
 fn tween_uses_absolute_monotonic_time_and_clears_override_at_completion() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
 
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("enabled animation must run");
     };
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Scheduled
     );
-    assert_eq!(runtime.animations().value(channel).unwrap(), 0.0);
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 0.0);
 
-    assert!(!runtime.advance_time(time(0)).unwrap());
+    assert!(!runtime.animation().advance_time(time(0)).unwrap());
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Running
     );
-    assert!(runtime.advance_time(time(50)).unwrap());
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
-    assert!(!runtime.advance_time(time(50)).unwrap());
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
+    assert!(runtime.animation().advance_time(time(50)).unwrap());
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
+    assert!(!runtime.animation().advance_time(time(50)).unwrap());
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
 
-    assert!(runtime.advance_time(time(100)).unwrap());
-    assert_eq!(runtime.animations().value(channel).unwrap(), 10.0);
-    assert!(!runtime.animations().has_override(channel).unwrap());
+    assert!(runtime.animation().advance_time(time(100)).unwrap());
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 10.0);
+    assert!(
+        !runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Completed
     );
-    assert_eq!(runtime.animations().next_wake_deadline(), None);
+    assert_eq!(runtime.animation().timeline().next_wake_deadline(), None);
 }
 
 #[test]
 fn non_monotonic_time_preserves_animation_state() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    runtime.animations().start(plan).unwrap();
+    runtime.animation().timeline().start(plan).unwrap();
 
-    runtime.advance_time(time(60)).unwrap();
-    let before = runtime.animations().value(channel).unwrap();
-    assert!(runtime.advance_time(time(40)).is_err());
-    assert_eq!(runtime.animations().value(channel).unwrap(), before);
+    runtime.animation().advance_time(time(60)).unwrap();
+    let before = runtime.animation().timeline().value(channel).unwrap();
+    assert!(runtime.animation().advance_time(time(40)).is_err());
+    assert_eq!(
+        runtime.animation().timeline().value(channel).unwrap(),
+        before
+    );
 }
 
 #[test]
@@ -215,67 +272,144 @@ fn parallel_sequence_and_stagger_preserve_stable_track_order() {
     };
 
     let mut parallel_runtime = Runtime::empty();
-    let parallel_a = parallel_runtime.animations().create_channel(10.0).unwrap();
-    let parallel_b = parallel_runtime.animations().create_channel(20.0).unwrap();
+    let parallel_a = parallel_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
+    let parallel_b = parallel_runtime
+        .animation()
+        .timeline()
+        .create_channel(20.0)
+        .unwrap();
     let parallel =
         AnimationPlan::parallel(vec![tween(parallel_a, 10.0), tween(parallel_b, 20.0)]).unwrap();
-    parallel_runtime.animations().start(parallel).unwrap();
-    parallel_runtime.advance_time(time(0)).unwrap();
-    parallel_runtime.advance_time(time(50)).unwrap();
+    parallel_runtime
+        .animation()
+        .timeline()
+        .start(parallel)
+        .unwrap();
+    parallel_runtime.animation().advance_time(time(0)).unwrap();
+    parallel_runtime.animation().advance_time(time(50)).unwrap();
     assert_eq!(
-        parallel_runtime.animations().value(parallel_a).unwrap(),
+        parallel_runtime
+            .animation()
+            .timeline()
+            .value(parallel_a)
+            .unwrap(),
         5.0
     );
     assert_eq!(
-        parallel_runtime.animations().value(parallel_b).unwrap(),
+        parallel_runtime
+            .animation()
+            .timeline()
+            .value(parallel_b)
+            .unwrap(),
         10.0
     );
 
     let mut sequence_runtime = Runtime::empty();
-    let sequence_a = sequence_runtime.animations().create_channel(10.0).unwrap();
-    let sequence_b = sequence_runtime.animations().create_channel(20.0).unwrap();
+    let sequence_a = sequence_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
+    let sequence_b = sequence_runtime
+        .animation()
+        .timeline()
+        .create_channel(20.0)
+        .unwrap();
     let sequence =
         AnimationPlan::sequence(vec![tween(sequence_a, 10.0), tween(sequence_b, 20.0)]).unwrap();
-    sequence_runtime.animations().start(sequence).unwrap();
-    sequence_runtime.advance_time(time(0)).unwrap();
-    sequence_runtime.advance_time(time(50)).unwrap();
+    sequence_runtime
+        .animation()
+        .timeline()
+        .start(sequence)
+        .unwrap();
+    sequence_runtime.animation().advance_time(time(0)).unwrap();
+    sequence_runtime.animation().advance_time(time(50)).unwrap();
     assert_eq!(
-        sequence_runtime.animations().value(sequence_a).unwrap(),
+        sequence_runtime
+            .animation()
+            .timeline()
+            .value(sequence_a)
+            .unwrap(),
         5.0
     );
     assert_eq!(
-        sequence_runtime.animations().value(sequence_b).unwrap(),
+        sequence_runtime
+            .animation()
+            .timeline()
+            .value(sequence_b)
+            .unwrap(),
         0.0
     );
-    sequence_runtime.advance_time(time(150)).unwrap();
+    sequence_runtime
+        .animation()
+        .advance_time(time(150))
+        .unwrap();
     assert_eq!(
-        sequence_runtime.animations().value(sequence_a).unwrap(),
+        sequence_runtime
+            .animation()
+            .timeline()
+            .value(sequence_a)
+            .unwrap(),
         10.0
     );
     assert_eq!(
-        sequence_runtime.animations().value(sequence_b).unwrap(),
+        sequence_runtime
+            .animation()
+            .timeline()
+            .value(sequence_b)
+            .unwrap(),
         10.0
     );
 
     let mut stagger_runtime = Runtime::empty();
-    let stagger_a = stagger_runtime.animations().create_channel(10.0).unwrap();
-    let stagger_b = stagger_runtime.animations().create_channel(20.0).unwrap();
+    let stagger_a = stagger_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
+    let stagger_b = stagger_runtime
+        .animation()
+        .timeline()
+        .create_channel(20.0)
+        .unwrap();
     let stagger = AnimationPlan::stagger(
         Duration::from_millis(50),
         vec![tween(stagger_a, 10.0), tween(stagger_b, 20.0)],
     )
     .unwrap();
-    stagger_runtime.animations().start(stagger).unwrap();
-    stagger_runtime.advance_time(time(0)).unwrap();
-    stagger_runtime.advance_time(time(75)).unwrap();
-    assert_eq!(stagger_runtime.animations().value(stagger_a).unwrap(), 7.5);
-    assert_eq!(stagger_runtime.animations().value(stagger_b).unwrap(), 5.0);
+    stagger_runtime
+        .animation()
+        .timeline()
+        .start(stagger)
+        .unwrap();
+    stagger_runtime.animation().advance_time(time(0)).unwrap();
+    stagger_runtime.animation().advance_time(time(75)).unwrap();
+    assert_eq!(
+        stagger_runtime
+            .animation()
+            .timeline()
+            .value(stagger_a)
+            .unwrap(),
+        7.5
+    );
+    assert_eq!(
+        stagger_runtime
+            .animation()
+            .timeline()
+            .value(stagger_b)
+            .unwrap(),
+        5.0
+    );
 }
 
 #[test]
 fn keyframes_sample_piecewise_values() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(0.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(0.0).unwrap();
     let keyframes = Keyframes::new(
         Duration::from_millis(100),
         vec![
@@ -286,23 +420,28 @@ fn keyframes_sample_piecewise_values() {
     )
     .unwrap();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(AnimationPlan::track(channel, Motion::Keyframes(keyframes)).unwrap())
         .unwrap();
 
-    runtime.advance_time(time(0)).unwrap();
-    runtime.advance_time(time(25)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
-    runtime.advance_time(time(75)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
-    runtime.advance_time(time(100)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 0.0);
+    runtime.animation().advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(25)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
+    runtime.animation().advance_time(time(75)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
+    runtime.animation().advance_time(time(100)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 0.0);
 }
 
 #[test]
 fn spring_and_decay_are_bounded_and_finish_at_committed_values() {
     let mut spring_runtime = Runtime::empty();
-    let spring_channel = spring_runtime.animations().create_channel(10.0).unwrap();
+    let spring_channel = spring_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
     let spring = Spring::between(
         0.0,
         10.0,
@@ -314,33 +453,58 @@ fn spring_and_decay_are_bounded_and_finish_at_committed_values() {
     )
     .unwrap();
     spring_runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(AnimationPlan::track(spring_channel, Motion::Spring(spring)).unwrap())
         .unwrap();
-    spring_runtime.advance_time(time(0)).unwrap();
-    spring_runtime.advance_time(time(100)).unwrap();
-    let spring_sample = spring_runtime.animations().value(spring_channel).unwrap();
+    spring_runtime.animation().advance_time(time(0)).unwrap();
+    spring_runtime.animation().advance_time(time(100)).unwrap();
+    let spring_sample = spring_runtime
+        .animation()
+        .timeline()
+        .value(spring_channel)
+        .unwrap();
     assert!(spring_sample > 0.0);
-    spring_runtime.advance_time(time(1_000)).unwrap();
+    spring_runtime
+        .animation()
+        .advance_time(time(1_000))
+        .unwrap();
     assert_eq!(
-        spring_runtime.animations().value(spring_channel).unwrap(),
+        spring_runtime
+            .animation()
+            .timeline()
+            .value(spring_channel)
+            .unwrap(),
         10.0
     );
 
     let mut decay_runtime = Runtime::empty();
-    let decay_channel = decay_runtime.animations().create_channel(10.0).unwrap();
+    let decay_channel = decay_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
     let decay = Decay::between(0.0, 10.0, 5.0, Duration::from_millis(1_000)).unwrap();
     decay_runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(AnimationPlan::track(decay_channel, Motion::Decay(decay)).unwrap())
         .unwrap();
-    decay_runtime.advance_time(time(0)).unwrap();
-    decay_runtime.advance_time(time(100)).unwrap();
-    let decay_sample = decay_runtime.animations().value(decay_channel).unwrap();
+    decay_runtime.animation().advance_time(time(0)).unwrap();
+    decay_runtime.animation().advance_time(time(100)).unwrap();
+    let decay_sample = decay_runtime
+        .animation()
+        .timeline()
+        .value(decay_channel)
+        .unwrap();
     assert!(decay_sample > 0.0 && decay_sample < 10.0);
-    decay_runtime.advance_time(time(1_000)).unwrap();
+    decay_runtime.animation().advance_time(time(1_000)).unwrap();
     assert_eq!(
-        decay_runtime.animations().value(decay_channel).unwrap(),
+        decay_runtime
+            .animation()
+            .timeline()
+            .value(decay_channel)
+            .unwrap(),
         10.0
     );
 
@@ -365,62 +529,110 @@ fn spring_and_decay_are_bounded_and_finish_at_committed_values() {
 #[test]
 fn finite_repeat_and_reverse_preserve_channel_continuity_and_terminal_truth() {
     let mut restart_runtime = Runtime::empty();
-    let restart_channel = restart_runtime.animations().create_channel(10.0).unwrap();
+    let restart_channel = restart_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
     let restart_cycle = AnimationPlan::track(
         restart_channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
     let restart = AnimationPlan::repeat(2, RepeatBehavior::Restart, restart_cycle).unwrap();
-    restart_runtime.animations().start(restart).unwrap();
-    restart_runtime.advance_time(time(0)).unwrap();
+    restart_runtime
+        .animation()
+        .timeline()
+        .start(restart)
+        .unwrap();
+    restart_runtime.animation().advance_time(time(0)).unwrap();
     assert_eq!(
-        restart_runtime.animations().value(restart_channel).unwrap(),
+        restart_runtime
+            .animation()
+            .timeline()
+            .value(restart_channel)
+            .unwrap(),
         0.0
     );
-    restart_runtime.advance_time(time(100)).unwrap();
+    restart_runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        restart_runtime.animations().value(restart_channel).unwrap(),
+        restart_runtime
+            .animation()
+            .timeline()
+            .value(restart_channel)
+            .unwrap(),
         0.0
     );
-    restart_runtime.advance_time(time(150)).unwrap();
+    restart_runtime.animation().advance_time(time(150)).unwrap();
     assert_eq!(
-        restart_runtime.animations().value(restart_channel).unwrap(),
+        restart_runtime
+            .animation()
+            .timeline()
+            .value(restart_channel)
+            .unwrap(),
         5.0
     );
-    restart_runtime.advance_time(time(200)).unwrap();
+    restart_runtime.animation().advance_time(time(200)).unwrap();
     assert_eq!(
-        restart_runtime.animations().value(restart_channel).unwrap(),
+        restart_runtime
+            .animation()
+            .timeline()
+            .value(restart_channel)
+            .unwrap(),
         10.0
     );
 
     let mut reverse_runtime = Runtime::empty();
-    let reverse_channel = reverse_runtime.animations().create_channel(0.0).unwrap();
+    let reverse_channel = reverse_runtime
+        .animation()
+        .timeline()
+        .create_channel(0.0)
+        .unwrap();
     let reverse_cycle = AnimationPlan::track(
         reverse_channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
     let reverse = AnimationPlan::repeat(2, RepeatBehavior::Reverse, reverse_cycle).unwrap();
-    reverse_runtime.animations().start(reverse).unwrap();
-    reverse_runtime.advance_time(time(0)).unwrap();
+    reverse_runtime
+        .animation()
+        .timeline()
+        .start(reverse)
+        .unwrap();
+    reverse_runtime.animation().advance_time(time(0)).unwrap();
     assert_eq!(
-        reverse_runtime.animations().value(reverse_channel).unwrap(),
+        reverse_runtime
+            .animation()
+            .timeline()
+            .value(reverse_channel)
+            .unwrap(),
         0.0
     );
-    reverse_runtime.advance_time(time(100)).unwrap();
+    reverse_runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        reverse_runtime.animations().value(reverse_channel).unwrap(),
+        reverse_runtime
+            .animation()
+            .timeline()
+            .value(reverse_channel)
+            .unwrap(),
         10.0
     );
-    reverse_runtime.advance_time(time(150)).unwrap();
+    reverse_runtime.animation().advance_time(time(150)).unwrap();
     assert_eq!(
-        reverse_runtime.animations().value(reverse_channel).unwrap(),
+        reverse_runtime
+            .animation()
+            .timeline()
+            .value(reverse_channel)
+            .unwrap(),
         5.0
     );
-    reverse_runtime.advance_time(time(200)).unwrap();
+    reverse_runtime.animation().advance_time(time(200)).unwrap();
     assert_eq!(
-        reverse_runtime.animations().value(reverse_channel).unwrap(),
+        reverse_runtime
+            .animation()
+            .timeline()
+            .value(reverse_channel)
+            .unwrap(),
         0.0
     );
 }
@@ -428,38 +640,50 @@ fn finite_repeat_and_reverse_preserve_channel_continuity_and_terminal_truth() {
 #[test]
 fn cancel_clears_override_and_retarget_starts_from_current_presentation() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let first = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(first).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(first).unwrap()
+    else {
         panic!("animation must run");
     };
-    runtime.advance_time(time(0)).unwrap();
-    runtime.advance_time(time(50)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
+    runtime.animation().advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(50)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
 
-    runtime.animations().set_committed(channel, 20.0).unwrap();
+    runtime
+        .animation()
+        .timeline()
+        .set_committed(channel, 20.0)
+        .unwrap();
     let replacement = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::to(20.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .retarget(animation, replacement)
         .unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
 
-    runtime.advance_time(time(100)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 12.5);
-    assert!(runtime.animations().cancel(animation).unwrap());
-    assert_eq!(runtime.animations().value(channel).unwrap(), 20.0);
-    assert!(!runtime.animations().has_override(channel).unwrap());
+    runtime.animation().advance_time(time(100)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 12.5);
+    assert!(runtime.animation().timeline().cancel(animation).unwrap());
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 20.0);
+    assert!(
+        !runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Cancelled
     );
 }
@@ -467,18 +691,19 @@ fn cancel_clears_override_and_retarget_starts_from_current_presentation() {
 #[test]
 fn failed_retarget_keeps_existing_animation_unchanged() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let first = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(first).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(first).unwrap()
+    else {
         panic!("animation must run");
     };
-    runtime.advance_time(time(0)).unwrap();
-    runtime.advance_time(time(40)).unwrap();
-    let before = runtime.animations().value(channel).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(40)).unwrap();
+    let before = runtime.animation().timeline().value(channel).unwrap();
 
     let invalid = AnimationPlan::track(
         channel,
@@ -486,12 +711,15 @@ fn failed_retarget_keeps_existing_animation_unchanged() {
     )
     .unwrap();
     assert_eq!(
-        runtime.animations().retarget(animation, invalid),
+        runtime.animation().timeline().retarget(animation, invalid),
         Err(AnimationError::FinalValueMismatch)
     );
-    assert_eq!(runtime.animations().value(channel).unwrap(), before);
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().value(channel).unwrap(),
+        before
+    );
+    assert_eq!(
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Running
     );
 }
@@ -499,7 +727,7 @@ fn failed_retarget_keeps_existing_animation_unchanged() {
 #[test]
 fn replace_and_ignore_resolve_channel_ownership_without_partial_state() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let plan = || {
         AnimationPlan::track(
             channel,
@@ -507,26 +735,28 @@ fn replace_and_ignore_resolve_channel_ownership_without_partial_state() {
         )
         .unwrap()
     };
-    let AnimationStart::Running(first) = runtime.animations().start(plan()).unwrap() else {
+    let AnimationStart::Running(first) = runtime.animation().timeline().start(plan()).unwrap()
+    else {
         panic!("animation must run");
     };
 
     let ignored = plan().with_interruption(InterruptionPolicy::Ignore);
     assert_eq!(
-        runtime.animations().start(ignored).unwrap(),
+        runtime.animation().timeline().start(ignored).unwrap(),
         AnimationStart::Existing(first)
     );
-    assert_eq!(runtime.animations().active_animation_count(), 1);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 1);
 
-    let AnimationStart::Running(second) = runtime.animations().start(plan()).unwrap() else {
+    let AnimationStart::Running(second) = runtime.animation().timeline().start(plan()).unwrap()
+    else {
         panic!("replacement must run");
     };
     assert_ne!(first, second);
     assert_eq!(
-        runtime.animations().state(first).unwrap(),
+        runtime.animation().timeline().state(first).unwrap(),
         AnimationState::Cancelled
     );
-    assert_eq!(runtime.animations().active_animation_count(), 1);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 1);
 }
 
 #[test]
@@ -535,13 +765,15 @@ fn ignore_and_replace_remain_available_at_the_active_animation_budget() {
     let mut first_channel = None;
     let mut first_animation = None;
     for index in 0..novadraw::animation::DEFAULT_MAX_ACTIVE_ANIMATIONS {
-        let channel = runtime.animations().create_channel(1.0).unwrap();
+        let channel = runtime.animation().timeline().create_channel(1.0).unwrap();
         let plan = AnimationPlan::track(
             channel,
             Motion::Tween(Tween::between(0.0, 1.0, Duration::from_secs(1)).unwrap()),
         )
         .unwrap();
-        let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+        let AnimationStart::Running(animation) =
+            runtime.animation().timeline().start(plan).unwrap()
+        else {
             panic!("budget-filling animation must run");
         };
         if index == 0 {
@@ -561,19 +793,21 @@ fn ignore_and_replace_remain_available_at_the_active_animation_budget() {
     };
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .start(replacement().with_interruption(InterruptionPolicy::Ignore))
             .unwrap(),
         AnimationStart::Existing(first_animation)
     );
 
-    let AnimationStart::Running(replaced) = runtime.animations().start(replacement()).unwrap()
+    let AnimationStart::Running(replaced) =
+        runtime.animation().timeline().start(replacement()).unwrap()
     else {
         panic!("net-zero replacement must run at the active animation budget");
     };
     assert_ne!(replaced, first_animation);
     assert_eq!(
-        runtime.animations().active_animation_count(),
+        runtime.animation().timeline().active_animation_count(),
         novadraw::animation::DEFAULT_MAX_ACTIVE_ANIMATIONS
     );
 }
@@ -582,18 +816,26 @@ fn ignore_and_replace_remain_available_at_the_active_animation_budget() {
 fn foreign_handles_and_overlapping_tracks_are_rejected() {
     let mut first_runtime = Runtime::empty();
     let mut second_runtime = Runtime::empty();
-    let foreign_channel = first_runtime.animations().create_channel(10.0).unwrap();
+    let foreign_channel = first_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
     let foreign_plan = AnimationPlan::track(
         foreign_channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
     assert_eq!(
-        second_runtime.animations().start(foreign_plan),
+        second_runtime.animation().timeline().start(foreign_plan),
         Err(AnimationError::ForeignChannel)
     );
 
-    let channel = second_runtime.animations().create_channel(10.0).unwrap();
+    let channel = second_runtime
+        .animation()
+        .timeline()
+        .create_channel(10.0)
+        .unwrap();
     let track = || {
         AnimationPlan::track(
             channel,
@@ -614,23 +856,31 @@ fn foreign_handles_and_overlapping_tracks_are_rejected() {
 #[test]
 fn removing_a_channel_cancels_its_owner_and_invalidates_the_handle() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("animation must run");
     };
 
-    assert_eq!(runtime.animations().remove_channel(channel).unwrap(), 10.0);
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .remove_channel(channel)
+            .unwrap(),
+        10.0
+    );
+    assert_eq!(
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Cancelled
     );
     assert_eq!(
-        runtime.animations().value(channel),
+        runtime.animation().timeline().value(channel),
         Err(AnimationError::UnknownChannel)
     );
 }
@@ -651,7 +901,11 @@ impl AnimationValue for Percent {
 #[test]
 fn external_value_type_uses_the_same_typed_channel_contract() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(Percent(1.0)).unwrap();
+    let channel = runtime
+        .animation()
+        .timeline()
+        .create_channel(Percent(1.0))
+        .unwrap();
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(
@@ -659,10 +913,13 @@ fn external_value_type_uses_the_same_typed_channel_contract() {
         ),
     )
     .unwrap();
-    runtime.animations().start(plan).unwrap();
-    runtime.advance_time(time(0)).unwrap();
-    runtime.advance_time(time(25)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), Percent(0.25));
+    runtime.animation().timeline().start(plan).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(25)).unwrap();
+    assert_eq!(
+        runtime.animation().timeline().value(channel).unwrap(),
+        Percent(0.25)
+    );
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -703,7 +960,8 @@ impl AnimationValue for PanicAtQuarter {
 fn provider_failure_is_rejected_or_terminates_without_stale_override() {
     let mut admission_runtime = Runtime::empty();
     let channel = admission_runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_channel(InvalidAt(1.0, 0.5))
         .unwrap();
     let invalid = AnimationPlan::track(
@@ -719,21 +977,29 @@ fn provider_failure_is_rejected_or_terminates_without_stale_override() {
     )
     .unwrap();
     assert_eq!(
-        admission_runtime.animations().start(invalid),
+        admission_runtime.animation().timeline().start(invalid),
         Err(AnimationError::InvalidValue)
     );
-    assert_eq!(admission_runtime.animations().active_animation_count(), 0);
+    assert_eq!(
+        admission_runtime
+            .animation()
+            .timeline()
+            .active_animation_count(),
+        0
+    );
     assert!(
         !admission_runtime
-            .animations()
+            .animation()
+            .timeline()
             .has_override(channel)
             .unwrap()
     );
 
     let mut sample_runtime = Runtime::empty();
-    sample_runtime.advance_time(time(0)).unwrap();
+    sample_runtime.animation().advance_time(time(0)).unwrap();
     let channel = sample_runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_channel(InvalidAt(1.0, 0.25))
         .unwrap();
     let plan = AnimationPlan::track(
@@ -748,18 +1014,33 @@ fn provider_failure_is_rejected_or_terminates_without_stale_override() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = sample_runtime.animations().start(plan).unwrap()
+    let AnimationStart::Running(animation) =
+        sample_runtime.animation().timeline().start(plan).unwrap()
     else {
         panic!("animation must run");
     };
-    assert!(sample_runtime.advance_time(time(25)).unwrap());
+    assert!(sample_runtime.animation().advance_time(time(25)).unwrap());
     assert_eq!(
-        sample_runtime.animations().state(animation).unwrap(),
+        sample_runtime
+            .animation()
+            .timeline()
+            .state(animation)
+            .unwrap(),
         AnimationState::Failed
     );
-    assert!(!sample_runtime.animations().has_override(channel).unwrap());
+    assert!(
+        !sample_runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
     assert_eq!(
-        sample_runtime.animations().value(channel).unwrap(),
+        sample_runtime
+            .animation()
+            .timeline()
+            .value(channel)
+            .unwrap(),
         InvalidAt(1.0, 0.25)
     );
 }
@@ -767,9 +1048,10 @@ fn provider_failure_is_rejected_or_terminates_without_stale_override() {
 #[test]
 fn provider_panic_faults_runtime_and_clears_presentation() {
     let mut runtime = Runtime::empty();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_channel(PanicAtQuarter(1.0))
         .unwrap();
     let plan = AnimationPlan::track(
@@ -784,13 +1066,19 @@ fn provider_panic_faults_runtime_and_clears_presentation() {
         ),
     )
     .unwrap();
-    runtime.animations().start(plan).unwrap();
+    runtime.animation().timeline().start(plan).unwrap();
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        runtime.advance_time(time(25)).unwrap();
+        runtime.animation().advance_time(time(25)).unwrap();
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
-    assert!(!runtime.animations().has_override(channel).unwrap());
+    assert!(
+        !runtime
+            .animation()
+            .timeline()
+            .has_override(channel)
+            .unwrap()
+    );
 }
 
 #[test]
@@ -806,10 +1094,11 @@ fn figure_opacity_and_transform_are_presentation_only() {
         )))
         .unwrap();
     complete_frame(&mut runtime, 200, 120);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
 
     let channels = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(figure, InteractionGeometryPolicy::Committed)
         .unwrap();
     let plan = AnimationPlan::parallel(vec![
@@ -839,7 +1128,7 @@ fn figure_opacity_and_transform_are_presentation_only() {
         .unwrap(),
     ])
     .unwrap();
-    runtime.animations().start(plan).unwrap();
+    runtime.animation().timeline().start(plan).unwrap();
 
     assert_eq!(
         runtime.tree().figure_bounds(figure),
@@ -847,7 +1136,7 @@ fn figure_opacity_and_transform_are_presentation_only() {
     );
     assert_eq!(runtime.tree().resolved_style(figure).unwrap().alpha, 1.0);
 
-    runtime.advance_time(time(50)).unwrap();
+    runtime.animation().advance_time(time(50)).unwrap();
     let frame = record_full_submission(&mut runtime);
     assert_eq!(first_solid_alpha(&frame.commands), 0.5);
     assert!(frame.commands.iter().any(|command| {
@@ -870,9 +1159,10 @@ fn presentation_damage_unions_old_and_new_surface_envelopes() {
         .set_contents(Box::new(RectangleFigure::new(20.0, 10.0, 10.0, 10.0)))
         .unwrap();
     complete_frame(&mut runtime, 100, 100);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
@@ -888,9 +1178,10 @@ fn presentation_damage_unions_old_and_new_surface_envelopes() {
         ),
     )
     .unwrap();
-    runtime.animations().start(plan).unwrap();
+    runtime.animation().timeline().start(plan).unwrap();
 
     let submission = runtime
+        .frames()
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
@@ -915,9 +1206,10 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
         )
         .unwrap();
     let mut runtime = Runtime::new(tree);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(child, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
@@ -933,7 +1225,7 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
         ),
     )
     .unwrap();
-    runtime.animations().start(plan).unwrap();
+    runtime.animation().timeline().start(plan).unwrap();
 
     let frame = record_full_submission(&mut runtime);
     assert!(!frame.commands.iter().any(|command| {
@@ -954,7 +1246,7 @@ fn child_transform_override_bypasses_only_the_committed_child_clip() {
 fn temporary_visual_is_non_source_and_removed_with_its_owner() {
     let mut runtime = Runtime::empty();
     complete_frame(&mut runtime, 100, 100);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let presentation = FigurePresentation::new(
         FigureMeasurement::new(10.0, 10.0, None),
         Dimension::new(10.0, 10.0),
@@ -963,11 +1255,12 @@ fn temporary_visual_is_non_source_and_removed_with_its_owner() {
     )
     .unwrap();
     let visual = runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_temporary_visual(presentation, Affine2D::from_translation(10.0, 20.0), 0.0)
         .unwrap();
-    assert_eq!(runtime.animations().temporary_visual_count(), 1);
-    assert!(!runtime.has_pending_update());
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 1);
+    assert!(!runtime.frames().has_pending_update());
 
     let plan = AnimationPlan::track(
         visual.opacity(),
@@ -981,19 +1274,20 @@ fn temporary_visual_is_non_source_and_removed_with_its_owner() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("temporary visual must activate with its plan");
     };
     let frame = record_full_submission(&mut runtime);
     assert_eq!(first_solid_alpha(&frame.commands), 1.0);
 
-    runtime.advance_time(time(50)).unwrap();
+    runtime.animation().advance_time(time(50)).unwrap();
     let frame = record_full_submission(&mut runtime);
     assert_eq!(first_solid_alpha(&frame.commands), 0.5);
-    assert!(runtime.animations().cancel(animation).unwrap());
-    assert_eq!(runtime.animations().temporary_visual_count(), 0);
+    assert!(runtime.animation().timeline().cancel(animation).unwrap());
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 0);
     assert_eq!(
-        runtime.animations().value(visual.opacity()),
+        runtime.animation().timeline().value(visual.opacity()),
         Err(AnimationError::UnknownChannel)
     );
     assert!(
@@ -1010,9 +1304,10 @@ fn disposing_a_figure_cancels_bound_presentation_without_source_revival() {
     let figure = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .opacity();
@@ -1028,17 +1323,18 @@ fn disposing_a_figure_cancels_bound_presentation_without_source_revival() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("animation must run");
     };
 
     runtime.dispose_subtree(figure).unwrap();
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Cancelled
     );
     assert_eq!(
-        runtime.animations().value(channel),
+        runtime.animation().timeline().value(channel),
         Err(AnimationError::UnknownChannel)
     );
     assert!(!runtime.tree().is_attached(figure));
@@ -1047,42 +1343,47 @@ fn disposing_a_figure_cancels_bound_presentation_without_source_revival() {
 #[test]
 fn pause_policy_excludes_surface_suspension_from_local_time() {
     let mut runtime = Runtime::empty();
-    let channel = runtime.animations().create_channel(10.0).unwrap();
-    runtime.advance_time(time(0)).unwrap();
+    let channel = runtime.animation().timeline().create_channel(10.0).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let plan = AnimationPlan::track(
         channel,
         Motion::Tween(Tween::between(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap()
     .with_suspension(SuspensionPolicy::Pause);
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("animation must run");
     };
 
     assert!(matches!(
-        runtime.prepare_submission(surface(0, 100), BackendCapabilities::RETAINED_PARTIAL),
-        novadraw::FramePreparation::Suspended
+        runtime
+            .frames()
+            .prepare_submission(surface(0, 100), BackendCapabilities::RETAINED_PARTIAL),
+        novadraw::runtime::FramePreparation::Suspended
     ));
-    runtime.advance_time(time(100)).unwrap();
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Paused
     );
-    assert_eq!(runtime.animations().value(channel).unwrap(), 0.0);
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 0.0);
 
     let submission = runtime
+        .frames()
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
             Ok(RenderDisposition::Presented),
         )
         .expect("frame completion");
-    runtime.advance_time(time(150)).unwrap();
-    assert_eq!(runtime.animations().value(channel).unwrap(), 5.0);
+    runtime.animation().advance_time(time(150)).unwrap();
+    assert_eq!(runtime.animation().timeline().value(channel).unwrap(), 5.0);
 }
 
 #[test]
@@ -1091,9 +1392,10 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
     let paused_figure = paused_runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
-    paused_runtime.advance_time(time(0)).unwrap();
+    paused_runtime.animation().advance_time(time(0)).unwrap();
     let paused_channel = paused_runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(paused_figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .opacity();
@@ -1110,7 +1412,11 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
     )
     .unwrap()
     .with_suspension(SuspensionPolicy::Pause);
-    let AnimationStart::Running(paused) = paused_runtime.animations().start(paused_plan).unwrap()
+    let AnimationStart::Running(paused) = paused_runtime
+        .animation()
+        .timeline()
+        .start(paused_plan)
+        .unwrap()
     else {
         panic!("animation must run");
     };
@@ -1120,13 +1426,20 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
         .set_visible(false)
         .unwrap();
     assert_eq!(
-        paused_runtime.animations().state(paused).unwrap(),
+        paused_runtime.animation().timeline().state(paused).unwrap(),
         AnimationState::Paused
     );
-    assert_eq!(paused_runtime.animations().next_wake_deadline(), None);
-    paused_runtime.advance_time(time(50)).unwrap();
     assert_eq!(
-        paused_runtime.animations().value(paused_channel).unwrap(),
+        paused_runtime.animation().timeline().next_wake_deadline(),
+        None
+    );
+    paused_runtime.animation().advance_time(time(50)).unwrap();
+    assert_eq!(
+        paused_runtime
+            .animation()
+            .timeline()
+            .value(paused_channel)
+            .unwrap(),
         Opacity::TRANSPARENT
     );
     paused_runtime
@@ -1134,9 +1447,13 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
         .unwrap()
         .set_visible(true)
         .unwrap();
-    paused_runtime.advance_time(time(100)).unwrap();
+    paused_runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        paused_runtime.animations().value(paused_channel).unwrap(),
+        paused_runtime
+            .animation()
+            .timeline()
+            .value(paused_channel)
+            .unwrap(),
         Opacity::try_new(0.5).unwrap()
     );
 
@@ -1145,7 +1462,8 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     let finish_channel = finish_runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(finish_figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .opacity();
@@ -1162,7 +1480,11 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
     )
     .unwrap()
     .with_suspension(SuspensionPolicy::Finish);
-    let AnimationStart::Running(finished) = finish_runtime.animations().start(finish_plan).unwrap()
+    let AnimationStart::Running(finished) = finish_runtime
+        .animation()
+        .timeline()
+        .start(finish_plan)
+        .unwrap()
     else {
         panic!("animation must run");
     };
@@ -1172,12 +1494,17 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
         .set_visible(false)
         .unwrap();
     assert_eq!(
-        finish_runtime.animations().state(finished).unwrap(),
+        finish_runtime
+            .animation()
+            .timeline()
+            .state(finished)
+            .unwrap(),
         AnimationState::Completed
     );
     assert!(
         !finish_runtime
-            .animations()
+            .animation()
+            .timeline()
             .has_override(finish_channel)
             .unwrap()
     );
@@ -1186,7 +1513,7 @@ fn hidden_figure_applies_pause_or_finish_policy_without_source_mutation() {
 #[test]
 fn temporary_visual_is_removed_on_natural_completion() {
     let mut runtime = Runtime::empty();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let presentation = FigurePresentation::new(
         FigureMeasurement::new(10.0, 10.0, None),
         Dimension::new(10.0, 10.0),
@@ -1195,7 +1522,8 @@ fn temporary_visual_is_removed_on_natural_completion() {
     )
     .unwrap();
     let visual = runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_temporary_visual(presentation, Affine2D::IDENTITY, 0.0)
         .unwrap();
     let plan = AnimationPlan::track(
@@ -1210,17 +1538,18 @@ fn temporary_visual_is_removed_on_natural_completion() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("animation must run");
     };
-    runtime.advance_time(time(100)).unwrap();
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Completed
     );
-    assert_eq!(runtime.animations().temporary_visual_count(), 0);
+    assert_eq!(runtime.animation().timeline().temporary_visual_count(), 0);
     assert_eq!(
-        runtime.animations().value(visual.opacity()),
+        runtime.animation().timeline().value(visual.opacity()),
         Err(AnimationError::UnknownChannel)
     );
 }
@@ -1232,9 +1561,10 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     complete_frame(&mut retry_runtime, 100, 100);
-    retry_runtime.advance_time(time(0)).unwrap();
+    retry_runtime.animation().advance_time(time(0)).unwrap();
     let opacity = retry_runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .opacity();
@@ -1250,15 +1580,17 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
         ),
     )
     .unwrap();
-    retry_runtime.animations().start(plan).unwrap();
-    retry_runtime.advance_time(time(50)).unwrap();
+    retry_runtime.animation().timeline().start(plan).unwrap();
+    retry_runtime.animation().advance_time(time(50)).unwrap();
     let first = retry_runtime
+        .frames()
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_eq!(first_solid_alpha(&first.commands), 0.5);
     assert!(
         retry_runtime
+            .frames()
             .complete_submission(
                 first.session_id,
                 first.frame_id,
@@ -1267,13 +1599,14 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
             .is_ok()
     );
     let retried = retry_runtime
+        .frames()
         .prepare_submission(surface(100, 100), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_eq!(first_solid_alpha(&retried.commands), 0.5);
 
     let mut fault_runtime = Runtime::empty();
-    fault_runtime.advance_time(time(0)).unwrap();
+    fault_runtime.animation().advance_time(time(0)).unwrap();
     let presentation = FigurePresentation::new(
         FigureMeasurement::new(10.0, 10.0, None),
         Dimension::new(10.0, 10.0),
@@ -1282,7 +1615,8 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
     )
     .unwrap();
     let visual = fault_runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_temporary_visual(presentation, Affine2D::IDENTITY, 0.0)
         .unwrap();
     let plan = AnimationPlan::track(
@@ -1297,7 +1631,9 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
         ),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = fault_runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) =
+        fault_runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("animation must run");
     };
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -1305,9 +1641,19 @@ fn retry_keeps_current_presentation_and_provider_panic_clears_it() {
     }));
     assert!(panic.is_err());
     assert!(fault_runtime.is_faulted());
-    assert_eq!(fault_runtime.animations().temporary_visual_count(), 0);
     assert_eq!(
-        fault_runtime.animations().state(animation).unwrap(),
+        fault_runtime
+            .animation()
+            .timeline()
+            .temporary_visual_count(),
+        0
+    );
+    assert_eq!(
+        fault_runtime
+            .animation()
+            .timeline()
+            .state(animation)
+            .unwrap(),
         AnimationState::Cancelled
     );
 }
@@ -1320,13 +1666,15 @@ fn unsupported_presentation_hit_testing_is_rejected_before_channel_creation() {
         .unwrap();
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::Presentation),
         Err(AnimationError::UnsupportedInteractionGeometry)
     );
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_figure(figure, InteractionGeometryPolicy::NonInteractive),
         Err(AnimationError::UnsupportedInteractionGeometry)
     );
@@ -1335,52 +1683,81 @@ fn unsupported_presentation_hit_testing_is_rejected_before_channel_creation() {
 #[test]
 fn procedural_motion_distinguishes_finite_and_continuous_lifetimes() {
     let mut runtime = Runtime::empty();
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
 
-    let finite_channel = runtime.animations().create_channel(10.0).unwrap();
+    let finite_channel = runtime.animation().timeline().create_channel(10.0).unwrap();
     let finite = AnimationPlan::track(
         finite_channel,
         Motion::Procedural(Procedural::finite(0.0, 10.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(finite_id) = runtime.animations().start(finite).unwrap() else {
+    let AnimationStart::Running(finite_id) = runtime.animation().timeline().start(finite).unwrap()
+    else {
         panic!("finite procedural motion must run");
     };
-    runtime.advance_time(time(100)).unwrap();
+    runtime.animation().advance_time(time(100)).unwrap();
     assert_eq!(
-        runtime.animations().state(finite_id).unwrap(),
+        runtime.animation().timeline().state(finite_id).unwrap(),
         AnimationState::Completed
     );
-    assert_eq!(runtime.animations().value(finite_channel).unwrap(), 10.0);
+    assert_eq!(
+        runtime
+            .animation()
+            .timeline()
+            .value(finite_channel)
+            .unwrap(),
+        10.0
+    );
 
-    let continuous_channel = runtime.animations().create_channel(0.0).unwrap();
+    let continuous_channel = runtime.animation().timeline().create_channel(0.0).unwrap();
     let continuous = AnimationPlan::track(
         continuous_channel,
         Motion::Procedural(Procedural::continuous(0.0, 1.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(continuous_id) = runtime.animations().start(continuous).unwrap()
+    let AnimationStart::Running(continuous_id) =
+        runtime.animation().timeline().start(continuous).unwrap()
     else {
         panic!("continuous procedural motion must run");
     };
-    runtime.advance_time(time(250)).unwrap();
-    assert_eq!(runtime.animations().value(continuous_channel).unwrap(), 0.5);
+    runtime.animation().advance_time(time(250)).unwrap();
     assert_eq!(
-        runtime.animations().state(continuous_id).unwrap(),
+        runtime
+            .animation()
+            .timeline()
+            .value(continuous_channel)
+            .unwrap(),
+        0.5
+    );
+    assert_eq!(
+        runtime.animation().timeline().state(continuous_id).unwrap(),
         AnimationState::Running
     );
-    assert!(runtime.animations().cancel(continuous_id).unwrap());
-    assert_eq!(runtime.animations().value(continuous_channel).unwrap(), 0.0);
+    assert!(
+        runtime
+            .animation()
+            .timeline()
+            .cancel(continuous_id)
+            .unwrap()
+    );
+    assert_eq!(
+        runtime
+            .animation()
+            .timeline()
+            .value(continuous_channel)
+            .unwrap(),
+        0.0
+    );
 }
 
 #[test]
 fn active_track_work_scales_exactly_at_1_64_and_1024_tracks() {
     for track_count in [1_usize, 64, 1_024] {
         let mut runtime = Runtime::empty();
-        runtime.advance_time(time(0)).unwrap();
+        runtime.animation().advance_time(time(0)).unwrap();
         let mut plans = Vec::with_capacity(track_count);
         for _ in 0..track_count {
-            let channel = runtime.animations().create_channel(1.0).unwrap();
+            let channel = runtime.animation().timeline().create_channel(1.0).unwrap();
             plans.push(
                 AnimationPlan::track(
                     channel,
@@ -1389,20 +1766,20 @@ fn active_track_work_scales_exactly_at_1_64_and_1024_tracks() {
                 .unwrap(),
             );
         }
-        let before = runtime.animations().stats();
+        let before = runtime.animation().timeline().stats();
         let plan = AnimationPlan::parallel(plans).unwrap();
         assert!(matches!(
-            runtime.animations().start(plan).unwrap(),
+            runtime.animation().timeline().start(plan).unwrap(),
             AnimationStart::Running(_)
         ));
-        let admitted = runtime.animations().stats();
+        let admitted = runtime.animation().timeline().stats();
         assert_eq!(
             admitted.tracks_sampled - before.tracks_sampled,
             track_count as u64
         );
 
-        runtime.advance_time(time(50)).unwrap();
-        let advanced = runtime.animations().stats();
+        runtime.animation().advance_time(time(50)).unwrap();
+        let advanced = runtime.animation().timeline().stats();
         assert_eq!(
             advanced.tracks_sampled - admitted.tracks_sampled,
             track_count as u64

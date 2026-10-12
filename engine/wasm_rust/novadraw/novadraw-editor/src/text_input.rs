@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use novadraw::Rectangle;
+use novadraw::geometry::Rectangle;
 use novadraw::text::TextMovement;
 
 use crate::{DirectTextEditSessionId, ExtendTextSelection, TextDelete};

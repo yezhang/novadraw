@@ -14,13 +14,15 @@ use std::{
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::RootFigure;
 use novadraw::geometry::{Dimension, Point, Rectangle, Vec2};
-use novadraw::{Figure, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure};
+use novadraw_editor::overlay::ResizeAction;
 use novadraw_editor::{
-    ChangeBoundsRequest, Command, CommandError, CommandStackError, ConnectionCreation,
-    CreateConnectionRequest, CreateRequest, CreationType, DeleteRequest, EditPartBehavior,
-    EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorDomainError, EditorRequest,
-    FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter, ModelEvent,
-    ModelRevision, PartFactoryContext, PolicyError, PolicyHost, PolicyInstallation, PolicyRole,
+    ChangeBounds, ChangeBoundsRequest, Command, CommandError, CommandStackError, ComponentSlot,
+    CreateChild, CreateConnection, CreateConnectionRequest, CreateRequest, CreationType,
+    DeleteParts, DeleteRequest, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy,
+    EditingContribution, EditorDomain, EditorDomainError, FeedbackVisual, GraphicalViewer,
+    InteractionRevision, LayoutSlot, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHandlerBuilder, PolicyHost, PolicyInstallation, RequestMetadata,
     RequestModifiers, ResizeDirection, ViewerError, VisualUpdateContext,
 };
 
@@ -257,93 +259,92 @@ impl Command<DiagramModel> for DeleteNodeCommand {
 struct NodePolicy;
 
 impl EditPolicy<DiagramModel> for NodePolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(
-            request,
-            EditorRequest::ChangeBounds(_) | EditorRequest::Delete(_)
-        )
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<ChangeBounds>(Self::change_bounds);
+        builder.handle::<DeleteParts>(Self::delete);
     }
+}
 
-    fn command(
+impl NodePolicy {
+    fn change_bounds(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &ChangeBoundsRequest,
         model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        match request {
-            EditorRequest::ChangeBounds(request) => {
-                let before = model.nodes[&host.model()].bounds;
-                Ok(Some(Box::new(SetBoundsCommand {
-                    id: host.model(),
-                    before,
-                    after: request.transformed_bounds(before),
-                })))
-            }
-            EditorRequest::Delete(_) => {
-                if host.parent_model() != Some(ROOT) {
-                    return Err(PolicyError::operation("only root children are deletable"));
-                }
-                Ok(Some(Box::new(DeleteNodeCommand {
-                    id: host.model(),
-                    removed: None,
-                })))
-            }
-            EditorRequest::Create(_)
-            | EditorRequest::CreateConnection(_)
-            | EditorRequest::ReconnectConnection(_)
-            | EditorRequest::Bendpoint(_) => Ok(None),
-        }
-    }
-
-    fn feedback(
-        &mut self,
-        host: PolicyHost<NodeId>,
-        request: &EditorRequest,
-        model: &DiagramModel,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
-        let EditorRequest::ChangeBounds(request) = request else {
-            return Ok(Vec::new());
-        };
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
+        let before = model.nodes[&host.model()].bounds;
         let bounds = request.transformed_bounds(model.nodes[&host.model()].bounds);
         let figure = RectangleFigure::new(bounds.x, bounds.y, bounds.width, bounds.height);
-        Ok(vec![FeedbackVisual::scaled(Box::new(figure))])
+        Ok(Some(EditingContribution::new(
+            Some(Box::new(SetBoundsCommand {
+                id: host.model(),
+                before,
+                after: bounds,
+            })),
+            vec![FeedbackVisual::scaled(Box::new(figure))],
+        )))
+    }
+
+    fn delete(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
+        _model: &DiagramModel,
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
+        if host.parent_model() != Some(ROOT) {
+            return Err(PolicyError::operation("only root children are deletable"));
+        }
+        Ok(Some(EditingContribution::command(Box::new(
+            DeleteNodeCommand {
+                id: host.model(),
+                removed: None,
+            },
+        ))))
     }
 }
 
 struct CanvasPolicy;
 
 impl EditPolicy<DiagramModel> for CanvasPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Create(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<CreateChild>(Self::create);
     }
+}
 
-    fn command(
+impl CanvasPolicy {
+    fn create(
         &mut self,
         host: PolicyHost<NodeId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &CreateRequest,
         model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        let EditorRequest::Create(request) = request else {
-            return Ok(None);
-        };
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
         if host.model() == ROOT && request.creation_type().as_str() == "invalid-recoverable" {
-            return Ok(Some(Box::new(RecoverableMutationCommand)));
+            return Ok(Some(EditingContribution::command(Box::new(
+                RecoverableMutationCommand,
+            ))));
         }
         if host.model() == ROOT && request.creation_type().as_str() == "unknown-state" {
-            return Ok(Some(Box::new(UnknownMutationCommand)));
+            return Ok(Some(EditingContribution::command(Box::new(
+                UnknownMutationCommand,
+            ))));
         }
         if host.model() != ROOT || request.creation_type().as_str() != "node" {
             return Err(PolicyError::operation(
                 "unsupported creation target or type",
             ));
         }
-        Ok(Some(Box::new(CreateNodeCommand {
-            id: NodeId(model.next_id),
-            node: Node {
-                bounds: request.bounds(),
+        Ok(Some(EditingContribution::command(Box::new(
+            CreateNodeCommand {
+                id: NodeId(model.next_id),
+                node: Node {
+                    bounds: request.bounds(),
+                },
+                index: model.children.len(),
             },
-            index: model.children.len(),
-        })))
+        ))))
     }
 }
 
@@ -379,9 +380,15 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
         model_id: NodeId,
     ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
         Ok(if model_id == ROOT {
-            vec![(PolicyRole::Layout, Box::new(CanvasPolicy))]
+            vec![
+                PolicyInstallation::new(LayoutSlot::key(), CanvasPolicy)
+                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+            ]
         } else {
-            vec![(PolicyRole::Component, Box::new(NodePolicy))]
+            vec![
+                PolicyInstallation::new(ComponentSlot::key(), NodePolicy)
+                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+            ]
         })
     }
 
@@ -411,58 +418,57 @@ struct RoutingPolicy {
 }
 
 impl EditPolicy<DiagramModel> for RoutingPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(
-            request,
-            EditorRequest::Delete(_) | EditorRequest::CreateConnection(_)
-        )
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle_routed::<DeleteParts>(Self::target, Self::delete);
+        builder.handle::<CreateConnection>(Self::start_connection);
     }
+}
 
+impl RoutingPolicy {
     fn target(
-        &self,
-        host: PolicyHost<NodeId>,
-        request: &EditorRequest,
-    ) -> Option<novadraw_editor::EditPartId> {
-        self.understands(request)
-            .then(|| self.state.borrow().target.unwrap_or(host.part()))
-    }
-
-    fn command(
         &mut self,
         host: PolicyHost<NodeId>,
-        _request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
         _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
+    ) -> Result<Option<novadraw_editor::EditPartId>, PolicyError> {
+        Ok(Some(self.state.borrow().target.unwrap_or(host.part())))
+    }
+
+    fn delete(
+        &mut self,
+        host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
+        model: &DiagramModel,
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
         assert!(
             !self.state.borrow().panic_command,
             "policy command extension panicked"
         );
         self.state.borrow_mut().command_hosts.push(host.model());
-        Ok(None)
-    }
-
-    fn feedback(
-        &mut self,
-        host: PolicyHost<NodeId>,
-        _request: &EditorRequest,
-        model: &DiagramModel,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
         assert!(
             !self.state.borrow().panic_feedback,
             "policy feedback extension panicked"
         );
         self.state.borrow_mut().feedback_hosts.push(host.model());
-        Ok(vec![FeedbackVisual::scaled(Box::new(
-            RectangleFigure::from_bounds(model.nodes[&host.model()].bounds),
-        ))])
+        Ok(Some(EditingContribution::feedback(vec![
+            FeedbackVisual::scaled(Box::new(RectangleFigure::from_bounds(
+                model.nodes[&host.model()].bounds,
+            ))),
+        ])))
     }
 
     fn start_connection(
         &mut self,
         _host: PolicyHost<NodeId>,
+        _metadata: &RequestMetadata,
         _request: &CreateConnectionRequest,
         _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn ConnectionCreation<DiagramModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<CreateConnection as novadraw_editor::RequestProtocol<DiagramModel>>::Contribution>,
+        PolicyError,
+    > {
         assert!(
             !self.state.borrow().panic_connection_start,
             "connection-start extension panicked"
@@ -519,12 +525,15 @@ impl EditPartBehavior<DiagramModel> for RoutingPart {
         _model: &DiagramModel,
         _model_id: NodeId,
     ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
-        Ok(vec![(
-            PolicyRole::Component,
-            Box::new(RoutingPolicy {
-                state: Rc::clone(&self.state),
-            }),
-        )])
+        Ok(vec![
+            PolicyInstallation::new(
+                ComponentSlot::key(),
+                RoutingPolicy {
+                    state: Rc::clone(&self.state),
+                },
+            )
+            .map_err(|error| EditPartError::operation(error.to_string()))?,
+        ])
     }
 }
 
@@ -566,15 +575,18 @@ fn domain_executes_compound_move_and_refreshes_then_undoes_and_redoes() {
     let first = viewer.part_for_model(FIRST).unwrap();
     let second = viewer.part_for_model(SECOND).unwrap();
     let mut domain = EditorDomain::new();
-    let request = EditorRequest::ChangeBounds(ChangeBoundsRequest::moving(
+    let request = ChangeBoundsRequest::moving(
         vec![first, second],
         Point::new(30.0, 40.0),
         Vec2::new(30.0, 40.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
 
-    domain.execute_request(&mut viewer, &request).unwrap();
+    domain
+        .execute::<ChangeBounds, _>(&mut viewer, &metadata, &request)
+        .unwrap();
     assert_eq!(
         viewer.model().nodes[&FIRST].bounds,
         Rectangle::new(80.0, 100.0, 100.0, 80.0)
@@ -600,15 +612,18 @@ fn domain_executes_compound_move_and_refreshes_then_undoes_and_redoes() {
 fn create_and_delete_round_trip_through_policy_command_and_projection() {
     let mut viewer = viewer();
     let mut domain = EditorDomain::new();
-    let create = EditorRequest::Create(CreateRequest::new(
+    let create = CreateRequest::new(
         viewer.contents(),
         CreationType::new("node").unwrap(),
         Rectangle::new(360.0, 220.0, 90.0, 70.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(create.revision(), vec![create.parent()]);
 
-    domain.execute_request(&mut viewer, &create).unwrap();
+    domain
+        .execute::<CreateChild, _>(&mut viewer, &metadata, &create)
+        .unwrap();
     let created = NodeId(4);
     let created_part = viewer.part_for_model(created).unwrap();
     assert_eq!(
@@ -616,11 +631,14 @@ fn create_and_delete_round_trip_through_policy_command_and_projection() {
         Rectangle::new(360.0, 220.0, 90.0, 70.0)
     );
 
-    let delete = EditorRequest::Delete(DeleteRequest::new(
+    let delete = DeleteRequest::new(
         vec![created_part],
         domain.next_interaction_revision().unwrap(),
-    ));
-    domain.execute_request(&mut viewer, &delete).unwrap();
+    );
+    let metadata = RequestMetadata::new(delete.revision(), delete.parts().to_vec());
+    domain
+        .execute::<DeleteParts, _>(&mut viewer, &metadata, &delete)
+        .unwrap();
     assert!(viewer.part_for_model(created).is_none());
     domain.undo(&mut viewer).unwrap();
     assert!(viewer.part_for_model(created).is_some());
@@ -763,6 +781,7 @@ fn transient_feedback_expands_freeform_range_before_edge_scroll() {
     assert!(origin.y() > 0.0);
     let feedback_extent = viewer
         .runtime()
+        .tree()
         .freeform_extent(viewer.root_layers().scaled_feedback())
         .unwrap();
     assert!(feedback_extent.x + feedback_extent.width > 640.0);
@@ -816,9 +835,9 @@ fn resize_handle_commits_resize_request_without_changing_selection() {
     let first = viewer.part_for_model(FIRST).unwrap();
     viewer.replace_selection(first).unwrap();
     let (_, handle) = viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<ResizeAction>(
             first,
-            HandleRole::Resize(ResizeDirection::SouthEast),
+            ResizeDirection::SouthEast,
             Box::new(RectangleFigure::new(145.0, 135.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -901,27 +920,29 @@ fn selection_tool_preserves_multi_selection_for_drag_and_collapses_on_click() {
 fn policy_rejection_is_distinct_from_no_command_contribution() {
     let mut viewer = viewer();
     let mut domain = EditorDomain::new();
-    let rejected = EditorRequest::Create(CreateRequest::new(
+    let rejected = CreateRequest::new(
         viewer.contents(),
         CreationType::new("unsupported").unwrap(),
         Rectangle::new(10.0, 10.0, 50.0, 50.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(rejected.revision(), vec![rejected.parent()]);
     assert!(matches!(
-        domain.execute_request(&mut viewer, &rejected),
+        domain.execute::<CreateChild, _>(&mut viewer, &metadata, &rejected),
         Err(EditorDomainError::Viewer(ViewerError::Policy(_)))
     ));
 
-    let no_contribution = EditorRequest::Create(CreateRequest::new(
+    let no_contribution = CreateRequest::new(
         viewer.part_for_model(FIRST).unwrap(),
         CreationType::new("node").unwrap(),
         Rectangle::new(10.0, 10.0, 50.0, 50.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(no_contribution.revision(), vec![no_contribution.parent()]);
     assert!(matches!(
-        domain.execute_request(&mut viewer, &no_contribution),
+        domain.execute::<CreateChild, _>(&mut viewer, &metadata, &no_contribution),
         Err(EditorDomainError::NoCommand)
     ));
 }
@@ -930,16 +951,17 @@ fn policy_rejection_is_distinct_from_no_command_contribution() {
 fn recoverable_command_error_that_changes_model_faults_viewer() {
     let mut viewer = viewer();
     let mut domain = EditorDomain::new();
-    let request = EditorRequest::Create(CreateRequest::new(
+    let request = CreateRequest::new(
         viewer.contents(),
         CreationType::new("invalid-recoverable").unwrap(),
         Rectangle::new(10.0, 10.0, 50.0, 50.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(request.revision(), vec![request.parent()]);
 
     assert!(matches!(
-        domain.execute_request(&mut viewer, &request),
+        domain.execute::<CreateChild, _>(&mut viewer, &metadata, &request),
         Err(EditorDomainError::Viewer(
             ViewerError::RejectedEditChangedModel
         ))
@@ -954,16 +976,17 @@ fn unknown_command_state_faults_stack_and_viewer_without_projection() {
     let mut viewer = viewer();
     let mut domain = EditorDomain::new();
     let applied = viewer.applied_revision();
-    let request = EditorRequest::Create(CreateRequest::new(
+    let request = CreateRequest::new(
         viewer.contents(),
         CreationType::new("unknown-state").unwrap(),
         Rectangle::new(10.0, 10.0, 50.0, 50.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
+    );
+    let metadata = RequestMetadata::new(request.revision(), vec![request.parent()]);
 
     assert!(matches!(
-        domain.execute_request(&mut viewer, &request),
+        domain.execute::<CreateChild, _>(&mut viewer, &metadata, &request),
         Err(EditorDomainError::Command(CommandStackError::Command(
             ref error
         ))) if !error.is_recoverable()
@@ -980,16 +1003,21 @@ fn policy_target_routes_command_and_feedback_to_the_resolved_part_once() {
     let first = viewer.part_for_model(FIRST).unwrap();
     let second = viewer.part_for_model(SECOND).unwrap();
     state.borrow_mut().target = Some(second);
-    let request = EditorRequest::Delete(DeleteRequest::new(
-        vec![first, second],
-        InteractionRevision::initial(),
-    ));
+    let request = DeleteRequest::new(vec![first, second], InteractionRevision::initial());
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
 
-    assert!(viewer.command_for_request(&request).unwrap().is_none());
+    assert!(
+        viewer
+            .command_for::<DeleteParts>(&metadata, &request)
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(state.borrow().command_hosts, vec![SECOND]);
 
-    let feedback = viewer.show_feedback_for_request(&request).unwrap();
-    assert_eq!(state.borrow().feedback_hosts, vec![SECOND]);
+    let feedback = viewer
+        .show_feedback::<DeleteParts>(&metadata, &request)
+        .unwrap();
+    assert_eq!(state.borrow().feedback_hosts, vec![SECOND, SECOND]);
     assert_eq!(feedback.len(), 1);
     assert_eq!(
         viewer.visual_owner(feedback[0]).unwrap().owner_part(),
@@ -1005,12 +1033,12 @@ fn policy_command_panic_faults_viewer_and_rejects_follow_up_operations() {
     }));
     let mut viewer = routing_viewer(state);
     let source = viewer.part_for_model(FIRST).unwrap();
-    let request = EditorRequest::Delete(DeleteRequest::new(
-        vec![source],
-        InteractionRevision::initial(),
-    ));
+    let request = DeleteRequest::new(vec![source], InteractionRevision::initial());
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
 
-    let panic = catch_unwind(AssertUnwindSafe(|| viewer.command_for_request(&request)));
+    let panic = catch_unwind(AssertUnwindSafe(|| {
+        viewer.command_for::<DeleteParts>(&metadata, &request)
+    }));
     assert!(panic.is_err());
     assert!(viewer.is_faulted());
     assert!(matches!(
@@ -1018,11 +1046,11 @@ fn policy_command_panic_faults_viewer_and_rejects_follow_up_operations() {
         Err(ViewerError::Faulted)
     ));
     assert!(matches!(
-        viewer.command_for_request(&request),
+        viewer.command_for::<DeleteParts>(&metadata, &request),
         Err(ViewerError::Faulted)
     ));
     assert!(matches!(
-        viewer.show_feedback_for_request(&request),
+        viewer.show_feedback::<DeleteParts>(&metadata, &request),
         Err(ViewerError::Faulted)
     ));
 }
@@ -1035,18 +1063,16 @@ fn policy_feedback_panic_faults_viewer_before_attaching_feedback() {
     }));
     let mut viewer = routing_viewer(state);
     let source = viewer.part_for_model(FIRST).unwrap();
-    let request = EditorRequest::Delete(DeleteRequest::new(
-        vec![source],
-        InteractionRevision::initial(),
-    ));
+    let request = DeleteRequest::new(vec![source], InteractionRevision::initial());
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
 
     let panic = catch_unwind(AssertUnwindSafe(|| {
-        viewer.show_feedback_for_request(&request)
+        viewer.show_feedback::<DeleteParts>(&metadata, &request)
     }));
     assert!(panic.is_err());
     assert!(viewer.is_faulted());
     assert!(matches!(
-        viewer.show_feedback_for_request(&request),
+        viewer.show_feedback::<DeleteParts>(&metadata, &request),
         Err(ViewerError::Faulted)
     ));
 }
@@ -1083,17 +1109,15 @@ fn policy_target_rejects_foreign_and_stale_parts() {
     let state = Rc::new(RefCell::new(PolicyRoutingState::default()));
     let mut viewer = routing_viewer(Rc::clone(&state));
     let source = viewer.part_for_model(FIRST).unwrap();
-    let request = EditorRequest::Delete(DeleteRequest::new(
-        vec![source],
-        InteractionRevision::initial(),
-    ));
+    let request = DeleteRequest::new(vec![source], InteractionRevision::initial());
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
 
     let foreign_state = Rc::new(RefCell::new(PolicyRoutingState::default()));
     let foreign_viewer = routing_viewer(foreign_state);
     let foreign = foreign_viewer.part_for_model(SECOND).unwrap();
     state.borrow_mut().target = Some(foreign);
     assert!(matches!(
-        viewer.command_for_request(&request),
+        viewer.command_for::<DeleteParts>(&metadata, &request),
         Err(ViewerError::InvalidPart(part)) if part == foreign
     ));
 
@@ -1105,7 +1129,7 @@ fn policy_target_rejects_foreign_and_stale_parts() {
         .unwrap();
     state.borrow_mut().target = Some(stale);
     assert!(matches!(
-        viewer.show_feedback_for_request(&request),
+        viewer.show_feedback::<DeleteParts>(&metadata, &request),
         Err(ViewerError::InvalidPart(part)) if part == stale
     ));
 }

@@ -8,11 +8,11 @@ use novadraw::connection::{
     ShortestPathConnectionRouter, UnresolvedConnection,
 };
 use novadraw::geometry::{Point, Rectangle};
-use novadraw::{RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, runtime::Runtime};
 
 const CLEARANCE: f64 = 10.0;
 
-fn parent_route(runtime: &Runtime, connection_figure: novadraw::FigureId) -> Vec<Point> {
+fn parent_route(runtime: &Runtime, connection_figure: novadraw::tree::FigureId) -> Vec<Point> {
     let bounds = runtime.tree().figure_bounds(connection_figure).unwrap();
     runtime
         .tree()
@@ -48,34 +48,39 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 640.0, 360.0)))
         .unwrap();
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 150.0, 60.0, 40.0)))
         .unwrap();
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(540.0, 150.0, 60.0, 40.0)))
         .unwrap();
     let obstacle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(260.0, 110.0, 100.0, 120.0)))
         .unwrap();
     let connection_figure = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ConnectionFigure::new()))
         .unwrap();
-    let router = runtime.register_connection_router(Box::new(
+    let router = runtime.connections().register_router(Box::new(
         ShortestPathConnectionRouter::new([obstacle])
             .with_clearance(CLEARANCE)
             .unwrap(),
     ));
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let connection = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection_figure,
             Some(source_anchor),
             Some(target_anchor),
@@ -85,7 +90,8 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .unwrap();
 
     let first = runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
     assert!(first.points().len() >= 4);
     let inflated = Rectangle::new(250.0, 100.0, 120.0, 140.0);
@@ -101,7 +107,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
             || (segment[0].y() - segment[1].y()).abs() <= f64::EPSILON
     }));
     assert_eq!(
-        runtime.connection_routing_stats(),
+        runtime.connections().routing_stats(),
         ConnectionRoutingStats {
             route_calculations: 1,
             routing_order_entries: 4,
@@ -109,7 +115,8 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         }
     );
     let repeated = runtime
-        .resolve_connection_route(connection, CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connection, CoordinateSpace::ChildContent(root))
         .unwrap();
     assert_eq!(repeated, first);
 
@@ -118,7 +125,7 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
         .unwrap()
         .set_bounds(Rectangle::new(300.0, 80.0, 100.0, 180.0))
         .unwrap();
-    assert_eq!(runtime.dirty_connections(), vec![connection]);
+    assert_eq!(runtime.connections().dirty(), vec![connection]);
     prepare_next_submission(&mut runtime).expect("obstacle movement reroutes");
     let moved = parent_route(&runtime, connection_figure);
     assert_ne!(moved, first.points().as_slice());
@@ -134,14 +141,14 @@ fn shortest_path_routes_around_obstacles_and_reacts_to_geometry_and_visibility()
     prepare_next_submission(&mut runtime).expect("restored obstacle reroutes");
     assert!(parent_route(&runtime, connection_figure).len() >= 4);
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .remove(obstacle)
         .expect("obstacle removal is a valid topology mutation");
     prepare_next_submission(&mut runtime).expect("obstacle removal reroutes");
     assert_eq!(parent_route(&runtime, connection_figure).len(), 2);
     assert_eq!(
-        runtime.connection_routing_stats(),
+        runtime.connections().routing_stats(),
         ConnectionRoutingStats {
             route_calculations: 6,
             routing_order_entries: 23,
@@ -157,36 +164,41 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 500.0, 300.0)))
         .unwrap();
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 120.0, 60.0, 40.0)))
         .unwrap();
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(420.0, 120.0, 60.0, 40.0)))
         .unwrap();
     let blocker = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(70.0, 100.0, 40.0, 80.0)))
         .unwrap();
-    let router = runtime.register_connection_router(Box::new(
+    let router = runtime.connections().register_router(Box::new(
         ShortestPathConnectionRouter::new([blocker])
             .with_clearance(CLEARANCE)
             .unwrap(),
     ));
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let mut connections = Vec::new();
     for _ in 0..2 {
         let figure = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(ConnectionFigure::new()))
             .unwrap();
         let connection = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 figure,
                 Some(source_anchor),
                 Some(target_anchor),
@@ -198,14 +210,16 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
     }
 
     assert!(matches!(
-        runtime.resolve_connection_route(connections[0].0, CoordinateSpace::ChildContent(root)),
+        runtime
+            .connections()
+            .resolve_route(connections[0].0, CoordinateSpace::ChildContent(root)),
         Err(ConnectionRuntimeError::Unresolved(
             UnresolvedConnection::RouteFailed(RouteError::NoObstacleFreePath)
         ))
     ));
     for (connection, figure) in &connections {
         assert_eq!(
-            runtime.connection_state(*connection).unwrap().resolution,
+            runtime.connections().state(*connection).unwrap().resolution,
             ConnectionResolution::Unresolved(UnresolvedConnection::RouteFailed(
                 RouteError::NoObstacleFreePath
             ))
@@ -223,7 +237,7 @@ fn shortest_path_batch_failure_clears_every_member_and_recovers_atomically() {
     prepare_next_submission(&mut runtime).expect("hidden blocker recovers batch");
     assert!(connections.iter().all(|(connection, figure)| {
         matches!(
-            runtime.connection_state(*connection).unwrap().resolution,
+            runtime.connections().state(*connection).unwrap().resolution,
             ConnectionResolution::Resolved { .. }
         ) && !runtime
             .tree()
@@ -242,12 +256,12 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1200.0, 500.0)))
         .unwrap();
     let source = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 20.0, 40.0, 40.0)))
         .unwrap();
     let target = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(1100.0, 20.0, 40.0, 40.0)))
         .unwrap();
@@ -255,7 +269,7 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
     for index in 0..COUNT {
         obstacles.push(
             runtime
-                .container(root)
+                .figure(root)
                 .unwrap()
                 .add(Box::new(RectangleFigure::new(
                     100.0 + index as f64 * 12.0,
@@ -266,22 +280,27 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
                 .unwrap(),
         );
     }
-    let router = runtime.register_connection_router(Box::new(
+    let router = runtime.connections().register_router(Box::new(
         ShortestPathConnectionRouter::new(obstacles)
             .with_clearance(2.0)
             .unwrap(),
     ));
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let mut connections = Vec::with_capacity(COUNT);
     for _ in 0..COUNT {
         let figure = runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .add(Box::new(ConnectionFigure::new()))
             .unwrap();
         let connection = runtime
-            .register_connection_state(
+            .connections()
+            .register_state(
                 figure,
                 Some(source_anchor),
                 Some(target_anchor),
@@ -293,10 +312,11 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
     }
 
     runtime
-        .resolve_connection_route(connections[0], CoordinateSpace::ChildContent(root))
+        .connections()
+        .resolve_route(connections[0], CoordinateSpace::ChildContent(root))
         .unwrap();
     assert_eq!(
-        runtime.connection_routing_stats(),
+        runtime.connections().routing_stats(),
         ConnectionRoutingStats {
             route_calculations: COUNT as u64,
             routing_order_entries: 2 * COUNT as u64 + 2,
@@ -304,7 +324,7 @@ fn one_obstacle_snapshot_is_reused_for_a_sixty_four_connection_batch() {
         }
     );
     assert!(connections.iter().all(|connection| matches!(
-        runtime.connection_state(*connection).unwrap().resolution,
+        runtime.connections().state(*connection).unwrap().resolution,
         ConnectionResolution::Resolved { generation: 1 }
     )));
 }

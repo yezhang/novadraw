@@ -190,10 +190,6 @@ impl PolylineFigure {
         &self.points
     }
 
-    pub(crate) fn painted_minimum(&self) -> usize {
-        2
-    }
-
     pub(crate) fn commit_stroke_style(&mut self, stroke: StrokeStyle) {
         self.stroke = stroke;
     }

@@ -12,14 +12,16 @@ use novadraw::host::PlatformHost;
 use novadraw::render::{BuiltinFont, DamageMode, RenderBackend, SurfaceInfo};
 use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw::{
-    Color, Figure, FigureStyle, FramePreparation, LabelFigure, Point, Rectangle, RectangleFigure,
+    figure::Figure, figure::FigureStyle, figure::LabelFigure, figure::RectangleFigure,
+    geometry::Point, geometry::Rectangle, graphics::Color, runtime::FramePreparation,
 };
 use novadraw_editor::{
     Command, CommandError, DirectTextEdit, DirectTextEditDescriptor, DirectTextEditRequest,
-    DirectTextEditState, DirectTextFeature, DirectTextFeedback, EditPartBehavior, EditPartError,
-    EditPartFactory, EditPolicy, EditorDomain, EditorRequest, FeedbackVisual, FocusLossPolicy,
-    GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext, PolicyError,
-    PolicyHost, PolicyInstallation, PolicyRole, TextEditMode, TextInputEffect, TextInputSnapshot,
+    DirectTextEditSlot, DirectTextEditState, DirectTextFeature, DirectTextFeedback,
+    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, FeedbackVisual,
+    FocusLossPolicy, GraphicalViewer, ModelAdapter, ModelEvent, ModelRevision, PartFactoryContext,
+    PolicyError, PolicyHandlerBuilder, PolicyHost, PolicyInstallation, RequestMetadata,
+    RequestProtocol, StartDirectTextEdit, TextEditMode, TextInputEffect, TextInputSnapshot,
     VisualUpdateContext,
 };
 use novadraw_platform_web::{
@@ -207,25 +209,22 @@ impl DirectTextEdit<DirectEditModel> for LabelDirectEdit {
 struct LabelPolicy;
 
 impl EditPolicy<DirectEditModel> for LabelPolicy {
-    fn understands(&self, _request: &EditorRequest) -> bool {
-        false
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DirectEditModel, Self>) {
+        builder.handle::<StartDirectTextEdit>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<DirectEditNode>,
-        _request: &EditorRequest,
-        _model: &DirectEditModel,
-    ) -> Result<Option<Box<dyn Command<DirectEditModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_direct_text_edit(
+impl LabelPolicy {
+    fn start(
         &mut self,
         host: PolicyHost<DirectEditNode>,
+        _metadata: &RequestMetadata,
         request: &DirectTextEditRequest,
         model: &DirectEditModel,
-    ) -> Result<Option<Box<dyn DirectTextEdit<DirectEditModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<StartDirectTextEdit as RequestProtocol<DirectEditModel>>::Contribution>,
+        PolicyError,
+    > {
         if host.model() != LABEL || request.feature().as_str() != LABEL_FEATURE {
             return Ok(None);
         }
@@ -301,7 +300,10 @@ impl EditPartBehavior<DirectEditModel> for DirectEditPart {
         model_id: DirectEditNode,
     ) -> Result<Vec<PolicyInstallation<DirectEditModel>>, EditPartError> {
         Ok(if model_id == LABEL {
-            vec![(PolicyRole::DirectTextEdit, Box::new(LabelPolicy))]
+            vec![
+                PolicyInstallation::new(DirectTextEditSlot::key(), LabelPolicy)
+                    .map_err(|error| EditPartError::operation(error.to_string()))?,
+            ]
         } else {
             Vec::new()
         })

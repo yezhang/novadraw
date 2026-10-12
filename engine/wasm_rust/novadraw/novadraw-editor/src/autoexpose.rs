@@ -3,8 +3,9 @@
 use std::time::Duration;
 
 use novadraw::container::RangeModelSnapshot;
+use novadraw::figure::Figure;
 use novadraw::geometry::{Point, Rectangle, Vec2};
-use novadraw::{Figure, FigureId};
+use novadraw::tree::FigureId;
 
 use crate::{EditPartFactory, GraphicalViewer, ModelAdapter, ViewerError};
 

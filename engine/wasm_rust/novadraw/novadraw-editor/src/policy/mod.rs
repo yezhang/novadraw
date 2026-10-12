@@ -1,53 +1,145 @@
-//! Role-keyed editing policies.
+//! Typed editing policy registration and request dispatch.
 
 use std::{
+    any::Any,
     collections::{BTreeMap, HashMap},
     error::Error,
     fmt,
-    sync::Arc,
+    marker::PhantomData,
 };
 
+use novadraw::figure::{Figure, FigureStyle};
 use novadraw::geometry::Point;
-use novadraw::{Figure, FigureStyle};
 
 use crate::{
-    Command, CreateConnectionRequest, DirectTextEdit, DirectTextEditRequest, EditPartId,
-    EditorNamespace, EditorRequest, ModelAdapter, ReconnectConnectionRequest,
+    BendpointRequest, ChangeBounds, ChangeBoundsRequest, Command, CreateChild, CreateConnection,
+    CreateConnectionRequest, CreateRequest, DeleteParts, DeleteRequest, DirectTextEdit,
+    DirectTextEditRequest, EditBendpoint, EditPartId, EditorNamespace, ModelAdapter,
+    ReconnectConnection, ReconnectConnectionRequest, RequestKey, RequestMetadata, RequestProtocol,
+    RequestResolution, StartDirectTextEdit, request::ErasedRequestKey,
 };
 
-/// Stable role used to install an EditPolicy on one EditPart.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum PolicyRole {
-    /// Fundamental model operations such as delete.
-    Component,
-    /// Parent-owned child creation and bounds operations.
-    Layout,
-    /// Primary drag and selection-handle behavior.
-    PrimaryDrag,
-    /// Selection visual contribution.
-    SelectionFeedback,
-    /// Source-owned two-stage connection creation.
-    ConnectionCreation,
-    /// Reconnect one endpoint of an existing connection.
-    ConnectionReconnect,
-    /// Direct editing of one application text feature.
-    DirectTextEdit,
-    /// Application-defined role.
-    Custom(Arc<str>),
-}
+/// Open marker implemented by every policy installation slot.
+pub trait PolicySlot: 'static {
+    /// Stable diagnostic name.
+    const NAME: &'static str;
 
-impl PolicyRole {
-    /// Creates a non-empty application role.
-    pub fn custom(value: impl AsRef<str>) -> Result<Self, PolicyError> {
-        let value = value.as_ref();
-        if value.is_empty() {
-            Err(PolicyError::operation("policy role must not be empty"))
-        } else {
-            Ok(Self::Custom(Arc::from(value)))
-        }
+    /// Returns this slot's typed identity.
+    fn key() -> PolicyKey<Self> {
+        PolicyKey::new(Self::NAME)
     }
 }
 
+/// Typed identity of one policy installation slot.
+pub struct PolicyKey<S: ?Sized> {
+    name: &'static str,
+    marker: PhantomData<fn() -> S>,
+}
+
+impl<S: ?Sized> PolicyKey<S> {
+    /// Creates a key for one slot marker.
+    pub const fn new(name: &'static str) -> Self {
+        Self {
+            name,
+            marker: PhantomData,
+        }
+    }
+
+    /// Returns the diagnostic slot name.
+    pub const fn name(self) -> &'static str {
+        self.name
+    }
+}
+
+impl<S: ?Sized> Clone for PolicyKey<S> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<S: ?Sized> Copy for PolicyKey<S> {}
+
+impl<S: ?Sized> fmt::Debug for PolicyKey<S> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_tuple("PolicyKey")
+            .field(&self.name)
+            .finish()
+    }
+}
+
+macro_rules! policy_slots {
+    ($(($slot:ident, $name:literal, $doc:literal)),+ $(,)?) => {
+        $(
+            #[doc = $doc]
+            pub struct $slot;
+
+            impl $slot {
+                #[doc = "Returns this built-in slot's typed identity."]
+                pub fn key() -> PolicyKey<Self> {
+                    PolicyKey::new($name)
+                }
+            }
+
+            impl PolicySlot for $slot {
+                const NAME: &'static str = $name;
+            }
+        )+
+    };
+}
+
+policy_slots!(
+    (
+        ComponentSlot,
+        "component",
+        "Fundamental model operations such as delete."
+    ),
+    (
+        LayoutSlot,
+        "layout",
+        "Parent-owned child creation and bounds operations."
+    ),
+    (
+        PrimaryDragSlot,
+        "primary-drag",
+        "Primary drag and selection-handle behavior."
+    ),
+    (
+        SelectionFeedbackSlot,
+        "selection-feedback",
+        "Selection visual contribution."
+    ),
+    (
+        ConnectionCreationSlot,
+        "connection-creation",
+        "Source-owned two-stage connection creation."
+    ),
+    (
+        ConnectionReconnectSlot,
+        "connection-reconnect",
+        "Connection endpoint reconnection."
+    ),
+    (
+        DirectTextEditSlot,
+        "direct-text-edit",
+        "Direct editing of an application text feature."
+    ),
+);
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct ErasedPolicyKey {
+    name: &'static str,
+    type_id: std::any::TypeId,
+}
+
+impl ErasedPolicyKey {
+    fn of<S: PolicySlot>(key: PolicyKey<S>) -> Self {
+        Self {
+            name: key.name(),
+            type_id: std::any::TypeId::of::<S>(),
+        }
+    }
+}
 /// Immutable host identity supplied to a policy.
 #[derive(Clone, Copy, Debug)]
 pub struct PolicyHost<I> {
@@ -169,63 +261,12 @@ impl fmt::Display for PolicyError {
 
 impl Error for PolicyError {}
 
-/// Pluggable editing behavior installed on one EditPart role.
-pub trait EditPolicy<A: ModelAdapter> {
-    /// Returns whether this policy contributes to the request.
-    fn understands(&self, request: &EditorRequest) -> bool;
-
-    /// Returns the target part or `None` when this policy is not a target.
-    fn target(&self, host: PolicyHost<A::ModelId>, request: &EditorRequest) -> Option<EditPartId> {
-        self.understands(request).then_some(host.part())
-    }
-
-    /// Returns no contribution, an explicit rejection, or a model Command.
-    fn command(
-        &mut self,
-        host: PolicyHost<A::ModelId>,
-        request: &EditorRequest,
-        model: &A,
-    ) -> Result<Option<Box<dyn Command<A>>>, PolicyError>;
-
-    /// Creates source or target feedback for the latest request state.
-    fn feedback(
-        &mut self,
-        _host: PolicyHost<A::ModelId>,
-        _request: &EditorRequest,
-        _model: &A,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
-        Ok(Vec::new())
-    }
-
-    /// Creates a source-locked connection plan when this policy accepts the first stage.
-    fn start_connection(
-        &mut self,
-        _host: PolicyHost<A::ModelId>,
-        _request: &CreateConnectionRequest,
-        _model: &A,
-    ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, PolicyError> {
-        Ok(None)
-    }
-
-    /// Creates a gesture-scoped reconnect plan when this policy accepts the request.
-    fn start_reconnection(
-        &mut self,
-        _host: PolicyHost<A::ModelId>,
-        _request: &ReconnectConnectionRequest,
-        _model: &A,
-    ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, PolicyError> {
-        Ok(None)
-    }
-
-    /// Creates one Viewer-scoped direct text edit plan for the requested feature.
-    fn start_direct_text_edit(
-        &mut self,
-        _host: PolicyHost<A::ModelId>,
-        _request: &DirectTextEditRequest,
-        _model: &A,
-    ) -> Result<Option<Box<dyn DirectTextEdit<A>>>, PolicyError> {
-        Ok(None)
-    }
+/// Pluggable editing behavior installed in one typed policy slot.
+pub trait EditPolicy<A: ModelAdapter>: 'static {
+    /// Registers every typed request handler before the policy is installed.
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, A, Self>)
+    where
+        Self: Sized;
 
     /// Activates policy resources after its host is active.
     fn activate(&mut self, _host: PolicyHost<A::ModelId>, _model: &A) -> Result<(), PolicyError> {
@@ -236,8 +277,316 @@ pub trait EditPolicy<A: ModelAdapter> {
     fn deactivate(&mut self, _host: PolicyHost<A::ModelId>, _model: &A) {}
 }
 
-/// One role-keyed policy declared by an EditPartBehavior.
-pub type PolicyInstallation<A> = (PolicyRole, Box<dyn EditPolicy<A>>);
+/// Command and feedback emitted by one ordinary editing request handler.
+pub struct EditingContribution<A: ModelAdapter> {
+    command: Option<Box<dyn Command<A>>>,
+    feedback: Vec<FeedbackVisual>,
+}
+
+impl<A: ModelAdapter> EditingContribution<A> {
+    /// Creates a contribution with an optional command and transient feedback.
+    pub fn new(command: Option<Box<dyn Command<A>>>, feedback: Vec<FeedbackVisual>) -> Self {
+        Self { command, feedback }
+    }
+
+    /// Creates a command-only contribution.
+    pub fn command(command: Box<dyn Command<A>>) -> Self {
+        Self::new(Some(command), Vec::new())
+    }
+
+    /// Creates a feedback-only contribution.
+    pub fn feedback(feedback: Vec<FeedbackVisual>) -> Self {
+        Self::new(None, feedback)
+    }
+
+    pub(crate) fn into_parts(self) -> (Option<Box<dyn Command<A>>>, Vec<FeedbackVisual>) {
+        (self.command, self.feedback)
+    }
+}
+
+macro_rules! editing_request_protocol {
+    ($marker:ty, $payload:ty, $name:literal) => {
+        impl<A: ModelAdapter + 'static> RequestProtocol<A> for $marker {
+            type Payload = $payload;
+            type Contribution = EditingContribution<A>;
+
+            fn key() -> RequestKey<Self> {
+                RequestKey::new($name)
+            }
+        }
+    };
+}
+
+editing_request_protocol!(ChangeBounds, ChangeBoundsRequest, "change-bounds");
+editing_request_protocol!(CreateChild, CreateRequest, "create-child");
+editing_request_protocol!(DeleteParts, DeleteRequest, "delete-parts");
+editing_request_protocol!(EditBendpoint, BendpointRequest, "edit-bendpoint");
+
+impl<A: ModelAdapter + 'static> RequestProtocol<A> for CreateConnection {
+    type Payload = CreateConnectionRequest;
+    type Contribution = Box<dyn ConnectionCreation<A>>;
+
+    fn key() -> RequestKey<Self> {
+        RequestKey::new("create-connection")
+    }
+
+    fn reduce(
+        contributions: Vec<Self::Contribution>,
+    ) -> Result<RequestResolution<Self::Contribution>, PolicyError> {
+        RequestResolution::at_most_one(contributions, "create-connection")
+    }
+}
+
+impl<A: ModelAdapter + 'static> RequestProtocol<A> for ReconnectConnection {
+    type Payload = ReconnectConnectionRequest;
+    type Contribution = Box<dyn ConnectionReconnection<A>>;
+
+    fn key() -> RequestKey<Self> {
+        RequestKey::new("reconnect-connection")
+    }
+
+    fn reduce(
+        contributions: Vec<Self::Contribution>,
+    ) -> Result<RequestResolution<Self::Contribution>, PolicyError> {
+        RequestResolution::at_most_one(contributions, "reconnect-connection")
+    }
+}
+
+impl<A: ModelAdapter + 'static> RequestProtocol<A> for StartDirectTextEdit {
+    type Payload = DirectTextEditRequest;
+    type Contribution = Box<dyn DirectTextEdit<A>>;
+
+    fn key() -> RequestKey<Self> {
+        RequestKey::new("start-direct-text-edit")
+    }
+
+    fn reduce(
+        contributions: Vec<Self::Contribution>,
+    ) -> Result<RequestResolution<Self::Contribution>, PolicyError> {
+        RequestResolution::at_most_one(contributions, "start-direct-text-edit")
+    }
+}
+
+/// Typed policy request callback.
+pub type PolicyHandler<A, P, R> =
+    fn(
+        &mut P,
+        PolicyHost<<A as ModelAdapter>::ModelId>,
+        &RequestMetadata,
+        &<R as RequestProtocol<A>>::Payload,
+        &A,
+    ) -> Result<Option<<R as RequestProtocol<A>>::Contribution>, PolicyError>;
+
+/// Typed source-to-target routing callback.
+pub type PolicyTarget<A, P, R> = fn(
+    &mut P,
+    PolicyHost<<A as ModelAdapter>::ModelId>,
+    &RequestMetadata,
+    &<R as RequestProtocol<A>>::Payload,
+    &A,
+) -> Result<Option<EditPartId>, PolicyError>;
+
+trait ErasedPolicyHandler<A: ModelAdapter> {
+    fn target(
+        &self,
+        policy: &mut dyn Any,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Option<EditPartId>, PolicyError>;
+
+    fn has_target(&self) -> bool;
+
+    fn contribute(
+        &self,
+        policy: &mut dyn Any,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Option<Box<dyn Any>>, PolicyError>;
+}
+
+struct TypedPolicyHandler<A: ModelAdapter, P, R: RequestProtocol<A>> {
+    handler: PolicyHandler<A, P, R>,
+    target: Option<PolicyTarget<A, P, R>>,
+}
+
+impl<A, P, R> ErasedPolicyHandler<A> for TypedPolicyHandler<A, P, R>
+where
+    A: ModelAdapter,
+    P: 'static,
+    R: RequestProtocol<A>,
+{
+    fn target(
+        &self,
+        policy: &mut dyn Any,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Option<EditPartId>, PolicyError> {
+        let Some(target) = self.target else {
+            return Ok(None);
+        };
+        let policy = policy
+            .downcast_mut::<P>()
+            .ok_or_else(|| PolicyError::operation("policy descriptor mismatch"))?;
+        let payload = payload
+            .downcast_ref::<R::Payload>()
+            .ok_or_else(|| PolicyError::operation("request descriptor mismatch"))?;
+        target(policy, host, metadata, payload, model)
+    }
+
+    fn has_target(&self) -> bool {
+        self.target.is_some()
+    }
+
+    fn contribute(
+        &self,
+        policy: &mut dyn Any,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Option<Box<dyn Any>>, PolicyError> {
+        let policy = policy
+            .downcast_mut::<P>()
+            .ok_or_else(|| PolicyError::operation("policy descriptor mismatch"))?;
+        let payload = payload
+            .downcast_ref::<R::Payload>()
+            .ok_or_else(|| PolicyError::operation("request descriptor mismatch"))?;
+        (self.handler)(policy, host, metadata, payload, model)
+            .map(|contribution| contribution.map(|value| Box::new(value) as Box<dyn Any>))
+    }
+}
+
+/// Install-time registry for one policy's typed request callbacks.
+pub struct PolicyHandlerBuilder<'a, A: ModelAdapter, P> {
+    handlers: BTreeMap<ErasedRequestKey, Box<dyn ErasedPolicyHandler<A>>>,
+    duplicate: Option<&'static str>,
+    marker: PhantomData<&'a mut P>,
+}
+
+impl<'a, A: ModelAdapter + 'static, P: 'static> PolicyHandlerBuilder<'a, A, P> {
+    fn new() -> Self {
+        Self {
+            handlers: BTreeMap::new(),
+            duplicate: None,
+            marker: PhantomData,
+        }
+    }
+
+    /// Registers one typed request handler.
+    pub fn handle<R>(&mut self, handler: PolicyHandler<A, P, R>)
+    where
+        R: RequestProtocol<A>,
+    {
+        self.insert::<R>(handler, None);
+    }
+
+    /// Registers one typed request handler with explicit source-to-target routing.
+    pub fn handle_routed<R>(
+        &mut self,
+        target: PolicyTarget<A, P, R>,
+        handler: PolicyHandler<A, P, R>,
+    ) where
+        R: RequestProtocol<A>,
+    {
+        self.insert::<R>(handler, Some(target));
+    }
+
+    fn insert<R>(&mut self, handler: PolicyHandler<A, P, R>, target: Option<PolicyTarget<A, P, R>>)
+    where
+        R: RequestProtocol<A>,
+    {
+        let key = ErasedRequestKey::of(R::key());
+        if self
+            .handlers
+            .insert(
+                key,
+                Box::new(TypedPolicyHandler::<A, P, R> { handler, target }),
+            )
+            .is_some()
+        {
+            self.duplicate = Some(key.name());
+        }
+    }
+
+    fn finish(
+        self,
+    ) -> Result<BTreeMap<ErasedRequestKey, Box<dyn ErasedPolicyHandler<A>>>, PolicyError> {
+        if let Some(name) = self.duplicate {
+            Err(PolicyError::operation(format!(
+                "duplicate request handler: {name}"
+            )))
+        } else {
+            Ok(self.handlers)
+        }
+    }
+}
+
+type PolicyActivate<A> =
+    fn(&mut dyn Any, PolicyHost<<A as ModelAdapter>::ModelId>, &A) -> Result<(), PolicyError>;
+type PolicyDeactivate<A> = fn(&mut dyn Any, PolicyHost<<A as ModelAdapter>::ModelId>, &A);
+
+pub(crate) struct PolicyEntry<A: ModelAdapter> {
+    policy: Box<dyn Any>,
+    handlers: BTreeMap<ErasedRequestKey, Box<dyn ErasedPolicyHandler<A>>>,
+    activate: PolicyActivate<A>,
+    deactivate: PolicyDeactivate<A>,
+}
+
+impl<A: ModelAdapter> PolicyEntry<A> {
+    pub(crate) fn activate(
+        &mut self,
+        host: PolicyHost<A::ModelId>,
+        model: &A,
+    ) -> Result<(), PolicyError> {
+        (self.activate)(self.policy.as_mut(), host, model)
+    }
+
+    pub(crate) fn deactivate(&mut self, host: PolicyHost<A::ModelId>, model: &A) {
+        (self.deactivate)(self.policy.as_mut(), host, model);
+    }
+}
+
+/// One typed-slot policy installation declared by an EditPartBehavior.
+pub struct PolicyInstallation<A: ModelAdapter> {
+    key: ErasedPolicyKey,
+    entry: PolicyEntry<A>,
+}
+
+impl<A: ModelAdapter + 'static> PolicyInstallation<A> {
+    /// Builds and validates a policy's typed handler registry.
+    pub fn new<S, P>(key: PolicyKey<S>, policy: P) -> Result<Self, PolicyError>
+    where
+        S: PolicySlot,
+        P: EditPolicy<A>,
+    {
+        let mut builder = PolicyHandlerBuilder::<A, P>::new();
+        P::register_handlers(&mut builder);
+        Ok(Self {
+            key: ErasedPolicyKey::of(key),
+            entry: PolicyEntry {
+                policy: Box::new(policy),
+                handlers: builder.finish()?,
+                activate: |policy, host, model| {
+                    policy
+                        .downcast_mut::<P>()
+                        .ok_or_else(|| PolicyError::operation("policy descriptor mismatch"))?
+                        .activate(host, model)
+                },
+                deactivate: |policy, host, model| {
+                    if let Some(policy) = policy.downcast_mut::<P>() {
+                        policy.deactivate(host, model);
+                    }
+                },
+            },
+        })
+    }
+}
 
 /// Source-locked, gesture-scoped preparation for one connection Command.
 ///
@@ -337,7 +686,7 @@ pub trait ConnectionReconnection<A: ModelAdapter> {
 }
 
 pub(crate) struct PolicyStore<A: ModelAdapter> {
-    entries: HashMap<EditPartId, BTreeMap<PolicyRole, Box<dyn EditPolicy<A>>>>,
+    entries: HashMap<EditPartId, BTreeMap<ErasedPolicyKey, PolicyEntry<A>>>,
     namespace: EditorNamespace,
 }
 
@@ -349,29 +698,39 @@ impl<A: ModelAdapter> PolicyStore<A> {
         }
     }
 
-    pub(crate) fn install(
+    pub(crate) fn install_batch(
         &mut self,
         part: EditPartId,
-        role: PolicyRole,
-        policy: Box<dyn EditPolicy<A>>,
+        installations: Vec<PolicyInstallation<A>>,
     ) -> Result<(), PolicyError> {
         if part.namespace() != self.namespace {
             return Err(PolicyError::operation(
                 "policy host belongs to another Viewer",
             ));
         }
-        let roles = self.entries.entry(part).or_default();
-        if roles.contains_key(&role) {
-            return Err(PolicyError::operation("duplicate policy role"));
+        let existing = self.entries.get(&part);
+        let mut incoming = std::collections::HashSet::with_capacity(installations.len());
+        for installation in &installations {
+            if existing.is_some_and(|entries| entries.contains_key(&installation.key))
+                || !incoming.insert(installation.key)
+            {
+                return Err(PolicyError::operation(format!(
+                    "duplicate policy slot: {}",
+                    installation.key.name
+                )));
+            }
         }
-        roles.insert(role, policy);
+        let entries = self.entries.entry(part).or_default();
+        for installation in installations {
+            entries.insert(installation.key, installation.entry);
+        }
         Ok(())
     }
 
-    pub(crate) fn roles_mut(
+    pub(crate) fn entries_mut(
         &mut self,
         part: EditPartId,
-    ) -> Option<&mut BTreeMap<PolicyRole, Box<dyn EditPolicy<A>>>> {
+    ) -> Option<&mut BTreeMap<ErasedPolicyKey, PolicyEntry<A>>> {
         if part.namespace() != self.namespace {
             return None;
         }
@@ -381,10 +740,212 @@ impl<A: ModelAdapter> PolicyStore<A> {
     pub(crate) fn remove(
         &mut self,
         part: EditPartId,
-    ) -> Option<BTreeMap<PolicyRole, Box<dyn EditPolicy<A>>>> {
+    ) -> Option<BTreeMap<ErasedPolicyKey, PolicyEntry<A>>> {
         if part.namespace() != self.namespace {
             return None;
         }
         self.entries.remove(&part)
+    }
+
+    pub(crate) fn resolve_target<R>(
+        &mut self,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+        model: &A,
+    ) -> Result<Option<EditPartId>, PolicyError>
+    where
+        R: RequestProtocol<A>,
+    {
+        self.resolve_target_erased(
+            host,
+            ErasedRequestKey::of(R::key()),
+            metadata,
+            payload,
+            model,
+        )
+    }
+
+    pub(crate) fn resolve_target_erased(
+        &mut self,
+        host: PolicyHost<A::ModelId>,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Option<EditPartId>, PolicyError> {
+        let Some(entries) = self.entries_mut(host.part()) else {
+            return Ok(None);
+        };
+        let mut registered = false;
+        for entry in entries.values_mut() {
+            let Some(handler) = entry.handlers.get(&key) else {
+                continue;
+            };
+            registered = true;
+            if handler.has_target()
+                && let Some(target) =
+                    handler.target(entry.policy.as_mut(), host, metadata, payload, model)?
+            {
+                return Ok(Some(target));
+            }
+        }
+        Ok(registered.then_some(host.part()))
+    }
+
+    pub(crate) fn contributions<R>(
+        &mut self,
+        host: PolicyHost<A::ModelId>,
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+        model: &A,
+    ) -> Result<Vec<R::Contribution>, PolicyError>
+    where
+        R: RequestProtocol<A>,
+    {
+        self.contributions_erased(
+            host,
+            ErasedRequestKey::of(R::key()),
+            metadata,
+            payload,
+            model,
+        )?
+        .into_iter()
+        .map(|contribution| {
+            contribution
+                .downcast::<R::Contribution>()
+                .map(|contribution| *contribution)
+                .map_err(|_| PolicyError::operation("request contribution descriptor mismatch"))
+        })
+        .collect()
+    }
+
+    pub(crate) fn contributions_erased(
+        &mut self,
+        host: PolicyHost<A::ModelId>,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+        model: &A,
+    ) -> Result<Vec<Box<dyn Any>>, PolicyError> {
+        let Some(entries) = self.entries_mut(host.part()) else {
+            return Ok(Vec::new());
+        };
+        let mut contributions = Vec::new();
+        for entry in entries.values_mut() {
+            let Some(handler) = entry.handlers.get(&key) else {
+                continue;
+            };
+            let Some(contribution) =
+                handler.contribute(entry.policy.as_mut(), host, metadata, payload, model)?
+            else {
+                continue;
+            };
+            contributions.push(contribution);
+        }
+        Ok(contributions)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::Infallible;
+
+    use super::*;
+    use crate::{InteractionRevision, ModelEvent, ModelRevision};
+
+    #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+    struct ModelId;
+
+    struct Model;
+
+    impl ModelAdapter for Model {
+        type ModelId = ModelId;
+        type Event = ();
+        type Error = Infallible;
+
+        fn root(&self) -> Self::ModelId {
+            ModelId
+        }
+
+        fn revision(&self) -> ModelRevision {
+            ModelRevision::initial()
+        }
+
+        fn children(&self, _model: Self::ModelId) -> Result<Vec<Self::ModelId>, Self::Error> {
+            Ok(Vec::new())
+        }
+
+        fn drain_events(&mut self) -> Vec<ModelEvent<Self::ModelId, Self::Event>> {
+            Vec::new()
+        }
+    }
+
+    struct TestRequest;
+
+    impl RequestProtocol<Model> for TestRequest {
+        type Payload = u32;
+        type Contribution = u32;
+
+        fn key() -> RequestKey<Self> {
+            RequestKey::new("test-request")
+        }
+    }
+
+    struct TestPolicy;
+
+    impl EditPolicy<Model> for TestPolicy {
+        fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, Model, Self>) {
+            builder.handle::<TestRequest>(Self::handle);
+        }
+    }
+
+    impl TestPolicy {
+        fn handle(
+            &mut self,
+            _host: PolicyHost<ModelId>,
+            _metadata: &RequestMetadata,
+            payload: &u32,
+            _model: &Model,
+        ) -> Result<Option<u32>, PolicyError> {
+            Ok(Some(*payload))
+        }
+    }
+
+    #[test]
+    fn erased_handler_rejects_a_mismatched_payload() {
+        let handler: Box<dyn ErasedPolicyHandler<Model>> =
+            Box::new(TypedPolicyHandler::<Model, TestPolicy, TestRequest> {
+                handler: TestPolicy::handle,
+                target: None,
+            });
+        let namespace = EditorNamespace::new();
+        let part = EditPartId::for_test(namespace);
+        let metadata = RequestMetadata::new(InteractionRevision::initial(), vec![part]);
+        let mut policy: Box<dyn Any> = Box::new(TestPolicy);
+
+        let error = handler
+            .contribute(
+                policy.as_mut(),
+                PolicyHost::new(part, ModelId, None),
+                &metadata,
+                &"wrong payload",
+                &Model,
+            )
+            .expect_err("descriptor mismatch must be rejected");
+
+        assert_eq!(error.message(), "request descriptor mismatch");
+    }
+
+    #[test]
+    fn duplicate_request_handler_is_rejected_before_installation() {
+        let mut builder = PolicyHandlerBuilder::<Model, TestPolicy>::new();
+        builder.handle::<TestRequest>(TestPolicy::handle);
+        builder.handle::<TestRequest>(TestPolicy::handle);
+
+        let Err(error) = builder.finish() else {
+            panic!("duplicate handler must be rejected");
+        };
+        assert_eq!(error.message(), "duplicate request handler: test-request");
     }
 }

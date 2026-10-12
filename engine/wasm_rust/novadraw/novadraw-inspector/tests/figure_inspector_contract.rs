@@ -3,7 +3,10 @@ use std::num::NonZeroUsize;
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::StableQueryError;
 use novadraw::runtime::update::{FigureEvent, NotificationEffect};
-use novadraw::{FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime};
+use novadraw::{
+    figure::RectangleFigure, geometry::Rectangle, runtime::FramePreparation, runtime::Runtime,
+    tree::FigureTree,
+};
 use novadraw_inspector::FigureInspector;
 
 const EVENT_CAPACITY: usize = 32;
@@ -20,12 +23,15 @@ fn surface() -> SurfaceInfo {
 }
 
 fn stabilize(runtime: &mut Runtime) {
-    let preparation = runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
+    let preparation = runtime
+        .frames()
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
     let FramePreparation::Ready(submission) = preparation else {
         panic!("fixture preparation: {preparation:?}");
     };
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -33,10 +39,10 @@ fn stabilize(runtime: &mut Runtime) {
             )
             .is_ok()
     );
-    assert!(runtime.stable_query().is_ok());
+    assert!(runtime.observations().stable_query().is_ok());
 }
 
-fn runtime_with_contents() -> (Runtime, novadraw::FigureId, novadraw::FigureId) {
+fn runtime_with_contents() -> (Runtime, novadraw::tree::FigureId, novadraw::tree::FigureId) {
     let mut tree = FigureTree::new();
     let mut builder = tree.builder();
     let contents = builder
@@ -69,7 +75,9 @@ fn captures_parent_first_tree_and_committed_effect_order() {
     );
     stabilize(&mut runtime);
 
-    let snapshot = inspector.capture_tree(&runtime).expect("runtime is stable");
+    let snapshot = inspector
+        .capture_tree(&mut runtime)
+        .expect("runtime is stable");
     assert_eq!(snapshot.nodes().len(), 3);
     assert_eq!(snapshot.nodes()[0].id, runtime.tree().root_id());
     assert_eq!(snapshot.nodes()[1].id, contents);
@@ -104,7 +112,7 @@ fn rejects_unstable_capture_and_bounds_its_event_history() {
     inspector.attach(&mut runtime);
 
     assert!(matches!(
-        inspector.capture_tree(&runtime),
+        inspector.capture_tree(&mut runtime),
         Err(StableQueryError::NotStable { .. })
     ));
 

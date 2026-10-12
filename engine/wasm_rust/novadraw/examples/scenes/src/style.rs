@@ -1,6 +1,6 @@
 use novadraw::figure::{CursorIcon, FigureStyle, border::RectangleBorder};
 use novadraw::graphics::{GraphicsError, PaintContext};
-use novadraw::{Figure, Rectangle};
+use novadraw::{figure::Figure, geometry::Rectangle};
 
 use crate::{DemoSuite, SceneSpec};
 
@@ -37,14 +37,19 @@ impl Figure for StyleProbeFigure {
     }
 }
 
-fn bg_gray() -> novadraw::Color {
-    novadraw::Color::rgba(0.85, 0.85, 0.85, 1.0)
+fn bg_gray() -> novadraw::graphics::Color {
+    novadraw::graphics::Color::rgba(0.85, 0.85, 0.85, 1.0)
 }
 
-fn gray_container() -> (novadraw::FigureTree, novadraw::FigureId) {
-    let mut scene = novadraw::FigureTree::new();
-    let container =
-        novadraw::RectangleFigure::new_with_color(0.0, 0.0, WINDOW_WIDTH, WINDOW_HEIGHT, bg_gray());
+fn gray_container() -> (novadraw::tree::FigureTree, novadraw::tree::FigureId) {
+    let mut scene = novadraw::tree::FigureTree::new();
+    let container = novadraw::figure::RectangleFigure::new_with_color(
+        0.0,
+        0.0,
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        bg_gray(),
+    );
     let container_id = scene
         .builder()
         .set_contents(Box::new(container))
@@ -52,18 +57,18 @@ fn gray_container() -> (novadraw::FigureTree, novadraw::FigureId) {
     (scene, container_id)
 }
 
-fn create_scene_0_fill_colors() -> novadraw::FigureTree {
+fn create_scene_0_fill_colors() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let colors = [
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
-        novadraw::Color::rgba(0.2, 0.8, 0.2, 1.0),
-        novadraw::Color::rgba(0.2, 0.2, 0.9, 1.0),
-        novadraw::Color::rgba(0.9, 0.9, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.8, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.2, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.9, 0.2, 1.0),
     ];
 
     for (i, &color) in colors.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 185.0,
             200.0,
             160.0,
@@ -79,15 +84,15 @@ fn create_scene_0_fill_colors() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_1_alpha() -> novadraw::FigureTree {
+fn create_scene_1_alpha() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
-    let base_rect = novadraw::RectangleFigure::new_with_color(
+    let base_rect = novadraw::figure::RectangleFigure::new_with_color(
         100.0,
         150.0,
         200.0,
         200.0,
-        novadraw::Color::WHITE,
+        novadraw::graphics::Color::WHITE,
     );
     scene
         .builder()
@@ -96,12 +101,12 @@ fn create_scene_1_alpha() -> novadraw::FigureTree {
 
     let alphas = [1.0, 0.75, 0.5, 0.25];
     for (i, &alpha) in alphas.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             200.0 + i as f64 * 120.0,
             200.0,
             160.0,
             120.0,
-            novadraw::Color::rgba(0.9, 0.2, 0.2, alpha),
+            novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, alpha),
         );
         scene
             .builder()
@@ -112,15 +117,15 @@ fn create_scene_1_alpha() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_2_stroke_width() -> novadraw::FigureTree {
+fn create_scene_2_stroke_width() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let widths = [1.0, 2.0, 3.0, 4.0, 5.0];
-    let stroke_color = novadraw::Color::rgba(0.2, 0.2, 0.2, 1.0);
-    let fill_color = novadraw::Color::rgba(0.95, 0.95, 0.95, 1.0);
+    let stroke_color = novadraw::graphics::Color::rgba(0.2, 0.2, 0.2, 1.0);
+    let fill_color = novadraw::graphics::Color::rgba(0.95, 0.95, 0.95, 1.0);
 
     for (i, &width) in widths.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             40.0 + i as f64 * 150.0,
             200.0,
             130.0,
@@ -137,19 +142,19 @@ fn create_scene_2_stroke_width() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_3_stroke_color() -> novadraw::FigureTree {
+fn create_scene_3_stroke_color() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let stroke_colors = [
-        novadraw::Color::rgba(0.9, 0.2, 0.2, 1.0),
-        novadraw::Color::rgba(0.2, 0.7, 0.2, 1.0),
-        novadraw::Color::rgba(0.2, 0.2, 0.9, 1.0),
-        novadraw::Color::rgba(0.9, 0.5, 0.1, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.2, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.7, 0.2, 1.0),
+        novadraw::graphics::Color::rgba(0.2, 0.2, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.5, 0.1, 1.0),
     ];
-    let fill_color = novadraw::Color::rgba(0.95, 0.95, 0.95, 1.0);
+    let fill_color = novadraw::graphics::Color::rgba(0.95, 0.95, 0.95, 1.0);
 
     for (i, &stroke_color) in stroke_colors.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 185.0,
             200.0,
             160.0,
@@ -166,26 +171,26 @@ fn create_scene_3_stroke_color() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_4_line_cap() -> novadraw::FigureTree {
+fn create_scene_4_line_cap() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let caps = [
         (
             novadraw::graphics::LineCap::Butt,
-            novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
+            novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
         ),
         (
             novadraw::graphics::LineCap::Round,
-            novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
+            novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
         ),
         (
             novadraw::graphics::LineCap::Square,
-            novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
+            novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
         ),
     ];
 
     for (i, &(cap, color)) in caps.iter().enumerate() {
-        let line = novadraw::PolylineFigure::new_with_color(
+        let line = novadraw::figure::PolylineFigure::new_with_color(
             100.0,
             180.0 + i as f64 * 120.0,
             700.0,
@@ -203,31 +208,31 @@ fn create_scene_4_line_cap() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_5_line_join() -> novadraw::FigureTree {
+fn create_scene_5_line_join() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
     let joins = [
         (
             novadraw::graphics::LineJoin::Miter,
-            novadraw::Color::rgba(1.0, 0.5, 0.0, 1.0),
+            novadraw::graphics::Color::rgba(1.0, 0.5, 0.0, 1.0),
         ),
         (
             novadraw::graphics::LineJoin::Round,
-            novadraw::Color::rgba(0.0, 0.8, 0.8, 1.0),
+            novadraw::graphics::Color::rgba(0.0, 0.8, 0.8, 1.0),
         ),
         (
             novadraw::graphics::LineJoin::Bevel,
-            novadraw::Color::rgba(0.8, 0.0, 0.8, 1.0),
+            novadraw::graphics::Color::rgba(0.8, 0.0, 0.8, 1.0),
         ),
     ];
 
     for (i, &(join, color)) in joins.iter().enumerate() {
         let base_x = 80.0 + i as f64 * 240.0;
         let base_y = 150.0;
-        let line = novadraw::PolylineFigure::from_points(vec![
-            novadraw::Point::new(base_x, base_y + 200.0),
-            novadraw::Point::new(base_x + 80.0, base_y),
-            novadraw::Point::new(base_x + 160.0, base_y + 200.0),
+        let line = novadraw::figure::PolylineFigure::from_points(vec![
+            novadraw::geometry::Point::new(base_x, base_y + 200.0),
+            novadraw::geometry::Point::new(base_x + 80.0, base_y),
+            novadraw::geometry::Point::new(base_x + 160.0, base_y + 200.0),
         ])
         .with_width(10.0)
         .with_join(join)
@@ -241,17 +246,17 @@ fn create_scene_5_line_join() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
+fn create_scene_6_stroke_vs_border() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
 
-    let fill_color = novadraw::Color::rgba(0.9, 0.95, 1.0, 1.0);
-    let stroke_color = novadraw::Color::rgba(0.2, 0.3, 0.5, 1.0);
-    let border_color = novadraw::Color::rgba(0.5, 0.2, 0.3, 1.0);
+    let fill_color = novadraw::graphics::Color::rgba(0.9, 0.95, 1.0, 1.0);
+    let stroke_color = novadraw::graphics::Color::rgba(0.2, 0.3, 0.5, 1.0);
+    let border_color = novadraw::graphics::Color::rgba(0.5, 0.2, 0.3, 1.0);
 
     let widths = [2.0, 4.0, 8.0];
 
     for (i, &width) in widths.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 250.0,
             50.0,
             200.0,
@@ -266,7 +271,7 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
     }
 
     for (i, &width) in widths.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 250.0,
             200.0,
             200.0,
@@ -280,16 +285,16 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
     }
 
-    let inner_stroke_color = novadraw::Color::rgba(0.2, 0.6, 0.2, 1.0);
-    let outer_border_color = novadraw::Color::rgba(0.8, 0.2, 0.2, 1.0);
+    let inner_stroke_color = novadraw::graphics::Color::rgba(0.2, 0.6, 0.2, 1.0);
+    let outer_border_color = novadraw::graphics::Color::rgba(0.8, 0.2, 0.2, 1.0);
 
     for (i, &width) in widths.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 250.0,
             360.0,
             200.0,
             80.0,
-            novadraw::Color::rgba(0.9, 0.95, 0.9, 1.0),
+            novadraw::graphics::Color::rgba(0.9, 0.95, 0.9, 1.0),
         )
         .with_stroke(inner_stroke_color, width)
         .with_border(
@@ -304,7 +309,7 @@ fn create_scene_6_stroke_vs_border() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
+fn create_scene_7_inherited_figure_style() -> novadraw::tree::FigureTree {
     let (mut scene, container_id) = gray_container();
     let parent = scene
         .builder()
@@ -320,8 +325,8 @@ fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
         .set_figure_style(
             parent,
             FigureStyle {
-                foreground: Some(novadraw::Color::BLACK),
-                background: Some(novadraw::Color::rgba(0.25, 0.55, 0.85, 1.0)),
+                foreground: Some(novadraw::graphics::Color::BLACK),
+                background: Some(novadraw::graphics::Color::rgba(0.25, 0.55, 0.85, 1.0)),
                 alpha: Some(0.7),
                 font: Some("20px sans-serif".to_string()),
                 cursor: Some(CursorIcon::Pointer),
@@ -353,8 +358,8 @@ fn create_scene_7_inherited_figure_style() -> novadraw::FigureTree {
         .set_figure_style(
             overridden,
             FigureStyle {
-                foreground: Some(novadraw::Color::WHITE),
-                background: Some(novadraw::Color::rgba(0.75, 0.2, 0.25, 1.0)),
+                foreground: Some(novadraw::graphics::Color::WHITE),
+                background: Some(novadraw::graphics::Color::rgba(0.75, 0.2, 0.25, 1.0)),
                 alpha: Some(1.0),
                 font: None,
                 cursor: Some(CursorIcon::Crosshair),

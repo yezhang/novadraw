@@ -16,8 +16,9 @@ use novadraw::figure::{
 use novadraw::graphics::{GraphicsError, PaintContext};
 use novadraw::render::{BuiltinFont, DashPattern, LineJoin, StrokeStyle};
 use novadraw::{
-    Color, Figure, FigureId, FigureStyle, Insets, LabelFigure, Point, PointList, Rectangle,
-    RectangleFigure, Runtime, ToolbarLayout,
+    figure::Figure, figure::FigureStyle, figure::LabelFigure, figure::RectangleFigure,
+    geometry::Insets, geometry::Point, geometry::PointList, geometry::Rectangle, graphics::Color,
+    layout::ToolbarLayout, runtime::Runtime, tree::FigureId,
 };
 
 use crate::{DemoSuite, SceneSpec};
@@ -313,6 +314,7 @@ pub fn suite() -> DemoSuite {
 pub fn build_example() -> UmlExample {
     let mut runtime = Runtime::empty();
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("built-in font");
     let root = runtime
@@ -350,7 +352,7 @@ pub fn build_example() -> UmlExample {
     );
 
     let connection_layer = runtime
-        .container(root)
+        .figure(root)
         .expect("root is a container")
         .add(Box::new(ConnectionLayerFigure::new(
             0.0, 0.0, WIDTH, HEIGHT,
@@ -490,23 +492,23 @@ pub fn build_example() -> UmlExample {
 
 fn add_class(runtime: &mut Runtime, root: FigureId, spec: &ClassSpec) -> FigureId {
     let class = runtime
-        .container(root)
+        .figure(root)
         .expect("root is a container")
         .add(Box::new(UmlClassFigure::new(spec.bounds, spec.fill)))
         .expect("valid UML class");
     runtime
-        .container(class)
+        .figure(class)
         .expect("UML class is a container")
         .set_layout_manager(Box::new(ToolbarLayout::new().with_stretch_minor_axis(true)))
         .expect("valid class layout");
 
     let header = runtime
-        .container(class)
+        .figure(class)
         .expect("class is a container")
         .add(Box::new(UmlHeaderFigure::new(spec.bounds.width)))
         .expect("valid UML header");
     runtime
-        .container(header)
+        .figure(header)
         .expect("header is a container")
         .set_layout_manager(Box::new(ToolbarLayout::new().with_stretch_minor_axis(true)))
         .expect("valid header layout");
@@ -542,7 +544,7 @@ fn add_compartment(
     members: &[&str],
 ) -> FigureId {
     let compartment = runtime
-        .container(class)
+        .figure(class)
         .expect("class is a container")
         .add(Box::new(UmlCompartmentFigure::new(width, members.len())))
         .expect("valid UML compartment");
@@ -593,7 +595,7 @@ fn add_relation(
     );
     let has_source_decoration = matches!(spec.kind, RelationKind::Composition);
     let connection = runtime
-        .container(connection_layer)
+        .figure(connection_layer)
         .expect("connection layer is a container")
         .add(Box::new(
             ConnectionFigure::new()
@@ -619,7 +621,7 @@ fn add_relation(
     if has_source_decoration {
         source_decoration = Some(
             runtime
-                .container(connection)
+                .figure(connection)
                 .expect("connection is a container")
                 .add(Box::new(
                     PolygonDecorationFigure::from_template(PointList::from_points(vec![
@@ -639,7 +641,7 @@ fn add_relation(
     if has_target_decoration {
         target_decoration = Some(match spec.kind {
             RelationKind::Realization => runtime
-                .container(connection)
+                .figure(connection)
                 .expect("connection is a container")
                 .add(Box::new(
                     PolygonDecorationFigure::from_template(PointList::from_points(vec![
@@ -661,7 +663,7 @@ fn add_relation(
                     .with_width(RELATION_LINE_WIDTH)
                     .with_join(LineJoin::Miter);
                 runtime
-                    .container(connection)
+                    .figure(connection)
                     .expect("connection is a container")
                     .add(Box::new(decoration))
                     .expect("valid dependency decoration")
@@ -671,12 +673,18 @@ fn add_relation(
     }
 
     let label = add_relation_label(runtime, connection, spec.label);
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let router = if spec.bendpoints.is_empty() {
-        runtime.direct_connection_router()
+        runtime.connections().direct_router()
     } else {
-        runtime.register_connection_router(Box::new(BendpointConnectionRouter))
+        runtime
+            .connections()
+            .register_router(Box::new(BendpointConnectionRouter))
     };
     let constraint = (!spec.bendpoints.is_empty()).then(|| {
         Box::new(BendpointConstraint::new(
@@ -687,7 +695,8 @@ fn add_relation(
         )) as Box<dyn RoutingConstraint>
     });
     let relation = runtime
-        .register_connection_state(
+        .connections()
+        .register_state(
             connection,
             Some(source_anchor),
             Some(target_anchor),
@@ -697,16 +706,19 @@ fn add_relation(
         .expect("valid relation state");
     if let Some(decoration) = source_decoration {
         runtime
-            .set_connection_locator(relation, decoration, Box::new(ConnectionLocator::Source))
+            .connections()
+            .set_locator(relation, decoration, Box::new(ConnectionLocator::Source))
             .expect("valid source decoration locator");
     }
     if let Some(decoration) = target_decoration {
         runtime
-            .set_connection_locator(relation, decoration, Box::new(ConnectionLocator::Target))
+            .connections()
+            .set_locator(relation, decoration, Box::new(ConnectionLocator::Target))
             .expect("valid target decoration locator");
     }
     runtime
-        .set_connection_locator(
+        .connections()
+        .set_locator(
             relation,
             label,
             Box::new(
@@ -716,7 +728,8 @@ fn add_relation(
         )
         .expect("valid relation label locator");
     runtime
-        .resolve_connection_route(relation, CoordinateSpace::ChildContent(routing_root))
+        .connections()
+        .resolve_route(relation, CoordinateSpace::ChildContent(routing_root))
         .expect("valid UML relation route");
     (connection, label)
 }
@@ -724,7 +737,7 @@ fn add_relation(
 fn add_relation_label(runtime: &mut Runtime, connection: FigureId, text: &str) -> FigureId {
     let width = (text.chars().count() as f64 * 7.0 + 14.0).max(48.0);
     let badge = runtime
-        .container(connection)
+        .figure(connection)
         .expect("connection is a container")
         .add(Box::new(
             RectangleFigure::new_with_color(0.0, 0.0, width, 22.0, BACKGROUND)
@@ -756,7 +769,7 @@ fn add_label(
     figure.set_label_alignment(alignment);
     figure.set_text_alignment(alignment);
     let label = runtime
-        .container(parent)
+        .figure(parent)
         .expect("label parent is a container")
         .add(Box::new(figure))
         .expect("valid label");
@@ -831,15 +844,18 @@ mod tests {
             before_bounds.x + before_bounds.width / 2.0,
             before_bounds.y + 18.0,
         );
-        let press = example
-            .runtime
-            .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
+        let press =
+            example
+                .runtime
+                .input()
+                .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
         assert_eq!(press.target(), Some(dragged));
         assert_eq!(press.capture(), Some(dragged));
 
         let delta = Point::new(48.0, 36.0);
         example
             .runtime
+            .input()
             .dispatch_mouse_moved(start.x() + delta.x(), start.y() + delta.y());
         let after_bounds = example
             .runtime
@@ -855,8 +871,8 @@ mod tests {
                 before_bounds.height,
             )
         );
-        assert!(example.runtime.dirty_connections().len() >= 4);
-        let release = example.runtime.dispatch_mouse_released(
+        assert!(example.runtime.connections().dirty().len() >= 4);
+        let release = example.runtime.input().dispatch_mouse_released(
             start.x() + delta.x(),
             start.y() + delta.y(),
             MouseButton::Left,
@@ -867,6 +883,7 @@ mod tests {
 
         let submission = example
             .runtime
+            .frames()
             .prepare_submission(
                 SurfaceInfo {
                     logical_width: WIDTH,

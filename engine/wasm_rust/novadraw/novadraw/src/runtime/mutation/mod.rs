@@ -2,12 +2,17 @@ use std::{collections::VecDeque, error::Error, fmt};
 
 use crate::connection::ConnectionRuntimeError;
 use crate::geometry::{Dimension, Rectangle};
+use crate::render::ResourceId;
 use crate::{
-    CapabilityKey, CapabilityQueryError, ChildClippingStrategy, Figure, FigureId,
+    CapabilityKey, CapabilityQueryError, ChildClippingStrategy, Figure, FigureId, FigureTree,
     GraphMutationError, LayerKey, LayerPlacement, LayoutConstraint, LayoutError, LayoutManager,
+    PropertyKey, PropertyValueType, ResourceError,
 };
 
 use super::runtime::Runtime;
+
+mod figure_updates;
+pub use figure_updates::*;
 
 pub trait FigureComponentUpdate {
     type Figure: Figure + 'static;
@@ -34,6 +39,7 @@ pub trait FigureCapabilityUpdate {
     fn prepare(
         self,
         capability: &Self::Capability,
+        target: &dyn Figure,
         context: FigureCapabilityContext,
     ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error>;
 
@@ -55,10 +61,51 @@ pub struct FigureCapabilityContext {
     pub bounds: crate::geometry::Rectangle,
 }
 
-#[derive(Debug)]
+/// Read-only Runtime view used to validate one prepared Figure update effect.
+#[derive(Clone, Copy)]
+pub struct FigureUpdateEffectContext<'a> {
+    pub(crate) runtime: &'a Runtime,
+    pub(crate) figure_id: FigureId,
+}
+
+impl FigureUpdateEffectContext<'_> {
+    pub const fn figure_id(self) -> FigureId {
+        self.figure_id
+    }
+
+    pub fn tree(&self) -> &FigureTree {
+        self.runtime.tree()
+    }
+}
+
+/// Restricted Runtime commit surface available to prepared Figure update effects.
+pub struct FigureUpdateCommitContext<'a> {
+    pub(crate) runtime: &'a mut Runtime,
+    pub(crate) figure_id: FigureId,
+}
+
+impl FigureUpdateCommitContext<'_> {
+    pub const fn figure_id(&self) -> FigureId {
+        self.figure_id
+    }
+}
+
+/// One open, two-phase side effect attached to a prepared Figure update.
+///
+/// Validation runs before the Figure value, revision, notification journal, resources, or
+/// topology are mutated. `commit` must only use operations it validated and must not reject.
+/// A panic during commit faults the Runtime through the normal mutation guard.
+pub trait FigureUpdateEffect: 'static {
+    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError>;
+
+    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>);
+}
+
 pub struct PreparedFigureUpdate<T> {
     pub(crate) value: T,
     pub(crate) invalidation: ComponentInvalidation,
+    changed: bool,
+    effects: Vec<Box<dyn FigureUpdateEffect>>,
 }
 
 /// A prepared capability value and its required derived-state invalidation.
@@ -73,6 +120,8 @@ impl<T> PreparedFigureUpdate<T> {
         Self {
             value,
             invalidation: ComponentInvalidation::Paint,
+            changed: true,
+            effects: Vec::new(),
         }
     }
 
@@ -80,6 +129,8 @@ impl<T> PreparedFigureUpdate<T> {
         Self {
             value,
             invalidation: ComponentInvalidation::GeometryAndPaint,
+            changed: true,
+            effects: Vec::new(),
         }
     }
 
@@ -87,7 +138,127 @@ impl<T> PreparedFigureUpdate<T> {
         Self {
             value,
             invalidation: ComponentInvalidation::LayoutGeometryAndPaint,
+            changed: true,
+            effects: Vec::new(),
         }
+    }
+
+    pub fn unchanged(value: T) -> Self {
+        Self {
+            value,
+            invalidation: ComponentInvalidation::Paint,
+            changed: false,
+            effects: Vec::new(),
+        }
+    }
+
+    pub fn with_effect(mut self, effect: impl FigureUpdateEffect) -> Self {
+        self.effects.push(Box::new(effect));
+        self
+    }
+
+    pub fn with_property_change<V>(
+        self,
+        property: PropertyKey<V>,
+        old_value: V,
+        new_value: V,
+    ) -> Self
+    where
+        V: PropertyValueType,
+    {
+        self.with_effect(PropertyChangeEffect {
+            property,
+            old_value,
+            new_value,
+        })
+    }
+
+    pub fn with_resource_dependency_change(
+        self,
+        old_resource: Option<ResourceId>,
+        new_resource: Option<ResourceId>,
+    ) -> Self {
+        self.with_effect(ResourceDependencyChange {
+            old_resource,
+            new_resource,
+        })
+    }
+
+    pub(crate) fn validate_effects(
+        &self,
+        context: FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        if !self.changed {
+            return Ok(());
+        }
+        for effect in &self.effects {
+            effect.validate(context)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) const fn changed(&self) -> bool {
+        self.changed
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        T,
+        ComponentInvalidation,
+        bool,
+        Vec<Box<dyn FigureUpdateEffect>>,
+    ) {
+        (self.value, self.invalidation, self.changed, self.effects)
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for PreparedFigureUpdate<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparedFigureUpdate")
+            .field("value", &self.value)
+            .field("invalidation", &self.invalidation)
+            .field("changed", &self.changed)
+            .field("effect_count", &self.effects.len())
+            .finish()
+    }
+}
+
+struct PropertyChangeEffect<V> {
+    property: PropertyKey<V>,
+    old_value: V,
+    new_value: V,
+}
+
+impl<V> FigureUpdateEffect for PropertyChangeEffect<V>
+where
+    V: PropertyValueType,
+{
+    fn validate(
+        &self,
+        _context: FigureUpdateEffectContext<'_>,
+    ) -> Result<(), RuntimeMutationError> {
+        Ok(())
+    }
+
+    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
+        context.record_property_change(self.property, self.old_value, self.new_value);
+    }
+}
+
+struct ResourceDependencyChange {
+    old_resource: Option<ResourceId>,
+    new_resource: Option<ResourceId>,
+}
+
+impl FigureUpdateEffect for ResourceDependencyChange {
+    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError> {
+        context.validate_resource_dependency_change(self.old_resource, self.new_resource)
+    }
+
+    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
+        context.commit_resource_dependency_change(self.old_resource, self.new_resource);
     }
 }
 
@@ -104,6 +275,7 @@ pub struct ComponentUpdateReceipt {
     pub previous_revision: u64,
     pub revision: u64,
     pub invalidation: ComponentInvalidation,
+    pub changed: bool,
 }
 
 /// Receipt for one committed capability update.
@@ -113,11 +285,13 @@ pub struct CapabilityUpdateReceipt {
     pub previous_revision: u64,
     pub revision: u64,
     pub invalidation: ComponentInvalidation,
+    pub changed: bool,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ComponentUpdateError<E> {
     Runtime(RuntimeMutationError),
+    Effect(RuntimeMutationError),
     WrongFigureType {
         figure: FigureId,
         expected: &'static str,
@@ -136,7 +310,7 @@ impl<E> From<RuntimeMutationError> for ComponentUpdateError<E> {
 impl<E: fmt::Display> fmt::Display for ComponentUpdateError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Runtime(error) => error.fmt(formatter),
+            Self::Runtime(error) | Self::Effect(error) => error.fmt(formatter),
             Self::WrongFigureType {
                 figure,
                 expected,
@@ -159,7 +333,7 @@ impl<E: fmt::Display> fmt::Display for ComponentUpdateError<E> {
 impl<E: Error + 'static> Error for ComponentUpdateError<E> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Runtime(error) => Some(error),
+            Self::Runtime(error) | Self::Effect(error) => Some(error),
             Self::Rejected(error) => Some(error),
             Self::WrongFigureType { .. } | Self::RevisionExhausted(_) => None,
         }
@@ -170,6 +344,7 @@ impl<E: Error + 'static> Error for ComponentUpdateError<E> {
 #[derive(Debug, PartialEq)]
 pub enum CapabilityUpdateError<E> {
     Runtime(RuntimeMutationError),
+    Effect(RuntimeMutationError),
     Query(CapabilityQueryError),
     Missing {
         figure: FigureId,
@@ -188,7 +363,7 @@ impl<E> From<RuntimeMutationError> for CapabilityUpdateError<E> {
 impl<E: fmt::Display> fmt::Display for CapabilityUpdateError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Runtime(error) => error.fmt(formatter),
+            Self::Runtime(error) | Self::Effect(error) => error.fmt(formatter),
             Self::Query(error) => error.fmt(formatter),
             Self::Missing { figure, capability } => {
                 write!(
@@ -210,7 +385,7 @@ impl<E: fmt::Display> fmt::Display for CapabilityUpdateError<E> {
 impl<E: Error + 'static> Error for CapabilityUpdateError<E> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::Runtime(error) => Some(error),
+            Self::Runtime(error) | Self::Effect(error) => Some(error),
             Self::Query(error) => Some(error),
             Self::Rejected(error) => Some(error),
             Self::Missing { .. } | Self::RevisionExhausted(_) => None,
@@ -262,6 +437,7 @@ pub enum RuntimeMutationError {
     Layout(LayoutError),
     Graph(GraphMutationError),
     Connection(ConnectionRuntimeError),
+    Resource(ResourceError),
     Rejected,
 }
 
@@ -337,6 +513,7 @@ impl fmt::Display for RuntimeMutationError {
             Self::Layout(error) => error.fmt(formatter),
             Self::Graph(error) => error.fmt(formatter),
             Self::Connection(error) => error.fmt(formatter),
+            Self::Resource(error) => error.fmt(formatter),
             Self::Rejected => write!(formatter, "runtime mutation was rejected"),
         }
     }
@@ -359,6 +536,12 @@ impl From<GraphMutationError> for RuntimeMutationError {
 impl From<ConnectionRuntimeError> for RuntimeMutationError {
     fn from(value: ConnectionRuntimeError) -> Self {
         Self::Connection(value)
+    }
+}
+
+impl From<ResourceError> for RuntimeMutationError {
+    fn from(value: ResourceError) -> Self {
+        Self::Resource(value)
     }
 }
 
@@ -394,7 +577,9 @@ where
         let Self { figure, update } = *self;
         match runtime.update_component(figure, update) {
             Ok(_) => Ok(true),
-            Err(ComponentUpdateError::Runtime(error)) => Err(error),
+            Err(ComponentUpdateError::Runtime(error) | ComponentUpdateError::Effect(error)) => {
+                Err(error)
+            }
             Err(ComponentUpdateError::WrongFigureType {
                 figure,
                 expected,
@@ -427,7 +612,9 @@ where
         let Self { figure, update } = *self;
         match runtime.update_capability(figure, update) {
             Ok(_) => Ok(true),
-            Err(CapabilityUpdateError::Runtime(error)) => Err(error),
+            Err(CapabilityUpdateError::Runtime(error) | CapabilityUpdateError::Effect(error)) => {
+                Err(error)
+            }
             Err(CapabilityUpdateError::Query(CapabilityQueryError::ForeignRuntime(figure))) => {
                 Err(RuntimeMutationError::ForeignRuntime(figure))
             }

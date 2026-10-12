@@ -17,7 +17,10 @@ pub use novadraw::render::{
     RenderResult, SurfaceInfo,
 };
 use novadraw::runtime::SubmissionAcknowledgement;
-pub use novadraw::{Color, FigureId, FigureTree, FramePreparation, Rectangle, Runtime};
+pub use novadraw::{
+    geometry::Rectangle, graphics::Color, runtime::FramePreparation, runtime::Runtime,
+    tree::FigureId, tree::FigureTree,
+};
 pub use novadraw_backend_vello::VelloRenderer;
 use novadraw_platform_winit::{
     AdaptedGesture, AdaptedKeyInput, WinitGestureAdapter, WinitPlatformHost, adapt_key_input,
@@ -135,14 +138,16 @@ impl DemoApp {
     pub fn switch_scene(&mut self, idx: usize) {
         if idx < self.scenes.len() {
             if let Some(runtime) = &mut self.runtime {
-                runtime.pointer_exited();
+                runtime.input().pointer_exited();
             }
             self.sync_platform_effects();
             self.clock_origin = Instant::now();
             self.current_scene_idx = idx;
             let creator = &mut self.scenes[idx].1;
             let mut runtime = creator();
-            runtime.add_update_listener(Box::new(DemoUpdateListener));
+            runtime
+                .observations()
+                .add_update_listener(Box::new(DemoUpdateListener));
             self.runtime = Some(runtime);
             self.sync_logical_viewport();
             self.initial_frame_presented = false;
@@ -191,13 +196,16 @@ impl DemoApp {
 
         let surface = host.surface_info();
         if !self.use_update_manager {
-            runtime.request_full_redraw();
+            runtime.frames().request_full_redraw();
         }
-        if runtime.visible_tooltip().is_some() {
-            runtime.request_full_redraw();
+        if runtime.tooltip().visible().is_some() {
+            runtime.frames().request_full_redraw();
         }
         let tooltip_commands = tooltip_overlay_commands(runtime, surface);
-        let mut submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+        let mut submission = match runtime
+            .frames()
+            .prepare_submission(surface, renderer.capabilities())
+        {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(_) => {
                 self.sync_platform_effects();
@@ -213,6 +221,7 @@ impl DemoApp {
         submission.commands.extend(tooltip_commands);
         let result = renderer.submit(&submission);
         let acknowledgement = runtime
+            .frames()
             .complete_submission(submission.session_id, submission.frame_id, result.clone())
             .expect("prepared native frame must match its completion");
         match acknowledgement {
@@ -244,14 +253,17 @@ impl DemoApp {
         let Some(runtime) = &mut self.runtime else {
             return Ok(RenderDisposition::Skipped);
         };
-        runtime.request_full_redraw();
+        runtime.frames().request_full_redraw();
         let surface = host.surface_info();
         let tooltip_commands = tooltip_overlay_commands(runtime, surface);
         debug_assert!(
-            runtime.visible_tooltip().is_none() || !tooltip_commands.is_empty(),
+            runtime.tooltip().visible().is_none() || !tooltip_commands.is_empty(),
             "a visible tooltip must lower to native overlay commands"
         );
-        let mut submission = match runtime.prepare_submission(surface, renderer.capabilities()) {
+        let mut submission = match runtime
+            .frames()
+            .prepare_submission(surface, renderer.capabilities())
+        {
             FramePreparation::Ready(submission) => submission,
             FramePreparation::Error(_) => {
                 self.sync_platform_effects();
@@ -267,6 +279,7 @@ impl DemoApp {
         submission.commands.extend(tooltip_commands);
         let result = renderer.render_for_screenshot(&submission);
         let acknowledgement = runtime
+            .frames()
             .complete_submission(submission.session_id, submission.frame_id, result.clone())
             .expect("prepared screenshot frame must match its completion");
         if matches!(
@@ -285,7 +298,7 @@ impl DemoApp {
         let Some(runtime) = &mut self.runtime else {
             return;
         };
-        let _ = runtime.advance_time(now);
+        let _ = runtime.animation().advance_time(now);
         action(runtime);
         self.sync_platform_effects();
         if let Some(host) = &self.host {
@@ -302,25 +315,25 @@ impl DemoApp {
         let (Some(runtime), Some(host)) = (&mut self.runtime, &self.host) else {
             return;
         };
-        host.set_cursor(runtime.cursor_icon());
-        let tooltip_updates = runtime.take_tooltip_updates();
+        host.set_cursor(runtime.focus().cursor_icon());
+        let tooltip_updates = runtime.tooltip().take_updates();
         if !tooltip_updates.is_empty() {
-            runtime.request_full_redraw();
+            runtime.frames().request_full_redraw();
         }
         for update in tooltip_updates {
             host.update_tooltip(update);
         }
-        for update in runtime.take_accessibility_updates() {
+        for update in runtime.accessibility().take_updates() {
             host.update_accessibility(update);
         }
-        host.schedule_wake(runtime.next_wake_deadline());
+        host.schedule_wake(runtime.animation().next_wake_deadline());
     }
 
     fn request_surface_redraw(&mut self) {
         self.sync_logical_viewport();
         if let Some(runtime) = &mut self.runtime {
             // A surface size change invalidates retained pixels even when scene state is unchanged.
-            runtime.request_full_redraw();
+            runtime.frames().request_full_redraw();
         }
         if let Some(host) = &self.host {
             host.request_redraw();
@@ -336,9 +349,9 @@ impl DemoApp {
         }
         self.gesture_adapter.cancel_all();
         self.dispatch_input(|runtime| {
-            runtime.cancel_gestures();
-            runtime.pointer_exited();
-            runtime.release_focus();
+            runtime.input().cancel_gestures();
+            runtime.input().pointer_exited();
+            runtime.focus().release();
         });
     }
 
@@ -348,6 +361,7 @@ impl DemoApp {
         };
         if let Some(runtime) = &mut self.runtime {
             runtime
+                .frames()
                 .resize_logical_viewport(surface.logical_width, surface.logical_height)
                 .expect("platform surface must provide a valid logical viewport");
         }
@@ -504,6 +518,7 @@ impl ApplicationHandler<()> for DemoApp {
             && let Some(runtime) = &mut self.runtime
         {
             runtime
+                .frames()
                 .reset_backend_session()
                 .expect("backend session id space exhausted");
         }
@@ -572,12 +587,13 @@ impl ApplicationHandler<()> for DemoApp {
                     .unwrap_or(1.0);
                 self.dispatch_input(|runtime| {
                     runtime
+                        .input()
                         .dispatch_mouse_moved(position.x / scale_factor, position.y / scale_factor);
                 });
             }
             WindowEvent::CursorLeft { .. } => {
                 self.cursor_position = None;
-                self.dispatch_input(Runtime::pointer_exited);
+                self.dispatch_input(|runtime| runtime.input().pointer_exited());
             }
             WindowEvent::MouseInput { state, button, .. } => {
                 let Some((x, y)) = self.cursor_position else {
@@ -591,10 +607,18 @@ impl ApplicationHandler<()> for DemoApp {
                 let button = adapt_mouse_button(button);
                 self.dispatch_input(|runtime| match state {
                     winit::event::ElementState::Pressed => {
-                        runtime.dispatch_mouse_pressed(x / scale_factor, y / scale_factor, button);
+                        runtime.input().dispatch_mouse_pressed(
+                            x / scale_factor,
+                            y / scale_factor,
+                            button,
+                        );
                     }
                     winit::event::ElementState::Released => {
-                        runtime.dispatch_mouse_released(x / scale_factor, y / scale_factor, button);
+                        runtime.input().dispatch_mouse_released(
+                            x / scale_factor,
+                            y / scale_factor,
+                            button,
+                        );
                     }
                 });
             }
@@ -629,7 +653,7 @@ impl ApplicationHandler<()> for DemoApp {
                 };
                 self.dispatch_input(|runtime| {
                     if let AdaptedGesture::Scroll(event) = gesture {
-                        runtime.dispatch_scroll(event);
+                        runtime.input().dispatch_scroll(event);
                     }
                 });
             }
@@ -664,7 +688,7 @@ impl ApplicationHandler<()> for DemoApp {
                 };
                 self.dispatch_input(|runtime| {
                     if let AdaptedGesture::Zoom(event) = gesture {
-                        runtime.dispatch_zoom(event);
+                        runtime.input().dispatch_zoom(event);
                     }
                 });
             }
@@ -679,7 +703,7 @@ impl ApplicationHandler<()> for DemoApp {
                         adapt_key_input(Key::Tab, pressed, self.modifiers)
                     {
                         self.dispatch_input(|runtime| {
-                            runtime.traverse_focus(direction);
+                            runtime.focus().traverse(direction);
                         });
                     }
                     return;
@@ -688,7 +712,7 @@ impl ApplicationHandler<()> for DemoApp {
                     if let Some(key) = adapt_physical_key(event.physical_key) {
                         let modifiers = self.modifiers;
                         self.dispatch_input(|runtime| {
-                            runtime.dispatch_key_released(key, modifiers);
+                            runtime.input().dispatch_key_released(key, modifiers);
                         });
                     }
                     return;
@@ -769,7 +793,7 @@ impl ApplicationHandler<()> for DemoApp {
                         } else if let Some(key) = adapt_physical_key(event.physical_key) {
                             let modifiers = self.modifiers;
                             self.dispatch_input(|runtime| {
-                                runtime.dispatch_key_pressed(key, modifiers);
+                                runtime.input().dispatch_key_pressed(key, modifiers);
                             });
                         }
                     }
@@ -791,7 +815,7 @@ impl ApplicationHandler<()> for DemoApp {
         let time_changed = self
             .runtime
             .as_mut()
-            .is_some_and(|runtime| runtime.advance_time(now).unwrap_or(false));
+            .is_some_and(|runtime| runtime.animation().advance_time(now).unwrap_or(false));
         self.sync_platform_effects();
         if let Some(host) = &self.host {
             if !self.initial_frame_presented
@@ -816,7 +840,7 @@ impl ApplicationHandler<()> for DemoApp {
 
     fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
         if let Some(runtime) = &mut self.runtime {
-            runtime.pointer_exited();
+            runtime.input().pointer_exited();
         }
         self.sync_platform_effects();
         self.renderer = None;
@@ -838,7 +862,7 @@ impl DemoApp {
 }
 
 fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<RenderCommand> {
-    let Some(snapshot) = runtime.visible_tooltip().cloned() else {
+    let Some(snapshot) = runtime.tooltip().visible().cloned() else {
         return Vec::new();
     };
     let Some(style) = runtime.tree().resolved_style(snapshot.source) else {
@@ -847,7 +871,10 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
     let Ok(font) = FontDescriptor::parse(&style.font) else {
         return Vec::new();
     };
-    let Ok(layout) = runtime.layout_text(&snapshot.text, &font, TextConstraints::UNBOUNDED) else {
+    let Ok(layout) = runtime
+        .text()
+        .layout(&snapshot.text, &font, TextConstraints::UNBOUNDED)
+    else {
         return Vec::new();
     };
     let popup_size = (
@@ -868,7 +895,7 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         let mut paint = recorder.paint();
         paint.push_state();
         paint
-            .set_transform(novadraw::Affine2D::IDENTITY)
+            .set_transform(novadraw::geometry::Affine2D::IDENTITY)
             .expect("identity transform is valid");
         paint.set_opacity(1.0).expect("opaque alpha is valid");
         paint.set_fill_paint(TOOLTIP_BORDER);
@@ -886,7 +913,7 @@ fn tooltip_overlay_commands(runtime: &mut Runtime, surface: SurfaceInfo) -> Vec<
         paint
             .fill_text(
                 &layout,
-                novadraw::Point::new(
+                novadraw::geometry::Point::new(
                     bounds.x + TOOLTIP_HORIZONTAL_PADDING,
                     bounds.y + TOOLTIP_VERTICAL_PADDING,
                 ),
@@ -1050,9 +1077,9 @@ impl AppBuilder {
 /// ```rust,no_run
 /// use novadraw_example_support::run_demo_app;
 ///
-/// fn create_rect_scene() -> novadraw::Runtime {
-///     let mut runtime = novadraw::Runtime::empty();
-///     let rect = novadraw::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
+/// fn create_rect_scene() -> novadraw::runtime::Runtime {
+///     let mut runtime = novadraw::runtime::Runtime::empty();
+///     let rect = novadraw::figure::RectangleFigure::new(100.0, 100.0, 200.0, 150.0);
 ///     runtime.set_contents(Box::new(rect)).expect("valid Runtime mutation");
 ///     runtime
 /// }
@@ -1172,12 +1199,16 @@ mod tests {
         use novadraw::event::TooltipTiming;
         use novadraw::render::command::RenderCommandKind;
         use novadraw::render::text::BuiltinFont;
-        use novadraw::{FigureStyle, RectangleFigure};
+        use novadraw::{figure::FigureStyle, figure::RectangleFigure};
 
         let mut runtime = Runtime::empty();
-        runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
         runtime
-            .set_tooltip_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
+            .resources()
+            .register_builtin_font(BuiltinFont::Inter)
+            .unwrap();
+        runtime
+            .tooltip()
+            .set_timing(TooltipTiming::new(Duration::ZERO, Duration::from_secs(5)).unwrap())
             .unwrap();
         let root = runtime
             .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
@@ -1193,8 +1224,11 @@ mod tests {
                 },)
                 .expect("valid Runtime mutation")
         );
-        runtime.dispatch_mouse_moved(300.0, 190.0);
-        runtime.advance_time(MonotonicTime::ZERO).unwrap();
+        runtime.input().dispatch_mouse_moved(300.0, 190.0);
+        runtime
+            .animation()
+            .advance_time(MonotonicTime::ZERO)
+            .unwrap();
         let surface = SurfaceInfo {
             logical_width: 320.0,
             logical_height: 200.0,
@@ -1231,6 +1265,7 @@ mod tests {
 
         let runtime = app.runtime.as_mut().unwrap();
         let submission = runtime
+            .frames()
             .prepare_submission(
                 SurfaceInfo {
                     logical_width: 800.0,
@@ -1245,6 +1280,7 @@ mod tests {
             .unwrap();
         assert!(
             runtime
+                .frames()
                 .complete_submission(
                     submission.session_id,
                     submission.frame_id,
@@ -1252,11 +1288,11 @@ mod tests {
                 )
                 .is_ok()
         );
-        assert!(!runtime.has_pending_update());
+        assert!(!runtime.frames().has_pending_update());
 
         app.request_surface_redraw();
 
-        assert!(app.runtime.as_ref().unwrap().has_pending_update());
+        assert!(app.runtime.as_mut().unwrap().frames().has_pending_update());
     }
 
     #[test]
@@ -1273,6 +1309,7 @@ mod tests {
 
         let runtime = app.runtime.as_mut().unwrap();
         let submission = runtime
+            .frames()
             .prepare_submission(
                 SurfaceInfo {
                     logical_width: 800.0,
@@ -1287,6 +1324,7 @@ mod tests {
             .unwrap();
         assert!(
             runtime
+                .frames()
                 .complete_submission(
                     submission.session_id,
                     submission.frame_id,
@@ -1294,11 +1332,11 @@ mod tests {
                 )
                 .is_ok()
         );
-        assert!(!runtime.has_pending_update());
+        assert!(!runtime.frames().has_pending_update());
 
         app.handle_window_focus(true);
 
-        assert!(app.runtime.as_ref().unwrap().has_pending_update());
+        assert!(app.runtime.as_mut().unwrap().frames().has_pending_update());
     }
 
     #[test]
@@ -1312,13 +1350,15 @@ mod tests {
             scale_factor: 1.0,
         };
         let submission = runtime
+            .frames()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
-        assert!(!runtime.has_pending_update());
+        assert!(!runtime.frames().has_pending_update());
 
         assert!(
             runtime
+                .frames()
                 .complete_submission(
                     submission.session_id,
                     submission.frame_id,
@@ -1326,14 +1366,16 @@ mod tests {
                 )
                 .is_ok()
         );
-        assert!(runtime.has_pending_update());
+        assert!(runtime.frames().has_pending_update());
 
         let submission = runtime
+            .frames()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
         assert!(
             runtime
+                .frames()
                 .complete_submission(
                     submission.session_id,
                     submission.frame_id,
@@ -1341,7 +1383,7 @@ mod tests {
                 )
                 .is_ok()
         );
-        assert!(!runtime.has_pending_update());
+        assert!(!runtime.frames().has_pending_update());
     }
 
     #[test]
@@ -1375,6 +1417,7 @@ mod tests {
             .runtime
             .as_mut()
             .unwrap()
+            .frames()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();
@@ -1389,6 +1432,7 @@ mod tests {
             .runtime
             .as_mut()
             .unwrap()
+            .frames()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .unwrap();

@@ -1,6 +1,6 @@
 use novadraw::event::MouseButton;
 use novadraw::render::{BackendCapabilities, RenderCommandKind, SurfaceInfo};
-use novadraw::{Point, Rectangle};
+use novadraw::{geometry::Point, geometry::Rectangle};
 use novadraw_example_support::{
     VerificationCase, VerificationCli, VerificationMetrics, run_runtime_demo_app,
     run_runtime_demo_app_with_scene_screenshot, run_runtime_demo_app_with_screenshot,
@@ -114,15 +114,18 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
         before_bounds.x + before_bounds.width / 2.0,
         before_bounds.y + 18.0,
     );
-    let press = example
-        .runtime
-        .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
+    let press =
+        example
+            .runtime
+            .input()
+            .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
     if press.target() != Some(dragged) || press.capture() != Some(dragged) {
         return Err("class press did not establish pointer capture".to_owned());
     }
     let delta = Point::new(48.0, 36.0);
     example
         .runtime
+        .input()
         .dispatch_mouse_moved(start.x() + delta.x(), start.y() + delta.y());
     let after_bounds = example
         .runtime
@@ -140,13 +143,13 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
             "drag committed {after_bounds:?}, expected {expected_bounds:?}"
         ));
     }
-    let rerouted_connections = example.runtime.dirty_connections().len();
+    let rerouted_connections = example.runtime.connections().dirty().len();
     if rerouted_connections < 4 {
         return Err(format!(
             "drag invalidated only {rerouted_connections} connected relations"
         ));
     }
-    let release = example.runtime.dispatch_mouse_released(
+    let release = example.runtime.input().dispatch_mouse_released(
         start.x() + delta.x(),
         start.y() + delta.y(),
         MouseButton::Left,
@@ -160,6 +163,7 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
 
     let submission = example
         .runtime
+        .frames()
         .prepare_submission(
             SurfaceInfo {
                 logical_width: WIDTH,

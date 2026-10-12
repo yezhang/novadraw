@@ -11,7 +11,7 @@ use novadraw::event::{
 };
 use novadraw::figure::ClickableFigure;
 use novadraw::layout::XYLayout;
-use novadraw::{FigureId, Rectangle, RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, geometry::Rectangle, runtime::Runtime, tree::FigureId};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct ListenerCounts {
@@ -94,30 +94,44 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     let _ = prepare_next_submission(&mut runtime);
 
     let counts = Arc::new(Mutex::new(ListenerCounts::default()));
-    let update = runtime.add_update_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let figure = runtime.add_figure_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let coordinate = runtime.add_coordinate_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let ancestor = runtime.add_ancestor_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let property = runtime.add_property_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let action = runtime.add_action_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
-    let layout = runtime.add_layout_listener(Box::new(TypedRecorder {
-        counts: Arc::clone(&counts),
-    }));
+    let update = runtime
+        .observations()
+        .add_update_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let figure = runtime
+        .observations()
+        .add_figure_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let coordinate = runtime
+        .observations()
+        .add_coordinate_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let ancestor = runtime
+        .observations()
+        .add_ancestor_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let property = runtime
+        .observations()
+        .add_property_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let action = runtime
+        .observations()
+        .add_action_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
+    let layout = runtime
+        .observations()
+        .add_layout_listener(Box::new(TypedRecorder {
+            counts: Arc::clone(&counts),
+        }));
 
     let clickable = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ClickableFigure::new(Rectangle::new(
             20.0, 20.0, 100.0, 40.0,
@@ -146,12 +160,12 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     );
     assert!(
         runtime
-            .container(root)
+            .figure(root)
             .unwrap()
             .set_layout_manager(Box::new(XYLayout::new()))
             .unwrap()
     );
-    assert!(runtime.do_click(clickable).unwrap());
+    assert!(runtime.input().do_click(clickable).unwrap());
     let _ = prepare_next_submission(&mut runtime);
 
     let observed = counts.lock().unwrap().clone();
@@ -166,8 +180,8 @@ fn runtime_exposes_all_listener_categories_with_one_removal_namespace() {
     for id in [
         update, figure, coordinate, ancestor, property, action, layout,
     ] {
-        assert!(runtime.remove_listener(id));
-        assert!(!runtime.remove_listener(id));
+        assert!(runtime.observations().remove_listener(id));
+        assert!(!runtime.observations().remove_listener(id));
     }
 
     assert!(
@@ -201,23 +215,29 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let child = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new(20.0, 20.0, 100.0, 40.0)))
         .expect("valid Runtime mutation");
     let _ = prepare_next_submission(&mut runtime);
 
     let calls = Arc::new(Mutex::new(Vec::new()));
-    let removing = runtime.add_property_listener(Box::new(RemoveAfterFirstProperty {
-        calls: Arc::clone(&calls),
-        label: "remove",
-        directive: ListenerDirective::Remove,
-    }));
-    let retaining = runtime.add_property_listener(Box::new(RemoveAfterFirstProperty {
-        calls: Arc::clone(&calls),
-        label: "keep",
-        directive: ListenerDirective::Keep,
-    }));
+    let removing =
+        runtime
+            .observations()
+            .add_property_listener(Box::new(RemoveAfterFirstProperty {
+                calls: Arc::clone(&calls),
+                label: "remove",
+                directive: ListenerDirective::Remove,
+            }));
+    let retaining =
+        runtime
+            .observations()
+            .add_property_listener(Box::new(RemoveAfterFirstProperty {
+                calls: Arc::clone(&calls),
+                label: "keep",
+                directive: ListenerDirective::Keep,
+            }));
 
     assert!(
         runtime
@@ -236,9 +256,9 @@ fn listener_self_removal_finishes_current_effect_and_skips_later_effects() {
     let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(*calls.lock().unwrap(), vec!["remove", "keep", "keep"]);
-    assert!(!runtime.remove_listener(removing));
-    assert!(runtime.remove_listener(retaining));
-    assert!(!runtime.remove_listener(retaining));
+    assert!(!runtime.observations().remove_listener(removing));
+    assert!(runtime.observations().remove_listener(retaining));
+    assert!(!runtime.observations().remove_listener(retaining));
 }
 
 #[test]
@@ -257,7 +277,7 @@ fn action_listener_can_remove_itself_after_the_current_action() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let clickable = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ClickableFigure::new(Rectangle::new(
             20.0, 20.0, 100.0, 40.0,
@@ -266,9 +286,11 @@ fn action_listener_can_remove_itself_after_the_current_action() {
     let _ = prepare_next_submission(&mut runtime);
 
     let calls = Arc::new(Mutex::new(0));
-    runtime.add_action_listener(Box::new(OnceAction(Arc::clone(&calls))));
-    assert!(runtime.do_click(clickable).unwrap());
-    assert!(runtime.do_click(clickable).unwrap());
+    runtime
+        .observations()
+        .add_action_listener(Box::new(OnceAction(Arc::clone(&calls))));
+    assert!(runtime.input().do_click(clickable).unwrap());
+    assert!(runtime.input().do_click(clickable).unwrap());
     let _ = prepare_next_submission(&mut runtime);
 
     assert_eq!(*calls.lock().unwrap(), 1);
@@ -281,15 +303,19 @@ fn pointer_dispatch_remains_available_after_listener_api_completion() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let clickable = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(ClickableFigure::new(Rectangle::new(
             20.0, 20.0, 100.0, 40.0,
         ))))
         .expect("valid Runtime mutation");
 
-    runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
-    runtime.dispatch_mouse_released(30.0, 30.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_released(30.0, 30.0, MouseButton::Left);
 
-    assert_eq!(runtime.interaction().focus_owner(), Some(clickable));
+    assert_eq!(runtime.input().state().focus_owner(), Some(clickable));
 }

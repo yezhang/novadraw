@@ -14,20 +14,24 @@ use novadraw::render::{
     TextInteractionMap, TextInteractionProvider, TextMovement, TextPosition, TextRange,
     command::RenderCommandKind,
 };
-use novadraw::runtime::TextFlowQueryError;
-use novadraw::{FigureTree, RectangleFigure, Runtime};
+use novadraw::runtime::{SetTextFlowWrapping, TextFlowQueryError};
+use novadraw::{figure::RectangleFigure, runtime::Runtime, tree::FigureTree};
 
-fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::FigureId) {
+fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::tree::FigureId) {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    runtime
+        .resources()
         .register_builtin_font(BuiltinFont::NotoSansSc)
         .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(TextFlowFigure::new(bounds, page)))
         .unwrap();
@@ -37,15 +41,16 @@ fn runtime_with_flow(bounds: Rectangle, page: FlowPage) -> (Runtime, novadraw::F
 
 #[test]
 fn caret_round_trips_through_surface_coordinates() {
-    let (runtime, flow) = runtime_with_flow(
+    let (mut runtime, flow) = runtime_with_flow(
         Rectangle::new(40.0, 30.0, 240.0, 120.0),
         FlowPage::from_text("alpha beta"),
     );
     let position = FlowTextPosition::new(0, "alpha".len(), TextAffinity::Downstream);
 
-    let caret = runtime.text_flow_caret_geometry(flow, position).unwrap();
+    let caret = runtime.text().flow_caret_geometry(flow, position).unwrap();
     let hit = runtime
-        .text_flow_hit_test(flow, caret.bounds().center())
+        .text()
+        .flow_hit_test(flow, caret.bounds().center())
         .unwrap();
 
     assert_eq!(hit.paragraph(), 0);
@@ -56,12 +61,15 @@ fn caret_round_trips_through_surface_coordinates() {
 fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
     let bounds = Rectangle::new(40.0, 30.0, 240.0, 120.0);
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
         .unwrap();
     let unaligned_flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
@@ -69,7 +77,7 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         ))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text("centered"))
@@ -79,14 +87,16 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         .unwrap();
     prepare_next_submission(&mut runtime).expect("centered TextFlow frame");
 
-    let layout = runtime.text_flow_layout(flow).unwrap();
+    let layout = runtime.text().flow_layout(flow).unwrap().clone();
     let expected_x = bounds.x + (bounds.width - f64::from(layout.width())) / 2.0;
     let expected_y = bounds.y + (bounds.height - f64::from(layout.height())) / 2.0;
     let caret = runtime
-        .text_flow_caret_geometry(flow, FlowTextPosition::new(0, 0, TextAffinity::Downstream))
+        .text()
+        .flow_caret_geometry(flow, FlowTextPosition::new(0, 0, TextAffinity::Downstream))
         .unwrap();
     let unaligned_caret = runtime
-        .text_flow_caret_geometry(
+        .text()
+        .flow_caret_geometry(
             unaligned_flow,
             FlowTextPosition::new(0, 0, TextAffinity::Downstream),
         )
@@ -99,7 +109,8 @@ fn centered_no_wrap_flow_offsets_paint_and_interaction_geometry_together() {
         (caret.bounds().y - unaligned_caret.bounds().y - (expected_y - bounds.y)).abs() < 0.001
     );
     let hit = runtime
-        .text_flow_hit_test(flow, caret.bounds().center())
+        .text()
+        .flow_hit_test(flow, caret.bounds().center())
         .unwrap();
     assert_eq!(hit.byte_offset(), 0);
 }
@@ -109,12 +120,15 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
     let bounds = Rectangle::new(40.0, 30.0, 120.0, 48.0);
     let text = "this complete line remains shaped while scrolled";
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 480.0, 320.0)))
         .unwrap();
     let flow = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             TextFlowFigure::new(bounds, FlowPage::from_text(text))
@@ -123,7 +137,7 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
         ))
         .unwrap();
     let frame = prepare_next_submission(&mut runtime).expect("clipped TextFlow frame");
-    let layout = runtime.text_flow_layout(flow).unwrap();
+    let layout = runtime.text().flow_layout(flow).unwrap().clone();
 
     assert!(!layout.is_truncated());
     assert_eq!(layout.visible_range(), 0..text.len());
@@ -133,24 +147,22 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
             if rect == Rectangle::new(0.0, 0.0, bounds.width, bounds.height)
     )));
     let caret = runtime
-        .text_flow_local_caret_geometry(
+        .text()
+        .flow_local_caret_geometry(
             flow,
             FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
         )
         .unwrap();
-    let hit = runtime
-        .text_flow_hit_test(
+    let surface_point = runtime
+        .text()
+        .flow_caret_geometry(
             flow,
-            runtime
-                .text_flow_caret_geometry(
-                    flow,
-                    FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
-                )
-                .unwrap()
-                .bounds()
-                .center(),
+            FlowTextPosition::new(0, text.len(), TextAffinity::Upstream),
         )
-        .unwrap();
+        .unwrap()
+        .bounds()
+        .center();
+    let hit = runtime.text().flow_hit_test(flow, surface_point).unwrap();
 
     assert!(caret.bounds().x < f64::from(layout.full_width()));
     assert_eq!(hit.byte_offset(), text.len());
@@ -158,23 +170,25 @@ fn text_flow_viewport_offsets_interaction_and_clips_paint_without_truncating() {
 
 #[test]
 fn visual_movement_never_splits_a_grapheme_cluster() {
-    let (runtime, flow) = runtime_with_flow(
+    let (mut runtime, flow) = runtime_with_flow(
         Rectangle::new(10.0, 10.0, 260.0, 120.0),
         FlowPage::from_text("a👩‍💻e\u{301}z"),
     );
     let start = FlowTextPosition::new(0, 1, TextAffinity::Downstream);
 
     let after_emoji = runtime
-        .text_flow_move_position(flow, start, TextMovement::NextVisual)
+        .text()
+        .flow_move_position(flow, start, TextMovement::NextVisual)
         .unwrap();
     let after_combining = runtime
-        .text_flow_move_position(flow, after_emoji, TextMovement::NextVisual)
+        .text()
+        .flow_move_position(flow, after_emoji, TextMovement::NextVisual)
         .unwrap();
 
     assert_eq!(after_emoji.byte_offset(), "a👩‍💻".len());
     assert_eq!(after_combining.byte_offset(), "a👩‍💻e\u{301}".len());
     assert!(matches!(
-        runtime.text_flow_caret_geometry(
+        runtime.text().flow_caret_geometry(
             flow,
             FlowTextPosition::new(0, "a👩‍💻e".len(), TextAffinity::Downstream),
         ),
@@ -186,7 +200,7 @@ fn visual_movement_never_splits_a_grapheme_cluster() {
 
 #[test]
 fn cross_paragraph_selection_produces_ordered_visual_quads() {
-    let (runtime, flow) = runtime_with_flow(
+    let (mut runtime, flow) = runtime_with_flow(
         Rectangle::new(20.0, 25.0, 100.0, 180.0),
         FlowPage::new(vec![
             FlowParagraph::from_text("first paragraph wraps"),
@@ -198,7 +212,7 @@ fn cross_paragraph_selection_produces_ordered_visual_quads() {
         FlowTextPosition::new(1, "第二".len(), TextAffinity::Upstream),
     );
 
-    let quads = runtime.text_flow_selection_geometry(flow, range).unwrap();
+    let quads = runtime.text().flow_selection_geometry(flow, range).unwrap();
 
     assert!(quads.len() >= 2);
     assert!(
@@ -211,11 +225,17 @@ fn cross_paragraph_selection_produces_ordered_visual_quads() {
 
 #[test]
 fn wrapped_boundary_preserves_distinct_caret_affinity() {
-    let (runtime, flow) = runtime_with_flow(
+    let (mut runtime, flow) = runtime_with_flow(
         Rectangle::new(0.0, 0.0, 58.0, 180.0),
         FlowPage::from_text("alpha beta gamma delta"),
     );
-    let text = runtime.text_flow_layout(flow).unwrap().key().text();
+    let text = runtime
+        .text()
+        .flow_layout(flow)
+        .unwrap()
+        .key()
+        .text()
+        .to_owned();
     let differing_boundary = text
         .char_indices()
         .map(|(offset, _)| offset)
@@ -223,10 +243,10 @@ fn wrapped_boundary_preserves_distinct_caret_affinity() {
         .find(|offset| {
             let upstream = FlowTextPosition::new(0, *offset, TextAffinity::Upstream);
             let downstream = FlowTextPosition::new(0, *offset, TextAffinity::Downstream);
-            let Ok(upstream) = runtime.text_flow_caret_geometry(flow, upstream) else {
+            let Ok(upstream) = runtime.text().flow_caret_geometry(flow, upstream) else {
                 return false;
             };
-            let Ok(downstream) = runtime.text_flow_caret_geometry(flow, downstream) else {
+            let Ok(downstream) = runtime.text().flow_caret_geometry(flow, downstream) else {
                 return false;
             };
             upstream.bounds() != downstream.bounds()
@@ -245,14 +265,17 @@ fn invalid_utf8_and_truncated_positions_are_rejected() {
         FlowPage::from_text("中文 mixed text that wraps"),
     );
     runtime
-        .text_flow(flow)
+        .figure(flow)
         .unwrap()
-        .set_wrapping(FlowWrapping::Truncate { max_lines: 1 })
+        .update_component(SetTextFlowWrapping::new(FlowWrapping::Truncate {
+            max_lines: 1,
+        }))
         .unwrap();
     record_full_submission(&mut runtime);
 
     let invalid_utf8 = runtime
-        .text_flow_caret_geometry(flow, FlowTextPosition::new(0, 1, TextAffinity::Downstream));
+        .text()
+        .flow_caret_geometry(flow, FlowTextPosition::new(0, 1, TextAffinity::Downstream));
     assert!(matches!(
         invalid_utf8,
         Err(TextFlowQueryError::Interaction(
@@ -260,8 +283,14 @@ fn invalid_utf8_and_truncated_positions_are_rejected() {
         ))
     ));
 
-    let visible_end = runtime.text_flow_layout(flow).unwrap().visible_range().end;
-    let invisible = runtime.text_flow_caret_geometry(
+    let visible_end = runtime
+        .text()
+        .flow_layout(flow)
+        .unwrap()
+        .clone()
+        .visible_range()
+        .end;
+    let invisible = runtime.text().flow_caret_geometry(
         flow,
         FlowTextPosition::new(0, visible_end + 1, TextAffinity::Downstream),
     );
@@ -280,7 +309,8 @@ fn positions_from_an_old_layout_revision_are_rejected() {
         FlowPage::from_text("stale position after width change"),
     );
     let position = runtime
-        .text_flow_hit_test(flow, Point::new(12.0, 8.0))
+        .text()
+        .flow_hit_test(flow, Point::new(12.0, 8.0))
         .unwrap();
     assert!(position.layout_revision().is_some());
 
@@ -292,7 +322,7 @@ fn positions_from_an_old_layout_revision_are_rejected() {
     prepare_next_submission(&mut runtime).expect("width change relayout");
 
     assert!(matches!(
-        runtime.text_flow_caret_geometry(flow, position),
+        runtime.text().flow_caret_geometry(flow, position),
         Err(TextFlowQueryError::Interaction(
             TextInteractionError::StaleTextLayoutRevision
         ))
@@ -325,23 +355,27 @@ fn caret_geometry_follows_nested_viewport_and_scale_transforms() {
         )
         .unwrap();
     let mut runtime = Runtime::new(graph);
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
     runtime
-        .scalable(scalable.figure_id())
-        .unwrap()
-        .set_scale(2.0)
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
+    runtime
+        .viewports()
+        .set_scale(scalable.figure_id(), 2.0)
         .unwrap();
     prepare_next_submission(&mut runtime).expect("scaled TextFlow frame");
 
     let local = runtime
-        .text_flow_layout(flow)
+        .text()
+        .flow_layout(flow)
         .unwrap()
         .caret_geometry(TextPosition::new(0, TextAffinity::Downstream))
         .unwrap();
     let mut expected = local.bounds();
     expected.transform(runtime.tree().local_to_surface_transform(flow).unwrap());
     let caret = runtime
-        .text_flow_caret_geometry(flow, FlowTextPosition::new(0, 0, TextAffinity::Downstream))
+        .text()
+        .flow_caret_geometry(flow, FlowTextPosition::new(0, 0, TextAffinity::Downstream))
         .unwrap();
 
     assert_eq!(caret.bounds(), expected);
@@ -356,11 +390,13 @@ fn text_queries_are_read_only_for_runtime_updates() {
     );
     assert!(prepare_next_submission(&mut runtime).is_none());
     let position = runtime
-        .text_flow_hit_test(flow, Point::new(30.0, 30.0))
+        .text()
+        .flow_hit_test(flow, Point::new(30.0, 30.0))
         .unwrap();
-    runtime.text_flow_caret_geometry(flow, position).unwrap();
+    runtime.text().flow_caret_geometry(flow, position).unwrap();
     runtime
-        .text_flow_move_position(flow, position, TextMovement::NextWord)
+        .text()
+        .flow_move_position(flow, position, TextMovement::NextWord)
         .unwrap();
     assert!(prepare_next_submission(&mut runtime).is_none());
 }
@@ -433,7 +469,7 @@ fn external_text_engines_can_supply_backend_neutral_interaction_maps() {
 #[test]
 fn paragraph_movement_uses_flow_page_boundaries_not_embedded_newlines() {
     let first = "first\nstill first";
-    let (runtime, flow) = runtime_with_flow(
+    let (mut runtime, flow) = runtime_with_flow(
         Rectangle::new(0.0, 0.0, 220.0, 160.0),
         FlowPage::new(vec![
             FlowParagraph::from_text(first),
@@ -443,14 +479,16 @@ fn paragraph_movement_uses_flow_page_boundaries_not_embedded_newlines() {
     let position = FlowTextPosition::new(0, "first\nstill".len(), TextAffinity::Downstream);
 
     let start = runtime
-        .text_flow_move_position(flow, position, TextMovement::ParagraphStart)
+        .text()
+        .flow_move_position(flow, position, TextMovement::ParagraphStart)
         .unwrap();
     assert_eq!((start.paragraph(), start.byte_offset()), (0, 0));
     assert_eq!(start.affinity(), TextAffinity::Downstream);
     assert!(start.layout_revision().is_some());
 
     let end = runtime
-        .text_flow_move_position(flow, position, TextMovement::ParagraphEnd)
+        .text()
+        .flow_move_position(flow, position, TextMovement::ParagraphEnd)
         .unwrap();
     assert_eq!((end.paragraph(), end.byte_offset()), (0, first.len()));
     assert_eq!(end.affinity(), TextAffinity::Upstream);
@@ -465,22 +503,22 @@ fn runtime_text_queries_distinguish_unknown_and_wrong_capability() {
     );
     let contents = runtime.tree().parent_id(flow).unwrap();
     let rectangle = runtime
-        .container(contents)
+        .figure(contents)
         .unwrap()
         .add(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
-    let foreign = novadraw::FigureTree::new()
+    let foreign = novadraw::tree::FigureTree::new()
         .builder()
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
         .expect("valid FigureTree construction");
 
     assert!(matches!(
-        runtime.text_flow_hit_test(rectangle, Point::ORIGIN),
+        runtime.text().flow_hit_test(rectangle, Point::ORIGIN),
         Err(TextFlowQueryError::WrongCapability(id)) if id == rectangle
     ));
     assert!(matches!(
-        runtime.text_flow_hit_test(foreign, Point::ORIGIN),
+        runtime.text().flow_hit_test(foreign, Point::ORIGIN),
         Err(TextFlowQueryError::UnknownFigure(id)) if id == foreign
     ));
-    assert!(runtime.text_flow_layout(flow).is_ok());
+    assert!(runtime.text().flow_layout(flow).is_ok());
 }

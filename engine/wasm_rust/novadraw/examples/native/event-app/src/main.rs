@@ -1,7 +1,7 @@
-use novadraw::Runtime;
 use novadraw::event::{
     FocusEventKind, Key, KeyEventKind, KeyModifiers, MouseButton, MouseEventKind, WheelEvent,
 };
+use novadraw::runtime::Runtime;
 use novadraw_example_scenes::event::{ProbeEvent, probe_scene};
 use novadraw_example_support::{
     VerificationCase, VerificationCli, VerificationMetrics, run_demo_app,
@@ -11,9 +11,13 @@ use novadraw_example_support::{
 fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
     let (graph, state) = probe_scene(false);
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
-    runtime.dispatch_mouse_moved(700.0, 500.0);
-    runtime.dispatch_mouse_released(700.0, 500.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
+    runtime.input().dispatch_mouse_moved(700.0, 500.0);
+    runtime
+        .input()
+        .dispatch_mouse_released(700.0, 500.0, MouseButton::Left);
     let events = &state.lock().unwrap().events;
     assert_event_order(
         events,
@@ -25,7 +29,7 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
             MouseEventKind::Exited,
         ],
     )?;
-    if runtime.interaction().captured().is_some() {
+    if runtime.input().state().captured().is_some() {
         return Err("capture was not released".to_string());
     }
     Ok(metrics([("events", events.len().to_string())]))
@@ -34,11 +38,13 @@ fn verify_pointer_capture() -> Result<VerificationMetrics, String> {
 fn verify_pointer_leave_cleanup() -> Result<VerificationMetrics, String> {
     let (graph, state) = probe_scene(false);
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
-    runtime.pointer_exited();
-    runtime.dispatch_mouse_moved(700.0, 500.0);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
+    runtime.input().pointer_exited();
+    runtime.input().dispatch_mouse_moved(700.0, 500.0);
     let events = &state.lock().unwrap().events;
-    if runtime.interaction().captured().is_some() {
+    if runtime.input().state().captured().is_some() {
         return Err("pointer leave retained capture".to_string());
     }
     if events
@@ -61,16 +67,20 @@ fn verify_pointer_leave_cleanup() -> Result<VerificationMetrics, String> {
 fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
     let (graph, state) = probe_scene(false);
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
-    runtime.dispatch_key_pressed(
+    runtime
+        .input()
+        .dispatch_mouse_pressed(300.0, 220.0, MouseButton::Left);
+    runtime.input().dispatch_key_pressed(
         Key::Character('a'),
         KeyModifiers {
             control: true,
             ..KeyModifiers::default()
         },
     );
-    runtime.dispatch_key_released(Key::Character('a'), KeyModifiers::default());
-    runtime.release_focus();
+    runtime
+        .input()
+        .dispatch_key_released(Key::Character('a'), KeyModifiers::default());
+    runtime.focus().release();
     let events = &state.lock().unwrap().events;
     for expected in [
         ProbeEvent::Focus(FocusEventKind::Gained),
@@ -95,16 +105,20 @@ fn verify_focus_keyboard() -> Result<VerificationMetrics, String> {
     }
     Ok(metrics([(
         "focus_owner",
-        format!("{:?}", runtime.interaction().focus_owner()),
+        format!("{:?}", runtime.input().state().focus_owner()),
     )]))
 }
 
 fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
     let (graph, state) = probe_scene(false);
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_mouse_hover(300.0, 220.0);
-    runtime.dispatch_scroll(WheelEvent::new(300.0, 220.0, 1.0, -2.0));
-    runtime.dispatch_mouse_double_clicked(300.0, 220.0, MouseButton::Left);
+    runtime.input().dispatch_mouse_hover(300.0, 220.0);
+    runtime
+        .input()
+        .dispatch_scroll(WheelEvent::new(300.0, 220.0, 1.0, -2.0));
+    runtime
+        .input()
+        .dispatch_mouse_double_clicked(300.0, 220.0, MouseButton::Left);
     let events = &state.lock().unwrap().events;
     if !events
         .iter()
@@ -124,7 +138,9 @@ fn verify_wheel_hover_double() -> Result<VerificationMetrics, String> {
 fn verify_coordinate_reduction() -> Result<VerificationMetrics, String> {
     let (graph, state) = probe_scene(true);
     let mut runtime = Runtime::new(graph);
-    runtime.dispatch_mouse_pressed(160.0, 150.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(160.0, 150.0, MouseButton::Left);
     let events = &state.lock().unwrap().events;
     if !events.contains(&ProbeEvent::Mouse(MouseEventKind::Pressed, 20.0, 20.0)) {
         return Err(format!("target-domain point was not reduced: {events:?}"));

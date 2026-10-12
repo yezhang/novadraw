@@ -4,22 +4,25 @@ mod support;
 
 use support::record_full_submission;
 
+use novadraw::{
+    animation::{
+        AnimationBehavior, AnimationBehaviorContext, AnimationError, AnimationFact, AnimationMode,
+        AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Opacity, Tween,
+    },
+    event::{FigureEvent, FigureListener, ListenerDirective, MonotonicTime, property},
+    figure::RectangleFigure,
+    geometry::Affine2D,
+    geometry::Rectangle,
+    render::{BackendCapabilities, RenderDisposition, SurfaceInfo},
+    runtime::Runtime,
+    tree::FigureTree,
+};
 use std::{
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
-};
-
-use novadraw::{
-    Affine2D, FigureTree, Rectangle, RectangleFigure, Runtime,
-    animation::{
-        AnimationBehavior, AnimationBehaviorContext, AnimationError, AnimationFact, AnimationMode,
-        AnimationPlan, AnimationTrigger, InteractionGeometryPolicy, Motion, Opacity, Tween,
-    },
-    event::{FigureEvent, FigureListener, ListenerDirective, MonotonicTime, property},
-    render::{BackendCapabilities, RenderDisposition, SurfaceInfo},
 };
 
 fn time(milliseconds: u64) -> MonotonicTime {
@@ -65,8 +68,8 @@ fn ordinary_mutation_stays_static_without_an_installed_behavior() {
         .unwrap();
     record_full_submission(&mut runtime);
 
-    assert_eq!(runtime.animations().behavior_count(), 0);
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().behavior_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }
 
 #[test]
@@ -76,9 +79,10 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     flush_initial_state(&mut runtime);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let transform = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_figure(figure, InteractionGeometryPolicy::Committed)
         .unwrap()
         .transform();
@@ -87,7 +91,8 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
     let factory_calls = calls.clone();
     let factory_observed = observed.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::FigureBoundsChanged,
@@ -114,7 +119,9 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
         )
         .unwrap();
     let listener_events = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_figure_listener(Box::new(FigureEventRecorder(listener_events.clone())));
+    runtime
+        .observations()
+        .add_figure_listener(Box::new(FigureEventRecorder(listener_events.clone())));
 
     runtime
         .figure(figure)
@@ -138,7 +145,7 @@ fn bounds_trigger_coalesces_one_transaction_and_installs_override_before_recordi
         }]
     );
     assert_eq!(
-        runtime.animations().value(transform).unwrap(),
+        runtime.animation().timeline().value(transform).unwrap(),
         Affine2D::from_translation(-40.0, 0.0)
     );
     assert_eq!(listener_events.lock().unwrap().len(), 2);
@@ -157,7 +164,8 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
 
     let calls = property_calls.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::property_changed(property::ENABLED),
@@ -171,7 +179,8 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
         .unwrap();
     let calls = state_calls.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::state_changed(property::ENABLED),
@@ -185,7 +194,8 @@ fn property_state_and_transaction_triggers_match_committed_facts() {
         .unwrap();
     let facts = transaction_facts.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(AnimationBehavior::new(
             AnimationTrigger::Transaction,
             move |context: AnimationBehaviorContext<'_>| {
@@ -218,7 +228,8 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
     let calls = Arc::new(AtomicUsize::new(0));
     let factory_calls = calls.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::FigureBoundsChanged,
@@ -237,12 +248,14 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
         .unwrap();
 
     let submission = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -251,12 +264,14 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
             .is_ok()
     );
     let retried = runtime
+        .frames()
         .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 retried.session_id,
                 retried.frame_id,
@@ -264,7 +279,9 @@ fn retry_and_idle_do_not_replay_consumed_facts() {
             )
             .is_ok()
     );
-    let _ = runtime.prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
+    let _ = runtime
+        .frames()
+        .prepare_submission(surface(), BackendCapabilities::RETAINED_PARTIAL);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
 }
 
@@ -275,9 +292,10 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .unwrap();
     flush_initial_state(&mut runtime);
-    runtime.advance_time(time(0)).unwrap();
+    runtime.animation().advance_time(time(0)).unwrap();
     let channel = runtime
-        .animations()
+        .animation()
+        .timeline()
         .create_channel(Opacity::OPAQUE)
         .unwrap();
     let enabled_calls = Arc::new(AtomicUsize::new(0));
@@ -285,7 +303,8 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
     let primary_calls = enabled_calls.clone();
     let fallback_calls = reduced_calls.clone();
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::state_changed(property::ENABLED),
@@ -312,22 +331,28 @@ fn disabled_skips_factories_and_reduced_motion_uses_only_its_fallback() {
         )
         .unwrap();
 
-    runtime.animations().set_mode(AnimationMode::Disabled);
+    runtime
+        .animation()
+        .timeline()
+        .set_mode(AnimationMode::Disabled);
     runtime.figure(figure).unwrap().set_enabled(false).unwrap();
     record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);
     assert_eq!(reduced_calls.load(Ordering::SeqCst), 0);
 
-    runtime.animations().set_mode(AnimationMode::ReducedMotion);
+    runtime
+        .animation()
+        .timeline()
+        .set_mode(AnimationMode::ReducedMotion);
     runtime.figure(figure).unwrap().set_enabled(true).unwrap();
     record_full_submission(&mut runtime);
     assert_eq!(enabled_calls.load(Ordering::SeqCst), 0);
     assert_eq!(reduced_calls.load(Ordering::SeqCst), 1);
     assert_eq!(
-        runtime.animations().value(channel).unwrap(),
+        runtime.animation().timeline().value(channel).unwrap(),
         Opacity::TRANSPARENT
     );
-    assert_eq!(runtime.animations().active_animation_count(), 1);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 1);
 }
 
 #[test]
@@ -346,7 +371,8 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
     let calls = Arc::new(AtomicUsize::new(0));
     let factory_calls = calls.clone();
     let id = runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::FigureBoundsChanged,
@@ -374,15 +400,15 @@ fn behavior_identity_scope_disposal_and_failure_are_bounded() {
         .unwrap();
     record_full_submission(&mut runtime);
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    let failures = runtime.animations().take_behavior_failures();
+    let failures = runtime.animation().timeline().take_behavior_failures();
     assert_eq!(failures.len(), 1);
     assert_eq!(failures[0].behavior(), id);
     assert_eq!(failures[0].error(), &AnimationError::InvalidValue);
 
     runtime.dispose_subtree(child).unwrap();
-    assert_eq!(runtime.animations().behavior_count(), 0);
+    assert_eq!(runtime.animation().timeline().behavior_count(), 0);
     assert_eq!(
-        runtime.animations().remove_behavior(id),
+        runtime.animation().timeline().remove_behavior(id),
         Err(AnimationError::UnknownBehavior)
     );
 }
@@ -395,7 +421,7 @@ fn behavior_factory_panic_faults_runtime_and_clears_presentation() {
         .unwrap();
     flush_initial_state(&mut runtime);
     runtime
-        .animations()
+        .animation().timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::FigureBoundsChanged,
@@ -417,5 +443,5 @@ fn behavior_factory_panic_faults_runtime_and_clears_presentation() {
     }));
     assert!(panic.is_err());
     assert!(runtime.is_faulted());
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }

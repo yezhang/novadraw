@@ -95,9 +95,9 @@ impl Color {
     /// # 示例
     ///
     /// ```
-    /// let red = novadraw::Color::from_hex("#ff0000")?;
-    /// let with_alpha = novadraw::Color::from_hex("#ff000080")?;
-    /// # Ok::<(), novadraw::ParseColorError>(())
+    /// let red = novadraw::graphics::Color::from_hex("#ff0000")?;
+    /// let with_alpha = novadraw::graphics::Color::from_hex("#ff000080")?;
+    /// # Ok::<(), novadraw::graphics::ParseColorError>(())
     /// ```
     #[inline]
     pub fn from_hex(hex: &str) -> Result<Self, ParseColorError> {

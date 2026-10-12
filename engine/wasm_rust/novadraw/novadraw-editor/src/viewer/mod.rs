@@ -3,6 +3,7 @@
 mod projection;
 
 use std::{
+    any::Any,
     collections::{HashMap, HashSet},
     error::Error,
     fmt,
@@ -12,8 +13,8 @@ use std::{
 
 use novadraw::connection::{
     AnchorId, AnchorSemanticKey, ChopboxAnchor, ConnectionAnchor, ConnectionId,
-    ConnectionLayerFigure, ConnectionRouter, ConnectionRuntimeError, CoordinateSpace,
-    RouterBinding, RouterId, UnresolvedConnection, XYAnchor,
+    ConnectionLayerFigure, ConnectionRouter, ConnectionRuntimeError, ConnectionStateSnapshot,
+    CoordinateSpace, RouterBinding, RouterId, UnresolvedConnection, XYAnchor,
 };
 use novadraw::container::{
     FreeformLayerFigure, FreeformLayeredPane, LayerError, LayerFigure, LayerKey, LayerPlacement,
@@ -24,40 +25,46 @@ use novadraw::event::{
     DispatchOutcome, FocusChange, KeyModifiers, MonotonicTime, MouseButton, TimeError,
 };
 use novadraw::figure::{
-    Border, FlowTextPosition, FlowTextRange, ShapeMutationError, TextFlowViewport,
+    Border, Figure, FigureStyle, FlowTextPosition, FlowTextRange, RectangleFigure,
+    ShapeMutationError, TextFlowFigure, TextFlowViewport,
 };
 use novadraw::geometry::{ApproxEq, Point, Precision, Rectangle, Translatable};
+use novadraw::graphics::Color;
+use novadraw::layout::StackLayout;
 use novadraw::render::{
     BackendCapabilities, BackendSessionId, CaretGeometry, FrameId, RenderResult, SelectionQuad,
-    SurfaceInfo,
+    SurfaceInfo, TextLayout,
 };
 use novadraw::runtime::{
     BackendSessionError, ComponentUpdateError, ComponentUpdateReceipt, FigureComponentContext,
-    FigureComponentUpdate, FontId, LogicalViewportResizeError, PreparedFigureUpdate, ResourceError,
-    RuntimeMutationError, SubmissionAcknowledgement, SubmissionCompletionError,
+    FigureComponentUpdate, FontId, FramePreparation, FramePreparationError,
+    LogicalViewportResizeError, PreparedFigureUpdate, ReplaceFigureBorder, ResourceError, Runtime,
+    RuntimeMutationError, SubmissionAcknowledgement, SubmissionCompletionError, TextFlowQueryError,
 };
 use novadraw::text::TextMovement;
-use novadraw::{
-    Color, Figure, FigureId, FigureStyle, FigureTree, FramePreparation, FramePreparationError,
-    RectangleFigure, Runtime, StackLayout, TextFlowFigure,
-};
+use novadraw::tree::{FigureId, FigureTree};
 
 use crate::{
-    BendpointHandleSite, Command, CompoundCommand, ConnectionAnchorContext,
-    ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint, ConnectionFeedbackRoute,
-    ConnectionPartFactoryContext, ConnectionPartId, ConnectionReconnection, ConnectionRouterKey,
-    ConnectionRouterSelection, ConnectionRoutingDescriptor, CreateConnectionRequest,
-    DirectTextEditError, DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState,
-    DirectTextFeedback, EditPartError, EditPartFactory, EditPartId, EditorNamespace, EditorRequest,
-    FeedbackId, FeedbackVisual, HandleId, HandleRole, ModelAdapter, ModelConnection, ModelRevision,
-    PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost, PolicyRole,
-    ReconnectConnectionRequest, SelectionDelta, SelectionModel, TextEditMode, TextInputEffect,
-    TextInputPurpose, TextInputSnapshot, VisualBuildContext, VisualOwner, VisualUpdateContext,
+    BendpointCreateAction, BendpointHandleSite, BendpointMoveAction, Command, CompoundCommand,
+    ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionCreation, ConnectionEndpoint,
+    ConnectionFeedbackRoute, ConnectionPartFactoryContext, ConnectionPartId,
+    ConnectionReconnection, ConnectionRouterKey, ConnectionRouterSelection,
+    ConnectionRoutingDescriptor, CreateConnection, CreateConnectionRequest, DirectTextEditError,
+    DirectTextEditRequest, DirectTextEditSessionId, DirectTextEditState, DirectTextFeedback,
+    EditPartError, EditPartFactory, EditPartId, EditingContribution, EditorNamespace, FeedbackId,
+    FeedbackVisual, HandleAction, HandleActionProtocol, HandleId, ModelAdapter, ModelConnection,
+    ModelRevision, PartFactoryContext, PartKind, PartTree, PartTreeError, PolicyError, PolicyHost,
+    ReconnectConnection, ReconnectConnectionRequest, RequestMetadata, RequestProtocol,
+    RequestResolution, SelectionAction, SelectionDelta, SelectionModel, StartDirectTextEdit,
+    TextEditMode, TextInputEffect, TextInputPurpose, TextInputSnapshot, VisualBuildContext,
+    VisualOwner, VisualUpdateContext,
     direct_edit::{
         ActiveDirectTextEdit, PreparedDirectTextEdit, position_from_offset, position_to_offset,
     },
     part::{BehaviorStore, validate_runtime_namespace},
     policy::PolicyStore,
+    request::ErasedRequestKey,
+    tool::{ErasedRequestContributions, ToolHost},
 };
 
 const MAX_PART_TREE_DEPTH: usize = 10_000;
@@ -102,6 +109,151 @@ fn reveal_horizontal_caret(
     scroll.clamp(0.0, maximum)
 }
 
+impl<A, F> ToolHost<A> for GraphicalViewer<A, F>
+where
+    A: ModelAdapter + 'static,
+    F: EditPartFactory<A>,
+{
+    fn dispatch_request_erased(
+        &mut self,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+    ) -> Result<ErasedRequestContributions, ViewerError> {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.dispatch_request_erased_inner(key, metadata, payload)
+        })
+    }
+
+    fn attach_feedback(
+        &mut self,
+        contributions: Vec<(EditPartId, FeedbackVisual)>,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        self.add_feedback_batch(
+            contributions
+                .into_iter()
+                .map(|(owner, feedback)| (Some(owner), feedback))
+                .collect(),
+        )
+    }
+
+    fn dispatch_pressed(
+        &mut self,
+        location: Point,
+        button: MouseButton,
+        modifiers: KeyModifiers,
+        update_selection: bool,
+    ) -> Result<ViewerInputOutcome, ViewerError> {
+        if update_selection {
+            self.dispatch_mouse_pressed(location.x(), location.y(), button, modifiers)
+        } else {
+            Ok(self.dispatch_mouse_pressed_without_selection(location.x(), location.y(), button))
+        }
+    }
+
+    fn dispatch_moved(&mut self, location: Point) -> DispatchOutcome {
+        self.dispatch_mouse_moved(location.x(), location.y())
+    }
+
+    fn dispatch_released(&mut self, location: Point, button: MouseButton) -> DispatchOutcome {
+        self.dispatch_mouse_released(location.x(), location.y(), button)
+    }
+
+    fn target_at(&self, location: Point) -> ViewerTarget {
+        self.target_at(location.x(), location.y())
+    }
+
+    fn selection(&self) -> &[EditPartId] {
+        self.selection().items()
+    }
+
+    fn model_point_from_surface(&self, location: Point) -> Result<Point, ViewerError> {
+        self.model_point_from_surface(location)
+    }
+
+    fn connection_point_from_surface(
+        &self,
+        connection: ConnectionPartId,
+        location: Point,
+    ) -> Result<Point, ViewerError> {
+        self.connection_point_from_surface(connection, location)
+    }
+
+    fn connection_routing_point_from_surface(&self, location: Point) -> Result<Point, ViewerError> {
+        self.connection_routing_point_from_surface(location)
+    }
+
+    fn as_connection_part(&self, part: EditPartId) -> Option<ConnectionPartId> {
+        self.as_connection_part(part)
+    }
+
+    fn replace_selection(&mut self, part: EditPartId) -> Result<(), ViewerError> {
+        self.replace_selection(part).map(|_| ())
+    }
+
+    fn set_focus(&mut self, part: Option<EditPartId>) -> Result<(), ViewerError> {
+        self.set_focus(part).map(|_| ())
+    }
+
+    fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
+        self.remove_overlay_visuals(figures)
+    }
+
+    fn start_connection_creation(
+        &mut self,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, ViewerError> {
+        self.start_connection_creation(request)
+    }
+
+    fn show_connection_feedback(
+        &mut self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        self.show_connection_feedback(plan, request)
+    }
+
+    fn connection_command(
+        &mut self,
+        plan: &mut dyn ConnectionCreation<A>,
+        request: &CreateConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        self.connection_command(plan, request)
+    }
+
+    fn start_connection_reconnection(
+        &mut self,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, ViewerError> {
+        self.start_connection_reconnection(request)
+    }
+
+    fn show_reconnection_feedback(
+        &mut self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Vec<FigureId>, ViewerError> {
+        self.show_reconnection_feedback(plan, request)
+    }
+
+    fn reconnection_command(
+        &mut self,
+        plan: &mut dyn ConnectionReconnection<A>,
+        request: &ReconnectConnectionRequest,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError> {
+        self.reconnection_command(plan, request)
+    }
+
+    fn add_autoexpose_range_reserve(
+        &mut self,
+        location: Point,
+        feedback: &mut Vec<FigureId>,
+    ) -> Result<(), ViewerError> {
+        crate::autoexpose::add_range_reserve(self, location, feedback)
+    }
+}
+
 struct AttachedDirectTextFeedback {
     figures: Vec<FigureId>,
     text_feedback: FigureId,
@@ -136,7 +288,7 @@ impl FigureComponentUpdate for SetDirectTextViewport {
 
 fn direct_text_viewport_error(error: ComponentUpdateError<&'static str>) -> ViewerError {
     match error {
-        ComponentUpdateError::Runtime(error) => error.into(),
+        ComponentUpdateError::Runtime(error) | ComponentUpdateError::Effect(error) => error.into(),
         ComponentUpdateError::WrongFigureType { .. }
         | ComponentUpdateError::RevisionExhausted(_)
         | ComponentUpdateError::Rejected(_) => DirectTextEditError::InvalidFeedbackTarget.into(),
@@ -217,7 +369,7 @@ impl RootLayers {
 }
 
 /// Result of resolving a surface point through the Viewer visual registry.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum ViewerTarget {
     /// The point resolves to an ordinary model EditPart.
     Part(EditPartId),
@@ -227,11 +379,37 @@ pub enum ViewerTarget {
         id: HandleId,
         /// EditPart manipulated by the handle.
         owner: EditPartId,
-        /// Interaction represented by the handle.
-        role: HandleRole,
+        /// Typed interaction represented by the handle.
+        action: HandleAction,
     },
     /// No selectable visual was hit; the Viewer contents is the semantic fallback.
     Contents(EditPartId),
+}
+
+impl PartialEq for ViewerTarget {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Part(left), Self::Part(right))
+            | (Self::Contents(left), Self::Contents(right)) => left == right,
+            (
+                Self::Handle {
+                    id: left_id,
+                    owner: left_owner,
+                    action: left_action,
+                },
+                Self::Handle {
+                    id: right_id,
+                    owner: right_owner,
+                    action: right_action,
+                },
+            ) => {
+                left_id == right_id
+                    && left_owner == right_owner
+                    && left_action.name() == right_action.name()
+            }
+            _ => false,
+        }
+    }
 }
 
 /// Selection operation selected from pointer modifiers.
@@ -260,8 +438,8 @@ impl ViewerInputOutcome {
     }
 
     /// Returns the Editor target resolved at the entry point.
-    pub const fn target(&self) -> ViewerTarget {
-        self.target
+    pub fn target(&self) -> ViewerTarget {
+        self.target.clone()
     }
 
     /// Returns the selection delta when Editor fallback changed selection.
@@ -663,8 +841,8 @@ fn add_layer(
     key: &'static str,
 ) -> Result<FigureId, ViewerError> {
     Ok(runtime
-        .layered_pane(parent)?
-        .add_layer(figure, layer_key(key), LayerPlacement::Last)?)
+        .layers()
+        .add(parent, figure, layer_key(key), LayerPlacement::Last)?)
 }
 
 fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), ViewerError> {
@@ -712,10 +890,16 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         )),
         HANDLE_LAYER,
     )?;
-    let viewport = runtime.add_viewport(viewport_layer, bounds)?;
-    let scalable = runtime.container(viewport.figure_id())?.add(Box::new(
-        ScalableFreeformLayeredPane::new(0.0, 0.0, bounds.width, bounds.height),
-    ))?;
+    let viewport = runtime.viewports().add(viewport_layer, bounds)?;
+    let scalable =
+        runtime
+            .figure(viewport.figure_id())?
+            .add(Box::new(ScalableFreeformLayeredPane::new(
+                0.0,
+                0.0,
+                bounds.width,
+                bounds.height,
+            )))?;
     let grid = add_layer(
         &mut runtime,
         scalable,
@@ -772,16 +956,16 @@ fn create_root_layers(bounds: Rectangle) -> Result<(Runtime, RootLayers), Viewer
         CONNECTION_LAYER,
     )?;
     runtime
-        .container(root)?
+        .figure(root)?
         .set_layout_manager(Box::new(StackLayout::new()))?;
     runtime
-        .container(viewport_layer)?
+        .figure(viewport_layer)?
         .set_layout_manager(Box::new(StackLayout::new()))?;
     runtime
-        .container(scalable)?
+        .figure(scalable)?
         .set_layout_manager(Box::new(StackLayout::new()))?;
     runtime
-        .container(printable)?
+        .figure(printable)?
         .set_layout_manager(Box::new(StackLayout::new()))?;
     Ok((
         runtime,
@@ -941,6 +1125,7 @@ where
     ) -> FramePreparation {
         self.viewer
             .runtime
+            .frames()
             .prepare_submission(surface, capabilities)
     }
 
@@ -953,12 +1138,13 @@ where
     ) -> Result<SubmissionAcknowledgement, SubmissionCompletionError> {
         self.viewer
             .runtime
+            .frames()
             .complete_submission(session_id, frame_id, result)
     }
 
     /// Starts a fresh backend submission session after renderer recreation.
     pub fn reset_backend_session(&mut self) -> Result<BackendSessionId, BackendSessionError> {
-        self.viewer.runtime.reset_backend_session()
+        self.viewer.runtime.frames().reset_backend_session()
     }
 
     /// Resizes the Viewer-owned logical viewport.
@@ -967,22 +1153,30 @@ where
         width: f64,
         height: f64,
     ) -> Result<bool, LogicalViewportResizeError> {
-        self.viewer.runtime.resize_logical_viewport(width, height)
+        self.viewer
+            .runtime
+            .frames()
+            .resize_logical_viewport(width, height)
     }
 
     /// Requests a complete redraw from the Viewer-owned Runtime.
     pub fn request_full_redraw(&mut self) {
-        self.viewer.runtime.request_full_redraw();
+        self.viewer.runtime.frames().request_full_redraw();
+    }
+
+    /// Reports whether the Viewer-owned Runtime still has work to publish.
+    pub fn has_pending_update(&mut self) -> bool {
+        self.viewer.runtime.frames().has_pending_update()
     }
 
     /// Cancels Figure-level pointer capture and gesture state.
     pub fn cancel_gestures(&mut self) {
-        self.viewer.runtime.cancel_gestures();
+        self.viewer.runtime.input().cancel_gestures();
     }
 
     /// Releases Figure-level focus.
     pub fn release_focus(&mut self) -> FocusChange {
-        self.viewer.runtime.release_focus()
+        self.viewer.runtime.focus().release()
     }
 
     /// Registers a packaged font resource.
@@ -990,7 +1184,7 @@ where
         &mut self,
         font: novadraw::render::BuiltinFont,
     ) -> Result<FontId, ResourceError> {
-        self.viewer.runtime.register_builtin_font(font)
+        self.viewer.runtime.resources().register_builtin_font(font)
     }
 
     /// Advances Runtime timers and the active direct-edit caret blink from host time.
@@ -999,7 +1193,7 @@ where
     }
 
     /// Returns the earliest Runtime or direct-edit deadline requiring a host wakeup.
-    pub fn next_wake_deadline(&self) -> Option<MonotonicTime> {
+    pub fn next_wake_deadline(&mut self) -> Option<MonotonicTime> {
         self.viewer.next_wake_deadline_inner()
     }
 }
@@ -1040,7 +1234,7 @@ where
             if connection_routers.contains_key(&key) {
                 return Err(EditPartError::operation("duplicate connection Router key").into());
             }
-            let router = runtime.try_register_connection_router(router)?;
+            let router = runtime.connections().try_register_router(router)?;
             connection_routers.insert(key, router);
         }
         let parts = PartTree::new(root_layers.root(), root_layers.primary());
@@ -1058,7 +1252,7 @@ where
             model_registry: HashMap::new(),
             connection_projections: HashMap::new(),
             connection_routers,
-            visual_registry: HashMap::from([(root_layers.root(), VisualOwner::Part(root_part))]),
+            visual_registry: HashMap::from([(root_layers.root(), VisualOwner::part(root_part))]),
             selection: SelectionModel::new(),
             direct_text_edit: None,
             next_direct_text_edit_session: 1,
@@ -1134,6 +1328,30 @@ where
         &self.runtime
     }
 
+    /// Returns the Runtime state for one projected Connection.
+    pub fn connection_state(
+        &mut self,
+        connection: ConnectionId,
+    ) -> Result<ConnectionStateSnapshot, ConnectionRuntimeError> {
+        self.runtime.connections().state(connection)
+    }
+
+    /// Returns a stable copy of one TextFlow layout.
+    pub fn text_flow_layout(&mut self, figure: FigureId) -> Result<TextLayout, ShapeMutationError> {
+        self.runtime.text().flow_layout(figure).cloned()
+    }
+
+    /// Returns caret geometry in one TextFlow's local coordinate domain.
+    pub fn text_flow_local_caret_geometry(
+        &mut self,
+        figure: FigureId,
+        position: FlowTextPosition,
+    ) -> Result<CaretGeometry, TextFlowQueryError> {
+        self.runtime
+            .text()
+            .flow_local_caret_geometry(figure, position)
+    }
+
     /// Returns the standard root layer identities.
     pub const fn root_layers(&self) -> RootLayers {
         self.root_layers
@@ -1163,7 +1381,7 @@ where
 
     /// Converges pending layout and derived state without exposing Runtime mutation.
     pub fn stabilize_for_query(&mut self) -> Result<(), ViewerError> {
-        Ok(self.runtime.stabilize_for_query()?)
+        Ok(self.runtime.frames().stabilize_for_query()?)
     }
 
     /// Applies style to the standard root Viewport.
@@ -1181,10 +1399,11 @@ where
         &mut self,
         border: impl Border + 'static,
     ) -> Result<bool, ViewerError> {
-        Ok(self
-            .runtime
-            .border(self.root_layers.viewport())?
-            .set(border)?)
+        self.runtime
+            .figure(self.root_layers.viewport())?
+            .update_capability(ReplaceFigureBorder::set(border))
+            .map(|receipt| receipt.changed)
+            .map_err(|error| ViewerError::EditPart(EditPartError::operation(error.to_string())))
     }
 
     /// Registers a connection Router owned by this Viewer.
@@ -1192,7 +1411,7 @@ where
         &mut self,
         router: Box<dyn ConnectionRouter>,
     ) -> Result<RouterId, ConnectionRuntimeError> {
-        self.runtime.try_register_connection_router(router)
+        self.runtime.connections().try_register_router(router)
     }
 
     /// Selects a Router for the standard connection layer.
@@ -1201,7 +1420,8 @@ where
         router: RouterId,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
         self.runtime
-            .set_connection_layer_router(self.root_layers.connection(), router)
+            .connections()
+            .set_layer_router(self.root_layers.connection(), router)
     }
 
     /// Applies a typed component update to a Viewer-owned visual.
@@ -1213,10 +1433,11 @@ where
     where
         U: FigureComponentUpdate,
     {
-        if !matches!(
-            self.visual_registry.get(&figure),
-            Some(VisualOwner::Part(_))
-        ) {
+        if self
+            .visual_registry
+            .get(&figure)
+            .is_none_or(|owner| !owner.is_part())
+        {
             return Err(ComponentUpdateError::Runtime(
                 RuntimeMutationError::UnknownOrDisposedFigure(figure),
             ));
@@ -1237,11 +1458,11 @@ where
             .get(owner)
             .ok_or(ViewerError::InvalidPart(owner))?
             .content_pane();
-        Ok(self.runtime.container(pane)?.add(figure)?)
+        Ok(self.runtime.figure(pane)?.add(figure)?)
     }
 
     fn advance_time_inner(&mut self, now: MonotonicTime) -> Result<bool, ViewerError> {
-        let runtime_changed = self.runtime.advance_time(now)?;
+        let runtime_changed = self.runtime.animation().advance_time(now)?;
         self.current_time = now;
         let Some(deadline) = self.direct_text_blink_deadline else {
             return Ok(runtime_changed);
@@ -1276,9 +1497,9 @@ where
         Ok(runtime_changed || caret_changed)
     }
 
-    fn next_wake_deadline_inner(&self) -> Option<MonotonicTime> {
+    fn next_wake_deadline_inner(&mut self) -> Option<MonotonicTime> {
         match (
-            self.runtime.next_wake_deadline(),
+            self.runtime.animation().next_wake_deadline(),
             self.direct_text_blink_deadline,
         ) {
             (Some(runtime), Some(direct_edit)) => Some(runtime.min(direct_edit)),
@@ -1349,10 +1570,11 @@ where
     /// Sets the root Viewport origin through the Runtime mutation boundary.
     pub fn set_viewport_origin(&mut self, origin: Point) -> Result<bool, ViewerError> {
         let viewport = self.viewport_handle()?;
-        Ok(self
-            .runtime
-            .viewport(viewport.figure_id())?
-            .set_view_location(origin.x(), origin.y())?)
+        Ok(self.runtime.viewports().set_view_location(
+            viewport.figure_id(),
+            origin.x(),
+            origin.y(),
+        )?)
     }
 
     /// Sets content zoom while preserving an optional logical surface anchor.
@@ -1372,8 +1594,8 @@ where
             .transpose()?;
         Ok(self
             .runtime
-            .zoom(&self.zoom_manager)?
-            .set_zoom_at(scale, anchor)?)
+            .viewports()
+            .set_zoom_at(&self.zoom_manager, scale, anchor)?)
     }
 
     pub(crate) fn scroll_viewport_by_surface_delta(
@@ -1389,10 +1611,11 @@ where
         let delta = transform.transform_vector(delta);
         let viewport = self.viewport_handle()?;
         let origin = viewport.view_location();
-        Ok(self
-            .runtime
-            .viewport(viewport.figure_id())?
-            .set_view_location(origin.x() + delta.x(), origin.y() + delta.y())?)
+        Ok(self.runtime.viewports().set_view_location(
+            viewport.figure_id(),
+            origin.x() + delta.x(),
+            origin.y() + delta.y(),
+        )?)
     }
 
     pub(crate) fn viewport_ranges(
@@ -1613,7 +1836,7 @@ where
         let mut bendpoint_index = 0;
         for segment in route.windows(2) {
             sites.push(BendpointHandleSite::new(
-                HandleRole::BendpointCreate(bendpoint_index),
+                HandleAction::new::<BendpointCreateAction>(bendpoint_index),
                 segment[0] + (segment[1] - segment[0]) / 2.0,
             ));
             if bendpoints
@@ -1621,7 +1844,7 @@ where
                 .is_some_and(|bendpoint| bendpoint.approx_eq(segment[1], Precision::DEFAULT))
             {
                 sites.push(BendpointHandleSite::new(
-                    HandleRole::BendpointMove(bendpoint_index),
+                    HandleAction::new::<BendpointMoveAction>(bendpoint_index),
                     segment[1],
                 ));
                 bendpoint_index += 1;
@@ -1649,7 +1872,7 @@ where
 
     /// Returns the direct Editor owner registered for a Figure.
     pub fn visual_owner(&self, figure: FigureId) -> Option<VisualOwner> {
-        self.visual_registry.get(&figure).copied()
+        self.visual_registry.get(&figure).cloned()
     }
 
     /// Resolves a visual or its nearest registered ancestor to an owner part.
@@ -1670,20 +1893,29 @@ where
                 return ViewerTarget::Contents(self.contents());
             };
             match self.visual_owner_or_ancestor(figure) {
-                Some((_, VisualOwner::Handle { id, owner, role })) => {
-                    return ViewerTarget::Handle { id, owner, role };
+                Some((_, owner)) if owner.handle_parts().is_some() => {
+                    let (id, owner, action) = owner
+                        .handle_parts()
+                        .expect("matched handle owner must expose handle parts");
+                    return ViewerTarget::Handle {
+                        id,
+                        owner,
+                        action: action.clone(),
+                    };
                 }
-                Some((_, VisualOwner::Part(part)))
-                    if part != self.root() && part != self.contents() =>
-                {
-                    return ViewerTarget::Part(part);
-                }
-                Some((_, VisualOwner::Part(_))) | None => {
+                Some((_, owner)) if owner.is_part() => {
+                    let part = owner
+                        .owner_part()
+                        .expect("part owner must expose its EditPart");
+                    if part != self.root() && part != self.contents() {
+                        return ViewerTarget::Part(part);
+                    }
                     return ViewerTarget::Contents(self.contents());
                 }
-                Some((owner_figure, VisualOwner::Feedback { .. })) => {
+                Some((owner_figure, _)) => {
                     excluded.push(owner_figure);
                 }
+                None => return ViewerTarget::Contents(self.contents()),
             }
         }
     }
@@ -1696,7 +1928,7 @@ where
         button: MouseButton,
         modifiers: KeyModifiers,
     ) -> Result<ViewerInputOutcome, ViewerError> {
-        let dispatch = self.runtime.dispatch_mouse_pressed(x, y, button);
+        let dispatch = self.runtime.input().dispatch_mouse_pressed(x, y, button);
         let target = self.target_at(x, y);
         let selection = if dispatch.is_handled() || button != MouseButton::Left {
             None
@@ -1739,7 +1971,7 @@ where
         button: MouseButton,
     ) -> ViewerInputOutcome {
         ViewerInputOutcome {
-            dispatch: self.runtime.dispatch_mouse_pressed(x, y, button),
+            dispatch: self.runtime.input().dispatch_mouse_pressed(x, y, button),
             target: self.target_at(x, y),
             selection: None,
         }
@@ -1747,7 +1979,7 @@ where
 
     /// Dispatches pointer movement while preserving any Figure-owned capture.
     pub fn dispatch_mouse_moved(&mut self, x: f64, y: f64) -> DispatchOutcome {
-        self.runtime.dispatch_mouse_moved(x, y)
+        self.runtime.input().dispatch_mouse_moved(x, y)
     }
 
     /// Dispatches pointer release and lets the Figure Runtime clear its capture.
@@ -1757,12 +1989,12 @@ where
         y: f64,
         button: MouseButton,
     ) -> DispatchOutcome {
-        self.runtime.dispatch_mouse_released(x, y, button)
+        self.runtime.input().dispatch_mouse_released(x, y, button)
     }
 
     /// Clears hover and pointer targeting after the pointer leaves the surface.
     pub fn pointer_exited(&mut self) {
-        self.runtime.pointer_exited();
+        self.runtime.input().pointer_exited();
     }
 
     /// Adds and registers an interactive handle in the unscaled handle layer.
@@ -1771,24 +2003,36 @@ where
         owner: EditPartId,
         figure: Box<dyn Figure>,
     ) -> Result<(HandleId, FigureId), ViewerError> {
-        self.add_handle_visual_with_role(owner, HandleRole::Selection, figure)
+        self.add_handle_visual_action(owner, HandleAction::new::<SelectionAction>(()), figure)
     }
 
     /// Adds and registers a typed handle in the unscaled handle layer.
-    pub fn add_handle_visual_with_role(
+    pub fn add_handle_visual_with_action<R>(
         &mut self,
         owner: EditPartId,
-        role: HandleRole,
+        payload: R::Payload,
+        figure: Box<dyn Figure>,
+    ) -> Result<(HandleId, FigureId), ViewerError>
+    where
+        R: HandleActionProtocol,
+    {
+        self.add_handle_visual_action(owner, HandleAction::new::<R>(payload), figure)
+    }
+
+    fn add_handle_visual_action(
+        &mut self,
+        owner: EditPartId,
+        action: HandleAction,
         figure: Box<dyn Figure>,
     ) -> Result<(HandleId, FigureId), ViewerError> {
         self.validate_selectable(owner)?;
         let figure = self
             .runtime
-            .container(self.root_layers.handles())?
+            .figure(self.root_layers.handles())?
             .add(figure)?;
         let id = HandleId::new(self.namespace());
         self.visual_registry
-            .insert(figure, VisualOwner::Handle { id, owner, role });
+            .insert(figure, VisualOwner::handle(id, owner, action));
         Ok((id, figure))
     }
 
@@ -1807,10 +2051,10 @@ where
         } else {
             self.root_layers.feedback()
         };
-        let figure = self.runtime.container(parent)?.add(figure)?;
+        let figure = self.runtime.figure(parent)?.add(figure)?;
         let id = FeedbackId::new(self.namespace());
         self.visual_registry
-            .insert(figure, VisualOwner::Feedback { id, owner });
+            .insert(figure, VisualOwner::feedback(id, owner));
         Ok((id, figure))
     }
 
@@ -1835,23 +2079,24 @@ where
 
     /// Removes a registered handle or feedback subtree.
     pub fn remove_overlay_visual(&mut self, figure: FigureId) -> Result<bool, ViewerError> {
-        match self.visual_registry.get(&figure).copied() {
-            Some(VisualOwner::Handle { .. } | VisualOwner::Feedback { .. }) => {
+        match self.visual_registry.get(&figure) {
+            Some(owner) if owner.is_overlay() => {
                 self.runtime.dispose_subtree(figure)?;
                 self.visual_registry.remove(&figure);
                 Ok(true)
             }
-            Some(VisualOwner::Part(_)) | None => Ok(false),
+            Some(_) | None => Ok(false),
         }
     }
 
     /// Removes a complete overlay batch after validating ownership up front.
     pub fn remove_overlay_visuals(&mut self, figures: &[FigureId]) -> Result<(), ViewerError> {
         for figure in figures.iter().copied() {
-            if !matches!(
-                self.visual_registry.get(&figure),
-                Some(VisualOwner::Handle { .. } | VisualOwner::Feedback { .. })
-            ) || !self.runtime.tree().is_attached(figure)
+            if self
+                .visual_registry
+                .get(&figure)
+                .is_none_or(|owner| !owner.is_overlay())
+                || !self.runtime.tree().is_attached(figure)
             {
                 return Err(ViewerError::InconsistentState);
             }
@@ -1897,16 +2142,20 @@ where
 
     pub(crate) fn start_direct_text_edit(
         &mut self,
+        metadata: &RequestMetadata,
         request: &DirectTextEditRequest,
     ) -> Result<DirectTextEditSessionId, ViewerError>
     where
         A: 'static,
     {
-        self.with_extension_fault_boundary(|viewer| viewer.start_direct_text_edit_inner(request))
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.start_direct_text_edit_inner(metadata, request)
+        })
     }
 
     fn start_direct_text_edit_inner(
         &mut self,
+        metadata: &RequestMetadata,
         request: &DirectTextEditRequest,
     ) -> Result<DirectTextEditSessionId, ViewerError>
     where
@@ -1918,15 +2167,10 @@ where
         }
         self.validate_selectable(request.source())
             .map_err(|_| DirectTextEditError::ForeignOrRetiredPart)?;
-        let host = self.policy_host(request.source())?;
-        let plan = self
-            .policies
-            .roles_mut(request.source())
-            .and_then(|roles| roles.get_mut(&PolicyRole::DirectTextEdit))
-            .map(|policy| policy.start_direct_text_edit(host, request, &self.model))
-            .transpose()?
-            .flatten()
-            .ok_or(DirectTextEditError::UnsupportedFeature)?;
+        let mut plans = self
+            .dispatch_request_inner::<StartDirectTextEdit>(metadata, request)?
+            .into_contributions();
+        let plan = plans.pop().ok_or(DirectTextEditError::UnsupportedFeature)?;
         let descriptor = plan.descriptor().clone();
         if descriptor.feature() != request.feature() {
             return Err(DirectTextEditError::UnsupportedFeature.into());
@@ -1999,7 +2243,8 @@ where
             .ok_or(DirectTextEditError::NoActiveSession)?;
         let position = self
             .runtime
-            .text_flow_hit_test(active.text_feedback, point)
+            .text()
+            .flow_hit_test(active.text_feedback, point)
             .map_err(|_| DirectTextEditError::InvalidTextPosition)?;
         let mut state = active.state.clone();
         state.set_selection(if extend {
@@ -2088,19 +2333,20 @@ where
     }
 
     /// Returns the active draft caret rectangle in logical surface coordinates.
-    pub fn direct_text_caret_geometry(&self) -> Result<CaretGeometry, ViewerError> {
+    pub fn direct_text_caret_geometry(&mut self) -> Result<CaretGeometry, ViewerError> {
         let active = self
             .direct_text_edit
             .as_ref()
             .ok_or(DirectTextEditError::NoActiveSession)?;
         let caret = active.state.caret_position()?;
         self.runtime
-            .text_flow_caret_geometry(active.text_feedback, caret)
+            .text()
+            .flow_caret_geometry(active.text_feedback, caret)
             .map_err(|_| DirectTextEditError::InvalidTextPosition.into())
     }
 
     /// Returns active draft selection quads in logical surface coordinates.
-    pub fn direct_text_selection_geometry(&self) -> Result<Vec<SelectionQuad>, ViewerError> {
+    pub fn direct_text_selection_geometry(&mut self) -> Result<Vec<SelectionQuad>, ViewerError> {
         let active = self
             .direct_text_edit
             .as_ref()
@@ -2108,7 +2354,8 @@ where
         let viewport = self.direct_text_viewport_in_surface(active.text_feedback)?;
         let selection = self
             .runtime
-            .text_flow_selection_geometry(active.text_feedback, active.state.selection())
+            .text()
+            .flow_selection_geometry(active.text_feedback, active.state.selection())
             .map_err(|_| DirectTextEditError::InvalidTextPosition)?
             .into_iter()
             .filter_map(|quad| {
@@ -2122,7 +2369,7 @@ where
 
     /// Returns the surface bounds for one UTF-8 range in the active draft.
     pub fn direct_text_range_bounds(
-        &self,
+        &mut self,
         range: std::ops::Range<usize>,
     ) -> Result<Rectangle, ViewerError> {
         let active = self
@@ -2136,7 +2383,8 @@ where
         let end = position_from_offset(active.state.draft(), range.end)?;
         let bounds = self
             .runtime
-            .text_flow_selection_geometry(active.text_feedback, FlowTextRange::new(start, end))
+            .text()
+            .flow_selection_geometry(active.text_feedback, FlowTextRange::new(start, end))
             .map_err(|_| DirectTextEditError::InvalidTextPosition)?
             .into_iter()
             .map(|quad| quad.bounds())
@@ -2147,7 +2395,8 @@ where
 
         let caret = self
             .runtime
-            .text_flow_caret_geometry(active.text_feedback, start)
+            .text()
+            .flow_caret_geometry(active.text_feedback, start)
             .map_err(|_| DirectTextEditError::InvalidTextPosition)?
             .bounds();
         Ok(Rectangle::new(
@@ -2259,7 +2508,8 @@ where
             .ok_or(DirectTextEditError::NoActiveSession)?;
         let position = self
             .runtime
-            .text_flow_move_position(
+            .text()
+            .flow_move_position(
                 active.text_feedback,
                 active.state.selection().focus(),
                 movement,
@@ -2291,7 +2541,8 @@ where
         } else {
             let moved = self
                 .runtime
-                .text_flow_move_position(
+                .text()
+                .flow_move_position(
                     active.text_feedback,
                     state.selection().focus(),
                     deletion.movement(),
@@ -2508,8 +2759,8 @@ where
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(direct_text_viewport_error(error));
         }
-        self.runtime.stabilize_for_query()?;
-        if self.runtime.text_flow_layout(text_feedback).is_err() {
+        self.runtime.frames().stabilize_for_query()?;
+        if self.runtime.text().flow_layout(text_feedback).is_err() {
             let _ = self.remove_direct_text_feedback(&figures);
             return Err(DirectTextEditError::InvalidFeedbackTarget.into());
         }
@@ -2530,7 +2781,8 @@ where
         }
         let local_caret = match self
             .runtime
-            .text_flow_local_caret_geometry(text_feedback, caret)
+            .text()
+            .flow_local_caret_geometry(text_feedback, caret)
         {
             Ok(caret) => caret.bounds(),
             Err(_) => {
@@ -2540,7 +2792,8 @@ where
         };
         let content_width = self
             .runtime
-            .text_flow_layout(text_feedback)
+            .text()
+            .flow_layout(text_feedback)
             .map(|layout| f64::from(layout.full_width()))
             .map_err(|_| DirectTextEditError::InvalidFeedbackTarget)?;
         let natural_caret = Rectangle::new(
@@ -2578,7 +2831,11 @@ where
         };
         let mut edit_viewport = Rectangle::new(0.0, 0.0, text_bounds.width, text_bounds.height);
         edit_viewport.transform(transform);
-        let area = match self.runtime.text_flow_caret_geometry(text_feedback, caret) {
+        let area = match self
+            .runtime
+            .text()
+            .flow_caret_geometry(text_feedback, caret)
+        {
             Ok(caret) => {
                 let bounds = caret.bounds();
                 Rectangle::new(
@@ -2606,7 +2863,8 @@ where
             Some(_) => Vec::new(),
             None => match self
                 .runtime
-                .text_flow_selection_geometry(text_feedback, state.selection())
+                .text()
+                .flow_selection_geometry(text_feedback, state.selection())
             {
                 Ok(selection) => selection,
                 Err(_) => {
@@ -2619,7 +2877,8 @@ where
             Some(composition) => {
                 match self
                     .runtime
-                    .text_flow_selection_geometry(text_feedback, composition.range())
+                    .text()
+                    .flow_selection_geometry(text_feedback, composition.range())
                 {
                     Ok(preedit) => preedit,
                     Err(_) => {
@@ -2769,7 +3028,7 @@ where
         {
             return None;
         }
-        if let Some(owner) = self.visual_registry.get(&figure).copied() {
+        if let Some(owner) = self.visual_registry.get(&figure).cloned() {
             return Some((figure, owner));
         }
         self.runtime
@@ -2779,43 +3038,49 @@ where
             .find_map(|ancestor| {
                 self.visual_registry
                     .get(&ancestor)
-                    .copied()
+                    .cloned()
                     .map(|owner| (ancestor, owner))
             })
     }
 
-    fn resolve_policy_target(
+    fn resolve_policy_target<R>(
         &mut self,
         candidate: EditPartId,
-        request: &EditorRequest,
-    ) -> Result<Option<EditPartId>, ViewerError> {
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<Option<EditPartId>, ViewerError>
+    where
+        R: RequestProtocol<A>,
+    {
         self.validate_selectable(candidate)?;
         let host = self.policy_host(candidate)?;
-        let target = self.policies.roles_mut(candidate).and_then(|roles| {
-            roles
-                .values()
-                .find_map(|policy| policy.target(host, request))
-        });
+        let target = self
+            .policies
+            .resolve_target::<R>(host, metadata, payload, &self.model)?;
         if let Some(target) = target {
             self.validate_selectable(target)?;
         }
         Ok(target)
     }
 
-    fn resolve_policy_targets(
+    fn resolve_policy_targets<R>(
         &mut self,
-        request: &EditorRequest,
-    ) -> Result<Vec<EditPartId>, ViewerError> {
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<Vec<EditPartId>, ViewerError>
+    where
+        R: RequestProtocol<A>,
+    {
         let mut seen_sources = HashSet::new();
         let mut seen_targets = HashSet::new();
         let mut targets = Vec::new();
-        for &source in request.source_parts() {
+        for &source in metadata.source_parts() {
             if !seen_sources.insert(source) {
                 return Err(
                     PolicyError::operation("request contains a duplicate source part").into(),
                 );
             }
-            if let Some(target) = self.resolve_policy_target(source, request)?
+            if let Some(target) = self.resolve_policy_target::<R>(source, metadata, payload)?
                 && seen_targets.insert(target)
             {
                 targets.push(target);
@@ -2824,43 +3089,104 @@ where
         Ok(targets)
     }
 
-    /// Resolves deterministic policy command contributions for a request.
-    pub fn command_for_request(
+    /// Dispatches one typed request through the installed policy registry.
+    pub fn dispatch_request<R>(
         &mut self,
-        request: &EditorRequest,
-    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError>
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<RequestResolution<R::Contribution>, ViewerError>
     where
         A: 'static,
+        R: RequestProtocol<A>,
     {
-        self.with_extension_fault_boundary(|viewer| viewer.command_for_request_inner(request))
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.dispatch_request_inner::<R>(metadata, payload)
+        })
     }
 
-    fn command_for_request_inner(
+    fn dispatch_request_inner<R>(
         &mut self,
-        request: &EditorRequest,
-    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError>
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<RequestResolution<R::Contribution>, ViewerError>
     where
         A: 'static,
+        R: RequestProtocol<A>,
     {
-        let mut commands = Vec::new();
-        for target in self.resolve_policy_targets(request)? {
+        let mut contributions = Vec::new();
+        for target in self.resolve_policy_targets::<R>(metadata, payload)? {
             let host = self.policy_host(target)?;
-            let Some(roles) = self.policies.roles_mut(target) else {
-                continue;
-            };
-            for policy in roles.values_mut() {
-                if policy.understands(request)
-                    && let Some(command) = policy.command(host, request, &self.model)?
-                {
-                    commands.push(command);
+            contributions.extend(self.policies.contributions::<R>(
+                host,
+                metadata,
+                payload,
+                &self.model,
+            )?);
+        }
+        Ok(R::reduce(contributions)?)
+    }
+
+    fn dispatch_request_erased_inner(
+        &mut self,
+        key: ErasedRequestKey,
+        metadata: &RequestMetadata,
+        payload: &dyn Any,
+    ) -> Result<ErasedRequestContributions, ViewerError> {
+        let mut seen_sources = HashSet::new();
+        let mut seen_targets = HashSet::new();
+        let mut targets = Vec::new();
+        for &source in metadata.source_parts() {
+            if !seen_sources.insert(source) {
+                return Err(
+                    PolicyError::operation("request contains a duplicate source part").into(),
+                );
+            }
+            self.validate_selectable(source)?;
+            let host = self.policy_host(source)?;
+            let target =
+                self.policies
+                    .resolve_target_erased(host, key, metadata, payload, &self.model)?;
+            if let Some(target) = target {
+                self.validate_selectable(target)?;
+                if seen_targets.insert(target) {
+                    targets.push(target);
                 }
             }
         }
+        let mut contributions = Vec::new();
+        for target in targets {
+            let host = self.policy_host(target)?;
+            contributions.extend(
+                self.policies
+                    .contributions_erased(host, key, metadata, payload, &self.model)?
+                    .into_iter()
+                    .map(|contribution| (target, contribution)),
+            );
+        }
+        Ok(contributions)
+    }
+
+    /// Resolves command contributions for one typed request.
+    pub fn command_for<R>(
+        &mut self,
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<Option<Box<dyn Command<A>>>, ViewerError>
+    where
+        A: 'static,
+        R: RequestProtocol<A, Contribution = EditingContribution<A>>,
+    {
+        let mut commands = self
+            .dispatch_request::<R>(metadata, payload)?
+            .into_contributions()
+            .into_iter()
+            .filter_map(|contribution| contribution.into_parts().0)
+            .collect::<Vec<_>>();
         Ok(match commands.len() {
             0 => None,
             1 => commands.pop(),
             _ => {
-                let mut compound = CompoundCommand::new(request.label());
+                let mut compound = CompoundCommand::new(R::key().name());
                 for command in commands {
                     compound.push(command);
                 }
@@ -2869,33 +3195,44 @@ where
         })
     }
 
-    /// Resolves and installs policy feedback in deterministic role order.
-    pub fn show_feedback_for_request(
+    /// Resolves and installs feedback contributions for one typed request.
+    pub fn show_feedback<R>(
         &mut self,
-        request: &EditorRequest,
-    ) -> Result<Vec<FigureId>, ViewerError> {
-        self.with_extension_fault_boundary(|viewer| viewer.show_feedback_for_request_inner(request))
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<Vec<FigureId>, ViewerError>
+    where
+        A: 'static,
+        R: RequestProtocol<A, Contribution = EditingContribution<A>>,
+    {
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.show_feedback_inner::<R>(metadata, payload)
+        })
     }
 
-    fn show_feedback_for_request_inner(
+    fn show_feedback_inner<R>(
         &mut self,
-        request: &EditorRequest,
-    ) -> Result<Vec<FigureId>, ViewerError> {
+        metadata: &RequestMetadata,
+        payload: &R::Payload,
+    ) -> Result<Vec<FigureId>, ViewerError>
+    where
+        A: 'static,
+        R: RequestProtocol<A, Contribution = EditingContribution<A>>,
+    {
         let mut contributions = Vec::new();
-        for target in self.resolve_policy_targets(request)? {
+        for target in self.resolve_policy_targets::<R>(metadata, payload)? {
             let host = self.policy_host(target)?;
-            let Some(roles) = self.policies.roles_mut(target) else {
-                continue;
-            };
-            for policy in roles.values_mut() {
-                if policy.understands(request) {
-                    contributions.extend(
-                        policy
-                            .feedback(host, request, &self.model)?
-                            .into_iter()
-                            .map(|feedback| (target, feedback)),
-                    );
-                }
+            for contribution in
+                self.policies
+                    .contributions::<R>(host, metadata, payload, &self.model)?
+            {
+                contributions.extend(
+                    contribution
+                        .into_parts()
+                        .1
+                        .into_iter()
+                        .map(|feedback| (target, feedback)),
+                );
             }
         }
         self.add_feedback_batch(
@@ -2926,6 +3263,10 @@ where
         self.faulted = true;
     }
 
+    pub(crate) fn fault_extension(&mut self) {
+        self.mark_faulted();
+    }
+
     /// Resolves one unambiguous source policy into a connection-creation plan.
     pub fn start_connection_creation(
         &mut self,
@@ -2934,37 +3275,25 @@ where
     where
         A: 'static,
     {
-        self.with_extension_fault_boundary(|viewer| viewer.start_connection_creation_inner(request))
+        let metadata = RequestMetadata::new(request.revision(), vec![request.source()]);
+        self.with_extension_fault_boundary(|viewer| {
+            viewer.start_connection_creation_inner(&metadata, request)
+        })
     }
 
     fn start_connection_creation_inner(
         &mut self,
+        metadata: &RequestMetadata,
         request: &CreateConnectionRequest,
     ) -> Result<Option<Box<dyn ConnectionCreation<A>>>, ViewerError>
     where
         A: 'static,
     {
-        let source = self.connection_endpoint_host(request.source())?;
-        let editor_request = EditorRequest::CreateConnection(request.clone());
-        let Some(roles) = self.policies.roles_mut(request.source()) else {
-            return Ok(None);
-        };
-        let mut accepted = None;
-        for policy in roles.values_mut() {
-            if !policy.understands(&editor_request) {
-                continue;
-            }
-            if let Some(plan) = policy.start_connection(source, request, &self.model)? {
-                if accepted.is_some() {
-                    return Err(PolicyError::operation(
-                        "multiple policies accepted connection creation",
-                    )
-                    .into());
-                }
-                accepted = Some(plan);
-            }
-        }
-        Ok(accepted)
+        self.connection_endpoint_host(request.source())?;
+        Ok(self
+            .dispatch_request_inner::<CreateConnection>(metadata, request)?
+            .into_contributions()
+            .pop())
     }
 
     /// Replaces connection-creation feedback for the latest target candidate.
@@ -3033,39 +3362,27 @@ where
     where
         A: 'static,
     {
+        let metadata =
+            RequestMetadata::new(request.revision(), vec![request.connection().edit_part()]);
         self.with_extension_fault_boundary(|viewer| {
-            viewer.start_connection_reconnection_inner(request)
+            viewer.start_connection_reconnection_inner(&metadata, request)
         })
     }
 
     fn start_connection_reconnection_inner(
         &mut self,
+        metadata: &RequestMetadata,
         request: &ReconnectConnectionRequest,
     ) -> Result<Option<Box<dyn ConnectionReconnection<A>>>, ViewerError>
     where
         A: 'static,
     {
         let connection = request.connection().edit_part();
-        let host = self.policy_host(connection)?;
-        let editor_request = EditorRequest::ReconnectConnection(request.clone());
-        let Some(roles) = self.policies.roles_mut(connection) else {
-            return Ok(None);
-        };
-        let mut accepted = None;
-        for policy in roles.values_mut() {
-            if !policy.understands(&editor_request) {
-                continue;
-            }
-            if let Some(plan) = policy.start_reconnection(host, request, &self.model)? {
-                if accepted.is_some() {
-                    return Err(
-                        PolicyError::operation("multiple policies accepted reconnection").into(),
-                    );
-                }
-                accepted = Some(plan);
-            }
-        }
-        Ok(accepted)
+        self.policy_host(connection)?;
+        Ok(self
+            .dispatch_request_inner::<ReconnectConnection>(metadata, request)?
+            .into_contributions()
+            .pop())
     }
 
     /// Replaces reconnect feedback for the latest endpoint candidate.
@@ -3169,7 +3486,8 @@ where
             };
         let metadata = self
             .runtime
-            .preview_connection_endpoints(
+            .connections()
+            .preview_endpoints(
                 source_anchor.as_ref(),
                 target_anchor.as_ref(),
                 routing_space,

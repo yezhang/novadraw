@@ -4,7 +4,6 @@ use support::record_full_submission;
 
 use std::sync::Arc;
 
-use novadraw::Color;
 use novadraw::figure::{
     Direction, ShapeMutationError,
     border::{
@@ -12,20 +11,27 @@ use novadraw::figure::{
     },
 };
 use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
+use novadraw::graphics::Color;
 use novadraw::graphics::{GraphicsError, Paint, PaintContext};
 use novadraw::render::{
     CommandRecorder, DEFAULT_STROKE_MITER_LIMIT, LineJoin, command::RenderCommandKind,
 };
-use novadraw::runtime::RuntimeMutationError;
+use novadraw::runtime::{
+    ClearPolylinePoints, ComponentUpdateError, InsertPolylinePoint, RemovePolylinePoint,
+    ReplaceFigureBorder, ReplacePolylinePoints, SetPolylineLineJoin, SetPolylinePoint,
+    SetPolylineStrokeWidth, SetRoundedRectangleCorners, SetTriangleDirection,
+};
 use novadraw::{
-    Figure, FigureStyle, MeasureConstraints, PolygonFigure, PolylineFigure, RectangleFigure,
-    RoundedRectangleFigure, Runtime, TriangleFigure,
+    figure::Figure, figure::FigureStyle, figure::MeasureConstraints, figure::PolygonFigure,
+    figure::PolylineFigure, figure::RectangleFigure, figure::RoundedRectangleFigure,
+    figure::TriangleFigure, runtime::Runtime,
 };
 
 #[test]
 fn ellipse_fill_and_outline_share_optimized_bounds_and_preserve_stroke_width() {
-    let ellipse = novadraw::EllipseFigure::new_with_color(0.0, 0.0, 100.0, 60.0, Color::WHITE)
-        .with_stroke(Color::BLACK, 4.0);
+    let ellipse =
+        novadraw::figure::EllipseFigure::new_with_color(0.0, 0.0, 100.0, 60.0, Color::WHITE)
+            .with_stroke(Color::BLACK, 4.0);
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
@@ -271,7 +277,7 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
         .expect("valid Runtime mutation");
     let line = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(PolylineFigure::from_points(vec![
             Point::new(10.0, 20.0),
@@ -280,14 +286,15 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         .expect("valid Runtime mutation");
 
     assert_eq!(
-        runtime.point_list_points(line).unwrap(),
+        runtime.tree().point_list_points(line).unwrap(),
         vec![Point::new(10.0, 20.0), Point::new(110.0, 20.0)]
     );
     assert!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .set_point(1, Point::new(210.0, 50.0))
+            .update_component(SetPolylinePoint::new(1, Point::new(210.0, 50.0)))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_eq!(
@@ -295,43 +302,72 @@ fn runtime_point_mutations_commit_bounds_points_damage_and_notification_atomical
         Some(Rectangle::new(6.0, 16.0, 208.0, 38.0))
     );
     assert_eq!(
-        runtime.point_list_points(line).unwrap(),
+        runtime.tree().point_list_points(line).unwrap(),
         vec![Point::new(10.0, 20.0), Point::new(210.0, 50.0)]
     );
     assert!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .insert_point(1, Point::new(80.0, 70.0))
+            .update_component(InsertPolylinePoint::new(1, Point::new(80.0, 70.0)))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert!(runtime.point_list(line).unwrap().remove_point(1).unwrap());
     assert!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .replace_points(vec![Point::new(20.0, 30.0), Point::new(120.0, 80.0)])
+            .update_component(RemovePolylinePoint::new(1))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert!(runtime.has_pending_update());
-    let stable_points = runtime.point_list_points(line).unwrap();
+    assert!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .update_component(ReplacePolylinePoints::new(vec![
+                Point::new(20.0, 30.0),
+                Point::new(120.0, 80.0),
+            ]))
+            .map(|receipt| receipt.changed)
+            .unwrap()
+    );
+    assert!(runtime.frames().has_pending_update());
+    let stable_points = runtime.tree().point_list_points(line).unwrap();
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
-        runtime.point_list(line).unwrap().remove_point(9),
-        Err(ShapeMutationError::PointIndexOutOfRange { index: 9, len: 2 })
+        runtime
+            .figure(line)
+            .unwrap()
+            .update_component(RemovePolylinePoint::new(9)),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::PointIndexOutOfRange { index: 9, len: 2 }
+        ))
     );
     assert_eq!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .replace_points(vec![Point::new(f64::NAN, 0.0)]),
-        Err(ShapeMutationError::NonFiniteGeometry)
+            .update_component(ReplacePolylinePoints::new(vec![Point::new(f64::NAN, 0.0)])),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::NonFiniteGeometry
+        ))
     );
-    assert_eq!(runtime.point_list_points(line).unwrap(), stable_points);
+    assert_eq!(
+        runtime.tree().point_list_points(line).unwrap(),
+        stable_points
+    );
     assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);
 
-    assert!(runtime.point_list(line).unwrap().clear_points().unwrap());
-    assert!(runtime.point_list_points(line).unwrap().is_empty());
+    assert!(
+        runtime
+            .figure(line)
+            .unwrap()
+            .update_component(ClearPolylinePoints)
+            .map(|receipt| receipt.changed)
+            .unwrap()
+    );
+    assert!(runtime.tree().point_list_points(line).unwrap().is_empty());
     assert_eq!(runtime.tree().figure_bounds(line), Some(Rectangle::ZERO));
 }
 
@@ -342,7 +378,7 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let line = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(PolylineFigure::from_points(vec![
             Point::new(20.0, 30.0),
@@ -357,9 +393,10 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .set_line_join(LineJoin::Bevel)
+            .update_component(SetPolylineLineJoin::new(LineJoin::Bevel))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_eq!(
@@ -368,9 +405,10 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
     );
     assert!(
         runtime
-            .point_list(line)
+            .figure(line)
             .unwrap()
-            .set_stroke_width(6.0)
+            .update_component(SetPolylineStrokeWidth::new(6.0))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_eq!(
@@ -380,12 +418,22 @@ fn runtime_point_list_stroke_style_renormalizes_geometry_atomically() {
 
     let stable_bounds = runtime.tree().figure_bounds(line);
     assert_eq!(
-        runtime.point_list(line).unwrap().set_stroke_width(f64::NAN),
-        Err(ShapeMutationError::NonFiniteGeometry)
+        runtime
+            .figure(line)
+            .unwrap()
+            .update_component(SetPolylineStrokeWidth::new(f64::NAN)),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::NonFiniteGeometry
+        ))
     );
     assert_eq!(
-        runtime.point_list(line).unwrap().set_stroke_width(-1.0),
-        Err(ShapeMutationError::NegativeMetric)
+        runtime
+            .figure(line)
+            .unwrap()
+            .update_component(SetPolylineStrokeWidth::new(-1.0)),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::NegativeMetric
+        ))
     );
     assert_eq!(runtime.tree().figure_bounds(line), stable_bounds);
 }
@@ -483,14 +531,14 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .expect("valid Runtime mutation");
     let rounded = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RoundedRectangleFigure::new(
             10.0, 10.0, 100.0, 60.0, 8.0,
         )))
         .expect("valid Runtime mutation");
     let triangle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(TriangleFigure::new(Rectangle::new(
             150.0, 20.0, 40.0, 40.0,
@@ -500,47 +548,53 @@ fn runtime_border_corner_and_direction_mutations_use_typed_transactions() {
     let shared_border: Arc<dyn Border> = Arc::new(LineBorder::new(Color::BLACK, 3.0));
     assert!(
         runtime
-            .border(rounded)
+            .figure(rounded)
             .unwrap()
-            .replace(Some(Arc::clone(&shared_border)))
+            .update_capability(ReplaceFigureBorder::new(Some(Arc::clone(&shared_border))))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_eq!(runtime.tree().insets(rounded), Some(Insets::uniform(3.0)));
     assert!(
         runtime
-            .rounded_rectangle(rounded)
+            .figure(rounded)
             .unwrap()
-            .set_corner_dimensions(Dimension::new(24.0, 12.0))
+            .update_component(SetRoundedRectangleCorners::new(Dimension::new(24.0, 12.0)))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert!(
         runtime
-            .triangle(triangle)
+            .figure(triangle)
             .unwrap()
-            .set_direction(Direction::West)
+            .update_component(SetTriangleDirection::new(Direction::West))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
-    assert!(runtime.has_pending_update());
+    assert!(runtime.frames().has_pending_update());
 
     assert_eq!(
         runtime
-            .rounded_rectangle(rounded)
+            .figure(rounded)
             .unwrap()
-            .set_corner_dimensions(Dimension::new(-1.0, 2.0)),
-        Err(ShapeMutationError::NegativeMetric)
+            .update_component(SetRoundedRectangleCorners::new(Dimension::new(-1.0, 2.0))),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::NegativeMetric
+        ))
     );
     assert!(matches!(
-        runtime.triangle(rounded),
-        Err(RuntimeMutationError::WrongCapability {
-            figure,
-            capability: "triangle mutation",
-        }) if figure == rounded
+        runtime
+            .figure(rounded)
+            .unwrap()
+            .update_component(SetTriangleDirection::new(Direction::West)),
+        Err(ComponentUpdateError::WrongFigureType { figure, .. }) if figure == rounded
     ));
     assert!(
         !runtime
-            .border(rounded)
+            .figure(rounded)
             .unwrap()
-            .replace(Some(shared_border))
+            .update_capability(ReplaceFigureBorder::new(Some(shared_border)))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
 }
@@ -552,7 +606,7 @@ fn reusable_shapes_consume_runtime_figure_style_as_color_truth() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
         .expect("valid Runtime mutation");
     let rectangle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new_with_color(20.0, 20.0, 80.0, 50.0, Color::RED)
@@ -596,7 +650,7 @@ fn border_preferred_size_and_effective_opacity_join_figure_protocol() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 120.0)))
         .expect("valid Runtime mutation");
     let bordered = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             RectangleFigure::new(10.0, 10.0, 100.0, 50.0)

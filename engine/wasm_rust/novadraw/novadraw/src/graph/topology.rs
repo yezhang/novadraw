@@ -101,7 +101,7 @@ impl FigureTree {
         true
     }
 
-    pub(super) fn validate_attachment(
+    pub(crate) fn validate_attachment(
         &self,
         parent_id: FigureId,
         child_id: FigureId,

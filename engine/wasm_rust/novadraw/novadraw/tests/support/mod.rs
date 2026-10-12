@@ -1,8 +1,8 @@
 use novadraw::render::{BackendCapabilities, RenderDisposition, RenderSubmission, SurfaceInfo};
-use novadraw::{FramePreparation, Runtime};
+use novadraw::{runtime::FramePreparation, runtime::Runtime};
 
 pub fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: 2_048.0,
             logical_height: 2_048.0,
@@ -18,6 +18,7 @@ pub fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission
         return None;
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -28,6 +29,6 @@ pub fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission
 }
 
 pub fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
-    runtime.request_full_redraw();
+    runtime.frames().request_full_redraw();
     prepare_next_submission(runtime).expect("full redraw must produce a submission")
 }

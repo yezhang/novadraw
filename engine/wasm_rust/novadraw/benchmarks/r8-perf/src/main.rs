@@ -14,8 +14,9 @@ use novadraw::render::{
     BackendCapabilities, BuiltinFont, RenderDisposition, RenderSubmission, SurfaceInfo,
 };
 use novadraw::{
-    Color, Dimension, FigureId, FigureStyle, FigureTree, FramePreparation, LabelFigure, Rectangle,
-    RectangleFigure, Runtime, TextFlowFigure,
+    figure::FigureStyle, figure::LabelFigure, figure::RectangleFigure, figure::TextFlowFigure,
+    geometry::Dimension, geometry::Rectangle, graphics::Color, runtime::FramePreparation,
+    runtime::Runtime, tree::FigureId, tree::FigureTree,
 };
 use serde::{Deserialize, Serialize};
 
@@ -407,12 +408,14 @@ fn benchmark_surface() -> SurfaceInfo {
 }
 
 fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
-    let FramePreparation::Ready(submission) =
-        runtime.prepare_submission(benchmark_surface(), BackendCapabilities::RETAINED_PARTIAL)
+    let FramePreparation::Ready(submission) = runtime
+        .frames()
+        .prepare_submission(benchmark_surface(), BackendCapabilities::RETAINED_PARTIAL)
     else {
         return None;
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -423,7 +426,7 @@ fn prepare_next_submission(runtime: &mut Runtime) -> Option<RenderSubmission> {
 }
 
 fn record_full_submission(runtime: &mut Runtime) -> RenderSubmission {
-    runtime.request_full_redraw();
+    runtime.frames().request_full_redraw();
     prepare_next_submission(runtime).expect("full redraw must produce a submission")
 }
 
@@ -514,9 +517,12 @@ fn benchmark_label_refresh(cli: &Cli, deep: bool) -> ScenarioReport {
         ),
         || build_label_runtime(deep),
         |runtime| {
-            let before = runtime.text_layout_stats();
-            runtime.refresh_label_layouts().expect("refresh labels");
-            let after = runtime.text_layout_stats();
+            let before = runtime.text().layout_stats();
+            runtime
+                .text()
+                .refresh_label_layouts()
+                .expect("refresh labels");
+            let after = runtime.text().layout_stats();
             ScenarioOutput::from_pairs([
                 (
                     "label_style_nodes_visited",
@@ -554,9 +560,9 @@ fn benchmark_text_flow(cli: &Cli, deep: bool) -> ScenarioReport {
         ),
         || build_text_flow_runtime(deep),
         |runtime| {
-            let before = runtime.text_layout_stats();
+            let before = runtime.text().layout_stats();
             let commands = record_full_submission(runtime).commands.len();
-            let after = runtime.text_layout_stats();
+            let after = runtime.text().layout_stats();
             ScenarioOutput::from_pairs([
                 ("render_commands", usize_to_u64(commands)),
                 (
@@ -591,14 +597,15 @@ fn benchmark_independent_routing(cli: &Cli) -> ScenarioReport {
         ),
         || build_connection_runtime(INDEPENDENT_CONNECTIONS, false),
         |workload| {
-            let before = workload.runtime.connection_routing_stats();
+            let before = workload.runtime.connections().routing_stats();
             for connection in &workload.connections {
                 workload
                     .runtime
-                    .resolve_connection_route(*connection, workload.space)
+                    .connections()
+                    .resolve_route(*connection, workload.space)
                     .expect("resolve independent connection");
             }
-            let after = workload.runtime.connection_routing_stats();
+            let after = workload.runtime.connections().routing_stats();
             ScenarioOutput::from_pairs([
                 (
                     "route_calculations",
@@ -632,12 +639,13 @@ fn benchmark_grouped_routing(cli: &Cli) -> ScenarioReport {
         ),
         || build_connection_runtime(GROUPED_CONNECTIONS, true),
         |workload| {
-            let before = workload.runtime.connection_routing_stats();
+            let before = workload.runtime.connections().routing_stats();
             workload
                 .runtime
-                .resolve_connection_route(workload.connections[0], workload.space)
+                .connections()
+                .resolve_route(workload.connections[0], workload.space)
                 .expect("resolve grouped connections");
-            let after = workload.runtime.connection_routing_stats();
+            let after = workload.runtime.connections().routing_stats();
             ScenarioOutput::from_pairs([
                 (
                     "route_calculations",
@@ -1033,9 +1041,11 @@ fn build_label_runtime(deep: bool) -> Runtime {
     }
     let mut runtime = Runtime::new(tree);
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("register benchmark font");
     runtime
+        .text()
         .refresh_label_layouts()
         .expect("prime Label layouts");
     runtime
@@ -1070,6 +1080,7 @@ fn build_text_flow_runtime(deep: bool) -> Runtime {
     }
     let mut runtime = Runtime::new(tree);
     runtime
+        .resources()
         .register_builtin_font(BuiltinFont::Inter)
         .expect("register benchmark font");
     let _ = record_full_submission(&mut runtime);
@@ -1093,34 +1104,39 @@ fn build_connection_runtime(count: usize, grouped: bool) -> ConnectionWorkload {
         )))
         .expect("benchmark root");
     let source = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(RectangleFigure::new(20.0, 40.0, 80.0, 40.0)))
         .expect("source Figure");
     let target = runtime
-        .container(root)
+        .figure(root)
         .expect("root container")
         .add(Box::new(RectangleFigure::new(900.0, 600.0, 80.0, 40.0)))
         .expect("target Figure");
-    let source_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(source)));
-    let target_anchor = runtime.register_connection_anchor(Box::new(ChopboxAnchor::new(target)));
+    let source_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(source)));
+    let target_anchor = runtime
+        .connections()
+        .register_anchor(Box::new(ChopboxAnchor::new(target)));
     let router = if grouped {
-        runtime.register_connection_router(Box::new(
+        runtime.connections().register_router(Box::new(
             FanRouter::new(Box::new(DirectRouter), 16.0).expect("valid fan separation"),
         ))
     } else {
-        runtime.direct_connection_router()
+        runtime.connections().direct_router()
     };
     let mut connections = Vec::with_capacity(count);
     for _ in 0..count {
         let figure = runtime
-            .container(root)
+            .figure(root)
             .expect("root container")
             .add(Box::new(ConnectionFigure::new()))
             .expect("connection Figure");
         connections.push(
             runtime
-                .register_connection_state(
+                .connections()
+                .register_state(
                     figure,
                     Some(source_anchor),
                     Some(target_anchor),

@@ -5,7 +5,7 @@ use crate::geometry::Rectangle;
 use crate::{
     Bounded, ChildClippingStrategy, ChildPolicy, FREEFORM, Figure, FigureCapabilityBuilder,
     FigureCapabilityRegistrationError, FigureContainer, FigureId, FreeformCapability,
-    GraphMutationError, HitParticipation, LAYER, LayerCapability, Runtime,
+    GraphMutationError, HitParticipation, LAYER, LayerCapability,
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -342,63 +342,5 @@ impl FigureContainer for FreeformLayeredPane {
 
     fn child_policy(&self) -> ChildPolicy {
         ChildPolicy::Layered
-    }
-}
-
-pub struct LayeredPaneMut<'a> {
-    pane_id: FigureId,
-    runtime: &'a mut Runtime,
-}
-
-impl<'a> LayeredPaneMut<'a> {
-    pub(crate) fn new(pane_id: FigureId, runtime: &'a mut Runtime) -> Self {
-        Self { pane_id, runtime }
-    }
-
-    pub fn pane_id(&self) -> FigureId {
-        self.pane_id
-    }
-
-    pub fn add_layer(
-        &mut self,
-        figure: Box<dyn Figure>,
-        key: LayerKey,
-        placement: LayerPlacement,
-    ) -> Result<FigureId, LayerError> {
-        self.runtime.add_layer(self.pane_id, figure, key, placement)
-    }
-
-    pub fn remove_layer(&mut self, key: &LayerKey) -> Result<FigureId, LayerError> {
-        self.runtime.remove_layer(self.pane_id, key)
-    }
-
-    pub fn move_layer(
-        &mut self,
-        key: &LayerKey,
-        placement: LayerPlacement,
-    ) -> Result<bool, LayerError> {
-        self.runtime.move_layer(self.pane_id, key, placement)
-    }
-
-    pub fn reparent_layer(
-        &mut self,
-        child: FigureId,
-        key: LayerKey,
-        placement: LayerPlacement,
-    ) -> Result<bool, LayerError> {
-        self.runtime
-            .reparent_layer(child, self.pane_id, key, placement)
-    }
-
-    pub fn layer(&self, key: &LayerKey) -> Result<FigureId, LayerError> {
-        self.runtime.layer(self.pane_id, key)
-    }
-
-    pub fn layer_key(&self, child: FigureId) -> Result<LayerKey, LayerError> {
-        self.runtime.layer_key(self.pane_id, child)
-    }
-
-    pub fn layer_ids(&self) -> Result<Vec<FigureId>, LayerError> {
-        self.runtime.layer_ids(self.pane_id)
     }
 }

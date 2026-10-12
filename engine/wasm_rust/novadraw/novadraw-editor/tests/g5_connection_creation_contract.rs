@@ -12,16 +12,22 @@ use novadraw::connection::{
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::{ClickableFigure, PolylineFigure, RootFigure};
 use novadraw::geometry::{Point, PointList, Rectangle, Vec2};
-use novadraw::{Figure, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure};
+use novadraw_editor::overlay::{
+    BendpointCreateAction, BendpointMoveAction, ConnectionEndpointAction,
+};
 use novadraw_editor::{
-    BendpointOperation, BendpointRequest, Command, CommandError, ConnectionCreation,
-    ConnectionEndpoint, ConnectionFeedbackRoute, ConnectionPartFactoryContext,
-    ConnectionReconnection, ConnectionRouterKey, ConnectionRouterRegistration,
-    ConnectionRoutingDescriptor, CreateConnectionRequest, CreationType, DeleteRequest,
-    EditPartBehavior, EditPartError, EditPartFactory, EditPolicy, EditorDomain, EditorRequest,
-    FeedbackVisual, GraphicalViewer, HandleRole, InteractionRevision, ModelAdapter,
-    ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError, PolicyHost,
-    PolicyInstallation, PolicyRole, ReconnectConnectionRequest, RequestModifiers, ViewerError,
+    BendpointOperation, BendpointRequest, Command, CommandError, ComponentSlot, ConnectionCreation,
+    ConnectionCreationSlot, ConnectionEndpoint, ConnectionFeedbackRoute,
+    ConnectionPartFactoryContext, ConnectionReconnectSlot, ConnectionReconnection,
+    ConnectionRouterKey, ConnectionRouterRegistration, ConnectionRoutingDescriptor,
+    CreateConnection, CreateConnectionRequest, CreationType, DeleteParts, DeleteRequest,
+    EditBendpoint, EditPartBehavior, EditPartError, EditPartFactory, EditPolicy,
+    EditingContribution, EditorDomain, FeedbackVisual, GraphicalViewer, InteractionRevision,
+    ModelAdapter, ModelConnection, ModelEvent, ModelRevision, PartFactoryContext, PolicyError,
+    PolicyHandlerBuilder, PolicyHost, PolicyInstallation, PolicyKey, PolicySlot,
+    ReconnectConnection, ReconnectConnectionRequest, RequestMetadata, RequestModifiers,
+    RequestProtocol, ViewerError,
 };
 
 const ROOT: ModelId = ModelId(1);
@@ -353,31 +359,34 @@ impl ConnectionCreation<DiagramModel> for EdgeCreation {
 struct NodePolicy;
 
 impl EditPolicy<DiagramModel> for NodePolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::CreateConnection(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<CreateConnection>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<ModelId>,
-        _request: &EditorRequest,
-        _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_connection(
+impl NodePolicy {
+    fn start(
         &mut self,
         host: PolicyHost<ModelId>,
+        _metadata: &RequestMetadata,
         request: &CreateConnectionRequest,
         _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn ConnectionCreation<DiagramModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<CreateConnection as RequestProtocol<DiagramModel>>::Contribution>,
+        PolicyError,
+    > {
         Ok((request.connection_type().as_str() == "edge").then(|| {
             Box::new(EdgeCreation {
                 source: host.model(),
             }) as Box<dyn ConnectionCreation<DiagramModel>>
         }))
     }
+}
+
+struct DuplicateConnectionPolicy;
+
+impl PolicySlot for DuplicateConnectionPolicy {
+    const NAME: &'static str = "duplicate-connection";
 }
 
 struct DiagramPart {
@@ -413,13 +422,18 @@ impl EditPartBehavior<DiagramModel> for DiagramPart {
         if model_id == ROOT || model_id == WIDGET {
             return Ok(Vec::new());
         }
-        let mut policies: Vec<PolicyInstallation<DiagramModel>> =
-            vec![(PolicyRole::ConnectionCreation, Box::new(NodePolicy))];
+        let mut policies = vec![
+            PolicyInstallation::new(ConnectionCreationSlot::key(), NodePolicy)
+                .map_err(|error| EditPartError::operation(error.to_string()))?,
+        ];
         if self.duplicate_policy {
-            policies.push((
-                PolicyRole::custom("duplicate").unwrap(),
-                Box::new(NodePolicy),
-            ));
+            policies.push(
+                PolicyInstallation::new(
+                    PolicyKey::<DuplicateConnectionPolicy>::new("duplicate-connection"),
+                    NodePolicy,
+                )
+                .map_err(|error| EditPartError::operation(error.to_string()))?,
+            );
         }
         Ok(policies)
     }
@@ -535,25 +549,22 @@ impl ConnectionReconnection<DiagramModel> for EdgeReconnection {
 struct ConnectionReconnectPolicy;
 
 impl EditPolicy<DiagramModel> for ConnectionReconnectPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::ReconnectConnection(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<ReconnectConnection>(Self::start);
     }
+}
 
-    fn command(
-        &mut self,
-        _host: PolicyHost<ModelId>,
-        _request: &EditorRequest,
-        _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        Ok(None)
-    }
-
-    fn start_reconnection(
+impl ConnectionReconnectPolicy {
+    fn start(
         &mut self,
         host: PolicyHost<ModelId>,
+        _metadata: &RequestMetadata,
         _request: &ReconnectConnectionRequest,
         model: &DiagramModel,
-    ) -> Result<Option<Box<dyn ConnectionReconnection<DiagramModel>>>, PolicyError> {
+    ) -> Result<
+        Option<<ReconnectConnection as RequestProtocol<DiagramModel>>::Contribution>,
+        PolicyError,
+    > {
         Ok(model
             .connections
             .iter()
@@ -593,19 +604,19 @@ impl Command<DiagramModel> for SetEdgeBendpointsCommand {
 struct ConnectionBendpointPolicy;
 
 impl EditPolicy<DiagramModel> for ConnectionBendpointPolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Bendpoint(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<EditBendpoint>(Self::edit);
     }
+}
 
-    fn command(
+impl ConnectionBendpointPolicy {
+    fn edit(
         &mut self,
         host: PolicyHost<ModelId>,
-        request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        request: &BendpointRequest,
         model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        let EditorRequest::Bendpoint(request) = request else {
-            return Ok(None);
-        };
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
         let before = model
             .bendpoints
             .get(&host.model())
@@ -624,49 +635,50 @@ impl EditPolicy<DiagramModel> for ConnectionBendpointPolicy {
             }
             _ => return Err(PolicyError::operation("invalid bendpoint index")),
         }
-        Ok(Some(Box::new(SetEdgeBendpointsCommand {
-            id: host.model(),
-            before,
-            after,
-        })))
-    }
-
-    fn feedback(
-        &mut self,
-        _host: PolicyHost<ModelId>,
-        request: &EditorRequest,
-        _model: &DiagramModel,
-    ) -> Result<Vec<FeedbackVisual>, PolicyError> {
-        let EditorRequest::Bendpoint(request) = request else {
-            return Ok(Vec::new());
-        };
-        Ok(vec![FeedbackVisual::scaled(Box::new(
-            RectangleFigure::new(
-                request.location().x() - 2.0,
-                request.location().y() - 2.0,
-                4.0,
-                4.0,
-            ),
-        ))])
+        let feedback = FeedbackVisual::scaled(Box::new(RectangleFigure::new(
+            request.location().x() - 2.0,
+            request.location().y() - 2.0,
+            4.0,
+            4.0,
+        )));
+        Ok(Some(EditingContribution::new(
+            Some(Box::new(SetEdgeBendpointsCommand {
+                id: host.model(),
+                before,
+                after,
+            })),
+            vec![feedback],
+        )))
     }
 }
 
 impl EditPolicy<DiagramModel> for ConnectionDeletePolicy {
-    fn understands(&self, request: &EditorRequest) -> bool {
-        matches!(request, EditorRequest::Delete(_))
+    fn register_handlers(builder: &mut PolicyHandlerBuilder<'_, DiagramModel, Self>) {
+        builder.handle::<DeleteParts>(Self::delete);
     }
+}
 
-    fn command(
+impl ConnectionDeletePolicy {
+    fn delete(
         &mut self,
         host: PolicyHost<ModelId>,
-        _request: &EditorRequest,
+        _metadata: &RequestMetadata,
+        _request: &DeleteRequest,
         _model: &DiagramModel,
-    ) -> Result<Option<Box<dyn Command<DiagramModel>>>, PolicyError> {
-        Ok(Some(Box::new(DeleteEdgeCommand {
-            id: host.model(),
-            removed: None,
-        })))
+    ) -> Result<Option<EditingContribution<DiagramModel>>, PolicyError> {
+        Ok(Some(EditingContribution::command(Box::new(
+            DeleteEdgeCommand {
+                id: host.model(),
+                removed: None,
+            },
+        ))))
     }
+}
+
+struct BendpointPolicy;
+
+impl PolicySlot for BendpointPolicy {
+    const NAME: &'static str = "connection-bendpoint";
 }
 
 impl EditPartBehavior<DiagramModel> for ConnectionPart {
@@ -683,17 +695,17 @@ impl EditPartBehavior<DiagramModel> for ConnectionPart {
         _model: &DiagramModel,
         _model_id: ModelId,
     ) -> Result<Vec<PolicyInstallation<DiagramModel>>, EditPartError> {
-        Ok(vec![
-            (PolicyRole::Component, Box::new(ConnectionDeletePolicy)),
-            (
-                PolicyRole::ConnectionReconnect,
-                Box::new(ConnectionReconnectPolicy),
+        [
+            PolicyInstallation::new(ComponentSlot::key(), ConnectionDeletePolicy),
+            PolicyInstallation::new(ConnectionReconnectSlot::key(), ConnectionReconnectPolicy),
+            PolicyInstallation::new(
+                PolicyKey::<BendpointPolicy>::new("connection-bendpoint"),
+                ConnectionBendpointPolicy,
             ),
-            (
-                PolicyRole::custom("connection-bendpoint").unwrap(),
-                Box::new(ConnectionBendpointPolicy),
-            ),
-        ])
+        ]
+        .into_iter()
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| EditPartError::operation(error.to_string()))
     }
 
     fn connection_routing(
@@ -1042,11 +1054,14 @@ fn selected_connection_deletes_and_undo_restores_the_same_model_identity() {
         .edit_part();
     viewer.replace_selection(connection_part).unwrap();
 
-    let request = EditorRequest::Delete(DeleteRequest::new(
+    let request = DeleteRequest::new(
         vec![connection_part],
         domain.next_interaction_revision().unwrap(),
-    ));
-    domain.execute_request(&mut viewer, &request).unwrap();
+    );
+    let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
+    domain
+        .execute::<DeleteParts, _>(&mut viewer, &metadata, &request)
+        .unwrap();
 
     assert!(viewer.model().connections.is_empty());
     assert!(viewer.connection_part_for_model(FIRST_EDGE).is_none());
@@ -1070,9 +1085,9 @@ fn target_endpoint_handle_reconnects_and_undo_preserves_connection_part_identity
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     let original_part = connection.edit_part();
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<ConnectionEndpointAction>(
             original_part,
-            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            ConnectionEndpoint::Target,
             Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1128,9 +1143,9 @@ fn source_endpoint_reconnects_while_invalid_drop_has_no_effect() {
     click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
-            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Source),
+            ConnectionEndpoint::Source,
             Box::new(RectangleFigure::new(75.0, 85.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1185,9 +1200,9 @@ fn reconnect_cancel_clears_feedback_without_model_change() {
     click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
-            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            ConnectionEndpoint::Target,
             Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1230,9 +1245,9 @@ fn endpoint_reconnect_autoexpose_scrolls_both_corner_axes() {
     click(&mut domain, &mut viewer, Point::new(280.0, 90.0));
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<ConnectionEndpointAction>(
             connection.edit_part(),
-            HandleRole::ConnectionEndpoint(ConnectionEndpoint::Target),
+            ConnectionEndpoint::Target,
             Box::new(RectangleFigure::new(275.0, 85.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1275,7 +1290,13 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
         .connection_bendpoint_handle_sites(connection)
         .unwrap();
     assert_eq!(initial_sites.len(), 1);
-    assert_eq!(initial_sites[0].role(), HandleRole::BendpointCreate(0));
+    assert_eq!(
+        initial_sites[0]
+            .action()
+            .get::<BendpointCreateAction>()
+            .copied(),
+        Some(0)
+    );
     let typed = BendpointRequest::new(
         connection,
         BendpointOperation::Create { index: 0 },
@@ -1288,9 +1309,9 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
     assert_eq!(typed.location(), Point::new(180.0, 180.0));
 
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<BendpointCreateAction>(
             original_part,
-            HandleRole::BendpointCreate(0),
+            0,
             Box::new(RectangleFigure::new(175.0, 95.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1332,19 +1353,27 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
     assert_eq!(
         explicit_sites
             .iter()
-            .map(|site| site.role())
+            .map(|site| {
+                site.action()
+                    .get::<BendpointCreateAction>()
+                    .copied()
+                    .map(|index| ("create", index))
+                    .or_else(|| {
+                        site.action()
+                            .get::<BendpointMoveAction>()
+                            .copied()
+                            .map(|index| ("move", index))
+                    })
+                    .unwrap()
+            })
             .collect::<Vec<_>>(),
-        vec![
-            HandleRole::BendpointCreate(0),
-            HandleRole::BendpointMove(0),
-            HandleRole::BendpointCreate(1),
-        ]
+        vec![("create", 0), ("move", 0), ("create", 1)]
     );
 
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<BendpointMoveAction>(
             original_part,
-            HandleRole::BendpointMove(0),
+            0,
             Box::new(RectangleFigure::new(175.0, 175.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1367,14 +1396,17 @@ fn bendpoint_create_move_delete_round_trips_without_rebuilding_connection() {
         vec![Point::new(200.0, 220.0)]
     );
 
-    let delete = EditorRequest::Bendpoint(BendpointRequest::new(
+    let delete = BendpointRequest::new(
         connection,
         BendpointOperation::Delete { index: 0 },
         Point::new(200.0, 220.0),
         RequestModifiers::default(),
         domain.next_interaction_revision().unwrap(),
-    ));
-    domain.execute_request(&mut viewer, &delete).unwrap();
+    );
+    let metadata = RequestMetadata::new(delete.revision(), vec![delete.connection().edit_part()]);
+    domain
+        .execute::<EditBendpoint, _>(&mut viewer, &metadata, &delete)
+        .unwrap();
     assert!(viewer.model().bendpoints[&FIRST_EDGE].is_empty());
     domain.undo(&mut viewer).unwrap();
     assert_eq!(
@@ -1408,9 +1440,9 @@ fn zoomed_bendpoint_drag_commits_in_connection_routing_coordinates() {
     let connection = viewer.connection_part_for_model(FIRST_EDGE).unwrap();
     let surface_site = Point::new(360.0, 360.0);
     viewer
-        .add_handle_visual_with_role(
+        .add_handle_visual_with_action::<BendpointMoveAction>(
             connection.edit_part(),
-            HandleRole::BendpointMove(0),
+            0,
             Box::new(RectangleFigure::new(355.0, 355.0, 10.0, 10.0)),
         )
         .unwrap();
@@ -1505,11 +1537,11 @@ fn policy_can_accept_a_self_loop() {
         .connection_bendpoint_handle_sites(connection)
         .unwrap();
     assert_eq!(sites.len(), 3);
-    assert!(
-        sites
-            .iter()
-            .all(|site| site.role() == HandleRole::BendpointCreate(0))
-    );
+    assert!(sites.iter().all(|site| {
+        site.action()
+            .get::<BendpointCreateAction>()
+            .is_some_and(|index| *index == 0)
+    }));
 }
 
 #[test]

@@ -1,5 +1,8 @@
 use novadraw::layout::XYConstraint;
-use novadraw::{Color, FigureTree, GridLayout, RectangleFigure, XYLayout};
+use novadraw::{
+    figure::RectangleFigure, graphics::Color, layout::GridLayout, layout::XYLayout,
+    tree::FigureTree,
+};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -50,7 +53,7 @@ fn partial_damage_scene() -> FigureTree {
         .builder()
         .set_bounds(
             target,
-            novadraw::Rectangle::new(
+            novadraw::geometry::Rectangle::new(
                 old_bounds.x + 40.0,
                 old_bounds.y + 30.0,
                 old_bounds.width,

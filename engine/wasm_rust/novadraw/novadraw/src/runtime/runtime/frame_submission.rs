@@ -29,7 +29,7 @@ impl Runtime {
     ///
     /// Hosts use this boundary when overlay geometry must be rebuilt from the latest layout
     /// before the next renderer submission is frozen.
-    pub fn stabilize_for_query(&mut self) -> Result<(), FramePreparationError> {
+    pub(crate) fn stabilize_for_query(&mut self) -> Result<(), FramePreparationError> {
         if self.faulted {
             return Err(FramePreparationError::Faulted);
         }
@@ -46,7 +46,7 @@ impl Runtime {
     /// The source mutation commits before presentation admission and is never rolled back.
     /// No render submission can observe the final committed layout before the transition
     /// override is installed.
-    pub fn transition_bounds_transaction<I, F, T, E>(
+    pub(crate) fn transition_bounds_transaction<I, F, T, E>(
         &mut self,
         figures: I,
         transition: BoundsTransition,
@@ -71,7 +71,7 @@ impl Runtime {
     /// The Viewport and its contents commit their final geometry before the plan starts. The
     /// transition is applied to the contents Figure, so the committed Viewport clip remains
     /// authoritative throughout the animation.
-    pub fn transition_viewport_transaction<F, T, E>(
+    pub(crate) fn transition_viewport_transaction<F, T, E>(
         &mut self,
         viewport: &ViewportHandle,
         transition: ViewportTransition,
@@ -95,7 +95,7 @@ impl Runtime {
     ///
     /// Routes with equal point topology interpolate in the final Figure-local domain. Other
     /// route changes crossfade an immutable old-route visual with the committed final Figure.
-    pub fn transition_connection_routes_transaction<I, F, T, E>(
+    pub(crate) fn transition_connection_routes_transaction<I, F, T, E>(
         &mut self,
         connections: I,
         transition: ConnectionRouteTransition,
@@ -611,7 +611,7 @@ impl Runtime {
     }
 
     /// Produces one complete renderer submission at a stable transaction boundary.
-    pub fn prepare_submission(
+    pub(crate) fn prepare_submission(
         &mut self,
         surface: SurfaceInfo,
         capabilities: BackendCapabilities,
@@ -753,7 +753,7 @@ impl Runtime {
     }
 
     /// Completes the in-flight frame and restores work when presentation failed.
-    pub fn complete_submission(
+    pub(crate) fn complete_submission(
         &mut self,
         session_id: BackendSessionId,
         frame_id: FrameId,

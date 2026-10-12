@@ -1,4 +1,7 @@
-use novadraw::{Color, Figure, FigureId, FigureTree, Rectangle, RectangleFigure};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, geometry::Rectangle, graphics::Color, tree::FigureId,
+    tree::FigureTree,
+};
 
 pub const FOCUS_TRAVERSAL_SCENE_TITLE: &str = "Focus traversal tree";
 

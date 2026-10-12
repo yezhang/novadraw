@@ -22,7 +22,9 @@ use novadraw::geometry::{Affine2D, Dimension, Point, Rectangle, Translatable};
 use novadraw::render::command::RenderCommandKind;
 use novadraw::runtime::RuntimeMutationError;
 use novadraw::runtime::context::SceneDispatchContext;
-use novadraw::{Color, Figure, FigureTree, RectangleFigure, Runtime};
+use novadraw::{
+    figure::Figure, figure::RectangleFigure, graphics::Color, runtime::Runtime, tree::FigureTree,
+};
 
 struct RecordingRangeListener {
     changes: Arc<Mutex<Vec<RangeChange>>>,
@@ -68,7 +70,7 @@ impl ZoomScrollPolicy for NonFiniteZoomScrollPolicy {
     }
 }
 
-fn point_in_surface(graph: &FigureTree, figure: novadraw::FigureId, point: Point) -> Point {
+fn point_in_surface(graph: &FigureTree, figure: novadraw::tree::FigureId, point: Point) -> Point {
     graph
         .local_to_surface_transform(figure)
         .expect("attached Figure has a surface transform")
@@ -196,9 +198,11 @@ fn viewport_handle_replaces_contents_without_leaving_two_children() {
         .unwrap();
     let mut runtime = Runtime::new(graph);
     let new_contents = runtime
-        .viewport(viewport.figure_id())
-        .unwrap()
-        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)))
+        .viewports()
+        .set_contents(
+            viewport.figure_id(),
+            Box::new(RectangleFigure::new(0.0, 0.0, 400.0, 300.0)),
+        )
         .unwrap();
 
     assert_eq!(viewport.contents(runtime.tree()), Some(new_contents));
@@ -236,9 +240,8 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
 
     assert!(
         runtime
-            .viewport(viewport.figure_id())
-            .unwrap()
-            .set_view_location(500.0, 400.0)
+            .viewports()
+            .set_view_location(viewport.figure_id(), 500.0, 400.0)
             .unwrap()
     );
 
@@ -246,7 +249,7 @@ fn viewport_handle_scroll_clamps_and_repaints_the_viewport() {
         viewport.view_location(),
         novadraw::geometry::Point::new(300.0, 250.0)
     );
-    assert!(runtime.has_pending_update());
+    assert!(runtime.frames().has_pending_update());
 }
 
 #[test]
@@ -273,9 +276,8 @@ fn viewport_track_width_uses_available_width_until_content_minimum() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(graph);
     runtime
-        .viewport(viewport.figure_id())
-        .unwrap()
-        .set_tracks_width(true)
+        .viewports()
+        .set_tracks_width(viewport.figure_id(), true)
         .unwrap();
     let _ = prepare_next_submission(&mut runtime);
 
@@ -316,9 +318,8 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
     let mut runtime = Runtime::new(graph);
     assert!(
         runtime
-            .scalable(scalable.figure_id())
-            .unwrap()
-            .set_scale(2.0)
+            .viewports()
+            .set_scale(scalable.figure_id(), 2.0)
             .unwrap()
     );
     let point = point_in_surface(runtime.tree(), child, Point::new(0.0, 0.0));
@@ -328,8 +329,8 @@ fn scalable_layered_pane_composes_with_viewport_parent_transform() {
         runtime.tree().figure_bounds(scalable.figure_id()),
         Some(Rectangle::new(0.0, 0.0, 600.0, 400.0))
     );
-    assert!(runtime.has_pending_update());
-    runtime.request_full_redraw();
+    assert!(runtime.frames().has_pending_update());
+    runtime.frames().request_full_redraw();
     let canvas = prepare_next_submission(&mut runtime).expect("full submission");
     let mut transform = Affine2D::IDENTITY;
     let mut stack = Vec::new();
@@ -383,9 +384,8 @@ fn scalable_layered_pane_rejects_invalid_scale_without_state_change() {
         .unwrap();
     assert_eq!(
         Runtime::new(graph)
-            .scalable(scalable.figure_id())
-            .unwrap()
-            .set_scale(0.0),
+            .viewports()
+            .set_scale(scalable.figure_id(), 0.0),
         Err(RuntimeMutationError::Rejected)
     );
     assert_eq!(scalable.scale(), 1.0);
@@ -407,9 +407,8 @@ fn external_figure_scale_capability_is_runtime_mutable_without_downcast() {
     assert_eq!(handle.scale(), 1.0);
 
     Runtime::new(graph)
-        .scalable(figure)
-        .unwrap()
-        .set_scale(2.0)
+        .viewports()
+        .set_scale(figure, 2.0)
         .unwrap();
 
     assert_eq!(model.scale(), 2.0);
@@ -439,9 +438,8 @@ fn scalable_projects_explicit_unscaled_preferred_size_through_scale() {
     );
     let mut runtime = Runtime::new(graph);
     runtime
-        .scalable(scalable.figure_id())
-        .unwrap()
-        .set_scale(2.0)
+        .viewports()
+        .set_scale(scalable.figure_id(), 2.0)
         .unwrap();
     let _ = prepare_next_submission(&mut runtime);
 
@@ -1002,23 +1000,23 @@ fn zoom_manager_owns_zoom_limits_and_default_center_policy() {
     let manager = ZoomManager::new(scalable.clone(), viewport.clone());
     let mut runtime = Runtime::new(graph);
 
-    assert!(runtime.zoom(&manager).unwrap().set_zoom(2.0).unwrap());
+    assert!(runtime.viewports().set_zoom(&manager, 2.0).unwrap());
     assert_eq!(manager.zoom(), 2.0);
     assert_eq!(viewport.view_location(), Point::new(150.0, 100.0));
     assert_eq!(viewport.horizontal_range().maximum, 1200.0);
     assert_eq!(viewport.vertical_range().maximum, 800.0);
 
-    assert!(runtime.zoom(&manager).unwrap().set_zoom(0.01).unwrap());
+    assert!(runtime.viewports().set_zoom(&manager, 0.01).unwrap());
     assert_eq!(manager.zoom(), 0.5);
-    assert!(runtime.zoom(&manager).unwrap().set_zoom(100.0).unwrap());
+    assert!(runtime.viewports().set_zoom(&manager, 100.0).unwrap());
     assert_eq!(manager.zoom(), 4.0);
-    assert!(runtime.zoom(&manager).unwrap().fit_all().unwrap());
+    assert!(runtime.viewports().fit_all(&manager).unwrap());
     assert_eq!(manager.zoom(), 0.5);
     assert_eq!(viewport.view_location(), Point::new(0.0, 0.0));
 
     for invalid in [0.0, -1.0, f64::NAN, f64::INFINITY] {
         assert_eq!(
-            runtime.zoom(&manager).unwrap().set_zoom(invalid),
+            runtime.viewports().set_zoom(&manager, invalid),
             Err(RuntimeMutationError::Rejected)
         );
         assert_eq!(manager.zoom(), 0.5);
@@ -1052,7 +1050,7 @@ fn zoom_rejects_non_finite_policy_output_before_mutating_scale_or_viewport() {
     let mut runtime = Runtime::new(graph);
 
     assert_eq!(
-        runtime.zoom(&manager).unwrap().set_zoom(2.0),
+        runtime.viewports().set_zoom(&manager, 2.0),
         Err(RuntimeMutationError::Rejected)
     );
     assert_eq!(scalable.scale(), 1.0);
@@ -1084,11 +1082,11 @@ fn zoom_manager_uses_configured_levels_for_step_zoom() {
     manager.set_zoom_levels(vec![0.25, 1.0, 2.0]).unwrap();
     let mut runtime = Runtime::new(graph);
 
-    assert!(runtime.zoom(&manager).unwrap().set_zoom(0.01).unwrap());
+    assert!(runtime.viewports().set_zoom(&manager, 0.01).unwrap());
     assert_eq!(manager.zoom(), 0.25);
-    assert!(runtime.zoom(&manager).unwrap().zoom_in().unwrap());
+    assert!(runtime.viewports().zoom_in(&manager).unwrap());
     assert_eq!(manager.zoom(), 1.0);
-    assert!(runtime.zoom(&manager).unwrap().zoom_out().unwrap());
+    assert!(runtime.viewports().zoom_out(&manager).unwrap());
     assert_eq!(manager.zoom(), 0.25);
     assert_eq!(
         manager.set_zoom_levels(vec![1.0, 0.5]),

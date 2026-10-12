@@ -2,7 +2,10 @@ use novadraw::container::{
     FreeformLayerFigure, LayerKey, LayerPlacement, ScaleHandle, ScrollBarVisibility,
     ScrollPaneHandle, ZoomManager,
 };
-use novadraw::{Color, FigureId, FigureTree, Rectangle, RectangleFigure, Runtime};
+use novadraw::{
+    figure::RectangleFigure, geometry::Rectangle, graphics::Color, runtime::Runtime,
+    tree::FigureId, tree::FigureTree,
+};
 
 use crate::{DemoSuite, SceneSpec, ValidationKind};
 
@@ -76,11 +79,10 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
 
     let mut runtime = Runtime::new(graph);
     let (content_layer, overlay_layer) = {
-        let mut layers = runtime
-            .layered_pane(scalable.figure_id())
-            .expect("scalable freeform pane must be registered");
-        let content = layers
-            .add_layer(
+        let content = runtime
+            .layers()
+            .add(
+                scalable.figure_id(),
                 Box::new(FreeformLayerFigure::new(
                     0.0,
                     0.0,
@@ -91,8 +93,10 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
                 LayerPlacement::Last,
             )
             .expect("add content layer");
-        let overlay = layers
-            .add_layer(
+        let overlay = runtime
+            .layers()
+            .add(
+                scalable.figure_id(),
                 Box::new(FreeformLayerFigure::new(
                     0.0,
                     0.0,
@@ -109,7 +113,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     let mut x = CONTENT_MIN_X;
     while x < CONTENT_MAX_X {
         runtime
-            .container(content_layer)
+            .figure(content_layer)
             .unwrap()
             .add(Box::new(RectangleFigure::new_with_color(
                 x,
@@ -122,7 +126,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         x += GRID_STEP;
     }
     runtime
-        .container(content_layer)
+        .figure(content_layer)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             CONTENT_MAX_X - GRID_LINE_WIDTH,
@@ -136,7 +140,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
     let mut y = CONTENT_MIN_Y;
     while y < CONTENT_MAX_Y {
         runtime
-            .container(content_layer)
+            .figure(content_layer)
             .unwrap()
             .add(Box::new(RectangleFigure::new_with_color(
                 CONTENT_MIN_X,
@@ -149,7 +153,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         y += GRID_STEP;
     }
     runtime
-        .container(content_layer)
+        .figure(content_layer)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             CONTENT_MIN_X,
@@ -179,7 +183,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         ),
     ] {
         runtime
-            .container(content_layer)
+            .figure(content_layer)
             .unwrap()
             .add(Box::new(RectangleFigure::new_with_color(
                 bounds.x,
@@ -191,7 +195,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
             .expect("valid Runtime mutation");
     }
     let lower_overlap = runtime
-        .container(content_layer)
+        .figure(content_layer)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             OVERLAP_X,
@@ -202,7 +206,7 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         )))
         .expect("valid Runtime mutation");
     let upper_overlap = runtime
-        .container(overlay_layer)
+        .figure(overlay_layer)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             OVERLAP_X + 45.0,
@@ -214,22 +218,25 @@ pub fn build_demo(scale: f64, view_location: (f64, f64)) -> FreeformDemo {
         .expect("valid Runtime mutation");
 
     runtime
+        .frames()
         .stabilize_for_query()
         .expect("stabilize freeform demo before viewport configuration");
     let zoom = ZoomManager::new(scalable.clone(), pane.viewport().clone());
     if scale != 1.0 {
         runtime
-            .zoom(&zoom)
-            .expect("zoom targets must remain attached")
-            .set_zoom_at(scale, None)
+            .viewports()
+            .set_zoom_at(&zoom, scale, None)
             .expect("set freeform demo scale");
     }
     runtime
-        .viewport(pane.viewport().figure_id())
-        .expect("scroll pane viewport must remain attached")
-        .set_view_location(view_location.0, view_location.1)
+        .viewports()
+        .set_view_location(
+            pane.viewport().figure_id(),
+            view_location.0,
+            view_location.1,
+        )
         .expect("set freeform demo view location");
-    let _ = runtime.stabilize_for_query();
+    let _ = runtime.frames().stabilize_for_query();
 
     FreeformDemo {
         runtime,
@@ -300,9 +307,9 @@ pub fn suite() -> DemoSuite {
 mod tests {
     use std::sync::Arc;
 
-    use novadraw::Point;
     use novadraw::container::MouseLocationZoomScrollPolicy;
     use novadraw::event::{GesturePhase, GestureSessionId, KeyModifiers, ZoomEvent};
+    use novadraw::geometry::Point;
 
     use super::*;
 
@@ -350,18 +357,16 @@ mod tests {
         let viewport = demo.pane.viewport().clone();
 
         demo.runtime
-            .viewport(viewport.figure_id())
-            .unwrap()
-            .set_view_location(CONTENT_MIN_X, CONTENT_MIN_Y)
+            .viewports()
+            .set_view_location(viewport.figure_id(), CONTENT_MIN_X, CONTENT_MIN_Y)
             .unwrap();
         assert_eq!(
             viewport.view_location(),
             Point::new(CONTENT_MIN_X, CONTENT_MIN_Y)
         );
         demo.runtime
-            .viewport(viewport.figure_id())
-            .unwrap()
-            .set_view_location(f64::MAX, f64::MAX)
+            .viewports()
+            .set_view_location(viewport.figure_id(), f64::MAX, f64::MAX)
             .unwrap();
         let horizontal = viewport.horizontal_range();
         let vertical = viewport.vertical_range();
@@ -374,16 +379,14 @@ mod tests {
         );
 
         demo.runtime
-            .viewport(viewport.figure_id())
-            .unwrap()
-            .set_view_location(0.0, 0.0)
+            .viewports()
+            .set_view_location(viewport.figure_id(), 0.0, 0.0)
             .unwrap();
         let mut zoom = ZoomManager::new(demo.scalable, viewport.clone());
         zoom.set_scroll_policy(Arc::new(MouseLocationZoomScrollPolicy));
         demo.runtime
-            .zoom(&zoom)
-            .unwrap()
-            .set_zoom_at(2.0, Some(Point::new(60.0, 40.0)))
+            .viewports()
+            .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
             .unwrap();
         assert_eq!(viewport.view_location(), Point::new(30.0, 20.0));
         assert_eq!(viewport.horizontal_range().maximum, CONTENT_MAX_X);
@@ -395,7 +398,7 @@ mod tests {
         let mut demo = build_demo(1.0, (0.0, 0.0));
         let scalable = demo.scalable.clone();
 
-        demo.runtime.dispatch_zoom(ZoomEvent::new(
+        demo.runtime.input().dispatch_zoom(ZoomEvent::new(
             PANE_X + 20.0,
             PANE_Y + 20.0,
             2.0,

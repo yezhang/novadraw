@@ -7,7 +7,6 @@ use std::{
     error::Error,
     fmt,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 
 use crate::geometry::{Affine2D, Dimension, Insets, Point, PointList, Rectangle};
@@ -15,19 +14,17 @@ use crate::render::{NdCanvas, TextError, TextLayoutEngine};
 use uuid::Uuid;
 
 use super::figure::{
-    ACCESSIBILITY, AccessibleFigure, BORDER, ButtonFigure, CLICKABLE, CONNECTION,
-    CONNECTION_DECORATION, CONTAINER, CapabilityKey, CapabilityQueryError, ChildClippingStrategy,
-    ChildPolicy, ClickableSnapshot, ClickableVisualState, Direction, FREEFORM,
-    FigureCapabilityRegistrationError, FigureMeasurement, FigurePreparation, INPUT, ImageFigure,
-    LAYER, LIFECYCLE, LabelFigure, MeasureConstraints, PREPARATION, PolygonFigure, PolylineFigure,
-    RoundedRectangleFigure, SCALE, ScalablePolygonFigure, ShapeMutationError, TextFlowFigure,
-    ToggleFigure, TriangleFigure, WidgetError, normalize_points,
+    ACCESSIBILITY, AccessibleFigure, ButtonFigure, CLICKABLE, CONNECTION, CONNECTION_DECORATION,
+    CONTAINER, CapabilityKey, CapabilityQueryError, ChildClippingStrategy, ChildPolicy,
+    ClickableSnapshot, ClickableVisualState, FREEFORM, FigureCapabilityRegistrationError,
+    FigureMeasurement, FigurePreparation, INPUT, ImageFigure, LAYER, LIFECYCLE, LabelFigure,
+    MeasureConstraints, PREPARATION, PolygonFigure, PolylineFigure, SCALE, TextFlowFigure,
+    ToggleFigure,
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
     LayoutSnapshot,
 };
-use crate::Border;
 use crate::figure::border::BorderSnapshot;
 use crate::figure::capability::FigureCapabilitySet;
 pub use crate::identity::FigureId;
@@ -544,34 +541,6 @@ impl PointListFigureRef<'_> {
             Self::Polygon(figure) => figure.stroke_style(),
         }
     }
-
-    fn painted_minimum(&self) -> usize {
-        match self {
-            Self::Polyline(figure) => figure.painted_minimum(),
-            Self::Polygon(figure) => figure.painted_minimum(),
-        }
-    }
-}
-
-enum PointListFigureMut<'a> {
-    Polyline(&'a mut PolylineFigure),
-    Polygon(&'a mut PolygonFigure),
-}
-
-impl PointListFigureMut<'_> {
-    fn commit_stroke_style(&mut self, stroke: crate::render::StrokeStyle) {
-        match self {
-            Self::Polyline(figure) => figure.commit_stroke_style(stroke),
-            Self::Polygon(figure) => figure.commit_stroke_style(stroke),
-        }
-    }
-
-    fn commit_geometry(&mut self, bounds: Rectangle, local_points: Vec<Point>) {
-        match self {
-            Self::Polyline(figure) => figure.commit_geometry(bounds, local_points),
-            Self::Polygon(figure) => figure.commit_geometry(bounds, local_points),
-        }
-    }
 }
 
 impl Deref for FigureNode {
@@ -710,23 +679,6 @@ impl FigureNode {
             .resolve(self.figure.as_ref())
     }
 
-    fn bordered(&self) -> Option<&dyn super::BorderedFigure> {
-        self.capabilities
-            .get(BORDER)
-            .expect("typed Border descriptor must match its key")
-            .copied()?
-            .resolve(self.figure.as_ref())
-    }
-
-    fn bordered_mut(&mut self) -> Option<&mut dyn super::BorderedFigure> {
-        let capability = self
-            .capabilities
-            .get(BORDER)
-            .expect("typed Border descriptor must match its key")
-            .copied()?;
-        capability.resolve_mut(self.figure.as_mut())
-    }
-
     fn clickable(&self) -> Option<&dyn super::ClickableBehavior> {
         self.capabilities
             .get(CLICKABLE)
@@ -790,26 +742,6 @@ impl FigureNode {
             .map(PointListFigureRef::Polygon)
     }
 
-    fn point_list_mut(&mut self) -> Option<PointListFigureMut<'_>> {
-        let figure = self.figure.as_mut().as_any_mut();
-        if figure.is::<PolylineFigure>() {
-            return figure
-                .downcast_mut::<PolylineFigure>()
-                .map(PointListFigureMut::Polyline);
-        }
-        figure
-            .downcast_mut::<PolygonFigure>()
-            .map(PointListFigureMut::Polygon)
-    }
-
-    fn scalable_polygon(&self) -> Option<&ScalablePolygonFigure> {
-        self.figure.as_ref().as_any().downcast_ref()
-    }
-
-    fn scalable_polygon_mut(&mut self) -> Option<&mut ScalablePolygonFigure> {
-        self.figure.as_mut().as_any_mut().downcast_mut()
-    }
-
     fn text_flow(&self) -> Option<&TextFlowFigure> {
         self.figure.as_ref().as_any().downcast_ref()
     }
@@ -844,6 +776,20 @@ impl FigureNode {
         figure
             .downcast_mut::<ToggleFigure>()
             .map(ToggleFigure::label_component_mut)
+    }
+
+    pub(crate) fn component<T: crate::Figure + 'static>(&self) -> Option<&T> {
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<LabelFigure>() {
+            return (self.label()? as &dyn std::any::Any).downcast_ref();
+        }
+        self.figure.as_ref().as_any().downcast_ref()
+    }
+
+    pub(crate) fn component_mut<T: crate::Figure + 'static>(&mut self) -> Option<&mut T> {
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<LabelFigure>() {
+            return (self.label_mut()? as &mut dyn std::any::Any).downcast_mut();
+        }
+        self.figure.as_mut().as_any_mut().downcast_mut()
     }
 
     pub(crate) fn clickable_snapshot(&self) -> Option<ClickableSnapshot> {
@@ -908,7 +854,8 @@ impl FigureNode {
 /// # 使用示例
 ///
 /// ```
-/// use novadraw::{Figure, RectangleFigure, FigureTree};
+/// use novadraw::figure::{Figure, RectangleFigure};
+/// use novadraw::tree::FigureTree;
 ///
 /// let mut scene = FigureTree::new();
 ///

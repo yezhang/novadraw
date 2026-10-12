@@ -19,7 +19,7 @@ use novadraw::event::{
 use novadraw::figure::{
     FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
 };
-use novadraw::{Figure, Rectangle, Runtime};
+use novadraw::{figure::Figure, geometry::Rectangle, runtime::Runtime};
 
 const MODE: PropertyKey<Mode> = PropertyKey::new("example.widget", "mode");
 const SAME_NAME_OTHER_NAMESPACE: PropertyKey<Mode> =
@@ -99,7 +99,8 @@ fn lifecycle_visibility_mapping_uses_the_standard_typed_key() {
     let hidden = Arc::new(AtomicUsize::new(0));
     let calls = Arc::clone(&shown);
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::Lifecycle(AnimationLifecycle::Shown),
@@ -113,7 +114,8 @@ fn lifecycle_visibility_mapping_uses_the_standard_typed_key() {
         .unwrap();
     let calls = Arc::clone(&hidden);
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::Lifecycle(AnimationLifecycle::Hidden),
@@ -163,7 +165,8 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
 
     let calls = Arc::clone(&property_calls);
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::property_changed(MODE),
@@ -178,7 +181,8 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
 
     let calls = Arc::clone(&state_calls);
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::state_changed(MODE),
@@ -193,7 +197,8 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
 
     let facts = Arc::clone(&transaction_facts);
     runtime
-        .animations()
+        .animation()
+        .timeline()
         .install_behavior(
             AnimationBehavior::new(
                 AnimationTrigger::Transaction,
@@ -207,11 +212,19 @@ fn typed_keys_drive_matching_coalescing_and_diagnostics_without_string_identity(
         .unwrap();
 
     let observed = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))));
+    runtime
+        .observations()
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&observed))));
 
-    runtime.dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
-    runtime.dispatch_mouse_released(10.0, 10.0, MouseButton::Left);
-    runtime.dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_released(10.0, 10.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(10.0, 10.0, MouseButton::Left);
     record_full_submission(&mut runtime);
 
     assert_eq!(property_calls.load(Ordering::SeqCst), 1);

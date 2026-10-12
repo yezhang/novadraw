@@ -8,9 +8,12 @@ use novadraw::advanced::RuntimeNamespace;
 use novadraw::connection::{
     AnchorSemanticKey, ConnectionAnchor, ConnectionRouter, RoutingConstraint,
 };
+use novadraw::figure::{Figure, FigureStyle};
 use novadraw::geometry::Rectangle;
-use novadraw::runtime::{ComponentUpdateReceipt, FigureComponentUpdate, RuntimeMutationError};
-use novadraw::{Figure, FigureId, FigureStyle, Runtime};
+use novadraw::runtime::{
+    ComponentUpdateReceipt, FigureComponentUpdate, Runtime, RuntimeMutationError, SetLabelText,
+};
+use novadraw::tree::FigureId;
 use slotmap::{DefaultKey, Key, KeyData, SlotMap};
 use uuid::Uuid;
 
@@ -39,6 +42,14 @@ pub struct EditPartId {
 }
 
 impl EditPartId {
+    #[cfg(test)]
+    pub(crate) fn for_test(namespace: EditorNamespace) -> Self {
+        Self {
+            namespace,
+            local: KeyData::from_ffi(1),
+        }
+    }
+
     pub(crate) fn from_local(namespace: EditorNamespace, local: KeyData) -> Self {
         Self { namespace, local }
     }
@@ -68,10 +79,6 @@ impl ConnectionPartId {
     /// Returns the canonical EditPart identity.
     pub const fn edit_part(self) -> EditPartId {
         self.0
-    }
-
-    pub(crate) const fn edit_part_ref(&self) -> &EditPartId {
-        &self.0
     }
 }
 
@@ -952,7 +959,7 @@ impl<'a> VisualBuildContext<'a> {
                 "visual parent is not owned by this EditPart",
             ));
         }
-        let id = self.runtime.container(parent)?.add(figure)?;
+        let id = self.runtime.figure(parent)?.add(figure)?;
         self.visuals.push(id);
         Ok(id)
     }
@@ -1053,8 +1060,9 @@ impl<'a> VisualUpdateContext<'a> {
         text: impl Into<String>,
     ) -> Result<bool, EditPartError> {
         self.runtime
-            .label(self.primary)?
-            .set_text(text)
+            .figure(self.primary)?
+            .update_component(SetLabelText::new(text))
+            .map(|receipt| receipt.changed)
             .map_err(|error| EditPartError::operation(error.to_string()))
     }
 }
@@ -1078,7 +1086,7 @@ pub trait EditPartBehavior<A: ModelAdapter> {
         Ok(())
     }
 
-    /// Creates role-keyed policies before the initial visual refresh.
+    /// Creates typed-slot policies before the initial visual refresh.
     fn create_policies(
         &mut self,
         _model: &A,

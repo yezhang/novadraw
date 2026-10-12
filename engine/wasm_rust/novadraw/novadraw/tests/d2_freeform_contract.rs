@@ -13,8 +13,8 @@ use novadraw::layout::{FreeformConstraint, FreeformConstraintError, LayoutError,
 use novadraw::render::RenderCommandKind;
 use novadraw::tree::{FREEFORM_EXTENT_PROPERTY, FreeformError};
 use novadraw::{
-    Dimension, FigureTree, FreeformLayout, MeasureConstraints, Point, Rectangle, RectangleFigure,
-    Runtime,
+    figure::MeasureConstraints, figure::RectangleFigure, geometry::Dimension, geometry::Point,
+    geometry::Rectangle, layout::FreeformLayout, runtime::Runtime, tree::FigureTree,
 };
 use std::sync::{Arc, Mutex};
 
@@ -29,7 +29,12 @@ impl PropertyChangeListener for PropertyRecorder {
 
 fn scalable_freeform_viewport(
     layer_bounds: Rectangle,
-) -> (Runtime, ViewportHandle, ScaleHandle, novadraw::FigureId) {
+) -> (
+    Runtime,
+    ViewportHandle,
+    ScaleHandle,
+    novadraw::tree::FigureId,
+) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -48,16 +53,16 @@ fn scalable_freeform_viewport(
         .unwrap();
     let mut runtime = Runtime::new(tree);
     let layer = runtime
-        .layered_pane(scalable.figure_id())
-        .unwrap()
-        .add_layer(
+        .layers()
+        .add(
+            scalable.figure_id(),
             Box::new(FreeformLayerFigure::new(0.0, 0.0, 300.0, 200.0)),
             LayerKey::new("content").unwrap(),
             LayerPlacement::Last,
         )
         .unwrap();
     let content = runtime
-        .container(layer)
+        .figure(layer)
         .unwrap()
         .add(Box::new(RectangleFigure::new(
             layer_bounds.x,
@@ -82,8 +87,10 @@ fn freeform_query_distinguishes_unknown_non_freeform_and_unvalidated() {
         Err(FreeformError::NotFreeform(ordinary))
     );
     assert_eq!(
-        tree.freeform_extent(novadraw::FigureId::null()),
-        Err(FreeformError::UnknownFigure(novadraw::FigureId::null()))
+        tree.freeform_extent(novadraw::tree::FigureId::null()),
+        Err(FreeformError::UnknownFigure(
+            novadraw::tree::FigureId::null()
+        ))
     );
 
     let freeform = tree
@@ -193,7 +200,9 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     let mut runtime = Runtime::new(tree);
     prepare_next_submission(&mut runtime).expect("initial full frame");
     let events = Arc::new(Mutex::new(Vec::new()));
-    runtime.add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
+    runtime
+        .observations()
+        .add_property_listener(Box::new(PropertyRecorder(Arc::clone(&events))));
     runtime
         .figure(child)
         .unwrap()
@@ -201,7 +210,7 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
         .unwrap();
 
     assert_eq!(
-        runtime.freeform_extent(host),
+        runtime.tree().freeform_extent(host),
         Ok(Rectangle::new(-10.0, -5.0, 20.0, 10.0))
     );
     assert!(
@@ -218,7 +227,7 @@ fn child_move_keeps_old_stable_extent_until_revalidation() {
     prepare_next_submission(&mut runtime);
 
     assert_eq!(
-        runtime.freeform_extent(host),
+        runtime.tree().freeform_extent(host),
         Ok(Rectangle::new(30.0, 40.0, 20.0, 10.0))
     );
     let extent_events: Vec<_> = events
@@ -368,9 +377,8 @@ fn viewport_does_not_clip_freeform_contents_to_presentation_bounds() {
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
     runtime
-        .viewport(viewport.figure_id())
-        .unwrap()
-        .set_view_location(-20.0, -10.0)
+        .viewports()
+        .set_view_location(viewport.figure_id(), -20.0, -10.0)
         .unwrap();
 
     let viewport_sized_clips = record_full_submission(&mut runtime)
@@ -600,9 +608,8 @@ fn freeform_zoom_preserves_anchor_and_keeps_range_unscaled() {
 
     assert!(
         runtime
-            .zoom(&zoom)
-            .unwrap()
-            .set_zoom_at(2.0, Some(Point::new(60.0, 40.0)))
+            .viewports()
+            .set_zoom_at(&zoom, 2.0, Some(Point::new(60.0, 40.0)))
             .unwrap()
     );
 
@@ -627,7 +634,7 @@ fn freeform_fit_uses_derived_extent_instead_of_presentation_bounds() {
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 500.0, 300.0));
     let zoom = ZoomManager::new(scalable, viewport.clone());
 
-    assert!(runtime.zoom(&zoom).unwrap().fit_all().unwrap());
+    assert!(runtime.viewports().fit_all(&zoom).unwrap());
 
     assert_eq!(zoom.zoom(), 0.6);
     assert_eq!(viewport.view_location(), Point::new(-100.0, -50.0));
@@ -638,9 +645,8 @@ fn freeform_extent_shrink_clamps_origin_and_repaints_viewport() {
     let (mut runtime, viewport, _, layer) =
         scalable_freeform_viewport(Rectangle::new(-100.0, -50.0, 1000.0, 600.0));
     runtime
-        .viewport(viewport.figure_id())
-        .unwrap()
-        .set_view_location(600.0, 350.0)
+        .viewports()
+        .set_view_location(viewport.figure_id(), 600.0, 350.0)
         .unwrap();
     prepare_next_submission(&mut runtime);
 

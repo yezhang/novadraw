@@ -18,7 +18,7 @@ use novadraw::connection::{
 };
 use novadraw::figure::RootFigure;
 use novadraw::geometry::Rectangle;
-use novadraw::{Figure, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure};
 use novadraw_editor::{
     ConnectionAnchorContext, ConnectionAnchorDescriptor, ConnectionPartFactoryContext,
     EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter,
@@ -310,7 +310,7 @@ fn viewer_with(
 
 #[test]
 fn ordered_snapshot_projects_one_connection_part_outside_containment() {
-    let (viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
+    let (mut viewer, _) = viewer_with(vec![edge(EDGE_A, FIRST, SECOND)]);
     let connection = viewer.connection_part_for_model(EDGE_A).unwrap();
     let part = connection.edit_part();
     let endpoints = viewer.parts().connection_endpoints(connection).unwrap();
@@ -352,7 +352,6 @@ fn ordered_snapshot_projects_one_connection_part_outside_containment() {
     );
     assert!(matches!(
         viewer
-            .runtime()
             .connection_state(ConnectionId::from_figure(figure))
             .unwrap()
             .resolution,
@@ -477,7 +476,6 @@ fn reconnect_preserves_part_figure_order_and_unchanged_anchor() {
         .unwrap()
         .primary_figure();
     let before = viewer
-        .runtime()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
 
@@ -490,7 +488,6 @@ fn reconnect_preserves_part_figure_order_and_unchanged_anchor() {
 
     let after_part = viewer.connection_part_for_model(EDGE_A).unwrap();
     let after = viewer
-        .runtime()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
     let endpoints = viewer.parts().connection_endpoints(after_part).unwrap();
@@ -526,13 +523,11 @@ fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end()
         .unwrap()
         .primary_figure();
     let first = viewer
-        .runtime()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
 
     viewer.synchronize_model(DiagramModel::publish).unwrap();
     let same_key = viewer
-        .runtime()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
     assert_eq!(same_key.source, first.source);
@@ -545,7 +540,6 @@ fn endpoint_anchor_descriptor_reuses_stable_keys_and_replaces_only_changed_end()
         })
         .unwrap();
     let changed_key = viewer
-        .runtime()
         .connection_state(ConnectionId::from_figure(figure))
         .unwrap();
     assert_ne!(changed_key.source, first.source);
@@ -668,9 +662,7 @@ fn node_and_connection_can_be_removed_in_one_model_revision() {
     assert!(viewer.selection().is_empty());
     assert_eq!(viewer.part_for_model(EDGE_A), None);
     assert_eq!(
-        viewer
-            .runtime()
-            .connection_state(ConnectionId::from_figure(connection_figure)),
+        viewer.connection_state(ConnectionId::from_figure(connection_figure)),
         Err(ConnectionRuntimeError::UnknownConnection(
             ConnectionId::from_figure(connection_figure)
         ))
@@ -684,7 +676,7 @@ fn unresolved_route_keeps_a_live_recoverable_connection_part() {
     model
         .bounds
         .insert(SECOND, Rectangle::new(240.0, 60.0, 0.0, 0.0));
-    let viewer = GraphicalViewer::new(
+    let mut viewer = GraphicalViewer::new(
         model,
         DiagramFactory {
             lifecycle,
@@ -704,7 +696,6 @@ fn unresolved_route_keeps_a_live_recoverable_connection_part() {
 
     assert!(matches!(
         viewer
-            .runtime()
             .connection_state(ConnectionId::from_figure(figure))
             .unwrap()
             .resolution,
@@ -817,7 +808,6 @@ fn endpoint_geometry_change_is_rerouted_by_runtime() {
     assert_ne!(viewer.runtime().tree().figure_bounds(figure), Some(before));
     assert!(matches!(
         viewer
-            .runtime()
             .connection_state(ConnectionId::from_figure(figure))
             .unwrap()
             .resolution,

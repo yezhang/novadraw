@@ -1,6 +1,6 @@
 use novadraw::render::{BackendCapabilities, DamageMode, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::LogicalViewportResizeError;
-use novadraw::{FigureTree, Rectangle, RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, geometry::Rectangle, runtime::Runtime, tree::FigureTree};
 
 fn surface(width: u32, height: u32) -> SurfaceInfo {
     SurfaceInfo {
@@ -14,12 +14,14 @@ fn surface(width: u32, height: u32) -> SurfaceInfo {
 
 fn complete_frame(runtime: &mut Runtime, surface: SurfaceInfo) {
     let submission = runtime
+        .frames()
         .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
         .into_ready()
         .expect("resize must produce a frame");
     assert_eq!(submission.damage.mode(), DamageMode::Full);
     assert!(
         runtime
+            .frames()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -45,11 +47,16 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
         .expect("valid FigureTree construction");
     let mut runtime = Runtime::new(tree);
 
-    assert!(runtime.resize_logical_viewport(640.0, 480.0).unwrap());
+    assert!(
+        runtime
+            .frames()
+            .resize_logical_viewport(640.0, 480.0)
+            .unwrap()
+    );
     complete_frame(&mut runtime, surface(640, 480));
 
     assert_eq!(
-        runtime.logical_viewport(),
+        runtime.frames().logical_viewport(),
         Some(Rectangle::new(0.0, 0.0, 640.0, 480.0))
     );
     assert_eq!(
@@ -61,17 +68,29 @@ fn logical_viewport_resizes_contents_without_rewriting_child_world_coordinates()
         Some(Rectangle::new(30.0, 40.0, 80.0, 60.0))
     );
 
-    assert!(!runtime.resize_logical_viewport(640.0, 480.0).unwrap());
+    assert!(
+        !runtime
+            .frames()
+            .resize_logical_viewport(640.0, 480.0)
+            .unwrap()
+    );
     assert!(matches!(
-        runtime.prepare_submission(surface(640, 480), BackendCapabilities::RETAINED_PARTIAL),
-        novadraw::FramePreparation::Idle
+        runtime
+            .frames()
+            .prepare_submission(surface(640, 480), BackendCapabilities::RETAINED_PARTIAL),
+        novadraw::runtime::FramePreparation::Idle
     ));
 }
 
 #[test]
 fn replacing_contents_after_resize_uses_the_current_logical_viewport() {
     let mut runtime = Runtime::empty();
-    assert!(runtime.resize_logical_viewport(500.0, 360.0).unwrap());
+    assert!(
+        runtime
+            .frames()
+            .resize_logical_viewport(500.0, 360.0)
+            .unwrap()
+    );
     let contents = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 10.0, 10.0)))
         .expect("valid Runtime mutation");
@@ -89,15 +108,15 @@ fn logical_viewport_rejects_non_finite_and_negative_sizes() {
     let mut runtime = Runtime::empty();
 
     assert_eq!(
-        runtime.resize_logical_viewport(-1.0, 100.0),
+        runtime.frames().resize_logical_viewport(-1.0, 100.0),
         Err(LogicalViewportResizeError::InvalidSize {
             width: -1.0,
             height: 100.0,
         })
     );
     assert!(matches!(
-        runtime.resize_logical_viewport(f64::NAN, 100.0),
+        runtime.frames().resize_logical_viewport(f64::NAN, 100.0),
         Err(LogicalViewportResizeError::InvalidSize { .. })
     ));
-    assert_eq!(runtime.logical_viewport(), None);
+    assert_eq!(runtime.frames().logical_viewport(), None);
 }

@@ -1,8 +1,8 @@
 use novadraw::event::MouseButton;
 use novadraw::figure::ClickableFigure;
-use novadraw::{FigureTree, Rectangle, RectangleFigure, Runtime};
+use novadraw::{figure::RectangleFigure, geometry::Rectangle, runtime::Runtime, tree::FigureTree};
 
-fn runtime_with_clickable() -> (Runtime, novadraw::FigureId) {
+fn runtime_with_clickable() -> (Runtime, novadraw::tree::FigureId) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -22,7 +22,9 @@ fn runtime_with_clickable() -> (Runtime, novadraw::FigureId) {
 fn handled_press_reports_target_and_capture_to_the_caller() {
     let (mut runtime, clickable) = runtime_with_clickable();
 
-    let outcome = runtime.dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
+    let outcome = runtime
+        .input()
+        .dispatch_mouse_pressed(30.0, 30.0, MouseButton::Left);
 
     assert!(outcome.is_handled());
     assert_eq!(outcome.target(), Some(clickable));
@@ -33,7 +35,9 @@ fn handled_press_reports_target_and_capture_to_the_caller() {
 fn unhandled_press_is_observable_for_editor_tool_fallback() {
     let (mut runtime, _) = runtime_with_clickable();
 
-    let outcome = runtime.dispatch_mouse_pressed(250.0, 150.0, MouseButton::Left);
+    let outcome = runtime
+        .input()
+        .dispatch_mouse_pressed(250.0, 150.0, MouseButton::Left);
 
     assert!(!outcome.is_handled());
     assert_eq!(outcome.capture(), None);

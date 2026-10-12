@@ -9,12 +9,17 @@ use novadraw::render::{
 };
 use novadraw::runtime::{SubmissionAcknowledgement, SubmissionCompletionError};
 use novadraw::{
-    Color, FigureId, FigureStyle, FramePreparation, Point, Rectangle, RectangleFigure, Runtime,
+    figure::FigureStyle, figure::RectangleFigure, geometry::Point, geometry::Rectangle,
+    graphics::Color, runtime::FramePreparation, tree::FigureId,
+};
+use novadraw_editor::overlay::{
+    BendpointCreateAction, BendpointHandleSite, BendpointMoveAction, ConnectionEndpointAction,
+    HandleActionProtocol, ResizeAction,
 };
 use novadraw_editor::{
-    AutoexposeTick, BendpointHandleSite, ConnectionEndpoint, ConnectionPartId, CreateRequest,
-    CreationType, DeleteRequest, DirectTextFeature, EditorDomain, EditorRequest, HandleRole,
-    RequestModifiers, ResizeDirection, SessionTextInputEvent, TextInputEffect,
+    AutoexposeTick, ConnectionEndpoint, ConnectionPartId, CreateChild, CreateRequest, CreationType,
+    DeleteParts, DeleteRequest, DirectTextFeature, EditorDomain, RequestMetadata, RequestModifiers,
+    ResizeDirection, SessionTextInputEvent, TextInputEffect,
 };
 
 use super::{
@@ -77,10 +82,6 @@ impl EditorHarness {
         })
     }
 
-    pub(crate) const fn runtime(&self) -> &Runtime {
-        self.viewer.runtime()
-    }
-
     pub(crate) fn prepare_frame(&mut self) -> Option<RenderSubmission> {
         let submission = self
             .viewer
@@ -128,6 +129,10 @@ impl EditorHarness {
         self.viewer
             .drive()
             .complete_submission(session_id, frame_id, result)
+    }
+
+    pub(crate) fn has_pending_update(&mut self) -> bool {
+        self.viewer.drive().has_pending_update()
     }
 
     pub(crate) fn reset_backend_session(&mut self) -> HarnessResult<BackendSessionId> {
@@ -371,7 +376,7 @@ impl EditorHarness {
     pub(crate) fn create_node(&mut self) -> HarnessResult<()> {
         let sequence = self.viewer.model().next_id.saturating_sub(5) as f64;
         let offset = sequence * CREATED_NODE_OFFSET;
-        let request = EditorRequest::Create(CreateRequest::new(
+        let request = CreateRequest::new(
             self.viewer.contents(),
             CreationType::new("shape").map_err(|error| error.to_string())?,
             Rectangle::new(
@@ -384,9 +389,10 @@ impl EditorHarness {
             self.domain
                 .next_interaction_revision()
                 .map_err(|error| error.to_string())?,
-        ));
+        );
+        let metadata = RequestMetadata::new(request.revision(), vec![request.parent()]);
         self.domain
-            .execute_request(&mut self.viewer, &request)
+            .execute::<CreateChild, _>(&mut self.viewer, &metadata, &request)
             .map_err(|error| error.to_string())?;
         self.sync_selection_handles()
     }
@@ -396,14 +402,15 @@ impl EditorHarness {
         if parts.is_empty() {
             return Ok(false);
         }
-        let request = EditorRequest::Delete(DeleteRequest::new(
+        let request = DeleteRequest::new(
             parts,
             self.domain
                 .next_interaction_revision()
                 .map_err(|error| error.to_string())?,
-        ));
+        );
+        let metadata = RequestMetadata::new(request.revision(), request.parts().to_vec());
         self.domain
-            .execute_request(&mut self.viewer, &request)
+            .execute::<DeleteParts, _>(&mut self.viewer, &metadata, &request)
             .map_err(|error| error.to_string())?;
         self.sync_selection_handles()?;
         Ok(true)
@@ -615,9 +622,9 @@ impl EditorHarness {
                 )
                 .with_stroke(Color::BLACK, 1.0);
                 let result = if Some(part) == primary {
-                    self.viewer.add_handle_visual_with_role(
+                    self.viewer.add_handle_visual_with_action::<ResizeAction>(
                         part,
-                        HandleRole::Resize(direction),
+                        direction,
                         Box::new(handle),
                     )
                 } else {
@@ -645,10 +652,10 @@ impl EditorHarness {
             (source, ConnectionEndpoint::Source),
             (target, ConnectionEndpoint::Target),
         ] {
-            self.add_handle(
+            self.add_handle::<ConnectionEndpointAction>(
                 owner,
                 point,
-                HandleRole::ConnectionEndpoint(endpoint),
+                endpoint,
                 HANDLE_SIZE,
                 PRIMARY_HANDLE_COLOR,
             )?;
@@ -658,23 +665,32 @@ impl EditorHarness {
             .connection_bendpoint_handle_sites(connection)
             .map_err(|error| error.to_string())?;
         for site in sites {
-            let (size, color) = match site.role() {
-                HandleRole::BendpointCreate(_) => {
-                    (BENDPOINT_CREATE_HANDLE_SIZE, BENDPOINT_CREATE_HANDLE_COLOR)
-                }
-                HandleRole::BendpointMove(_) => (HANDLE_SIZE, BENDPOINT_HANDLE_COLOR),
-                _ => continue,
-            };
-            self.add_handle(owner, site.location(), site.role(), size, color)?;
+            if let Some(index) = site.action().get::<BendpointCreateAction>().copied() {
+                self.add_handle::<BendpointCreateAction>(
+                    owner,
+                    site.location(),
+                    index,
+                    BENDPOINT_CREATE_HANDLE_SIZE,
+                    BENDPOINT_CREATE_HANDLE_COLOR,
+                )?;
+            } else if let Some(index) = site.action().get::<BendpointMoveAction>().copied() {
+                self.add_handle::<BendpointMoveAction>(
+                    owner,
+                    site.location(),
+                    index,
+                    HANDLE_SIZE,
+                    BENDPOINT_HANDLE_COLOR,
+                )?;
+            }
         }
         Ok(())
     }
 
-    fn add_handle(
+    fn add_handle<R: HandleActionProtocol>(
         &mut self,
         owner: novadraw_editor::EditPartId,
         point: Point,
-        role: HandleRole,
+        payload: R::Payload,
         size: f64,
         color: Color,
     ) -> HarnessResult<()> {
@@ -688,7 +704,7 @@ impl EditorHarness {
         .with_stroke(Color::BLACK, 1.0);
         let (_, figure) = self
             .viewer
-            .add_handle_visual_with_role(owner, role, Box::new(handle))
+            .add_handle_visual_with_action::<R>(owner, payload, Box::new(handle))
             .map_err(|error| error.to_string())?;
         self.handles.push(figure);
         Ok(())

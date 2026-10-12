@@ -1,8 +1,8 @@
 use std::{cell::Cell, collections::HashMap};
 
-use novadraw::FigureId;
 use novadraw::connection::*;
 use novadraw::geometry::{ApproxEq, Dimension, Point, PointList, Precision, Rectangle, Vec2};
+use novadraw::tree::FigureId;
 
 const TEST_PRECISION: Precision = Precision::new(1.0e-6);
 
@@ -129,10 +129,10 @@ impl SceneRead for QueryFixture {
 }
 
 fn figure_ids(count: usize) -> Vec<FigureId> {
-    let mut tree = novadraw::FigureTree::new();
+    let mut tree = novadraw::tree::FigureTree::new();
     let root = tree
         .builder()
-        .set_contents(Box::new(novadraw::RectangleFigure::new(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new(
             0.0, 0.0, 100.0, 100.0,
         )))
         .expect("valid FigureTree construction");
@@ -141,7 +141,7 @@ fn figure_ids(count: usize) -> Vec<FigureId> {
             tree.builder()
                 .add_child(
                     root,
-                    Box::new(novadraw::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
+                    Box::new(novadraw::figure::RectangleFigure::new(0.0, 0.0, 10.0, 10.0)),
                 )
                 .expect("valid FigureTree construction")
         })

@@ -9,7 +9,8 @@ use novadraw::render::{
     BuiltinFont, FontDescriptor, ImageData, ImageResourceRef, TextConstraints, TextLayout,
 };
 use novadraw::{
-    Color, Figure, FigureId, Point, PolylineFigure, Rectangle, RectangleFigure, Runtime,
+    figure::Figure, figure::PolylineFigure, figure::RectangleFigure, geometry::Point,
+    geometry::Rectangle, graphics::Color, runtime::Runtime, tree::FigureId,
 };
 
 pub const SIZE: (u32, u32) = (800, 600);
@@ -127,9 +128,9 @@ impl Figure for GraphicsFigure {
         // A clip retains the transform at its call, while the brush follows draw.
         gc.push_state();
         gc.clip_rect(Rectangle::new(560.0, 120.0, 140.0, 120.0))?;
-        gc.concat_transform(novadraw::Affine2D::from_translation(620.0, 140.0))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_translation(620.0, 140.0))?;
         gc.rotate_degrees(90.0)?;
-        gc.concat_transform(novadraw::Affine2D::from_scale(1.5, 0.75))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_scale(1.5, 0.75))?;
         gc.set_fill_paint(red_blue(0.0, 60.0));
         gc.fill_rect(Rectangle::new(0.0, -40.0, 60.0, 80.0))?;
         gc.pop_state()?;
@@ -139,8 +140,8 @@ impl Figure for GraphicsFigure {
         gc.set_stroke_style(dash());
         gc.stroke_line(Point::new(40.0, 300.0), Point::new(280.0, 300.0))?;
         gc.push_state();
-        gc.concat_transform(novadraw::Affine2D::from_translation(340.0, 300.0))?;
-        gc.concat_transform(novadraw::Affine2D::from_scale(1.5, 2.0))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_translation(340.0, 300.0))?;
+        gc.concat_transform(novadraw::geometry::Affine2D::from_scale(1.5, 2.0))?;
         gc.stroke_line(Point::new(0.0, 0.0), Point::new(160.0, 0.0))?;
         gc.pop_state()?;
 
@@ -168,7 +169,7 @@ impl GraphicsScene {
     pub fn show_feedback(&mut self) {
         self.feedback = Some(
             self.runtime
-                .container(self.feedback_layer)
+                .figure(self.feedback_layer)
                 .unwrap()
                 .add(Box::new(
                     RectangleFigure::new_with_color(120.0, 400.0, 260.0, 120.0, Color::TRANSPARENT)
@@ -188,7 +189,7 @@ impl GraphicsScene {
 
     pub fn cancel_feedback(&mut self) {
         self.runtime
-            .container(self.feedback_layer)
+            .figure(self.feedback_layer)
             .unwrap()
             .remove(self.feedback.take().unwrap())
             .unwrap();
@@ -197,16 +198,24 @@ impl GraphicsScene {
 
 pub fn fixture() -> GraphicsScene {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let layout = runtime
-        .layout_text(
+        .text()
+        .layout(
             "HHHHHH",
             &FontDescriptor::new("Inter Variable", TEXT_SIZE).unwrap(),
             TextConstraints::UNBOUNDED,
         )
         .unwrap();
-    let image = runtime.register_image().expect("image registration");
+    let image = runtime
+        .resources()
+        .register_image()
+        .expect("image registration");
     runtime
+        .resources()
         .complete_image(image, ImageData::from_rgba(1, 1, vec![0, 255, 0, 255], 1.0))
         .unwrap();
     let root = runtime
@@ -219,7 +228,7 @@ pub fn fixture() -> GraphicsScene {
         )))
         .unwrap();
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(GraphicsFigure {
             layout,
@@ -228,14 +237,14 @@ pub fn fixture() -> GraphicsScene {
         .unwrap();
     // A real sibling must survive the preceding Figure's empty clip.
     runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(RectangleFigure::new_with_color(
             720.0, 280.0, 40.0, 40.0, GREEN,
         )))
         .unwrap();
     let miter = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             PolylineFigure::from_points(vec![
@@ -254,7 +263,7 @@ pub fn fixture() -> GraphicsScene {
         ))
         .unwrap();
     let feedback_layer = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(LayerFigure::new(
             0.0,

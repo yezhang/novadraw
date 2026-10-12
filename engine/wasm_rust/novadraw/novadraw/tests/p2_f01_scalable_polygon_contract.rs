@@ -7,7 +7,14 @@ use novadraw::figure::{
 };
 use novadraw::geometry::{Point, PointList, Rectangle};
 use novadraw::render::{CommandRecorder, LineJoin, command::RenderCommandKind};
-use novadraw::{Figure, RectangleFigure, Runtime};
+use novadraw::{
+    figure::Figure,
+    figure::RectangleFigure,
+    runtime::{
+        ComponentUpdateError, ReplaceScalablePolygonTemplate, Runtime, SetScalablePolygonAlignment,
+        SetScalablePolygonScaleMode,
+    },
+};
 
 fn wide_template() -> PointList {
     PointList::from_points(vec![
@@ -101,7 +108,7 @@ fn scalable_polygon_reserves_miter_outset_and_uses_precise_hit() {
         ]),
     )
     .unwrap()
-    .with_stroke(novadraw::Color::BLACK, 4.0, LineJoin::Miter);
+    .with_stroke(novadraw::graphics::Color::BLACK, 4.0, LineJoin::Miter);
     let points = figure.scaled_points(Rectangle::new(0.0, 0.0, 100.0, 80.0));
     assert!(
         points.iter().all(|point| {
@@ -114,8 +121,8 @@ fn scalable_polygon_reserves_miter_outset_and_uses_precise_hit() {
     let mut recorder = CommandRecorder::new();
     {
         let mut context = recorder.paint();
-        context.set_fill_paint(novadraw::Color::WHITE);
-        context.set_stroke_paint(novadraw::Color::BLACK);
+        context.set_fill_paint(novadraw::graphics::Color::WHITE);
+        context.set_stroke_paint(novadraw::graphics::Color::BLACK);
         figure.paint(&mut context, figure.initial_bounds()).unwrap();
     }
     assert!(
@@ -139,7 +146,7 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
         .unwrap();
     let polygon = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ScalablePolygonFigure::new(Rectangle::new(20.0, 20.0, 100.0, 60.0), wide_template())
@@ -150,17 +157,24 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
     assert!(
         runtime
-            .scalable_polygon(polygon)
+            .figure(polygon)
             .unwrap()
-            .set_scale_mode(PolygonScaleMode::PreserveAspect)
+            .update_component(SetScalablePolygonScaleMode::new(
+                PolygonScaleMode::PreserveAspect,
+            ))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_ne!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
     assert!(
         runtime
-            .scalable_polygon(polygon)
+            .figure(polygon)
             .unwrap()
-            .set_alignment(Alignment::Center, Alignment::Start)
+            .update_component(SetScalablePolygonAlignment::new(
+                Alignment::Center,
+                Alignment::Start,
+            ))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     assert_eq!(runtime.tree().hit_test_simple((30.0, 25.0)), Some(polygon));
@@ -185,18 +199,21 @@ fn runtime_mutations_and_resize_use_current_template_without_stale_geometry() {
     );
     assert_eq!(
         runtime
-            .scalable_polygon(polygon)
+            .figure(polygon)
             .unwrap()
-            .replace_template(PointList::from_points(vec![
-                Point::new(f64::INFINITY, 0.0,)
-            ])),
-        Err(ShapeMutationError::NonFiniteGeometry)
+            .update_component(ReplaceScalablePolygonTemplate::new(PointList::from_points(
+                vec![Point::new(f64::INFINITY, 0.0,)]
+            ),)),
+        Err(ComponentUpdateError::Rejected(
+            ShapeMutationError::NonFiniteGeometry
+        ))
     );
     assert!(
         runtime
-            .scalable_polygon(polygon)
+            .figure(polygon)
             .unwrap()
-            .replace_template(PointList::new())
+            .update_component(ReplaceScalablePolygonTemplate::new(PointList::new()))
+            .map(|receipt| receipt.changed)
             .unwrap()
     );
     let frame = record_full_submission(&mut runtime);

@@ -1,5 +1,5 @@
-use novadraw::Color;
 use novadraw::geometry::{Point, Rectangle};
+use novadraw::graphics::Color;
 use novadraw::graphics::{DashPattern, Path, StrokeStyle};
 use novadraw::render::{CommandRecorder, ImageResourceRef, RenderCommandKind, ResourceId};
 use uuid::Uuid;

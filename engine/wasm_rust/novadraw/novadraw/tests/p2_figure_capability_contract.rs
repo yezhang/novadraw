@@ -2,32 +2,39 @@ mod support;
 
 use support::record_full_submission;
 
-use std::sync::{
-    Arc,
-    atomic::{AtomicU64, Ordering},
-};
-use std::time::Duration;
-
 use novadraw::{
-    Color, Dimension, Figure, FigureMeasurement, FigureTree, Rectangle, RectangleFigure, Runtime,
     animation::{
         AnimationError, AnimationPlan, AnimationStart, AnimationState, InteractionGeometryPolicy,
         Motion, PresentationBinding, PresentationFamily, PresentationValues, Tween,
     },
     connection::ConnectionFigure,
     event::{EventContext, FigureEventHandler, MonotonicTime, MouseButton, MouseEvent},
+    figure::Figure,
+    figure::FigureMeasurement,
+    figure::RectangleFigure,
     figure::{
         BORDER, CLICKABLE, CONNECTION, CONTAINER, CapabilityKey, CapabilityQueryError,
         ClickableFigure, FigureCapabilityBuilder, FigureCapabilityRegistrationError, FigureDrawing,
         FigurePresentation, INPUT, InputCapability,
     },
+    geometry::Dimension,
+    geometry::Rectangle,
+    graphics::Color,
     graphics::{GraphicsError, PaintContext},
+    runtime::Runtime,
     runtime::{
         CapabilityUpdateError, ComponentInvalidation, FigureCapabilityContext,
-        FigureCapabilityUpdate, PreparedCapabilityUpdate,
+        FigureCapabilityUpdate, FigureUpdateCommitContext, FigureUpdateEffect,
+        FigureUpdateEffectContext, PreparedCapabilityUpdate, RuntimeMutationError,
     },
+    tree::FigureTree,
     tree::GraphMutationError,
 };
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
+use std::time::Duration;
 
 const COUNTER: CapabilityKey<CounterCapability> = CapabilityKey::new("example.counter");
 const SCALAR_PRESENTATION: CapabilityKey<PresentationBinding<f64>> =
@@ -141,6 +148,7 @@ impl FigureCapabilityUpdate for SetCounter {
     fn prepare(
         self,
         _capability: &Self::Capability,
+        _target: &dyn Figure,
         _context: FigureCapabilityContext,
     ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error> {
         if self.0 == 0 {
@@ -154,7 +162,57 @@ impl FigureCapabilityUpdate for SetCounter {
     }
 }
 
-fn tree_with_external_child() -> (FigureTree, novadraw::FigureId, novadraw::FigureId) {
+struct ReparentEffect {
+    child: novadraw::tree::FigureId,
+    new_parent: novadraw::tree::FigureId,
+}
+
+impl FigureUpdateEffect for ReparentEffect {
+    fn validate(&self, context: FigureUpdateEffectContext<'_>) -> Result<(), RuntimeMutationError> {
+        context.validate_reparent(self.child, self.new_parent)
+    }
+
+    fn commit(self: Box<Self>, context: &mut FigureUpdateCommitContext<'_>) {
+        assert!(context.reparent(self.child, self.new_parent));
+    }
+}
+
+struct MoveCounter {
+    value: u64,
+    new_parent: novadraw::tree::FigureId,
+}
+
+impl FigureCapabilityUpdate for MoveCounter {
+    type Capability = CounterCapability;
+    type Prepared = u64;
+    type Error = &'static str;
+
+    const KEY: CapabilityKey<Self::Capability> = COUNTER;
+
+    fn prepare(
+        self,
+        _capability: &Self::Capability,
+        _target: &dyn Figure,
+        context: FigureCapabilityContext,
+    ) -> Result<PreparedCapabilityUpdate<Self::Prepared>, Self::Error> {
+        Ok(
+            PreparedCapabilityUpdate::paint(self.value).with_effect(ReparentEffect {
+                child: context.figure_id,
+                new_parent: self.new_parent,
+            }),
+        )
+    }
+
+    fn commit(capability: &Self::Capability, prepared: Self::Prepared, _target: &mut dyn Figure) {
+        capability.value.store(prepared, Ordering::SeqCst);
+    }
+}
+
+fn tree_with_external_child() -> (
+    FigureTree,
+    novadraw::tree::FigureId,
+    novadraw::tree::FigureId,
+) {
     let mut tree = FigureTree::new();
     let root = tree
         .builder()
@@ -301,7 +359,9 @@ fn external_capability_supports_typed_query_and_shared_runtime_commit() {
     );
     assert_eq!(runtime.tree().component_revision(external), Some(1));
 
-    runtime.dispatch_mouse_pressed(20.0, 15.0, MouseButton::Left);
+    runtime
+        .input()
+        .dispatch_mouse_pressed(20.0, 15.0, MouseButton::Left);
     assert_eq!(
         runtime
             .tree()
@@ -313,6 +373,51 @@ fn external_capability_supports_typed_query_and_shared_runtime_commit() {
     );
     assert_eq!(runtime.tree().component_revision(external), Some(2));
     assert!(runtime.take_deferred_mutation_errors().is_empty());
+}
+
+#[test]
+fn external_capability_effect_uses_validated_runtime_structural_commit() {
+    let mut tree = FigureTree::new();
+    let root = tree
+        .builder()
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 200.0, 100.0)))
+        .unwrap();
+    let left = tree
+        .builder()
+        .add_child(root, Box::new(RectangleFigure::new(0.0, 0.0, 100.0, 100.0)))
+        .unwrap();
+    let right = tree
+        .builder()
+        .add_child(
+            root,
+            Box::new(RectangleFigure::new(100.0, 0.0, 100.0, 100.0)),
+        )
+        .unwrap();
+    let external = tree
+        .builder()
+        .add_child(left, Box::new(ExternalCapabilityFigure::new(1)))
+        .unwrap();
+    let mut runtime = Runtime::new(tree);
+
+    runtime
+        .figure(external)
+        .unwrap()
+        .update_capability(MoveCounter {
+            value: 7,
+            new_parent: right,
+        })
+        .unwrap();
+
+    assert_eq!(runtime.tree().parent_id(external), Some(right));
+    assert_eq!(
+        runtime
+            .tree()
+            .capability(external, COUNTER)
+            .unwrap()
+            .unwrap()
+            .snapshot(),
+        7
+    );
 }
 
 #[test]
@@ -344,7 +449,7 @@ fn capability_identity_and_absence_have_structured_results() {
         }
     );
 
-    assert!(runtime.container(root).unwrap().remove(external).unwrap());
+    assert!(runtime.figure(root).unwrap().remove(external).unwrap());
     assert_eq!(
         runtime.tree().capability(external, COUNTER).unwrap_err(),
         CapabilityQueryError::UnknownOrDisposedFigure(external)
@@ -420,9 +525,13 @@ fn external_presentation_binding_drives_immutable_content_without_core_dispatch(
     );
 
     let mut runtime = Runtime::new(tree);
-    runtime.advance_time(MonotonicTime::from_micros(0)).unwrap();
+    runtime
+        .animation()
+        .advance_time(MonotonicTime::from_micros(0))
+        .unwrap();
     let scalar = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_presentation(
             external,
             SCALAR_PRESENTATION,
@@ -434,19 +543,22 @@ fn external_presentation_binding_drives_immutable_content_without_core_dispatch(
         Motion::Tween(Tween::between(0.0, 1.0, Duration::from_millis(100)).unwrap()),
     )
     .unwrap();
-    let AnimationStart::Running(animation) = runtime.animations().start(plan).unwrap() else {
+    let AnimationStart::Running(animation) = runtime.animation().timeline().start(plan).unwrap()
+    else {
         panic!("external presentation binding must start");
     };
 
     record_full_submission(&mut runtime);
     assert!(paints.load(Ordering::SeqCst) > 0);
     runtime
+        .animation()
         .advance_time(MonotonicTime::from_micros(50_000))
         .unwrap();
-    assert_eq!(runtime.animations().value(scalar).unwrap(), 0.5);
+    assert_eq!(runtime.animation().timeline().value(scalar).unwrap(), 0.5);
 
     let color = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_presentation(
             external,
             COLOR_PRESENTATION,
@@ -461,17 +573,17 @@ fn external_presentation_binding_drives_immutable_content_without_core_dispatch(
     )
     .unwrap();
     assert!(matches!(
-        runtime.animations().start(replacement).unwrap(),
+        runtime.animation().timeline().start(replacement).unwrap(),
         AnimationStart::Running(_)
     ));
     assert_eq!(
-        runtime.animations().state(animation).unwrap(),
+        runtime.animation().timeline().state(animation).unwrap(),
         AnimationState::Cancelled
     );
 
-    assert!(runtime.container(root).unwrap().remove(external).unwrap());
+    assert!(runtime.figure(root).unwrap().remove(external).unwrap());
     assert_eq!(
-        runtime.animations().value(scalar).unwrap_err(),
+        runtime.animation().timeline().value(scalar).unwrap_err(),
         AnimationError::UnknownChannel
     );
 }
@@ -495,7 +607,8 @@ fn presentation_binding_absence_and_parallel_content_conflict_are_structured() {
 
     assert_eq!(
         runtime
-            .animations()
+            .animation()
+            .timeline()
             .bind_presentation(
                 root,
                 SCALAR_PRESENTATION,
@@ -508,7 +621,8 @@ fn presentation_binding_absence_and_parallel_content_conflict_are_structured() {
     );
 
     let scalar = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_presentation(
             external,
             SCALAR_PRESENTATION,
@@ -516,7 +630,8 @@ fn presentation_binding_absence_and_parallel_content_conflict_are_structured() {
         )
         .unwrap();
     let color = runtime
-        .animations()
+        .animation()
+        .timeline()
         .bind_presentation(
             external,
             COLOR_PRESENTATION,
@@ -539,8 +654,8 @@ fn presentation_binding_absence_and_parallel_content_conflict_are_structured() {
     ])
     .unwrap();
     assert_eq!(
-        runtime.animations().start(parallel).unwrap_err(),
+        runtime.animation().timeline().start(parallel).unwrap_err(),
         AnimationError::OverlappingTracks
     );
-    assert_eq!(runtime.animations().active_animation_count(), 0);
+    assert_eq!(runtime.animation().timeline().active_animation_count(), 0);
 }

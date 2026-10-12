@@ -10,16 +10,16 @@ const WINDOW_HEIGHT: f64 = 600.0;
 
 /// 创建使用 XYLayout 的场景
 /// 演示基于约束的定位
-fn create_scene_xy_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_xy_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -27,7 +27,7 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 设置 XYLayout
-    let xy_layout = Box::new(novadraw::XYLayout::new());
+    let xy_layout = Box::new(novadraw::layout::XYLayout::new());
     scene
         .builder()
         .set_layout_manager(container_id, xy_layout)
@@ -42,12 +42,12 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
     ];
 
     for (x, y, w, h, _name) in positions {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             0.0, // 初始位置由布局器设置
             0.0,
             w,
             h,
-            novadraw::Color::from_hex(match _name {
+            novadraw::graphics::Color::from_hex(match _name {
                 "red" => "#e74c3c",
                 "green" => "#2ecc71",
                 "purple" => "#9b59b6",
@@ -62,7 +62,7 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
 
         // 设置约束（位置和尺寸）
-        let constraint = novadraw::Rectangle::new(x, y, w, h);
+        let constraint = novadraw::geometry::Rectangle::new(x, y, w, h);
         scene
             .builder()
             .set_layout_constraint(child_id, constraint)
@@ -82,16 +82,16 @@ fn create_scene_xy_layout() -> novadraw::FigureTree {
 
 /// 创建使用 FillLayout 的场景
 /// 演示第一个子元素填充容器
-fn create_scene_fill_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_fill_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -99,19 +99,19 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 设置 FillLayout
-    let fill_layout = Box::new(novadraw::FillLayout::new());
+    let fill_layout = Box::new(novadraw::layout::FillLayout::new());
     scene
         .builder()
         .set_layout_manager(container_id, fill_layout)
         .expect("valid FigureTree construction");
 
     // 第一个子元素会填充容器；FillLayout 不接受子节点约束。
-    let first = novadraw::RectangleFigure::new_with_color(
+    let first = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         100.0,
         100.0,
-        novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
     );
     scene
         .builder()
@@ -119,12 +119,12 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 其他子元素保持原位
-    let second = novadraw::RectangleFigure::new_with_color(
+    let second = novadraw::figure::RectangleFigure::new_with_color(
         100.0,
         100.0,
         50.0,
         50.0,
-        novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
     );
     let _second = scene
         .builder()
@@ -143,16 +143,16 @@ fn create_scene_fill_layout() -> novadraw::FigureTree {
 
 /// 创建 FlowLayout 场景
 /// 演示流式布局：按顺序排列，自动换行
-fn create_scene_flow_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_flow_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -161,7 +161,7 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
 
     // 设置 FlowLayout
     let flow_layout = Box::new(
-        novadraw::FlowLayout::new()
+        novadraw::layout::FlowLayout::new()
             .with_spacing(15.0)
             .with_row_spacing(15.0),
     );
@@ -180,12 +180,12 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
         let w = 100.0 + (i % 3) as f64 * 20.0; // 固定宽度范围
         let h = 60.0 + (i % 2) as f64 * 15.0;
 
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             w,
             h,
-            novadraw::Color::from_hex(color).expect("valid color literal"),
+            novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
         );
         let _child_id = scene
             .builder()
@@ -205,16 +205,16 @@ fn create_scene_flow_layout() -> novadraw::FigureTree {
 
 /// 创建嵌套布局场景
 /// 外层使用 XYLayout，内层使用 FillLayout
-fn create_scene_nested_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_nested_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -222,7 +222,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 外层：XYLayout
-    let outer_layout = Box::new(novadraw::XYLayout::new());
+    let outer_layout = Box::new(novadraw::layout::XYLayout::new());
     scene
         .builder()
         .set_layout_manager(container_id, outer_layout)
@@ -237,12 +237,12 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
     ];
 
     for (x, y, w, h, _name) in regions {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             w,
             h,
-            novadraw::Color::rgba(0.9, 0.9, 0.9, 1.0),
+            novadraw::graphics::Color::rgba(0.9, 0.9, 0.9, 1.0),
         );
         let region_id = scene
             .builder()
@@ -250,26 +250,26 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
 
         // 设置约束（外层 XYLayout）
-        let constraint = novadraw::Rectangle::new(x, y, w, h);
+        let constraint = novadraw::geometry::Rectangle::new(x, y, w, h);
         scene
             .builder()
             .set_layout_constraint(region_id, constraint)
             .expect("valid FigureTree construction");
 
         // 为区域设置布局管理器（这样子元素才会应用约束）
-        let region_layout = Box::new(novadraw::XYLayout::new());
+        let region_layout = Box::new(novadraw::layout::XYLayout::new());
         scene
             .builder()
             .set_layout_manager(region_id, region_layout)
             .expect("valid FigureTree construction");
 
         // 添加子元素（填充整个区域）
-        let child = novadraw::RectangleFigure::new_with_color(
+        let child = novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             w,
             h,
-            novadraw::Color::rgba(0.2, 0.5, 0.9, 1.0),
+            novadraw::graphics::Color::rgba(0.2, 0.5, 0.9, 1.0),
         );
         let child_id = scene
             .builder()
@@ -277,7 +277,7 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
             .expect("valid FigureTree construction");
 
         // 为子元素设置约束，让它填充整个区域
-        let child_constraint = novadraw::Rectangle::new(0.0, 0.0, w, h);
+        let child_constraint = novadraw::geometry::Rectangle::new(0.0, 0.0, w, h);
         scene
             .builder()
             .set_layout_constraint(child_id, child_constraint)
@@ -296,16 +296,16 @@ fn create_scene_nested_layout() -> novadraw::FigureTree {
 
 /// 创建测试约束动态更新的场景
 /// 可以通过重新设置约束来测试布局重算
-fn create_scene_constraint_update() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_constraint_update() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -313,7 +313,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 设置 XYLayout
-    let xy_layout = Box::new(novadraw::XYLayout::new());
+    let xy_layout = Box::new(novadraw::layout::XYLayout::new());
     scene
         .builder()
         .set_layout_manager(container_id, xy_layout)
@@ -324,12 +324,12 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
     let mut child_ids = Vec::new();
 
     for (i, color) in colors.iter().enumerate() {
-        let rect = novadraw::RectangleFigure::new_with_color(
+        let rect = novadraw::figure::RectangleFigure::new_with_color(
             50.0 + i as f64 * 100.0,
             50.0,
             80.0,
             80.0,
-            novadraw::Color::from_hex(color).expect("valid color literal"),
+            novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
         );
         let child_id = scene
             .builder()
@@ -341,7 +341,7 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
     // 设置初始约束
     for (i, child_id) in child_ids.iter().enumerate() {
         let x = 50.0 + i as f64 * 200.0;
-        let constraint = novadraw::Rectangle::new(x, 100.0, 80.0, 80.0);
+        let constraint = novadraw::geometry::Rectangle::new(x, 100.0, 80.0, 80.0);
         scene
             .builder()
             .set_layout_constraint(*child_id, constraint)
@@ -359,16 +359,16 @@ fn create_scene_constraint_update() -> novadraw::FigureTree {
 }
 
 /// 创建 GridLayout 场景。
-fn create_scene_grid_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_grid_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -380,7 +380,7 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
         .set_layout_manager(
             container_id,
             Box::new(
-                novadraw::GridLayout::new(3)
+                novadraw::layout::GridLayout::new(3)
                     .with_equal_column_widths(true)
                     .with_margins(40.0, 40.0)
                     .with_spacing(20.0, 20.0),
@@ -391,12 +391,17 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
     // 创建 3x3 网格
     for row in 0..3 {
         for col in 0..3 {
-            let rect = novadraw::RectangleFigure::new_with_color(
+            let rect = novadraw::figure::RectangleFigure::new_with_color(
                 0.0,
                 0.0,
                 150.0,
                 120.0,
-                novadraw::Color::rgba((col as f64 * 0.3) % 1.0, (row as f64 * 0.3) % 1.0, 0.6, 1.0),
+                novadraw::graphics::Color::rgba(
+                    (col as f64 * 0.3) % 1.0,
+                    (row as f64 * 0.3) % 1.0,
+                    0.6,
+                    1.0,
+                ),
             );
             let child_id = scene
                 .builder()
@@ -419,16 +424,16 @@ fn create_scene_grid_layout() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_toolbar_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_toolbar_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let container_id = scene
         .builder()
-        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
         )))
         .expect("valid FigureTree construction");
     scene
@@ -436,7 +441,7 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
         .set_layout_manager(
             container_id,
             Box::new(
-                novadraw::ToolbarLayout::horizontal()
+                novadraw::layout::ToolbarLayout::horizontal()
                     .with_spacing(16.0)
                     .with_stretch_minor_axis(true),
             ),
@@ -450,18 +455,18 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
             .builder()
             .add_child(
                 container_id,
-                Box::new(novadraw::RectangleFigure::new_with_color(
+                Box::new(novadraw::figure::RectangleFigure::new_with_color(
                     0.0,
                     0.0,
                     240.0 - index as f64 * 20.0,
                     80.0,
-                    novadraw::Color::from_hex(color).expect("valid color literal"),
+                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
         scene
             .builder()
-            .set_minimum_size(child, Some(novadraw::Dimension::new(100.0, 40.0)))
+            .set_minimum_size(child, Some(novadraw::geometry::Dimension::new(100.0, 40.0)))
             .expect("valid FigureTree construction");
     }
     scene
@@ -471,33 +476,33 @@ fn create_scene_toolbar_layout() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_stack_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_stack_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
     let container_id = scene
         .builder()
-        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
             80.0,
             60.0,
             640.0,
             480.0,
-            novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+            novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
         )))
         .expect("valid FigureTree construction");
     scene
         .builder()
-        .set_layout_manager(container_id, Box::new(novadraw::StackLayout::new()))
+        .set_layout_manager(container_id, Box::new(novadraw::layout::StackLayout::new()))
         .expect("valid FigureTree construction");
     for color in ["#e74c3c", "#3498db", "#2ecc71"] {
         scene
             .builder()
             .add_child(
                 container_id,
-                Box::new(novadraw::RectangleFigure::new_with_color(
+                Box::new(novadraw::figure::RectangleFigure::new_with_color(
                     0.0,
                     0.0,
                     100.0,
                     100.0,
-                    novadraw::Color::from_hex(color).expect("valid color literal"),
+                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -511,16 +516,16 @@ fn create_scene_stack_layout() -> novadraw::FigureTree {
 
 /// 创建没有布局器的场景（对比测试）
 /// 子元素保持原始位置
-fn create_scene_no_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_no_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -528,26 +533,26 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 不设置布局器，子元素保持原位
-    let rect1 = novadraw::RectangleFigure::new_with_color(
+    let rect1 = novadraw::figure::RectangleFigure::new_with_color(
         100.0,
         100.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.9, 0.3, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.9, 0.3, 0.3, 1.0),
     );
-    let rect2 = novadraw::RectangleFigure::new_with_color(
+    let rect2 = novadraw::figure::RectangleFigure::new_with_color(
         300.0,
         150.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.3, 0.9, 0.3, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.9, 0.3, 1.0),
     );
-    let rect3 = novadraw::RectangleFigure::new_with_color(
+    let rect3 = novadraw::figure::RectangleFigure::new_with_color(
         500.0,
         200.0,
         150.0,
         100.0,
-        novadraw::Color::rgba(0.3, 0.3, 0.9, 1.0),
+        novadraw::graphics::Color::rgba(0.3, 0.3, 0.9, 1.0),
     );
 
     let _r1 = scene
@@ -568,16 +573,16 @@ fn create_scene_no_layout() -> novadraw::FigureTree {
 
 /// 创建 BorderLayout 场景
 /// 演示 BorderLayout 的五个区域：北、南、东、西、中
-fn create_scene_border_layout() -> novadraw::FigureTree {
-    let mut scene = novadraw::FigureTree::new();
+fn create_scene_border_layout() -> novadraw::tree::FigureTree {
+    let mut scene = novadraw::tree::FigureTree::new();
 
     // 创建容器（浅灰色背景）
-    let container = novadraw::RectangleFigure::new_with_color(
+    let container = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        novadraw::Color::from_hex("#eeeeee").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#eeeeee").expect("valid color literal"),
     );
     let container_id = scene
         .builder()
@@ -585,7 +590,7 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
         .expect("valid FigureTree construction");
 
     // 设置 BorderLayout
-    let border_layout = Box::new(novadraw::BorderLayout::new());
+    let border_layout = Box::new(novadraw::layout::BorderLayout::new());
     scene
         .builder()
         .set_layout_manager(container_id, border_layout)
@@ -600,12 +605,12 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // - 其他 → Center
 
     // North (顶部，红色)
-    let north = novadraw::RectangleFigure::new_with_color(
+    let north = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         100.0,
         50.0,
-        novadraw::Color::from_hex("#e74c3c").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#e74c3c").expect("valid color literal"),
     );
     let north_id = scene
         .builder()
@@ -614,16 +619,19 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // height < 0 表示 North
     scene
         .builder()
-        .set_layout_constraint(north_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, -60.0))
+        .set_layout_constraint(
+            north_id,
+            novadraw::geometry::Rectangle::new(0.0, 0.0, 0.0, -60.0),
+        )
         .expect("valid FigureTree construction");
 
     // South (底部，绿色)
-    let south = novadraw::RectangleFigure::new_with_color(
+    let south = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         100.0,
         50.0,
-        novadraw::Color::from_hex("#2ecc71").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#2ecc71").expect("valid color literal"),
     );
     let south_id = scene
         .builder()
@@ -632,16 +640,19 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // height > 0 表示 South
     scene
         .builder()
-        .set_layout_constraint(south_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, 60.0))
+        .set_layout_constraint(
+            south_id,
+            novadraw::geometry::Rectangle::new(0.0, 0.0, 0.0, 60.0),
+        )
         .expect("valid FigureTree construction");
 
     // West (左侧，蓝色)
-    let west = novadraw::RectangleFigure::new_with_color(
+    let west = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         50.0,
         100.0,
-        novadraw::Color::from_hex("#3498db").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#3498db").expect("valid color literal"),
     );
     let west_id = scene
         .builder()
@@ -650,16 +661,19 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // width < 0 表示 West
     scene
         .builder()
-        .set_layout_constraint(west_id, novadraw::Rectangle::new(0.0, 0.0, -100.0, 0.0))
+        .set_layout_constraint(
+            west_id,
+            novadraw::geometry::Rectangle::new(0.0, 0.0, -100.0, 0.0),
+        )
         .expect("valid FigureTree construction");
 
     // East (右侧，黄色)
-    let east = novadraw::RectangleFigure::new_with_color(
+    let east = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         50.0,
         100.0,
-        novadraw::Color::from_hex("#f1c40f").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#f1c40f").expect("valid color literal"),
     );
     let east_id = scene
         .builder()
@@ -668,16 +682,19 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // width > 0 表示 East
     scene
         .builder()
-        .set_layout_constraint(east_id, novadraw::Rectangle::new(0.0, 0.0, 100.0, 0.0))
+        .set_layout_constraint(
+            east_id,
+            novadraw::geometry::Rectangle::new(0.0, 0.0, 100.0, 0.0),
+        )
         .expect("valid FigureTree construction");
 
     // Center (中间，紫色)
-    let center = novadraw::RectangleFigure::new_with_color(
+    let center = novadraw::figure::RectangleFigure::new_with_color(
         0.0,
         0.0,
         100.0,
         100.0,
-        novadraw::Color::from_hex("#9b59b6").expect("valid color literal"),
+        novadraw::graphics::Color::from_hex("#9b59b6").expect("valid color literal"),
     );
     let center_id = scene
         .builder()
@@ -686,7 +703,10 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     // 默认 Center
     scene
         .builder()
-        .set_layout_constraint(center_id, novadraw::Rectangle::new(0.0, 0.0, 0.0, 0.0))
+        .set_layout_constraint(
+            center_id,
+            novadraw::geometry::Rectangle::new(0.0, 0.0, 0.0, 0.0),
+        )
         .expect("valid FigureTree construction");
 
     if let Some(contents) = scene.contents() {
@@ -699,27 +719,27 @@ fn create_scene_border_layout() -> novadraw::FigureTree {
     scene
 }
 
-fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
+fn create_scene_root_viewport_resize() -> novadraw::tree::FigureTree {
     const HEADER_HEIGHT: f64 = 72.0;
     const FOOTER_HEIGHT: f64 = 56.0;
     const SIDEBAR_WIDTH: f64 = 120.0;
 
-    let mut scene = novadraw::FigureTree::new();
+    let mut scene = novadraw::tree::FigureTree::new();
     let contents = scene
         .builder()
-        .set_contents(Box::new(novadraw::RectangleFigure::new_with_color(
+        .set_contents(Box::new(novadraw::figure::RectangleFigure::new_with_color(
             0.0,
             0.0,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            novadraw::Color::from_hex("#20252b").expect("valid color literal"),
+            novadraw::graphics::Color::from_hex("#20252b").expect("valid color literal"),
         )))
         .expect("valid FigureTree construction");
     scene
         .builder()
         .set_layout_manager(
             contents,
-            Box::new(novadraw::BorderLayout::with_sizes(
+            Box::new(novadraw::layout::BorderLayout::with_sizes(
                 HEADER_HEIGHT,
                 FOOTER_HEIGHT,
                 SIDEBAR_WIDTH,
@@ -755,12 +775,12 @@ fn create_scene_root_viewport_resize() -> novadraw::FigureTree {
             .builder()
             .add_child(
                 contents,
-                Box::new(novadraw::RectangleFigure::new_with_color(
+                Box::new(novadraw::figure::RectangleFigure::new_with_color(
                     0.0,
                     0.0,
                     10.0,
                     10.0,
-                    novadraw::Color::from_hex(color).expect("valid color literal"),
+                    novadraw::graphics::Color::from_hex(color).expect("valid color literal"),
                 )),
             )
             .expect("valid FigureTree construction");
@@ -846,8 +866,8 @@ pub fn suite() -> DemoSuite {
 
 #[cfg(test)]
 mod tests {
-    use novadraw::Runtime;
     use novadraw::render::{BackendCapabilities, SurfaceInfo};
+    use novadraw::runtime::Runtime;
 
     use super::*;
 
@@ -867,23 +887,29 @@ mod tests {
             scale_factor: 1.0,
         };
 
-        runtime.resize_logical_viewport(1_000.0, 700.0).unwrap();
         runtime
+            .frames()
+            .resize_logical_viewport(1_000.0, 700.0)
+            .unwrap();
+        runtime
+            .frames()
             .prepare_submission(surface, BackendCapabilities::RETAINED_PARTIAL)
             .into_ready()
             .expect("resize frame");
 
         assert_eq!(
             runtime.tree().figure_bounds(contents),
-            Some(novadraw::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
+            Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 700.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(north),
-            Some(novadraw::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
+            Some(novadraw::geometry::Rectangle::new(0.0, 0.0, 1_000.0, 72.0))
         );
         assert_eq!(
             runtime.tree().figure_bounds(center),
-            Some(novadraw::Rectangle::new(120.0, 72.0, 760.0, 572.0))
+            Some(novadraw::geometry::Rectangle::new(
+                120.0, 72.0, 760.0, 572.0
+            ))
         );
     }
 }

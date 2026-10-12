@@ -8,7 +8,8 @@ use novadraw::runtime::{
 };
 use novadraw::tree::MAX_TREE_DEPTH;
 use novadraw::{
-    Figure, FigureId, FigureTree, FramePreparation, Rectangle, RectangleFigure, Runtime,
+    figure::Figure, figure::RectangleFigure, geometry::Rectangle, runtime::FramePreparation,
+    runtime::Runtime, tree::FigureId, tree::FigureTree,
 };
 
 struct AccessibleGroup;
@@ -51,10 +52,12 @@ fn surface() -> SurfaceInfo {
 }
 
 fn publish(runtime: &mut Runtime) {
-    if let FramePreparation::Ready(submission) =
-        runtime.prepare_submission(surface(), BackendCapabilities::FULL_FRAME_ONLY)
+    if let FramePreparation::Ready(submission) = runtime
+        .frames()
+        .prepare_submission(surface(), BackendCapabilities::FULL_FRAME_ONLY)
     {
         runtime
+            .frames()
             .complete_submission(
                 submission.session_id,
                 submission.frame_id,
@@ -66,19 +69,22 @@ fn publish(runtime: &mut Runtime) {
 
 fn accessible_runtime() -> (Runtime, FigureId, FigureId) {
     let mut runtime = Runtime::empty();
-    runtime.register_builtin_font(BuiltinFont::Inter).unwrap();
+    runtime
+        .resources()
+        .register_builtin_font(BuiltinFont::Inter)
+        .unwrap();
     let root = runtime
         .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 320.0, 200.0)))
         .expect("valid Runtime mutation");
     let button = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ButtonFigure::new("Apply").with_bounds(Rectangle::new(20.0, 30.0, 120.0, 40.0)),
         ))
         .expect("valid Runtime mutation");
     let toggle = runtime
-        .container(root)
+        .figure(root)
         .unwrap()
         .add(Box::new(
             ToggleFigure::new("Snap").with_bounds(Rectangle::new(160.0, 30.0, 120.0, 40.0)),
@@ -92,7 +98,7 @@ fn snapshot_promotes_accessible_children_through_decorative_figures() {
     let (mut runtime, button, toggle) = accessible_runtime();
     publish(&mut runtime);
 
-    let updates = runtime.take_accessibility_updates();
+    let updates = runtime.accessibility().take_updates();
     let AccessibilityUpdate::Snapshot(snapshot) = &updates[0] else {
         panic!("first accessibility publication must be a snapshot");
     };
@@ -127,11 +133,12 @@ fn snapshot_promotes_accessible_children_through_decorative_figures() {
 fn focus_and_default_actions_reuse_runtime_widget_transactions() {
     let (mut runtime, button, toggle) = accessible_runtime();
     publish(&mut runtime);
-    runtime.take_accessibility_updates();
+    runtime.accessibility().take_updates();
 
     assert!(
         runtime
-            .perform_accessibility_action(
+            .accessibility()
+            .perform_action(
                 AccessibilityNodeId::Figure(button),
                 AccessibilityAction::Focus,
             )
@@ -139,16 +146,17 @@ fn focus_and_default_actions_reuse_runtime_widget_transactions() {
     );
     assert!(
         runtime
-            .perform_accessibility_action(
+            .accessibility()
+            .perform_action(
                 AccessibilityNodeId::Figure(toggle),
                 AccessibilityAction::Default,
             )
             .unwrap()
     );
-    assert!(runtime.clickable_snapshot(toggle).unwrap().selected);
+    assert!(runtime.input().clickable_snapshot(toggle).unwrap().selected);
 
     publish(&mut runtime);
-    let updates = runtime.take_accessibility_updates();
+    let updates = runtime.accessibility().take_updates();
     let AccessibilityUpdate::Delta(delta) = &updates[0] else {
         panic!("semantic changes after the baseline must publish a delta");
     };
@@ -165,19 +173,19 @@ fn focus_and_default_actions_reuse_runtime_widget_transactions() {
 fn dispose_removes_accessibility_identity_in_the_next_delta() {
     let (mut runtime, button, _toggle) = accessible_runtime();
     publish(&mut runtime);
-    runtime.take_accessibility_updates();
+    runtime.accessibility().take_updates();
 
     let parent = runtime.tree().parent_id(button).unwrap();
     assert!(
         runtime
-            .container(parent)
+            .figure(parent)
             .unwrap()
             .remove(button)
             .expect("valid Runtime mutation")
     );
     publish(&mut runtime);
 
-    let updates = runtime.take_accessibility_updates();
+    let updates = runtime.accessibility().take_updates();
     let AccessibilityUpdate::Delta(delta) = &updates[0] else {
         panic!("dispose after baseline must publish a delta");
     };
@@ -203,7 +211,7 @@ fn accessibility_projection_supports_the_maximum_tree_depth() {
 
     publish(&mut runtime);
 
-    let snapshot = runtime.accessibility_snapshot().unwrap();
+    let snapshot = runtime.accessibility().snapshot().unwrap().clone();
     assert_eq!(snapshot.nodes.len(), MAX_TREE_DEPTH + 1);
     assert_eq!(
         snapshot.nodes.last().unwrap().id,

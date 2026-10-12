@@ -77,8 +77,8 @@ impl PlatformHost for WebPlatformHost {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::Runtime;
     use novadraw::event::{AccessibilityDelta, AccessibilityNodeId};
+    use novadraw::runtime::Runtime;
     use std::cell::Cell;
     use std::rc::Rc;
 

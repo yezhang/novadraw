@@ -1,14 +1,13 @@
 //! 可由 Native DemoApp 和 Web Validation Host 共同使用的场景目录。
-
-use novadraw::{FigureTree, Runtime};
+use novadraw::{runtime::Runtime, tree::FigureTree};
 
 #[cfg(test)]
 pub(crate) fn record_full_submission(runtime: &mut Runtime) -> novadraw::render::RenderSubmission {
-    use novadraw::FramePreparation;
     use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
+    use novadraw::runtime::FramePreparation;
 
-    runtime.request_full_redraw();
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    runtime.frames().request_full_redraw();
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: 2_048.0,
             logical_height: 2_048.0,
@@ -24,6 +23,7 @@ pub(crate) fn record_full_submission(runtime: &mut Runtime) -> novadraw::render:
         panic!("full redraw must produce a submission");
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,

@@ -7,10 +7,11 @@ use std::{collections::HashMap, convert::Infallible};
 use novadraw::event::{KeyModifiers, MouseButton};
 use novadraw::figure::{ClickableFigure, RootFigure};
 use novadraw::geometry::Rectangle;
-use novadraw::{Figure, RectangleFigure};
+use novadraw::{figure::Figure, figure::RectangleFigure};
+use novadraw_editor::overlay::SelectionAction;
 use novadraw_editor::{
-    EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, HandleRole, ModelAdapter,
-    ModelEvent, ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
+    EditPartBehavior, EditPartError, EditPartFactory, GraphicalViewer, ModelAdapter, ModelEvent,
+    ModelRevision, PartFactoryContext, ViewerTarget, VisualUpdateContext,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -272,14 +273,17 @@ fn handles_win_targeting_and_feedback_is_transparent() {
             Box::new(RectangleFigure::new(20.0, 20.0, 20.0, 20.0)),
         )
         .unwrap();
-    assert_eq!(
-        viewer.target_at(30.0, 30.0),
-        ViewerTarget::Handle {
-            id: handle,
-            owner,
-            role: HandleRole::Selection,
-        }
-    );
+    let ViewerTarget::Handle {
+        id,
+        owner: target_owner,
+        action,
+    } = viewer.target_at(30.0, 30.0)
+    else {
+        panic!("expected handle target");
+    };
+    assert_eq!(id, handle);
+    assert_eq!(target_owner, owner);
+    assert_eq!(action.get::<SelectionAction>(), Some(&()));
     assert!(viewer.remove_overlay_visual(feedback).unwrap());
 }
 
@@ -306,7 +310,7 @@ fn removing_parts_reconciles_selection_focus_and_owned_overlays() {
     assert!(viewer.selection().is_empty());
     assert_eq!(viewer.selection().focus(), None);
     assert!(!viewer.runtime().tree().is_attached(handle));
-    assert_eq!(viewer.visual_owner(handle), None);
+    assert!(viewer.visual_owner(handle).is_none());
 }
 
 #[test]

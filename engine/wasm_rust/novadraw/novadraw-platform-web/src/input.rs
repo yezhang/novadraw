@@ -1,8 +1,8 @@
-use novadraw::Point;
 use novadraw::event::{
     FocusTraversalDirection, GesturePhase, GestureSessionId, Key, KeyModifiers, MouseButton,
     PointerId, ScrollDeltaKind, WheelEvent, ZoomEvent,
 };
+use novadraw::geometry::Point;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AdaptedGesture {

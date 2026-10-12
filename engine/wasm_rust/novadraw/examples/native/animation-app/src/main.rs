@@ -1,14 +1,17 @@
 use novadraw::event::{MonotonicTime, MouseButton};
 use novadraw::{
-    Affine2D, FramePreparation, Rectangle, Runtime,
     animation::{
         AnimationError, AnimationMode, AnimationPlan, AnimationStart, AnimationState,
         ConnectionRouteTransition, InterruptionPolicy, Motion, Tween,
     },
+    geometry::Affine2D,
+    geometry::Rectangle,
     render::{
         BackendCapabilities, Paint, RenderCommandKind, RenderDisposition, RenderSubmission,
         SurfaceInfo,
     },
+    runtime::FramePreparation,
+    runtime::Runtime,
 };
 use novadraw_example_scenes::animation::{
     BOUNDS_DURATION, MECHANISM_DURATION, REPEAT_CYCLES, TEMPORARY_DURATION,
@@ -38,8 +41,8 @@ const CONTROL_SUSPEND_RESUME_MILLIS: u64 = 1_500;
 const EPSILON: f64 = 1.0e-6;
 
 fn record_full_submission(runtime: &mut Runtime) -> Result<RenderSubmission, String> {
-    runtime.request_full_redraw();
-    let FramePreparation::Ready(submission) = runtime.prepare_submission(
+    runtime.frames().request_full_redraw();
+    let FramePreparation::Ready(submission) = runtime.frames().prepare_submission(
         SurfaceInfo {
             logical_width: 800.0,
             logical_height: 600.0,
@@ -55,6 +58,7 @@ fn record_full_submission(runtime: &mut Runtime) -> Result<RenderSubmission, Str
         return Err("full redraw did not produce a submission".to_string());
     };
     let _ = runtime
+        .frames()
         .complete_submission(
             submission.session_id,
             submission.frame_id,
@@ -178,13 +182,15 @@ fn verify_target_motion_composition() -> Result<VerificationMetrics, String> {
         .map(|figure| example.runtime.tree().figure_bounds(figure));
     example
         .runtime
+        .animation()
         .advance_time(time(TARGET_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
 
     let translations = example.target_channels.map(|channels| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channels.transform())
             .map(|transform| transform.coeffs()[4])
     });
@@ -200,7 +206,8 @@ fn verify_target_motion_composition() -> Result<VerificationMetrics, String> {
     for channels in example.target_channels {
         let opacity = example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channels.opacity())
             .map_err(|error| error.to_string())?
             .get();
@@ -219,7 +226,8 @@ fn verify_target_motion_composition() -> Result<VerificationMetrics, String> {
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.target_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -243,12 +251,14 @@ fn verify_motion_substitution() -> Result<VerificationMetrics, String> {
         .map(|figure| example.runtime.tree().figure_bounds(figure));
     example
         .runtime
+        .animation()
         .advance_time(time(MOTION_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     let values = example.motion_channels.map(|channel| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channel)
             .map(|transform| transform.coeffs()[5])
     });
@@ -270,7 +280,8 @@ fn verify_motion_substitution() -> Result<VerificationMetrics, String> {
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.motion_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -293,7 +304,8 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
         .ok_or_else(|| "bounds Figure is detached".to_string())?;
     let initial_presentation = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.bounds_channel)
         .map_err(|error| error.to_string())?;
     if initial_presentation == Affine2D::IDENTITY {
@@ -302,6 +314,7 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
 
     example
         .runtime
+        .animation()
         .advance_time(duration_time(BOUNDS_DURATION))
         .map_err(|error| error.to_string())?;
     if example.runtime.tree().figure_bounds(example.bounds_figure) != Some(committed) {
@@ -309,7 +322,8 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.bounds_channel)
         .map_err(|error| error.to_string())?
         != Affine2D::IDENTITY
@@ -318,7 +332,8 @@ fn verify_source_presentation_separation() -> Result<VerificationMetrics, String
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.bounds_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Completed
@@ -336,11 +351,13 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
     let mut temporary_example = build_example();
     temporary_example
         .runtime
+        .animation()
         .advance_time(time(TEMPORARY_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     if temporary_example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .temporary_visual_count()
         != 1
     {
@@ -348,7 +365,8 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
     }
     let temporary_opacity = temporary_example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(temporary_example.temporary.opacity())
         .map_err(|error| error.to_string())?
         .get();
@@ -362,11 +380,13 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
         .ok_or_else(|| "temporary duration overflow".to_string())?;
     temporary_example
         .runtime
+        .animation()
         .advance_time(duration_time(temporary_total))
         .map_err(|error| error.to_string())?;
     if temporary_example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .temporary_visual_count()
         != 0
     {
@@ -374,7 +394,8 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
     }
     if temporary_example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(temporary_example.temporary_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Completed
@@ -384,7 +405,8 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
     if !matches!(
         temporary_example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(temporary_example.temporary.opacity()),
         Err(AnimationError::UnknownChannel)
     ) {
@@ -394,22 +416,26 @@ fn verify_temporary_lifecycle_and_cancel() -> Result<VerificationMetrics, String
     let mut cancelled = build_example();
     cancelled
         .runtime
+        .animation()
         .advance_time(time(CANCEL_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     cancelled
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .cancel(cancelled.target_animation)
         .map_err(|error| error.to_string())?;
     for channels in cancelled.target_channels {
         if cancelled
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .has_override(channels.opacity())
             .map_err(|error| error.to_string())?
             || cancelled
                 .runtime
-                .animations()
+                .animation()
+                .timeline()
                 .has_override(channels.transform())
                 .map_err(|error| error.to_string())?
         {
@@ -435,17 +461,19 @@ fn verify_trigger_and_layout_transaction() -> Result<VerificationMetrics, String
             "layout transaction did not commit final bounds: {layout_bounds:?}"
         ));
     }
-    if example.runtime.animations().behavior_count() != 1 {
+    if example.runtime.animation().timeline().behavior_count() != 1 {
         return Err("trigger behavior was not installed".to_string());
     }
     let trigger_start = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.trigger_channel)
         .map_err(|error| error.to_string())?;
     let layout_start = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.layout_channel)
         .map_err(|error| error.to_string())?;
     if trigger_start == Affine2D::IDENTITY || layout_start == Affine2D::IDENTITY {
@@ -454,17 +482,20 @@ fn verify_trigger_and_layout_transaction() -> Result<VerificationMetrics, String
 
     example
         .runtime
+        .animation()
         .advance_time(duration_time(MECHANISM_DURATION))
         .map_err(|error| error.to_string())?;
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.trigger_channel)
         .map_err(|error| error.to_string())?
         != Affine2D::IDENTITY
         || example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(example.layout_channel)
             .map_err(|error| error.to_string())?
             != Affine2D::IDENTITY
@@ -497,12 +528,19 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
             "bendpoint route was not committed before animation: {route_points}"
         ));
     }
-    if example.runtime.animations().temporary_visual_count() != 2 {
+    if example
+        .runtime
+        .animation()
+        .timeline()
+        .temporary_visual_count()
+        != 2
+    {
         return Err("route crossfade and pulse temporaries were not both active".to_string());
     }
 
     example
         .runtime
+        .animation()
         .advance_time(duration_time(MECHANISM_DURATION))
         .map_err(|error| error.to_string())?;
     for animation in [
@@ -513,7 +551,8 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
     ] {
         if example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .state(animation)
             .map_err(|error| error.to_string())?
             != AnimationState::Completed
@@ -521,12 +560,19 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
             return Err(format!("finite mechanism did not complete: {animation:?}"));
         }
     }
-    if example.runtime.animations().temporary_visual_count() != 0 {
+    if example
+        .runtime
+        .animation()
+        .timeline()
+        .temporary_visual_count()
+        != 0
+    {
         return Err("route or pulse temporary visual leaked after completion".to_string());
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.viewport_channel)
         .map_err(|error| error.to_string())?
         != Affine2D::IDENTITY
@@ -542,7 +588,8 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
         .ok_or_else(|| "connection route disappeared".to_string())?;
     let (_, compatible_start) = example
         .runtime
-        .transition_connection_routes_transaction(
+        .animation()
+        .transition_connection_routes(
             [example.connection_figure],
             ConnectionRouteTransition::new(std::time::Duration::from_millis(500)),
             |runtime| {
@@ -566,7 +613,8 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
     if committed_route == before_route
         || example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(example.route_channel)
             .map_err(|error| error.to_string())?
             == committed_route
@@ -575,17 +623,20 @@ fn verify_viewport_and_route_transition() -> Result<VerificationMetrics, String>
     }
     example
         .runtime
+        .animation()
         .advance_time(time(1_900))
         .map_err(|error| error.to_string())?;
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(compatible_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Completed
         || example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(example.route_channel)
             .map_err(|error| error.to_string())?
             != committed_route
@@ -605,16 +656,19 @@ fn verify_continuous_effects_and_reduced_motion() -> Result<VerificationMetrics,
     let mut example = build_mechanisms_example();
     let initial_phase = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.dash_channel)
         .map_err(|error| error.to_string())?;
     example
         .runtime
+        .animation()
         .advance_time(time(500))
         .map_err(|error| error.to_string())?;
     let sampled_phase = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.dash_channel)
         .map_err(|error| error.to_string())?;
     if approx_eq(initial_phase, sampled_phase) {
@@ -622,7 +676,8 @@ fn verify_continuous_effects_and_reduced_motion() -> Result<VerificationMetrics,
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.dash_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -632,10 +687,21 @@ fn verify_continuous_effects_and_reduced_motion() -> Result<VerificationMetrics,
 
     example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .set_mode(AnimationMode::ReducedMotion);
-    if example.runtime.animations().active_animation_count() != 0
-        || example.runtime.animations().temporary_visual_count() != 0
+    if example
+        .runtime
+        .animation()
+        .timeline()
+        .active_animation_count()
+        != 0
+        || example
+            .runtime
+            .animation()
+            .timeline()
+            .temporary_visual_count()
+            != 0
     {
         return Err("reduced motion did not clear active presentation work".to_string());
     }
@@ -703,22 +769,26 @@ fn verify_dashed_arrow_flow() -> Result<VerificationMetrics, String> {
     }
     let initial_dash = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.dash_channel)
         .map_err(|error| error.to_string())?;
     example
         .runtime
+        .animation()
         .advance_time(time(500))
         .map_err(|error| error.to_string())?;
     let sampled_dash = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.dash_channel)
         .map_err(|error| error.to_string())?;
     if sampled_dash >= initial_dash
         || example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .state(example.dash_animation)
             .map_err(|error| error.to_string())?
             != AnimationState::Running
@@ -776,12 +846,14 @@ fn verify_complete_motion_family() -> Result<VerificationMetrics, String> {
         .map(|figure| example.runtime.tree().figure_bounds(figure));
     example
         .runtime
+        .animation()
         .advance_time(time(MOTION_FAMILY_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     let values = example.sampler_channels.map(|channel| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channel)
             .map(|transform| transform.coeffs()[4])
             .map_err(|error| error.to_string())
@@ -807,7 +879,8 @@ fn verify_complete_motion_family() -> Result<VerificationMetrics, String> {
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.sampler_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -829,13 +902,15 @@ fn verify_composition_grammar() -> Result<VerificationMetrics, String> {
     let mut example = build_choreography_example();
     example
         .runtime
+        .animation()
         .advance_time(time(COMPOSITION_FIRST_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
 
     let sequence = example.sequence_channels.map(|channel| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channel)
             .map(|transform| transform.coeffs()[5])
             .map_err(|error| error.to_string())
@@ -851,7 +926,8 @@ fn verify_composition_grammar() -> Result<VerificationMetrics, String> {
     let stagger = example.stagger_channels.map(|channel| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channel)
             .map(|transform| transform.coeffs()[5])
             .map_err(|error| error.to_string())
@@ -867,7 +943,8 @@ fn verify_composition_grammar() -> Result<VerificationMetrics, String> {
 
     let delayed_before = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.delayed_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[5];
@@ -878,11 +955,13 @@ fn verify_composition_grammar() -> Result<VerificationMetrics, String> {
     }
     example
         .runtime
+        .animation()
         .advance_time(time(COMPOSITION_SECOND_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     let delayed_after = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.delayed_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[5];
@@ -893,7 +972,8 @@ fn verify_composition_grammar() -> Result<VerificationMetrics, String> {
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.composition_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -922,17 +1002,20 @@ fn verify_channels_and_loop_policies() -> Result<VerificationMetrics, String> {
         .figure_bounds(example.choreography_figure);
     example
         .runtime
+        .animation()
         .advance_time(time(LOOP_POLICY_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
 
     let choreography_transform = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.choreography_channels.transform())
         .map_err(|error| error.to_string())?;
     let choreography_opacity = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.choreography_channels.opacity())
         .map_err(|error| error.to_string())?
         .get();
@@ -954,7 +1037,8 @@ fn verify_channels_and_loop_policies() -> Result<VerificationMetrics, String> {
     let loop_values = example.loop_channels.map(|channel| {
         example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .value(channel)
             .map(|transform| transform.coeffs()[4])
             .map_err(|error| error.to_string())
@@ -977,7 +1061,8 @@ fn verify_channels_and_loop_policies() -> Result<VerificationMetrics, String> {
     ] {
         if example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .state(animation)
             .map_err(|error| error.to_string())?
             != AnimationState::Running
@@ -997,24 +1082,27 @@ fn verify_channels_and_loop_policies() -> Result<VerificationMetrics, String> {
 
 fn verify_behavior_interruption_policies() -> Result<VerificationMetrics, String> {
     let mut example = build_runtime_control_example();
-    if example.runtime.animations().behavior_count() != 2
+    if example.runtime.animation().timeline().behavior_count() != 2
         || example.replace_behavior == example.ignore_behavior
     {
         return Err("control scene did not install two independent behaviors".to_string());
     }
     example
         .runtime
+        .animation()
         .advance_time(time(CONTROL_INTERRUPTION_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     let replace_before = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.replace_channels.transform())
         .map_err(|error| error.to_string())?
         .coeffs()[4];
     let ignore_before = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.ignore_channels.transform())
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1030,7 +1118,8 @@ fn verify_behavior_interruption_policies() -> Result<VerificationMetrics, String
     .with_interruption(InterruptionPolicy::Ignore);
     let AnimationStart::Existing(ignore_owner) = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(ignore_attempt)
         .map_err(|error| error.to_string())?
     else {
@@ -1047,7 +1136,8 @@ fn verify_behavior_interruption_policies() -> Result<VerificationMetrics, String
     .map_err(|error| error.to_string())?;
     let AnimationStart::Running(replacement_owner) = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .start(replacement)
         .map_err(|error| error.to_string())?
     else {
@@ -1055,7 +1145,8 @@ fn verify_behavior_interruption_policies() -> Result<VerificationMetrics, String
     };
     let replace_handoff = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.replace_channels.transform())
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1067,17 +1158,20 @@ fn verify_behavior_interruption_policies() -> Result<VerificationMetrics, String
 
     example
         .runtime
+        .animation()
         .advance_time(time(CONTROL_INTERRUPTION_AFTER_MILLIS))
         .map_err(|error| error.to_string())?;
     let replace_after = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.replace_channels.transform())
         .map_err(|error| error.to_string())?
         .coeffs()[4];
     let ignore_after = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.ignore_channels.transform())
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1112,7 +1206,8 @@ fn verify_interaction_geometry_policy() -> Result<VerificationMetrics, String> {
         .ok_or_else(|| "moving hit toggle is detached".to_string())?;
     let presentation_offset = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.moving_hit_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1122,17 +1217,19 @@ fn verify_interaction_geometry_policy() -> Result<VerificationMetrics, String> {
     let visual_outcome =
         example
             .runtime
+            .input()
             .dispatch_mouse_pressed(visual_x, visual_y, MouseButton::Left);
     if visual_outcome.target() == Some(example.moving_hit_toggle) {
         return Err("Committed hit geometry followed its presentation transform".to_string());
     }
-    example.runtime.pointer_exited();
+    example.runtime.input().pointer_exited();
 
     let committed_x = committed_bounds.x + committed_bounds.width / 2.0;
     let committed_y = committed_bounds.y + committed_bounds.height / 2.0;
     let committed_outcome =
         example
             .runtime
+            .input()
             .dispatch_mouse_pressed(committed_x, committed_y, MouseButton::Left);
     if committed_outcome.target() != Some(example.moving_hit_toggle)
         || !committed_outcome.is_handled()
@@ -1143,10 +1240,12 @@ fn verify_interaction_geometry_policy() -> Result<VerificationMetrics, String> {
     }
     example
         .runtime
+        .input()
         .dispatch_mouse_released(committed_x, committed_y, MouseButton::Left);
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.hit_animation)
         .map_err(|error| error.to_string())?
         != AnimationState::Running
@@ -1171,17 +1270,20 @@ fn verify_suspension_policies() -> Result<VerificationMetrics, String> {
     let mut example = build_runtime_control_example();
     example
         .runtime
+        .animation()
         .advance_time(time(CONTROL_SUSPEND_SAMPLE_MILLIS))
         .map_err(|error| error.to_string())?;
     let pause_before = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.pause_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[4];
     let finish_before = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.finish_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1200,12 +1302,14 @@ fn verify_suspension_policies() -> Result<VerificationMetrics, String> {
         .map_err(|error| error.to_string())?;
     let pause_state = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.suspension_animations[0])
         .map_err(|error| error.to_string())?;
     let finish_state = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .state(example.suspension_animations[1])
         .map_err(|error| error.to_string())?;
     if pause_state != AnimationState::Paused || finish_state != AnimationState::Completed {
@@ -1215,7 +1319,8 @@ fn verify_suspension_policies() -> Result<VerificationMetrics, String> {
     }
     if example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.finish_channel)
         .map_err(|error| error.to_string())?
         != Affine2D::IDENTITY
@@ -1225,11 +1330,13 @@ fn verify_suspension_policies() -> Result<VerificationMetrics, String> {
 
     example
         .runtime
+        .animation()
         .advance_time(time(CONTROL_SUSPEND_HOLD_MILLIS))
         .map_err(|error| error.to_string())?;
     let pause_held = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.pause_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[4];
@@ -1253,18 +1360,21 @@ fn verify_suspension_policies() -> Result<VerificationMetrics, String> {
         .map_err(|error| error.to_string())?;
     example
         .runtime
+        .animation()
         .advance_time(time(CONTROL_SUSPEND_RESUME_MILLIS))
         .map_err(|error| error.to_string())?;
     let pause_after = example
         .runtime
-        .animations()
+        .animation()
+        .timeline()
         .value(example.pause_channel)
         .map_err(|error| error.to_string())?
         .coeffs()[4];
     if !(pause_after > pause_held
         && example
             .runtime
-            .animations()
+            .animation()
+            .timeline()
             .state(example.suspension_animations[0])
             .map_err(|error| error.to_string())?
             == AnimationState::Running)
