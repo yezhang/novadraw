@@ -50,6 +50,9 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [030](adr-030-resource-provider-and-request-token-boundary.md) | ResourceProvider 与资源请求 Token 边界 | 已接受，已验证 | 2026-10-09 |
 | [031](adr-031-graphics-recording-and-publication-boundary.md) | Graphics 录制与帧出版边界 | 已接受，已验证 | 2026-10-09 |
 | [032](adr-032-viewer-edit-session-and-drive-boundary.md) | Viewer 编辑会话与宿主驱动边界 | 已接受，已验证 | 2026-10-09 |
+| [033](adr-033-runtime-subsystem-facade.md) | Runtime 子系统 Facade 与统一 Figure Mutation | 已接受，已验证 | 2026-10-12 |
+| [034](adr-034-editor-tool-request-handle-protocol.md) | Editor Tool / Request / Handle 统一开放协议 | 已接受，已验证 | 2026-10-12 |
+| [035](adr-035-explicit-domain-imports-and-root-boundary.md) | 显式领域导入与 Crate Root 收口 | 已接受，已验证 | 2026-10-09 |
 
 ## 现行与历史隔离
 

@@ -18,6 +18,7 @@
 
 状态只表示本页 delta 的执行进度：
 
+- `design-draft`：已形成 ADR 或 normative design 草案，尚未批准进入实施；
 - `not_started`：契约已进入 backlog，尚未实现；
 - `in_progress`：已有实现或验证增量，完成判据尚未全部满足；
 - `complete`：契约、实现、验证和 parity 证据全部闭合；
@@ -65,6 +66,28 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 4. P2-L01 只参考 `org.eclipse.draw2d.graph`，不得使用 Zest 定义目标；
 5. P2-LC01 不恢复自动跨 Runtime 活对象迁移，默认仍是模型/描述重建；
 6. 平台相关 delta 的支持声明以 `platform-support-matrix.md` 为准。
+
+## API / 架构 Review 2026-10-09 批次
+
+承接 [API 与架构 Review](../verification/reviews/api-architecture-review-2026-10-09.md)
+的 R01、R02、R05 发现。顺序依
+[审计—收口持续闭环工作流](../verification/audit-remediation-workflow.md) 的
+"单链 in_progress ≤ 1"约束执行；三份 ADR 均已实现。
+
+| 顺序 | Delta | 范围 | 状态 | 依赖 | 最低毕业证据 |
+|---|---|---|---|---|---|
+| 1 | P2-S02 | 删除库级 Prelude、显式领域导入与 Crate Root 收口 | `complete` | ADR-021 | ADR-035、module-only root、领域导入 consumer 与 API snapshot 已验证 |
+| 2 | P2-S03 | Runtime 子系统 Facade 与统一 Figure Mutation | `complete` | ADR-019、ADR-027、P2-S02 | ADR-033 接受、Runtime 本体公开方法 ≤ 25、内置/外部 Figure 共用 component/capability mutation、workspace 调用点迁移 |
+| 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
+| 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `not_started` | D4.4、P2-T01 | 两层以上布局改变 Label bounds 时同一稳定帧使用最终 geometry，Headless 与 Native/Vello 一致 |
+| 5 | P2-S06 | Editor Part / Connection / Overlay prepared publication | `not_started` | P2-S04、TC-08 | `PartProjectionPlan` / `ConnectionProjectionPlan` / `OverlayBatch`，故障注入前后结构快照一致 |
+| 6 | P2-S07 | 结构查询身份与失败语义统一 | `not_started` | ADR-018、TC-09 | `Result<Option<T>, QueryError>` 规则、foreign/stale 负测、LayoutSnapshot 不返回伪造零值 |
+| 7 | P2-S08 | Detached Figure / Border / Style 受检值 | `not_started` | ADR-020、TC-03 | 私有字段、受检领域值、fallible constructor，删除 panic alias 与静默 clamp |
+| 8 | P2-S09 | Animation / Inspector / 注册与扩展错误统一 | `not_started` | P2-S03、TC-10 | fault 与幂等分离、Inspector subscription/fault、单一 fallible register、保留 error source |
+
+本节 delta 优先级独立于上两节的 Draw2D 能力分母，但同受"单链
+in_progress ≤ 1"约束；P2-S02 → P2-S03 → P2-S04 已完成。P2-S05 尚缺冻结的
+normative design，继续保持 `not_started`。
 
 ## Figure capability
 

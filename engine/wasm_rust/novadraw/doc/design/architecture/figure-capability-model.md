@@ -413,8 +413,9 @@ registry 管理。
 6. Runtime capability facade 改用 key；类型专用 facade 改用 concrete adapter；
 7. 删除 `Figure` 上领域 accessor；只禁止用 concrete downcast 判断横切 capability；
 8. Animation 使用开放 `PresentationBinding`，Connection route/dash 删除中心化分派；
-9. 旧伪 behavior trait 已退出 root，capability 与 animation descriptor 不进入 prelude；
-   完整 root/prelude allowlist 与 compile-fail snapshot 归 TC-13，不在 P2-F02 重复建设。
+9. 旧伪 behavior trait 已退出 root；capability 与 animation descriptor 只从所属领域
+   模块导入。完整 root/module snapshot 由 ADR-035 与 TC-13 门禁维护，不在 P2-F02
+   重复建设。
 
 每步保持旧/new 行为等价；迁移一个 key 时，其实现、消费点、外部测试和旧 accessor 必须
 在同一原子批次闭合，不保留长期双入口。

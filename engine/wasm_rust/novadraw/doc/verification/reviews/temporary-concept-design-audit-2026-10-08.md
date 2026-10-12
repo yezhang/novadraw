@@ -56,12 +56,13 @@
 | TC-02 Figure capability 闭集 | `complete` | ADR-027、P2-F02 与 `figure-capability-model.md` 已实现并通过门禁 |
 | TC-04 属性身份和值未类型关联 | `complete` | ADR-028、typed `PropertyKey<V>`、erased journal 与 Behavior key matching 已完成 |
 | TC-05 Animation target 闭集 | `complete` | 开放 `PresentationBinding<V>`、外部 Figure consumer 与 Connection route/dash 迁移已完成 |
+| TC-06 Editor Tool/Request/Handle 闭集 | `complete` | ADR-034、P2-S04 与外部 Tool/Request/Policy/Handle consumer 已完成 |
 | TC-07 Viewer 模型可变逃逸 | `complete` | ADR-032、`ViewerEditSession`、`ViewerDrive` 与同步边界已完成 |
 | TC-10 失败语义碎片化 | `partial` | CommandStack `has_*`/`check_*` 已完成；Animation、Inspector 与其余错误分类保留 |
 | TC-11 Core Runtime 文件读取 | `complete` | ADR-030、request token 与 Native/Web provider 已完成 |
 | TC-12 backend 无运行失败通道 | `complete` | ADR-029、`RenderResult`、Runtime acknowledgement 与 Vello fault channel 已完成 |
 | TC-13/TC-14 | `complete` | root/prelude 已收窄，分层 rustdoc snapshot 与 hot-path source gate 已进入 quick/full |
-| 其余 TC-03、TC-06、TC-08、TC-09 | `not_started` | 按第 5、6 节依赖顺序继续 |
+| 其余 TC-03、TC-08、TC-09 | `not_started` | 按第 5、6 节依赖顺序继续 |
 
 P2-F02 已完成本报告长期演进 Phase 2 的 Core 切片，并同时关闭 TC-02 与 TC-05：
 Figure capability discovery/mutation 和 Animation content target 都使用 attach-time
@@ -71,8 +72,14 @@ TC-13/TC-14 随后完成 Phase 0 的 API 防扩散与热路径清理；TC-04 已
 Runtime session invalidation 与 Native/Web host 恢复分支；TC-11 已按 ADR-030 完成
 ResourceProvider、request token 与错误分层；TC-01 已按 ADR-031 完成公开 Graphics
 单入口、失败传播和 Runtime 帧出版收口；TC-07 已按 ADR-032 完成 Viewer 模型、
-CommandStack 与 host drive 边界，并关闭 TC-10 的 CommandStack 部分。当前完成
-9/14 项，下一原子批次为 TC-06 Editor Tool/Request/Handle 开放协议。
+CommandStack 与 host drive 边界，并关闭 TC-10 的 CommandStack 部分。P2-S04 随后按
+ADR-034 完成 Editor Tool/Request/Policy/Handle 开放协议。当前完成 10/14 项；
+P2-S05 尚缺冻结设计，当前没有进入 Execute 的下一批次。
+
+2026-10-09 的 [API 与架构 Review](api-architecture-review-2026-10-09.md)
+对剩余的 TC-03 / TC-06 / TC-08 / TC-09 / TC-10 做了实地复核，并新增两条高优发现：
+R01 Runtime 公开面已达"大上帝对象"量级、R02 root `pub use` 与 prelude 重复
+暴露违反 ADR-021。推进顺序以该 Review 的 "建议的原子批次" 为准。
 
 ## 3. 发现项
 
@@ -195,6 +202,9 @@ immutable `FigurePresentation`，Runtime 私有层统一处理 owner、damage �
 Connection route/dash 已删除中心化分支，外部 Figure headless consumer 已通过。
 
 ### 3.6 TC-06：Editor 扩展只开放了 Policy 实现
+
+本项已关闭。完成证据见
+[P2-S04 Editor 开放协议完成记录](p2-s04-editor-open-protocol-completion-2026-10-10.md)。
 
 `PolicyRole::Custom` 允许增加槽位，但 `EditorRequest`、`HandleRole` 和私有
 `ActiveTool` 仍是闭集。新增 marquee、guide、palette、业务连线工具或自定义 tracker

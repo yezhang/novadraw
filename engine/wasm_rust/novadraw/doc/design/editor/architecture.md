@@ -235,7 +235,12 @@ EditPart focus 与 Figure keyboard focus 是不同状态。Viewer 可以在明�
 
 ## 8. Request 与 EditPolicy
 
-Request 是不可直接修改模型的交互意图。首批 typed request：
+Request 是不可直接修改模型的交互意图。每个 request family 由实现
+`RequestProtocol<A>` 的 marker、`RequestKey<R>`、typed payload 和 typed
+contribution 组成。公共调用只接受匹配的 marker/payload 组合；`Any` 与 downcast
+只存在于私有 registry。
+
+首批 typed request：
 
 - `SelectionRequest`；
 - `ChangeBoundsRequest`；
@@ -245,10 +250,13 @@ Request 是不可直接修改模型的交互意图。首批 typed request：
 - `ReconnectRequest`；
 - `DirectTextEditRequest`（P2-E02）。
 
-Request 包含入口域位置、增量、modifier、source parts、target candidate 和 interaction
-revision。禁止使用无约束 `HashMap<String, Any>` 作为主协议。
+`RequestMetadata` 统一保存 source parts 和 interaction revision。入口域位置、增量、
+modifier 与 target candidate 属于具体 payload。禁止使用闭合 request enum 或无约束
+`HashMap<String, Any>` 作为公共协议。
 
-EditPolicy 通过稳定 role 安装到 PartNode。Policy 可以：
+EditPolicy 通过 `PolicyKey<S>` 安装到 PartNode，并在安装时通过
+`PolicyHandlerBuilder` 注册 typed handler。内置 slot 只是预定义 marker，外部 slot
+使用完全相同的注册路径。Policy 可以：
 
 - 判断是否理解 Request；
 - 返回 target part；
@@ -257,7 +265,7 @@ EditPolicy 通过稳定 role 安装到 PartNode。Policy 可以：
 
 target 解析与贡献聚合是两个阶段：
 
-1. 对每个 Request source，把该 Part 视为候选，按稳定 role 顺序取首个非空 target；
+1. 对每个 Request source，把该 Part 视为候选，按稳定 slot 顺序取首个非空 target；
 2. 校验 target 属于当前 Viewer、仍 active 且绑定模型；
 3. 保留 Request 中的原始 source 身份，在 target Part 的 policies 上聚合 Command 和
    feedback；
@@ -268,6 +276,12 @@ foreign、retired 或无模型 target 必须结构化拒绝，不能退回 sourc
 按真实归属清理。
 
 多个 Command contribution 的组合顺序必须确定；显式拒绝与“无贡献”必须区分。
+不存在 handler 即表示无贡献，不再调用独立的 `understands`。
+
+Tool 统一实现 object-safe `Tool<A>`，`EditorDomain` 只持有 `Box<dyn Tool<A>>`。
+Tool 通过窄 `ToolContext` 分派 typed request、访问目标与提交命令；callback 返回的
+`ToolDirective` 只控制继续、释放 capture 或停用，不列举业务 Tool。Handle 使用
+`HandleActionProtocol` 和 typed payload，action 到 Tool 的 factory 可由外部注册。
 
 ## 9. Command 与 CommandStack
 

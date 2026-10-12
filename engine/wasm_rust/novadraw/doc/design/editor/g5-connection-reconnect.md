@@ -54,7 +54,7 @@ ConnectionPart 的专用 policy 返回 gesture-scoped `ConnectionReconnection<A>
 
 ## 4. Handle 与 Tool
 
-`HandleRole` 增加 source/target endpoint role。handle：
+`ConnectionEndpointAction` 的 typed payload 标识 source/target endpoint。handle：
 
 - owner 是 ConnectionPart 的 canonical `EditPartId`；
 - 位于 unscaled handle layer；

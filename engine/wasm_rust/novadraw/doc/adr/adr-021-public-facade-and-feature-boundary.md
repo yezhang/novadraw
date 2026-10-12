@@ -5,7 +5,9 @@
 ## 状态
 
 已接受；package 聚合与 backend feature 部分已由 ADR-023 替代，绘图入口已由
-[ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 替代
+[ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 替代，crate root
+与 prelude 分层已由
+[ADR-035](adr-035-explicit-domain-imports-and-root-boundary.md) 替代。
 
 ## 背景
 

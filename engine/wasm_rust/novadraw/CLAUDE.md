@@ -183,6 +183,20 @@ adapter 的 package 边界已按 ADR-023 收口。Graphics 双方言与 Figure c
    框架语义和实现参考；`org.eclipse.zest` 是使用 Draw2D 扩展能力构建的上层产品，
    不得用其源码、行为或扩展逻辑定义 Novadraw 的需求语义、架构或实现；
    Novadraw 的扩展契约必须直接从 Draw2D/GEF 源码推导
+7. **内置与扩展同模型**：请不要区分"内置的功能"与"未来扩展的功能"，二者必须采用
+   同一套设计方案和 API。内置功能只是"提前实现的代码"，不是特权路径。
+   具体表现为：
+   - 不为内置能力保留闭合 `enum`、`Role`、`Kind` 或仅内部可见的 struct 字段；
+   - 不为内置能力增设"typed hook"的同时让扩展能力只能走"erased hook"；
+   - 不为内置能力建立 fast path 使外部实现者无法达到相同性能或语义；
+   - 新 Request / Tool / Handle / Capability / Binding / Layout / Figure 都
+     使用相同的 typed identity + payload trait + registry/envelope；
+   - 若内置实现为 ergonomics 需要 typed 入口，外部实现也必须能用同样的 typed 入口；
+     常用做法：抽出 `Key<T>` + `Payload: Trait`，内置用预定义 Key，外部用自定义 Key；
+   - 任何对内置能力做 `match concrete_variant` 的位置都是债务，必须以第三方
+     也能注册同 identity 的方式重写；
+   - 验证形式：ADR 必须包含"外部消费者证据"章节，证明同一能力由第三方 crate
+     不改 Core 即可实现，且与内置实现共用全部语义与错误通道。
 
 ### 架构设计执行规则
 

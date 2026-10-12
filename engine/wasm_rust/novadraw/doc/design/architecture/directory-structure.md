@@ -211,12 +211,13 @@ benchmarks/*
 
 内部 arena、队列、具体 dispatcher 和 update 数据结构不应因 facade 便利而公开。
 
-Core 公开表面分为三层：
+Core 公开表面按领域组织：
 
-- crate root 与 `prelude`：仅保留高频、无歧义的应用入口；
+- crate root 只公开领域模块，不平铺具体类型；
 - `figure`、`layout`、`container`、`connection`、`event`、`runtime`、`host`、
-  `graphics`、`render`：稳定领域模块；
-- `advanced`：低层诊断协议。
+  `graphics`、`render`：稳定领域模块和规范导入路径；
+- `advanced`：低层诊断协议；
+- Core 不提供库级 prelude；应用可以在自己的 composition root 聚合常用导入。
 
 Editor、Inspector、Vello backend 和 Winit/Web platform adapter 是独立 package，
 只单向依赖 `novadraw`。Core 不声明或转发具体后端 feature。

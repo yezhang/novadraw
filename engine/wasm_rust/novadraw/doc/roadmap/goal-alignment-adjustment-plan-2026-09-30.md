@@ -108,7 +108,7 @@ XOR、SWT 特有入口等先判断可观察行为与现代替代方案，不直�
 
 1. 按 ADR-021/023 收窄 crate root；`advanced` 从定义模块导出，避免依赖根层转发；
 2. 逐个验证禁止 root 名称，避免多个名称合用一个 `compile_fail`；
-3. 保留 root/prelude/领域模块的独立正向编译用例；
+3. 按 ADR-035 保留 module-only root 与领域模块的独立正向/负向编译用例；
 4. 对审计报告确认的代码缺陷，按根因建立最小失败路径并修复；
 5. 以 `Graphics` / `PaintContext` 为唯一公开绘制语言，owned 录制统一归
    `CommandRecorder`，内部 `NdCanvas` 不进入公共表面；

@@ -48,7 +48,7 @@ Runtime
 
 `Graphics` 组合文字测量服务和录制器；`PaintContext` 是只绘制的短借用。
 `CommandRecorder` 是唯一公开拥有命令流的对象。`NdCanvas` 降为 crate 内部实现，
-不从 root、prelude、`graphics` 或 `render` 模块公开。
+不从 root、`graphics` 或 `render` 模块公开；库级 prelude 已由 ADR-035 删除。
 
 `PaintContext` 可以读取当前绘制状态，并提供结构化 rect、path、line、polyline、
 ellipse、text、image、transform、clip 和 state-stack 操作。它不能：
@@ -130,7 +130,7 @@ crate 内录制结果；外部合同测试通过 `prepare_submission` 观察公�
 1. 外部 Figure consumer 仅实现 `paint(PaintContext, bounds) -> Result`；
 2. Figure 绘制错误通过 `prepare_submission` 结构化返回，且修正后可重试；
 3. `CommandRecorder::paint` 与 `Graphics::paint` 复用相同 helper；
-4. `NdCanvas` 无法从 root、prelude、`graphics` 或 `render` 导入；
+4. `NdCanvas` 无法从 root、`graphics` 或 `render` 导入，且库级 prelude 不存在；
 5. Runtime 公共 API 不再包含 `prepare_frame` / `record_full_frame`；
 6. public API snapshot、Facade doctest、定向 Graphics suite 与 quick gate 通过；
 7. 最终 full gate 只执行一次，并单独记录既有无关阻塞。

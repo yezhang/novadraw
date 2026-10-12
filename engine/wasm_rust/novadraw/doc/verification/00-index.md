@@ -11,7 +11,13 @@
 | `manual/` | 窗口、交互和视觉验收步骤 | [索引](manual/00-index.md) |
 | `plans/` | 尚未进入实现的验证矩阵与完成门禁 | [索引](plans/00-index.md) |
 | `performance/` | 可重复的性能基线 | [GA-2 方法](performance/ga2-methodology.md)、[Novadraw CPU 基线](performance/ga2-novadraw-cpu-2026-10-01.md)、[R8 历史基线](performance/r8-baseline-2026-09-02.md) |
-| `checklists/` | 开发与验证检查清单 | [渲染管线](checklists/rendering-pipeline.md) |
+| `checklists/` | 开发与验证检查清单 | [审计整改执行总清单](checklists/audit-remediation-execution.md)、[渲染管线](checklists/rendering-pipeline.md) |
+
+## 工作流
+
+- [审计—收口持续闭环工作流](audit-remediation-workflow.md)：定义 Discover → Triage →
+  Backlog → Design → Execute → Verify → Close 单链条，以及"审计中又产生审计"
+  的挂起规则。
 
 ## 自动化入口
 

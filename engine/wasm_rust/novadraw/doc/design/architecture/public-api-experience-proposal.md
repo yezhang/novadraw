@@ -4,6 +4,10 @@
 
 状态：P2-G02 与已批准跨领域迁移已完成；后续定向项保留
 
+公开导入路径部分已由
+[ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) 替代：
+Core 不再提供库级 prelude，crate root 只公开领域模块。
+
 日期：2026-10-05
 
 设计盘点基线：`c96b675`。P2-G02 的实现状态以路线图和验证记录为准，

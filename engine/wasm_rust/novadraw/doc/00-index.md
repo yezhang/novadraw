@@ -85,6 +85,12 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-031-graphics-recording-and-publication-boundary.md`](adr/adr-031-graphics-recording-and-publication-boundary.md)
 - Viewer 编辑会话与宿主驱动边界：
   [`adr/adr-032-viewer-edit-session-and-drive-boundary.md`](adr/adr-032-viewer-edit-session-and-drive-boundary.md)
+- Runtime 子系统 Facade 与统一 Figure Mutation（已验证）：
+  [`adr/adr-033-runtime-subsystem-facade.md`](adr/adr-033-runtime-subsystem-facade.md)
+- Editor Tool / Request / Handle 统一开放协议（已验证）：
+  [`adr/adr-034-editor-tool-request-handle-protocol.md`](adr/adr-034-editor-tool-request-handle-protocol.md)
+- 显式领域导入与 Crate Root 收口（已验证）：
+  [`adr/adr-035-explicit-domain-imports-and-root-boundary.md`](adr/adr-035-explicit-domain-imports-and-root-boundary.md)
 - Figure Capability 统一扩展模型：
   [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：
@@ -93,6 +99,12 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md`](verification/reviews/framework-public-api-follow-up-audit-2026-10-07.md)
 - 临时概念设计与长期演进审计：
   [`verification/reviews/temporary-concept-design-audit-2026-10-08.md`](verification/reviews/temporary-concept-design-audit-2026-10-08.md)
+- API 与架构 Review（2026-10-09）：
+  [`verification/reviews/api-architecture-review-2026-10-09.md`](verification/reviews/api-architecture-review-2026-10-09.md)
+- 审计—收口持续闭环工作流：
+  [`verification/audit-remediation-workflow.md`](verification/audit-remediation-workflow.md)
+- 审计整改执行总清单：
+  [`verification/checklists/audit-remediation-execution.md`](verification/checklists/audit-remediation-execution.md)
 - ADR-001 至 ADR-013 审计与替代关系：
   [`verification/reviews/adr-audit-2026-09-10.md`](verification/reviews/adr-audit-2026-09-10.md)
 - Novadraw 总体职责边界：[`design/architecture/overview.md`](design/architecture/overview.md)
@@ -214,8 +226,9 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 1. [`strategy/commercial-value-analysis.md`](strategy/commercial-value-analysis.md)
 2. [`strategy/ai-era-relationship-editor-research.md`](strategy/ai-era-relationship-editor-research.md)
 3. [`strategy/ai-graphical-editor-generator.md`](strategy/ai-graphical-editor-generator.md)
-4. [`roadmap/00-index.md`](roadmap/00-index.md)
-5. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
+4. [`strategy/html-in-canvas-api-evaluation-2026-10-09.md`](strategy/html-in-canvas-api-evaluation-2026-10-09.md)
+5. [`roadmap/00-index.md`](roadmap/00-index.md)
+6. [`roadmap/product-deliverables.md`](roadmap/product-deliverables.md)
 
 ## 命名与维护
 

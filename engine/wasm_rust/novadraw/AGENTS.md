@@ -128,6 +128,7 @@
 | 硬编码 | 业务代码中不使用 magic numbers |
 | 通用机制分层 | 事件分发、坐标转换、事件点适配、通用上下文必须放在引擎层，examples 只做平台输入适配与示例编排 |
 | 第三方类型边界 | backend-neutral 公共签名不得暴露 Kurbo、Vello 或 Winit 类型 |
+| 内置与扩展同模型 | 内置能力只是"提前实现的代码"，不是特权路径；Request/Tool/Handle/Capability/Binding/Layout/Figure 等必须统一走 typed identity + payload trait + registry，禁止为内置能力保留闭合枚举、typed-only hook 或 fast path；每条新能力的 ADR 需含"外部消费者证据" |
 | Git 提交 | 提交信息摘要必须使用中文，并按主题保持原子化 |
 
 ## 项目特性
@@ -187,6 +188,7 @@
 - `render_recursive.rs` 是当前渲染主循环保护区，通常不应改主循环逻辑；`render_iterative.rs` 为历史 POC，已从主线删除并归档到 tag `archive/render-iterative-poc-20260617`。
 - 递归渲染在 M1-M10 核心契约完备前，不得恢复迭代渲染入口、I 键切换或递归/迭代等价门禁。
 - 禁止 magic numbers（硬编码）。
+- 禁止把内置能力建成特权路径：Request/Tool/Handle/Capability/Binding/Layout/Figure 等必须内置与扩展共用同一 typed identity + payload trait + registry，不得为内置保留闭合枚举、typed-only hook 或 fast path。
 - Git 提交信息摘要必须使用中文，并按主题保持原子化。
 
 ## 三层信息分工
