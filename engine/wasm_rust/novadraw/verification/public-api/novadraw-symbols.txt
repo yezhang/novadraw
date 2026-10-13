@@ -84,9 +84,9 @@ module.connection enum DependencySubject
 module.connection enum LocatorError
 module.connection enum RouteEnd
 module.connection enum RouteError
+module.connection enum RouteSceneQueryError
 module.connection enum RouterBinding
 module.connection enum RoutingGroupScope
-module.connection enum SceneQueryError
 module.connection enum UnresolvedConnection
 module.connection fn rectangle_boundary_site
 module.connection struct AnchorGeometryKey
@@ -128,17 +128,17 @@ module.connection struct RouterId
 module.connection struct RoutingObstacle
 module.connection struct ShortestPathConnectionRouter
 module.connection struct ShortestPathRouterError
-module.connection struct TrackedSceneQuery
+module.connection struct TrackedRouteSceneQuery
 module.connection struct XYAnchor
 module.connection trait ConnectionAnchor
 module.connection trait ConnectionDecorationBehavior
 module.connection trait ConnectionFigureBehavior
 module.connection trait ConnectionLocatorStrategy
 module.connection trait ConnectionRouter
+module.connection trait RouteSceneQuery
+module.connection trait RouteSceneRead
 module.connection trait RoutingConstraint
 module.connection trait RoutingGroupQuery
-module.connection trait SceneQuery
-module.connection trait SceneRead
 module.container constant DEFAULT_ZOOM_LEVELS
 module.container enum LayerError
 module.container enum LayerPlacement
@@ -192,6 +192,7 @@ module.event enum AccessibilityRole
 module.event enum AccessibilityUpdate
 module.event enum AncestorEventKind
 module.event enum Event
+module.event enum EventSceneQueryError
 module.event enum FigureEvent
 module.event enum FocusChange
 module.event enum FocusError
@@ -224,6 +225,8 @@ module.event struct AncestorEvent
 module.event struct DispatchOutcome
 module.event struct ErasedPropertyKey
 module.event struct EventContext
+module.event struct EventEffects
+module.event struct EventSceneQuery
 module.event struct FocusEvent
 module.event struct GestureSessionId
 module.event struct KeyEvent
@@ -405,7 +408,7 @@ module.layout struct FreeformLayout
 module.layout struct GridConstraint
 module.layout struct GridLayout
 module.layout struct LayoutOutput
-module.layout struct LayoutSnapshot
+module.layout struct LayoutSceneQuery
 module.layout struct StackLayout
 module.layout struct ToolbarLayout
 module.layout struct XYConstraint

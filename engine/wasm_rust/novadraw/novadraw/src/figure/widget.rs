@@ -170,7 +170,7 @@ fn handle_mouse_released(event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool
         return false;
     }
     if ctx.target_bounds().contains(Point::new(event.x, event.y)) {
-        ctx.activate_clickable();
+        ctx.effects().activate_clickable();
     }
     true
 }
@@ -180,7 +180,7 @@ fn handle_key_pressed(event: &KeyEvent, ctx: &mut EventContext<'_>) -> bool {
         return false;
     }
     if !ctx.is_keyboard_pressed() {
-        ctx.set_keyboard_pressed(Some(event.key));
+        ctx.effects().set_keyboard_pressed(Some(event.key));
     }
     true
 }
@@ -189,17 +189,17 @@ fn handle_key_released(event: &KeyEvent, ctx: &mut EventContext<'_>) -> bool {
     if !handles_activation_key(event.key) || ctx.keyboard_pressed_key() != Some(event.key) {
         return false;
     }
-    ctx.activate_clickable();
-    ctx.set_keyboard_pressed(None);
+    ctx.effects().activate_clickable();
+    ctx.effects().set_keyboard_pressed(None);
     true
 }
 
 fn handle_focus_lost(ctx: &mut EventContext<'_>) -> bool {
     if ctx.is_keyboard_pressed() {
-        ctx.set_keyboard_pressed(None);
+        ctx.effects().set_keyboard_pressed(None);
     }
     if ctx.is_pointer_pressed() {
-        ctx.set_pressed(false);
+        ctx.effects().set_pressed(false);
     }
     true
 }

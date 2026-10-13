@@ -1,6 +1,6 @@
 //! Grid layout with per-child alignment, span and excess-space constraints.
 
-use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::{Dimension, Rectangle};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -115,7 +115,7 @@ impl GridLayout {
     }
 
     fn constraint(
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         container: FigureId,
         child: FigureId,
     ) -> Result<GridConstraint, LayoutError> {
@@ -128,7 +128,7 @@ impl GridLayout {
     fn placements(
         &self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Result<Vec<Placement>, LayoutError> {
         let mut occupied: Vec<Vec<bool>> = Vec::new();
         let mut row = 0;
@@ -277,7 +277,7 @@ impl GridLayout {
     fn measured_size(
         &self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> (f64, f64) {
         let placements = self.placements(container, snapshot).unwrap_or_default();
@@ -326,7 +326,7 @@ impl LayoutManager for GridLayout {
         &self,
         container: FigureId,
         _constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let (width, height) = self.measured_size(container, snapshot, false);
         FigureMeasurement::new(width, height, None)
@@ -336,7 +336,7 @@ impl LayoutManager for GridLayout {
         &self,
         container: FigureId,
         _constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.measured_size(container, snapshot, true).into()
     }
@@ -344,7 +344,7 @@ impl LayoutManager for GridLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let placements = self.placements(container, snapshot)?;

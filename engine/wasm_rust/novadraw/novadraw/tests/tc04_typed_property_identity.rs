@@ -79,8 +79,13 @@ impl FigureEventHandler for PropertyFigure {
             *mode = new;
             (old, new)
         };
-        context.emit_property_change(context.target_id(), MODE, old, new);
-        context.emit_property_change(context.target_id(), SAME_NAME_OTHER_NAMESPACE, old, new);
+        let target = context.target_id();
+        context
+            .effects()
+            .emit_property_change(target, MODE, old, new);
+        context
+            .effects()
+            .emit_property_change(target, SAME_NAME_OTHER_NAMESPACE, old, new);
         true
     }
 }

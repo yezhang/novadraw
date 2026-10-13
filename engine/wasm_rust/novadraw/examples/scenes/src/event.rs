@@ -73,7 +73,7 @@ impl EventProbeFigure {
             .events
             .push(ProbeEvent::Mouse(event.kind, event.x, event.y));
         drop(state);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
     }
 }
 
@@ -181,7 +181,7 @@ impl FigureEventHandler for EventProbeFigure {
             event.delta_x,
             event.delta_y,
         ));
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -191,7 +191,7 @@ impl FigureEventHandler for EventProbeFigure {
             event.key,
             event.modifiers,
         ));
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -204,7 +204,7 @@ impl FigureEventHandler for EventProbeFigure {
         state.focused = true;
         state.events.push(ProbeEvent::Focus(event.kind));
         drop(state);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -213,7 +213,7 @@ impl FigureEventHandler for EventProbeFigure {
         state.focused = false;
         state.events.push(ProbeEvent::Focus(event.kind));
         drop(state);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 }

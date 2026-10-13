@@ -1,5 +1,6 @@
 use novadraw::event::MouseButton;
-use novadraw::render::{BackendCapabilities, RenderCommandKind, SurfaceInfo};
+use novadraw::render::{BackendCapabilities, RenderCommandKind, RenderDisposition, SurfaceInfo};
+use novadraw::runtime::SubmissionAcknowledgement;
 use novadraw::{geometry::Point, geometry::Rectangle};
 use novadraw_example_support::{
     VerificationCase, VerificationCli, VerificationMetrics, run_runtime_demo_app,
@@ -200,6 +201,89 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
              {polyline_commands} polylines"
         ));
     }
+    if example.runtime.frames().complete_submission(
+        submission.session_id,
+        submission.frame_id,
+        Ok(RenderDisposition::Presented),
+    ) != Ok(SubmissionAcknowledgement::Presented)
+    {
+        return Err("initial UML submission was not acknowledged".to_owned());
+    }
+
+    const RESIZED_WIDTH: f64 = 1_040.0;
+    const RESIZED_HEIGHT: f64 = 760.0;
+    example
+        .runtime
+        .frames()
+        .resize_logical_viewport(RESIZED_WIDTH, RESIZED_HEIGHT)
+        .map_err(|error| format!("logical viewport resize failed: {error}"))?;
+    let resized_submission = example
+        .runtime
+        .frames()
+        .prepare_submission(
+            SurfaceInfo {
+                logical_width: RESIZED_WIDTH,
+                logical_height: RESIZED_HEIGHT,
+                pixel_width: RESIZED_WIDTH as u32,
+                pixel_height: RESIZED_HEIGHT as u32,
+                scale_factor: 1.0,
+            },
+            BackendCapabilities::RETAINED_PARTIAL,
+        )
+        .into_ready()
+        .map_err(|state| format!("resized UML scene did not produce a frame: {state:?}"))?;
+    if example.runtime.frames().complete_submission(
+        resized_submission.session_id,
+        resized_submission.frame_id,
+        Ok(RenderDisposition::Presented),
+    ) != Ok(SubmissionAcknowledgement::Presented)
+    {
+        return Err("resized UML submission was not acknowledged".to_owned());
+    }
+
+    let resized_dragged = example.class_figures[2];
+    let resized_before = example
+        .runtime
+        .tree()
+        .figure_bounds(resized_dragged)
+        .ok_or_else(|| "resized draggable class has no bounds".to_owned())?;
+    let resized_start = resized_before.center();
+    let resized_press = example.runtime.input().dispatch_mouse_pressed(
+        resized_start.x(),
+        resized_start.y(),
+        MouseButton::Left,
+    );
+    if resized_press.capture() != Some(resized_dragged) {
+        return Err("resized class press did not establish pointer capture".to_owned());
+    }
+    example
+        .runtime
+        .input()
+        .dispatch_mouse_moved(RESIZED_WIDTH * 2.0, RESIZED_HEIGHT * 2.0);
+    let resized_after = example
+        .runtime
+        .tree()
+        .figure_bounds(resized_dragged)
+        .ok_or_else(|| "resized dragged class became detached".to_owned())?;
+    let resized_expected = Rectangle::new(
+        RESIZED_WIDTH - resized_before.width,
+        RESIZED_HEIGHT - resized_before.height,
+        resized_before.width,
+        resized_before.height,
+    );
+    if resized_after != resized_expected {
+        return Err(format!(
+            "resized drag committed {resized_after:?}, expected {resized_expected:?}"
+        ));
+    }
+    let resized_release = example.runtime.input().dispatch_mouse_released(
+        RESIZED_WIDTH * 2.0,
+        RESIZED_HEIGHT * 2.0,
+        MouseButton::Left,
+    );
+    if !resized_release.is_handled() || resized_release.capture().is_some() {
+        return Err("resized class release did not close pointer capture".to_owned());
+    }
 
     Ok(VerificationMetrics::from([
         (
@@ -220,5 +304,9 @@ fn verify_order_domain() -> Result<VerificationMetrics, String> {
             rerouted_connections.to_string(),
         ),
         ("route_points".to_owned(), total_route_points.to_string()),
+        (
+            "resized_drag_boundary".to_owned(),
+            format!("{},{}", resized_after.x, resized_after.y),
+        ),
     ]))
 }

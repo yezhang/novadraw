@@ -717,7 +717,7 @@ mod tests {
     use crate::{
         AncestorEvent, AncestorListener, CoordinateListener, Figure, FigureEvent, FigureId,
         FigureListener, FigureMeasurement, FigureTree, LayoutError, LayoutEvent, LayoutListener,
-        LayoutManager, LayoutOutput, LayoutSnapshot, MeasureConstraints, PropertyChangeEvent,
+        LayoutManager, LayoutOutput, LayoutSceneQuery, MeasureConstraints, PropertyChangeEvent,
         PropertyChangeListener, RectangleFigure, StackLayout, XYConstraint, XYLayout,
     };
     use slotmap::KeyData;
@@ -757,7 +757,7 @@ mod tests {
             &self,
             _container: FigureId,
             _constraints: MeasureConstraints,
-            _snapshot: &LayoutSnapshot<'_>,
+            _snapshot: &LayoutSceneQuery<'_>,
         ) -> FigureMeasurement {
             FigureMeasurement::default()
         }
@@ -766,7 +766,7 @@ mod tests {
             &self,
             container: FigureId,
             constraints: MeasureConstraints,
-            snapshot: &LayoutSnapshot<'_>,
+            snapshot: &LayoutSceneQuery<'_>,
         ) -> Dimension {
             self.preferred_measurement(container, constraints, snapshot)
                 .size()
@@ -775,7 +775,7 @@ mod tests {
         fn layout(
             &mut self,
             _container: FigureId,
-            _snapshot: &LayoutSnapshot<'_>,
+            _snapshot: &LayoutSceneQuery<'_>,
             _out: &mut LayoutOutput,
         ) -> Result<(), LayoutError> {
             if !self.did_panic.swap(true, Ordering::SeqCst) {

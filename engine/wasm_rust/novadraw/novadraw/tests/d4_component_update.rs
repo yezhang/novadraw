@@ -93,9 +93,13 @@ impl Figure for BadgeFigure {
 impl FigureEventHandler for BadgeFigure {
     fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         if self.reject_first_callback_update {
-            context.update_component_later(SetBadgeText(String::new()));
+            context
+                .effects()
+                .update_component_later(SetBadgeText(String::new()));
         }
-        context.update_component_later(SetBadgeText("clicked".to_owned()));
+        context
+            .effects()
+            .update_component_later(SetBadgeText("clicked".to_owned()));
         true
     }
 }

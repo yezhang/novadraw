@@ -6,7 +6,9 @@ pub use crate::runtime::accessibility::{
     AccessibilityNodeId, AccessibilityRole, AccessibilitySnapshot, AccessibilityState,
     AccessibilityUpdate,
 };
-pub use crate::runtime::context::EventContext;
+pub use crate::runtime::context::{
+    EventContext, EventEffects, EventSceneQuery, EventSceneQueryError,
+};
 pub use crate::runtime::event::{
     DispatchContext, DispatchOutcome, Event, FocusEvent, FocusEventKind, GesturePhase,
     GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent,

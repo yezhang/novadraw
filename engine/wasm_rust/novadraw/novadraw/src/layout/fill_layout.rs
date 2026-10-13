@@ -3,7 +3,7 @@
 //! 参考 draw2d: FlowLayout 或 FillLayout
 //! 第一个子元素填充容器，其他子元素保持原位。
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::Dimension;
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -31,7 +31,7 @@ impl LayoutManager for FillLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         snapshot
             .children(container)
@@ -44,7 +44,7 @@ impl LayoutManager for FillLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         snapshot
             .children(container)
@@ -56,7 +56,7 @@ impl LayoutManager for FillLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let children = snapshot.children(container);

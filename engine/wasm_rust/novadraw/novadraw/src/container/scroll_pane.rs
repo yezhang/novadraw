@@ -7,7 +7,7 @@ use crate::geometry::{Dimension, Point, Rectangle};
 use crate::graphics::{GraphicsError, PaintContext};
 
 use crate::figure::{Bounded, Figure, FigureEventHandler};
-use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::runtime::update::property::standard as property;
 use crate::{
     EventContext, FigureId, FigureMeasurement, FigureTree, FigureTreeBuilder, GraphMutationError,
@@ -216,14 +216,15 @@ impl ScrollPaneFigure {
         if old_location == new_location {
             return;
         }
-        ctx.emit_property_change(
+        ctx.effects().emit_property_change(
             viewport_id,
             property::VIEW_LOCATION,
             old_location,
             new_location,
         );
-        ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.repaint_figure(
+        ctx.effects()
+            .coordinate_system_changed(viewport_id, runtime.viewport_bounds);
+        ctx.effects().repaint_figure(
             viewport_id,
             Rectangle::new(
                 0.0,
@@ -292,8 +293,9 @@ impl FigureEventHandler for ScrollPaneFigure {
             return false;
         }
         Self::notify_viewport_change(&runtime, old_location, ctx);
-        ctx.repaint_figure(
-            ctx.target_id(),
+        let target_id = ctx.target_id();
+        ctx.effects().repaint_figure(
+            target_id,
             Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height),
         );
         true
@@ -355,7 +357,7 @@ impl ScrollBarFigure {
     fn repaint_pane(&self, ctx: &mut EventContext<'_>) {
         let runtime = lock_unpoisoned(&self.pane_runtime);
         let pane_bounds = runtime.pane_bounds;
-        ctx.repaint_figure(
+        ctx.effects().repaint_figure(
             self.pane_id,
             Rectangle::new(0.0, 0.0, pane_bounds.width, pane_bounds.height),
         );
@@ -374,9 +376,11 @@ impl ScrollBarFigure {
         if old_value == new_value {
             return;
         }
-        ctx.emit_property_change(viewport_id, property, old_value, new_value);
-        ctx.coordinate_system_changed(viewport_id, runtime.viewport_bounds);
-        ctx.repaint_figure(
+        ctx.effects()
+            .emit_property_change(viewport_id, property, old_value, new_value);
+        ctx.effects()
+            .coordinate_system_changed(viewport_id, runtime.viewport_bounds);
+        ctx.effects().repaint_figure(
             viewport_id,
             Rectangle::new(
                 0.0,
@@ -616,7 +620,7 @@ impl LayoutManager for ScrollPaneLayout {
         &self,
         _container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let viewport_size = snapshot
             .preferred_measurement(self.viewport, constraints)
@@ -641,7 +645,7 @@ impl LayoutManager for ScrollPaneLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         Dimension::ZERO
     }
@@ -649,7 +653,7 @@ impl LayoutManager for ScrollPaneLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let area = snapshot.container_bounds(container);

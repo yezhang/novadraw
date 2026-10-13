@@ -15,7 +15,7 @@ use novadraw::figure::{
 };
 use novadraw::geometry::{Dimension, Rectangle};
 use novadraw::layout::{
-    LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, XYLayout,
+    LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery, XYLayout,
 };
 use novadraw::render::{BackendCapabilities, RenderDisposition, SurfaceInfo};
 use novadraw::runtime::{FramePreparation, RuntimeMutationError};
@@ -62,7 +62,7 @@ impl LayoutManager for ExternalLayout {
         &self,
         _: FigureId,
         _: MeasureConstraints,
-        _: &LayoutSnapshot<'_>,
+        _: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         FigureMeasurement::new(100.0, 100.0, None)
     }
@@ -71,7 +71,7 @@ impl LayoutManager for ExternalLayout {
         &self,
         _: FigureId,
         _: MeasureConstraints,
-        _: &LayoutSnapshot<'_>,
+        _: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         Dimension::new(100.0, 100.0)
     }
@@ -79,7 +79,7 @@ impl LayoutManager for ExternalLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         for (child, _) in snapshot.children(container) {

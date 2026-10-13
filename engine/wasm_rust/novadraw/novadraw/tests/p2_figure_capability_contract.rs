@@ -131,7 +131,7 @@ impl Figure for ExternalCapabilityFigure {
 
 impl FigureEventHandler for ExternalCapabilityFigure {
     fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        context.update_capability_later(SetCounter(9));
+        context.effects().update_capability_later(SetCounter(9));
         true
     }
 }

@@ -3,7 +3,7 @@
 //! 参考 draw2d: FlowLayout
 //! 按顺序排列子元素，自动换行。
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::{Dimension, Rectangle};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -69,7 +69,7 @@ impl FlowLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         let sizes = snapshot
@@ -110,7 +110,7 @@ impl FlowLayout {
     fn perform_layout(
         &self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) {
         let children = snapshot.children(container);
@@ -134,7 +134,7 @@ impl FlowLayout {
         &self,
         area: Rectangle,
         children: &[(FigureId, Rectangle)],
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) {
         let mut x: f64 = area.x;
@@ -171,7 +171,7 @@ impl FlowLayout {
         &self,
         area: Rectangle,
         children: &[(FigureId, Rectangle)],
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) {
         let mut x: f64 = area.x;
@@ -216,7 +216,7 @@ impl LayoutManager for FlowLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.measure(container, constraints, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -226,7 +226,7 @@ impl LayoutManager for FlowLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.measure(container, constraints, snapshot, true)
     }
@@ -234,7 +234,7 @@ impl LayoutManager for FlowLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         self.perform_layout(container, snapshot, out);
@@ -279,15 +279,15 @@ fn measure_wrapped(
     Dimension::new(total_main, total_minor)
 }
 
-/// Mock LayoutContext for testing
+/// Mock LayoutSceneRead for testing
 #[cfg(test)]
-struct MockLayoutContext {
+struct MockLayoutSceneRead {
     children: Vec<(FigureId, Rectangle)>,
     container_bounds: Rectangle,
 }
 
 #[cfg(test)]
-impl MockLayoutContext {
+impl MockLayoutSceneRead {
     fn new() -> Self {
         Self {
             children: Vec::new(),
@@ -297,7 +297,7 @@ impl MockLayoutContext {
 }
 
 #[cfg(test)]
-impl super::LayoutContext for MockLayoutContext {
+impl super::LayoutSceneRead for MockLayoutSceneRead {
     fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         self.children.clone()
     }
@@ -329,7 +329,7 @@ mod tests {
         let measured = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
+            &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
         );
         assert_eq!(measured.size(), Dimension::ZERO);
     }
@@ -347,7 +347,7 @@ mod tests {
         let _ = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
+            &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
         );
     }
 }

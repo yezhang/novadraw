@@ -19,7 +19,7 @@ use crate::figure::{
     BorderedFigure, Bounded, ChildClippingStrategy, ChildPolicy, ChildTransform, Figure,
     FigureContainer, FigureMeasurement, MeasureConstraints, border::Border,
 };
-use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use crate::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::runtime::update::property::standard as property;
 use crate::{
     DefaultRangeModel, FigureId, FigureTree, FigureTreeBuilder, GraphMutationError, RangeModel,
@@ -352,7 +352,7 @@ impl LayoutManager for ViewportLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let Some((contents, _)) = snapshot.children(container).first().copied() else {
             return FigureMeasurement::default();
@@ -376,7 +376,7 @@ impl LayoutManager for ViewportLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         Dimension::ZERO
     }
@@ -384,7 +384,7 @@ impl LayoutManager for ViewportLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let Some((contents, _)) = snapshot.children(container).first().copied() else {
@@ -787,7 +787,7 @@ mod tests {
             &self,
             container: FigureId,
             constraints: MeasureConstraints,
-            snapshot: &LayoutSnapshot<'_>,
+            snapshot: &LayoutSceneQuery<'_>,
         ) -> FigureMeasurement {
             self.inner
                 .preferred_measurement(container, constraints, snapshot)
@@ -797,7 +797,7 @@ mod tests {
             &self,
             container: FigureId,
             constraints: MeasureConstraints,
-            snapshot: &LayoutSnapshot<'_>,
+            snapshot: &LayoutSceneQuery<'_>,
         ) -> Dimension {
             self.inner.minimum_size(container, constraints, snapshot)
         }
@@ -805,7 +805,7 @@ mod tests {
         fn layout(
             &mut self,
             container: FigureId,
-            snapshot: &LayoutSnapshot<'_>,
+            snapshot: &LayoutSceneQuery<'_>,
             out: &mut LayoutOutput,
         ) -> Result<(), LayoutError> {
             self.inner.layout(container, snapshot, out)?;

@@ -35,10 +35,13 @@ fn specialist_protocols_are_available_through_named_modules() {
     let _: Option<novadraw::graphics::ImageDrawError> = None;
     let _: Option<novadraw::figure::FigureMeasurement> = None;
     let _: Option<&dyn novadraw::figure::FigurePreparation> = None;
+    let _: Option<novadraw::layout::LayoutSceneQuery<'static>> = None;
     let _: Option<novadraw::layout::LayoutOutput> = None;
-    let _: Option<&dyn novadraw::connection::SceneQuery> = None;
-    let _: Option<novadraw::connection::TrackedSceneQuery<'static>> = None;
+    let _: Option<&dyn novadraw::connection::RouteSceneQuery> = None;
+    let _: Option<novadraw::connection::TrackedRouteSceneQuery<'static>> = None;
     let _: Option<novadraw::connection::RouteOutput> = None;
+    let _: Option<novadraw::event::EventSceneQuery<'static>> = None;
+    let _: Option<novadraw::event::EventEffects<'static>> = None;
     let _: Option<novadraw::event::DispatchOutcome> = None;
     let _: Option<novadraw::runtime::FramePreparation> = None;
     let _: Option<novadraw::runtime::FigureMut<'static>> = None;

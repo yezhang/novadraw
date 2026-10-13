@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::Runtime;
-use super::{ConnectionId, CoordinateSpace, FigureTreeSceneRead};
+use super::{ConnectionId, CoordinateSpace, FigureTreeRouteSceneRead};
 
 pub(super) struct FigureUpdateRevisionContext {
     pub(super) previous_revision: u64,
@@ -180,7 +180,7 @@ impl Runtime {
             return Err(RuntimeMutationError::LayeredParent(new_parent));
         }
         self.tree.validate_attachment(new_parent, child)?;
-        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
         self.connections.prepare_reparent_constraint(
             ConnectionId::from_figure(child),
             CoordinateSpace::ChildContent(old_parent),

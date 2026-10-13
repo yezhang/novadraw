@@ -6,7 +6,7 @@ use novadraw::figure::{
     LabelFigure, MeasureConstraints, RectangleFigure,
 };
 use novadraw::geometry::{Dimension, Insets, Point, Rectangle};
-use novadraw::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, ToolbarLayout};
+use novadraw::layout::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery, ToolbarLayout};
 use novadraw::render::{
     BackendCapabilities, BuiltinFont, DamageMode, RenderCommandKind, RenderDisposition, SurfaceInfo,
 };
@@ -90,7 +90,7 @@ impl LayoutManager for RecordingContentLayout {
         &self,
         _container: FigureId,
         constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         self.constraints.lock().unwrap().push(constraints);
         FigureMeasurement::new(CONTENT_WIDTH, CONTENT_HEIGHT, Some(CONTENT_BASELINE))
@@ -100,7 +100,7 @@ impl LayoutManager for RecordingContentLayout {
         &self,
         _container: FigureId,
         constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.constraints.lock().unwrap().push(constraints);
         Dimension::new(CONTENT_WIDTH, CONTENT_HEIGHT)
@@ -109,7 +109,7 @@ impl LayoutManager for RecordingContentLayout {
     fn layout(
         &mut self,
         _container: FigureId,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
         _out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         Ok(())

@@ -3,7 +3,7 @@
 //! 参考 draw2d: BorderLayout
 //! 将容器划分为北、南、东、西、中五个区域。
 
-use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::{Dimension, Rectangle};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -126,7 +126,7 @@ impl BorderLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         let mut north = (0.0_f64, 0.0_f64);
@@ -216,7 +216,7 @@ impl LayoutManager for BorderLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.measure(container, constraints, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -226,7 +226,7 @@ impl LayoutManager for BorderLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.measure(container, constraints, snapshot, true)
     }
@@ -234,7 +234,7 @@ impl LayoutManager for BorderLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let children = snapshot.children(container);
@@ -347,7 +347,7 @@ impl LayoutManager for BorderLayout {
 }
 
 fn border_constraint(
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
     container: FigureId,
     child_id: FigureId,
 ) -> Result<Option<(BorderRegion, Option<f64>)>, LayoutError> {
@@ -378,15 +378,15 @@ fn border_constraint(
     }))
 }
 
-/// Mock LayoutContext for testing
+/// Mock LayoutSceneRead for testing
 #[cfg(test)]
-struct MockLayoutContext {
+struct MockLayoutSceneRead {
     children: Vec<(FigureId, Rectangle)>,
     container_bounds: Rectangle,
 }
 
 #[cfg(test)]
-impl MockLayoutContext {
+impl MockLayoutSceneRead {
     fn new() -> Self {
         Self {
             children: Vec::new(),
@@ -396,7 +396,7 @@ impl MockLayoutContext {
 }
 
 #[cfg(test)]
-impl super::LayoutContext for MockLayoutContext {
+impl super::LayoutSceneRead for MockLayoutSceneRead {
     fn get_children(&self, _parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         self.children.clone()
     }
@@ -443,7 +443,7 @@ mod tests {
         let measured = layout.preferred_measurement(
             FigureId::from(slotmap::KeyData::from_ffi(0)),
             MeasureConstraints::bounded(800.0, 600.0).unwrap(),
-            &LayoutSnapshot::new(&MockLayoutContext::new()),
+            &LayoutSceneQuery::new(&MockLayoutSceneRead::new()),
         );
         assert_eq!(measured.size(), Dimension::ZERO);
     }

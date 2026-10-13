@@ -2,8 +2,8 @@ use super::{
     AnchorGeometry, AnchorGeometryKey, AnchorId, ConnectionAnchor, ConnectionId,
     ConnectionLocatorStrategy, ConnectionRouter, ConnectionRoutingStats, ConnectionRuntimeError,
     ConnectionStateSnapshot, CoordinateSpace, DependencySubject, DirectRouter, FigureId,
-    FigureTreeSceneRead, Rectangle, RouteError, RouteMetadata, RouteOutput, RouteRequest,
-    RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope, Runtime, TrackedSceneQuery,
+    FigureTreeRouteSceneRead, Rectangle, RouteError, RouteMetadata, RouteOutput, RouteRequest,
+    RouterBinding, RouterId, RoutingConstraint, RoutingGroupScope, Runtime, TrackedRouteSceneQuery,
     UnresolvedConnection, route_metadata_in_local,
 };
 
@@ -273,8 +273,8 @@ impl Runtime {
         target: &dyn ConnectionAnchor,
         routing_space: CoordinateSpace,
     ) -> Result<RouteMetadata, RouteError> {
-        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
-        let mut query = TrackedSceneQuery::new(&scene);
+        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
+        let mut query = TrackedRouteSceneQuery::new(&scene);
         DirectRouter
             .route(RouteRequest {
                 connection: ConnectionId::from_figure(self.tree.synthetic_root()),
@@ -317,7 +317,7 @@ impl Runtime {
                 .collect(),
             _ => vec![connection],
         };
-        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
         let result = self
             .connections
             .route(connection, routing_space, &scene, &routing_order);

@@ -8,7 +8,7 @@ use novadraw::geometry::{Dimension, Rectangle, Translatable};
 use novadraw::graphics::Color;
 use novadraw::layout::{
     BorderConstraint, BorderLayout, BorderRegion, GridAlignment, GridConstraint, GridLayout,
-    LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot, StackLayout, ToolbarLayout,
+    LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery, StackLayout, ToolbarLayout,
     XYConstraint, XYLayout,
 };
 use novadraw::runtime::FramePreparationError;
@@ -438,7 +438,7 @@ impl LayoutManager for InvalidGeometryLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         FigureMeasurement::default()
     }
@@ -447,7 +447,7 @@ impl LayoutManager for InvalidGeometryLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.preferred_measurement(container, constraints, snapshot)
             .size()
@@ -456,7 +456,7 @@ impl LayoutManager for InvalidGeometryLayout {
     fn layout(
         &mut self,
         _container: FigureId,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         out.set_child_bounds(self.first_child, Rectangle::new(50.0, 60.0, 70.0, 80.0));
@@ -470,7 +470,7 @@ impl LayoutManager for InvalidOutputLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         FigureMeasurement::default()
     }
@@ -479,7 +479,7 @@ impl LayoutManager for InvalidOutputLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.preferred_measurement(container, constraints, snapshot)
             .size()
@@ -488,7 +488,7 @@ impl LayoutManager for InvalidOutputLayout {
     fn layout(
         &mut self,
         _container: FigureId,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         out.set_child_bounds(self.valid_child, Rectangle::new(50.0, 60.0, 70.0, 80.0));
@@ -698,7 +698,7 @@ impl LayoutManager for CountingLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         self.measurements.fetch_add(1, Ordering::SeqCst);
         FigureMeasurement::new(25.0, 35.0, None)
@@ -708,7 +708,7 @@ impl LayoutManager for CountingLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.preferred_measurement(container, constraints, snapshot)
             .size()
@@ -717,7 +717,7 @@ impl LayoutManager for CountingLayout {
     fn layout(
         &mut self,
         _container: FigureId,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
         _out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         Ok(())
@@ -848,7 +848,7 @@ impl LayoutManager for ReinvalidatingLayout {
         &self,
         _container: FigureId,
         _constraints: MeasureConstraints,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         FigureMeasurement::default()
     }
@@ -857,7 +857,7 @@ impl LayoutManager for ReinvalidatingLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.preferred_measurement(container, constraints, snapshot)
             .size()
@@ -866,7 +866,7 @@ impl LayoutManager for ReinvalidatingLayout {
     fn layout(
         &mut self,
         _container: FigureId,
-        _snapshot: &LayoutSnapshot<'_>,
+        _snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         out.invalidate(self.child);

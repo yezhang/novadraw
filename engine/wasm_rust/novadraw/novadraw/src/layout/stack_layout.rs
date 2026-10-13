@@ -1,6 +1,6 @@
 //! Stack layout: every child occupies the container client area.
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::Dimension;
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -16,7 +16,7 @@ impl StackLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         snapshot
@@ -40,7 +40,7 @@ impl LayoutManager for StackLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.aggregate_size(container, constraints, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -50,7 +50,7 @@ impl LayoutManager for StackLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.aggregate_size(container, constraints, snapshot, true)
     }
@@ -58,7 +58,7 @@ impl LayoutManager for StackLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let client_area = snapshot.container_bounds(container);

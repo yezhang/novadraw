@@ -1,5 +1,5 @@
 use novadraw::graphics::{GraphicsError, PaintContext};
-use novadraw::layout::{LayoutError, LayoutOutput, LayoutSnapshot, XYConstraint};
+use novadraw::layout::{LayoutError, LayoutOutput, LayoutSceneQuery, XYConstraint};
 use novadraw::render::{
     BackendCapabilities, BuiltinFont, FontDescriptor, RenderCommandKind, SurfaceInfo,
     TextConstraints, TextLayout,
@@ -67,7 +67,7 @@ impl LayoutManager for ConstrainedColumnLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         snapshot
             .children(container)
@@ -80,7 +80,7 @@ impl LayoutManager for ConstrainedColumnLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.preferred_measurement(container, constraints, snapshot)
             .size()
@@ -89,7 +89,7 @@ impl LayoutManager for ConstrainedColumnLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         output: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let area = snapshot.container_bounds(container);

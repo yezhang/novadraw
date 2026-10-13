@@ -23,7 +23,7 @@ use super::figure::{
 };
 use super::layout::{
     LayoutChange, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutManager, LayoutOutput,
-    LayoutSnapshot,
+    LayoutSceneQuery,
 };
 use crate::figure::border::BorderSnapshot;
 use crate::figure::capability::FigureCapabilitySet;

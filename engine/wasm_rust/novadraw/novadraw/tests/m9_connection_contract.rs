@@ -28,8 +28,8 @@ impl QueryFixture {
         self.geometry.insert((figure, key), geometry);
     }
 
-    fn tracked(&self) -> TrackedSceneQuery<'_> {
-        TrackedSceneQuery::new(self)
+    fn tracked(&self) -> TrackedRouteSceneQuery<'_> {
+        TrackedRouteSceneQuery::new(self)
     }
 
     fn to_surface(&self, point: Point, space: CoordinateSpace) -> Point {
@@ -51,7 +51,7 @@ impl QueryFixture {
     }
 }
 
-impl SceneRead for QueryFixture {
+impl RouteSceneRead for QueryFixture {
     fn is_attached(&self, figure: FigureId) -> bool {
         self.attached.get(&figure).copied().unwrap_or(false)
     }
@@ -60,8 +60,8 @@ impl SceneRead for QueryFixture {
         None
     }
 
-    fn border_box(&self, figure: FigureId) -> Result<Rectangle, SceneQueryError> {
-        match SceneRead::anchor_geometry(self, figure, &AnchorGeometryKey::border_box())? {
+    fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
+        match RouteSceneRead::anchor_geometry(self, figure, &AnchorGeometryKey::border_box())? {
             AnchorGeometry::Rectangle(bounds)
             | AnchorGeometry::Ellipse(bounds)
             | AnchorGeometry::RoundedRectangle { bounds, .. } => Ok(bounds),
@@ -72,14 +72,14 @@ impl SceneRead for QueryFixture {
         &self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError> {
+    ) -> Result<AnchorGeometry, RouteSceneQueryError> {
         if !self.is_attached(figure) {
-            return Err(SceneQueryError::DetachedFigure(figure));
+            return Err(RouteSceneQueryError::DetachedFigure(figure));
         }
         self.geometry
             .get(&(figure, key.clone()))
             .cloned()
-            .ok_or_else(|| SceneQueryError::MissingAnchorGeometry {
+            .ok_or_else(|| RouteSceneQueryError::MissingAnchorGeometry {
                 figure,
                 key: key.clone(),
             })
@@ -90,7 +90,7 @@ impl SceneRead for QueryFixture {
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError> {
+    ) -> Result<Point, RouteSceneQueryError> {
         Ok(self.map_from_surface(self.to_surface(point, from), to))
     }
 
@@ -99,8 +99,8 @@ impl SceneRead for QueryFixture {
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError> {
-        let origin = SceneRead::map_point(self, Point::new(rect.x, rect.y), from, to)?;
+    ) -> Result<Rectangle, RouteSceneQueryError> {
+        let origin = RouteSceneRead::map_point(self, Point::new(rect.x, rect.y), from, to)?;
         Ok(Rectangle::new(
             origin.x(),
             origin.y(),
@@ -114,7 +114,7 @@ impl SceneRead for QueryFixture {
         normal: Vec2,
         _from: CoordinateSpace,
         _to: CoordinateSpace,
-    ) -> Result<Vec2, SceneQueryError> {
+    ) -> Result<Vec2, RouteSceneQueryError> {
         Ok(normal)
     }
 
@@ -392,7 +392,7 @@ fn route_rejects_dependency_generation_drift() {
     assert!(matches!(
         result,
         Err(RouteError::Source(AnchorError::Scene(
-            SceneQueryError::SceneChangedDuringQuery(_)
+            RouteSceneQueryError::SceneChangedDuringQuery(_)
         )))
     ));
 }
@@ -439,7 +439,7 @@ fn missing_named_geometry_is_a_structured_anchor_error() {
 
     assert!(matches!(
         error,
-        AnchorError::Scene(SceneQueryError::MissingAnchorGeometry { figure, .. })
+        AnchorError::Scene(RouteSceneQueryError::MissingAnchorGeometry { figure, .. })
             if figure == owner
     ));
 }

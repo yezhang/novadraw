@@ -137,7 +137,7 @@ impl FigureEventHandler for UmlClassFigure {
             start_entry: entry,
             start_bounds,
         });
-        context.repaint(None);
+        context.effects().repaint(None);
         true
     }
 
@@ -148,10 +148,21 @@ impl FigureEventHandler for UmlClassFigure {
         let entry = event.entry_point();
         let dx = entry.x() - session.start_entry.x();
         let dy = entry.y() - session.start_entry.y();
-        let x = (session.start_bounds.x + dx).clamp(0.0, WIDTH - session.start_bounds.width);
-        let y = (session.start_bounds.y + dy).clamp(0.0, HEIGHT - session.start_bounds.height);
-        context.set_bounds_later(
-            context.target_id(),
+        let target_id = context.target_id();
+        let Ok(Some(parent_id)) = context.scene().parent_id(target_id) else {
+            return false;
+        };
+        let Ok(parent_bounds) = context.scene().child_content_bounds(parent_id) else {
+            return false;
+        };
+        let max_x = (parent_bounds.x + parent_bounds.width - session.start_bounds.width)
+            .max(parent_bounds.x);
+        let max_y = (parent_bounds.y + parent_bounds.height - session.start_bounds.height)
+            .max(parent_bounds.y);
+        let x = (session.start_bounds.x + dx).clamp(parent_bounds.x, max_x);
+        let y = (session.start_bounds.y + dy).clamp(parent_bounds.y, max_y);
+        context.effects().set_bounds_later(
+            target_id,
             Rectangle::new(
                 x,
                 y,
@@ -165,7 +176,7 @@ impl FigureEventHandler for UmlClassFigure {
     fn on_mouse_released(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         let was_dragging = self.drag.lock().expect("drag state").take().is_some();
         if was_dragging {
-            context.repaint(None);
+            context.effects().repaint(None);
         }
         was_dragging
     }
@@ -173,7 +184,7 @@ impl FigureEventHandler for UmlClassFigure {
     fn on_mouse_exited(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
         let was_dragging = self.drag.lock().expect("drag state").take().is_some();
         if was_dragging {
-            context.repaint(None);
+            context.effects().repaint(None);
         }
         was_dragging
     }
@@ -805,7 +816,91 @@ fn add_legend(runtime: &mut Runtime, root: FigureId) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use novadraw::render::{BackendCapabilities, RenderCommandKind, SurfaceInfo};
+    use novadraw::render::{
+        BackendCapabilities, RenderCommandKind, RenderDisposition, SurfaceInfo,
+    };
+    use novadraw::runtime::SubmissionAcknowledgement;
+
+    fn drag_class_to_resized_bottom_right(
+        example: &mut UmlExample,
+        class_index: usize,
+        viewport_width: f64,
+        viewport_height: f64,
+    ) {
+        assert!(
+            example
+                .runtime
+                .frames()
+                .resize_logical_viewport(viewport_width, viewport_height)
+                .unwrap()
+        );
+        let submission = example
+            .runtime
+            .frames()
+            .prepare_submission(
+                SurfaceInfo {
+                    logical_width: viewport_width,
+                    logical_height: viewport_height,
+                    pixel_width: viewport_width as u32,
+                    pixel_height: viewport_height as u32,
+                    scale_factor: 1.0,
+                },
+                BackendCapabilities::RETAINED_PARTIAL,
+            )
+            .into_ready()
+            .expect("resized UML scene prepares a frame");
+        assert_eq!(
+            example.runtime.frames().complete_submission(
+                submission.session_id,
+                submission.frame_id,
+                Ok(RenderDisposition::Presented),
+            ),
+            Ok(SubmissionAcknowledgement::Presented)
+        );
+        let dragged = example.class_figures[class_index];
+        let before = example.runtime.tree().figure_bounds(dragged).unwrap();
+        let start = Point::new(
+            before.x + before.width / 2.0,
+            before.y + before.height / 2.0,
+        );
+        let press =
+            example
+                .runtime
+                .input()
+                .dispatch_mouse_pressed(start.x(), start.y(), MouseButton::Left);
+        assert_eq!(press.capture(), Some(dragged));
+
+        let far_x = viewport_width * 2.0;
+        let far_y = viewport_height * 2.0;
+        example.runtime.input().dispatch_mouse_moved(far_x, far_y);
+        assert_eq!(
+            example.runtime.tree().figure_bounds(dragged),
+            Some(Rectangle::new(
+                (viewport_width - before.width).max(0.0),
+                (viewport_height - before.height).max(0.0),
+                before.width,
+                before.height,
+            ))
+        );
+
+        let release =
+            example
+                .runtime
+                .input()
+                .dispatch_mouse_released(far_x, far_y, MouseButton::Left);
+        assert!(release.is_handled());
+        assert_eq!(release.capture(), None);
+        assert!(example.runtime.take_deferred_mutation_errors().is_empty());
+    }
+
+    #[test]
+    fn class_drag_bounds_follow_expanded_and_shrunk_logical_viewports() {
+        let mut expanded = build_example();
+        drag_class_to_resized_bottom_right(&mut expanded, 2, 1_040.0, 760.0);
+
+        let mut shrunk = build_example();
+        drag_class_to_resized_bottom_right(&mut shrunk, 0, 640.0, 480.0);
+    }
 
     #[test]
     fn complex_uml_scene_uses_external_figures_nested_layout_and_routed_relations() {

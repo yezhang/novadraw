@@ -274,7 +274,7 @@ impl FigureEventHandler for TargetDomainFigure {
         let local_bounds = Rectangle::new(0.0, 0.0, self.bounds.width, self.bounds.height);
         if local_bounds.contains(point) {
             self.selected.store(true, Ordering::Release);
-            ctx.repaint(None);
+            ctx.effects().repaint(None);
             return true;
         }
         false

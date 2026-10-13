@@ -2,7 +2,7 @@ use std::{error::Error, fmt};
 
 use crate::geometry::{Dimension, Point, Rectangle};
 
-use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -93,7 +93,7 @@ impl FreeformLayout {
     fn measure(
         self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         let mut extent = Rectangle::ZERO;
@@ -144,7 +144,7 @@ impl LayoutManager for FreeformLayout {
         &self,
         container: FigureId,
         _constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.measure(container, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -154,7 +154,7 @@ impl LayoutManager for FreeformLayout {
         &self,
         container: FigureId,
         _constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.measure(container, snapshot, true)
     }
@@ -162,7 +162,7 @@ impl LayoutManager for FreeformLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         for (child, _) in snapshot.children(container) {
@@ -187,7 +187,7 @@ impl LayoutManager for FreeformLayout {
 }
 
 fn freeform_constraint(
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
     container: FigureId,
     child: FigureId,
 ) -> Result<Option<FreeformConstraint>, LayoutError> {

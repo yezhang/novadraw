@@ -282,7 +282,7 @@ impl FigureTree {
             });
             let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let snapshot = LayoutSnapshot::new(self);
+                let snapshot = LayoutSceneQuery::new(self);
                 layout_manager.layout(container_id, &snapshot, &mut output)
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
@@ -408,7 +408,7 @@ impl FigureTree {
             });
             let mut output = LayoutOutput::new();
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let snapshot = LayoutSnapshot::new(self);
+                let snapshot = LayoutSceneQuery::new(self);
                 layout_manager.layout(container_id, &snapshot, &mut output)
             }));
             if let Some(block) = self.blocks.get_mut(container_id) {
@@ -623,7 +623,7 @@ impl FigureTree {
             {
                 return Some(cached.measurement);
             }
-            let snapshot = LayoutSnapshot::new(self);
+            let snapshot = LayoutSceneQuery::new(self);
             let measurement = block.project_layout_preferred_measurement(
                 layout.preferred_measurement(figure_id, constraints, &snapshot),
             );
@@ -665,7 +665,7 @@ impl FigureTree {
             {
                 return Some(cached.measurement.size());
             }
-            let snapshot = LayoutSnapshot::new(self);
+            let snapshot = LayoutSceneQuery::new(self);
             let size = block.project_layout_minimum_size(layout.minimum_size(
                 figure_id,
                 constraints,
@@ -960,7 +960,7 @@ impl FigureTree {
     }
 }
 
-impl crate::layout::LayoutContext for FigureTree {
+impl crate::layout::LayoutSceneRead for FigureTree {
     fn get_children(&self, parent_id: FigureId) -> Vec<(FigureId, Rectangle)> {
         if let Some(block) = self.blocks.get(parent_id) {
             block

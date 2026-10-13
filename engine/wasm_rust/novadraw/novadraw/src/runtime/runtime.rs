@@ -12,8 +12,8 @@ use crate::render::{
 
 use crate::animation::{AnimationMut, AnimationService};
 use crate::connection::{
-    ConnectionRoutingStats, ConnectionRuntime, DependencySubject, FigureTreeSceneRead,
-    RouteMetadata, RouteOutput, RouteRequest, TrackedSceneQuery, UnresolvedConnection,
+    ConnectionRoutingStats, ConnectionRuntime, DependencySubject, FigureTreeRouteSceneRead,
+    RouteMetadata, RouteOutput, RouteRequest, TrackedRouteSceneQuery, UnresolvedConnection,
 };
 use crate::container::layer::LayeredPaneState;
 use crate::figure::border::BorderSnapshot;
@@ -1535,7 +1535,7 @@ impl Runtime {
         let prepared_constraint = if old_parent == new_parent {
             None
         } else {
-            let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+            let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
             self.connections.prepare_reparent_constraint(
                 ConnectionId::from_figure(child),
                 CoordinateSpace::ChildContent(old_parent),

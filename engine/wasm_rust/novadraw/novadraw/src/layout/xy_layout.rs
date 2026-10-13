@@ -3,7 +3,7 @@
 //! 参考 draw2d: XYLayout
 //! 使用约束（Rectangle）定位每个子元素。
 
-use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutConstraint, LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::{Dimension, Rectangle};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -82,7 +82,7 @@ impl XYLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         snapshot
@@ -172,7 +172,7 @@ impl LayoutManager for XYLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.measure(container, constraints, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -182,7 +182,7 @@ impl LayoutManager for XYLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.measure(container, constraints, snapshot, true)
     }
@@ -190,7 +190,7 @@ impl LayoutManager for XYLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let children = snapshot.children(container);
@@ -198,7 +198,7 @@ impl LayoutManager for XYLayout {
             return Ok(());
         }
 
-        // LayoutSnapshot exposes the available rectangle in child-content coordinates.
+        // LayoutSceneQuery exposes the available rectangle in child-content coordinates.
         let container_bounds = snapshot.container_bounds(container);
         let offset_x = container_bounds.x;
         let offset_y = container_bounds.y;
@@ -238,7 +238,7 @@ impl LayoutManager for XYLayout {
 }
 
 fn xy_constraint(
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
     container: FigureId,
     child_id: FigureId,
 ) -> Result<Option<Rectangle>, LayoutError> {

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use super::{
     BackendCapabilities, BackendSessionId, ConnectionRuntimeError, ConnectionStateSnapshot,
     CoordinateSpace, DERIVED_STATE_FEEDBACK_LIMIT, DERIVED_WORK_KIND_COUNT, DamageMode,
-    DerivedWorkKind, DerivedWorkSet, FigureTreeSceneRead, FrameId, FramePreparation,
+    DerivedWorkKind, DerivedWorkSet, FigureTreeRouteSceneRead, FrameId, FramePreparation,
     FramePreparationError, InFlightFrame, NdCanvas, RenderDisposition, RenderFailure, RenderResult,
     ResourceSync, Runtime, SubmissionAcknowledgement, SubmissionCompletionError, SurfaceInfo,
     UpdateEvent,
@@ -451,7 +451,7 @@ impl Runtime {
     }
 
     fn invalidate_stale_connection_dependencies(&mut self) -> Result<bool, ConnectionRuntimeError> {
-        let scene = FigureTreeSceneRead::new(&self.tree, &self.anchor_geometries);
+        let scene = FigureTreeRouteSceneRead::new(&self.tree, &self.anchor_geometries);
         self.connections
             .invalidate_stale_dependencies(&scene)
             .map(|affected| !affected.is_empty())

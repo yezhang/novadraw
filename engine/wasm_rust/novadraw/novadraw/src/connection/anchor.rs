@@ -2,7 +2,9 @@ use std::{error::Error, fmt, sync::Arc};
 
 use crate::geometry::{Dimension, Point, Rectangle, Vec2};
 
-use super::{AnchorGeometry, AnchorGeometryKey, CoordinateSpace, SceneQuery, SceneQueryError};
+use super::{
+    AnchorGeometry, AnchorGeometryKey, CoordinateSpace, RouteSceneQuery, RouteSceneQueryError,
+};
 use crate::FigureId;
 
 const GEOMETRY_EPSILON: f64 = 1.0e-9;
@@ -86,14 +88,14 @@ pub trait ConnectionAnchor {
     /// Resolves the anchor reference point into `output`.
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError>;
 
     /// Resolves the endpoint using a point expressed in `reference_space`.
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -104,7 +106,7 @@ pub trait ConnectionAnchor {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AnchorError {
     /// Scene lookup or coordinate conversion failed.
-    Scene(SceneQueryError),
+    Scene(RouteSceneQueryError),
     /// An owner-backed Anchor has no owner.
     MissingOwner,
     /// Owner geometry is empty, negative, or incompatible with this Anchor.
@@ -137,8 +139,8 @@ impl Error for AnchorError {
     }
 }
 
-impl From<SceneQueryError> for AnchorError {
-    fn from(value: SceneQueryError) -> Self {
+impl From<RouteSceneQueryError> for AnchorError {
+    fn from(value: RouteSceneQueryError) -> Self {
         Self::Scene(value)
     }
 }
@@ -164,7 +166,7 @@ impl ConnectionAnchor for XYAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError> {
         map_finite_point(scene, self.point, self.space, output)
@@ -172,7 +174,7 @@ impl ConnectionAnchor for XYAnchor {
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         _reference: Point,
         _reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -225,7 +227,7 @@ impl ConnectionAnchor for ChopboxAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError> {
         let bounds = anchor_bounds(scene, self.owner, &self.geometry_key)?;
@@ -239,7 +241,7 @@ impl ConnectionAnchor for ChopboxAnchor {
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -304,7 +306,7 @@ impl ConnectionAnchor for EllipseAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError> {
         let bounds = anchor_bounds(scene, self.owner, &self.geometry_key)?;
@@ -318,7 +320,7 @@ impl ConnectionAnchor for EllipseAnchor {
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -396,7 +398,7 @@ impl ConnectionAnchor for RoundedRectangleAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError> {
         let (bounds, _) = self.geometry(scene)?;
@@ -410,7 +412,7 @@ impl ConnectionAnchor for RoundedRectangleAnchor {
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -435,7 +437,10 @@ impl ConnectionAnchor for RoundedRectangleAnchor {
 }
 
 impl RoundedRectangleAnchor {
-    fn geometry(&self, scene: &mut dyn SceneQuery) -> Result<(Rectangle, Dimension), AnchorError> {
+    fn geometry(
+        &self,
+        scene: &mut dyn RouteSceneQuery,
+    ) -> Result<(Rectangle, Dimension), AnchorError> {
         let geometry = scene.anchor_geometry(self.owner, &self.geometry_key)?;
         let bounds = geometry.bounds();
         validate_bounds(self.owner, bounds)?;
@@ -487,7 +492,7 @@ impl ConnectionAnchor for LabelAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError> {
         self.inner.reference_point(scene, output)
@@ -495,7 +500,7 @@ impl ConnectionAnchor for LabelAnchor {
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -506,7 +511,7 @@ impl ConnectionAnchor for LabelAnchor {
 }
 
 fn anchor_bounds(
-    scene: &mut dyn SceneQuery,
+    scene: &mut dyn RouteSceneQuery,
     owner: FigureId,
     key: &AnchorGeometryKey,
 ) -> Result<Rectangle, AnchorError> {
@@ -530,7 +535,7 @@ fn validate_bounds(owner: FigureId, bounds: Rectangle) -> Result<(), AnchorError
 }
 
 fn map_finite_point(
-    scene: &mut dyn SceneQuery,
+    scene: &mut dyn RouteSceneQuery,
     point: Point,
     from: CoordinateSpace,
     to: CoordinateSpace,
@@ -546,7 +551,7 @@ fn map_finite_point(
 }
 
 fn map_site(
-    scene: &mut dyn SceneQuery,
+    scene: &mut dyn RouteSceneQuery,
     _owner: FigureId,
     point: Point,
     normal: Option<Vec2>,

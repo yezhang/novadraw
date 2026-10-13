@@ -96,7 +96,7 @@ impl WebProbeFigure {
         self.state
             .pointer_events
             .set(self.state.pointer_events.get() + 1);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
     }
 }
 
@@ -283,7 +283,7 @@ impl FigureEventHandler for WebProbeFigure {
         self.state
             .wheel_events
             .set(self.state.wheel_events.get() + 1);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -294,7 +294,7 @@ impl FigureEventHandler for WebProbeFigure {
     ) -> bool {
         self.state.key_events.set(self.state.key_events.get() + 1);
         *self.state.last_key.borrow_mut() = format!("{:?}", event.key);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -313,7 +313,7 @@ impl FigureEventHandler for WebProbeFigure {
     ) -> bool {
         self.focused.set(true);
         *self.state.focused_label.borrow_mut() = Some(self.label);
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 
@@ -327,7 +327,7 @@ impl FigureEventHandler for WebProbeFigure {
         if is_current_focus {
             *self.state.focused_label.borrow_mut() = None;
         }
-        ctx.repaint(None);
+        ctx.effects().repaint(None);
         true
     }
 }

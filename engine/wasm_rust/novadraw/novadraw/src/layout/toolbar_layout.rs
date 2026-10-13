@@ -1,6 +1,6 @@
 //! Single-row or single-column toolbar layout.
 
-use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSnapshot};
+use super::{LayoutError, LayoutManager, LayoutOutput, LayoutSceneQuery};
 use crate::geometry::{Dimension, Rectangle};
 use crate::{FigureMeasurement, MeasureConstraints, graph::FigureId};
 
@@ -83,7 +83,7 @@ impl ToolbarLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         minimum: bool,
     ) -> Dimension {
         let children = snapshot.children(container);
@@ -115,7 +115,7 @@ impl LayoutManager for ToolbarLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement {
         let size = self.aggregate_size(container, constraints, snapshot, false);
         FigureMeasurement::new(size.width, size.height, None)
@@ -125,7 +125,7 @@ impl LayoutManager for ToolbarLayout {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension {
         self.aggregate_size(container, constraints, snapshot, true)
     }
@@ -133,7 +133,7 @@ impl LayoutManager for ToolbarLayout {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError> {
         let children = snapshot.children(container);

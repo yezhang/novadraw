@@ -5,9 +5,9 @@ use crate::identity::{RuntimeArena, RuntimeNamespace};
 use super::{
     AnchorGroupKey, AnchorId, Bendpoint, BendpointConstraint, ConnectionAnchor, ConnectionId,
     ConnectionRouter, CoordinateSpace, DependencyObservation, DependencySubject, DirectRouter,
-    LocatorError, LocatorPlacement, RouteError, RouteOutput, RouteRequest, RouterId,
-    RoutingConstraint, RoutingGroupQuery, RoutingGroupScope, RoutingObstacle, SceneQuery,
-    SceneQueryError, SceneRead, TrackedSceneQuery,
+    LocatorError, LocatorPlacement, RouteError, RouteOutput, RouteRequest, RouteSceneQuery,
+    RouteSceneQueryError, RouteSceneRead, RouterId, RoutingConstraint, RoutingGroupQuery,
+    RoutingGroupScope, RoutingObstacle, TrackedRouteSceneQuery,
 };
 use crate::{ConnectionLocatorStrategy, FigureId, MAX_TREE_DEPTH};
 
@@ -128,7 +128,7 @@ pub enum ConnectionRuntimeError {
         /// Connection whose parent would change.
         connection: ConnectionId,
         /// Coordinate mapping failure.
-        error: SceneQueryError,
+        error: RouteSceneQueryError,
     },
     /// Locator child is not a direct child of its Connection Figure.
     InvalidLocatorChild {
@@ -659,7 +659,7 @@ impl ConnectionRuntime {
         connection: ConnectionId,
         from: CoordinateSpace,
         to: CoordinateSpace,
-        source: &dyn SceneRead,
+        source: &dyn RouteSceneRead,
     ) -> Result<Option<Box<dyn RoutingConstraint>>, ConnectionRuntimeError> {
         let Some(state) = self.states.get(&connection) else {
             return Ok(None);
@@ -706,7 +706,7 @@ impl ConnectionRuntime {
         &mut self,
         connection: ConnectionId,
         routing_space: CoordinateSpace,
-        source: &dyn SceneRead,
+        source: &dyn RouteSceneRead,
         routing_order: &[ConnectionId],
     ) -> Result<ConnectionRouteBatch, ConnectionRouteBatchError> {
         self.stats.routing_order_entries = self
@@ -841,7 +841,7 @@ impl ConnectionRuntime {
 
     pub(crate) fn invalidate_stale_dependencies(
         &mut self,
-        source: &dyn SceneRead,
+        source: &dyn RouteSceneRead,
     ) -> Result<Vec<ConnectionId>, ConnectionRuntimeError> {
         let directly_affected = self
             .order
@@ -1027,7 +1027,7 @@ impl ConnectionRuntime {
         &self,
         connection: ConnectionId,
         routing_space: CoordinateSpace,
-        source: &dyn SceneRead,
+        source: &dyn RouteSceneRead,
         group: &RuntimeRoutingGroup,
         obstacle_observations: &[DependencyObservation],
     ) -> Result<RouteCalculation, (ConnectionRuntimeError, Vec<DependencyObservation>)> {
@@ -1074,7 +1074,7 @@ impl ConnectionRuntime {
             .states
             .get(&connection)
             .and_then(|state| state.constraint.as_deref());
-        let mut query = TrackedSceneQuery::new(source);
+        let mut query = TrackedRouteSceneQuery::new(source);
         let output = router.route(RouteRequest {
             connection,
             routing_space,
@@ -1425,9 +1425,9 @@ fn build_obstacle_snapshot(
     obstacle_figures: &[FigureId],
     connections: &[ConnectionId],
     routing_space: CoordinateSpace,
-    scene: &dyn SceneRead,
+    scene: &dyn RouteSceneRead,
 ) -> ObstacleSnapshotResult {
-    let mut query = TrackedSceneQuery::new(scene);
+    let mut query = TrackedRouteSceneQuery::new(scene);
     let mut obstacles = Vec::with_capacity(obstacle_figures.len());
     for figure in obstacle_figures {
         let attached = match query.is_attached(*figure) {
@@ -1506,7 +1506,7 @@ fn validate_viewport_topology(
     source_owner: Option<FigureId>,
     target_owner: Option<FigureId>,
     _routing_space: CoordinateSpace,
-    scene: &dyn SceneRead,
+    scene: &dyn RouteSceneRead,
 ) -> Result<TopologyObservations, (RouteError, TopologyObservations)> {
     let connection_parent = scene.parent_id(connection.figure()).ok_or_else(|| {
         (
@@ -1528,7 +1528,7 @@ fn validate_viewport_topology(
     Ok(deduplicate_observations(observations))
 }
 
-fn viewport_chain(figure: FigureId, scene: &dyn SceneRead) -> ViewportChainResult {
+fn viewport_chain(figure: FigureId, scene: &dyn RouteSceneRead) -> ViewportChainResult {
     let mut chain = Vec::new();
     let mut observations = Vec::new();
     let mut current = Some(figure);
@@ -1575,7 +1575,7 @@ fn unordered_pair_eq(
 fn dependency_cycle(
     connection: ConnectionId,
     observations: &[DependencyObservation],
-    scene: &dyn SceneRead,
+    scene: &dyn RouteSceneRead,
 ) -> bool {
     observations.iter().any(|observation| {
         dependency_figures(&observation.subject)
@@ -1609,7 +1609,7 @@ fn coordinate_figure(space: CoordinateSpace) -> Option<FigureId> {
 fn is_self_or_descendant(
     connection: FigureId,
     mut candidate: FigureId,
-    scene: &dyn SceneRead,
+    scene: &dyn RouteSceneRead,
 ) -> bool {
     for _ in 0..=MAX_TREE_DEPTH {
         if candidate == connection {

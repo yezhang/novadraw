@@ -7,7 +7,8 @@ use std::{
 use crate::geometry::{ApproxEq, Point, PointList, Precision, Vec2};
 
 use super::{
-    AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateSpace, FigureId, SceneQuery,
+    AnchorError, AnchorSite, ConnectionAnchor, ConnectionId, CoordinateSpace, FigureId,
+    RouteSceneQuery,
 };
 
 /// Default perpendicular spacing between neighboring Fan routes.
@@ -84,7 +85,7 @@ pub struct RouteRequest<'a> {
     /// Optional router-specific constraint.
     pub constraint: Option<&'a dyn RoutingConstraint>,
     /// Read-only, dependency-tracking scene query.
-    pub scene: &'a mut dyn SceneQuery,
+    pub scene: &'a mut dyn RouteSceneQuery,
     /// Optional stable group snapshot.
     pub group: Option<&'a dyn RoutingGroupQuery>,
 }
@@ -503,7 +504,7 @@ impl Error for FanRouterError {}
 pub(super) fn resolve_endpoints(
     source: &dyn ConnectionAnchor,
     target: &dyn ConnectionAnchor,
-    scene: &mut dyn SceneQuery,
+    scene: &mut dyn RouteSceneQuery,
     routing_space: CoordinateSpace,
     source_reference_override: Option<Point>,
     target_reference_override: Option<Point>,

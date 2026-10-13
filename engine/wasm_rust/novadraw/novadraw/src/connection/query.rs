@@ -136,8 +136,8 @@ pub struct DependencyObservation {
     pub generation: u64,
 }
 
-/// Immutable scene data source wrapped by [`TrackedSceneQuery`].
-pub trait SceneRead {
+/// Immutable scene data source wrapped by [`TrackedRouteSceneQuery`].
+pub trait RouteSceneRead {
     /// Returns whether a Figure is attached to the current public tree.
     fn is_attached(&self, figure: FigureId) -> bool;
 
@@ -155,14 +155,14 @@ pub trait SceneRead {
     }
 
     /// Returns the Figure-local border box.
-    fn border_box(&self, figure: FigureId) -> Result<Rectangle, SceneQueryError>;
+    fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError>;
 
     /// Returns Figure-local geometry selected by `key`.
     fn anchor_geometry(
         &self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError>;
+    ) -> Result<AnchorGeometry, RouteSceneQueryError>;
 
     /// Maps a point between explicit coordinate spaces.
     fn map_point(
@@ -170,7 +170,7 @@ pub trait SceneRead {
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError>;
+    ) -> Result<Point, RouteSceneQueryError>;
 
     /// Maps a rectangle to the axis-aligned envelope in another space.
     fn map_rect(
@@ -178,7 +178,7 @@ pub trait SceneRead {
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError>;
+    ) -> Result<Rectangle, RouteSceneQueryError>;
 
     /// Maps a geometric normal using the inverse-transpose linear transform.
     fn map_normal(
@@ -186,34 +186,34 @@ pub trait SceneRead {
         normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vec2, SceneQueryError>;
+    ) -> Result<Vec2, RouteSceneQueryError>;
 
     /// Returns the current generation of a stable dependency subject.
     fn dependency_generation(&self, subject: &DependencySubject) -> u64;
 }
 
 /// Read-only, dependency-tracking scene access used by Anchor and Router strategies.
-pub trait SceneQuery {
+pub trait RouteSceneQuery {
     /// Returns whether a Figure is attached to the current public tree.
-    fn is_attached(&mut self, figure: FigureId) -> Result<bool, SceneQueryError>;
+    fn is_attached(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError>;
 
     /// Returns the direct parent of a Figure.
-    fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, SceneQueryError>;
+    fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError>;
 
     /// Returns effective visibility through the Figure ancestor chain.
-    fn is_visible(&mut self, figure: FigureId) -> Result<bool, SceneQueryError> {
+    fn is_visible(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.is_attached(figure)
     }
 
     /// Returns the Figure-local border box.
-    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, SceneQueryError>;
+    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError>;
 
     /// Returns Figure-local geometry selected by `key`.
     fn anchor_geometry(
         &mut self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError>;
+    ) -> Result<AnchorGeometry, RouteSceneQueryError>;
 
     /// Maps a point between explicit coordinate spaces.
     fn map_point(
@@ -221,7 +221,7 @@ pub trait SceneQuery {
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError>;
+    ) -> Result<Point, RouteSceneQueryError>;
 
     /// Maps a rectangle to the axis-aligned envelope in another space.
     fn map_rect(
@@ -229,7 +229,7 @@ pub trait SceneQuery {
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError>;
+    ) -> Result<Rectangle, RouteSceneQueryError>;
 
     /// Maps a geometric normal using the inverse-transpose linear transform.
     fn map_normal(
@@ -237,19 +237,19 @@ pub trait SceneQuery {
         normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vec2, SceneQueryError>;
+    ) -> Result<Vec2, RouteSceneQueryError>;
 }
 
 /// One dependency-tracking query session over an immutable scene snapshot.
-pub struct TrackedSceneQuery<'a> {
-    source: &'a dyn SceneRead,
+pub struct TrackedRouteSceneQuery<'a> {
+    source: &'a dyn RouteSceneRead,
     observations: Vec<DependencyObservation>,
     indices: HashMap<DependencySubject, usize>,
 }
 
-impl<'a> TrackedSceneQuery<'a> {
+impl<'a> TrackedRouteSceneQuery<'a> {
     /// Starts a new tracking session.
-    pub fn new(source: &'a dyn SceneRead) -> Self {
+    pub fn new(source: &'a dyn RouteSceneRead) -> Self {
         Self {
             source,
             observations: Vec::new(),
@@ -267,11 +267,11 @@ impl<'a> TrackedSceneQuery<'a> {
         self.observations
     }
 
-    fn observe(&mut self, subject: DependencySubject) -> Result<(), SceneQueryError> {
+    fn observe(&mut self, subject: DependencySubject) -> Result<(), RouteSceneQueryError> {
         let generation = self.source.dependency_generation(&subject);
         if let Some(index) = self.indices.get(&subject).copied() {
             if self.observations[index].generation != generation {
-                return Err(SceneQueryError::SceneChangedDuringQuery(subject));
+                return Err(RouteSceneQueryError::SceneChangedDuringQuery(subject));
             }
             return Ok(());
         }
@@ -285,23 +285,23 @@ impl<'a> TrackedSceneQuery<'a> {
     }
 }
 
-impl SceneQuery for TrackedSceneQuery<'_> {
-    fn is_attached(&mut self, figure: FigureId) -> Result<bool, SceneQueryError> {
+impl RouteSceneQuery for TrackedRouteSceneQuery<'_> {
+    fn is_attached(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
         Ok(self.source.is_attached(figure))
     }
 
-    fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, SceneQueryError> {
+    fn parent_id(&mut self, figure: FigureId) -> Result<Option<FigureId>, RouteSceneQueryError> {
         self.observe(DependencySubject::Topology(figure))?;
         Ok(self.source.parent_id(figure))
     }
 
-    fn is_visible(&mut self, figure: FigureId) -> Result<bool, SceneQueryError> {
+    fn is_visible(&mut self, figure: FigureId) -> Result<bool, RouteSceneQueryError> {
         self.observe(DependencySubject::FigureVisibility(figure))?;
         Ok(self.source.is_visible(figure))
     }
 
-    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, SceneQueryError> {
+    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
         self.observe(DependencySubject::FigureGeometry(figure))?;
         self.source.border_box(figure)
     }
@@ -310,7 +310,7 @@ impl SceneQuery for TrackedSceneQuery<'_> {
         &mut self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError> {
+    ) -> Result<AnchorGeometry, RouteSceneQueryError> {
         let subject = if key.is_border_box() {
             DependencySubject::FigureGeometry(figure)
         } else {
@@ -325,7 +325,7 @@ impl SceneQuery for TrackedSceneQuery<'_> {
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError> {
+    ) -> Result<Point, RouteSceneQueryError> {
         self.observe(DependencySubject::RelativeTransform(from, to))?;
         self.source.map_point(point, from, to)
     }
@@ -335,7 +335,7 @@ impl SceneQuery for TrackedSceneQuery<'_> {
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError> {
+    ) -> Result<Rectangle, RouteSceneQueryError> {
         self.observe(DependencySubject::RelativeTransform(from, to))?;
         self.source.map_rect(rect, from, to)
     }
@@ -345,18 +345,18 @@ impl SceneQuery for TrackedSceneQuery<'_> {
         normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vec2, SceneQueryError> {
+    ) -> Result<Vec2, RouteSceneQueryError> {
         self.observe(DependencySubject::RelativeTransform(from, to))?;
         self.source.map_normal(normal, from, to)
     }
 }
 
-pub(crate) struct FigureTreeSceneRead<'a> {
+pub(crate) struct FigureTreeRouteSceneRead<'a> {
     tree: &'a FigureTree,
     anchor_geometries: &'a HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
 }
 
-impl<'a> FigureTreeSceneRead<'a> {
+impl<'a> FigureTreeRouteSceneRead<'a> {
     pub(crate) fn new(
         tree: &'a FigureTree,
         anchor_geometries: &'a HashMap<(FigureId, AnchorGeometryKey), AnchorGeometry>,
@@ -381,7 +381,7 @@ impl<'a> FigureTreeSceneRead<'a> {
         &self,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Affine2D, SceneQueryError> {
+    ) -> Result<Affine2D, RouteSceneQueryError> {
         let from_surface = self
             .to_surface_transform(from)
             .ok_or_else(|| coordinate_space_error(from))?;
@@ -395,7 +395,7 @@ impl<'a> FigureTreeSceneRead<'a> {
     }
 }
 
-impl SceneRead for FigureTreeSceneRead<'_> {
+impl RouteSceneRead for FigureTreeRouteSceneRead<'_> {
     fn is_attached(&self, figure: FigureId) -> bool {
         self.tree.is_attached(figure)
     }
@@ -414,16 +414,16 @@ impl SceneRead for FigureTreeSceneRead<'_> {
             .is_some_and(|block| block.figure.as_any().is::<ViewportFigure>())
     }
 
-    fn border_box(&self, figure: FigureId) -> Result<Rectangle, SceneQueryError> {
+    fn border_box(&self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError> {
         if !self.tree.is_attached(figure) {
-            return Err(SceneQueryError::DetachedFigure(figure));
+            return Err(RouteSceneQueryError::DetachedFigure(figure));
         }
         let bounds = self
             .tree
             .figure_bounds(figure)
-            .ok_or(SceneQueryError::UnknownFigure(figure))?;
+            .ok_or(RouteSceneQueryError::UnknownFigure(figure))?;
         if !bounds.width.is_finite() || !bounds.height.is_finite() {
-            return Err(SceneQueryError::NonFiniteGeometry(figure));
+            return Err(RouteSceneQueryError::NonFiniteGeometry(figure));
         }
         Ok(Rectangle::new(0.0, 0.0, bounds.width, bounds.height))
     }
@@ -432,14 +432,14 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         &self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError> {
+    ) -> Result<AnchorGeometry, RouteSceneQueryError> {
         if key.is_border_box() {
             return self.border_box(figure).map(AnchorGeometry::Rectangle);
         }
         self.anchor_geometries
             .get(&(figure, key.clone()))
             .cloned()
-            .ok_or_else(|| SceneQueryError::MissingAnchorGeometry {
+            .ok_or_else(|| RouteSceneQueryError::MissingAnchorGeometry {
                 figure,
                 key: key.clone(),
             })
@@ -450,10 +450,10 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError> {
+    ) -> Result<Point, RouteSceneQueryError> {
         let mapped = self.transform(from, to)?.transform_point(point);
         if !mapped.x().is_finite() || !mapped.y().is_finite() {
-            return Err(SceneQueryError::NonFiniteCoordinateMap { from, to });
+            return Err(RouteSceneQueryError::NonFiniteCoordinateMap { from, to });
         }
         Ok(mapped)
     }
@@ -463,7 +463,7 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError> {
+    ) -> Result<Rectangle, RouteSceneQueryError> {
         let corners = [
             Point::new(rect.x, rect.y),
             Point::new(rect.x + rect.width, rect.y),
@@ -498,16 +498,16 @@ impl SceneRead for FigureTreeSceneRead<'_> {
         normal: Vec2,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Vec2, SceneQueryError> {
+    ) -> Result<Vec2, RouteSceneQueryError> {
         let [a, b, c, d, _, _] = self.transform(from, to)?.coeffs();
         let determinant = a * d - b * c;
         if !determinant.is_finite() || determinant.abs() <= f64::EPSILON {
-            return Err(SceneQueryError::NonInvertibleCoordinateMap { from, to });
+            return Err(RouteSceneQueryError::NonInvertibleCoordinateMap { from, to });
         }
         let x = (d * normal.x() - b * normal.y()) / determinant;
         let y = (-c * normal.x() + a * normal.y()) / determinant;
         if !x.is_finite() || !y.is_finite() {
-            return Err(SceneQueryError::NonFiniteCoordinateMap { from, to });
+            return Err(RouteSceneQueryError::NonFiniteCoordinateMap { from, to });
         }
         Ok(Vec2::new(x, y))
     }
@@ -560,18 +560,18 @@ fn hash_anchor_geometry(geometry: &AnchorGeometry, hasher: &mut DefaultHasher) {
     }
 }
 
-fn coordinate_space_error(space: CoordinateSpace) -> SceneQueryError {
+fn coordinate_space_error(space: CoordinateSpace) -> RouteSceneQueryError {
     match space {
         CoordinateSpace::FigureLocal(figure) | CoordinateSpace::ChildContent(figure) => {
-            SceneQueryError::NonInvertibleTransform(figure)
+            RouteSceneQueryError::NonInvertibleTransform(figure)
         }
-        CoordinateSpace::LogicalSurface => SceneQueryError::UnavailableLogicalSurface,
+        CoordinateSpace::LogicalSurface => RouteSceneQueryError::UnavailableLogicalSurface,
     }
 }
 
 /// Failure produced by a read-only scene query.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum SceneQueryError {
+pub enum RouteSceneQueryError {
     /// The Figure identity does not resolve.
     UnknownFigure(FigureId),
     /// The Figure exists but is detached from the public tree.
@@ -607,7 +607,7 @@ pub enum SceneQueryError {
     UnavailableLogicalSurface,
 }
 
-impl fmt::Display for SceneQueryError {
+impl fmt::Display for RouteSceneQueryError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnknownFigure(figure) => write!(formatter, "unknown Figure ID: {figure:?}"),
@@ -649,4 +649,4 @@ impl fmt::Display for SceneQueryError {
     }
 }
 
-impl Error for SceneQueryError {}
+impl Error for RouteSceneQueryError {}

@@ -108,7 +108,7 @@ pub(crate) use host::*;
 pub(crate) use layout::{
     BorderConstraint, BorderRegion, FlowDirection, FreeformConstraint, FreeformConstraintError,
     GridAlignment, GridConstraint, LayoutConstraint, LayoutError, LayoutInvalidation, LayoutOutput,
-    LayoutSnapshot, MinorAlignment, ToolbarOrientation, XYConstraint,
+    LayoutSceneQuery, MinorAlignment, ToolbarOrientation, XYConstraint,
 };
 #[allow(unused_imports)]
 pub(crate) use render::{

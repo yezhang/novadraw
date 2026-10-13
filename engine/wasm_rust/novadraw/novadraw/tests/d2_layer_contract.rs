@@ -39,19 +39,20 @@ impl FigureEventHandler for EnqueueLayersFigure {
     fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
         let first = key("callback-first");
         let second = key("callback-second");
-        ctx.add_layer_later(
+        ctx.effects().add_layer_later(
             self.pane,
             Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
             first.clone(),
             LayerPlacement::Last,
         );
-        ctx.add_layer_later(
+        ctx.effects().add_layer_later(
             self.pane,
             Box::new(LayerFigure::new(0.0, 0.0, 100.0, 80.0)),
             second.clone(),
             LayerPlacement::Last,
         );
-        ctx.move_layer_later(self.pane, first, LayerPlacement::After(second));
+        ctx.effects()
+            .move_layer_later(self.pane, first, LayerPlacement::After(second));
         true
     }
 }

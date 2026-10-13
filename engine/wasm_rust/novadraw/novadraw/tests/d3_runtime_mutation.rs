@@ -611,10 +611,18 @@ impl Figure for DeferredMutationFigure {
 
 impl FigureEventHandler for DeferredMutationFigure {
     fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
-        context.set_preferred_size_later(self.child, Dimension::new(40.0, 50.0));
-        context.move_child_to_index_later(self.parent, self.child, 99);
-        context.set_preferred_size_later(self.child, Dimension::new(60.0, 70.0));
-        context.set_minimum_size_later(self.child, Dimension::new(20.0, 30.0));
+        context
+            .effects()
+            .set_preferred_size_later(self.child, Dimension::new(40.0, 50.0));
+        context
+            .effects()
+            .move_child_to_index_later(self.parent, self.child, 99);
+        context
+            .effects()
+            .set_preferred_size_later(self.child, Dimension::new(60.0, 70.0));
+        context
+            .effects()
+            .set_minimum_size_later(self.child, Dimension::new(20.0, 30.0));
         true
     }
 }

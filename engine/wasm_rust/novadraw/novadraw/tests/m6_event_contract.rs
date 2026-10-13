@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use novadraw::advanced::{EventDispatcher, InteractionState, PendingMutations, UpdateManager};
 use novadraw::event::{
-    EventContext, FigureEventHandler, FocusEvent, FocusEventKind, GesturePhase, GestureSessionId,
-    Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-    ScrollDeltaKind, WheelEvent,
+    EventContext, EventSceneQueryError, FigureEventHandler, FocusEvent, FocusEventKind,
+    GesturePhase, GestureSessionId, Key, KeyEvent, KeyEventKind, KeyModifiers, MouseButton,
+    MouseEvent, MouseEventKind, ScrollDeltaKind, WheelEvent,
 };
 use novadraw::figure::{
     Bounded, FigureCapabilityBuilder, FigureCapabilityRegistrationError, INPUT, InputCapability,
@@ -141,6 +141,92 @@ impl InputProbeFigure {
             .unwrap()
             .push(RecordedInput::Mouse(event.kind, event.x, event.y));
     }
+}
+
+struct ContextProjectionProbe {
+    bounds: Rectangle,
+    expected_parent: novadraw::tree::FigureId,
+    foreign_figure: novadraw::tree::FigureId,
+    observed: Arc<Mutex<Vec<(Rectangle, Rectangle, Rectangle)>>>,
+}
+
+impl Figure for ContextProjectionProbe {
+    fn initial_bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn name(&self) -> &'static str {
+        "ContextProjectionProbe"
+    }
+
+    fn register_capabilities(
+        &self,
+        out: &mut FigureCapabilityBuilder,
+    ) -> Result<(), FigureCapabilityRegistrationError> {
+        out.register(INPUT, InputCapability::of::<Self>())
+    }
+}
+
+impl FigureEventHandler for ContextProjectionProbe {
+    fn on_mouse_pressed(&self, _event: &MouseEvent, context: &mut EventContext<'_>) -> bool {
+        let target = context.target_id();
+        let scene = context.scene();
+        assert_eq!(scene.parent_id(target).unwrap(), Some(self.expected_parent));
+        assert_eq!(
+            scene.figure_bounds(self.foreign_figure),
+            Err(EventSceneQueryError::ForeignFigure(self.foreign_figure))
+        );
+        let parent_bounds = scene.child_content_bounds(self.expected_parent).unwrap();
+        let before = scene.figure_bounds(target).unwrap();
+        let next = Rectangle::new(100.0, 110.0, before.width, before.height);
+        context.effects().set_bounds_later(target, next);
+        let during_callback = context.scene().figure_bounds(target).unwrap();
+        self.observed
+            .lock()
+            .unwrap()
+            .push((parent_bounds, before, during_callback));
+        true
+    }
+}
+
+#[test]
+fn event_context_projects_scene_query_and_defers_effect_visibility() {
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let mut foreign_runtime = Runtime::empty();
+    let foreign_figure = foreign_runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 1.0, 1.0)))
+        .unwrap();
+    let mut runtime = Runtime::empty();
+    let root = runtime
+        .set_contents(Box::new(RectangleFigure::new(0.0, 0.0, 300.0, 200.0)))
+        .unwrap();
+    let initial = Rectangle::new(10.0, 20.0, 40.0, 30.0);
+    let probe = runtime
+        .figure(root)
+        .unwrap()
+        .add(Box::new(ContextProjectionProbe {
+            bounds: initial,
+            expected_parent: root,
+            foreign_figure,
+            observed: Arc::clone(&observed),
+        }))
+        .unwrap();
+
+    assert!(
+        runtime
+            .input()
+            .dispatch_mouse_pressed(20.0, 30.0, MouseButton::Left)
+            .is_handled()
+    );
+
+    assert_eq!(
+        *observed.lock().unwrap(),
+        vec![(Rectangle::new(0.0, 0.0, 300.0, 200.0), initial, initial)]
+    );
+    assert_eq!(
+        runtime.tree().figure_bounds(probe),
+        Some(Rectangle::new(100.0, 110.0, 40.0, 30.0))
+    );
 }
 
 #[test]

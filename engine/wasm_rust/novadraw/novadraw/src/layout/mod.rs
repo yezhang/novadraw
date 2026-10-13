@@ -48,12 +48,12 @@ impl<T: Any> LayoutConstraint for T {
     }
 }
 
-/// Read-only layout queries used to construct [`LayoutSnapshot`].
+/// Read-only layout queries used to construct [`LayoutSceneQuery`].
 ///
-/// This remains an internal trait so tests and future frozen scene
-/// representations can provide the data. Layout managers only receive the
-/// concrete immutable snapshot wrapper and cannot mutate the Figure tree.
-pub(crate) trait LayoutContext {
+/// This remains an internal trait so tests and alternate scene representations can provide the
+/// data. Layout managers only receive the concrete immutable query wrapper and cannot mutate the
+/// Figure tree.
+pub(crate) trait LayoutSceneRead {
     /// 获取子元素列表
     ///
     /// 返回 (child_id, current_bounds) 列表
@@ -93,12 +93,12 @@ pub(crate) trait LayoutContext {
 
 /// Immutable view of the scene used by one layout calculation.
 #[derive(Clone, Copy)]
-pub struct LayoutSnapshot<'a> {
-    source: &'a dyn LayoutContext,
+pub struct LayoutSceneQuery<'a> {
+    source: &'a dyn LayoutSceneRead,
 }
 
-impl<'a> LayoutSnapshot<'a> {
-    pub(crate) fn new(source: &'a dyn LayoutContext) -> Self {
+impl<'a> LayoutSceneQuery<'a> {
+    pub(crate) fn new(source: &'a dyn LayoutSceneRead) -> Self {
         Self { source }
     }
 
@@ -331,7 +331,7 @@ pub trait LayoutManager {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> FigureMeasurement;
 
     /// 获取最小大小
@@ -341,7 +341,7 @@ pub trait LayoutManager {
         &self,
         container: FigureId,
         constraints: MeasureConstraints,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
     ) -> Dimension;
 
     /// 执行布局
@@ -350,7 +350,7 @@ pub trait LayoutManager {
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot<'_>,
+        snapshot: &LayoutSceneQuery<'_>,
         out: &mut LayoutOutput,
     ) -> Result<(), LayoutError>;
 

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{error::Error, fmt, sync::Arc};
 
 use crate::geometry::{Dimension, Point};
 
@@ -11,6 +11,94 @@ use crate::{
     ZoomManager,
     mutation::{MutationContext, PendingMutation, SizeOverrideKind},
 };
+
+/// Read-only scene facts available during one Figure event callback.
+///
+/// The query observes the committed prefix captured when dispatch entered the callback. Effects
+/// recorded by that callback are not visible until the callback returns and Runtime commits them.
+#[derive(Clone, Copy)]
+pub struct EventSceneQuery<'a> {
+    tree: &'a FigureTree,
+}
+
+impl<'a> EventSceneQuery<'a> {
+    fn new(tree: &'a FigureTree) -> Self {
+        Self { tree }
+    }
+
+    fn node(&self, figure: FigureId) -> Result<&crate::FigureNode, EventSceneQueryError> {
+        if figure.namespace() != self.tree.namespace() {
+            return Err(EventSceneQueryError::ForeignFigure(figure));
+        }
+        let node = self
+            .tree
+            .node(figure)
+            .ok_or(EventSceneQueryError::UnknownOrDisposedFigure(figure))?;
+        if !self.tree.is_attached(figure) {
+            return Err(EventSceneQueryError::DetachedFigure(figure));
+        }
+        Ok(node)
+    }
+
+    /// Returns the direct parent of an attached Figure.
+    pub fn parent_id(&self, figure: FigureId) -> Result<Option<FigureId>, EventSceneQueryError> {
+        self.node(figure)?;
+        Ok(self.tree.parent_id(figure))
+    }
+
+    /// Returns the Figure border box in its parent child-content coordinate domain.
+    pub fn figure_bounds(&self, figure: FigureId) -> Result<Rectangle, EventSceneQueryError> {
+        Ok(self.node(figure)?.figure_bounds())
+    }
+
+    /// Returns the area in which a container lays out direct children.
+    pub fn child_content_bounds(
+        &self,
+        container: FigureId,
+    ) -> Result<Rectangle, EventSceneQueryError> {
+        Ok(self.node(container)?.child_layout_area())
+    }
+
+    /// Returns direct children in paint order.
+    pub fn children(&self, container: FigureId) -> Result<Vec<FigureId>, EventSceneQueryError> {
+        self.node(container)?;
+        self.tree
+            .child_order(container)
+            .ok_or(EventSceneQueryError::UnknownOrDisposedFigure(container))
+    }
+}
+
+/// Failure produced by an [`EventSceneQuery`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EventSceneQueryError {
+    /// The Figure belongs to another Runtime namespace.
+    ForeignFigure(FigureId),
+    /// The Figure no longer resolves in this Runtime.
+    UnknownOrDisposedFigure(FigureId),
+    /// The Figure resolves internally but is not attached to the public scene.
+    DetachedFigure(FigureId),
+}
+
+impl fmt::Display for EventSceneQueryError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ForeignFigure(figure) => {
+                write!(formatter, "Figure {figure:?} belongs to another Runtime")
+            }
+            Self::UnknownOrDisposedFigure(figure) => {
+                write!(formatter, "Figure {figure:?} is unknown or disposed")
+            }
+            Self::DetachedFigure(figure) => {
+                write!(
+                    formatter,
+                    "Figure {figure:?} is detached from the public scene"
+                )
+            }
+        }
+    }
+}
+
+impl Error for EventSceneQueryError {}
 
 enum RuntimeEffect {
     Repaint {
@@ -31,16 +119,27 @@ enum RuntimeEffect {
     ActivateClickable(FigureId),
 }
 
-/// 引擎层通用的 Figure 回调上下文。
+/// Deferred writes available during one Figure event callback.
 ///
-/// 只记录 callback effects；Runtime 在 Figure 借用释放后按顺序提交。
-pub struct EventContext<'a> {
+/// Recording an effect does not commit it. Runtime applies recorded effects in occurrence order
+/// after the callback releases its Figure borrow.
+pub struct EventEffects<'a> {
     target_id: FigureId,
-    target_bounds: Rectangle,
     visual_bounds: Rectangle,
     pointer_pressed: bool,
     keyboard_pressed: Option<crate::Key>,
     effects: &'a mut Vec<RuntimeEffect>,
+}
+
+/// 引擎层通用的 Figure 回调上下文。
+///
+/// Scene facts are available through [`Self::scene`]. Writes are recorded through
+/// [`Self::effects`] and committed by Runtime after the callback returns.
+pub struct EventContext<'a> {
+    target_id: FigureId,
+    target_bounds: Rectangle,
+    scene: EventSceneQuery<'a>,
+    effects: EventEffects<'a>,
 }
 
 impl<'a> EventContext<'a> {
@@ -61,6 +160,7 @@ impl<'a> EventContext<'a> {
             Rectangle::new(0.0, 0.0, bounds.width, bounds.height),
             false,
             None,
+            tree,
             &mut effects,
         );
         handler.on_focus_lost(
@@ -92,15 +192,20 @@ impl<'a> EventContext<'a> {
         visual_bounds: Rectangle,
         pointer_pressed: bool,
         keyboard_pressed: Option<crate::Key>,
+        tree: &'a FigureTree,
         effects: &'a mut Vec<RuntimeEffect>,
     ) -> Self {
         Self {
             target_id,
             target_bounds,
-            visual_bounds,
-            pointer_pressed,
-            keyboard_pressed,
-            effects,
+            scene: EventSceneQuery::new(tree),
+            effects: EventEffects {
+                target_id,
+                visual_bounds,
+                pointer_pressed,
+                keyboard_pressed,
+                effects,
+            },
         }
     }
 
@@ -113,14 +218,35 @@ impl<'a> EventContext<'a> {
         self.target_bounds
     }
 
+    /// Returns the read-only scene projection for this callback.
+    pub fn scene(&self) -> &EventSceneQuery<'a> {
+        &self.scene
+    }
+
+    /// Returns the deferred effect sink for this callback.
+    pub fn effects(&mut self) -> &mut EventEffects<'a> {
+        &mut self.effects
+    }
+
     pub fn is_pressed(&self) -> bool {
-        self.pointer_pressed || self.keyboard_pressed.is_some()
+        self.effects.pointer_pressed || self.effects.keyboard_pressed.is_some()
     }
 
     pub fn is_pointer_pressed(&self) -> bool {
-        self.pointer_pressed
+        self.effects.pointer_pressed
     }
 
+    pub fn is_keyboard_pressed(&self) -> bool {
+        self.effects.keyboard_pressed.is_some()
+    }
+
+    pub fn keyboard_pressed_key(&self) -> Option<crate::Key> {
+        self.effects.keyboard_pressed
+    }
+}
+
+impl EventEffects<'_> {
+    /// Records the pointer-pressed state for the callback target.
     pub fn set_pressed(&mut self, pressed: bool) {
         self.pointer_pressed = pressed;
         self.effects.push(RuntimeEffect::SetPressed {
@@ -129,14 +255,7 @@ impl<'a> EventContext<'a> {
         });
     }
 
-    pub fn is_keyboard_pressed(&self) -> bool {
-        self.keyboard_pressed.is_some()
-    }
-
-    pub fn keyboard_pressed_key(&self) -> Option<crate::Key> {
-        self.keyboard_pressed
-    }
-
+    /// Records the keyboard-pressed key for the callback target.
     pub fn set_keyboard_pressed(&mut self, key: Option<crate::Key>) {
         self.keyboard_pressed = key;
         self.effects.push(RuntimeEffect::SetKeyboardPressed {
@@ -145,11 +264,13 @@ impl<'a> EventContext<'a> {
         });
     }
 
+    /// Records activation of the callback target's clickable capability.
     pub fn activate_clickable(&mut self) {
         self.effects
             .push(RuntimeEffect::ActivateClickable(self.target_id));
     }
 
+    /// Requests repaint of the callback target.
     pub fn repaint(&mut self, rect: Option<Rectangle>) {
         self.effects.push(RuntimeEffect::Repaint {
             figure_id: self.target_id,
@@ -157,11 +278,13 @@ impl<'a> EventContext<'a> {
         });
     }
 
+    /// Requests repaint of another Figure region.
     pub fn repaint_figure(&mut self, figure_id: FigureId, rect: Rectangle) {
         self.effects
             .push(RuntimeEffect::Repaint { figure_id, rect });
     }
 
+    /// Records one typed property notification.
     pub fn emit_property_change<V>(
         &mut self,
         figure_id: FigureId,
@@ -178,6 +301,7 @@ impl<'a> EventContext<'a> {
         ));
     }
 
+    /// Records a coordinate-system change notification.
     pub fn coordinate_system_changed(&mut self, figure_id: FigureId, bounds: Rectangle) {
         self.effects
             .push(RuntimeEffect::Notification(NotificationEffect::EmitFigure(
@@ -189,6 +313,7 @@ impl<'a> EventContext<'a> {
             )));
     }
 
+    /// Invalidates the callback target.
     pub fn invalidate(&mut self) {
         self.effects.push(RuntimeEffect::Invalidate(self.target_id));
     }
@@ -352,7 +477,7 @@ impl<'a> EventContext<'a> {
     }
 }
 
-impl MutationContext for EventContext<'_> {
+impl MutationContext for EventEffects<'_> {
     fn enqueue_mutation(&mut self, mutation: PendingMutation) {
         self.effects.push(RuntimeEffect::Mutation(mutation));
     }
@@ -618,6 +743,7 @@ impl DispatchContext for SceneDispatchContext<'_> {
                 visual_bounds,
                 pointer_pressed,
                 keyboard_pressed,
+                self.scene,
                 &mut effects,
             );
             let Some(handler) = block.input() else {
@@ -798,11 +924,10 @@ mod tests {
 
     impl FigureEventHandler for EnqueueChildFigure {
         fn on_mouse_pressed(&self, _event: &MouseEvent, ctx: &mut EventContext<'_>) -> bool {
-            ctx.invalidate();
-            ctx.add_child_later(
-                ctx.target_id(),
-                Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0)),
-            );
+            let target = ctx.target_id();
+            ctx.effects().invalidate();
+            ctx.effects()
+                .add_child_later(target, Box::new(RectangleFigure::new(5.0, 5.0, 10.0, 10.0)));
             true
         }
     }

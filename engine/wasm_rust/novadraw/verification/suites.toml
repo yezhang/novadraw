@@ -643,6 +643,25 @@ args = [
   "p2_deep_layout_presentation_contract",
 ]
 
+[commands."test.context-phase-authority"]
+description = "Verify phase-scoped Event, Layout, and Route query/effect protocols"
+program = "cargo"
+args = [
+  "test",
+  "-p",
+  "novadraw",
+  "--test",
+  "facade_contract",
+  "--test",
+  "m5_layout_contract",
+  "--test",
+  "m6_event_contract",
+  "--test",
+  "m9_connection_contract",
+  "--test",
+  "d4_constrained_measurement",
+]
+
 [commands."check.p2-s04-editor-open-protocol"]
 description = "Reject closed Editor protocols and run the independent open-protocol consumer"
 program = "./scripts/check_editor_open_protocol.sh"
@@ -1720,6 +1739,41 @@ paths = [
 documents = [
   "examples/native/uml-demo/README.md",
   "doc/verification/reviews/uml-extension-capability-2026-10-05.md",
+]
+artifacts = ["target/verification/reports/uml-demo.json"]
+
+[[suites]]
+id = "core.context-phase-authority"
+title = "Context phase authority projection and query naming"
+milestone = "Core API"
+kind = "contract"
+api_semantics = [
+  "event.dispatcher",
+  "layout.manager",
+  "connection.anchor",
+  "connection.router",
+]
+layers = ["static", "contract", "headless"]
+platforms = ["host", "headless"]
+commands = [
+  "test.context-phase-authority",
+  "verify.uml-example",
+  "api.surface",
+]
+paths = [
+  "novadraw/src/runtime/context.rs",
+  "novadraw/src/event.rs",
+  "novadraw/src/layout/**",
+  "novadraw/src/connection/**",
+  "novadraw/tests/m6_event_contract.rs",
+  "novadraw/tests/m5_layout_contract.rs",
+  "novadraw/tests/m9_connection_contract.rs",
+  "examples/scenes/src/uml.rs",
+  "examples/native/uml-demo/**",
+]
+documents = [
+  "doc/adr/adr-036-context-phase-authority-projection.md",
+  "doc/verification/reviews/adr-036-context-phase-authority-completion-2026-10-13.md",
 ]
 artifacts = ["target/verification/reports/uml-demo.json"]
 

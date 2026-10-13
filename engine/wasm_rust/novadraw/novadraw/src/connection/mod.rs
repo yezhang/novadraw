@@ -28,11 +28,11 @@ pub use locator::{
     ConnectionLocator, ConnectionLocatorStrategy, EndpointLocator, LocatorError, LocatorPlacement,
     MidpointLocator, PathFractionLocator,
 };
-pub(crate) use query::FigureTreeSceneRead;
+pub(crate) use query::FigureTreeRouteSceneRead;
 pub use query::{
     AnchorGeometry, AnchorGeometryKey, AnchorGeometryKeyError, CoordinateSpace,
-    DependencyObservation, DependencySubject, SceneQuery, SceneQueryError, SceneRead,
-    TrackedSceneQuery,
+    DependencyObservation, DependencySubject, RouteSceneQuery, RouteSceneQueryError,
+    RouteSceneRead, TrackedRouteSceneQuery,
 };
 pub use router::{
     Bendpoint, BendpointConnectionRouter, BendpointConstraint, ConnectionRouter, DirectRouter,
