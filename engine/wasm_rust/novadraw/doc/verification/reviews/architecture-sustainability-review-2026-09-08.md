@@ -10,7 +10,7 @@
 “长期运行可靠、外部可扩展、后端可完整替换”。主要风险是跨模块协议没有完全闭合，
 其次才是模块体积和性能。**
 
-建议保持 FigureTree、NodeState、Runtime、LayoutSnapshot/LayoutOutput、
+建议保持 FigureTree、NodeState、Runtime、LayoutSceneQuery/LayoutOutput、
 RenderSubmission 这些主干，通过有边界的架构增量修复，而不是迁移 ECS、恢复迭代
 渲染主线、泛化全部 manager，或者提前实现二进制 DisplayList。
 
@@ -95,7 +95,7 @@ Vec3，也不要为了 Vello 的类型选择反向改动领域坐标。
 
 ### 3.4 布局快照与输出
 
-LayoutSnapshot 是只读借用视图，LayoutOutput 是待提交变化。父容器拥有 constraint，
+LayoutSceneQuery 是只读借用视图，LayoutOutput 是待提交变化。父容器拥有 constraint，
 删除/reparent 清理关系约束，尺寸 override 与缓存分离，这些设计合理。
 
 注意当前 Snapshot 不是可跨线程使用的深冻结快照；不能直接据此宣称支持并行布局。
@@ -111,7 +111,7 @@ RenderSubmission 将 commands、damage、resources、surface、frame_id 集中�
 
 ### 3.6 路由的纯计算边界
 
-Anchor、Router、SceneQuery、RouteOutput 分离合理。依赖反向索引、组级提交、
+Anchor、Router、RouteSceneQuery、RouteOutput 分离合理。依赖反向索引、组级提交、
 Fan 的 anchor-pair scope、Manhattan 的 routing-domain scope 值得保留。
 
 shared lane reservation 不等于通用避障路径规划。当前没有必要为“长期发展”

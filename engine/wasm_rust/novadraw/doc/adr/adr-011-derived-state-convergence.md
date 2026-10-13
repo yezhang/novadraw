@@ -130,7 +130,7 @@ Full redraw 只改变 damage 范围，不得绕过 stabilization；任何 full-f
 
 ### LayoutManager 获得 Runtime callback
 
-会允许任意副作用、重入和部分提交，破坏 LayoutSnapshot/LayoutOutput 边界。
+会允许任意副作用、重入和部分提交，破坏 LayoutSceneQuery/LayoutOutput 边界。
 允许的替代是只写 `LayoutOutputBuilder` 与 sealed typed layout effects；它们不能读取
 Runtime 可变状态，也不能自行提交或同步通知。
 

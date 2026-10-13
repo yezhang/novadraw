@@ -59,7 +59,7 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 |---|---|---|
 | 添加标签、图形、布局 | LabelFigure、FigureId、LayoutManager、scoped mutable facade（见[附录 A](#附录-aowned-与-scoped-术语说明)） | GlyphRun、资源增量、backend session |
 | 编写自定义 Figure | MeasureContext/PaintContext、Paint、StrokeStyle、TextLayout、测量与命中 | RenderSubmission 构造、damage 队列修改 |
-| 替换排版或布局算法 | TextLayoutEngine、受检排版结果；LayoutSnapshot/Output | Vello、DOM、全局服务 |
+| 替换排版或布局算法 | TextLayoutEngine、受检排版结果；LayoutSceneQuery/Output | Vello、DOM、全局服务 |
 | 接入后端和平台 | RenderBackend、RenderSubmission、PlatformHost | 应用模型和 Editor Command |
 | 构建图形编辑器 | ModelAdapter、Command、EditPart、Viewer、Tool/Policy | 通过原始 Figure mutation 替代模型命令 |
 
@@ -88,7 +88,7 @@ Vello、Winit、Web。第 6 节现状取自此前 `c96b675` 公开面盘点；
 | 身份 | FigureId、ImageId、FontId、EditPartId | 不携带可变场景权限，不把不同身份折叠成 NodeId |
 | 服务 | Runtime、TextSystem、TextLayoutEngine、RenderBackend | 明确拥有资源或算法；仅在真实替换边界使用 trait |
 | 借用上下文 | Graphics、MeasureContext、PaintContext、scoped mutable facade | 不拥有第二份状态；取得上下文不等于已经提交操作 |
-| 不可变结果 | TextLayout、TextMetrics、LayoutSnapshot、FigureTreeSnapshot | 可查询、可共享；不通过 getter 隐式推进 Runtime |
+| 不可变结果 | TextLayout、TextMetrics、LayoutSceneQuery、FigureTreeSnapshot | 可查询、可共享；不通过 getter 隐式推进 Runtime |
 | 录制/提交结果 | CommandRecorder、RecordedDrawing（候选）、RenderSubmission | 区分命令记录、资源保活和后端接受，不能互相冒充 |
 
 同名 `with_*` 表示配置 owned value，不承诺所有对象的构造形式相同。
@@ -347,14 +347,14 @@ paint 回调传播错误后整帧不发布；先前成功的局部命令不意�
 
 | 包/领域 | 现状入口或证据 | 处置 |
 |---|---|---|
-| Core root / prelude | `lib.rs` 仍重导出 SceneQuery、TrackedSceneQuery、RouteOutput、Prepared*、ResourceRegistry、RenderSubmission 等 | 专业协议移至领域模块；root/prelude 以常用类型白名单维护，不将“pub”视为入门推荐 |
+| Core root / prelude | `lib.rs` 仍重导出 RouteSceneQuery、TrackedRouteSceneQuery、RouteOutput、Prepared*、ResourceRegistry、RenderSubmission 等 | 专业协议移至领域模块；root/prelude 以常用类型白名单维护，不将“pub”视为入门推荐 |
 | Core text | TextLayout/FontDescriptor 等位于 `render::text` | 按已接受整合专题提供 text 领域入口和统一测量/绘制 facade；排版、轮廓、栅格化分别替换 |
 | Core figure | Figure 同时有 tuple/measurement、paint/in_bounds、大量 capability accessor | 分清 intrinsic/arranged/paint envelope；本轮先类型与文档一致性，capability 重构后续定向 |
 | Core figure 构造 | `new(x,y,w,h)`、`from_bounds`、`with_bounds` 混用 | 几何必需类型统一 `new(Rectangle)`；Label `new(text).with_bounds(...)` 保留，不能强求所有构造同形 |
 | Core shape | `prim_translate`、公开 validate/invalidate；raw width 输入 | primitive 内收；用户保留具名 detached 配置，attached 只用 editor；不得简单将 prim 去前缀而暴露另一条写路径 |
 | Core tree | FigureTreeBuilder / FigureTree 查询 / scoped mutable facade | 保留阶段与所有权；container 和 parent 必须显式；不恢复隐式 root layout |
-| Core query | `FigureNode::get_preferred_size` 等仍是 override/bounds 局部值 | 内收或明确为 configured override；测量入口保持 FigureTree/LayoutSnapshot 权威，不机械删 get |
-| Core layout | LayoutManager、LayoutSnapshot、LayoutOutput、constraint_as | 保留小协议与受检输出，外部算法通过 snapshot/constraints/placement 组合；不增加万能 layout plugin |
+| Core query | `FigureNode::get_preferred_size` 等仍是 override/bounds 局部值 | 内收或明确为 configured override；测量入口保持 FigureTree/LayoutSceneQuery 权威，不机械删 get |
+| Core layout | LayoutManager、LayoutSceneQuery、LayoutOutput、constraint_as | 保留小协议与受检输出，外部算法通过 snapshot/constraints/placement 组合；不增加万能 layout plugin |
 | Core container | ViewportHandle/ScaleHandle 与 editor；LayeredPaneMut 借用 Runtime | 借用可变 facade 统一 `LayeredPaneMut`，identity/read handle 保留 Handle；不改变 state 归属 |
 | Core connection | Anchor、Router、Locator、RouteRequest/Output、RoutingConstraint | 保留角色分离，避免改成泛称 ConnectionStyle；专业路由查询从 root 移至 connection |
 | Core runtime | `prepare_submission` 将 Idle/Suspended/AwaitingCompletion/Error 全折叠为 None | 规范 `prepare_submission(...) -> FramePreparation`，吸收 `_state` 版本，完整状态必须到调用者 |
@@ -377,7 +377,7 @@ paint 回调传播错误后整帧不发布；先前成功的局部命令不意�
 - `FigureId`、`ConnectionId`、`EditPartId` 和 ModelId 不能统一成裸 NodeId；
   缩短名称不应消除 namespace 和模型/视觉身份差异。
 - 保留 `Result<bool, E>` 已有幂等合同；本轮不为每个 setter 新建 Changed 枚举。
-- LayoutSnapshot 的内部 `LayoutContext::get_*` 不属于公开 trait；
+- LayoutSceneQuery 的内部 `LayoutSceneRead::get_*` 不属于公开 trait；
   不因文本搜索命中而计入公共迁移。
 - 公共 `Figure` capability accessor 中涉及具体 LabelFigure 的扩展限制需要专题设计，
   不能用一次批量重命名宣称已经解决第三方 Figure 组合能力。

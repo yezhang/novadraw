@@ -180,7 +180,7 @@
 - [ ] ADR 定义统一 QueryError 分类。
 - [ ] `Option` 只表示已验证对象上的合法缺失。
 - [ ] unknown/foreign/stale identity 返回结构化错误。
-- [ ] LayoutSnapshot 不返回 ZERO、INFINITY 或 default 伪造成功。
+- [ ] LayoutSceneQuery 不返回 ZERO、INFINITY 或 default 伪造成功。
 - [ ] `is_visible/is_enabled` 不把 unknown 折叠成 false。
 - [ ] 删除或改名非权威查询，避免 FigureNode/FigureTree 同名不同语义。
 - [ ] 保留坐标不可逆/无路径等真正可选语义，不机械把全部 Option 改为 Result。

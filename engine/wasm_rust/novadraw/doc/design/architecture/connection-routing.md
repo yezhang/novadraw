@@ -51,7 +51,7 @@ Novadraw 不复制：
 对应变体：
 
 - 使用 `FigureId` 和 `ConnectionId` 表达稳定身份；
-- Anchor 与 Router 只读取短生命周期、可追踪依赖的 `SceneQuery`；
+- Anchor 与 Router 只读取短生命周期、可追踪依赖的 `RouteSceneQuery`；
 - route 是返回值，只有 Runtime 能原子提交；
 - dependency tokens、constraint、route generation 和 resolution status 属于
   `ConnectionRuntime`；
@@ -139,32 +139,32 @@ Router 返回的所有 points、bendpoints 和 metadata geometry 都位于该 do
 提交得到的 placement；ConnectionState 只保存 generation、dirty reason 和 resolution
 status，不复制 point list。调用方不能独立设置 Connection bounds 或 points。
 
-### 4.2 SceneQuery
+### 4.2 RouteSceneQuery
 
 Anchor 与 Router 使用只读、不可逃逸的查询接口：
 
 ```rust
-pub trait SceneQuery {
+pub trait RouteSceneQuery {
     fn is_attached(&mut self, figure: FigureId) -> bool;
     fn parent_id(&mut self, figure: FigureId) -> Option<FigureId>;
-    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, SceneQueryError>;
+    fn border_box(&mut self, figure: FigureId) -> Result<Rectangle, RouteSceneQueryError>;
     fn anchor_geometry(
         &mut self,
         figure: FigureId,
         key: &AnchorGeometryKey,
-    ) -> Result<AnchorGeometry, SceneQueryError>;
+    ) -> Result<AnchorGeometry, RouteSceneQueryError>;
     fn map_point(
         &mut self,
         point: Point,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Point, SceneQueryError>;
+    ) -> Result<Point, RouteSceneQueryError>;
     fn map_rect(
         &mut self,
         rect: Rectangle,
         from: CoordinateSpace,
         to: CoordinateSpace,
-    ) -> Result<Rectangle, SceneQueryError>;
+    ) -> Result<Rectangle, RouteSceneQueryError>;
 }
 ```
 
@@ -181,7 +181,7 @@ UpdateManager、listener 注册或平台类型。
 M9.1 可以由 FigureTree 的短生命周期 facade 实现，但不把 FigureTree 本身写入
 Anchor / Router trait 签名，以保留测试 fixture 和未来 scene snapshot 的替换空间。
 
-M9.2 路由时使用 `TrackedSceneQuery` 包装真实查询。反向索引使用稳定
+M9.2 路由时使用 `TrackedRouteSceneQuery` 包装真实查询。反向索引使用稳定
 `DependencySubject`，ConnectionState 另存本次读取时的 observed generation：
 
 ```text
@@ -217,13 +217,13 @@ pub trait ConnectionAnchor {
 
     fn reference_point(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         output: CoordinateSpace,
     ) -> Result<Point, AnchorError>;
 
     fn location(
         &self,
-        scene: &mut dyn SceneQuery,
+        scene: &mut dyn RouteSceneQuery,
         reference: Point,
         reference_space: CoordinateSpace,
         output: CoordinateSpace,
@@ -239,7 +239,7 @@ pub struct AnchorSite {
 `outward_normal` 是 Manhattan 和 decoration 可消费的显式 metadata。缺失时 Router
 可从 owner box 与 point 推导；不得用 magic direction integer。
 
-Anchor 不注册 listener。具体依赖来自 tracked SceneQuery，不由 `owner()` 推断；
+Anchor 不注册 listener。具体依赖来自 tracked RouteSceneQuery，不由 `owner()` 推断；
 owner 为 `None` 的 XYAnchor 由 anchor replacement 显式触发失效。
 
 `AnchorBinding` 由 Runtime 分配稳定 `AnchorId`。有效 `AnchorGroupKey` 为 Fan 等跨
@@ -304,7 +304,7 @@ pub struct RouteRequest<'a> {
     pub source: &'a dyn ConnectionAnchor,
     pub target: &'a dyn ConnectionAnchor,
     pub constraint: Option<&'a dyn RoutingConstraint>,
-    pub scene: &'a mut dyn SceneQuery,
+    pub scene: &'a mut dyn RouteSceneQuery,
     pub group: Option<&'a RoutingGroupSnapshot>,
 }
 
@@ -414,7 +414,7 @@ ObstacleSnapshot
 
 障碍由 `ShortestPathConnectionRouter` 配置的有序 FigureId 显式声明。Runtime 每批
 保留其中 attached、有效可见且不属于当前 routing group 的 Figure，再将其 bounds
-通过 SceneQuery 映射到 routing domain。Connection Figure、detached Figure 与未列入
+通过 RouteSceneQuery 映射到 routing domain。Connection Figure、detached Figure 与未列入
 配置的普通 child 不会被隐式当作障碍；非有限或负尺寸结果被拒绝。Router 不读取
 FigureTree，也不注册 listener。
 
@@ -439,7 +439,7 @@ atomic commit，失败时整批 unresolved 并保留本次读取的 dependency o
 ## 7. M9.1 错误模型
 
 ```rust
-pub enum SceneQueryError {
+pub enum RouteSceneQueryError {
     UnknownFigure(FigureId),
     DetachedFigure(FigureId),
     MissingAnchorGeometry(FigureId, AnchorGeometryKey),
@@ -448,7 +448,7 @@ pub enum SceneQueryError {
 }
 
 pub enum AnchorError {
-    Scene(SceneQueryError),
+    Scene(RouteSceneQueryError),
     MissingOwner,
     InvalidGeometry,
     NonFiniteResult,
@@ -490,7 +490,7 @@ Connection 存活而其依赖失效时才提交 unresolved。
 
 ## 8. 失效与事务边界
 
-M9.2 依赖索引由 tracked SceneQuery 的读取结果产生，至少覆盖：
+M9.2 依赖索引由 tracked RouteSceneQuery 的读取结果产生，至少覆盖：
 
 - owner bounds / visual geometry change；
 - owner add、remove、reparent；
@@ -627,7 +627,7 @@ dominant axis 或返回结构化错误。
 
 稳定边界：
 
-- `FigureId`、`ConnectionId`、`SceneQuery`、routing domain 与错误原子性属于公共契约；
+- `FigureId`、`ConnectionId`、`RouteSceneQuery`、routing domain 与错误原子性属于公共契约；
 - 具体依赖索引容器、generation 和 route scheduling 属于 Runtime 私有实现；
 - 不承诺与 Draw2D Java 对象身份、整数舍入或 mutable PointList 引用等价。
 

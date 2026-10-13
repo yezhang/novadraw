@@ -214,7 +214,7 @@ Figure
 - preferred/minimum size 缓存及其 generation；
 - 布局失效状态。
 
-Runtime 为 LayoutManager 构造不可变 `LayoutSnapshot`，布局器通过 `LayoutOutput`
+Runtime 为 LayoutManager 构造不可变 `LayoutSceneQuery`，布局器通过 `LayoutOutput`
 提交 bounds 结果，不长期持有或重入访问 FigureTree。约束属于“父容器与 child 的
 关系”，删除或 reparent 时必须原子清理。
 

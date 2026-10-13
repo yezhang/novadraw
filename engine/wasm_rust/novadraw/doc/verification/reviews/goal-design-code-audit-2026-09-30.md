@@ -194,7 +194,7 @@ Figure 的回调上下文来自 runtime；layout 又使用 viewport effect 与 n
 
 优先级：高。证据：静态确认与既有外部组件测试通过。
 
-`FigureComponentUpdate`、LayoutSnapshot/Output、Router/Anchor、TextLayoutEngine
+`FigureComponentUpdate`、LayoutSceneQuery/Output、Router/Anchor、TextLayoutEngine
 支持外部实现；本次 `d4_component_update` 四项通过。以下边界仍不足：
 
 - [EventContext](../../../novadraw/src/runtime/context.rs#L196-L325) 的 FIFO mutation

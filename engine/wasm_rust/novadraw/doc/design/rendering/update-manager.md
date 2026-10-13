@@ -91,7 +91,7 @@ freeze invalid generation
 → repeat until stable
 ```
 
-Runtime 先构造不可变 `LayoutSnapshot`，再调用 LayoutManager 把结果写入
+Runtime 先构造不可变 `LayoutSceneQuery`，再调用 LayoutManager 把结果写入
 `LayoutOutput`。布局器借用释放后统一提交，避免 LayoutManager 同时借用自身状态和
 整棵树，也避免在遍历中重入修改树。
 

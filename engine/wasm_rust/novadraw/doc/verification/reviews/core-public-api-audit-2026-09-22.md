@@ -16,7 +16,7 @@ P0 实施日期：2026-09-24
 - 审计范围：`novadraw-core`、`novadraw-geometry`、`novadraw-render`、
   `novadraw-scene` 及聚合 crate `novadraw` 的公开 API；
 - 重点入口：`FigureTree`、`FigureTreeBuilder`、`Runtime`、`LayoutManager`、
-  `LayoutSnapshot`、`NdCanvas`、公开事件和基础值类型；
+  `LayoutSceneQuery`、`NdCanvas`、公开事件和基础值类型；
 - 明确排除：`novadraw-editor` 的 GEF 层 API、性能优化、功能缺口实现；
 - 参考语义：Draw2D `IFigure`、`Figure`、`LayoutManager`，以及
   [`Draw2D API 语义覆盖账本`](../../parity/draw2d/api-coverage.md)；
@@ -268,7 +268,7 @@ fn preferred_measurement(
     &self,
     container: FigureId,
     constraints: MeasureConstraints,
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
 ) -> FigureMeasurement;
 ```
 
@@ -277,10 +277,10 @@ fn preferred_measurement(
 - 保留 preferred/minimum 两条查询，维持 Draw2D 的回退顺序；
 - preferred 使用 `FigureMeasurement`，保留 baseline；
 - minimum/maximum 使用 `Dimension`；
-- `LayoutManager`、`LayoutSnapshot` 与 `FigureTree` 统一接受
+- `LayoutManager`、`LayoutSceneQuery` 与 `FigureTree` 统一接受
   `MeasureConstraints`；
 - `MeasureConstraints` 构造时拒绝负数和非有限上限；
-- `LayoutContext` 与 `LayoutSnapshot::new` 已收为 crate 内部实现细节；
+- `LayoutSceneRead` 与 `LayoutSceneQuery::new` 已收为 crate 内部实现细节；
 - `XYConstraint` 等布局约束若仍有自动轴 sentinel，必须在布局器边界转换，不得传播到
   测量扩展协议。
 
@@ -439,7 +439,7 @@ PlatformHost / RenderBackend
 ### 5.2 扩展级
 
 ```text
-LayoutSnapshot / LayoutOutput / LayoutConstraint
+LayoutSceneQuery / LayoutOutput / LayoutConstraint
 FigureEventHandler / FigureLifecycle / AccessibleFigure
 ConnectionAnchor / ConnectionRouter / ConnectionLocator
 typed component update protocol
@@ -479,7 +479,7 @@ raw RenderCommand internals
 ### Batch C：领域类型与扩展协议（已完成）
 
 - Layout measurement 已改用结构化约束和尺寸类型；
-- `LayoutContext` 与 `LayoutSnapshot::new` 已收为 crate 内部；
+- `LayoutSceneRead` 与 `LayoutSceneQuery::new` 已收为 crate 内部；
 - 清理 Geometry 兼容别名；
 - 统一 Point/Vector/Transform 表示。
 
@@ -551,10 +551,10 @@ FigureTree 驱动边界和 Layout measurement 类型已由 ADR-018 裁决。其�
   crate 内部，`UpdateManager::perform_update` 同步收口；
 - 新增 `Runtime::{revalidate,repaint}`，宿主与 benchmark 改走 Runtime 帧边界；
 - 删除静默原地坐标 helper，公开 API 统一返回 `Option<Affine2D>`；
-- `LayoutManager`、`LayoutSnapshot` 与 `FigureTree` 使用
+- `LayoutManager`、`LayoutSceneQuery` 与 `FigureTree` 使用
   `MeasureConstraints`、`FigureMeasurement`、`Dimension`；
 - preferred 测量保留 baseline，结构化 constraints 直接参与 cache key；
-- `LayoutContext` 与 snapshot 构造限制为 crate 内部；
+- `LayoutSceneRead` 与 snapshot 构造限制为 crate 内部；
 - `MeasureConstraints` 拒绝负数和非有限上限，XY/Grid/Border constraint 在安装时
   校验会进入测量的数值。
 

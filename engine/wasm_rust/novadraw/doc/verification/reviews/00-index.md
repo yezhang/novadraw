@@ -52,6 +52,7 @@
 | 2026-10-10 | [P2-S03 Runtime 子系统 Facade 与统一 Figure Mutation](p2-s03-runtime-facade-completion-2026-10-10.md) |
 | 2026-10-12 | [P2-S04 Editor Tool / Request / Policy / Handle 开放协议](p2-s04-editor-open-protocol-completion-2026-10-10.md) |
 | 2026-10-12 | [P2-S05 深层布局与文字 Presentation 收敛](p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
+| 2026-10-13 | [ADR-036 Context 阶段权限投影与 Query 命名](adr-036-context-phase-authority-completion-2026-10-13.md) |
 
 ## 平台与产品验收
 

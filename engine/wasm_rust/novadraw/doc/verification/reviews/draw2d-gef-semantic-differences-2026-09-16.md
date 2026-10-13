@@ -93,7 +93,7 @@ Editor探针的panic是故意触发并被捕获，退出码0表示成功证明�
 | 合理迁移 | Parley布局、后端无关Glyph IR、资源revision/session | 去除SWT耦合；GPU像素等价必须另验 |
 | 已声明收窄 | 同viewport chain限定、remove即dispose、stable journal | 当前受限版本可用，但不是Java完整语义；需保留明确替代契约 |
 | 开放扩展缺口 | Tool/Tracker注入、外部Request、SelectionPolicy、RootLayerFactory | 框架扩展仍要求改中心代码，不能给出完整GEF扩展性结论 |
-| 上下文不足 | LayoutSnapshot缺visibility/盒模型信息；VisualUpdateContext只便于改primary | trait存在但外部布局和compound visual无法完成等价功能 |
+| 上下文不足 | LayoutSceneQuery缺visibility/盒模型信息；VisualUpdateContext只便于改primary | trait存在但外部布局和compound visual无法完成等价功能 |
 | 组合机制不足 | owner-scoped BorderSnapshot特化TitleBar；custom scalable写入口限内置 | 正常内置组合已出现F08；不能靠继续增加downcast分支解决扩展性 |
 | 布局算法未决 | XY/Freeform固定轴hints、Grid equal/grab/压缩、Toolbar minimum、Viewport tracks | 没有明确延期依据，应按方法级语义补齐，不称为Rust合理变体 |
 | 输入收窄 | mouse modifier不足、拖动中modifier不更新、Editor keyboard在demo分支 | 约束键、Figure widget与Tool共存尚不完整 |

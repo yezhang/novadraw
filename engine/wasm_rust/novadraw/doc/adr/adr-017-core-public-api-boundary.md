@@ -118,7 +118,7 @@ Workspace 当前版本为 `0.1.0`，且所有已知调用点都在同一仓库�
 ## 扩展点与稳定性
 
 - 第三方 Figure、LayoutManager、Router 和 Backend 的扩展 trait 不因本决策收窄；
-- `LayoutSnapshot` 与 `LayoutOutput` 继续作为 LayoutManager 的受控扩展协议；
+- `LayoutSceneQuery` 与 `LayoutOutput` 继续作为 LayoutManager 的受控扩展协议；
 - Inspector 需要的树状态通过只读 query/snapshot 提供，不以公开 mutation 换取可观测性；
 - 后续 P1/P2 API 清理必须另建 delta，不混入本次 P0 迁移。
 

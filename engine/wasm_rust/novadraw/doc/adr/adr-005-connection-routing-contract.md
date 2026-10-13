@@ -23,11 +23,11 @@ UpdateManager 互相持有可变引用，破坏 Novadraw 的 Runtime 原子事�
 
 1. connection parent 的 child content domain 是 route points 的唯一规范坐标域；
 2. Anchor 是不可变、可替换的只读策略，不注册 listener；Runtime 使用 tracked
-   `SceneQuery` 记录一次成功解析实际读取的几何、named region 和相对坐标链，并以
+   `RouteSceneQuery` 记录一次成功解析实际读取的几何、named region 和相对坐标链，并以
    dependency token 建立反向索引；
 3. Anchor 自身值变化只能通过 Runtime replacement/setter 提交；自定义 Anchor 的
    `owner()` 只用于身份和诊断，不作为完整依赖声明；
-4. Router 读取短生命周期 `SceneQuery` 并返回 `RouteOutput`，不直接修改 FigureTree、
+4. Router 读取短生命周期 `RouteSceneQuery` 并返回 `RouteOutput`，不直接修改 FigureTree、
    Figure 或 UpdateManager；
 5. Router 由 `RouterRegistry` 通过 `RouterId` 共享。Connection 保存
    `RouterBinding::{Inherited, Explicit}`，ConnectionLayer 保存默认 Router；routing
@@ -79,7 +79,7 @@ binding 和组成员资格，不隐式销毁共享 Router、资源或 Runtime-sc
 
 ### 负面
 
-- 相比 Draw2D 对象模型，需要额外的 SceneQuery facade 和 Runtime registry；
+- 相比 Draw2D 对象模型，需要额外的 RouteSceneQuery facade 和 Runtime registry；
 - tracked query、RouterRegistry 和 dependency token 增加 Runtime 内部复杂度；
 - route 提交前需要坐标与有限性校验；
 - Fan/Manhattan 共享状态不能按单条 connection 独立重算；
@@ -91,7 +91,7 @@ binding 和组成员资格，不隐式销毁共享 Router、资源或 Runtime-sc
 ### Anchor listener 对象链
 
 不采用。owner/ancestor 变化已经进入 Runtime mutation、typed effect 与 validation
-流程；tracked SceneQuery 能记录 owner、named region 和相对坐标链的实际读取。再建立
+流程；tracked RouteSceneQuery 能记录 owner、named region 和相对坐标链的实际读取。再建立
 listener cache 链会重复表达依赖并引入重入。
 
 ### 只按 owner 建立依赖索引

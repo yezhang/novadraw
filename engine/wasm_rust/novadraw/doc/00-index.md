@@ -91,6 +91,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
   [`adr/adr-034-editor-tool-request-handle-protocol.md`](adr/adr-034-editor-tool-request-handle-protocol.md)
 - 显式领域导入与 Crate Root 收口（已验证）：
   [`adr/adr-035-explicit-domain-imports-and-root-boundary.md`](adr/adr-035-explicit-domain-imports-and-root-boundary.md)
+- Context 阶段权限投影与 Query 命名：
+  [`adr/adr-036-context-phase-authority-projection.md`](adr/adr-036-context-phase-authority-projection.md)
 - Figure Capability 统一扩展模型：
   [`design/architecture/figure-capability-model.md`](design/architecture/figure-capability-model.md)
 - Core 公开 API 审计与整改状态：

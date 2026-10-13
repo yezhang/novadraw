@@ -81,7 +81,7 @@ P2-E02 不复制 shaping、caret 或 selection geometry。
 | 3 | P2-S04 | Editor Tool / Request / Handle 统一开放协议 | `complete` | ADR-015、ADR-032、TC-06 | ADR-034 已实现、四个闭合枚举及内置 typed hook 已退出、外部 Tool/Request/Policy/Handle 全链路与 G1-G5 定向 suite 已验证 |
 | 4 | P2-S05 | 深层复合布局与文字 presentation 收敛 | `complete` | D4.4、P2-T01 | FigureNode 统一 content/outer measurement 投影；两层 Toolbar + Label、partial damage、UML Headless 与 Native/Vello 像素已验证 |
 | 5 | P2-S06 | Editor Part / Connection / Overlay prepared publication | `not_started` | P2-S04、TC-08 | `PartProjectionPlan` / `ConnectionProjectionPlan` / `OverlayBatch`，故障注入前后结构快照一致 |
-| 6 | P2-S07 | 结构查询身份与失败语义统一 | `not_started` | ADR-018、TC-09 | `Result<Option<T>, QueryError>` 规则、foreign/stale 负测、LayoutSnapshot 不返回伪造零值 |
+| 6 | P2-S07 | 结构查询身份与失败语义统一 | `not_started` | ADR-018、TC-09 | `Result<Option<T>, QueryError>` 规则、foreign/stale 负测、LayoutSceneQuery 不返回伪造零值 |
 | 7 | P2-S08 | Detached Figure / Border / Style 受检值 | `not_started` | ADR-020、TC-03 | 私有字段、受检领域值、fallible constructor，删除 panic alias 与静默 clamp |
 | 8 | P2-S09 | Animation / Inspector / 注册与扩展错误统一 | `not_started` | P2-S03、TC-10 | fault 与幂等分离、Inspector subscription/fault、单一 fallible register、保留 error source |
 

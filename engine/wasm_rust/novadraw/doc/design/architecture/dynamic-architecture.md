@@ -217,7 +217,7 @@ freeze current invalid generation
 - invisible 节点是否跳过昂贵测量可以是策略，但不能丢失 invalid 状态；
 - disabled 不影响 validation；
 - valid 标志只表示相关几何和布局缓存对应当前 generation；
-- Runtime 先构造 `LayoutSnapshot`，布局器据此计算并通过 `LayoutOutput` 提交，
+- Runtime 先构造 `LayoutSceneQuery`，布局器据此计算并通过 `LayoutOutput` 提交，
   不同时借用布局器和整棵树，也不在遍历中任意改树；
 - 同一节点的重复 invalidation 必须去重。
 

@@ -78,7 +78,7 @@ F04/F05/F06与布局未决delta在这里一起闭合，避免仅修零inset演�
 
 建议接口语义：
 
-- `LayoutContext`明确区分node-local paint client box、child-content arrange area、
+- `LayoutSceneRead`明确区分node-local paint client box、child-content arrange area、
   owner外框测量；名称和返回域写入文档。
 - child-content区域由统一变换计算。inset只应用一次，scalable/viewport按其坐标协议
   返回有效区域，不能各布局手写减inset或除scale公式。

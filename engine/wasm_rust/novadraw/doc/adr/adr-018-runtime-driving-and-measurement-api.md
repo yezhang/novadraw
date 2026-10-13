@@ -64,20 +64,20 @@ fn preferred_measurement(
     &self,
     container: FigureId,
     constraints: MeasureConstraints,
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
 ) -> FigureMeasurement;
 
 fn minimum_size(
     &self,
     container: FigureId,
     constraints: MeasureConstraints,
-    snapshot: &LayoutSnapshot<'_>,
+    snapshot: &LayoutSceneQuery<'_>,
 ) -> Dimension;
 ```
 
 保留 preferred 与 minimum 两条查询，以维持 Draw2D 的回退顺序。Preferred 使用
 `FigureMeasurement` 传播 baseline；minimum 和 maximum 使用 `Dimension`。
-`FigureTree` 与 `LayoutSnapshot` 使用同一组类型，缓存键由结构化 constraints 构成。
+`FigureTree` 与 `LayoutSceneQuery` 使用同一组类型，缓存键由结构化 constraints 构成。
 
 `XYConstraint` 等布局约束自身的自动尺寸语义不属于本决策；布局器必须在调用测量 API
 前把它们转换为 `MeasureConstraints`，不得继续传播 sentinel。
@@ -97,7 +97,7 @@ deprecated 双入口。
 ## 扩展点与稳定性
 
 - 自定义 Figure 继续通过 intrinsic measurement 扩展；
-- 自定义 LayoutManager 只依赖 `LayoutSnapshot` 和 `LayoutOutput`；
+- 自定义 LayoutManager 只依赖 `LayoutSceneQuery` 和 `LayoutOutput`；
 - custom host 通过 Runtime 帧边界工作，不依赖 FigureTree 内部队列；
 - 本决策不处理 Graphics、Color、Geometry alias 或聚合 crate 导出。
 

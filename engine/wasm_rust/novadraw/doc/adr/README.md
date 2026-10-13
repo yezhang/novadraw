@@ -53,6 +53,7 @@ Draw2D Core 1.0 之后的 Editor 框架边界由
 | [033](adr-033-runtime-subsystem-facade.md) | Runtime 子系统 Facade 与统一 Figure Mutation | 已接受，已验证 | 2026-10-12 |
 | [034](adr-034-editor-tool-request-handle-protocol.md) | Editor Tool / Request / Handle 统一开放协议 | 已接受，已验证 | 2026-10-12 |
 | [035](adr-035-explicit-domain-imports-and-root-boundary.md) | 显式领域导入与 Crate Root 收口 | 已接受，已验证 | 2026-10-09 |
+| [036](adr-036-context-phase-authority-projection.md) | Context 阶段权限投影与 Query 命名 | 已接受，已验证 | 2026-10-13 |
 
 ## 现行与历史隔离
 

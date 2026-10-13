@@ -196,7 +196,7 @@ client box 同时用于：
 上述用途存在两个明确坐标表示：
 
 - node-local client box 保留 `(left, top)` 原点，供 paint、clip 与 hit-test 使用；
-- `LayoutSnapshot::container_bounds` 返回 child-content 域的可用区
+- `LayoutSceneQuery::container_bounds` 返回 child-content 域的可用区
   `Rect(0, 0, client_width, client_height)`。
 
 parent 的 `child_transform` 负责把 child-content 原点映射到 node-local client box，

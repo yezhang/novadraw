@@ -128,7 +128,7 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
 ### R04：查询面默认值吞无效身份（扩展 TC-09）
 
 - 优先级：P1
-- 临时概念：LayoutSnapshot / FigureTree 查询对未知身份返回"看似合法"的默认值，
+- 临时概念：LayoutSceneQuery / FigureTree 查询对未知身份返回"看似合法"的默认值，
   各错误类型互不兼容；
 - 证据：
   - [layout/mod.rs:105-158](../../../novadraw/src/layout/mod.rs) 对未知
@@ -138,7 +138,7 @@ TC-11、TC-12、TC-13、TC-14 的闭合证据已在对应完成记录中。
     显式 `.unwrap_or_default()` / `.ok()`；
   - [graph/query.rs:130-143](../../../novadraw/src/graph/query.rs)
     `is_visible/is_enabled` 对未知 id 退化为 `false`；
-  - 错误类型碎片：`CapabilityQueryError`、`TreeQueryError`、`SceneQueryError`、
+  - 错误类型碎片：`CapabilityQueryError`、`TreeQueryError`、`RouteSceneQueryError`、
     `StableQueryError`、`TextFlowQueryError` 各自为政；
 - 长期方向：
   - 引入统一 `QueryError { UnknownFigure, Faulted, Detached, … }`；

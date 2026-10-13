@@ -224,14 +224,14 @@ pub trait LayoutManager {
     fn measure(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot,
+        snapshot: &LayoutSceneQuery,
         constraints: MeasureConstraints,
     ) -> Size;
 
     fn layout(
         &mut self,
         container: FigureId,
-        snapshot: &LayoutSnapshot,
+        snapshot: &LayoutSceneQuery,
         out: &mut LayoutOutput,
     );
 
@@ -239,7 +239,7 @@ pub trait LayoutManager {
 }
 ```
 
-Runtime 在借用 LayoutManager 前构造不可变 `LayoutSnapshot`；`LayoutOutput` 收集
+Runtime 在借用 LayoutManager 前构造不可变 `LayoutSceneQuery`；`LayoutOutput` 收集
 child bounds 和后续 invalidation。这样布局计算不需要同时借用 manager 和整棵树，
 也不会重入修改树。
 

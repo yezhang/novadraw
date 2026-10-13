@@ -50,8 +50,8 @@
 
 | 编号 | 官方 API | 核心语义 | Rust 对应 | 评估 / 差异 | 证据 |
 |---|---|---|---|---|---|
-| S15 | LayoutManager/AbstractLayout | 替换算法、父拥有约束、失效缓存 | LayoutManager/LayoutConstraint/LayoutSnapshot | 迁移；typed constraint、generation+hints cache 真实存在 | G2 M01 |
-| S16 | Figure.getClientArea | 布局使用正确 child 坐标域 | LayoutContext::get_container_bounds | 缺陷 F05；node-local inset origin 再经 child transform 重复平移 | G2 M02 |
+| S15 | LayoutManager/AbstractLayout | 替换算法、父拥有约束、失效缓存 | LayoutManager/LayoutConstraint/LayoutSceneQuery | 迁移；typed constraint、generation+hints cache 真实存在 | G2 M01 |
+| S16 | Figure.getClientArea | 布局使用正确 child 坐标域 | LayoutSceneRead::get_container_bounds | 缺陷 F05；node-local inset origin 再经 child transform 重复平移 | G2 M02 |
 | S17 | minimum/preferred/hints | 内容受限测量后合成外框尺寸 | FigureTree size queries | 部分；带 layout 的盒模型、border preferred 与 hints 未统一 | G2 M02 |
 | S18 | XYLayout | 无约束跳过，自动轴按固定轴 hint 测量 | XYLayout/XYConstraint | 部分；arrange 用无约束 hints，宽度敏感内容高度可错 | G2 M03 |
 | S19 | StackLayout | children min/pref 最大值，全铺 client | StackLayout | 核心保留；受 S16/S17 影响，缺 visibility 配置；FillLayout 是独立本地策略 | G2 M04 |
@@ -91,7 +91,7 @@
 | 编号 | 官方 API | 核心语义 | Rust 对应 | 评估 / 差异 | 证据 |
 |---|---|---|---|---|---|
 | S45 | Connection/PolylineConnection | 端点与路由驱动几何 | ConnectionId/ConnectionFigureBehavior | 迁移；Resolved/Unresolved明确，node-local path与child envelope分离 | G4 M01/M04 |
-| S46 | ConnectionAnchor.getReferencePoint/getLocation | 对端reference求锚点，坐标与法向正确 | Anchor + tracked SceneQuery | 迁移；显式CoordinateSpace与逆转置normal，五类策略已存在 | G4 M02/M03/M07 |
+| S46 | ConnectionAnchor.getReferencePoint/getLocation | 对端reference求锚点，坐标与法向正确 | Anchor + tracked RouteSceneQuery | 迁移；显式CoordinateSpace与逆转置normal，五类策略已存在 | G4 M02/M03/M07 |
 | S47 | AnchorListener/ancestorMoved | 依赖变化触发重路由 | observations + reverse dependency index | 迁移；预检拒绝未并入恢复依赖，F10 | G4 M06 |
 | S48 | ConnectionRouter | 策略替换、constraint及失效 | RouterId/typed erased constraint | 迁移；prepare/validate/commit已实现，非“缺少原子提交” | G4 M05/M09 |
 | S49 | BendpointConnectionRouter/RelativeBendpoint | 有序点和端点相对offset | BendpointConstraint/Absolute/Relative | 固定域保留；Connection reparent未迁移/拒绝约束，F12 | G4 M10 |

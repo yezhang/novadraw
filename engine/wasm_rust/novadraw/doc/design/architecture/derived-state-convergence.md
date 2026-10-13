@@ -62,7 +62,7 @@ Pre-layout state 不依赖最终 container width：
 
 ### 3.3 Geometry derived state
 
-Geometry state 由 LayoutSnapshot/LayoutOutput 与规范坐标链得到：
+Geometry state 由 LayoutSceneQuery/LayoutOutput 与规范坐标链得到：
 
 - 依赖父级宽度约束的文本/组件测量高度、baseline 与布局快照；
 - NodeState bounds；
@@ -283,7 +283,7 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 
 ### 新 LayoutManager
 
-只消费 LayoutSnapshot 并返回 LayoutOutput；不能获得 Runtime 或共享模型可变引用。
+只消费 LayoutSceneQuery 并返回 LayoutOutput；不能获得 Runtime 或共享模型可变引用。
 内置容器可通过只写 `LayoutOutputBuilder` 产生 sealed typed effect。effect 在完整 output
 校验后由 Runtime 提交，不能自行读取可变 Runtime、重入 mutation 或同步通知。
 
@@ -292,7 +292,7 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 
 ### 新 Router
 
-只消费 SceneQuery/RouteRequest 并返回 RouteOutput；group scope 和 constraint compatibility
+只消费 RouteSceneQuery/RouteRequest 并返回 RouteOutput；group scope 和 constraint compatibility
 由 Router trait 声明，提交仍归 Runtime。Router 可以维护计算所需的私有 scratch state，
 但不能修改 ConnectionFigure 或 FigureTree。
 

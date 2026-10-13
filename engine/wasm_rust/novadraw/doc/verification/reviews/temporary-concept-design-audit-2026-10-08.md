@@ -248,7 +248,7 @@ Overlay 已增加预检查，但 ownership 仍是 `Vec<FigureId>`；Part 和 Con
 
 ### 3.9 TC-09：查询默认值伪装成功
 
-`LayoutSnapshot` 对 unknown Figure 返回空 children、零尺寸、无限 maximum 或
+`LayoutSceneQuery` 对 unknown Figure 返回空 children、零尺寸、无限 maximum 或
 `Rectangle::ZERO`。第三方 LayoutManager 若保留 stale/foreign ID，可能生成看似合法的
 布局而不是得到 `LayoutError::UnknownFigure`。普通坐标变换的 `Option<Affine2D>` 可继续
 表达不可逆或无路径，不应机械改为 Result。
@@ -257,7 +257,7 @@ Overlay 已增加预检查，但 ownership 仍是 `Vec<FigureId>`；Part 和 Con
 
 - identity 校验失败返回 `QueryError`；
 - `Option` 只表达已验证对象上的合法缺失；
-- LayoutSnapshot 的公开查询返回 `Result`，或在 snapshot 构造时冻结只含合法 ID 的
+- LayoutSceneQuery 的公开查询返回 `Result`，或在 snapshot 构造时冻结只含合法 ID 的
   typed child view，使后续查询不再接受任意 FigureId；
 - `false` 仅表达已验证对象上的布尔事实。
 

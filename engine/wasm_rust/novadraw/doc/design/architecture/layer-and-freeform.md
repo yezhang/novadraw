@@ -319,10 +319,10 @@ pub struct FreeformConstraint {
 Draw2D 的 `positiveCoordinates` 选项不进入 D2 默认契约。若未来需要导出或兼容只接受
 非负坐标的数据格式，应在导入/导出边界显式归一化，而不是改变运行时布局坐标。
 
-布局计算继续遵守 `LayoutSnapshot -> LayoutOutput`：layout 不能重入访问或修改
+布局计算继续遵守 `LayoutSceneQuery -> LayoutOutput`：layout 不能重入访问或修改
 FigureTree，输出在 Runtime 边界原子提交。
 
-`measure` 必须从 LayoutSnapshot 中的 constraint 和 child measurement 计算
+`measure` 必须从 LayoutSceneQuery 中的 constraint 和 child measurement 计算
 prospective extent，再与 origin point 做 union，最后加 host insets 与 border
 preferred size。它不能反向读取尚待本轮 LayoutOutput 提交的 extent cache，否则会
 形成旧缓存依赖或 validation 循环。Size 只能表达宽高，不能替代包含负 origin 的
