@@ -6,6 +6,9 @@
 
 已接受，2026-10-09。
 
+2026-10-12 同步 ADR-033：帧方法属于 `RuntimeFrames` 子 facade，
+由 `runtime.frames()` 获取，Runtime 出版权威保持不变。
+
 本决策关闭临时概念审计 TC-01，并替代以下旧决定：
 
 - ADR-020 第 4 节“公开 `NdCanvas` 作为规范入口”；
@@ -78,7 +81,7 @@ deprecated 双入口。
 `Result<(), GraphicsError>`。内置与外部实现使用相同协议，不通过内部画布旁路。
 
 调用返回错误时，递归 renderer 记录首个 `GraphicsError`，继续完成内部 state-stack
-复原，但该帧不得出版。`Runtime::prepare_submission` 返回
+复原，但该帧不得出版。`runtime.frames().prepare_submission(...)` 返回
 `FramePreparation::Error(FramePreparationError::Graphics(_))`，并保留待重绘工作供重试。
 
 ### 3. 独立录制与 Runtime 出版分离
@@ -89,7 +92,7 @@ deprecated 双入口。
 `CommandRecorder::finish()` 只生成 `RecordedDrawing`，并验证录制错误和 state-stack
 平衡。`RecordedDrawing` 不携带 surface、session 或 frame 身份，不等于已提交帧。
 
-`Runtime::prepare_submission` 是唯一公开帧出版入口。它负责：
+`runtime.frames().prepare_submission(...)` 是唯一公开帧出版入口。它负责：
 
 - 稳定 derived state；
 - 冻结 damage 和资源同步；

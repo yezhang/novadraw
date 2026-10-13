@@ -6,6 +6,10 @@
 
 本文定义 D1.5 的规范契约。各分批只有在实现与验证完成后才视为已交付。
 
+2026-10-12 修订：几何查询与输入资格策略分离。D1.5 完成记录仍表示其当时基线，
+新增 disabled 几何查询和外部策略验证要求见
+[架构修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
+
 ## 1. 目标
 
 - 为几何命中提供可接受、可剪枝的搜索策略；
@@ -32,7 +36,8 @@ Novadraw 保留这些语义，并作以下明确变体：
 
 - `FigureId` 替代对象引用；
 - 搜索策略只能读取受控的 `TreeSearchContext`，不能修改 FigureTree；
-- effective enabled 与 effective visible 同为搜索和焦点资格的硬门禁；
+- 可见空间搜索使用 effective visible；effective enabled 约束输入/焦点资格策略，
+  不成为全部几何搜索的硬门禁；
 - Runtime 在焦点切换时先原子更新 owner，再按 lost → gained 顺序投递事件；
 - 平台 traversal 与普通 `Key::Tab` 分开建模，边界结果交回平台。
 
@@ -79,7 +84,8 @@ FigureTree::hit_test_excluding(point, excluded)
 遍历顺序固定为：
 
 ```text
-effective visible/enabled
+effective visible
+→ query-specific eligibility policy（输入/焦点检查 enabled）
 → inverse edge transform into node local
 → policy-aware branch containment
 → strategy.prune
@@ -89,10 +95,14 @@ effective visible/enabled
 ```
 
 `accept` 只决定当前节点能否作为结果；`prune` 同时排除当前节点和整个子树。
-策略不能绕过 visibility、enabled、几何、裁剪、坐标转换或深度上限。
+策略不能绕过相应查询的 visibility、有效裁剪、坐标转换或深度上限。
+可见但 disabled 的 Figure 可被纯几何查询发现；事件 target、cursor、tooltip、gesture
+使用各自输入资格策略，不能因为复用遍历而把纯几何查询变成输入查询。
 
-默认 branch containment 要求 point 命中当前节点 precise geometry，并位于允许下降的
-client clip。`HitParticipation::DescendantsOnly` 只禁止当前节点成为结果，不等价于
+默认兼容 branch containment 使用 precise geometry 与允许下降的 client clip。
+自定义 containment/projection/clip 可以替换默认领域策略，但必须在同一坐标域和
+有效 ancestor clip 内工作，并与 paint/damage 的视觉包络一致。
+`HitParticipation::DescendantsOnly` 只禁止当前节点成为结果，不等价于
 `precise_hit = false`，也不自动剪掉 children。
 
 `ChildClippingStrategy::OverflowVisible` 是 Freeform 容器的显式变体：branch
@@ -194,10 +204,10 @@ interaction state。
 候选公开入口：
 
 ```rust
-Runtime::request_focus(id) -> Result<FocusChange, FocusError>
-Runtime::clear_focus() -> FocusChange
-Runtime::traverse_focus(direction) -> FocusTraversalOutcome
-Runtime::set_focus_traversal_policy(policy)
+runtime.focus().request_focus(id) -> Result<FocusChange, FocusError>
+runtime.focus().clear_focus() -> FocusChange
+runtime.focus().traverse_focus(direction) -> FocusTraversalOutcome
+runtime.focus().set_focus_traversal_policy(policy)
 ```
 
 `FocusChange` 区分 changed/unchanged；`FocusTraversalOutcome` 区分 moved/boundary。
@@ -232,7 +242,7 @@ validate requested owner
 - `Boundary`：不消费，允许浏览器或窗口系统把焦点移出画布；
 - traversal 成功时不再把同一 Tab 作为普通 key event 投递。
 
-Headless 直接调用 `Runtime::traverse_focus`，用于确定性契约测试。普通字符键仍只投递
+Headless 直接通过 `runtime.focus()` 调用 traversal，用于确定性契约测试。普通字符键仍只投递
 给当前 focus owner，不引入冒泡。
 
 ## 8. 失败模式

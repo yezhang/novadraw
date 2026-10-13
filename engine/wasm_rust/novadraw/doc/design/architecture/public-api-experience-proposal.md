@@ -2,7 +2,12 @@
 
 类型：`proposal`
 
-状态：P2-G02 与已批准跨领域迁移已完成；后续定向项保留
+状态：历史综合提案，已退出当前 API 阅读入口。
+
+2026-10-12：当前规范入口为 [公共 API 契约](public-api-contract.md)。
+下文保留提案基线、方案与迁移历史，其中 root/prelude、concrete Figure facade、
+旧帧入口及“后续定向”的阶段判断不能作为当前契约或当前完成状态。
+后续执行以 [P2 backlog](../../roadmap/p2-delta-backlog.md) 为准。
 
 公开导入路径部分已由
 [ADR-035](../../adr/adr-035-explicit-domain-imports-and-root-boundary.md) 替代：
@@ -27,7 +32,7 @@ Core root 收口以及 Vello 初始化失败传播。提交与验证映射见
 Figure capability 全面改造和 Editor direct-edit session facade 仍为后续定向，不在本轮
 完成范围内。
 
-本页是公共 API 的总设计和迁移入口；文字专题是文字/图形合同的唯一详细定义。
+本页曾作为公共 API 的总设计和迁移入口；以下阅读顺序仅用于历史追溯。
 阅读顺序：第 2 节定位角色与入口 → 第 4 节理解组合 → 第 5 节检查值与失败 →
 第 6 节查看全包处置 → 第 8 节执行迁移。无需先理解 glyph、backend session 或
 内部更新队列才能开始使用 API。

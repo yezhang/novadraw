@@ -14,6 +14,7 @@
 | [static-architecture.md](static-architecture.md) | 类型、所有权与依赖结构 |
 | [dynamic-architecture.md](dynamic-architecture.md) | 运行时交互和事务时序 |
 | [runtime-ownership-and-module-boundaries.md](runtime-ownership-and-module-boundaries.md) | Runtime 所有权、tree/update 协作与扩展更新入口 |
+| [public-api-contract.md](public-api-contract.md) | 当前公共 API 规范：领域路径、owner、权限、单位、失败与组合 |
 
 ## 核心协议
 

@@ -58,6 +58,8 @@
 33. [`architecture/figure-capability-model.md`](architecture/figure-capability-model.md)：
     Figure capability 的 typed descriptor registry、Runtime mutation 与迁移合同；
     ADR-027 已接受，P2-F02 已实现并通过验证
+34. [`architecture/public-api-contract.md`](architecture/public-api-contract.md)：
+    当前公共 API 规范入口，定义领域路径、所有权、权限、单位、失败与组合
 
 2026-09-10 的跨专题修订以
 [ADR-014](../adr/adr-014-extensibility-and-lifecycle-boundaries.md) 为准；
@@ -67,8 +69,8 @@
 ## 非规范提案
 
 - [公共 API 统一设计与迁移](architecture/public-api-experience-proposal.md)：
-  六包角色、命名、组合和迁移总入口；文字合同详见已接受的整合专题，
-  录制完成接口及其他领域的迁移候选仍待评审
+  历史综合提案，已退出当前阅读路径；保留旧设计与迁移基线，
+  当前合同由公共 API 规范及各领域专题承接
 - [`rendering/display-list-protocol.md`](rendering/display-list-protocol.md)
 - [`rendering/displaylist-implementation-plan.md`](rendering/displaylist-implementation-plan.md)
 

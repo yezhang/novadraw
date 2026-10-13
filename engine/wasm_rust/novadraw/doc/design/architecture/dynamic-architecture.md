@@ -32,7 +32,7 @@ Runtime 只允许一个顶层事务处于执行状态：
 Native Event
 → PlatformInputAdapter
 → InputEvent in logical units
-→ Runtime.dispatch_input
+→ runtime.input() dispatch
 ```
 
 PlatformInputAdapter 只负责：
@@ -159,7 +159,7 @@ Effect 严格保持产生顺序。Runtime 可以合并 repaint 区域，但不�
 
 构建期使用 `FigureTreeBuilder::insert_child(parent, index, figure)` 或
 `insert_child_with_constraint(parent, index, figure, constraint)`；运行期使用
-`Runtime::container(parent)?.insert(index, figure)` 或
+`runtime.figure(parent)?.insert(index, figure)` 或
 `insert_with_constraint(index, figure, constraint)`。输入是新 owned Figure，
 输出是唯一新 FigureId；已有 Figure 的移动仍使用 reparent/reorder。
 
@@ -201,6 +201,10 @@ capture old projected visual bounds
 后代 bounds，而是失效子树的 world-transform 和 projected-bounds cache。
 
 ## 7. Validation
+
+以下是布局阶段的局部时序；完整帧遵循
+[派生状态收敛](derived-state-convergence.md) 的固定优先级工作队列和版本发布合同。
+worklist 排空并完成 final presentation 后才晋升 stable epoch。
 
 ```text
 freeze current invalid generation
@@ -271,7 +275,7 @@ resolve inherited style
 → pop node state
 ```
 
-具体状态栈细节由 RecordingCanvas 定义，但必须保证：
+具体状态栈由内部 recorder 承载，公开 PaintContext 使用受检绘制和 GraphicsError，但必须保证：
 
 - child 的状态变更不会泄漏给 sibling；
 - paint 顺序和 hit-test 顺序互为正序/逆序；
@@ -282,11 +286,12 @@ resolve inherited style
 
 ```text
 UpdateManager produces stable scene state
-→ RecordingCanvas records CommandStream
-→ Runtime builds RenderSubmission
+→ internal recorder consumes final stable presentation
+→ runtime.frames().prepare_submission builds checked RenderSubmission
 → RenderBackend.submit
 → backend presents or stores frame
-→ Runtime notifies frame observers
+→ runtime.frames().complete_submission receives full backend result
+→ stable frame observers receive acknowledgement facts
 ```
 
 `RenderSubmission` 可以包含：
@@ -306,14 +311,14 @@ Runtime pending work changes empty → non-empty
 → PlatformHost.request_redraw()
 → platform coalesces requests
 → redraw callback
-→ Runtime.prepare_submission()
+→ runtime.frames().prepare_submission(...)
 → RenderBackend.submit()
 ```
 
 UpdateManager 不调用平台 API。PlatformHost 不执行 Figure layout 或事件分发。
 
-当 redraw 到来但没有工作时，Runtime 可以返回 `NoFrame`。surface resize、恢复或
-后端内容丢失必须提升为 `Damage::Full`。
+Host 必须区分 `Idle`、`Suspended`、`AwaitingCompletion` 和 `Error`；
+Ready 才包含可提交帧。surface resize、恢复或后端内容丢失必须提升为 `Damage::Full`。
 
 ## 12. Scroll 与 Zoom
 

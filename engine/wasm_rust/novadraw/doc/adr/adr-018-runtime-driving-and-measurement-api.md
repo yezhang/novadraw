@@ -7,6 +7,8 @@
 已接受；第 1 节中的公开帧入口已由
 [ADR-031](adr-031-graphics-recording-and-publication-boundary.md) 收紧
 
+2026-10-12 同步 ADR-033：驱动经 Runtime 子 facade；测量与坐标值合同保持有效。
+
 ## 背景
 
 ADR-017 已收口构建期和运行期 mutation，但 Core 公开表面仍保留两类阶段泄漏：
@@ -32,7 +34,8 @@ crate 内部：
 - 直接执行 update；
 - 直接录制 Figure tree。
 
-生产宿主通过 `Runtime::prepare_submission` 驱动帧。旧
+生产宿主通过 `runtime.frames().prepare_submission(...)` 驱动帧，完整 backend
+结果交回 `runtime.frames().complete_submission(...)`。旧
 `prepare_frame` / `record_full_frame` 返回内部录制状态的入口已由 ADR-031 删除。
 需要显式请求局部更新时，通过
 `Runtime::figure(figure)?.{revalidate,repaint}` 提交，unknown、foreign 或 disposed

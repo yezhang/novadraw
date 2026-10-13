@@ -4,6 +4,9 @@
 
 状态：`accepted`，P2-F02 已实现
 
+2026-10-12 修订：attached mutation 按 ADR-033 统一；开放策略与固定调度分离。
+新增验证要求不由 P2-F02 历史记录自动覆盖，见 [公共 API 契约](public-api-contract.md)。
+
 日期：2026-10-08
 
 `api_semantics`：`paint.protocol`、`figure.lifecycle`、`figure.box.client_area`、
@@ -50,7 +53,7 @@ Capability 的判定门槛不是“Figure 是否拥有独特数据或方法”�
 - 不把跨多个 Figure/registry 的复合操作伪装成可自动回滚的 capability update。
 - 不因为两个 Figure 复用了同一种数据结构，就为该数据结构创建 behavior trait 或
   capability；
-- 不要求具体类型的专用 facade 对外伪装成开放的多态扩展点。
+- 不提供仅面向内置 concrete Figure 的 attached mutation facade。
 
 ## 3. 与 Draw2D 的对应
 
@@ -99,7 +102,7 @@ Capability 不得复制这些字段形成第二份真值。查询和 mutation �
 `ScaleModel` 或文本 fragment。共享实现不等于动态多态：
 
 - 没有独立跨类型消费者时，使用 concrete model、泛型函数或 crate-private helper；
-- 专用 Runtime facade 可以显式支持一组内建类型，并在 crate 内使用闭合 adapter；
+- 私有内容通过 FigureMut typed component update 修改，不使用内置闭集 facade/adapter；
 - 只有出现真实的外部替换需求和统一消费者后，才升级为 capability。
 
 ### 4.4 Capability model
@@ -175,7 +178,7 @@ out.register(
     ),
 )?;
 
-let channel = runtime.animations().bind_presentation(
+let channel = runtime.animation().bind_presentation(
     figure,
     LEVEL_PRESENTATION,
     InteractionGeometryPolicy::Committed,
@@ -205,7 +208,7 @@ descriptor 类型不符或 admission 校验失败时，不发布 FigureId。
 ### 6.1 Concrete Figure
 
 具体 Figure 定义自身数据、构造不变量、绘制、测量和精确命中。类型专用属性通过
-`FigureComponentUpdate<T>` 或专用 facade 修改。不得仅为消除内部 downcast 或减少几行
+`FigureMut::update_component` 修改。不得仅为消除内部 downcast 或减少几行
 重复代码而创建公开 behavior trait。
 
 ### 6.2 Pipeline behavior
@@ -262,9 +265,9 @@ Behavior trait 只有同时满足以下条件才成立：
 | 项目 | 归属 | 原因 |
 |---|---|---|
 | `PointList` | 共享具体模型 | Polyline/Polygon 复用数据结构不构成动态多态 |
-| `ScalablePolygonFigure` | Concrete Figure | 只有一个具体实现和专用 facade |
+| `ScalablePolygonFigure` | Concrete Figure | 私有状态经 typed component update 修改 |
 | `TextFlowFigure` | Concrete Figure | 排版、交互几何和 mutation 属于该类型 |
-| Label 内容 | Concrete subcomponent | Label/Button/Toggle 的闭合组合由专用 adapter 处理 |
+| Label 内容 | Concrete subcomponent | 组合复用模型不等于跨类型 discovery 合同 |
 | `ViewportFigure` | Concrete Figure + handle | range/origin 由 Viewport 专用合同拥有 |
 | `ImageFigure` | Concrete Figure | 资源与 alignment 是类型专用状态 |
 | RoundedRectangle corner / Triangle direction | Concrete Figure | 只有具体类型消费 |
@@ -300,8 +303,10 @@ Capability mutation 与 `FigureComponentUpdate` 共享以下提交骨架：
 validate Runtime/Figure/capability identity
 -> capture old visual envelope and revision
 -> descriptor.prepare(read-only old state, owned command, context)
--> validate prepared value and invalidation
+-> NoChange: return unchanged receipt without commit/effects
+-> changed: validate prepared value, revision capacity and all effects
 -> descriptor.commit(&mut dyn Figure, prepared value)
+-> Runtime commits prevalidated engine effects
 -> increment revision
 -> invalidate layout/geometry/paint
 -> invalidate dependent Connection/Accessibility/Presentation work
@@ -311,20 +316,21 @@ validate Runtime/Figure/capability identity
 公开目标形状：
 
 ```rust,ignore
-    .capability(figure, SCALE)?
-    .apply(SetScale::new(2.0))?;
-    .apply(SetScale::new(2.0))?;
+runtime.figure(figure)?.update_capability(SCALE, SetScale::new(2.0))?;
 ```
 
-`ScaleMut` 等 capability facade 是统一 capability update 的薄封装。`LabelMut`、
-`PointListMut` 等具体类型/闭合集合 facade 走 typed component update 或 crate-private
-concrete adapter。两类更新共享 identity、revision、damage 和 notification 提交原语，
-但不要求类型专用状态登记到 registry。
+两类更新统一经 FigureMut 提交，不保留 ScaleMut、LabelMut、PointListMut 等具体类型
+或闭合集合 mutation 例外。类型适配封装在 typed update/descriptor 内；
+不要求类型专用状态登记到 registry。
+
+prepare 读取当前提交前缀的值。NoChange 不提升 revision，不产生 work、journal、
+damage、资源或结构 effect。effect 必须在 commit 前校验 namespace、权限和完整原子性；
+不能通过 capability key 或任意 FigureId 扩权，详见 [组件更新协议](component-update.md)。
 
 外部 capability 的 commit 必须是无失败赋值；prepare 完成所有可预见校验。commit panic
 沿 ADR-014 使 Runtime faulted，不承诺回滚扩展内部副作用。
 
-## 10. 固定 Pipeline
+## 10. 固定调度与开放阶段策略
 
 递归主流程继续由 Runtime/renderer 独占：
 
@@ -336,13 +342,24 @@ resolve NodeState/style/presentation
 -> paint border/decoration
 ```
 
-Capability 只能提供阶段输入。禁止：
+上述是现行 Draw2D 默认兼容模板，固定调度不等于所有领域算法都不可替换。
+外部 LayoutManager、Container projection、child clip、精确 hit/search 和
+Presentation family 与内置策略使用相同受检合同。树深度、状态隔离、版本检查、
+完整提交、稳定通知及出版确认由 Runtime 保证。
+
+几何搜索与输入资格分离，enabled 不成为全部空间查询的硬过滤。clip、坐标与 visual
+envelope 必须在绘制、命中和 damage 中一致。
+
+Capability 只能提供阶段输入/输出。禁止：
 
 - 替换或递归调用主 renderer；
-- 重排 self/children/border 顺序；
+- 通过未受检回调重排 self/children/border 顺序；
 - 在 paint 中修改 topology、layout 或 source state；
 - 在 hit-test/input 中同步重入 Runtime mutation；
 - 通过 unknown custom key 自动执行代码。
+
+真实消费者若要求其他合成次序，应先形成类型化合成合同并验证状态隔离、clip、hit、
+damage 后评审实现；本次不开放 renderer around-hook，不修改递归主循环。
 
 Connection route/dash 已登记为标准 `PresentationBinding<PointList/f64>`。递归主循环
 只读取统一的 optional content presentation，不再识别 Connection、route 或 dash；
@@ -410,7 +427,7 @@ registry 管理。
 4. 将 PointList、ScalablePolygon、TextFlow、Label、Viewport、Image 收口为 concrete
    model/type + typed update，删除伪 behavior trait；
 5. 迁移 Border、Clickable、Connection、Decoration 等真实跨类型 capability；
-6. Runtime capability facade 改用 key；类型专用 facade 改用 concrete adapter；
+6. P2-F02 完成 key discovery；后续 P2-S03 已将 attached mutation 统一到 FigureMut；
 7. 删除 `Figure` 上领域 accessor；只禁止用 concrete downcast 判断横切 capability；
 8. Animation 使用开放 `PresentationBinding`，Connection route/dash 删除中心化分派；
 9. 旧伪 behavior trait 已退出 root；capability 与 animation descriptor 只从所属领域
@@ -431,8 +448,8 @@ P2-F02 至少覆盖：
 5. Layer/Freeform/Container/Input/Lifecycle 行为迁移前后等价；
 6. Connection/Widget 横切消费者不再依赖基础 Figure accessor；
 7. PointList/TextFlow/Image/Viewport 等类型专用 API 不再伪装成 behavior capability；
-8. Core 不通过 concrete downcast 判断横切 capability；专用 facade 的受控 concrete
-   adapter 有明确闭集和错误语义；
+8. Core 不通过 concrete downcast 判断横切 capability；attached mutation 不保留
+   仅内置类型可使用的闭集 facade/adapter；
 9. 新增 capability 不修改 `Figure` trait；
 10. render traversal、damage、notification 和 10,000 层门禁不变；
 11. 无 capability query/update 时不增加逐帧全树扫描或持续工作。
@@ -442,6 +459,8 @@ P2-F02 至少覆盖：
 验证入口登记在 `verification/suites.toml`，完成证据进入独立 verification record。
 完成证据见
 [P2-F02 Figure Capability 实现记录](../../verification/reviews/p2-f02-figure-capability-completion-2026-10-08.md)。
+统一 mutation 后续证据见
+[P2-S03 完成记录](../../verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md)。
 
 ## 16. 关系
 

@@ -4,7 +4,8 @@
 
 ## 状态
 
-已接受，修订 1（2026-10-09）。P2-S03 正在实施。
+已接受并验证；2026-10-12 同步完成态和服务边界。P2-S03 已完成，证据见
+[完成记录](../verification/reviews/p2-s03-runtime-facade-completion-2026-10-10.md)。
 
 ## 背景
 
@@ -64,6 +65,8 @@ impl Runtime {
     pub fn animation(&mut self) -> RuntimeAnimation<'_>;
     pub fn observations(&mut self) -> RuntimeObservations<'_>;
     pub fn text(&mut self) -> RuntimeText<'_>;
+    pub fn viewports(&mut self) -> RuntimeViewports<'_>;
+    pub fn layers(&mut self) -> RuntimeLayers<'_>;
 }
 ```
 
@@ -84,6 +87,8 @@ Runtime 本体公开方法预算为 **不超过 25 个**。新增方法必须先
 | `RuntimeAnimation` | clocks、timeline mutation、time advance 与 wake deadline |
 | `RuntimeObservations` | listener registration/removal、scoped subscription 与 stable observation |
 | `RuntimeText` | text layout、interaction geometry、revision 与 measurement statistics |
+| `RuntimeViewports` | viewport 关系、range/origin/zoom 协调 |
+| `RuntimeLayers` | keyed layer 关系及其生命周期协调 |
 
 每个 facade 只保存 `&mut Runtime`：
 
@@ -98,6 +103,8 @@ Runtime primitive，并保留原有 Result、幂等和 fault 语义。
 
 Connection 不归 Resource facade。两者可以共享 Runtime 内部 dependency primitive，
 但公开职责分别是图连接协调和资源生命周期。
+Viewports/Layers 是领域关系与服务视图，不是被删除的 `viewport(id)`、
+`layered_pane(id)` concrete Figure facade 的别名。它们不能靠内置类型闭集决定权限。
 
 ### 3. 内置与外部 Figure 使用统一 mutation 模型
 
@@ -118,6 +125,9 @@ runtime.figure(id)?.update_capability(CONTAINER, AddChild::new(child))?;
 - 删除 `label(id)`、`image(id)`、`text_flow(id)`、`viewport(id)`、
   `scalable_polygon(id)` 等仅面向内置 concrete type 的公开 facade；
 - 不增加以 concrete enum、downcast 或中心 match 识别内置 Figure 的替代入口。
+- prepare 读取当前提交前缀；NoChange 不执行 commit、不提升 revision、不产生
+  work/journal/damage；资源/结构 effect 在 commit 前完整校验 scope 与原子性，
+  详见 [组件更新协议](../design/architecture/component-update.md)。
 
 标准 capability 可以提供预定义 key 和 typed payload；第三方 capability 可以定义
 自己的 key 和 payload。二者只在代码交付时间上不同。

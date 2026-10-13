@@ -31,7 +31,7 @@ Novadraw 继承 Draw2D 的行为语义和概念关系，不复制 Java 的对象
 | bounds 是几何协议入口 | `NodeState.bounds` 是布局、命中和 damage 的共同真源 |
 | client area 由 bounds 和 insets 推导 | 统一盒模型供布局、绘制和命中下降使用 |
 | 父子坐标转换是双向协议 | 每条树边共享同一可逆 2D 变换 |
-| paint 使用受控模板 | Runtime 固定执行 self、children、border 的顺序和状态隔离 |
+| paint 使用受控模板 | 默认 self、children、border；Runtime 保证阶段和状态隔离 |
 | LayoutManager 是容器策略 | 每个容器拥有独立 `LayoutState` |
 | Validation 先于 Damage Repair | `UpdateManager` 执行不可颠倒的两阶段事务 |
 | 输入由状态机选择单一 target | `EventDispatcher` + `InteractionState` |
@@ -117,18 +117,21 @@ Runtime
 Runtime 对外提供命名操作，不暴露能够绕过事务约束的多个可变引用。它不是全局
 singleton，也不承担应用业务逻辑。
 
-“Runtime 是事务边界”不等于“所有领域方法都平铺在 Runtime”。挂载后的 Figure 和
-Container 通过借用 Runtime 的短生命周期可变 facade 提交 mutation：
+“Runtime 是事务边界”不等于“所有领域方法都平铺在 Runtime”。挂载后的 Figure 使用
+统一短借用 FigureMut，领域服务使用 Runtime 子 facade：
 
 ```text
-runtime.figure(id)    -> FigureMut<'_>
-runtime.container(id) -> ContainerMut<'_>
-runtime.layered_pane(id) -> LayeredPaneMut<'_>
+runtime.figure(id)       -> FigureMut<'_>（节点、容器、typed updates）
+runtime.frames()        -> RuntimeFrames<'_>
+runtime.connections()   -> RuntimeConnections<'_>
+runtime.viewports() / layers() -> 关系与服务视图
 ```
 
 facade 只组织按能力分组的调用表面，内部仍进入同一 Runtime 校验、提交、失效和通知
 协议。它不能暴露 FigureTree/UpdateManager 可变引用，也不能逃逸 Runtime 的可变借用。
-完整裁决见 [ADR-019](../../adr/adr-019-composable-api-and-scoped-editors.md)。
+完整裁决见 [ADR-033](../../adr/adr-033-runtime-subsystem-facade.md) 与
+[公共 API 契约](public-api-contract.md)。具体私有内容采用 typed component update；
+跨类型消费者采用 typed capability。内置 Figure 不保留专用 facade 或闭集快捷路径。
 
 ## 4. 所有权与线程模型
 
@@ -269,7 +272,10 @@ callback
 
 ```text
 Apply pending mutations
-→ Validation and Layout
+→ Intrinsic / constrained measurement
+→ Layout geometry
+→ Route and post-route geometry
+→ Final presentation / stable epoch
 → Damage Repair
 → Record paint commands
 → Build RenderSubmission
@@ -277,7 +283,9 @@ Apply pending mutations
 ```
 
 `UpdateManager` 负责 invalidation、damage 和阶段时序，不负责平台 redraw 调度。
-`PlatformHost` 负责请求下一帧和 surface 生命周期。
+`PlatformHost` 负责请求下一帧和平台窗口/canvas 生命周期，backend 负责 GPU surface/device。
+每个派生阶段使用受版本约束的只读输入和受检输出；不能混合旧测量与新几何。
+版本及发布边界见 [派生状态收敛](derived-state-convergence.md)。
 
 Damage 的规范语义是：
 
@@ -294,7 +302,7 @@ Damage 的规范语义是：
 
 - redraw scheduling；
 - logical/physical size 和 scale factor；
-- surface 创建、resize、suspend 和 resume；
+- 窗口/canvas 的创建、resize、suspend 和 resume，向 backend 交接其可用性；
 - clipboard、cursor、IME 和 accessibility bridge；
 - 将原生输入交给对应 adapter。
 
@@ -339,8 +347,8 @@ FigureTree、InteractionState、默认 EventDispatcher 和默认 UpdateManager �
 核心架构只要求存在从绘制录制到后端提交的稳定边界：
 
 ```text
-Figure paint
-→ RecordingCanvas
+Figure paint / PaintContext
+→ internal recorder
 → RenderSubmission
 → RenderBackend
 ```
@@ -348,6 +356,17 @@ Figure paint
 二进制 ABI、零拷贝映射、chunk patch、远程传输和跨语言读取属于候选
 DisplayList proposal。它们必须通过真实用例、benchmark、资源生命周期和版本兼容性
 验证后，再由 ADR 提升为规范。
+
+独立调用者经 CommandRecorder/Graphics 生成资源闭合的 RecordedDrawing；它不携带
+Runtime frame/session 身份，也不是第二个帧出版者。
+
+### 固定机制与开放策略
+
+固定的是阶段调度、身份/权限校验、原子提交、状态隔离、稳定通知与出版确认。
+LayoutManager、容器 projection、child clip、精确 hit/search 和 presentation 策略可替换，
+内置与外部实现共用受检合同。几何搜索与输入资格分离，enabled 只约束后者。
+默认绘制模板不是所有未来合成需求的不可变公理；新次序需先定义受控合成合同与外部
+消费者证据再评审实现。本次不开放任意 renderer hook，也不改现行递归主循环。
 
 ## 15. 不可违反的不变量
 

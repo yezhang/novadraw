@@ -9,6 +9,10 @@
 2026-09-10 修订：ADR-014 的约束测量与扩展发布边界已由 D4.4 独立实现和验证，
 不由旧 D4.1 验证报告自动覆盖。
 
+2026-10-12 修订：统一阶段版本与发布合同，区分固定调度和开放算法。
+新增要求的验证边界见
+[修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
+
 ## 1. 目标
 
 Runtime 接受一次 source mutation 后，应在同一次 frame preparation 中得到一致的：
@@ -138,6 +142,32 @@ observed_generation
 阶段不可由 app 重排。Runtime 不能在 worklist 排空前记录 command，也不能在稳定化
 中途 flush listener。固定优先级是内部静态依赖图，不是插件可注册的通用 DAG。
 
+### 4.1 统一版本与阶段发布
+
+所有阶段遵循同一 `read inputs → prepare owned output → validate → publish work state`
+合同。以下是语义字段，不要求新增一个承载全部字段的公共结构体：
+
+| 阶段 | 必须观察的版本或输入 | 可提交输出 |
+|---|---|---|
+| intrinsic/constrained measurement | source/component、解析 style/font、资源 revision、constraints | metrics、baseline、不可变布局快照 |
+| layout | snapshot generation、child measurement、content constraints 与容器投影 | 完整 child placements、受限领域 effect |
+| route | endpoint/binding、routing domain、已提交 geometry generation | 同一 routing group 完整 route/unresolved |
+| post-route geometry | route 与 owner/ancestor geometry generation | locator、envelope、freeform/range |
+| final presentation | 最终 bounds/client clip/transform、已使用 TextLayout 与资源版本 | immutable presentation 与 visual envelope |
+
+输出须绑定 subject、derivation epoch 和实际依赖版本。过期候选不能覆盖较新的工作状态；
+依赖变化时重新入队相应阶段，不能以 source revision 相同推断几何或约束仍有效。
+缓存只复用依赖键一致的结果；未变化结果不产生新的 committed fact 或反向 invalidation。
+Route group 原子性不扩张为整棵树回滚。
+
+工作状态可分阶段提交，但 stable epoch 必须在 worklist 排空且 final presentation
+成功后晋升。录制和公开稳定观察只消费这次晋升的结果；录制失败时不出版 submission，
+保留重绘工作。一次 frame preparation 可以包含多个内部计算批次，不能要求应用再次
+prepare 才补齐后代文字。
+
+所有阶段按领域保留错误原因；失败不发布该阶段的不完整候选。source commit 与此前
+合法工作提交不回滚，最终帧、通知和查询不得冒充新稳定结果。
+
 ## 5. Committed facts 与三类日志
 
 直接 Runtime API、callback mutation、LayoutOutput commit、route commit 与资源完成必须
@@ -178,11 +208,12 @@ Layout calculation 只能读取 immutable snapshot，并产出待校验 output�
 - 修改 FigureTree；
 - flush notification。
 
-内置容器需要更新 range/view state 时，可在 crate 内产出 sealed typed layout effect。
+容器需要更新 range/view state 时，必须通过 Runtime 的受检领域提交协议。
+现有 crate-private layout effect 是内部实现细节，不能成为内置容器独有的语义权限。
 提交顺序为：
 
 ```text
-calculate child bounds + built-in effects
+calculate child bounds + authorized typed effects
 -> validate complete output
 -> capture old geometry/state
 -> commit child bounds and effects atomically
@@ -190,8 +221,9 @@ calculate child bounds + built-in effects
 -> enqueue notifications
 ```
 
-第三方 LayoutManager 不获得任意副作用 callback；新的通用 effect 只有形成稳定领域契约
-后才能公开。
+第三方 LayoutManager 不获得任意副作用 callback；相同容器能力必须能经公开
+descriptor/prepared output 获得对等效果。新 effect 只有形成稳定领域契约、scope 和
+失败语义后才能公开，不能直接暴露可写共享 RangeModel。
 
 ## 7. 自动路由
 
@@ -227,8 +259,9 @@ unresolved 状态并保留用于恢复的 dependencies。
 
 ## 9. Stable epoch、预算与错误
 
-每次 source transaction 分配单调 `derivation_epoch`。Runtime 可以在该 epoch 内提交
-工作状态，但只有所有 typed work queue 排空后才将其晋升为 `stable_epoch`。
+每次真实 source transaction 分配单调 `derivation_epoch`；NoChange 不制造新派生工作。
+Runtime 可以在该 epoch 内提交工作状态，但只有所有 typed work queue 排空且 final
+presentation 完成后才将其晋升为 `stable_epoch`。
 RenderSubmission、listener 和 Accessibility snapshot 只能消费 stable epoch。
 
 预算至少同时覆盖：
@@ -261,7 +294,7 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 
 ## 10. Pending work
 
-`Runtime::has_pending_update` 至少合并：
+`runtime.frames().has_pending_update()` 至少合并：
 
 - pending callback mutations；
 - 非空 typed derived work queues；
@@ -284,8 +317,9 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 ### 新 LayoutManager
 
 只消费 LayoutSceneQuery 并返回 LayoutOutput；不能获得 Runtime 或共享模型可变引用。
-内置容器可通过只写 `LayoutOutputBuilder` 产生 sealed typed effect。effect 在完整 output
-校验后由 Runtime 提交，不能自行读取可变 Runtime、重入 mutation 或同步通知。
+容器 effect 在完整 output 校验后由 Runtime 提交，不能自行读取可变 Runtime、
+重入 mutation 或同步通知。内置与外部容器使用相同能力和权限合同；内部 sealed
+实现不构成外部无法获得的特权路径。
 
 第三方组件允许返回拥有候选值的私有派生快照，经统一 prepare/validate/publish 提交。
 不能只有内置类型能更新测量状态；但不得借此执行任意共享模型 mutation。
@@ -315,8 +349,13 @@ AwaitingCompletion 与全部 preparation error 收敛为最终公共 outcome。
 - 同一 generation 的重复 work item 被合并；
 - route-only dirty work 使 `has_pending_update` 为 true；
 - 收敛失败时 render/listener 仍停留在上一 stable epoch；
-- 唯一公开出版入口 prepare_submission 复用同一 stabilization 内核；测试级完整录制
+- 唯一公开出版入口 `runtime.frames().prepare_submission(...)` 复用同一 stabilization 内核；测试级完整录制
   不形成第二套公开帧协议。
+
+新增定向要求：连续 source 更新、布局约束变化、资源 revision 变化及过期候选拒绝；
+外部 measurement/layout/presentation 共用版本合同；final presentation 失败不晋升
+stable epoch。P2-S05 已证明嵌套布局盒模型和首帧 glyph/clip/damage 组合，不能据此推断
+全部版本竞争和第三方失败场景已验收。
 
 ## 14. 非目标
 

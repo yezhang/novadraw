@@ -6,6 +6,9 @@
 
 已接受，已验证
 
+2026-10-12 正文同步 ADR-033：取消 Container/concrete Figure facade 例外，驱动操作
+进入 Runtime 子系统 facade；detached/build、单提交权威和逐操作原子性保持有效。
+
 ## 背景
 
 ADR-017 与 ADR-018 已将构建期、查询期和运行期写入分开，并确立 Runtime 为挂载后
@@ -36,7 +39,7 @@ Runtime 继续是挂载后 source mutation、派生状态失效、通知和 dama
 | build | `FigureTreeBuilder` | 分配 FigureId，组装拓扑和初始 NodeState |
 | attached | Runtime scoped mutable facade | 提交 update-aware 运行期 mutation |
 | query | `FigureTree` / stable snapshot | 只读查询，不触发隐式 mutation |
-| drive | `Runtime` | 输入、稳定化、资源、帧和生命周期协调 |
+| drive | Runtime 子系统 facade | 输入、稳定化、资源、帧和生命周期协调 |
 
 ### 2. Detached value 保持直接构造
 
@@ -54,10 +57,10 @@ value 的唯一构造入口。
 
 Runtime 提供按能力分组的借用 facade：
 
-```rust
+```rust,ignore
 runtime.figure(figure_id)?.set_bounds(bounds)?;
-runtime.container(container_id)?.add(child)?;
-runtime.container(container_id)?.set_layout_manager(layout)?;
+runtime.figure(container_id)?.add(child)?;
+runtime.figure(container_id)?.set_layout_manager(layout)?;
 runtime.figure(label_id)?.update_component(SetLabelText::new(text))?;
 ```
 
@@ -65,10 +68,10 @@ runtime.figure(label_id)?.update_component(SetLabelText::new(text))?;
 
 - `FigureMut<'_>`：通用节点状态、size override、父子约束、reparent、
   repaint/revalidate 和 typed component update；
-- `ContainerMut<'_>`：add/remove、LayoutManager、child order 和 child clipping；
-- 现有 `LayeredPaneMut<'_>` 等容器专用 facade 继续采用相同借用模型；
-- Viewport/Scale 的运行期修改迁移到借用 Runtime 的可变 facade，cloneable handle 仅保留
-  identity 或只读 snapshot 能力。
+- FigureMut 同时承载 add/remove、LayoutManager、child order 和 child clipping；
+- 具体 Figure 的私有内容统一使用 typed component/capability update；
+- Viewports/Layers 等关系服务使用无状态子 facade；cloneable handle 仅保留
+  identity 或只读 snapshot，不授予 attached 写权限。
 
 scoped mutable facade：
 
@@ -83,11 +86,11 @@ scoped mutable facade：
 以下操作仍直接属于 Runtime：
 
 - `set_contents` 和 Runtime 整体生命周期；
-- 平台无关输入 dispatch；
-- frame preparation、submission acknowledgement 和稳定化；
-- 资源注册与 backend session；
-- 跨多个 Figure/registry 的 connection、focus、listener 等协调服务；
+- tree 查询、通用 FigureMut、fault/session 状态；
 - scoped mutable facade 的获取。
+
+输入、帧、资源、connection、focus、listener 等领域协调进入 ADR-033 的对应子 facade。
+Runtime 仍拥有服务并负责提交；API 命名空间不改变所有权。
 
 Runtime 内部 mutation primitive 可以是 `pub(crate)`，但不得作为第二套公共写 API。
 
@@ -116,7 +119,7 @@ Runtime 内部 mutation primitive 可以是 `pub(crate)`，但不得作为第二
 ## 扩展点与稳定性
 
 - 第三方 Figure 继续使用 `FigureComponentUpdate`，但从目标 Figure 可变 facade 提交；
-- 新容器能力优先增加专用 scoped mutable facade，不向 Runtime 平铺同类方法；
+- 新容器能力使用通用 FigureMut 与 typed update/descriptor，不增设内置专用 facade；
 - facade 只组织调用体验，不拥有第二份状态，也不改变 trait 扩展边界；
 - 只读 identity handle 与可变 facade 在命名和生命周期上必须可区分。
 

@@ -57,6 +57,8 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 
 ## 核心 SSOT
 
+- 当前公共 API 契约（领域路径、owner、权限、单位、失败与组合）：
+  [`design/architecture/public-api-contract.md`](design/architecture/public-api-contract.md)
 - 2026-09-10 架构修订裁决：
   [`adr/adr-014-extensibility-and-lifecycle-boundaries.md`](adr/adr-014-extensibility-and-lifecycle-boundaries.md)
 - Core 构建期/运行期公开 API 边界：
@@ -197,6 +199,12 @@ Draw2D 源码分析、Novadraw 设计决策和实施状态混放在同一目录�
 3. [`parity/draw2d/api-coverage.md`](parity/draw2d/api-coverage.md)
 4. [`design/coordinates/coordinate-system.md`](design/coordinates/coordinate-system.md)
 5. [`design/rendering/update-manager.md`](design/rendering/update-manager.md)
+
+编写应用或外部扩展时，继续阅读
+[`design/architecture/public-api-contract.md`](design/architecture/public-api-contract.md)。
+五项架构规范修订及其新增验证边界见
+[`verification/reviews/framework-architecture-contract-revision-2026-10-12.md`](verification/reviews/framework-architecture-contract-revision-2026-10-12.md)；
+该记录不改变 P2 backlog 的执行状态。
 
 ### 开发 Viewport / Scroll / Zoom
 

@@ -112,6 +112,9 @@ worklist 排空。为防止错误 Figure/Layout 无限制造 invalid：
 - 调试信息按产生顺序报告 invalidation chain。
 
 这不是静默截断算法，而是对不满足收敛契约的实现显式报错。
+worklist 排空后还须完成 final presentation 才晋升 stable epoch；measurement/layout/
+route/presentation 的统一版本合同见 [派生状态收敛](../architecture/derived-state-convergence.md)。
+局部阶段成功不能发布新稳定查询或通知。
 
 ## 5. Dirty 收集
 
@@ -202,7 +205,8 @@ Damage::Full    → record complete visible scene
 Damage::Partial → backend/recorder policy chooses partial or full recording
 ```
 
-Figure paint 只写入 RecordingCanvas，不访问平台 surface 或 GPU 对象。
+Figure paint 只通过 PaintContext 写入内部 recorder，并传播 GraphicsError，
+不访问平台 surface 或 GPU 对象。失败时复原状态栈，但不得出版残缺帧。
 
 绘制遍历保持：
 
@@ -218,17 +222,16 @@ clip。
 
 ## 9. RenderSubmission
 
-```rust
-pub struct RenderSubmission {
-    pub commands: CommandStream,
-    pub damage: Damage,
-    pub resources: ResourceSync,
-    pub surface: SurfaceInfo,
-    pub session_id: BackendSessionId,
-    pub frame_id: FrameId,
-}
+```text
+Runtime-created RenderSubmission
+├── ordered commands
+├── damage
+├── resource revisions / sync
+├── surface information
+└── session / frame identity
 ```
 
+字段由 Runtime 受检构造，外部只读消费，不能伪造身份或资源版本。
 `RenderSubmission` 是进程内稳定语义信封。它不承诺：
 
 - 固定内存布局；
@@ -245,7 +248,7 @@ pub struct RenderSubmission {
 pending work: empty → non-empty
 → Runtime calls PlatformHost.request_redraw()
 → host coalesces requests
-→ redraw callback calls Runtime.prepare_submission()
+→ redraw callback calls runtime.frames().prepare_submission(...)
 → RenderBackend.submit()
 ```
 
@@ -264,7 +267,7 @@ pub enum FramePreparation {
 }
 ```
 
-`prepare_submission -> FramePreparation` 是唯一规范入口。Host 必须区分 surface
+`runtime.frames().prepare_submission(...) -> FramePreparation` 是唯一规范入口。Host 必须区分 surface
 暂停、等待 ack、无工作和稳定化失败，不能将这些状态统一解释成 Idle。
 
 Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_capability`。
@@ -272,7 +275,7 @@ Runtime 在最终 command stream 确定后检查 `RenderCommandKind::required_ca
 `FramePreparation::Error(UnsupportedRenderCapability)`，不创建 in-flight frame；
 `Retry` 只表示资源暂缺、surface 恢复等同一 backend 上可能成功的瞬时条件。
 backend 返回 `RenderResult = Result<RenderDisposition, RenderFailure>`；Host 必须把完整
-结果交回 `Runtime::complete_submission`，并按 acknowledgement 执行重绘、surface
+结果交回 `runtime.frames().complete_submission(...)`，并按 acknowledgement 执行重绘、surface
 恢复、backend 重建或终止。恢复权威和分类见
 [ADR-029](../../adr/adr-029-structured-render-backend-failure.md)。
 
@@ -310,7 +313,7 @@ revision/epoch、sequence 与必要 old/new 数据；查询只读最新 stable s
 D4.4 以 `NotificationRecord { source_epoch, sequence, effect }` 实现历史信封，
 `ObservationListener` 同时接收 `StableSceneQuery`。历史 effect 保留发生顺序和
 old/new payload，但查询始终指向 flush 时最新 stable epoch；存在未发布工作时
-`Runtime::stable_query` 返回 `NotStable`。
+`runtime.observations().stable_query()` 返回 `NotStable`。
 
 - Figure 几何通知不混入 update listener；
 - freeform 事务的 typed property 顺序固定为 child geometry/layout →

@@ -6,7 +6,10 @@
 
 实现状态：`implemented`
 
-范围：ADR-014 D4.4 `typed component update`。
+范围：ADR-014 D4.4 与 ADR-033 的统一 typed component/capability update。
+
+2026-10-12 修订：补齐 S03 已提供的 NoChange 和 effect 合同；新增权限验证要求见
+[修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
 
 ## 1. 问题
 
@@ -14,82 +17,53 @@ Runtime 必须继续作为 source mutation 的唯一提交边界，但不能为�
 新增 downcast 分支。直接暴露 `&mut dyn Figure` 或接收任意 mutation closure 会绕过
 revision、damage、layout invalidation 和 panic/fault 边界。
 
-本协议只更新单个 Figure 的私有组件状态，不修改 topology、Runtime registry、
-LayoutManager 或其他 Figure。跨对象关系更新仍使用各自的 Runtime typed API。
+组件 commit 只更新目标 Figure 的私有状态，不直接修改 topology、Runtime registry、
+LayoutManager 或其他 Figure。prepared update 可以声明受限资源/结构 effect；
+Runtime 统一预检和提交，不授予扩展可变服务引用。独立跨对象关系操作仍使用领域 facade。
 
 ## 2. 公共接口
 
-```rust
-pub trait FigureComponentUpdate {
-    type Figure: Figure;
-    type Prepared;
-    type Error;
+以下表达协议角色；完整签名与构造器由领域公开 API snapshot/rustdoc 维护。
 
-    fn prepare(
-        self,
-        current: &Self::Figure,
-        context: FigureComponentContext,
-    ) -> Result<PreparedFigureUpdate<Self::Prepared>, Self::Error>;
-
-    fn commit(prepared: Self::Prepared, target: &mut Self::Figure);
-}
-
-pub struct FigureComponentContext {
-    pub figure_id: FigureId,
-    pub component_revision: u64,
-    pub bounds: Rectangle,
-}
-
-pub struct PreparedFigureUpdate<T> {
-    value: T,
-    invalidation: ComponentInvalidation,
-}
-
-pub enum ComponentInvalidation {
-    Paint,
-    GeometryAndPaint,
-    LayoutGeometryAndPaint,
-}
-
-pub enum ComponentUpdateError<E> {
-    Runtime(RuntimeMutationError),
-    WrongFigureType {
-        figure: FigureId,
-        expected: &'static str,
-        actual: &'static str,
-    },
-    RevisionExhausted(FigureId),
-    Rejected(E),
-}
-
-impl FigureMut<'_> {
-    pub fn update_component<U>(
-        &mut self,
-        update: U,
-    ) -> Result<ComponentUpdateReceipt, ComponentUpdateError<U::Error>>
-    where
-        U: FigureComponentUpdate;
-}
+```text
+FigureMut::update_component(owned typed update)
+    → FigureComponentUpdate::prepare(current typed Figure, read-only context)
+    → Result<NoChange | owned candidate + declared effects, domain error>
+    → validate complete candidate/effects
+    → FigureComponentUpdate::commit(candidate, mutable target)
+    → ComponentUpdateReceipt
 ```
 
-`PreparedFigureUpdate::new` 默认采用
-`LayoutGeometryAndPaint`；调用方必须显式选择更窄的 invalidation，不能默认
-“无影响”。`paint` 和 `geometry_and_paint` 是显式窄化构造器，本期不提供 `None`。
-`ComponentUpdateReceipt` 返回 Figure、提交前后 revision 和实际 invalidation。
+变更候选默认采用 `LayoutGeometryAndPaint`；调用方必须显式选择更窄的 invalidation，
+不能把未声明影响解释为无影响。prepared outcome 区分 `NoChange` 与 changed candidate；
+NoChange 没有待 commit 的值，也不附带属性通知、资源依赖或结构 effect。
+`paint` 和 `geometry_and_paint` 是变更候选的显式窄化构造器。
+`ComponentUpdateReceipt` 表达 Figure、提交前后 revision 和实际变化/失效结果。
 `FigureTree::component_revision` 提供只读 revision 查询，不暴露可变 Figure。
 `FigureMut` 只借用 Runtime 并转交目标身份，不拥有另一份状态或提交协议。
 
 ## 3. 执行顺序
 
 ```text
-validate Runtime/attached/type/current revision capacity
+validate Runtime/attached/type
 -> capture old visual envelope and immutable context
--> U::prepare(&typed Figure, context) and validate owned candidate
+-> U::prepare(&typed Figure, context)
+-> NoChange: return unchanged receipt without commit or effects
+-> changed: validate revision capacity, owned candidate and all declared effects
 -> U::commit(prepared, &mut typed Figure)
+-> commit prevalidated engine effects without invoking extension callbacks
 -> increment component revision
--> enqueue declared invalidation and old/new damage
+-> enqueue declared invalidation, typed facts and old/new damage
 -> return committed receipt
 ```
+
+prepare 读取本次 FIFO 提交前缀的当前 Figure 和上下文，不能使用入队时的陈旧快照替代。
+连续两个更新中，第二次 prepare 必须看到第一次已提交的值。节点、资源及关系输入
+只能从受控只读上下文取得。扩展不得通过 interior mutability 在 prepare 内改源状态。
+
+NoChange 不调用 commit，不提升 revision，不改变 pending work、NotificationJournal、
+DamageAccumulator 或资源/结构关系。错误身份、错误类型仍先拒绝，不能用 NoChange
+绕过校验；revision capacity 只约束真实变更。相等语义由 typed 更新定义。
 
 `prepare` 失败时，Runtime、Figure 与 revision 不变，owned update 及候选值正常释放。
 `commit` 没有 Result；prepared value 必须已完整验证。`prepare` 或 `commit` panic 时
@@ -104,6 +78,23 @@ Runtime 能统一验证 target、namespace、revision 和 NodeState 几何；第
 Runtime 不枚举快照类型，也不提供通用 `Any` registry。若派生计算依赖布局后的 bounds，
 source update 只发布输入并声明 layout invalidation；稳定化阶段使用后续独立的 typed
 derived component 协议，不能在 source commit 中读取未来布局结果。
+
+### 4.1 声明 effect 与提交权限
+
+| Effect | prepare 声明 | Runtime 必须校验 |
+|---|---|---|
+| 属性事实 | typed PropertyKey 与 old/new payload | owner、key/payload 一致性；不是第二份属性真值 |
+| 资源依赖 | 私有内容所需资源身份/版本与依赖替换 | namespace、生命周期、请求版本；不能伪造完成或覆盖 registry |
+| 结构关系 | 受限 add/remove/reparent/constraint 等意图 | 目标权限、拓扑环、深度、容器 admission、约束与关系清理 |
+
+持有 FigureId 或 typed key 不等于具有跨对象写权限。EventContext 只能作用于 callback
+target；Editor visual context 只能作用于当前 Part 已登记 visual。更大 scope 必须由
+明确授权的领域操作提供，不能靠 payload 中出现任意 ID 扩权。
+
+全部 effect 在 commit 前按同一已提交前缀完成预检；任一非法 effect 都拒绝整个候选，
+不修改组件、revision、资源/拓扑、work、journal 或 damage。提交后必要的 lifecycle
+回调在结构写入借用释放后执行。用户 callback/Drop panic 沿 fault 边界处理，
+不属于可恢复原子失败承诺。
 
 ## 5. 首个验收用例
 
@@ -139,7 +130,10 @@ receipt，但对 behavior 统一转换为 `EditPartError`，继续受 Viewer ref
 
 - 任意 closure mutation；
 - 跨 Figure 原子事务；
-- topology 或 registry 更新；
+- 扩展直接写 topology 或 registry；
 - 动态 plugin registry；
 - 跨 Runtime prepared value 重放；
 - 通用派生 DAG。
+
+受限 effect 声明不成为任意跨对象事务。Capability update 复用同一骨架，见
+[Figure Capability 模型](figure-capability-model.md)。

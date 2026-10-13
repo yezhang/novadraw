@@ -53,6 +53,7 @@
 | 2026-10-12 | [P2-S04 Editor Tool / Request / Policy / Handle 开放协议](p2-s04-editor-open-protocol-completion-2026-10-10.md) |
 | 2026-10-12 | [图形框架文档时效与架构边界审查](framework-documentation-and-architecture-review-2026-10-12.md) |
 | 2026-10-12 | [P2-S05 深层布局与文字 Presentation 收敛](p2-s05-deep-layout-presentation-completion-2026-10-12.md) |
+| 2026-10-12 | [图形框架五项架构契约修订](framework-architecture-contract-revision-2026-10-12.md) |
 | 2026-10-13 | [ADR-036 Context 阶段权限投影与 Query 命名](adr-036-context-phase-authority-completion-2026-10-13.md) |
 
 ## 平台与产品验收

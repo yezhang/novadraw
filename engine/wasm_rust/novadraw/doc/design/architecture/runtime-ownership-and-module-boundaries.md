@@ -8,6 +8,9 @@
 
 实现状态：`complete`（2026-10-01）
 
+上述是 GA-4 实现基线；2026-10-12 公开 mutation 按 ADR-033/S03 同步。
+补充权限合同的验证范围见 [公共 API 契约](public-api-contract.md)。
+
 ## 1. 所有权图
 
 ```mermaid
@@ -97,14 +100,18 @@ package。GA-4 已在不改变所有权的前提下完成以下内部拆分：
 `FigureMut` 保留以下通用职责：
 
 - 通用节点状态与 bounds/style；
-- layout constraint、reparent、revalidate 和 repaint；
-- `FigureComponentUpdate` 的统一提交。
+- 容器 add/remove/order/clip、layout manager/constraint、reparent、revalidate 和 repaint；
+- `FigureComponentUpdate` 与 typed capability update 的统一提交。
 
-Label、Clickable、Image、PointList、ScalablePolygon、TextFlow、Border 与专用图形
-已经使用受检 capability mutable facade。获取 facade 时同时验证 Runtime identity 与 capability；
-错误类型、revision、invalidation、damage 和 notification 继续复用 Runtime 原语。
-后续内置能力不得重新扩张 `FigureMut`，也不能用公开 downcast 或任意 mutation
-closure 代替 capability mutable facade。
+Label、Clickable、Image、PointList、ScalablePolygon、TextFlow、Border 等私有内容
+统一使用 typed component/capability update；不保留仅支持内置 concrete 类型的 facade。
+类型适配封装在 update/descriptor 内，Runtime 不增加具体类型字段 setter 或中心 match。
+错误、NoChange、revision、invalidation、damage 和 notification 使用同一提交原语。
+
+Frames/Resources/Connections/Viewports/Layers 等子 facade 表达领域服务与关系权限，
+只短借 Runtime，不拥有另一份缓存或待提交状态。Viewports/Layers 不能变成内置
+Figure 专用 mutation 入口。取得 facade/identity/key 不等于取得任意跨对象写权限；
+资源和结构 effect 必须先验证 scope，再完整预检后提交，见 [组件更新](component-update.md)。
 
 ## 5. 失败语义
 

@@ -6,7 +6,8 @@
 [overview.md](overview.md)，运行时时序见
 [dynamic-architecture.md](dynamic-architecture.md)。
 
-文中的 Rust 代码用于表达契约，不承诺具体字段名或模块路径。
+文中的内部结构图用于表达所有权；公开接口遵循
+[公共 API 契约](public-api-contract.md)，不能以概念示意豁免阶段权限和失败语义。
 
 ## 1. 总体结构
 
@@ -144,24 +145,15 @@ pub struct NodeState {
 
 `Figure` 只包含具体图形的差异化行为：
 
-```rust
-pub trait Figure {
-    fn paint(&self, ctx: &mut PaintContext<'_>);
-    fn intrinsic_size(&self, constraints: MeasureConstraints) -> Size;
-    fn hit_test(&self, local_point: Point) -> bool;
-    fn hit_participation(&self) -> HitParticipation;
-
-    fn event_handler(&mut self) -> Option<&mut dyn FigureEventHandler> {
-        None
-    }
-
-    fn lifecycle(&mut self) -> Option<&mut dyn FigureLifecycle> {
-        None
-    }
-}
+```text
+Figure
+├── paint(PaintContext, bounds) → Result<(), GraphicsError>
+├── intrinsic / constrained measurement → checked metrics
+├── local precise hit + hit participation
+└── register_capabilities → owned typed descriptor set
 ```
 
-这是概念接口，不要求使用上述精确的 capability 查询形式。稳定要求是：
+测量错误按领域协议表达，不强制每个无失败值查询包装 Result。稳定要求是：
 
 - 公共节点状态不在每个 Figure 实现中重复；
 - 输入、生命周期和 accessibility 是可选能力；
@@ -219,24 +211,11 @@ reparent 和 pane detach 必须在同一 Runtime mutation 中清理双向 lookup
 
 ### 4.3 LayoutManager
 
-```rust
-pub trait LayoutManager {
-    fn measure(
-        &mut self,
-        container: FigureId,
-        snapshot: &LayoutSceneQuery,
-        constraints: MeasureConstraints,
-    ) -> Size;
-
-    fn layout(
-        &mut self,
-        container: FigureId,
-        snapshot: &LayoutSceneQuery,
-        out: &mut LayoutOutput,
-    );
-
-    fn invalidate(&mut self, reason: LayoutInvalidation);
-}
+```text
+LayoutManager
+├── immutable LayoutSceneQuery + MeasureConstraints → FigureMeasurement / Dimension
+├── immutable LayoutSceneQuery → checked LayoutOutput
+└── typed invalidation → private cache invalidation
 ```
 
 Runtime 在借用 LayoutManager 前构造不可变 `LayoutSceneQuery`；`LayoutOutput` 收集
@@ -306,10 +285,10 @@ Runtime 对外保留组合根操作，例如：
 
 ```text
 set_contents
-dispatch_input
-resize_logical_viewport
-prepare_submission
-complete_submission
+dispose_subtree
+tree / figure
+fault state
+subsystem facade acquisition
 ```
 
 挂载后领域 mutation 由短生命周期可变 facade 组织：
@@ -320,16 +299,13 @@ pub struct FigureMut<'a> {
     runtime: &'a mut Runtime,
 }
 
-pub struct ContainerMut<'a> {
-    container: FigureId,
-    runtime: &'a mut Runtime,
-}
 ```
 
-`FigureMut` 承载通用节点状态、reparent、更新请求和 typed component update；
-`ContainerMut` 承载 add/remove、布局器、child order 和 child clipping。Viewport、
-Scale、LayeredPane 等专用容器使用同一借用模式。facade 获取时验证 namespace、
-attached 状态和 capability，方法继续调用 Runtime 内部的同一 mutation primitive。
+`FigureMut` 统一承载通用节点状态、容器 add/remove/layout/order/clip、reparent、
+更新请求与 typed component/capability update。具体 Figure 不提供专用 mutation facade。
+Frames、Resources、Connections、Input、Focus、Tooltip、Accessibility、Animation、
+Observations、Text、Viewports、Layers 是 Runtime 的无状态短借用服务视图。
+facade 获取时验证所需身份/能力，方法继续进入同一 Runtime primitive。
 
 不得同时向调用者暴露 `&mut FigureTree`、`&mut InteractionState` 和
 `&mut UpdateManager`，否则调用者可以绕过原子事务。
@@ -426,24 +402,16 @@ HeadlessHost  ── tests / deterministic replay
 
 ## 10. 渲染边界
 
-```rust
-pub struct RenderSubmission {
-    commands: CommandStream,
-    damage: Damage,
-    resources: ResourceSync,
-    surface: SurfaceInfo,
-    session_id: BackendSessionId,
-    frame_id: FrameId,
-}
-
-pub trait RenderBackend {
-    fn capabilities(&self) -> BackendCapabilities;
-    fn submit(&mut self, frame: &RenderSubmission) -> RenderResult;
-    fn resize(&mut self, pixel_width: u32, pixel_height: u32, scale_factor: f64);
-}
+```text
+runtime.frames().prepare_submission → FramePreparation
+    Ready → RenderSubmission（commands、damage、资源版本、surface、session/frame）
+    → RenderBackend.submit → RenderResult
+    → runtime.frames().complete_submission → acknowledgement / recovery
 ```
 
-`CommandStream` 是进程内语义协议，不等同于稳定二进制 ABI。后端可以在内部把二维
+RenderSubmission 由 Runtime 构造，调用者只读消费，不能写身份或资源版本。
+PaintContext 只提供绘制权限，CommandRecorder 只生成 RecordedDrawing。
+命令流是进程内语义协议，不等同于稳定二进制 ABI。后端可以在内部把二维
 affine 提升为 `Mat4`，但不能反向改变 Figure 的二维布局语义。
 
 资源通过稳定 handle 引用，生命周期由 `ResourceRegistry` 和 submission delta

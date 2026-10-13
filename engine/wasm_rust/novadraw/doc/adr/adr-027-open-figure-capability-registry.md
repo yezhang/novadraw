@@ -4,6 +4,10 @@
 
 状态：`accepted`，P2-F02 已实现
 
+2026-10-12 同步 ADR-033：第 4/7 节 concrete facade 例外已取消。
+固定 scheduler 与开放领域策略的合同见
+[公共 API 契约](../design/architecture/public-api-contract.md)。
+
 日期：2026-10-08
 
 ## 背景
@@ -66,9 +70,9 @@ concrete type 的情况下按统一合同发现多个可替换实现时，才登
   Connection、Border、Clickable 属于该边界；
 - PointList、ScalablePolygon、TextFlow、Label、Viewport、Image 默认属于具体类型、
   共享具体模型或 concrete subcomponent；
-- 后者通过 inherent behavior、`FigureComponentUpdate<T>` 和专用 facade 暴露；
-- 专用 facade 可以在 crate 内对明确闭合的内建类型做受控 concrete adapter，
-  但不得把该 adapter 宣称为外部可扩展 capability。
+- 后者在 detached 阶段通过 inherent behavior 配置，attached 阶段统一通过
+  FigureMut typed component update 修改；
+- 不保留只面向内置 concrete 类型的 facade 或闭集 adapter 快捷路径。
 
 Behavior trait 只在已有多个可替换实现、独立消费者和一致失败/生命周期合同后引入，
 不作为代码复用或消除 downcast 的默认工具。
@@ -78,8 +82,10 @@ Behavior trait 只在已有多个可替换实现、独立消费者和一致失�
 只有具体 Figure 自身消费的私有状态继续使用 `FigureComponentUpdate`。需要被其他引擎
 模块发现的状态或行为才进入 capability registry。
 
-两类更新共享 Runtime 的 prepared commit、revision、invalidation、damage 和 notification
-原语，但不合并成 untyped mutation closure。
+两类更新共享 Runtime 的 prepare、effect validation、commit、NoChange、revision、
+invalidation、damage 和 notification 原语，不合并成 untyped mutation closure。
+prepare 读取当前提交前缀，资源/结构 effect 在 commit 前校验身份、scope 与完整原子性，
+见 [组件更新协议](../design/architecture/component-update.md)。
 
 ### 6. 不使用全局注册和 unsafe trait-object cast
 
@@ -91,8 +97,8 @@ fat pointer 转换。
 
 项目仍为 0.1。每个标准 capability 的实现、消费点、外部测试和旧 `Figure` accessor
 在同一切片迁移。具体 Figure 的伪 behavior accessor 同样直接删除并替换为 typed
-component update 或 concrete adapter。全部完成后，Core 不再通过 concrete downcast
-判断横切 capability；类型专用 facade 的闭合适配不在此禁令内。
+component update。Core 不通过 concrete downcast 判断横切 capability；
+descriptor 内部受检类型适配保留，但不能成为仅内置类型可用的提交通道。
 
 ### 8. Animation content binding 使用同一 registry
 
