@@ -125,8 +125,9 @@ stateDiagram-v2
     Faulted --> [*]: 重建或销毁
 ```
 
-`Suspended` 表示场景事实仍可证明，但当前不能继续某类工作，例如表面暂不可用。
-`Faulted` 表示内部一致性无法证明，只允许诊断、导出可恢复事实或销毁重建。
+`Suspended` 表示 surface 当前不可呈现。Runtime 仍管理已提交场景状态和待处理工作，
+但不保证最新派生工作已经形成稳定场景状态。`Faulted` 表示内部一致性无法证明，只允许
+诊断、导出可恢复状态或销毁重建。
 
 ## 14.8 Retry
 
@@ -192,7 +193,7 @@ stateDiagram-v2
 
 ### Headless replay
 
-在无窗口环境重放稳定场景和输入，检查命令、damage、状态摘要和确定性。
+在无窗口环境重放稳定场景状态和输入，检查命令、damage、状态摘要和确定性。
 
 ### 平台验收
 
@@ -340,7 +341,7 @@ stateDiagram-v2
 7. 布局和连接在稳定 epoch 内收敛；
 8. 坐标链统一把旧新 visual bounds 变换到逻辑表面域；
 9. Animation 只生成可丢弃 presentation，不修改 committed truth；
-10. PaintContext 和 CommandRecorder 使用稳定场景与表现快照生成受检绘制记录；
+10. PaintContext 和 CommandRecorder 使用稳定场景状态与表现快照生成受检绘制记录；
 11. Runtime 是唯一帧出版权威，并为 RenderSubmission 分配 session/frame；
 12. Backend 返回结构化 RenderResult；
 13. Runtime acknowledgement 决定资源基线和 session 恢复；

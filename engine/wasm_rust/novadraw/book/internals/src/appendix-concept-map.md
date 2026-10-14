@@ -24,10 +24,12 @@ flowchart TD
     App[应用场景修改] --> Runtime
     Interaction --> Runtime
 
-    Runtime --> Tree[FigureTree<br/>结构与身份]
-    Runtime --> Stabilize[布局与派生状态收敛]
+    Runtime --> Source[场景源状态]
+    Source --> Tree[FigureTree<br/>结构与身份]
+    Source --> Committed[已提交场景状态]
+    Committed --> Stabilize[布局与派生状态收敛]
     Tree --> Stabilize
-    Stabilize --> Stable[稳定 committed scene]
+    Stabilize --> Stable[稳定场景状态]
 
     Stable --> Presentation[Presentation Plane<br/>可丢弃表现]
     Presentation --> Record[PaintContext / CommandRecorder]
@@ -53,8 +55,8 @@ flowchart TD
 
 箭头表示允许的因果方向，不表示所有对象互相拥有。最重要的禁止方向是：
 
-- 后端结果不能改写业务模型或场景事实；
-- 表现状态不能回写已提交状态；
+- 后端结果不能改写业务模型或已提交场景状态；
+- 表现状态不能回写已提交场景状态；
 - Tool、Policy 和 Capability 不能绕过权威提交者；
 - 平台 provider 不能直接修改 Runtime 内部资源表；
 - Host 不能通过 ViewerDrive 取得模型、选择或编辑策略所有权。
@@ -68,7 +70,7 @@ flowchart TD
 | 派生状态 | 布局、路径、文本排版、内容范围 | Runtime | 稳定化工作列表 | 必须可从依赖重建 |
 | 交互临时状态 | hover、capture、手势、preedit | 输入状态机或 Editor | 事件会话 | 会话结束即丢弃 |
 | 表现状态 | opacity、transform、动画路径、临时视觉 | Runtime 的 Presentation Plane | Animation plan/track | 可随时丢弃 |
-| 后端状态 | GPU 资源、surface、已呈现像素 | RenderBackend | RenderSubmission | 从稳定场景和源资源恢复 |
+| 后端状态 | GPU 资源、surface、已呈现像素 | RenderBackend | RenderSubmission | 从稳定场景状态和源资源恢复 |
 
 判断一个字段属于哪类状态时，应问：
 
@@ -76,6 +78,17 @@ flowchart TD
 2. 它是否只在一次交互或若干表现帧中存在？
 3. 丢失后能否从稳定输入重建？
 4. 后端是否只消费它，而不能定义它？
+
+## 场景状态的三个阶段
+
+| 阶段 | 包含什么 | 可观察边界 |
+|---|---|---|
+| 场景源状态 | Runtime 直接拥有、由场景事务写入的状态 | 等待 Runtime 校验和提交 |
+| 已提交场景状态 | Runtime 已经接受并原子写入的状态前缀 | 可以作为后续派生工作的输入 |
+| 稳定场景状态 | 已提交源状态及当前 stable epoch 的派生结果 | 可供稳定查询、通知和帧录制读取 |
+
+已提交不等于稳定。场景事务完成后，布局、连接、文本排版或容器范围仍可能等待收敛。
+稳定场景状态不包含表现覆盖、后端资源或已经呈现的像素。
 
 ## 三种身份域
 
@@ -184,7 +197,7 @@ flowchart LR
 | 逻辑表面域 | 平台输入、最终重绘区域 | Host、输入系统、帧准备 |
 
 绘制沿正向链下降，命中沿逆链降域，重绘区域沿正向链变换到逻辑表面域。三者必须读取
-同一父链事实。
+同一份父链状态。
 
 ## 固定事务管线
 
@@ -289,8 +302,8 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 | 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
 | 5. 几何与坐标 | 带域几何 | 可逆坐标变换或保守表面包围盒 | 绘制、命中和重绘共享变换链 |
 | 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
-| 7. 绘制与帧 | 稳定场景和表现快照 | RenderSubmission 与 acknowledgement | 录制不等于出版 |
-| 8. 动画与表现 | committed facts 和时间 | 可丢弃表现快照 | 表现不反向污染事实 |
+| 7. 绘制与帧 | 稳定场景状态和表现快照 | RenderSubmission 与 acknowledgement | 录制不等于出版 |
+| 8. 动画与表现 | 已提交状态和时间 | 可丢弃表现快照 | 表现不反向改写已提交状态 |
 | 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
 | 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |
 | 11. 视图派生 | 单一模型 revision | 完整 Viewer 视图 | 模型变化必须受控同步 |
@@ -304,7 +317,7 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 |---|---|---|---|
 | 合法缺失 | 未改变 | 可继续 | 返回空结果或取消局部操作 |
 | 明确拒绝 | 未改变 | 当前操作结束 | 修正输入或保持旧状态 |
-| 会话取消 | 稳定事实未提交 | 清理临时状态 | 释放 capture、feedback、preedit |
+| 会话取消 | 候选业务变化未提交 | 清理临时状态 | 释放 capture、feedback、preedit |
 | 可重试失败 | 已知且一致 | 保留必要工作 | 等待条件变化后重试 |
 | 确定性失败 | 已知且一致 | 停止自动循环 | 向应用暴露错误 |
 | 状态未知 | 无法证明 | 故障锁定 | 重建模型、Viewer、Runtime 或 backend |

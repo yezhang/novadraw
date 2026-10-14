@@ -94,6 +94,17 @@
 只有真实的 projective transform、透视变换、降维、外部原文和旧术语讨论可以继续使用
 “投影”。
 
+“场景事实”也不能作为跨阶段通用词。普通叙述必须按状态阶段或查询对象选择名称：
+
+- Runtime 直接拥有、由场景事务写入的状态称为“场景源状态”；
+- Runtime 已经接受并原子写入的状态前缀称为“已提交场景状态”；
+- stable epoch 中必需派生工作已经闭合的一致读边界称为“稳定场景状态”；
+- SceneQuery 实际读取的 geometry、topology、transform、visibility 或 revision 等具体值
+  称为“场景数据项”或“查询依赖项”。
+
+不需要区分提交和稳定阶段时，可以使用“场景状态”，但必须写明由 Runtime 管理。源码
+注释、ADR 或外部原文中的 `scene facts` 可以保留；读者正文必须按语境翻译。
+
 ### BP-04 首次出现即定义
 
 概念首次出现时，应说明：
@@ -253,6 +264,10 @@
 | view synchronization | 视图同步 | 已有 Viewer 消费模型变化并更新稳定视图 |
 | coordinate transform | 坐标变换 | 点或向量跨明确坐标域 |
 | surface bounds | 表面包围盒 | 几何变换到逻辑表面域后的保守 AABB |
+| scene source state | 场景源状态 | Runtime 直接拥有、由场景事务写入的状态 |
+| committed scene state | 已提交场景状态 | Runtime 已经接受并原子写入的场景状态前缀 |
+| stable scene state | 稳定场景状态 | stable epoch 中必需派生工作已经闭合的一致读边界 |
+| scene data item | 场景数据项 | SceneQuery 读取并用于依赖追踪的具体值 |
 
 ### 5.3 禁止无定义切换
 
@@ -262,8 +277,9 @@
 - dirty、damage、重绘区域；
 - validate、validation、校验、稳定化；
 - model、scene、presentation、backend state；
-- 失败、拒绝、取消、故障锁定。
+- 失败、拒绝、取消、故障锁定；
 - 视图派生、坐标变换和未定义的 projection。
+- 场景源状态、已提交场景状态、稳定场景状态和未加限定的“场景事实”。
 
 如果这些概念确实不同，应分别定义。
 

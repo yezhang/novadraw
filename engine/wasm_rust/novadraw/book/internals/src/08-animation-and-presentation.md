@@ -32,7 +32,7 @@ Novadraw 区分三层状态：
 
 ```mermaid
 flowchart LR
-    Source[Committed state<br/>最终事实] --> Presentation[Presentation state<br/>当前表现]
+    Source[已提交状态<br/>模型与场景最终值] --> Presentation[表现状态<br/>当前表现]
     Presentation --> Submission[RenderSubmission<br/>帧输入]
     Submission --> Backend[Backend state<br/>资源与像素]
 
@@ -40,9 +40,9 @@ flowchart LR
     Presentation -.绘制 / 可选表现命中.-> Visual[视觉消费者]
 ```
 
-### Committed state
+### 已提交状态
 
-这是唯一权威：
+这是模型和场景最终值的权威集合：
 
 - Figure topology、bounds、style 和 content；
 - layout 与 route 的最终结果；
@@ -63,7 +63,7 @@ flowchart LR
 - sampled visual envelope。
 
 它不产生 FigureMoved、业务属性通知、route notification 或 undo entry。清除该层后，
-画面直接显示已经存在的 committed final state。
+画面直接显示已经存在的已提交最终状态。
 
 ### Backend state
 
@@ -83,7 +83,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Fact[稳定 committed fact] --> Trigger[Trigger / explicit start]
+    Fact[稳定的已提交变化] --> Trigger[Trigger / explicit start]
     Trigger --> Plan[AnimationPlan]
     Plan --> Target[Target]
     Plan --> Motion[Motion]
@@ -189,19 +189,19 @@ active set 为空时：
 sequenceDiagram
     participant Host
     participant Runtime
-    participant Source as Committed scene
+    participant Scene as 场景状态
     participant Animation as AnimationService
     participant Recorder
     participant Backend
 
     Host->>Runtime: advance monotonic time
-    Runtime->>Source: 应用 mutation 并稳定化
-    Source-->>Runtime: stable committed scene
-    Runtime->>Animation: 处理 stable facts / plans
+    Runtime->>Scene: 提交 mutation 并稳定化
+    Scene-->>Runtime: 稳定场景状态
+    Runtime->>Animation: 处理稳定变化记录 / plans
     Animation->>Animation: 采样 active tracks
     Animation-->>Runtime: immutable presentation snapshot
     Runtime->>Runtime: 合并 old/new presentation damage
-    Runtime->>Recorder: stable scene + presentation snapshot
+    Runtime->>Recorder: 稳定场景状态 + 表现快照
     Recorder-->>Runtime: RenderSubmission
     Runtime-->>Host: FramePreparation::Ready
     Host->>Backend: submit(RenderSubmission)
@@ -209,8 +209,8 @@ sequenceDiagram
     Host->>Runtime: complete_submission(result)
 ```
 
-Committed state 的通知只依赖源事务已经稳定，不依赖动画是否完成，也不依赖当前帧是否
-Presented。后端失败不能回滚源状态；动画失败也只能清除表现覆盖并显示最终事实。
+已提交状态的通知只依赖源事务已经稳定，不依赖动画是否完成，也不依赖当前帧是否
+Presented。后端失败不能回滚源状态；动画失败也只能清除表现覆盖并显示最终值。
 
 ## 8.9 Stable Fact 与 AnimationBehavior
 
@@ -227,8 +227,8 @@ Behavior {
 }
 ```
 
-Behavior 在 source transaction 稳定后消费合并后的 committed fact。factory 读取同一
-stable epoch 的只读事实与 StableSceneQuery，返回 Plan 或不采取动作。
+Behavior 在 source transaction 稳定后消费合并后的已提交变化。factory 读取同一
+stable epoch 的变化记录与 `StableSceneQuery`，返回 Plan 或不采取动作。
 
 Behavior 不能作为普通 listener 回调重入 Runtime，也不能在 Motion 采样阶段重新解释
 Trigger。Trigger 只决定“何时建计划”，不决定“如何插值”。
@@ -241,7 +241,7 @@ Trigger。Trigger 只决定“何时建计划”，不决定“如何插值”�
 ```text
 capture selected stable presentation
 -> 提交 source mutation
--> 收敛新的 committed scene
+-> 收敛新的稳定场景状态
 -> 比较 before / after
 -> admission
 -> 建立 presentation transition
@@ -255,7 +255,7 @@ rollback。
 - source mutation 保持已提交；
 - 不创建半个 timeline；
 - 不留下 channel owner、override 或 wakeup；
-- 画面直接显示 committed final state。
+- 画面直接显示已提交最终状态。
 
 ## 8.11 Damage 与视觉包络
 
@@ -273,7 +273,7 @@ damage =
 - transform 后的保守范围；
 - Connection decoration；
 - temporary visual 的创建、移动和删除；
-- cancel 后当前表现与 committed final visual 的差异。
+- cancel 后当前表现与已提交最终视觉的差异。
 
 只有值而没有包络的 presentation effect 不能进入可见管线。后端可以优化实际绘制，但
 不能缩小 Core 无法证明安全的 damage。
@@ -288,7 +288,7 @@ damage =
 - Additive：仅当 channel 声明组合代数时使用。
 
 交互状态通常使用 Replace。Retarget 必须先完整预检 replacement，再采样当前表现并
-转移 owner。若预检失败，旧计划原样继续，不能短暂闪到 committed final state。
+转移 owner。若预检失败，旧计划原样继续，不能短暂闪到已提交最终状态。
 
 ## 8.13 Cancel 不回滚事实
 
@@ -296,18 +296,18 @@ damage =
 
 1. 移除 track、temporary visual 和 wakeup；
 2. 清除 presentation override；
-3. 显示已经存在的 committed final state；
+3. 显示已经存在的已提交最终状态；
 4. damage 覆盖当前表现与最终视觉范围。
 
 “停在当前值”会让没有 owner 的表现状态永久残留，因此不能作为普通 cancel mode。
 若要从当前值继续，必须 retarget；若要回到历史起点，必须创建以历史值为目标的新
-source operation 或新 Plan，而不是回滚 committed state。
+source operation 或新 Plan，而不是回滚已提交状态。
 
 ## 8.14 Disabled、Enabled 与 ReducedMotion
 
 | 模式 | 行为 |
 |---|---|
-| Disabled | 不创建或保留 timeline，直接显示 committed final state |
+| Disabled | 不创建或保留 timeline，直接显示已提交最终状态 |
 | Enabled | 执行显式 Plan 与已安装 Behavior |
 | ReducedMotion | 使用声明过的短时、离散或静态 fallback |
 
@@ -322,7 +322,7 @@ Surface suspended 或 target effectively hidden 时，每个计划需要明确�
 
 - Advance：逻辑时间继续，恢复时采样当前绝对时间；
 - Pause：恢复后平移 local time；
-- Finish：清除 override，直接显示 committed final state。
+- Finish：清除 override，直接显示已提交最终状态。
 
 持续 Connection 效果通常使用 Pause；短时业务 transition 通常使用 Advance。不能由
 每个 Figure 私自实现另一套隐藏计时规则。
@@ -338,7 +338,7 @@ Surface suspended 或 target effectively hidden 时，每个计划需要明确�
 表现几何参与命中时，绘制和命中必须消费同一 sampled presentation snapshot。否则会
 出现“看得见但点不到”或目标随下一帧跳变。
 
-Accessibility 的 role、state 和 action 始终来自 committed scene。Temporary visual
+Accessibility 的 role、state 和 action 始终来自稳定场景状态。Temporary visual
 默认不进入 accessibility tree；presentation bounds 是否更新必须由平台合同显式决定。
 
 ## 8.17 领域能力如何接入
@@ -384,7 +384,7 @@ Animation admission 在修改任何表现所有权前验证：
 
 - admission 失败不创建 ID、owner、override、wakeup 或 damage；
 - retarget 失败保留旧计划；
-- sample/provider error 终止当前计划并显示 committed final state；
+- sample/provider error 终止当前计划并显示已提交最终状态；
 - provider panic 沿 Runtime fault boundary 处理；
 - target dispose 同一事务清理 track、temporary visual 和 wakeup；
 - backend 不支持时在提交前拒绝或使用已声明 fallback。
@@ -404,18 +404,18 @@ damage merge = O(sampled visual effects)
 所有随机数、时钟和平台尺寸必须作为显式输入。Headless 用固定 MonotonicTime 重放时，
 相同计划、相同输入和相同时间点必须产生语义等价的 presentation snapshot。
 
-性能降级不能改变最终 committed state。预算耗尽只拒绝新计划，不能驱逐无关 active
+性能降级不能改变最终已提交状态。预算耗尽只拒绝新计划，不能驱逐无关 active
 plan 或静默修改组合语义。
 
 ## 8.20 必须保持的不变量
 
-1. Committed state 是模型、布局、路由、通知和历史的唯一事实；
+1. 已提交状态是模型、布局、路由、通知和历史的最终值来源；
 2. Presentation state 由 Runtime 拥有且可随时丢弃；
 3. 动画采样不产生 source mutation 或 derived-state work；
 4. 所有时间来自同一 Runtime 单调时间入口；
 5. 每个可见 sample 都提供保守 old/new envelope；
 6. 同一 subject/channel 的 owner 唯一；
-7. Cancel 清除表现覆盖并显示 committed final state；
+7. Cancel 清除表现覆盖并显示已提交最终状态；
 8. Retarget 失败时旧计划原样继续；
 9. 交互几何策略必须显式；
 10. 无 active animation 时不持续扫描、唤醒或提交。
@@ -452,10 +452,10 @@ Timeline 已结束但表现状态仍存在，形成没有 owner 的第二权威�
 
 ## 8.22 与前后章节的关系
 
-第 7 章定义稳定场景、damage、RenderSubmission 和 Runtime acknowledgement。本章在不
-改变 committed scene 的前提下，为帧录制增加只读 presentation snapshot。
+第 7 章定义稳定场景状态、damage、RenderSubmission 和 Runtime acknowledgement。
+本章在不改变已提交场景状态的前提下，为帧录制增加只读 presentation snapshot。
 
-下一章从平台输入进入场景。输入命中默认读取 committed geometry；只有 Track 明确选择
+下一章从平台输入进入场景。输入命中默认读取已提交几何；只有 Track 明确选择
 Presentation 策略时，命中才读取与当前帧一致的表现几何。第 10 章的 Viewport 和
 Connection 则是 Presentation Plane 的典型领域消费者。
 

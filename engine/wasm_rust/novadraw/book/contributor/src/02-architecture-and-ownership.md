@@ -31,7 +31,7 @@ Core 不反向依赖它们。应用在 composition root 组装所需 crate。
 | 状态 | 所有者 |
 |---|---|
 | 业务节点、连接和属性 | 应用模型 |
-| Figure 拓扑和通用节点状态 | `FigureTree` |
+| Figure 拓扑和通用节点状态等场景源状态 | `FigureTree` / `Runtime` |
 | 失效、重绘、交互与提交会话 | `Runtime` |
 | Model 到 Figure 的视图派生关系 | `GraphicalViewer` |
 | 选择和活动编辑会话 | Viewer / `EditorDomain` |
@@ -40,6 +40,9 @@ Core 不反向依赖它们。应用在 composition root 组装所需 crate。
 
 新增字段前先判断它是否复制了其他 owner 的事实。缓存和派生状态必须能够从权威状态
 重建，并有明确失效条件。
+
+已提交场景状态是 Runtime 已经接受的状态前缀；稳定场景状态还包含当前 stable epoch
+已经闭合的派生结果。后端资源和像素不属于这两个状态阶段。
 
 ## 2.3 三类身份不能混用
 

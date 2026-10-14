@@ -151,8 +151,8 @@ Overlay 的典型生命周期按因果顺序发生：
 5. 输入命中通过 registry 解析 Handle action 或 owner Part；
 6. selection 变化、完成、取消或 Part 删除时，Viewer 注销并销毁整棵临时子树。
 
-Feedback 不是模型，也不应被命令历史记录。若预览需要计算布局或坐标，应使用稳定场景
-查询和候选数据，不能先改真实 Figure 再观察效果。
+Feedback 不是模型，也不应被命令历史记录。若预览需要计算布局或坐标，应查询稳定
+场景状态并使用候选数据，不能先改真实 Figure 再观察效果。
 
 连接预览尤其不能提前创建稳定 ConnectionPart。它可以复用 Core 的连接 Figure 与路由
 能力，但其所有者仍是 Feedback；只有最终 Command 创建业务连接后，Viewer 才在下一次
@@ -400,7 +400,7 @@ undo 伪装成取消。
 
 ### Feedback 复用业务 Figure
 
-预览污染稳定场景，取消需要猜测如何恢复。
+预览污染稳定场景状态，取消需要猜测如何恢复。
 
 ### 把连接预览注册为 ConnectionPart
 

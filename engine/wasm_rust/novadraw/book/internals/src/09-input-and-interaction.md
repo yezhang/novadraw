@@ -132,7 +132,7 @@ stateDiagram-v2
 ### Pointer down
 
 1. 归一化到逻辑表面事件；
-2. 在稳定场景中命中；
+2. 在稳定场景状态中命中；
 3. 分发给 Core Figure 能力；
 4. 收集 capture、focus 或消费效果；
 5. 若未被 Core 消费，交给 Editor Tool；

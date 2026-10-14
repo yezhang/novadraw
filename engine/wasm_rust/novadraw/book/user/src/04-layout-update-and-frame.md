@@ -304,7 +304,7 @@ pub enum FramePreparation {
 
 ## 4.10 渲染提交与完成反馈
 
-稳定场景产生两条结果：
+稳定场景状态产生两条结果：
 
 - `UpdateManager` 计算 `DamageSet`；
 - `FigureRenderer` 递归遍历图形树，向 `NdCanvas` 录制 `RenderCommand`。

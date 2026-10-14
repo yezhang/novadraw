@@ -89,7 +89,7 @@ flowchart TD
         ModelEvents --> Viewer[GraphicalViewer.refresh]
     end
 
-    subgraph Source["2. 运行时事务与场景事实"]
+    subgraph Source["2. 运行时事务与已提交场景状态"]
         AppMutation[应用直接修改] --> Transaction[Runtime 顶层事务]
         Effects --> Transaction
         Viewer --> Transaction
@@ -98,8 +98,8 @@ flowchart TD
         Node --> State[NodeState]
         Node --> LayoutState[LayoutState]
         Node --> Behavior[Figure 行为]
-        Transaction --> Facts[已提交事实]
-        Facts --> Queues[失效集 / 脏区集 / 派生工作集 / 通知日志]
+        Transaction --> Committed[已提交场景状态]
+        Committed --> Queues[失效集 / 脏区集 / 派生工作集 / 通知日志]
         Queues --> Redraw[PlatformHost 请求重绘]
     end
 
@@ -123,7 +123,7 @@ flowchart TD
         LayoutCommit --> Containers[Layer / Freeform extent / Viewport range]
         RouteCommit --> Containers
         Containers --> Presentation[文本、图像与边框呈现快照]
-        Presentation --> Stable[stable_epoch]
+        Presentation --> Stable[stable_epoch / 稳定场景状态]
         LayoutCommit -.产生新工作.-> Worklist
         RouteCommit -.产生新工作.-> Worklist
         Containers -.产生新工作.-> Worklist
@@ -145,7 +145,7 @@ flowchart TD
         Capability --> Submission
         Resources[ResourceSync] --> Submission
         Surface[SurfaceInfo + session_id + frame_id] --> Submission
-        Submission --> StableNotify[发布 Prepared 与稳定场景通知]
+        Submission --> StableNotify[发布 Prepared 与场景稳定通知]
         StableNotify --> Ready[FramePreparation::Ready]
         Ready --> SessionGate[BackendSessionGate]
         SessionGate --> Backend[RenderBackend / Vello]
@@ -161,7 +161,7 @@ flowchart TD
         Recreate --> Redraw
     end
 
-    Prepare -->|Idle| IdleNotify[发布稳定场景通知]
+    Prepare -->|Idle| IdleNotify[发布场景稳定通知]
 ```
 
 ### 一次输入如何形成一帧
@@ -247,7 +247,7 @@ sequenceDiagram
 - 没有脏连接时，不调用 `ConnectionRuntime` 路由；
 - 没有像素或资源变化时，帧准备可以返回 `Idle`；
 - 循环表示按固定优先级排空派生工作，不表示反复扫描整棵图形树；
-- `RenderSubmission` 返回给宿主前已经形成稳定场景，后端不能反向修改
+- `RenderSubmission` 返回给宿主前已经形成稳定场景状态，后端不能反向修改
   `FigureTree`。
 
 总体流程有三类入口，但最终汇入同一个 `Runtime` 事务：
@@ -264,7 +264,7 @@ sequenceDiagram
 图层自由范围和视口范围，因此布局、连接和容器阶段都可能向工作列表追加新任务；
 只有工作列表排空后才能晋升 `stable_epoch`。
 
-稳定场景形成后，帧准备分成两条汇合支路：
+稳定场景状态形成后，帧准备分成两条汇合支路：
 
 - `UpdateManager` 把节点本地脏区沿坐标父链变换到逻辑表面域并裁剪，得到 `DamageSet`；
 - `FigureRenderer` 递归遍历稳定的 `FigureTree`，向 `NdCanvas` 录制
@@ -273,7 +273,7 @@ sequenceDiagram
 两者与资源同步、绘制表面及会话/帧身份一起组成 `RenderSubmission`。后端提交完成后
 必须把完整 `RenderResult` 交还 `Runtime::complete_submission`：成功时结束当前帧；
 瞬时失败恢复资源同步状态，device lost 递增 session 并要求重建 backend，确定性拒绝
-和终止类失败停止自动提交。稳定场景通知在提交包准备好
+和终止类失败停止自动提交。场景稳定通知在提交包准备好
 或确认本轮无帧可提交后发布；后端提交结果则在完成回调后发布，二者不是同一类通知。
 如果绘制表面暂停、前一帧尚未完成或稳定化失败，`FramePreparation` 会返回
 `Suspended`、`AwaitingCompletion` 或 `Error`，本轮不会产生不完整的提交包。

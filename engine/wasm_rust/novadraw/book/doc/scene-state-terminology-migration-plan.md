@@ -2,7 +2,7 @@
 
 类型：`book-maintenance-plan`
 
-状态：`proposed`
+状态：`completed`
 
 适用范围：
 
@@ -412,3 +412,21 @@ git diff --check
 5. 三本书的构建结果。
 
 不要把本计划加入任一本书的 `SUMMARY.md`。它是维护文档，不属于读者正文。
+
+## 12. 执行结果
+
+完成日期：2026-10-14
+
+- 三本书统一使用“场景源状态”“已提交场景状态”“稳定场景状态”和“场景数据项”；
+- 基线中的 13 处读者可见“场景事实”表达已全部按 owner、提交阶段和 stable epoch
+  语义拆分；
+- `Suspended` 明确为 surface 不可呈现：Runtime 仍管理已提交场景状态和待处理工作，
+  但该结果本身不证明最新派生工作已经稳定；
+- 贡献者指南明确区分 `EventSceneQuery` 与 `StableSceneQuery` 的读边界，Query 只返回
+  当前阶段允许的场景数据项；
+- 保留的 `scene facts` 只出现在公共或专用维护规则，以及贡献者导读对源码注释原词的
+  说明中；读者正文没有未限定的“场景事实”；
+- 没有无法判定而保留的位置；
+- 中文正文半角标点命中为 0；
+- `cargo xtask docs`、`git diff --check` 和 `./scripts/build_book.sh` 均已通过，三本书
+  的 HTML 与 PDF 均已生成。

@@ -22,9 +22,10 @@
 ```text
 输入或应用修改
 -> prepare 并校验
--> 提交权威状态
+-> 提交场景源状态
+-> 形成已提交场景状态
 -> 标记布局与派生状态失效
--> 收敛到稳定场景
+-> 收敛到稳定场景状态
 -> 计算重绘区域
 -> 录制绘制命令
 -> 生成 RenderSubmission
@@ -47,10 +48,22 @@
 扩展回调不得在 prepare 阶段持有 Runtime 可变引用。无法安全补偿的提交失败会使
 Runtime 进入故障锁定状态，而不是继续暴露可能不一致的场景。
 
-## 3.4 稳定场景与提交完成不同
+## 3.4 Query 只暴露当前阶段的数据项
 
-场景稳定表示布局和派生状态已经收敛，不代表 GPU 已经消费本帧。Runtime 必须保留
+Context 和 Query 不拥有 Runtime 状态。`EventSceneQuery` 读取 callback 开始时的已提交
+场景状态，`StableSceneQuery` 读取最新 stable epoch 的稳定场景状态。它们只返回当前
+阶段允许的场景数据项，不返回 Runtime、FigureTree 或可变 Figure 引用。
+
+Effects、Output 和 Commands 承载候选变化或延迟意图。Query 不能隐式提交、flush 或
+stabilize，也不能观察当前 callback 尚未提交的 effect。
+
+## 3.5 稳定场景状态与提交完成不同
+
+稳定场景状态表示布局和派生状态已经收敛，不代表 GPU 已经消费本帧。Runtime 必须保留
 session 与 frame 身份，宿主将后端结果交回完成入口后，才能推进相关资源和提交状态。
+
+`Suspended` 只表示 surface 当前不可呈现。Runtime 仍管理已提交场景状态和待处理工作，
+但该结果本身不证明最新派生工作已经稳定。
 
 需要核验的公开合同：
 
@@ -58,7 +71,7 @@ session 与 frame 身份，宿主将后端结果交回完成入口后，才能�
 - [`ADR-025：统一 Graphics 与 glyph 预处理`](../../../doc/adr/adr-025-unified-graphics-and-glyph-preparation.md)
 - [`Runtime 实现`](../../../novadraw/src/runtime/runtime.rs)
 
-## 3.5 重绘区域必须覆盖新旧事实
+## 3.6 重绘区域必须覆盖新旧状态
 
 几何或视觉变化可能同时影响旧位置和新位置。提交修改前应保存旧视觉边界，提交后计算
 新视觉边界，再由 UpdateManager 变换到逻辑表面域并合并 damage。
@@ -66,7 +79,7 @@ session 与 frame 身份，宿主将后端结果交回完成入口后，才能�
 只重绘新位置会留下旧像素；只依赖 Figure 的逻辑 bounds 会漏掉边框、装饰、连接或
 变换后的视觉范围。
 
-## 3.6 修改执行链时的门禁
+## 3.7 修改执行链时的门禁
 
 - 不在渲染主循环打印逐节点或逐命令日志；
 - 不绕过稳定化直接录制命令；

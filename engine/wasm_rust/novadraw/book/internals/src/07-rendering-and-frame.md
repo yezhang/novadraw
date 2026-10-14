@@ -8,7 +8,8 @@
 
 核心结论是：
 
-> 稳定场景只证明“可以生成这一帧”，后端完成反馈才证明“这一帧的提交生命周期结束”。
+> 稳定场景状态只证明“可以生成这一帧”，后端完成反馈才证明“这一帧的提交生命周期
+> 结束”。
 
 ## 7.1 Dirty 与 damage
 
@@ -53,7 +54,7 @@ damage 是正确性边界，允许多报，不允许漏报：
 
 全量 damage 是合法降级策略，但不能掩盖场景状态不一致。
 
-## 7.4 稳定场景前不能录制
+## 7.4 场景状态稳定前不能录制
 
 绘制命令必须读取同一稳定 epoch。若布局只更新了一半，录制结果可能同时包含旧连接和
 新节点位置。
@@ -63,7 +64,7 @@ damage 是正确性边界，允许多报，不允许漏报：
 ```text
 接受 mutation
 -> 收敛布局和派生状态
--> 冻结本次稳定场景视图
+-> 冻结本次稳定场景状态的只读视图
 -> 汇总 damage
 -> 录制绘制命令
 -> 封装提交
@@ -221,7 +222,7 @@ ResourceProvider，也不主动读取文件或轮询异步任务。
 
 ```mermaid
 flowchart TD
-    Stable[稳定场景] --> Prepare[Runtime 准备 RenderSubmission]
+    Stable[稳定场景状态] --> Prepare[Runtime 准备 RenderSubmission]
     Prepare --> Host[Host 取得提交]
     Host --> Backend[RenderBackend::submit]
     Backend --> Result{RenderResult}
@@ -317,12 +318,12 @@ damage 可以限制需要修复的区域，但命令生成仍应保持完整场�
 
 ### 录制失败
 
-尚未提交后端。场景仍稳定，但本帧未生成。错误应携带失败节点或资源上下文。
+尚未提交后端。稳定场景状态保持不变，但本帧未生成。错误应携带失败节点或资源上下文。
 
 ### Skipped 与 Retry
 
 二者都表示当前帧未发布。Runtime 恢复 in-flight 资源并保留完整重绘需求。Host 可以
-根据可见性和 wakeup 规则再次请求 redraw，但动画时间和场景状态不回退。
+根据可见性和 wakeup 规则再次请求 redraw，但动画时间和已提交场景状态不回退。
 
 ### SurfaceLost
 
@@ -331,8 +332,9 @@ Host 让现有 backend 重新配置 surface，成功后再请求帧。
 
 ### DeviceLost
 
-场景事实保持，但 backend 资源宇宙失效。Runtime 是唯一递增 session 的权威，并要求
-下一帧发送资源快照和完整重绘。Host 重建 backend，但不能再次擅自重置 session。
+已提交场景状态保持不变，但 backend 资源宇宙失效。Runtime 是唯一递增 session 的
+权威，并要求下一帧发送资源快照和完整重绘。Host 重建 backend，但不能再次擅自重置
+session。
 
 ### Unsupported 与 InvalidInput
 
@@ -351,12 +353,12 @@ Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失�
 
 ## 7.16 必须保持的不变量
 
-1. 最终命令只读取稳定场景；
+1. 最终命令只读取稳定场景状态；
 2. damage 保守覆盖所有旧新像素影响；
 3. 绘制顺序来自 Figure 树；
 4. Graphics 状态栈在任何路径都平衡；
 5. 资源与 session/frame identity 绑定；
-6. 后端结果不反向成为场景事实；
+6. 后端结果不反向改写已提交场景状态；
 7. 只有 Runtime 可以确认资源基线和递增 backend session；
 8. 未呈现或失败的提交保留完整重绘需求；
 9. 确定性拒绝和终止失败不得自动循环重试；
@@ -405,10 +407,10 @@ Unsupported、InvalidInput、OOM 和 Fatal 会形成无界提交循环，并掩�
 
 ## 7.18 与后续章节的关系
 
-本章从稳定场景走到像素提交。下一章在 committed scene 与 RenderSubmission 之间加入
-可丢弃的 Presentation Plane，解释动画如何复用同一 damage、资源和帧合同而不污染源
-状态。第 9 章再从平台事件反向进入场景，第 10 章展示视口和连接如何同时产生派生几何
-与 presentation 变化。
+本章从稳定场景状态走到像素提交。下一章在已提交场景状态与 RenderSubmission 之间
+加入可丢弃的 Presentation Plane，解释动画如何复用同一 damage、资源和帧合同而不
+污染源状态。第 9 章再从平台事件反向进入场景，第 10 章展示视口和连接如何同时产生
+派生几何与 presentation 变化。
 
 ## 7.19 思考题
 

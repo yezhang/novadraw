@@ -15,6 +15,10 @@
 | 图形节点 | FigureNode | `Figure`、`NodeState`、`LayoutState` 与树关系的运行时组合 |
 | 图形树 | FigureTree | 图形拓扑、代际身份和叠放顺序的唯一所有者 |
 | 场景运行时 | Runtime | 单个场景的事务边界和所有权组合根 |
+| 场景源状态 | scene source state | Runtime 直接拥有、由场景事务写入的状态 |
+| 已提交场景状态 | committed scene state | Runtime 已经接受并原子写入的场景状态前缀 |
+| 稳定场景状态 | stable scene state | stable epoch 中必需派生工作已经闭合的一致读边界 |
+| 场景数据项 | scene data item | SceneQuery 读取并用于依赖追踪的具体值 |
 | 图形核心 | Core | 负责图形树、布局、坐标、绘制、命中和基础输入语义的引擎层 |
 | 编辑框架 | Editor | 从业务模型派生图形视图，并把输入转换成可撤销模型修改的上层框架 |
 | 代际 ID | generational ID | 由槽位和代数组成的身份；槽位复用后，旧 ID 不会误指向新对象 |
@@ -49,7 +53,7 @@
 | 锚点 | Anchor | 根据所属图形当前几何和另一端方向纯计算连接端点的策略 |
 | 路由器 | Router | 根据锚点、约束和分组快照纯计算完整连接路径的策略 |
 | 路由坐标域 | routing domain | 路由器读写连接路径点时统一使用的参照空间 |
-| 场景查询 | SceneQuery | 向锚点和路由器提供只读几何，并记录所读取依赖的接口 |
+| 场景查询 | SceneQuery | 向锚点和路由器提供场景数据项，并记录查询依赖项的接口 |
 | 连接运行时 | ConnectionRuntime | 连接绑定、依赖、代数与解析状态的所有者 |
 | 未解析状态 | unresolved | 路径无法可靠计算时清除旧几何并等待依赖恢复的稳定状态 |
 | 模型适配器 | ModelAdapter | 编辑框架读取应用模型及其有序通知的边界 |
