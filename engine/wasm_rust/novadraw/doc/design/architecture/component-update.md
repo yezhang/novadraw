@@ -11,6 +11,9 @@
 2026-10-12 修订：补齐 S03 已提供的 NoChange 和 effect 合同；新增权限验证要求见
 [修订记录](../../verification/reviews/framework-architecture-contract-revision-2026-10-12.md)。
 
+2026-10-13 修订：Effect 改为受限声明；Runtime 在写入前校验完整操作序列，
+不再调用外部 Effect commit。组件与 capability 更新共用同一提交实现。
+
 ## 1. 问题
 
 Runtime 必须继续作为 source mutation 的唯一提交边界，但不能为每一种第三方 Figure
@@ -91,10 +94,26 @@ derived component 协议，不能在 source commit 中读取未来布局结果�
 target；Editor visual context 只能作用于当前 Part 已登记 visual。更大 scope 必须由
 明确授权的领域操作提供，不能靠 payload 中出现任意 ID 扩权。
 
-全部 effect 在 commit 前按同一已提交前缀完成预检；任一非法 effect 都拒绝整个候选，
+`FigureUpdateEffect::prepare` 消费 owned effect，通过 `FigureUpdateEffectContext`
+声明属性事实、资源依赖、bounds、border 派生状态刷新与 reparent。Context 的 tree 查询
+读取已提交前缀；操作校验按声明顺序考虑当前 target 的前序意图。
+属性、资源依赖和几何出口隐式绑定 target；reparent 的 child 必须等于 target，
+否则返回 `EffectTargetMismatch`。跨对象结构修改使用独立领域 facade。
+资源操作检查 old/new 身份，连接 reparent 保留预先转换的约束，并在后续移动中继续转换
+前序候选约束。合法 target 父级不位于 target 子树，其坐标链不会被本批操作修改。
+
+全部 effect 在 commit 前从同一已提交前缀按顺序完成预检；任一非法 effect 都拒绝整个候选，
 不修改组件、revision、资源/拓扑、work、journal 或 damage。提交后必要的 lifecycle
 回调在结构写入借用释放后执行。用户 callback/Drop panic 沿 fault 边界处理，
 不属于可恢复原子失败承诺。
+
+Context 记住操作拒绝状态；扩展忽略某次操作的错误也不能提交前序意图。
+NoChange 不调用 Effect prepare。提交阶段仅执行 Runtime 保存的已验证操作，
+不重新计算连接约束或执行外部 Effect 回调。
+
+外部消费者证据：`core.p2-f02-figure-capability` 覆盖 integration crate 中自定义
+Effect 的连续移动、越权与后续非法操作拒绝、资源/几何拒绝、NoChange，以及 component
+属性事实无部分提交；连接运行时契约覆盖连续移动时绝对/相对 bendpoint 的坐标保持。
 
 ## 5. 首个验收用例
 

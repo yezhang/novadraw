@@ -126,6 +126,7 @@ callback 生命周期内借用 owner 的受限投影或 callback-local sink。
 | Figure paint | `PaintContext` | 绘制命令权限，不提供 scene query |
 | Stable observation | `StableSceneQuery` | `Stable` 表示 publication 状态，不是 callback phase |
 | Editor tool | `ToolContext` | typed request/command 权限投影，不暴露 Viewer/Runtime |
+| Figure update effect | `FigureUpdateEffectContext` | committed tree 只读查询、target-scoped 意图声明与整批预检；不授予外部 commit 权限 |
 
 ### 4. Query、Snapshot 与 owned result 不混用
 
