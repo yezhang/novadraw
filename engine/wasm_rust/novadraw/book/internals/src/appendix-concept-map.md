@@ -34,11 +34,11 @@ flowchart TD
     Stable --> Presentation[Presentation Plane<br/>可丢弃表现]
     Presentation --> Record[PaintContext / CommandRecorder]
     Stable --> Damage[重绘区域]
-    Damage --> Publish[Runtime 帧出版]
-    Record --> Publish
-    Publish --> Submission[RenderSubmission]
-    Submission --> Host[Host]
-    Host --> Backend[RenderBackend]
+    Damage --> PrepareSubmission[Runtime 准备提交包]
+    Record --> PrepareSubmission
+    PrepareSubmission --> Submission[RenderSubmission<br/>提交包已就绪]
+    Submission --> Host[Host 提交后端]
+    Host --> Backend[RenderBackend::submit]
     Backend --> Result[RenderResult]
     Result --> Complete[Runtime::complete_submission]
     Complete --> Ack[SubmissionAcknowledgement]
@@ -174,7 +174,7 @@ Command；后两层可以随 Viewer 或 Runtime 重建。
 | 模型 revision | 业务变化的连续前缀 | 场景已经稳定 |
 | 稳定 epoch | 派生状态对应同一稳定输入 | 后端已经呈现 |
 | backend session | 资源基线属于同一后端资源宇宙 | 某一帧已经完成 |
-| frame ID | session 内一次出版提交 | 业务模型发生了新变化 |
+| frame ID | session 内一次待完成提交 | 业务模型发生了新变化 |
 
 这些版本不能合并为一个全局计数器。一次模型 revision 可以引发多个表现帧；一次 backend
 session 可以跨越多个模型 revision；稳定 epoch 完成后，后端仍可能拒绝或延迟提交。
@@ -210,9 +210,10 @@ flowchart LR
 -> stabilize 派生状态
 -> sample 可选表现状态
 -> record 受检绘制命令
--> publish RenderSubmission
--> complete 后端结果
--> acknowledge 资源与恢复状态
+-> 生成 RenderSubmission，提交包已就绪
+-> Host 提交后端
+-> 后端返回 RenderResult
+-> Runtime 确认完成结果
 ```
 
 扩展可以替换 prepare、测量、布局、路由、绘制和 Policy 等差异算法，但不能改变阶段
@@ -250,7 +251,7 @@ sequenceDiagram
 - `reject`：可恢复拒绝，并证明模型没有变化；
 - `fault`：模型状态未知或协议破坏，Stack 与 Viewer 故障锁定。
 
-## 帧出版与恢复闭环
+## 帧提交与恢复闭环
 
 ```mermaid
 sequenceDiagram
@@ -258,11 +259,11 @@ sequenceDiagram
     participant Host
     participant Backend
 
-    Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
-    Host->>Backend: submit
+    Runtime-->>Host: FramePreparation::Ready(RenderSubmission)，提交包已就绪
+    Host->>Backend: RenderBackend::submit
     Backend-->>Host: RenderResult
     Host->>Runtime: complete_submission
-    Runtime-->>Host: SubmissionAcknowledgement
+    Runtime-->>Host: SubmissionAcknowledgement，完成已确认
     Host->>Host: redraw / reconfigure / rebuild / stop
 ```
 
@@ -302,7 +303,7 @@ Host 执行恢复动作，但只有 Runtime 能确认资源基线和递增 backe
 | 4. Figure 树 | 结构意图 | 无环有序树 | 绘制、命中和坐标共享拓扑 |
 | 5. 几何与坐标 | 带域几何 | 可逆坐标变换或保守表面包围盒 | 绘制、命中和重绘共享变换链 |
 | 6. 布局与稳定化 | 约束和测量 | 稳定节点几何 | 过期输出不得提交 |
-| 7. 绘制与帧 | 稳定场景状态和表现快照 | RenderSubmission 与 acknowledgement | 录制不等于出版 |
+| 7. 绘制与帧 | 稳定场景状态和表现快照 | RenderSubmission 与 acknowledgement | 录制完成不等于提交包就绪 |
 | 8. 动画与表现 | 已提交状态和时间 | 可丢弃表现快照 | 表现不反向改写已提交状态 |
 | 9. 输入与交互 | 离散平台事件 | 可完成或取消的会话 | capture、focus、hover 分离 |
 | 10. 图层、视口与连接 | 跨节点查询 | 可追踪派生几何 | 查询记录身份与版本依赖 |

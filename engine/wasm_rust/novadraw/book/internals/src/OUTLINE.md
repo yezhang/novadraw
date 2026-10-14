@@ -159,7 +159,7 @@
 - 旧视觉边界和新视觉边界的 union；
 - 裁剪、绘图状态和递归绘制；
 - Graphics、命令录制与 RenderSubmission；
-- PaintContext、CommandRecorder 与帧出版的分离；
+- PaintContext、CommandRecorder 与帧提交准备的分离；
 - RenderResult 与 Runtime acknowledgement；
 - 资源增量、ResourceRequestToken 和 session/frame identity。
 
@@ -225,7 +225,7 @@
 - containment 视图构建、连接视图构建，以及 ConnectionPart 的身份边界；
 - primary Figure、content pane、registry 和 visual ownership；
 - Overlay、Handle 与 Feedback 的所有权和生命周期；
-- plan、validate、commit 与 revision publication；
+- plan、validate、commit 与 revision 发布；
 - synchronize/synchronize_model 的受控模型入口；
 - ViewerDrive 的宿主驱动边界。
 
@@ -271,7 +271,7 @@
 
 覆盖：
 
-- prepare、validate、commit、publish；
+- prepare、validate、commit、发布；
 - recoverable error 与 faulted state；
 - 取消、补偿和结构半发布；
 - 确定性 replay 与分层测试；

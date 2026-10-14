@@ -9,3 +9,4 @@
 
 - [“投影”术语拆分与迁移方案](projection-terminology-migration-plan.md)
 - [“场景事实”术语拆分与迁移方案](scene-state-terminology-migration-plan.md)
+- [“帧出版”术语拆分与迁移方案](frame-submission-terminology-migration-plan.md)

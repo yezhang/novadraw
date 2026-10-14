@@ -31,6 +31,10 @@ Policy 等扩展点增加能力，请阅读
 的 geometry、topology、transform、visibility 或 revision 等具体值称为场景数据项。
 源码注释中的 `scene facts` 保持原词，普通叙述按所属阶段或具体数据项说明。
 
+本书把 `prepare_submission` 称为“帧提交准备”。`FramePreparation::Ready` 表示渲染
+提交包已就绪，Host 尚未调用后端；`RenderDisposition::Presented` 才表示帧已呈现；
+`SubmissionAcknowledgement` 表示 Runtime 已形成完成确认结果。
+
 ## 何时进入贡献者路径
 
 以下工作属于项目贡献：
@@ -71,7 +75,7 @@ Policy 等扩展点增加能力，请阅读
 
 - 权威状态由谁拥有？
 - 修改从哪个公开或内部入口进入？
-- prepare、validate、commit 和 publication 的边界在哪里？
+- prepare、validate、commit 和发布的边界在哪里？
 - 失败前后哪些状态必须保持不变？
 - 是否改变公开 API、语义账本或验证清单？
 - 哪个最小 suite 能证明行为，最终需要运行哪一级门禁？

@@ -81,7 +81,7 @@
 | 首选名称 | 英文或代码名 | 本书中的含义 |
 |---|---|---|
 | 图形对象、图形行为 | Figure | 场景节点或节点上的具体行为协议，按上下文区分 |
-| 场景运行时 | Runtime | 场景事务、派生收敛、帧出版和完成确认的权威 |
+| 场景运行时 | Runtime | 场景事务、派生收敛、帧提交准备和完成确认的权威 |
 | 场景源状态 | scene source state | Runtime 直接拥有、由场景事务写入的状态 |
 | 已提交场景状态 | committed scene state | Runtime 已经接受并原子写入的场景状态前缀 |
 | 稳定场景状态 | stable scene state | stable epoch 中必需派生工作已经闭合的一致读边界 |
@@ -102,7 +102,11 @@
 | 重绘区域 | damage | 表面上可能需要修复的保守像素范围 |
 | 校验收敛 | validation | 使布局和其他派生状态达到稳定版本的过程 |
 | 表现平面 | Presentation Plane | 从稳定场景状态采样出的可丢弃视觉覆盖 |
-| 渲染提交包 | RenderSubmission | Runtime 出版给后端的一帧拥有数据 |
+| 帧提交准备 | frame submission preparation | Runtime 从稳定场景状态生成正式渲染提交包的过程 |
+| 渲染提交包 | RenderSubmission | Runtime 生成并交给 Host 的一帧拥有数据 |
+| 提交包已就绪 | FramePreparation::Ready | Runtime 已建立 in-flight，Host 尚未调用后端 |
+| 帧已呈现 | RenderDisposition::Presented | 后端确认目标表面已经呈现该帧 |
+| 完成已确认 | SubmissionAcknowledgement | Runtime 已根据后端结果确认资源与恢复状态 |
 | 指针捕获 | pointer capture | 把后续指针事件锁定到同一交互会话 |
 | 故障锁定状态 | faulted | 无法继续证明一致性，只允许诊断或重建 |
 

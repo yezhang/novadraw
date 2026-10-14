@@ -90,7 +90,7 @@ revision、invalidation、damage 和 notification。
 
 - 新状态由谁拥有，谁只持有 ID 或快照？
 - 新依赖是否仍然指向内层？
-- 失败发生在 prepare、validate、commit 还是 publication？
+- 失败发生在 prepare、validate、commit 还是发布？
 - 是否可能发布半完成结构？
 - 扩展者能否在不修改中心枚举或 match 的情况下增加实现？
 - public API 是否暴露了第三方后端类型或完整可变对象？

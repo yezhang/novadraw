@@ -9,10 +9,10 @@
 平台宿主
 -> 归一化输入、时间、DPI 和绘制表面
 -> Core Runtime
--> backend-neutral RenderSubmission
--> 渲染后端
--> 完成或失败结果
--> Runtime acknowledgement
+-> 生成 backend-neutral RenderSubmission，提交包已就绪
+-> Host 调用 RenderBackend::submit
+-> 渲染后端返回 RenderResult
+-> Runtime 返回 SubmissionAcknowledgement
 ```
 
 平台宿主不重复命中、坐标父链、滚动目标选择或编辑语义。渲染后端不修改 Figure 树、

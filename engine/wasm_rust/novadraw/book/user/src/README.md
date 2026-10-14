@@ -18,7 +18,9 @@
 -> 交给 Runtime 管理
 -> 接入平台输入
 -> 收敛布局和派生状态
--> 生成并提交一帧
+-> 准备渲染提交包
+-> Host 提交后端
+-> Runtime 确认完成结果
 -> 运行期通过 scoped mutable facade 更新
 ```
 
@@ -38,6 +40,11 @@
 前缀称为“已提交场景状态”，把 stable epoch 中派生工作已经闭合的读边界称为“稳定
 场景状态”。场景查询读取的具体 geometry、topology、transform 或 revision 称为
 “场景数据项”。
+
+帧生命周期使用四个不同名称：Runtime 执行“帧提交准备”，
+`FramePreparation::Ready` 表示“渲染提交包已就绪”，Host 随后“提交后端”，只有
+`RenderDisposition::Presented` 才表示“帧已呈现”。Runtime 返回完成确认结果后，本次
+提交的资源与恢复状态才完成确认。
 
 ## 适合谁
 

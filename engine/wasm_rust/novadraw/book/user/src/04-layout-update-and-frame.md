@@ -242,7 +242,7 @@ Runtime 使用固定优先级工作列表：
 `stable_epoch` 才能晋升。
 
 单个阶段有反馈预算。超过预算返回 `FramePreparationError::DidNotConverge`，不会
-发布只完成一部分的场景或提交包。
+使只完成一部分的场景状态对外可见，也不会生成不完整的提交包。
 
 实现入口：
 [`Runtime::stabilize`](../../../novadraw/src/runtime/runtime.rs)。
@@ -294,7 +294,7 @@ pub enum FramePreparation {
 
 | 状态 | 宿主处理 |
 |---|---|
-| `Ready` | 交给后端，并回传完成结果 |
+| `Ready` | 渲染提交包已就绪；交给后端，并回传完整结果 |
 | `Idle` | 当前没有像素或资源变化 |
 | `Suspended` | 表面不可用，恢复后重试 |
 | `AwaitingCompletion` | 等待前一帧完成，不能并发提交下一帧 |
@@ -302,7 +302,7 @@ pub enum FramePreparation {
 
 宿主必须显式区分暂停、等待、无工作和错误，不能把它们统一折叠成“没有提交包”。
 
-## 4.10 渲染提交与完成反馈
+## 4.10 渲染提交、呈现与完成确认
 
 稳定场景状态产生两条结果：
 
@@ -315,7 +315,10 @@ pub enum FramePreparation {
 宿主的概念流程：
 
 ```rust
-let submission = match runtime.prepare_submission(surface, backend.capabilities()) {
+let submission = match runtime
+    .frames()
+    .prepare_submission(surface, backend.capabilities())
+{
     FramePreparation::Ready(submission) => submission,
     FramePreparation::Idle => return,
     FramePreparation::Suspended => return,
@@ -326,12 +329,19 @@ let submission = match runtime.prepare_submission(surface, backend.capabilities(
 let session_id = submission.session_id;
 let frame_id = submission.frame_id;
 let outcome = backend.submit(&submission);
-assert!(runtime.complete_submission(session_id, frame_id, outcome));
+let acknowledgement = runtime
+    .frames()
+    .complete_submission(session_id, frame_id, outcome)
+    .expect("prepared frame must match its completion");
+handle_acknowledgement(acknowledgement);
 ```
 
 完成反馈不能省略：
 
-- `Presented` 确认资源增量和当前帧完成；
+- `FramePreparation::Ready` 只表示提交包已就绪；
+- Host 调用 `RenderBackend::submit` 后，提交才已经发起；
+- `RenderResult` 为 `Ok(RenderDisposition::Presented)` 时，帧才已呈现；
+- `Runtime::complete_submission` 返回 acknowledgement 后，资源与恢复状态才完成确认；
 - `Retry`、`Skipped` 或 `Unsupported` 会触发相应恢复；
 - 会话和帧身份防止迟到结果污染新绘制表面。
 

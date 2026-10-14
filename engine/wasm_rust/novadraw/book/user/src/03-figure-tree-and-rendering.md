@@ -237,8 +237,8 @@ DrawGlyphRun
 
 ## 3.9 渲染提交包（RenderSubmission）
 
-`RenderSubmission` 是一次完整帧提交给后端的数据包，集中携带绘制命令、重绘范围、
-资源同步信息、绘制表面信息和帧身份：
+`RenderSubmission` 是 Runtime 生成、由 Host 随后提交给后端的数据包。它集中携带绘制
+命令、重绘范围、资源同步信息、绘制表面信息和帧身份：
 
 ```rust
 pub struct RenderSubmission {
@@ -254,9 +254,9 @@ pub struct RenderSubmission {
 实际定义：
 [`RenderSubmission`](../../../novadraw/src/render/submission.rs#L365-L373)。
 
-它分离“画什么”与“如何提交到设备”。渲染后端声明自身能力，`Runtime` 在提交前
-检查命令需要的字形组（`GlyphRuns`）、图像资源（`ImageResources`）等能力。永久
-不支持是显式错误，不能无限重试。
+它分离“画什么”与“如何提交到设备”。渲染后端声明自身能力，`Runtime` 在生成正式
+提交包前检查命令需要的字形组（`GlyphRuns`）、图像资源（`ImageResources`）等能力。
+永久不支持是显式错误，不能无限重试。
 
 ## 3.10 Vello 后端如何消费命令
 

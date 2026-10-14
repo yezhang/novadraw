@@ -146,8 +146,9 @@ flowchart TD
         Resources[ResourceSync] --> Submission
         Surface[SurfaceInfo + session_id + frame_id] --> Submission
         Submission --> StableNotify[发布 Prepared 与场景稳定通知]
-        StableNotify --> Ready[FramePreparation::Ready]
-        Ready --> SessionGate[BackendSessionGate]
+        StableNotify --> Ready[FramePreparation::Ready<br/>提交包已就绪]
+        Ready --> HostSubmit[Host 调用 RenderBackend::submit]
+        HostSubmit --> SessionGate[BackendSessionGate]
         SessionGate --> Backend[RenderBackend / Vello]
         Backend -->|Presented| Pixels[平台绘制表面]
         Backend --> Outcome[RenderResult]
@@ -247,8 +248,11 @@ sequenceDiagram
 - 没有脏连接时，不调用 `ConnectionRuntime` 路由；
 - 没有像素或资源变化时，帧准备可以返回 `Idle`；
 - 循环表示按固定优先级排空派生工作，不表示反复扫描整棵图形树；
-- `RenderSubmission` 返回给宿主前已经形成稳定场景状态，后端不能反向修改
-  `FigureTree`。
+- `FramePreparation::Ready` 表示渲染提交包已就绪，Host 尚未调用后端；
+- `RenderSubmission` 返回给 Host 前已经形成稳定场景状态，后端不能反向修改
+  `FigureTree`；
+- 只有后端返回 `Presented` 才表示帧已呈现，Runtime 返回 acknowledgement 后才表示
+  完成结果已确认。
 
 总体流程有三类入口，但最终汇入同一个 `Runtime` 事务：
 
@@ -270,10 +274,11 @@ sequenceDiagram
 - `FigureRenderer` 递归遍历稳定的 `FigureTree`，向 `NdCanvas` 录制
   `RenderCommand`。
 
-两者与资源同步、绘制表面及会话/帧身份一起组成 `RenderSubmission`。后端提交完成后
-必须把完整 `RenderResult` 交还 `Runtime::complete_submission`：成功时结束当前帧；
-瞬时失败恢复资源同步状态，device lost 递增 session 并要求重建 backend，确定性拒绝
-和终止类失败停止自动提交。场景稳定通知在提交包准备好
+两者与资源同步、绘制表面及会话/帧身份一起组成 `RenderSubmission`，此时渲染提交包
+已就绪。Host 随后把提交包交给后端，并把完整 `RenderResult` 交还
+`Runtime::complete_submission`：`Presented` 表示帧已呈现；瞬时失败恢复资源同步
+状态，device lost 递增 session 并要求重建 backend，确定性拒绝和终止类失败停止自动
+提交。场景稳定通知在提交包准备好
 或确认本轮无帧可提交后发布；后端提交结果则在完成回调后发布，二者不是同一类通知。
 如果绘制表面暂停、前一帧尚未完成或稳定化失败，`FramePreparation` 会返回
 `Suspended`、`AwaitingCompletion` 或 `Error`，本轮不会产生不完整的提交包。
@@ -284,7 +289,7 @@ sequenceDiagram
 |---|---|---|
 | 几何事实与坐标传播 | `NodeState.bounds`、`Insets`、`ChildTransform`、各坐标域 | [第 2 章](02-geometry-and-coordinates.md) |
 | 图形树与绘制遍历 | `FigureTree`、`FigureNode`、`Figure`、`FigureRenderer`、`NdCanvas` | [第 3 章](03-figure-tree-and-rendering.md) |
-| 布局、稳定化与帧提交 | `LayoutSnapshot`、`LayoutManager`、`LayoutOutput`、`UpdateManager`、`DamageSet`、`RenderSubmission` | [第 4 章](04-layout-update-and-frame.md) |
+| 布局、稳定化与帧提交准备 | `LayoutSnapshot`、`LayoutManager`、`LayoutOutput`、`UpdateManager`、`DamageSet`、`RenderSubmission` | [第 4 章](04-layout-update-and-frame.md) |
 | 输入与持续交互状态 | `InputEvent`、`EventDispatcher`、`InteractionState`、`EventContext`、`DispatchOutcome` | [第 5 章](05-input-and-interaction.md) |
 | 图层、视口与滚动 | `LayeredPaneState`、`FreeformState`、`ViewportLayout`、`RangeModel`、`ZoomManager` | [第 6 章](06-layers-and-viewport.md) |
 | 连接派生几何 | `ConnectionRuntime`、`SceneQuery`、`Anchor`、`Router`、`RouteOutput` | [第 7 章](07-connections.md) |

@@ -1,4 +1,4 @@
-# 3. Runtime 事务与稳定帧
+# 3. Runtime 事务与帧提交准备
 
 > **本章解决的问题**：一次输入或状态修改如何安全地收敛为可提交帧，以及修改执行链时
 > 必须保护哪些阶段边界。
@@ -28,10 +28,12 @@
 -> 收敛到稳定场景状态
 -> 计算重绘区域
 -> 录制绘制命令
--> 生成 RenderSubmission
--> Backend 提交
--> Runtime 接收完成反馈
--> 发布稳定通知
+-> 生成 RenderSubmission，提交包已就绪
+-> 发布 Prepared 与场景稳定通知
+-> Host 调用 RenderBackend::submit
+-> Backend 返回 RenderResult
+-> Runtime 完成 complete_submission
+-> 发布 Submitted 通知并返回 SubmissionAcknowledgement
 ```
 
 修改任何阶段时，都要检查前后阶段是否仍然只读取它们承诺的状态版本。
@@ -57,10 +59,15 @@ Context 和 Query 不拥有 Runtime 状态。`EventSceneQuery` 读取 callback �
 Effects、Output 和 Commands 承载候选变化或延迟意图。Query 不能隐式提交、flush 或
 stabilize，也不能观察当前 callback 尚未提交的 effect。
 
-## 3.5 稳定场景状态与提交完成不同
+## 3.5 稳定场景状态、提交包就绪与完成确认不同
 
 稳定场景状态表示布局和派生状态已经收敛，不代表 GPU 已经消费本帧。Runtime 必须保留
 session 与 frame 身份，宿主将后端结果交回完成入口后，才能推进相关资源和提交状态。
+
+`FramePreparation::Ready` 表示渲染提交包已就绪。只有 Host 调用
+`RenderBackend::submit` 后，提交才已经发起；只有 `RenderResult` 为
+`Ok(RenderDisposition::Presented)` 时，帧才已呈现；Runtime 返回
+`SubmissionAcknowledgement` 后，资源基线和恢复动作才完成确认。
 
 `Suspended` 只表示 surface 当前不可呈现。Runtime 仍管理已提交场景状态和待处理工作，
 但该结果本身不证明最新派生工作已经稳定。

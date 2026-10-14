@@ -60,6 +60,12 @@ Runtime 直接状态使用“场景源状态”，提交后的前缀使用“已
 的一致读边界使用“稳定场景状态”，Query 读取的具体值使用“场景数据项”或“查询依赖
 项”。源码注释和 ADR 中的 `scene facts` 保持原词，普通叙述不使用未限定的“场景事实”。
 
+运行时帧协议使用以下固定名称：`prepare_submission` 是“帧提交准备”，
+`FramePreparation::Ready` 表示“渲染提交包已就绪”，`RenderBackend::submit` 是 Host
+“提交后端”，`RenderDisposition::Presented` 表示“帧已呈现”，
+`SubmissionAcknowledgement` 表示 Runtime 已形成完成确认结果。真实代码标识符保持
+原名，普通叙述不使用“帧出版”。
+
 ## 同步规则
 
 发生以下变化时必须检查贡献者指南：

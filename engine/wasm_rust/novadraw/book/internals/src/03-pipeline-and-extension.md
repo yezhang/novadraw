@@ -43,7 +43,7 @@ flowchart TD
     Validate --> Commit[Runtime commit]
     Commit --> Stabilize[Runtime 收敛派生状态]
     Stabilize --> SlotB[扩展插槽：record / lower]
-    SlotB --> Publish[Runtime publish]
+    SlotB --> Publish[Runtime 发布]
 
     StyleA[Figure / Layout / Router] -.策略.-> SlotA
     StyleB[Graphics / Backend] -.策略.-> SlotB
@@ -89,7 +89,7 @@ Runtime 决定何时调用
 
 ## 3.4 四阶段事务
 
-跨对象变化通常应拆成 prepare、validate、commit、publish。
+跨对象变化通常应拆成 prepare、validate、commit 和发布。
 
 ### Prepare
 
@@ -153,7 +153,7 @@ sequenceDiagram
     Runtime->>Runtime: validate(candidate, current)
     Runtime->>Runtime: commit atomically
     Runtime->>Runtime: stabilize derived state
-    Runtime-->>Observer: publish stable result
+    Runtime-->>Observer: 发布稳定结果
 ```
 
 ## 3.5 为什么扩展优先返回候选结果

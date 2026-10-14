@@ -20,7 +20,8 @@
 本章先约定四个高频名称：
 
 - **图形对象或图形行为（Figure）**：场景中的可组合节点，或节点上的具体行为协议；
-- **场景运行时（Runtime）**：提交场景事务、收敛派生状态并出版帧的权威；
+- **场景运行时（Runtime）**：提交场景事务、收敛派生状态、准备渲染提交包并确认完成
+  结果的权威；
 - **查看器（Viewer）**：根据业务模型构建和同步编辑部件与图形对象的当前视图；
 - **重绘区域（damage）**：逻辑表面上可能需要修复的保守像素范围。
 
@@ -245,19 +246,22 @@ sequenceDiagram
     Runtime->>Runtime: 计算重绘区域
     Runtime->>Recorder: 稳定场景状态 + 表现快照
     Recorder-->>Runtime: 绘制命令
-    Runtime-->>Host: RenderSubmission
-    Host->>Backend: submit
+    Runtime-->>Host: FramePreparation::Ready(RenderSubmission)
+    Host->>Backend: RenderBackend::submit
     Backend-->>Host: RenderResult
     Host->>Runtime: complete_submission
     Runtime-->>Host: SubmissionAcknowledgement
 ```
 
-这条链包含四个容易混淆的边界：
+这条链包含六个容易混淆的阶段：
 
 1. **场景稳定**：所有必须的派生状态已经闭合，形成稳定场景状态；
 2. **表现采样**：只读表现快照已经形成，但没有改变已提交场景状态；
-3. **帧已出版**：Runtime 已分配 session/frame，并建立 in-flight 状态；
-4. **完成已确认**：Runtime 已根据后端结果确认资源基线和恢复动作。
+3. **提交包已就绪**：Runtime 已分配 session/frame 并建立 in-flight 状态，但 Host
+   尚未调用后端；
+4. **提交后端**：Host 已调用 `RenderBackend::submit`，但结果尚未确定；
+5. **帧已呈现**：后端返回 `Ok(RenderDisposition::Presented)`；
+6. **完成已确认**：Runtime 已根据完整后端结果确认资源基线和恢复动作。
 
 稳定场景状态不等于像素已经呈现。后端返回结果也不等于完成协议已经关闭；平台宿主
 必须把完整结果交回 Runtime。反过来，后端和宿主都不能因为提交失败就私自改写已提交

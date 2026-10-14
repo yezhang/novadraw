@@ -67,7 +67,7 @@ damage 是正确性边界，允许多报，不允许漏报：
 -> 冻结本次稳定场景状态的只读视图
 -> 汇总 damage
 -> 录制绘制命令
--> 封装提交
+-> 生成 RenderSubmission，提交包已就绪
 ```
 
 “冻结”不一定复制整棵树，但必须保证录制期间结构和相关状态不会被重入修改。
@@ -104,16 +104,17 @@ Figure 调用 Graphics 录制命令，不直接访问 GPU 对象。这样 Figure
 
 Graphics 不是场景查询接口。绘制回调不应通过它修改 Figure 树。
 
-### 录制不等于帧出版
+### 录制完成不等于提交包就绪
 
 独立调用者可以通过命令录制器（`CommandRecorder`）和绘制上下文（`PaintContext`）
 生成 `RecordedDrawing`。它只表示一段已经通过绘制语法校验的命令记录，不携带 surface、
 backend session 或 frame identity，也不等于可以交给后端的帧。
 
 图形对象、形状和边框使用同一套 `PaintContext` 语言。绘制回调返回结构化
-`GraphicsError`；Renderer 可以恢复内部状态栈，但只要任一回调失败，本帧就不能出版。
+`GraphicsError`；Renderer 可以恢复内部状态栈，但只要任一回调失败，本次就不能生成
+提交包。
 
-只有 Runtime 能把录制结果提升为 `RenderSubmission`。出版前，它还必须：
+只有 Runtime 能把录制结果提升为 `RenderSubmission`。提交包就绪前，它还必须：
 
 - 确认派生状态已经稳定；
 - 冻结重绘区域和资源同步；
@@ -121,8 +122,9 @@ backend session 或 frame identity，也不等于可以交给后端的帧。
 - 分配 session/frame identity；
 - 建立 in-flight 状态。
 
-因此，公开录制器负责“命令是否有效”，Runtime 负责“这一帧能否成为当前会话中的事实”。
-把两个边界合并，会允许 Figure 或应用绕过稳定化、资源基线和完成确认。
+因此，公开录制器负责“命令是否有效”，Runtime 负责生成带 session/frame 身份并纳入
+in-flight 管理的正式提交包。把两个边界合并，会允许 Figure 或应用绕过稳定化、资源
+基线和完成确认。
 
 ## 7.7 状态栈
 
@@ -222,9 +224,9 @@ ResourceProvider，也不主动读取文件或轮询异步任务。
 
 ```mermaid
 flowchart TD
-    Stable[稳定场景状态] --> Prepare[Runtime 准备 RenderSubmission]
-    Prepare --> Host[Host 取得提交]
-    Host --> Backend[RenderBackend::submit]
+    Stable[稳定场景状态] --> Prepare[Runtime 执行帧提交准备]
+    Prepare --> Ready[FramePreparation::Ready<br/>提交包已就绪]
+    Ready --> Backend[Host 调用 RenderBackend::submit]
     Backend --> Result{RenderResult}
 
     Result -->|Presented| Presented[已呈现]
@@ -322,7 +324,7 @@ damage 可以限制需要修复的区域，但命令生成仍应保持完整场�
 
 ### Skipped 与 Retry
 
-二者都表示当前帧未发布。Runtime 恢复 in-flight 资源并保留完整重绘需求。Host 可以
+二者都表示当前帧未呈现。Runtime 恢复 in-flight 资源并保留完整重绘需求。Host 可以
 根据可见性和 wakeup 规则再次请求 redraw，但动画时间和已提交场景状态不回退。
 
 ### SurfaceLost
@@ -362,7 +364,7 @@ Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失�
 7. 只有 Runtime 可以确认资源基线和递增 backend session；
 8. 未呈现或失败的提交保留完整重绘需求；
 9. 确定性拒绝和终止失败不得自动循环重试；
-10. 录制结果不携带帧身份，只有 Runtime 可以出版提交；
+10. 录制结果不携带帧身份，只有 Runtime 可以生成正式渲染提交包；
 11. 平台 provider 不进入 Runtime，异步资源完成必须验证请求令牌。
 
 ## 7.17 常见错误设计
@@ -377,8 +379,8 @@ Runtime 终止当前自动提交链路。OOM 不自动重试，避免无界失�
 
 ### 应用把录制结果直接包装成提交
 
-应用绕过场景稳定化、重绘区域、资源基线和 session/frame identity，形成第二个帧出版
-权威。
+应用绕过场景稳定化、重绘区域、资源基线和 session/frame identity，形成一条绕过
+Runtime 的提交包生成路径。
 
 ### 绘制中修改 Figure
 

@@ -39,7 +39,12 @@
 | 派生状态 | derived state | 由源状态计算得到、可失效并重新生成的状态 |
 | 稳定版本 | stable epoch | 所有必需派生工作闭合后，可以对外发布的场景版本 |
 | 渲染提交包 | RenderSubmission | 携带命令、重绘区域、资源、绘制表面与帧身份的后端输入 |
-| 帧 | frame | 引擎为一次屏幕呈现准备并提交的完整结果 |
+| 帧提交准备 | frame submission preparation | Runtime 从稳定场景状态生成正式渲染提交包的过程 |
+| 提交包已就绪 | FramePreparation::Ready | Runtime 已建立 in-flight，Host 尚未调用后端 |
+| 提交后端 | RenderBackend::submit | Host 把渲染提交包交给后端 |
+| 帧已呈现 | RenderDisposition::Presented | 后端确认目标表面已经呈现该帧 |
+| 完成确认结果 | SubmissionAcknowledgement | Runtime 根据后端结果确认资源与恢复状态后返回的结果 |
+| 帧 | frame | 由 session/frame 身份标识的一次渲染提交生命周期 |
 | 命中测试 | hit-test | 根据坐标找出应该接收输入的最前方图形对象 |
 | 指针捕获 | capture | 后续指针事件固定路由到某个图形对象的交互状态 |
 | 悬停 | hover | 指针当前停留在某个图形对象上的交互状态 |

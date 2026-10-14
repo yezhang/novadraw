@@ -283,7 +283,7 @@ Typed intent
 -> commit state
 -> enqueue invalidation
 -> stabilize
--> publish typed property changes
+-> 发布类型化属性变化
 ```
 
 扩展分类不同，不意味着每类对象拥有不同副作用管线。

@@ -107,8 +107,15 @@
    - 成功提交后的状态前缀：已提交场景状态；
    - stable epoch 的一致读边界：稳定场景状态；
    - SceneQuery 读取的具体值：场景数据项或查询依赖项。
+   - `prepare_submission`：帧提交准备；
+   - `FramePreparation::Ready`：渲染提交包已就绪；
+   - `RenderBackend::submit`：Host 提交后端；
+   - `RenderDisposition::Presented`：帧已呈现；
+   - `SubmissionAcknowledgement`：完成确认结果。
    普通叙述不使用未定义的“投影”；源码标识符保留原名，并在首次出现时解释。
    普通叙述不使用未限定的“场景事实”；源码注释中的 `scene facts` 可以保留。
+   普通叙述不使用“帧出版”，也不把提交包就绪写成帧已提交或已呈现。书稿内容筛选仍
+   使用“出版边界”。
 5. 图使用 Mermaid；优先 `flowchart`、`sequenceDiagram`、`classDiagram`。
 6. 图按实际发生顺序从上到下或从左到右，不能打乱因果链。
 7. 代码片段应短小，只保留解释契约所需的字段或步骤。引用当前实现时注明

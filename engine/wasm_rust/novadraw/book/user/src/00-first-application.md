@@ -232,7 +232,8 @@ runtime.pointer_exited();
 ## 7. 驱动一帧
 
 产品宿主拥有窗口和后端，Runtime 拥有场景事务。二者在帧边界交接
-`RenderSubmission`。
+`RenderSubmission`。`FramePreparation::Ready` 表示渲染提交包已就绪，不表示已经
+提交后端或已经呈现。
 
 下面是概念伪代码，省略了具体窗口和绘制表面创建：
 
@@ -242,7 +243,10 @@ fn redraw(
     backend: &mut impl RenderBackend,
     surface: novadraw::render::SurfaceInfo,
 ) {
-    let submission = match runtime.prepare_submission(surface, backend.capabilities()) {
+    let submission = match runtime
+        .frames()
+        .prepare_submission(surface, backend.capabilities())
+    {
         FramePreparation::Ready(submission) => submission,
         FramePreparation::Idle
         | FramePreparation::Suspended
@@ -253,12 +257,18 @@ fn redraw(
     let session_id = submission.session_id;
     let frame_id = submission.frame_id;
     let outcome = backend.submit(&submission);
-    assert!(runtime.complete_submission(session_id, frame_id, outcome));
+    let acknowledgement = runtime
+        .frames()
+        .complete_submission(session_id, frame_id, outcome)
+        .expect("prepared frame must match its completion");
+    handle_acknowledgement(acknowledgement);
 }
 ```
 
-宿主必须把后端结果交还 `Runtime::complete_submission`。否则 Runtime 无法确认资源
-增量是否已消费，也无法安全开始下一帧。
+宿主取得提交包后调用 `RenderBackend::submit`。只有后端返回
+`Ok(RenderDisposition::Presented)` 时，该帧才已呈现。宿主随后必须把完整后端结果
+交还 `Runtime::complete_submission`；Runtime 返回完成确认结果后，资源基线和恢复动作
+才得到确认。省略该步骤会使 Runtime 无法安全开始下一帧。
 
 真实桌面实现见 [`examples/support/src/app.rs`](../../../examples/support/src/app.rs)。帧准备状态和
 失败恢复见[第 4 章](04-layout-update-and-frame.md)。

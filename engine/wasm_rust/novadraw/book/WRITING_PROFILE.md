@@ -105,6 +105,17 @@
 不需要区分提交和稳定阶段时，可以使用“场景状态”，但必须写明由 Runtime 管理。源码
 注释、ADR 或外部原文中的 `scene facts` 可以保留；读者正文必须按语境翻译。
 
+“帧出版”不能用于运行时帧协议。普通叙述必须按实际阶段选择名称：
+
+- Runtime 从稳定场景状态生成正式 `RenderSubmission` 的过程称为“帧提交准备”；
+- `FramePreparation::Ready(RenderSubmission)` 称为“渲染提交包已就绪”；
+- Host 调用 `RenderBackend::submit` 称为“提交后端”；
+- `RenderResult` 为 `Ok(RenderDisposition::Presented)` 时，才称为“帧已呈现”；
+- Runtime 接收完整结果并返回 `SubmissionAcknowledgement` 后，称为“完成已确认”。
+
+书籍出版、成书边界和读者内容筛选仍使用“出版”。通用事务、通知和结构对外可见使用
+“发布”。
+
 ### BP-04 首次出现即定义
 
 概念首次出现时，应说明：
@@ -268,6 +279,11 @@
 | committed scene state | 已提交场景状态 | Runtime 已经接受并原子写入的场景状态前缀 |
 | stable scene state | 稳定场景状态 | stable epoch 中必需派生工作已经闭合的一致读边界 |
 | scene data item | 场景数据项 | SceneQuery 读取并用于依赖追踪的具体值 |
+| frame submission preparation | 帧提交准备 | Runtime 从稳定场景状态生成正式渲染提交包的过程 |
+| FramePreparation::Ready | 渲染提交包已就绪 | Runtime 已建立 in-flight，Host 尚未调用后端 |
+| RenderBackend::submit | 提交后端 | Host 把渲染提交包交给后端 |
+| RenderDisposition::Presented | 帧已呈现 | 后端确认目标表面已经呈现该帧 |
+| SubmissionAcknowledgement | 完成确认结果 | Runtime 根据完整后端结果确认资源与恢复状态 |
 
 ### 5.3 禁止无定义切换
 
@@ -280,6 +296,7 @@
 - 失败、拒绝、取消、故障锁定；
 - 视图派生、坐标变换和未定义的 projection。
 - 场景源状态、已提交场景状态、稳定场景状态和未加限定的“场景事实”。
+- 帧提交准备、提交包已就绪、提交后端、帧已呈现和完成已确认。
 
 如果这些概念确实不同，应分别定义。
 
@@ -294,6 +311,24 @@
 - 等、之类、某些、多种。
 
 这些词语不是全局禁用词。只有在读者无法确定对象、条件、责任方或结果时才构成问题。
+
+### 5.5 帧协议必须分阶段书写
+
+描述帧生命周期时，必须保留以下因果顺序：
+
+```text
+场景状态稳定
+-> 表现快照形成
+-> 绘制命令录制完成
+-> 渲染提交包已就绪
+-> Host 提交后端
+-> 后端返回 RenderResult
+-> Runtime 确认完成结果
+```
+
+不得把“提交包已就绪”写成“帧已提交”或“帧已呈现”，也不得省略 Host 调用后端的
+阶段。读者正文不使用“帧出版”“出版帧”“出版提交”或“出版权威”。ADR 标题、源码
+标识符和引用原文保持原样。
 
 ## 6. 事实与出版边界
 

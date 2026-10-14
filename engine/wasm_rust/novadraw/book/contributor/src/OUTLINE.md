@@ -46,7 +46,7 @@
 
 1. 把变化定位到正确 crate 和 owner；
 2. 区分权威状态、派生状态、缓存和临时反馈；
-3. 分析 prepare、validate、commit 与 publication；
+3. 分析 prepare、validate、commit 与发布；
 4. 区分基础协议、横切 Capability、共享模型和具体组件；
 5. 修改 Runtime 或 Editor 时保持身份和事务边界；
 6. 为失败、取消、stale identity 和部分发布设计负向测试；

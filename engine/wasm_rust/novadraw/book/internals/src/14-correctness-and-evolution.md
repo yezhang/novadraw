@@ -55,7 +55,7 @@ Commit 已开始修改权威状态后再失败，风险完全不同。应优先�
 1. commit 只执行不会失败的内存交换；
 2. 所有可失败工作在 prepare/validate 完成；
 3. 多项修改封装为单一事务；
-4. publication 和外部 I/O 放在 commit 之后。
+4. 发布和外部 I/O 放在 commit 之后。
 
 如果提交阶段仍可能失败，必须提供完整补偿，或把系统标记为 faulted。不能返回普通
 错误后继续接受操作。
@@ -105,7 +105,7 @@ Commit 已开始修改权威状态后再失败，风险完全不同。应优先�
 一旦跨越发布边界，简单内存回滚不再恢复事实。系统需要新的补偿事件、session 重建或
 进入故障状态。
 
-因此 publication 必须尽量晚，并携带事务/revision 身份。
+因此，发布必须尽量晚，并携带事务/revision 身份。
 
 ## 14.7 状态机
 
@@ -342,7 +342,7 @@ stateDiagram-v2
 8. 坐标链统一把旧新 visual bounds 变换到逻辑表面域；
 9. Animation 只生成可丢弃 presentation，不修改 committed truth；
 10. PaintContext 和 CommandRecorder 使用稳定场景状态与表现快照生成受检绘制记录；
-11. Runtime 是唯一帧出版权威，并为 RenderSubmission 分配 session/frame；
+11. 只有 Runtime 可以生成正式 `RenderSubmission` 并分配 session/frame；
 12. Backend 返回结构化 RenderResult；
 13. Runtime acknowledgement 决定资源基线和 session 恢复；
 14. 异步资源完成只接受当前 ResourceRequestToken；
@@ -411,7 +411,7 @@ Novadraw 的核心不是某个渲染算法或某组 Figure 类型，而是一组
 ## 14.24 思考题
 
 1. 哪些错误可以安全重试，哪些必须开启新 session？
-2. 为什么 publication 之后的失败不能只靠内存回滚解决？
+2. 为什么发布之后的失败不能只靠内存回滚解决？
 3. 一个性能优化需要证明哪些结果等价？
 4. 架构迁移期间如何避免新旧 API 同时成为写入权威？
 5. 如果一个测试只验证最终像素，它遗漏了哪些框架事实？
